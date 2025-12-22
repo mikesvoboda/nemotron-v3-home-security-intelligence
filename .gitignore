@@ -34,6 +34,13 @@ ai/nemotron/*.gguf
 *.log
 logs/
 
+# Testing/Coverage
+.coverage
+coverage/
+htmlcov/
+.pytest_cache/
+*.coverage
+
 # OS
 .DS_Store
 Thumbs.db

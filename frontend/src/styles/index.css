@@ -1,0 +1,184 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* NVIDIA Theme Custom Utilities */
+
+@layer base {
+  /* Base body styles */
+  body {
+    @apply bg-background text-text-primary antialiased;
+    font-feature-settings: 'liga' 1, 'calt' 1;
+  }
+
+  /* Scrollbar styles for dark theme */
+  ::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-900;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-700 rounded-lg;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-600;
+  }
+
+  /* Selection color */
+  ::selection {
+    @apply bg-primary-500/30 text-text-primary;
+  }
+}
+
+@layer components {
+  /* Card component styles */
+  .nvidia-card {
+    @apply bg-card rounded-xl p-6 border border-gray-800 shadow-dark-md;
+  }
+
+  .nvidia-card-hover {
+    @apply nvidia-card transition-all duration-250 hover:border-gray-700 hover:shadow-dark-lg;
+  }
+
+  /* Panel component styles */
+  .nvidia-panel {
+    @apply bg-panel rounded-2xl p-8 border border-gray-850 shadow-dark-lg;
+  }
+
+  /* Button variants */
+  .btn-primary {
+    @apply bg-primary-500 hover:bg-primary-600 active:bg-primary-700 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-250;
+  }
+
+  .btn-secondary {
+    @apply bg-gray-800 hover:bg-gray-700 active:bg-gray-600 text-text-primary font-medium px-4 py-2 rounded-lg transition-colors duration-250;
+  }
+
+  .btn-ghost {
+    @apply hover:bg-gray-800 active:bg-gray-700 text-text-primary font-medium px-4 py-2 rounded-lg transition-colors duration-250;
+  }
+
+  /* Risk badge styles */
+  .risk-badge-low {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-risk-low/10 text-risk-low border border-risk-low/30;
+  }
+
+  .risk-badge-medium {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-risk-medium/10 text-risk-medium border border-risk-medium/30;
+  }
+
+  .risk-badge-high {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-risk-high/10 text-risk-high border border-risk-high/30;
+  }
+
+  /* Input styles */
+  .nvidia-input {
+    @apply bg-gray-850 border border-gray-700 rounded-lg px-4 py-2 text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-shadow duration-250;
+  }
+
+  /* Text styles */
+  .text-heading {
+    @apply text-text-primary font-semibold;
+  }
+
+  .text-body {
+    @apply text-text-secondary;
+  }
+
+  .text-muted {
+    @apply text-text-muted;
+  }
+
+  /* Loading skeleton */
+  .skeleton {
+    @apply animate-pulse bg-gray-800 rounded;
+  }
+
+  /* Divider */
+  .nvidia-divider {
+    @apply border-t border-gray-800;
+  }
+
+  /* Status indicators */
+  .status-dot {
+    @apply inline-block w-2 h-2 rounded-full;
+  }
+
+  .status-online {
+    @apply status-dot bg-risk-low shadow-nvidia-glow animate-pulse-glow;
+  }
+
+  .status-offline {
+    @apply status-dot bg-gray-600;
+  }
+
+  .status-warning {
+    @apply status-dot bg-risk-medium;
+  }
+
+  .status-error {
+    @apply status-dot bg-risk-high;
+  }
+}
+
+@layer utilities {
+  /* Glass morphism effect */
+  .glass {
+    background: rgba(26, 26, 26, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* Text gradient */
+  .text-gradient-nvidia {
+    @apply bg-gradient-to-r from-primary-400 to-primary-600 bg-clip-text text-transparent;
+  }
+
+  /* Glow effects */
+  .glow-nvidia {
+    box-shadow: 0 0 20px rgba(118, 185, 0, 0.3);
+  }
+
+  .glow-nvidia-strong {
+    box-shadow: 0 0 30px rgba(118, 185, 0, 0.5), 0 0 60px rgba(118, 185, 0, 0.3);
+  }
+
+  /* Hover glow */
+  .hover-glow-nvidia {
+    @apply transition-shadow duration-400;
+  }
+
+  .hover-glow-nvidia:hover {
+    box-shadow: 0 0 20px rgba(118, 185, 0, 0.4);
+  }
+
+  /* Text truncation utilities */
+  .truncate-2-lines {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .truncate-3-lines {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
