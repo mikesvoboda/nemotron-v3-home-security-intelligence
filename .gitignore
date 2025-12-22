@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Environment
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build
+dist/
+build/
+*.egg-info/
+
+# Data
+*.db
+*.sqlite
+backend/data/thumbnails/
+backend/data/security.db
+
+# AI Models (large files)
+ai/rtdetr/weights/
+ai/nemotron/*.gguf
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Beads (local issue tracking)
+.beads/
