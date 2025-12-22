@@ -27,15 +27,144 @@ bd sync                    # Sync with git
 
 ## Epic Overview
 
-| Epic ID | Name | Tasks | Priority |
-|---------|------|-------|----------|
-| home_security_intelligence-337 | Project Setup & Infrastructure | 8 | P0 |
-| home_security_intelligence-7z7 | Backend Core - FastAPI & Database | 12 | P0 |
-| home_security_intelligence-61l | AI Pipeline - RT-DETRv2 & Nemotron | 9 | P0 |
-| home_security_intelligence-m9u | Frontend Dashboard - React UI | 16 | P0 |
-| home_security_intelligence-fax | Integration & E2E Testing | 8 | P0 |
+| Epic ID | Name | Tasks |
+|---------|------|-------|
+| home_security_intelligence-337 | Project Setup & Infrastructure | 8 |
+| home_security_intelligence-7z7 | Backend Core - FastAPI & Database | 18 |
+| home_security_intelligence-61l | AI Pipeline - RT-DETRv2 & Nemotron | 13 |
+| home_security_intelligence-m9u | Frontend Dashboard - React UI | 20 |
+| home_security_intelligence-fax | Integration & E2E Testing | 8 |
 
-**Recommended execution order:** Setup → Backend → AI Pipeline → Frontend → Integration
+**Total: 67 tasks** (includes 14 TDD test tasks)
+
+---
+
+## Execution Phases
+
+Tasks are organized into **8 execution phases** using labels. Complete phases in order.
+
+### Phase 1: Project Setup (P0) - 7 tasks
+```bash
+bd list --label phase-1
+```
+- Create backend directory structure
+- Create frontend directory structure
+- Create Docker Compose configuration
+- Create environment configuration
+- Create AI model startup scripts
+- Create backend requirements.txt
+- Create frontend package.json
+
+### Phase 2: Database & Layout Foundation (P1) - 6 tasks
+```bash
+bd list --label phase-2
+```
+- Implement SQLite database models
+- Implement database connection and migrations
+- Implement Redis connection
+- Configure Tailwind with NVIDIA theme
+- Implement app layout with sidebar navigation
+- **TDD:** Write tests for database models
+
+### Phase 3: Core APIs & Components (P2) - 11 tasks
+```bash
+bd list --label phase-3
+```
+- Implement cameras API endpoints
+- Implement system API endpoints
+- Implement media serving endpoint
+- Implement API client service
+- Implement WebSocket hooks
+- Implement BoundingBoxOverlay component
+- Implement RiskBadge component
+- **TDD:** Write tests for cameras API
+- **TDD:** Write tests for system API
+- **TDD:** Write tests for API client
+- **TDD:** Write tests for RiskBadge component
+
+### Phase 4: AI Pipeline (P3/P4) - 13 tasks
+```bash
+bd list --label phase-4
+```
+- Implement file watcher service
+- Implement RT-DETRv2 inference wrapper
+- Implement detector client service
+- Implement batch aggregator service
+- Implement Nemotron analyzer service
+- Implement Nemotron prompt template
+- Configure llama.cpp server for Nemotron
+- Implement thumbnail generation with bounding boxes
+- Create model download script
+- **TDD:** Write tests for file watcher service
+- **TDD:** Write tests for detector client
+- **TDD:** Write tests for batch aggregator
+- **TDD:** Write tests for Nemotron analyzer
+
+### Phase 5: Events & Real-time (P4) - 9 tasks
+```bash
+bd list --label phase-5
+```
+- Implement events API endpoints
+- Implement detections API endpoints
+- Implement WebSocket event channel
+- Implement WebSocket system channel
+- Implement GPU monitor service
+- Implement data cleanup service
+- **TDD:** Write tests for events API
+- **TDD:** Write tests for detections API
+- **TDD:** Write tests for WebSocket channels
+
+### Phase 6: Dashboard Components (P3) - 7 tasks
+```bash
+bd list --label phase-6
+```
+- Implement circular Risk Gauge component
+- Implement Live Activity Feed component
+- Implement Camera Grid component
+- Implement GPU Stats component
+- Implement EventCard component
+- **TDD:** Write tests for Dashboard components
+- **TDD:** Write tests for EventCard component
+
+### Phase 7: Pages & Modals (P4) - 6 tasks
+```bash
+bd list --label phase-7
+```
+- Implement main Dashboard page
+- Implement Event Timeline page
+- Implement Event Detail Modal
+- Implement Settings page - Cameras tab
+- Implement Settings page - Processing tab
+- Implement Settings page - AI Models tab
+
+### Phase 8: Integration & E2E (P4) - 8 tasks
+```bash
+bd list --label phase-8
+```
+- Create backend unit tests
+- Create frontend component tests
+- Create E2E pipeline integration test
+- Test Docker Compose deployment
+- Test native AI model startup
+- Create seed cameras script
+- Create project README
+- Create setup script
+
+---
+
+## TDD Workflow
+
+Tasks labeled `tdd` are test-first tasks. For each feature:
+
+1. **Write failing test first** (tdd task)
+2. **Implement feature** (feature task)
+3. **Verify tests pass**
+4. **Commit both together**
+
+Find all TDD tasks:
+```bash
+bd list --label tdd
+```
 
 ---
 
@@ -671,23 +800,24 @@ git push
 
 ---
 
-## Dependencies Between Tasks
+## Dependencies Between Phases
 
 ```
-Epic 1 (Setup) → Epic 2 (Backend) → Epic 3 (AI) → Epic 4 (Frontend) → Epic 5 (Integration)
+Phase 1 (Setup) → Phase 2 (DB/Layout) → Phase 3 (APIs) → Phase 4 (AI) → Phase 5 (Events) → Phase 6 (Components) → Phase 7 (Pages) → Phase 8 (E2E)
 
-Within Backend:
-- 2.1 (models) → 2.2 (database) → 2.3-2.12 (APIs/services)
+Phase Dependencies:
+- Phase 2 requires Phase 1 (directory structure, dependencies)
+- Phase 3 requires Phase 2 (database models, connections)
+- Phase 4 requires Phase 3 (API endpoints for AI to call)
+- Phase 5 requires Phase 4 (AI pipeline generates events)
+- Phase 6 requires Phase 3 (API client, WebSocket hooks)
+- Phase 7 requires Phase 6 (dashboard components)
+- Phase 8 requires Phase 7 (full system to test)
 
-Within AI:
-- 3.1 (file watcher) → 3.3 (detector client)
-- 3.2 (RT-DETR server) → 3.3 (detector client)
-- 3.4 (batch aggregator) → 3.5 (Nemotron analyzer)
-
-Within Frontend:
-- 4.1 (layout) → 4.8 (dashboard page)
-- 4.2 (API client) + 4.3 (WebSocket) → all page components
-- 4.4-4.7 (components) → 4.8 (dashboard composition)
+Parallel Work Opportunities:
+- Within Phase 3: Backend APIs and Frontend components can proceed in parallel
+- Within Phase 4: RT-DETRv2 and Nemotron setup can proceed in parallel
+- Within Phase 6: Individual components are independent
 ```
 
 ---
@@ -695,17 +825,25 @@ Within Frontend:
 ## Quick Start for Agent
 
 ```bash
-# 1. Check available work
-bd ready
+# 1. Check current phase (start with phase-1)
+bd list --label phase-1
 
-# 2. Pick first task from Epic 1
+# 2. Pick a task from current phase
 bd show home_security_intelligence-337.1
 
-# 3. Start working
+# 3. Claim the task
 bd update home_security_intelligence-337.1 --status in_progress
 
-# 4. Complete task following steps above
+# 4. For TDD tasks: write test first, verify it fails
+# 5. Implement the feature
+# 6. Verify tests pass
 
-# 5. Close and move to next
+# 7. Close and move to next
 bd close home_security_intelligence-337.1
+
+# 8. When phase complete, move to next phase
+bd list --label phase-2
+
+# 9. End of session
+bd sync && git push
 ```

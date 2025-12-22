@@ -12,6 +12,33 @@ bd close <id>         # Complete work
 bd sync               # Sync with git
 ```
 
+## Task Execution Order
+
+Tasks are organized into **8 execution phases**. Complete phases in order.
+
+| Phase | Priority | Focus | Tasks |
+|-------|----------|-------|-------|
+| 1 | P0 | Project Setup | 7 |
+| 2 | P1 | Database & Layout | 6 |
+| 3 | P2 | Core APIs & Components | 11 |
+| 4 | P3/P4 | AI Pipeline | 13 |
+| 5 | P4 | Events & Real-time | 9 |
+| 6 | P3 | Dashboard Components | 7 |
+| 7 | P4 | Pages & Modals | 6 |
+| 8 | P4 | Integration & E2E | 8 |
+
+**Find work by phase:**
+```bash
+bd list --label phase-1   # Start here
+bd list --label phase-2   # After phase-1 complete
+# ... and so on
+```
+
+**TDD tasks** (labeled `tdd`) should be completed alongside their feature tasks:
+```bash
+bd list --label tdd
+```
+
 ## Landing the Plane (Session Completion)
 
 **When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
