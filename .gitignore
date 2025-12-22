@@ -38,5 +38,6 @@ logs/
 .DS_Store
 Thumbs.db
 
-# Beads (local issue tracking)
-.beads/
+# Beads (track JSONL for collaboration, ignore local DB)
+.beads/*.db
+.beads/beads.db
