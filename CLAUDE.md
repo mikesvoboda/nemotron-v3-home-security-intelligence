@@ -81,6 +81,53 @@ Tasks labeled `tdd` are test tasks that should be completed alongside their feat
 bd list --label tdd
 ```
 
+## Testing Requirements
+
+**All features must have tests written at time of development.** No feature is complete without:
+
+1. **Unit tests** - Test individual functions/components in isolation
+2. **Integration tests** - Test interactions between components
+
+### Test Locations
+
+```
+backend/tests/
+  unit/              # Python unit tests (pytest)
+  integration/       # API and service integration tests
+frontend/
+  src/**/*.test.ts   # Component and hook tests (Vitest)
+  tests/e2e/         # End-to-end tests
+```
+
+### Validation Workflow
+
+After implementing any feature, **dispatch a validation agent** to run tests:
+
+```bash
+# Backend tests
+pytest backend/tests/ -v
+
+# Frontend tests
+cd frontend && npm test
+
+# Full validation
+pytest backend/tests/ -v && cd frontend && npm test
+```
+
+**CRITICAL:** Do not mark a task as complete until:
+- All relevant tests pass
+- A validation agent has confirmed no regressions
+- Test coverage includes both happy path and error cases
+
+### When to Dispatch Validation Agents
+
+- After implementing any new feature
+- After modifying existing code
+- Before closing any task
+- Before committing code
+
+Validation agents should run the full test suite and report any failures. Fix all failures before proceeding.
+
 ## Key Design Decisions
 
 - **Risk scoring:** LLM-determined (Nemotron analyzes detections and assigns 0-100 score)
