@@ -1,0 +1,209 @@
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+
+import RiskBadge from './RiskBadge';
+
+describe('RiskBadge', () => {
+  describe('risk level rendering', () => {
+    it('renders low risk badge with green styling', () => {
+      render(<RiskBadge level="low" />);
+      const badge = screen.getByText('Low');
+      expect(badge).toBeInTheDocument();
+      expect(badge.closest('span')).toHaveClass('bg-green-500/10', 'text-green-500');
+    });
+
+    it('renders medium risk badge with yellow styling', () => {
+      render(<RiskBadge level="medium" />);
+      const badge = screen.getByText('Medium');
+      expect(badge).toBeInTheDocument();
+      expect(badge.closest('span')).toHaveClass('bg-yellow-500/10', 'text-yellow-500');
+    });
+
+    it('renders high risk badge with orange styling', () => {
+      render(<RiskBadge level="high" />);
+      const badge = screen.getByText('High');
+      expect(badge).toBeInTheDocument();
+      expect(badge.closest('span')).toHaveClass('bg-orange-500/10', 'text-orange-500');
+    });
+
+    it('renders critical risk badge with red styling', () => {
+      render(<RiskBadge level="critical" />);
+      const badge = screen.getByText('Critical');
+      expect(badge).toBeInTheDocument();
+      expect(badge.closest('span')).toHaveClass('bg-red-500/10', 'text-red-500');
+    });
+  });
+
+  describe('score display', () => {
+    it('displays score when showScore is true', () => {
+      render(<RiskBadge level="high" score={72} showScore={true} />);
+      expect(screen.getByText('High (72)')).toBeInTheDocument();
+    });
+
+    it('does not display score when showScore is false', () => {
+      render(<RiskBadge level="high" score={72} showScore={false} />);
+      expect(screen.getByText('High')).toBeInTheDocument();
+      expect(screen.queryByText('High (72)')).not.toBeInTheDocument();
+    });
+
+    it('does not display score when showScore is undefined', () => {
+      render(<RiskBadge level="high" score={72} />);
+      expect(screen.getByText('High')).toBeInTheDocument();
+      expect(screen.queryByText('High (72)')).not.toBeInTheDocument();
+    });
+
+    it('does not display score when score is undefined', () => {
+      render(<RiskBadge level="high" showScore={true} />);
+      expect(screen.getByText('High')).toBeInTheDocument();
+      expect(screen.queryByText(/\(\d+\)/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('size variants', () => {
+    it('renders small size with text-xs', () => {
+      render(<RiskBadge level="low" size="sm" />);
+      const badge = screen.getByText('Low');
+      expect(badge.closest('span')).toHaveClass('text-xs', 'px-2', 'py-0.5');
+    });
+
+    it('renders medium size with text-sm (default)', () => {
+      render(<RiskBadge level="low" />);
+      const badge = screen.getByText('Low');
+      expect(badge.closest('span')).toHaveClass('text-sm', 'px-2.5', 'py-1');
+    });
+
+    it('renders large size with text-base', () => {
+      render(<RiskBadge level="low" size="lg" />);
+      const badge = screen.getByText('Low');
+      expect(badge.closest('span')).toHaveClass('text-base', 'px-3', 'py-1.5');
+    });
+  });
+
+  describe('animation', () => {
+    it('applies pulse animation for critical level when animated is true', () => {
+      render(<RiskBadge level="critical" animated={true} />);
+      const badge = screen.getByText('Critical');
+      expect(badge.closest('span')).toHaveClass('animate-pulse');
+    });
+
+    it('does not apply pulse animation for critical level when animated is false', () => {
+      render(<RiskBadge level="critical" animated={false} />);
+      const badge = screen.getByText('Critical');
+      expect(badge.closest('span')).not.toHaveClass('animate-pulse');
+    });
+
+    it('does not apply pulse animation for non-critical levels', () => {
+      render(<RiskBadge level="low" animated={true} />);
+      const badge = screen.getByText('Low');
+      expect(badge.closest('span')).not.toHaveClass('animate-pulse');
+    });
+
+    it('applies pulse animation by default for critical level', () => {
+      render(<RiskBadge level="critical" />);
+      const badge = screen.getByText('Critical');
+      expect(badge.closest('span')).toHaveClass('animate-pulse');
+    });
+  });
+
+  describe('icons', () => {
+    it('renders CheckCircle icon for low risk', () => {
+      const { container } = render(<RiskBadge level="low" />);
+      const svg = container.querySelector('svg');
+      expect(svg).toBeInTheDocument();
+      expect(svg?.classList.toString()).toContain('lucide-check-circle');
+    });
+
+    it('renders AlertTriangle icon for medium risk', () => {
+      const { container } = render(<RiskBadge level="medium" />);
+      const svg = container.querySelector('svg');
+      expect(svg).toBeInTheDocument();
+      expect(svg?.classList.toString()).toContain('lucide-alert-triangle');
+    });
+
+    it('renders AlertTriangle icon for high risk', () => {
+      const { container } = render(<RiskBadge level="high" />);
+      const svg = container.querySelector('svg');
+      expect(svg).toBeInTheDocument();
+      expect(svg?.classList.toString()).toContain('lucide-alert-triangle');
+    });
+
+    it('renders AlertOctagon icon for critical risk', () => {
+      const { container } = render(<RiskBadge level="critical" />);
+      const svg = container.querySelector('svg');
+      expect(svg).toBeInTheDocument();
+      expect(svg?.classList.toString()).toContain('lucide-alert-octagon');
+    });
+
+    it('renders icon with correct size for small badge', () => {
+      const { container } = render(<RiskBadge level="low" size="sm" />);
+      const svg = container.querySelector('svg');
+      expect(svg).toHaveClass('w-3', 'h-3');
+    });
+
+    it('renders icon with correct size for medium badge', () => {
+      const { container } = render(<RiskBadge level="low" size="md" />);
+      const svg = container.querySelector('svg');
+      expect(svg).toHaveClass('w-4', 'h-4');
+    });
+
+    it('renders icon with correct size for large badge', () => {
+      const { container } = render(<RiskBadge level="low" size="lg" />);
+      const svg = container.querySelector('svg');
+      expect(svg).toHaveClass('w-5', 'h-5');
+    });
+  });
+
+  describe('accessibility', () => {
+    it('includes aria-label for low risk', () => {
+      render(<RiskBadge level="low" />);
+      const badge = screen.getByLabelText('Risk level: Low');
+      expect(badge).toBeInTheDocument();
+    });
+
+    it('includes aria-label with score when score is displayed', () => {
+      render(<RiskBadge level="high" score={72} showScore={true} />);
+      const badge = screen.getByLabelText('Risk level: High, score 72');
+      expect(badge).toBeInTheDocument();
+    });
+
+    it('includes role="status" attribute', () => {
+      render(<RiskBadge level="medium" />);
+      const badge = screen.getByRole('status');
+      expect(badge).toBeInTheDocument();
+    });
+  });
+
+  describe('custom className', () => {
+    it('applies custom className to badge', () => {
+      render(<RiskBadge level="low" className="custom-class" />);
+      const badge = screen.getByText('Low');
+      expect(badge.closest('span')).toHaveClass('custom-class');
+    });
+
+    it('merges custom className with default classes', () => {
+      render(<RiskBadge level="low" className="ml-4" />);
+      const badge = screen.getByText('Low');
+      expect(badge.closest('span')).toHaveClass('ml-4', 'inline-flex', 'items-center');
+    });
+  });
+
+  describe('base styling', () => {
+    it('has pill shape with rounded corners', () => {
+      render(<RiskBadge level="low" />);
+      const badge = screen.getByText('Low');
+      expect(badge.closest('span')).toHaveClass('rounded-full');
+    });
+
+    it('has inline-flex layout', () => {
+      render(<RiskBadge level="low" />);
+      const badge = screen.getByText('Low');
+      expect(badge.closest('span')).toHaveClass('inline-flex', 'items-center', 'gap-1');
+    });
+
+    it('has font-medium weight', () => {
+      render(<RiskBadge level="low" />);
+      const badge = screen.getByText('Low');
+      expect(badge.closest('span')).toHaveClass('font-medium');
+    });
+  });
+});
