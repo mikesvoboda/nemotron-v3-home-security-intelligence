@@ -27,49 +27,65 @@ bd sync                    # Sync with git
 Tasks are organized into 8 execution phases. **Always complete earlier phases before starting later ones.**
 
 ### Phase 1: Project Setup (P0) - 7 tasks
+
 Foundation - directory structures, Docker, environment, dependencies.
+
 ```bash
 bd list --label phase-1
 ```
 
 ### Phase 2: Database & Layout Foundation (P1) - 6 tasks
+
 SQLite models, Redis connection, Tailwind theme, app layout.
+
 ```bash
 bd list --label phase-2
 ```
 
 ### Phase 3: Core APIs & Components (P2) - 11 tasks
+
 Cameras API, system API, WebSocket hooks, API client, basic UI components.
+
 ```bash
 bd list --label phase-3
 ```
 
 ### Phase 4: AI Pipeline (P3/P4) - 13 tasks
+
 File watcher, RT-DETRv2 wrapper, detector client, batch aggregator, Nemotron analyzer.
+
 ```bash
 bd list --label phase-4
 ```
 
 ### Phase 5: Events & Real-time (P4) - 9 tasks
+
 Events API, detections API, WebSocket channels, GPU monitor, cleanup service.
+
 ```bash
 bd list --label phase-5
 ```
 
 ### Phase 6: Dashboard Components (P3) - 7 tasks
+
 Risk gauge, camera grid, live activity feed, GPU stats, EventCard.
+
 ```bash
 bd list --label phase-6
 ```
 
 ### Phase 7: Pages & Modals (P4) - 6 tasks
+
 Main dashboard, event timeline, event detail modal, settings pages.
+
 ```bash
 bd list --label phase-7
 ```
 
 ### Phase 8: Integration & E2E (P4) - 8 tasks
+
 Unit tests, E2E tests, deployment verification, documentation.
+
 ```bash
 bd list --label phase-8
 ```
@@ -77,6 +93,7 @@ bd list --label phase-8
 ## TDD Approach
 
 Tasks labeled `tdd` are test tasks that should be completed alongside their feature tasks:
+
 ```bash
 bd list --label tdd
 ```
@@ -115,6 +132,7 @@ pytest backend/tests/ -v && cd frontend && npm test
 ```
 
 **CRITICAL:** Do not mark a task as complete until:
+
 - All relevant tests pass
 - A validation agent has confirmed no regressions
 - Test coverage includes both happy path and error cases
@@ -131,6 +149,7 @@ Validation agents should run the full test suite and report any failures. Fix al
 ## Git and Pre-commit Rules
 
 **CRITICAL: Never bypass git pre-commit hooks.** All commits must pass pre-commit checks including:
+
 - `ruff check` - Python linting
 - `ruff format` - Python formatting
 - `mypy` - Python type checking
@@ -139,6 +158,7 @@ Validation agents should run the full test suite and report any failures. Fix al
 - `vitest` - Frontend tests with 95% coverage
 
 **Do NOT use:**
+
 - `git commit --no-verify`
 - `git push --no-verify`
 - Any flags that skip pre-commit hooks
@@ -163,6 +183,44 @@ pre-commit run --all-files
 - **No auth:** Single-user local deployment
 - **Retention:** 30 days
 - **Deployment:** Hybrid (Docker for services, native for GPU AI models)
+
+## AGENTS.md Navigation
+
+Every directory contains an `AGENTS.md` file that documents:
+
+- Purpose of the directory
+- Key files and what they do
+- Important patterns and conventions
+- Entry points for understanding the code
+
+**Always read the AGENTS.md file first when exploring a new directory.**
+
+```bash
+# List all AGENTS.md files
+find . -name "AGENTS.md" -type f | head -20
+```
+
+### AGENTS.md Locations (34 files)
+
+| Directory                            | Purpose                           |
+| ------------------------------------ | --------------------------------- |
+| `/AGENTS.md`                         | Project overview and entry points |
+| `/ai/AGENTS.md`                      | AI pipeline overview              |
+| `/ai/rtdetr/AGENTS.md`               | RT-DETRv2 object detection server |
+| `/ai/nemotron/AGENTS.md`             | Nemotron LLM risk analysis        |
+| `/backend/AGENTS.md`                 | Backend architecture overview     |
+| `/backend/api/AGENTS.md`             | API layer structure               |
+| `/backend/api/routes/AGENTS.md`      | REST endpoint documentation       |
+| `/backend/api/schemas/AGENTS.md`     | Pydantic schema definitions       |
+| `/backend/core/AGENTS.md`            | Config, database, Redis clients   |
+| `/backend/models/AGENTS.md`          | SQLAlchemy ORM models             |
+| `/backend/services/AGENTS.md`        | AI pipeline services              |
+| `/backend/tests/AGENTS.md`           | Test infrastructure overview      |
+| `/frontend/AGENTS.md`                | Frontend architecture overview    |
+| `/frontend/src/AGENTS.md`            | Source code organization          |
+| `/frontend/src/components/AGENTS.md` | Component hierarchy               |
+| `/frontend/src/hooks/AGENTS.md`      | Custom React hooks                |
+| `/docs/AGENTS.md`                    | Documentation overview            |
 
 ## File Structure
 

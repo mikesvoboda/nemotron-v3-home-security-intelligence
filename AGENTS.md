@@ -1,66 +1,225 @@
-# Agent Instructions
+# Root Directory - Agent Guide
 
-This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get started.
+## Purpose
 
-## Quick Reference
+This is the root directory of the **Home Security Intelligence** project - an AI-powered home security monitoring dashboard that processes Foscam camera uploads through RT-DETRv2 for object detection and Nemotron for contextual risk assessment.
+
+## Tech Stack
+
+- **Frontend:** React + TypeScript + Tailwind + Tremor
+- **Backend:** Python FastAPI + SQLite + Redis
+- **AI:** RT-DETRv2 (object detection) + Nemotron via llama.cpp (risk reasoning)
+- **GPU:** NVIDIA RTX A5500 (24GB)
+- **Cameras:** Foscam FTP uploads to `/export/foscam/{camera_name}/`
+
+## Project Status
+
+- **Phase 1-4:** COMPLETE (Setup, Database, Core APIs, AI Pipeline)
+- **Phase 5-8:** NOT STARTED (Events APIs, Dashboard Components, Pages, E2E)
+- **Test Coverage:** Backend 98.54% (335 tests), Frontend 98.95% (233 tests)
+
+## Key Files in Root
+
+### Agent Instructions
+
+- **AGENTS.md** (this file) - Quick reference for AI agents
+- **CLAUDE.md** - Comprehensive Claude Code instructions with project overview, phase execution order, TDD approach, testing requirements, and git rules
+- **docs/AGENT_HANDOFF.md** - Session handoff document with current status and next steps
+
+### Configuration Files
+
+- **pyproject.toml** - Python project config with Ruff, mypy, pytest, and coverage settings
+- **pytest.ini** - Pytest configuration (asyncio mode, markers for unit/integration tests)
+- **.pre-commit-config.yaml** - Pre-commit hooks (ruff, mypy, eslint, prettier, typescript check, fast tests)
+- **.coveragerc** - Coverage.py configuration (fail_under=90%)
+- **docker-compose.yml** - Docker services (backend, redis, frontend)
+- **.env.example** - Environment variable template
+
+### Build/Dependency Files
+
+- **uv.lock** - UV package manager lockfile
+- **backend/requirements.txt** - Python dependencies
+- **frontend/package.json** - Node.js dependencies
+
+### Git Configuration
+
+- **.gitignore** - Git ignore rules (node_modules, .venv, .env, .db files, AI model weights, coverage)
+- **.gitattributes** - Git attributes
+
+## Directory Structure
+
+```
+/home/msvoboda/github/nemotron-v3-home-security-intelligence/
+├── backend/              # FastAPI backend (Python)
+│   ├── api/              # REST endpoints and WebSocket routes
+│   ├── core/             # Database, Redis, config
+│   ├── models/           # SQLAlchemy models
+│   ├── services/         # Business logic (file watcher, detector, batch aggregator, etc.)
+│   └── tests/            # Unit and integration tests
+├── frontend/             # React dashboard (TypeScript)
+│   ├── src/
+│   │   ├── components/   # React components
+│   │   ├── hooks/        # Custom hooks (WebSocket, event streams)
+│   │   ├── services/     # API client
+│   │   └── styles/       # CSS/Tailwind
+│   └── tests/            # Component and E2E tests
+├── ai/                   # AI model scripts and configs
+│   ├── rtdetr/           # RT-DETRv2 detection server
+│   └── nemotron/         # Nemotron model files
+├── docs/                 # Documentation
+│   ├── AGENT_HANDOFF.md  # Session continuity document
+│   └── plans/            # Design and implementation plans
+├── scripts/              # Development and deployment scripts
+├── data/                 # Runtime data directory
+└── coverage/             # Test coverage reports
+```
+
+## Issue Tracking
+
+This project uses **bd** (beads) for issue tracking:
 
 ```bash
-bd ready              # Find available work
-bd show <id>          # View issue details
+bd ready                    # Find available work
+bd show <id>               # View task details
 bd update <id> --status in_progress  # Claim work
-bd close <id>         # Complete work
-bd sync               # Sync with git
+bd close <id>              # Complete work
+bd sync                    # Sync with git
 ```
 
-## Task Execution Order
+Tasks are organized into **8 execution phases**. Complete phases in order:
 
-Tasks are organized into **8 execution phases**. Complete phases in order.
-
-| Phase | Priority | Focus | Tasks |
-|-------|----------|-------|-------|
-| 1 | P0 | Project Setup | 7 |
-| 2 | P1 | Database & Layout | 6 |
-| 3 | P2 | Core APIs & Components | 11 |
-| 4 | P3/P4 | AI Pipeline | 13 |
-| 5 | P4 | Events & Real-time | 9 |
-| 6 | P3 | Dashboard Components | 7 |
-| 7 | P4 | Pages & Modals | 6 |
-| 8 | P4 | Integration & E2E | 8 |
-
-**Find work by phase:**
 ```bash
-bd list --label phase-1   # Start here
-bd list --label phase-2   # After phase-1 complete
-# ... and so on
+bd list --label phase-1    # Project Setup (7 tasks) - COMPLETE
+bd list --label phase-2    # Database & Layout (6 tasks) - COMPLETE
+bd list --label phase-3    # Core APIs & Components (11 tasks) - COMPLETE
+bd list --label phase-4    # AI Pipeline (13 tasks) - COMPLETE
+bd list --label phase-5    # Events & Real-time (9 tasks) - NEXT
+bd list --label phase-6    # Dashboard Components (7 tasks)
+bd list --label phase-7    # Pages & Modals (6 tasks)
+bd list --label phase-8    # Integration & E2E (8 tasks)
 ```
 
-**TDD tasks** (labeled `tdd`) should be completed alongside their feature tasks:
+## Development Workflow
+
+### 1. Environment Setup
+
 ```bash
-bd list --label tdd
+# Install dependencies and pre-commit hooks
+./scripts/setup-hooks.sh
+
+# Activate Python environment
+source .venv/bin/activate
 ```
 
-## Landing the Plane (Session Completion)
+### 2. Running Tests
 
-**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
+```bash
+# Full test suite with coverage
+./scripts/test-runner.sh
 
-**MANDATORY WORKFLOW:**
+# Backend only
+pytest backend/tests/ -v
 
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **PUSH TO REMOTE** - This is MANDATORY:
-   ```bash
-   git pull --rebase
-   bd sync
-   git push
-   git status  # MUST show "up to date with origin"
-   ```
-5. **Clean up** - Clear stashes, prune remote branches
-6. **Verify** - All changes committed AND pushed
-7. **Hand off** - Provide context for next session
+# Frontend only
+cd frontend && npm test
 
-**CRITICAL RULES:**
-- Work is NOT complete until `git push` succeeds
-- NEVER stop before pushing - that leaves work stranded locally
-- NEVER say "ready to push when you are" - YOU must push
-- If push fails, resolve and retry until it succeeds
+# Quick validation (linting + type checking + tests)
+./scripts/validate.sh
+```
+
+### 3. Pre-commit Hooks
+
+**CRITICAL:** Never bypass pre-commit hooks with `--no-verify`. All commits must pass:
+
+- `ruff check` + `ruff format` - Python linting/formatting
+- `mypy` - Python type checking
+- `eslint` + `prettier` - TypeScript linting/formatting
+- `pytest -m "not slow"` - Fast backend tests
+
+### 4. Code Quality Standards
+
+- **Coverage:** 90%+ required (enforced by pytest, see pyproject.toml)
+- **Type Hints:** Required for all backend functions (enforced by mypy)
+- **Line Length:** 100 characters (enforced by ruff)
+- **Testing:** TDD approach for tasks labeled `tdd`
+
+## Key Design Decisions
+
+- **Risk scoring:** LLM-determined (Nemotron analyzes detections and assigns 0-100 score)
+- **Batch processing:** 90-second time windows with 30-second idle timeout
+- **No auth:** Single-user local deployment (MVP)
+- **Retention:** 30 days
+- **Deployment:** Hybrid (Docker for services, native for GPU AI models)
+
+## Data Flow
+
+1. Cameras FTP upload images/videos to `/export/foscam/{camera_name}/`
+2. File watcher detects new files, sends to RT-DETRv2
+3. Detections accumulate in Redis queue
+4. Every 90 seconds (or 30s idle), batch sent to Nemotron for risk assessment
+5. Results stored in SQLite, pushed to dashboard via WebSocket
+
+## Entry Points for Agents
+
+### Starting Point
+
+1. **Read CLAUDE.md** - Comprehensive project instructions
+2. **Read docs/AGENT_HANDOFF.md** - Current status and next steps
+3. **Check available work:** `bd ready` or `bd list --label phase-5`
+
+### Understanding the Codebase
+
+1. **Backend:** Read `backend/core/config.py` for all settings
+2. **Frontend:** Read `frontend/src/App.tsx` for app structure
+3. **AI Pipeline:** Read `backend/services/` for processing logic
+4. **Database:** Read `backend/models/` for schema
+
+### Finding Information
+
+- **API Routes:** `backend/api/routes/`
+- **Tests:** `backend/tests/` (unit/ and integration/)
+- **Components:** `frontend/src/components/`
+- **Hooks:** `frontend/src/hooks/`
+- **Design Docs:** `docs/plans/`
+
+## Important Patterns
+
+### Backend
+
+- **Async/await:** All backend code uses asyncio
+- **Dependency injection:** FastAPI dependencies for DB sessions
+- **Type hints:** Required on all functions
+- **Models:** SQLAlchemy ORM for database
+- **Config:** Environment variables via pydantic Settings
+
+### Frontend
+
+- **Functional components:** React hooks (no class components)
+- **TypeScript:** Strict mode enabled
+- **Styling:** Tailwind utility classes + Tremor components
+- **State:** React hooks (useState, useEffect, custom hooks)
+- **API:** Centralized client in `services/api.ts`
+
+### Testing
+
+- **Backend:** pytest with fixtures, asyncio support
+- **Frontend:** Vitest with React Testing Library
+- **Coverage:** HTML reports in `coverage/` directory
+- **Markers:** `@pytest.mark.unit` and `@pytest.mark.integration`
+
+## Session Completion Workflow
+
+Before ending a session, ALWAYS:
+
+1. Run full test suite: `./scripts/test-runner.sh`
+2. Update issue status: `bd close <id>` for completed tasks
+3. Commit changes: `git add -A && git commit -m "description"`
+4. Sync and push: `bd sync && git push origin main`
+5. Verify: `git status` should show "up to date with origin"
+
+## Resources
+
+- **Git Remote:** github.com:mikesvoboda/nemotron-v3-home-security-intelligence.git
+- **Issue Tracker:** bd (beads) - syncs with `.beads/` directory
+- **Documentation:** `docs/` directory
+- **Coverage Reports:** `coverage/backend/index.html` and `frontend/coverage/index.html`
