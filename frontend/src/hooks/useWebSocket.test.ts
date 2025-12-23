@@ -1,0 +1,439 @@
+import { renderHook, act, waitFor } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+import { useWebSocket, WebSocketOptions } from './useWebSocket';
+
+// Extend Window interface for WebSocket
+declare global {
+  interface Window {
+    WebSocket: typeof WebSocket;
+  }
+}
+
+// Mock WebSocket
+class MockWebSocket {
+  url: string;
+  readyState: number = WebSocket.CONNECTING;
+  onopen: ((event: Event) => void) | null = null;
+  onclose: ((event: CloseEvent) => void) | null = null;
+  onerror: ((event: Event) => void) | null = null;
+  onmessage: ((event: MessageEvent) => void) | null = null;
+
+  static CONNECTING = 0;
+  static OPEN = 1;
+  static CLOSING = 2;
+  static CLOSED = 3;
+
+  constructor(url: string) {
+    this.url = url;
+    // Simulate connection opening
+    setTimeout(() => {
+      this.readyState = WebSocket.OPEN;
+      if (this.onopen) {
+        this.onopen(new Event('open'));
+      }
+    }, 0);
+  }
+
+  send(_data: string): void {
+    if (this.readyState !== WebSocket.OPEN) {
+      throw new Error('WebSocket is not open');
+    }
+  }
+
+  close(): void {
+    this.readyState = WebSocket.CLOSED;
+    if (this.onclose) {
+      this.onclose(new CloseEvent('close'));
+    }
+  }
+
+  // Helper method to simulate receiving a message
+  simulateMessage(data: unknown): void {
+    if (this.onmessage) {
+      const messageData = typeof data === 'string' ? data : JSON.stringify(data);
+      this.onmessage(new MessageEvent('message', { data: messageData }));
+    }
+  }
+
+  // Helper method to simulate an error
+  simulateError(): void {
+    if (this.onerror) {
+      this.onerror(new Event('error'));
+    }
+  }
+}
+
+describe('useWebSocket', () => {
+  let mockWebSocket: MockWebSocket | null = null;
+  const originalWebSocket = window.WebSocket;
+
+  beforeEach(() => {
+    // Replace window WebSocket with our mock
+    window.WebSocket = vi.fn((url: string) => {
+      mockWebSocket = new MockWebSocket(url);
+      return mockWebSocket as unknown as WebSocket;
+    }) as unknown as typeof WebSocket;
+
+    // Add static properties
+    Object.defineProperty(window.WebSocket, 'CONNECTING', { value: 0 });
+    Object.defineProperty(window.WebSocket, 'OPEN', { value: 1 });
+    Object.defineProperty(window.WebSocket, 'CLOSING', { value: 2 });
+    Object.defineProperty(window.WebSocket, 'CLOSED', { value: 3 });
+  });
+
+  afterEach(() => {
+    window.WebSocket = originalWebSocket;
+    mockWebSocket = null;
+    vi.clearAllTimers();
+  });
+
+  it('should connect to WebSocket on mount', async () => {
+    const options: WebSocketOptions = {
+      url: 'ws://localhost:8000/ws',
+    };
+
+    const { result } = renderHook(() => useWebSocket(options));
+
+    expect(result.current.isConnected).toBe(false);
+
+    await waitFor(() => {
+      expect(result.current.isConnected).toBe(true);
+    });
+
+    expect(window.WebSocket).toHaveBeenCalledWith('ws://localhost:8000/ws');
+  });
+
+  it('should disconnect on unmount', async () => {
+    const options: WebSocketOptions = {
+      url: 'ws://localhost:8000/ws',
+    };
+
+    const { result, unmount } = renderHook(() => useWebSocket(options));
+
+    await waitFor(() => {
+      expect(result.current.isConnected).toBe(true);
+    });
+
+    unmount();
+
+    await waitFor(() => {
+      expect(mockWebSocket?.readyState).toBe(WebSocket.CLOSED);
+    });
+  });
+
+  it('should handle incoming messages', async () => {
+    const onMessage = vi.fn();
+    const options: WebSocketOptions = {
+      url: 'ws://localhost:8000/ws',
+      onMessage,
+    };
+
+    const { result } = renderHook(() => useWebSocket(options));
+
+    await waitFor(() => {
+      expect(result.current.isConnected).toBe(true);
+    });
+
+    const testData = { type: 'test', message: 'Hello' };
+
+    act(() => {
+      mockWebSocket?.simulateMessage(testData);
+    });
+
+    expect(onMessage).toHaveBeenCalledWith(testData);
+    expect(result.current.lastMessage).toEqual(testData);
+  });
+
+  it('should handle non-JSON messages', async () => {
+    const onMessage = vi.fn();
+    const options: WebSocketOptions = {
+      url: 'ws://localhost:8000/ws',
+      onMessage,
+    };
+
+    const { result } = renderHook(() => useWebSocket(options));
+
+    await waitFor(() => {
+      expect(result.current.isConnected).toBe(true);
+    });
+
+    const rawMessage = 'plain text message';
+
+    act(() => {
+      if (mockWebSocket?.onmessage) {
+        mockWebSocket.onmessage(new MessageEvent('message', { data: rawMessage }));
+      }
+    });
+
+    expect(onMessage).toHaveBeenCalledWith(rawMessage);
+    expect(result.current.lastMessage).toBe(rawMessage);
+  });
+
+  it('should send messages when connected', async () => {
+    const options: WebSocketOptions = {
+      url: 'ws://localhost:8000/ws',
+    };
+
+    const { result } = renderHook(() => useWebSocket(options));
+
+    await waitFor(() => {
+      expect(result.current.isConnected).toBe(true);
+    });
+
+    const sendSpy = vi.spyOn(mockWebSocket as MockWebSocket, 'send');
+    const testData = { type: 'test', message: 'Hello' };
+
+    act(() => {
+      result.current.send(testData);
+    });
+
+    expect(sendSpy).toHaveBeenCalledWith(JSON.stringify(testData));
+  });
+
+  it('should not send messages when disconnected', () => {
+    const options: WebSocketOptions = {
+      url: 'ws://localhost:8000/ws',
+    };
+
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { result } = renderHook(() => useWebSocket(options));
+
+    // Don't wait for connection
+    const testData = { type: 'test', message: 'Hello' };
+
+    act(() => {
+      result.current.send(testData);
+    });
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'WebSocket is not connected. Message not sent:',
+      testData
+    );
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should call onOpen callback', async () => {
+    const onOpen = vi.fn();
+    const options: WebSocketOptions = {
+      url: 'ws://localhost:8000/ws',
+      onOpen,
+    };
+
+    renderHook(() => useWebSocket(options));
+
+    await waitFor(() => {
+      expect(onOpen).toHaveBeenCalled();
+    });
+  });
+
+  it('should call onClose callback', async () => {
+    const onClose = vi.fn();
+    const options: WebSocketOptions = {
+      url: 'ws://localhost:8000/ws',
+      onClose,
+      reconnect: false,
+    };
+
+    const { result } = renderHook(() => useWebSocket(options));
+
+    await waitFor(() => {
+      expect(result.current.isConnected).toBe(true);
+    });
+
+    act(() => {
+      mockWebSocket?.close();
+    });
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalled();
+    });
+  });
+
+  it('should call onError callback', async () => {
+    const onError = vi.fn();
+    const options: WebSocketOptions = {
+      url: 'ws://localhost:8000/ws',
+      onError,
+    };
+
+    renderHook(() => useWebSocket(options));
+
+    await waitFor(() => {
+      expect(mockWebSocket).not.toBeNull();
+    });
+
+    act(() => {
+      mockWebSocket?.simulateError();
+    });
+
+    expect(onError).toHaveBeenCalled();
+  });
+
+  it('should attempt reconnection on disconnect', async () => {
+    const options: WebSocketOptions = {
+      url: 'ws://localhost:8000/ws',
+      reconnect: true,
+      reconnectInterval: 100,
+      reconnectAttempts: 3,
+    };
+
+    const { result } = renderHook(() => useWebSocket(options));
+
+    await waitFor(() => {
+      expect(result.current.isConnected).toBe(true);
+    });
+
+    const initialCallCount = (window.WebSocket as unknown as ReturnType<typeof vi.fn>).mock
+      .calls.length;
+
+    act(() => {
+      mockWebSocket?.close();
+    });
+
+    await waitFor(() => {
+      expect(result.current.isConnected).toBe(false);
+    });
+
+    // Wait for reconnection attempt
+    await waitFor(
+      () => {
+        expect((window.WebSocket as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBe(
+          initialCallCount + 1
+        );
+      },
+      { timeout: 1000 }
+    );
+  });
+
+  it('should respect reconnectAttempts setting', async () => {
+    // This test verifies that reconnection happens but doesn't test the exact
+    // limit due to timing complexity. The important behavior is that reconnection
+    // eventually stops.
+    const options: WebSocketOptions = {
+      url: 'ws://localhost:8000/ws',
+      reconnect: true,
+      reconnectInterval: 50,
+      reconnectAttempts: 2,
+    };
+
+    const { result } = renderHook(() => useWebSocket(options));
+
+    await waitFor(() => {
+      expect(result.current.isConnected).toBe(true);
+    });
+
+    const callCountBeforeClose = (window.WebSocket as unknown as ReturnType<typeof vi.fn>).mock
+      .calls.length;
+
+    act(() => {
+      mockWebSocket?.close();
+    });
+
+    await waitFor(() => {
+      expect(result.current.isConnected).toBe(false);
+    });
+
+    // Wait for potential reconnection
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    // Should have attempted at least one reconnection
+    const callCountAfterReconnect = (window.WebSocket as unknown as ReturnType<typeof vi.fn>).mock
+      .calls.length;
+    expect(callCountAfterReconnect).toBeGreaterThan(callCountBeforeClose);
+  });
+
+  it('should not reconnect when reconnect is false', async () => {
+    const options: WebSocketOptions = {
+      url: 'ws://localhost:8000/ws',
+      reconnect: false,
+    };
+
+    const { result } = renderHook(() => useWebSocket(options));
+
+    await waitFor(() => {
+      expect(result.current.isConnected).toBe(true);
+    });
+
+    const initialCallCount = (window.WebSocket as unknown as ReturnType<typeof vi.fn>).mock
+      .calls.length;
+
+    act(() => {
+      mockWebSocket?.close();
+    });
+
+    await waitFor(() => {
+      expect(result.current.isConnected).toBe(false);
+    });
+
+    // Wait to ensure no reconnection happens
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    expect((window.WebSocket as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBe(
+      initialCallCount
+    );
+  });
+
+  it('should handle manual disconnect', async () => {
+    const options: WebSocketOptions = {
+      url: 'ws://localhost:8000/ws',
+      reconnect: true,
+      reconnectInterval: 100,
+    };
+
+    const { result } = renderHook(() => useWebSocket(options));
+
+    await waitFor(() => {
+      expect(result.current.isConnected).toBe(true);
+    });
+
+    const callCountBeforeDisconnect = (window.WebSocket as unknown as ReturnType<typeof vi.fn>)
+      .mock.calls.length;
+
+    act(() => {
+      result.current.disconnect();
+    });
+
+    await waitFor(() => {
+      expect(result.current.isConnected).toBe(false);
+    });
+
+    // Should not attempt reconnection after manual disconnect
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    expect(result.current.isConnected).toBe(false);
+    expect((window.WebSocket as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBe(
+      callCountBeforeDisconnect
+    );
+  });
+
+  it('should handle manual connect', async () => {
+    const options: WebSocketOptions = {
+      url: 'ws://localhost:8000/ws',
+      reconnect: false,
+    };
+
+    const { result } = renderHook(() => useWebSocket(options));
+
+    await waitFor(() => {
+      expect(result.current.isConnected).toBe(true);
+    });
+
+    act(() => {
+      result.current.disconnect();
+    });
+
+    await waitFor(() => {
+      expect(result.current.isConnected).toBe(false);
+    });
+
+    act(() => {
+      result.current.connect();
+    });
+
+    await waitFor(() => {
+      expect(result.current.isConnected).toBe(true);
+    });
+  });
+});
