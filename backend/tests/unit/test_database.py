@@ -1,5 +1,6 @@
 """Unit tests for database connection and session management."""
 
+import contextlib
 import os
 import tempfile
 from pathlib import Path
@@ -157,10 +158,8 @@ async def test_get_db_dependency(test_db):
 
     finally:
         # Cleanup - simulate FastAPI cleanup
-        try:
+        with contextlib.suppress(StopAsyncIteration):
             await db_generator.asend(None)
-        except StopAsyncIteration:
-            pass
 
 
 @pytest.mark.asyncio
@@ -220,8 +219,6 @@ async def test_session_isolation(test_db):
 @pytest.mark.asyncio
 async def test_table_creation(test_db):
     """Test that tables are created successfully."""
-    engine = get_engine()
-
     # Verify TestModel table exists by querying it
     async with get_session() as session:
         result = await session.execute(select(TestModel))

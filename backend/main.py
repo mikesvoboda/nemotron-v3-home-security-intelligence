@@ -10,7 +10,7 @@ from backend.core.redis import close_redis, init_redis
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     """Manage application lifecycle - startup and shutdown events."""
     # Startup
     settings = get_settings()

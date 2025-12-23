@@ -1,5 +1,5 @@
-import Layout from './components/layout/Layout';
 import DashboardPage from './components/dashboard/DashboardPage';
+import Layout from './components/layout/Layout';
 
 export default function App() {
   return (

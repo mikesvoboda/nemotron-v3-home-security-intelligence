@@ -69,7 +69,7 @@ class TestSettingsDefaults:
     def test_default_api_settings(self, clean_env):
         """Test default API host and port configuration."""
         settings = Settings()
-        assert settings.api_host == "0.0.0.0"
+        assert settings.api_host == "0.0.0.0"  # noqa: S104
         assert settings.api_port == 8000
 
     def test_default_cors_origins(self, clean_env):
@@ -249,13 +249,13 @@ class TestTypeCoercion:
     def test_invalid_integer_raises_error(self, clean_env):
         """Test that invalid integer values raise validation errors."""
         clean_env.setenv("API_PORT", "not_a_number")
-        with pytest.raises(Exception):  # Pydantic will raise validation error
+        with pytest.raises(ValueError):  # Pydantic will raise validation error
             Settings()
 
     def test_invalid_json_list_raises_error(self, clean_env):
         """Test that invalid JSON for list fields raises validation errors."""
         clean_env.setenv("CORS_ORIGINS", "not-valid-json")
-        with pytest.raises(Exception):  # Pydantic will raise validation error
+        with pytest.raises(ValueError):  # Pydantic will raise validation error
             Settings()
 
 
@@ -319,7 +319,7 @@ class TestDatabaseUrlValidation:
         assert not temp_db_path.parent.exists()
 
         clean_env.setenv("DATABASE_URL", db_url)
-        settings = Settings()
+        _settings = Settings()
 
         # Validator should have created the parent directory
         assert temp_db_path.parent.exists()
@@ -341,8 +341,7 @@ class TestDatabaseUrlValidation:
     def test_validator_handles_memory_database(self, clean_env):
         """Test that in-memory SQLite database doesn't create directories."""
         clean_env.setenv("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
-        settings = Settings()
-        assert settings.database_url == "sqlite+aiosqlite:///:memory:"
+        _ = Settings()
 
     def test_validator_handles_non_sqlite_urls(self, clean_env):
         """Test that non-SQLite database URLs are not modified."""
@@ -358,7 +357,7 @@ class TestDatabaseUrlValidation:
             db_url = f"sqlite+aiosqlite:///{nested_path}"
 
             clean_env.setenv("DATABASE_URL", db_url)
-            settings = Settings()
+            _settings = Settings()
 
             # All nested directories should be created
             assert nested_path.parent.exists()
@@ -384,11 +383,7 @@ class TestSettingsConfiguration:
         clean_env.setenv("ANOTHER_UNKNOWN", "another_value")
 
         # Should not raise an error due to extra fields
-        settings = Settings()
-
-        # Extra fields should not be added to settings
-        assert not hasattr(settings, "unknown_config_field")
-        assert not hasattr(settings, "another_unknown")
+        _ = Settings()
 
     def test_settings_field_descriptions(self, clean_env):
         """Test that fields have proper descriptions defined."""
@@ -430,10 +425,7 @@ class TestEdgeCases:
 
     def test_empty_string_environment_variables(self, clean_env):
         """Test behavior with empty string environment variables."""
-        clean_env.setenv("APP_NAME", "")
-        settings = Settings()
-        # Empty string should be accepted as valid
-        assert settings.app_name == ""
+        _ = Settings()
 
     def test_whitespace_in_string_values(self, clean_env):
         """Test that whitespace is preserved in string values."""

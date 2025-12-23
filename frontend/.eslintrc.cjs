@@ -44,9 +44,10 @@ module.exports = {
     react: {
       version: 'detect',
     },
+    // Use node resolver instead of typescript resolver
     'import/resolver': {
-      typescript: {
-        project: './tsconfig.json',
+      node: {
+        extensions: ['.js', '.jsx', '.ts', '.tsx'],
       },
     },
   },
@@ -105,7 +106,8 @@ module.exports = {
       },
     ],
     'import/no-duplicates': 'error',
-    'import/no-unresolved': 'error',
+    // Disable import/no-unresolved - TypeScript already handles this
+    'import/no-unresolved': 'off',
 
     // General
     'no-console': ['warn', { allow: ['warn', 'error'] }],

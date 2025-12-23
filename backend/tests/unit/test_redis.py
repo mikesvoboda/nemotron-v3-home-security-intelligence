@@ -1,5 +1,6 @@
 """Unit tests for Redis connection and operations."""
 
+import contextlib
 import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -189,7 +190,7 @@ async def test_get_from_queue_with_data(redis_client, mock_redis_client):
     result = await redis_client.get_from_queue("test_queue", timeout=5)
 
     assert result == {"key": "value"}
-    mock_redis_client.blpop.assert_awaited_once_with("test_queue", timeout=5)
+    mock_redis_client.blpop.assert_awaited_once_with(["test_queue"], timeout=5)
 
 
 @pytest.mark.asyncio
@@ -412,10 +413,8 @@ async def test_get_redis_dependency(mock_redis_pool, mock_redis_client):
         assert client._client is not None
 
         # Cleanup
-        try:
+        with contextlib.suppress(StopAsyncIteration):
             await redis_generator.asend(None)
-        except StopAsyncIteration:
-            pass
 
         # Cleanup global state
         await close_redis()

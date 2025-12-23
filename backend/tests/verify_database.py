@@ -6,12 +6,12 @@ import os
 import sys
 from pathlib import Path
 
+from sqlalchemy import Column, Integer, String, select
+
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from sqlalchemy import Column, Integer, String, select
-
-from backend.core import Base, close_db, get_session, init_db
+from backend.core import Base, close_db, get_session, init_db  # noqa: E402
 
 
 # Test model
@@ -23,7 +23,7 @@ class TestItem(Base):
     description = Column(String(255))
 
 
-async def main():
+async def main():  # noqa: PLR0915
     """Test database connection and operations."""
     print("Testing database connection...")
 

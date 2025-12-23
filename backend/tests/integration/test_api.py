@@ -50,9 +50,11 @@ async def mock_redis():
         "redis_version": "7.0.0",
     }
 
-    with patch("backend.core.redis._redis_client", mock_redis_client):
-        with patch("backend.core.redis.init_redis", return_value=mock_redis_client):
-            yield mock_redis_client
+    with (
+        patch("backend.core.redis._redis_client", mock_redis_client),
+        patch("backend.core.redis.init_redis", return_value=mock_redis_client),
+    ):
+        yield mock_redis_client
 
 
 @pytest.fixture
