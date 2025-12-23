@@ -39,6 +39,15 @@ repos:
         args: [--ignore-missing-imports]
         files: ^backend/
 
+  # TypeScript/JavaScript - Prettier (Formatting)
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.1.0
+    hooks:
+      - id: prettier
+        types_or: [javascript, jsx, ts, tsx, css, json, md, yaml]
+        additional_dependencies:
+          - prettier@3.2.4
+
   # TypeScript/JavaScript - ESLint
   - repo: local
     hooks:
@@ -56,13 +65,13 @@ repos:
         files: ^frontend/.*\.(ts|tsx)$
         pass_filenames: false
 
-  # Tests with coverage enforcement
+  # Quick Tests (Unit only, no coverage enforcement)
+  # Full coverage check moved to scripts/validate.sh
   - repo: local
     hooks:
-      - id: test-coverage
-        name: Test Coverage (95% minimum)
-        entry: ./scripts/test-runner.sh
-        language: script
+      - id: fast-test
+        name: Quick Backend Tests
+        entry: bash -c 'cd backend && pytest -m "not slow"'
+        language: system
         pass_filenames: false
         stages: [commit]
-        always_run: true
