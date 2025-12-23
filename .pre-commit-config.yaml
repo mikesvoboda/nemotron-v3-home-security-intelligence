@@ -12,7 +12,7 @@ repos:
       - id: check-yaml
       - id: check-json
       - id: check-added-large-files
-        args: ['--maxkb=1000']
+        args: ["--maxkb=1000"]
       - id: check-merge-conflict
       - id: detect-private-key
 
@@ -44,7 +44,7 @@ repos:
     rev: v3.1.0
     hooks:
       - id: prettier
-        types_or: [javascript, jsx, ts, tsx, css, json, md, yaml]
+        types_or: [javascript, jsx, ts, tsx, css, json, markdown, yaml]
         additional_dependencies:
           - prettier@3.2.4
 
