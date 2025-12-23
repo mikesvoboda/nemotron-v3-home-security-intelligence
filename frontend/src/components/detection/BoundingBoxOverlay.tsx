@@ -1,11 +1,11 @@
 import React from 'react';
 
 export interface BoundingBox {
-  x: number;      // top-left x (pixels or percentage)
-  y: number;      // top-left y
-  width: number;  // box width
+  x: number; // top-left x (pixels or percentage)
+  y: number; // top-left y
+  width: number; // box width
   height: number; // box height
-  label: string;  // e.g., "person", "car"
+  label: string; // e.g., "person", "car"
   confidence: number; // 0-1
   color?: string; // optional custom color
 }
@@ -22,12 +22,12 @@ export interface BoundingBoxOverlayProps {
 
 // Default color scheme for common object types
 const DEFAULT_COLORS: Record<string, string> = {
-  person: '#ef4444',    // red
-  car: '#3b82f6',       // blue
-  dog: '#f59e0b',       // amber
-  cat: '#8b5cf6',       // purple
-  package: '#10b981',   // green
-  default: '#6b7280',   // gray
+  person: '#ef4444', // red
+  car: '#3b82f6', // blue
+  dog: '#f59e0b', // amber
+  cat: '#8b5cf6', // purple
+  package: '#10b981', // green
+  default: '#6b7280', // gray
 };
 
 const BoundingBoxOverlay: React.FC<BoundingBoxOverlayProps> = ({
@@ -40,7 +40,7 @@ const BoundingBoxOverlay: React.FC<BoundingBoxOverlayProps> = ({
   onClick,
 }) => {
   // Filter boxes by minimum confidence threshold
-  const filteredBoxes = boxes.filter(box => box.confidence >= minConfidence);
+  const filteredBoxes = boxes.filter((box) => box.confidence >= minConfidence);
 
   // Get color for a box based on label or custom color
   const getBoxColor = (box: BoundingBox): string => {
@@ -66,7 +66,7 @@ const BoundingBoxOverlay: React.FC<BoundingBoxOverlayProps> = ({
 
   return (
     <svg
-      className="absolute inset-0 w-full h-full pointer-events-none"
+      className="pointer-events-none absolute inset-0 h-full w-full"
       viewBox={`0 0 ${imageWidth} ${imageHeight}`}
       preserveAspectRatio="none"
       style={{ zIndex: 10 }}
@@ -110,11 +110,7 @@ const BoundingBoxOverlay: React.FC<BoundingBoxOverlayProps> = ({
                 <rect
                   x={box.x}
                   y={box.y - 28}
-                  width={
-                    showConfidence
-                      ? box.label.length * 8 + 40
-                      : box.label.length * 8 + 16
-                  }
+                  width={showConfidence ? box.label.length * 8 + 40 : box.label.length * 8 + 16}
                   height="24"
                   fill={color}
                   opacity="0.9"

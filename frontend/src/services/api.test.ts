@@ -78,11 +78,7 @@ const mockStats: SystemStats = {
 };
 
 // Helper to create mock fetch response
-function createMockResponse<T>(
-  data: T,
-  status = 200,
-  statusText = 'OK'
-): Response {
+function createMockResponse<T>(data: T, status = 200, statusText = 'OK'): Response {
   return {
     ok: status >= 200 && status < 300,
     status,
@@ -92,11 +88,7 @@ function createMockResponse<T>(
   } as Response;
 }
 
-function createMockErrorResponse(
-  status: number,
-  statusText: string,
-  detail?: string
-): Response {
+function createMockErrorResponse(status: number, statusText: string, detail?: string): Response {
   const errorBody = detail ? { detail } : null;
   return {
     ok: false,
@@ -136,9 +128,7 @@ describe('Camera API', () => {
 
   describe('fetchCameras', () => {
     it('fetches all cameras successfully', async () => {
-      vi.mocked(fetch).mockResolvedValueOnce(
-        createMockResponse(mockCameras)
-      );
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockCameras));
 
       const result = await fetchCameras();
 
@@ -263,9 +253,7 @@ describe('Camera API', () => {
         createMockErrorResponse(400, 'Bad Request', 'Invalid folder path')
       );
 
-      await expect(
-        createCamera({ name: 'Bad', folder_path: 'invalid' })
-      ).rejects.toThrow(ApiError);
+      await expect(createCamera({ name: 'Bad', folder_path: 'invalid' })).rejects.toThrow(ApiError);
     });
   });
 
@@ -276,9 +264,7 @@ describe('Camera API', () => {
         status: 'inactive',
       };
 
-      vi.mocked(fetch).mockResolvedValueOnce(
-        createMockResponse({ ...mockCamera, ...updateData })
-      );
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse({ ...mockCamera, ...updateData }));
 
       const result = await updateCamera('cam-1', updateData);
 
@@ -296,9 +282,7 @@ describe('Camera API', () => {
     it('updates camera with partial data', async () => {
       const updateData: CameraUpdate = { status: 'inactive' };
 
-      vi.mocked(fetch).mockResolvedValueOnce(
-        createMockResponse({ ...mockCamera, ...updateData })
-      );
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse({ ...mockCamera, ...updateData }));
 
       const result = await updateCamera('cam-1', updateData);
 
@@ -311,17 +295,13 @@ describe('Camera API', () => {
         createMockErrorResponse(404, 'Not Found', 'Camera not found')
       );
 
-      await expect(
-        updateCamera('invalid-id', { name: 'Test' })
-      ).rejects.toThrow(ApiError);
+      await expect(updateCamera('invalid-id', { name: 'Test' })).rejects.toThrow(ApiError);
     });
   });
 
   describe('deleteCamera', () => {
     it('deletes a camera successfully', async () => {
-      vi.mocked(fetch).mockResolvedValueOnce(
-        createMockResponse(null, 204, 'No Content')
-      );
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(null, 204, 'No Content'));
 
       const result = await deleteCamera('cam-1');
 
@@ -344,21 +324,13 @@ describe('Camera API', () => {
 
     it('throws ApiError on 409 conflict', async () => {
       vi.mocked(fetch).mockResolvedValue(
-        createMockErrorResponse(
-          409,
-          'Conflict',
-          'Cannot delete camera with active events'
-        )
+        createMockErrorResponse(409, 'Conflict', 'Cannot delete camera with active events')
       );
 
       await expect(deleteCamera('cam-1')).rejects.toThrow(ApiError);
 
       vi.mocked(fetch).mockResolvedValue(
-        createMockErrorResponse(
-          409,
-          'Conflict',
-          'Cannot delete camera with active events'
-        )
+        createMockErrorResponse(409, 'Conflict', 'Cannot delete camera with active events')
       );
       await expect(deleteCamera('cam-1')).rejects.toMatchObject({
         status: 409,
@@ -402,9 +374,7 @@ describe('System API', () => {
         },
       };
 
-      vi.mocked(fetch).mockResolvedValueOnce(
-        createMockResponse(degradedHealth)
-      );
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(degradedHealth));
 
       const result = await fetchHealth();
 
@@ -415,9 +385,7 @@ describe('System API', () => {
 
   describe('fetchGPUStats', () => {
     it('fetches GPU stats successfully', async () => {
-      vi.mocked(fetch).mockResolvedValueOnce(
-        createMockResponse(mockGPUStats)
-      );
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockGPUStats));
 
       const result = await fetchGPUStats();
 
@@ -642,15 +610,11 @@ describe('Error Handling', () => {
   });
 
   it('handles 403 forbidden', async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      createMockErrorResponse(403, 'Forbidden', 'Access denied')
-    );
+    vi.mocked(fetch).mockResolvedValue(createMockErrorResponse(403, 'Forbidden', 'Access denied'));
 
     await expect(fetchCameras()).rejects.toThrow(ApiError);
 
-    vi.mocked(fetch).mockResolvedValue(
-      createMockErrorResponse(403, 'Forbidden', 'Access denied')
-    );
+    vi.mocked(fetch).mockResolvedValue(createMockErrorResponse(403, 'Forbidden', 'Access denied'));
     await expect(fetchCameras()).rejects.toMatchObject({
       status: 403,
       message: 'Access denied',
@@ -659,21 +623,13 @@ describe('Error Handling', () => {
 
   it('handles 503 service unavailable', async () => {
     vi.mocked(fetch).mockResolvedValue(
-      createMockErrorResponse(
-        503,
-        'Service Unavailable',
-        'Service temporarily unavailable'
-      )
+      createMockErrorResponse(503, 'Service Unavailable', 'Service temporarily unavailable')
     );
 
     await expect(fetchHealth()).rejects.toThrow(ApiError);
 
     vi.mocked(fetch).mockResolvedValue(
-      createMockErrorResponse(
-        503,
-        'Service Unavailable',
-        'Service temporarily unavailable'
-      )
+      createMockErrorResponse(503, 'Service Unavailable', 'Service temporarily unavailable')
     );
     await expect(fetchHealth()).rejects.toMatchObject({
       status: 503,

@@ -159,7 +159,7 @@ class RedisClient:
             Number of items in the queue
         """
         client = self._ensure_connected()
-        return cast(int, await client.llen(queue_name))  # type: ignore[misc]
+        return cast("int", await client.llen(queue_name))  # type: ignore[misc]
 
     async def peek_queue(self, queue_name: str, start: int = 0, end: int = -1) -> list[Any]:
         """Peek at items in a queue without removing them (LRANGE).
@@ -173,7 +173,7 @@ class RedisClient:
             List of deserialized items
         """
         client = self._ensure_connected()
-        items = cast(list[str], await client.lrange(queue_name, start, end))  # type: ignore[misc]
+        items = cast("list[str]", await client.lrange(queue_name, start, end))  # type: ignore[misc]
         result = []
         for item in items:
             try:
@@ -192,7 +192,7 @@ class RedisClient:
             True if queue was deleted, False if it didn't exist
         """
         client = self._ensure_connected()
-        result = cast(int, await client.delete(queue_name))
+        result = cast("int", await client.delete(queue_name))
         return result > 0
 
     # Pub/Sub operations
@@ -220,7 +220,7 @@ class RedisClient:
         """
         client = self._ensure_connected()
         serialized = json.dumps(message) if not isinstance(message, str) else message
-        return cast(int, await client.publish(channel, serialized))
+        return cast("int", await client.publish(channel, serialized))
 
     async def subscribe(self, *channels: str) -> PubSub:
         """Subscribe to one or more channels.
@@ -292,7 +292,7 @@ class RedisClient:
         """
         client = self._ensure_connected()
         serialized = json.dumps(value) if not isinstance(value, str) else value
-        return cast(bool, await client.set(key, serialized, ex=expire))
+        return cast("bool", await client.set(key, serialized, ex=expire))
 
     async def delete(self, *keys: str) -> int:
         """Delete one or more keys from Redis.
@@ -304,7 +304,7 @@ class RedisClient:
             Number of keys deleted
         """
         client = self._ensure_connected()
-        return cast(int, await client.delete(*keys))
+        return cast("int", await client.delete(*keys))
 
     async def exists(self, *keys: str) -> int:
         """Check if one or more keys exist.
@@ -316,7 +316,7 @@ class RedisClient:
             Number of keys that exist
         """
         client = self._ensure_connected()
-        return cast(int, await client.exists(*keys))
+        return cast("int", await client.exists(*keys))
 
 
 # Global Redis client instance

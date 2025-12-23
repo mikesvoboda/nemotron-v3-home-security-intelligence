@@ -91,7 +91,7 @@ async def init_db() -> None:
     if "sqlite" in settings.database_url:
 
         @event.listens_for(_engine.sync_engine, "connect")
-        def enable_foreign_keys(dbapi_conn, _connection_record):
+        def enable_foreign_keys(dbapi_conn: Any, _connection_record: Any) -> None:
             """Enable foreign key constraints for SQLite."""
             cursor = dbapi_conn.cursor()
             cursor.execute("PRAGMA foreign_keys=ON")

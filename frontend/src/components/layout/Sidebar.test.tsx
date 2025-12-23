@@ -68,7 +68,15 @@ describe('Sidebar', () => {
   it('WIP badge has correct styling', () => {
     render(<Sidebar activeNav="dashboard" onNavChange={mockOnNavChange} />);
     const wipBadge = screen.getByText('WIP');
-    expect(wipBadge).toHaveClass('px-2', 'py-0.5', 'text-xs', 'font-medium', 'bg-yellow-500', 'text-black', 'rounded');
+    expect(wipBadge).toHaveClass(
+      'px-2',
+      'py-0.5',
+      'text-xs',
+      'font-medium',
+      'bg-yellow-500',
+      'text-black',
+      'rounded'
+    );
   });
 
   it('renders icons for all navigation items', () => {
@@ -76,7 +84,7 @@ describe('Sidebar', () => {
     const buttons = screen.getAllByRole('button');
 
     // Each button should have an icon (lucide-react icons render as SVG)
-    buttons.forEach(button => {
+    buttons.forEach((button) => {
       const svg = button.querySelector('svg');
       expect(svg).toBeInTheDocument();
     });
@@ -92,7 +100,7 @@ describe('Sidebar', () => {
     render(<Sidebar activeNav="dashboard" onNavChange={mockOnNavChange} />);
     const buttons = screen.getAllByRole('button');
 
-    buttons.forEach(button => {
+    buttons.forEach((button) => {
       expect(button).toHaveClass('w-full');
     });
   });
@@ -122,7 +130,7 @@ describe('Sidebar', () => {
     render(<Sidebar activeNav="dashboard" onNavChange={mockOnNavChange} />);
     const buttons = screen.getAllByRole('button');
 
-    buttons.forEach(button => {
+    buttons.forEach((button) => {
       expect(button).toHaveClass('transition-colors', 'duration-200');
     });
   });

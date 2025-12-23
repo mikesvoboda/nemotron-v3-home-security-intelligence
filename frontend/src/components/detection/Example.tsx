@@ -46,7 +46,7 @@ const sampleBoxes: BoundingBox[] = [
 export function BasicExample() {
   return (
     <div className="p-4">
-      <h2 className="text-xl font-bold text-white mb-4">Basic Usage</h2>
+      <h2 className="mb-4 text-xl font-bold text-white">Basic Usage</h2>
       <DetectionImage
         src="https://placehold.co/1920x1080/1a1a1a/76b900?text=Camera+Feed"
         alt="Front door camera"
@@ -62,11 +62,9 @@ export function FilteredExample() {
 
   return (
     <div className="p-4">
-      <h2 className="text-xl font-bold text-white mb-4">
-        Confidence Filtering
-      </h2>
+      <h2 className="mb-4 text-xl font-bold text-white">Confidence Filtering</h2>
       <div className="mb-4">
-        <label className="text-white block mb-2">
+        <label className="mb-2 block text-white">
           Min Confidence: {(minConfidence * 100).toFixed(0)}%
         </label>
         <input
@@ -95,20 +93,16 @@ export function InteractiveExample() {
 
   return (
     <div className="p-4">
-      <h2 className="text-xl font-bold text-white mb-4">
-        Interactive Detections
-      </h2>
+      <h2 className="mb-4 text-xl font-bold text-white">Interactive Detections</h2>
       {selectedBox && (
-        <div className="mb-4 p-4 bg-panel rounded-lg border border-gray-800">
-          <p className="text-white font-semibold">Selected Detection:</p>
+        <div className="mb-4 rounded-lg border border-gray-800 bg-panel p-4">
+          <p className="font-semibold text-white">Selected Detection:</p>
           <p className="text-gray-400">
             Label: <span className="text-primary">{selectedBox.label}</span>
           </p>
           <p className="text-gray-400">
             Confidence:{' '}
-            <span className="text-primary">
-              {(selectedBox.confidence * 100).toFixed(1)}%
-            </span>
+            <span className="text-primary">{(selectedBox.confidence * 100).toFixed(1)}%</span>
           </p>
           <p className="text-gray-400">
             Position: x={selectedBox.x}, y={selectedBox.y}
@@ -123,7 +117,7 @@ export function InteractiveExample() {
         alt="Interactive camera"
         boxes={sampleBoxes}
         onClick={setSelectedBox}
-        className="rounded-lg shadow-dark-lg cursor-pointer"
+        className="cursor-pointer rounded-lg shadow-dark-lg"
       />
     </div>
   );
@@ -135,9 +129,7 @@ export function CustomizationExample() {
 
   return (
     <div className="p-4">
-      <h2 className="text-xl font-bold text-white mb-4">
-        Customization Options
-      </h2>
+      <h2 className="mb-4 text-xl font-bold text-white">Customization Options</h2>
       <div className="mb-4 flex gap-4">
         <label className="flex items-center text-white">
           <input
@@ -196,11 +188,11 @@ export function CameraGridExample() {
 
   return (
     <div className="p-4">
-      <h2 className="text-xl font-bold text-white mb-4">Camera Grid</h2>
+      <h2 className="mb-4 text-xl font-bold text-white">Camera Grid</h2>
       <div className="grid grid-cols-2 gap-4">
         {cameras.map((camera) => (
-          <div key={camera.id} className="bg-panel rounded-lg p-3">
-            <h3 className="text-white font-semibold mb-2">{camera.name}</h3>
+          <div key={camera.id} className="rounded-lg bg-panel p-3">
+            <h3 className="mb-2 font-semibold text-white">{camera.name}</h3>
             <DetectionImage
               src={`https://placehold.co/800x600/1a1a1a/76b900?text=${camera.name.replace(' ', '+')}`}
               alt={camera.name}
@@ -208,7 +200,7 @@ export function CameraGridExample() {
               minConfidence={0.7}
               className="rounded-lg"
             />
-            <p className="text-gray-400 text-sm mt-2">
+            <p className="mt-2 text-sm text-gray-400">
               {camera.detections.length} detection
               {camera.detections.length !== 1 ? 's' : ''}
             </p>
@@ -231,25 +223,22 @@ export default function DetectionExamples() {
     { id: 'grid', label: 'Camera Grid', component: CameraGridExample },
   ];
 
-  const ActiveComponent =
-    examples.find((ex) => ex.id === activeExample)?.component || BasicExample;
+  const ActiveComponent = examples.find((ex) => ex.id === activeExample)?.component || BasicExample;
 
   return (
     <div className="min-h-screen bg-background p-8">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-white mb-6">
-          Detection Component Examples
-        </h1>
+      <div className="mx-auto max-w-7xl">
+        <h1 className="mb-6 text-3xl font-bold text-white">Detection Component Examples</h1>
 
         {/* Tab Navigation */}
-        <div className="flex gap-2 mb-8 border-b border-gray-800">
+        <div className="mb-8 flex gap-2 border-b border-gray-800">
           {examples.map((example) => (
             <button
               key={example.id}
               onClick={() => setActiveExample(example.id)}
               className={`px-4 py-2 font-medium transition-colors ${
                 activeExample === example.id
-                  ? 'text-primary border-b-2 border-primary'
+                  ? 'border-b-2 border-primary text-primary'
                   : 'text-gray-400 hover:text-white'
               }`}
             >
@@ -259,36 +248,36 @@ export default function DetectionExamples() {
         </div>
 
         {/* Active Example */}
-        <div className="bg-panel rounded-lg shadow-dark-lg">
+        <div className="rounded-lg bg-panel shadow-dark-lg">
           <ActiveComponent />
         </div>
 
         {/* Legend */}
-        <div className="mt-8 p-4 bg-panel rounded-lg">
-          <h3 className="text-white font-semibold mb-3">Color Legend</h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="mt-8 rounded-lg bg-panel p-4">
+          <h3 className="mb-3 font-semibold text-white">Color Legend</h3>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded" style={{ backgroundColor: '#ef4444' }} />
+              <div className="h-4 w-4 rounded" style={{ backgroundColor: '#ef4444' }} />
               <span className="text-gray-300">Person</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded" style={{ backgroundColor: '#3b82f6' }} />
+              <div className="h-4 w-4 rounded" style={{ backgroundColor: '#3b82f6' }} />
               <span className="text-gray-300">Car</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded" style={{ backgroundColor: '#f59e0b' }} />
+              <div className="h-4 w-4 rounded" style={{ backgroundColor: '#f59e0b' }} />
               <span className="text-gray-300">Dog</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded" style={{ backgroundColor: '#8b5cf6' }} />
+              <div className="h-4 w-4 rounded" style={{ backgroundColor: '#8b5cf6' }} />
               <span className="text-gray-300">Cat</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded" style={{ backgroundColor: '#10b981' }} />
+              <div className="h-4 w-4 rounded" style={{ backgroundColor: '#10b981' }} />
               <span className="text-gray-300">Package</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded" style={{ backgroundColor: '#6b7280' }} />
+              <div className="h-4 w-4 rounded" style={{ backgroundColor: '#6b7280' }} />
               <span className="text-gray-300">Other</span>
             </div>
           </div>

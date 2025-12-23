@@ -33,22 +33,14 @@ describe('BoundingBoxOverlay', () => {
 
   it('renders without crashing', () => {
     const { container } = render(
-      <BoundingBoxOverlay
-        boxes={mockBoxes}
-        imageWidth={800}
-        imageHeight={600}
-      />
+      <BoundingBoxOverlay boxes={mockBoxes} imageWidth={800} imageHeight={600} />
     );
     expect(container.querySelector('svg')).toBeInTheDocument();
   });
 
   it('renders correct number of bounding boxes', () => {
     const { container } = render(
-      <BoundingBoxOverlay
-        boxes={mockBoxes}
-        imageWidth={800}
-        imageHeight={600}
-      />
+      <BoundingBoxOverlay boxes={mockBoxes} imageWidth={800} imageHeight={600} />
     );
     const rects = container.querySelectorAll('rect[fill="none"]');
     expect(rects.length).toBe(3);
@@ -56,11 +48,7 @@ describe('BoundingBoxOverlay', () => {
 
   it('applies correct dimensions to SVG viewBox', () => {
     const { container } = render(
-      <BoundingBoxOverlay
-        boxes={mockBoxes}
-        imageWidth={1920}
-        imageHeight={1080}
-      />
+      <BoundingBoxOverlay boxes={mockBoxes} imageWidth={1920} imageHeight={1080} />
     );
     const svg = container.querySelector('svg');
     expect(svg?.getAttribute('viewBox')).toBe('0 0 1920 1080');
@@ -68,11 +56,7 @@ describe('BoundingBoxOverlay', () => {
 
   it('renders bounding boxes with correct positions and dimensions', () => {
     const { container } = render(
-      <BoundingBoxOverlay
-        boxes={[mockBoxes[0]]}
-        imageWidth={800}
-        imageHeight={600}
-      />
+      <BoundingBoxOverlay boxes={[mockBoxes[0]]} imageWidth={800} imageHeight={600} />
     );
     const rect = container.querySelector('rect[fill="none"]');
     expect(rect?.getAttribute('x')).toBe('100');
@@ -83,11 +67,7 @@ describe('BoundingBoxOverlay', () => {
 
   it('applies default colors based on object label', () => {
     const { container } = render(
-      <BoundingBoxOverlay
-        boxes={mockBoxes}
-        imageWidth={800}
-        imageHeight={600}
-      />
+      <BoundingBoxOverlay boxes={mockBoxes} imageWidth={800} imageHeight={600} />
     );
     const rects = container.querySelectorAll('rect[fill="none"]');
 
@@ -115,11 +95,7 @@ describe('BoundingBoxOverlay', () => {
     ];
 
     const { container } = render(
-      <BoundingBoxOverlay
-        boxes={customBoxes}
-        imageWidth={800}
-        imageHeight={600}
-      />
+      <BoundingBoxOverlay boxes={customBoxes} imageWidth={800} imageHeight={600} />
     );
     const rect = container.querySelector('rect[fill="none"]');
     expect(rect?.getAttribute('stroke')).toBe('#ff00ff');
@@ -127,11 +103,7 @@ describe('BoundingBoxOverlay', () => {
 
   it('displays labels by default', () => {
     const { container } = render(
-      <BoundingBoxOverlay
-        boxes={[mockBoxes[0]]}
-        imageWidth={800}
-        imageHeight={600}
-      />
+      <BoundingBoxOverlay boxes={[mockBoxes[0]]} imageWidth={800} imageHeight={600} />
     );
     const text = container.querySelector('text');
     expect(text?.textContent).toContain('person');
@@ -152,11 +124,7 @@ describe('BoundingBoxOverlay', () => {
 
   it('displays confidence percentage by default', () => {
     const { container } = render(
-      <BoundingBoxOverlay
-        boxes={[mockBoxes[0]]}
-        imageWidth={800}
-        imageHeight={600}
-      />
+      <BoundingBoxOverlay boxes={[mockBoxes[0]]} imageWidth={800} imageHeight={600} />
     );
     const text = container.querySelector('text');
     expect(text?.textContent).toContain('95%');
@@ -184,11 +152,7 @@ describe('BoundingBoxOverlay', () => {
     ];
 
     const { container } = render(
-      <BoundingBoxOverlay
-        boxes={testBoxes}
-        imageWidth={800}
-        imageHeight={600}
-      />
+      <BoundingBoxOverlay boxes={testBoxes} imageWidth={800} imageHeight={600} />
     );
     const texts = container.querySelectorAll('text');
 
@@ -213,12 +177,7 @@ describe('BoundingBoxOverlay', () => {
 
   it('shows all boxes when minConfidence is 0', () => {
     const { container } = render(
-      <BoundingBoxOverlay
-        boxes={mockBoxes}
-        imageWidth={800}
-        imageHeight={600}
-        minConfidence={0}
-      />
+      <BoundingBoxOverlay boxes={mockBoxes} imageWidth={800} imageHeight={600} minConfidence={0} />
     );
     const rects = container.querySelectorAll('rect[fill="none"]');
     expect(rects.length).toBe(3);
@@ -291,11 +250,7 @@ describe('BoundingBoxOverlay', () => {
 
   it('does not add cursor pointer class when onClick is not provided', () => {
     const { container } = render(
-      <BoundingBoxOverlay
-        boxes={[mockBoxes[0]]}
-        imageWidth={800}
-        imageHeight={600}
-      />
+      <BoundingBoxOverlay boxes={[mockBoxes[0]]} imageWidth={800} imageHeight={600} />
     );
 
     const rect = container.querySelector('rect[fill="none"]');
@@ -304,44 +259,28 @@ describe('BoundingBoxOverlay', () => {
 
   it('returns null when imageWidth is 0', () => {
     const { container } = render(
-      <BoundingBoxOverlay
-        boxes={mockBoxes}
-        imageWidth={0}
-        imageHeight={600}
-      />
+      <BoundingBoxOverlay boxes={mockBoxes} imageWidth={0} imageHeight={600} />
     );
     expect(container.querySelector('svg')).not.toBeInTheDocument();
   });
 
   it('returns null when imageHeight is 0', () => {
     const { container } = render(
-      <BoundingBoxOverlay
-        boxes={mockBoxes}
-        imageWidth={800}
-        imageHeight={0}
-      />
+      <BoundingBoxOverlay boxes={mockBoxes} imageWidth={800} imageHeight={0} />
     );
     expect(container.querySelector('svg')).not.toBeInTheDocument();
   });
 
   it('returns null when imageWidth is negative', () => {
     const { container } = render(
-      <BoundingBoxOverlay
-        boxes={mockBoxes}
-        imageWidth={-800}
-        imageHeight={600}
-      />
+      <BoundingBoxOverlay boxes={mockBoxes} imageWidth={-800} imageHeight={600} />
     );
     expect(container.querySelector('svg')).not.toBeInTheDocument();
   });
 
   it('returns null when boxes array is empty', () => {
     const { container } = render(
-      <BoundingBoxOverlay
-        boxes={[]}
-        imageWidth={800}
-        imageHeight={600}
-      />
+      <BoundingBoxOverlay boxes={[]} imageWidth={800} imageHeight={600} />
     );
     expect(container.querySelector('svg')).not.toBeInTheDocument();
   });
@@ -357,11 +296,7 @@ describe('BoundingBoxOverlay', () => {
     };
 
     const { container } = render(
-      <BoundingBoxOverlay
-        boxes={[unknownBox]}
-        imageWidth={800}
-        imageHeight={600}
-      />
+      <BoundingBoxOverlay boxes={[unknownBox]} imageWidth={800} imageHeight={600} />
     );
 
     const rect = container.querySelector('rect[fill="none"]');
@@ -371,11 +306,7 @@ describe('BoundingBoxOverlay', () => {
 
   it('renders label background with correct color', () => {
     const { container } = render(
-      <BoundingBoxOverlay
-        boxes={[mockBoxes[0]]}
-        imageWidth={800}
-        imageHeight={600}
-      />
+      <BoundingBoxOverlay boxes={[mockBoxes[0]]} imageWidth={800} imageHeight={600} />
     );
 
     const labelBackground = container.querySelectorAll('rect[opacity="0.9"]')[0];
@@ -393,11 +324,7 @@ describe('BoundingBoxOverlay', () => {
     };
 
     const { container } = render(
-      <BoundingBoxOverlay
-        boxes={[box]}
-        imageWidth={800}
-        imageHeight={600}
-      />
+      <BoundingBoxOverlay boxes={[box]} imageWidth={800} imageHeight={600} />
     );
 
     const labelBackground = container.querySelector('rect[opacity="0.9"]');
@@ -407,11 +334,7 @@ describe('BoundingBoxOverlay', () => {
 
   it('renders with responsive scaling', () => {
     const { container } = render(
-      <BoundingBoxOverlay
-        boxes={mockBoxes}
-        imageWidth={800}
-        imageHeight={600}
-      />
+      <BoundingBoxOverlay boxes={mockBoxes} imageWidth={800} imageHeight={600} />
     );
 
     const svg = container.querySelector('svg');
@@ -422,11 +345,7 @@ describe('BoundingBoxOverlay', () => {
 
   it('applies correct z-index for overlay positioning', () => {
     const { container } = render(
-      <BoundingBoxOverlay
-        boxes={mockBoxes}
-        imageWidth={800}
-        imageHeight={600}
-      />
+      <BoundingBoxOverlay boxes={mockBoxes} imageWidth={800} imageHeight={600} />
     );
 
     const svg = container.querySelector('svg');
@@ -442,11 +361,7 @@ describe('BoundingBoxOverlay', () => {
     ];
 
     const { container } = render(
-      <BoundingBoxOverlay
-        boxes={diverseBoxes}
-        imageWidth={1920}
-        imageHeight={1080}
-      />
+      <BoundingBoxOverlay boxes={diverseBoxes} imageWidth={1920} imageHeight={1080} />
     );
 
     const rects = container.querySelectorAll('rect[fill="none"]');
@@ -487,11 +402,7 @@ describe('BoundingBoxOverlay', () => {
 
   it('has absolute positioning for overlay', () => {
     const { container } = render(
-      <BoundingBoxOverlay
-        boxes={mockBoxes}
-        imageWidth={800}
-        imageHeight={600}
-      />
+      <BoundingBoxOverlay boxes={mockBoxes} imageWidth={800} imageHeight={600} />
     );
 
     const svg = container.querySelector('svg');

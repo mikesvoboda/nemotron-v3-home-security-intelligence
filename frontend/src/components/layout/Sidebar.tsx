@@ -23,8 +23,8 @@ interface SidebarProps {
 
 export default function Sidebar({ activeNav, onNavChange }: SidebarProps) {
   return (
-    <aside className="w-64 bg-[#1A1A1A] border-r border-gray-800 flex flex-col">
-      <nav className="flex-1 p-4 space-y-2">
+    <aside className="flex w-64 flex-col border-r border-gray-800 bg-[#1A1A1A]">
+      <nav className="flex-1 space-y-2 p-4">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeNav === item.id;
@@ -34,18 +34,19 @@ export default function Sidebar({ activeNav, onNavChange }: SidebarProps) {
               key={item.id}
               onClick={() => onNavChange(item.id)}
               className={`
-                w-full flex items-center gap-3 px-4 py-3 rounded-lg
+                flex w-full items-center gap-3 rounded-lg px-4 py-3
                 transition-colors duration-200
-                ${isActive
-                  ? 'bg-[#76B900] text-black font-semibold'
-                  : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                ${
+                  isActive
+                    ? 'bg-[#76B900] font-semibold text-black'
+                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                 }
               `}
             >
-              <Icon className="w-5 h-5" />
+              <Icon className="h-5 w-5" />
               <span className="flex-1 text-left">{item.label}</span>
               {item.badge && (
-                <span className="px-2 py-0.5 text-xs font-medium bg-yellow-500 text-black rounded">
+                <span className="rounded bg-yellow-500 px-2 py-0.5 text-xs font-medium text-black">
                   {item.badge}
                 </span>
               )}

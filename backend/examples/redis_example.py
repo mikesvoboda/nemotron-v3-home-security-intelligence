@@ -29,7 +29,7 @@ async def example_queue_operations():
                 "objects": ["person", "car"],
             }
             length = await client.add_to_queue(queue_name, detection)
-            print(f"   Added detection {i+1}, queue length: {length}")
+            print(f"   Added detection {i + 1}, queue length: {length}")
 
         # Check queue length
         length = await client.get_queue_length(queue_name)

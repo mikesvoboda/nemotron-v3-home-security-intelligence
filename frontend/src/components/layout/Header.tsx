@@ -2,19 +2,15 @@ import { Activity } from 'lucide-react';
 
 export default function Header() {
   return (
-    <header className="h-16 bg-[#1A1A1A] border-b border-gray-800 px-6 flex items-center justify-between">
+    <header className="flex h-16 items-center justify-between border-b border-gray-800 bg-[#1A1A1A] px-6">
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-[#76B900] rounded flex items-center justify-center">
-            <Activity className="w-5 h-5 text-black" />
+          <div className="flex h-8 w-8 items-center justify-center rounded bg-[#76B900]">
+            <Activity className="h-5 w-5 text-black" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-white tracking-wide">
-              NVIDIA SECURITY
-            </h1>
-            <p className="text-xs text-[#76B900] font-medium tracking-wider">
-              POWERED BY NEMOTRON
-            </p>
+            <h1 className="text-lg font-bold tracking-wide text-white">NVIDIA SECURITY</h1>
+            <p className="text-xs font-medium tracking-wider text-[#76B900]">POWERED BY NEMOTRON</p>
           </div>
         </div>
       </div>
@@ -22,12 +18,12 @@ export default function Header() {
       <div className="flex items-center gap-6">
         {/* System Status Indicator */}
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+          <div className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
           <span className="text-sm text-gray-400">System Online</span>
         </div>
 
         {/* GPU Quick Stats Placeholder */}
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-800 rounded-lg">
+        <div className="flex items-center gap-2 rounded-lg bg-gray-800 px-3 py-1.5">
           <div className="text-xs text-gray-400">GPU:</div>
           <div className="text-xs font-semibold text-[#76B900]">--</div>
         </div>

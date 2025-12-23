@@ -285,8 +285,8 @@ describe('useWebSocket', () => {
       expect(result.current.isConnected).toBe(true);
     });
 
-    const initialCallCount = (window.WebSocket as unknown as ReturnType<typeof vi.fn>).mock
-      .calls.length;
+    const initialCallCount = (window.WebSocket as unknown as ReturnType<typeof vi.fn>).mock.calls
+      .length;
 
     act(() => {
       mockWebSocket?.close();
@@ -356,8 +356,8 @@ describe('useWebSocket', () => {
       expect(result.current.isConnected).toBe(true);
     });
 
-    const initialCallCount = (window.WebSocket as unknown as ReturnType<typeof vi.fn>).mock
-      .calls.length;
+    const initialCallCount = (window.WebSocket as unknown as ReturnType<typeof vi.fn>).mock.calls
+      .length;
 
     act(() => {
       mockWebSocket?.close();
@@ -388,8 +388,8 @@ describe('useWebSocket', () => {
       expect(result.current.isConnected).toBe(true);
     });
 
-    const callCountBeforeDisconnect = (window.WebSocket as unknown as ReturnType<typeof vi.fn>)
-      .mock.calls.length;
+    const callCountBeforeDisconnect = (window.WebSocket as unknown as ReturnType<typeof vi.fn>).mock
+      .calls.length;
 
     act(() => {
       result.current.disconnect();

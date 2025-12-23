@@ -1,6 +1,8 @@
 """FastAPI application entry point for home security intelligence system."""
 
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,7 +13,7 @@ from backend.core.redis import close_redis, init_redis
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI):
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     """Manage application lifecycle - startup and shutdown events."""
     # Startup
     settings = get_settings()
@@ -56,13 +58,13 @@ app.include_router(system.router)
 
 
 @app.get("/")
-async def root():
+async def root() -> dict[str, str]:
     """Health check endpoint."""
     return {"status": "ok", "message": "Home Security Intelligence API"}
 
 
 @app.get("/health")
-async def health():
+async def health() -> dict[str, Any]:
     """Detailed health check endpoint."""
     # Check database
     db_status = "operational"

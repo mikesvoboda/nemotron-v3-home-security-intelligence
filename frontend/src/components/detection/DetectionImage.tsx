@@ -42,7 +42,7 @@ const DetectionImage: React.FC<DetectionImageProps> = ({
         src={src}
         alt={alt}
         onLoad={handleImageLoad}
-        className="block w-full h-full object-contain"
+        className="block h-full w-full object-contain"
       />
       {imageDimensions && (
         <BoundingBoxOverlay
