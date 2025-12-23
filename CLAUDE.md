@@ -128,6 +128,34 @@ pytest backend/tests/ -v && cd frontend && npm test
 
 Validation agents should run the full test suite and report any failures. Fix all failures before proceeding.
 
+## Git and Pre-commit Rules
+
+**CRITICAL: Never bypass git pre-commit hooks.** All commits must pass pre-commit checks including:
+- `ruff check` - Python linting
+- `ruff format` - Python formatting
+- `mypy` - Python type checking
+- `pytest` - Python tests with 95% coverage
+- `eslint` - TypeScript/JavaScript linting
+- `vitest` - Frontend tests with 95% coverage
+
+**Do NOT use:**
+- `git commit --no-verify`
+- `git push --no-verify`
+- Any flags that skip pre-commit hooks
+
+If pre-commit checks fail, fix the issues before committing. Run the full test suite after all agents complete work:
+
+```bash
+# Backend
+source .venv/bin/activate && python -m pytest backend/tests/ -v
+
+# Frontend
+cd frontend && npm test
+
+# Pre-commit (runs all checks)
+pre-commit run --all-files
+```
+
 ## Key Design Decisions
 
 - **Risk scoring:** LLM-determined (Nemotron analyzes detections and assigns 0-100 score)

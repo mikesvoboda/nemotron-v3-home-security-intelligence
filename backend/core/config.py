@@ -76,6 +76,14 @@ class Settings(BaseSettings):
         description="Nemotron reasoning service URL",
     )
 
+    # Detection settings
+    detection_confidence_threshold: float = Field(
+        default=0.5,
+        description="Minimum confidence threshold for object detections (0.0-1.0)",
+        ge=0.0,
+        le=1.0,
+    )
+
     @field_validator("database_url")
     @classmethod
     def validate_database_url(cls, v: str) -> str:
