@@ -195,3 +195,28 @@ This project leverages the NVIDIA AI stack (RT-DETRv2 + Nemotron). Below are str
 ### 5. The RTX Marketing Lead (AI at Home)
 *   **Perspective:** Democratize "Personal AI" for the GeForce ecosystem.
 *   **Strategic Idea:** **"Chat with your Security"**. Implement a RAG (Retrieval-Augmented Generation) layer allowing users to query their security history: "Hey Nemotron, did any vehicles I don't recognize park in the driveway while I was at work today?" This transforms the dashboard from a passive feed into a proactive security consultant.
+---
+
+## NVIDIA Persona Perspectives & Future Roadmap
+
+This project leverages the NVIDIA AI stack (RT-DETRv2 + Nemotron). Below are strategic perspectives from various NVIDIA personas on how this platform can evolve.
+
+### 1. The Edge AI Developer (GTC/Developer Relations)
+*   **Perspective:** Showcase the transition from "Object Detection" to "Intent Recognition".
+*   **Strategic Idea:** **Spatial Context Injection**. Enhance the prompt to Nemotron by including spatial relationships (e.g., "Person is 2ft from Window, crouched"). This demonstrates Nemotron's superior reasoning capabilities in interpreting intent (e.g., "potential reconnaissance" vs. "routine maintenance") beyond simple bounding boxes.
+
+### 2. The NIM Product Manager (Inference Microservices)
+*   **Perspective:** Standardize deployment and maximize GPU utilization.
+*   **Strategic Idea:** **NVIDIA NIM Migration**. Replace the local `llama.cpp` server with an **NVIDIA NIM** container. This shift allows the system to scale from a single RTX A5500 to multi-GPU clusters, providing enterprise-grade throughput and unified API management for industrial-scale monitoring (e.g., 50+ high-res streams).
+
+### 3. The Digital Twin Architect (Omniverse)
+*   **Perspective:** Bridge the gap between 2D monitoring and 3D spatial awareness.
+*   **Strategic Idea:** **USD Event Reconstruction**. Have Nemotron generate **Universal Scene Description (USD)** snippets describing detections. These snippets can be fed into an Omniverse Digital Twin of the building to reconstruct and "replay" security events in a 3D simulated environment for forensic analysis from any camera angle.
+
+### 4. The Cybersecurity Engineer (Trustworthy AI)
+*   **Perspective:** Move from reactive alerts to proactive threat intelligence.
+*   **Strategic Idea:** **Baseline Anomaly Scoring**. Implement a "Baseline of Normalcy" where Nemotron learns routine house patterns (e.g., "Deliveries occur between 10am-4pm"). If a detection occurs at an anomalous time or location, Nemotron reasons about the *contextual anomaly* to escalate risk, even if the detected object (e.g., a person) is partially obscured.
+
+### 5. The RTX Marketing Lead (AI at Home)
+*   **Perspective:** Democratize "Personal AI" for the GeForce ecosystem.
+*   **Strategic Idea:** **"Chat with your Security"**. Implement a RAG (Retrieval-Augmented Generation) layer allowing users to query their security history: "Hey Nemotron, did any vehicles I don't recognize park in the driveway while I was at work today?" This transforms the dashboard from a passive feed into a proactive security consultant.
