@@ -5,7 +5,7 @@ import contextlib
 import json
 import logging
 from collections.abc import AsyncGenerator
-from typing import Any
+from typing import Any, cast
 
 from redis.asyncio import ConnectionPool, Redis
 from redis.asyncio.client import PubSub
@@ -48,7 +48,7 @@ class RedisClient:
                 )
                 self._client = Redis(connection_pool=self._pool)
                 # Test connection
-                await self._client.ping()
+                await self._client.ping()  # type: ignore
                 logger.info("Successfully connected to Redis")
                 return
             except (ConnectionError, TimeoutError) as e:
@@ -99,8 +99,8 @@ class RedisClient:
         """
         try:
             client = self._ensure_connected()
-            await client.ping()
-            info = await client.info("server")
+            await client.ping()  # type: ignore
+            info = await client.info("server")  # type: ignore
             return {
                 "status": "healthy",
                 "connected": True,
@@ -127,7 +127,7 @@ class RedisClient:
         """
         client = self._ensure_connected()
         serialized = json.dumps(data) if not isinstance(data, str) else data
-        return await client.rpush(queue_name, serialized)
+        return await client.rpush(queue_name, serialized)  # type: ignore
 
     async def get_from_queue(self, queue_name: str, timeout: int = 0) -> Any | None:
         """Get item from the front of a queue (BLPOP).
@@ -140,7 +140,7 @@ class RedisClient:
             Deserialized item from the queue, or None if timeout
         """
         client = self._ensure_connected()
-        result = await client.blpop(queue_name, timeout=timeout)
+        result = await client.blpop([queue_name], timeout=timeout)  # type: ignore[misc]
         if result:
             _, value = result
             try:
@@ -159,7 +159,7 @@ class RedisClient:
             Number of items in the queue
         """
         client = self._ensure_connected()
-        return await client.llen(queue_name)
+        return cast(int, await client.llen(queue_name))  # type: ignore[misc]
 
     async def peek_queue(self, queue_name: str, start: int = 0, end: int = -1) -> list[Any]:
         """Peek at items in a queue without removing them (LRANGE).
@@ -173,7 +173,7 @@ class RedisClient:
             List of deserialized items
         """
         client = self._ensure_connected()
-        items = await client.lrange(queue_name, start, end)
+        items = cast(list[str], await client.lrange(queue_name, start, end))  # type: ignore[misc]
         result = []
         for item in items:
             try:
@@ -192,7 +192,7 @@ class RedisClient:
             True if queue was deleted, False if it didn't exist
         """
         client = self._ensure_connected()
-        result = await client.delete(queue_name)
+        result = cast(int, await client.delete(queue_name))
         return result > 0
 
     # Pub/Sub operations
@@ -220,7 +220,7 @@ class RedisClient:
         """
         client = self._ensure_connected()
         serialized = json.dumps(message) if not isinstance(message, str) else message
-        return await client.publish(channel, serialized)
+        return cast(int, await client.publish(channel, serialized))
 
     async def subscribe(self, *channels: str) -> PubSub:
         """Subscribe to one or more channels.
@@ -255,10 +255,8 @@ class RedisClient:
         """
         async for message in pubsub.listen():
             if message["type"] == "message":
-                try:
+                with contextlib.suppress(json.JSONDecodeError, TypeError):
                     message["data"] = json.loads(message["data"])
-                except (json.JSONDecodeError, TypeError):
-                    pass
                 yield message
 
     # Cache operations
@@ -294,7 +292,7 @@ class RedisClient:
         """
         client = self._ensure_connected()
         serialized = json.dumps(value) if not isinstance(value, str) else value
-        return await client.set(key, serialized, ex=expire)
+        return cast(bool, await client.set(key, serialized, ex=expire))
 
     async def delete(self, *keys: str) -> int:
         """Delete one or more keys from Redis.
@@ -306,7 +304,7 @@ class RedisClient:
             Number of keys deleted
         """
         client = self._ensure_connected()
-        return await client.delete(*keys)
+        return cast(int, await client.delete(*keys))
 
     async def exists(self, *keys: str) -> int:
         """Check if one or more keys exist.
@@ -318,7 +316,7 @@ class RedisClient:
             Number of keys that exist
         """
         client = self._ensure_connected()
-        return await client.exists(*keys)
+        return cast(int, await client.exists(*keys))
 
 
 # Global Redis client instance

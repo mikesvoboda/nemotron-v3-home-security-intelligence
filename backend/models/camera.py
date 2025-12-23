@@ -1,9 +1,14 @@
 """Camera model for home security system."""
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+if TYPE_CHECKING:
+    from .detection import Detection
+    from .event import Event
 
 
 class Base(DeclarativeBase):
@@ -29,10 +34,10 @@ class Camera(Base):
 
     # Relationships
     detections: Mapped[list["Detection"]] = relationship(
-        "Detection", back_populates="camera", cascade="all, delete-orphan"  # noqa: F821
+        "Detection", back_populates="camera", cascade="all, delete-orphan"
     )
     events: Mapped[list["Event"]] = relationship(
-        "Event", back_populates="camera", cascade="all, delete-orphan"  # noqa: F821
+        "Event", back_populates="camera", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:

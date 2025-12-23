@@ -289,8 +289,6 @@ async def test_complete_workflow_camera_to_event(test_db):
         session.add(event)
         await session.flush()
 
-        event_id = event.id
-
     # Step 4: Query and verify complete workflow
     async with get_session() as session:
         # Get camera with all related data

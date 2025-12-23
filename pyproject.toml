@@ -40,6 +40,7 @@ ignore = [
 "backend/tests/**/*.py" = [
     "S101",   # assert is fine in tests
     "ARG001", # unused function argument in fixtures
+    "ARG002", # unused method argument for fixtures used via side effects
     "PLR2004",# magic values ok in tests
 ]
 "backend/examples/**/*.py" = [
