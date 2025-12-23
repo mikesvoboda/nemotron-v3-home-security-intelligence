@@ -16,11 +16,13 @@ echo "Model directory: $RTDETR_DIR"
 echo "Port: $MODEL_PORT"
 echo "Expected VRAM usage: ~4GB"
 
-# TODO: Uncomment and configure once RT-DETRv2 model is set up
-# python -m rtdetr.server \
-#   --model-path "$RTDETR_DIR/rtdetrv2_r50vd.pth" \
-#   --port $MODEL_PORT \
-#   --device cuda:0 \
-#   --confidence-threshold 0.5
+# Check if model file exists
+if [ ! -f "$RTDETR_DIR/rtdetrv2_r50vd.onnx" ]; then
+    echo "WARNING: Model file not found at $RTDETR_DIR/rtdetrv2_r50vd.onnx"
+    echo "Server will start but detection will fail until model is available"
+    echo "Please download RT-DETRv2 ONNX model and place it in $RTDETR_DIR"
+fi
 
-echo "Placeholder: Configure RT-DETRv2 model path and uncomment startup command"
+# Start the inference server
+cd "$RTDETR_DIR"
+python model.py
