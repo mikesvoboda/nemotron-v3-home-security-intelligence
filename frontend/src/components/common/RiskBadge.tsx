@@ -75,7 +75,7 @@ export default function RiskBadge({
         sizeClasses,
         colorClasses,
         shouldAnimate && 'animate-pulse',
-        className,
+        className
       )}
     >
       <Icon className={iconSize} />

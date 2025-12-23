@@ -11,7 +11,7 @@ from sqlalchemy import Column, Integer, String, select
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from backend.core import Base, close_db, get_session, init_db  # noqa: E402
+from backend.core import Base, close_db, get_session, init_db
 
 
 # Test model

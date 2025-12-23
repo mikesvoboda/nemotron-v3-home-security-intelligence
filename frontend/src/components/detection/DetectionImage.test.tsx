@@ -28,22 +28,14 @@ describe('DetectionImage', () => {
 
   it('renders without crashing', () => {
     const { container } = render(
-      <DetectionImage
-        src={mockImageSrc}
-        alt="Test image"
-        boxes={mockBoxes}
-      />
+      <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} />
     );
     expect(container.querySelector('img')).toBeInTheDocument();
   });
 
   it('renders image with correct src and alt attributes', () => {
     const { container } = render(
-      <DetectionImage
-        src={mockImageSrc}
-        alt="Security camera view"
-        boxes={mockBoxes}
-      />
+      <DetectionImage src={mockImageSrc} alt="Security camera view" boxes={mockBoxes} />
     );
 
     const img = container.querySelector('img');
@@ -53,11 +45,7 @@ describe('DetectionImage', () => {
 
   it('renders BoundingBoxOverlay after image loads', async () => {
     const { container } = render(
-      <DetectionImage
-        src={mockImageSrc}
-        alt="Test image"
-        boxes={mockBoxes}
-      />
+      <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} />
     );
 
     const img = container.querySelector('img') as HTMLImageElement;
@@ -76,11 +64,7 @@ describe('DetectionImage', () => {
 
   it('passes correct image dimensions to BoundingBoxOverlay', async () => {
     const { container } = render(
-      <DetectionImage
-        src={mockImageSrc}
-        alt="Test image"
-        boxes={mockBoxes}
-      />
+      <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} />
     );
 
     const img = container.querySelector('img') as HTMLImageElement;
@@ -98,11 +82,7 @@ describe('DetectionImage', () => {
 
   it('does not render BoundingBoxOverlay before image loads', () => {
     const { container } = render(
-      <DetectionImage
-        src={mockImageSrc}
-        alt="Test image"
-        boxes={mockBoxes}
-      />
+      <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} />
     );
 
     // Before image load, no SVG overlay should be present
@@ -126,12 +106,7 @@ describe('DetectionImage', () => {
 
   it('passes showLabels prop to BoundingBoxOverlay', async () => {
     const { container } = render(
-      <DetectionImage
-        src={mockImageSrc}
-        alt="Test image"
-        boxes={mockBoxes}
-        showLabels={false}
-      />
+      <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} showLabels={false} />
     );
 
     const img = container.querySelector('img') as HTMLImageElement;
@@ -170,12 +145,7 @@ describe('DetectionImage', () => {
 
   it('passes minConfidence prop to BoundingBoxOverlay', async () => {
     const { container } = render(
-      <DetectionImage
-        src={mockImageSrc}
-        alt="Test image"
-        boxes={mockBoxes}
-        minConfidence={0.9}
-      />
+      <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} minConfidence={0.9} />
     );
 
     const img = container.querySelector('img') as HTMLImageElement;
@@ -194,12 +164,7 @@ describe('DetectionImage', () => {
   it('passes onClick handler to BoundingBoxOverlay', async () => {
     const handleClick = vi.fn();
     const { container } = render(
-      <DetectionImage
-        src={mockImageSrc}
-        alt="Test image"
-        boxes={mockBoxes}
-        onClick={handleClick}
-      />
+      <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} onClick={handleClick} />
     );
 
     const img = container.querySelector('img') as HTMLImageElement;
@@ -222,11 +187,7 @@ describe('DetectionImage', () => {
 
   it('has relative positioning for proper overlay stacking', () => {
     const { container } = render(
-      <DetectionImage
-        src={mockImageSrc}
-        alt="Test image"
-        boxes={mockBoxes}
-      />
+      <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} />
     );
 
     const wrapper = container.firstChild;
@@ -235,11 +196,7 @@ describe('DetectionImage', () => {
 
   it('renders image with responsive width and height classes', () => {
     const { container } = render(
-      <DetectionImage
-        src={mockImageSrc}
-        alt="Test image"
-        boxes={mockBoxes}
-      />
+      <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} />
     );
 
     const img = container.querySelector('img');
@@ -248,11 +205,7 @@ describe('DetectionImage', () => {
 
   it('uses object-contain for image scaling', () => {
     const { container } = render(
-      <DetectionImage
-        src={mockImageSrc}
-        alt="Test image"
-        boxes={mockBoxes}
-      />
+      <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} />
     );
 
     const img = container.querySelector('img');
@@ -260,13 +213,7 @@ describe('DetectionImage', () => {
   });
 
   it('handles empty boxes array', async () => {
-    const { container } = render(
-      <DetectionImage
-        src={mockImageSrc}
-        alt="Test image"
-        boxes={[]}
-      />
-    );
+    const { container } = render(<DetectionImage src={mockImageSrc} alt="Test image" boxes={[]} />);
 
     const img = container.querySelector('img') as HTMLImageElement;
     Object.defineProperty(img, 'naturalWidth', { value: 800, writable: true });
@@ -283,11 +230,7 @@ describe('DetectionImage', () => {
 
   it('updates overlay when image dimensions change on reload', async () => {
     const { container, rerender } = render(
-      <DetectionImage
-        src={mockImageSrc}
-        alt="Test image"
-        boxes={mockBoxes}
-      />
+      <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} />
     );
 
     const img = container.querySelector('img') as HTMLImageElement;
@@ -303,11 +246,7 @@ describe('DetectionImage', () => {
 
     // Rerender with different image
     rerender(
-      <DetectionImage
-        src="https://example.com/new-image.jpg"
-        alt="Test image"
-        boxes={mockBoxes}
-      />
+      <DetectionImage src="https://example.com/new-image.jpg" alt="Test image" boxes={mockBoxes} />
     );
 
     const newImg = container.querySelector('img') as HTMLImageElement;
@@ -324,11 +263,7 @@ describe('DetectionImage', () => {
 
   it('renders with default props', async () => {
     const { container } = render(
-      <DetectionImage
-        src={mockImageSrc}
-        alt="Test image"
-        boxes={mockBoxes}
-      />
+      <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} />
     );
 
     const img = container.querySelector('img') as HTMLImageElement;
@@ -350,11 +285,7 @@ describe('DetectionImage', () => {
 
   it('maintains aspect ratio with inline-block display', () => {
     const { container } = render(
-      <DetectionImage
-        src={mockImageSrc}
-        alt="Test image"
-        boxes={mockBoxes}
-      />
+      <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} />
     );
 
     const wrapper = container.firstChild;
@@ -370,11 +301,7 @@ describe('DetectionImage', () => {
     ];
 
     const { container } = render(
-      <DetectionImage
-        src={mockImageSrc}
-        alt="Test image"
-        boxes={manyBoxes}
-      />
+      <DetectionImage src={mockImageSrc} alt="Test image" boxes={manyBoxes} />
     );
 
     const img = container.querySelector('img') as HTMLImageElement;

@@ -60,8 +60,10 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
     }
 
     // Don't create a new connection if already connected or connecting
-    if (wsRef.current?.readyState === WebSocket.OPEN ||
-        wsRef.current?.readyState === WebSocket.CONNECTING) {
+    if (
+      wsRef.current?.readyState === WebSocket.OPEN ||
+      wsRef.current?.readyState === WebSocket.CONNECTING
+    ) {
       return;
     }
 

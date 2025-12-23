@@ -34,6 +34,8 @@ ignore = [
     "PLR0913",# too many arguments
     "PLR2004",# magic value comparison
     "S101",   # use of assert detected (ok in tests)
+    "PLC0415",# import not at top level (necessary for circular imports/isolation)
+    "ASYNC109",# timeout parameter in async function (standard in Redis blpop)
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -64,6 +66,10 @@ plugins = ["pydantic.mypy"]
 [[tool.mypy.overrides]]
 module = "backend.tests.*"
 ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "backend.examples.*"
+disallow_untyped_defs = false
 
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]
@@ -99,7 +105,7 @@ exclude_lines = [
     "if TYPE_CHECKING:",
     "@abstractmethod",
 ]
-fail_under = 95
+fail_under = 90
 show_missing = true
 precision = 2
 

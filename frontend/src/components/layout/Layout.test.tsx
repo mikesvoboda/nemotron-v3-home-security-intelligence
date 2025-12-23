@@ -9,7 +9,13 @@ vi.mock('./Header', () => ({
 }));
 
 vi.mock('./Sidebar', () => ({
-  default: ({ activeNav, onNavChange }: { activeNav: string; onNavChange: (nav: string) => void }) => (
+  default: ({
+    activeNav,
+    onNavChange,
+  }: {
+    activeNav: string;
+    onNavChange: (nav: string) => void;
+  }) => (
     <div data-testid="mock-sidebar">
       Sidebar - Active: {activeNav}
       <button onClick={() => onNavChange('test')}>Change Nav</button>

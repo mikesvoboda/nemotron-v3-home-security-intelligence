@@ -110,20 +110,13 @@ async function handleResponse<T>(response: Response): Promise<T> {
   }
 
   try {
-    return await response.json() as T;
+    return (await response.json()) as T;
   } catch (error) {
-    throw new ApiError(
-      response.status,
-      'Failed to parse response JSON',
-      error
-    );
+    throw new ApiError(response.status, 'Failed to parse response JSON', error);
   }
 }
 
-async function fetchApi<T>(
-  endpoint: string,
-  options?: RequestInit
-): Promise<T> {
+async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${BASE_URL}${endpoint}`;
 
   try {
@@ -142,10 +135,7 @@ async function fetchApi<T>(
     }
 
     // Network or other errors
-    throw new ApiError(
-      0,
-      error instanceof Error ? error.message : 'Network request failed'
-    );
+    throw new ApiError(0, error instanceof Error ? error.message : 'Network request failed');
   }
 }
 
@@ -168,10 +158,7 @@ export async function createCamera(data: CameraCreate): Promise<Camera> {
   });
 }
 
-export async function updateCamera(
-  id: string,
-  data: CameraUpdate
-): Promise<Camera> {
+export async function updateCamera(id: string, data: CameraUpdate): Promise<Camera> {
   return fetchApi<Camera>(`/api/cameras/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
