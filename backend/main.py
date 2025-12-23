@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.api.routes import cameras, media, system
 from backend.core import close_db, get_settings, init_db
 from backend.core.redis import close_redis, init_redis
 
@@ -40,14 +41,18 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-settings = get_settings()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=get_settings().cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register routers
+app.include_router(cameras.router)
+app.include_router(media.router)
+app.include_router(system.router)
 
 
 @app.get("/")
