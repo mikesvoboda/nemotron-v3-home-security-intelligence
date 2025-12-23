@@ -106,9 +106,15 @@ async def init_db() -> None:
         autoflush=False,
     )
 
+    # Import all models to ensure they're registered with Base.metadata
+    from backend.models import Camera, Detection, Event, GPUStats  # noqa: F401
+
     # Create all tables
+    # Use the Base from models, not the one defined in this module
+    from backend.models.camera import Base as ModelsBase
+
     async with _engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(ModelsBase.metadata.create_all)
 
 
 async def close_db() -> None:
