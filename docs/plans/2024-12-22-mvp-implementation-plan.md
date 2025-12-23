@@ -86,7 +86,7 @@ bd list --label phase-3
 ```bash
 bd list --label phase-4
 ```
-- Implement file watcher service
+- Implement file watcher service (with debounce & integrity checks)
 - Implement RT-DETRv2 inference wrapper
 - Implement detector client service
 - Implement batch aggregator service
@@ -110,7 +110,9 @@ bd list --label phase-5
 - Implement WebSocket system channel
 - Implement GPU monitor service
 - Implement data cleanup service
+- Implement 'Fast Path' high-confidence alerts
 - **TDD:** Write tests for events API
+- **TDD:** Write tests for Fast Path alerts
 - **TDD:** Write tests for detections API
 - **TDD:** Write tests for WebSocket channels
 
@@ -149,6 +151,8 @@ bd list --label phase-8
 - Create seed cameras script
 - Create project README
 - Create setup script
+- Implement basic API Key authentication middleware
+- **TDD:** Write tests for API Key middleware
 
 ---
 
