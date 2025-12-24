@@ -1,69 +1,9 @@
 """Integration tests for FastAPI application endpoints and middleware."""
 
-import os
-import tempfile
-from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-
-from backend.main import app
-
-
-@pytest.fixture
-async def test_db_setup():
-    """Set up test database environment."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "test_api.db"
-        test_db_url = f"sqlite+aiosqlite:///{db_path}"
-
-        # Store original environment
-        original_db_url = os.environ.get("DATABASE_URL")
-        original_redis_url = os.environ.get("REDIS_URL")
-
-        # Set test environment
-        os.environ["DATABASE_URL"] = test_db_url
-        os.environ["REDIS_URL"] = "redis://localhost:6379/15"  # Test DB
-
-        yield test_db_url
-
-        # Restore original environment
-        if original_db_url:
-            os.environ["DATABASE_URL"] = original_db_url
-        else:
-            os.environ.pop("DATABASE_URL", None)
-
-        if original_redis_url:
-            os.environ["REDIS_URL"] = original_redis_url
-        else:
-            os.environ.pop("REDIS_URL", None)
-
-
-@pytest.fixture
-async def mock_redis():
-    """Mock Redis operations to avoid requiring Redis server."""
-    mock_redis_client = AsyncMock()
-    mock_redis_client.health_check.return_value = {
-        "status": "healthy",
-        "connected": True,
-        "redis_version": "7.0.0",
-    }
-
-    with (
-        patch("backend.core.redis._redis_client", mock_redis_client),
-        patch("backend.core.redis.init_redis", return_value=mock_redis_client),
-    ):
-        yield mock_redis_client
-
-
-@pytest.fixture
-async def client(test_db_setup, mock_redis):
-    """Create async HTTP client for testing FastAPI app."""
-    # Use ASGITransport to test the app without running a server
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        yield ac
-
 
 @pytest.mark.asyncio
 async def test_root_endpoint(client):
@@ -156,8 +96,11 @@ async def test_cors_middleware_preflight_request(client):
 
 
 @pytest.mark.asyncio
-async def test_lifespan_startup_initializes_database(test_db_setup, mock_redis):
+async def test_lifespan_startup_initializes_database(integration_env, mock_redis):
     """Test that lifespan startup event initializes the database."""
+    # Import app after env is set
+    from backend.main import app
+
     # Create a fresh client which will trigger lifespan events
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         # Make a request to ensure app is initialized
@@ -170,8 +113,10 @@ async def test_lifespan_startup_initializes_database(test_db_setup, mock_redis):
 
 
 @pytest.mark.asyncio
-async def test_lifespan_handles_redis_connection_failure(test_db_setup):
+async def test_lifespan_handles_redis_connection_failure(integration_env):
     """Test that lifespan continues when Redis connection fails."""
+    from backend.main import app
+
     # Mock init_redis to raise an exception
     with patch("backend.main.init_redis", side_effect=Exception("Redis unavailable")):
         # App should still start even if Redis fails

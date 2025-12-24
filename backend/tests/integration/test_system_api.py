@@ -1,84 +1,9 @@
 """Integration tests for system API endpoints."""
 
-import os
-import tempfile
 from datetime import datetime
-from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from httpx import ASGITransport, AsyncClient
-
-from backend.main import app
-
-
-@pytest.fixture
-async def test_db_setup():
-    """Set up test database environment."""
-    from backend.core.config import get_settings
-    from backend.core.database import close_db, init_db
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "test_system_api.db"
-        test_db_url = f"sqlite+aiosqlite:///{db_path}"
-
-        # Store original environment
-        original_db_url = os.environ.get("DATABASE_URL")
-        original_redis_url = os.environ.get("REDIS_URL")
-
-        # Set test environment
-        os.environ["DATABASE_URL"] = test_db_url
-        os.environ["REDIS_URL"] = "redis://localhost:6379/15"  # Test DB
-
-        # Clear settings cache and initialize database
-        get_settings.cache_clear()
-        await close_db()
-        await init_db()
-
-        yield test_db_url
-
-        # Cleanup
-        await close_db()
-
-        # Restore original environment
-        if original_db_url:
-            os.environ["DATABASE_URL"] = original_db_url
-        else:
-            os.environ.pop("DATABASE_URL", None)
-
-        if original_redis_url:
-            os.environ["REDIS_URL"] = original_redis_url
-        else:
-            os.environ.pop("REDIS_URL", None)
-
-        # Clear settings cache again
-        get_settings.cache_clear()
-
-
-@pytest.fixture
-async def mock_redis():
-    """Mock Redis operations to avoid requiring Redis server."""
-    mock_redis_client = AsyncMock()
-    mock_redis_client.health_check.return_value = {
-        "status": "healthy",
-        "connected": True,
-        "redis_version": "7.0.0",
-    }
-
-    with (
-        patch("backend.core.redis._redis_client", mock_redis_client),
-        patch("backend.core.redis.init_redis", return_value=mock_redis_client),
-    ):
-        yield mock_redis_client
-
-
-@pytest.fixture
-async def client(test_db_setup, mock_redis):
-    """Create async HTTP client for testing FastAPI app."""
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        yield ac
-
-
 @pytest.mark.asyncio
 async def test_health_endpoint_all_services_healthy(client, mock_redis):
     """Test health check endpoint when all services are healthy."""
@@ -111,7 +36,7 @@ async def test_health_endpoint_all_services_healthy(client, mock_redis):
 
 
 @pytest.mark.asyncio
-async def test_health_endpoint_degraded_services(client, test_db_setup):
+async def test_health_endpoint_degraded_services(client, integration_db):
     """Test health check endpoint with degraded services (Redis down)."""
     # Mock Redis to raise an exception (simulating unhealthy Redis)
     mock_redis_client = AsyncMock()
@@ -134,7 +59,7 @@ async def test_health_endpoint_degraded_services(client, test_db_setup):
 
 
 @pytest.mark.asyncio
-async def test_health_endpoint_database_connectivity(client, mock_redis, test_db_setup):
+async def test_health_endpoint_database_connectivity(client, mock_redis, integration_db):
     """Test health check endpoint verifies actual database connectivity."""
     response = await client.get("/api/system/health")
 
@@ -255,7 +180,7 @@ async def test_stats_endpoint(client, mock_redis):
 
 
 @pytest.mark.asyncio
-async def test_stats_endpoint_with_data(client, mock_redis, test_db_setup):
+async def test_stats_endpoint_with_data(client, mock_redis, integration_db):
     """Test stats endpoint returns correct counts when data exists."""
     # This test would need to insert test data, but for now we just verify structure
     response = await client.get("/api/system/stats")
