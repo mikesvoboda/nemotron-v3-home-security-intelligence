@@ -90,6 +90,11 @@ Unit tests, E2E tests, deployment verification, documentation.
 bd list --label phase-8
 ```
 
+## Post-MVP Roadmap (After MVP is Operational)
+
+After the MVP is **fully operational end-to-end** (Phases 1–8 complete, deployment verified, and tests passing),
+review `docs/ROADMAP.md` to identify post-MVP enhancements and create/claim new beads tasks accordingly.
+
 ## TDD Approach
 
 Tasks labeled `tdd` are test tasks that should be completed alongside their feature tasks:

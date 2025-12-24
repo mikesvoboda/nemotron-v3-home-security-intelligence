@@ -25,6 +25,7 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 - **AGENTS.md** (this file) - Quick reference for AI agents
 - **CLAUDE.md** - Comprehensive Claude Code instructions with project overview, phase execution order, TDD approach, testing requirements, and git rules
 - **docs/AGENT_HANDOFF.md** - Session handoff document with current status and next steps
+- **docs/ROADMAP.md** - Post-MVP roadmap ideas to pursue **after Phases 1–8 are operational**
 
 ### Configuration Files
 
@@ -166,6 +167,7 @@ cd frontend && npm test
 1. **Read CLAUDE.md** - Comprehensive project instructions
 2. **Read docs/AGENT_HANDOFF.md** - Current status and next steps
 3. **Check available work:** `bd ready` or `bd list --label phase-5`
+4. **After MVP is operational (Phases 1–8):** review `docs/ROADMAP.md` to pick post-MVP enhancements and create/claim new beads tasks
 
 ### Understanding the Codebase
 
