@@ -1,54 +1,15 @@
 """Full stack integration tests for database, models, and workflows."""
 
-import os
-import tempfile
 from datetime import datetime, timedelta
-from pathlib import Path
 
 import pytest
 from sqlalchemy import select
 
-from backend.core.database import close_db, get_session, init_db
+from backend.core.database import get_session
 from backend.models import Camera, Detection, Event
 
-
-@pytest.fixture
-async def test_db():
-    """Set up and tear down a test database for full stack testing."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "test_fullstack.db"
-        test_db_url = f"sqlite+aiosqlite:///{db_path}"
-
-        # Store original environment
-        original_db_url = os.environ.get("DATABASE_URL")
-
-        # Set test environment
-        os.environ["DATABASE_URL"] = test_db_url
-
-        # Initialize database and create all tables
-        await init_db()
-
-        # Import models to ensure tables are created
-        from backend.core.database import get_engine
-        from backend.models import Base
-
-        async with get_engine().begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-
-        yield test_db_url
-
-        # Cleanup
-        await close_db()
-
-        # Restore original environment
-        if original_db_url:
-            os.environ["DATABASE_URL"] = original_db_url
-        else:
-            os.environ.pop("DATABASE_URL", None)
-
-
 @pytest.mark.asyncio
-async def test_create_camera(test_db):
+async def test_create_camera(integration_db):
     """Test creating a camera in the database."""
     async with get_session() as session:
         camera = Camera(
@@ -73,7 +34,7 @@ async def test_create_camera(test_db):
 
 
 @pytest.mark.asyncio
-async def test_create_detection(test_db):
+async def test_create_detection(integration_db):
     """Test creating a detection linked to a camera."""
     async with get_session() as session:
         # Create camera first
@@ -113,7 +74,7 @@ async def test_create_detection(test_db):
 
 
 @pytest.mark.asyncio
-async def test_create_event(test_db):
+async def test_create_event(integration_db):
     """Test creating a security event linked to a camera."""
     async with get_session() as session:
         # Create camera first
@@ -153,7 +114,7 @@ async def test_create_event(test_db):
 
 
 @pytest.mark.asyncio
-async def test_camera_detection_relationship(test_db):
+async def test_camera_detection_relationship(integration_db):
     """Test relationship between camera and detections."""
     async with get_session() as session:
         # Create camera with detections
@@ -194,7 +155,7 @@ async def test_camera_detection_relationship(test_db):
 
 
 @pytest.mark.asyncio
-async def test_camera_event_relationship(test_db):
+async def test_camera_event_relationship(integration_db):
     """Test relationship between camera and events."""
     async with get_session() as session:
         # Create camera
@@ -235,7 +196,7 @@ async def test_camera_event_relationship(test_db):
 
 
 @pytest.mark.asyncio
-async def test_complete_workflow_camera_to_event(test_db):
+async def test_complete_workflow_camera_to_event(integration_db):
     """Test complete workflow: create camera → add detection → create event."""
     async with get_session() as session:
         # Step 1: Create camera
@@ -314,7 +275,7 @@ async def test_complete_workflow_camera_to_event(test_db):
 
 
 @pytest.mark.asyncio
-async def test_query_detections_by_time_range(test_db):
+async def test_query_detections_by_time_range(integration_db):
     """Test querying detections within a specific time range."""
     async with get_session() as session:
         # Create camera
@@ -354,7 +315,7 @@ async def test_query_detections_by_time_range(test_db):
 
 
 @pytest.mark.asyncio
-async def test_query_events_by_risk_level(test_db):
+async def test_query_events_by_risk_level(integration_db):
     """Test querying events filtered by risk level."""
     async with get_session() as session:
         # Create camera
@@ -396,7 +357,7 @@ async def test_query_events_by_risk_level(test_db):
 
 
 @pytest.mark.asyncio
-async def test_cascade_delete_camera(test_db):
+async def test_cascade_delete_camera(integration_db):
     """Test that deleting a camera cascades to detections and events."""
     async with get_session() as session:
         # Create camera with detections and events
@@ -465,7 +426,7 @@ async def test_cascade_delete_camera(test_db):
 
 
 @pytest.mark.asyncio
-async def test_multiple_cameras_isolation(test_db):
+async def test_multiple_cameras_isolation(integration_db):
     """Test that operations on multiple cameras are properly isolated."""
     async with get_session() as session:
         # Create two cameras
@@ -511,7 +472,7 @@ async def test_multiple_cameras_isolation(test_db):
 
 
 @pytest.mark.asyncio
-async def test_event_reviewed_status_update(test_db):
+async def test_event_reviewed_status_update(integration_db):
     """Test updating event reviewed status."""
     async with get_session() as session:
         # Create camera and event
