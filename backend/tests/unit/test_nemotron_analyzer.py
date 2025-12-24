@@ -685,3 +685,281 @@ async def test_broadcast_event_no_redis(analyzer):
 
     # Should not raise exception
     await analyzer._broadcast_event(event)
+
+
+# Test: Fast Path Analysis
+
+
+@pytest.mark.asyncio
+async def test_analyze_detection_fast_path_no_redis_client(analyzer):
+    """Test fast path analysis raises error when Redis client not initialized."""
+    analyzer._redis = None
+
+    with pytest.raises(RuntimeError, match="Redis client not initialized"):
+        await analyzer.analyze_detection_fast_path("front_door", "123")
+
+
+@pytest.mark.asyncio
+async def test_analyze_detection_fast_path_invalid_detection_id(analyzer, mock_redis_client):
+    """Test fast path analysis raises error for invalid detection ID."""
+    with pytest.raises(ValueError, match="Invalid detection_id"):
+        await analyzer.analyze_detection_fast_path("front_door", "not_a_number")
+
+
+@pytest.mark.asyncio
+async def test_analyze_detection_fast_path_detection_not_found(
+    analyzer, mock_redis_client, isolated_db
+):
+    """Test fast path analysis raises error when detection not found."""
+    # Analyze non-existent detection
+    with pytest.raises(ValueError, match="Detection .* not found"):
+        await analyzer.analyze_detection_fast_path("front_door", "999")
+
+
+@pytest.mark.asyncio
+async def test_analyze_detection_fast_path_success(
+    analyzer, mock_redis_client, isolated_db, sample_detections
+):
+    """Test successful fast path analysis creates Event with is_fast_path=True."""
+    camera_id = "front_door"
+    detection_id = "1"
+
+    # Setup database with camera and detection
+    from backend.core.database import get_session
+
+    async with get_session() as session:
+        # Create camera
+        camera = Camera(
+            id=camera_id,
+            name="Front Door",
+            folder_path="/export/foscam/front_door",
+        )
+        session.add(camera)
+
+        # Create detection
+        detection = sample_detections[0]
+        session.add(detection)
+
+        await session.commit()
+
+    # Mock LLM call
+    mock_llm_response = {
+        "content": json.dumps(
+            {
+                "risk_score": 85,
+                "risk_level": "critical",
+                "summary": "High-confidence person detection",
+                "reasoning": "Person detected with 95% confidence",
+            }
+        )
+    }
+
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = mock_llm_response
+        mock_post.return_value = mock_resp
+
+        # Analyze detection via fast path
+        event = await analyzer.analyze_detection_fast_path(camera_id, detection_id)
+
+    # Verify event was created with fast path flag
+    assert event is not None
+    assert event.batch_id == f"fast_path_{detection_id}"
+    assert event.camera_id == camera_id
+    assert event.risk_score == 85
+    assert event.risk_level == "critical"
+    assert "High-confidence person" in event.summary
+    assert event.reviewed is False
+    assert event.is_fast_path is True
+
+    # Verify event was persisted
+    async with get_session() as session:
+        result = await session.execute(
+            select(Event).where(Event.batch_id == f"fast_path_{detection_id}")
+        )
+        persisted_event = result.scalar_one_or_none()
+        assert persisted_event is not None
+        assert persisted_event.is_fast_path is True
+        assert persisted_event.risk_score == 85
+
+
+@pytest.mark.asyncio
+async def test_analyze_detection_fast_path_llm_failure(
+    analyzer, mock_redis_client, isolated_db, sample_detections
+):
+    """Test fast path analysis uses fallback when LLM fails."""
+    camera_id = "front_door"
+    detection_id = "1"
+
+    # Setup database
+    from backend.core.database import get_session
+
+    async with get_session() as session:
+        camera = Camera(
+            id=camera_id,
+            name="Front Door",
+            folder_path="/export/foscam/front_door",
+        )
+        session.add(camera)
+        session.add(sample_detections[0])
+        await session.commit()
+
+    # Mock LLM call to fail
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_post.side_effect = httpx.ConnectError("Connection refused")
+
+        # Analyze detection via fast path
+        event = await analyzer.analyze_detection_fast_path(camera_id, detection_id)
+
+    # Verify fallback risk data was used
+    assert event.risk_score == 50
+    assert event.risk_level == "medium"
+    assert "Analysis unavailable" in event.summary
+    assert event.is_fast_path is True
+
+
+@pytest.mark.asyncio
+async def test_analyze_detection_fast_path_single_detection_time(
+    analyzer, mock_redis_client, isolated_db, sample_detections
+):
+    """Test fast path uses same timestamp for started_at and ended_at."""
+    camera_id = "front_door"
+    detection_id = "1"
+
+    # Setup database
+    from backend.core.database import get_session
+
+    async with get_session() as session:
+        camera = Camera(
+            id=camera_id,
+            name="Front Door",
+            folder_path="/export/foscam/front_door",
+        )
+        session.add(camera)
+        session.add(sample_detections[0])
+        await session.commit()
+
+    # Mock LLM call
+    mock_llm_response = {
+        "content": json.dumps(
+            {
+                "risk_score": 90,
+                "risk_level": "critical",
+                "summary": "Fast path test",
+                "reasoning": "Test reasoning",
+            }
+        )
+    }
+
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = mock_llm_response
+        mock_post.return_value = mock_resp
+
+        event = await analyzer.analyze_detection_fast_path(camera_id, detection_id)
+
+    # Verify started_at and ended_at are the same
+    assert event.started_at == event.ended_at
+    assert event.started_at == sample_detections[0].detected_at
+
+
+@pytest.mark.asyncio
+async def test_analyze_detection_fast_path_detection_ids_format(
+    analyzer, mock_redis_client, isolated_db, sample_detections
+):
+    """Test fast path stores detection_ids as JSON array with single integer."""
+    camera_id = "front_door"
+    detection_id = "1"
+
+    # Setup database
+    from backend.core.database import get_session
+
+    async with get_session() as session:
+        camera = Camera(
+            id=camera_id,
+            name="Front Door",
+            folder_path="/export/foscam/front_door",
+        )
+        session.add(camera)
+        session.add(sample_detections[0])
+        await session.commit()
+
+    # Mock LLM call
+    mock_llm_response = {
+        "content": json.dumps(
+            {
+                "risk_score": 80,
+                "risk_level": "high",
+                "summary": "Test",
+                "reasoning": "Test",
+            }
+        )
+    }
+
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = mock_llm_response
+        mock_post.return_value = mock_resp
+
+        event = await analyzer.analyze_detection_fast_path(camera_id, detection_id)
+
+    # Verify detection_ids is a JSON array with single integer
+    assert event.detection_ids is not None
+    detection_ids_list = json.loads(event.detection_ids)
+    assert isinstance(detection_ids_list, list)
+    assert len(detection_ids_list) == 1
+    assert detection_ids_list[0] == 1
+
+
+@pytest.mark.asyncio
+async def test_analyze_detection_fast_path_broadcast_called(
+    analyzer, mock_redis_client, isolated_db, sample_detections
+):
+    """Test fast path broadcasts event after creation."""
+    camera_id = "front_door"
+    detection_id = "1"
+
+    # Setup database
+    from backend.core.database import get_session
+
+    async with get_session() as session:
+        camera = Camera(
+            id=camera_id,
+            name="Front Door",
+            folder_path="/export/foscam/front_door",
+        )
+        session.add(camera)
+        session.add(sample_detections[0])
+        await session.commit()
+
+    # Mock LLM call
+    mock_llm_response = {
+        "content": json.dumps(
+            {
+                "risk_score": 85,
+                "risk_level": "critical",
+                "summary": "Test broadcast",
+                "reasoning": "Test",
+            }
+        )
+    }
+
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = mock_llm_response
+        mock_post.return_value = mock_resp
+
+        event = await analyzer.analyze_detection_fast_path(camera_id, detection_id)
+
+    # Verify publish was called (broadcast)
+    mock_redis_client.publish.assert_called_once()
+    call_args = mock_redis_client.publish.call_args
+    assert call_args[0][0] == "events"
+    message = call_args[0][1]
+    assert message["event_id"] == event.id
+    assert message["risk_score"] == 85
+    assert message["risk_level"] == "critical"

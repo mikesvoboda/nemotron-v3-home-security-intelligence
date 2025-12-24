@@ -750,8 +750,11 @@ def test_draw_bounding_boxes_with_alternative_font(thumbnail_generator):
 
     default_font = ImageFont.load_default()
 
-    with patch("backend.services.thumbnail_generator.ImageFont.truetype") as mock_font, patch(
-        "backend.services.thumbnail_generator.ImageFont.load_default", return_value=default_font
+    with (
+        patch("backend.services.thumbnail_generator.ImageFont.truetype") as mock_font,
+        patch(
+            "backend.services.thumbnail_generator.ImageFont.load_default", return_value=default_font
+        ),
     ):
         mock_font.side_effect = [
             Exception("First font not found"),

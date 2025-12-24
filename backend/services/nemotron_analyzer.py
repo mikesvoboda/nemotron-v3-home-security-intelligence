@@ -169,6 +169,117 @@ class NemotronAnalyzer:
 
             return event
 
+    async def analyze_detection_fast_path(self, camera_id: str, detection_id: str) -> Event:
+        """Analyze a single detection via fast path (high-priority).
+
+        This method is called for high-confidence critical detections that bypass
+        the normal batch aggregation process. Creates an Event immediately for
+        the single detection.
+
+        Args:
+            camera_id: Camera identifier
+            detection_id: Detection identifier (as int or string)
+
+        Returns:
+            Event object with risk assessment and is_fast_path=True
+
+        Raises:
+            ValueError: If detection not found
+            RuntimeError: If Redis client not initialized
+        """
+        if not self._redis:
+            raise RuntimeError("Redis client not initialized")
+
+        # Convert detection_id to int if needed
+        try:
+            detection_id_int = int(detection_id)
+        except (ValueError, TypeError):
+            raise ValueError(f"Invalid detection_id: {detection_id}") from None
+
+        logger.info(f"Fast path analysis for detection {detection_id} on camera {camera_id}")
+
+        # Fetch detection details from database
+        async with get_session() as session:
+            # Get camera details
+            camera_result = await session.execute(select(Camera).where(Camera.id == camera_id))
+            camera = camera_result.scalar_one_or_none()
+            if not camera:
+                logger.warning(
+                    f"Camera {camera_id} not found, using ID as name"
+                )  # pragma: no cover
+                camera_name = camera_id  # pragma: no cover
+            else:
+                camera_name = camera.name
+
+            # Get detection details
+            detection_result = await session.execute(
+                select(Detection).where(Detection.id == detection_id_int)
+            )
+            detection = detection_result.scalar_one_or_none()
+
+            if not detection:
+                raise ValueError(f"Detection {detection_id} not found in database")
+
+            # Create single-detection list for analysis
+            detection_time = detection.detected_at
+            detections_list = self._format_detections([detection])
+
+            # Generate batch ID for fast path
+            batch_id = f"fast_path_{detection_id}"
+
+            # Call LLM for risk analysis
+            try:
+                risk_data = await self._call_llm(
+                    camera_name=camera_name,
+                    start_time=detection_time.isoformat(),
+                    end_time=detection_time.isoformat(),
+                    detections_list=detections_list,
+                )
+            except Exception as e:
+                logger.error(
+                    f"LLM analysis failed for fast path detection {detection_id}: {e}",
+                    exc_info=True,
+                )
+                # Create fallback risk data
+                risk_data = {
+                    "risk_score": 50,
+                    "risk_level": "medium",
+                    "summary": "Analysis unavailable - LLM service error",
+                    "reasoning": f"Failed to analyze detection: {e!s}",
+                }
+
+            # Create Event record with is_fast_path=True
+            event = Event(
+                batch_id=batch_id,
+                camera_id=camera_id,
+                started_at=detection_time,
+                ended_at=detection_time,
+                risk_score=risk_data.get("risk_score", 50),
+                risk_level=risk_data.get("risk_level", "medium"),
+                summary=risk_data.get("summary", "No summary available"),
+                reasoning=risk_data.get("reasoning", "No reasoning available"),
+                detection_ids=json.dumps([detection_id_int]),
+                reviewed=False,
+                is_fast_path=True,
+            )
+
+            session.add(event)
+            await session.commit()
+            await session.refresh(event)
+
+            logger.info(
+                f"Created fast path event {event.id} for detection {detection_id}: "
+                f"risk_score={event.risk_score}, risk_level={event.risk_level}"
+            )
+
+            # Broadcast via WebSocket if available (optional)
+            try:
+                await self._broadcast_event(event)
+            except Exception as e:
+                logger.warning(f"Failed to broadcast fast path event {event.id}: {e}")
+
+            return event
+
     async def health_check(self) -> bool:
         """Check if LLM server is healthy.
 

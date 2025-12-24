@@ -7,9 +7,13 @@ from typing import Any
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.api.routes import cameras, media, system
+from backend.api.routes import cameras, detections, events, media, system, websocket
 from backend.core import close_db, get_settings, init_db
 from backend.core.redis import close_redis, init_redis
+from backend.services.cleanup_service import CleanupService
+from backend.services.event_broadcaster import get_broadcaster, stop_broadcaster
+from backend.services.gpu_monitor import GPUMonitor
+from backend.services.system_broadcaster import get_system_broadcaster
 
 
 @asynccontextmanager
@@ -21,15 +25,44 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     print(f"Database initialized: {settings.database_url}")
 
     try:
-        await init_redis()
+        redis_client = await init_redis()
         print(f"Redis initialized: {settings.redis_url}")
+
+        # Initialize event broadcaster
+        await get_broadcaster(redis_client)
+        print("Event broadcaster initialized")
     except Exception as e:
         print(f"Redis connection failed: {e}")
         print("Continuing without Redis - some features may be unavailable")
 
+    # Initialize system broadcaster (runs independently of Redis)
+    system_broadcaster = get_system_broadcaster()
+    await system_broadcaster.start_broadcasting(interval=5.0)
+    print("System status broadcaster initialized (5s interval)")
+
+    # Initialize GPU monitor
+    # Note: broadcaster=None to avoid duplicate GPU stats broadcasts
+    # (system_broadcaster already handles GPU stats in periodic status updates)
+    gpu_monitor = GPUMonitor(broadcaster=None)
+    await gpu_monitor.start()
+    print("GPU monitor initialized")
+
+    # Initialize cleanup service
+    cleanup_service = CleanupService()
+    await cleanup_service.start()
+    print("Cleanup service initialized")
+
     yield
 
     # Shutdown
+    await cleanup_service.stop()
+    print("Cleanup service stopped")
+    await gpu_monitor.stop()
+    print("GPU monitor stopped")
+    await stop_broadcaster()
+    print("Event broadcaster stopped")
+    await system_broadcaster.stop_broadcasting()
+    print("System status broadcaster stopped")
     await close_db()
     print("Database connections closed")
     await close_redis()
@@ -53,8 +86,11 @@ app.add_middleware(
 
 # Register routers
 app.include_router(cameras.router)
+app.include_router(detections.router)
+app.include_router(events.router)
 app.include_router(media.router)
 app.include_router(system.router)
+app.include_router(websocket.router)
 
 
 @app.get("/")

@@ -35,6 +35,7 @@ class Event(Base):
     detection_ids: Mapped[str | None] = mapped_column(Text, nullable=True)
     reviewed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_fast_path: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Relationships
     camera: Mapped["Camera"] = relationship("Camera", back_populates="events")

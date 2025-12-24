@@ -83,3 +83,57 @@ def reset_settings_cache():
 
     # Clear settings cache after test
     get_settings.cache_clear()
+
+
+@pytest.fixture
+async def test_db():
+    """Create test database session factory for unit tests.
+
+    This fixture provides a callable that returns a context manager for database sessions.
+    It sets up a temporary database for testing and ensures cleanup.
+
+    Usage:
+        async with test_db() as session:
+            # Use session for database operations
+            ...
+    """
+    from backend.core.config import get_settings
+    from backend.core.database import close_db, get_session, init_db
+
+    # Save original state
+    original_db_url = os.environ.get("DATABASE_URL")
+
+    # Clear the settings cache to force reload
+    get_settings.cache_clear()
+
+    # Create temporary database
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir) / "test.db"
+        test_db_url = f"sqlite+aiosqlite:///{db_path}"
+
+        # Set test database URL
+        os.environ["DATABASE_URL"] = test_db_url
+
+        # Clear cache again after setting env var
+        get_settings.cache_clear()
+
+        # Ensure database is closed before initializing
+        await close_db()
+
+        # Initialize database
+        await init_db()
+
+        # Return the get_session function as a callable
+        yield get_session
+
+        # Cleanup
+        await close_db()
+
+    # Restore original state
+    if original_db_url:
+        os.environ["DATABASE_URL"] = original_db_url
+    else:
+        os.environ.pop("DATABASE_URL", None)
+
+    # Clear cache one more time to ensure clean state
+    get_settings.cache_clear()

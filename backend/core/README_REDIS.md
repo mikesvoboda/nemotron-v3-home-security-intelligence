@@ -233,6 +233,7 @@ Integration tests are automatically skipped if `REDIS_URL` is not set.
 ### Queue Design
 
 Queues are implemented using Redis Lists:
+
 - `RPUSH`: Add to end of queue
 - `BLPOP`: Blocking pop from front (FIFO)
 - `LLEN`: Get queue length
@@ -241,6 +242,7 @@ Queues are implemented using Redis Lists:
 ### Pub/Sub Design
 
 Real-time messaging using Redis Pub/Sub:
+
 - Publishers use `PUBLISH` command
 - Subscribers use `SUBSCRIBE` command
 - Messages are fire-and-forget (not persisted)

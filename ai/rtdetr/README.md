@@ -29,12 +29,14 @@ Or configure a custom model path in the startup script.
 ## Running the Server
 
 ### Using the startup script:
+
 ```bash
 cd /home/msvoboda/github/nemotron-v3-home-security-intelligence
 ./ai/start_detector.sh
 ```
 
 ### Direct execution:
+
 ```bash
 cd ai/rtdetr
 python model.py
@@ -45,11 +47,13 @@ Server runs on: `http://localhost:8001`
 ## API Endpoints
 
 ### Health Check
+
 ```bash
 GET /health
 ```
 
 Response:
+
 ```json
 {
   "status": "healthy",
@@ -61,6 +65,7 @@ Response:
 ```
 
 ### Single Image Detection
+
 ```bash
 POST /detect
 Content-Type: multipart/form-data
@@ -69,6 +74,7 @@ file: <image file>
 ```
 
 Or with base64:
+
 ```bash
 POST /detect
 Content-Type: application/json
@@ -79,6 +85,7 @@ Content-Type: application/json
 ```
 
 Response:
+
 ```json
 {
   "detections": [
@@ -100,6 +107,7 @@ Response:
 ```
 
 ### Batch Detection
+
 ```bash
 POST /detect/batch
 Content-Type: multipart/form-data
@@ -110,6 +118,7 @@ files: <image file 2>
 ```
 
 Response:
+
 ```json
 {
   "results": [

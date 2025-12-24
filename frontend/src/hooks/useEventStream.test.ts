@@ -248,14 +248,9 @@ describe('useEventStream', () => {
   it('should handle all risk levels correctly', () => {
     const { result } = renderHook(() => useEventStream());
 
-    const riskLevels: Array<'low' | 'medium' | 'high' | 'critical'> = [
-      'low',
-      'medium',
-      'high',
-      'critical',
-    ];
+    const riskLevels = ['low', 'medium', 'high', 'critical'] as const;
 
-    riskLevels.forEach((level, index) => {
+    riskLevels.forEach((level, index: number) => {
       const event: SecurityEvent = {
         id: `event-${index}`,
         camera_id: `cam-${index}`,
@@ -272,7 +267,8 @@ describe('useEventStream', () => {
     });
 
     expect(result.current.events).toHaveLength(4);
-    riskLevels.reverse().forEach((level, index) => {
+    const reversedLevels = [...riskLevels].reverse();
+    reversedLevels.forEach((level, index: number) => {
       expect(result.current.events[index].risk_level).toBe(level);
     });
   });

@@ -41,39 +41,59 @@ class BatchAggregator:
     - Pushing completed batches to the analysis queue
     """
 
-    def __init__(self, redis_client: RedisClient | None = None):
+    def __init__(self, redis_client: RedisClient | None = None, analyzer: Any | None = None):
         """Initialize batch aggregator with Redis client.
 
         Args:
             redis_client: Redis client instance. If None, will be injected via dependency.
+            analyzer: NemotronAnalyzer instance for fast path analysis. If None, will be created.
         """
         self._redis = redis_client
+        self._analyzer = analyzer
         settings = get_settings()
         self._batch_window = settings.batch_window_seconds
         self._idle_timeout = settings.batch_idle_timeout_seconds
         self._analysis_queue = "analysis_queue"
+        self._fast_path_threshold = settings.fast_path_confidence_threshold
+        self._fast_path_types = settings.fast_path_object_types
 
     async def add_detection(
         self,
         camera_id: str,
         detection_id: str,
         _file_path: str,
+        confidence: float | None = None,
+        object_type: str | None = None,
     ) -> str:
         """Add detection to batch for camera.
 
         Creates a new batch if none exists for the camera, or adds to existing batch.
         Updates the last_activity timestamp for the batch.
 
+        If detection meets fast path criteria (confidence > threshold AND object_type in
+        fast path list), immediately triggers analysis instead of batching.
+
         Args:
             camera_id: Camera identifier
             detection_id: Detection identifier
             file_path: Path to the detection image file
+            confidence: Detection confidence score (0.0-1.0)
+            object_type: Detected object type (e.g., "person", "car")
 
         Returns:
-            Batch ID that the detection was added to
+            Batch ID that the detection was added to (or fast path batch ID)
         """
         if not self._redis:
             raise RuntimeError("Redis client not initialized")
+
+        # Check if detection meets fast path criteria
+        if self._should_use_fast_path(confidence, object_type):
+            logger.info(
+                f"Fast path triggered for detection {detection_id}: "
+                f"confidence={confidence}, object_type={object_type}"
+            )
+            await self._process_fast_path(camera_id, detection_id)
+            return f"fast_path_{detection_id}"
 
         current_time = time.time()
 
@@ -258,3 +278,54 @@ class BatchAggregator:
         logger.debug(f"Cleaned up Redis keys for batch {batch_id}")
 
         return summary
+
+    def _should_use_fast_path(self, confidence: float | None, object_type: str | None) -> bool:
+        """Check if detection meets fast path criteria.
+
+        Fast path is triggered when:
+        - Confidence is provided and >= threshold
+        - Object type is provided and in fast path types list
+
+        Args:
+            confidence: Detection confidence score
+            object_type: Detected object type
+
+        Returns:
+            True if detection should use fast path, False otherwise
+        """
+        if confidence is None or object_type is None:
+            return False
+
+        if confidence < self._fast_path_threshold:
+            return False
+
+        return object_type.lower() in [t.lower() for t in self._fast_path_types]
+
+    async def _process_fast_path(self, camera_id: str, detection_id: str) -> None:
+        """Process detection via fast path (immediate analysis).
+
+        Creates a fast path analyzer if needed and triggers immediate analysis
+        of the single detection.
+
+        Args:
+            camera_id: Camera identifier
+            detection_id: Detection identifier
+        """
+        if not self._analyzer:
+            # Lazy import to avoid circular dependency
+            from backend.services.nemotron_analyzer import NemotronAnalyzer
+
+            self._analyzer = NemotronAnalyzer(redis_client=self._redis)
+
+        try:
+            # Call analyzer with fast path flag
+            await self._analyzer.analyze_detection_fast_path(
+                camera_id=camera_id,
+                detection_id=detection_id,
+            )
+            logger.info(f"Fast path analysis completed for detection {detection_id}")
+        except Exception as e:
+            logger.error(
+                f"Fast path analysis failed for detection {detection_id}: {e}",
+                exc_info=True,
+            )

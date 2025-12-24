@@ -9,6 +9,7 @@ This directory contains core infrastructure components for the Home Security Int
 Application configuration using Pydantic Settings. All configuration is loaded from environment variables with sensible defaults.
 
 Key settings:
+
 - `DATABASE_URL`: SQLAlchemy database connection string (default: sqlite+aiosqlite:///./data/security.db)
 - `REDIS_URL`: Redis connection string
 - `FOSCAM_BASE_PATH`: Base path for camera FTP uploads
@@ -17,6 +18,7 @@ Key settings:
 - AI service endpoints
 
 Usage:
+
 ```python
 from backend.core import get_settings
 
@@ -29,6 +31,7 @@ print(settings.database_url)
 Database connection and session management using SQLAlchemy 2.0 async patterns.
 
 Features:
+
 - Async SQLite database engine with proper connection pooling
 - Session factory with automatic commit/rollback
 - Base declarative class for models
@@ -38,6 +41,7 @@ Features:
 Usage:
 
 #### Initialize database (in application startup):
+
 ```python
 from backend.core import init_db, close_db
 
@@ -49,6 +53,7 @@ await close_db()
 ```
 
 #### Using sessions in FastAPI endpoints:
+
 ```python
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -61,6 +66,7 @@ async def get_items(db: AsyncSession = Depends(get_db)):
 ```
 
 #### Using sessions in standalone code:
+
 ```python
 from backend.core import get_session
 from sqlalchemy import select
@@ -72,6 +78,7 @@ async with get_session() as session:
 ```
 
 #### Creating models:
+
 ```python
 from sqlalchemy import Column, Integer, String
 from backend.core import Base
@@ -88,11 +95,13 @@ class MyModel(Base):
 Unit tests are located in `backend/tests/unit/test_database.py`.
 
 Run tests:
+
 ```bash
 pytest backend/tests/unit/test_database.py -v
 ```
 
 Verify database connection manually:
+
 ```bash
 python backend/tests/verify_database.py
 ```

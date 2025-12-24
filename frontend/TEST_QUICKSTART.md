@@ -8,6 +8,7 @@ npm install
 ```
 
 This will install all required testing dependencies:
+
 - `@testing-library/react` - React component testing utilities
 - `@testing-library/jest-dom` - Custom matchers for DOM testing
 - `@testing-library/user-event` - User interaction simulation
@@ -43,13 +44,13 @@ npm test -- --grep "renders"
 
 ### Test Coverage by Component
 
-| Component | Test File | Test Cases |
-|-----------|-----------|------------|
-| App | `src/App.test.tsx` | 5 |
-| Layout | `src/components/layout/Layout.test.tsx` | 8 |
-| Header | `src/components/layout/Header.test.tsx` | 14 |
-| Sidebar | `src/components/layout/Sidebar.test.tsx` | 15+ |
-| DashboardPage | `src/components/dashboard/DashboardPage.test.tsx` | 7 |
+| Component     | Test File                                         | Test Cases |
+| ------------- | ------------------------------------------------- | ---------- |
+| App           | `src/App.test.tsx`                                | 5          |
+| Layout        | `src/components/layout/Layout.test.tsx`           | 8          |
+| Header        | `src/components/layout/Header.test.tsx`           | 14         |
+| Sidebar       | `src/components/layout/Sidebar.test.tsx`          | 15+        |
+| DashboardPage | `src/components/dashboard/DashboardPage.test.tsx` | 7          |
 
 ## What's Tested
 

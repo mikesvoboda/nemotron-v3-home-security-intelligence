@@ -11,6 +11,7 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-json
+        exclude: tsconfig.*\.json$
       - id: check-added-large-files
         args: ["--maxkb=1000"]
       - id: check-merge-conflict
@@ -18,7 +19,7 @@ repos:
 
   # Python - Ruff (fast linter + formatter)
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.11
+    rev: v0.8.6
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
@@ -39,18 +40,28 @@ repos:
         args: [--ignore-missing-imports]
         files: ^backend/
 
-  # TypeScript/JavaScript - Prettier (Formatting)
+  # Prettier (Formatting) - Non-TypeScript files only
+  # TypeScript files use local prettier to avoid type parameter stripping bug
+  # Exclude tsconfig.json which uses JSONC format (trailing commas)
   - repo: https://github.com/pre-commit/mirrors-prettier
     rev: v3.1.0
     hooks:
       - id: prettier
-        types_or: [javascript, jsx, ts, tsx, css, json, markdown, yaml]
+        types_or: [css, json, markdown, yaml]
+        exclude: tsconfig.*\.json$
         additional_dependencies:
           - prettier@3.2.4
 
-  # TypeScript/JavaScript - ESLint
+  # TypeScript/JavaScript - Local Prettier (avoids mirrors-prettier TypeScript bug)
   - repo: local
     hooks:
+      - id: prettier-frontend
+        name: Prettier (Frontend)
+        entry: bash -c 'cd frontend && npx prettier --write --ignore-unknown'
+        language: system
+        files: ^frontend/.*\.(ts|tsx|js|jsx)$
+        pass_filenames: true
+
       - id: eslint
         name: ESLint
         entry: bash -c 'cd frontend && npm run lint'
