@@ -86,6 +86,57 @@ def _validate_and_resolve_path(base_path: Path, requested_path: str) -> Path:
 
 
 @router.get(
+    "/{path:path}",
+    response_class=FileResponse,
+    responses={
+        200: {"description": "File served successfully"},
+        403: {"model": MediaErrorResponse, "description": "Access denied"},
+        404: {"model": MediaErrorResponse, "description": "File not found"},
+    },
+)
+async def serve_media_compat(path: str) -> FileResponse:
+    """Compatibility route: serve media via design-spec-style /api/media/{path}.
+
+    This preserves the stricter behavior of the new routes:
+    - Path traversal protection
+    - Allowed file type allowlist
+    - Must remain under configured base directories
+
+    Mapping rules:
+    - `cameras/<camera_id>/<filename...>` → camera media
+    - `thumbnails/<filename>` → thumbnails
+    """
+    # Normalize: strip any leading slashes (FastAPI path params shouldn't include it, but be safe).
+    rel = path.lstrip("/")
+
+    if rel.startswith("cameras/"):
+        # cameras/<camera_id>/<filename...>
+        remainder = rel.removeprefix("cameras/")
+        if "/" not in remainder:
+            raise HTTPException(
+                status_code=404,
+                detail=MediaErrorResponse(
+                    error="File not found",
+                    path=path,
+                ).model_dump(),
+            )
+        camera_id, filename = remainder.split("/", 1)
+        return await serve_camera_file(camera_id=camera_id, filename=filename)
+
+    if rel.startswith("thumbnails/"):
+        filename = rel.removeprefix("thumbnails/")
+        return await serve_thumbnail(filename=filename)
+
+    raise HTTPException(
+        status_code=404,
+        detail=MediaErrorResponse(
+            error="Unsupported media path (expected cameras/... or thumbnails/...)",
+            path=path,
+        ).model_dump(),
+    )
+
+
+@router.get(
     "/cameras/{camera_id}/{filename:path}",
     response_class=FileResponse,
     responses={

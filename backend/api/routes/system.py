@@ -1,15 +1,19 @@
 """System monitoring and configuration API endpoints."""
 
+import os
 import time
 from datetime import UTC, datetime
+from pathlib import Path
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Body, Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.schemas.system import (
     ConfigResponse,
+    ConfigUpdateRequest,
     GPUStatsResponse,
+    GPUStatsHistoryResponse,
     HealthResponse,
     ServiceStatus,
     SystemStatsResponse,
@@ -41,6 +45,7 @@ async def get_latest_gpu_stats(db: AsyncSession) -> dict[str, float | int | None
         return None
 
     return {
+        "recorded_at": gpu_stat.recorded_at,
         "utilization": gpu_stat.gpu_utilization,
         "memory_used": gpu_stat.memory_used,
         "memory_total": gpu_stat.memory_total,
@@ -203,6 +208,49 @@ async def get_gpu_stats(db: AsyncSession = Depends(get_db)) -> GPUStatsResponse:
     )
 
 
+@router.get("/gpu/history", response_model=GPUStatsHistoryResponse)
+async def get_gpu_stats_history(
+    since: datetime | None = None,
+    limit: int = 300,
+    db: AsyncSession = Depends(get_db),
+) -> GPUStatsHistoryResponse:
+    """Get recent GPU stats samples as a time-series.
+
+    Args:
+        since: Optional lower bound for recorded_at (ISO datetime)
+        limit: Maximum number of samples to return (default 300)
+        db: Database session
+    """
+    if limit < 1:
+        limit = 1
+    if limit > 5000:
+        limit = 5000
+
+    stmt = select(GPUStats)
+    if since is not None:
+        stmt = stmt.where(GPUStats.recorded_at >= since)
+
+    # Fetch newest first, then reverse to chronological order for charting.
+    stmt = stmt.order_by(GPUStats.recorded_at.desc()).limit(limit)
+    result = await db.execute(stmt)
+    rows = result.scalars().all()
+    rows.reverse()
+
+    samples = [
+        {
+            "recorded_at": r.recorded_at,
+            "utilization": r.gpu_utilization,
+            "memory_used": r.memory_used,
+            "memory_total": r.memory_total,
+            "temperature": r.temperature,
+            "inference_fps": r.inference_fps,
+        }
+        for r in rows
+    ]
+
+    return GPUStatsHistoryResponse(samples=samples, count=len(samples), limit=limit)
+
+
 @router.get("/config", response_model=ConfigResponse)
 async def get_config() -> ConfigResponse:
     """Get public configuration settings.
@@ -221,6 +269,72 @@ async def get_config() -> ConfigResponse:
         retention_days=settings.retention_days,
         batch_window_seconds=settings.batch_window_seconds,
         batch_idle_timeout_seconds=settings.batch_idle_timeout_seconds,
+        detection_confidence_threshold=settings.detection_confidence_threshold,
+    )
+
+
+def _runtime_env_path() -> Path:
+    """Return the configured runtime override env file path."""
+    return Path(os.getenv("HSI_RUNTIME_ENV_PATH", "./data/runtime.env"))
+
+
+def _write_runtime_env(overrides: dict[str, str]) -> None:
+    """Write/merge settings overrides into the runtime env file."""
+    path = _runtime_env_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    existing: dict[str, str] = {}
+    if path.exists():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#") or "=" not in stripped:
+                continue
+            k, v = stripped.split("=", 1)
+            existing[k.strip()] = v.strip()
+
+    existing.update(overrides)
+
+    content = "\n".join(f"{k}={v}" for k, v in sorted(existing.items())) + "\n"
+    path.write_text(content, encoding="utf-8")
+
+
+@router.patch("/config", response_model=ConfigResponse)
+async def patch_config(update: ConfigUpdateRequest = Body(...)) -> ConfigResponse:
+    """Patch processing-related configuration and persist runtime overrides.
+
+    Notes:
+    - This updates a runtime override env file (see `HSI_RUNTIME_ENV_PATH`) and clears the
+      settings cache so subsequent `get_settings()` calls observe the new values.
+    """
+    overrides: dict[str, str] = {}
+
+    if update.retention_days is not None:
+        overrides["RETENTION_DAYS"] = str(update.retention_days)
+        os.environ["RETENTION_DAYS"] = str(update.retention_days)
+    if update.batch_window_seconds is not None:
+        overrides["BATCH_WINDOW_SECONDS"] = str(update.batch_window_seconds)
+        os.environ["BATCH_WINDOW_SECONDS"] = str(update.batch_window_seconds)
+    if update.batch_idle_timeout_seconds is not None:
+        overrides["BATCH_IDLE_TIMEOUT_SECONDS"] = str(update.batch_idle_timeout_seconds)
+        os.environ["BATCH_IDLE_TIMEOUT_SECONDS"] = str(update.batch_idle_timeout_seconds)
+    if update.detection_confidence_threshold is not None:
+        overrides["DETECTION_CONFIDENCE_THRESHOLD"] = str(update.detection_confidence_threshold)
+        os.environ["DETECTION_CONFIDENCE_THRESHOLD"] = str(update.detection_confidence_threshold)
+
+    if overrides:
+        _write_runtime_env(overrides)
+
+    # Make new values visible to the app immediately.
+    get_settings.cache_clear()
+    settings = get_settings()
+
+    return ConfigResponse(
+        app_name=settings.app_name,
+        version=settings.app_version,
+        retention_days=settings.retention_days,
+        batch_window_seconds=settings.batch_window_seconds,
+        batch_idle_timeout_seconds=settings.batch_idle_timeout_seconds,
+        detection_confidence_threshold=settings.detection_confidence_threshold,
     )
 
 

@@ -248,3 +248,21 @@ class TestContentTypeHeaders:
         """Test that MP4 files have correct content-type."""
         response = client.get("/api/media/cameras/test_camera/test_video.mp4")
         assert response.headers["content-type"] == "video/mp4"
+
+
+class TestCompatMediaRoute:
+    """Tests for compatibility media route: /api/media/{path}."""
+
+    def test_compat_camera_file_served(self, client, temp_foscam_dir):
+        """Compatibility route supports cameras/<camera>/<file>."""
+        response = client.get("/api/media/cameras/test_camera/test_image.jpg")
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "image/jpeg"
+        assert response.content == b"fake jpg data"
+
+    def test_compat_thumbnail_served(self, client, temp_thumbnail_dir):
+        """Compatibility route supports thumbnails/<file>."""
+        response = client.get("/api/media/thumbnails/thumb1.jpg")
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "image/jpeg"
+        assert response.content == b"fake thumbnail 1"

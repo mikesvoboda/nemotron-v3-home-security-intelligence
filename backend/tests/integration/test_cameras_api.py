@@ -2,6 +2,8 @@
 
 import uuid
 from datetime import datetime
+from pathlib import Path
+from time import sleep
 from unittest.mock import patch
 
 import pytest
@@ -185,6 +187,71 @@ async def test_get_camera_by_id_not_found(client):
     response = await client.get(f"/api/cameras/{fake_id}")
 
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_get_camera_snapshot_returns_latest_image(client, integration_env):
+    """GET /api/cameras/{id}/snapshot returns the most recently modified image."""
+    from backend.core.config import get_settings
+
+    # Arrange a fake foscam root and camera directory under the integration tmpdir.
+    tmpdir = Path(integration_env.split("///", 1)[-1]).parent
+    foscam_root = tmpdir / "foscam"
+    cam_dir = foscam_root / "front_door"
+    cam_dir.mkdir(parents=True, exist_ok=True)
+
+    # Create two images with different mtimes.
+    older = cam_dir / "a.jpg"
+    newer = cam_dir / "b.jpg"
+    older.write_bytes(b"older")
+    sleep(0.01)
+    newer.write_bytes(b"newer")
+
+    # Ensure settings pick up our foscam base path.
+    import os
+
+    os.environ["FOSCAM_BASE_PATH"] = str(foscam_root)
+    get_settings.cache_clear()
+
+    # Create camera pointing at cam_dir
+    create_resp = await client.post(
+        "/api/cameras",
+        json={"name": "Front Door", "folder_path": str(cam_dir), "status": "online"},
+    )
+    assert create_resp.status_code == 201
+    camera_id = create_resp.json()["id"]
+
+    # Act
+    resp = await client.get(f"/api/cameras/{camera_id}/snapshot")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("image/")
+    assert resp.content == b"newer"
+
+
+@pytest.mark.asyncio
+async def test_get_camera_snapshot_folder_outside_root_forbidden(client, integration_env):
+    """Snapshot endpoint refuses cameras whose folder_path is outside foscam_base_path."""
+    from backend.core.config import get_settings
+
+    tmpdir = Path(integration_env.split("///", 1)[-1]).parent
+    foscam_root = tmpdir / "foscam"
+    foscam_root.mkdir(parents=True, exist_ok=True)
+    outside_dir = tmpdir / "outside"
+    outside_dir.mkdir(parents=True, exist_ok=True)
+
+    import os
+
+    os.environ["FOSCAM_BASE_PATH"] = str(foscam_root)
+    get_settings.cache_clear()
+
+    create_resp = await client.post(
+        "/api/cameras",
+        json={"name": "Bad Cam", "folder_path": str(outside_dir), "status": "online"},
+    )
+    camera_id = create_resp.json()["id"]
+
+    resp = await client.get(f"/api/cameras/{camera_id}/snapshot")
+    assert resp.status_code == 403
 
 
 # === UPDATE Tests ===

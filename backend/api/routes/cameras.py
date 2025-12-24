@@ -1,8 +1,10 @@
 """API routes for camera management."""
 
 import uuid
+from pathlib import Path
 from typing import Any
 
+from fastapi.responses import FileResponse
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,10 +15,19 @@ from backend.api.schemas.camera import (
     CameraResponse,
     CameraUpdate,
 )
+from backend.core.config import get_settings
 from backend.core.database import get_db
 from backend.models.camera import Camera
 
 router = APIRouter(prefix="/api/cameras", tags=["cameras"])
+
+# Allowed snapshot types
+_SNAPSHOT_TYPES = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".gif": "image/gif",
+}
 
 
 @router.get("", response_model=CameraListResponse)
@@ -175,3 +186,57 @@ async def delete_camera(
     # Delete camera (cascade will handle related data)
     await db.delete(camera)
     await db.commit()
+
+
+@router.get("/{camera_id}/snapshot", response_class=FileResponse)
+async def get_camera_snapshot(
+    camera_id: str,
+    db: AsyncSession = Depends(get_db),
+) -> FileResponse:
+    """Return the latest image for a camera (best-effort snapshot).
+
+    This endpoint uses the camera's configured `folder_path` and returns the most recently
+    modified image file under that directory.
+    """
+    result = await db.execute(select(Camera).where(Camera.id == camera_id))
+    camera = result.scalar_one_or_none()
+
+    if not camera:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Camera with id {camera_id} not found",
+        )
+
+    settings = get_settings()
+    base_root = Path(settings.foscam_base_path).resolve()
+
+    camera_dir = Path(camera.folder_path).resolve()
+    try:
+        camera_dir.relative_to(base_root)
+    except ValueError as err:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Camera folder_path is outside configured foscam_base_path",
+        ) from err
+
+    if not camera_dir.exists() or not camera_dir.is_dir():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Camera folder does not exist",
+        )
+
+    candidates: list[Path] = []
+    for ext in _SNAPSHOT_TYPES:
+        candidates.extend(camera_dir.rglob(f"*{ext}"))
+
+    candidates = [p for p in candidates if p.is_file()]
+    if not candidates:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No snapshot images found for camera",
+        )
+
+    latest = max(candidates, key=lambda p: p.stat().st_mtime)
+    media_type = _SNAPSHOT_TYPES.get(latest.suffix.lower(), "application/octet-stream")
+
+    return FileResponse(path=str(latest), media_type=media_type, filename=latest.name)
