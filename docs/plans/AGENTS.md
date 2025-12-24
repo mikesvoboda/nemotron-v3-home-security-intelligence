@@ -8,11 +8,12 @@ This directory contains design specifications and implementation plans that defi
 
 ### Design Specification
 
-**2024-12-21-dashboard-mvp-design.md** (563 lines)
+**2024-12-21-dashboard-mvp-design.md** (572 lines)
 
 - **Purpose:** Complete MVP design specification
 - **Status:** APPROVED, serves as source of truth for architecture
 - **Date:** 2024-12-21
+- **Last Updated:** 2024-12-21 (stable, no changes needed)
 
 #### Contents Overview
 
@@ -131,8 +132,9 @@ This directory contains design specifications and implementation plans that defi
 **2024-12-22-mvp-implementation-plan.md** (223 lines)
 
 - **Purpose:** Task breakdown and execution plan
-- **Status:** IN PROGRESS (Phase 4 complete, Phase 5 next)
+- **Status:** IN PROGRESS (Phase 4 complete, Phase 5 in progress)
 - **Date:** 2024-12-22
+- **Last Updated:** 2025-12-24
 
 #### Contents Overview
 
@@ -354,25 +356,71 @@ This directory contains design specifications and implementation plans that defi
 3. If still unclear, check existing code patterns
 4. If still unclear, ask user for clarification
 
-## Changes from Design to Implementation
+## Implementation Progress
 
 ### Completed Phases (1-4)
+
+**Phase 1: Project Setup (P0)** - ✅ COMPLETE
+
+- Directory structures, Docker, environment, dependencies
+- All 7 tasks completed
+
+**Phase 2: Database & Layout Foundation (P1)** - ✅ COMPLETE
+
+- SQLAlchemy models, Redis connection, Tailwind theme, app layout
+- All 6 tasks completed
+
+**Phase 3: Core APIs & Components (P2)** - ✅ COMPLETE
+
+- Cameras API, system API, WebSocket hooks, API client, basic UI components
+- All 11 tasks completed
+
+**Phase 4: AI Pipeline (P3/P4)** - ✅ COMPLETE
+
+- File watcher, RT-DETRv2 wrapper, detector client, batch aggregator, Nemotron analyzer
+- All 13 tasks completed
+- Test coverage: Backend 98.54% (335 tests), Frontend 98.95% (233 tests)
+
+### Current Phase (5)
+
+**Phase 5: Events & Real-time (P4)** - 🔄 IN PROGRESS
+
+- Events API, detections API, WebSocket channels, GPU monitor, cleanup service
+- 9 tasks remaining
+
+### Remaining Phases (6-8)
+
+**Phase 6: Dashboard Components (P3)** - ⏳ NOT STARTED
+
+- Risk gauge, camera grid, live activity feed, GPU stats, EventCard
+- 7 tasks
+
+**Phase 7: Pages & Modals (P4)** - ⏳ NOT STARTED
+
+- Main dashboard, event timeline, event detail modal, settings pages
+- 6 tasks
+
+**Phase 8: Integration & E2E (P4)** - ⏳ NOT STARTED
+
+- Unit tests, E2E tests, deployment verification, documentation
+- 8 tasks (Docker deployment verification already completed)
+
+### Implementation Notes
 
 - All design decisions followed
 - Additional improvements:
   - Enhanced error handling
   - More comprehensive tests (98%+ coverage)
   - Better type hints and validation
-
-### Remaining Phases (5-8)
-
-- Follow design spec exactly
-- Refer to implementation plan for task order
-- Maintain test coverage above 95%
+  - Production Docker configuration with multi-stage builds
+  - Comprehensive deployment testing scripts
 
 ## Related Documentation
 
-- **Root AGENTS.md:** Project overview
+- **Root AGENTS.md:** Project overview and entry points
 - **docs/AGENTS.md:** Documentation directory guide
-- **docs/AGENT_HANDOFF.md:** Current status and next steps
-- **CLAUDE.md:** Claude Code instructions
+- **docs/ROADMAP.md:** Post-MVP roadmap ideas (pursue after Phases 1-8 complete)
+- **docs/AI_SETUP.md:** AI services setup and troubleshooting guide
+- **docs/DOCKER_DEPLOYMENT.md:** Docker Compose deployment guide
+- **CLAUDE.md:** Claude Code instructions and workflow
+- **README.md:** Project overview and quick start guide

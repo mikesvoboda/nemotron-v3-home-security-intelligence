@@ -45,7 +45,12 @@ Component organization by feature area:
 
 - **`dashboard/`** - Dashboard page components
 
-  - `DashboardPage.tsx` - Main dashboard view (currently placeholder)
+  - `DashboardPage.tsx` - Main dashboard view with real-time monitoring
+  - `RiskGauge.tsx` - Risk score visualization with Tremor DonutChart
+  - `CameraGrid.tsx` - Multi-camera grid display
+  - `ActivityFeed.tsx` - Real-time event activity stream
+  - `GpuStats.tsx` - GPU utilization and metrics display
+  - `RiskGauge.example.tsx` - Interactive example for development
 
 - **`detection/`** - Object detection visualization components
 
@@ -55,7 +60,18 @@ Component organization by feature area:
   - `index.ts` - Barrel export
   - `README.md` - Documentation for detection components
 
-- **`events/`** - Event-related components (placeholder directory)
+- **`events/`** - Event-related components
+
+  - `EventCard.tsx` - Individual event card with thumbnail and risk badge
+  - `EventTimeline.tsx` - Chronological event list with filtering
+  - `EventDetailModal.tsx` - Full event details modal with image and detections
+
+- **`settings/`** - Settings page components
+
+  - `CamerasSettings.tsx` - Camera management (add, edit, delete)
+  - `AIModelsSettings.tsx` - AI model status and GPU memory display
+  - `ProcessingSettings.tsx` - Batch processing and retention configuration
+  - `index.ts` - Barrel export
 
 **Component Patterns**:
 
@@ -76,13 +92,17 @@ Component organization by feature area:
 
 - **`useEventStream.ts`** - Event stream subscription hook
 
-  - Wraps `useWebSocket` for event updates
-  - Manages event state and history
+  - Wraps `useWebSocket` for `/ws/events` endpoint
+  - Receives `SecurityEvent` objects via WebSocket
+  - Maintains buffer of last 100 events (newest first)
+  - Provides `latestEvent` computed value
+  - `clearEvents()` method to reset buffer
 
-- **`useSystemStatus.ts`** - System status polling hook
+- **`useSystemStatus.ts`** - System status monitoring hook
 
-  - Fetches health and GPU stats periodically
-  - Returns system status and error state
+  - Wraps `useWebSocket` for `/ws/system` endpoint
+  - Receives `SystemStatus` objects with health, GPU utilization, active cameras
+  - Auto-connects to system status WebSocket channel
 
 - **`index.ts`** - Barrel export for all hooks
 
@@ -101,8 +121,9 @@ Component organization by feature area:
   - Custom `ApiError` class with status codes
   - Camera endpoints: `fetchCameras()`, `fetchCamera(id)`, `createCamera()`, `updateCamera()`, `deleteCamera()`
   - System endpoints: `fetchHealth()`, `fetchGPUStats()`, `fetchConfig()`, `fetchStats()`
+  - Event endpoints: `fetchEvents(params?)`, `fetchEvent(id)`, `updateEvent(id, reviewed)`
   - Media URL builders: `getMediaUrl()`, `getThumbnailUrl()`
-  - Exported types: `Camera`, `HealthResponse`, `GPUStats`, `SystemConfig`, `SystemStats`
+  - Exported types: `Camera`, `HealthResponse`, `GPUStats`, `SystemConfig`, `SystemStats`, `Event`, `EventListResponse`, `EventsQueryParams`
 
 **API Patterns**:
 
@@ -144,12 +165,11 @@ All test files use naming convention: `*.test.ts` or `*.test.tsx`
 
 - `App.test.tsx` - Root component tests
 - `components/common/RiskBadge.test.tsx`
-- `components/layout/Header.test.tsx`
-- `components/layout/Layout.test.tsx`
-- `components/layout/Sidebar.test.tsx`
-- `components/dashboard/DashboardPage.test.tsx`
-- `components/detection/BoundingBoxOverlay.test.tsx`
-- `components/detection/DetectionImage.test.tsx`
+- `components/layout/Header.test.tsx`, `Layout.test.tsx`, `Sidebar.test.tsx`
+- `components/dashboard/DashboardPage.test.tsx`, `RiskGauge.test.tsx`, `CameraGrid.test.tsx`, `ActivityFeed.test.tsx`, `GpuStats.test.tsx`
+- `components/detection/BoundingBoxOverlay.test.tsx`, `DetectionImage.test.tsx`
+- `components/events/EventCard.test.tsx`, `EventTimeline.test.tsx`, `EventDetailModal.test.tsx`
+- `components/settings/CamerasSettings.test.tsx`, `AIModelsSettings.test.tsx`, `ProcessingSettings.test.tsx`
 
 ### Hook Tests
 

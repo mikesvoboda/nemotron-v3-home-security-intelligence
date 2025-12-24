@@ -1,194 +1,113 @@
-# Layout Components
+# Layout Components Directory
 
 ## Purpose
 
-Core application layout components that provide the structural framework for the entire app, including navigation, header, and page wrapper.
+Contains the core application layout components that provide consistent structure, navigation, and branding across all pages. These components form the shell of the application.
 
-## Components
+## Key Components
 
-### Layout
+### Layout.tsx
 
-Main layout wrapper that composes the header, sidebar, and content area.
+**Purpose:** Main layout wrapper that composes Header and Sidebar with page content
 
-**File:** `Layout.tsx`
+**Key Features:**
 
-**Props Interface:**
+- Flex-based layout with fixed header and flexible content area
+- Manages navigation state (`activeNav`) shared between Sidebar and Header
+- Dark background (#0E0E0E) with proper overflow handling
+- Props: `children` (ReactNode)
 
-```typescript
-interface LayoutProps {
-  children: ReactNode; // Main content area
-}
-```
+**Pattern:**
 
-**Features:**
-
-- Flexbox-based layout structure
-- Fixed header at top
-- Sidebar + main content in horizontal flex
-- Dark theme background (`#0E0E0E`)
-- Responsive overflow handling
-- Navigation state management
-
-**Structure:**
-
-```
-Layout
-├── Header (fixed top)
-└── Flex container
-    ├── Sidebar (fixed width)
-    └── Main content (flex-1, scrollable)
-```
-
-**Usage:**
-
-```typescript
-import Layout from '@/components/layout/Layout';
-
+```tsx
 <Layout>
-  <DashboardPage />
+  <YourPage />
 </Layout>
 ```
 
-### Header
+### Header.tsx
 
-Top navigation bar with branding, status indicators, and quick stats.
+**Purpose:** Top navigation bar with branding and system status indicators
 
-**File:** `Header.tsx`
+**Key Features:**
 
-**Props Interface:**
+- NVIDIA Security branding with Activity icon in green box
+- "POWERED BY NEMOTRON" tagline in NVIDIA green (#76B900)
+- System status indicator (animated pulse dot + "System Online")
+- GPU quick stats placeholder (will be populated in Phase 5)
+- Fixed height (h-16) with dark panel background (#1A1A1A)
+- Border bottom for visual separation
 
-```typescript
-// No props - standalone component
-```
+**No props** - fully self-contained component
 
-**Features:**
+### Sidebar.tsx
 
-- NVIDIA branding with green accent color
-- Logo icon using `Activity` from `lucide-react`
-- Two-line branding:
-  - "NVIDIA SECURITY" (primary)
-  - "POWERED BY NEMOTRON" (secondary, green)
-- System status indicator (green pulsing dot)
-- GPU stats placeholder (ready for integration)
-- Dark panel background (`#1A1A1A`)
-- Bottom border separation
+**Purpose:** Left navigation menu with route selection
 
-**Layout:**
+**Key Features:**
 
-- Height: 64px (`h-16`)
-- Flex layout with space-between
-- Left: Logo and title
-- Right: Status and GPU stats
+- Navigation items defined in `navItems` array with id, label, icon, path, and optional badge
+- Active state highlighting with NVIDIA green background (#76B900)
+- Icons from lucide-react: Home, Clock, Users, Bell, Settings
+- "WIP" badge on Entities route (yellow badge)
+- Width: 256px (w-64) with dark panel background (#1A1A1A)
 
-### Sidebar
+**Props:**
 
-Vertical navigation menu with icons, labels, and active state.
+- `activeNav: string` - Currently active navigation ID
+- `onNavChange: (navId: string) => void` - Callback when user clicks nav item
 
-**File:** `Sidebar.tsx`
+**Navigation Routes:**
 
-**Props Interface:**
+- dashboard → `/` (Home icon)
+- timeline → `/timeline` (Clock icon)
+- entities → `/entities` (Users icon, WIP badge)
+- alerts → `/alerts` (Bell icon)
+- settings → `/settings` (Settings icon)
 
-```typescript
-interface SidebarProps {
-  activeNav: string; // Current active navigation ID
-  onNavChange: (navId: string) => void; // Navigation callback
-}
-```
+## Important Patterns
 
-**Navigation Items:**
+### State Management
 
-```typescript
-interface NavItem {
-  id: string; // Unique identifier
-  label: string; // Display text
-  icon: ComponentType; // Lucide icon
-  badge?: string; // Optional badge (e.g., "WIP")
-  path: string; // Route path
-}
-```
+- Layout component manages navigation state using `useState('dashboard')`
+- State is passed down to Sidebar via props
+- Allows for future integration with React Router or other routing solutions
 
-**Default Navigation:**
+### Styling
 
-- Dashboard (`/`) - Home icon
-- Timeline (`/timeline`) - Clock icon
-- Entities (`/entities`) - Users icon, "WIP" badge
-- Alerts (`/alerts`) - Bell icon
-- Settings (`/settings`) - Settings icon
+- All components use Tailwind CSS with NVIDIA dark theme
+- Primary brand color: #76B900 (NVIDIA green)
+- Dark backgrounds: #0E0E0E (darkest), #1A1A1A (panels)
+- Gray borders: border-gray-800
+- Hover states with subtle background changes
 
-**Features:**
+### Accessibility
 
-- Active state highlighting with NVIDIA green (`#76B900`)
-- Hover effects on inactive items
-- Icon + label layout
-- Optional badges for in-progress features
-- Full-width buttons with padding
-- Smooth transitions (200ms)
+- Semantic HTML elements (header, aside, main, nav)
+- Proper button roles and labels
+- Keyboard-accessible navigation
 
-**Styling:**
+## Testing
 
-- Width: 256px (`w-64`)
-- Dark panel background (`#1A1A1A`)
-- Right border separation
-- Active: Green background, black text, bold
-- Inactive: Gray text, hover gray background
+Tests are co-located with components:
 
-## Layout System
+- `Header.test.tsx` - Verifies branding, status indicators, GPU stats placeholder
+- `Layout.test.tsx` - Tests composition of Header, Sidebar, and children
+- `Sidebar.test.tsx` - Tests navigation items, active state, badges, click handlers
 
-The three components work together to create the app shell:
+## Entry Points
 
-1. **Layout** wraps entire app and manages layout structure
-2. **Header** provides branding and global status
-3. **Sidebar** handles primary navigation
+**Start here:** `Layout.tsx` - Understand how the shell is composed
+**Then explore:** `Sidebar.tsx` - See navigation structure and route definitions
+**Finally:** `Header.tsx` - Review branding and status displays
 
-All page components are rendered as children of Layout:
+## Dependencies
 
-```typescript
-// App.tsx or Router
-<Layout>
-  <Routes>
-    <Route path="/" element={<DashboardPage />} />
-    <Route path="/timeline" element={<TimelinePage />} />
-    {/* ... */}
-  </Routes>
-</Layout>
-```
+- `lucide-react` - Icon components (Activity, Home, Clock, Users, Bell, Settings)
+- `react` - useState, ReactNode types
 
-## Styling Approach
+## Future Enhancements
 
-- **Tailwind CSS** for all styling
-- **Lucide React** for icons
-- Dark theme palette:
-  - Base background: `#0E0E0E`
-  - Panel background: `#1A1A1A`
-  - Primary (NVIDIA green): `#76B900`
-  - Border: `gray-800`
-- Flexbox layouts throughout
-- Fixed header and sidebar, scrollable content
-- Consistent spacing and padding
-
-## Test Files
-
-**Location:** Co-located with components
-
-- `Layout.test.tsx` - Tests for layout structure and children rendering
-- `Header.test.tsx` - Tests for header elements, branding, status indicators
-- `Sidebar.test.tsx` - Tests for navigation rendering, active state, interactions
-
-**Coverage Requirements:**
-
-- Component rendering
-- Navigation state management
-- Active state styling
-- Click interactions
-- Icon and badge display
-- Accessibility (semantic HTML, ARIA labels, keyboard navigation)
-- Responsive behavior
-
-## Integration Points
-
-Layout components integrate with:
-
-- **React Router** - Navigation paths and active route detection
-- **WebSocket hooks** (future) - Real-time status updates in header
-- **GPU monitoring service** (future) - GPU stats in header
-- **Theme system** - Consistent dark theme application
+- Header GPU stats will be populated with real-time data in Phase 5
+- Sidebar will integrate with React Router for actual routing
+- May add breadcrumb navigation in Header for deep pages

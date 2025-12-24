@@ -2,20 +2,20 @@
 
 ## Purpose
 
-Test suite directory for integration and end-to-end tests.
-
-## Structure
-
-This directory is currently a placeholder for future test organization. It's intended for:
-
-1. **Integration Tests**: Multi-component interactions
-2. **End-to-End Tests**: Full user flows
-3. **Test Fixtures**: Shared test data and mocks
-4. **Test Helpers**: Reusable test utilities
+Test suite directory for integration and end-to-end tests. This directory complements the unit tests that live alongside source files in `src/`.
 
 ## Current Status
 
-Directory contains only `.gitkeep` file to maintain directory structure in version control.
+This directory is a **placeholder** for future test organization. Currently contains:
+
+- `AGENTS.md` - This documentation file
+- `e2e/` - End-to-end test directory (see `e2e/AGENTS.md`)
+
+**Note**: Unit tests are co-located with source files (e.g., `src/components/Layout.test.tsx`), not in this directory.
+
+## Intended Structure
+
+This directory is planned for integration and E2E tests that require full system setup:
 
 ## Planned Organization
 
@@ -154,24 +154,51 @@ export function createMockCamera(overrides?: Partial): Camera {
 ## Running Tests
 
 ```bash
-# Unit tests (in src/)
+# Unit tests (co-located in src/)
 npm test
+
+# Specific test file
+npm test -- Layout.test.tsx
 
 # Integration tests (when implemented)
 npm test tests/integration
 
-# All tests
+# All tests with coverage
+npm run test:coverage
+
+# Watch mode (default)
 npm test
 
-# With coverage
-npm test -- --coverage
+# Single run (for CI)
+npm test -- --run
 ```
 
-## Notes
+## Test Types Comparison
 
-- Unit tests live alongside source files (`src/**/*.test.ts`)
-- Integration tests live in this directory (`tests/integration/`)
-- E2E tests have dedicated subdirectory (`tests/e2e/`)
-- Use MSW (Mock Service Worker) for API mocking
-- Fixtures should match backend API response shapes
-- Test setup from `src/test/setup.ts` applies globally
+| Test Type       | Location             | Purpose                        | Status         |
+| --------------- | -------------------- | ------------------------------ | -------------- |
+| **Unit**        | `src/**/*.test.tsx`  | Component/function isolation   | ✅ Implemented |
+| **Integration** | `tests/integration/` | Multi-component interactions   | 📋 Planned     |
+| **E2E**         | `tests/e2e/`         | Full user workflows in browser | 📋 Planned     |
+
+## When to Use This Directory
+
+- **DON'T** put unit tests here - they belong alongside source files in `src/`
+- **DO** put integration tests that span multiple modules
+- **DO** put shared test fixtures and helpers
+- **DO** put E2E tests in `tests/e2e/` subdirectory
+
+## Related Documentation
+
+- See `../TESTING.md` for comprehensive testing documentation
+- See `../src/test/AGENTS.md` for test setup configuration
+- See `e2e/AGENTS.md` for E2E test planning
+
+## Notes for AI Agents
+
+- Unit tests are NOT in this directory - they're co-located with source files
+- This directory is for future integration and E2E test organization
+- MSW (Mock Service Worker) should be used for API mocking in integration tests
+- Fixtures should match backend API response shapes exactly
+- Global test setup is in `src/test/setup.ts`, not here
+- Current test coverage is focused on unit tests in `src/`

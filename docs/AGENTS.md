@@ -6,20 +6,95 @@ This directory contains all project documentation including design specification
 
 ## Key Files
 
-### Session Continuity
+### Roadmap and Future Vision
 
-**AGENT_HANDOFF.md**
+**ROADMAP.md**
 
-- **Purpose:** Primary session handoff document for maintaining context between agent sessions
+- **Purpose:** Post-MVP roadmap ideas to pursue after Phases 1-8 are operational
 - **Contents:**
-  - Current project status (Phase 1-4 complete, 5-8 remaining)
-  - Test coverage statistics (Backend: 98.54%, Frontend: 98.95%)
-  - How to continue workflow (bd commands, testing, commits)
-  - Phase 5 task breakdown (Events & Real-time APIs)
-  - Key file reference for implemented services
-  - Environment setup instructions
-- **When to use:** Read this FIRST when starting a new session
-- **Last updated:** 2025-12-23 after Phase 4 completion
+  - 8 roadmap themes with implementation notes
+  - Prioritization rubric for selecting next features
+  - Bigger bets (longer-term/researchy ideas)
+  - Context about what MVP establishes
+  - Guiding principles to keep scope sane
+- **When to use:** After MVP is fully operational (Phases 1-8 complete, deployment verified, tests passing)
+- **Key sections:**
+  - Alerting & escalation (turn insights into action)
+  - Spatial intelligence & zones (reduce false positives)
+  - Entity continuity (ReID-lite and "same actor" reasoning)
+  - Pattern-of-life / anomaly detection
+  - Search & investigations
+  - Better media handling (clips, pre/post roll)
+  - Reliability & operations
+  - Security hardening
+- **Last updated:** 2025-12-24
+
+### Setup and Deployment Guides
+
+**AI_SETUP.md**
+
+- **Purpose:** Comprehensive guide for setting up and running AI inference services
+- **Contents:**
+  - Hardware requirements (GPU, VRAM, CUDA)
+  - Software prerequisites (NVIDIA drivers, Python, llama.cpp)
+  - Model downloads (Nemotron, RT-DETRv2)
+  - Starting services (unified startup script)
+  - Service management (status, stop, restart, health check)
+  - Verification and testing procedures
+  - Troubleshooting guide
+  - Performance tuning recommendations
+  - Monitoring and production deployment
+- **When to use:**
+  - Setting up AI services for the first time
+  - Troubleshooting AI service issues
+  - Understanding GPU resource usage
+  - Production deployment planning
+- **Key sections:**
+  - Quick reference (lines 844-897)
+  - Troubleshooting (lines 443-623)
+  - Performance tuning (lines 625-682)
+
+**DOCKER_DEPLOYMENT.md**
+
+- **Purpose:** Complete guide for Docker Compose deployment
+- **Contents:**
+  - Quick start (development and production modes)
+  - Configuration files (docker-compose.yml vs docker-compose.prod.yml)
+  - Service details (Backend, Frontend, Redis)
+  - Environment variables reference
+  - Health checks documentation
+  - Volume management and data persistence
+  - Troubleshooting common issues
+  - Security considerations
+  - Performance tuning
+  - Backup and recovery procedures
+  - CI/CD integration example
+- **When to use:**
+  - Deploying services with Docker
+  - Understanding service architecture
+  - Configuring production deployment
+  - Troubleshooting deployment issues
+- **Key sections:**
+  - Quick start (lines 16-41)
+  - Troubleshooting (lines 249-307)
+  - Security hardening (lines 363-381)
+
+**DOCKER_VERIFICATION_SUMMARY.md**
+
+- **Purpose:** Summary of Docker deployment verification and enhancements (Phase 8 task completion)
+- **Contents:**
+  - Files verified and enhanced
+  - Health checks configuration
+  - Production configuration details
+  - Test script features
+  - Verification checklist
+  - Usage instructions
+  - Files created/modified list
+- **When to use:**
+  - Understanding what was done for Phase 8 Docker task
+  - Reference for deployment enhancements
+  - Understanding test script capabilities
+- **Last updated:** 2025-12-24
 
 ### Implementation Plans
 
@@ -71,16 +146,20 @@ This directory contains all project documentation including design specification
 
 ```
 docs/
-├── AGENTS.md             # This file - guide to documentation
-├── AGENT_HANDOFF.md      # Session continuity document
+├── AGENTS.md                             # This file - guide to documentation
+├── ROADMAP.md                            # Post-MVP roadmap ideas
+├── AI_SETUP.md                           # AI services setup guide
+├── DOCKER_DEPLOYMENT.md                  # Docker deployment guide
+├── DOCKER_VERIFICATION_SUMMARY.md        # Docker deployment verification summary
 └── plans/
+    ├── AGENTS.md                         # Plans directory guide
     ├── 2024-12-21-dashboard-mvp-design.md        # Design specification
     └── 2024-12-22-mvp-implementation-plan.md     # Implementation plan
 ```
 
 ## Relationship to Project
 
-### Design → Implementation Flow
+### Design → Implementation → Deployment Flow
 
 1. **Design Phase:** `plans/2024-12-21-dashboard-mvp-design.md`
 
@@ -94,38 +173,46 @@ docs/
    - References design document
    - Defines HOW and WHEN to build
 
-3. **Session Continuity:** `AGENT_HANDOFF.md`
-   - Updated after each major milestone
-   - Tracks current state and next steps
-   - Defines WHERE YOU ARE NOW
+3. **Deployment Phase:** `DOCKER_DEPLOYMENT.md` + `AI_SETUP.md`
+
+   - Created during Phase 8 (Integration & E2E)
+   - Comprehensive guides for running the system
+   - Defines HOW to deploy and operate
+
+4. **Future Phase:** `ROADMAP.md`
+   - Post-MVP enhancement ideas
+   - Prioritization guidance
+   - Defines WHAT COMES NEXT after MVP is operational
 
 ### Documentation vs Code
 
 - **Docs are source of truth for:**
 
-  - Architecture decisions
-  - API contracts
-  - Database schema
-  - UI specifications
-  - Risk scoring logic (Nemotron prompts)
+  - Architecture decisions (design spec)
+  - API contracts (design spec)
+  - Database schema (design spec)
+  - UI specifications (design spec)
+  - Risk scoring logic / Nemotron prompts (design spec)
+  - Deployment procedures (AI_SETUP.md, DOCKER_DEPLOYMENT.md)
+  - Future roadmap (ROADMAP.md)
 
 - **Code is source of truth for:**
   - Current implementation state
   - Test coverage
   - Bug fixes and refinements
   - Performance optimizations
+  - Actual behavior and edge cases
 
 ## Important Patterns
 
 ### When to Update Documentation
 
-**AGENT_HANDOFF.md** should be updated:
+**ROADMAP.md** should be updated:
 
-- After completing a phase
-- After major feature implementation
-- At end of each agent session
-- When test coverage changes significantly
-- When starting new work that others need context on
+- When adding new post-MVP enhancement ideas
+- When completing roadmap items (mark as done)
+- When changing prioritization strategy
+- After MVP is operational and roadmap work begins
 
 **Implementation Plan** should be updated:
 
@@ -139,6 +226,14 @@ docs/
 - When API contracts change
 - When database schema changes
 - NOT for implementation details or refinements
+
+**Setup/Deployment Guides** should be updated:
+
+- When adding new services or dependencies
+- When changing deployment procedures
+- When updating recommended configurations
+- When adding new troubleshooting solutions
+- NOT for code-level changes (those go in code comments)
 
 ### Design Decisions Documented
 
@@ -156,18 +251,20 @@ The design specification documents these critical decisions:
 
 ### Starting a New Session
 
-1. **Read AGENT_HANDOFF.md** - Get current status
-2. Check which phase you're in
-3. Refer to implementation plan for task details
-4. Refer to design spec for architecture/API contracts
+1. **Check project status** - Read root AGENTS.md or CLAUDE.md
+2. **Check available work** - Run `bd ready` or `bd list --label phase-N`
+3. **Refer to implementation plan** - Find task details and phase breakdown
+4. **Refer to design spec** - Understand architecture/API contracts
+5. **After MVP complete** - Review ROADMAP.md for post-MVP work
 
 ### Implementing a New Feature
 
 1. **Check design spec** - Understand requirements
 2. **Check implementation plan** - Find related tasks
-3. Write tests (TDD approach)
+3. Write tests (TDD approach for tasks labeled `tdd`)
 4. Implement feature
-5. Update AGENT_HANDOFF.md if major milestone
+5. Run tests and validation
+6. Commit changes (pre-commit hooks will run automatically)
 
 ### Understanding Architecture
 
@@ -180,8 +277,16 @@ The design specification documents these critical decisions:
 
 1. **Read design spec** - Processing Pipeline section (lines 172-200)
 2. **Read design spec** - Nemotron Prompt section (lines 202-239)
-3. Check implementation plan for task breakdown
-4. Look at `backend/services/` code for actual implementation
+3. **Read AI_SETUP.md** - How to set up and run AI services
+4. Check implementation plan for task breakdown
+5. Look at `backend/services/` code for actual implementation
+
+### Deploying the System
+
+1. **For Docker services** - Read DOCKER_DEPLOYMENT.md
+2. **For AI services** - Read AI_SETUP.md
+3. **Run deployment tests** - Use `scripts/test-docker.sh`
+4. **Monitor services** - Use health check endpoints and logs
 
 ## Conventions
 
@@ -199,34 +304,57 @@ The design specification documents these critical decisions:
 - ALL_CAPS for root-level agent docs: `AGENTS.md`, `AGENT_HANDOFF.md`
 - Lowercase with hyphens for plans: `dashboard-mvp-design.md`
 
-### Sections in AGENT_HANDOFF.md
+### Common Documentation Patterns
 
-1. Header with date and last commit
-2. Project Overview
-3. Current Status (completed + remaining phases)
-4. Test Coverage
-5. How to Continue (commands)
-6. Critical Rules
-7. Next Phase Details
-8. Key Files Reference
-9. Environment Setup
+1. **All AGENTS.md files** follow this structure:
+
+   - Purpose of the directory
+   - Key files and what they do
+   - Important patterns and conventions
+   - Entry points for understanding the code
+
+2. **All guide files** (AI_SETUP.md, DOCKER_DEPLOYMENT.md) follow this structure:
+
+   - Overview and quick start
+   - Detailed sections with examples
+   - Troubleshooting guide
+   - Quick reference at the end
+
+3. **All plan files** (design spec, implementation plan) have:
+   - Date and status header
+   - Table of contents or clear sections
+   - Code blocks for technical content
+   - Tables for structured data
 
 ## Related Documentation
 
 - **Root AGENTS.md:** Overview of entire project
 - **CLAUDE.md:** Comprehensive Claude Code instructions
-- **backend/README.md files:** Module-specific documentation
-- **frontend/TESTING.md:** Frontend testing guide
-- **backend/tests/README.md:** Backend testing guide
+- **README.md:** Project overview and quick start guide
+- **DOCKER_QUICKSTART.md:** Quick reference for Docker commands
+- **scripts/AGENTS.md:** Development and deployment scripts documentation
+- **backend/AGENTS.md:** Backend architecture overview
+- **frontend/AGENTS.md:** Frontend architecture overview
+- **ai/AGENTS.md:** AI pipeline overview
 
-## Future Roadmap (from Implementation Plan)
+## Future Roadmap
 
-The implementation plan includes strategic perspectives from NVIDIA personas:
+The ROADMAP.md file contains post-MVP enhancement ideas organized into themes:
 
-1. **Edge AI:** Spatial Context Injection (enhance prompts with spatial relationships)
-2. **NIM PM:** NVIDIA NIM Migration (replace llama.cpp with NIM containers)
-3. **Digital Twin:** USD Event Reconstruction (Omniverse integration)
-4. **Cybersecurity:** Baseline Anomaly Scoring (learn normal patterns)
-5. **RTX Marketing:** RAG-based Security Chat (query history with natural language)
+1. **Alerting & escalation** - Turn insights into action (notifications, rules, dedupe)
+2. **Spatial intelligence & zones** - Reduce false positives (polygons, line crossing)
+3. **Entity continuity (ReID-lite)** - Track "same actor" across detections
+4. **Pattern-of-life / anomaly detection** - Learn normal patterns, flag unusual activity
+5. **Search & investigations** - Full-text and semantic search, case workflows
+6. **Better media handling** - Clips, pre/post roll, scrubber UX
+7. **Reliability & operations** - Backpressure, retries, observability, storage tooling
+8. **Security hardening** - Auth, audit logging, rate limiting
 
-These are v2+ features, not part of current MVP.
+**Bigger bets (researchy/longer-term):**
+
+- Natural language "chat with your security history" (RAG)
+- NIM / standardized inference deployment
+- Digital twin reconstruction (USD / Omniverse)
+- Face recognition / license plates (privacy-sensitive, explicit opt-in)
+
+**IMPORTANT:** Only pursue roadmap items **after MVP is fully operational** (Phases 1-8 complete, deployment verified, tests passing).

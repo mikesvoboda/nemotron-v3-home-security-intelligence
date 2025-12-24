@@ -6,18 +6,47 @@ This directory contains the core business logic and background services for the 
 
 ## Architecture Overview
 
-The services implement a multi-stage async pipeline:
+The services implement a multi-stage async pipeline with real-time broadcasting and background maintenance:
 
 ```
-File Upload → Detection → Batching → Analysis → Event Creation
-   (1)          (2)         (3)         (4)         (5)
+File Upload → Detection → Batching → Analysis → Event Creation → Broadcasting
+   (1)          (2)         (3)         (4)         (5)              (6)
+
+                     Monitoring Services (Parallel)
+                     ├── GPUMonitor (polls GPU stats)
+                     ├── SystemBroadcaster (system status)
+                     └── CleanupService (retention policy)
 ```
 
-1. **FileWatcher** monitors camera directories for new uploads
-2. **DetectorClient** sends images to RT-DETRv2 for object detection
-3. **BatchAggregator** groups detections into time-based batches
-4. **NemotronAnalyzer** analyzes batches with LLM for risk scoring
-5. **ThumbnailGenerator** creates preview images with bounding boxes
+### Core AI Pipeline Services
+
+1. **FileWatcher** - Monitors camera directories for new uploads
+2. **DetectorClient** - Sends images to RT-DETRv2 for object detection
+3. **BatchAggregator** - Groups detections into time-based batches
+4. **NemotronAnalyzer** - Analyzes batches with LLM for risk scoring
+5. **ThumbnailGenerator** - Creates preview images with bounding boxes
+6. **EventBroadcaster** - Distributes events via WebSocket to frontend
+
+### Background Services
+
+- **GPUMonitor** - Polls NVIDIA GPU metrics and stores statistics
+- **SystemBroadcaster** - Aggregates and broadcasts system health status
+- **CleanupService** - Enforces data retention policies and frees disk space
+
+## Service Files Overview
+
+| Service                  | Purpose                                     | Type          | Dependencies                         |
+| ------------------------ | ------------------------------------------- | ------------- | ------------------------------------ |
+| `file_watcher.py`        | Monitor camera directories for new uploads  | Core Pipeline | watchdog, Redis                      |
+| `detector_client.py`     | Send images to RT-DETRv2 for detection      | Core Pipeline | httpx, SQLAlchemy                    |
+| `batch_aggregator.py`    | Group detections into time-based batches    | Core Pipeline | Redis                                |
+| `nemotron_analyzer.py`   | LLM-based risk analysis via llama.cpp       | Core Pipeline | httpx, SQLAlchemy, Redis             |
+| `thumbnail_generator.py` | Generate preview images with bounding boxes | Core Pipeline | PIL/Pillow                           |
+| `event_broadcaster.py`   | Distribute events via WebSocket             | Broadcasting  | Redis, FastAPI WebSocket             |
+| `gpu_monitor.py`         | Poll NVIDIA GPU metrics                     | Background    | pynvml, SQLAlchemy                   |
+| `system_broadcaster.py`  | Broadcast system health status              | Broadcasting  | SQLAlchemy, Redis, FastAPI WebSocket |
+| `cleanup_service.py`     | Enforce data retention policies             | Background    | SQLAlchemy                           |
+| `prompts.py`             | LLM prompt templates                        | Utility       | -                                    |
 
 ## Service Files
 
@@ -246,6 +275,233 @@ default:           white (#FFFFFF)
 }
 ```
 
+### cleanup_service.py
+
+**Purpose:** Automated data retention and disk space management service.
+
+**Key Features:**
+
+- Scheduled daily cleanup at configurable time (default: 03:00)
+- Enforces retention policy (default: 30 days)
+- Cascade deletion: Events → Detections → GPU Stats
+- File cleanup: Thumbnails and optionally original images
+- Transaction-safe with rollback support
+- Detailed statistics on cleanup operations
+
+**Public API:**
+
+- `CleanupService(cleanup_time, retention_days, thumbnail_dir, delete_images)` - Initialize
+- `async start()` - Start scheduled cleanup loop
+- `async stop()` - Stop cleanup and cancel tasks
+- `async run_cleanup()` - Execute cleanup operation manually
+- `get_cleanup_stats()` - Get service status and next cleanup time
+
+**Cleanup Process:**
+
+1. Calculate cutoff date (now - retention_days)
+2. Query detections older than cutoff (collect file paths)
+3. Delete old detections from database
+4. Delete old events from database (cascade)
+5. Delete old GPU stats from database
+6. Commit database transaction
+7. Delete thumbnail files from disk
+8. Delete original image files (if enabled)
+
+**CleanupStats:**
+
+```python
+{
+    "events_deleted": int,        # Events removed
+    "detections_deleted": int,    # Detections removed
+    "gpu_stats_deleted": int,     # GPU stat records removed
+    "thumbnails_deleted": int,    # Thumbnail files removed
+    "images_deleted": int,        # Original images removed
+    "space_reclaimed": int        # Disk space freed (bytes)
+}
+```
+
+**Error Handling:**
+
+- Validates cleanup_time format (HH:MM 24-hour)
+- Rolls back database transaction on failure
+- Continues loop even if single cleanup fails
+- Logs warnings for missing files
+- Graceful cancellation with CancelledError handling
+
+### event_broadcaster.py
+
+**Purpose:** Real-time event distribution via WebSocket using Redis pub/sub backbone.
+
+**Key Features:**
+
+- Manages WebSocket connection lifecycle
+- Bridges Redis pub/sub to WebSocket clients
+- Supports multiple backend instances (via Redis)
+- Automatic cleanup of disconnected clients
+- Idempotent start/stop operations
+
+**Public API:**
+
+- `EventBroadcaster(redis_client)` - Initialize with Redis client
+- `async start()` - Start listening on Redis pub/sub channel
+- `async stop()` - Stop listener and disconnect all clients
+- `async connect(websocket)` - Register new WebSocket connection
+- `async disconnect(websocket)` - Unregister WebSocket connection
+- `async broadcast_event(event_data)` - Publish event to Redis channel
+
+**Redis Channel:**
+
+- Channel name: `security_events`
+- Message format: `{"type": "event", "data": {...}}`
+
+**Data Flow:**
+
+1. Event created → `broadcast_event()` publishes to Redis
+2. Redis pub/sub broadcasts to all backend instances
+3. `_listen_for_events()` receives message from Redis
+4. `_send_to_all_clients()` sends to all WebSocket connections
+5. Frontend receives real-time update
+
+**Error Handling:**
+
+- Removes failed connections automatically
+- Continues listening after individual message failures
+- Restarts listener task if error occurs
+- Graceful shutdown with task cancellation
+
+**Factory Functions:**
+
+- `get_broadcaster(redis_client)` - Get/create global singleton
+- `stop_broadcaster()` - Stop and cleanup global instance
+
+### gpu_monitor.py
+
+**Purpose:** NVIDIA GPU statistics monitoring using pynvml.
+
+**Key Features:**
+
+- Async polling at configurable intervals (default from settings)
+- Graceful handling of missing GPU or driver
+- In-memory circular buffer for quick access
+- Database persistence for historical analysis
+- Mock data mode when GPU unavailable
+- Optional WebSocket broadcasting
+
+**Public API:**
+
+- `GPUMonitor(poll_interval, history_minutes, broadcaster)` - Initialize
+- `async start()` - Start GPU monitoring loop
+- `async stop()` - Stop monitoring and cleanup NVML
+- `get_current_stats()` - Get current GPU stats (real or mock)
+- `get_stats_history(minutes)` - Get in-memory stats history
+- `async get_stats_from_db(minutes, limit)` - Query database for stats
+
+**GPU Metrics Collected:**
+
+```python
+{
+    "gpu_name": str,              # GPU model name
+    "gpu_utilization": float,     # GPU usage percentage (0-100)
+    "memory_used": int,           # Memory used in MB
+    "memory_total": int,          # Total memory in MB
+    "temperature": float,         # Temperature in Celsius
+    "power_usage": float,         # Power usage in Watts
+    "recorded_at": datetime       # Timestamp
+}
+```
+
+**Data Flow:**
+
+1. Poll GPU metrics via pynvml every `poll_interval` seconds
+2. Append to in-memory circular buffer (max 1000 entries)
+3. Store in database (GPUStats table)
+4. Broadcast via WebSocket (if broadcaster provided)
+
+**Error Handling:**
+
+- Falls back to mock data if pynvml unavailable
+- Returns None for metrics that fail to read
+- Continues polling even if single iteration fails
+- Safely shuts down NVML on stop
+- Logs all errors with context
+
+**Mock Mode:**
+
+Activated when:
+
+- pynvml not installed
+- No NVIDIA GPU present
+- NVML initialization fails
+- Driver not available
+
+### system_broadcaster.py
+
+**Purpose:** WebSocket broadcaster for comprehensive system status updates.
+
+**Key Features:**
+
+- Periodic broadcasting of system metrics (default: 5s interval)
+- Aggregates data from multiple sources (GPU, cameras, queues, health)
+- Sends initial status immediately on connection
+- Automatic cleanup of failed connections
+- Graceful error handling per metric category
+
+**Public API:**
+
+- `SystemBroadcaster()` - Initialize broadcaster
+- `async connect(websocket)` - Add WebSocket connection
+- `async disconnect(websocket)` - Remove WebSocket connection
+- `async broadcast_status(status_data)` - Send status to all clients
+- `async start_broadcasting(interval)` - Start periodic broadcasts
+- `async stop_broadcasting()` - Stop periodic broadcasts
+
+**System Status Structure:**
+
+```python
+{
+    "type": "system_status",
+    "data": {
+        "gpu": {
+            "utilization": float,      # GPU usage %
+            "memory_used": int,        # Memory MB
+            "memory_total": int,       # Total memory MB
+            "temperature": float,      # Temperature C
+            "inference_fps": float     # Inference FPS
+        },
+        "cameras": {
+            "active": int,             # Online cameras
+            "total": int               # Total cameras
+        },
+        "queue": {
+            "pending": int,            # Detection queue length
+            "processing": int          # Analysis queue length
+        },
+        "health": str                  # "healthy", "degraded", "unhealthy"
+    },
+    "timestamp": str                   # ISO format
+}
+```
+
+**Data Sources:**
+
+1. **GPU Stats:** Latest record from GPUStats table
+2. **Camera Stats:** Count queries on Camera table
+3. **Queue Stats:** Redis queue length queries
+4. **Health Status:** Database + Redis connectivity checks
+
+**Error Handling:**
+
+- Returns null values if GPU stats unavailable
+- Returns zero counts if database query fails
+- Returns zero counts if Redis unavailable
+- Falls back to "unhealthy" if health check fails
+- Continues broadcasting even if one metric fails
+- Removes disconnected clients automatically
+
+**Factory Function:**
+
+- `get_system_broadcaster()` - Get/create global singleton
+
 ### prompts.py
 
 **Purpose:** Centralized prompt templates for LLM analysis.
@@ -260,6 +516,8 @@ default:           white (#FFFFFF)
 ## Data Flow Between Services
 
 ### Complete Pipeline Flow
+
+**Core AI Pipeline:**
 
 ```
 1. FileWatcher
@@ -282,11 +540,38 @@ default:           white (#FFFFFF)
    ↓ Consumes from: analysis_queue
    ↓ Calls: NemotronAnalyzer.analyze_batch()
    ↓ Stores: Event records in SQLite
-   ↓ Publishes: WebSocket events channel
 
-6. [On Demand]
+6. [Background Worker]
+   ↓ Calls: EventBroadcaster.broadcast_event()
+   ↓ Publishes: Redis pub/sub channel "security_events"
+   ↓ Broadcasts: WebSocket to all connected clients
+
+7. [On Demand]
    ↓ Calls: ThumbnailGenerator.generate_thumbnail()
    ↓ Stores: Thumbnail files in data/thumbnails/
+```
+
+**Background Services (Parallel):**
+
+```
+GPUMonitor (Continuous Polling)
+   ↓ Every poll_interval seconds (default from settings)
+   ↓ Reads: pynvml GPU metrics
+   ↓ Stores: GPUStats records in SQLite
+   ↓ Appends: In-memory circular buffer (max 1000)
+   ↓ Broadcasts: WebSocket to SystemBroadcaster (optional)
+
+SystemBroadcaster (Periodic Broadcasting)
+   ↓ Every 5 seconds (configurable)
+   ↓ Queries: Latest GPUStats, Camera counts, Redis queue lengths
+   ↓ Checks: Database + Redis health
+   ↓ Broadcasts: WebSocket system_status to all connected clients
+
+CleanupService (Daily Scheduled)
+   ↓ Once per day at cleanup_time (default: 03:00)
+   ↓ Deletes: Events, Detections, GPUStats older than retention_days
+   ↓ Removes: Thumbnail files (and optionally original images)
+   ↓ Logs: CleanupStats (records deleted, space reclaimed)
 ```
 
 ### Redis Queue Structure
@@ -404,14 +689,91 @@ All services use `backend.core.config.get_settings()` for configuration:
 - `PIL/Pillow` - Image processing
 - `sqlalchemy[asyncio]` - Database ORM
 - `redis` - Redis client
+- `pynvml` - NVIDIA GPU monitoring (optional)
+- `fastapi` - WebSocket support
+
+## WebSocket Broadcasting Architecture
+
+The system uses two distinct WebSocket channels for different data streams:
+
+### Event Channel (EventBroadcaster)
+
+- **Purpose:** Real-time security event notifications
+- **Channel:** `security_events` (Redis pub/sub)
+- **Data:** Individual security events with risk scores
+- **Trigger:** Event creation after batch analysis
+- **Pattern:** Publish to Redis → All instances listen → Broadcast to WebSocket clients
+
+**Message Structure:**
+
+```python
+{
+    "type": "event",
+    "data": {
+        "id": 1,
+        "camera_id": "cam-123",
+        "risk_score": 75,
+        "risk_level": "high",
+        "summary": "Person detected",
+        "started_at": "2024-01-15T10:30:00",
+        # ... other event fields
+    }
+}
+```
+
+### System Status Channel (SystemBroadcaster)
+
+- **Purpose:** Periodic system health and metrics
+- **Interval:** Every 5 seconds (configurable)
+- **Data:** Aggregated system status (GPU, cameras, queues, health)
+- **Trigger:** Periodic broadcast loop
+- **Pattern:** Query all sources → Aggregate → Broadcast to WebSocket clients
+
+**Message Structure:**
+
+```python
+{
+    "type": "system_status",
+    "data": {
+        "gpu": {...},
+        "cameras": {...},
+        "queue": {...},
+        "health": "healthy"
+    },
+    "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
+### Multi-Instance Support
+
+Both broadcasters support horizontal scaling via Redis:
+
+1. **EventBroadcaster** - Uses Redis pub/sub to share events across instances
+2. **SystemBroadcaster** - Each instance broadcasts independently (no shared state needed)
 
 ## Testing Considerations
 
 All services include comprehensive error handling for testing:
+
+### Core Services
 
 - Mock Redis client by passing `redis_client=None` or mock instance
 - Mock HTTP responses for DetectorClient and NemotronAnalyzer
 - Mock filesystem events for FileWatcher
 - Use in-memory PIL images for ThumbnailGenerator tests
 
-See `backend/tests/unit/services/` for test examples.
+### Broadcasting Services
+
+- Mock WebSocket connections for EventBroadcaster and SystemBroadcaster
+- Test connection lifecycle (connect/disconnect/error handling)
+- Verify message formatting and delivery
+- Test automatic cleanup of failed connections
+
+### Background Services
+
+- Mock pynvml for GPUMonitor (test with and without GPU)
+- Mock database queries for SystemBroadcaster
+- Test CleanupService with in-memory database or test fixtures
+- Verify task cancellation and graceful shutdown
+
+See `backend/tests/unit/` and `backend/tests/integration/` for test examples.

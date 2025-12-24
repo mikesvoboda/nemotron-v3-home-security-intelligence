@@ -41,7 +41,7 @@ Starts the RT-DETRv2 object detection server:
 
 Starts the Nemotron LLM server via llama.cpp:
 
-- **Port**: 8002
+- **Port**: 8090
 - **VRAM**: ~3GB (Q4_K_M quantization)
 - **Context**: 4096 tokens
 - **Parallelism**: 2 concurrent requests
@@ -58,7 +58,7 @@ Starts the Nemotron LLM server via llama.cpp:
 │  ┌──────────────────┐         ┌──────────────────┐         │
 │  │  RT-DETRv2       │         │  Nemotron LLM    │         │
 │  │  Detection       │         │  Reasoning       │         │
-│  │  Port: 8001      │         │  Port: 8002      │         │
+│  │  Port: 8001      │         │  Port: 8090      │         │
 │  │  VRAM: ~4GB      │         │  VRAM: ~3GB      │         │
 │  └──────────────────┘         └──────────────────┘         │
 │         ▲                             ▲                     │
@@ -118,7 +118,7 @@ Server runs at: `http://localhost:8001`
 ./ai/start_llm.sh
 ```
 
-Server runs at: `http://localhost:8002`
+Server runs at: `http://localhost:8090`
 
 **Note**: Ensure `llama-server` from llama.cpp is installed and available in PATH before starting the LLM service.
 

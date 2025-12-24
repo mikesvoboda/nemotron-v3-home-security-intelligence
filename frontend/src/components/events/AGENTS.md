@@ -1,144 +1,262 @@
-# Events Components
+# Events Components Directory
 
 ## Purpose
 
-Components for displaying and interacting with security events. Events are aggregated detection results analyzed by Nemotron with risk scoring and reasoning.
+Contains components for displaying, filtering, and interacting with security events. Includes event cards, timeline views, and detailed event modals with AI-generated summaries and detection visualizations.
 
-## Current Status
+## Key Components
 
-**This directory is currently empty** (contains only `.gitkeep`). Components will be implemented in **Phase 5** (Events & Real-time) and **Phase 7** (Pages & Modals).
+### EventCard.tsx
 
-## Planned Components
+**Purpose:** Compact card displaying a single security event with thumbnail, detections, and AI analysis
 
-### EventCard
+**Key Features:**
 
-Display a single security event with thumbnail, risk badge, timestamp, and detection summary.
+- Thumbnail with bounding box overlay (if detections have bbox data)
+- Camera name, timestamp (relative: "5 mins ago", "2 hours ago")
+- Risk badge with score
+- AI-generated summary text
+- Detection chips showing label + confidence percentage
+- Expandable AI reasoning section (collapsible)
+- "View Details" button (optional, triggers `onViewDetails` callback)
+- Hover effects on card border
 
-**Planned Features:**
+**Props:**
 
-- Event thumbnail with detection overlay
-- Risk badge (low/medium/high/critical)
-- Timestamp and duration
-- Detection count and types
-- Camera name/location
-- Truncated reasoning text with "Show more" link
-- Click to open detail modal
+- `id: string` - Event ID
+- `timestamp: string` - ISO timestamp
+- `camera_name: string` - Camera that captured event
+- `risk_score: number` - 0-100 risk score
+- `risk_label: string` - "Low", "Medium", "High", "Critical"
+- `summary: string` - AI-generated event summary
+- `reasoning?: string` - AI reasoning (optional, expandable section)
+- `thumbnail_url?: string` - Event thumbnail URL
+- `detections: Detection[]` - Array of detected objects
+- `onViewDetails?: (eventId: string) => void` - Click handler for view button
+- `className?: string`
 
-### EventDetailModal
-
-Full-screen or large modal showing comprehensive event details.
-
-**Planned Features:**
-
-- Full-size image with bounding boxes
-- Complete Nemotron reasoning/explanation
-- Risk score breakdown
-- All detections with confidence scores
-- Event metadata (camera, timestamp, duration)
-- Related events (if any)
-- Actions (archive, dismiss, mark as false positive)
-
-### EventTimeline
-
-Chronological list or timeline view of security events.
-
-**Planned Features:**
-
-- Scrollable event list
-- Date grouping (Today, Yesterday, This Week, etc.)
-- Filtering by risk level, camera, object type
-- Infinite scroll or pagination
-- Real-time updates via WebSocket
-- Empty state for no events
-
-### EventFilters
-
-Filter controls for event lists.
-
-**Planned Features:**
-
-- Risk level checkboxes
-- Camera selector
-- Date range picker
-- Object type filters (person, car, package, etc.)
-- Search by keywords in reasoning
-- Sort options (newest first, highest risk first)
-
-## Data Model
-
-Events are expected to follow this structure (based on backend schema):
+**Detection Interface:**
 
 ```typescript
-interface Event {
-  id: string;
-  camera_id: string;
-  camera_name: string;
-  timestamp: string; // ISO 8601
-  duration_seconds: number;
-  risk_level: 'low' | 'medium' | 'high' | 'critical';
-  risk_score: number; // 0-100
-  reasoning: string; // Nemotron explanation
-  image_path: string;
-  detections: Detection[];
-  created_at: string;
-}
-
-interface Detection {
-  id: string;
-  object_type: string;
-  confidence: number; // 0-1
-  bbox_x: number;
-  bbox_y: number;
-  bbox_width: number;
-  bbox_height: number;
+{
+  label: string;        // "person", "car", "dog"
+  confidence: number;   // 0-1
+  bbox?: {              // Optional bounding box
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
 }
 ```
 
-## Integration Points
+**Helper Functions:**
 
-Events components will integrate with:
+- `formatTimestamp()` - Converts ISO to relative time or absolute format
+- `convertToBoundingBoxes()` - Transforms Detection[] to BoundingBox[] for DetectionImage
+- `formatConfidence()` - Converts 0-1 to percentage string
 
-- **Events API** (`/api/v1/events`) - Fetch event list, detail, filtering
-- **WebSocket** - Real-time event notifications
-- **Detection components** - Reuse `DetectionImage` for thumbnails and overlays
-- **Common components** - Reuse `RiskBadge` for risk display
-- **Router** - Navigation to event detail pages
+### EventTimeline.tsx
 
-## Styling Approach
+**Purpose:** Full-page timeline view with filtering, search, and pagination
 
-Will follow app-wide styling patterns:
+**Key Features:**
 
-- **Tailwind CSS** for layout and styling
-- **Tremor** for data visualization (if needed)
-- Dark theme consistency:
-  - Card backgrounds: `#1A1A1A`
-  - Borders: `gray-800`
-  - NVIDIA green accents: `#76B900`
-- Card-based layouts for events
-- Modal overlays with backdrop blur
-- Responsive grid for event lists
+- Paginated event list with server-side filtering
+- Filter panel (collapsible) with:
+  - Camera dropdown (all cameras)
+  - Risk level dropdown (low/medium/high/critical)
+  - Review status dropdown (all/unreviewed/reviewed)
+  - Date range filters (start date, end date)
+- Client-side search bar (filters summaries)
+- Clear all filters button
+- Responsive grid: 1 col (mobile) → 2 (lg) → 3 (xl)
+- Previous/Next pagination buttons
+- Results summary: "Showing 1-20 of 150 events"
+- Loading spinner, error states, empty states
+- "Active" badge when filters are applied
 
-## Test Files
+**Props:**
 
-When implemented, test files will be co-located:
+- `onViewEventDetails?: (eventId: number) => void` - Callback when event card clicked
+- `className?: string`
 
-- `EventCard.test.tsx`
-- `EventDetailModal.test.tsx`
-- `EventTimeline.test.tsx`
-- `EventFilters.test.tsx`
+**State Management:**
 
-**Coverage Requirements:**
+- `filters: EventsQueryParams` - Current filter state
+- `events: Event[]` - Loaded events from API
+- `cameras: Camera[]` - Available cameras for dropdown
+- `searchQuery: string` - Client-side search text
+- `totalCount: number` - Total events matching filters
 
-- Component rendering with various event data
-- User interactions (clicks, filters, modal open/close)
-- Real-time updates (WebSocket integration)
-- Empty states and loading states
-- Error handling
-- Accessibility (keyboard navigation, screen readers)
+**API Integration:**
 
-## Implementation Priority
+- `fetchEvents(filters)` - Loads paginated events with filters
+- `fetchCameras()` - Loads camera list for filter dropdown
+- Re-fetches on filter changes (debounced)
 
-Per project phase plan:
+### EventDetailModal.tsx
 
-1. **Phase 5** - EventCard, EventTimeline basics
-2. **Phase 7** - EventDetailModal, EventFilters, full timeline page
+**Purpose:** Full-screen modal displaying complete event details with navigation
+
+**Key Features:**
+
+- Headless UI Dialog with backdrop blur and animations
+- Full-size image with bounding box overlay
+- Complete event metadata (ID, camera, risk score, status)
+- AI summary and reasoning sections
+- Detailed detection list with confidence percentages
+- "Mark as Reviewed" button (calls `onMarkReviewed` callback)
+- Previous/Next navigation buttons (calls `onNavigate` callback)
+- Keyboard shortcuts:
+  - Escape → Close modal
+  - Left/Right arrows → Navigate between events
+- Reviewed status indicator (green checkmark or yellow "Pending Review")
+
+**Props:**
+
+- `event: Event | null` - Event to display (null hides modal)
+- `isOpen: boolean` - Modal visibility state
+- `onClose: () => void` - Close callback
+- `onMarkReviewed?: (eventId: string) => void` - Mark reviewed callback
+- `onNavigate?: (direction: 'prev' | 'next') => void` - Navigation callback
+
+**Event Interface:**
+
+```typescript
+{
+  id: string;
+  timestamp: string;
+  camera_name: string;
+  risk_score: number;
+  risk_label: string;
+  summary: string;
+  reasoning?: string;
+  image_url?: string;        // Full-size image
+  thumbnail_url?: string;    // Fallback if no image_url
+  detections: Detection[];
+  reviewed?: boolean;
+}
+```
+
+**Keyboard Navigation:**
+
+- `useEffect` hooks register keyboard listeners
+- Escape key closes modal
+- Arrow keys navigate when `onNavigate` prop provided
+
+## Important Patterns
+
+### Event Data Flow
+
+```
+API → EventTimeline → EventCard → EventDetailModal
+                           ↓
+                    onViewDetails(eventId)
+                           ↓
+                    Parent loads full event
+                           ↓
+                    EventDetailModal displays
+```
+
+### Timestamp Formatting
+
+All components use consistent relative time formatting:
+
+- < 1 min: "Just now"
+- < 60 min: "X minutes ago"
+- < 24 hrs: "X hours ago"
+- < 7 days: "X days ago"
+- Older: "Jan 15, 2024 3:45 PM"
+
+### Detection Visualization
+
+Components integrate with detection components:
+
+- `DetectionImage` - Wraps image with bounding box overlay
+- `BoundingBoxOverlay` - SVG overlay with colored boxes
+- Automatic conversion from `Detection[]` to `BoundingBox[]`
+
+### Filter State Management
+
+EventTimeline manages complex filter state:
+
+- Server-side filters: camera_id, risk_level, start_date, end_date, reviewed
+- Client-side search: filters summaries locally
+- Pagination: limit, offset
+- Reset to page 0 when filters change
+
+### Modal Animations
+
+EventDetailModal uses Headless UI Transition:
+
+- Fade in/out backdrop (300ms ease-out)
+- Scale + fade modal panel (300ms ease-out)
+- Smooth enter/leave animations
+
+### Responsive Grid
+
+EventTimeline uses responsive breakpoints:
+
+- Mobile: 1 column (full width cards)
+- Tablet (lg): 2 columns
+- Desktop (xl): 3 columns
+
+## Styling Conventions
+
+### EventCard
+
+- Card background: bg-[#1F1F1F]
+- Border: border-gray-800
+- Hover: border-gray-700
+- Detection chips: rounded-full, bg-gray-800/60
+- Reasoning section: bg-[#76B900]/10 (NVIDIA green tint)
+
+### EventTimeline
+
+- Filter panel: bg-[#1F1F1F], border-gray-800
+- Search input: bg-[#1A1A1A], border-gray-700, focus:border-[#76B900]
+- Pagination: rounded buttons with hover:bg-[#76B900]/10
+- Active filter badge: bg-[#76B900], text-black
+
+### EventDetailModal
+
+- Modal panel: bg-[#1A1A1A], border-gray-800, shadow-2xl
+- Max width: 1024px (4xl)
+- Max height: calc(100vh - 200px)
+- Overflow scroll for long events
+
+## Testing
+
+Comprehensive test coverage:
+
+- `EventCard.test.tsx` - Rendering, expandable reasoning, view button, detection chips
+- `EventTimeline.test.tsx` - Filtering, search, pagination, camera dropdown, date ranges
+- `EventDetailModal.test.tsx` - Modal lifecycle, keyboard shortcuts, navigation, mark reviewed
+
+## Entry Points
+
+**Start here:** `EventTimeline.tsx` - Understand full page layout, filtering, and pagination
+**Then explore:** `EventCard.tsx` - See compact event display and interaction patterns
+**Deep dive:** `EventDetailModal.tsx` - Learn modal patterns and keyboard navigation
+
+## Dependencies
+
+- `@headlessui/react` - Dialog, Transition for modal
+- `lucide-react` - Icons (Clock, Camera, Eye, ChevronUp/Down, ArrowLeft/Right, CheckCircle2, AlertCircle, X, Filter, Search, Calendar)
+- `clsx` - Conditional class composition
+- `react` - useState, useEffect, Fragment
+- `../../utils/risk` - getRiskLevel, getRiskColor, getRiskLabel
+- `../../services/api` - fetchEvents, fetchCameras, Event, Camera types
+- `../common/RiskBadge` - Risk level display
+- `../detection/DetectionImage` - Image with bounding boxes
+
+## Future Enhancements
+
+- Export events to CSV/JSON
+- Bulk actions (mark multiple as reviewed)
+- Event tagging system
+- Comments/notes on events
+- Video playback (if cameras support it)
+- Share events via link
+- Advanced filtering (object types, confidence ranges)

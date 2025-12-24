@@ -2,28 +2,29 @@
 
 ## Purpose
 
-FastAPI-based HTTP server that wraps RT-DETRv2 object detection model for real-time security monitoring. Provides GPU-accelerated inference via ONNX Runtime, detecting security-relevant objects in camera images.
+FastAPI-based HTTP server that wraps RT-DETRv2 object detection model for real-time security monitoring. Provides GPU-accelerated inference via HuggingFace Transformers, detecting security-relevant objects in camera images.
 
 ## Key Files
 
-### `model.py` (634 lines)
+### `model.py` (434 lines)
 
 Main inference server implementation:
 
-- **RTDETRv2Model class**: ONNX/PyTorch model wrapper
-  - Loads RT-DETRv2 ONNX model with CUDA acceleration
-  - Preprocesses images (resize to 640x640, normalize to [0,1])
-  - Runs inference with ONNX Runtime
+- **RTDETRv2Model class**: HuggingFace Transformers model wrapper
+  - Loads RT-DETRv2 using AutoModelForObjectDetection with CUDA acceleration
+  - Uses AutoImageProcessor for image preprocessing
+  - Preprocesses images (resize to 640x640, normalize)
+  - Runs inference with PyTorch on GPU
   - Postprocesses outputs (filters by confidence and class)
   - Performs model warmup on startup (5 iterations)
 - **FastAPI endpoints**: `/health`, `/detect`, `/detect/batch`
-- **Pydantic models**: `Detection`, `DetectionResponse`, `BoundingBox`
+- **Pydantic models**: `Detection`, `DetectionResponse`, `BoundingBox`, `HealthResponse`
 - **Security filtering**: Only returns security-relevant object classes
 
 **Port**: 8001
 **Expected VRAM**: ~4GB
 
-### `example_client.py` (187 lines)
+### `example_client.py` (186 lines)
 
 Example HTTP client demonstrating API usage:
 
@@ -33,7 +34,7 @@ Example HTTP client demonstrating API usage:
 - `detect_batch()`: Batch detection for multiple images
 - `print_detections()`: Pretty-print detection results
 
-### `test_model.py` (337 lines)
+### `test_model.py` (336 lines)
 
 Comprehensive unit tests with pytest:
 
@@ -57,7 +58,7 @@ Comprehensive unit tests with pytest:
 Python dependencies:
 
 - **Web**: fastapi, uvicorn, python-multipart
-- **Deep learning**: torch, torchvision, onnxruntime-gpu
+- **Deep learning**: torch, torchvision, transformers
 - **Image processing**: pillow, opencv-python, numpy
 - **Utilities**: pydantic, python-dotenv, pynvml
 
@@ -73,16 +74,16 @@ Package initialization with version: "1.0.0"
 
 ### RT-DETRv2 (Real-Time Detection Transformer v2)
 
-- **Model**: PekingU/rtdetr_r50vd_coco_o365
-- **Format**: ONNX (optimized for inference)
-- **Input size**: 640x640 RGB
+- **Model**: PekingU/rtdetr_r50vd_coco_o365 (from HuggingFace)
+- **Format**: PyTorch model loaded via Transformers library
+- **Input size**: 640x640 RGB (handled by AutoImageProcessor)
 - **Output**: Bounding boxes, class labels, confidence scores
 - **Inference time**: 30-50ms per image on RTX A5500
 - **Training data**: COCO + Objects365
 
 ### Security-Relevant Classes
 
-The server filters detections to these 8 classes:
+The server filters detections to these 9 classes:
 
 - `person` - Human detection
 - `car` - Passenger vehicle
@@ -92,6 +93,7 @@ The server filters detections to these 8 classes:
 - `bird` - Avian
 - `bicycle` - Bike
 - `motorcycle` - Motorbike
+- `bus` - Public transport vehicle
 
 All other COCO classes (chairs, bottles, etc.) are filtered out.
 
@@ -205,7 +207,7 @@ Server runs on: `http://0.0.0.0:8001`
 
 Environment variables or defaults:
 
-- `MODEL_PATH`: Path to ONNX model (default: `rtdetrv2_r50vd.onnx`)
+- `MODEL_PATH`: HuggingFace model name or local path (default: `PekingU/rtdetr_r50vd_coco_o365`)
 - `CONFIDENCE_THRESHOLD`: Minimum detection confidence (default: 0.5)
 - `DEVICE`: Inference device (default: `cuda:0` if available, else `cpu`)
 - `PORT`: Server port (default: 8001)
@@ -214,26 +216,25 @@ Environment variables or defaults:
 
 ### Preprocessing Pipeline
 
-1. Convert image to RGB if needed (handles grayscale)
-2. Resize to 640x640 using bilinear interpolation
-3. Convert to numpy array (float32)
-4. Normalize to [0, 1] range
-5. Transpose to CHW format (channels, height, width)
-6. Add batch dimension
+1. Load image using PIL
+2. Use AutoImageProcessor to preprocess (handles resizing, normalization automatically)
+3. Processor converts to PyTorch tensors
+4. Move tensors to configured device (CUDA/CPU)
 
-### ONNX Runtime Inference
+### PyTorch Inference
 
-- Uses `CUDAExecutionProvider` for GPU acceleration
-- Falls back to `CPUExecutionProvider` if CUDA unavailable
-- Configures device_id from `device` parameter (e.g., "cuda:1" → device_id=1)
+- Uses HuggingFace `AutoModelForObjectDetection`
+- Loads model with `.to(device)` for GPU acceleration
+- Falls back to CPU if CUDA unavailable
+- Supports multi-GPU via device selection (e.g., "cuda:0", "cuda:1")
 
 ### Postprocessing Pipeline
 
-1. Parse ONNX outputs: `[boxes, scores, labels]`
-2. Filter by confidence threshold (default 0.5)
-3. Map label indices to COCO class names
-4. Filter to security-relevant classes only
-5. Scale bounding boxes from 640x640 to original image size
+1. Use processor's `post_process_object_detection()` for output parsing
+2. Extracts bounding boxes, labels, and confidence scores
+3. Filter by confidence threshold (default 0.5)
+4. Map label indices to COCO class names
+5. Filter to security-relevant classes only
 6. Format as `{class, confidence, bbox}` dictionaries
 
 ### Model Warmup
@@ -284,7 +285,8 @@ python example_client.py
 
 ## Error Handling
 
-- **Model not found**: Server starts but returns 503 on detection requests
+- **Model not found**: Server fails to start with error message
+- **Model load failure**: Returns 503 on detection requests until model loads
 - **Invalid image**: Returns 400 with error details
 - **CUDA unavailable**: Falls back to CPU inference (slower)
 - **Low confidence**: Detections filtered out (not returned)

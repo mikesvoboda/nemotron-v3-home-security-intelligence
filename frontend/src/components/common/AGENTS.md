@@ -1,79 +1,210 @@
-# Common Components
+# Common Components Directory
 
 ## Purpose
 
-Shared, reusable UI components used throughout the application. These are domain-agnostic primitives that provide consistent styling and behavior.
+Contains reusable UI components shared across multiple features. These are low-level building blocks used throughout the application for consistent styling and behavior.
 
-## Components
+## Key Components
 
-### RiskBadge
+### RiskBadge.tsx
 
-Displays security risk levels with appropriate color coding, icons, and optional scoring.
+**Purpose:** Display risk level as a colored badge with icon and optional score
 
-**File:** `RiskBadge.tsx`
+**Key Features:**
 
-**Props Interface:**
+- Four risk levels: low (green), medium (yellow), high (orange), critical (red)
+- Icons from lucide-react: CheckCircle (low), AlertTriangle (medium/high), AlertOctagon (critical)
+- Three size variants: sm, md, lg
+- Optional risk score display: "High (75)" vs just "High"
+- Pulse animation for critical level (animated prop controls this)
+- Rounded pill shape with background color at 10% opacity
+- Full accessibility with ARIA role="status" and aria-label
 
-```typescript
-interface RiskBadgeProps {
-  level: RiskLevel; // 'low' | 'medium' | 'high' | 'critical'
-  score?: number; // Optional numeric risk score (0-100)
-  showScore?: boolean; // Display score alongside level (default: false)
-  size?: 'sm' | 'md' | 'lg'; // Badge size (default: 'md')
-  animated?: boolean; // Enable pulse animation for critical (default: true)
-  className?: string; // Additional Tailwind classes
-}
+**Props:**
+
+- `level: RiskLevel` - 'low' | 'medium' | 'high' | 'critical' (required)
+- `score?: number` - Risk score 0-100 (optional)
+- `showScore?: boolean` - Display score in badge (default: false)
+- `size?: 'sm' | 'md' | 'lg'` - Badge size (default: 'md')
+- `animated?: boolean` - Enable pulse animation for critical (default: true)
+- `className?: string` - Additional CSS classes
+
+**Size Mappings:**
+
+- sm: text-xs, px-2, py-0.5, icon w-3 h-3
+- md: text-sm, px-2.5, py-1, icon w-4 h-4
+- lg: text-base, px-3, py-1.5, icon w-5 h-5
+
+**Color Mappings:**
+
+- low: bg-green-500/10, text-green-500
+- medium: bg-yellow-500/10, text-yellow-500
+- high: bg-orange-500/10, text-orange-500
+- critical: bg-red-500/10, text-red-500
+
+**Usage Examples:**
+
+```tsx
+// Simple badge
+<RiskBadge level="high" />
+
+// With score
+<RiskBadge level="critical" score={87} showScore />
+
+// Custom size, no animation
+<RiskBadge level="medium" size="lg" animated={false} />
 ```
 
-**Features:**
+**Integration:**
+Uses utility functions from `../../utils/risk`:
 
-- Color-coded by risk level:
-  - Low: Green (`green-500`)
-  - Medium: Yellow (`yellow-500`)
-  - High: Orange (`orange-500`)
-  - Critical: Red (`red-500`) with pulse animation
-- Icon integration via `lucide-react`:
-  - Low: CheckCircle
-  - Medium/High: AlertTriangle
-  - Critical: AlertOctagon
-- Responsive sizing (sm/md/lg)
-- Accessible with ARIA labels
-- Optional score display format: "LEVEL (score)"
+- `getRiskLabel(level)` - Returns "Low", "Medium", "High", "Critical"
+- Type: `RiskLevel` - Union type for risk levels
+
+### index.ts
+
+**Purpose:** Barrel export file for easy imports
+
+**Exports:**
+
+```typescript
+export { default as RiskBadge } from './RiskBadge';
+export type { RiskBadgeProps } from './RiskBadge';
+```
 
 **Usage:**
 
-```typescript
-import { RiskBadge } from '@/components/common';
+```tsx
+// Import from directory
+import { RiskBadge } from '../common';
 
-<RiskBadge level="critical" score={95} showScore />
-<RiskBadge level="low" size="sm" />
+// Instead of
+import RiskBadge from '../common/RiskBadge';
 ```
 
-## Exports
+## Important Patterns
 
-The directory exports components via `index.ts`:
+### Consistent Risk Level Display
 
-- `RiskBadge` (default export)
-- `RiskBadgeProps` (type export)
+RiskBadge provides a single source of truth for risk level visualization:
 
-## Styling Approach
+- Used in: EventCard, EventDetailModal, ActivityFeed, EventTimeline
+- Ensures consistent colors, icons, and labels across all features
+- Centralized logic for risk level styling
 
-- **Tailwind CSS** utility classes for all styling
-- Uses `clsx` for conditional class composition
-- Follows dark theme with semi-transparent backgrounds (e.g., `bg-red-500/10`)
-- Rounded pill shape (`rounded-full`)
-- Inline-flex layout with gap spacing
+### Size Variants
 
-## Test Files
+Component follows a consistent sizing pattern:
 
-**Location:** Co-located with components
+- Small: Compact display for dense lists
+- Medium (default): Standard display for most use cases
+- Large: Prominent display in headers or focus areas
 
-- `RiskBadge.test.tsx` - Unit tests for risk badge rendering, sizing, colors, and accessibility
+### Accessibility First
 
-**Coverage:** All components must maintain 95% test coverage including:
+- Proper ARIA roles and labels
+- Screen reader friendly (reads "Risk level: Critical, score 87")
+- Visual and semantic information combined
 
-- Rendering with different props
-- Color and icon selection logic
-- Accessibility (ARIA labels, semantic HTML)
-- Animation behavior
-- Edge cases (missing/invalid props)
+### Composability
+
+- Accepts className prop for custom styling
+- Can be composed with other components
+- No layout constraints (inline-flex)
+
+## Styling Conventions
+
+### Badge Structure
+
+```tsx
+<span className="inline-flex items-center gap-1 rounded-full font-medium">
+  <Icon />
+  {label}
+</span>
+```
+
+### Color Strategy
+
+- Background: Color at 10% opacity (e.g., bg-green-500/10)
+- Text: Full color (e.g., text-green-500)
+- Creates subtle, accessible contrast
+
+### Animation
+
+- Only critical level animates by default
+- Uses Tailwind's `animate-pulse` class
+- Can be disabled with `animated={false}`
+
+## Testing
+
+### RiskBadge.test.tsx
+
+Comprehensive test coverage includes:
+
+- Renders all risk levels correctly
+- Displays correct icons per level
+- Shows/hides score based on showScore prop
+- Applies correct size classes
+- Animation on critical level
+- ARIA attributes for accessibility
+- Custom className application
+
+## Entry Points
+
+**Start here:** `RiskBadge.tsx` - Single component, well-documented
+
+## Dependencies
+
+- `lucide-react` - Icon components (CheckCircle, AlertTriangle, AlertOctagon)
+- `clsx` - Conditional class name composition
+- `../../utils/risk` - getRiskLabel, RiskLevel type
+
+## Design Decisions
+
+### Why Separate from utils/risk?
+
+- `utils/risk` contains pure logic (getRiskLevel, getRiskColor, getRiskLabel)
+- `RiskBadge` is a UI component with React dependencies
+- Separation allows logic reuse in non-component contexts
+
+### Why Three Sizes?
+
+- sm: Dense lists (ActivityFeed items)
+- md: Standard cards (EventCard)
+- lg: Prominent displays (EventDetailModal header)
+
+### Why Optional Animation?
+
+- Critical events should draw attention
+- But in some contexts (static screenshots, PDFs) animation is undesirable
+- Opt-out via `animated={false}`
+
+## Future Enhancements
+
+As the common components directory grows, consider adding:
+
+- **Button** - Consistent button styles (primary, secondary, danger)
+- **Input** - Form input with validation states
+- **Select** - Dropdown select with custom styling
+- **Modal** - Reusable modal wrapper (consider extracting from EventDetailModal)
+- **Card** - Consistent card container
+- **Badge** - Generic badge (not just risk levels)
+- **Tooltip** - Hover tooltips for additional info
+- **Skeleton** - Loading skeleton components
+
+### Organization Strategy
+
+Once common components grow beyond 5-10 files, consider subdirectories:
+
+```
+common/
+  badges/
+    RiskBadge.tsx
+    Badge.tsx
+  inputs/
+    Input.tsx
+    Select.tsx
+  feedback/
+    Modal.tsx
+    Tooltip.tsx
+```

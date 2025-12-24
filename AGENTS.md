@@ -15,8 +15,10 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 ## Project Status
 
 - **Phase 1-4:** COMPLETE (Setup, Database, Core APIs, AI Pipeline)
-- **Phase 5-8:** NOT STARTED (Events APIs, Dashboard Components, Pages, E2E)
+- **Phase 5:** IN PROGRESS (Events APIs, WebSocket, GPU monitor, cleanup service)
+- **Phase 6-8:** NOT STARTED (Dashboard Components, Pages, E2E)
 - **Test Coverage:** Backend 98.54% (335 tests), Frontend 98.95% (233 tests)
+- **Last Updated:** 2025-12-24
 
 ## Key Files in Root
 
@@ -24,7 +26,6 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 
 - **AGENTS.md** (this file) - Quick reference for AI agents
 - **CLAUDE.md** - Comprehensive Claude Code instructions with project overview, phase execution order, TDD approach, testing requirements, and git rules
-- **docs/AGENT_HANDOFF.md** - Session handoff document with current status and next steps
 - **docs/ROADMAP.md** - Post-MVP roadmap ideas to pursue **after Phases 1–8 are operational**
 
 ### Configuration Files
@@ -33,8 +34,11 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 - **pytest.ini** - Pytest configuration (asyncio mode, markers for unit/integration tests)
 - **.pre-commit-config.yaml** - Pre-commit hooks (ruff, mypy, eslint, prettier, typescript check, fast tests)
 - **.coveragerc** - Coverage.py configuration (fail_under=90%)
-- **docker-compose.yml** - Docker services (backend, redis, frontend)
+- **docker-compose.yml** - Development Docker services (backend, redis, frontend) with health checks
+- **docker-compose.prod.yml** - Production Docker services with multi-stage builds, resource limits, and security hardening
 - **.env.example** - Environment variable template
+- **README.md** - Project overview and quick start guide
+- **DOCKER_QUICKSTART.md** - Quick reference for Docker commands
 
 ### Build/Dependency Files
 
@@ -68,7 +72,9 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 │   ├── rtdetr/           # RT-DETRv2 detection server
 │   └── nemotron/         # Nemotron model files
 ├── docs/                 # Documentation
-│   ├── AGENT_HANDOFF.md  # Session continuity document
+│   ├── ROADMAP.md        # Post-MVP roadmap ideas
+│   ├── AI_SETUP.md       # AI services setup guide
+│   ├── DOCKER_DEPLOYMENT.md  # Docker deployment guide
 │   └── plans/            # Design and implementation plans
 ├── scripts/              # Development and deployment scripts
 ├── data/                 # Runtime data directory
@@ -165,9 +171,9 @@ cd frontend && npm test
 ### Starting Point
 
 1. **Read CLAUDE.md** - Comprehensive project instructions
-2. **Read docs/AGENT_HANDOFF.md** - Current status and next steps
-3. **Check available work:** `bd ready` or `bd list --label phase-5`
-4. **After MVP is operational (Phases 1–8):** review `docs/ROADMAP.md` to pick post-MVP enhancements and create/claim new beads tasks
+2. **Check available work:** `bd ready` or `bd list --label phase-5`
+3. **Review docs/ROADMAP.md** - Post-MVP roadmap ideas (pursue **after Phases 1–8 are operational**)
+4. **Read directory AGENTS.md files** - Navigate to specific areas using the AGENTS.md files in each directory
 
 ### Understanding the Codebase
 

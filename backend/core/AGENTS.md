@@ -105,6 +105,21 @@ Manages all application configuration using Pydantic Settings with environment v
 
 - `detection_confidence_threshold: float` - Minimum confidence (default: 0.5, range: 0.0-1.0)
 
+**Fast Path Settings:**
+
+- `fast_path_confidence_threshold: float` - Confidence threshold for fast path high-priority analysis (default: 0.90, range: 0.0-1.0)
+- `fast_path_object_types: list[str]` - Object types that trigger fast path analysis (default: ["person"])
+
+**GPU Monitoring Settings:**
+
+- `gpu_poll_interval_seconds: float` - GPU stats polling interval in seconds (default: 5.0, range: 1.0-60.0)
+- `gpu_stats_history_minutes: int` - Minutes of GPU stats history to retain in memory (default: 60, range: 1-1440)
+
+**Authentication Settings:**
+
+- `api_key_enabled: bool` - Enable API key authentication (default: False)
+- `api_keys: list[str]` - List of valid API keys (plain text, hashed on startup)
+
 ### Configuration Loading
 
 Settings are loaded from:

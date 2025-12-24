@@ -69,6 +69,34 @@ fetchStats(): Promise<SystemStats>            // GET /api/system/stats
 - `SystemConfig`: App configuration (name, version, retention, batch settings)
 - `SystemStats`: Aggregate statistics (cameras, events, detections, uptime)
 
+### Event Endpoints
+
+```typescript
+fetchEvents(params?: EventsQueryParams): Promise<EventListResponse>  // GET /api/events
+fetchEvent(id: number): Promise<Event>                               // GET /api/events/{id}
+updateEvent(id: number, reviewed: boolean): Promise<Event>           // PATCH /api/events/{id}
+```
+
+**Types:**
+
+- `Event`: Full event object with `id`, `camera_id`, `started_at`, `ended_at`, `risk_score`, `risk_level`, `summary`, `reviewed`, `detection_count`
+- `EventListResponse`: Paginated response with `events`, `count`, `limit`, `offset`
+- `EventsQueryParams`: Filter parameters for `camera_id`, `risk_level`, `start_date`, `end_date`, `reviewed`, `limit`, `offset`
+
+**Query Parameters:**
+
+```typescript
+interface EventsQueryParams {
+  camera_id?: string;
+  risk_level?: string;
+  start_date?: string;
+  end_date?: string;
+  reviewed?: boolean;
+  limit?: number;
+  offset?: number;
+}
+```
+
 ### Media URL Helpers
 
 ```typescript
@@ -145,6 +173,29 @@ const newCamera = await createCamera({
   folder_path: '/export/foscam/front_door',
   status: 'active',
 });
+```
+
+### Fetching Events with Filtering
+
+```typescript
+import { fetchEvents } from '@/services/api';
+
+const response = await fetchEvents({
+  risk_level: 'high',
+  camera_id: 'cam_123',
+  reviewed: false,
+  limit: 20,
+  offset: 0,
+});
+// response: { events: Event[], count: number, limit: number, offset: number }
+```
+
+### Updating Event Status
+
+```typescript
+import { updateEvent } from '@/services/api';
+
+const updatedEvent = await updateEvent(42, true); // Mark event 42 as reviewed
 ```
 
 ### Handling Errors

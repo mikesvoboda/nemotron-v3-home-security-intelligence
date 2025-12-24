@@ -2,13 +2,13 @@
 
 ## Purpose
 
-Global test configuration and setup for Vitest test runner.
+Global test configuration and setup for Vitest test runner. Configures test environment, browser API mocks, and automatic cleanup.
 
 ## Key Files
 
 ### `setup.ts`
 
-Test environment configuration loaded before all tests.
+Test environment configuration loaded automatically before all tests via `vitest.config.ts`.
 
 ## Configuration
 
@@ -16,9 +16,43 @@ Test environment configuration loaded before all tests.
 
 - `@testing-library/jest-dom/vitest`: DOM matchers for Vitest (e.g., `toBeInTheDocument`, `toHaveClass`)
 - `@testing-library/react`: React testing utilities (`cleanup`)
-- `vitest`: Test framework (`afterEach`)
+- `vitest`: Test framework (`beforeAll`, `afterEach`)
 
 ### Global Setup
+
+#### Browser API Mocks
+
+Mocks browser APIs not available in jsdom environment:
+
+**ResizeObserver Mock** (added in `beforeAll`):
+
+```typescript
+globalThis.ResizeObserver = class ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
+```
+
+Required for Headless UI Dialog component which uses ResizeObserver to track viewport changes.
+
+**IntersectionObserver Mock** (added in `beforeAll`):
+
+```typescript
+globalThis.IntersectionObserver = class IntersectionObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+  takeRecords() {
+    return [];
+  }
+  root = null;
+  rootMargin = '';
+  thresholds: number[] = [];
+};
+```
+
+Required for Headless UI components that use IntersectionObserver for visibility detection.
 
 #### Automatic Cleanup
 

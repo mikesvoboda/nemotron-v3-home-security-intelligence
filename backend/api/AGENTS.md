@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The `backend/api/` package contains the FastAPI REST API layer for the home security monitoring system. It provides HTTP endpoints for managing cameras, system monitoring, and serving media files.
+The `backend/api/` package contains the FastAPI REST API layer for the home security monitoring system. It provides HTTP endpoints for managing cameras, events, detections, system monitoring, media serving, and real-time WebSocket communication.
 
 ## Directory Structure
 
@@ -10,7 +10,8 @@ The `backend/api/` package contains the FastAPI REST API layer for the home secu
 backend/api/
 ├── __init__.py          # Package initialization
 ├── routes/              # API route handlers (endpoints)
-└── schemas/             # Pydantic schemas for request/response validation
+├── schemas/             # Pydantic schemas for request/response validation
+└── middleware/          # HTTP middleware components (auth, etc.)
 ```
 
 ## Key Components
@@ -19,7 +20,10 @@ backend/api/
 
 Contains FastAPI routers that define HTTP endpoints:
 
-- **cameras.py** - Camera CRUD operations
+- **cameras.py** - Camera CRUD operations and snapshot serving
+- **events.py** - Security event management and queries
+- **detections.py** - Object detection listing and thumbnail serving
+- **websocket.py** - WebSocket endpoints for real-time updates
 - **system.py** - System health, GPU stats, configuration
 - **media.py** - Secure file serving for images/videos
 
@@ -28,17 +32,27 @@ Contains FastAPI routers that define HTTP endpoints:
 Contains Pydantic models for request/response validation:
 
 - **camera.py** - Camera data validation schemas
-- **system.py** - System monitoring response schemas
+- **events.py** - Event request/response schemas
+- **detections.py** - Detection response schemas
+- **system.py** - System monitoring and config schemas
 - **media.py** - Media error response schemas
+
+### Middleware (`middleware/`)
+
+HTTP middleware for cross-cutting concerns:
+
+- **auth.py** - API key authentication (optional, configurable)
 
 ## Architecture Overview
 
 This API layer follows a clean architecture pattern:
 
-1. **Routes** - Handle HTTP requests, call service layer (future), return responses
-2. **Schemas** - Validate incoming data and serialize outgoing data
-3. **Database** - Uses SQLAlchemy async sessions via dependency injection
-4. **Redis** - Uses Redis client via dependency injection for caching/pub-sub
+1. **Middleware** - Authentication, request logging, error handling
+2. **Routes** - Handle HTTP requests, call services, return responses
+3. **Schemas** - Validate incoming data and serialize outgoing data
+4. **Services** - Business logic (AI pipeline, broadcasting, monitoring)
+5. **Database** - SQLAlchemy async sessions via dependency injection
+6. **Redis** - Redis client via dependency injection for pub/sub
 
 ## Common Patterns
 
@@ -52,6 +66,7 @@ All routes use FastAPI's dependency injection for:
 
 ### Error Handling
 
+- **401 Unauthorized** - Missing or invalid API key
 - **404 Not Found** - Resource doesn't exist
 - **403 Forbidden** - Access denied (path traversal, invalid file types)
 - **422 Unprocessable Entity** - Validation errors (automatic via Pydantic)
@@ -61,18 +76,44 @@ All routes use FastAPI's dependency injection for:
 
 All endpoints specify response models via `response_model` parameter for automatic validation and OpenAPI documentation generation.
 
+### Pagination Pattern
+
+List endpoints support pagination with consistent query parameters:
+
+- `limit: int` - Maximum results (default: 50, max: 1000)
+- `offset: int` - Skip N results (default: 0)
+- Response includes: `count`, `limit`, `offset`
+
 ## Database Models Used
 
 The API interacts with these SQLAlchemy models:
 
 - **Camera** - Camera configuration and status
-- **Detection** - Object detections from RT-DETR
+- **Detection** - Object detections from RT-DETRv2
 - **Event** - Security events with risk scores
 - **GPUStats** - GPU performance metrics
 
+## Real-Time Communication
+
+### WebSocket Endpoints
+
+- **`/ws/events`** - Real-time security event notifications
+- **`/ws/system`** - System status updates (GPU, cameras, health)
+
+Both use broadcaster pattern for efficient multi-client messaging.
+
 ## Security Considerations
 
-### Media Endpoint
+### Authentication Middleware
+
+Optional API key authentication (disabled by default for development):
+
+- Configurable via `API_KEY_ENABLED` environment variable
+- SHA-256 hashed API keys for validation
+- Header or query parameter authentication
+- Exempt paths: health checks, docs, root
+
+### Media Endpoint Security
 
 The `/api/media/*` endpoints implement strict security controls:
 
@@ -88,7 +129,7 @@ The `/api/media/*` endpoints implement strict security controls:
 - **FastAPI** - Web framework
 - **SQLAlchemy** - ORM for database access
 - **Pydantic** - Data validation
-- **Redis** - Caching and pub/sub
+- **Redis** - Pub/sub for WebSocket broadcasting
 
 ### Internal Dependencies
 
@@ -96,11 +137,68 @@ The `/api/media/*` endpoints implement strict security controls:
 - `backend.core.redis` - Redis client
 - `backend.core.config` - Application settings
 - `backend.models.*` - SQLAlchemy models
+- `backend.services.*` - Business logic services
 
-## Future Enhancements
+### Service Layer Integration
 
-- Service layer to separate business logic from routes
-- WebSocket endpoints for real-time updates
-- Authentication/authorization (currently single-user)
-- Rate limiting
-- Request logging middleware
+Routes delegate to services for:
+
+- **EventBroadcaster** - WebSocket event streaming
+- **SystemBroadcaster** - WebSocket system status streaming
+- **ThumbnailGenerator** - Detection image generation
+- **GPUMonitor** - GPU metrics collection
+
+## API Endpoints Overview
+
+### Cameras
+
+- `GET /api/cameras` - List cameras with optional status filter
+- `GET /api/cameras/{id}` - Get specific camera
+- `GET /api/cameras/{id}/snapshot` - Get latest snapshot image
+- `POST /api/cameras` - Create new camera
+- `PATCH /api/cameras/{id}` - Update camera
+- `DELETE /api/cameras/{id}` - Delete camera (cascades)
+
+### Events
+
+- `GET /api/events` - List events with filters (risk level, date, reviewed)
+- `GET /api/events/{id}` - Get specific event
+- `PATCH /api/events/{id}` - Update event (mark as reviewed)
+- `GET /api/events/{id}/detections` - Get detections for event
+
+### Detections
+
+- `GET /api/detections` - List detections with filters (camera, object type, confidence)
+- `GET /api/detections/{id}` - Get specific detection
+- `GET /api/detections/{id}/image` - Get detection thumbnail with bounding box
+
+### System
+
+- `GET /api/system/health` - System health check
+- `GET /api/system/gpu` - Current GPU stats
+- `GET /api/system/gpu/history` - GPU stats time series
+- `GET /api/system/stats` - System statistics (counts, uptime)
+- `GET /api/system/config` - Public configuration
+- `PATCH /api/system/config` - Update configuration
+
+### Media
+
+- `GET /api/media/cameras/{camera_id}/{filename}` - Serve camera media
+- `GET /api/media/thumbnails/{filename}` - Serve detection thumbnails
+
+### WebSocket
+
+- `WS /ws/events` - Real-time event stream
+- `WS /ws/system` - Real-time system status stream
+
+## Testing Approach
+
+When testing the API layer:
+
+1. **Unit Tests** - Test individual route handlers with mocked dependencies
+2. **Integration Tests** - Test full request/response cycle with test database
+3. **WebSocket Tests** - Test connection lifecycle and message broadcasting
+4. **Security Tests** - Test authentication, path traversal prevention
+5. **Validation Tests** - Test Pydantic schema validation
+
+See `backend/tests/unit/` and `backend/tests/integration/` for examples.
