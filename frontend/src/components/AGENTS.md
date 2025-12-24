@@ -7,20 +7,22 @@ Root directory for all React components in the NVIDIA Security Intelligence home
 ## Directory Structure
 
 - **common/** - Shared UI components used across the application (badges, buttons, cards)
-- **dashboard/** - Main dashboard page and related components
+- **dashboard/** - Main dashboard page and related components (risk gauge, camera grid, activity feed, GPU stats)
 - **detection/** - Object detection visualization components (bounding boxes, detection overlays)
-- **events/** - Event-related components (currently empty, placeholder for future event cards and modals)
+- **events/** - Event-related components (event cards, timeline, detail modal)
 - **layout/** - Application layout components (header, sidebar, main layout wrapper)
+- **settings/** - Settings page components (cameras, AI models, processing configuration)
 
 ## Component Organization
 
 Components are organized by feature domain to maintain clear separation of concerns:
 
-- Layout components handle application structure and navigation
-- Detection components handle AI detection visualization
-- Dashboard components compose the main monitoring views
-- Common components provide reusable UI primitives
-- Events components will handle security event displays (Phase 5+)
+- **Layout components** - Application structure, navigation (header, sidebar)
+- **Detection components** - AI detection visualization (bounding boxes, overlays)
+- **Dashboard components** - Main monitoring views (risk gauge, camera grid, activity feed, GPU stats)
+- **Common components** - Reusable UI primitives (badges, buttons, cards)
+- **Events components** - Security event displays (event cards, timeline, detail modal)
+- **Settings components** - Configuration pages (cameras, AI models, processing settings)
 
 ## Styling Approach
 

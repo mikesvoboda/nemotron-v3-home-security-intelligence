@@ -1,0 +1,281 @@
+# API Middleware
+
+## Purpose
+
+The `backend/api/middleware/` directory contains HTTP middleware components that handle cross-cutting concerns for the FastAPI application. Middleware processes requests before they reach route handlers and responses before they're sent to clients.
+
+## Files
+
+### `__init__.py`
+
+Package initialization with public exports:
+
+- `AuthMiddleware`
+
+### `auth.py`
+
+API key authentication middleware for securing endpoints.
+
+**Key Features:**
+
+- SHA-256 hashed API key validation
+- Configurable enable/disable via environment variable
+- Exempt paths for health checks and documentation
+- Header and query parameter support
+- Descriptive error messages
+
+### `README.md`
+
+Detailed documentation for middleware usage and configuration.
+
+## Middleware Components
+
+### Authentication Middleware (`auth.py`)
+
+#### Purpose
+
+Provides optional API key authentication to secure endpoints. Disabled by default for development convenience.
+
+#### Configuration
+
+Authentication is controlled via environment variables:
+
+```bash
+# Enable authentication (default: false)
+export API_KEY_ENABLED=true
+
+# Set valid API keys (JSON array)
+export API_KEYS='["your_secret_key_1", "your_secret_key_2"]'
+```
+
+Or in `.env` file:
+
+```env
+API_KEY_ENABLED=true
+API_KEYS=["your_secret_key_1", "your_secret_key_2"]
+```
+
+#### Usage
+
+**Header Authentication (Recommended):**
+
+```bash
+curl -H "X-API-Key: your_secret_key_1" http://localhost:8000/api/cameras
+```
+
+**Query Parameter Authentication:**
+
+```bash
+curl http://localhost:8000/api/cameras?api_key=your_secret_key_1
+```
+
+**Priority:** Header `X-API-Key` takes precedence over `api_key` query parameter.
+
+#### Exempt Endpoints
+
+The following paths bypass authentication:
+
+- `/` - Root endpoint
+- `/health` - Health check endpoint
+- `/api/system/health` - System health check
+- `/docs` - Swagger UI documentation
+- `/redoc` - ReDoc documentation
+- `/openapi.json` - OpenAPI schema
+
+Any path starting with `/docs` or `/redoc` is also exempt.
+
+#### Security Features
+
+1. **Key Hashing:** API keys are hashed using SHA-256 before validation
+2. **No Plaintext Storage:** Keys are not stored in plaintext in memory
+3. **Header Priority:** Header authentication preferred over query parameters
+4. **Development Mode:** Authentication disabled by default (`API_KEY_ENABLED=false`)
+5. **Configurable Keys:** Keys loaded from environment variables
+
+#### Error Responses
+
+**Missing API Key:**
+
+```json
+HTTP 401 Unauthorized
+{
+  "detail": "API key required. Provide via X-API-Key header or api_key query parameter."
+}
+```
+
+**Invalid API Key:**
+
+```json
+HTTP 401 Unauthorized
+{
+  "detail": "Invalid API key"
+}
+```
+
+#### Implementation Details
+
+**Class:** `AuthMiddleware(BaseHTTPMiddleware)`
+
+**Constructor Parameters:**
+
+- `app: ASGIApp` - FastAPI application
+- `valid_key_hashes: set[str] | None` - Set of SHA-256 hashed API keys (optional, loads from settings if None)
+
+**Methods:**
+
+- `_load_key_hashes() -> set[str]` - Load and hash API keys from settings
+- `_hash_key(key: str) -> str` - Hash API key using SHA-256
+- `_is_exempt_path(path: str) -> bool` - Check if path bypasses authentication
+- `dispatch(request, call_next) -> Response` - Process request and validate API key
+
+**Flow:**
+
+1. Check if authentication is enabled (`API_KEY_ENABLED`)
+2. If disabled, pass through to next handler
+3. Check if path is exempt from authentication
+4. If exempt, pass through to next handler
+5. Extract API key from `X-API-Key` header or `api_key` query parameter
+6. If no API key provided, return 401 error
+7. Hash the provided API key using SHA-256
+8. Compare hash against valid key hashes
+9. If invalid, return 401 error
+10. If valid, pass through to next handler
+
+## Integration with FastAPI
+
+Middleware is registered in the FastAPI application during startup:
+
+```python
+from backend.api.middleware import AuthMiddleware
+
+app = FastAPI()
+app.add_middleware(AuthMiddleware)
+```
+
+Order matters: middleware is executed in reverse order of registration. Authentication middleware should be registered early to protect all routes.
+
+## Testing
+
+Unit tests are located at:
+
+```
+backend/tests/unit/test_auth_middleware.py
+```
+
+**Test Coverage:**
+
+- Authentication enabled/disabled scenarios
+- Valid/invalid API keys
+- Missing API keys
+- Exempt paths
+- Header vs query parameter authentication
+- SHA-256 hash validation
+
+**Run Tests:**
+
+```bash
+pytest backend/tests/unit/test_auth_middleware.py -v
+```
+
+## Future Enhancements
+
+Potential improvements for production deployments:
+
+1. **Database Storage** - Store API keys in database with metadata:
+
+   - Key name/description
+   - Created timestamp
+   - Last used timestamp
+   - Is active flag
+   - Associated user/service
+
+2. **Key Rotation** - Support key expiration and rotation:
+
+   - Expiration timestamps
+   - Automatic key rotation schedules
+   - Grace periods for old keys
+
+3. **Rate Limiting** - Per-API key rate limits:
+
+   - Request count per time window
+   - Different limits per key
+   - Burst allowance
+
+4. **Audit Logging** - Log API key usage:
+
+   - Request timestamp
+   - Endpoint accessed
+   - Source IP address
+   - Response status
+
+5. **Key Permissions** - Scope-based access control:
+
+   - Read-only vs read-write keys
+   - Resource-specific permissions
+   - Role-based access control
+
+6. **Multiple Authentication Methods** - Support additional auth:
+   - JWT tokens
+   - OAuth2
+   - Session-based authentication
+
+## Common Patterns
+
+### Middleware Pattern
+
+FastAPI middleware follows the ASGI middleware pattern:
+
+```python
+async def dispatch(self, request: Request, call_next: Callable) -> Response:
+    # Pre-processing: runs before route handler
+    # ... validate request ...
+
+    # Call next middleware/route handler
+    response = await call_next(request)
+
+    # Post-processing: runs after route handler
+    # ... modify response ...
+
+    return response
+```
+
+### Dependency Injection Alternative
+
+For simpler authentication needs, FastAPI dependencies can be used instead:
+
+```python
+from fastapi import Depends, HTTPException, Security
+from fastapi.security import APIKeyHeader
+
+api_key_header = APIKeyHeader(name="X-API-Key")
+
+async def verify_api_key(api_key: str = Security(api_key_header)):
+    if not validate_key(api_key):
+        raise HTTPException(status_code=401, detail="Invalid API key")
+    return api_key
+
+@router.get("/protected")
+async def protected_endpoint(api_key: str = Depends(verify_api_key)):
+    return {"message": "Protected data"}
+```
+
+Middleware is better for:
+
+- Global authentication across all routes
+- Complex pre/post-processing logic
+- Performance (no per-route overhead)
+
+Dependencies are better for:
+
+- Route-specific authentication
+- Multiple authentication schemes
+- Easier testing (can mock dependencies)
+
+## Best Practices
+
+1. **Environment Variables:** Never hardcode API keys in source code
+2. **HTTPS Only:** Always use HTTPS in production to prevent key interception
+3. **Key Rotation:** Regularly rotate API keys
+4. **Monitoring:** Monitor for suspicious authentication patterns
+5. **Logging:** Log authentication failures for security auditing
+6. **Documentation:** Keep API key documentation updated for consumers

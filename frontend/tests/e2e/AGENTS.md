@@ -2,11 +2,18 @@
 
 ## Purpose
 
-End-to-end test suite for full user workflows using a real browser environment.
+End-to-end test suite for full user workflows using a real browser environment. E2E tests verify the entire application stack from frontend to backend.
 
 ## Current Status
 
-Directory contains only `.gitkeep` file. E2E tests are planned but not yet implemented.
+**Status**: 📋 Planned - Not yet implemented
+
+Directory currently contains:
+
+- `.gitkeep` - Placeholder file to maintain directory in git
+- `AGENTS.md` - This documentation file
+
+E2E tests will be implemented in Phase 8 (Integration & E2E) of the project roadmap.
 
 ## Planned E2E Framework
 
@@ -220,11 +227,11 @@ test('dashboard displays cameras', async ({ page }) => {
 ## Configuration
 
 ```typescript
-// playwright.config.ts
+// playwright.config.ts (place in frontend root)
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
-  testDir: './tests/e2e',
+  testDir: './tests/e2e/specs',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -234,6 +241,7 @@ export default defineConfig({
     baseURL: 'http://localhost:5173',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
   },
 
   projects: [
@@ -246,6 +254,7 @@ export default defineConfig({
     command: 'npm run dev',
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,
+    timeout: 120000,
   },
 });
 ```
@@ -275,17 +284,65 @@ npx playwright codegen http://localhost:5173
 ## Best Practices
 
 1. **Use data-testid attributes**: Stable selectors immune to style changes
-2. **Page Object Pattern**: Encapsulate page interactions
-3. **Wait for conditions**: Use `waitFor*` methods, avoid fixed timeouts
-4. **Test isolation**: Each test should be independent
-5. **Mock external APIs**: Use MSW or Playwright's route interception
-6. **Screenshots on failure**: Automatic in config above
-7. **Parallel execution**: Speeds up test runs
+2. **Page Object Pattern**: Encapsulate page interactions in reusable classes
+3. **Wait for conditions**: Use `waitFor*` methods, avoid hard-coded timeouts
+4. **Test isolation**: Each test should be independent and clean up after itself
+5. **Mock external APIs**: Use MSW or Playwright's route interception for reliability
+6. **Screenshots on failure**: Automatic in config (screenshot + video + trace)
+7. **Parallel execution**: Speeds up test runs (configured per browser)
+8. **Semantic queries**: Use `getByRole`, `getByLabel` for accessibility-friendly selectors
 
-## Notes
+## Prerequisites for E2E Tests
 
-- E2E tests require backend server running
-- Tests should work with both development and production builds
-- Use `test.beforeEach` for common setup (login, navigation)
-- CI/CD should run E2E tests before deployment
-- Consider visual regression testing with Playwright's screenshot comparison
+Before implementing E2E tests, ensure:
+
+1. **Backend server running**: E2E tests require full stack
+
+   - FastAPI backend on port 8000
+   - PostgreSQL/SQLite database initialized
+   - Redis for WebSocket support
+
+2. **Test data setup**: Seed database with predictable test data
+
+   - Sample cameras
+   - Sample events with various risk levels
+   - Known detection patterns
+
+3. **Environment variables**: Configure test environment
+   - `VITE_API_URL=http://localhost:8000`
+   - Backend configured for test mode (faster, no side effects)
+
+## Integration with CI/CD
+
+E2E tests should run in CI/CD pipeline:
+
+```yaml
+# .github/workflows/test.yml (example)
+- name: Install Playwright
+  run: npx playwright install --with-deps
+
+- name: Start backend
+  run: docker-compose up -d backend redis
+
+- name: Run E2E tests
+  run: npm run test:e2e
+
+- name: Upload test results
+  if: always()
+  uses: actions/upload-artifact@v3
+  with:
+    name: playwright-report
+    path: playwright-report/
+```
+
+## Notes for AI Agents
+
+- E2E tests require **full system setup** (frontend + backend + database + Redis)
+- Tests verify **user workflows**, not implementation details
+- Use **Page Object Pattern** to avoid duplication and improve maintainability
+- E2E tests are **slower** than unit/integration tests - use sparingly for critical paths
+- Focus on **happy paths** and **critical error scenarios**
+- Consider **visual regression testing** with Playwright's screenshot comparison
+- E2E tests should work with both development and production builds
+- Use `test.beforeEach` for common setup (authentication, navigation)
+- Backend server should be in "test mode" to avoid side effects (email sending, external API calls, etc.)

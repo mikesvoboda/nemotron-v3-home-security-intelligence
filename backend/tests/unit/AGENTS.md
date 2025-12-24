@@ -2,15 +2,15 @@
 
 ## Purpose
 
-Unit tests verify individual components in isolation. Each test focuses on a single function, class, or module without dependencies on external services or other components.
+Unit tests verify individual components in isolation. Each test focuses on a single function, class, or module without dependencies on external services or other components. All external dependencies (Redis, HTTP, file system) are mocked.
 
-## Test Files
+## Test Files Overview
 
 ### Core Components
 
 #### `test_config.py` (479 lines, 60+ tests)
 
-Tests for application configuration and settings management.
+Tests for application configuration and settings management (`backend/core/config.py`).
 
 **Coverage:**
 
@@ -27,9 +27,18 @@ Tests for application configuration and settings management.
 - `monkeypatch` for environment variable manipulation
 - Tests for Pydantic Settings validation
 
+**Example:**
+
+```python
+def test_database_url_override(clean_env, monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///test.db")
+    settings = get_settings()
+    assert settings.database_url == "sqlite:///test.db"
+```
+
 #### `test_database.py` (263 lines, 12 tests)
 
-Tests for database connection and session management.
+Tests for database connection and session management (`backend/core/database.py`).
 
 **Coverage:**
 
@@ -46,9 +55,22 @@ Tests for database connection and session management.
 - Temporary database creation per test
 - Async session management with context managers
 
+**Example:**
+
+```python
+@pytest.mark.asyncio
+async def test_session_transaction_rollback(isolated_db):
+    async with get_session() as session:
+        obj = TestModel(value="test")
+        session.add(obj)
+        await session.flush()
+        # Force error
+        await session.rollback()
+```
+
 #### `test_redis.py` (536 lines, 40+ tests)
 
-Tests for Redis client operations.
+Tests for Redis client operations (`backend/core/redis.py`).
 
 **Coverage:**
 
@@ -67,11 +89,23 @@ Tests for Redis client operations.
 - JSON serialization/deserialization testing
 - Optional integration tests marked with `pytest.mark.skipif`
 
+**Example:**
+
+```python
+@pytest.mark.asyncio
+async def test_queue_operations():
+    mock_client = AsyncMock()
+    redis = RedisClient(client=mock_client)
+
+    await redis.add_to_queue("test_queue", {"data": "value"})
+    mock_client.rpush.assert_called_once()
+```
+
 ### Database Models
 
 #### `test_models.py` (692 lines, 50+ tests)
 
-Tests for SQLAlchemy database models.
+Tests for SQLAlchemy database models (`backend/models/`).
 
 **Coverage:**
 
@@ -89,11 +123,24 @@ Tests for SQLAlchemy database models.
 - Session-per-test with automatic rollback
 - Comprehensive relationship testing
 
+**Example:**
+
+```python
+def test_camera_detection_relationship(session):
+    camera = Camera(id="cam1", name="Test")
+    detection = Detection(camera_id="cam1", object_type="person")
+    session.add_all([camera, detection])
+    session.commit()
+
+    assert len(camera.detections) == 1
+    assert detection.camera.id == "cam1"
+```
+
 ### AI Services
 
 #### `test_file_watcher.py` (569 lines, 30+ tests)
 
-Tests for file system monitoring service.
+Tests for file system monitoring service (`backend/services/file_watcher.py`).
 
 **Coverage:**
 
@@ -112,9 +159,25 @@ Tests for file system monitoring service.
 - Watchdog event simulation
 - Async task scheduling and cancellation
 
+**Example:**
+
+```python
+@pytest.mark.asyncio
+async def test_file_detection(temp_camera_root, mock_redis):
+    watcher = FileWatcher(redis_client=mock_redis)
+
+    # Create test image
+    image_path = temp_camera_root / "camera1" / "test.jpg"
+    Image.new("RGB", (640, 480)).save(image_path)
+
+    # Verify file is detected
+    await watcher._handle_file_event(str(image_path))
+    mock_redis.add_to_queue.assert_called()
+```
+
 #### `test_detector_client.py` (540 lines, 25+ tests)
 
-Tests for RT-DETRv2 object detection client.
+Tests for RT-DETRv2 object detection client (`backend/services/detector_client.py`).
 
 **Coverage:**
 
@@ -133,9 +196,28 @@ Tests for RT-DETRv2 object detection client.
 - File path mocking
 - Database session mocking
 
+**Example:**
+
+```python
+@pytest.mark.asyncio
+async def test_detect_objects(mock_http_client, mock_session):
+    mock_response = {"detections": [
+        {"class": "person", "confidence": 0.95, "bbox": [100, 150, 200, 300]}
+    ]}
+
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_post.return_value.json = MagicMock(return_value=mock_response)
+
+        client = DetectorClient()
+        detections = await client.detect_objects("test.jpg", "cam1", mock_session)
+
+        assert len(detections) == 1
+        assert detections[0].object_type == "person"
+```
+
 #### `test_batch_aggregator.py` (515 lines, 30+ tests)
 
-Tests for detection batch aggregation service.
+Tests for detection batch aggregation service (`backend/services/batch_aggregator.py`).
 
 **Coverage:**
 
@@ -155,9 +237,23 @@ Tests for detection batch aggregation service.
 - Batch metadata tracking in Redis
 - Queue format validation
 
+**Example:**
+
+```python
+@pytest.mark.asyncio
+async def test_batch_aggregation(mock_redis):
+    aggregator = BatchAggregator(redis_client=mock_redis)
+
+    batch_id = await aggregator.add_detection("cam1", "det1", "test.jpg")
+
+    # Verify batch metadata
+    camera_id = await mock_redis.get(f"batch:{batch_id}:camera_id")
+    assert camera_id == "cam1"
+```
+
 #### `test_nemotron_analyzer.py` (688 lines, 35+ tests)
 
-Tests for Nemotron LLM risk analysis service.
+Tests for Nemotron LLM risk analysis service (`backend/services/nemotron_analyzer.py`).
 
 **Coverage:**
 
@@ -177,9 +273,29 @@ Tests for Nemotron LLM risk analysis service.
 - Database integration with `isolated_db`
 - Sample detections fixture
 
+**Example:**
+
+```python
+@pytest.mark.asyncio
+async def test_analyze_batch(mock_http_client, mock_redis, isolated_db):
+    mock_response = {"content": json.dumps({
+        "risk_score": 75,
+        "risk_level": "high",
+        "summary": "Person detected"
+    })}
+
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_post.return_value.json = MagicMock(return_value=mock_response)
+
+        analyzer = NemotronAnalyzer(redis_client=mock_redis)
+        event = await analyzer.analyze_batch("batch_id")
+
+        assert event.risk_score == 75
+```
+
 #### `test_thumbnail_generator.py` (807 lines, 45+ tests)
 
-Tests for thumbnail generation with bounding boxes.
+Tests for thumbnail generation with bounding boxes (`backend/services/thumbnail_generator.py`).
 
 **Coverage:**
 
@@ -197,6 +313,114 @@ Tests for thumbnail generation with bounding boxes.
 - Temporary directories for output
 - Font fallback testing
 - Path validation
+
+### Broadcaster Services
+
+#### `test_event_broadcaster.py` (169 lines, 10+ tests)
+
+Tests for event WebSocket broadcasting (`backend/services/event_broadcaster.py`).
+
+**Coverage:**
+
+- Event creation broadcasts
+- Detection broadcasts
+- Message format validation
+- Redis pub/sub integration
+- Multiple subscriber handling
+
+#### `test_system_broadcaster.py` (380 lines, 20+ tests)
+
+Tests for system status broadcasting (`backend/services/system_broadcaster.py`).
+
+**Coverage:**
+
+- GPU stats broadcasts
+- Camera status broadcasts
+- Health check broadcasts
+- Message format validation
+- Periodic broadcast scheduling
+
+#### `test_gpu_monitor.py` (480 lines, 25+ tests)
+
+Tests for GPU monitoring service (`backend/services/gpu_monitor.py`).
+
+**Coverage:**
+
+- GPU stats collection (pynvml)
+- Database persistence
+- Broadcast integration
+- Error handling (no GPU, driver errors)
+- Periodic monitoring
+
+#### `test_cleanup_service.py` (650 lines, 35+ tests)
+
+Tests for data cleanup service (`backend/services/cleanup_service.py`).
+
+**Coverage:**
+
+- Old detection cleanup (30-day retention)
+- Old event cleanup (30-day retention)
+- Old GPU stats cleanup
+- Scheduled cleanup tasks
+- Configuration override
+
+### API Routes
+
+#### `test_detections_api.py` (100 lines, 8 tests)
+
+Tests for detection API route handlers (`backend/api/routes/detections.py`).
+
+**Coverage:**
+
+- List detections endpoint
+- Get detection endpoint
+- Filter validation
+- Response schema validation
+
+#### `test_events_api.py` (280 lines, 15 tests)
+
+Tests for event API route handlers (`backend/api/routes/events.py`).
+
+**Coverage:**
+
+- List events endpoint
+- Get event endpoint
+- Update event (review status)
+- Get event detections
+- Filter and pagination validation
+
+#### `test_system_routes.py` (65 lines, 5 tests)
+
+Tests for system API route handlers (`backend/api/routes/system.py`).
+
+**Coverage:**
+
+- Health check endpoint
+- GPU stats endpoint
+- Config endpoint
+- Stats endpoint
+
+#### `test_websocket.py` (600 lines, 30+ tests)
+
+Tests for WebSocket route handlers (`backend/api/routes/websocket.py`).
+
+**Coverage:**
+
+- Connection establishment
+- Message broadcasting
+- Channel isolation (events vs system)
+- Connection cleanup
+- Error handling
+
+#### `test_auth_middleware.py` (260 lines, 15+ tests)
+
+Tests for authentication middleware (`backend/api/middleware/auth.py`).
+
+**Coverage:**
+
+- No-auth mode (default for single-user)
+- Request validation
+- Response headers
 
 ## Running Unit Tests
 
@@ -230,11 +454,18 @@ pytest backend/tests/unit/test_models.py::TestCameraModel::test_create_camera -v
 pytest backend/tests/unit/ -v --cov=backend --cov-report=html
 ```
 
+### Fast execution (no coverage)
+
+```bash
+pytest backend/tests/unit/ -v --no-cov
+```
+
 ## Common Fixtures
 
-### From conftest.py
+### From conftest.py (project root)
 
 - `isolated_db`: Temporary database with clean state
+- `test_db`: Database session factory for unit tests
 - `reset_settings_cache`: Auto-clears settings cache
 
 ### Test-specific fixtures
@@ -245,6 +476,8 @@ pytest backend/tests/unit/ -v --cov=backend --cov-report=html
 - `mock_session`: Mocked database session for services
 - `temp_camera_root`: Temporary camera directory structure
 - `sample_detections`: Pre-built detection objects
+- `mock_http_client`: Mocked httpx AsyncClient
+- `clean_env`: Isolated environment for config tests
 
 ## Mocking Patterns
 
@@ -253,9 +486,11 @@ pytest backend/tests/unit/ -v --cov=backend --cov-report=html
 ```python
 @pytest.fixture
 def mock_redis_client():
-    mock_client = AsyncMock(spec=Redis)
+    mock_client = AsyncMock(spec=RedisClient)
     mock_client.get = AsyncMock(return_value=None)
     mock_client.set = AsyncMock(return_value=True)
+    mock_client.add_to_queue = AsyncMock()
+    mock_client.publish = AsyncMock()
     return mock_client
 ```
 
@@ -277,6 +512,19 @@ with patch("pathlib.Path.exists", return_value=True):
         # Test code here
 ```
 
+### Database Session Mocking
+
+```python
+@pytest.fixture
+def mock_session():
+    session = AsyncMock()
+    session.add = MagicMock()
+    session.commit = AsyncMock()
+    session.flush = AsyncMock()
+    session.refresh = AsyncMock()
+    return session
+```
+
 ## Testing Best Practices
 
 ### 1. Test Organization
@@ -285,11 +533,31 @@ with patch("pathlib.Path.exists", return_value=True):
 - Use descriptive test names (`test_create_camera_with_default_status`)
 - One assertion focus per test
 
+```python
+class TestCameraModel:
+    def test_create_camera_with_defaults(self, session):
+        camera = Camera(id="test", name="Test Camera")
+        session.add(camera)
+        session.commit()
+
+        assert camera.status == "online"  # Default value
+```
+
 ### 2. Fixture Usage
 
 - Use `isolated_db` for any database operations
 - Create test-specific fixtures for complex setups
 - Keep fixtures simple and reusable
+
+```python
+@pytest.fixture
+def sample_camera(isolated_db):
+    async with get_session() as session:
+        camera = Camera(id="test", name="Test")
+        session.add(camera)
+        await session.commit()
+        yield camera
+```
 
 ### 3. Mocking Strategy
 
@@ -297,11 +565,29 @@ with patch("pathlib.Path.exists", return_value=True):
 - Use real database (SQLite in-memory) for authentic testing
 - Mock at the boundary (httpx.AsyncClient, not internal functions)
 
+```python
+# Good: Mock at boundary
+with patch("httpx.AsyncClient") as mock_http:
+    # Test code
+
+# Bad: Mock internal function
+with patch("backend.services.detector_client._parse_response"):
+    # Too granular, tests implementation not behavior
+```
+
 ### 4. Error Testing
 
 - Test both success and failure paths
 - Verify error messages and types
 - Test edge cases (empty data, None values, invalid formats)
+
+```python
+@pytest.mark.asyncio
+async def test_handles_connection_error():
+    with patch("httpx.AsyncClient.post", side_effect=ConnectionError):
+        result = await detector.detect_objects("test.jpg", "cam1", session)
+        assert result == []  # Graceful failure
+```
 
 ### 5. Async Testing
 
@@ -309,9 +595,17 @@ with patch("pathlib.Path.exists", return_value=True):
 - Await all async calls
 - Use `async with` for context managers
 
+```python
+@pytest.mark.asyncio
+async def test_async_operation(isolated_db):
+    async with get_session() as session:
+        result = await some_async_function(session)
+        assert result is not None
+```
+
 ## Coverage Goals
 
-- **Target**: 98%+ coverage
+- **Target**: 98%+ coverage for unit tests
 - **Focus areas**:
   - Happy path (normal operation)
   - Error conditions (exceptions, timeouts, bad data)
@@ -355,6 +649,20 @@ async def test_handles_error_gracefully():
         assert result is None  # Graceful failure
 ```
 
+### Relationship Testing
+
+```python
+def test_one_to_many_relationship(session):
+    parent = Parent(id=1, name="Parent")
+    child1 = Child(parent_id=1, name="Child1")
+    child2 = Child(parent_id=1, name="Child2")
+
+    session.add_all([parent, child1, child2])
+    session.commit()
+
+    assert len(parent.children) == 2
+```
+
 ## Troubleshooting
 
 ### Import Errors
@@ -374,11 +682,34 @@ async def test_handles_error_gracefully():
 - Use `spec=ClassName` to catch attribute errors
 - Check mock is applied before function call
 
+```python
+# Correct: Match import path in source
+with patch("backend.services.detector_client.httpx.AsyncClient"):
+    # Works
+
+# Incorrect: Wrong path
+with patch("httpx.AsyncClient"):
+    # May not work if imported differently
+```
+
 ### Database Tests Fail
 
 - Use `isolated_db` fixture
 - Clear settings cache with `get_settings.cache_clear()`
 - Check database session is properly closed
+
+### Test Isolation Issues
+
+- Verify fixtures use function scope
+- Check for global state modifications
+- Use fresh mocks for each test
+
+## Test Statistics
+
+- **Total test files**: 20+
+- **Total test cases**: 300+
+- **Average execution time**: <10 seconds (unit tests only)
+- **Coverage**: 98%+ for unit-tested components
 
 ## Next Steps for AI Agents
 
@@ -387,3 +718,12 @@ async def test_handles_error_gracefully():
 3. **Run tests**: Execute with pytest to verify current state
 4. **Add tests**: Follow existing patterns for new functionality
 5. **Verify coverage**: Ensure 98%+ coverage with --cov flag
+6. **Test error paths**: Always test both success and failure cases
+
+## Related Documentation
+
+- `/backend/tests/AGENTS.md` - Test infrastructure overview
+- `/backend/tests/integration/AGENTS.md` - Integration test patterns
+- `/backend/tests/e2e/AGENTS.md` - End-to-end pipeline testing
+- `/backend/AGENTS.md` - Backend architecture overview
+- `/CLAUDE.md` - Project instructions and testing requirements

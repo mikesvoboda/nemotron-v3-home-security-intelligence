@@ -19,9 +19,17 @@ Package initialization with public exports:
 
 Pydantic schemas for camera management endpoints.
 
+### `events.py`
+
+Pydantic schemas for event management endpoints.
+
+### `detections.py`
+
+Pydantic schemas for detection listing endpoints.
+
 ### `system.py`
 
-Pydantic schemas for system monitoring endpoints.
+Pydantic schemas for system monitoring and configuration endpoints.
 
 ### `media.py`
 
@@ -128,6 +136,158 @@ Pydantic schemas for media serving error responses.
 
 ---
 
+### Event Schemas (`events.py`)
+
+#### `EventResponse`
+
+**Purpose:** Serialize event data in API responses
+
+**Fields:**
+
+- `id: int` - Event ID
+- `camera_id: str` - Camera UUID
+- `started_at: datetime` - Event start timestamp
+- `ended_at: datetime | None` - Event end timestamp (optional)
+- `risk_score: int | None` - Risk score 0-100 (optional)
+- `risk_level: str | None` - Risk level: low, medium, high, critical (optional)
+- `summary: str | None` - LLM-generated event summary (optional)
+- `reviewed: bool` - Whether event has been reviewed (default: False)
+- `detection_count: int` - Number of detections in this event (default: 0)
+
+**Config:**
+
+- `from_attributes=True` - Enable ORM mode for SQLAlchemy models
+
+**Example:**
+
+```json
+{
+  "id": 1,
+  "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+  "started_at": "2025-12-23T12:00:00Z",
+  "ended_at": "2025-12-23T12:02:30Z",
+  "risk_score": 75,
+  "risk_level": "medium",
+  "summary": "Person detected near front entrance",
+  "reviewed": false,
+  "detection_count": 5
+}
+```
+
+---
+
+#### `EventUpdate`
+
+**Purpose:** Validate data for updating an event (mark as reviewed)
+
+**Fields:**
+
+- `reviewed: bool` - Mark event as reviewed or not reviewed (required)
+
+**Example:**
+
+```json
+{
+  "reviewed": true
+}
+```
+
+---
+
+#### `EventListResponse`
+
+**Purpose:** Serialize list of events with pagination metadata
+
+**Fields:**
+
+- `events: list[EventResponse]` - List of event objects
+- `count: int` - Total number of events matching filters
+- `limit: int` - Maximum number of results returned
+- `offset: int` - Number of results skipped
+
+**Example:**
+
+```json
+{
+  "events": [...],
+  "count": 1,
+  "limit": 50,
+  "offset": 0
+}
+```
+
+---
+
+### Detection Schemas (`detections.py`)
+
+#### `DetectionResponse`
+
+**Purpose:** Serialize detection data in API responses
+
+**Fields:**
+
+- `id: int` - Detection ID
+- `camera_id: str` - Camera UUID
+- `file_path: str` - Path to source image file
+- `file_type: str | None` - MIME type of source file (optional)
+- `detected_at: datetime` - Timestamp when detection was made
+- `object_type: str | None` - Type of detected object: person, car, etc. (optional)
+- `confidence: float | None` - Detection confidence score 0-1 (optional)
+- `bbox_x: int | None` - Bounding box X coordinate (optional)
+- `bbox_y: int | None` - Bounding box Y coordinate (optional)
+- `bbox_width: int | None` - Bounding box width (optional)
+- `bbox_height: int | None` - Bounding box height (optional)
+- `thumbnail_path: str | None` - Path to thumbnail image with bbox overlay (optional)
+
+**Config:**
+
+- `from_attributes=True` - Enable ORM mode for SQLAlchemy models
+
+**Example:**
+
+```json
+{
+  "id": 1,
+  "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+  "file_path": "/export/foscam/front_door/20251223_120000.jpg",
+  "file_type": "image/jpeg",
+  "detected_at": "2025-12-23T12:00:00Z",
+  "object_type": "person",
+  "confidence": 0.95,
+  "bbox_x": 100,
+  "bbox_y": 150,
+  "bbox_width": 200,
+  "bbox_height": 400,
+  "thumbnail_path": "/data/thumbnails/1_thumb.jpg"
+}
+```
+
+---
+
+#### `DetectionListResponse`
+
+**Purpose:** Serialize list of detections with pagination metadata
+
+**Fields:**
+
+- `detections: list[DetectionResponse]` - List of detection objects
+- `count: int` - Total number of detections matching filters
+- `limit: int` - Maximum number of results returned
+- `offset: int` - Number of results skipped
+
+**Example:**
+
+```json
+{
+  "detections": [...],
+  "count": 1,
+  "limit": 50,
+  "offset": 0
+}
+```
+
+---
+
 ### System Schemas (`system.py`)
 
 #### `ServiceStatus`
@@ -208,6 +368,60 @@ Pydantic schemas for media serving error responses.
 
 ---
 
+#### `GPUStatsSample`
+
+**Purpose:** Single time-series sample of GPU statistics
+
+**Fields:**
+
+- `recorded_at: datetime` - When the GPU sample was recorded (UTC)
+- `utilization: float | None` - GPU utilization % (0-100)
+- `memory_used: int | None` - GPU memory used (MB, >= 0)
+- `memory_total: int | None` - Total GPU memory (MB, >= 0)
+- `temperature: float | None` - GPU temperature (Celsius)
+- `inference_fps: float | None` - Inference frames per second (>= 0)
+
+**Config:**
+
+- `from_attributes=True` - Enable ORM mode for SQLAlchemy models
+
+**Example:**
+
+```json
+{
+  "recorded_at": "2025-12-23T12:00:00Z",
+  "utilization": 75.5,
+  "memory_used": 12000,
+  "memory_total": 24000,
+  "temperature": 65.0,
+  "inference_fps": 30.5
+}
+```
+
+---
+
+#### `GPUStatsHistoryResponse`
+
+**Purpose:** Serialize GPU stats time series data
+
+**Fields:**
+
+- `samples: list[GPUStatsSample]` - GPU stats samples in chronological order
+- `count: int` - Number of samples returned (>= 0)
+- `limit: int` - Applied limit (>= 1)
+
+**Example:**
+
+```json
+{
+  "samples": [...],
+  "count": 100,
+  "limit": 100
+}
+```
+
+---
+
 #### `ConfigResponse`
 
 **Purpose:** Serialize public application configuration
@@ -219,6 +433,7 @@ Pydantic schemas for media serving error responses.
 - `retention_days: int` - Data retention period (>= 1)
 - `batch_window_seconds: int` - Batch processing window (>= 1)
 - `batch_idle_timeout_seconds: int` - Batch idle timeout (>= 1)
+- `detection_confidence_threshold: float` - Minimum confidence threshold (0.0-1.0)
 
 **Security:** Only exposes non-sensitive configuration. Does NOT include database URLs, API keys, or secrets.
 
@@ -230,7 +445,32 @@ Pydantic schemas for media serving error responses.
   "version": "0.1.0",
   "retention_days": 30,
   "batch_window_seconds": 90,
-  "batch_idle_timeout_seconds": 30
+  "batch_idle_timeout_seconds": 30,
+  "detection_confidence_threshold": 0.5
+}
+```
+
+---
+
+#### `ConfigUpdateRequest`
+
+**Purpose:** Validate data for updating configuration (PATCH)
+
+**Fields:**
+
+- `retention_days: int | None` - Data retention period (>= 1, optional)
+- `batch_window_seconds: int | None` - Batch processing window (>= 1, optional)
+- `batch_idle_timeout_seconds: int | None` - Batch idle timeout (>= 1, optional)
+- `detection_confidence_threshold: float | None` - Minimum confidence (0.0-1.0, optional)
+
+**Note:** All fields are optional - only provided fields are updated.
+
+**Example:**
+
+```json
+{
+  "retention_days": 45,
+  "detection_confidence_threshold": 0.6
 }
 ```
 

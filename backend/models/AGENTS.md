@@ -25,6 +25,7 @@ Module initialization file that exports all models and the declarative base clas
 - `Detection` - Object detection results model
 - `Event` - Security event model
 - `GPUStats` - GPU performance metrics model
+- `APIKey` - API key authentication model
 
 ### `camera.py`
 
@@ -111,6 +112,7 @@ Defines the Event model for aggregated security events.
 - `detection_ids` (text, nullable) - Comma-separated detection IDs in this event
 - `reviewed` (bool) - User review flag (default: False)
 - `notes` (text, nullable) - User-added notes
+- `is_fast_path` (bool) - Fast path flag for high-priority analysis (default: False)
 
 **Relationships:**
 
@@ -159,6 +161,29 @@ Defines the GPUStats model for monitoring NVIDIA RTX A5500 performance.
 - Time-series optimized with indexed timestamp
 - Supports real-time dashboard GPU monitoring
 - No foreign keys - standalone performance tracking
+
+### `api_key.py`
+
+Defines the APIKey model for optional API authentication.
+
+**Model:** `APIKey`
+**Purpose:** Manages API key authentication when enabled in settings
+
+**Fields:**
+
+- `id` (int, PK, autoincrement) - Unique API key record ID
+- `key_hash` (str, unique, indexed) - SHA-256 hash of the API key (64 characters)
+- `name` (str) - Human-readable name for the API key (e.g., "Mobile App Key")
+- `created_at` (datetime) - Key creation timestamp with UTC timezone
+- `is_active` (bool) - Active status flag (default: True)
+
+**Design Notes:**
+
+- Stores hashed keys only, never plain text
+- Unique constraint on key_hash prevents duplicate keys
+- Index on key_hash for fast authentication lookups
+- `is_active` enables key revocation without deletion
+- Used by authentication middleware when `api_key_enabled=True` in settings
 
 ## SQLAlchemy Patterns Used
 

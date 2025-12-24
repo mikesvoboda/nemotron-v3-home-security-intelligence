@@ -13,7 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NEMOTRON_DIR="$SCRIPT_DIR/nemotron"
 MODEL_FILE_DEFAULT="$NEMOTRON_DIR/nemotron-mini-4b-instruct-q4_k_m.gguf"
 MODEL_FILE="${NEMOTRON_MODEL_PATH:-$MODEL_FILE_DEFAULT}"
-MODEL_PORT=8002
+MODEL_PORT=8090
 
 # Check if model exists
 if [ ! -f "$MODEL_FILE" ]; then
@@ -27,6 +27,7 @@ echo "Model: $MODEL_FILE"
 echo "Port: $MODEL_PORT"
 echo "Context size: 4096"
 echo "GPU layers: 99 (all layers)"
+echo "Parallelism: 2 concurrent requests"
 echo "Expected VRAM usage: ~3GB"
 
 llama-server \

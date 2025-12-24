@@ -152,6 +152,29 @@ All models inherit from `Base` (defined in `camera.py`) and use SQLAlchemy 2.0 `
 - `GET /api/system/stats` - Aggregate counts (cameras, events, detections, uptime)
 - Helper functions: `check_database_health()`, `check_redis_health()`, `check_ai_services_health()`
 
+**`detections.py`** - Detection CRUD operations:
+
+- `GET /api/detections` - List detections with pagination and filtering
+- `GET /api/detections/{detection_id}` - Get single detection
+- Query parameters: camera_id, object_type, min_confidence, limit, offset
+- Returns detection data with bounding boxes and thumbnails
+
+**`events.py`** - Event CRUD operations:
+
+- `GET /api/events` - List events with pagination and filtering
+- `GET /api/events/{event_id}` - Get single event with full details
+- `PATCH /api/events/{event_id}` - Update event (mark reviewed, add notes)
+- Query parameters: camera_id, min_risk_score, reviewed, limit, offset
+- Returns aggregated event data with risk assessment
+
+**`websocket.py`** - WebSocket real-time connections:
+
+- `WS /api/ws` - WebSocket endpoint for real-time event streaming
+- Broadcasts security events to all connected clients
+- Integrates with EventBroadcaster service
+- Redis pub/sub backbone for multi-instance support
+- Automatic connection cleanup on disconnect
+
 ### Services (`services/`)
 
 **`file_watcher.py`** - Filesystem monitoring service:
@@ -219,6 +242,57 @@ All models inherit from `Base` (defined in `camera.py`) and use SQLAlchemy 2.0 `
 - `RISK_ANALYSIS_PROMPT` - Template for Nemotron risk assessment
 - Formats camera name, time window, and detection list
 - Instructs LLM to return JSON with risk_score, risk_level, summary, reasoning
+
+**`cleanup_service.py`** - Data retention and cleanup:
+
+- Automated cleanup service for enforcing retention policies
+- Runs daily at scheduled time (default: 03:00)
+- Deletes events, detections, and GPU stats older than retention period (default: 30 days)
+- Removes associated thumbnail files and optionally original images
+- Transaction-safe deletions with rollback support
+- Tracks cleanup statistics (records deleted, space reclaimed)
+- Configurable retention days and cleanup schedule
+- `start()` / `stop()` lifecycle management
+- Returns `CleanupStats` with operation details
+
+**`event_broadcaster.py`** - WebSocket event distribution:
+
+- Manages WebSocket connections for real-time event notifications
+- Uses Redis pub/sub as event backbone for multi-instance support
+- `EventBroadcaster` class with connection pool management
+- `connect(websocket)` - Register new WebSocket client
+- `disconnect(websocket)` - Unregister and cleanup client
+- `broadcast_event(event_data)` - Publish event to Redis channel
+- Background listener task forwards Redis messages to all WebSocket clients
+- Automatic cleanup of disconnected clients
+- Channel: `security_events`
+- Global singleton pattern via `get_broadcaster()` / `stop_broadcaster()`
+
+**`gpu_monitor.py`** - GPU performance monitoring:
+
+- Monitors NVIDIA GPU statistics using pynvml library
+- Polls GPU metrics at configurable interval (default: 5 seconds)
+- Collects: utilization, memory usage, temperature, power consumption
+- Stores metrics in database (GPUStats table)
+- Maintains in-memory circular buffer (last 1000 readings)
+- Optional WebSocket broadcasting via event broadcaster
+- Mock data mode when GPU unavailable (development/testing)
+- Graceful handling of missing GPU or driver errors
+- `get_current_stats()` - Real-time GPU statistics
+- `get_stats_history(minutes)` - In-memory historical data
+- `get_stats_from_db(minutes, limit)` - Database query
+- `start()` / `stop()` lifecycle with pynvml initialization/shutdown
+
+**`system_broadcaster.py`** - System status broadcasting:
+
+- Broadcasts periodic system health and status updates via WebSocket
+- Aggregates data from multiple sources (database, Redis, GPU monitor)
+- Periodic broadcast interval (default: 5 seconds)
+- System stats include: camera counts, event counts, detection counts, uptime
+- GPU stats integration for real-time monitoring
+- Health check status (database, Redis, AI services)
+- Background task with start/stop lifecycle management
+- Channel: `system_status`
 
 ## Configuration Patterns
 
@@ -348,14 +422,22 @@ Camera uploads → FileWatcher → detection_queue (Redis)
                               DetectorClient → RT-DETRv2
                                       ↓
                                Detection (DB) → BatchAggregator
-                                                      ↓
-                                              analysis_queue (Redis)
+                                      ↓               ↓
+                         ThumbnailGenerator   analysis_queue (Redis)
                                                       ↓
                                              NemotronAnalyzer → Nemotron LLM
                                                       ↓
                                                  Event (DB)
                                                       ↓
-                                             WebSocket broadcast
+                                           EventBroadcaster (Redis pub/sub)
+                                                      ↓
+                                             WebSocket clients
+
+GPU stats (pynvml) → GPUMonitor → GPUStats (DB) → SystemBroadcaster → WebSocket
+                                        ↓
+                                  In-memory buffer
+
+Scheduled cleanup → CleanupService → Delete old records → Remove files
 ```
 
 ## Testing
@@ -383,15 +465,40 @@ pytest backend/tests/ -v
 Key environment variables (loaded via `.env` file):
 
 ```bash
+# Database and Redis
 DATABASE_URL=sqlite+aiosqlite:///./data/security.db
 REDIS_URL=redis://localhost:6379/0
+
+# Camera configuration
 FOSCAM_BASE_PATH=/export/foscam
+
+# AI service endpoints
 RTDETR_URL=http://localhost:8001
 NEMOTRON_URL=http://localhost:8002
+
+# Detection settings
 DETECTION_CONFIDENCE_THRESHOLD=0.5
+
+# Fast path settings
+FAST_PATH_CONFIDENCE_THRESHOLD=0.90
+FAST_PATH_OBJECT_TYPES=["person"]
+
+# Batch processing
 BATCH_WINDOW_SECONDS=90
 BATCH_IDLE_TIMEOUT_SECONDS=30
+
+# Data retention
 RETENTION_DAYS=30
+
+# GPU monitoring
+GPU_POLL_INTERVAL_SECONDS=5.0
+GPU_STATS_HISTORY_MINUTES=60
+
+# Authentication (optional)
+API_KEY_ENABLED=false
+API_KEYS=[]
+
+# Development
 DEBUG=false
 ```
 

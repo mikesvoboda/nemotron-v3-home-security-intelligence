@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The `backend/api/routes/` directory contains FastAPI router modules that define HTTP endpoints for the home security monitoring system. Each file groups related endpoints by resource type.
+The `backend/api/routes/` directory contains FastAPI router modules that define HTTP endpoints for the home security monitoring system. Each file groups related endpoints by resource type (cameras, events, detections, system, media, WebSocket).
 
 ## Files
 
@@ -12,15 +12,74 @@ Package initialization file. Simple docstring: "API route handlers."
 
 ### `cameras.py`
 
-Camera management CRUD endpoints.
+Camera management CRUD endpoints and snapshot serving.
+
+**Key Features:**
+
+- Full CRUD operations for cameras
+- Status filtering
+- Latest snapshot image serving
+- UUID generation for new cameras
+- Cascade deletion of related data
+
+### `events.py`
+
+Security event management and querying.
+
+**Key Features:**
+
+- List events with filtering (risk level, date range, reviewed status)
+- Get specific event details with detection count
+- Mark events as reviewed (PATCH)
+- Get detections associated with an event
+- Pagination support
+
+### `detections.py`
+
+Object detection listing and thumbnail image serving.
+
+**Key Features:**
+
+- List detections with advanced filtering (camera, object type, confidence, date)
+- Get specific detection details
+- Serve detection thumbnail images with bounding boxes
+- On-the-fly thumbnail generation if not cached
+- Pagination support
+
+### `websocket.py`
+
+WebSocket endpoints for real-time communication.
+
+**Key Features:**
+
+- `/ws/events` - Real-time security event notifications
+- `/ws/system` - System status updates (GPU, cameras, health)
+- Connection lifecycle management
+- Ping/pong keep-alive support
+- Integration with broadcaster services
 
 ### `system.py`
 
-System monitoring, health checks, and configuration endpoints.
+System monitoring, health checks, GPU stats, and configuration.
+
+**Key Features:**
+
+- Multi-service health checks (database, Redis, AI)
+- Current and historical GPU statistics
+- System-wide statistics (camera/event/detection counts, uptime)
+- Public configuration retrieval
+- Configuration updates (PATCH)
 
 ### `media.py`
 
 Secure media file serving for camera images and detection thumbnails.
+
+**Key Features:**
+
+- Path traversal prevention
+- File type whitelist enforcement
+- Secure path resolution
+- Base path validation
 
 ## API Endpoints
 
@@ -28,13 +87,14 @@ Secure media file serving for camera images and detection thumbnails.
 
 Router prefix: `/api/cameras`
 
-| Method | Path                       | Purpose                                         | Request Body   | Response             | Status Codes |
-| ------ | -------------------------- | ----------------------------------------------- | -------------- | -------------------- | ------------ |
-| GET    | `/api/cameras`             | List all cameras with optional status filter    | None           | `CameraListResponse` | 200          |
-| GET    | `/api/cameras/{camera_id}` | Get a specific camera by UUID                   | None           | `CameraResponse`     | 200, 404     |
-| POST   | `/api/cameras`             | Create a new camera                             | `CameraCreate` | `CameraResponse`     | 201          |
-| PATCH  | `/api/cameras/{camera_id}` | Update an existing camera                       | `CameraUpdate` | `CameraResponse`     | 200, 404     |
-| DELETE | `/api/cameras/{camera_id}` | Delete a camera (cascades to detections/events) | None           | None                 | 204, 404     |
+| Method | Path                                | Purpose                                         | Request Body   | Response             | Status Codes |
+| ------ | ----------------------------------- | ----------------------------------------------- | -------------- | -------------------- | ------------ |
+| GET    | `/api/cameras`                      | List all cameras with optional status filter    | None           | `CameraListResponse` | 200          |
+| GET    | `/api/cameras/{camera_id}`          | Get a specific camera by UUID                   | None           | `CameraResponse`     | 200, 404     |
+| GET    | `/api/cameras/{camera_id}/snapshot` | Get latest snapshot image                       | None           | `FileResponse`       | 200, 404     |
+| POST   | `/api/cameras`                      | Create a new camera                             | `CameraCreate` | `CameraResponse`     | 201          |
+| PATCH  | `/api/cameras/{camera_id}`          | Update an existing camera                       | `CameraUpdate` | `CameraResponse`     | 200, 404     |
+| DELETE | `/api/cameras/{camera_id}`          | Delete a camera (cascades to detections/events) | None           | None                 | 204, 404     |
 
 **Query Parameters:**
 
@@ -45,7 +105,103 @@ Router prefix: `/api/cameras`
 - UUID generation for new cameras
 - Partial updates via PATCH (only updates provided fields)
 - Cascade deletion of related data
+- Latest snapshot serving from camera folder
 - SQLAlchemy async operations
+
+---
+
+### Events Management (`events.py`)
+
+Router prefix: `/api/events`
+
+| Method | Path                                | Purpose                               | Request Body  | Response                | Status Codes |
+| ------ | ----------------------------------- | ------------------------------------- | ------------- | ----------------------- | ------------ |
+| GET    | `/api/events`                       | List events with filtering/pagination | None          | `EventListResponse`     | 200          |
+| GET    | `/api/events/{event_id}`            | Get specific event by ID              | None          | `EventResponse`         | 200, 404     |
+| PATCH  | `/api/events/{event_id}`            | Update event (mark as reviewed)       | `EventUpdate` | `EventResponse`         | 200, 404     |
+| GET    | `/api/events/{event_id}/detections` | Get detections for event              | None          | `DetectionListResponse` | 200, 404     |
+
+**Query Parameters (List):**
+
+- `camera_id: str` - Filter by camera UUID
+- `risk_level: str` - Filter by risk level (low, medium, high, critical)
+- `start_date: datetime` - Filter by start date (ISO format)
+- `end_date: datetime` - Filter by end date (ISO format)
+- `reviewed: bool` - Filter by reviewed status
+- `limit: int` - Max results (1-1000, default: 50)
+- `offset: int` - Skip N results (default: 0)
+
+**Key Features:**
+
+- Advanced filtering by risk, date, camera, reviewed status
+- Automatic detection count calculation
+- Parse comma-separated detection_ids
+- Chronological ordering within events
+- Pagination support
+
+---
+
+### Detections Management (`detections.py`)
+
+Router prefix: `/api/detections`
+
+| Method | Path                                   | Purpose                                   | Request Body | Response                | Status Codes  |
+| ------ | -------------------------------------- | ----------------------------------------- | ------------ | ----------------------- | ------------- |
+| GET    | `/api/detections`                      | List detections with filtering/pagination | None         | `DetectionListResponse` | 200           |
+| GET    | `/api/detections/{detection_id}`       | Get specific detection by ID              | None         | `DetectionResponse`     | 200, 404      |
+| GET    | `/api/detections/{detection_id}/image` | Get thumbnail with bounding box           | None         | JPEG image              | 200, 404, 500 |
+
+**Query Parameters (List):**
+
+- `camera_id: str` - Filter by camera UUID
+- `object_type: str` - Filter by object type (person, car, etc.)
+- `start_date: datetime` - Filter by start date (ISO format)
+- `end_date: datetime` - Filter by end date (ISO format)
+- `min_confidence: float` - Minimum confidence (0.0-1.0)
+- `limit: int` - Max results (1-1000, default: 50)
+- `offset: int` - Skip N results (default: 0)
+
+**Key Features:**
+
+- Advanced filtering by camera, object type, confidence, date
+- On-the-fly thumbnail generation if not cached
+- Bounding box overlay on images
+- Image caching with 1-hour cache headers
+- Pagination support
+- Integration with ThumbnailGenerator service
+
+---
+
+### WebSocket Communication (`websocket.py`)
+
+Router prefix: None (WebSocket endpoints)
+
+| Method | Path         | Purpose                         | Message Format                             |
+| ------ | ------------ | ------------------------------- | ------------------------------------------ |
+| WS     | `/ws/events` | Real-time security event stream | `{"type": "event", "data": {...}}`         |
+| WS     | `/ws/system` | Real-time system status stream  | `{"type": "system_status", "data": {...}}` |
+
+**Event Stream (`/ws/events`):**
+
+- Broadcasts security events as they're analyzed
+- Message includes: event ID, camera info, risk score/level, summary, timestamp
+- Supports ping/pong keep-alive
+- Uses EventBroadcaster service
+
+**System Stream (`/ws/system`):**
+
+- Broadcasts system status updates every 5 seconds
+- Message includes: GPU stats, camera counts, queue status, health
+- Supports ping/pong keep-alive
+- Uses SystemBroadcaster service
+
+**Connection Lifecycle:**
+
+1. Client connects (handshake)
+2. Connection registered with broadcaster
+3. Client receives broadcast messages
+4. Client can send ping for keep-alive
+5. Graceful disconnect and cleanup
 
 ---
 
@@ -53,18 +209,26 @@ Router prefix: `/api/cameras`
 
 Router prefix: `/api/system`
 
-| Method | Path                 | Purpose                                                | Request Body | Response              | Status Codes |
-| ------ | -------------------- | ------------------------------------------------------ | ------------ | --------------------- | ------------ |
-| GET    | `/api/system/health` | Get system health check (database, Redis, AI services) | None         | `HealthResponse`      | 200          |
-| GET    | `/api/system/gpu`    | Get current GPU statistics                             | None         | `GPUStatsResponse`    | 200          |
-| GET    | `/api/system/config` | Get public configuration settings                      | None         | `ConfigResponse`      | 200          |
-| GET    | `/api/system/stats`  | Get system statistics (counts, uptime)                 | None         | `SystemStatsResponse` | 200          |
+| Method | Path                      | Purpose                                                | Request Body          | Response                  | Status Codes |
+| ------ | ------------------------- | ------------------------------------------------------ | --------------------- | ------------------------- | ------------ |
+| GET    | `/api/system/health`      | Get system health check (database, Redis, AI services) | None                  | `HealthResponse`          | 200          |
+| GET    | `/api/system/gpu`         | Get current GPU statistics                             | None                  | `GPUStatsResponse`        | 200          |
+| GET    | `/api/system/gpu/history` | Get GPU stats time series                              | None                  | `GPUStatsHistoryResponse` | 200          |
+| GET    | `/api/system/stats`       | Get system statistics (counts, uptime)                 | None                  | `SystemStatsResponse`     | 200          |
+| GET    | `/api/system/config`      | Get public configuration settings                      | None                  | `ConfigResponse`          | 200          |
+| PATCH  | `/api/system/config`      | Update configuration settings                          | `ConfigUpdateRequest` | `ConfigResponse`          | 200          |
+
+**Query Parameters (GPU History):**
+
+- `limit: int` - Max samples (1-1000, default: 100)
 
 **Key Features:**
 
 - Multi-service health checks with degraded/unhealthy states
 - Latest GPU stats from database (returns null if unavailable)
+- GPU stats time series for graphing
 - Public-only config (no secrets exposed)
+- Configuration updates for processing parameters
 - Application uptime tracking
 - Aggregate statistics (camera/event/detection counts)
 
