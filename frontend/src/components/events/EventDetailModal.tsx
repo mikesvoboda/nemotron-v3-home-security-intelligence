@@ -1,0 +1,332 @@
+import { Dialog, Transition } from '@headlessui/react';
+import { ArrowLeft, ArrowRight, CheckCircle2, Clock, X } from 'lucide-react';
+import { Fragment, useEffect } from 'react';
+
+import { getRiskLevel } from '../../utils/risk';
+import RiskBadge from '../common/RiskBadge';
+import DetectionImage from '../detection/DetectionImage';
+
+import type { BoundingBox } from '../detection/BoundingBoxOverlay';
+
+export interface Detection {
+  label: string;
+  confidence: number;
+  bbox?: { x: number; y: number; width: number; height: number };
+}
+
+export interface Event {
+  id: string;
+  timestamp: string;
+  camera_name: string;
+  risk_score: number;
+  risk_label: string;
+  summary: string;
+  reasoning?: string;
+  image_url?: string;
+  thumbnail_url?: string;
+  detections: Detection[];
+  reviewed?: boolean;
+}
+
+export interface EventDetailModalProps {
+  event: Event | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onMarkReviewed?: (eventId: string) => void;
+  onNavigate?: (direction: 'prev' | 'next') => void;
+}
+
+/**
+ * EventDetailModal component displays full event details in a modal overlay
+ */
+export default function EventDetailModal({
+  event,
+  isOpen,
+  onClose,
+  onMarkReviewed,
+  onNavigate,
+}: EventDetailModalProps) {
+  // Handle escape key to close modal
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isOpen, onClose]);
+
+  // Handle keyboard navigation (arrow keys)
+  useEffect(() => {
+    const handleKeyboard = (e: KeyboardEvent) => {
+      if (!isOpen || !onNavigate) return;
+
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        onNavigate('prev');
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        onNavigate('next');
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyboard);
+    return () => document.removeEventListener('keydown', handleKeyboard);
+  }, [isOpen, onNavigate]);
+
+  if (!event) {
+    return null;
+  }
+
+  // Convert ISO timestamp to readable format
+  const formatTimestamp = (isoString: string): string => {
+    try {
+      const date = new Date(isoString);
+      return date.toLocaleString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true,
+      });
+    } catch {
+      return isoString;
+    }
+  };
+
+  // Convert Detection to BoundingBox format for DetectionImage component
+  const convertToBoundingBoxes = (): BoundingBox[] => {
+    return event.detections
+      .filter((d) => d.bbox)
+      .map((d) => {
+        const bbox = d.bbox as { x: number; y: number; width: number; height: number };
+        return {
+          x: bbox.x,
+          y: bbox.y,
+          width: bbox.width,
+          height: bbox.height,
+          label: d.label,
+          confidence: d.confidence,
+        };
+      });
+  };
+
+  // Get risk level from score
+  const riskLevel = getRiskLevel(event.risk_score);
+
+  // Format confidence as percentage
+  const formatConfidence = (confidence: number): string => {
+    return `${Math.round(confidence * 100)}%`;
+  };
+
+  // Use full-size image if available, otherwise fallback to thumbnail
+  const imageUrl = event.image_url || event.thumbnail_url;
+  const hasBoundingBoxes = event.detections.some((d) => d.bbox);
+
+  return (
+    <Transition appear show={isOpen} as={Fragment}>
+      <Dialog as="div" className="relative z-50" onClose={onClose}>
+        {/* Dark backdrop */}
+        <Transition.Child
+          as={Fragment}
+          enter="ease-out duration-300"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="ease-in duration-200"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <div className="fixed inset-0 bg-black/75" aria-hidden="true" />
+        </Transition.Child>
+
+        {/* Modal content */}
+        <div className="fixed inset-0 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4">
+            <Transition.Child
+              as={Fragment}
+              enter="ease-out duration-300"
+              enterFrom="opacity-0 scale-95"
+              enterTo="opacity-100 scale-100"
+              leave="ease-in duration-200"
+              leaveFrom="opacity-100 scale-100"
+              leaveTo="opacity-0 scale-95"
+            >
+              <Dialog.Panel className="w-full max-w-4xl transform overflow-hidden rounded-xl border border-gray-800 bg-[#1A1A1A] shadow-2xl transition-all">
+                {/* Header */}
+                <div className="flex items-start justify-between border-b border-gray-800 p-6">
+                  <div className="flex-1">
+                    <Dialog.Title
+                      as="h2"
+                      className="text-2xl font-bold text-white"
+                      id="event-detail-title"
+                    >
+                      {event.camera_name}
+                    </Dialog.Title>
+                    <div className="mt-2 flex items-center gap-2 text-sm text-gray-400">
+                      <Clock className="h-4 w-4" />
+                      <span>{formatTimestamp(event.timestamp)}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <RiskBadge level={riskLevel} score={event.risk_score} showScore={true} size="lg" />
+                    <button
+                      onClick={onClose}
+                      className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
+                      aria-label="Close modal"
+                    >
+                      <X className="h-6 w-6" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="max-h-[calc(100vh-200px)] overflow-y-auto p-6">
+                  {/* Full-size image with bounding boxes */}
+                  {imageUrl && (
+                    <div className="mb-6 overflow-hidden rounded-lg bg-black">
+                      {hasBoundingBoxes ? (
+                        <DetectionImage
+                          src={imageUrl}
+                          alt={`${event.camera_name} detection at ${formatTimestamp(event.timestamp)}`}
+                          boxes={convertToBoundingBoxes()}
+                          showLabels={true}
+                          showConfidence={true}
+                          className="w-full"
+                        />
+                      ) : (
+                        <img
+                          src={imageUrl}
+                          alt={`${event.camera_name} at ${formatTimestamp(event.timestamp)}`}
+                          className="w-full object-contain"
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  {/* AI Summary */}
+                  <div className="mb-6">
+                    <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-400">
+                      AI Summary
+                    </h3>
+                    <p className="text-base leading-relaxed text-gray-200">{event.summary}</p>
+                  </div>
+
+                  {/* AI Reasoning */}
+                  {event.reasoning && (
+                    <div className="mb-6">
+                      <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-400">
+                        AI Reasoning
+                      </h3>
+                      <div className="rounded-lg bg-[#76B900]/10 p-4">
+                        <p className="text-sm leading-relaxed text-gray-300">{event.reasoning}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Detections */}
+                  {event.detections.length > 0 && (
+                    <div className="mb-6">
+                      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
+                        Detected Objects ({event.detections.length})
+                      </h3>
+                      <div className="grid gap-2">
+                        {event.detections.map((detection, index) => (
+                          <div
+                            key={`${detection.label}-${index}`}
+                            className="flex items-center justify-between rounded-lg bg-black/30 px-4 py-3"
+                          >
+                            <span className="text-sm font-medium text-white">{detection.label}</span>
+                            <span className="rounded-full bg-gray-800 px-3 py-1 text-xs font-semibold text-gray-300">
+                              {formatConfidence(detection.confidence)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Event Metadata */}
+                  <div className="rounded-lg border border-gray-800 bg-black/20 p-4">
+                    <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
+                      Event Details
+                    </h3>
+                    <dl className="grid gap-2 text-sm">
+                      <div className="flex justify-between">
+                        <dt className="text-gray-400">Event ID</dt>
+                        <dd className="font-mono text-gray-300">{event.id}</dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-gray-400">Camera</dt>
+                        <dd className="text-gray-300">{event.camera_name}</dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-gray-400">Risk Score</dt>
+                        <dd className="text-gray-300">{event.risk_score} / 100</dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-gray-400">Status</dt>
+                        <dd className="text-gray-300">
+                          {event.reviewed ? (
+                            <span className="inline-flex items-center gap-1 text-green-500">
+                              <CheckCircle2 className="h-4 w-4" />
+                              Reviewed
+                            </span>
+                          ) : (
+                            <span className="text-yellow-500">Pending Review</span>
+                          )}
+                        </dd>
+                      </div>
+                    </dl>
+                  </div>
+                </div>
+
+                {/* Footer actions */}
+                <div className="flex items-center justify-between border-t border-gray-800 bg-black/20 p-6">
+                  {/* Navigation buttons */}
+                  <div className="flex gap-2">
+                    {onNavigate && (
+                      <>
+                        <button
+                          onClick={() => onNavigate('prev')}
+                          className="flex items-center gap-2 rounded-lg bg-gray-800 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-gray-700"
+                          aria-label="Previous event"
+                        >
+                          <ArrowLeft className="h-4 w-4" />
+                          Previous
+                        </button>
+                        <button
+                          onClick={() => onNavigate('next')}
+                          className="flex items-center gap-2 rounded-lg bg-gray-800 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-gray-700"
+                          aria-label="Next event"
+                        >
+                          Next
+                          <ArrowRight className="h-4 w-4" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Mark as reviewed button */}
+                  {onMarkReviewed && !event.reviewed && (
+                    <button
+                      onClick={() => onMarkReviewed(event.id)}
+                      className="flex items-center gap-2 rounded-lg bg-[#76B900] px-6 py-2 text-sm font-semibold text-black transition-all hover:bg-[#88d200] active:bg-[#68a000]"
+                      aria-label="Mark event as reviewed"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      Mark as Reviewed
+                    </button>
+                  )}
+                </div>
+              </Dialog.Panel>
+            </Transition.Child>
+          </div>
+        </div>
+      </Dialog>
+    </Transition>
+  );
+}

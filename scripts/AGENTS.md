@@ -8,9 +8,115 @@ This directory contains development, testing, and deployment automation scripts 
 
 ### Development Setup
 
-**setup-hooks.sh** (128 lines, executable)
+**setup.sh** (530 lines, executable) - PRIMARY SETUP SCRIPT
 
-- **Purpose:** One-time development environment setup script
+- **Purpose:** Comprehensive development environment setup script for Linux/macOS
+- **What it does:**
+  1. Checks prerequisites (Python 3.11+, Node.js 18+, Docker, NVIDIA drivers, git)
+  2. Creates Python virtual environment (`.venv`) if needed
+  3. Installs backend dependencies from `backend/requirements.txt`
+  4. Installs dev tools (pre-commit, ruff, mypy)
+  5. Creates `.env` file from `.env.example`
+  6. Creates data directory and prepares database
+  7. Installs frontend dependencies (`npm install`)
+  8. Installs pre-commit hooks (git hooks)
+  9. Verifies all tools are working
+  10. Optionally runs verification tests
+- **When to use:**
+  - First time setting up project (recommended)
+  - After cloning repository
+  - When recreating environment from scratch
+  - When setting up on a new machine
+- **Usage:**
+
+  ```bash
+  # Full setup with all checks
+  ./scripts/setup.sh
+
+  # Show help and options
+  ./scripts/setup.sh --help
+
+  # Setup without GPU checks (for machines without NVIDIA GPUs)
+  ./scripts/setup.sh --skip-gpu
+
+  # Skip verification tests (faster setup)
+  ./scripts/setup.sh --skip-tests
+
+  # Clean existing setup and reinstall
+  ./scripts/setup.sh --clean
+  ```
+
+- **Command-line options:**
+  - `--help` - Show help message
+  - `--skip-gpu` - Skip GPU/NVIDIA driver checks
+  - `--skip-tests` - Skip verification tests
+  - `--clean` - Remove existing .venv, node_modules, database before setup
+- **Output:**
+  - Colored progress messages (blue headers, green success, yellow warnings)
+  - Prerequisite check results with versions
+  - Tool version verification
+  - GPU information if available
+  - Available commands summary with next steps
+- **Features:**
+  - Idempotent (safe to run multiple times)
+  - Detects and uses `uv` for faster Python package installation
+  - Validates Python 3.11+ and Node.js 18+ versions
+  - Optional GPU support detection
+  - Creates .env from template if missing
+  - Comprehensive verification of all tools
+- **Dependencies:**
+  - Python 3.11+ (required)
+  - Node.js 18+ (required)
+  - git (required)
+  - Docker (optional)
+  - NVIDIA drivers (optional, for GPU features)
+
+**setup.ps1** (485 lines, PowerShell) - WINDOWS SETUP SCRIPT
+
+- **Purpose:** Development environment setup script for Windows (PowerShell)
+- **What it does:** Same as setup.sh but for Windows environments
+- **When to use:**
+  - First time setting up project on Windows
+  - After cloning repository on Windows machine
+- **Usage:**
+
+  ```powershell
+  # Full setup
+  .\scripts\setup.ps1
+
+  # Show help
+  .\scripts\setup.ps1 -Help
+
+  # Setup without GPU checks
+  .\scripts\setup.ps1 -SkipGpu
+
+  # Clean and reinstall
+  .\scripts\setup.ps1 -Clean
+  ```
+
+- **Command-line options:**
+  - `-Help` - Show help message
+  - `-SkipGpu` - Skip GPU/NVIDIA driver checks
+  - `-SkipTests` - Skip verification tests
+  - `-Clean` - Remove existing setup before reinstalling
+- **Features:**
+  - Windows-native PowerShell implementation
+  - Same functionality as Linux/macOS version
+  - Colored output using PowerShell Write-Host
+  - Uses Windows paths (backslashes)
+  - Activates .venv using PowerShell activation script
+- **Dependencies:**
+  - PowerShell 5.1+ or PowerShell Core 7+
+  - Python 3.11+ for Windows
+  - Node.js 18+ for Windows
+  - git for Windows
+  - Optional: Docker Desktop for Windows
+  - Optional: NVIDIA drivers for Windows
+
+**setup-hooks.sh** (128 lines, executable) - LEGACY
+
+- **Purpose:** Legacy development environment setup script (superseded by setup.sh)
+- **Note:** Use `setup.sh` instead for new setups. This script is kept for backward compatibility.
 - **What it does:**
   1. Creates Python virtual environment (`.venv`)
   2. Installs backend dependencies from `backend/requirements.txt`
@@ -19,10 +125,8 @@ This directory contains development, testing, and deployment automation scripts 
   5. Installs pre-commit hooks (git hooks)
   6. Verifies all tools are working
 - **When to use:**
-  - First time setting up project
-  - After cloning repository
-  - When pre-commit hooks are missing
-  - When recreating environment from scratch
+  - Only if you've been using it previously
+  - Prefer `setup.sh` for new setups
 - **Usage:**
   ```bash
   ./scripts/setup-hooks.sh
@@ -103,36 +207,72 @@ This directory contains development, testing, and deployment automation scripts 
 
 ## Script Comparison
 
-| Feature            | setup-hooks.sh       | test-runner.sh        | validate.sh           |
-| ------------------ | -------------------- | --------------------- | --------------------- |
-| Purpose            | Environment setup    | Comprehensive testing | Quick validation      |
-| Run frequency      | Once per environment | Before commits        | Before commits/push   |
-| Backend tests      | No                   | Yes (pytest)          | Yes (pytest)          |
-| Frontend tests     | No                   | Yes (Vitest)          | Yes (Vitest)          |
-| Coverage reports   | No                   | Yes (HTML + JSON)     | No (terminal only)    |
-| Coverage threshold | N/A                  | 95%                   | 90%                   |
-| Linting            | No                   | No                    | Yes (ruff + eslint)   |
-| Type checking      | No                   | No                    | Yes (mypy + tsc)      |
-| Formatting check   | No                   | No                    | Yes (ruff + prettier) |
-| Pre-commit hooks   | Installs             | No                    | No                    |
-| Colored output     | Yes                  | Yes                   | Yes                   |
+| Feature               | setup.sh             | test-runner.sh        | validate.sh           |
+| --------------------- | -------------------- | --------------------- | --------------------- |
+| Purpose               | Environment setup    | Comprehensive testing | Quick validation      |
+| Run frequency         | Once per environment | Before commits        | Before commits/push   |
+| Prerequisite checks   | Yes (Python, Node)   | No                    | No                    |
+| Backend tests         | Optional             | Yes (pytest)          | Yes (pytest)          |
+| Frontend tests        | Optional             | Yes (Vitest)          | Yes (Vitest)          |
+| Coverage reports      | No                   | Yes (HTML + JSON)     | No (terminal only)    |
+| Coverage threshold    | N/A                  | 95%                   | 90%                   |
+| Linting               | No                   | No                    | Yes (ruff + eslint)   |
+| Type checking         | No                   | No                    | Yes (mypy + tsc)      |
+| Formatting check      | No                   | No                    | Yes (ruff + prettier) |
+| Pre-commit hooks      | Installs             | No                    | No                    |
+| Colored output        | Yes                  | Yes                   | Yes                   |
+| Creates .env file     | Yes                  | No                    | No                    |
+| Installs dependencies | Yes                  | No                    | No                    |
+| Command-line options  | Yes (4 options)      | No                    | No                    |
+| Windows support       | setup.ps1            | No                    | No                    |
 
 ## Usage Patterns
 
-### Initial Project Setup
+### Initial Project Setup (Linux/macOS)
 
 ```bash
 # 1. Clone repository
 git clone <repo>
 cd nemotron-v3-home-security-intelligence
 
-# 2. Run setup script
-./scripts/setup-hooks.sh
+# 2. Run setup script (automatically handles everything)
+./scripts/setup.sh
 
-# 3. Verify environment
+# 3. Environment is ready! Activate virtualenv and start coding
 source .venv/bin/activate
-python --version
-npm --version
+```
+
+### Initial Project Setup (Windows)
+
+```powershell
+# 1. Clone repository
+git clone <repo>
+cd nemotron-v3-home-security-intelligence
+
+# 2. Run setup script (automatically handles everything)
+.\scripts\setup.ps1
+
+# 3. Environment is ready! Activate virtualenv and start coding
+.\.venv\Scripts\Activate.ps1
+```
+
+### Setup Options
+
+```bash
+# Full setup with all checks (recommended)
+./scripts/setup.sh
+
+# Setup without GPU checks (for non-GPU machines)
+./scripts/setup.sh --skip-gpu
+
+# Skip verification tests (faster)
+./scripts/setup.sh --skip-tests
+
+# Clean and reinstall everything
+./scripts/setup.sh --clean
+
+# Get help
+./scripts/setup.sh --help
 ```
 
 ### Development Workflow
@@ -255,15 +395,28 @@ NC='\033[0m'          # No Color (reset)
 
 ### Setting Up New Environment
 
-1. Run `./scripts/setup-hooks.sh`
-2. Activate virtual environment: `source .venv/bin/activate`
-3. Verify with `./scripts/validate.sh`
+1. Run `./scripts/setup.sh` (or `.\scripts\setup.ps1` on Windows)
+   - This automatically handles prerequisites, dependencies, and configuration
+   - Use `--skip-gpu` if no NVIDIA GPU is available
+   - Use `--skip-tests` for faster setup
+2. Activate virtual environment:
+   - Linux/macOS: `source .venv/bin/activate`
+   - Windows: `.\.venv\Scripts\Activate.ps1`
+3. Optional: Seed test data: `./scripts/seed-cameras.py --no-folders`
+4. Optional: Verify with `./scripts/validate.sh`
 
 ### Running Tests
 
 1. Quick validation: `./scripts/validate.sh`
 2. Full test suite: `./scripts/test-runner.sh`
 3. Specific tests: `pytest backend/tests/unit/test_file.py -v`
+
+### Database Management
+
+1. Seed cameras: `./scripts/seed-cameras.py`
+2. List cameras: `./scripts/seed-cameras.py --list`
+3. Reset cameras: `./scripts/seed-cameras.py --clear --count 6`
+4. Check database state before E2E tests
 
 ### Before Committing
 
@@ -277,11 +430,71 @@ NC='\033[0m'          # No Color (reset)
 2. Check coverage reports if needed
 3. Push: `git push origin main`
 
+### Database Seeding
+
+**seed-cameras.py** (223 lines, executable)
+
+- **Purpose:** Populate database with test cameras for development and testing
+- **What it does:**
+  1. Initializes database connection
+  2. Creates sample camera records with realistic names
+  3. Optionally creates corresponding folders in `/export/foscam/`
+  4. Prevents duplicates (idempotent)
+  5. Lists cameras with folder status
+- **When to use:**
+  - Setting up development environment
+  - Resetting database for testing
+  - E2E test setup
+  - After clearing database
+- **Usage:**
+
+  ```bash
+  # Seed all 6 default cameras (creates folders)
+  ./scripts/seed-cameras.py
+
+  # Seed specific number of cameras without creating folders
+  python scripts/seed-cameras.py --count 4 --no-folders
+
+  # Clear existing cameras and re-seed
+  ./scripts/seed-cameras.py --clear --count 3
+
+  # List current cameras
+  ./scripts/seed-cameras.py --list
+
+  # Show help
+  ./scripts/seed-cameras.py --help
+  ```
+
+- **Command-line options:**
+  - `--clear` - Remove all cameras before seeding
+  - `--count N` - Number of cameras to create (1-6, default: 6)
+  - `--no-folders` - Don't create camera folders on filesystem
+  - `--list` - List all cameras and exit
+- **Sample cameras:**
+  1. Front Door (front-door) - active
+  2. Backyard (backyard) - active
+  3. Garage (garage) - inactive
+  4. Driveway (driveway) - active
+  5. Side Gate (side-gate) - active
+  6. Living Room (living-room) - inactive
+- **Output:**
+  - Progress messages for each camera
+  - Warning if folder creation fails (permission issues)
+  - Table showing cameras with folder status (✓/✗)
+  - Clear status of operations
+- **Idempotency:**
+  - Running multiple times won't create duplicates
+  - Skips cameras that already exist
+  - Safe to run repeatedly
+- **Dependencies:**
+  - Backend database models (Camera)
+  - SQLAlchemy async session
+  - Requires database initialization
+
 ## Future Scripts (Not Yet Implemented)
 
 These may be added in later phases:
 
-- **seed-cameras.py** - Populate database with test camera data
 - **start-services.sh** - Start all services (backend, redis, AI models)
 - **stop-services.sh** - Stop all services
 - **reset-database.sh** - Clear database and reset to initial state

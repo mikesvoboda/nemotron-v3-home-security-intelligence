@@ -15,8 +15,23 @@ services:
       - LLM_URL=http://host.docker.internal:8002
       - CAMERA_ROOT=/cameras
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import httpx; exit(0 if httpx.get('http://localhost:8000/health').status_code == 200 else 1)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     restart: unless-stopped
+    networks:
+      - security-net
 
   redis:
     image: redis:7-alpine
@@ -24,7 +39,14 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     restart: unless-stopped
+    networks:
+      - security-net
 
   frontend:
     build: ./frontend
@@ -34,8 +56,29 @@ services:
       - VITE_API_URL=http://localhost:8000
       - VITE_WS_URL=ws://localhost:8000
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     restart: unless-stopped
+    networks:
+      - security-net
 
 volumes:
   redis_data:
+
+networks:
+  security-net:
+    driver: bridge

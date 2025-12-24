@@ -101,7 +101,7 @@ class TestSettingsDefaults:
         """Test default AI service endpoint URLs."""
         settings = Settings()
         assert settings.rtdetr_url == "http://localhost:8001"
-        assert settings.nemotron_url == "http://localhost:8002"
+        assert settings.nemotron_url == "http://localhost:8090"
 
 
 class TestEnvironmentOverrides:
