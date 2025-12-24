@@ -310,16 +310,12 @@ async def patch_config(update: ConfigUpdateRequest = Body(...)) -> ConfigRespons
 
     if update.retention_days is not None:
         overrides["RETENTION_DAYS"] = str(update.retention_days)
-        os.environ["RETENTION_DAYS"] = str(update.retention_days)
     if update.batch_window_seconds is not None:
         overrides["BATCH_WINDOW_SECONDS"] = str(update.batch_window_seconds)
-        os.environ["BATCH_WINDOW_SECONDS"] = str(update.batch_window_seconds)
     if update.batch_idle_timeout_seconds is not None:
         overrides["BATCH_IDLE_TIMEOUT_SECONDS"] = str(update.batch_idle_timeout_seconds)
-        os.environ["BATCH_IDLE_TIMEOUT_SECONDS"] = str(update.batch_idle_timeout_seconds)
     if update.detection_confidence_threshold is not None:
         overrides["DETECTION_CONFIDENCE_THRESHOLD"] = str(update.detection_confidence_threshold)
-        os.environ["DETECTION_CONFIDENCE_THRESHOLD"] = str(update.detection_confidence_threshold)
 
     if overrides:
         _write_runtime_env(overrides)
