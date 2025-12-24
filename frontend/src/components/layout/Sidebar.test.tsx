@@ -1,23 +1,26 @@
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
+import { describe, expect, it } from 'vitest';
 
 import Sidebar from './Sidebar';
 
+// Helper to render with router
+const renderWithRouter = (initialEntries: string[] = ['/']) => {
+  return render(
+    <MemoryRouter initialEntries={initialEntries}>
+      <Sidebar />
+    </MemoryRouter>
+  );
+};
+
 describe('Sidebar', () => {
-  const mockOnNavChange = vi.fn();
-
-  beforeEach(() => {
-    mockOnNavChange.mockClear();
-  });
-
   it('renders without crashing', () => {
-    render(<Sidebar activeNav="dashboard" onNavChange={mockOnNavChange} />);
+    renderWithRouter();
     expect(screen.getByRole('complementary')).toBeInTheDocument();
   });
 
   it('renders all navigation items', () => {
-    render(<Sidebar activeNav="dashboard" onNavChange={mockOnNavChange} />);
+    renderWithRouter();
     expect(screen.getByText('Dashboard')).toBeInTheDocument();
     expect(screen.getByText('Timeline')).toBeInTheDocument();
     expect(screen.getByText('Entities')).toBeInTheDocument();
@@ -25,48 +28,33 @@ describe('Sidebar', () => {
     expect(screen.getByText('Settings')).toBeInTheDocument();
   });
 
-  it('highlights the active navigation item', () => {
-    render(<Sidebar activeNav="dashboard" onNavChange={mockOnNavChange} />);
-    const dashboardButton = screen.getByRole('button', { name: /dashboard/i });
-    expect(dashboardButton).toHaveClass('bg-[#76B900]', 'text-black', 'font-semibold');
+  it('highlights the active navigation item based on current route', () => {
+    renderWithRouter(['/']);
+    const dashboardLink = screen.getByRole('link', { name: /dashboard/i });
+    expect(dashboardLink).toHaveClass('bg-[#76B900]', 'text-black', 'font-semibold');
   });
 
   it('does not highlight inactive navigation items', () => {
-    render(<Sidebar activeNav="dashboard" onNavChange={mockOnNavChange} />);
-    const timelineButton = screen.getByRole('button', { name: /timeline/i });
-    expect(timelineButton).toHaveClass('text-gray-300');
-    expect(timelineButton).not.toHaveClass('bg-[#76B900]');
+    renderWithRouter(['/']);
+    const timelineLink = screen.getByRole('link', { name: /timeline/i });
+    expect(timelineLink).toHaveClass('text-gray-300');
+    expect(timelineLink).not.toHaveClass('bg-[#76B900]');
   });
 
-  it('calls onNavChange when navigation item is clicked', async () => {
-    const user = userEvent.setup();
-    render(<Sidebar activeNav="dashboard" onNavChange={mockOnNavChange} />);
-
-    const timelineButton = screen.getByRole('button', { name: /timeline/i });
-    await user.click(timelineButton);
-
-    expect(mockOnNavChange).toHaveBeenCalledWith('timeline');
-    expect(mockOnNavChange).toHaveBeenCalledTimes(1);
-  });
-
-  it('calls onNavChange with correct id for each navigation item', async () => {
-    const user = userEvent.setup();
-    render(<Sidebar activeNav="dashboard" onNavChange={mockOnNavChange} />);
-
-    await user.click(screen.getByRole('button', { name: /settings/i }));
-    expect(mockOnNavChange).toHaveBeenCalledWith('settings');
-
-    await user.click(screen.getByRole('button', { name: /alerts/i }));
-    expect(mockOnNavChange).toHaveBeenCalledWith('alerts');
+  it('navigation items are links with correct hrefs', () => {
+    renderWithRouter();
+    expect(screen.getByRole('link', { name: /dashboard/i })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: /timeline/i })).toHaveAttribute('href', '/timeline');
+    expect(screen.getByRole('link', { name: /settings/i })).toHaveAttribute('href', '/settings');
   });
 
   it('displays WIP badge on Entities item', () => {
-    render(<Sidebar activeNav="dashboard" onNavChange={mockOnNavChange} />);
+    renderWithRouter();
     expect(screen.getByText('WIP')).toBeInTheDocument();
   });
 
   it('WIP badge has correct styling', () => {
-    render(<Sidebar activeNav="dashboard" onNavChange={mockOnNavChange} />);
+    renderWithRouter();
     const wipBadge = screen.getByText('WIP');
     expect(wipBadge).toHaveClass(
       'px-2',
@@ -80,64 +68,67 @@ describe('Sidebar', () => {
   });
 
   it('renders icons for all navigation items', () => {
-    render(<Sidebar activeNav="dashboard" onNavChange={mockOnNavChange} />);
-    const buttons = screen.getAllByRole('button');
+    renderWithRouter();
+    const links = screen.getAllByRole('link');
 
-    // Each button should have an icon (lucide-react icons render as SVG)
-    buttons.forEach((button) => {
-      const svg = button.querySelector('svg');
+    // Each link should have an icon (lucide-react icons render as SVG)
+    links.forEach((link) => {
+      const svg = link.querySelector('svg');
       expect(svg).toBeInTheDocument();
     });
   });
 
   it('has correct sidebar styling', () => {
-    render(<Sidebar activeNav="dashboard" onNavChange={mockOnNavChange} />);
+    renderWithRouter();
     const sidebar = screen.getByRole('complementary');
     expect(sidebar).toHaveClass('w-64', 'bg-[#1A1A1A]', 'border-r', 'border-gray-800');
   });
 
-  it('navigation buttons have full width', () => {
-    render(<Sidebar activeNav="dashboard" onNavChange={mockOnNavChange} />);
-    const buttons = screen.getAllByRole('button');
+  it('navigation links have full width', () => {
+    renderWithRouter();
+    const links = screen.getAllByRole('link');
 
-    buttons.forEach((button) => {
-      expect(button).toHaveClass('w-full');
+    links.forEach((link) => {
+      expect(link).toHaveClass('w-full');
     });
   });
 
-  it('changes active state when different nav is selected', () => {
-    const { rerender } = render(<Sidebar activeNav="dashboard" onNavChange={mockOnNavChange} />);
+  it('highlights different items based on route', () => {
+    // Test with timeline route
+    renderWithRouter(['/timeline']);
 
-    let dashboardButton = screen.getByRole('button', { name: /dashboard/i });
-    expect(dashboardButton).toHaveClass('bg-[#76B900]');
+    const dashboardLink = screen.getByRole('link', { name: /dashboard/i });
+    const timelineLink = screen.getByRole('link', { name: /timeline/i });
 
-    rerender(<Sidebar activeNav="timeline" onNavChange={mockOnNavChange} />);
+    expect(dashboardLink).not.toHaveClass('bg-[#76B900]');
+    expect(timelineLink).toHaveClass('bg-[#76B900]');
+  });
 
-    dashboardButton = screen.getByRole('button', { name: /dashboard/i });
-    const timelineButton = screen.getByRole('button', { name: /timeline/i });
+  it('highlights settings when on settings route', () => {
+    renderWithRouter(['/settings']);
 
-    expect(dashboardButton).not.toHaveClass('bg-[#76B900]');
-    expect(timelineButton).toHaveClass('bg-[#76B900]');
+    const settingsLink = screen.getByRole('link', { name: /settings/i });
+    expect(settingsLink).toHaveClass('bg-[#76B900]');
   });
 
   it('renders all 5 navigation items', () => {
-    render(<Sidebar activeNav="dashboard" onNavChange={mockOnNavChange} />);
-    const buttons = screen.getAllByRole('button');
-    expect(buttons).toHaveLength(5);
+    renderWithRouter();
+    const links = screen.getAllByRole('link');
+    expect(links).toHaveLength(5);
   });
 
   it('navigation items have transition classes for smooth hover', () => {
-    render(<Sidebar activeNav="dashboard" onNavChange={mockOnNavChange} />);
-    const buttons = screen.getAllByRole('button');
+    renderWithRouter();
+    const links = screen.getAllByRole('link');
 
-    buttons.forEach((button) => {
-      expect(button).toHaveClass('transition-colors', 'duration-200');
+    links.forEach((link) => {
+      expect(link).toHaveClass('transition-colors', 'duration-200');
     });
   });
 
   it('inactive items have hover classes', () => {
-    render(<Sidebar activeNav="dashboard" onNavChange={mockOnNavChange} />);
-    const timelineButton = screen.getByRole('button', { name: /timeline/i });
-    expect(timelineButton).toHaveClass('hover:bg-gray-800', 'hover:text-white');
+    renderWithRouter(['/']);
+    const timelineLink = screen.getByRole('link', { name: /timeline/i });
+    expect(timelineLink).toHaveClass('hover:bg-gray-800', 'hover:text-white');
   });
 });
