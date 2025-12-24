@@ -271,3 +271,20 @@ export function getMediaUrl(cameraId: string, filename: string): string {
 export function getThumbnailUrl(filename: string): string {
   return `${BASE_URL}/api/media/thumbnails/${filename}`;
 }
+
+// ============================================================================
+// Logs Endpoints
+// ============================================================================
+
+export interface LogStats {
+  total_today: number;
+  errors_today: number;
+  warnings_today: number;
+  by_component: Record<string, number>;
+  by_level: Record<string, number>;
+  top_component: string | null;
+}
+
+export async function fetchLogStats(): Promise<LogStats> {
+  return fetchApi<LogStats>('/api/logs/stats');
+}
