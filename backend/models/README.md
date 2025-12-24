@@ -5,9 +5,11 @@ SQLAlchemy 2.0 models for the home security intelligence system.
 ## Models
 
 ### Camera (`camera.py`)
+
 Represents a security camera in the system.
 
 **Fields:**
+
 - `id` (str, PK): Unique camera identifier
 - `name` (str): Human-readable camera name
 - `folder_path` (str): File system path for FTP uploads
@@ -16,13 +18,16 @@ Represents a security camera in the system.
 - `last_seen_at` (datetime, optional): Last activity timestamp
 
 **Relationships:**
+
 - `detections`: One-to-many with Detection (cascade delete)
 - `events`: One-to-many with Event (cascade delete)
 
 ### Detection (`detection.py`)
+
 Represents an object detection result from RT-DETRv2.
 
 **Fields:**
+
 - `id` (int, PK): Auto-incrementing ID
 - `camera_id` (str, FK): References cameras.id
 - `file_path` (str): Path to source image file
@@ -34,17 +39,21 @@ Represents an object detection result from RT-DETRv2.
 - `thumbnail_path` (str, optional): Path to detection thumbnail
 
 **Relationships:**
+
 - `camera`: Many-to-one with Camera
 
 **Indexes:**
+
 - `idx_detections_camera_id`: For camera-based queries
 - `idx_detections_detected_at`: For time-based queries
 - `idx_detections_camera_time`: Composite index for camera+time queries
 
 ### Event (`event.py`)
+
 Represents a security event aggregated from multiple detections.
 
 **Fields:**
+
 - `id` (int, PK): Auto-incrementing ID
 - `batch_id` (str): Batch processing identifier
 - `camera_id` (str, FK): References cameras.id
@@ -59,9 +68,11 @@ Represents a security event aggregated from multiple detections.
 - `notes` (text, optional): User notes
 
 **Relationships:**
+
 - `camera`: Many-to-one with Camera
 
 **Indexes:**
+
 - `idx_events_camera_id`: For camera-based queries
 - `idx_events_started_at`: For time-based queries
 - `idx_events_risk_score`: For risk-based queries
@@ -69,9 +80,11 @@ Represents a security event aggregated from multiple detections.
 - `idx_events_batch_id`: For batch processing queries
 
 ### GPUStats (`gpu_stats.py`)
+
 Tracks GPU performance metrics for AI inference monitoring.
 
 **Fields:**
+
 - `id` (int, PK): Auto-incrementing ID
 - `recorded_at` (datetime): Recording timestamp
 - `gpu_utilization` (float, optional): GPU utilization percentage
@@ -81,6 +94,7 @@ Tracks GPU performance metrics for AI inference monitoring.
 - `inference_fps` (float, optional): Inference frames per second
 
 **Indexes:**
+
 - `idx_gpu_stats_recorded_at`: For time-series queries
 
 ## Usage

@@ -36,6 +36,9 @@ ignore = [
     "S101",   # use of assert detected (ok in tests)
     "PLC0415",# import not at top level (necessary for circular imports/isolation)
     "ASYNC109",# timeout parameter in async function (standard in Redis blpop)
+    "ASYNC230",# open in async function (acceptable for small file I/O)
+    "PTH110", # os.path.exists() - acceptable pattern
+    "PTH123", # open() instead of Path.open() - acceptable pattern
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -44,9 +47,13 @@ ignore = [
     "ARG001", # unused function argument in fixtures
     "ARG002", # unused method argument for fixtures used via side effects
     "PLR2004",# magic values ok in tests
+    "B007",   # unused loop control variable ok in tests
 ]
 "backend/examples/**/*.py" = [
     "ERA001", # commented code ok in examples
+]
+"ai/**/*.py" = [
+    "ASYNC230", # blocking I/O in async ok for example clients
 ]
 
 [tool.ruff.format]

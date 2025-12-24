@@ -9,6 +9,7 @@ React components for visualizing object detections with bounding boxes.
 Renders SVG bounding boxes over images/video for detected objects.
 
 **Features:**
+
 - Color-coded boxes by object type or custom colors
 - Labels with object type and confidence percentage
 - Responsive scaling with container
@@ -17,29 +18,31 @@ Renders SVG bounding boxes over images/video for detected objects.
 - Hover effects for interactive boxes
 
 **Props:**
+
 ```typescript
 interface BoundingBoxOverlayProps {
   boxes: BoundingBox[];
   imageWidth: number;
   imageHeight: number;
-  showLabels?: boolean;        // default: true
-  showConfidence?: boolean;    // default: true
-  minConfidence?: number;      // default: 0 (0-1 range)
+  showLabels?: boolean; // default: true
+  showConfidence?: boolean; // default: true
+  minConfidence?: number; // default: 0 (0-1 range)
   onClick?: (box: BoundingBox) => void;
 }
 
 interface BoundingBox {
-  x: number;                   // top-left x (pixels)
-  y: number;                   // top-left y (pixels)
-  width: number;               // box width (pixels)
-  height: number;              // box height (pixels)
-  label: string;               // e.g., "person", "car"
-  confidence: number;          // 0-1
-  color?: string;              // optional custom color
+  x: number; // top-left x (pixels)
+  y: number; // top-left y (pixels)
+  width: number; // box width (pixels)
+  height: number; // box height (pixels)
+  label: string; // e.g., "person", "car"
+  confidence: number; // 0-1
+  color?: string; // optional custom color
 }
 ```
 
 **Default Colors:**
+
 - `person`: Red (#ef4444)
 - `car`: Blue (#3b82f6)
 - `dog`: Amber (#f59e0b)
@@ -48,6 +51,7 @@ interface BoundingBox {
 - `default`: Gray (#6b7280)
 
 **Example:**
+
 ```tsx
 import { BoundingBoxOverlay, BoundingBox } from '@/components/detection';
 
@@ -91,12 +95,14 @@ function MyComponent() {
 Convenience component that combines an image with bounding box overlay.
 
 **Features:**
+
 - Automatic dimension detection on image load
 - All BoundingBoxOverlay features
 - Proper stacking and positioning
 - Responsive image handling
 
 **Props:**
+
 ```typescript
 interface DetectionImageProps {
   src: string;
@@ -111,6 +117,7 @@ interface DetectionImageProps {
 ```
 
 **Example:**
+
 ```tsx
 import { DetectionImage, BoundingBox } from '@/components/detection';
 
@@ -144,6 +151,7 @@ function CameraView() {
 ## Use Cases
 
 ### Camera Grid with Detections
+
 ```tsx
 function CameraGrid({ cameras }) {
   return (
@@ -164,6 +172,7 @@ function CameraGrid({ cameras }) {
 ```
 
 ### Event Detail Modal
+
 ```tsx
 function EventDetailModal({ event }) {
   const handleBoxClick = (box: BoundingBox) => {
@@ -177,7 +186,7 @@ function EventDetailModal({ event }) {
         alt="Event snapshot"
         boxes={event.detections}
         onClick={handleBoxClick}
-        className="w-full max-h-96"
+        className="max-h-96 w-full"
       />
     </div>
   );
@@ -185,14 +194,13 @@ function EventDetailModal({ event }) {
 ```
 
 ### Custom Filtering
+
 ```tsx
 function FilteredDetections() {
   const [minConf, setMinConf] = useState(0.5);
   const [showPeople, setShowPeople] = useState(true);
 
-  const filteredBoxes = boxes.filter(box =>
-    showPeople || box.label !== 'person'
-  );
+  const filteredBoxes = boxes.filter((box) => showPeople || box.label !== 'person');
 
   return (
     <div>
@@ -218,6 +226,7 @@ function FilteredDetections() {
 ## Styling
 
 Components use Tailwind CSS classes and are compatible with the NVIDIA dark theme:
+
 - Overlay uses absolute positioning with `z-index: 10`
 - SVG scales responsively with `preserveAspectRatio="none"`
 - Labels have semi-transparent backgrounds
@@ -226,6 +235,7 @@ Components use Tailwind CSS classes and are compatible with the NVIDIA dark them
 ## Testing
 
 Comprehensive tests cover:
+
 - Rendering with multiple boxes
 - Label and confidence display
 - Confidence filtering
@@ -235,6 +245,7 @@ Comprehensive tests cover:
 - Color schemes
 
 Run tests:
+
 ```bash
 cd frontend
 npm test -- --run src/components/detection/

@@ -396,11 +396,7 @@ describe('useSystemStatus', () => {
   it('should handle all health states in sequence', () => {
     const { result } = renderHook(() => useSystemStatus());
 
-    const healthStates: Array<'healthy' | 'degraded' | 'unhealthy'> = [
-      'healthy',
-      'degraded',
-      'unhealthy',
-    ];
+    const healthStates = ['healthy', 'degraded', 'unhealthy'] as const;
 
     healthStates.forEach((health, index) => {
       const status: SystemStatus = {

@@ -5,6 +5,7 @@ This directory contains integration tests for the backend API and services.
 ## Test Files
 
 ### test_api.py
+
 Tests for FastAPI application endpoints and middleware:
 
 - **Root endpoint** (`/`) - Basic API health check
@@ -15,12 +16,14 @@ Tests for FastAPI application endpoints and middleware:
 - **Concurrent requests** - Multiple simultaneous requests handling
 
 **Coverage:**
+
 - 13 test cases covering API endpoints, middleware, and lifecycle management
 - Mocks Redis to avoid requiring external services
 - Uses in-memory SQLite for database tests
 - Tests both success and failure scenarios
 
 ### test_full_stack.py
+
 Tests for complete workflows across database, models, and business logic:
 
 - **Camera operations** - Create, query, and manage cameras
@@ -34,6 +37,7 @@ Tests for complete workflows across database, models, and business logic:
 - **Data isolation** - Ensure multi-camera operations don't interfere
 
 **Coverage:**
+
 - 14 test cases covering full stack database operations
 - Tests realistic multi-step workflows
 - Validates SQLAlchemy relationships and cascade behavior
@@ -42,22 +46,26 @@ Tests for complete workflows across database, models, and business logic:
 ## Running Tests
 
 ### Run all integration tests:
+
 ```bash
 pytest backend/tests/integration/ -v
 ```
 
 ### Run specific test file:
+
 ```bash
 pytest backend/tests/integration/test_api.py -v
 pytest backend/tests/integration/test_full_stack.py -v
 ```
 
 ### Run with coverage:
+
 ```bash
 pytest backend/tests/integration/ -v --cov=backend --cov-report=html
 ```
 
 ### Run specific test:
+
 ```bash
 pytest backend/tests/integration/test_api.py::test_root_endpoint -v
 ```
@@ -67,17 +75,20 @@ pytest backend/tests/integration/test_api.py::test_root_endpoint -v
 ### Fixtures
 
 **test_api.py fixtures:**
+
 - `test_db_setup` - Temporary SQLite database for API tests
 - `mock_redis` - Mocked Redis client to avoid external dependencies
 - `client` - AsyncClient with ASGITransport for testing FastAPI app
 
 **test_full_stack.py fixtures:**
+
 - `test_db` - Full database setup with all models and tables created
 - Automatically cleans up after each test
 
 ### Mocking Strategy
 
 Integration tests mock external services while testing real interactions:
+
 - **Redis**: Mocked to avoid requiring Redis server during tests
 - **Database**: Real SQLite in-memory database for authentic testing
 - **FastAPI app**: Real application tested via ASGITransport (no server needed)
@@ -85,6 +96,7 @@ Integration tests mock external services while testing real interactions:
 ## Test Dependencies
 
 Required packages (from `backend/requirements.txt`):
+
 - `pytest>=7.4.0` - Test framework
 - `pytest-asyncio>=0.21.0` - Async test support
 - `pytest-cov>=4.1.0` - Coverage reporting
@@ -93,21 +105,27 @@ Required packages (from `backend/requirements.txt`):
 ## Architecture Notes
 
 ### Why ASGITransport?
+
 Tests use `httpx.AsyncClient` with `ASGITransport` instead of running a real server:
+
 - Faster test execution (no server startup overhead)
 - No port conflicts or cleanup issues
 - Direct access to application without network layer
 - Same behavior as production without complexity
 
 ### Database Isolation
+
 Each test gets a fresh temporary database:
+
 - Created in `tempfile.TemporaryDirectory()`
 - Automatically cleaned up after test completes
 - No cross-test pollution
 - Fast in-memory operations
 
 ### Async Pattern
+
 All tests use `pytest.mark.asyncio` decorator:
+
 - Configured in `pytest.ini` with `asyncio_mode = auto`
 - Properly handles async context managers
 - Ensures database sessions are cleanly closed
@@ -115,6 +133,7 @@ All tests use `pytest.mark.asyncio` decorator:
 ## Coverage Summary
 
 **API Integration Tests (test_api.py):**
+
 - ✓ HTTP endpoints and routing
 - ✓ CORS middleware configuration
 - ✓ Application lifecycle (startup/shutdown)
@@ -123,6 +142,7 @@ All tests use `pytest.mark.asyncio` decorator:
 - ✓ Concurrent request handling
 
 **Full Stack Integration Tests (test_full_stack.py):**
+
 - ✓ CRUD operations for all models
 - ✓ Foreign key relationships
 - ✓ Cascade delete behavior
@@ -134,6 +154,7 @@ All tests use `pytest.mark.asyncio` decorator:
 ## Future Enhancements
 
 Potential additions for comprehensive coverage:
+
 - WebSocket endpoint tests (when implemented)
 - Real Redis integration tests (optional, separate from mocked tests)
 - Performance and load testing

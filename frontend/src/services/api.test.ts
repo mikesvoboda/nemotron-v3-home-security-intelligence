@@ -47,9 +47,9 @@ const mockCameras: Camera[] = [
 const mockHealth: HealthResponse = {
   status: 'healthy',
   services: {
-    database: { status: 'healthy' },
-    redis: { status: 'healthy' },
-    ai_detector: { status: 'healthy' },
+    database: 'healthy',
+    redis: 'healthy',
+    ai_detector: 'healthy',
   },
   timestamp: '2025-01-01T00:00:00Z',
 };
@@ -369,8 +369,8 @@ describe('System API', () => {
         ...mockHealth,
         status: 'degraded',
         services: {
-          database: { status: 'healthy' },
-          redis: { status: 'unhealthy', message: 'Connection timeout' },
+          database: 'healthy',
+          redis: 'unhealthy',
         },
       };
 
@@ -379,7 +379,7 @@ describe('System API', () => {
       const result = await fetchHealth();
 
       expect(result.status).toBe('degraded');
-      expect(result.services.redis.status).toBe('unhealthy');
+      expect(result.services.redis).toBe('unhealthy');
     });
   });
 

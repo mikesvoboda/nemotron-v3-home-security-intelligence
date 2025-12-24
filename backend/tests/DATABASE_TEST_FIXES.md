@@ -14,6 +14,7 @@ The database tests were failing with `sqlalchemy.exc.OperationalError: unable to
 ### 1. Enhanced conftest.py (/home/msvoboda/github/nemotron-v3-home-security-intelligence/backend/tests/conftest.py)
 
 #### Added `isolated_db` Fixture
+
 - Creates a temporary database file for each test
 - Sets `DATABASE_URL` environment variable to temp database
 - Clears settings cache before and after setting env var
@@ -21,6 +22,7 @@ The database tests were failing with `sqlalchemy.exc.OperationalError: unable to
 - Properly cleans up and restores original state after test
 
 **Key improvements:**
+
 ```python
 @pytest.fixture(scope="function")
 async def isolated_db():
@@ -53,6 +55,7 @@ async def isolated_db():
 ```
 
 #### Added `reset_settings_cache` Fixture (autouse)
+
 - Automatically clears settings cache before and after each test
 - Prevents cached settings from leaking between tests
 - Non-async to avoid interfering with tests that check uninitialized state
@@ -60,7 +63,9 @@ async def isolated_db():
 ### 2. Updated test_database.py (/home/msvoboda/github/nemotron-v3-home-security-intelligence/backend/tests/unit/test_database.py)
 
 #### Simplified `test_db` Fixture
+
 Changed from:
+
 ```python
 @pytest.fixture
 async def test_db():
@@ -70,6 +75,7 @@ async def test_db():
 ```
 
 To:
+
 ```python
 @pytest.fixture
 async def test_db(isolated_db):
@@ -80,12 +86,15 @@ async def test_db(isolated_db):
 ```
 
 #### Updated Standalone Tests
+
 For tests that don't use `test_db` fixture (test_init_db, test_close_db):
+
 - Added `get_settings.cache_clear()` calls
 - Added `await close_db()` before initialization
 - Properly restore environment and clear cache in finally blocks
 
 Example:
+
 ```python
 @pytest.mark.asyncio
 async def test_init_db():
@@ -137,11 +146,13 @@ All 9 tests now have proper isolation:
 ## Running the Tests
 
 From the project root:
+
 ```bash
 python3 -m pytest backend/tests/unit/test_database.py -v
 ```
 
 Or use the provided script:
+
 ```bash
 ./backend/tests/run_db_tests.sh
 ```
@@ -149,6 +160,7 @@ Or use the provided script:
 ## Files Modified
 
 1. `/home/msvoboda/github/nemotron-v3-home-security-intelligence/backend/tests/conftest.py`
+
    - Added `isolated_db` fixture for database isolation
    - Added `reset_settings_cache` autouse fixture
    - Added path setup for imports
@@ -167,6 +179,7 @@ Or use the provided script:
 ## Expected Results
 
 All tests should now pass with proper isolation. Each test:
+
 - Runs in its own temporary database
 - Has no side effects on other tests
 - Properly cleans up resources

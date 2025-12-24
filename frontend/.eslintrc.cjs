@@ -32,14 +32,7 @@ module.exports = {
     project: ['./tsconfig.json'],
     tsconfigRootDir: __dirname,
   },
-  plugins: [
-    'react-refresh',
-    '@typescript-eslint',
-    'react',
-    'react-hooks',
-    'jsx-a11y',
-    'import',
-  ],
+  plugins: ['react-refresh', '@typescript-eslint', 'react', 'react-hooks', 'jsx-a11y', 'import'],
   settings: {
     react: {
       version: 'detect',
@@ -53,10 +46,7 @@ module.exports = {
   },
   rules: {
     // React Refresh
-    'react-refresh/only-export-components': [
-      'warn',
-      { allowConstantExport: true },
-    ],
+    'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
 
     // TypeScript
     '@typescript-eslint/no-unused-vars': [
@@ -90,14 +80,7 @@ module.exports = {
     'import/order': [
       'error',
       {
-        groups: [
-          'builtin',
-          'external',
-          'internal',
-          ['parent', 'sibling'],
-          'index',
-          'type',
-        ],
+        groups: ['builtin', 'external', 'internal', ['parent', 'sibling'], 'index', 'type'],
         'newlines-between': 'always',
         alphabetize: {
           order: 'asc',
@@ -114,7 +97,7 @@ module.exports = {
     'no-debugger': 'error',
     'prefer-const': 'error',
     'no-var': 'error',
-    'eqeqeq': ['error', 'always'],
+    eqeqeq: ['error', 'always'],
   },
   overrides: [
     {

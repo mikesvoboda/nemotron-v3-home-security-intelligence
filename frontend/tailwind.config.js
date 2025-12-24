@@ -1,9 +1,9 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-    "./node_modules/@tremor/**/*.{js,ts,jsx,tsx}",
+    './index.html',
+    './src/**/*.{js,ts,jsx,tsx}',
+    './node_modules/@tremor/**/*.{js,ts,jsx,tsx}',
   ],
   theme: {
     extend: {
@@ -61,27 +61,35 @@ export default {
 
       // Custom Spacing for Dashboard Layout
       spacing: {
-        '18': '4.5rem',
-        '88': '22rem',
-        '128': '32rem',
+        18: '4.5rem',
+        88: '22rem',
+        128: '32rem',
       },
 
       // Font Families
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        sans: [
+          'Inter',
+          'system-ui',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          'Segoe UI',
+          'Roboto',
+          'sans-serif',
+        ],
         mono: ['JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', 'monospace'],
       },
 
       // Custom Border Radius
       borderRadius: {
-        'xl': '1rem',
+        xl: '1rem',
         '2xl': '1.5rem',
       },
 
       // Box Shadows for Dark Theme
       boxShadow: {
         'dark-sm': '0 1px 2px 0 rgba(0, 0, 0, 0.5)',
-        'dark': '0 1px 3px 0 rgba(0, 0, 0, 0.6), 0 1px 2px -1px rgba(0, 0, 0, 0.5)',
+        dark: '0 1px 3px 0 rgba(0, 0, 0, 0.6), 0 1px 2px -1px rgba(0, 0, 0, 0.5)',
         'dark-md': '0 4px 6px -1px rgba(0, 0, 0, 0.6), 0 2px 4px -2px rgba(0, 0, 0, 0.5)',
         'dark-lg': '0 10px 15px -3px rgba(0, 0, 0, 0.6), 0 4px 6px -4px rgba(0, 0, 0, 0.5)',
         'dark-xl': '0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
@@ -90,13 +98,13 @@ export default {
 
       // Animation Durations
       transitionDuration: {
-        '250': '250ms',
-        '400': '400ms',
+        250: '250ms',
+        400: '400ms',
       },
 
       // Grid Template Columns for Dashboard
       gridTemplateColumns: {
-        'dashboard': 'repeat(auto-fit, minmax(300px, 1fr))',
+        dashboard: 'repeat(auto-fit, minmax(300px, 1fr))',
         'camera-grid': 'repeat(auto-fit, minmax(280px, 1fr))',
       },
 
@@ -124,4 +132,4 @@ export default {
     },
   },
   plugins: [],
-}
+};

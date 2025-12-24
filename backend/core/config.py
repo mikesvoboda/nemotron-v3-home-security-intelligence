@@ -84,6 +84,32 @@ class Settings(BaseSettings):
         le=1.0,
     )
 
+    # Fast path settings
+    fast_path_confidence_threshold: float = Field(
+        default=0.90,
+        description="Confidence threshold for fast path high-priority analysis (0.0-1.0)",
+        ge=0.0,
+        le=1.0,
+    )
+    fast_path_object_types: list[str] = Field(
+        default=["person"],
+        description="Object types that trigger fast path analysis when confidence threshold is met",
+    )
+
+    # GPU monitoring settings
+    gpu_poll_interval_seconds: float = Field(
+        default=5.0,
+        description="GPU stats polling interval in seconds",
+        ge=1.0,
+        le=60.0,
+    )
+    gpu_stats_history_minutes: int = Field(
+        default=60,
+        description="Number of minutes of GPU stats history to retain in memory",
+        ge=1,
+        le=1440,
+    )
+
     @field_validator("database_url")
     @classmethod
     def validate_database_url(cls, v: str) -> str:

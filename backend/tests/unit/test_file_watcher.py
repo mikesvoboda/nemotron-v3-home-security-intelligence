@@ -303,9 +303,10 @@ async def test_stop_watcher(file_watcher):
         await file_watcher.start()
 
     # Then stop it
-    with patch.object(file_watcher.observer, "stop") as mock_stop, patch.object(
-        file_watcher.observer, "join"
-    ) as mock_join:
+    with (
+        patch.object(file_watcher.observer, "stop") as mock_stop,
+        patch.object(file_watcher.observer, "join") as mock_join,
+    ):
         await file_watcher.stop()
 
         assert file_watcher.running is False

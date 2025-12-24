@@ -39,7 +39,7 @@ class DetectorClient:
     including health checks, image submission, and response parsing.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize detector client with configuration."""
         settings = get_settings()
         self._detector_url = settings.rtdetr_url
@@ -67,7 +67,7 @@ class DetectorClient:
             logger.error(f"Unexpected error during detector health check: {e}", exc_info=True)
             return False
 
-    async def detect_objects(  # noqa: PLR0911, PLR0912
+    async def detect_objects(  # noqa: PLR0911
         self,
         image_path: str,
         camera_id: str,

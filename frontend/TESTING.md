@@ -22,6 +22,7 @@ npm install
 ```
 
 This will install all testing dependencies listed in `package.json`:
+
 - `@testing-library/react`
 - `@testing-library/jest-dom`
 - `@testing-library/user-event`
@@ -49,11 +50,13 @@ npm test -- Layout.test.tsx
 ### Component Tests
 
 1. **`src/App.test.tsx`**
+
    - Tests root App component
    - Verifies Layout and DashboardPage integration
    - Checks component hierarchy
 
 2. **`src/components/layout/Layout.test.tsx`**
+
    - Tests Layout wrapper component
    - Verifies Header and Sidebar rendering
    - Tests children content rendering
@@ -61,6 +64,7 @@ npm test -- Layout.test.tsx
    - Validates activeNav state management
 
 3. **`src/components/layout/Header.test.tsx`**
+
    - Tests Header component
    - Verifies NVIDIA branding elements
    - Tests system status indicator
@@ -68,6 +72,7 @@ npm test -- Layout.test.tsx
    - Checks styling and accessibility
 
 4. **`src/components/layout/Sidebar.test.tsx`**
+
    - Tests Sidebar navigation component
    - Verifies all navigation items render
    - Tests active state highlighting
@@ -85,6 +90,7 @@ npm test -- Layout.test.tsx
 ### Coverage Areas
 
 Each test file covers:
+
 - **Rendering**: Component renders without crashing
 - **Content**: Expected text and elements are displayed
 - **Interactions**: User clicks and navigation work correctly
@@ -93,6 +99,7 @@ Each test file covers:
 - **Accessibility**: Proper semantic HTML and ARIA attributes
 
 ### Layout Component (8 tests)
+
 - Renders without crashing
 - Renders Header component
 - Renders Sidebar component
@@ -103,6 +110,7 @@ Each test file covers:
 - Renders multiple children correctly
 
 ### Header Component (14 tests)
+
 - Renders without crashing
 - Displays NVIDIA SECURITY title
 - Displays POWERED BY NEMOTRON subtitle
@@ -119,6 +127,7 @@ Each test file covers:
 - Accessibility attributes
 
 ### Sidebar Component (16 tests)
+
 - Renders without crashing
 - Renders all navigation items
 - Highlights active navigation item
@@ -136,6 +145,7 @@ Each test file covers:
 - Inactive items have hover classes
 
 ### DashboardPage Component (7 tests)
+
 - Renders without crashing
 - Displays Dashboard heading
 - Heading has correct styling
@@ -145,6 +155,7 @@ Each test file covers:
 - Text content validation
 
 ### App Component (5 tests)
+
 - Renders without crashing
 - Renders Layout component
 - Renders DashboardPage inside Layout

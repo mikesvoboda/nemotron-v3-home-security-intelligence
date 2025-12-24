@@ -360,11 +360,13 @@ redis-cli CONFIG SET maxmemory-policy allkeys-lru
 ## Security
 
 1. **Use Redis password** in production:
+
    ```bash
    REDIS_URL=redis://:password@localhost:6379/0
    ```
 
 2. **Bind to localhost** if not needed externally:
+
    ```bash
    redis-server --bind 127.0.0.1
    ```

@@ -9,15 +9,15 @@ AI-powered home security monitoring dashboard that processes camera uploads thro
 
 ## Technology Stack
 
-| Component | Technology |
-|-----------|------------|
-| Frontend | React + TypeScript + Tailwind CSS + Headless UI + Tremor |
-| Backend | Python FastAPI |
-| Database | SQLite (persistence) + Redis (queues, pub/sub) |
-| Real-time | WebSockets |
-| Detection AI | RT-DETRv2 (~4GB VRAM) |
-| Reasoning AI | Nemotron via llama.cpp (~18GB VRAM, Q4_K_M) |
-| Deployment | Docker (services) + Native (AI models) |
+| Component    | Technology                                               |
+| ------------ | -------------------------------------------------------- |
+| Frontend     | React + TypeScript + Tailwind CSS + Headless UI + Tremor |
+| Backend      | Python FastAPI                                           |
+| Database     | SQLite (persistence) + Redis (queues, pub/sub)           |
+| Real-time    | WebSockets                                               |
+| Detection AI | RT-DETRv2 (~4GB VRAM)                                    |
+| Reasoning AI | Nemotron via llama.cpp (~18GB VRAM, Q4_K_M)              |
+| Deployment   | Docker (services) + Native (AI models)                   |
 
 ## System Architecture
 
@@ -340,7 +340,7 @@ home_security_intelligence/
 ## Docker Compose
 
 ```yaml
-version: '3.8'
+version: "3.8"
 
 services:
   backend:
@@ -413,15 +413,15 @@ GPU_POLL_INTERVAL_SECONDS=2
 
 ## Key Specifications
 
-| Spec | Value |
-|------|-------|
-| Cameras | 5-8 Foscam cameras |
-| Camera Path | `/export/foscam/{camera_name}/` |
-| Batch Window | 1-2 minutes |
-| Data Retention | 30 days |
-| Authentication | None (local single-user) |
-| Notifications | Dashboard only (MVP) |
-| GPU | RTX A5500 24GB (~22GB used) |
+| Spec           | Value                           |
+| -------------- | ------------------------------- |
+| Cameras        | 5-8 Foscam cameras              |
+| Camera Path    | `/export/foscam/{camera_name}/` |
+| Batch Window   | 1-2 minutes                     |
+| Data Retention | 30 days                         |
+| Authentication | None (local single-user)        |
+| Notifications  | Dashboard only (MVP)            |
+| GPU            | RTX A5500 24GB (~22GB used)     |
 
 ## UI Mockups & Design Decisions
 
@@ -436,6 +436,7 @@ GPU_POLL_INTERVAL_SECONDS=2
 #### 1. Main Dashboard
 
 **Layout:**
+
 ```
 ┌────────┬──────────────────────────────────────────────────────┐
 │        │ [Stats Row: Cameras | Latency | Risk Gauge | GPU]    │
@@ -450,6 +451,7 @@ GPU_POLL_INTERVAL_SECONDS=2
 ```
 
 **Key Components:**
+
 - Prominent circular Risk Gauge (0-100) with color coding and 24h sparkline
 - Live Activity Feed as primary panel with AI-generated summaries
 - Multi-camera grid with status indicators
@@ -457,6 +459,7 @@ GPU_POLL_INTERVAL_SECONDS=2
 - "LIVE MONITORING" status indicator
 
 **Decisions:**
+
 - No entity recognition panel (v2 feature)
 - Risk gauge replaces simple "Threat Level" display
 - Camera grid shows thumbnails without bounding box overlays (detail in modal)
@@ -464,6 +467,7 @@ GPU_POLL_INTERVAL_SECONDS=2
 #### 2. Event Timeline (Approved)
 
 **Features:**
+
 - Filter bar: Camera, Time Range, Risk Level, Object Type, Search
 - "Mark all as reviewed" bulk action
 - Event count with risk summary badges (e.g., "3 HIGH RISK | 12 MEDIUM")
@@ -481,6 +485,7 @@ GPU_POLL_INTERVAL_SECONDS=2
 #### 3. Event Detail Modal (Approved)
 
 **Layout:**
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │ Event Analysis                                        [✕]      │
@@ -504,6 +509,7 @@ GPU_POLL_INTERVAL_SECONDS=2
 ```
 
 **Key Features:**
+
 - Main image with labeled bounding boxes and confidence percentages
 - Multi-object detection support (e.g., person + held object)
 - AI Reasoning section prominently displayed
@@ -514,12 +520,15 @@ GPU_POLL_INTERVAL_SECONDS=2
 #### 4. Settings Page (Approved)
 
 **Tab Structure:**
+
 1. **CAMERAS** - Table of configured cameras with:
+
    - Camera name, folder path (FTP), status, last seen
    - Edit/Delete actions
    - "+ Add Camera" button
 
 2. **PROCESSING** - Sliders for:
+
    - Batch Window (default: 90 seconds)
    - Confidence Threshold (default: 0.50)
    - Idle Timeout (default: 30 seconds)
