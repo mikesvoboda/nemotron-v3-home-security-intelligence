@@ -9,18 +9,7 @@ vi.mock('./Header', () => ({
 }));
 
 vi.mock('./Sidebar', () => ({
-  default: ({
-    activeNav,
-    onNavChange,
-  }: {
-    activeNav: string;
-    onNavChange: (nav: string) => void;
-  }) => (
-    <div data-testid="mock-sidebar">
-      Sidebar - Active: {activeNav}
-      <button onClick={() => onNavChange('test')}>Change Nav</button>
-    </div>
-  ),
+  default: () => <div data-testid="mock-sidebar">Sidebar</div>,
 }));
 
 describe('Layout', () => {
@@ -60,16 +49,6 @@ describe('Layout', () => {
     );
     expect(screen.getByTestId('test-child')).toBeInTheDocument();
     expect(screen.getByText('Test Child Content')).toBeInTheDocument();
-  });
-
-  it('passes activeNav state to Sidebar', () => {
-    render(
-      <Layout>
-        <div>Test Content</div>
-      </Layout>
-    );
-    // Initial activeNav should be 'dashboard'
-    expect(screen.getByText(/Active: dashboard/i)).toBeInTheDocument();
   });
 
   it('has correct layout structure with flex classes', () => {

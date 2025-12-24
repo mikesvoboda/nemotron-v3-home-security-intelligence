@@ -1,10 +1,20 @@
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+
 import DashboardPage from './components/dashboard/DashboardPage';
+import EventTimeline from './components/events/EventTimeline';
 import Layout from './components/layout/Layout';
+import SettingsPage from './components/settings/SettingsPage';
 
 export default function App() {
   return (
-    <Layout>
-      <DashboardPage />
-    </Layout>
+    <BrowserRouter>
+      <Layout>
+        <Routes>
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/timeline" element={<EventTimeline />} />
+          <Route path="/settings" element={<SettingsPage />} />
+        </Routes>
+      </Layout>
+    </BrowserRouter>
   );
 }
