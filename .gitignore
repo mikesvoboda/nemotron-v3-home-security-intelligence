@@ -50,3 +50,6 @@ Thumbs.db
 .beads/*.db
 .beads/beads.db
 coverage.json
+
+# Worktrees
+.worktrees/
