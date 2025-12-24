@@ -6,7 +6,8 @@ This directory contains the Nemotron Mini 4B Instruct language model used for AI
 
 ## Directory Contents
 
-Currently contains only `.gitkeep` - the actual model file is downloaded via `ai/download_models.sh`.
+- `nemotron-mini-4b-instruct-q4_k_m.gguf` (downloaded or copied from a local model store)
+- `config.json` (llama.cpp server runtime config reference)
 
 ### Model File (Downloaded)
 
@@ -51,7 +52,7 @@ cd /home/msvoboda/github/nemotron-v3-home-security-intelligence
 ./ai/start_llm.sh
 ```
 
-This starts `llama-server` with configuration:
+This starts `llama-server` with configuration (also mirrored in `ai/nemotron/config.json`):
 
 - **Port**: 8002
 - **Model**: `ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf`

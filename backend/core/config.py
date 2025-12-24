@@ -1,5 +1,6 @@
 """Application configuration using Pydantic Settings."""
 
+import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -11,7 +12,13 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        # Load defaults from repo .env, then apply runtime overrides (if present).
+        # `HSI_RUNTIME_ENV_PATH` is intended for container + test harnesses to inject a writable
+        # override file without mutating the repo working tree.
+        env_file=(
+            ".env",
+            os.getenv("HSI_RUNTIME_ENV_PATH", "./data/runtime.env"),
+        ),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",

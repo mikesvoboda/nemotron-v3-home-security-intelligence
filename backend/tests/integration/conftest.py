@@ -34,13 +34,16 @@ def integration_env() -> Generator[str, None, None]:
 
     original_db_url = os.environ.get("DATABASE_URL")
     original_redis_url = os.environ.get("REDIS_URL")
+    original_runtime_env_path = os.environ.get("HSI_RUNTIME_ENV_PATH")
 
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = Path(tmpdir) / "integration_test.db"
         test_db_url = f"sqlite+aiosqlite:///{db_path}"
+        runtime_env_path = str(Path(tmpdir) / "runtime.env")
 
         os.environ["DATABASE_URL"] = test_db_url
         os.environ["REDIS_URL"] = "redis://localhost:6379/15"
+        os.environ["HSI_RUNTIME_ENV_PATH"] = runtime_env_path
 
         get_settings.cache_clear()
 
@@ -57,6 +60,11 @@ def integration_env() -> Generator[str, None, None]:
                 os.environ["REDIS_URL"] = original_redis_url
             else:
                 os.environ.pop("REDIS_URL", None)
+
+            if original_runtime_env_path is not None:
+                os.environ["HSI_RUNTIME_ENV_PATH"] = original_runtime_env_path
+            else:
+                os.environ.pop("HSI_RUNTIME_ENV_PATH", None)
 
             get_settings.cache_clear()
 

@@ -107,6 +107,32 @@ class GPUStatsResponse(BaseModel):
     )
 
 
+class GPUStatsSample(BaseModel):
+    """Single time-series sample of GPU statistics."""
+
+    recorded_at: datetime = Field(..., description="When the GPU sample was recorded (UTC)")
+    utilization: float | None = Field(
+        None,
+        description="GPU utilization percentage (0-100)",
+        ge=0,
+        le=100,
+    )
+    memory_used: int | None = Field(None, description="GPU memory used in MB", ge=0)
+    memory_total: int | None = Field(None, description="Total GPU memory in MB", ge=0)
+    temperature: float | None = Field(None, description="GPU temperature in Celsius")
+    inference_fps: float | None = Field(None, description="Inference frames per second", ge=0)
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class GPUStatsHistoryResponse(BaseModel):
+    """Response schema for GPU stats history endpoint."""
+
+    samples: list[GPUStatsSample] = Field(..., description="GPU stats samples (chronological order)")
+    count: int = Field(..., description="Number of samples returned", ge=0)
+    limit: int = Field(..., description="Applied limit", ge=1)
+
+
 class ConfigResponse(BaseModel):
     """Response schema for configuration endpoint.
 
@@ -136,6 +162,12 @@ class ConfigResponse(BaseModel):
         description="Idle timeout before processing incomplete batch",
         ge=1,
     )
+    detection_confidence_threshold: float = Field(
+        ...,
+        description="Minimum confidence threshold for detections (0.0-1.0)",
+        ge=0.0,
+        le=1.0,
+    )
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -145,8 +177,38 @@ class ConfigResponse(BaseModel):
                 "retention_days": 30,
                 "batch_window_seconds": 90,
                 "batch_idle_timeout_seconds": 30,
+                "detection_confidence_threshold": 0.5,
             }
         }
+    )
+
+
+class ConfigUpdateRequest(BaseModel):
+    """Request schema for PATCH /api/system/config.
+
+    Only supports a subset of processing-related settings.
+    """
+
+    retention_days: int | None = Field(
+        None,
+        description="Number of days to retain events and detections",
+        ge=1,
+    )
+    batch_window_seconds: int | None = Field(
+        None,
+        description="Time window for batch processing detections",
+        ge=1,
+    )
+    batch_idle_timeout_seconds: int | None = Field(
+        None,
+        description="Idle timeout before processing incomplete batch",
+        ge=1,
+    )
+    detection_confidence_threshold: float | None = Field(
+        None,
+        description="Minimum confidence threshold for detections (0.0-1.0)",
+        ge=0.0,
+        le=1.0,
     )
 
 

@@ -10,6 +10,7 @@ Expected VRAM: ~4GB
 import base64
 import io
 import logging
+import os
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -472,9 +473,11 @@ async def lifespan(_app: FastAPI):
     logger.info("Starting RT-DETRv2 Detection Server...")
 
     # Load model configuration from environment or defaults
-    model_path = Path(__file__).parent / "rtdetrv2_r50vd.onnx"
-    confidence_threshold = 0.5
-    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    model_path = Path(
+        os.getenv("MODEL_PATH", str(Path(__file__).parent / "rtdetrv2_r50vd.onnx"))
+    ).expanduser()
+    confidence_threshold = float(os.getenv("CONFIDENCE_THRESHOLD", "0.5"))
+    device = os.getenv("DEVICE", "cuda:0" if torch.cuda.is_available() else "cpu")
 
     try:
         model = RTDETRv2Model(
@@ -630,4 +633,6 @@ async def detect_objects_batch(files: list[UploadFile] = File(...)) -> JSONRespo
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8001, log_level="info")  # noqa: S104
+    host = os.getenv("HOST", "0.0.0.0")  # noqa: S104
+    port = int(os.getenv("PORT", "8001"))
+    uvicorn.run(app, host=host, port=port, log_level="info")

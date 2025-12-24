@@ -11,7 +11,8 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NEMOTRON_DIR="$SCRIPT_DIR/nemotron"
-MODEL_FILE="$NEMOTRON_DIR/nemotron-mini-4b-instruct-q4_k_m.gguf"
+MODEL_FILE_DEFAULT="$NEMOTRON_DIR/nemotron-mini-4b-instruct-q4_k_m.gguf"
+MODEL_FILE="${NEMOTRON_MODEL_PATH:-$MODEL_FILE_DEFAULT}"
 MODEL_PORT=8002
 
 # Check if model exists

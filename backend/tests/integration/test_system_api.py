@@ -1,9 +1,11 @@
 """Integration tests for system API endpoints."""
 
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
+
+from backend.models.gpu_stats import GPUStats
 @pytest.mark.asyncio
 async def test_health_endpoint_all_services_healthy(client, mock_redis):
     """Test health check endpoint when all services are healthy."""
@@ -128,6 +130,7 @@ async def test_config_endpoint(client, mock_redis):
     assert "retention_days" in data
     assert "batch_window_seconds" in data
     assert "batch_idle_timeout_seconds" in data
+    assert "detection_confidence_threshold" in data
 
     # Verify no sensitive data is exposed
     assert "database_url" not in data
@@ -150,6 +153,45 @@ async def test_config_endpoint_has_expected_values(client, mock_redis):
     assert data["retention_days"] == 30
     assert data["batch_window_seconds"] == 90
     assert data["batch_idle_timeout_seconds"] == 30
+    assert data["detection_confidence_threshold"] == 0.5
+
+
+@pytest.mark.asyncio
+async def test_patch_config_updates_values(client, mock_redis):
+    """PATCH /api/system/config updates runtime config and affects subsequent reads."""
+    payload = {
+        "retention_days": 7,
+        "batch_window_seconds": 42,
+        "batch_idle_timeout_seconds": 13,
+        "detection_confidence_threshold": 0.75,
+    }
+
+    patch_resp = await client.patch("/api/system/config", json=payload)
+    assert patch_resp.status_code == 200
+    patched = patch_resp.json()
+    assert patched["retention_days"] == 7
+    assert patched["batch_window_seconds"] == 42
+    assert patched["batch_idle_timeout_seconds"] == 13
+    assert patched["detection_confidence_threshold"] == 0.75
+
+    get_resp = await client.get("/api/system/config")
+    assert get_resp.status_code == 200
+    data = get_resp.json()
+    assert data["retention_days"] == 7
+    assert data["batch_window_seconds"] == 42
+    assert data["batch_idle_timeout_seconds"] == 13
+    assert data["detection_confidence_threshold"] == 0.75
+
+
+@pytest.mark.asyncio
+async def test_gpu_history_empty(client, mock_redis):
+    """GET /api/system/gpu/history returns empty list when no samples exist."""
+    resp = await client.get("/api/system/gpu/history")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["samples"] == []
+    assert data["count"] == 0
+    assert data["limit"] >= 1
 
 
 @pytest.mark.asyncio
@@ -266,3 +308,49 @@ async def test_gpu_stats_endpoint_handles_no_gpu(client, mock_redis):
         assert data["memory_total"] is None
         assert data["temperature"] is None
         assert data["inference_fps"] is None
+
+
+@pytest.mark.asyncio
+async def test_gpu_history_with_data_and_since_filter(client, db_session, mock_redis):
+    """GET /api/system/gpu/history returns samples in chronological order and supports since."""
+    now = datetime.now(UTC)
+    older = now - timedelta(minutes=2)
+    newer = now - timedelta(minutes=1)
+
+    db_session.add_all(
+        [
+            GPUStats(
+                recorded_at=older,
+                gpu_utilization=10.0,
+                memory_used=100,
+                memory_total=1000,
+                temperature=40.0,
+                inference_fps=0.0,
+            ),
+            GPUStats(
+                recorded_at=newer,
+                gpu_utilization=20.0,
+                memory_used=200,
+                memory_total=1000,
+                temperature=41.0,
+                inference_fps=1.0,
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    resp = await client.get("/api/system/gpu/history?limit=10")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["count"] == 2
+    assert data["samples"][0]["utilization"] == 10.0
+    assert data["samples"][1]["utilization"] == 20.0
+
+    # since filter should exclude the older sample
+    # Use 'Z' to avoid '+' being interpreted as a space in query strings.
+    since = (now - timedelta(minutes=1, seconds=30)).isoformat().replace("+00:00", "Z")
+    resp2 = await client.get(f"/api/system/gpu/history?since={since}&limit=10")
+    assert resp2.status_code == 200
+    data2 = resp2.json()
+    assert data2["count"] == 1
+    assert data2["samples"][0]["utilization"] == 20.0
