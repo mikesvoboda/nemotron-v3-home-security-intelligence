@@ -1,103 +1,11 @@
 """Integration tests for cameras API endpoints."""
 
-import os
-import tempfile
 import uuid
 from datetime import datetime
-from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
-from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
-
-
-@pytest.fixture
-async def test_db_setup():
-    """Set up test database environment."""
-    from backend.core.config import get_settings
-    from backend.core.database import close_db, init_db
-
-    # Close any existing database connections
-    await close_db()
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "test_cameras_api.db"
-        test_db_url = f"sqlite+aiosqlite:///{db_path}"
-
-        # Store original environment
-        original_db_url = os.environ.get("DATABASE_URL")
-        original_redis_url = os.environ.get("REDIS_URL")
-
-        # Set test environment
-        os.environ["DATABASE_URL"] = test_db_url
-        os.environ["REDIS_URL"] = "redis://localhost:6379/15"  # Test DB
-
-        # Clear settings cache to pick up new environment variables
-        get_settings.cache_clear()
-
-        # Initialize database explicitly
-        await init_db()
-
-        yield test_db_url
-
-        # Cleanup
-        await close_db()
-
-        # Restore original environment
-        if original_db_url:
-            os.environ["DATABASE_URL"] = original_db_url
-        else:
-            os.environ.pop("DATABASE_URL", None)
-
-        if original_redis_url:
-            os.environ["REDIS_URL"] = original_redis_url
-        else:
-            os.environ.pop("REDIS_URL", None)
-
-        # Clear settings cache again
-        get_settings.cache_clear()
-
-
-@pytest.fixture
-async def mock_redis():
-    """Mock Redis operations to avoid requiring Redis server."""
-    mock_redis_client = AsyncMock()
-    mock_redis_client.health_check.return_value = {
-        "status": "healthy",
-        "connected": True,
-        "redis_version": "7.0.0",
-    }
-
-    with (
-        patch("backend.core.redis._redis_client", mock_redis_client),
-        patch("backend.core.redis.init_redis", return_value=mock_redis_client),
-    ):
-        yield mock_redis_client
-
-
-@pytest.fixture
-async def client(test_db_setup, mock_redis):
-    """Create async HTTP client for testing FastAPI app."""
-    # Import app here to ensure environment is set up first
-    from backend.main import app
-
-    # Patch init_db and close_db in lifespan to avoid double initialization
-    with (
-        patch("backend.main.init_db", return_value=None),
-        patch("backend.main.close_db", return_value=None),
-    ):
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-            yield ac
-
-
-async def get_test_db_session():
-    """Get database session for direct database operations in tests."""
-    from backend.core.database import get_session
-
-    async with get_session() as session:
-        return session
-
 
 # === CREATE Tests ===
 
@@ -465,49 +373,49 @@ async def test_delete_camera_cascades_to_related_data(client):
     camera_id = create_response.json()["id"]
 
     # Add related data directly to database
-    db_session = await get_test_db_session()
+    from backend.core.database import get_session
 
-    detection = Detection(
-        camera_id=camera_id,
-        file_path="/export/foscam/test/image1.jpg",
-        object_type="person",
-        confidence=0.95,
-    )
-    event = Event(
-        batch_id=str(uuid.uuid4()),
-        camera_id=camera_id,
-        started_at=datetime.utcnow(),
-        risk_score=75,
-        summary="Test event",
-    )
+    async with get_session() as db_session:
+        detection = Detection(
+            camera_id=camera_id,
+            file_path="/export/foscam/test/image1.jpg",
+            object_type="person",
+            confidence=0.95,
+        )
+        event = Event(
+            batch_id=str(uuid.uuid4()),
+            camera_id=camera_id,
+            started_at=datetime.utcnow(),
+            risk_score=75,
+            summary="Test event",
+        )
 
-    db_session.add(detection)
-    db_session.add(event)
-    await db_session.commit()
+        db_session.add(detection)
+        db_session.add(event)
+        await db_session.commit()
 
-    # Verify data exists
-    detection_result = await db_session.execute(
-        select(Detection).where(Detection.camera_id == camera_id)
-    )
-    event_result = await db_session.execute(select(Event).where(Event.camera_id == camera_id))
-    assert detection_result.scalar_one_or_none() is not None
-    assert event_result.scalar_one_or_none() is not None
-
-    await db_session.close()
+        # Verify data exists
+        detection_result = await db_session.execute(
+            select(Detection).where(Detection.camera_id == camera_id)
+        )
+        event_result = await db_session.execute(select(Event).where(Event.camera_id == camera_id))
+        assert detection_result.scalar_one_or_none() is not None
+        assert event_result.scalar_one_or_none() is not None
 
     # Delete the camera
     response = await client.delete(f"/api/cameras/{camera_id}")
     assert response.status_code == 204
 
     # Verify cascade delete worked
-    db_session = await get_test_db_session()
-    detection_result = await db_session.execute(
-        select(Detection).where(Detection.camera_id == camera_id)
-    )
-    event_result = await db_session.execute(select(Event).where(Event.camera_id == camera_id))
-    assert detection_result.scalar_one_or_none() is None
-    assert event_result.scalar_one_or_none() is None
-    await db_session.close()
+    from backend.core.database import get_session
+
+    async with get_session() as db_session:
+        detection_result = await db_session.execute(
+            select(Detection).where(Detection.camera_id == camera_id)
+        )
+        event_result = await db_session.execute(select(Event).where(Event.camera_id == camera_id))
+        assert detection_result.scalar_one_or_none() is None
+        assert event_result.scalar_one_or_none() is None
 
 
 # === Validation Tests ===
