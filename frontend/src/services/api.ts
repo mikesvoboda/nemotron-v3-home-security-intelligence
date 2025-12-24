@@ -57,6 +57,35 @@ export interface SystemStats {
   uptime_seconds: number;
 }
 
+export interface Event {
+  id: number;
+  camera_id: string;
+  started_at: string;
+  ended_at: string | null;
+  risk_score: number | null;
+  risk_level: string | null;
+  summary: string | null;
+  reviewed: boolean;
+  detection_count: number;
+}
+
+export interface EventListResponse {
+  events: Event[];
+  count: number;
+  limit: number;
+  offset: number;
+}
+
+export interface EventsQueryParams {
+  camera_id?: string;
+  risk_level?: string;
+  start_date?: string;
+  end_date?: string;
+  reviewed?: boolean;
+  limit?: number;
+  offset?: number;
+}
+
 // ============================================================================
 // Error Handling
 // ============================================================================
@@ -143,8 +172,14 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
 // Camera Endpoints
 // ============================================================================
 
+export interface CameraListResponse {
+  cameras: Camera[];
+  count: number;
+}
+
 export async function fetchCameras(): Promise<Camera[]> {
-  return fetchApi<Camera[]>('/api/cameras');
+  const response = await fetchApi<CameraListResponse>('/api/cameras');
+  return response.cameras;
 }
 
 export async function fetchCamera(id: string): Promise<Camera> {
@@ -189,6 +224,40 @@ export async function fetchConfig(): Promise<SystemConfig> {
 
 export async function fetchStats(): Promise<SystemStats> {
   return fetchApi<SystemStats>('/api/system/stats');
+}
+
+// ============================================================================
+// Event Endpoints
+// ============================================================================
+
+export async function fetchEvents(params?: EventsQueryParams): Promise<EventListResponse> {
+  const queryParams = new URLSearchParams();
+
+  if (params) {
+    if (params.camera_id) queryParams.append('camera_id', params.camera_id);
+    if (params.risk_level) queryParams.append('risk_level', params.risk_level);
+    if (params.start_date) queryParams.append('start_date', params.start_date);
+    if (params.end_date) queryParams.append('end_date', params.end_date);
+    if (params.reviewed !== undefined) queryParams.append('reviewed', String(params.reviewed));
+    if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
+    if (params.offset !== undefined) queryParams.append('offset', String(params.offset));
+  }
+
+  const queryString = queryParams.toString();
+  const endpoint = queryString ? `/api/events?${queryString}` : '/api/events';
+
+  return fetchApi<EventListResponse>(endpoint);
+}
+
+export async function fetchEvent(id: number): Promise<Event> {
+  return fetchApi<Event>(`/api/events/${id}`);
+}
+
+export async function updateEvent(id: number, reviewed: boolean): Promise<Event> {
+  return fetchApi<Event>(`/api/events/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ reviewed }),
+  });
 }
 
 // ============================================================================

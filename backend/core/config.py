@@ -73,8 +73,8 @@ class Settings(BaseSettings):
         description="RT-DETRv2 detection service URL",
     )
     nemotron_url: str = Field(
-        default="http://localhost:8002",
-        description="Nemotron reasoning service URL",
+        default="http://localhost:8090",
+        description="Nemotron reasoning service URL (llama.cpp server)",
     )
 
     # Detection settings
@@ -109,6 +109,16 @@ class Settings(BaseSettings):
         description="Number of minutes of GPU stats history to retain in memory",
         ge=1,
         le=1440,
+    )
+
+    # Authentication settings
+    api_key_enabled: bool = Field(
+        default=False,
+        description="Enable API key authentication (default: False for development)",
+    )
+    api_keys: list[str] = Field(
+        default=[],
+        description="List of valid API keys (plain text, hashed on startup)",
     )
 
     @field_validator("database_url")

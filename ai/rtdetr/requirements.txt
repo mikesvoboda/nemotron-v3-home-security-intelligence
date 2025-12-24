@@ -8,7 +8,7 @@ python-multipart>=0.0.6
 # Deep learning frameworks
 torch>=2.0.0
 torchvision>=0.15.0
-onnxruntime-gpu>=1.16.0
+transformers>=4.35.0
 
 # Image processing
 pillow>=10.0.0

@@ -7,6 +7,7 @@ from typing import Any
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.api.middleware import AuthMiddleware
 from backend.api.routes import cameras, detections, events, media, system, websocket
 from backend.core import close_db, get_settings, init_db
 from backend.core.redis import close_redis, init_redis
@@ -75,6 +76,9 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+# Add authentication middleware (if enabled in settings)
+app.add_middleware(AuthMiddleware)
 
 app.add_middleware(
     CORSMiddleware,

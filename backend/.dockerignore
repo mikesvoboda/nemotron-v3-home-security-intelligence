@@ -1,0 +1,66 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing and coverage
+.coverage
+.coverage.*
+htmlcov/
+coverage/
+*.cover
+.hypothesis/
+
+# Database (keep schema, ignore data)
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+data/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD
+.github/
+
+# Environment files
+.env
+.env.*
+
+# Tests
+tests/
+*.test.py
+test_*.py
+
+# Examples
+examples/
