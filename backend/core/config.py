@@ -12,13 +12,7 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
     model_config = SettingsConfigDict(
-        # Load defaults from repo .env, then apply runtime overrides (if present).
-        # `HSI_RUNTIME_ENV_PATH` is intended for container + test harnesses to inject a writable
-        # override file without mutating the repo working tree.
-        env_file=(
-            ".env",
-            os.getenv("HSI_RUNTIME_ENV_PATH", "./data/runtime.env"),
-        ),
+        env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -133,4 +127,7 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     """Get cached settings instance."""
-    return Settings()
+    runtime_env_path = os.getenv("HSI_RUNTIME_ENV_PATH", "./data/runtime.env")
+    # `_env_file` is evaluated at call time (unlike `model_config.env_file`, which is bound at
+    # import time). This lets tests and deployments override runtime config cleanly.
+    return Settings(_env_file=(".env", runtime_env_path))
