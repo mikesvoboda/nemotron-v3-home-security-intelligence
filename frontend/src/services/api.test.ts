@@ -128,7 +128,9 @@ describe('Camera API', () => {
 
   describe('fetchCameras', () => {
     it('fetches all cameras successfully', async () => {
-      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockCameras));
+      vi.mocked(fetch).mockResolvedValueOnce(
+        createMockResponse({ cameras: mockCameras, count: mockCameras.length })
+      );
 
       const result = await fetchCameras();
 
@@ -141,7 +143,7 @@ describe('Camera API', () => {
     });
 
     it('handles empty camera list', async () => {
-      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse([]));
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse({ cameras: [], count: 0 }));
 
       const result = await fetchCameras();
 

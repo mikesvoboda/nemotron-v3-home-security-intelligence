@@ -5,7 +5,7 @@ and queues them for AI processing with debounce logic to prevent duplicate proce
 """
 
 import asyncio
-import logging
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -15,8 +15,9 @@ from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
 
 from backend.core.config import get_settings
+from backend.core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def is_image_file(file_path: str) -> bool:
@@ -224,30 +225,51 @@ class FileWatcher:
         Args:
             file_path: Path to the image file
         """
-        logger.debug(f"Processing file: {file_path}")
+        start_time = time.time()
+
+        # Extract camera ID early for context
+        camera_id = self._get_camera_id_from_path(file_path)
+
+        logger.debug(
+            f"Processing file: {file_path}", extra={"camera_id": camera_id, "file_path": file_path}
+        )
 
         # Validate file type
         if not is_image_file(file_path):
-            logger.debug(f"Skipping non-image file: {file_path}")
+            logger.debug(
+                f"Skipping non-image file: {file_path}",
+                extra={"camera_id": camera_id, "file_path": file_path},
+            )
             return
 
         # Validate image integrity
         if not is_valid_image(file_path):
-            logger.warning(f"Skipping invalid/corrupted image: {file_path}")
+            logger.warning(
+                f"Skipping invalid/corrupted image: {file_path}",
+                extra={"camera_id": camera_id, "file_path": file_path},
+            )
             return
 
-        # Extract camera ID
-        camera_id = self._get_camera_id_from_path(file_path)
         if not camera_id:
-            logger.warning(f"Could not determine camera ID for: {file_path}")
+            logger.warning(
+                f"Could not determine camera ID for: {file_path}", extra={"file_path": file_path}
+            )
             return
 
         # Queue for detection
         try:
             await self._queue_for_detection(camera_id, file_path)
-            logger.info(f"Queued image for detection: {file_path} (camera: {camera_id})")
+            duration_ms = int((time.time() - start_time) * 1000)
+            logger.info(
+                f"Queued image for detection: {file_path} (camera: {camera_id})",
+                extra={"camera_id": camera_id, "file_path": file_path, "duration_ms": duration_ms},
+            )
         except Exception as e:
-            logger.error(f"Failed to queue image {file_path}: {e}")
+            duration_ms = int((time.time() - start_time) * 1000)
+            logger.error(
+                f"Failed to queue image {file_path}: {e}",
+                extra={"camera_id": camera_id, "file_path": file_path, "duration_ms": duration_ms},
+            )
 
     async def _queue_for_detection(self, camera_id: str, file_path: str) -> None:
         """Add image to detection queue in Redis.

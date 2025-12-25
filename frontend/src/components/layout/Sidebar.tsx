@@ -1,4 +1,4 @@
-import { Home, Clock, Users, Bell, Settings } from 'lucide-react';
+import { Home, Clock, Users, Bell, Settings, ScrollText } from 'lucide-react';
 
 interface NavItem {
   id: string;
@@ -13,6 +13,7 @@ const navItems: NavItem[] = [
   { id: 'timeline', label: 'Timeline', icon: Clock, path: '/timeline' },
   { id: 'entities', label: 'Entities', icon: Users, badge: 'WIP', path: '/entities' },
   { id: 'alerts', label: 'Alerts', icon: Bell, path: '/alerts' },
+  { id: 'logs', label: 'Logs', icon: ScrollText, path: '/logs' },
   { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
 ];
 

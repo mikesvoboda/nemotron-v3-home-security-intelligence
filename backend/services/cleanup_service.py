@@ -25,7 +25,7 @@ Cleanup Stats:
 import asyncio
 import contextlib
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +36,7 @@ from backend.core.database import get_session
 from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.models.gpu_stats import GPUStats
+from backend.models.log import Log
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,7 @@ class CleanupStats:
         self.events_deleted: int = 0
         self.detections_deleted: int = 0
         self.gpu_stats_deleted: int = 0
+        self.logs_deleted: int = 0
         self.thumbnails_deleted: int = 0
         self.images_deleted: int = 0
         self.space_reclaimed: int = 0
@@ -62,6 +64,7 @@ class CleanupStats:
             "events_deleted": self.events_deleted,
             "detections_deleted": self.detections_deleted,
             "gpu_stats_deleted": self.gpu_stats_deleted,
+            "logs_deleted": self.logs_deleted,
             "thumbnails_deleted": self.thumbnails_deleted,
             "images_deleted": self.images_deleted,
             "space_reclaimed": self.space_reclaimed,
@@ -73,6 +76,7 @@ class CleanupStats:
             f"<CleanupStats(events={self.events_deleted}, "
             f"detections={self.detections_deleted}, "
             f"gpu_stats={self.gpu_stats_deleted}, "
+            f"logs={self.logs_deleted}, "
             f"files={self.thumbnails_deleted + self.images_deleted}, "
             f"space={self.space_reclaimed} bytes)>"
         )
@@ -229,14 +233,17 @@ class CleanupService:
                 await session.commit()
                 logger.info("Database cleanup committed successfully")
 
-            # Step 5: Delete thumbnail files (after successful DB commit)
+            # Step 5: Delete old logs
+            stats.logs_deleted = await self.cleanup_old_logs()
+
+            # Step 6: Delete thumbnail files (after successful DB commit)
             for thumbnail_path in thumbnail_paths:
                 if self._delete_file(thumbnail_path):
                     stats.thumbnails_deleted += 1
 
             logger.info(f"Deleted {stats.thumbnails_deleted} thumbnail files")
 
-            # Step 6: Delete original image files (if enabled)
+            # Step 7: Delete original image files (if enabled)
             if self.delete_images:
                 for image_path in image_paths:
                     if self._delete_file(image_path):
@@ -250,6 +257,25 @@ class CleanupService:
         except Exception as e:
             logger.error(f"Cleanup failed: {e}", exc_info=True)
             raise
+
+    async def cleanup_old_logs(self) -> int:
+        """Delete logs older than retention period.
+
+        Returns:
+            Number of logs deleted
+        """
+        settings = get_settings()
+        cutoff = datetime.now(UTC) - timedelta(days=settings.log_retention_days)
+
+        async with get_session() as session:
+            result = await session.execute(delete(Log).where(Log.timestamp < cutoff))
+            await session.commit()
+            deleted = result.rowcount or 0  # type: ignore[attr-defined]
+
+        if deleted > 0:
+            logger.info(f"Cleaned up {deleted} logs older than {settings.log_retention_days} days")
+
+        return deleted
 
     def _delete_file(self, file_path: str) -> bool:
         """Delete a file and track space reclaimed.

@@ -5,5 +5,6 @@ from .camera import Base, Camera
 from .detection import Detection
 from .event import Event
 from .gpu_stats import GPUStats
+from .log import Log
 
-__all__ = ["APIKey", "Base", "Camera", "Detection", "Event", "GPUStats"]
+__all__ = ["APIKey", "Base", "Camera", "Detection", "Event", "GPUStats", "Log"]
