@@ -2,6 +2,7 @@ import { ChevronDown, ChevronUp, Clock, Eye } from 'lucide-react';
 import { useState } from 'react';
 
 import { getRiskLevel } from '../../utils/risk';
+import ObjectTypeBadge from '../common/ObjectTypeBadge';
 import RiskBadge from '../common/RiskBadge';
 import DetectionImage from '../detection/DetectionImage';
 
@@ -108,6 +109,9 @@ export default function EventCard({
     return `${Math.round(confidence * 100)}%`;
   };
 
+  // Get unique object types from detections
+  const uniqueObjectTypes = Array.from(new Set(detections.map((d) => d.label.toLowerCase())));
+
   return (
     <div
       className={`rounded-lg border border-gray-800 bg-[#1F1F1F] p-4 shadow-lg transition-all hover:border-gray-700 ${className}`}
@@ -123,6 +127,15 @@ export default function EventCard({
         </div>
         <RiskBadge level={riskLevel} score={risk_score} showScore={true} size="md" />
       </div>
+
+      {/* Object Type Badges */}
+      {uniqueObjectTypes.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          {uniqueObjectTypes.map((type) => (
+            <ObjectTypeBadge key={type} type={type} size="sm" />
+          ))}
+        </div>
+      )}
 
       {/* Thumbnail with bounding boxes (if available) */}
       {thumbnail_url && (

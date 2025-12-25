@@ -33,6 +33,7 @@ class EventResponse(BaseModel):
     risk_level: str | None = Field(None, description="Risk level (low, medium, high, critical)")
     summary: str | None = Field(None, description="LLM-generated event summary")
     reviewed: bool = Field(False, description="Whether event has been reviewed")
+    notes: str | None = Field(None, description="User notes for the event")
     detection_count: int = Field(0, description="Number of detections in this event")
 
 
@@ -43,11 +44,13 @@ class EventUpdate(BaseModel):
         json_schema_extra={
             "example": {
                 "reviewed": True,
+                "notes": "Verified - delivery person",
             }
         }
     )
 
-    reviewed: bool = Field(..., description="Mark event as reviewed or not reviewed")
+    reviewed: bool | None = Field(None, description="Mark event as reviewed or not reviewed")
+    notes: str | None = Field(None, description="User notes for the event")
 
 
 class EventListResponse(BaseModel):

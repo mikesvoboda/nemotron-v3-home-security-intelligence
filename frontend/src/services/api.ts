@@ -66,6 +66,7 @@ export interface Event {
   risk_level: string | null;
   summary: string | null;
   reviewed: boolean;
+  notes: string | null;
   detection_count: number;
 }
 
@@ -82,6 +83,7 @@ export interface EventsQueryParams {
   start_date?: string;
   end_date?: string;
   reviewed?: boolean;
+  object_type?: string;
   limit?: number;
   offset?: number;
 }
@@ -239,6 +241,7 @@ export async function fetchEvents(params?: EventsQueryParams): Promise<EventList
     if (params.start_date) queryParams.append('start_date', params.start_date);
     if (params.end_date) queryParams.append('end_date', params.end_date);
     if (params.reviewed !== undefined) queryParams.append('reviewed', String(params.reviewed));
+    if (params.object_type) queryParams.append('object_type', params.object_type);
     if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
     if (params.offset !== undefined) queryParams.append('offset', String(params.offset));
   }
@@ -253,11 +256,92 @@ export async function fetchEvent(id: number): Promise<Event> {
   return fetchApi<Event>(`/api/events/${id}`);
 }
 
-export async function updateEvent(id: number, reviewed: boolean): Promise<Event> {
+export interface EventUpdateData {
+  reviewed?: boolean;
+  notes?: string | null;
+}
+
+export async function updateEvent(id: number, data: EventUpdateData): Promise<Event> {
   return fetchApi<Event>(`/api/events/${id}`, {
     method: 'PATCH',
-    body: JSON.stringify({ reviewed }),
+    body: JSON.stringify(data),
   });
+}
+
+export interface BulkUpdateResult {
+  successful: number[];
+  failed: Array<{ id: number; error: string }>;
+}
+
+export async function bulkUpdateEvents(
+  eventIds: number[],
+  data: EventUpdateData
+): Promise<BulkUpdateResult> {
+  const results: BulkUpdateResult = {
+    successful: [],
+    failed: [],
+  };
+
+  // Execute updates in parallel for better performance
+  const updatePromises = eventIds.map(async (id) => {
+    try {
+      await updateEvent(id, data);
+      results.successful.push(id);
+    } catch (error) {
+      results.failed.push({
+        id,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  });
+
+  await Promise.all(updatePromises);
+  return results;
+}
+
+// ============================================================================
+// Detection Types and Endpoints
+// ============================================================================
+
+export interface Detection {
+  id: number;
+  camera_id: string;
+  file_path: string;
+  file_type: string | null;
+  detected_at: string;
+  object_type: string | null;
+  confidence: number | null;
+  bbox_x: number | null;
+  bbox_y: number | null;
+  bbox_width: number | null;
+  bbox_height: number | null;
+  thumbnail_path: string | null;
+}
+
+export interface DetectionListResponse {
+  detections: Detection[];
+  count: number;
+  limit: number;
+  offset: number;
+}
+
+export async function fetchEventDetections(
+  eventId: number,
+  params?: { limit?: number; offset?: number }
+): Promise<DetectionListResponse> {
+  const queryParams = new URLSearchParams();
+
+  if (params) {
+    if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
+    if (params.offset !== undefined) queryParams.append('offset', String(params.offset));
+  }
+
+  const queryString = queryParams.toString();
+  const endpoint = queryString
+    ? `/api/events/${eventId}/detections?${queryString}`
+    : `/api/events/${eventId}/detections`;
+
+  return fetchApi<DetectionListResponse>(endpoint);
 }
 
 // ============================================================================
@@ -270,4 +354,8 @@ export function getMediaUrl(cameraId: string, filename: string): string {
 
 export function getThumbnailUrl(filename: string): string {
   return `${BASE_URL}/api/media/thumbnails/${filename}`;
+}
+
+export function getDetectionImageUrl(detectionId: number): string {
+  return `${BASE_URL}/api/detections/${detectionId}/image`;
 }
