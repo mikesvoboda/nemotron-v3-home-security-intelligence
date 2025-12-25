@@ -255,9 +255,11 @@ describe('EventCard', () => {
     });
 
     it('passes size="md" to RiskBadge', () => {
-      render(<EventCard {...mockProps} />);
-      const badge = screen.getByRole('status');
-      expect(badge).toHaveClass('px-2.5', 'py-1');
+      const { container } = render(<EventCard {...mockProps} />);
+      const badges = container.querySelectorAll('[role="status"]');
+      // First badge should be the risk badge
+      const riskBadge = badges[0];
+      expect(riskBadge).toHaveClass('px-2.5', 'py-1');
     });
   });
 
@@ -600,6 +602,108 @@ describe('EventCard', () => {
       const handleViewDetails = vi.fn();
       render(<EventCard {...mockProps} onViewDetails={handleViewDetails} />);
       expect(screen.getByText('View Details')).toBeInTheDocument();
+    });
+  });
+
+  describe('object type badges', () => {
+    it('renders object type badges for detections', () => {
+      const { container } = render(<EventCard {...mockProps} />);
+      // Should render Person badge for person detection
+      const badges = container.querySelectorAll('[role="status"]');
+      // First badge is risk badge, rest are object type badges
+      const objectBadges = Array.from(badges).slice(1);
+      const badgeTexts = objectBadges.map((b) => b.textContent);
+      expect(badgeTexts).toContain('Person');
+      expect(badgeTexts).toContain('Vehicle');
+    });
+
+    it('renders unique object types only once', () => {
+      const duplicateDetections: Detection[] = [
+        { label: 'person', confidence: 0.95 },
+        { label: 'person', confidence: 0.87 },
+        { label: 'car', confidence: 0.72 },
+      ];
+      const { container } = render(<EventCard {...mockProps} detections={duplicateDetections} />);
+      // Person badge should appear only once despite multiple person detections
+      const badges = container.querySelectorAll('[role="status"]');
+      const objectBadges = Array.from(badges).slice(1);
+      const badgeTexts = objectBadges.map((b) => b.textContent);
+      const personCount = badgeTexts.filter((text) => text === 'Person').length;
+      expect(personCount).toBe(1);
+    });
+
+    it('handles case-insensitive object types', () => {
+      const mixedCaseDetections: Detection[] = [
+        { label: 'Person', confidence: 0.95 },
+        { label: 'PERSON', confidence: 0.87 },
+        { label: 'person', confidence: 0.72 },
+      ];
+      const { container } = render(<EventCard {...mockProps} detections={mixedCaseDetections} />);
+      // All variations should be treated as the same type
+      const badges = container.querySelectorAll('[role="status"]');
+      const objectBadges = Array.from(badges).slice(1);
+      const badgeTexts = objectBadges.map((b) => b.textContent);
+      const personCount = badgeTexts.filter((text) => text === 'Person').length;
+      expect(personCount).toBe(1);
+    });
+
+    it('does not render object type badges when detections are empty', () => {
+      const noDetectionsEvent = { ...mockProps, detections: [] };
+      const { container } = render(<EventCard {...noDetectionsEvent} />);
+      const badges = container.querySelectorAll('[role="status"]');
+      // Should only have the risk badge, no object type badges
+      expect(badges.length).toBe(1);
+    });
+
+    it('renders badges for all unique object types', () => {
+      const multipleTypes: Detection[] = [
+        { label: 'person', confidence: 0.95 },
+        { label: 'car', confidence: 0.87 },
+        { label: 'dog', confidence: 0.72 },
+        { label: 'package', confidence: 0.91 },
+      ];
+      const { container } = render(<EventCard {...mockProps} detections={multipleTypes} />);
+      const badges = container.querySelectorAll('[role="status"]');
+      const objectBadges = Array.from(badges).slice(1);
+      const badgeTexts = objectBadges.map((b) => b.textContent);
+      expect(badgeTexts).toContain('Person');
+      expect(badgeTexts).toContain('Vehicle');
+      expect(badgeTexts).toContain('Animal');
+      expect(badgeTexts).toContain('Package');
+    });
+
+    it('renders badges before thumbnail image', () => {
+      const { container } = render(<EventCard {...mockProps} />);
+      // Get all direct children of the main card container
+      const card = container.querySelector('.rounded-lg.border.border-gray-800');
+      const children = card ? Array.from(card.children) : [];
+
+      // Find indices of badges container and thumbnail container
+      const badgesIndex = children.findIndex((el) =>
+        el.classList.contains('flex') &&
+        el.classList.contains('flex-wrap') &&
+        el.textContent?.includes('Person')
+      );
+      const thumbnailIndex = children.findIndex((el) =>
+        el.classList.contains('mb-3') &&
+        el.querySelector('img')
+      );
+
+      // Badges should come before thumbnail
+      expect(badgesIndex).toBeGreaterThan(-1);
+      expect(thumbnailIndex).toBeGreaterThan(-1);
+      expect(badgesIndex).toBeLessThan(thumbnailIndex);
+    });
+
+    it('renders object type badges with small size', () => {
+      const { container } = render(<EventCard {...mockProps} />);
+      const badges = container.querySelectorAll('[role="status"]');
+      // Check that at least one badge has small size styling (first badge should be risk badge, rest are object badges)
+      const objectBadges = Array.from(badges).slice(1);
+      expect(objectBadges.length).toBeGreaterThan(0);
+      objectBadges.forEach((badge) => {
+        expect(badge).toHaveClass('text-xs');
+      });
     });
   });
 

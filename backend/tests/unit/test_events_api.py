@@ -120,12 +120,12 @@ class TestEventUpdateSchema:
         update = EventUpdate(**data)
         assert update.reviewed is False
 
-    def test_event_update_missing_required_field(self):
-        """Test EventUpdate raises ValidationError when required field is missing."""
+    def test_event_update_empty_payload_valid(self):
+        """Test EventUpdate accepts empty payload (all fields optional for partial updates)."""
         data = {}
-        with pytest.raises(ValidationError) as exc_info:
-            EventUpdate(**data)
-        assert "reviewed" in str(exc_info.value)
+        update = EventUpdate(**data)
+        assert update.reviewed is None
+        assert update.notes is None
 
     def test_event_update_invalid_type(self):
         """Test EventUpdate raises ValidationError with invalid field type."""

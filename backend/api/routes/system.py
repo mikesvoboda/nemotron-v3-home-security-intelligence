@@ -12,8 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.api.schemas.system import (
     ConfigResponse,
     ConfigUpdateRequest,
-    GPUStatsResponse,
     GPUStatsHistoryResponse,
+    GPUStatsResponse,
     HealthResponse,
     ServiceStatus,
     SystemStatsResponse,
@@ -28,7 +28,7 @@ router = APIRouter(prefix="/api/system", tags=["system"])
 _app_start_time = time.time()
 
 
-async def get_latest_gpu_stats(db: AsyncSession) -> dict[str, float | int | None] | None:
+async def get_latest_gpu_stats(db: AsyncSession) -> dict[str, object] | None:
     """Get the latest GPU statistics from the database.
 
     Args:
@@ -221,10 +221,8 @@ async def get_gpu_stats_history(
         limit: Maximum number of samples to return (default 300)
         db: Database session
     """
-    if limit < 1:
-        limit = 1
-    if limit > 5000:
-        limit = 5000
+    limit = max(limit, 1)
+    limit = min(limit, 5000)
 
     stmt = select(GPUStats)
     if since is not None:
@@ -233,7 +231,7 @@ async def get_gpu_stats_history(
     # Fetch newest first, then reverse to chronological order for charting.
     stmt = stmt.order_by(GPUStats.recorded_at.desc()).limit(limit)
     result = await db.execute(stmt)
-    rows = result.scalars().all()
+    rows = list(result.scalars().all())
     rows.reverse()
 
     samples = [

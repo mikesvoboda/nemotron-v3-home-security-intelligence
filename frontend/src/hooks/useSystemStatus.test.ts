@@ -1,7 +1,7 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-import { useSystemStatus, SystemStatus } from './useSystemStatus';
+import { useSystemStatus } from './useSystemStatus';
 import * as useWebSocketModule from './useWebSocket';
 
 describe('useSystemStatus', () => {
@@ -14,6 +14,36 @@ describe('useSystemStatus', () => {
   };
 
   let onMessageCallback: ((data: unknown) => void) | undefined;
+
+  // Helper to create a backend-formatted message
+  const createBackendMessage = (
+    health: 'healthy' | 'degraded' | 'unhealthy',
+    gpuUtilization: number | null = 45.5,
+    gpuTemperature: number | null = 65,
+    activeCameras: number = 3,
+    timestamp: string = '2025-12-23T10:00:00Z'
+  ) => ({
+    type: 'system_status',
+    data: {
+      gpu: {
+        utilization: gpuUtilization,
+        memory_used: 8192,
+        memory_total: 24576,
+        temperature: gpuTemperature,
+        inference_fps: 30.5,
+      },
+      cameras: {
+        active: activeCameras,
+        total: 6,
+      },
+      queue: {
+        pending: 0,
+        processing: 0,
+      },
+      health,
+    },
+    timestamp,
+  });
 
   beforeEach(() => {
     // Mock useWebSocket to capture the onMessage callback
@@ -46,35 +76,33 @@ describe('useSystemStatus', () => {
     );
   });
 
-  it('should update status when valid SystemStatus message is received', () => {
+  it('should update status when valid backend message is received', () => {
     const { result } = renderHook(() => useSystemStatus());
 
-    const systemStatus: SystemStatus = {
-      health: 'healthy',
-      gpu_utilization: 45.5,
-      active_cameras: 3,
-      last_update: '2025-12-23T10:00:00Z',
-    };
+    const backendMessage = createBackendMessage('healthy', 45.5, 65, 3);
 
     act(() => {
-      onMessageCallback?.(systemStatus);
+      onMessageCallback?.(backendMessage);
     });
 
-    expect(result.current.status).toEqual(systemStatus);
+    expect(result.current.status).toEqual({
+      health: 'healthy',
+      gpu_utilization: 45.5,
+      gpu_temperature: 65,
+      gpu_memory_used: 8192,
+      gpu_memory_total: 24576,
+      active_cameras: 3,
+      last_update: '2025-12-23T10:00:00Z',
+    });
   });
 
   it('should handle healthy status', () => {
     const { result } = renderHook(() => useSystemStatus());
 
-    const systemStatus: SystemStatus = {
-      health: 'healthy',
-      gpu_utilization: 30,
-      active_cameras: 5,
-      last_update: '2025-12-23T10:00:00Z',
-    };
+    const backendMessage = createBackendMessage('healthy', 30, 55, 5);
 
     act(() => {
-      onMessageCallback?.(systemStatus);
+      onMessageCallback?.(backendMessage);
     });
 
     expect(result.current.status?.health).toBe('healthy');
@@ -83,15 +111,10 @@ describe('useSystemStatus', () => {
   it('should handle degraded status', () => {
     const { result } = renderHook(() => useSystemStatus());
 
-    const systemStatus: SystemStatus = {
-      health: 'degraded',
-      gpu_utilization: 85,
-      active_cameras: 2,
-      last_update: '2025-12-23T10:00:00Z',
-    };
+    const backendMessage = createBackendMessage('degraded', 85, 75, 2);
 
     act(() => {
-      onMessageCallback?.(systemStatus);
+      onMessageCallback?.(backendMessage);
     });
 
     expect(result.current.status?.health).toBe('degraded');
@@ -100,15 +123,10 @@ describe('useSystemStatus', () => {
   it('should handle unhealthy status', () => {
     const { result } = renderHook(() => useSystemStatus());
 
-    const systemStatus: SystemStatus = {
-      health: 'unhealthy',
-      gpu_utilization: 100,
-      active_cameras: 0,
-      last_update: '2025-12-23T10:00:00Z',
-    };
+    const backendMessage = createBackendMessage('unhealthy', 100, 90, 0);
 
     act(() => {
-      onMessageCallback?.(systemStatus);
+      onMessageCallback?.(backendMessage);
     });
 
     expect(result.current.status?.health).toBe('unhealthy');
@@ -117,15 +135,10 @@ describe('useSystemStatus', () => {
   it('should handle null gpu_utilization', () => {
     const { result } = renderHook(() => useSystemStatus());
 
-    const systemStatus: SystemStatus = {
-      health: 'healthy',
-      gpu_utilization: null,
-      active_cameras: 3,
-      last_update: '2025-12-23T10:00:00Z',
-    };
+    const backendMessage = createBackendMessage('healthy', null, 65, 3);
 
     act(() => {
-      onMessageCallback?.(systemStatus);
+      onMessageCallback?.(backendMessage);
     });
 
     expect(result.current.status?.gpu_utilization).toBeNull();
@@ -134,15 +147,10 @@ describe('useSystemStatus', () => {
   it('should handle zero active cameras', () => {
     const { result } = renderHook(() => useSystemStatus());
 
-    const systemStatus: SystemStatus = {
-      health: 'degraded',
-      gpu_utilization: 0,
-      active_cameras: 0,
-      last_update: '2025-12-23T10:00:00Z',
-    };
+    const backendMessage = createBackendMessage('degraded', 0, 45, 0);
 
     act(() => {
-      onMessageCallback?.(systemStatus);
+      onMessageCallback?.(backendMessage);
     });
 
     expect(result.current.status?.active_cameras).toBe(0);
@@ -151,40 +159,33 @@ describe('useSystemStatus', () => {
   it('should replace previous status with new status', () => {
     const { result } = renderHook(() => useSystemStatus());
 
-    const firstStatus: SystemStatus = {
-      health: 'healthy',
-      gpu_utilization: 40,
-      active_cameras: 3,
-      last_update: '2025-12-23T10:00:00Z',
-    };
+    const firstMessage = createBackendMessage('healthy', 40, 60, 3, '2025-12-23T10:00:00Z');
 
     act(() => {
-      onMessageCallback?.(firstStatus);
+      onMessageCallback?.(firstMessage);
     });
 
-    expect(result.current.status).toEqual(firstStatus);
+    expect(result.current.status?.health).toBe('healthy');
+    expect(result.current.status?.gpu_utilization).toBe(40);
 
-    const secondStatus: SystemStatus = {
-      health: 'degraded',
-      gpu_utilization: 75,
-      active_cameras: 2,
-      last_update: '2025-12-23T10:05:00Z',
-    };
+    const secondMessage = createBackendMessage('degraded', 75, 70, 2, '2025-12-23T10:05:00Z');
 
     act(() => {
-      onMessageCallback?.(secondStatus);
+      onMessageCallback?.(secondMessage);
     });
 
-    expect(result.current.status).toEqual(secondStatus);
-    expect(result.current.status).not.toEqual(firstStatus);
+    expect(result.current.status?.health).toBe('degraded');
+    expect(result.current.status?.gpu_utilization).toBe(75);
+    expect(result.current.status?.last_update).toBe('2025-12-23T10:05:00Z');
   });
 
   it('should ignore invalid messages missing required fields', () => {
     const { result } = renderHook(() => useSystemStatus());
 
     const invalidMessages = [
-      { health: 'healthy' }, // Missing other fields
-      { gpu_utilization: 50, active_cameras: 2 }, // Missing health
+      { type: 'other_type' }, // Wrong type
+      { type: 'system_status' }, // Missing data
+      { type: 'system_status', data: {} }, // Missing nested fields
       null,
       undefined,
       'string message',
@@ -199,18 +200,20 @@ describe('useSystemStatus', () => {
     expect(result.current.status).toBeNull();
   });
 
-  it('should ignore messages with partial SystemStatus fields', () => {
+  it('should ignore messages with partial data fields', () => {
     const { result } = renderHook(() => useSystemStatus());
 
-    const partialStatus = {
-      health: 'healthy',
-      gpu_utilization: 45.5,
-      active_cameras: 3,
-      // Missing last_update
+    const partialMessage = {
+      type: 'system_status',
+      data: {
+        gpu: { utilization: 45.5 },
+        // Missing cameras and health
+      },
+      timestamp: '2025-12-23T10:00:00Z',
     };
 
     act(() => {
-      onMessageCallback?.(partialStatus);
+      onMessageCallback?.(partialMessage);
     });
 
     expect(result.current.status).toBeNull();
@@ -219,62 +222,79 @@ describe('useSystemStatus', () => {
   it('should ignore message if health field is missing', () => {
     const { result } = renderHook(() => useSystemStatus());
 
-    const invalidStatus = {
-      gpu_utilization: 45.5,
-      active_cameras: 3,
-      last_update: '2025-12-23T10:00:00Z',
+    const invalidMessage = {
+      type: 'system_status',
+      data: {
+        gpu: { utilization: 45.5, temperature: 65, memory_used: 8192, memory_total: 24576, inference_fps: 30 },
+        cameras: { active: 3, total: 6 },
+        queue: { pending: 0, processing: 0 },
+        // Missing health
+      },
+      timestamp: '2025-12-23T10:00:00Z',
     };
 
     act(() => {
-      onMessageCallback?.(invalidStatus);
+      onMessageCallback?.(invalidMessage);
     });
 
     expect(result.current.status).toBeNull();
   });
 
-  it('should ignore message if gpu_utilization field is missing', () => {
+  it('should ignore message if gpu field is missing', () => {
     const { result } = renderHook(() => useSystemStatus());
 
-    const invalidStatus = {
-      health: 'healthy',
-      active_cameras: 3,
-      last_update: '2025-12-23T10:00:00Z',
+    const invalidMessage = {
+      type: 'system_status',
+      data: {
+        // Missing gpu
+        cameras: { active: 3, total: 6 },
+        health: 'healthy',
+      },
+      timestamp: '2025-12-23T10:00:00Z',
     };
 
     act(() => {
-      onMessageCallback?.(invalidStatus);
+      onMessageCallback?.(invalidMessage);
     });
 
     expect(result.current.status).toBeNull();
   });
 
-  it('should ignore message if active_cameras field is missing', () => {
+  it('should ignore message if cameras field is missing', () => {
     const { result } = renderHook(() => useSystemStatus());
 
-    const invalidStatus = {
-      health: 'healthy',
-      gpu_utilization: 45.5,
-      last_update: '2025-12-23T10:00:00Z',
+    const invalidMessage = {
+      type: 'system_status',
+      data: {
+        gpu: { utilization: 45.5, temperature: 65, memory_used: 8192, memory_total: 24576, inference_fps: 30 },
+        // Missing cameras
+        health: 'healthy',
+      },
+      timestamp: '2025-12-23T10:00:00Z',
     };
 
     act(() => {
-      onMessageCallback?.(invalidStatus);
+      onMessageCallback?.(invalidMessage);
     });
 
     expect(result.current.status).toBeNull();
   });
 
-  it('should ignore message if last_update field is missing', () => {
+  it('should ignore message if timestamp field is missing', () => {
     const { result } = renderHook(() => useSystemStatus());
 
-    const invalidStatus = {
-      health: 'healthy',
-      gpu_utilization: 45.5,
-      active_cameras: 3,
+    const invalidMessage = {
+      type: 'system_status',
+      data: {
+        gpu: { utilization: 45.5, temperature: 65, memory_used: 8192, memory_total: 24576, inference_fps: 30 },
+        cameras: { active: 3, total: 6 },
+        health: 'healthy',
+      },
+      // Missing timestamp
     };
 
     act(() => {
-      onMessageCallback?.(invalidStatus);
+      onMessageCallback?.(invalidMessage);
     });
 
     expect(result.current.status).toBeNull();
@@ -296,25 +316,24 @@ describe('useSystemStatus', () => {
     const { result } = renderHook(() => useSystemStatus());
 
     for (let i = 0; i < 10; i++) {
-      const status: SystemStatus = {
-        health: i % 2 === 0 ? 'healthy' : 'degraded',
-        gpu_utilization: i * 10,
-        active_cameras: i,
-        last_update: `2025-12-23T10:00:${String(i).padStart(2, '0')}Z`,
-      };
+      const message = createBackendMessage(
+        i % 2 === 0 ? 'healthy' : 'degraded',
+        i * 10,
+        60 + i,
+        i,
+        `2025-12-23T10:00:${String(i).padStart(2, '0')}Z`
+      );
 
       act(() => {
-        onMessageCallback?.(status);
+        onMessageCallback?.(message);
       });
     }
 
     // Should have the last status
-    expect(result.current.status).toEqual({
-      health: 'degraded',
-      gpu_utilization: 90,
-      active_cameras: 9,
-      last_update: '2025-12-23T10:00:09Z',
-    });
+    expect(result.current.status?.health).toBe('degraded');
+    expect(result.current.status?.gpu_utilization).toBe(90);
+    expect(result.current.status?.active_cameras).toBe(9);
+    expect(result.current.status?.last_update).toBe('2025-12-23T10:00:09Z');
   });
 
   it('should handle status updates with varying gpu_utilization values', () => {
@@ -323,15 +342,10 @@ describe('useSystemStatus', () => {
     const testValues = [0, 25.5, 50, 75.75, 100, null];
 
     testValues.forEach((gpuUtil, index) => {
-      const status: SystemStatus = {
-        health: 'healthy',
-        gpu_utilization: gpuUtil,
-        active_cameras: 3,
-        last_update: `2025-12-23T10:0${index}:00Z`,
-      };
+      const message = createBackendMessage('healthy', gpuUtil, 65, 3, `2025-12-23T10:0${index}:00Z`);
 
       act(() => {
-        onMessageCallback?.(status);
+        onMessageCallback?.(message);
       });
 
       expect(result.current.status?.gpu_utilization).toBe(gpuUtil);
@@ -344,15 +358,10 @@ describe('useSystemStatus', () => {
     const testValues = [0, 1, 5, 10, 100];
 
     testValues.forEach((cameras, index) => {
-      const status: SystemStatus = {
-        health: 'healthy',
-        gpu_utilization: 50,
-        active_cameras: cameras,
-        last_update: `2025-12-23T10:0${index}:00Z`,
-      };
+      const message = createBackendMessage('healthy', 50, 65, cameras, `2025-12-23T10:0${index}:00Z`);
 
       act(() => {
-        onMessageCallback?.(status);
+        onMessageCallback?.(message);
       });
 
       expect(result.current.status?.active_cameras).toBe(cameras);
@@ -378,15 +387,10 @@ describe('useSystemStatus', () => {
     const extremeValues = [-1, 0, 0.01, 99.99, 100, 150];
 
     extremeValues.forEach((value, index) => {
-      const status: SystemStatus = {
-        health: 'healthy',
-        gpu_utilization: value,
-        active_cameras: 3,
-        last_update: `2025-12-23T10:${String(index).padStart(2, '0')}:00Z`,
-      };
+      const message = createBackendMessage('healthy', value, 65, 3, `2025-12-23T10:${String(index).padStart(2, '0')}:00Z`);
 
       act(() => {
-        onMessageCallback?.(status);
+        onMessageCallback?.(message);
       });
 
       expect(result.current.status?.gpu_utilization).toBe(value);
@@ -399,15 +403,10 @@ describe('useSystemStatus', () => {
     const healthStates = ['healthy', 'degraded', 'unhealthy'] as const;
 
     healthStates.forEach((health, index) => {
-      const status: SystemStatus = {
-        health,
-        gpu_utilization: 50,
-        active_cameras: 3,
-        last_update: `2025-12-23T10:0${index}:00Z`,
-      };
+      const message = createBackendMessage(health, 50, 65, 3, `2025-12-23T10:0${index}:00Z`);
 
       act(() => {
-        onMessageCallback?.(status);
+        onMessageCallback?.(message);
       });
 
       expect(result.current.status?.health).toBe(health);
@@ -417,18 +416,14 @@ describe('useSystemStatus', () => {
   it('should preserve status after receiving invalid message', () => {
     const { result } = renderHook(() => useSystemStatus());
 
-    const validStatus: SystemStatus = {
-      health: 'healthy',
-      gpu_utilization: 45,
-      active_cameras: 3,
-      last_update: '2025-12-23T10:00:00Z',
-    };
+    const validMessage = createBackendMessage('healthy', 45, 60, 3);
 
     act(() => {
-      onMessageCallback?.(validStatus);
+      onMessageCallback?.(validMessage);
     });
 
-    expect(result.current.status).toEqual(validStatus);
+    expect(result.current.status?.health).toBe('healthy');
+    expect(result.current.status?.gpu_utilization).toBe(45);
 
     // Send invalid message
     act(() => {
@@ -436,7 +431,8 @@ describe('useSystemStatus', () => {
     });
 
     // Status should remain unchanged
-    expect(result.current.status).toEqual(validStatus);
+    expect(result.current.status?.health).toBe('healthy');
+    expect(result.current.status?.gpu_utilization).toBe(45);
   });
 
   it('should handle status with timestamp strings in different formats', () => {
@@ -450,39 +446,28 @@ describe('useSystemStatus', () => {
     ];
 
     timestamps.forEach((timestamp, index) => {
-      const status: SystemStatus = {
-        health: 'healthy',
-        gpu_utilization: 50,
-        active_cameras: index + 1,
-        last_update: timestamp,
-      };
+      const message = createBackendMessage('healthy', 50, 65, index + 1, timestamp);
 
       act(() => {
-        onMessageCallback?.(status);
+        onMessageCallback?.(message);
       });
 
       expect(result.current.status?.last_update).toBe(timestamp);
     });
   });
 
-  it('should not mutate received status object', () => {
+  it('should not mutate received message object', () => {
     const { result } = renderHook(() => useSystemStatus());
 
-    const originalStatus: SystemStatus = {
-      health: 'healthy',
-      gpu_utilization: 45.5,
-      active_cameras: 3,
-      last_update: '2025-12-23T10:00:00Z',
-    };
-
-    const statusCopy = { ...originalStatus };
+    const originalMessage = createBackendMessage('healthy', 45.5, 60, 3);
+    const messageCopy = JSON.parse(JSON.stringify(originalMessage));
 
     act(() => {
-      onMessageCallback?.(originalStatus);
+      onMessageCallback?.(originalMessage);
     });
 
-    expect(result.current.status).toEqual(originalStatus);
-    expect(originalStatus).toEqual(statusCopy);
+    expect(result.current.status?.gpu_utilization).toBe(45.5);
+    expect(originalMessage).toEqual(messageCopy);
   });
 
   it('should handle disconnection and reconnection scenarios', () => {
@@ -505,18 +490,14 @@ describe('useSystemStatus', () => {
 
     const { result, rerender } = renderHook(() => useSystemStatus());
 
-    const status: SystemStatus = {
-      health: 'healthy',
-      gpu_utilization: 45,
-      active_cameras: 3,
-      last_update: '2025-12-23T10:00:00Z',
-    };
+    const message = createBackendMessage('healthy', 45, 60, 3);
 
     act(() => {
-      onMessageCallback?.(status);
+      onMessageCallback?.(message);
     });
 
-    expect(result.current.status).toEqual(status);
+    expect(result.current.status?.health).toBe('healthy');
+    expect(result.current.status?.gpu_utilization).toBe(45);
     expect(result.current.isConnected).toBe(true);
 
     // Simulate disconnection
@@ -525,13 +506,14 @@ describe('useSystemStatus', () => {
 
     expect(result.current.isConnected).toBe(false);
     // Status should persist during disconnection
-    expect(result.current.status).toEqual(status);
+    expect(result.current.status?.health).toBe('healthy');
+    expect(result.current.status?.gpu_utilization).toBe(45);
 
     // Simulate reconnection
     mockConnectionState = true;
     rerender();
 
     expect(result.current.isConnected).toBe(true);
-    expect(result.current.status).toEqual(status);
+    expect(result.current.status?.health).toBe('healthy');
   });
 });
