@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.schemas.detections import DetectionListResponse
@@ -25,6 +25,7 @@ async def list_events(
     start_date: datetime | None = Query(None, description="Filter by start date (ISO format)"),
     end_date: datetime | None = Query(None, description="Filter by end date (ISO format)"),
     reviewed: bool | None = Query(None, description="Filter by reviewed status"),
+    object_type: str | None = Query(None, description="Filter by detected object type"),
     limit: int = Query(50, ge=1, le=1000, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Number of results to skip"),
     db: AsyncSession = Depends(get_db),
@@ -37,6 +38,7 @@ async def list_events(
         start_date: Optional start date for date range filter
         end_date: Optional end date for date range filter
         reviewed: Optional filter by reviewed status
+        object_type: Optional object type to filter by (person, vehicle, animal, etc.)
         limit: Maximum number of results to return (1-1000, default 50)
         offset: Number of results to skip for pagination (default 0)
         db: Database session
@@ -58,6 +60,31 @@ async def list_events(
         query = query.where(Event.started_at <= end_date)
     if reviewed is not None:
         query = query.where(Event.reviewed == reviewed)
+
+    # Filter by object type - find events that have at least one detection with this type
+    if object_type:
+        # Subquery to find detection IDs with matching object_type
+        detection_ids_subquery = select(Detection.id).where(Detection.object_type == object_type)
+        detection_ids_result = await db.execute(detection_ids_subquery)
+        matching_detection_ids = {str(d) for d in detection_ids_result.scalars().all()}
+
+        if matching_detection_ids:
+            # Filter events where detection_ids contains at least one matching ID
+            conditions = []
+            for det_id in matching_detection_ids:
+                # Match: "id,", ",id,", ",id" or just "id"
+                conditions.extend(
+                    [
+                        Event.detection_ids.like(f"{det_id},%"),
+                        Event.detection_ids.like(f"%,{det_id},%"),
+                        Event.detection_ids.like(f"%,{det_id}"),
+                        Event.detection_ids == det_id,
+                    ]
+                )
+            query = query.where(or_(*conditions))
+        else:
+            # No matching detections found, return empty result
+            query = query.where(Event.id == -1)  # Impossible condition
 
     # Get total count (before pagination)
     count_query = select(func.count()).select_from(query.subquery())
@@ -176,8 +203,11 @@ async def update_event(
             detail=f"Event with id {event_id} not found",
         )
 
-    # Update reviewed field
-    event.reviewed = update_data.reviewed
+    # Update fields if provided
+    if update_data.reviewed is not None:
+        event.reviewed = update_data.reviewed
+    if update_data.notes is not None:
+        event.notes = update_data.notes
     await db.commit()
     await db.refresh(event)
 
@@ -195,6 +225,7 @@ async def update_event(
         "risk_level": event.risk_level,
         "summary": event.summary,
         "reviewed": event.reviewed,
+        "notes": event.notes,
         "detection_count": detection_count,
     }
 

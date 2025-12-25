@@ -1,8 +1,8 @@
-import { Calendar, ChevronLeft, ChevronRight, Filter, Search, X } from 'lucide-react';
+import { Calendar, CheckSquare, ChevronLeft, ChevronRight, Filter, Search, Square, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import EventCard from './EventCard';
-import { fetchCameras, fetchEvents } from '../../services/api';
+import { bulkUpdateEvents, fetchCameras, fetchEvents } from '../../services/api';
 import { getRiskLevel } from '../../utils/risk';
 
 import type { Detection } from './EventCard';
@@ -37,6 +37,10 @@ export default function EventTimeline({
   });
   const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // State for selection and bulk actions
+  const [selectedEventIds, setSelectedEventIds] = useState<Set<number>>(new Set());
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
   // Load cameras for filter dropdown
   useEffect(() => {
@@ -107,6 +111,59 @@ export default function EventTimeline({
     setSearchQuery('');
   };
 
+  // Handle selection toggle for individual event
+  const handleToggleSelection = (eventId: number) => {
+    setSelectedEventIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(eventId)) {
+        newSet.delete(eventId);
+      } else {
+        newSet.add(eventId);
+      }
+      return newSet;
+    });
+  };
+
+  // Handle select all toggle
+  const handleToggleSelectAll = () => {
+    if (selectedEventIds.size === filteredEvents.length && filteredEvents.length > 0) {
+      // If all are selected, deselect all
+      setSelectedEventIds(new Set());
+    } else {
+      // Select all current page events
+      setSelectedEventIds(new Set(filteredEvents.map((event) => event.id)));
+    }
+  };
+
+  // Handle bulk mark as reviewed
+  const handleBulkMarkAsReviewed = async () => {
+    if (selectedEventIds.size === 0) return;
+
+    setBulkActionLoading(true);
+    try {
+      const result = await bulkUpdateEvents(Array.from(selectedEventIds), { reviewed: true });
+
+      if (result.failed.length > 0) {
+        console.error('Some events failed to update:', result.failed);
+        setError(
+          `Updated ${result.successful.length} events, but ${result.failed.length} failed`
+        );
+      }
+
+      // Reload events to reflect changes
+      const response = await fetchEvents(filters);
+      setEvents(response.events);
+      setTotalCount(response.count);
+
+      // Clear selections
+      setSelectedEventIds(new Set());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update events');
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
   // Filter events by search query (client-side for summary search)
   const filteredEvents = searchQuery
     ? events.filter((event) =>
@@ -125,6 +182,7 @@ export default function EventTimeline({
     filters.start_date ||
     filters.end_date ||
     filters.reviewed !== undefined ||
+    filters.object_type ||
     searchQuery;
 
   // Convert Event to EventCard props
@@ -266,6 +324,26 @@ export default function EventTimeline({
               </select>
             </div>
 
+            {/* Object Type Filter */}
+            <div>
+              <label htmlFor="object-type-filter" className="mb-1 block text-sm font-medium text-gray-300">
+                Object Type
+              </label>
+              <select
+                id="object-type-filter"
+                value={filters.object_type || ''}
+                onChange={(e) => handleFilterChange('object_type', e.target.value)}
+                className="w-full rounded-md border border-gray-700 bg-[#1A1A1A] px-3 py-2 text-sm text-white focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900]"
+              >
+                <option value="">All Object Types</option>
+                <option value="person">Person</option>
+                <option value="vehicle">Vehicle</option>
+                <option value="animal">Animal</option>
+                <option value="package">Package</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
             {/* Start Date Filter */}
             <div>
               <label htmlFor="start-date-filter" className="mb-1 block text-sm font-medium text-gray-300">
@@ -314,15 +392,66 @@ export default function EventTimeline({
         )}
       </div>
 
-      {/* Results Summary */}
-      <div className="mb-4 flex items-center justify-between text-sm text-gray-400">
-        <p>
-          Showing {offset + 1}-{Math.min(offset + limit, totalCount)} of {totalCount} events
-        </p>
-        {hasActiveFilters && (
-          <p className="text-[#76B900]">
-            Filters active
+      {/* Results Summary and Bulk Actions */}
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4 text-sm">
+          <p className="text-gray-400">
+            Showing {offset + 1}-{Math.min(offset + filteredEvents.length, totalCount)} of {totalCount} events
           </p>
+          {hasActiveFilters && (
+            <p className="text-[#76B900]">
+              Filters active
+            </p>
+          )}
+        </div>
+
+        {/* Bulk Actions Bar */}
+        {!loading && !error && filteredEvents.length > 0 && (
+          <div className="flex items-center gap-3">
+            {/* Select All Checkbox */}
+            <button
+              onClick={handleToggleSelectAll}
+              className="flex items-center gap-2 rounded-md border border-gray-700 bg-[#1A1A1A] px-3 py-1.5 text-sm text-gray-300 transition-colors hover:border-gray-600 hover:bg-[#252525]"
+              aria-label={
+                selectedEventIds.size === filteredEvents.length && filteredEvents.length > 0
+                  ? 'Deselect all events'
+                  : 'Select all events'
+              }
+            >
+              {selectedEventIds.size === filteredEvents.length && filteredEvents.length > 0 ? (
+                <CheckSquare className="h-4 w-4 text-[#76B900]" />
+              ) : (
+                <Square className="h-4 w-4" />
+              )}
+              <span>
+                {selectedEventIds.size > 0
+                  ? `${selectedEventIds.size} selected`
+                  : 'Select all'}
+              </span>
+            </button>
+
+            {/* Bulk Mark as Reviewed Button */}
+            {selectedEventIds.size > 0 && (
+              <button
+                onClick={() => void handleBulkMarkAsReviewed()}
+                disabled={bulkActionLoading}
+                className="flex items-center gap-2 rounded-md bg-[#76B900] px-4 py-1.5 text-sm font-semibold text-black transition-all hover:bg-[#88d200] active:bg-[#68a000] disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label={`Mark ${selectedEventIds.size} selected events as reviewed`}
+              >
+                {bulkActionLoading ? (
+                  <>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-black border-t-transparent" />
+                    <span>Updating...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckSquare className="h-4 w-4" />
+                    <span>Mark as Reviewed</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
         )}
       </div>
 
@@ -355,7 +484,27 @@ export default function EventTimeline({
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
           {filteredEvents.map((event) => (
-            <EventCard key={event.id} {...getEventCardProps(event)} />
+            <div key={event.id} className="relative">
+              {/* Selection Checkbox */}
+              <div className="absolute left-2 top-2 z-10">
+                <button
+                  onClick={() => handleToggleSelection(event.id)}
+                  className="flex h-8 w-8 items-center justify-center rounded-md border border-gray-700 bg-[#1A1A1A]/90 backdrop-blur-sm transition-colors hover:border-gray-600 hover:bg-[#252525]/90"
+                  aria-label={
+                    selectedEventIds.has(event.id)
+                      ? `Deselect event ${event.id}`
+                      : `Select event ${event.id}`
+                  }
+                >
+                  {selectedEventIds.has(event.id) ? (
+                    <CheckSquare className="h-5 w-5 text-[#76B900]" />
+                  ) : (
+                    <Square className="h-5 w-5 text-gray-400" />
+                  )}
+                </button>
+              </div>
+              <EventCard {...getEventCardProps(event)} />
+            </div>
           ))}
         </div>
       )}

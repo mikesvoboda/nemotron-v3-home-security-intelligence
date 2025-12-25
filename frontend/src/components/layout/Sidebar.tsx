@@ -1,4 +1,5 @@
 import { Home, Clock, Users, Bell, Settings, ScrollText } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
 
 interface NavItem {
   id: string;
@@ -17,24 +18,19 @@ const navItems: NavItem[] = [
   { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
 ];
 
-interface SidebarProps {
-  activeNav: string;
-  onNavChange: (navId: string) => void;
-}
-
-export default function Sidebar({ activeNav, onNavChange }: SidebarProps) {
+export default function Sidebar() {
   return (
     <aside className="flex w-64 flex-col border-r border-gray-800 bg-[#1A1A1A]">
       <nav className="flex-1 space-y-2 p-4">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = activeNav === item.id;
 
           return (
-            <button
+            <NavLink
               key={item.id}
-              onClick={() => onNavChange(item.id)}
-              className={`
+              to={item.path}
+              end={item.path === '/'}
+              className={({ isActive }) => `
                 flex w-full items-center gap-3 rounded-lg px-4 py-3
                 transition-colors duration-200
                 ${
@@ -51,7 +47,7 @@ export default function Sidebar({ activeNav, onNavChange }: SidebarProps) {
                   {item.badge}
                 </span>
               )}
-            </button>
+            </NavLink>
           );
         })}
       </nav>

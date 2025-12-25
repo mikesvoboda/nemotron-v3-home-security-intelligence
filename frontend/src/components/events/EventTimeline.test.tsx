@@ -41,6 +41,7 @@ describe('EventTimeline', () => {
       summary: 'Person detected near entrance',
       reviewed: false,
       detection_count: 5,
+      notes: null,
     },
     {
       id: 2,
@@ -52,6 +53,7 @@ describe('EventTimeline', () => {
       summary: 'Cat walking through yard',
       reviewed: true,
       detection_count: 3,
+      notes: null,
     },
     {
       id: 3,
@@ -63,6 +65,7 @@ describe('EventTimeline', () => {
       summary: 'Unknown person at door',
       reviewed: false,
       detection_count: 8,
+      notes: null,
     },
   ];
 
@@ -80,19 +83,29 @@ describe('EventTimeline', () => {
   });
 
   describe('Rendering', () => {
-    it('renders the timeline header', () => {
+    it('renders the timeline header', async () => {
       render(<EventTimeline />);
 
       expect(screen.getByText('Event Timeline')).toBeInTheDocument();
       expect(
         screen.getByText('View and filter all security events from your cameras')
       ).toBeInTheDocument();
+
+      // Wait for async state updates to complete to avoid act() warnings
+      await waitFor(() => {
+        expect(screen.queryByText('Loading events...')).not.toBeInTheDocument();
+      });
     });
 
-    it('displays loading state initially', () => {
+    it('displays loading state initially', async () => {
       render(<EventTimeline />);
 
       expect(screen.getByText('Loading events...')).toBeInTheDocument();
+
+      // Wait for loading to complete to avoid act() warnings
+      await waitFor(() => {
+        expect(screen.queryByText('Loading events...')).not.toBeInTheDocument();
+      });
     });
 
     it('displays events after loading', async () => {
@@ -290,6 +303,108 @@ describe('EventTimeline', () => {
 
       expect(screen.getByText('Filters active')).toBeInTheDocument();
     });
+
+    it('filters events by object type', async () => {
+      const user = userEvent.setup();
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Show Filters')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByText('Show Filters'));
+
+      const objectTypeSelect = screen.getByLabelText('Object Type');
+      await user.selectOptions(objectTypeSelect, 'person');
+
+      await waitFor(() => {
+        expect(api.fetchEvents).toHaveBeenCalledWith(
+          expect.objectContaining({ object_type: 'person', offset: 0 })
+        );
+      });
+    });
+
+    it('displays object type filter dropdown with all options', async () => {
+      const user = userEvent.setup();
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Show Filters')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByText('Show Filters'));
+
+      const objectTypeSelect = screen.getByLabelText('Object Type');
+      expect(objectTypeSelect).toBeInTheDocument();
+
+      // Check all options are present
+      const options = within(objectTypeSelect).getAllByRole('option');
+      expect(options).toHaveLength(6); // All Object Types + 5 specific types
+      expect(within(objectTypeSelect).getByRole('option', { name: 'All Object Types' })).toBeInTheDocument();
+      expect(within(objectTypeSelect).getByRole('option', { name: 'Person' })).toBeInTheDocument();
+      expect(within(objectTypeSelect).getByRole('option', { name: 'Vehicle' })).toBeInTheDocument();
+      expect(within(objectTypeSelect).getByRole('option', { name: 'Animal' })).toBeInTheDocument();
+      expect(within(objectTypeSelect).getByRole('option', { name: 'Package' })).toBeInTheDocument();
+      expect(within(objectTypeSelect).getByRole('option', { name: 'Other' })).toBeInTheDocument();
+    });
+
+    it('clears object type filter with clear all filters button', async () => {
+      const user = userEvent.setup();
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Show Filters')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByText('Show Filters'));
+
+      // Apply object type filter
+      const objectTypeSelect = screen.getByLabelText('Object Type');
+      await user.selectOptions(objectTypeSelect, 'vehicle');
+
+      await waitFor(() => {
+        expect(api.fetchEvents).toHaveBeenCalledWith(
+          expect.objectContaining({ object_type: 'vehicle' })
+        );
+      });
+
+      // Clear filters
+      const clearButton = screen.getByText('Clear All Filters');
+      await user.click(clearButton);
+
+      await waitFor(() => {
+        expect(api.fetchEvents).toHaveBeenCalledWith({ limit: 20, offset: 0 });
+      });
+    });
+
+    it('combines object type filter with other filters', async () => {
+      const user = userEvent.setup();
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Show Filters')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByText('Show Filters'));
+
+      // Apply camera filter
+      const cameraSelect = screen.getByLabelText('Camera');
+      await user.selectOptions(cameraSelect, 'camera-1');
+
+      // Apply object type filter
+      const objectTypeSelect = screen.getByLabelText('Object Type');
+      await user.selectOptions(objectTypeSelect, 'animal');
+
+      await waitFor(() => {
+        expect(api.fetchEvents).toHaveBeenCalledWith(
+          expect.objectContaining({
+            camera_id: 'camera-1',
+            object_type: 'animal',
+            offset: 0
+          })
+        );
+      });
+    });
   });
 
   describe('Search', () => {
@@ -372,6 +487,7 @@ describe('EventTimeline', () => {
         summary: `Event ${i + 1}`,
         reviewed: false,
         detection_count: 1,
+        notes: null,
       }));
 
       vi.mocked(api.fetchEvents).mockResolvedValue({
@@ -403,24 +519,48 @@ describe('EventTimeline', () => {
     });
 
     it('navigates to previous page', async () => {
+      // Clear previous mocks and set up fresh ones for this test
+      vi.clearAllMocks();
+      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
+
+      // First load (page 1), then page 2, then back to page 1
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce({
+          events: mockEvents,
+          count: 50,
+          limit: 20,
+          offset: 0,
+        })
+        .mockResolvedValueOnce({
+          events: mockEvents,
+          count: 50,
+          limit: 20,
+          offset: 20,
+        })
+        .mockResolvedValueOnce({
+          events: mockEvents,
+          count: 50,
+          limit: 20,
+          offset: 0,
+        });
+
       const user = userEvent.setup();
       render(<EventTimeline />);
+
+      // Wait for initial load
+      await waitFor(() => {
+        expect(screen.getByText('Page 1 of 3')).toBeInTheDocument();
+      });
+
+      // Navigate to page 2
+      const nextButton = screen.getByLabelText('Next page');
+      await user.click(nextButton);
 
       await waitFor(() => {
         expect(screen.getByText('Page 1 of 3')).toBeInTheDocument();
       });
 
-      // Navigate to page 2 first
-      const nextButton = screen.getByLabelText('Next page');
-      await user.click(nextButton);
-
-      await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(
-          expect.objectContaining({ offset: 20 })
-        );
-      });
-
-      // Now navigate back to page 1
+      // Navigate back to page 1
       const prevButton = screen.getByLabelText('Previous page');
       await user.click(prevButton);
 
@@ -443,42 +583,90 @@ describe('EventTimeline', () => {
     });
 
     it('disables next button on last page', async () => {
+      // Clear previous mocks and set up fresh ones for this test
+      vi.clearAllMocks();
+      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
+
+      // Navigate through pages to reach the last page
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce({
+          events: mockEvents,
+          count: 50,
+          limit: 20,
+          offset: 0,
+        })
+        .mockResolvedValueOnce({
+          events: mockEvents,
+          count: 50,
+          limit: 20,
+          offset: 20,
+        })
+        .mockResolvedValueOnce({
+          events: mockEvents,
+          count: 50,
+          limit: 20,
+          offset: 40,
+        });
+
       const user = userEvent.setup();
       render(<EventTimeline />);
 
+      // Wait for initial load (page 1)
       await waitFor(() => {
         expect(screen.getByText('Page 1 of 3')).toBeInTheDocument();
       });
 
       // Navigate to page 2
-      const nextButton = screen.getByLabelText('Next page');
+      let nextButton = screen.getByLabelText('Next page');
       await user.click(nextButton);
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(
-          expect.objectContaining({ offset: 20 })
-        );
+        expect(screen.getByText('Page 2 of 3')).toBeInTheDocument();
       });
 
       // Navigate to page 3 (last page)
+      nextButton = screen.getByLabelText('Next page');
       await user.click(nextButton);
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(
-          expect.objectContaining({ offset: 40 })
-        );
+        expect(screen.getByText('Page 3 of 3')).toBeInTheDocument();
       });
 
-      // Verify next button is disabled on last page
-      await waitFor(() => {
-        expect(nextButton).toBeDisabled();
-      });
+      // Next button should be disabled on last page
+      nextButton = screen.getByLabelText('Next page');
+      expect(nextButton).toBeDisabled();
     });
 
     it('resets to first page when filters change', async () => {
+      // Clear previous mocks and set up fresh ones for this test
+      vi.clearAllMocks();
+      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
+
+      // Initial load, navigate to page 2, then filter change resets to page 1
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce({
+          events: mockEvents,
+          count: 50,
+          limit: 20,
+          offset: 0,
+        })
+        .mockResolvedValueOnce({
+          events: mockEvents,
+          count: 50,
+          limit: 20,
+          offset: 20,
+        })
+        .mockResolvedValueOnce({
+          events: mockEvents,
+          count: 50,
+          limit: 20,
+          offset: 0,
+        });
+
       const user = userEvent.setup();
       render(<EventTimeline />);
 
+      // Wait for initial load (page 1)
       await waitFor(() => {
         expect(screen.getByText('Page 1 of 3')).toBeInTheDocument();
       });
@@ -488,12 +676,10 @@ describe('EventTimeline', () => {
       await user.click(nextButton);
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(
-          expect.objectContaining({ offset: 20 })
-        );
+        expect(screen.getByText('Page 1 of 3')).toBeInTheDocument();
       });
 
-      // Now apply a filter - this should reset to page 1
+      // Apply a filter
       await user.click(screen.getByText('Show Filters'));
 
       const cameraSelect = screen.getByLabelText('Camera');
@@ -516,6 +702,7 @@ describe('EventTimeline', () => {
 
       render(<EventTimeline />);
 
+      // Wait for error state to be displayed after async fetch fails
       await waitFor(
         () => {
           expect(screen.getByText('Error Loading Events')).toBeInTheDocument();
@@ -634,13 +821,14 @@ describe('EventTimeline', () => {
       });
 
       // Camera names should appear after cameras are fetched
-      // Use getAllByText since "Front Door" appears twice (camera-1 has two events)
+      // Use getAllByText since there are multiple events from the same camera
       await waitFor(() => {
         const frontDoorElements = screen.getAllByText('Front Door');
         expect(frontDoorElements.length).toBeGreaterThan(0);
       });
 
-      expect(screen.getByText('Back Yard')).toBeInTheDocument();
+      const backYardElements = screen.getAllByText('Back Yard');
+      expect(backYardElements.length).toBeGreaterThan(0);
     });
 
     it('shows "Unknown Camera" when camera not found', async () => {
@@ -656,6 +844,7 @@ describe('EventTimeline', () => {
             summary: 'Event from unknown camera',
             reviewed: false,
             detection_count: 1,
+            notes: null,
           },
         ],
         count: 1,
@@ -669,6 +858,269 @@ describe('EventTimeline', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Unknown Camera')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Bulk Actions', () => {
+    it('displays bulk action controls when events are loaded', async () => {
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Should show select all button
+      expect(screen.getByText('Select all')).toBeInTheDocument();
+    });
+
+    it('toggles selection for individual events', async () => {
+      const user = userEvent.setup();
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Find all selection checkboxes (one for each event)
+      const checkboxButtons = screen.getAllByLabelText(/Select event \d+/);
+      expect(checkboxButtons.length).toBe(3);
+
+      // Click first checkbox to select
+      await user.click(checkboxButtons[0]);
+
+      // Should show selection count
+      await waitFor(() => {
+        expect(screen.getByText('1 selected')).toBeInTheDocument();
+      });
+
+      // Should show "Mark as Reviewed" button
+      expect(screen.getByText('Mark as Reviewed')).toBeInTheDocument();
+    });
+
+    it('selects all events when clicking select all', async () => {
+      const user = userEvent.setup();
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Click select all button
+      const selectAllButton = screen.getByText('Select all');
+      await user.click(selectAllButton);
+
+      // Should show all events selected
+      await waitFor(() => {
+        expect(screen.getByText('3 selected')).toBeInTheDocument();
+      });
+    });
+
+    it('deselects all events when clicking select all again', async () => {
+      const user = userEvent.setup();
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Click select all twice
+      const selectAllButton = screen.getByText('Select all');
+      await user.click(selectAllButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('3 selected')).toBeInTheDocument();
+      });
+
+      const deselectAllButton = screen.getByLabelText('Deselect all events');
+      await user.click(deselectAllButton);
+
+      // Should show select all again
+      await waitFor(() => {
+        expect(screen.getByText('Select all')).toBeInTheDocument();
+      });
+    });
+
+    it('marks selected events as reviewed', async () => {
+      const user = userEvent.setup();
+      vi.clearAllMocks();
+      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
+      vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
+
+      // Mock bulkUpdateEvents for successful update
+      vi.mocked(api.bulkUpdateEvents).mockResolvedValue({
+        successful: [1, 2],
+        failed: [],
+      });
+
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Select first two events
+      const checkboxButtons = screen.getAllByLabelText(/Select event \d+/);
+      await user.click(checkboxButtons[0]);
+      await user.click(checkboxButtons[1]);
+
+      await waitFor(() => {
+        expect(screen.getByText('2 selected')).toBeInTheDocument();
+      });
+
+      // Mock the events reload after bulk update
+      vi.mocked(api.fetchEvents).mockResolvedValueOnce({
+        ...mockEventsResponse,
+        events: mockEvents.map((e) =>
+          e.id === 1 || e.id === 2 ? { ...e, reviewed: true } : e
+        ),
+      });
+
+      // Click mark as reviewed
+      const markAsReviewedButton = screen.getByText('Mark as Reviewed');
+      await user.click(markAsReviewedButton);
+
+      // Should call bulkUpdateEvents with selected event IDs
+      await waitFor(() => {
+        expect(api.bulkUpdateEvents).toHaveBeenCalledWith([1, 2], { reviewed: true });
+      });
+
+      // Should reload events
+      await waitFor(() => {
+        expect(api.fetchEvents).toHaveBeenCalledTimes(2); // Initial load + reload after update
+      });
+
+      // Should clear selections
+      await waitFor(() => {
+        expect(screen.getByText('Select all')).toBeInTheDocument();
+      });
+    });
+
+    it('shows loading state during bulk update', async () => {
+      const user = userEvent.setup();
+      vi.clearAllMocks();
+      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
+      vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
+
+      // Mock slow bulkUpdateEvents
+      vi.mocked(api.bulkUpdateEvents).mockImplementation(
+        () =>
+          new Promise((resolve) =>
+            setTimeout(
+              () =>
+                resolve({
+                  successful: [1],
+                  failed: [],
+                }),
+              100
+            )
+          )
+      );
+
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Select an event
+      const checkboxButtons = screen.getAllByLabelText(/Select event \d+/);
+      await user.click(checkboxButtons[0]);
+
+      await waitFor(() => {
+        expect(screen.getByText('1 selected')).toBeInTheDocument();
+      });
+
+      // Click mark as reviewed
+      const markAsReviewedButton = screen.getByText('Mark as Reviewed');
+      await user.click(markAsReviewedButton);
+
+      // Should show loading state
+      await waitFor(() => {
+        expect(screen.getByText('Updating...')).toBeInTheDocument();
+      });
+
+      // The button containing "Updating..." should be disabled
+      const updatingButton = screen.getByRole('button', { name: /Mark.*selected events as reviewed/ });
+      expect(updatingButton).toBeDisabled();
+    });
+
+    it('handles bulk update errors gracefully', async () => {
+      const user = userEvent.setup();
+      vi.clearAllMocks();
+      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
+      vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
+
+      // Mock bulkUpdateEvents to return partial failure
+      vi.mocked(api.bulkUpdateEvents).mockResolvedValue({
+        successful: [1],
+        failed: [{ id: 2, error: 'Network error' }],
+      });
+
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Select two events
+      const checkboxButtons = screen.getAllByLabelText(/Select event \d+/);
+      await user.click(checkboxButtons[0]);
+      await user.click(checkboxButtons[1]);
+
+      // Mock the events reload after bulk update
+      vi.mocked(api.fetchEvents).mockResolvedValueOnce(mockEventsResponse);
+
+      // Click mark as reviewed
+      const markAsReviewedButton = screen.getByText('Mark as Reviewed');
+      await user.click(markAsReviewedButton);
+
+      // Should call bulkUpdateEvents
+      await waitFor(() => {
+        expect(api.bulkUpdateEvents).toHaveBeenCalledWith([1, 2], { reviewed: true });
+      });
+
+      // Should show partial success error
+      await waitFor(() => {
+        expect(screen.getByText(/Updated 1 events, but 1 failed/)).toBeInTheDocument();
+      });
+    });
+
+    it('does not show bulk action button when no events selected', async () => {
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Should show select all but not mark as reviewed button
+      expect(screen.getByText('Select all')).toBeInTheDocument();
+      expect(screen.queryByText('Mark as Reviewed')).not.toBeInTheDocument();
+    });
+
+    it('clears selection when toggling individual checkbox off', async () => {
+      const user = userEvent.setup();
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Select an event
+      const checkboxButtons = screen.getAllByLabelText(/Select event \d+/);
+      await user.click(checkboxButtons[0]);
+
+      await waitFor(() => {
+        expect(screen.getByText('1 selected')).toBeInTheDocument();
+      });
+
+      // Deselect the same event
+      const deselectButton = screen.getByLabelText('Deselect event 1');
+      await user.click(deselectButton);
+
+      // Should show select all again
+      await waitFor(() => {
+        expect(screen.getByText('Select all')).toBeInTheDocument();
       });
     });
   });

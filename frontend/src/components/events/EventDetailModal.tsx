@@ -1,11 +1,14 @@
 import { Dialog, Transition } from '@headlessui/react';
-import { ArrowLeft, ArrowRight, CheckCircle2, Clock, X } from 'lucide-react';
-import { Fragment, useEffect } from 'react';
+import { ArrowLeft, ArrowRight, CheckCircle2, Clock, Save, X } from 'lucide-react';
+import { Fragment, useEffect, useState } from 'react';
 
+import ThumbnailStrip from './ThumbnailStrip';
+import { fetchEventDetections, getDetectionImageUrl } from '../../services/api';
 import { getRiskLevel } from '../../utils/risk';
 import RiskBadge from '../common/RiskBadge';
 import DetectionImage from '../detection/DetectionImage';
 
+import type { DetectionThumbnail } from './ThumbnailStrip';
 import type { BoundingBox } from '../detection/BoundingBoxOverlay';
 
 export interface Detection {
@@ -26,6 +29,7 @@ export interface Event {
   thumbnail_url?: string;
   detections: Detection[];
   reviewed?: boolean;
+  notes?: string | null;
 }
 
 export interface EventDetailModalProps {
@@ -34,6 +38,7 @@ export interface EventDetailModalProps {
   onClose: () => void;
   onMarkReviewed?: (eventId: string) => void;
   onNavigate?: (direction: 'prev' | 'next') => void;
+  onSaveNotes?: (eventId: string, notes: string) => Promise<void>;
 }
 
 /**
@@ -45,7 +50,98 @@ export default function EventDetailModal({
   onClose,
   onMarkReviewed,
   onNavigate,
+  onSaveNotes,
 }: EventDetailModalProps) {
+  // State for notes editing
+  const [notesText, setNotesText] = useState<string>('');
+  const [isSavingNotes, setIsSavingNotes] = useState<boolean>(false);
+  const [notesSaved, setNotesSaved] = useState<boolean>(false);
+
+  // State for detection sequence thumbnails
+  const [detectionSequence, setDetectionSequence] = useState<DetectionThumbnail[]>([]);
+  const [loadingDetections, setLoadingDetections] = useState<boolean>(false);
+  const [selectedDetectionId, setSelectedDetectionId] = useState<number | undefined>();
+
+  // Initialize notes text when event changes
+  useEffect(() => {
+    if (event) {
+      setNotesText(event.notes || '');
+      setNotesSaved(false);
+    }
+  }, [event]);
+
+  // Fetch detection sequence when event changes
+  useEffect(() => {
+    if (!event || !event.id) {
+      setDetectionSequence([]);
+      setSelectedDetectionId(undefined);
+      return;
+    }
+
+    const loadDetections = async () => {
+      setLoadingDetections(true);
+      try {
+        // Parse event ID as number (API expects number)
+        const eventId = parseInt(event.id, 10);
+        if (isNaN(eventId)) {
+          console.error('Invalid event ID:', event.id);
+          return;
+        }
+
+        const response = await fetchEventDetections(eventId, { limit: 100 });
+
+        // Transform API detections to thumbnail format
+        const thumbnails: DetectionThumbnail[] = response.detections.map((detection) => ({
+          id: detection.id,
+          detected_at: detection.detected_at,
+          thumbnail_url: getDetectionImageUrl(detection.id),
+          object_type: detection.object_type || undefined,
+          confidence: detection.confidence || undefined,
+        }));
+
+        setDetectionSequence(thumbnails);
+
+        // Auto-select first detection if none selected
+        if (thumbnails.length > 0 && !selectedDetectionId) {
+          setSelectedDetectionId(thumbnails[0].id);
+        }
+      } catch (error) {
+        console.error('Failed to fetch detections:', error);
+        setDetectionSequence([]);
+      } finally {
+        setLoadingDetections(false);
+      }
+    };
+
+    void loadDetections();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- selectedDetectionId intentionally excluded to avoid refetching
+  }, [event]);
+
+  // Handle notes save
+  const handleSaveNotes = async () => {
+    if (!event || !onSaveNotes) return;
+
+    setIsSavingNotes(true);
+    setNotesSaved(false);
+
+    try {
+      await onSaveNotes(event.id, notesText);
+      setNotesSaved(true);
+      // Clear saved indicator after 3 seconds
+      setTimeout(() => setNotesSaved(false), 3000);
+    } catch (error) {
+      console.error('Failed to save notes:', error);
+    } finally {
+      setIsSavingNotes(false);
+    }
+  };
+
+  // Handle thumbnail click to view specific detection
+  const handleThumbnailClick = (detectionId: number) => {
+    setSelectedDetectionId(detectionId);
+    // TODO: Could add logic to update the main image view to show this specific detection
+  };
+
   // Handle escape key to close modal
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -207,6 +303,16 @@ export default function EventDetailModal({
                     </div>
                   )}
 
+                  {/* Detection Sequence Thumbnail Strip */}
+                  <div className="mb-6">
+                    <ThumbnailStrip
+                      detections={detectionSequence}
+                      selectedDetectionId={selectedDetectionId}
+                      onThumbnailClick={handleThumbnailClick}
+                      loading={loadingDetections}
+                    />
+                  </div>
+
                   {/* AI Summary */}
                   <div className="mb-6">
                     <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-400">
@@ -248,6 +354,39 @@ export default function EventDetailModal({
                       </div>
                     </div>
                   )}
+
+                  {/* User Notes */}
+                  <div className="mb-6">
+                    <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
+                      Notes
+                    </h3>
+                    <div className="space-y-3">
+                      <textarea
+                        value={notesText}
+                        onChange={(e) => setNotesText(e.target.value)}
+                        placeholder="Add notes about this event..."
+                        rows={4}
+                        className="w-full rounded-lg border border-gray-700 bg-black/30 px-4 py-3 text-sm text-gray-200 placeholder-gray-500 transition-colors focus:border-[#76B900] focus:outline-none focus:ring-2 focus:ring-[#76B900]/20"
+                      />
+                      <div className="flex items-center justify-between">
+                        <button
+                          onClick={() => void handleSaveNotes()}
+                          disabled={isSavingNotes || !onSaveNotes}
+                          className="flex items-center gap-2 rounded-lg bg-[#76B900] px-4 py-2 text-sm font-semibold text-black transition-all hover:bg-[#88d200] active:bg-[#68a000] disabled:cursor-not-allowed disabled:opacity-50"
+                          aria-label="Save notes"
+                        >
+                          <Save className="h-4 w-4" />
+                          {isSavingNotes ? 'Saving...' : 'Save Notes'}
+                        </button>
+                        {notesSaved && (
+                          <span className="flex items-center gap-1 text-sm text-green-500">
+                            <CheckCircle2 className="h-4 w-4" />
+                            Saved
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
 
                   {/* Event Metadata */}
                   <div className="rounded-lg border border-gray-800 bg-black/20 p-4">
