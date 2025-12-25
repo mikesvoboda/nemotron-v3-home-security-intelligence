@@ -20,15 +20,15 @@ Redis Keys:
 """
 
 import json
-import logging
 import time
 import uuid
 from typing import Any
 
 from backend.core.config import get_settings
+from backend.core.logging import get_logger
 from backend.core.redis import RedisClient
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class BatchAggregator:
@@ -90,7 +90,13 @@ class BatchAggregator:
         if self._should_use_fast_path(confidence, object_type):
             logger.info(
                 f"Fast path triggered for detection {detection_id}: "
-                f"confidence={confidence}, object_type={object_type}"
+                f"confidence={confidence}, object_type={object_type}",
+                extra={
+                    "camera_id": camera_id,
+                    "detection_id": detection_id,
+                    "confidence": confidence,
+                    "object_type": object_type,
+                },
             )
             await self._process_fast_path(camera_id, detection_id)
             return f"fast_path_{detection_id}"
@@ -104,7 +110,10 @@ class BatchAggregator:
         if not batch_id:
             # Create new batch
             batch_id = uuid.uuid4().hex
-            logger.info(f"Creating new batch {batch_id} for camera {camera_id}")
+            logger.info(
+                f"Creating new batch {batch_id} for camera {camera_id}",
+                extra={"camera_id": camera_id, "batch_id": batch_id},
+            )
 
             # Set batch metadata
             await self._redis.set(batch_key, batch_id)
@@ -132,7 +141,13 @@ class BatchAggregator:
 
         logger.debug(
             f"Added detection {detection_id} to batch {batch_id} "
-            f"(camera: {camera_id}, total detections: {len(detections)})"
+            f"(camera: {camera_id}, total detections: {len(detections)})",
+            extra={
+                "camera_id": camera_id,
+                "batch_id": batch_id,
+                "detection_id": detection_id,
+                "detection_count": len(detections),
+            },
         )
 
         return batch_id
@@ -195,7 +210,15 @@ class BatchAggregator:
                     )
 
                 if should_close:
-                    logger.info(f"Closing batch {batch_id}: {close_reason}")
+                    camera_id_for_log = await self._redis.get(f"batch:{batch_id}:camera_id")
+                    logger.info(
+                        f"Closing batch {batch_id}: {close_reason}",
+                        extra={
+                            "camera_id": camera_id_for_log,
+                            "batch_id": batch_id,
+                            "reason": close_reason,
+                        },
+                    )
                     await self.close_batch(batch_id)
                     closed_batches.append(batch_id)
 
@@ -206,7 +229,10 @@ class BatchAggregator:
                 continue
 
         if closed_batches:
-            logger.info(f"Closed {len(closed_batches)} timed-out batches")
+            logger.info(
+                f"Closed {len(closed_batches)} timed-out batches",
+                extra={"batch_count": len(closed_batches)},
+            )
 
         return closed_batches
 
@@ -261,10 +287,18 @@ class BatchAggregator:
             await self._redis.add_to_queue(self._analysis_queue, queue_item)
             logger.info(
                 f"Pushed batch {batch_id} to analysis queue "
-                f"(camera: {camera_id}, detections: {len(detections)})"
+                f"(camera: {camera_id}, detections: {len(detections)})",
+                extra={
+                    "camera_id": camera_id,
+                    "batch_id": batch_id,
+                    "detection_count": len(detections),
+                },
             )
         else:
-            logger.debug(f"Batch {batch_id} has no detections, skipping analysis queue")
+            logger.debug(
+                f"Batch {batch_id} has no detections, skipping analysis queue",
+                extra={"camera_id": camera_id, "batch_id": batch_id},
+            )
 
         # Clean up Redis keys
         await self._redis.delete(
@@ -323,9 +357,13 @@ class BatchAggregator:
                 camera_id=camera_id,
                 detection_id=detection_id,
             )
-            logger.info(f"Fast path analysis completed for detection {detection_id}")
+            logger.info(
+                f"Fast path analysis completed for detection {detection_id}",
+                extra={"camera_id": camera_id, "detection_id": detection_id},
+            )
         except Exception as e:
             logger.error(
                 f"Fast path analysis failed for detection {detection_id}: {e}",
+                extra={"camera_id": camera_id, "detection_id": detection_id},
                 exc_info=True,
             )
