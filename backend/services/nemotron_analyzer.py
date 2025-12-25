@@ -14,8 +14,8 @@ Analysis Flow:
 """
 
 import json
-import logging
 import re
+import time
 from typing import Any
 
 import httpx
@@ -23,13 +23,14 @@ from sqlalchemy import select
 
 from backend.core.config import get_settings
 from backend.core.database import get_session
+from backend.core.logging import get_logger
 from backend.core.redis import RedisClient
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.services.prompts import RISK_ANALYSIS_PROMPT
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class NemotronAnalyzer:
@@ -81,9 +82,16 @@ class NemotronAnalyzer:
         if not detection_ids:
             raise ValueError(f"Batch {batch_id} has no detections")
 
+        analysis_start = time.time()
+
         logger.info(
             f"Analyzing batch {batch_id} for camera {camera_id} "
-            f"with {len(detection_ids)} detections"
+            f"with {len(detection_ids)} detections",
+            extra={
+                "camera_id": camera_id,
+                "batch_id": batch_id,
+                "detection_count": len(detection_ids),
+            },
         )
 
         # Fetch detection details from database
@@ -121,6 +129,7 @@ class NemotronAnalyzer:
             detections_list = self._format_detections(detections)
 
             # Call LLM for risk analysis
+            llm_start = time.time()
             try:
                 risk_data = await self._call_llm(
                     camera_name=camera_name,
@@ -128,8 +137,26 @@ class NemotronAnalyzer:
                     end_time=end_time.isoformat(),
                     detections_list=detections_list,
                 )
+                llm_duration_ms = int((time.time() - llm_start) * 1000)
+                logger.debug(
+                    f"LLM analysis completed for batch {batch_id}",
+                    extra={
+                        "camera_id": camera_id,
+                        "batch_id": batch_id,
+                        "duration_ms": llm_duration_ms,
+                    },
+                )
             except Exception as e:
-                logger.error(f"LLM analysis failed for batch {batch_id}: {e}", exc_info=True)
+                llm_duration_ms = int((time.time() - llm_start) * 1000)
+                logger.error(
+                    f"LLM analysis failed for batch {batch_id}: {e}",
+                    extra={
+                        "camera_id": camera_id,
+                        "batch_id": batch_id,
+                        "duration_ms": llm_duration_ms,
+                    },
+                    exc_info=True,
+                )
                 # Create fallback risk data
                 risk_data = {
                     "risk_score": 50,
@@ -156,9 +183,18 @@ class NemotronAnalyzer:
             await session.commit()
             await session.refresh(event)
 
+            total_duration_ms = int((time.time() - analysis_start) * 1000)
             logger.info(
                 f"Created event {event.id} for batch {batch_id}: "
-                f"risk_score={event.risk_score}, risk_level={event.risk_level}"
+                f"risk_score={event.risk_score}, risk_level={event.risk_level}",
+                extra={
+                    "camera_id": camera_id,
+                    "event_id": event.id,
+                    "batch_id": batch_id,
+                    "risk_score": event.risk_score,
+                    "risk_level": event.risk_level,
+                    "duration_ms": total_duration_ms,
+                },
             )
 
             # Broadcast via WebSocket if available (optional)
@@ -196,7 +232,12 @@ class NemotronAnalyzer:
         except (ValueError, TypeError):
             raise ValueError(f"Invalid detection_id: {detection_id}") from None
 
-        logger.info(f"Fast path analysis for detection {detection_id} on camera {camera_id}")
+        analysis_start = time.time()
+
+        logger.info(
+            f"Fast path analysis for detection {detection_id} on camera {camera_id}",
+            extra={"camera_id": camera_id, "detection_id": detection_id_int},
+        )
 
         # Fetch detection details from database
         async with get_session() as session:
@@ -228,6 +269,7 @@ class NemotronAnalyzer:
             batch_id = f"fast_path_{detection_id}"
 
             # Call LLM for risk analysis
+            llm_start = time.time()
             try:
                 risk_data = await self._call_llm(
                     camera_name=camera_name,
@@ -235,9 +277,24 @@ class NemotronAnalyzer:
                     end_time=detection_time.isoformat(),
                     detections_list=detections_list,
                 )
+                llm_duration_ms = int((time.time() - llm_start) * 1000)
+                logger.debug(
+                    f"Fast path LLM analysis completed for detection {detection_id}",
+                    extra={
+                        "camera_id": camera_id,
+                        "detection_id": detection_id_int,
+                        "duration_ms": llm_duration_ms,
+                    },
+                )
             except Exception as e:
+                llm_duration_ms = int((time.time() - llm_start) * 1000)
                 logger.error(
                     f"LLM analysis failed for fast path detection {detection_id}: {e}",
+                    extra={
+                        "camera_id": camera_id,
+                        "detection_id": detection_id_int,
+                        "duration_ms": llm_duration_ms,
+                    },
                     exc_info=True,
                 )
                 # Create fallback risk data
@@ -267,9 +324,18 @@ class NemotronAnalyzer:
             await session.commit()
             await session.refresh(event)
 
+            total_duration_ms = int((time.time() - analysis_start) * 1000)
             logger.info(
                 f"Created fast path event {event.id} for detection {detection_id}: "
-                f"risk_score={event.risk_score}, risk_level={event.risk_level}"
+                f"risk_score={event.risk_score}, risk_level={event.risk_level}",
+                extra={
+                    "camera_id": camera_id,
+                    "event_id": event.id,
+                    "detection_id": detection_id_int,
+                    "risk_score": event.risk_score,
+                    "risk_level": event.risk_level,
+                    "duration_ms": total_duration_ms,
+                },
             )
 
             # Broadcast via WebSocket if available (optional)

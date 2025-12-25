@@ -19,7 +19,7 @@ Error Handling:
     - Missing files: Log and return empty list
 """
 
-import logging
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -27,9 +27,10 @@ import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.config import get_settings
+from backend.core.logging import get_logger
 from backend.models.detection import Detection
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class DetectorClient:
@@ -67,7 +68,7 @@ class DetectorClient:
             logger.error(f"Unexpected error during detector health check: {e}", exc_info=True)
             return False
 
-    async def detect_objects(  # noqa: PLR0911
+    async def detect_objects(  # noqa: PLR0911, PLR0915
         self,
         image_path: str,
         camera_id: str,
@@ -87,11 +88,21 @@ class DetectorClient:
         Returns:
             List of Detection model instances that were stored
         """
+        start_time = time.time()
+
         # Validate image file exists
         image_file = Path(image_path)
         if not image_file.exists():
-            logger.error(f"Image file not found: {image_path}")
+            logger.error(
+                f"Image file not found: {image_path}",
+                extra={"camera_id": camera_id, "file_path": image_path},
+            )
             return []
+
+        logger.debug(
+            f"Sending detection request for {image_path}",
+            extra={"camera_id": camera_id, "file_path": image_path},
+        )
 
         try:
             # Read image file
@@ -165,26 +176,58 @@ class DetectorClient:
             # Commit to database
             if detections:
                 await session.commit()
+                duration_ms = int((time.time() - start_time) * 1000)
                 logger.info(
-                    f"Stored {len(detections)} detections for {camera_id} from {image_path}"
+                    f"Stored {len(detections)} detections for {camera_id} from {image_path}",
+                    extra={
+                        "camera_id": camera_id,
+                        "file_path": image_path,
+                        "detection_count": len(detections),
+                        "duration_ms": duration_ms,
+                    },
                 )
             else:
-                logger.debug(f"No detections above threshold for {image_path}")
+                duration_ms = int((time.time() - start_time) * 1000)
+                logger.debug(
+                    f"No detections above threshold for {image_path}",
+                    extra={
+                        "camera_id": camera_id,
+                        "file_path": image_path,
+                        "duration_ms": duration_ms,
+                    },
+                )
 
             return detections
 
         except httpx.ConnectError as e:
-            logger.error(f"Failed to connect to detector service: {e}")
+            duration_ms = int((time.time() - start_time) * 1000)
+            logger.error(
+                f"Failed to connect to detector service: {e}",
+                extra={"camera_id": camera_id, "file_path": image_path, "duration_ms": duration_ms},
+            )
             return []
 
         except httpx.TimeoutException as e:
-            logger.error(f"Detector request timed out: {e}")
+            duration_ms = int((time.time() - start_time) * 1000)
+            logger.error(
+                f"Detector request timed out: {e}",
+                extra={"camera_id": camera_id, "file_path": image_path, "duration_ms": duration_ms},
+            )
             return []
 
         except httpx.HTTPStatusError as e:
-            logger.error(f"Detector returned HTTP error: {e.response.status_code} - {e}")
+            duration_ms = int((time.time() - start_time) * 1000)
+            logger.error(
+                f"Detector returned HTTP error: {e.response.status_code} - {e}",
+                extra={"camera_id": camera_id, "file_path": image_path, "duration_ms": duration_ms},
+            )
             return []
 
         except Exception as e:
-            logger.error(f"Unexpected error during object detection: {e}", exc_info=True)
+            duration_ms = int((time.time() - start_time) * 1000)
+            logger.error(
+                f"Unexpected error during object detection: {e}",
+                extra={"camera_id": camera_id, "file_path": image_path, "duration_ms": duration_ms},
+                exc_info=True,
+            )
             return []
