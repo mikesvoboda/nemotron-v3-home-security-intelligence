@@ -2,18 +2,23 @@
 
 ## Purpose
 
-End-to-end test suite for full user workflows using a real browser environment. E2E tests verify the entire application stack from frontend to backend.
+End-to-end test suite for full user workflows using a real browser environment. E2E tests verify the entire application stack from frontend to backend, including real API calls, WebSocket connections, and database interactions.
 
 ## Current Status
 
-**Status**: 📋 Planned - Not yet implemented
+**Status**: Planned (Phase 8)
 
 Directory currently contains:
 
 - `.gitkeep` - Placeholder file to maintain directory in git
 - `AGENTS.md` - This documentation file
 
-E2E tests will be implemented in Phase 8 (Integration & E2E) of the project roadmap.
+E2E tests will be implemented in **Phase 8 (Integration & E2E)** of the project roadmap. Prerequisites include:
+
+1. All Phase 1-7 tasks complete
+2. Backend API fully operational
+3. WebSocket channels working
+4. Database with test data available
 
 ## Planned E2E Framework
 
@@ -299,18 +304,23 @@ Before implementing E2E tests, ensure:
 1. **Backend server running**: E2E tests require full stack
 
    - FastAPI backend on port 8000
-   - PostgreSQL/SQLite database initialized
-   - Redis for WebSocket support
+   - SQLite database initialized (this project uses SQLite, not PostgreSQL)
+   - Redis for WebSocket support and caching
 
 2. **Test data setup**: Seed database with predictable test data
 
-   - Sample cameras
-   - Sample events with various risk levels
-   - Known detection patterns
+   - Sample cameras (matching `/export/foscam/{camera_name}/` structure)
+   - Sample events with various risk levels (low, medium, high, critical)
+   - Known detection patterns from RT-DETRv2
 
 3. **Environment variables**: Configure test environment
-   - `VITE_API_URL=http://localhost:8000`
+
+   - `VITE_API_BASE_URL` (defaults to empty for proxy mode)
    - Backend configured for test mode (faster, no side effects)
+
+4. **Docker services**: Can use Docker Compose for consistent test environment
+   - `docker-compose up -d backend redis` for backend services
+   - Frontend runs via `npm run dev` or Playwright's built-in server
 
 ## Integration with CI/CD
 

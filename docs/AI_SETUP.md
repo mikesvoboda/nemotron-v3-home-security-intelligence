@@ -893,4 +893,4 @@ nvidia-smi
 - `8001` - RT-DETRv2 detection server
 - `8002` - Nemotron LLM server
 - `8000` - Backend FastAPI (communicates with AI services)
-- `3000` / `5173` - Frontend (development)
+- `5173` - Frontend Vite dev server (development)

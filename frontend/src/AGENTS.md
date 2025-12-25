@@ -35,6 +35,7 @@ Component organization by feature area:
 - **`common/`** - Reusable UI components
 
   - `RiskBadge.tsx` - Displays risk level badges (low/medium/high/critical)
+  - `ObjectTypeBadge.tsx` - Displays object type badges for detections (person/vehicle/animal/package)
   - `index.ts` - Barrel export for common components
 
 - **`layout/`** - Layout and navigation components
@@ -50,6 +51,7 @@ Component organization by feature area:
   - `CameraGrid.tsx` - Multi-camera grid display
   - `ActivityFeed.tsx` - Real-time event activity stream
   - `GpuStats.tsx` - GPU utilization and metrics display
+  - `StatsRow.tsx` - Dashboard statistics row displaying key metrics
   - `RiskGauge.example.tsx` - Interactive example for development
 
 - **`detection/`** - Object detection visualization components
@@ -65,12 +67,25 @@ Component organization by feature area:
   - `EventCard.tsx` - Individual event card with thumbnail and risk badge
   - `EventTimeline.tsx` - Chronological event list with filtering
   - `EventDetailModal.tsx` - Full event details modal with image and detections
+  - `ThumbnailStrip.tsx` - Horizontal strip of event thumbnails for navigation
+
+- **`logs/`** - Application logging components
+
+  - `LogsDashboard.tsx` - Main logs dashboard view with statistics and table
+  - `LogsTable.tsx` - Paginated table of log entries with sorting
+  - `LogFilters.tsx` - Log filtering controls (level, source, date range)
+  - `LogDetailModal.tsx` - Detailed log entry modal view
+  - `LogStatsCards.tsx` - Statistics cards showing log counts by level
 
 - **`settings/`** - Settings page components
 
+  - `SettingsPage.tsx` - Main settings page with tabbed navigation
   - `CamerasSettings.tsx` - Camera management (add, edit, delete)
   - `AIModelsSettings.tsx` - AI model status and GPU memory display
   - `ProcessingSettings.tsx` - Batch processing and retention configuration
+  - `AIModelsSettings.example.tsx` - Interactive example for development
+  - `ProcessingSettings.example.tsx` - Interactive example for development
+  - `README.md` - Documentation for settings components
   - `index.ts` - Barrel export
 
 **Component Patterns**:
@@ -113,7 +128,7 @@ Component organization by feature area:
 - Use TypeScript for all parameters and returns
 - Handle cleanup in `useEffect` return functions
 
-### `/services/` - API Client
+### `/services/` - API Client and Services
 
 - **`api.ts`** - REST API client for backend
   - Base URL from `import.meta.env.VITE_API_BASE_URL` (defaults to empty string for proxy)
@@ -122,8 +137,15 @@ Component organization by feature area:
   - Camera endpoints: `fetchCameras()`, `fetchCamera(id)`, `createCamera()`, `updateCamera()`, `deleteCamera()`
   - System endpoints: `fetchHealth()`, `fetchGPUStats()`, `fetchConfig()`, `fetchStats()`
   - Event endpoints: `fetchEvents(params?)`, `fetchEvent(id)`, `updateEvent(id, reviewed)`
+  - Log endpoints: `fetchLogs(params?)`, `fetchLogStats()`
   - Media URL builders: `getMediaUrl()`, `getThumbnailUrl()`
-  - Exported types: `Camera`, `HealthResponse`, `GPUStats`, `SystemConfig`, `SystemStats`, `Event`, `EventListResponse`, `EventsQueryParams`
+  - Exported types: `Camera`, `HealthResponse`, `GPUStats`, `SystemConfig`, `SystemStats`, `Event`, `EventListResponse`, `EventsQueryParams`, `LogEntry`, `LogsQueryParams`, `LogStats`
+
+- **`logger.ts`** - Client-side structured logging service
+  - Log levels: debug, info, warn, error
+  - Structured log format with timestamps and context
+  - Console output with colored level indicators
+  - Optionally sends logs to backend API for centralized logging
 
 **API Patterns**:
 
@@ -157,6 +179,12 @@ Component organization by feature area:
   - `getRiskLabel(level: RiskLevel): string` - Get human-readable label
   - Risk levels: low (0-25), medium (26-50), high (51-75), critical (76-100)
 
+- **`time.ts`** - Time formatting utilities
+  - `formatRelativeTime(date: Date | string): string` - Format as "X minutes ago", "X hours ago", etc.
+  - `formatTimestamp(date: Date | string): string` - Format as locale-appropriate date/time
+  - `formatDuration(seconds: number): string` - Format duration in human-readable form
+  - `isWithinLast(date: Date | string, minutes: number): boolean` - Check if date is within timeframe
+
 ## Testing
 
 All test files use naming convention: `*.test.ts` or `*.test.tsx`
@@ -164,12 +192,13 @@ All test files use naming convention: `*.test.ts` or `*.test.tsx`
 ### Component Tests
 
 - `App.test.tsx` - Root component tests
-- `components/common/RiskBadge.test.tsx`
+- `components/common/RiskBadge.test.tsx`, `ObjectTypeBadge.test.tsx`
 - `components/layout/Header.test.tsx`, `Layout.test.tsx`, `Sidebar.test.tsx`
-- `components/dashboard/DashboardPage.test.tsx`, `RiskGauge.test.tsx`, `CameraGrid.test.tsx`, `ActivityFeed.test.tsx`, `GpuStats.test.tsx`
+- `components/dashboard/DashboardPage.test.tsx`, `RiskGauge.test.tsx`, `CameraGrid.test.tsx`, `ActivityFeed.test.tsx`, `GpuStats.test.tsx`, `StatsRow.test.tsx`
 - `components/detection/BoundingBoxOverlay.test.tsx`, `DetectionImage.test.tsx`
-- `components/events/EventCard.test.tsx`, `EventTimeline.test.tsx`, `EventDetailModal.test.tsx`
-- `components/settings/CamerasSettings.test.tsx`, `AIModelsSettings.test.tsx`, `ProcessingSettings.test.tsx`
+- `components/events/EventCard.test.tsx`, `EventTimeline.test.tsx`, `EventDetailModal.test.tsx`, `ThumbnailStrip.test.tsx`
+- `components/logs/LogsDashboard.test.tsx`, `LogsTable.test.tsx`, `LogFilters.test.tsx`, `LogDetailModal.test.tsx`, `LogStatsCards.test.tsx`
+- `components/settings/SettingsPage.test.tsx`, `CamerasSettings.test.tsx`, `AIModelsSettings.test.tsx`, `ProcessingSettings.test.tsx`
 
 ### Hook Tests
 
@@ -184,6 +213,7 @@ All test files use naming convention: `*.test.ts` or `*.test.tsx`
 ### Utility Tests
 
 - `utils/risk.test.ts`
+- `utils/time.test.ts`
 
 **Test Coverage**: 95% threshold for statements, functions, and lines; 94% for branches
 
@@ -282,30 +312,41 @@ All components assume dark theme:
 // React
 import { useState, useEffect, useCallback } from 'react';
 
+// Routing
+import { useNavigate, useParams, Link } from 'react-router-dom';
+
 // API client
 import { fetchCameras, fetchHealth, type Camera } from '@/services/api';
 
+// Logging
+import { logger } from '@/services/logger';
+
 // Hooks
-import { useWebSocket, useEventStream } from '@/hooks';
+import { useWebSocket, useEventStream, useSystemStatus } from '@/hooks';
 
 // Components
-import { RiskBadge } from '@/components/common';
+import { RiskBadge, ObjectTypeBadge } from '@/components/common';
 
 // Utilities
 import { getRiskLevel, getRiskColor } from '@/utils/risk';
+import { formatRelativeTime, formatTimestamp } from '@/utils/time';
 
 // Icons
-import { Activity, Camera, Settings } from 'lucide-react';
+import { Activity, Camera, Settings, AlertTriangle } from 'lucide-react';
 
 // Tremor (data viz)
-import { Card, Title, Text } from '@tremor/react';
+import { Card, Title, Text, DonutChart, BarChart } from '@tremor/react';
+
+// Headless UI (accessible components)
+import { Dialog, Transition, Tab } from '@headlessui/react';
 ```
 
 ## Notes
 
-- **No routing yet**: App is single-page, routing will be added in Phase 7
-- **WebSocket channels**: Backend supports event streams at `/ws/events`
+- **Routing**: Uses react-router-dom v7 for client-side routing
+- **WebSocket channels**: Backend supports event streams at `/ws/events` and `/ws/system`
 - **Media URLs**: Images served from `/api/media/cameras/{cameraId}/{filename}`
 - **Environment variables**: Use `import.meta.env.VITE_*` for Vite env vars
 - **Build**: Vite bundles all imports, tree-shakes unused code
 - **Hot reload**: Vite dev server supports HMR for instant updates
+- **Logging**: Client-side logging available via `logger.ts` service

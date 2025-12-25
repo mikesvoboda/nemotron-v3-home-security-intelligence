@@ -144,13 +144,13 @@ export default function RiskGauge({
   // Get gradient colors based on risk level
   const getGradientStops = () => {
     const stops = [
-      { offset: '0%', color: '#22c55e' }, // green (low)
-      { offset: '25%', color: '#22c55e' },
-      { offset: '26%', color: '#eab308' }, // yellow (medium)
-      { offset: '50%', color: '#eab308' },
-      { offset: '51%', color: '#f97316' }, // orange (high)
-      { offset: '75%', color: '#f97316' },
-      { offset: '76%', color: '#ef4444' }, // red (critical)
+      { offset: '0%', color: '#76B900' }, // NVIDIA Green (low)
+      { offset: '25%', color: '#76B900' },
+      { offset: '26%', color: '#FFB800' }, // NVIDIA Yellow (medium)
+      { offset: '50%', color: '#FFB800' },
+      { offset: '51%', color: '#E74856' }, // NVIDIA Red (high)
+      { offset: '75%', color: '#E74856' },
+      { offset: '76%', color: '#ef4444' }, // red-500 (critical)
       { offset: '100%', color: '#ef4444' },
     ];
     return stops;

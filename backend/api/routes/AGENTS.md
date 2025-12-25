@@ -24,13 +24,14 @@ Camera management CRUD endpoints and snapshot serving.
 
 ### `events.py`
 
-Security event management and querying.
+Security event management, querying, and statistics.
 
 **Key Features:**
 
-- List events with filtering (risk level, date range, reviewed status)
-- Get specific event details with detection count
-- Mark events as reviewed (PATCH)
+- List events with filtering (risk level, date range, reviewed status, object type)
+- Get aggregated event statistics by risk level and camera
+- Get specific event details with detection count and notes
+- Mark events as reviewed and add notes (PATCH)
 - Get detections associated with an event
 - Pagination support
 
@@ -57,6 +58,18 @@ WebSocket endpoints for real-time communication.
 - Connection lifecycle management
 - Ping/pong keep-alive support
 - Integration with broadcaster services
+
+### `logs.py`
+
+System and frontend log management.
+
+**Key Features:**
+
+- List logs with filtering (level, component, camera, source, date, text search)
+- Get log statistics for dashboard (counts by level, component)
+- Get individual log entries by ID
+- Receive and store frontend logs
+- Pagination support
 
 ### `system.py`
 
@@ -114,12 +127,13 @@ Router prefix: `/api/cameras`
 
 Router prefix: `/api/events`
 
-| Method | Path                                | Purpose                               | Request Body  | Response                | Status Codes |
-| ------ | ----------------------------------- | ------------------------------------- | ------------- | ----------------------- | ------------ |
-| GET    | `/api/events`                       | List events with filtering/pagination | None          | `EventListResponse`     | 200          |
-| GET    | `/api/events/{event_id}`            | Get specific event by ID              | None          | `EventResponse`         | 200, 404     |
-| PATCH  | `/api/events/{event_id}`            | Update event (mark as reviewed)       | `EventUpdate` | `EventResponse`         | 200, 404     |
-| GET    | `/api/events/{event_id}/detections` | Get detections for event              | None          | `DetectionListResponse` | 200, 404     |
+| Method | Path                                | Purpose                                 | Request Body  | Response                | Status Codes |
+| ------ | ----------------------------------- | --------------------------------------- | ------------- | ----------------------- | ------------ |
+| GET    | `/api/events`                       | List events with filtering/pagination   | None          | `EventListResponse`     | 200          |
+| GET    | `/api/events/stats`                 | Get aggregated event statistics         | None          | `EventStatsResponse`    | 200          |
+| GET    | `/api/events/{event_id}`            | Get specific event by ID                | None          | `EventResponse`         | 200, 404     |
+| PATCH  | `/api/events/{event_id}`            | Update event (reviewed status & notes)  | `EventUpdate` | `EventResponse`         | 200, 404     |
+| GET    | `/api/events/{event_id}/detections` | Get detections for event                | None          | `DetectionListResponse` | 200, 404     |
 
 **Query Parameters (List):**
 
@@ -128,14 +142,22 @@ Router prefix: `/api/events`
 - `start_date: datetime` - Filter by start date (ISO format)
 - `end_date: datetime` - Filter by end date (ISO format)
 - `reviewed: bool` - Filter by reviewed status
+- `object_type: str` - Filter by detected object type (person, vehicle, animal, etc.)
 - `limit: int` - Max results (1-1000, default: 50)
 - `offset: int` - Skip N results (default: 0)
 
+**Query Parameters (Stats):**
+
+- `start_date: datetime` - Filter by start date (ISO format)
+- `end_date: datetime` - Filter by end date (ISO format)
+
 **Key Features:**
 
-- Advanced filtering by risk, date, camera, reviewed status
+- Advanced filtering by risk, date, camera, reviewed status, object type
+- Aggregated statistics by risk level and camera
 - Automatic detection count calculation
 - Parse comma-separated detection_ids
+- User notes support for events
 - Chronological ordering within events
 - Pagination support
 
@@ -266,6 +288,51 @@ Router prefix: `/api/media`
 - Camera files: `{foscam_base_path}/{camera_id}/`
 - Thumbnails: `backend/data/thumbnails/`
 
+---
+
+### Logs Management (`logs.py`)
+
+Router prefix: `/api/logs`
+
+| Method | Path                 | Purpose                             | Request Body         | Response       | Status Codes |
+| ------ | -------------------- | ----------------------------------- | -------------------- | -------------- | ------------ |
+| GET    | `/api/logs`          | List logs with filtering/pagination | None                 | `LogsResponse` | 200          |
+| GET    | `/api/logs/stats`    | Get log statistics for dashboard    | None                 | `LogStats`     | 200          |
+| GET    | `/api/logs/{log_id}` | Get specific log entry by ID        | None                 | `LogEntry`     | 200, 404     |
+| POST   | `/api/logs/frontend` | Submit frontend log entry           | `FrontendLogCreate`  | `{"status": "created"}` | 201 |
+
+**Query Parameters (List):**
+
+- `level: str` - Filter by log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+- `component: str` - Filter by component/module name
+- `camera_id: str` - Filter by associated camera UUID
+- `source: str` - Filter by source (backend, frontend)
+- `search: str` - Search in message text (case-insensitive)
+- `start_date: datetime` - Filter from date (ISO format)
+- `end_date: datetime` - Filter to date (ISO format)
+- `limit: int` - Max results (1-1000, default: 100)
+- `offset: int` - Skip N results (default: 0)
+
+**Key Features:**
+
+- Advanced filtering by level, component, source, date, text search
+- Dashboard statistics (counts by level and component)
+- Frontend log ingestion with automatic user agent capture
+- Today-based statistics for dashboard widgets
+- Pagination support
+- Chronological ordering (newest first)
+
+**Stats Response Fields:**
+
+- `total_today: int` - Total logs today
+- `errors_today: int` - Error count today
+- `warnings_today: int` - Warning count today
+- `by_component: dict` - Counts grouped by component
+- `by_level: dict` - Counts grouped by level
+- `top_component: str | None` - Most active component
+
+---
+
 ## Common Patterns
 
 ### Async Database Access
@@ -331,6 +398,7 @@ Routes use FastAPI dependencies for:
 - `Detection` - Object detections
 - `Event` - Security events
 - `GPUStats` - GPU metrics
+- `Log` - System and frontend logs
 
 ### External Services
 

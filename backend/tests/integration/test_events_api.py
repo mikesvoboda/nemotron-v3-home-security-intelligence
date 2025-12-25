@@ -486,6 +486,99 @@ class TestUpdateEvent:
         response = await async_client.patch(f"/api/events/{sample_event.id}", json={})
         assert response.status_code == 200  # Valid request, no changes made
 
+    async def test_update_event_add_notes(self, async_client, sample_event):
+        """Test adding notes to an event."""
+        # Verify initial state
+        assert sample_event.notes is None
+
+        # Add notes
+        notes_text = "Verified - delivery person at front door"
+        response = await async_client.patch(
+            f"/api/events/{sample_event.id}", json={"notes": notes_text}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == sample_event.id
+        assert data["notes"] == notes_text
+
+        # Verify persistence
+        response = await async_client.get(f"/api/events/{sample_event.id}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["notes"] == notes_text
+
+    async def test_update_event_update_notes(self, async_client, sample_event):
+        """Test updating existing notes on an event."""
+        # First add initial notes
+        initial_notes = "Initial observation"
+        await async_client.patch(f"/api/events/{sample_event.id}", json={"notes": initial_notes})
+
+        # Update notes
+        updated_notes = "Updated: False alarm, known visitor"
+        response = await async_client.patch(
+            f"/api/events/{sample_event.id}", json={"notes": updated_notes}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["notes"] == updated_notes
+
+        # Verify persistence
+        response = await async_client.get(f"/api/events/{sample_event.id}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["notes"] == updated_notes
+
+    async def test_update_event_clear_notes(self, async_client, sample_event):
+        """Test clearing notes from an event."""
+        # First add notes
+        await async_client.patch(f"/api/events/{sample_event.id}", json={"notes": "Some notes"})
+
+        # Clear notes by setting to None
+        response = await async_client.patch(f"/api/events/{sample_event.id}", json={"notes": None})
+        assert response.status_code == 200
+        data = response.json()
+        assert data["notes"] is None
+
+    async def test_update_event_notes_and_reviewed(self, async_client, sample_event):
+        """Test updating both notes and reviewed status together."""
+        notes_text = "Package delivery confirmed"
+        response = await async_client.patch(
+            f"/api/events/{sample_event.id}", json={"reviewed": True, "notes": notes_text}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["reviewed"] is True
+        assert data["notes"] == notes_text
+
+        # Verify both fields persisted
+        response = await async_client.get(f"/api/events/{sample_event.id}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["reviewed"] is True
+        assert data["notes"] == notes_text
+
+    async def test_update_event_notes_long_text(self, async_client, sample_event):
+        """Test adding long notes text to an event."""
+        long_notes = "A" * 1000  # 1000 character string
+        response = await async_client.patch(
+            f"/api/events/{sample_event.id}", json={"notes": long_notes}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["notes"] == long_notes
+
+    async def test_update_event_notes_special_characters(self, async_client, sample_event):
+        """Test adding notes with special characters and newlines."""
+        notes_with_special = (
+            'Line 1\nLine 2\n\nContains: quotes "test", symbols @#$%, and unicode: \u2713'
+        )
+        response = await async_client.patch(
+            f"/api/events/{sample_event.id}", json={"notes": notes_with_special}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["notes"] == notes_with_special
+
 
 class TestGetEventDetections:
     """Tests for GET /api/events/{event_id}/detections endpoint."""
@@ -594,6 +687,146 @@ class TestGetEventDetections:
         detection_ids = {d["id"] for d in data["detections"]}
         assert detection1.id in detection_ids
         assert detection2.id in detection_ids
+
+
+class TestGetEventStats:
+    """Tests for GET /api/events/stats endpoint."""
+
+    async def test_get_event_stats_empty(self, async_client):
+        """Test getting stats when no events exist."""
+        response = await async_client.get("/api/events/stats")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_events"] == 0
+        assert data["events_by_risk_level"]["critical"] == 0
+        assert data["events_by_risk_level"]["high"] == 0
+        assert data["events_by_risk_level"]["medium"] == 0
+        assert data["events_by_risk_level"]["low"] == 0
+        assert data["events_by_camera"] == []
+
+    async def test_get_event_stats_with_single_event(self, async_client, sample_event):
+        """Test getting stats with a single event."""
+        response = await async_client.get("/api/events/stats")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_events"] == 1
+        assert data["events_by_risk_level"]["medium"] == 1
+        assert data["events_by_risk_level"]["critical"] == 0
+        assert data["events_by_risk_level"]["high"] == 0
+        assert data["events_by_risk_level"]["low"] == 0
+        assert len(data["events_by_camera"]) == 1
+        camera_stat = data["events_by_camera"][0]
+        assert camera_stat["camera_id"] == sample_event.camera_id
+        assert camera_stat["camera_name"] == "Front Door"
+        assert camera_stat["event_count"] == 1
+
+    async def test_get_event_stats_with_multiple_events(self, async_client, multiple_events):
+        """Test getting stats with multiple events."""
+        response = await async_client.get("/api/events/stats")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Total events should be 4 (from multiple_events fixture)
+        assert data["total_events"] == 4
+
+        # Risk level counts
+        assert data["events_by_risk_level"]["low"] == 1
+        assert data["events_by_risk_level"]["medium"] == 1
+        assert data["events_by_risk_level"]["high"] == 1
+        # One event has no risk_level (None), so it won't be counted
+
+        # Camera counts - should have 2 cameras
+        assert len(data["events_by_camera"]) == 2
+
+        # Verify camera stats are sorted by event count descending
+        camera_counts = [c["event_count"] for c in data["events_by_camera"]]
+        assert camera_counts == sorted(camera_counts, reverse=True)
+
+        # Front Door camera should have 3 events (indices 0, 1, 3)
+        front_door_stats = next(
+            (c for c in data["events_by_camera"] if c["camera_name"] == "Front Door"), None
+        )
+        assert front_door_stats is not None
+        assert front_door_stats["event_count"] == 3
+
+        # Back Door camera should have 1 event (index 2)
+        back_door_stats = next(
+            (c for c in data["events_by_camera"] if c["camera_name"] == "Back Door"), None
+        )
+        assert back_door_stats is not None
+        assert back_door_stats["event_count"] == 1
+
+    async def test_get_event_stats_with_date_filter(self, async_client, multiple_events):
+        """Test getting stats with date range filter."""
+        # Filter for events on 2025-12-23 between 13:00 and 23:00
+        start_date = "2025-12-23T13:00:00"
+        end_date = "2025-12-23T23:00:00"
+
+        response = await async_client.get(
+            f"/api/events/stats?start_date={start_date}&end_date={end_date}"
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should get 3 events (at 14:00, 15:00, and 22:00)
+        assert data["total_events"] == 3
+
+        # Risk level counts for filtered events
+        assert data["events_by_risk_level"]["medium"] == 1  # Event at 14:00
+        assert data["events_by_risk_level"]["high"] == 1  # Event at 22:00
+        assert data["events_by_risk_level"]["low"] == 0  # Event at 10:00 is filtered out
+
+    async def test_get_event_stats_with_start_date_only(self, async_client, multiple_events):
+        """Test getting stats with only start_date filter."""
+        start_date = "2025-12-23T14:00:00"
+
+        response = await async_client.get(f"/api/events/stats?start_date={start_date}")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should get events at 14:00, 15:00, and 22:00 (3 events)
+        assert data["total_events"] == 3
+
+    async def test_get_event_stats_with_end_date_only(self, async_client, multiple_events):
+        """Test getting stats with only end_date filter."""
+        end_date = "2025-12-23T14:00:00"
+
+        response = await async_client.get(f"/api/events/stats?end_date={end_date}")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should get events at 10:00 and 14:00 (2 events)
+        assert data["total_events"] == 2
+
+    async def test_get_event_stats_invalid_date_format(self, async_client):
+        """Test that invalid date format returns validation error."""
+        response = await async_client.get("/api/events/stats?start_date=invalid-date")
+        assert response.status_code == 422  # Validation error
+
+    async def test_get_event_stats_response_structure(self, async_client, sample_event):
+        """Test that response has correct structure."""
+        response = await async_client.get("/api/events/stats")
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify all required fields are present
+        assert "total_events" in data
+        assert "events_by_risk_level" in data
+        assert "events_by_camera" in data
+
+        # Verify events_by_risk_level structure
+        risk_levels = data["events_by_risk_level"]
+        assert "critical" in risk_levels
+        assert "high" in risk_levels
+        assert "medium" in risk_levels
+        assert "low" in risk_levels
+
+        # Verify events_by_camera structure
+        if data["events_by_camera"]:
+            camera_stat = data["events_by_camera"][0]
+            assert "camera_id" in camera_stat
+            assert "camera_name" in camera_stat
+            assert "event_count" in camera_stat
 
 
 class TestEventsAPIValidation:

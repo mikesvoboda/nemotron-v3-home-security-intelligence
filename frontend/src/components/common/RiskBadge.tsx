@@ -47,9 +47,9 @@ export default function RiskBadge({
 
   // Get color classes based on risk level
   const colorClasses = {
-    low: 'bg-green-500/10 text-green-500',
-    medium: 'bg-yellow-500/10 text-yellow-500',
-    high: 'bg-orange-500/10 text-orange-500',
+    low: 'bg-risk-low/10 text-risk-low',
+    medium: 'bg-risk-medium/10 text-risk-medium',
+    high: 'bg-risk-high/10 text-risk-high',
     critical: 'bg-red-500/10 text-red-500',
   }[level];
 

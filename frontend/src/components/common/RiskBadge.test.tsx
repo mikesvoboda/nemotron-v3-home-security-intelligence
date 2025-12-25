@@ -5,25 +5,25 @@ import RiskBadge from './RiskBadge';
 
 describe('RiskBadge', () => {
   describe('risk level rendering', () => {
-    it('renders low risk badge with green styling', () => {
+    it('renders low risk badge with NVIDIA green styling', () => {
       render(<RiskBadge level="low" />);
       const badge = screen.getByText('Low');
       expect(badge).toBeInTheDocument();
-      expect(badge.closest('span')).toHaveClass('bg-green-500/10', 'text-green-500');
+      expect(badge.closest('span')).toHaveClass('bg-risk-low/10', 'text-risk-low');
     });
 
-    it('renders medium risk badge with yellow styling', () => {
+    it('renders medium risk badge with NVIDIA yellow styling', () => {
       render(<RiskBadge level="medium" />);
       const badge = screen.getByText('Medium');
       expect(badge).toBeInTheDocument();
-      expect(badge.closest('span')).toHaveClass('bg-yellow-500/10', 'text-yellow-500');
+      expect(badge.closest('span')).toHaveClass('bg-risk-medium/10', 'text-risk-medium');
     });
 
-    it('renders high risk badge with orange styling', () => {
+    it('renders high risk badge with NVIDIA red styling', () => {
       render(<RiskBadge level="high" />);
       const badge = screen.getByText('High');
       expect(badge).toBeInTheDocument();
-      expect(badge.closest('span')).toHaveClass('bg-orange-500/10', 'text-orange-500');
+      expect(badge.closest('span')).toHaveClass('bg-risk-high/10', 'text-risk-high');
     });
 
     it('renders critical risk badge with red styling', () => {

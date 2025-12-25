@@ -151,6 +151,45 @@ Contains all components for the main security dashboard page, including risk vis
 - `formatValue()` - Formats number with fallback for null
 - `formatMemory()` - Formats memory as GB and calculates percentage
 
+### StatsRow.tsx
+
+**Purpose:** Display key metrics in the dashboard header area as a responsive grid of stat cards
+
+**Key Features:**
+
+- Four stat cards: Active Cameras, Events Today, Current Risk Level, System Status
+- Responsive grid: 1 col (mobile) -> 2 (sm) -> 4 (lg)
+- Color-coded risk level using utils/risk functions
+- System status indicator with pulse animation when healthy
+- Icons from lucide-react: Camera, Calendar, Shield, Activity
+- NVIDIA dark theme with #1A1A1A cards and gray-800 borders
+
+**Props:**
+
+- `activeCameras: number` - Number of active cameras (required)
+- `eventsToday: number` - Total number of events today (required)
+- `currentRiskScore: number` - Risk score 0-100 (required)
+- `systemStatus: 'healthy' | 'degraded' | 'unhealthy' | 'unknown'` - System health status (required)
+- `className?: string` - Additional CSS classes
+
+**System Status Colors:**
+
+- healthy: green (with pulse animation)
+- degraded: yellow
+- unhealthy: red
+- unknown: gray
+
+**Usage Example:**
+
+```tsx
+<StatsRow
+  activeCameras={4}
+  eventsToday={23}
+  currentRiskScore={42}
+  systemStatus="healthy"
+/>
+```
+
 ### RiskGauge.example.tsx
 
 **Purpose:** Example usage and documentation for RiskGauge component
@@ -202,11 +241,13 @@ All components have comprehensive test files:
 - `CameraGrid.test.tsx` - Grid layout, status indicators, click handling
 - `ActivityFeed.test.tsx` - Auto-scroll, pause/resume, event rendering
 - `GpuStats.test.tsx` - Tremor components, color coding, null handling
+- `StatsRow.test.tsx` - Stat cards rendering, status colors, risk levels
 
 ## Entry Points
 
 **Start here:** `DashboardPage.tsx` - Understand the full dashboard composition and data flow
 **Then explore:** `RiskGauge.tsx` - See SVG-based visualization and animation techniques
+**Also see:** `StatsRow.tsx` - Simple stat cards with responsive grid layout
 **Deep dive:** `ActivityFeed.tsx` - Learn real-time feed patterns and auto-scroll logic
 
 ## Dependencies

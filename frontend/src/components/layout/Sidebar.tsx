@@ -30,7 +30,7 @@ export default function Sidebar() {
               key={item.id}
               to={item.path}
               end={item.path === '/'}
-              className={({ isActive }) => `
+              className={({ isActive }: { isActive: boolean }) => `
                 flex w-full items-center gap-3 rounded-lg px-4 py-3
                 transition-colors duration-200
                 ${

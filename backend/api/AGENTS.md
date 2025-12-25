@@ -21,8 +21,9 @@ backend/api/
 Contains FastAPI routers that define HTTP endpoints:
 
 - **cameras.py** - Camera CRUD operations and snapshot serving
-- **events.py** - Security event management and queries
+- **events.py** - Security event management, queries, and statistics
 - **detections.py** - Object detection listing and thumbnail serving
+- **logs.py** - System and frontend log management
 - **websocket.py** - WebSocket endpoints for real-time updates
 - **system.py** - System health, GPU stats, configuration
 - **media.py** - Secure file serving for images/videos
@@ -32,8 +33,9 @@ Contains FastAPI routers that define HTTP endpoints:
 Contains Pydantic models for request/response validation:
 
 - **camera.py** - Camera data validation schemas
-- **events.py** - Event request/response schemas
+- **events.py** - Event request/response and statistics schemas
 - **detections.py** - Detection response schemas
+- **logs.py** - Log entry and statistics schemas
 - **system.py** - System monitoring and config schemas
 - **media.py** - Media error response schemas
 
@@ -161,10 +163,18 @@ Routes delegate to services for:
 
 ### Events
 
-- `GET /api/events` - List events with filters (risk level, date, reviewed)
-- `GET /api/events/{id}` - Get specific event
-- `PATCH /api/events/{id}` - Update event (mark as reviewed)
+- `GET /api/events` - List events with filters (risk level, date, reviewed, object_type)
+- `GET /api/events/stats` - Get aggregated event statistics by risk level and camera
+- `GET /api/events/{id}` - Get specific event with notes
+- `PATCH /api/events/{id}` - Update event (reviewed status and notes)
 - `GET /api/events/{id}/detections` - Get detections for event
+
+### Logs
+
+- `GET /api/logs` - List logs with filters (level, component, source, date, search)
+- `GET /api/logs/stats` - Get log statistics for dashboard (counts by level/component)
+- `GET /api/logs/{id}` - Get specific log entry
+- `POST /api/logs/frontend` - Submit frontend log entry
 
 ### Detections
 

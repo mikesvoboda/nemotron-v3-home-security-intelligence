@@ -2,11 +2,12 @@
 
 ## Purpose
 
-This directory contains static assets that are served directly at the root URL path without processing by Vite. Files placed here are copied as-is to the build output and accessible via root-relative URLs.
+This directory contains static assets that are served directly at the root URL path without processing by Vite. Files placed here are copied as-is to the build output (`dist/`) and accessible via root-relative URLs (e.g., `/favicon.ico`).
 
 ## Current Contents
 
 - **`.gitkeep`** - Empty placeholder file to ensure directory exists in git
+- **`AGENTS.md`** - This documentation file
 
 ## Usage
 
@@ -77,15 +78,15 @@ background-image: url(/background.jpg);
 
 When running:
 
-- **`npm run dev`**: Files served from `/public/` at `http://localhost:3000/`
+- **`npm run dev`**: Files served from `/public/` at `http://localhost:5173/`
 - **`npm run build`**: Files copied to `dist/` at build time
 
 ## File Access
 
 All files in this directory are publicly accessible:
 
-- `/public/logo.png` → `http://localhost:3000/logo.png`
-- `/public/images/icon.svg` → `http://localhost:3000/images/icon.svg`
+- `/public/logo.png` → `http://localhost:5173/logo.png`
+- `/public/images/icon.svg` → `http://localhost:5173/images/icon.svg`
 
 ## Best Practices
 
@@ -140,8 +141,28 @@ Example `site.webmanifest`:
 - **Security**: Do not place sensitive files here (API keys, credentials, etc.)
 - **Size matters**: Large files here increase build size and deployment time
 
+## Vite Configuration
+
+The public directory is configured in the Vite build:
+
+- **Dev mode**: Files served from `/public/` at `http://localhost:5173/`
+- **Build mode**: Files copied to `dist/` root during `npm run build`
+- **No processing**: Unlike `src/assets/`, these files bypass Vite's bundler
+
+The current `index.html` references:
+```html
+<link rel="icon" type="image/svg+xml" href="/vite.svg" />
+```
+
+This should be updated to use a custom favicon once branding is finalized.
+
 ## Directory Status
 
-**Current status**: Empty (only placeholder `.gitkeep`)
+**Current status**: Empty (only placeholder `.gitkeep` and this AGENTS.md)
 
-**Action needed**: Add favicon and PWA icons when branding is finalized.
+**Action needed**: Add favicon and PWA icons when branding is finalized. Recommended files:
+
+1. `favicon.ico` - Traditional favicon
+2. `favicon.svg` - SVG favicon for modern browsers
+3. `apple-touch-icon.png` - iOS home screen icon (180x180)
+4. `site.webmanifest` - PWA manifest

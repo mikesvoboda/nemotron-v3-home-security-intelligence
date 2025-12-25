@@ -4,6 +4,7 @@ import ActivityFeed, { type ActivityEvent } from './ActivityFeed';
 import CameraGrid, { type CameraStatus } from './CameraGrid';
 import GpuStats from './GpuStats';
 import RiskGauge from './RiskGauge';
+import StatsRow from './StatsRow';
 import { useEventStream } from '../../hooks/useEventStream';
 import { useSystemStatus } from '../../hooks/useSystemStatus';
 import { fetchCameras, fetchGPUStats, type Camera, type GPUStats } from '../../services/api';
@@ -31,7 +32,7 @@ export default function DashboardPage() {
 
   // WebSocket hooks for real-time data
   const { events, isConnected: eventsConnected } = useEventStream();
-  const { isConnected: systemConnected } = useSystemStatus();
+  const { status: systemStatus, isConnected: systemConnected } = useSystemStatus();
 
   // Fetch initial data
   useEffect(() => {
@@ -80,6 +81,23 @@ export default function DashboardPage() {
 
   // Calculate risk history from recent events (last 10)
   const riskHistory = events.slice(0, 10).reverse().map((event) => event.risk_score);
+
+  // Calculate active cameras count
+  const activeCamerasCount = cameras.filter((camera) => camera.status === 'active').length;
+
+  // Calculate events today count
+  const eventsToday = events.filter((event) => {
+    const eventDate = new Date(event.timestamp);
+    const today = new Date();
+    return (
+      eventDate.getDate() === today.getDate() &&
+      eventDate.getMonth() === today.getMonth() &&
+      eventDate.getFullYear() === today.getFullYear()
+    );
+  }).length;
+
+  // Determine system health status
+  const systemHealth = systemStatus?.health ?? 'unknown';
 
   // Convert Camera[] to CameraStatus[] for CameraGrid
   const cameraStatuses: CameraStatus[] = cameras.map((camera) => ({
@@ -163,6 +181,16 @@ export default function DashboardPage() {
               <span className="ml-2 text-yellow-500">(Disconnected)</span>
             )}
           </p>
+        </div>
+
+        {/* Stats Row */}
+        <div className="mb-8">
+          <StatsRow
+            activeCameras={activeCamerasCount}
+            eventsToday={eventsToday}
+            currentRiskScore={currentRiskScore}
+            systemStatus={systemHealth}
+          />
         </div>
 
         {/* Top Row: RiskGauge + GpuStats */}

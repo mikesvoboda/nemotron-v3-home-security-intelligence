@@ -106,6 +106,12 @@ The system then:
 - **ReDoc**: `http://localhost:8000/redoc` (alternative documentation)
 - **OpenAPI spec**: `http://localhost:8000/openapi.json`
 
+**Service Ports:**
+
+- **Frontend**: `http://localhost:5173` (Vite dev server)
+- **Backend API**: `http://localhost:8000` (FastAPI/uvicorn)
+- **Swagger UI**: `http://localhost:8000/docs`
+
 ### AI pipeline services
 
 Core pipeline building blocks exist in `backend/services/` (watcher, detector client, batcher, analyzer, thumbnail generator).
@@ -156,8 +162,8 @@ In separate terminals:
 docker compose up --build
 ```
 
-- **Frontend**: `http://localhost:3000`
-- **Backend**: `http://localhost:8000`
+- **Frontend**: `http://localhost:5173` (Vite dev server)
+- **Backend**: `http://localhost:8000` (FastAPI)
 
 **macOS note:** `docker-compose.yml` uses `host.docker.internal` for `DETECTOR_URL` / `LLM_URL`. On Linux you may need to adjust this (e.g., `--add-host=host.docker.internal:host-gateway` or set the URLs explicitly).
 
@@ -269,7 +275,7 @@ The recommended production setup uses:
    ```
 
 5. **Verify**
-   - Frontend: `http://your-server:3000`
+   - Frontend: `http://your-server:5173` (Vite dev server)
    - Backend health: `http://your-server:8000/api/system/health`
 
 ### Storage and retention

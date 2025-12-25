@@ -19,23 +19,26 @@ ai/
 
 ### `download_models.sh`
 
-Downloads required AI models:
+Downloads or locates required AI models:
 
 - **Nemotron Mini 4B Instruct** (Q4_K_M quantized GGUF) - ~2.5GB
   - Source: HuggingFace (bartowski/nemotron-mini-4b-instruct-GGUF)
   - Purpose: LLM-based risk reasoning and natural language generation
-- **RT-DETRv2** - ~160MB
-  - Auto-downloaded by transformers library on first use
-  - Model: PekingU/rtdetr_r50vd_coco_o365
+  - Search paths: `NEMOTRON_GGUF_PATH`, `NEMOTRON_MODELS_DIR`, `/export/ai_models/nemotron`
+- **RT-DETRv2** (optional ONNX file for legacy support)
+  - Model: `rtdetrv2_r50vd.onnx`
+  - Search paths: `RTDETR_ONNX_PATH`, `RTDETR_MODELS_DIR`, `/export/ai_models/rt-detrv2`
+  - Note: The current model.py uses HuggingFace Transformers which auto-downloads models
 
 ### `start_detector.sh`
 
 Starts the RT-DETRv2 object detection server:
 
 - **Port**: 8001
-- **VRAM**: ~4GB
+- **VRAM**: ~3GB (uses HuggingFace Transformers)
 - **Purpose**: Detects security-relevant objects in camera images
 - Runs `python ai/rtdetr/model.py`
+- **Environment**: `MODEL_PATH` for ONNX model path (legacy), `RTDETR_MODEL_PATH` for HuggingFace model
 
 ### `start_llm.sh`
 
@@ -52,21 +55,22 @@ Starts the Nemotron LLM server via llama.cpp:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      AI Pipeline                             │
+│                      AI Pipeline                            │
 ├─────────────────────────────────────────────────────────────┤
-│                                                              │
+│                                                             │
 │  ┌──────────────────┐         ┌──────────────────┐         │
 │  │  RT-DETRv2       │         │  Nemotron LLM    │         │
 │  │  Detection       │         │  Reasoning       │         │
 │  │  Port: 8001      │         │  Port: 8090      │         │
-│  │  VRAM: ~4GB      │         │  VRAM: ~3GB      │         │
+│  │  VRAM: ~3GB      │         │  VRAM: ~3GB      │         │
+│  │  HuggingFace     │         │  llama.cpp       │         │
 │  └──────────────────┘         └──────────────────┘         │
 │         ▲                             ▲                     │
 │         │                             │                     │
 │         │ HTTP POST /detect           │ HTTP POST          │
 │         │ (multipart/form-data)       │ /completion        │
 │         │                             │ (JSON)             │
-└─────────┼─────────────────────────────┼──────────────────────┘
+└─────────┼─────────────────────────────┼─────────────────────┘
           │                             │
           │                             │
     ┌─────┴──────┐              ┌──────┴────────┐
@@ -126,7 +130,7 @@ Server runs at: `http://localhost:8090`
 
 - **GPU**: NVIDIA RTX A5500 (24GB VRAM)
 - **CUDA**: Required for GPU acceleration
-- **Total VRAM Usage**: ~7GB (4GB detector + 3GB LLM)
+- **Total VRAM Usage**: ~6GB (3GB detector + 3GB LLM)
 - **Inference Performance**:
   - RT-DETRv2: 30-50ms per image
   - Nemotron: ~2-5 seconds per risk analysis

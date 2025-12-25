@@ -2,9 +2,34 @@
 
 ## Purpose
 
-Contains components for application configuration and system settings. Includes camera management, AI model status, and processing parameters. These components provide administrative controls for the security system.
+Contains components for application configuration and system settings. Includes camera management, AI model status, and processing parameters. These components provide administrative controls for the security system, organized in a tabbed interface.
 
 ## Key Components
+
+### SettingsPage.tsx
+
+**Purpose:** Main settings page with tabbed interface for different settings categories
+
+**Key Features:**
+
+- Headless UI Tab component for accessible tab navigation
+- Three settings tabs: CAMERAS, PROCESSING, AI MODELS
+- Tab icons: Camera, Settings, Cpu
+- NVIDIA dark theme with green accent for selected tab
+- Keyboard navigation support
+- Focus ring styling for accessibility
+
+**Tab Configuration:**
+
+```typescript
+const tabs = [
+  { id: 'cameras', name: 'CAMERAS', icon: Camera, component: CamerasSettings },
+  { id: 'processing', name: 'PROCESSING', icon: SettingsIcon, component: ProcessingSettings },
+  { id: 'ai-models', name: 'AI MODELS', icon: Cpu, component: AIModelsSettings },
+];
+```
+
+**No props** - Top-level page component
 
 ### CamerasSettings.tsx
 
@@ -24,25 +49,27 @@ Contains components for application configuration and system settings. Includes 
 
 **Props:**
 
-- No props (top-level settings page component)
+- No props (top-level settings component)
 
 **State Management:**
 
-- `cameras: Camera[]` - All cameras from API
-- `loading: boolean` - Initial load state
-- `error: string | null` - Error message
-- `isModalOpen: boolean` - Add/edit modal visibility
-- `isDeleteModalOpen: boolean` - Delete confirmation modal
-- `editingCamera: Camera | null` - Camera being edited (null for add)
-- `deletingCamera: Camera | null` - Camera being deleted
-- `formData: CameraFormData` - Form state
-- `formErrors: CameraFormErrors` - Validation errors
-- `submitting: boolean` - Form submission state
+```typescript
+const [cameras, setCameras] = useState<Camera[]>([]);
+const [loading, setLoading] = useState(boolean);
+const [error, setError] = useState<string | null>(null);
+const [isModalOpen, setIsModalOpen] = useState(boolean);
+const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(boolean);
+const [editingCamera, setEditingCamera] = useState<Camera | null>(null);
+const [deletingCamera, setDeletingCamera] = useState<Camera | null>(null);
+const [formData, setFormData] = useState<CameraFormData>({});
+const [formErrors, setFormErrors] = useState<CameraFormErrors>({});
+const [submitting, setSubmitting] = useState(boolean);
+```
 
 **Camera Interface:**
 
 ```typescript
-{
+interface Camera {
   id: string;
   name: string;
   folder_path: string;
@@ -50,13 +77,6 @@ Contains components for application configuration and system settings. Includes 
   last_seen_at?: string;    // ISO timestamp
 }
 ```
-
-**API Integration:**
-
-- `fetchCameras()` - Load all cameras
-- `createCamera(data)` - POST new camera
-- `updateCamera(id, data)` - PUT camera updates
-- `deleteCamera(id)` - DELETE camera
 
 **Validation:**
 
@@ -88,20 +108,20 @@ Contains components for application configuration and system settings. Includes 
 
 **Props:**
 
-- `rtdetrModel?: ModelInfo` - RT-DETRv2 model status
-- `nemotronModel?: ModelInfo` - Nemotron model status
-- `totalMemory?: number | null` - Total GPU memory in MB
-- `className?: string`
-
-**ModelInfo Interface:**
-
 ```typescript
-{
-  name: string; // "RT-DETRv2", "Nemotron"
+interface AIModelsSettingsProps {
+  rtdetrModel?: ModelInfo;
+  nemotronModel?: ModelInfo;
+  totalMemory?: number | null;
+  className?: string;
+}
+
+interface ModelInfo {
+  name: string;              // "RT-DETRv2", "Nemotron"
   status: 'loaded' | 'unloaded' | 'error';
   memoryUsed: number | null; // MB
   inferenceFps: number | null; // Frames per second
-  description: string; // Model description
+  description: string;       // Model description
 }
 ```
 
@@ -111,84 +131,64 @@ Contains components for application configuration and system settings. Includes 
 - Nemotron: "Risk analysis and reasoning model"
 - Both default to 'unloaded' status with null metrics
 
-**Display Features:**
-
-- Tremor Card, ProgressBar, Title, Text, Badge components
-- Icons: Cpu (RT-DETRv2), Brain (Nemotron), Activity, Zap
-- Color-coded status badges
-- Memory usage as GB with percentage progress bar
-- Inference FPS only shown when model is loaded
-
 ### ProcessingSettings.tsx
 
-**Purpose:** Display event processing configuration (read-only)
+**Purpose:** Editable event processing configuration with range sliders
 
 **Key Features:**
 
-- Batch window duration (seconds)
-- Idle timeout (seconds)
-- Retention period (days)
-- Application name and version
-- Read-only inputs (disabled, cursor-not-allowed)
-- Info banner: "Settings are currently read-only"
-- Fetches config from `/api/system/config` endpoint
-- Loading skeletons and error handling
+- Batch window duration (30-300 seconds, step 10)
+- Idle timeout (10-120 seconds, step 5)
+- Retention period (1-90 days, step 1)
+- Confidence threshold (0.00-1.00, step 0.01)
+- Range sliders for intuitive value adjustment
+- Current value display next to each slider
+- Save Changes / Reset buttons
+- Success/error feedback messages
+- Storage usage indicator (placeholder)
+- Clear Old Data button (placeholder)
+- Application name and version display
 
 **Props:**
 
-- `className?: string`
+```typescript
+interface ProcessingSettingsProps {
+  className?: string;
+}
+```
 
 **State:**
 
-- `config: SystemConfig | null` - Configuration from API
-- `loading: boolean` - Loading state
-- `error: string | null` - Error message
+```typescript
+const [config, setConfig] = useState<SystemConfig | null>(null);
+const [editedConfig, setEditedConfig] = useState<SystemConfig | null>(null);
+const [loading, setLoading] = useState(boolean);
+const [saving, setSaving] = useState(boolean);
+const [error, setError] = useState<string | null>(null);
+const [success, setSuccess] = useState(boolean);
+```
 
 **SystemConfig Interface:**
 
 ```typescript
-{
-  batch_window_seconds: number; // 90
-  batch_idle_timeout_seconds: number; // 30
-  retention_days: number; // 30
-  app_name: string; // "NVIDIA Security Intelligence"
-  version: string; // "0.1.0"
+interface SystemConfig {
+  batch_window_seconds: number;            // Default: 90
+  batch_idle_timeout_seconds: number;      // Default: 30
+  retention_days: number;                  // Default: 30
+  detection_confidence_threshold: number;  // Default: 0.5
+  app_name: string;                        // "NVIDIA Security Intelligence"
+  version: string;                         // e.g., "0.1.0"
 }
 ```
 
 **API Integration:**
 
 - `fetchConfig()` - GET /api/system/config
-
-**UI Notes:**
-
-- Blue info banner explains read-only state
-- Disabled inputs have opacity-60 and cursor-not-allowed
-- Uses Tremor Card, Title, Text components
-- Settings icon from lucide-react
-
-### AIModelsSettings.example.tsx
-
-**Purpose:** Example usage of AIModelsSettings component
-
-Shows:
-
-- Loaded models with metrics
-- Unloaded models
-- Error state
-- Null values handling
-
-### ProcessingSettings.example.tsx
-
-**Purpose:** Example usage of ProcessingSettings component
-
-Demonstrates read-only configuration display
+- `updateConfig(updates)` - PATCH /api/system/config
 
 ### index.ts
 
 **Purpose:** Barrel export for settings components
-
-**Exports:**
 
 ```typescript
 export { default as CamerasSettings } from './CamerasSettings';
@@ -198,9 +198,12 @@ export { default as ProcessingSettings } from './ProcessingSettings';
 
 ### README.md
 
-**Purpose:** Documentation for settings components
+Documentation for settings components with usage examples and integration notes.
 
-Contains usage examples, prop descriptions, and integration notes
+### Example Files
+
+- `AIModelsSettings.example.tsx` - Example usage of AIModelsSettings
+- `ProcessingSettings.example.tsx` - Example usage of ProcessingSettings
 
 ## Important Patterns
 
@@ -209,9 +212,9 @@ Contains usage examples, prop descriptions, and integration notes
 Standard create-read-update-delete pattern:
 
 1. **Read:** Fetch on mount, display in table
-2. **Create:** Modal form → validate → POST → reload list
-3. **Update:** Modal form (pre-filled) → validate → PUT → reload list
-4. **Delete:** Confirmation modal → DELETE → reload list
+2. **Create:** Modal form -> validate -> POST -> reload list
+3. **Update:** Modal form (pre-filled) -> validate -> PUT -> reload list
+4. **Delete:** Confirmation modal -> DELETE -> reload list
 
 ### Modal State Management
 
@@ -246,22 +249,16 @@ const validateForm = (data: CameraFormData): CameraFormErrors => {
 };
 ```
 
-Display inline errors:
+### Edit Detection (ProcessingSettings)
 
-```tsx
-{
-  formErrors.name && <p className="mt-1 text-sm text-red-500">{formErrors.name}</p>;
-}
+Track changes between original and edited config:
+
+```typescript
+const hasChanges = editedConfig && config && (
+  editedConfig.batch_window_seconds !== config.batch_window_seconds ||
+  // ... compare other fields
+);
 ```
-
-### Read-Only Displays
-
-AIModelsSettings and ProcessingSettings are read-only:
-
-- No form submission
-- Disabled inputs with visual indicators
-- Info banners explaining why read-only
-- Future: Add edit functionality when backend supports it
 
 ### Loading States
 
@@ -279,6 +276,13 @@ return <DataDisplay data={data} />;
 
 ## Styling Conventions
 
+### SettingsPage
+
+- Page background: bg-[#121212]
+- Tab list: bg-[#1A1A1A], border-gray-800
+- Selected tab: bg-[#76B900], text-black
+- Tab panel: bg-[#1A1A1A], border-gray-800
+
 ### CamerasSettings
 
 - Table: border-gray-800, divide-y divide-gray-800
@@ -295,13 +299,14 @@ return <DataDisplay data={data} />;
 - Status badges: Tremor Badge with color coding
 - Progress bars: Tremor ProgressBar
 - GPU memory card: bg-[#1A1A1A]
-- Grid layout: 1 col → 2 cols (lg breakpoint)
+- Grid layout: 1 col -> 2 cols (lg breakpoint)
 
 ### ProcessingSettings
 
 - Card: bg-[#1A1A1A], border-gray-800
-- Info banner: bg-blue-500/10, border-blue-500/30, text-blue-400
-- Disabled inputs: opacity-60, cursor-not-allowed
+- Range sliders: accent-[#76B900]
+- Error banner: bg-red-500/10, border-red-500/30, text-red-500
+- Success banner: bg-green-500/10, border-green-500/30, text-green-500
 - Labels: text-gray-300, descriptions: text-gray-500
 - Application info: border-t border-gray-800, gray text
 
@@ -309,17 +314,25 @@ return <DataDisplay data={data} />;
 
 Comprehensive test coverage:
 
+- `SettingsPage.test.tsx` - Tab navigation, keyboard support, tab panel rendering
 - `CamerasSettings.test.tsx` - CRUD operations, modals, validation, loading/error states
 - `AIModelsSettings.test.tsx` - Model status display, memory usage, FPS display
-- `ProcessingSettings.test.tsx` - Config fetching, read-only inputs, error handling
+- `ProcessingSettings.test.tsx` - Config fetching, slider interaction, save/reset, error handling
 
 ## Entry Points
 
-**Start here:** `CamerasSettings.tsx` - Understand full CRUD pattern with modals
-**Then explore:** `AIModelsSettings.tsx` - See read-only status display
-**Finally:** `ProcessingSettings.tsx` - Learn config fetching pattern
+**Start here:** `SettingsPage.tsx` - Understand tabbed layout structure
+**Then explore:** `CamerasSettings.tsx` - Learn full CRUD pattern with modals
+**Next:** `ProcessingSettings.tsx` - See editable config with range sliders
+**Finally:** `AIModelsSettings.tsx` - Understand status display pattern
 
 ## Dependencies
+
+### SettingsPage
+
+- `@headlessui/react` - Tab component
+- `lucide-react` - Icons (Camera, Settings, Cpu)
+- `clsx` - Class composition
 
 ### CamerasSettings
 
@@ -336,9 +349,18 @@ Comprehensive test coverage:
 
 ### ProcessingSettings
 
-- `@tremor/react` - Card, Title, Text
-- `lucide-react` - Icons (AlertCircle, Settings)
-- `../../services/api` - fetchConfig
+- `@tremor/react` - Card, Title, Text, Button
+- `lucide-react` - Icons (AlertCircle, Settings, Save, RotateCcw, Trash2)
+- `../../services/api` - fetchConfig, updateConfig
+
+## API Endpoints Used
+
+- `GET /api/cameras` - List all cameras
+- `POST /api/cameras` - Create new camera
+- `PUT /api/cameras/:id` - Update camera
+- `DELETE /api/cameras/:id` - Delete camera
+- `GET /api/system/config` - Fetch system configuration
+- `PATCH /api/system/config` - Update system configuration
 
 ## Future Enhancements
 
@@ -361,17 +383,14 @@ Comprehensive test coverage:
 
 ### ProcessingSettings
 
-- Enable editing (PUT /api/system/config endpoint)
-- Validation: min/max values, dependencies
-- Apply/Revert buttons
+- Validation with min/max dependencies
 - Restart required warnings
 - Advanced settings (debug mode, logging level)
 - Import/export configuration
 
 ### General
 
-- Settings page tabs or sidebar navigation
-- Search/filter across all settings
+- Settings search/filter
 - Change history/audit log
 - Settings profiles (dev/staging/prod)
 - Help text and tooltips

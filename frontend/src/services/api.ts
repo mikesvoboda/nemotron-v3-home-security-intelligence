@@ -48,6 +48,14 @@ export interface SystemConfig {
   retention_days: number;
   batch_window_seconds: number;
   batch_idle_timeout_seconds: number;
+  detection_confidence_threshold: number;
+}
+
+export interface SystemConfigUpdate {
+  retention_days?: number;
+  batch_window_seconds?: number;
+  batch_idle_timeout_seconds?: number;
+  detection_confidence_threshold?: number;
 }
 
 export interface SystemStats {
@@ -222,6 +230,13 @@ export async function fetchGPUStats(): Promise<GPUStats> {
 
 export async function fetchConfig(): Promise<SystemConfig> {
   return fetchApi<SystemConfig>('/api/system/config');
+}
+
+export async function updateConfig(data: SystemConfigUpdate): Promise<SystemConfig> {
+  return fetchApi<SystemConfig>('/api/system/config', {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
 }
 
 export async function fetchStats(): Promise<SystemStats> {

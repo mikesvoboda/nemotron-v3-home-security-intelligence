@@ -211,7 +211,7 @@ async def test_list_detections_with_filters(async_client, sample_detection):
         assert detection["confidence"] >= 0.9
 ```
 
-### `test_events_api.py` (622 lines, 40+ tests)
+### `test_events_api.py` (900+ lines, 41 tests)
 
 Tests for events API endpoints (`/api/events/*`).
 
@@ -241,6 +241,53 @@ Tests for events API endpoints (`/api/events/*`).
   - Empty detections
   - Multiple detections
   - Not found (404)
+
+### `test_logs_api.py` (173 lines, 9 tests)
+
+Tests for logs API endpoints (`/api/logs/*`).
+
+**Coverage:**
+
+- List logs (`GET /api/logs`)
+  - Empty results
+  - With data
+  - Filter by level (ERROR, INFO, etc.)
+  - Filter by component
+  - Pagination (limit, offset)
+- Get single log (`GET /api/logs/{id}`)
+  - Success case
+  - Not found (404)
+- Log statistics (`GET /api/logs/stats`)
+  - Total counts
+  - Error counts
+  - By-component breakdown
+- Frontend log submission (`POST /api/logs/frontend`)
+  - Valid payload
+  - Source tagging as "frontend"
+
+**Key patterns:**
+
+- Uses shared `client` and `db_session` fixtures
+- Tests for filtering and pagination
+- Verifies database persistence
+
+**Example:**
+
+```python
+@pytest.mark.asyncio
+async def test_list_logs_filter_by_level(client, db_session):
+    # Create logs with different levels
+    log1 = Log(level="INFO", component="test", message="Info", source="backend")
+    log2 = Log(level="ERROR", component="test", message="Error", source="backend")
+    db_session.add_all([log1, log2])
+    await db_session.commit()
+
+    response = await client.get("/api/logs?level=ERROR")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["count"] == 1
+    assert data["logs"][0]["level"] == "ERROR"
+```
 
 **Key patterns:**
 
@@ -622,16 +669,31 @@ async def test_concurrent_requests(client):
 
 ## Test Statistics
 
-- **Total test files**: 9
-- **Total test cases**: 100+
-- **API tests**: 13 (test_api.py)
-- **Camera API tests**: 35+ (test_cameras_api.py)
-- **System API tests**: 15 (test_system_api.py)
-- **Media API tests**: 20+ (test_media_api.py)
-- **Detections API tests**: 15+ (test_detections_api.py)
-- **Events API tests**: 40+ (test_events_api.py)
-- **WebSocket tests**: 30+ (test_websocket.py)
-- **Full stack tests**: 14 (test_full_stack.py)
+- **Total test files**: 10
+- **Total test cases**: 177
+- **API tests**: 12 (test_api.py)
+- **Camera API tests**: 30 (test_cameras_api.py)
+- **System API tests**: 16 (test_system_api.py)
+- **Media API tests**: 21 (test_media_api.py)
+- **Detections API tests**: 12 (test_detections_api.py)
+- **Events API tests**: 41 (test_events_api.py)
+- **Logs API tests**: 9 (test_logs_api.py)
+- **WebSocket tests**: 25 (test_websocket.py)
+- **Full stack tests**: 11 (test_full_stack.py)
+
+### Test Files Summary
+
+| File | Tests | Description |
+|------|-------|-------------|
+| test_api.py | 12 | FastAPI app endpoints and middleware |
+| test_cameras_api.py | 30 | Camera CRUD operations |
+| test_detections_api.py | 12 | Detection endpoints |
+| test_events_api.py | 41 | Event endpoints with filtering |
+| test_full_stack.py | 11 | Complete database workflows |
+| test_logs_api.py | 9 | Log endpoints and statistics |
+| test_media_api.py | 21 | Media file serving and security |
+| test_system_api.py | 16 | System health and stats |
+| test_websocket.py | 25 | WebSocket channels |
 
 ## Dependencies
 

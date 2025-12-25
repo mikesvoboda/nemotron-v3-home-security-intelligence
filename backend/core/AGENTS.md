@@ -7,6 +7,7 @@ The `backend/core/` directory contains the foundational infrastructure component
 - **Configuration management** - Environment-based settings with validation
 - **Database layer** - SQLAlchemy 2.0 async engine and session management
 - **Redis client** - Async Redis wrapper for queues, pub/sub, and caching
+- **Logging infrastructure** - Centralized structured logging with console, file, and SQLite handlers
 
 These components are designed as singletons and provide dependency injection patterns for FastAPI routes and services.
 
@@ -17,6 +18,7 @@ backend/core/
 ├── __init__.py       # Public API exports
 ├── config.py         # Pydantic Settings configuration
 ├── database.py       # SQLAlchemy async database layer
+├── logging.py        # Centralized logging configuration
 └── redis.py          # Redis async client wrapper
 ```
 
@@ -46,10 +48,17 @@ The `__init__.py` file provides a clean public API for the core module:
 - `close_redis()` - Cleanup Redis connection
 - `get_redis()` - FastAPI dependency for Redis client
 
+**Exported from logging.py:**
+
+- `get_logger()` - Get a configured logger instance
+- `get_request_id()` - Get current request ID from context
+- `set_request_id()` - Set request ID in context
+- `setup_logging()` - Initialize application-wide logging
+
 **Usage:**
 
 ```python
-from backend.core import get_settings, init_db, get_redis
+from backend.core import get_settings, init_db, get_redis, get_logger, setup_logging
 ```
 
 ## `config.py` - Configuration Management
@@ -120,6 +129,16 @@ Manages all application configuration using Pydantic Settings with environment v
 - `api_key_enabled: bool` - Enable API key authentication (default: False)
 - `api_keys: list[str]` - List of valid API keys (plain text, hashed on startup)
 
+**Logging Settings:**
+
+- `log_level: str` - Logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL (default: INFO)
+- `log_file_path: str` - Path for rotating log file (default: `data/logs/security.log`)
+- `log_file_max_bytes: int` - Maximum size of each log file (default: 10MB)
+- `log_file_backup_count: int` - Number of backup log files to keep (default: 7)
+- `log_db_enabled: bool` - Enable writing logs to SQLite database (default: True)
+- `log_db_min_level: str` - Minimum log level to write to database (default: DEBUG)
+- `log_retention_days: int` - Number of days to retain logs (default: 7)
+
 ### Configuration Loading
 
 Settings are loaded from:
@@ -147,6 +166,10 @@ model_config = SettingsConfigDict(
 - Creates parent directory if it doesn't exist
 - Handles both `sqlite:///` and `sqlite://` formats
 - Skips validation for in-memory databases (`:memory:`)
+
+**`validate_log_file_path`** - Ensures log directory exists:
+
+- Creates parent directory for log files if it doesn't exist
 
 ### Singleton Pattern
 
@@ -593,6 +616,120 @@ Operations log errors and either:
 - Falls back to raw string if JSON parsing fails
 - Preserves type information (dict stays dict, list stays list)
 
+## `logging.py` - Centralized Logging
+
+### Purpose
+
+Provides unified logging infrastructure with multiple outputs:
+
+- Console handler with plain text format for development
+- File handler with rotating logs for production grep/tail
+- SQLite handler for admin UI queries and structured log storage
+
+### Key Components
+
+**Context Variables:**
+
+- `_request_id: ContextVar[str | None]` - Thread-safe request ID propagation
+- `get_request_id()` - Retrieve current request ID
+- `set_request_id()` - Set request ID (used by RequestIDMiddleware)
+
+**Classes:**
+
+**`ContextFilter`** - Logging filter that adds contextual information:
+
+- Adds `request_id` to all log records
+- Enables log correlation across async operations
+
+**`CustomJsonFormatter`** - JSON formatter with structured fields:
+
+- ISO timestamp in UTC
+- Level, component, and message fields
+- Request ID when available
+- Inherits from `python-json-logger.JsonFormatter`
+
+**`SQLiteHandler`** - Custom handler writing logs to database:
+
+- Uses synchronous database sessions (avoids blocking async context)
+- Extracts structured metadata (camera_id, event_id, detection_id, duration_ms)
+- Falls back gracefully if database is unavailable
+- Creates `Log` model entries in the `logs` table
+- Configurable minimum log level
+
+### Functions
+
+**`setup_logging() -> None`** - Initialize application-wide logging:
+
+1. Gets log level from settings
+2. Clears existing handlers on root logger
+3. Adds ContextFilter for request ID propagation
+4. Creates console handler with plain text format
+5. Creates rotating file handler (if path is accessible)
+6. Creates SQLite handler (if `log_db_enabled=True`)
+7. Reduces noise from third-party libraries (uvicorn, sqlalchemy, watchdog)
+
+**Called during:** Application startup in lifespan context manager (before database init)
+
+**`get_logger(name: str) -> logging.Logger`** - Get a configured logger:
+
+```python
+from backend.core import get_logger
+
+logger = get_logger(__name__)
+logger.info("Operation completed", extra={"camera_id": "front_door"})
+```
+
+### Log Record Structure
+
+When writing to SQLite, logs include:
+
+- `timestamp` - UTC datetime
+- `level` - Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+- `component` - Logger name (typically `__name__`)
+- `message` - Formatted log message
+- `camera_id` - Camera reference (if in extra)
+- `event_id` - Event reference (if in extra)
+- `request_id` - Request correlation ID (from context)
+- `detection_id` - Detection reference (if in extra)
+- `duration_ms` - Operation duration (if in extra)
+- `extra` - JSON object with additional context
+- `source` - Always "backend" for backend logs
+
+### Usage Patterns
+
+**Basic logging:**
+
+```python
+from backend.core import get_logger
+
+logger = get_logger(__name__)
+logger.info("Processing started")
+logger.warning("Slow operation detected")
+logger.error("Failed to process", exc_info=True)
+```
+
+**Structured logging with context:**
+
+```python
+logger.info(
+    "Detection processed",
+    extra={
+        "camera_id": camera_id,
+        "detection_id": detection.id,
+        "duration_ms": 150
+    }
+)
+```
+
+**Request ID propagation:**
+
+```python
+from backend.core import get_request_id
+
+request_id = get_request_id()  # Available in any async context
+logger.info(f"Request {request_id}: Processing")
+```
+
 ## Dependency Injection Patterns
 
 ### FastAPI Route Dependencies
@@ -659,6 +796,9 @@ async def my_background_task():
 ```python
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Initialize logging first (before any other initialization)
+    setup_logging()
+
     # Startup
     await init_db()
     await init_redis()
@@ -739,16 +879,25 @@ async def add_to_queue(queue_name: str, data: Any) -> int:
 
 ## Logging
 
-All modules use Python's logging module:
+All modules use the centralized logging infrastructure from `logging.py`:
 
 ```python
-import logging
+from backend.core import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 logger.info("Redis connected successfully")
 logger.warning("Database connection attempt failed")
 logger.error("Critical error", exc_info=True)
+
+# With structured context
+logger.info("Detection processed", extra={
+    "camera_id": "front_door",
+    "detection_id": 123,
+    "duration_ms": 45
+})
 ```
+
+See the `logging.py` section above for detailed documentation.
 
 ## Testing
 
@@ -757,6 +906,7 @@ Core modules have comprehensive unit tests in `backend/tests/unit/`:
 - `test_config.py` - Settings loading and validation
 - `test_database.py` - Database initialization, sessions, transactions
 - `test_redis.py` - Redis operations, serialization, error handling
+- `test_logging.py` - Logging setup, handlers, context propagation
 
 Run with:
 

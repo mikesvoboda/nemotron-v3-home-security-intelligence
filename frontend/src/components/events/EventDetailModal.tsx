@@ -1,10 +1,11 @@
 import { Dialog, Transition } from '@headlessui/react';
-import { ArrowLeft, ArrowRight, CheckCircle2, Clock, Save, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle2, Clock, Download, Flag, Save, Timer, X } from 'lucide-react';
 import { Fragment, useEffect, useState } from 'react';
 
 import ThumbnailStrip from './ThumbnailStrip';
 import { fetchEventDetections, getDetectionImageUrl } from '../../services/api';
 import { getRiskLevel } from '../../utils/risk';
+import { formatDuration } from '../../utils/time';
 import RiskBadge from '../common/RiskBadge';
 import DetectionImage from '../detection/DetectionImage';
 
@@ -28,8 +29,11 @@ export interface Event {
   image_url?: string;
   thumbnail_url?: string;
   detections: Detection[];
+  started_at?: string;
+  ended_at?: string | null;
   reviewed?: boolean;
   notes?: string | null;
+  flagged?: boolean;
 }
 
 export interface EventDetailModalProps {
@@ -39,6 +43,8 @@ export interface EventDetailModalProps {
   onMarkReviewed?: (eventId: string) => void;
   onNavigate?: (direction: 'prev' | 'next') => void;
   onSaveNotes?: (eventId: string, notes: string) => Promise<void>;
+  onFlagEvent?: (eventId: string, flagged: boolean) => Promise<void>;
+  onDownloadMedia?: (eventId: string) => Promise<void>;
 }
 
 /**
@@ -51,6 +57,8 @@ export default function EventDetailModal({
   onMarkReviewed,
   onNavigate,
   onSaveNotes,
+  onFlagEvent,
+  onDownloadMedia,
 }: EventDetailModalProps) {
   // State for notes editing
   const [notesText, setNotesText] = useState<string>('');
@@ -61,6 +69,12 @@ export default function EventDetailModal({
   const [detectionSequence, setDetectionSequence] = useState<DetectionThumbnail[]>([]);
   const [loadingDetections, setLoadingDetections] = useState<boolean>(false);
   const [selectedDetectionId, setSelectedDetectionId] = useState<number | undefined>();
+
+  // State for flag event
+  const [isFlagging, setIsFlagging] = useState<boolean>(false);
+
+  // State for download media
+  const [isDownloading, setIsDownloading] = useState<boolean>(false);
 
   // Initialize notes text when event changes
   useEffect(() => {
@@ -133,6 +147,37 @@ export default function EventDetailModal({
       console.error('Failed to save notes:', error);
     } finally {
       setIsSavingNotes(false);
+    }
+  };
+
+  // Handle flag event toggle
+  const handleFlagEvent = async () => {
+    if (!event || !onFlagEvent) return;
+
+    setIsFlagging(true);
+
+    try {
+      const newFlaggedState = !event.flagged;
+      await onFlagEvent(event.id, newFlaggedState);
+    } catch (error) {
+      console.error('Failed to flag event:', error);
+    } finally {
+      setIsFlagging(false);
+    }
+  };
+
+  // Handle download media
+  const handleDownloadMedia = async () => {
+    if (!event || !onDownloadMedia) return;
+
+    setIsDownloading(true);
+
+    try {
+      await onDownloadMedia(event.id);
+    } catch (error) {
+      console.error('Failed to download media:', error);
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -262,9 +307,17 @@ export default function EventDetailModal({
                     >
                       {event.camera_name}
                     </Dialog.Title>
-                    <div className="mt-2 flex items-center gap-2 text-sm text-gray-400">
-                      <Clock className="h-4 w-4" />
-                      <span>{formatTimestamp(event.timestamp)}</span>
+                    <div className="mt-2 flex flex-col gap-1">
+                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                        <Clock className="h-4 w-4" />
+                        <span>{formatTimestamp(event.timestamp)}</span>
+                      </div>
+                      {(event.started_at || event.ended_at !== undefined) && (
+                        <div className="flex items-center gap-2 text-sm text-gray-400">
+                          <Timer className="h-4 w-4" />
+                          <span>Duration: {formatDuration(event.started_at || event.timestamp, event.ended_at ?? null)}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -406,6 +459,12 @@ export default function EventDetailModal({
                         <dt className="text-gray-400">Risk Score</dt>
                         <dd className="text-gray-300">{event.risk_score} / 100</dd>
                       </div>
+                      {(event.started_at || event.ended_at !== undefined) && (
+                        <div className="flex justify-between">
+                          <dt className="text-gray-400">Duration</dt>
+                          <dd className="text-gray-300">{formatDuration(event.started_at || event.timestamp, event.ended_at ?? null)}</dd>
+                        </div>
+                      )}
                       <div className="flex justify-between">
                         <dt className="text-gray-400">Status</dt>
                         <dd className="text-gray-300">
@@ -449,17 +508,50 @@ export default function EventDetailModal({
                     )}
                   </div>
 
-                  {/* Mark as reviewed button */}
-                  {onMarkReviewed && !event.reviewed && (
-                    <button
-                      onClick={() => onMarkReviewed(event.id)}
-                      className="flex items-center gap-2 rounded-lg bg-[#76B900] px-6 py-2 text-sm font-semibold text-black transition-all hover:bg-[#88d200] active:bg-[#68a000]"
-                      aria-label="Mark event as reviewed"
-                    >
-                      <CheckCircle2 className="h-4 w-4" />
-                      Mark as Reviewed
-                    </button>
-                  )}
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-2">
+                    {/* Flag Event button */}
+                    {onFlagEvent && (
+                      <button
+                        onClick={() => void handleFlagEvent()}
+                        disabled={isFlagging}
+                        className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
+                          event.flagged
+                            ? 'bg-yellow-600 text-white hover:bg-yellow-700 active:bg-yellow-800'
+                            : 'bg-gray-800 text-white hover:bg-gray-700 active:bg-gray-900'
+                        }`}
+                        aria-label={event.flagged ? 'Unflag event' : 'Flag event'}
+                      >
+                        <Flag className="h-4 w-4" />
+                        {isFlagging ? 'Flagging...' : event.flagged ? 'Unflag Event' : 'Flag Event'}
+                      </button>
+                    )}
+
+                    {/* Download Media button */}
+                    {onDownloadMedia && (
+                      <button
+                        onClick={() => void handleDownloadMedia()}
+                        disabled={isDownloading}
+                        className="flex items-center gap-2 rounded-lg bg-gray-800 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-gray-700 active:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+                        aria-label="Download media"
+                      >
+                        <Download className="h-4 w-4" />
+                        {isDownloading ? 'Downloading...' : 'Download Media'}
+                      </button>
+                    )}
+
+                    {/* Mark as reviewed button */}
+                    {onMarkReviewed && !event.reviewed && (
+                      <button
+                        onClick={() => onMarkReviewed(event.id)}
+                        className="flex items-center gap-2 rounded-lg bg-[#76B900] px-6 py-2 text-sm font-semibold text-black transition-all hover:bg-[#88d200] active:bg-[#68a000]"
+                        aria-label="Mark event as reviewed"
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                        Mark as Reviewed
+                      </button>
+                    )}
+                  </div>
                 </div>
               </Dialog.Panel>
             </Transition.Child>

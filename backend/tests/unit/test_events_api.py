@@ -97,12 +97,32 @@ class TestEventResponseSchema:
             risk_level = "medium"
             summary = "Person detected near front entrance"
             reviewed = False
+            notes = None
             detection_count = 5
 
         event = EventResponse.model_validate(MockEvent())
         assert event.id == 1
         assert event.camera_id == "123e4567-e89b-12d3-a456-426614174000"
         assert event.risk_score == 75
+        assert event.notes is None
+
+    def test_event_response_with_notes(self):
+        """Test EventResponse with notes field."""
+        data = {
+            "id": 1,
+            "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+            "started_at": datetime(2025, 12, 23, 12, 0, 0),
+            "ended_at": datetime(2025, 12, 23, 12, 2, 30),
+            "risk_score": 75,
+            "risk_level": "medium",
+            "summary": "Person detected near front entrance",
+            "reviewed": True,
+            "notes": "Verified - known visitor",
+            "detection_count": 5,
+        }
+        event = EventResponse(**data)
+        assert event.notes == "Verified - known visitor"
+        assert event.reviewed is True
 
 
 class TestEventUpdateSchema:
@@ -126,6 +146,34 @@ class TestEventUpdateSchema:
         update = EventUpdate(**data)
         assert update.reviewed is None
         assert update.notes is None
+
+    def test_event_update_with_notes(self):
+        """Test EventUpdate with notes field."""
+        data = {"notes": "This is a test note"}
+        update = EventUpdate(**data)
+        assert update.notes == "This is a test note"
+        assert update.reviewed is None
+
+    def test_event_update_with_reviewed_and_notes(self):
+        """Test EventUpdate with both reviewed and notes fields."""
+        data = {"reviewed": True, "notes": "Verified as false alarm"}
+        update = EventUpdate(**data)
+        assert update.reviewed is True
+        assert update.notes == "Verified as false alarm"
+
+    def test_event_update_notes_none(self):
+        """Test EventUpdate can set notes to None."""
+        data = {"notes": None}
+        update = EventUpdate(**data)
+        assert update.notes is None
+
+    def test_event_update_notes_long_text(self):
+        """Test EventUpdate accepts long notes text."""
+        long_text = "A" * 5000
+        data = {"notes": long_text}
+        update = EventUpdate(**data)
+        assert update.notes == long_text
+        assert len(update.notes) == 5000
 
     def test_event_update_invalid_type(self):
         """Test EventUpdate raises ValidationError with invalid field type."""

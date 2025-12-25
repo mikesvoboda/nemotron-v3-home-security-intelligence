@@ -21,11 +21,15 @@ Pydantic schemas for camera management endpoints.
 
 ### `events.py`
 
-Pydantic schemas for event management endpoints.
+Pydantic schemas for event management and statistics endpoints.
 
 ### `detections.py`
 
 Pydantic schemas for detection listing endpoints.
+
+### `logs.py`
+
+Pydantic schemas for log management and statistics endpoints.
 
 ### `system.py`
 
@@ -152,6 +156,7 @@ Pydantic schemas for media serving error responses.
 - `risk_level: str | None` - Risk level: low, medium, high, critical (optional)
 - `summary: str | None` - LLM-generated event summary (optional)
 - `reviewed: bool` - Whether event has been reviewed (default: False)
+- `notes: str | None` - User notes for the event (optional)
 - `detection_count: int` - Number of detections in this event (default: 0)
 
 **Config:**
@@ -170,6 +175,7 @@ Pydantic schemas for media serving error responses.
   "risk_level": "medium",
   "summary": "Person detected near front entrance",
   "reviewed": false,
+  "notes": null,
   "detection_count": 5
 }
 ```
@@ -178,17 +184,19 @@ Pydantic schemas for media serving error responses.
 
 #### `EventUpdate`
 
-**Purpose:** Validate data for updating an event (mark as reviewed)
+**Purpose:** Validate data for updating an event (reviewed status and notes)
 
 **Fields:**
 
-- `reviewed: bool` - Mark event as reviewed or not reviewed (required)
+- `reviewed: bool | None` - Mark event as reviewed or not reviewed (optional)
+- `notes: str | None` - User notes for the event (optional)
 
 **Example:**
 
 ```json
 {
-  "reviewed": true
+  "reviewed": true,
+  "notes": "Verified - delivery person"
 }
 ```
 
@@ -213,6 +221,90 @@ Pydantic schemas for media serving error responses.
   "count": 1,
   "limit": 50,
   "offset": 0
+}
+```
+
+---
+
+#### `EventsByRiskLevel`
+
+**Purpose:** Represent events count by risk level
+
+**Fields:**
+
+- `critical: int` - Number of critical risk events (default: 0)
+- `high: int` - Number of high risk events (default: 0)
+- `medium: int` - Number of medium risk events (default: 0)
+- `low: int` - Number of low risk events (default: 0)
+
+**Example:**
+
+```json
+{
+  "critical": 2,
+  "high": 5,
+  "medium": 12,
+  "low": 25
+}
+```
+
+---
+
+#### `EventsByCamera`
+
+**Purpose:** Represent events count for a single camera
+
+**Fields:**
+
+- `camera_id: str` - Camera UUID
+- `camera_name: str` - Camera name
+- `event_count: int` - Number of events for this camera
+
+**Example:**
+
+```json
+{
+  "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+  "camera_name": "Front Door",
+  "event_count": 15
+}
+```
+
+---
+
+#### `EventStatsResponse`
+
+**Purpose:** Serialize aggregated event statistics
+
+**Fields:**
+
+- `total_events: int` - Total number of events
+- `events_by_risk_level: EventsByRiskLevel` - Events grouped by risk level
+- `events_by_camera: list[EventsByCamera]` - Events grouped by camera (sorted by count descending)
+
+**Example:**
+
+```json
+{
+  "total_events": 44,
+  "events_by_risk_level": {
+    "critical": 2,
+    "high": 5,
+    "medium": 12,
+    "low": 25
+  },
+  "events_by_camera": [
+    {
+      "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+      "camera_name": "Front Door",
+      "event_count": 30
+    },
+    {
+      "camera_id": "456e7890-e89b-12d3-a456-426614174001",
+      "camera_name": "Back Door",
+      "event_count": 14
+    }
+  ]
 }
 ```
 
@@ -521,6 +613,142 @@ Pydantic schemas for media serving error responses.
 ```
 
 **Usage:** Used in 403 and 404 responses from media endpoints.
+
+---
+
+### Logs Schemas (`logs.py`)
+
+#### `LogEntry`
+
+**Purpose:** Serialize a single log entry
+
+**Fields:**
+
+- `id: int` - Log entry ID
+- `timestamp: datetime` - Log timestamp
+- `level: str` - Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+- `component: str` - Component/module name
+- `message: str` - Log message
+- `camera_id: str | None` - Associated camera ID (optional)
+- `event_id: int | None` - Associated event ID (optional)
+- `request_id: str | None` - Request correlation ID (optional)
+- `detection_id: int | None` - Associated detection ID (optional)
+- `duration_ms: int | None` - Operation duration in milliseconds (optional)
+- `extra: dict | None` - Additional structured data (optional)
+- `source: str` - Log source (backend, frontend), default: "backend"
+
+**Config:**
+
+- `from_attributes=True` - Enable ORM mode for SQLAlchemy models
+
+**Example:**
+
+```json
+{
+  "id": 1,
+  "timestamp": "2025-12-25T12:00:00Z",
+  "level": "INFO",
+  "component": "file_watcher",
+  "message": "New image detected",
+  "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+  "event_id": null,
+  "request_id": "abc123",
+  "detection_id": null,
+  "duration_ms": 150,
+  "extra": {"file_path": "/export/foscam/front_door/image.jpg"},
+  "source": "backend"
+}
+```
+
+---
+
+#### `LogsResponse`
+
+**Purpose:** Serialize list of logs with pagination metadata
+
+**Fields:**
+
+- `logs: list[LogEntry]` - List of log entries
+- `count: int` - Total count matching filters
+- `limit: int` - Page size
+- `offset: int` - Page offset
+
+**Example:**
+
+```json
+{
+  "logs": [...],
+  "count": 100,
+  "limit": 100,
+  "offset": 0
+}
+```
+
+---
+
+#### `LogStats`
+
+**Purpose:** Serialize log statistics for dashboard
+
+**Fields:**
+
+- `total_today: int` - Total logs today
+- `errors_today: int` - Error count today
+- `warnings_today: int` - Warning count today
+- `by_component: dict[str, int]` - Counts by component
+- `by_level: dict[str, int]` - Counts by level
+- `top_component: str | None` - Most active component
+
+**Example:**
+
+```json
+{
+  "total_today": 250,
+  "errors_today": 5,
+  "warnings_today": 12,
+  "by_component": {
+    "file_watcher": 100,
+    "detector": 80,
+    "analyzer": 70
+  },
+  "by_level": {
+    "INFO": 200,
+    "WARNING": 12,
+    "ERROR": 5,
+    "DEBUG": 33
+  },
+  "top_component": "file_watcher"
+}
+```
+
+---
+
+#### `FrontendLogCreate`
+
+**Purpose:** Validate data for frontend log submission
+
+**Fields:**
+
+- `level: str` - Log level, pattern: `^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$` (required)
+- `component: str` - Frontend component name, max 50 chars (required)
+- `message: str` - Log message, max 2000 chars (required)
+- `extra: dict | None` - Additional context (optional)
+- `user_agent: str | None` - Browser user agent (optional, auto-captured from request)
+- `url: str | None` - Page URL where log occurred (optional)
+
+**Example:**
+
+```json
+{
+  "level": "ERROR",
+  "component": "EventTimeline",
+  "message": "Failed to load events",
+  "extra": {"errorCode": "NETWORK_ERROR"},
+  "url": "/events"
+}
+```
+
+---
 
 ## Common Patterns
 

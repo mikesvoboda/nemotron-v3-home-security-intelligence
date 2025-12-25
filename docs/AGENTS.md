@@ -96,6 +96,31 @@ This directory contains all project documentation including design specification
   - Understanding test script capabilities
 - **Last updated:** 2025-12-24
 
+**CHROME_DEVTOOLS_MCP.md**
+
+- **Purpose:** Guide for using Chrome DevTools MCP server for web page inspection
+- **Contents:**
+  - Overview and architecture diagram
+  - Prerequisites (Chrome, Node.js, Claude Code)
+  - Setup instructions for headless Chrome
+  - MCP server configuration
+  - Available tools and commands
+  - Usage examples for debugging
+  - Troubleshooting common issues
+- **When to use:**
+  - Debugging frontend UI issues from Claude Code
+  - Capturing console errors and warnings
+  - Inspecting DOM structure and network requests
+  - Taking screenshots of rendered pages
+  - Performance analysis and JavaScript debugging
+- **Key capabilities:**
+  - Navigate to URLs and inspect rendered pages
+  - Read console logs, errors, and warnings
+  - Execute JavaScript in page context
+  - Monitor network requests
+  - Capture screenshots
+- **Last updated:** 2025-12-25
+
 ### Implementation Plans
 
 **plans/2024-12-22-mvp-implementation-plan.md**
@@ -151,10 +176,13 @@ docs/
 ├── AI_SETUP.md                           # AI services setup guide
 ├── DOCKER_DEPLOYMENT.md                  # Docker deployment guide
 ├── DOCKER_VERIFICATION_SUMMARY.md        # Docker deployment verification summary
+├── CHROME_DEVTOOLS_MCP.md                # Chrome DevTools MCP server guide
 └── plans/
     ├── AGENTS.md                         # Plans directory guide
-    ├── 2024-12-21-dashboard-mvp-design.md        # Design specification
-    └── 2024-12-22-mvp-implementation-plan.md     # Implementation plan
+    ├── 2024-12-21-dashboard-mvp-design.md            # Design specification
+    ├── 2024-12-22-mvp-implementation-plan.md         # Implementation plan
+    ├── 2024-12-24-logging-system-design.md           # Logging system design spec
+    └── 2024-12-24-logging-implementation-plan.md     # Logging implementation tasks
 ```
 
 ## Relationship to Project

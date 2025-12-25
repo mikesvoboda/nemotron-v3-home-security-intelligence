@@ -707,6 +707,163 @@ describe('EventCard', () => {
     });
   });
 
+  describe('risk score progress bar', () => {
+    it('renders progress bar with correct label', () => {
+      render(<EventCard {...mockProps} />);
+      expect(screen.getByText('Risk Score')).toBeInTheDocument();
+    });
+
+    it('displays risk score as fraction', () => {
+      render(<EventCard {...mockProps} />);
+      expect(screen.getByText('45/100')).toBeInTheDocument();
+    });
+
+    it('renders progressbar with correct ARIA attributes', () => {
+      render(<EventCard {...mockProps} />);
+      const progressBar = screen.getByRole('progressbar', { name: 'Risk score: 45 out of 100' });
+      expect(progressBar).toBeInTheDocument();
+      expect(progressBar).toHaveAttribute('aria-valuenow', '45');
+      expect(progressBar).toHaveAttribute('aria-valuemin', '0');
+      expect(progressBar).toHaveAttribute('aria-valuemax', '100');
+    });
+
+    it('sets progress bar width to match risk score', () => {
+      const { container } = render(<EventCard {...mockProps} risk_score={45} />);
+      const progressFill = container.querySelector('[role="progressbar"] > div');
+      expect(progressFill).toHaveStyle({ width: '45%' });
+    });
+
+    it('applies NVIDIA green color for low risk scores', () => {
+      const { container } = render(<EventCard {...mockProps} risk_score={15} />);
+      const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
+      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(118,\s*185,\s*0\)|#76B900/i);
+    });
+
+    it('applies NVIDIA yellow color for medium risk scores', () => {
+      const { container } = render(<EventCard {...mockProps} risk_score={45} />);
+      const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
+      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(255,\s*184,\s*0\)|#FFB800/i);
+    });
+
+    it('applies NVIDIA red color for high risk scores', () => {
+      const { container } = render(<EventCard {...mockProps} risk_score={72} />);
+      const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
+      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(231,\s*72,\s*86\)|#E74856/i);
+    });
+
+    it('applies red color for critical risk scores', () => {
+      const { container } = render(<EventCard {...mockProps} risk_score={88} />);
+      const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
+      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(239,\s*68,\s*68\)|#ef4444/i);
+    });
+
+    it('handles risk score of 0', () => {
+      const { container } = render(<EventCard {...mockProps} risk_score={0} />);
+      const progressFill = container.querySelector('[role="progressbar"] > div');
+      expect(progressFill).toHaveStyle({ width: '0%' });
+      expect(screen.getByText('0/100')).toBeInTheDocument();
+    });
+
+    it('handles risk score of 100', () => {
+      const { container } = render(<EventCard {...mockProps} risk_score={100} />);
+      const progressFill = container.querySelector('[role="progressbar"] > div');
+      expect(progressFill).toHaveStyle({ width: '100%' });
+      expect(screen.getByText('100/100')).toBeInTheDocument();
+    });
+
+    it('handles boundary risk score at 25', () => {
+      const { container } = render(<EventCard {...mockProps} risk_score={25} />);
+      const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
+      expect(progressFill).toHaveStyle({ width: '25%' });
+      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(118,\s*185,\s*0\)|#76B900/i);
+    });
+
+    it('handles boundary risk score at 26', () => {
+      const { container } = render(<EventCard {...mockProps} risk_score={26} />);
+      const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
+      expect(progressFill).toHaveStyle({ width: '26%' });
+      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(255,\s*184,\s*0\)|#FFB800/i);
+    });
+
+    it('handles boundary risk score at 50', () => {
+      const { container } = render(<EventCard {...mockProps} risk_score={50} />);
+      const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
+      expect(progressFill).toHaveStyle({ width: '50%' });
+      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(255,\s*184,\s*0\)|#FFB800/i);
+    });
+
+    it('handles boundary risk score at 51', () => {
+      const { container } = render(<EventCard {...mockProps} risk_score={51} />);
+      const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
+      expect(progressFill).toHaveStyle({ width: '51%' });
+      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(231,\s*72,\s*86\)|#E74856/i);
+    });
+
+    it('handles boundary risk score at 75', () => {
+      const { container } = render(<EventCard {...mockProps} risk_score={75} />);
+      const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
+      expect(progressFill).toHaveStyle({ width: '75%' });
+      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(231,\s*72,\s*86\)|#E74856/i);
+    });
+
+    it('handles boundary risk score at 76', () => {
+      const { container } = render(<EventCard {...mockProps} risk_score={76} />);
+      const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
+      expect(progressFill).toHaveStyle({ width: '76%' });
+      expect(progressFill?.style.backgroundColor).toMatch(/rgb\(239,\s*68,\s*68\)|#ef4444/i);
+    });
+
+    it('renders progress bar after object badges', () => {
+      const { container } = render(<EventCard {...mockProps} />);
+      const card = container.querySelector('.rounded-lg.border');
+      const children = card ? Array.from(card.children) : [];
+
+      const badgesIndex = children.findIndex(
+        (el) => el.classList.contains('flex') && el.textContent?.includes('Person')
+      );
+      const progressBarIndex = children.findIndex(
+        (el) => el.querySelector('[role="progressbar"]') !== null
+      );
+
+      expect(badgesIndex).toBeGreaterThan(-1);
+      expect(progressBarIndex).toBeGreaterThan(-1);
+      expect(progressBarIndex).toBeGreaterThan(badgesIndex);
+    });
+
+    it('renders progress bar before thumbnail', () => {
+      const { container } = render(<EventCard {...mockProps} />);
+      const card = container.querySelector('.rounded-lg.border');
+      const children = card ? Array.from(card.children) : [];
+
+      const progressBarIndex = children.findIndex(
+        (el) => el.querySelector('[role="progressbar"]') !== null
+      );
+      const thumbnailIndex = children.findIndex((el) => el.querySelector('img') !== null);
+
+      expect(progressBarIndex).toBeGreaterThan(-1);
+      expect(thumbnailIndex).toBeGreaterThan(-1);
+      expect(progressBarIndex).toBeLessThan(thumbnailIndex);
+    });
+
+    it('progress bar has transition animation', () => {
+      const { container } = render(<EventCard {...mockProps} />);
+      const progressFill = container.querySelector('[role="progressbar"] > div');
+      expect(progressFill).toHaveClass('transition-all', 'duration-500', 'ease-out');
+    });
+
+    it('progress bar container has correct styling', () => {
+      render(<EventCard {...mockProps} />);
+      const progressBar = screen.getByRole('progressbar');
+      expect(progressBar).toHaveClass('h-2', 'w-full', 'overflow-hidden', 'rounded-full', 'bg-gray-800');
+    });
+
+    it('progress bar fill has correct styling', () => {
+      const { container } = render(<EventCard {...mockProps} />);
+      const progressFill = container.querySelector('[role="progressbar"] > div');
+      expect(progressFill).toHaveClass('h-full', 'rounded-full');
+    });
+  });
+
   describe('edge cases', () => {
     it('handles empty detections array', () => {
       const emptyDetectionsEvent = { ...mockProps, detections: [] };
@@ -807,6 +964,86 @@ describe('EventCard', () => {
     });
   });
 
+  describe('duration display', () => {
+    it('displays duration when started_at and ended_at are provided', () => {
+      const eventWithDuration = {
+        ...mockProps,
+        started_at: new Date(BASE_TIME - 150 * 1000).toISOString(), // 2m 30s ago
+        ended_at: new Date(BASE_TIME).toISOString(),
+      };
+      render(<EventCard {...eventWithDuration} />);
+      expect(screen.getByText(/Duration:/)).toBeInTheDocument();
+      expect(screen.getByText(/2m 30s/)).toBeInTheDocument();
+    });
+
+    it('displays "ongoing" for events without ended_at', () => {
+      const ongoingEvent = {
+        ...mockProps,
+        started_at: new Date(BASE_TIME - 2 * 60 * 1000).toISOString(), // 2 minutes ago
+        ended_at: null,
+      };
+      render(<EventCard {...ongoingEvent} />);
+      expect(screen.getByText(/Duration:/)).toBeInTheDocument();
+      expect(screen.getByText(/ongoing/)).toBeInTheDocument();
+    });
+
+    it('displays duration with "(ongoing)" suffix for older ongoing events', () => {
+      const olderOngoingEvent = {
+        ...mockProps,
+        started_at: new Date(BASE_TIME - 10 * 60 * 1000).toISOString(), // 10 minutes ago
+        ended_at: null,
+      };
+      render(<EventCard {...olderOngoingEvent} />);
+      expect(screen.getByText(/Duration:/)).toBeInTheDocument();
+      expect(screen.getByText(/10m.*ongoing/)).toBeInTheDocument();
+    });
+
+    it('does not display duration when started_at is not provided', () => {
+      render(<EventCard {...mockProps} />);
+      expect(screen.queryByText(/Duration:/)).not.toBeInTheDocument();
+    });
+
+    it('renders Timer icon with duration', () => {
+      const eventWithDuration = {
+        ...mockProps,
+        started_at: new Date(BASE_TIME - 150 * 1000).toISOString(),
+        ended_at: new Date(BASE_TIME).toISOString(),
+      };
+      const { container } = render(<EventCard {...eventWithDuration} />);
+      const timerIcon = container.querySelector('svg.lucide-timer');
+      expect(timerIcon).toBeInTheDocument();
+    });
+
+    it('formats various duration lengths correctly', () => {
+      const testCases = [
+        { duration: 30 * 1000, expected: '30s' }, // 30 seconds
+        { duration: 5 * 60 * 1000, expected: '5m' }, // 5 minutes
+        { duration: 2 * 60 * 60 * 1000, expected: '2h' }, // 2 hours
+        { duration: 36 * 60 * 60 * 1000, expected: '1d 12h' }, // 1 day 12 hours
+      ];
+
+      testCases.forEach(({ duration, expected }) => {
+        const eventWithDuration = {
+          ...mockProps,
+          started_at: new Date(BASE_TIME - duration).toISOString(),
+          ended_at: new Date(BASE_TIME).toISOString(),
+        };
+        const { unmount } = render(<EventCard {...eventWithDuration} />);
+        expect(screen.getByText(new RegExp(expected))).toBeInTheDocument();
+        unmount();
+      });
+    });
+
+    it('uses timestamp as fallback when started_at is not provided', () => {
+      const eventWithEndedAt = {
+        ...mockProps,
+        ended_at: new Date(BASE_TIME).toISOString(),
+      };
+      render(<EventCard {...eventWithEndedAt} />);
+      expect(screen.getByText(/Duration:/)).toBeInTheDocument();
+    });
+  });
+
   describe('layout and styling', () => {
     it('applies NVIDIA theme colors', () => {
       const { container } = render(<EventCard {...mockProps} />);
@@ -842,6 +1079,98 @@ describe('EventCard', () => {
       const { container } = render(<EventCard {...mockProps} />);
       const card = container.firstChild as HTMLElement;
       expect(card).toHaveClass('p-4');
+    });
+  });
+
+  describe('color-coded left border', () => {
+    it('applies NVIDIA green left border for low risk events', () => {
+      const lowRiskEvent = { ...mockProps, risk_score: 15 };
+      const { container } = render(<EventCard {...lowRiskEvent} />);
+      const card = container.firstChild as HTMLElement;
+      expect(card).toHaveClass('border-l-4', 'border-l-risk-low');
+    });
+
+    it('applies NVIDIA yellow left border for medium risk events', () => {
+      const mediumRiskEvent = { ...mockProps, risk_score: 45 };
+      const { container } = render(<EventCard {...mediumRiskEvent} />);
+      const card = container.firstChild as HTMLElement;
+      expect(card).toHaveClass('border-l-4', 'border-l-risk-medium');
+    });
+
+    it('applies NVIDIA red left border for high risk events', () => {
+      const highRiskEvent = { ...mockProps, risk_score: 72 };
+      const { container } = render(<EventCard {...highRiskEvent} />);
+      const card = container.firstChild as HTMLElement;
+      expect(card).toHaveClass('border-l-4', 'border-l-risk-high');
+    });
+
+    it('applies red left border for critical risk events', () => {
+      const criticalRiskEvent = { ...mockProps, risk_score: 88 };
+      const { container } = render(<EventCard {...criticalRiskEvent} />);
+      const card = container.firstChild as HTMLElement;
+      expect(card).toHaveClass('border-l-4', 'border-l-red-500');
+    });
+
+    it('applies correct border width class', () => {
+      const { container } = render(<EventCard {...mockProps} />);
+      const card = container.firstChild as HTMLElement;
+      expect(card).toHaveClass('border-l-4');
+    });
+
+    it('applies NVIDIA green left border at risk score boundary (25)', () => {
+      const boundaryEvent = { ...mockProps, risk_score: 25 };
+      const { container } = render(<EventCard {...boundaryEvent} />);
+      const card = container.firstChild as HTMLElement;
+      expect(card).toHaveClass('border-l-risk-low');
+    });
+
+    it('applies NVIDIA yellow left border at risk score boundary (26)', () => {
+      const boundaryEvent = { ...mockProps, risk_score: 26 };
+      const { container } = render(<EventCard {...boundaryEvent} />);
+      const card = container.firstChild as HTMLElement;
+      expect(card).toHaveClass('border-l-risk-medium');
+    });
+
+    it('applies NVIDIA yellow left border at risk score boundary (50)', () => {
+      const boundaryEvent = { ...mockProps, risk_score: 50 };
+      const { container } = render(<EventCard {...boundaryEvent} />);
+      const card = container.firstChild as HTMLElement;
+      expect(card).toHaveClass('border-l-risk-medium');
+    });
+
+    it('applies NVIDIA red left border at risk score boundary (51)', () => {
+      const boundaryEvent = { ...mockProps, risk_score: 51 };
+      const { container } = render(<EventCard {...boundaryEvent} />);
+      const card = container.firstChild as HTMLElement;
+      expect(card).toHaveClass('border-l-risk-high');
+    });
+
+    it('applies NVIDIA red left border at risk score boundary (75)', () => {
+      const boundaryEvent = { ...mockProps, risk_score: 75 };
+      const { container } = render(<EventCard {...boundaryEvent} />);
+      const card = container.firstChild as HTMLElement;
+      expect(card).toHaveClass('border-l-risk-high');
+    });
+
+    it('applies critical red left border at risk score boundary (76)', () => {
+      const boundaryEvent = { ...mockProps, risk_score: 76 };
+      const { container } = render(<EventCard {...boundaryEvent} />);
+      const card = container.firstChild as HTMLElement;
+      expect(card).toHaveClass('border-l-red-500');
+    });
+
+    it('applies red left border at maximum risk score (100)', () => {
+      const maxRiskEvent = { ...mockProps, risk_score: 100 };
+      const { container } = render(<EventCard {...maxRiskEvent} />);
+      const card = container.firstChild as HTMLElement;
+      expect(card).toHaveClass('border-l-red-500');
+    });
+
+    it('applies NVIDIA green left border at minimum risk score (0)', () => {
+      const minRiskEvent = { ...mockProps, risk_score: 0 };
+      const { container } = render(<EventCard {...minRiskEvent} />);
+      const card = container.firstChild as HTMLElement;
+      expect(card).toHaveClass('border-l-risk-low');
     });
   });
 

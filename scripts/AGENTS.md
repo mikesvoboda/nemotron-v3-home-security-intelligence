@@ -4,7 +4,30 @@
 
 This directory contains development, testing, and deployment automation scripts for the Home Security Intelligence project.
 
-## Key Files
+## Quick Reference Documentation
+
+### README.md
+
+- **Purpose:** Quick reference guide for all scripts in this directory
+- **Contents:**
+  - Quick start instructions
+  - Available scripts table
+  - Common workflows
+  - Troubleshooting tips
+- **When to use:** Quick overview of script purposes and usage
+
+### AI_STARTUP_README.md
+
+- **Purpose:** Quick reference for AI services startup
+- **Contents:**
+  - Prerequisites checklist
+  - Quick start commands for AI services
+  - Service endpoints and ports
+  - Common commands (start, stop, status, health)
+  - Troubleshooting common AI service issues
+- **When to use:** Quick reference for managing RT-DETRv2 and Nemotron services
+
+## Key Scripts
 
 ### Development Setup
 
@@ -393,7 +416,7 @@ This directory contains development, testing, and deployment automation scripts 
 - **Services tested:**
   - Redis: localhost:6379 (health check via redis-cli)
   - Backend: http://localhost:8000 (health endpoint + root endpoint)
-  - Frontend: http://localhost:3000 (HTTP response check)
+  - Frontend: http://localhost:5173 (HTTP response check)
 - **Test stages:**
   1. Prerequisites (Docker, docker-compose.yml)
   2. Syntax validation

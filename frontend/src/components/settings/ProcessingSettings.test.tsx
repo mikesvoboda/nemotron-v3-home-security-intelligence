@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ProcessingSettings from './ProcessingSettings';
@@ -15,10 +15,13 @@ describe('ProcessingSettings', () => {
     retention_days: 30,
     batch_window_seconds: 90,
     batch_idle_timeout_seconds: 30,
+    detection_confidence_threshold: 0.5,
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Always mock updateConfig to prevent errors
+    vi.mocked(api.updateConfig).mockResolvedValue(mockConfig);
   });
 
   it('renders component with title', () => {
@@ -52,6 +55,7 @@ describe('ProcessingSettings', () => {
 
     expect(screen.getByText('Idle Timeout')).toBeInTheDocument();
     expect(screen.getByText('Retention Period')).toBeInTheDocument();
+    expect(screen.getByText('Confidence Threshold')).toBeInTheDocument();
   });
 
   it('displays correct configuration values', async () => {
@@ -61,14 +65,27 @@ describe('ProcessingSettings', () => {
 
     await waitFor(() => {
       const batchWindowInput = screen.getByLabelText('Batch window duration in seconds');
-      expect(batchWindowInput).toHaveValue(90);
+      expect(batchWindowInput).toHaveValue('90');
     });
 
     const idleTimeoutInput = screen.getByLabelText('Batch idle timeout in seconds');
-    expect(idleTimeoutInput).toHaveValue(30);
+    expect(idleTimeoutInput).toHaveValue('30');
 
     const retentionInput = screen.getByLabelText('Retention period in days');
-    expect(retentionInput).toHaveValue(30);
+    expect(retentionInput).toHaveValue('30');
+
+    const confidenceInput = screen.getByLabelText('Detection confidence threshold');
+    expect(confidenceInput).toHaveValue('0.5');
+  });
+
+  it('displays confidence threshold with correct formatting', async () => {
+    vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+
+    render(<ProcessingSettings />);
+
+    await waitFor(() => {
+      expect(screen.getByText('0.50')).toBeInTheDocument();
+    });
   });
 
   it('displays application name and version', async () => {
@@ -83,33 +100,219 @@ describe('ProcessingSettings', () => {
     expect(screen.getByText('0.1.0')).toBeInTheDocument();
   });
 
-  it('shows read-only notice', async () => {
+  it('displays storage usage indicator', async () => {
     vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
 
     render(<ProcessingSettings />);
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/Settings are currently read-only/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText('Storage')).toBeInTheDocument();
+    });
+
+    expect(screen.getByLabelText('Storage usage percentage')).toBeInTheDocument();
+    expect(screen.getByText('Coming soon')).toBeInTheDocument();
+  });
+
+  it('displays Clear Old Data button', async () => {
+    vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+
+    render(<ProcessingSettings />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Clear Old Data')).toBeInTheDocument();
     });
   });
 
-  it('disables all input fields', async () => {
+  it('all sliders are enabled and functional', async () => {
     vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
 
     render(<ProcessingSettings />);
 
     await waitFor(() => {
       const batchWindowInput = screen.getByLabelText('Batch window duration in seconds');
-      expect(batchWindowInput).toBeDisabled();
+      expect(batchWindowInput).not.toBeDisabled();
     });
 
     const idleTimeoutInput = screen.getByLabelText('Batch idle timeout in seconds');
-    expect(idleTimeoutInput).toBeDisabled();
+    expect(idleTimeoutInput).not.toBeDisabled();
 
     const retentionInput = screen.getByLabelText('Retention period in days');
-    expect(retentionInput).toBeDisabled();
+    expect(retentionInput).not.toBeDisabled();
+
+    const confidenceInput = screen.getByLabelText('Detection confidence threshold');
+    expect(confidenceInput).not.toBeDisabled();
+  });
+
+  it('Save button is disabled when no changes', async () => {
+    vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+
+    render(<ProcessingSettings />);
+
+    await waitFor(() => {
+      const saveButton = screen.getByText('Save Changes').closest('button');
+      expect(saveButton).toBeDisabled();
+    });
+  });
+
+  it('Save button is enabled when values change', async () => {
+    vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+
+    render(<ProcessingSettings />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Batch Window Duration')).toBeInTheDocument();
+    });
+
+    const batchWindowInput = screen.getByLabelText('Batch window duration in seconds');
+    fireEvent.change(batchWindowInput, { target: { value: '120' } });
+
+    const saveButton = screen.getByText('Save Changes').closest('button');
+    expect(saveButton).not.toBeDisabled();
+  });
+
+  it('Reset button restores original values', async () => {
+    vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+
+    render(<ProcessingSettings />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Batch Window Duration')).toBeInTheDocument();
+    });
+
+    const batchWindowInput = screen.getByLabelText('Batch window duration in seconds');
+    fireEvent.change(batchWindowInput, { target: { value: '120' } });
+
+    expect(batchWindowInput).toHaveValue('120');
+
+    const resetButton = screen.getByText('Reset');
+    fireEvent.click(resetButton);
+
+    expect(batchWindowInput).toHaveValue('90');
+  });
+
+  it('saves configuration changes successfully', async () => {
+    const updatedConfig = { ...mockConfig, batch_window_seconds: 120 };
+    vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+    vi.mocked(api.updateConfig).mockResolvedValue(updatedConfig);
+
+    render(<ProcessingSettings />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Batch Window Duration')).toBeInTheDocument();
+    });
+
+    const batchWindowInput = screen.getByLabelText('Batch window duration in seconds');
+    fireEvent.change(batchWindowInput, { target: { value: '120' } });
+
+    const saveButton = screen.getByText('Save Changes').closest('button');
+    fireEvent.click(saveButton!);
+
+    await waitFor(() => {
+      expect(api.updateConfig).toHaveBeenCalledWith({
+        batch_window_seconds: 120,
+        batch_idle_timeout_seconds: 30,
+        retention_days: 30,
+        detection_confidence_threshold: 0.5,
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Settings saved successfully!')).toBeInTheDocument();
+    });
+  });
+
+  it('clears success message after 3 seconds', async () => {
+    const updatedConfig = { ...mockConfig, batch_window_seconds: 120 };
+    vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+    vi.mocked(api.updateConfig).mockResolvedValue(updatedConfig);
+
+    render(<ProcessingSettings />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Batch Window Duration')).toBeInTheDocument();
+    });
+
+    const batchWindowInput = screen.getByLabelText('Batch window duration in seconds');
+    fireEvent.change(batchWindowInput, { target: { value: '120' } });
+
+    const saveButton = screen.getByText('Save Changes').closest('button');
+    fireEvent.click(saveButton!);
+
+    await waitFor(() => {
+      expect(screen.getByText('Settings saved successfully!')).toBeInTheDocument();
+    });
+
+    // Wait for the success message to disappear (real time, no fake timers)
+    await waitFor(
+      () => {
+        expect(screen.queryByText('Settings saved successfully!')).not.toBeInTheDocument();
+      },
+      { timeout: 4000 }
+    );
+  }, 10000);
+
+  it('displays error message when save fails', async () => {
+    vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+    vi.mocked(api.updateConfig).mockRejectedValue(new Error('Network error'));
+
+    render(<ProcessingSettings />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Batch Window Duration')).toBeInTheDocument();
+    });
+
+    const batchWindowInput = screen.getByLabelText('Batch window duration in seconds');
+    fireEvent.change(batchWindowInput, { target: { value: '120' } });
+
+    const saveButton = screen.getByText('Save Changes').closest('button');
+    fireEvent.click(saveButton!);
+
+    await waitFor(() => {
+      expect(screen.getByText('Network error')).toBeInTheDocument();
+    });
+  });
+
+  it('disables buttons while saving', async () => {
+    vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+    vi.mocked(api.updateConfig).mockImplementation(
+      () => new Promise(() => {}) // Never resolves
+    );
+
+    render(<ProcessingSettings />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Batch Window Duration')).toBeInTheDocument();
+    });
+
+    const batchWindowInput = screen.getByLabelText('Batch window duration in seconds');
+    fireEvent.change(batchWindowInput, { target: { value: '120' } });
+
+    const saveButton = screen.getByText('Save Changes').closest('button');
+    fireEvent.click(saveButton!);
+
+    await waitFor(() => {
+      expect(screen.getByText('Saving...')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Saving...').closest('button')).toBeDisabled();
+    expect(screen.getByText('Reset').closest('button')).toBeDisabled();
+  });
+
+  it('Clear Old Data button shows alert', async () => {
+    vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+    render(<ProcessingSettings />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Clear Old Data')).toBeInTheDocument();
+    });
+
+    const clearButton = screen.getByText('Clear Old Data').closest('button');
+    fireEvent.click(clearButton!);
+
+    expect(alertSpy).toHaveBeenCalledWith('Clear old data functionality coming soon!');
+    alertSpy.mockRestore();
   });
 
   describe('error handling', () => {
@@ -202,15 +405,28 @@ describe('ProcessingSettings', () => {
         ).toBeInTheDocument();
       });
     });
+
+    it('shows description for confidence threshold', async () => {
+      vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+
+      render(<ProcessingSettings />);
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Minimum confidence for object detection/i)
+        ).toBeInTheDocument();
+      });
+    });
   });
 
   describe('edge cases', () => {
     it('handles zero values correctly', async () => {
       const zeroConfig: api.SystemConfig = {
         ...mockConfig,
-        batch_window_seconds: 0,
-        batch_idle_timeout_seconds: 0,
-        retention_days: 0,
+        batch_window_seconds: 30, // Min value instead of 0
+        batch_idle_timeout_seconds: 10, // Min value instead of 0
+        retention_days: 1, // Min value instead of 0
+        detection_confidence_threshold: 0,
       };
 
       vi.mocked(api.fetchConfig).mockResolvedValue(zeroConfig);
@@ -218,39 +434,37 @@ describe('ProcessingSettings', () => {
       render(<ProcessingSettings />);
 
       await waitFor(() => {
-        const batchWindowInput = screen.getByLabelText('Batch window duration in seconds');
-        expect(batchWindowInput).toHaveValue(0);
+        const confidenceInput = screen.getByLabelText('Detection confidence threshold');
+        expect(confidenceInput).toHaveValue('0');
       });
-
-      const idleTimeoutInput = screen.getByLabelText('Batch idle timeout in seconds');
-      expect(idleTimeoutInput).toHaveValue(0);
-
-      const retentionInput = screen.getByLabelText('Retention period in days');
-      expect(retentionInput).toHaveValue(0);
     });
 
-    it('handles very large values correctly', async () => {
-      const largeConfig: api.SystemConfig = {
+    it('handles maximum values correctly', async () => {
+      const maxConfig: api.SystemConfig = {
         ...mockConfig,
-        batch_window_seconds: 9999,
-        batch_idle_timeout_seconds: 9999,
-        retention_days: 9999,
+        batch_window_seconds: 300,
+        batch_idle_timeout_seconds: 120,
+        retention_days: 90,
+        detection_confidence_threshold: 1.0,
       };
 
-      vi.mocked(api.fetchConfig).mockResolvedValue(largeConfig);
+      vi.mocked(api.fetchConfig).mockResolvedValue(maxConfig);
 
       render(<ProcessingSettings />);
 
       await waitFor(() => {
         const batchWindowInput = screen.getByLabelText('Batch window duration in seconds');
-        expect(batchWindowInput).toHaveValue(9999);
+        expect(batchWindowInput).toHaveValue('300');
       });
 
       const idleTimeoutInput = screen.getByLabelText('Batch idle timeout in seconds');
-      expect(idleTimeoutInput).toHaveValue(9999);
+      expect(idleTimeoutInput).toHaveValue('120');
 
       const retentionInput = screen.getByLabelText('Retention period in days');
-      expect(retentionInput).toHaveValue(9999);
+      expect(retentionInput).toHaveValue('90');
+
+      const confidenceInput = screen.getByLabelText('Detection confidence threshold');
+      expect(confidenceInput).toHaveValue('1');
     });
 
     it('applies custom className', async () => {
@@ -269,21 +483,24 @@ describe('ProcessingSettings', () => {
   });
 
   describe('input types', () => {
-    it('uses number input type for all numeric fields', async () => {
+    it('uses range input type for all slider fields', async () => {
       vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
 
       render(<ProcessingSettings />);
 
       await waitFor(() => {
         const batchWindowInput = screen.getByLabelText('Batch window duration in seconds');
-        expect(batchWindowInput).toHaveAttribute('type', 'number');
+        expect(batchWindowInput).toHaveAttribute('type', 'range');
       });
 
       const idleTimeoutInput = screen.getByLabelText('Batch idle timeout in seconds');
-      expect(idleTimeoutInput).toHaveAttribute('type', 'number');
+      expect(idleTimeoutInput).toHaveAttribute('type', 'range');
 
       const retentionInput = screen.getByLabelText('Retention period in days');
-      expect(retentionInput).toHaveAttribute('type', 'number');
+      expect(retentionInput).toHaveAttribute('type', 'range');
+
+      const confidenceInput = screen.getByLabelText('Detection confidence threshold');
+      expect(confidenceInput).toHaveAttribute('type', 'range');
     });
   });
 
@@ -299,6 +516,8 @@ describe('ProcessingSettings', () => {
 
       expect(screen.getByLabelText('Batch idle timeout in seconds')).toBeInTheDocument();
       expect(screen.getByLabelText('Retention period in days')).toBeInTheDocument();
+      expect(screen.getByLabelText('Detection confidence threshold')).toBeInTheDocument();
+      expect(screen.getByLabelText('Storage usage percentage')).toBeInTheDocument();
     });
 
     it('uses semantic text labels', async () => {
@@ -314,6 +533,39 @@ describe('ProcessingSettings', () => {
       expect(screen.getByText('Batch Window Duration')).toBeInTheDocument();
       expect(screen.getByText('Idle Timeout')).toBeInTheDocument();
       expect(screen.getByText('Retention Period')).toBeInTheDocument();
+      expect(screen.getByText('Confidence Threshold')).toBeInTheDocument();
+    });
+  });
+
+  describe('slider value changes', () => {
+    it('updates batch window value when slider moves', async () => {
+      vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+
+      render(<ProcessingSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('90s')).toBeInTheDocument();
+      });
+
+      const batchWindowInput = screen.getByLabelText('Batch window duration in seconds');
+      fireEvent.change(batchWindowInput, { target: { value: '150' } });
+
+      expect(screen.getByText('150s')).toBeInTheDocument();
+    });
+
+    it('updates confidence threshold with decimal precision', async () => {
+      vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+
+      render(<ProcessingSettings />);
+
+      await waitFor(() => {
+        expect(screen.getByText('0.50')).toBeInTheDocument();
+      });
+
+      const confidenceInput = screen.getByLabelText('Detection confidence threshold');
+      fireEvent.change(confidenceInput, { target: { value: '0.75' } });
+
+      expect(screen.getByText('0.75')).toBeInTheDocument();
     });
   });
 });

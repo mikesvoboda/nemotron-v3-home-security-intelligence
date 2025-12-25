@@ -26,6 +26,7 @@ Module initialization file that exports all models and the declarative base clas
 - `Event` - Security event model
 - `GPUStats` - GPU performance metrics model
 - `APIKey` - API key authentication model
+- `Log` - Structured application log model
 
 ### `camera.py`
 
@@ -185,6 +186,56 @@ Defines the APIKey model for optional API authentication.
 - `is_active` enables key revocation without deletion
 - Used by authentication middleware when `api_key_enabled=True` in settings
 
+### `log.py`
+
+Defines the Log model for structured application logging.
+
+**Model:** `Log`
+**Purpose:** Stores structured application logs for admin UI queries and debugging
+
+**Fields:**
+
+- `id` (int, PK, autoincrement) - Unique log record ID
+- `timestamp` (datetime) - Log entry timestamp (default: server_default=func.now())
+- `level` (str, 10 chars) - Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+- `component` (str, 50 chars) - Logger name (typically module `__name__`)
+- `message` (text) - Formatted log message
+
+**Structured Metadata (nullable, for filtering):**
+
+- `camera_id` (str, 100 chars, nullable) - Camera reference for camera-specific operations
+- `event_id` (int, nullable) - Event reference for event-related logs
+- `request_id` (str, 36 chars, nullable) - Request correlation ID (UUID format)
+- `detection_id` (int, nullable) - Detection reference for detection-related logs
+
+**Performance/Debug Fields:**
+
+- `duration_ms` (int, nullable) - Operation duration in milliseconds
+- `extra` (JSON, nullable) - Additional structured context as JSON object
+
+**Source Tracking:**
+
+- `source` (str, 10 chars) - Log source: "backend" or "frontend" (default: "backend")
+- `user_agent` (text, nullable) - Browser user agent for frontend logs
+
+**Indexes:**
+
+- `idx_logs_timestamp` - Index on timestamp for time-range queries
+- `idx_logs_level` - Index on level for filtering by severity
+- `idx_logs_component` - Index on component for filtering by module
+- `idx_logs_camera_id` - Index on camera_id for camera-specific log queries
+- `idx_logs_source` - Index on source for backend/frontend filtering
+
+**Design Notes:**
+
+- Stores both backend and frontend logs in unified table
+- JSON extra field allows arbitrary structured context
+- Source field enables log separation in admin UI
+- Indexes optimized for common dashboard filter patterns
+- No foreign keys - standalone logging table for reliability
+- Written by `SQLiteHandler` in `backend/core/logging.py`
+- Frontend logs submitted via `POST /api/logs/frontend` endpoint
+
 ## SQLAlchemy Patterns Used
 
 ### Modern SQLAlchemy 2.0 Syntax
@@ -237,12 +288,20 @@ Camera (1) ──< (many) Detection
 Camera (1) ──< (many) Event
 
 GPUStats (standalone, no relationships)
+APIKey (standalone, no relationships)
+Log (standalone, no relationships)
 ```
 
 **Cascade Behavior:**
 
 - Deleting a Camera cascades to delete all its Detections and Events
 - `cascade="all, delete-orphan"` ensures orphaned records are removed
+
+**Standalone Tables:**
+
+- `GPUStats` - Time-series GPU metrics, no foreign keys
+- `APIKey` - Authentication keys, no foreign keys
+- `Log` - Application logs, no foreign keys (for reliability)
 
 ## Indexing Strategy
 
@@ -264,10 +323,18 @@ GPUStats (standalone, no relationships)
 
 1. **Time-series**: `idx_gpu_stats_recorded_at` - Performance metrics over time
 
+### Log Table
+
+1. **Time queries**: `idx_logs_timestamp` - Log timeline and time-range filtering
+2. **Severity filtering**: `idx_logs_level` - Filter by log level (ERROR, WARNING, etc.)
+3. **Component filtering**: `idx_logs_component` - Filter by source module
+4. **Camera filtering**: `idx_logs_camera_id` - Camera-specific log queries
+5. **Source filtering**: `idx_logs_source` - Backend vs frontend log separation
+
 ## Usage Example
 
 ```python
-from backend.models import Base, Camera, Detection, Event, GPUStats
+from backend.models import Base, Camera, Detection, Event, GPUStats, Log
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 

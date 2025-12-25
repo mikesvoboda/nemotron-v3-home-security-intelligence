@@ -6,8 +6,13 @@ This directory contains the Nemotron Mini 4B Instruct language model used for AI
 
 ## Directory Contents
 
-- `nemotron-mini-4b-instruct-q4_k_m.gguf` (downloaded or copied from a local model store)
-- `config.json` (llama.cpp server runtime config reference)
+```
+ai/nemotron/
+├── AGENTS.md                                    # This file
+├── config.json                                  # llama.cpp server runtime config reference
+├── .gitkeep                                     # Placeholder for git
+└── nemotron-mini-4b-instruct-q4_k_m.gguf       # Downloaded model file (not in git)
+```
 
 ### Model File (Downloaded)
 
@@ -44,12 +49,18 @@ This directory contains the Nemotron Mini 4B Instruct language model used for AI
 ```bash
 cd /home/msvoboda/github/nemotron-v3-home-security-intelligence
 ./ai/download_models.sh
+
+# Or provide custom model path:
+NEMOTRON_GGUF_PATH=/path/to/model.gguf ./ai/download_models.sh
 ```
 
 ### Start LLM server:
 
 ```bash
 ./ai/start_llm.sh
+
+# Or with custom model path:
+NEMOTRON_MODEL_PATH=/path/to/model.gguf ./ai/start_llm.sh
 ```
 
 This starts `llama-server` with configuration (also mirrored in `ai/nemotron/config.json`):

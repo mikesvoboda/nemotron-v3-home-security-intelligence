@@ -6,23 +6,24 @@ FastAPI-based HTTP server that wraps RT-DETRv2 object detection model for real-t
 
 ## Key Files
 
-### `model.py` (434 lines)
+### `model.py` (~435 lines)
 
-Main inference server implementation:
+Main inference server implementation using HuggingFace Transformers:
 
 - **RTDETRv2Model class**: HuggingFace Transformers model wrapper
-  - Loads RT-DETRv2 using AutoModelForObjectDetection with CUDA acceleration
-  - Uses AutoImageProcessor for image preprocessing
-  - Preprocesses images (resize to 640x640, normalize)
+  - Loads RT-DETRv2 using `AutoModelForObjectDetection` with CUDA acceleration
+  - Uses `AutoImageProcessor` for image preprocessing
+  - Default model: `/export/ai_models/rt-detrv2/rtdetr_v2_r101vd` (configurable via `RTDETR_MODEL_PATH`)
+  - Preprocesses images (RGB conversion, normalization)
   - Runs inference with PyTorch on GPU
-  - Postprocesses outputs (filters by confidence and class)
-  - Performs model warmup on startup (5 iterations)
+  - Postprocesses outputs using processor's `post_process_object_detection()`
+  - Performs model warmup on startup (3 iterations)
 - **FastAPI endpoints**: `/health`, `/detect`, `/detect/batch`
 - **Pydantic models**: `Detection`, `DetectionResponse`, `BoundingBox`, `HealthResponse`
 - **Security filtering**: Only returns security-relevant object classes
 
 **Port**: 8001
-**Expected VRAM**: ~4GB
+**Expected VRAM**: ~3GB
 
 ### `example_client.py` (186 lines)
 
@@ -74,12 +75,13 @@ Package initialization with version: "1.0.0"
 
 ### RT-DETRv2 (Real-Time Detection Transformer v2)
 
-- **Model**: PekingU/rtdetr_r50vd_coco_o365 (from HuggingFace)
-- **Format**: PyTorch model loaded via Transformers library
-- **Input size**: 640x640 RGB (handled by AutoImageProcessor)
+- **Default Model**: `/export/ai_models/rt-detrv2/rtdetr_v2_r101vd` (or any HuggingFace-compatible path)
+- **Format**: PyTorch model loaded via HuggingFace Transformers
+- **Input**: Any size RGB image (processor handles resizing)
 - **Output**: Bounding boxes, class labels, confidence scores
 - **Inference time**: 30-50ms per image on RTX A5500
 - **Training data**: COCO + Objects365
+- **Configuration**: Set `RTDETR_MODEL_PATH` environment variable to change model
 
 ### Security-Relevant Classes
 
@@ -207,9 +209,9 @@ Server runs on: `http://0.0.0.0:8001`
 
 Environment variables or defaults:
 
-- `MODEL_PATH`: HuggingFace model name or local path (default: `PekingU/rtdetr_r50vd_coco_o365`)
-- `CONFIDENCE_THRESHOLD`: Minimum detection confidence (default: 0.5)
-- `DEVICE`: Inference device (default: `cuda:0` if available, else `cpu`)
+- `RTDETR_MODEL_PATH`: HuggingFace model name or local path (default: `/export/ai_models/rt-detrv2/rtdetr_v2_r101vd`)
+- `RTDETR_CONFIDENCE`: Minimum detection confidence (default: 0.5)
+- `HOST`: Server host (default: `0.0.0.0`)
 - `PORT`: Server port (default: 8001)
 
 ## Implementation Patterns
@@ -217,29 +219,30 @@ Environment variables or defaults:
 ### Preprocessing Pipeline
 
 1. Load image using PIL
-2. Use AutoImageProcessor to preprocess (handles resizing, normalization automatically)
-3. Processor converts to PyTorch tensors
-4. Move tensors to configured device (CUDA/CPU)
+2. Convert to RGB if not already (handles RGBA, grayscale, etc.)
+3. Use `AutoImageProcessor.from_pretrained()` to preprocess
+4. Processor handles resizing, normalization, tensor conversion
+5. Move tensors to configured device (CUDA/CPU)
 
 ### PyTorch Inference
 
 - Uses HuggingFace `AutoModelForObjectDetection`
 - Loads model with `.to(device)` for GPU acceleration
+- Inference runs in `torch.no_grad()` context for memory efficiency
 - Falls back to CPU if CUDA unavailable
-- Supports multi-GPU via device selection (e.g., "cuda:0", "cuda:1")
 
 ### Postprocessing Pipeline
 
 1. Use processor's `post_process_object_detection()` for output parsing
-2. Extracts bounding boxes, labels, and confidence scores
+2. Pass original image dimensions as `target_sizes` for correct bbox scaling
 3. Filter by confidence threshold (default 0.5)
-4. Map label indices to COCO class names
-5. Filter to security-relevant classes only
+4. Map label indices to class names using `model.config.id2label`
+5. Filter to security-relevant classes only (person, car, truck, dog, cat, bird, bicycle, motorcycle, bus)
 6. Format as `{class, confidence, bbox}` dictionaries
 
 ### Model Warmup
 
-On startup, runs 5 dummy inferences with random images to:
+On startup, runs 3 dummy inferences with gray 640x480 images to:
 
 - Load model weights into GPU memory
 - Compile CUDA kernels
@@ -278,9 +281,9 @@ python example_client.py
 ## Performance Characteristics
 
 - **Inference time**: 30-50ms per image (RTX A5500)
-- **VRAM usage**: ~4GB
+- **VRAM usage**: ~3GB
 - **Throughput**: ~20-30 images/second
-- **Batch processing**: Improves throughput for multiple images
+- **Batch processing**: Currently sequential (room for optimization)
 - **Warmup overhead**: ~1-2 seconds on startup
 
 ## Error Handling

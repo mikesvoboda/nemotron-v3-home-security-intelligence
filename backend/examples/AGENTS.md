@@ -256,6 +256,5 @@ docker run -d -p 6379:6379 redis:7-alpine
 ## Related Documentation
 
 - `/backend/core/redis.py` - RedisClient implementation
-- `/backend/tests/integration/test_redis.py` - Redis integration tests
-- `/docs/plans/phase-2-redis-connection.md` - Redis integration design
-- Docker Compose file - Redis service configuration
+- `/backend/services/AGENTS.md` - Services using Redis (BatchAggregator, EventBroadcaster, etc.)
+- `/docker-compose.yml` - Redis service configuration
