@@ -271,3 +271,76 @@ export function getMediaUrl(cameraId: string, filename: string): string {
 export function getThumbnailUrl(filename: string): string {
   return `${BASE_URL}/api/media/thumbnails/${filename}`;
 }
+
+// ============================================================================
+// Logs Endpoints
+// ============================================================================
+
+export interface LogStats {
+  total_today: number;
+  errors_today: number;
+  warnings_today: number;
+  by_component: Record<string, number>;
+  by_level: Record<string, number>;
+  top_component: string | null;
+}
+
+export async function fetchLogStats(): Promise<LogStats> {
+  return fetchApi<LogStats>('/api/logs/stats');
+}
+
+export interface LogEntry {
+  id: number;
+  timestamp: string;
+  level: 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL';
+  component: string;
+  message: string;
+  camera_id?: string | null;
+  event_id?: number | null;
+  request_id?: string | null;
+  detection_id?: number | null;
+  duration_ms?: number | null;
+  extra?: Record<string, unknown> | null;
+  source: string;
+  user_agent?: string | null;
+}
+
+export interface LogsResponse {
+  logs: LogEntry[];
+  count: number;
+  limit: number;
+  offset: number;
+}
+
+export interface LogsQueryParams {
+  level?: string;
+  component?: string;
+  camera_id?: string;
+  source?: string;
+  search?: string;
+  start_date?: string;
+  end_date?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export async function fetchLogs(params?: LogsQueryParams): Promise<LogsResponse> {
+  const queryParams = new URLSearchParams();
+
+  if (params) {
+    if (params.level) queryParams.append('level', params.level);
+    if (params.component) queryParams.append('component', params.component);
+    if (params.camera_id) queryParams.append('camera_id', params.camera_id);
+    if (params.source) queryParams.append('source', params.source);
+    if (params.search) queryParams.append('search', params.search);
+    if (params.start_date) queryParams.append('start_date', params.start_date);
+    if (params.end_date) queryParams.append('end_date', params.end_date);
+    if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
+    if (params.offset !== undefined) queryParams.append('offset', String(params.offset));
+  }
+
+  const queryString = queryParams.toString();
+  const endpoint = queryString ? `/api/logs?${queryString}` : '/api/logs';
+
+  return fetchApi<LogsResponse>(endpoint);
+}

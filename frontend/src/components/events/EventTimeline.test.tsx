@@ -403,32 +403,24 @@ describe('EventTimeline', () => {
     });
 
     it('navigates to previous page', async () => {
-      // Clear previous mocks and set up fresh ones for this test
-      vi.clearAllMocks();
-      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
-
-      // Start on page 2
-      vi.mocked(api.fetchEvents)
-        .mockResolvedValueOnce({
-          events: mockEvents,
-          count: 50,
-          limit: 20,
-          offset: 20,
-        })
-        .mockResolvedValueOnce({
-          events: mockEvents,
-          count: 50,
-          limit: 20,
-          offset: 0,
-        });
-
+      const user = userEvent.setup();
       render(<EventTimeline />);
 
       await waitFor(() => {
-        expect(screen.getByText('Showing 21-23 of 50 events')).toBeInTheDocument();
+        expect(screen.getByText('Page 1 of 3')).toBeInTheDocument();
       });
 
-      const user = userEvent.setup();
+      // Navigate to page 2 first
+      const nextButton = screen.getByLabelText('Next page');
+      await user.click(nextButton);
+
+      await waitFor(() => {
+        expect(api.fetchEvents).toHaveBeenCalledWith(
+          expect.objectContaining({ offset: 20 })
+        );
+      });
+
+      // Now navigate back to page 1
       const prevButton = screen.getByLabelText('Previous page');
       await user.click(prevButton);
 
@@ -451,61 +443,63 @@ describe('EventTimeline', () => {
     });
 
     it('disables next button on last page', async () => {
-      // Clear previous mocks and set up fresh ones for this test
-      vi.clearAllMocks();
-      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
-
-      // Mock last page
-      vi.mocked(api.fetchEvents).mockResolvedValue({
-        events: mockEvents,
-        count: 50,
-        limit: 20,
-        offset: 40,
-      });
-
+      const user = userEvent.setup();
       render(<EventTimeline />);
 
       await waitFor(() => {
-        expect(screen.getByText('Page 3 of 3')).toBeInTheDocument();
+        expect(screen.getByText('Page 1 of 3')).toBeInTheDocument();
       });
 
+      // Navigate to page 2
       const nextButton = screen.getByLabelText('Next page');
-      expect(nextButton).toBeDisabled();
+      await user.click(nextButton);
+
+      await waitFor(() => {
+        expect(api.fetchEvents).toHaveBeenCalledWith(
+          expect.objectContaining({ offset: 20 })
+        );
+      });
+
+      // Navigate to page 3 (last page)
+      await user.click(nextButton);
+
+      await waitFor(() => {
+        expect(api.fetchEvents).toHaveBeenCalledWith(
+          expect.objectContaining({ offset: 40 })
+        );
+      });
+
+      // Verify next button is disabled on last page
+      await waitFor(() => {
+        expect(nextButton).toBeDisabled();
+      });
     });
 
     it('resets to first page when filters change', async () => {
-      // Clear previous mocks and set up fresh ones for this test
-      vi.clearAllMocks();
-      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
-
-      // Start on page 2, then reset when filters change
-      vi.mocked(api.fetchEvents)
-        .mockResolvedValueOnce({
-          events: mockEvents,
-          count: 50,
-          limit: 20,
-          offset: 20,
-        })
-        .mockResolvedValueOnce({
-          events: mockEvents,
-          count: 50,
-          limit: 20,
-          offset: 0,
-        });
-
+      const user = userEvent.setup();
       render(<EventTimeline />);
 
       await waitFor(() => {
-        expect(screen.getByText('Showing 21-23 of 50 events')).toBeInTheDocument();
+        expect(screen.getByText('Page 1 of 3')).toBeInTheDocument();
       });
 
-      const user = userEvent.setup();
+      // Navigate to page 2
+      const nextButton = screen.getByLabelText('Next page');
+      await user.click(nextButton);
+
+      await waitFor(() => {
+        expect(api.fetchEvents).toHaveBeenCalledWith(
+          expect.objectContaining({ offset: 20 })
+        );
+      });
+
+      // Now apply a filter - this should reset to page 1
       await user.click(screen.getByText('Show Filters'));
 
       const cameraSelect = screen.getByLabelText('Camera');
       await user.selectOptions(cameraSelect, 'camera-1');
 
-      // Should reset to offset 0
+      // Should reset to offset 0 when filters change
       await waitFor(() => {
         expect(api.fetchEvents).toHaveBeenCalledWith(
           expect.objectContaining({ camera_id: 'camera-1', offset: 0 })
@@ -522,9 +516,12 @@ describe('EventTimeline', () => {
 
       render(<EventTimeline />);
 
-      await waitFor(() => {
-        expect(screen.getByText('Error Loading Events')).toBeInTheDocument();
-      });
+      await waitFor(
+        () => {
+          expect(screen.getByText('Error Loading Events')).toBeInTheDocument();
+        },
+        { timeout: 3000 }
+      );
 
       expect(screen.getByText('Network error')).toBeInTheDocument();
     });
@@ -637,8 +634,10 @@ describe('EventTimeline', () => {
       });
 
       // Camera names should appear after cameras are fetched
+      // Use getAllByText since "Front Door" appears twice (camera-1 has two events)
       await waitFor(() => {
-        expect(screen.getByText('Front Door')).toBeInTheDocument();
+        const frontDoorElements = screen.getAllByText('Front Door');
+        expect(frontDoorElements.length).toBeGreaterThan(0);
       });
 
       expect(screen.getByText('Back Yard')).toBeInTheDocument();

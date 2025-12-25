@@ -121,6 +121,43 @@ class Settings(BaseSettings):
         description="List of valid API keys (plain text, hashed on startup)",
     )
 
+    # Logging settings
+    log_level: str = Field(
+        default="INFO",
+        description="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+    )
+    log_file_path: str = Field(
+        default="data/logs/security.log",
+        description="Path for rotating log file",
+    )
+    log_file_max_bytes: int = Field(
+        default=10485760,  # 10MB
+        description="Maximum size of each log file in bytes",
+    )
+    log_file_backup_count: int = Field(
+        default=7,
+        description="Number of backup log files to keep",
+    )
+    log_db_enabled: bool = Field(
+        default=True,
+        description="Enable writing logs to SQLite database",
+    )
+    log_db_min_level: str = Field(
+        default="DEBUG",
+        description="Minimum log level to write to database",
+    )
+    log_retention_days: int = Field(
+        default=7,
+        description="Number of days to retain logs",
+    )
+
+    @field_validator("log_file_path")
+    @classmethod
+    def validate_log_file_path(cls, v: str) -> str:
+        """Ensure log directory exists."""
+        Path(v).parent.mkdir(parents=True, exist_ok=True)
+        return v
+
     @field_validator("database_url")
     @classmethod
     def validate_database_url(cls, v: str) -> str:

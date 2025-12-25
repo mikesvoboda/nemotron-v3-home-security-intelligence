@@ -50,6 +50,7 @@ def test_cleanup_stats_initialization():
     assert stats.events_deleted == 0
     assert stats.detections_deleted == 0
     assert stats.gpu_stats_deleted == 0
+    assert stats.logs_deleted == 0
     assert stats.thumbnails_deleted == 0
     assert stats.images_deleted == 0
     assert stats.space_reclaimed == 0
@@ -61,6 +62,7 @@ def test_cleanup_stats_to_dict():
     stats.events_deleted = 10
     stats.detections_deleted = 25
     stats.gpu_stats_deleted = 100
+    stats.logs_deleted = 50
     stats.thumbnails_deleted = 20
     stats.images_deleted = 15
     stats.space_reclaimed = 1024000
@@ -71,6 +73,7 @@ def test_cleanup_stats_to_dict():
         "events_deleted": 10,
         "detections_deleted": 25,
         "gpu_stats_deleted": 100,
+        "logs_deleted": 50,
         "thumbnails_deleted": 20,
         "images_deleted": 15,
         "space_reclaimed": 1024000,
