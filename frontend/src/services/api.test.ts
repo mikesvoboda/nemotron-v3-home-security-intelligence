@@ -68,6 +68,7 @@ const mockConfig: SystemConfig = {
   retention_days: 30,
   batch_window_seconds: 90,
   batch_idle_timeout_seconds: 30,
+  detection_confidence_threshold: 0.5,
 };
 
 const mockStats: SystemStats = {

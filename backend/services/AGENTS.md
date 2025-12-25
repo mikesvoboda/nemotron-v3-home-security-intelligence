@@ -129,6 +129,7 @@ File Upload → Detection → Batching → Analysis → Event Creation → Broad
 - **Window timeout:** 90 seconds from batch start (configurable)
 - **Idle timeout:** 30 seconds since last detection (configurable)
 - **One batch per camera:** Each camera has max 1 active batch at a time
+- **Fast path:** High-confidence critical detections bypass batching for immediate analysis
 
 **Redis Keys:**
 
@@ -142,10 +143,18 @@ batch:{batch_id}:last_activity    → Unix timestamp (float)
 
 **Public API:**
 
-- `BatchAggregator(redis_client)` - Initialize with Redis
-- `async add_detection(camera_id, detection_id, file_path)` - Add to batch, returns batch_id
+- `BatchAggregator(redis_client, analyzer)` - Initialize with Redis and optional analyzer for fast path
+- `async add_detection(camera_id, detection_id, file_path, confidence, object_type)` - Add to batch, returns batch_id; triggers fast path if criteria met
 - `async check_batch_timeouts()` - Close expired batches, returns closed batch IDs
 - `async close_batch(batch_id)` - Force close and push to analysis queue
+
+**Fast Path:**
+
+High-priority detections can bypass normal batching for immediate analysis:
+- Triggered when confidence >= `fast_path_confidence_threshold` (from settings)
+- AND object_type is in `fast_path_object_types` list (from settings)
+- Immediately calls `NemotronAnalyzer.analyze_detection_fast_path()`
+- Returns `fast_path_{detection_id}` as batch ID
 
 **Data Flow:**
 
@@ -180,6 +189,7 @@ batch:{batch_id}:last_activity    → Unix timestamp (float)
 
 - `NemotronAnalyzer(redis_client)` - Initialize with Redis
 - `async analyze_batch(batch_id)` - Analyze batch and create Event
+- `async analyze_detection_fast_path(camera_id, detection_id)` - Analyze single detection immediately (bypasses batching)
 - `async health_check()` - Check if LLM server is reachable
 
 **Data Flow:**
@@ -190,8 +200,18 @@ batch:{batch_id}:last_activity    → Unix timestamp (float)
 4. POST to `{nemotron_url}/completion` with `{prompt, temperature: 0.7, max_tokens: 500}`
 5. Extract JSON from completion text using regex pattern
 6. Validate risk data (score 0-100, level in [low, medium, high, critical])
-7. Create Event record with risk assessment
+7. Create Event record with risk assessment (includes `is_fast_path` flag for fast path events)
 8. Broadcast to WebSocket channel `events` (if available)
+
+**Fast Path Analysis:**
+
+For single high-priority detections:
+1. Convert detection_id to int
+2. Query database for Detection record and Camera name
+3. Format prompt with single detection
+4. Call LLM for risk analysis
+5. Create Event with `is_fast_path=True`
+6. Broadcast via WebSocket
 
 **Error Handling:**
 
@@ -283,7 +303,7 @@ default:           white (#FFFFFF)
 
 - Scheduled daily cleanup at configurable time (default: 03:00)
 - Enforces retention policy (default: 30 days)
-- Cascade deletion: Events → Detections → GPU Stats
+- Cascade deletion: Events, Detections, GPU Stats, Logs
 - File cleanup: Thumbnails and optionally original images
 - Transaction-safe with rollback support
 - Detailed statistics on cleanup operations
@@ -304,8 +324,9 @@ default:           white (#FFFFFF)
 4. Delete old events from database (cascade)
 5. Delete old GPU stats from database
 6. Commit database transaction
-7. Delete thumbnail files from disk
-8. Delete original image files (if enabled)
+7. Delete old logs from database (uses `log_retention_days` from settings)
+8. Delete thumbnail files from disk
+9. Delete original image files (if enabled)
 
 **CleanupStats:**
 
@@ -314,6 +335,7 @@ default:           white (#FFFFFF)
     "events_deleted": int,        # Events removed
     "detections_deleted": int,    # Detections removed
     "gpu_stats_deleted": int,     # GPU stat records removed
+    "logs_deleted": int,          # Log records removed
     "thumbnails_deleted": int,    # Thumbnail files removed
     "images_deleted": int,        # Original images removed
     "space_reclaimed": int        # Disk space freed (bytes)
@@ -529,8 +551,14 @@ Activated when:
    ↓ Stores: Detection records in SQLite
 
 3. [Background Worker]
-   ↓ Calls: BatchAggregator.add_detection()
-   ↓ Updates Redis batch keys
+   ↓ Calls: BatchAggregator.add_detection(confidence, object_type)
+   ├─→ [Fast Path] If high-confidence critical detection:
+   │   ↓ Calls: NemotronAnalyzer.analyze_detection_fast_path()
+   │   ↓ Creates: Event with is_fast_path=True
+   │   ↓ Broadcasts: WebSocket immediately
+   │
+   └─→ [Normal Path] Otherwise:
+       ↓ Updates Redis batch keys
 
 4. [Periodic Task]
    ↓ Calls: BatchAggregator.check_batch_timeouts()
@@ -570,6 +598,7 @@ SystemBroadcaster (Periodic Broadcasting)
 CleanupService (Daily Scheduled)
    ↓ Once per day at cleanup_time (default: 03:00)
    ↓ Deletes: Events, Detections, GPUStats older than retention_days
+   ↓ Deletes: Logs older than log_retention_days
    ↓ Removes: Thumbnail files (and optionally original images)
    ↓ Logs: CleanupStats (records deleted, space reclaimed)
 ```
@@ -672,6 +701,12 @@ All services use `backend.core.config.get_settings()` for configuration:
 - `detection_confidence_threshold` - Minimum confidence for detections
 - `batch_window_seconds` - Maximum batch duration (default: 90s)
 - `batch_idle_timeout_seconds` - Idle timeout before closing batch (default: 30s)
+- `fast_path_confidence_threshold` - Minimum confidence for fast path (bypasses batching)
+- `fast_path_object_types` - Object types eligible for fast path (e.g., ["person"])
+- `gpu_poll_interval_seconds` - GPU monitoring poll interval
+- `gpu_stats_history_minutes` - GPU stats in-memory history retention
+- `retention_days` - Data retention period for cleanup service
+- `log_retention_days` - Log retention period for cleanup service
 
 ## Dependencies
 

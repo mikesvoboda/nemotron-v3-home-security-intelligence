@@ -48,12 +48,12 @@ docker compose -f docker-compose.prod.yml down
 
 ## 📋 Service Endpoints
 
-| Service  | Port | URL                        | Health Check              |
-| -------- | ---- | -------------------------- | ------------------------- |
-| Backend  | 8000 | http://localhost:8000      | /health                   |
-| API Docs | 8000 | http://localhost:8000/docs | -                         |
-| Frontend | 3000 | http://localhost:3000      | / (dev) or /health (prod) |
-| Redis    | 6379 | redis://localhost:6379     | redis-cli ping            |
+| Service  | Port | URL                        | Health Check        |
+| -------- | ---- | -------------------------- | ------------------- |
+| Backend  | 8000 | http://localhost:8000      | /health             |
+| API Docs | 8000 | http://localhost:8000/docs | -                   |
+| Frontend | 5173 | http://localhost:5173      | / (Vite dev server) |
+| Redis    | 6379 | redis://localhost:6379     | redis-cli ping      |
 
 ## 🔍 Health Checks
 
@@ -68,7 +68,7 @@ curl http://localhost:8000/health
 docker compose exec redis redis-cli ping
 
 # Check Frontend
-curl http://localhost:3000
+curl http://localhost:5173
 ```
 
 ## 📊 Monitoring
@@ -225,7 +225,7 @@ docker rm $(docker ps -aq)
 
 - Backend API: http://localhost:8000
 - API Documentation: http://localhost:8000/docs
-- Frontend App: http://localhost:3000
+- Frontend App: http://localhost:5173
 - Redis Commander: `docker compose exec redis redis-cli` (CLI interface)
 
 ## ✅ Pre-flight Checklist
@@ -236,7 +236,7 @@ Before deploying:
 - [ ] `.env` file is configured
 - [ ] `/export/foscam` directory exists (or update CAMERA_ROOT)
 - [ ] AI services are running (RT-DETRv2 on 8001, Nemotron on 8002)
-- [ ] Ports 3000, 6379, and 8000 are available
+- [ ] Ports 5173, 6379, and 8000 are available
 
 Test deployment:
 

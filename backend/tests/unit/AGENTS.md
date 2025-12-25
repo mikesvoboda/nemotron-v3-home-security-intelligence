@@ -352,7 +352,7 @@ Tests for GPU monitoring service (`backend/services/gpu_monitor.py`).
 - Error handling (no GPU, driver errors)
 - Periodic monitoring
 
-#### `test_cleanup_service.py` (650 lines, 35+ tests)
+#### `test_cleanup_service.py` (650 lines, 31 tests)
 
 Tests for data cleanup service (`backend/services/cleanup_service.py`).
 
@@ -361,8 +361,50 @@ Tests for data cleanup service (`backend/services/cleanup_service.py`).
 - Old detection cleanup (30-day retention)
 - Old event cleanup (30-day retention)
 - Old GPU stats cleanup
+- Old log cleanup
 - Scheduled cleanup tasks
 - Configuration override
+
+### Logging
+
+#### `test_logging.py` (260 lines, 15 tests)
+
+Tests for structured logging module (`backend/core/logging.py`).
+
+**Coverage:**
+
+- Logger creation and configuration
+- Request ID context management
+- Custom JSON formatter
+- SQLite handler for database logging
+- Context filter functionality
+- Log level configuration
+
+**Key patterns:**
+
+- Mocking settings for configuration testing
+- Context variable testing
+- Handler output testing
+
+**Example:**
+
+```python
+def test_request_id_context():
+    set_request_id("test-123")
+    assert get_request_id() == "test-123"
+    set_request_id(None)
+    assert get_request_id() is None
+```
+
+#### `test_log_model.py` (49 lines, 3 tests)
+
+Tests for Log SQLAlchemy model (`backend/models/log.py`).
+
+**Coverage:**
+
+- Log creation with required fields
+- Optional metadata fields (camera_id, request_id, duration_ms, extra)
+- String representation
 
 ### API Routes
 
@@ -377,7 +419,7 @@ Tests for detection API route handlers (`backend/api/routes/detections.py`).
 - Filter validation
 - Response schema validation
 
-#### `test_events_api.py` (280 lines, 15 tests)
+#### `test_events_api.py` (320 lines, 21 tests)
 
 Tests for event API route handlers (`backend/api/routes/events.py`).
 
@@ -388,6 +430,7 @@ Tests for event API route handlers (`backend/api/routes/events.py`).
 - Update event (review status)
 - Get event detections
 - Filter and pagination validation
+- Risk level filtering
 
 #### `test_system_routes.py` (65 lines, 5 tests)
 
@@ -706,10 +749,35 @@ with patch("httpx.AsyncClient"):
 
 ## Test Statistics
 
-- **Total test files**: 20+
-- **Total test cases**: 300+
+- **Total test files**: 22
+- **Total test cases**: 453
 - **Average execution time**: <10 seconds (unit tests only)
 - **Coverage**: 98%+ for unit-tested components
+
+### Test Files Summary
+
+| File | Tests | Description |
+|------|-------|-------------|
+| test_auth_middleware.py | 18 | Authentication middleware |
+| test_batch_aggregator.py | 29 | Detection batch aggregation |
+| test_cleanup_service.py | 31 | Data cleanup service |
+| test_config.py | 49 | Configuration and settings |
+| test_database.py | 11 | Database connections |
+| test_detections_api.py | 6 | Detections API routes |
+| test_detector_client.py | 20 | RT-DETRv2 client |
+| test_event_broadcaster.py | 7 | Event broadcasting |
+| test_events_api.py | 21 | Events API routes |
+| test_file_watcher.py | 34 | File system monitoring |
+| test_gpu_monitor.py | 27 | GPU monitoring |
+| test_logging.py | 15 | Structured logging |
+| test_log_model.py | 3 | Log model |
+| test_models.py | 26 | Database models |
+| test_nemotron_analyzer.py | 38 | Nemotron LLM analyzer |
+| test_redis.py | 30 | Redis client |
+| test_system_broadcaster.py | 23 | System broadcasting |
+| test_system_routes.py | 4 | System API routes |
+| test_thumbnail_generator.py | 36 | Thumbnail generation |
+| test_websocket.py | 25 | WebSocket handlers |
 
 ## Next Steps for AI Agents
 

@@ -40,16 +40,16 @@ describe('risk utilities', () => {
   });
 
   describe('getRiskColor', () => {
-    it('returns green for low risk', () => {
-      expect(getRiskColor('low')).toBe('#22c55e');
+    it('returns NVIDIA green for low risk', () => {
+      expect(getRiskColor('low')).toBe('#76B900');
     });
 
-    it('returns yellow for medium risk', () => {
-      expect(getRiskColor('medium')).toBe('#eab308');
+    it('returns NVIDIA yellow for medium risk', () => {
+      expect(getRiskColor('medium')).toBe('#FFB800');
     });
 
-    it('returns orange for high risk', () => {
-      expect(getRiskColor('high')).toBe('#f97316');
+    it('returns NVIDIA red for high risk', () => {
+      expect(getRiskColor('high')).toBe('#E74856');
     });
 
     it('returns red for critical risk', () => {

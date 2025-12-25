@@ -61,6 +61,55 @@ Uses utility functions from `../../utils/risk`:
 - `getRiskLabel(level)` - Returns "Low", "Medium", "High", "Critical"
 - Type: `RiskLevel` - Union type for risk levels
 
+### ObjectTypeBadge.tsx
+
+**Purpose:** Display detected object type as a colored badge with icon
+
+**Key Features:**
+
+- Maps object types to appropriate icons and colors
+- Supports common detection types: person, car, truck, bus, motorcycle, bicycle, dog, cat, bird, package
+- Unknown types display with AlertTriangle icon and capitalize the type name
+- Three size variants: sm, md, lg
+- Full accessibility with ARIA role="status" and aria-label
+- Bordered badge style with background at 10% opacity
+
+**Props:**
+
+- `type: string` - Object type label from detection (required)
+- `size?: 'sm' | 'md' | 'lg'` - Badge size (default: 'sm')
+- `className?: string` - Additional CSS classes
+
+**Object Type Mappings:**
+
+| Type | Icon | Color | Display Name |
+|------|------|-------|--------------|
+| person | User | blue | Person |
+| car, truck, bus, motorcycle | Car | purple | Vehicle |
+| bicycle | Car | cyan | Bicycle |
+| dog, cat, bird | PawPrint | amber | Animal |
+| package | Package | green | Package |
+| unknown | AlertTriangle | gray | (Capitalized type) |
+
+**Size Mappings:**
+
+- sm: text-xs, px-2, py-0.5, icon w-3 h-3
+- md: text-sm, px-2.5, py-1, icon w-4 h-4
+- lg: text-base, px-3, py-1.5, icon w-5 h-5
+
+**Usage Examples:**
+
+```tsx
+// Basic usage
+<ObjectTypeBadge type="person" />
+
+// With size
+<ObjectTypeBadge type="car" size="md" />
+
+// Unknown type (displays as "Unknown" with capitalized name)
+<ObjectTypeBadge type="drone" />
+```
+
 ### index.ts
 
 **Purpose:** Barrel export file for easy imports
@@ -72,14 +121,10 @@ export { default as RiskBadge } from './RiskBadge';
 export type { RiskBadgeProps } from './RiskBadge';
 ```
 
-**Usage:**
+**Note:** ObjectTypeBadge is not yet exported from index.ts. Import directly:
 
 ```tsx
-// Import from directory
-import { RiskBadge } from '../common';
-
-// Instead of
-import RiskBadge from '../common/RiskBadge';
+import ObjectTypeBadge from '../common/ObjectTypeBadge';
 ```
 
 ## Important Patterns
@@ -149,15 +194,26 @@ Comprehensive test coverage includes:
 - ARIA attributes for accessibility
 - Custom className application
 
+### ObjectTypeBadge.test.tsx
+
+Comprehensive test coverage includes:
+
+- Renders all known object types correctly
+- Displays correct icons and colors per type
+- Handles unknown types gracefully
+- Applies correct size classes
+- ARIA attributes for accessibility
+
 ## Entry Points
 
-**Start here:** `RiskBadge.tsx` - Single component, well-documented
+**Start here:** `RiskBadge.tsx` - Risk level badge with score display
+**Also see:** `ObjectTypeBadge.tsx` - Detection object type badge
 
 ## Dependencies
 
-- `lucide-react` - Icon components (CheckCircle, AlertTriangle, AlertOctagon)
+- `lucide-react` - Icon components (CheckCircle, AlertTriangle, AlertOctagon, User, Car, PawPrint, Package)
 - `clsx` - Conditional class name composition
-- `../../utils/risk` - getRiskLabel, RiskLevel type
+- `../../utils/risk` - getRiskLabel, RiskLevel type (RiskBadge only)
 
 ## Design Decisions
 

@@ -253,6 +253,86 @@ describe('EventDetailModal', () => {
     });
   });
 
+  describe('duration display', () => {
+    it('displays duration in header when started_at and ended_at are provided', () => {
+      const eventWithDuration = {
+        ...mockEvent,
+        started_at: '2024-01-15T10:00:00Z',
+        ended_at: '2024-01-15T10:02:30Z', // 2m 30s duration
+      };
+      render(<EventDetailModal {...mockProps} event={eventWithDuration} />);
+      expect(screen.getAllByText(/Duration:/)[0]).toBeInTheDocument();
+      expect(screen.getByText(/2m 30s/)).toBeInTheDocument();
+    });
+
+    it('displays duration in metadata section when started_at and ended_at are provided', () => {
+      const eventWithDuration = {
+        ...mockEvent,
+        started_at: '2024-01-15T10:00:00Z',
+        ended_at: '2024-01-15T10:02:30Z',
+      };
+      render(<EventDetailModal {...mockProps} event={eventWithDuration} />);
+      const durationElements = screen.getAllByText(/Duration:/);
+      expect(durationElements.length).toBe(2); // Header and metadata
+    });
+
+    it('displays "ongoing" for events without ended_at', () => {
+      const ongoingEvent = {
+        ...mockEvent,
+        started_at: new Date(Date.now() - 2 * 60 * 1000).toISOString(), // 2 minutes ago
+        ended_at: null,
+      };
+      render(<EventDetailModal {...mockProps} event={ongoingEvent} />);
+      expect(screen.getByText(/ongoing/)).toBeInTheDocument();
+    });
+
+    it('does not display duration when started_at is not provided', () => {
+      render(<EventDetailModal {...mockProps} />);
+      expect(screen.queryByText(/Duration:/)).not.toBeInTheDocument();
+    });
+
+    it('renders Timer icon with duration in header', () => {
+      const eventWithDuration = {
+        ...mockEvent,
+        started_at: '2024-01-15T10:00:00Z',
+        ended_at: '2024-01-15T10:02:30Z',
+      };
+      const { container } = render(<EventDetailModal {...mockProps} event={eventWithDuration} />);
+      const timerIcon = container.querySelector('svg.lucide-timer');
+      expect(timerIcon).toBeInTheDocument();
+    });
+
+    it('formats various duration lengths correctly', () => {
+      const baseTime = new Date('2024-01-15T10:00:00Z').getTime();
+      const testCases = [
+        { duration: 30 * 1000, expected: '30s' }, // 30 seconds
+        { duration: 5 * 60 * 1000, expected: '5m' }, // 5 minutes
+        { duration: 2 * 60 * 60 * 1000, expected: '2h' }, // 2 hours
+        { duration: 36 * 60 * 60 * 1000, expected: '1d 12h' }, // 1 day 12 hours
+      ];
+
+      testCases.forEach(({ duration, expected }) => {
+        const eventWithDuration = {
+          ...mockEvent,
+          started_at: new Date(baseTime).toISOString(),
+          ended_at: new Date(baseTime + duration).toISOString(),
+        };
+        const { unmount } = render(<EventDetailModal {...mockProps} event={eventWithDuration} />);
+        expect(screen.getByText(new RegExp(expected))).toBeInTheDocument();
+        unmount();
+      });
+    });
+
+    it('uses timestamp as fallback when started_at is not provided', () => {
+      const eventWithEndedAt = {
+        ...mockEvent,
+        ended_at: '2024-01-15T10:02:30Z',
+      };
+      render(<EventDetailModal {...mockProps} event={eventWithEndedAt} />);
+      expect(screen.getAllByText(/Duration:/)[0]).toBeInTheDocument();
+    });
+  });
+
   describe('close functionality', () => {
     it('calls onClose when close button is clicked', async () => {
       const user = userEvent.setup();
@@ -754,6 +834,236 @@ describe('EventDetailModal', () => {
     });
   });
 
+  describe('flag event', () => {
+    it('renders flag event button when onFlagEvent is provided', () => {
+      const onFlagEvent = vi.fn();
+      render(<EventDetailModal {...mockProps} onFlagEvent={onFlagEvent} />);
+
+      expect(screen.getByRole('button', { name: 'Flag event' })).toBeInTheDocument();
+    });
+
+    it('does not render flag event button when onFlagEvent is undefined', () => {
+      render(<EventDetailModal {...mockProps} onFlagEvent={undefined} />);
+
+      expect(screen.queryByRole('button', { name: 'Flag event' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Unflag event' })).not.toBeInTheDocument();
+    });
+
+    it('shows "Flag Event" when event is not flagged', () => {
+      const eventNotFlagged = { ...mockEvent, flagged: false };
+      const onFlagEvent = vi.fn();
+      render(<EventDetailModal {...mockProps} event={eventNotFlagged} onFlagEvent={onFlagEvent} />);
+
+      expect(screen.getByRole('button', { name: 'Flag event' })).toHaveTextContent('Flag Event');
+    });
+
+    it('shows "Unflag Event" when event is flagged', () => {
+      const eventFlagged = { ...mockEvent, flagged: true };
+      const onFlagEvent = vi.fn();
+      render(<EventDetailModal {...mockProps} event={eventFlagged} onFlagEvent={onFlagEvent} />);
+
+      expect(screen.getByRole('button', { name: 'Unflag event' })).toHaveTextContent('Unflag Event');
+    });
+
+    it('calls onFlagEvent with correct parameters when flagging unflagged event', async () => {
+      const user = userEvent.setup();
+      const eventNotFlagged = { ...mockEvent, flagged: false };
+      const onFlagEvent = vi.fn().mockResolvedValue(undefined);
+      render(<EventDetailModal {...mockProps} event={eventNotFlagged} onFlagEvent={onFlagEvent} />);
+
+      const flagButton = screen.getByRole('button', { name: 'Flag event' });
+      await user.click(flagButton);
+
+      await waitFor(() => {
+        expect(onFlagEvent).toHaveBeenCalledWith('event-123', true);
+      });
+    });
+
+    it('calls onFlagEvent with correct parameters when unflagging flagged event', async () => {
+      const user = userEvent.setup();
+      const eventFlagged = { ...mockEvent, flagged: true };
+      const onFlagEvent = vi.fn().mockResolvedValue(undefined);
+      render(<EventDetailModal {...mockProps} event={eventFlagged} onFlagEvent={onFlagEvent} />);
+
+      const unflagButton = screen.getByRole('button', { name: 'Unflag event' });
+      await user.click(unflagButton);
+
+      await waitFor(() => {
+        expect(onFlagEvent).toHaveBeenCalledWith('event-123', false);
+      });
+    });
+
+    it('disables flag button while flagging is in progress', async () => {
+      const user = userEvent.setup();
+      let resolveFlagging: () => void;
+      const flaggingPromise = new Promise<void>((resolve) => {
+        resolveFlagging = resolve;
+      });
+      const onFlagEvent = vi.fn().mockReturnValue(flaggingPromise);
+
+      render(<EventDetailModal {...mockProps} onFlagEvent={onFlagEvent} />);
+
+      const flagButton = screen.getByRole('button', { name: 'Flag event' });
+      await user.click(flagButton);
+
+      expect(screen.getByText('Flagging...')).toBeInTheDocument();
+      expect(flagButton).toBeDisabled();
+
+      resolveFlagging!();
+      await waitFor(() => {
+        expect(screen.queryByText('Flagging...')).not.toBeInTheDocument();
+      });
+    });
+
+    it('handles flagging errors gracefully', async () => {
+      const user = userEvent.setup();
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const onFlagEvent = vi.fn().mockRejectedValue(new Error('Flagging failed'));
+
+      render(<EventDetailModal {...mockProps} onFlagEvent={onFlagEvent} />);
+
+      const flagButton = screen.getByRole('button', { name: 'Flag event' });
+      await user.click(flagButton);
+
+      await waitFor(() => {
+        expect(consoleSpy).toHaveBeenCalledWith('Failed to flag event:', expect.any(Error));
+      });
+
+      consoleSpy.mockRestore();
+    });
+
+    it('applies different styling for flagged vs unflagged state', () => {
+      const eventNotFlagged = { ...mockEvent, flagged: false };
+      const eventFlagged = { ...mockEvent, flagged: true };
+      const onFlagEvent = vi.fn();
+
+      const { rerender } = render(
+        <EventDetailModal {...mockProps} event={eventNotFlagged} onFlagEvent={onFlagEvent} />
+      );
+
+      const flagButton = screen.getByRole('button', { name: 'Flag event' });
+      expect(flagButton).toHaveClass('bg-gray-800');
+
+      rerender(<EventDetailModal {...mockProps} event={eventFlagged} onFlagEvent={onFlagEvent} />);
+
+      const unflagButton = screen.getByRole('button', { name: 'Unflag event' });
+      expect(unflagButton).toHaveClass('bg-yellow-600');
+    });
+
+    it('has correct aria-label for flagged state', () => {
+      const eventFlagged = { ...mockEvent, flagged: true };
+      const onFlagEvent = vi.fn();
+      render(<EventDetailModal {...mockProps} event={eventFlagged} onFlagEvent={onFlagEvent} />);
+
+      const button = screen.getByRole('button', { name: 'Unflag event' });
+      expect(button).toHaveAttribute('aria-label', 'Unflag event');
+    });
+
+    it('has correct aria-label for unflagged state', () => {
+      const eventNotFlagged = { ...mockEvent, flagged: false };
+      const onFlagEvent = vi.fn();
+      render(
+        <EventDetailModal {...mockProps} event={eventNotFlagged} onFlagEvent={onFlagEvent} />
+      );
+
+      const button = screen.getByRole('button', { name: 'Flag event' });
+      expect(button).toHaveAttribute('aria-label', 'Flag event');
+    });
+  });
+
+  describe('download media', () => {
+    it('renders download media button when onDownloadMedia is provided', () => {
+      const onDownloadMedia = vi.fn();
+      render(<EventDetailModal {...mockProps} onDownloadMedia={onDownloadMedia} />);
+
+      expect(screen.getByRole('button', { name: 'Download media' })).toBeInTheDocument();
+    });
+
+    it('does not render download media button when onDownloadMedia is undefined', () => {
+      render(<EventDetailModal {...mockProps} onDownloadMedia={undefined} />);
+
+      expect(screen.queryByRole('button', { name: 'Download media' })).not.toBeInTheDocument();
+    });
+
+    it('calls onDownloadMedia with event ID when button is clicked', async () => {
+      const user = userEvent.setup();
+      const onDownloadMedia = vi.fn().mockResolvedValue(undefined);
+      render(<EventDetailModal {...mockProps} onDownloadMedia={onDownloadMedia} />);
+
+      const downloadButton = screen.getByRole('button', { name: 'Download media' });
+      await user.click(downloadButton);
+
+      await waitFor(() => {
+        expect(onDownloadMedia).toHaveBeenCalledWith('event-123');
+      });
+    });
+
+    it('disables download button while download is in progress', async () => {
+      const user = userEvent.setup();
+      let resolveDownload: () => void;
+      const downloadPromise = new Promise<void>((resolve) => {
+        resolveDownload = resolve;
+      });
+      const onDownloadMedia = vi.fn().mockReturnValue(downloadPromise);
+
+      render(<EventDetailModal {...mockProps} onDownloadMedia={onDownloadMedia} />);
+
+      const downloadButton = screen.getByRole('button', { name: 'Download media' });
+      await user.click(downloadButton);
+
+      expect(screen.getByText('Downloading...')).toBeInTheDocument();
+      expect(downloadButton).toBeDisabled();
+
+      resolveDownload!();
+      await waitFor(() => {
+        expect(screen.queryByText('Downloading...')).not.toBeInTheDocument();
+      });
+    });
+
+    it('handles download errors gracefully', async () => {
+      const user = userEvent.setup();
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const onDownloadMedia = vi.fn().mockRejectedValue(new Error('Download failed'));
+
+      render(<EventDetailModal {...mockProps} onDownloadMedia={onDownloadMedia} />);
+
+      const downloadButton = screen.getByRole('button', { name: 'Download media' });
+      await user.click(downloadButton);
+
+      await waitFor(() => {
+        expect(consoleSpy).toHaveBeenCalledWith('Failed to download media:', expect.any(Error));
+      });
+
+      consoleSpy.mockRestore();
+    });
+
+    it('has correct aria-label', () => {
+      const onDownloadMedia = vi.fn();
+      render(<EventDetailModal {...mockProps} onDownloadMedia={onDownloadMedia} />);
+
+      const button = screen.getByRole('button', { name: 'Download media' });
+      expect(button).toHaveAttribute('aria-label', 'Download media');
+    });
+
+    it('can be called multiple times', async () => {
+      const user = userEvent.setup();
+      const onDownloadMedia = vi.fn().mockResolvedValue(undefined);
+      render(<EventDetailModal {...mockProps} onDownloadMedia={onDownloadMedia} />);
+
+      const downloadButton = screen.getByRole('button', { name: 'Download media' });
+
+      await user.click(downloadButton);
+      await waitFor(() => {
+        expect(onDownloadMedia).toHaveBeenCalledTimes(1);
+      });
+
+      await user.click(downloadButton);
+      await waitFor(() => {
+        expect(onDownloadMedia).toHaveBeenCalledTimes(2);
+      });
+    });
+  });
+
   describe('integration', () => {
     it('renders complete modal with all sections', () => {
       const onClose = vi.fn();
@@ -781,6 +1091,30 @@ describe('EventDetailModal', () => {
       expect(screen.getByRole('button', { name: 'Close modal' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Previous event' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Next event' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Mark event as reviewed' })).toBeInTheDocument();
+    });
+
+    it('renders complete modal with all action buttons', () => {
+      const onClose = vi.fn();
+      const onMarkReviewed = vi.fn();
+      const onNavigate = vi.fn();
+      const onFlagEvent = vi.fn();
+      const onDownloadMedia = vi.fn();
+
+      render(
+        <EventDetailModal
+          {...mockProps}
+          onClose={onClose}
+          onMarkReviewed={onMarkReviewed}
+          onNavigate={onNavigate}
+          onFlagEvent={onFlagEvent}
+          onDownloadMedia={onDownloadMedia}
+        />
+      );
+
+      // Verify all action buttons are present
+      expect(screen.getByRole('button', { name: 'Flag event' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Download media' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Mark event as reviewed' })).toBeInTheDocument();
     });
 

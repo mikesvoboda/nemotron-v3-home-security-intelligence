@@ -70,7 +70,7 @@ This is the root directory of the React frontend application for the Home Securi
   - Base image: node:20-alpine
   - Installs wget for healthcheck
   - Installs dependencies with npm install
-  - Exposes port 3000
+  - Exposes port 5173
   - Runs dev server with `--host` flag for container networking
 
 - **`Dockerfile.prod`** - Production multi-stage build
@@ -111,10 +111,14 @@ This is the root directory of the React frontend application for the Home Securi
 
 - **`TEST_QUICKSTART.md`** - Quick reference for running tests
 
+### Validation Script
+
+- **`verify-eslint.sh`** - Shell script for ESLint configuration verification
+
 ## NPM Scripts
 
 ```bash
-npm run dev          # Start Vite dev server (port 3000)
+npm run dev          # Start Vite dev server (port 5173)
 npm run build        # TypeScript check + production build
 npm run lint         # Run ESLint (max 0 warnings)
 npm run lint:fix     # Auto-fix ESLint issues
@@ -165,6 +169,7 @@ See `TESTING.md` for detailed testing documentation.
 
 - **react** (18.2) - UI library
 - **react-dom** (18.2) - React DOM renderer
+- **react-router-dom** (7.11.0) - Client-side routing
 - **@tremor/react** (3.17.4) - Data visualization components
 - **@headlessui/react** (1.7.18) - Unstyled accessible UI components
 - **lucide-react** (0.312) - Icon library

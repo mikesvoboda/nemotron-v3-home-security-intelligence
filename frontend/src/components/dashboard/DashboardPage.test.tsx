@@ -12,6 +12,25 @@ vi.mock('../../hooks/useEventStream');
 vi.mock('../../hooks/useSystemStatus');
 
 // Mock child components
+vi.mock('./StatsRow', () => ({
+  default: ({ activeCameras, eventsToday, currentRiskScore, systemStatus }: {
+    activeCameras: number;
+    eventsToday: number;
+    currentRiskScore: number;
+    systemStatus: string;
+  }) => (
+    <div
+      data-testid="stats-row"
+      data-active-cameras={activeCameras}
+      data-events-today={eventsToday}
+      data-risk-score={currentRiskScore}
+      data-system-status={systemStatus}
+    >
+      Stats Row
+    </div>
+  ),
+}));
+
 vi.mock('./RiskGauge', () => ({
   default: ({ value, history }: { value: number; history?: number[] }) => (
     <div data-testid="risk-gauge" data-value={value} data-history={history?.join(',')}>
@@ -220,10 +239,22 @@ describe('DashboardPage', () => {
       render(<DashboardPage />);
 
       await waitFor(() => {
+        expect(screen.getByTestId('stats-row')).toBeInTheDocument();
         expect(screen.getByTestId('risk-gauge')).toBeInTheDocument();
         expect(screen.getByTestId('gpu-stats')).toBeInTheDocument();
         expect(screen.getByTestId('camera-grid')).toBeInTheDocument();
         expect(screen.getByTestId('activity-feed')).toBeInTheDocument();
+      });
+    });
+
+    it('passes correct props to StatsRow', async () => {
+      render(<DashboardPage />);
+
+      await waitFor(() => {
+        const statsRow = screen.getByTestId('stats-row');
+        expect(statsRow).toHaveAttribute('data-active-cameras', '1'); // Only cam1 is active
+        expect(statsRow).toHaveAttribute('data-risk-score', '75'); // Latest event risk score
+        expect(statsRow).toHaveAttribute('data-system-status', 'healthy');
       });
     });
 

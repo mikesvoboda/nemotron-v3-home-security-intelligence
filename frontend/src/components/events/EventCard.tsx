@@ -1,7 +1,8 @@
-import { ChevronDown, ChevronUp, Clock, Eye } from 'lucide-react';
+import { ChevronDown, ChevronUp, Clock, Eye, Timer } from 'lucide-react';
 import { useState } from 'react';
 
-import { getRiskLevel } from '../../utils/risk';
+import { getRiskColor, getRiskLevel } from '../../utils/risk';
+import { formatDuration } from '../../utils/time';
 import ObjectTypeBadge from '../common/ObjectTypeBadge';
 import RiskBadge from '../common/RiskBadge';
 import DetectionImage from '../detection/DetectionImage';
@@ -24,6 +25,8 @@ export interface EventCardProps {
   reasoning?: string;
   thumbnail_url?: string;
   detections: Detection[];
+  started_at?: string;
+  ended_at?: string | null;
   onViewDetails?: (eventId: string) => void;
   className?: string;
 }
@@ -40,6 +43,8 @@ export default function EventCard({
   reasoning,
   thumbnail_url,
   detections,
+  started_at,
+  ended_at,
   onViewDetails,
   className = '',
 }: EventCardProps) {
@@ -112,17 +117,36 @@ export default function EventCard({
   // Get unique object types from detections
   const uniqueObjectTypes = Array.from(new Set(detections.map((d) => d.label.toLowerCase())));
 
+  // Get left border color class based on risk level
+  const getBorderColorClass = (): string => {
+    const borderColors: Record<string, string> = {
+      low: 'border-l-risk-low',
+      medium: 'border-l-risk-medium',
+      high: 'border-l-risk-high',
+      critical: 'border-l-red-500',
+    };
+    return borderColors[riskLevel];
+  };
+
   return (
     <div
-      className={`rounded-lg border border-gray-800 bg-[#1F1F1F] p-4 shadow-lg transition-all hover:border-gray-700 ${className}`}
+      className={`rounded-lg border border-gray-800 ${getBorderColorClass()} border-l-4 bg-[#1F1F1F] p-4 shadow-lg transition-all hover:border-gray-700 ${className}`}
     >
       {/* Header: Camera name, timestamp, risk badge */}
       <div className="mb-3 flex items-start justify-between">
         <div className="flex-1">
           <h3 className="text-base font-semibold text-white">{camera_name}</h3>
-          <div className="mt-1 flex items-center gap-1.5 text-sm text-gray-400">
-            <Clock className="h-3.5 w-3.5" />
-            <span>{formatTimestamp(timestamp)}</span>
+          <div className="mt-1 flex flex-col gap-1">
+            <div className="flex items-center gap-1.5 text-sm text-gray-400">
+              <Clock className="h-3.5 w-3.5" />
+              <span>{formatTimestamp(timestamp)}</span>
+            </div>
+            {(started_at || ended_at !== undefined) && (
+              <div className="flex items-center gap-1.5 text-sm text-gray-400">
+                <Timer className="h-3.5 w-3.5" />
+                <span>Duration: {formatDuration(started_at || timestamp, ended_at ?? null)}</span>
+              </div>
+            )}
           </div>
         </div>
         <RiskBadge level={riskLevel} score={risk_score} showScore={true} size="md" />
@@ -136,6 +160,30 @@ export default function EventCard({
           ))}
         </div>
       )}
+
+      {/* Risk Score Progress Bar */}
+      <div className="mb-3">
+        <div className="mb-1.5 flex items-center justify-between text-xs text-gray-400">
+          <span className="font-medium">Risk Score</span>
+          <span className="font-semibold">{risk_score}/100</span>
+        </div>
+        <div
+          className="h-2 w-full overflow-hidden rounded-full bg-gray-800"
+          role="progressbar"
+          aria-valuenow={risk_score}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={`Risk score: ${risk_score} out of 100`}
+        >
+          <div
+            className="h-full rounded-full transition-all duration-500 ease-out"
+            style={{
+              width: `${risk_score}%`,
+              backgroundColor: getRiskColor(riskLevel),
+            }}
+          />
+        </div>
+      </div>
 
       {/* Thumbnail with bounding boxes (if available) */}
       {thumbnail_url && (

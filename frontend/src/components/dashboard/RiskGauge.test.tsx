@@ -175,9 +175,9 @@ describe('RiskGauge', () => {
     it('renders progress circle with correct color', () => {
       const { container } = render(<RiskGauge value={50} />);
       const circles = container.querySelectorAll('circle');
-      // Progress circle should have yellow color for medium risk (value=50)
+      // Progress circle should have NVIDIA yellow color for medium risk (value=50)
       const progressCircle = Array.from(circles).find(
-        (circle) => circle.getAttribute('stroke') === '#eab308'
+        (circle) => circle.getAttribute('stroke') === '#FFB800'
       );
       expect(progressCircle).toBeInTheDocument();
     });
@@ -230,29 +230,29 @@ describe('RiskGauge', () => {
   });
 
   describe('Color Coding', () => {
-    it('uses green color for low risk (0-25)', () => {
+    it('uses NVIDIA green color for low risk (0-25)', () => {
       const { container } = render(<RiskGauge value={20} />);
       const circles = container.querySelectorAll('circle');
       const progressCircle = Array.from(circles).find(
-        (circle) => circle.getAttribute('stroke') === '#22c55e'
+        (circle) => circle.getAttribute('stroke') === '#76B900'
       );
       expect(progressCircle).toBeInTheDocument();
     });
 
-    it('uses yellow color for medium risk (26-50)', () => {
+    it('uses NVIDIA yellow color for medium risk (26-50)', () => {
       const { container } = render(<RiskGauge value={40} />);
       const circles = container.querySelectorAll('circle');
       const progressCircle = Array.from(circles).find(
-        (circle) => circle.getAttribute('stroke') === '#eab308'
+        (circle) => circle.getAttribute('stroke') === '#FFB800'
       );
       expect(progressCircle).toBeInTheDocument();
     });
 
-    it('uses orange color for high risk (51-75)', () => {
+    it('uses NVIDIA red color for high risk (51-75)', () => {
       const { container } = render(<RiskGauge value={60} />);
       const circles = container.querySelectorAll('circle');
       const progressCircle = Array.from(circles).find(
-        (circle) => circle.getAttribute('stroke') === '#f97316'
+        (circle) => circle.getAttribute('stroke') === '#E74856'
       );
       expect(progressCircle).toBeInTheDocument();
     });

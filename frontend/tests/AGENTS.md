@@ -2,16 +2,18 @@
 
 ## Purpose
 
-Test suite directory for integration and end-to-end tests. This directory complements the unit tests that live alongside source files in `src/`.
+Test suite directory for integration and end-to-end tests. This directory complements the co-located unit tests that live alongside source files in `src/`.
 
 ## Current Status
 
-This directory is a **placeholder** for future test organization. Currently contains:
+**Status**: Placeholder for future test organization
+
+Currently contains:
 
 - `AGENTS.md` - This documentation file
 - `e2e/` - End-to-end test directory (see `e2e/AGENTS.md`)
 
-**Note**: Unit tests are co-located with source files (e.g., `src/components/Layout.test.tsx`), not in this directory.
+**Important**: Unit tests are co-located with source files (e.g., `src/components/events/EventCard.test.tsx`), NOT in this directory. This directory is reserved for integration and E2E tests that require multi-component or full-stack setups.
 
 ## Intended Structure
 
@@ -177,9 +179,24 @@ npm test -- --run
 
 | Test Type       | Location             | Purpose                        | Status         |
 | --------------- | -------------------- | ------------------------------ | -------------- |
-| **Unit**        | `src/**/*.test.tsx`  | Component/function isolation   | ✅ Implemented |
-| **Integration** | `tests/integration/` | Multi-component interactions   | 📋 Planned     |
-| **E2E**         | `tests/e2e/`         | Full user workflows in browser | 📋 Planned     |
+| **Unit**        | `src/**/*.test.tsx`  | Component/function isolation   | Implemented    |
+| **Integration** | `tests/integration/` | Multi-component interactions   | Planned        |
+| **E2E**         | `tests/e2e/`         | Full user workflows in browser | Planned        |
+
+### Current Unit Test Coverage
+
+The project has extensive unit test coverage for:
+
+- **Components**: All major components have co-located test files
+  - Dashboard: `DashboardPage`, `RiskGauge`, `CameraGrid`, `ActivityFeed`, `GpuStats`, `StatsRow`
+  - Events: `EventCard`, `EventTimeline`, `EventDetailModal`, `ThumbnailStrip`
+  - Logs: `LogsDashboard`, `LogsTable`, `LogFilters`, `LogDetailModal`, `LogStatsCards`
+  - Settings: `SettingsPage`, `CamerasSettings`, `AIModelsSettings`, `ProcessingSettings`
+  - Common: `RiskBadge`, `ObjectTypeBadge`
+  - Layout: `Header`, `Layout`, `Sidebar`
+- **Hooks**: `useWebSocket`, `useEventStream`, `useSystemStatus`
+- **Services**: `api.ts` API client
+- **Utilities**: `risk.ts`, `time.ts`
 
 ## When to Use This Directory
 

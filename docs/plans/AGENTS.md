@@ -93,7 +93,7 @@ This directory contains design specifications and implementation plans that defi
 
     - Backend container (port 8000)
     - Redis container (port 6379)
-    - Frontend container (port 3000)
+    - Frontend container (port 5173)
     - Volume mounts for data and camera uploads
 
 12. **Configuration** (lines 386-412)
@@ -131,12 +131,52 @@ This directory contains design specifications and implementation plans that defi
 
 **2024-12-22-mvp-implementation-plan.md** (223 lines)
 
-- **Purpose:** Task breakdown and execution plan
+- **Purpose:** Task breakdown and execution plan for MVP
 - **Status:** IN PROGRESS (Phase 4 complete, Phase 5 in progress)
 - **Date:** 2024-12-22
 - **Last Updated:** 2025-12-24
 
-#### Contents Overview
+### Logging System Documentation
+
+**2024-12-24-logging-system-design.md** (Design Spec)
+
+- **Purpose:** Design specification for comprehensive logging system
+- **Status:** APPROVED
+- **Date:** 2024-12-24
+- **Contents:**
+  - Overview of logging architecture
+  - Three output destinations: Console, Rotating Files, SQLite
+  - Backend logging module design (`backend/core/logging.py`)
+  - JSON log format structure
+  - Log levels and component classification
+  - Frontend error capture and reporting
+  - Admin UI requirements
+- **When to use:**
+  - Understanding logging architecture decisions
+  - Implementing new logging features
+  - Adding log entries to services
+  - Troubleshooting log configuration
+
+**2024-12-24-logging-implementation-plan.md** (Implementation Plan)
+
+- **Purpose:** Detailed task breakdown for logging system implementation
+- **Status:** IN PROGRESS
+- **Date:** 2024-12-24
+- **Contents:**
+  - Phase 1: Backend Foundation (config, models, logger module)
+  - Phase 2: Service Integration (instrument services with logging)
+  - Phase 3: Frontend Logging (error capture, API client)
+  - Phase 4: Admin UI (logs page, filtering, export)
+  - Phase 5: Testing and Verification
+- **When to use:**
+  - Implementing logging features step-by-step
+  - Understanding logging task dependencies
+  - Finding specific implementation instructions
+- **Beads Epic:** `home_security_intelligence-cfd`
+
+### MVP Implementation Plan Contents Overview
+
+The following details the contents of `2024-12-22-mvp-implementation-plan.md`:
 
 1. **Issue Tracking** (lines 13-24)
 

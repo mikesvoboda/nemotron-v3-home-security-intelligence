@@ -162,7 +162,7 @@ Verified the Docker Compose deployment configuration and enhanced it with health
 | -------- | ---- | ----------------- | ------------ |
 | Redis    | 6379 | `redis-cli ping`  | None         |
 | Backend  | 8000 | HTTP GET /health  | Redis        |
-| Frontend | 3000 | wget spider check | Backend      |
+| Frontend | 5173 | wget spider check | Backend      |
 
 ### Volumes
 
@@ -298,7 +298,7 @@ Docker Compose Deployment Test PASSED
 All services are running and healthy:
   - Redis:    http://localhost:6379
   - Backend:  http://localhost:8000 (API docs: http://localhost:8000/docs)
-  - Frontend: http://localhost:3000
+  - Frontend: http://localhost:5173
 ```
 
 ## Troubleshooting
@@ -329,7 +329,7 @@ All services are running and healthy:
    docker compose exec redis redis-cli ping
 
    # Frontend
-   curl http://localhost:3000
+   curl http://localhost:5173
    ```
 
 ### If Backend cannot connect to Redis:

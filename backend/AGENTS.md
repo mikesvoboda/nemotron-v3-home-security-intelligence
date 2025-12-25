@@ -74,6 +74,18 @@ backend/
 - `init_redis()` / `close_redis()` for app lifecycle
 - `get_redis()` - FastAPI dependency
 
+**`logging.py`** - Centralized logging infrastructure:
+
+- `setup_logging()` - Initialize console, file, and SQLite handlers
+- `get_logger(name)` - Get configured logger instance
+- `get_request_id()` / `set_request_id()` - Request ID context propagation
+- `ContextFilter` - Adds request_id to log records
+- `CustomJsonFormatter` - JSON formatting with structured fields
+- `SQLiteHandler` - Custom handler writing logs to database
+- Rotating file handler with configurable size and backup count
+- Structured logging with camera_id, event_id, detection_id, duration_ms
+- Reduces noise from third-party libraries (uvicorn, sqlalchemy, watchdog)
+
 ### Database Models (`models/`)
 
 All models inherit from `Base` (defined in `camera.py`) and use SQLAlchemy 2.0 `Mapped` type hints.
@@ -123,6 +135,21 @@ All models inherit from `Base` (defined in `camera.py`) and use SQLAlchemy 2.0 `
 - `temperature` (float) - Celsius
 - `inference_fps` (float) - Frames per second
 - Index on recorded_at for time-series queries
+
+**`log.py`** - Structured application logs:
+
+- `id` (int, auto-increment)
+- `timestamp` (datetime) - Log entry timestamp
+- `level` (str) - Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+- `component` (str) - Logger name (module `__name__`)
+- `message` (text) - Formatted log message
+- `camera_id`, `event_id`, `detection_id` (nullable) - Structured references
+- `request_id` (str, nullable) - Request correlation ID
+- `duration_ms` (int, nullable) - Operation duration
+- `extra` (JSON, nullable) - Additional structured context
+- `source` (str) - "backend" or "frontend"
+- `user_agent` (text, nullable) - Browser user agent for frontend logs
+- Indexes on timestamp, level, component, camera_id, source
 
 ### API Routes (`api/routes/`)
 
@@ -174,6 +201,35 @@ All models inherit from `Base` (defined in `camera.py`) and use SQLAlchemy 2.0 `
 - Integrates with EventBroadcaster service
 - Redis pub/sub backbone for multi-instance support
 - Automatic connection cleanup on disconnect
+
+**`logs.py`** - Log management API:
+
+- `GET /api/logs` - List logs with filtering and pagination
+  - Query params: level, component, camera_id, source, search, start_date, end_date, limit, offset
+  - Returns paginated log entries with total count
+- `GET /api/logs/stats` - Get log statistics for dashboard
+  - Returns: total_today, errors_today, warnings_today, by_component, by_level, top_component
+- `GET /api/logs/{log_id}` - Get single log entry by ID
+- `POST /api/logs/frontend` - Receive and store frontend logs
+  - Accepts: level, component, message, extra (optional), user_agent (optional)
+  - Sets source="frontend" automatically
+
+### API Middleware (`api/middleware/`)
+
+**`auth.py`** - API key authentication middleware:
+
+- `AuthMiddleware` - Optional API key validation
+- Enabled when `api_key_enabled=True` in settings
+- Validates API keys against hashed values in database
+- Skips authentication for health check endpoints
+
+**`request_id.py`** - Request ID middleware:
+
+- `RequestIDMiddleware` - Generates and propagates request IDs
+- Accepts `X-Request-ID` header or generates new UUID (8 chars)
+- Sets request ID in context via `set_request_id()`
+- Adds `X-Request-ID` to response headers
+- Enables log correlation across async operations
 
 ### Services (`services/`)
 
@@ -438,6 +494,12 @@ GPU stats (pynvml) → GPUMonitor → GPUStats (DB) → SystemBroadcaster → We
                                   In-memory buffer
 
 Scheduled cleanup → CleanupService → Delete old records → Remove files
+
+Backend operations → get_logger() → SQLiteHandler → Log (DB)
+                                  → RotatingFileHandler → security.log
+                                  → StreamHandler → console
+
+Frontend logs → POST /api/logs/frontend → Log (DB)
 ```
 
 ## Testing
@@ -498,6 +560,15 @@ GPU_STATS_HISTORY_MINUTES=60
 API_KEY_ENABLED=false
 API_KEYS=[]
 
+# Logging
+LOG_LEVEL=INFO
+LOG_FILE_PATH=data/logs/security.log
+LOG_FILE_MAX_BYTES=10485760
+LOG_FILE_BACKUP_COUNT=7
+LOG_DB_ENABLED=true
+LOG_DB_MIN_LEVEL=DEBUG
+LOG_RETENTION_DAYS=7
+
 # Development
 DEBUG=false
 ```
@@ -522,16 +593,29 @@ except Exception as e:
 
 ### Logging
 
-All modules use Python's `logging` module:
+All modules use the centralized logging infrastructure from `backend/core/logging.py`:
 
 ```python
-import logging
+from backend.core import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 logger.info("Info message")
 logger.warning("Warning message")
 logger.error("Error message", exc_info=True)
+
+# With structured context for database logging
+logger.info("Detection processed", extra={
+    "camera_id": "front_door",
+    "detection_id": 123,
+    "duration_ms": 45
+})
 ```
+
+Logs are written to:
+
+1. Console (stdout) - Plain text for development
+2. Rotating file (`data/logs/security.log`) - Plain text for grep/tail
+3. SQLite database (`logs` table) - Structured logs for admin UI queries
 
 ### Type Hints
 

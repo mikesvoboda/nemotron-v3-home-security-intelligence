@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react';
 import EventCard from './EventCard';
 import { bulkUpdateEvents, fetchCameras, fetchEvents } from '../../services/api';
 import { getRiskLevel } from '../../utils/risk';
+import RiskBadge from '../common/RiskBadge';
 
 import type { Detection } from './EventCard';
 import type { Camera, Event, EventsQueryParams } from '../../services/api';
+import type { RiskLevel } from '../../utils/risk';
 
 export interface EventTimelineProps {
   onViewEventDetails?: (eventId: number) => void;
@@ -171,6 +173,16 @@ export default function EventTimeline({
       )
     : events;
 
+  // Calculate risk level counts for the currently displayed events
+  const riskCounts = filteredEvents.reduce(
+    (acc, event) => {
+      const level = event.risk_level || getRiskLevel(event.risk_score || 0);
+      acc[level as RiskLevel] = (acc[level as RiskLevel] || 0) + 1;
+      return acc;
+    },
+    { critical: 0, high: 0, medium: 0, low: 0 } as Record<RiskLevel, number>
+  );
+
   // Calculate pagination info
   const limit = filters.limit || 20;
   const offset = filters.offset || 0;
@@ -202,6 +214,8 @@ export default function EventTimeline({
       risk_label: event.risk_level || getRiskLevel(event.risk_score || 0),
       summary: event.summary || 'No summary available',
       detections,
+      started_at: event.started_at,
+      ended_at: event.ended_at,
       onViewDetails: onViewEventDetails
         ? () => onViewEventDetails(event.id)
         : undefined,
@@ -394,12 +408,41 @@ export default function EventTimeline({
 
       {/* Results Summary and Bulk Actions */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4 text-sm">
-          <p className="text-gray-400">
+        <div className="flex flex-col gap-2">
+          <p className="text-sm text-gray-400">
             Showing {offset + 1}-{Math.min(offset + filteredEvents.length, totalCount)} of {totalCount} events
           </p>
+          {/* Risk Summary Badges */}
+          {!loading && !error && filteredEvents.length > 0 && (
+            <div className="flex items-center gap-2 text-sm">
+              {riskCounts.critical > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <RiskBadge level="critical" size="sm" animated={false} />
+                  <span className="font-semibold text-red-400">{riskCounts.critical}</span>
+                </div>
+              )}
+              {riskCounts.high > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <RiskBadge level="high" size="sm" animated={false} />
+                  <span className="font-semibold text-orange-400">{riskCounts.high}</span>
+                </div>
+              )}
+              {riskCounts.medium > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <RiskBadge level="medium" size="sm" animated={false} />
+                  <span className="font-semibold text-yellow-400">{riskCounts.medium}</span>
+                </div>
+              )}
+              {riskCounts.low > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <RiskBadge level="low" size="sm" animated={false} />
+                  <span className="font-semibold text-green-400">{riskCounts.low}</span>
+                </div>
+              )}
+            </div>
+          )}
           {hasActiveFilters && (
-            <p className="text-[#76B900]">
+            <p className="text-sm text-[#76B900]">
               Filters active
             </p>
           )}

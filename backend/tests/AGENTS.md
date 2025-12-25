@@ -28,7 +28,7 @@ Tests for individual components in isolation:
 - **API Routes**: Individual endpoint handlers
 - **Mocking**: All external dependencies (HTTP, Redis, file system) are mocked
 
-**Total**: 20+ test files, 300+ test cases
+**Total**: 22 test files, 453 test cases
 
 ### Integration Tests (`integration/`)
 
@@ -40,7 +40,7 @@ Tests for complete workflows across multiple components:
 - **WebSocket**: Real-time communication channels
 - **Mocking**: Redis mocked, database uses temporary SQLite
 
-**Total**: 9 test files, 100+ test cases
+**Total**: 10 test files, 177 test cases
 
 ### End-to-End Tests (`e2e/`)
 
@@ -257,17 +257,17 @@ with patch("httpx.AsyncClient") as mock_http:
 
 ### Overall Test Count
 
-- **Unit tests**: 300+ test cases across 20 files
-- **Integration tests**: 100+ test cases across 9 files
+- **Unit tests**: 453 test cases across 22 files
+- **Integration tests**: 177 test cases across 10 files
 - **E2E tests**: 8+ comprehensive scenarios in 1 file
-- **Total**: 400+ test cases covering 95%+ of backend code
+- **Total**: 630+ test cases covering 95%+ of backend code
 
 ### Coverage by Component
 
-- **Core** (config, database, redis): 98%+
-- **Models** (Camera, Detection, Event, GPUStats): 98%+
-- **Services** (AI pipeline, broadcasters): 95%+
-- **API Routes** (REST endpoints): 95%+
+- **Core** (config, database, redis, logging): 98%+
+- **Models** (Camera, Detection, Event, GPUStats, Log): 98%+
+- **Services** (AI pipeline, broadcasters, cleanup): 95%+
+- **API Routes** (REST endpoints, logs): 95%+
 - **WebSocket** (real-time channels): 90%+
 
 ## Troubleshooting

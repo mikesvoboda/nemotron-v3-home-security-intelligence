@@ -1124,4 +1124,321 @@ describe('EventTimeline', () => {
       });
     });
   });
+
+  describe('Risk Summary Badges', () => {
+    it('displays risk summary badges with correct counts', async () => {
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Check that risk badges are displayed
+      // Our mock data has: 1 high (75), 1 low (25), 1 critical (90)
+      await waitFor(() => {
+        expect(screen.getByText('1', { selector: '.text-red-400' })).toBeInTheDocument(); // Critical
+      });
+      expect(screen.getByText('1', { selector: '.text-orange-400' })).toBeInTheDocument(); // High
+      expect(screen.getByText('1', { selector: '.text-green-400' })).toBeInTheDocument(); // Low
+    });
+
+    it('updates risk summary badges when filters are applied', async () => {
+      const user = userEvent.setup();
+
+      // Mock filtered response with only high risk events
+      const highRiskEvents: Event[] = [
+        {
+          id: 1,
+          camera_id: 'camera-1',
+          started_at: '2024-01-01T10:00:00Z',
+          ended_at: '2024-01-01T10:02:00Z',
+          risk_score: 75,
+          risk_level: 'high',
+          summary: 'Person detected near entrance',
+          reviewed: false,
+          detection_count: 5,
+          notes: null,
+        },
+      ];
+
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Apply filter
+      vi.mocked(api.fetchEvents).mockResolvedValueOnce({
+        events: highRiskEvents,
+        count: 1,
+        limit: 20,
+        offset: 0,
+      });
+
+      await user.click(screen.getByText('Show Filters'));
+
+      const riskSelect = screen.getByLabelText('Risk Level');
+      await user.selectOptions(riskSelect, 'high');
+
+      // Should only show high risk count
+      await waitFor(() => {
+        expect(screen.getByText('1', { selector: '.text-orange-400' })).toBeInTheDocument(); // High
+      });
+
+      // Should not show other risk levels
+      expect(screen.queryByText('1', { selector: '.text-red-400' })).not.toBeInTheDocument(); // Critical
+      expect(screen.queryByText('1', { selector: '.text-green-400' })).not.toBeInTheDocument(); // Low
+    });
+
+    it('updates risk summary badges with search query', async () => {
+      const user = userEvent.setup();
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // All badges should be present initially (1 critical, 1 high, 1 low)
+      await waitFor(() => {
+        expect(screen.getByText('1', { selector: '.text-red-400' })).toBeInTheDocument(); // Critical
+      });
+
+      // Search for "cat" - should only show the low risk event
+      const searchInput = screen.getByPlaceholderText('Search summaries...');
+      await user.type(searchInput, 'cat');
+
+      await waitFor(() => {
+        expect(screen.getByText('Cat walking through yard')).toBeInTheDocument();
+      });
+
+      // Should only show low risk count now
+      await waitFor(() => {
+        expect(screen.getByText('1', { selector: '.text-green-400' })).toBeInTheDocument(); // Low
+      });
+
+      // Should not show other risk levels
+      expect(screen.queryByText('1', { selector: '.text-red-400' })).not.toBeInTheDocument(); // Critical
+      expect(screen.queryByText('1', { selector: '.text-orange-400' })).not.toBeInTheDocument(); // High
+    });
+
+    it('does not display risk badges when loading', () => {
+      vi.clearAllMocks();
+      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
+      // Make fetchEvents pending to simulate loading
+      vi.mocked(api.fetchEvents).mockImplementation(
+        () => new Promise(() => {}) // Never resolves
+      );
+
+      render(<EventTimeline />);
+
+      // Should show loading state
+      expect(screen.getByText('Loading events...')).toBeInTheDocument();
+
+      // Should not show risk badges during loading
+      expect(screen.queryByText('Critical')).not.toBeInTheDocument();
+      expect(screen.queryByText('High')).not.toBeInTheDocument();
+      expect(screen.queryByText('Medium')).not.toBeInTheDocument();
+      expect(screen.queryByText('Low')).not.toBeInTheDocument();
+    });
+
+    it('does not display risk badges when there is an error', async () => {
+      vi.clearAllMocks();
+      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
+      vi.mocked(api.fetchEvents).mockRejectedValue(new Error('Network error'));
+
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Error Loading Events')).toBeInTheDocument();
+      });
+
+      // Should not show risk badges on error
+      expect(screen.queryByText('Critical')).not.toBeInTheDocument();
+      expect(screen.queryByText('High')).not.toBeInTheDocument();
+      expect(screen.queryByText('Medium')).not.toBeInTheDocument();
+      expect(screen.queryByText('Low')).not.toBeInTheDocument();
+    });
+
+    it('does not display risk badges when no events are found', async () => {
+      vi.mocked(api.fetchEvents).mockResolvedValue({
+        events: [],
+        count: 0,
+        limit: 20,
+        offset: 0,
+      });
+
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('No Events Found')).toBeInTheDocument();
+      });
+
+      // Should not show risk badges when empty
+      expect(screen.queryByText('Critical')).not.toBeInTheDocument();
+      expect(screen.queryByText('High')).not.toBeInTheDocument();
+      expect(screen.queryByText('Medium')).not.toBeInTheDocument();
+      expect(screen.queryByText('Low')).not.toBeInTheDocument();
+    });
+
+    it('only displays badges for risk levels that have events', async () => {
+      // Mock events with only medium risk
+      const mediumRiskEvents: Event[] = [
+        {
+          id: 1,
+          camera_id: 'camera-1',
+          started_at: '2024-01-01T10:00:00Z',
+          ended_at: '2024-01-01T10:02:00Z',
+          risk_score: 50,
+          risk_level: 'medium',
+          summary: 'Person detected',
+          reviewed: false,
+          detection_count: 5,
+          notes: null,
+        },
+        {
+          id: 2,
+          camera_id: 'camera-1',
+          started_at: '2024-01-01T11:00:00Z',
+          ended_at: '2024-01-01T11:02:00Z',
+          risk_score: 45,
+          risk_level: 'medium',
+          summary: 'Vehicle detected',
+          reviewed: false,
+          detection_count: 3,
+          notes: null,
+        },
+      ];
+
+      vi.mocked(api.fetchEvents).mockResolvedValue({
+        events: mediumRiskEvents,
+        count: 2,
+        limit: 20,
+        offset: 0,
+      });
+
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected')).toBeInTheDocument();
+      });
+
+      // Should only show medium risk badge with count of 2
+      await waitFor(() => {
+        expect(screen.getByText('2', { selector: '.text-yellow-400' })).toBeInTheDocument(); // Medium
+      });
+
+      // Should not show other risk levels
+      expect(screen.queryByText('Critical')).not.toBeInTheDocument();
+      expect(screen.queryByText('High')).not.toBeInTheDocument();
+      expect(screen.queryByText('Low')).not.toBeInTheDocument();
+    });
+
+    it('correctly counts multiple events of the same risk level', async () => {
+      // Mock events with multiple events per risk level
+      const multipleEvents: Event[] = [
+        {
+          id: 1,
+          camera_id: 'camera-1',
+          started_at: '2024-01-01T10:00:00Z',
+          ended_at: '2024-01-01T10:02:00Z',
+          risk_score: 90,
+          risk_level: 'critical',
+          summary: 'Critical event 1',
+          reviewed: false,
+          detection_count: 5,
+          notes: null,
+        },
+        {
+          id: 2,
+          camera_id: 'camera-1',
+          started_at: '2024-01-01T11:00:00Z',
+          ended_at: '2024-01-01T11:02:00Z',
+          risk_score: 95,
+          risk_level: 'critical',
+          summary: 'Critical event 2',
+          reviewed: false,
+          detection_count: 3,
+          notes: null,
+        },
+        {
+          id: 3,
+          camera_id: 'camera-1',
+          started_at: '2024-01-01T12:00:00Z',
+          ended_at: '2024-01-01T12:02:00Z',
+          risk_score: 85,
+          risk_level: 'critical',
+          summary: 'Critical event 3',
+          reviewed: false,
+          detection_count: 7,
+          notes: null,
+        },
+      ];
+
+      vi.mocked(api.fetchEvents).mockResolvedValue({
+        events: multipleEvents,
+        count: 3,
+        limit: 20,
+        offset: 0,
+      });
+
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Critical event 1')).toBeInTheDocument();
+      });
+
+      // Should show critical risk badge with count of 3
+      await waitFor(() => {
+        expect(screen.getByText('3', { selector: '.text-red-400' })).toBeInTheDocument(); // Critical
+      });
+    });
+
+    it('uses risk_level from event when available, falls back to calculated level', async () => {
+      // Mock events where some have risk_level and some don't
+      const mixedEvents: Event[] = [
+        {
+          id: 1,
+          camera_id: 'camera-1',
+          started_at: '2024-01-01T10:00:00Z',
+          ended_at: '2024-01-01T10:02:00Z',
+          risk_score: 75,
+          risk_level: 'high', // Explicitly set
+          summary: 'Event with explicit level',
+          reviewed: false,
+          detection_count: 5,
+          notes: null,
+        },
+        {
+          id: 2,
+          camera_id: 'camera-1',
+          started_at: '2024-01-01T11:00:00Z',
+          ended_at: '2024-01-01T11:02:00Z',
+          risk_score: 70, // Should calculate to "high"
+          risk_level: null,
+          summary: 'Event without explicit level',
+          reviewed: false,
+          detection_count: 3,
+          notes: null,
+        },
+      ];
+
+      vi.mocked(api.fetchEvents).mockResolvedValue({
+        events: mixedEvents,
+        count: 2,
+        limit: 20,
+        offset: 0,
+      });
+
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Event with explicit level')).toBeInTheDocument();
+      });
+
+      // Should show high risk badge with count of 2 (both events are high risk)
+      await waitFor(() => {
+        expect(screen.getByText('2', { selector: '.text-orange-400' })).toBeInTheDocument(); // High
+      });
+    });
+  });
 });

@@ -125,10 +125,18 @@ Contains components for visualizing AI object detection results on images. Provi
 **Exports:**
 
 ```typescript
-export { default as DetectionImage } from './DetectionImage';
 export { default as BoundingBoxOverlay } from './BoundingBoxOverlay';
-export type { DetectionImageProps } from './DetectionImage';
 export type { BoundingBox, BoundingBoxOverlayProps } from './BoundingBoxOverlay';
+
+export { default as DetectionImage } from './DetectionImage';
+export type { DetectionImageProps } from './DetectionImage';
+```
+
+**Usage:**
+
+```tsx
+import { DetectionImage, BoundingBoxOverlay } from '../detection';
+import type { BoundingBox } from '../detection';
 ```
 
 ### README.md

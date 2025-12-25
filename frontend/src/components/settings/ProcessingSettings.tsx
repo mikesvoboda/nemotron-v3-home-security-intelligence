@@ -1,24 +1,29 @@
-import { Card, Title, Text } from '@tremor/react';
-import { AlertCircle, Settings as SettingsIcon } from 'lucide-react';
+import { Card, Title, Text, Button } from '@tremor/react';
+import { AlertCircle, Settings as SettingsIcon, Save, RotateCcw, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { fetchConfig, type SystemConfig } from '../../services/api';
+import { fetchConfig, updateConfig, type SystemConfig, type SystemConfigUpdate } from '../../services/api';
 
 export interface ProcessingSettingsProps {
   className?: string;
 }
 
 /**
- * ProcessingSettings component displays event processing configuration settings
+ * ProcessingSettings component displays and allows editing of event processing configuration
  * - Fetches settings from /api/system/config endpoint
- * - Currently read-only (no PUT endpoint available yet)
- * - Shows batch window duration, idle timeout, and retention period
- * - Handles loading and error states
+ * - Allows editing batch window, idle timeout, retention period, and confidence threshold
+ * - Uses range sliders for intuitive value adjustment
+ * - Saves changes via PATCH /api/system/config endpoint
+ * - Shows storage usage and provides data cleanup button
+ * - Handles loading, error, and success states
  */
 export default function ProcessingSettings({ className }: ProcessingSettingsProps) {
   const [config, setConfig] = useState<SystemConfig | null>(null);
+  const [editedConfig, setEditedConfig] = useState<SystemConfig | null>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     const loadConfig = async () => {
@@ -27,6 +32,7 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
         setError(null);
         const data = await fetchConfig();
         setConfig(data);
+        setEditedConfig(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load configuration');
       } finally {
@@ -36,6 +42,55 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
 
     void loadConfig();
   }, []);
+
+  const hasChanges = !!(editedConfig && config && (
+    editedConfig.batch_window_seconds !== config.batch_window_seconds ||
+    editedConfig.batch_idle_timeout_seconds !== config.batch_idle_timeout_seconds ||
+    editedConfig.retention_days !== config.retention_days ||
+    editedConfig.detection_confidence_threshold !== config.detection_confidence_threshold
+  ));
+
+  const handleSave = async () => {
+    if (!editedConfig || !hasChanges) return;
+
+    try {
+      setSaving(true);
+      setError(null);
+      setSuccess(false);
+
+      const updates: SystemConfigUpdate = {
+        batch_window_seconds: editedConfig.batch_window_seconds,
+        batch_idle_timeout_seconds: editedConfig.batch_idle_timeout_seconds,
+        retention_days: editedConfig.retention_days,
+        detection_confidence_threshold: editedConfig.detection_confidence_threshold,
+      };
+
+      const updatedConfig = await updateConfig(updates);
+      setConfig(updatedConfig);
+      setEditedConfig(updatedConfig);
+      setSuccess(true);
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save configuration');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleReset = () => {
+    if (config) {
+      setEditedConfig(config);
+      setError(null);
+      setSuccess(false);
+    }
+  };
+
+  const handleClearData = () => {
+    // TODO: Implement data cleanup endpoint
+    alert('Clear old data functionality coming soon!');
+  };
 
   return (
     <Card
@@ -51,91 +106,222 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
           <div className="skeleton h-12 w-full"></div>
           <div className="skeleton h-12 w-full"></div>
           <div className="skeleton h-12 w-full"></div>
+          <div className="skeleton h-12 w-full"></div>
         </div>
       )}
 
       {error && (
-        <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-4">
-          <AlertCircle className="h-5 w-5 text-red-500" />
+        <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-4 mb-4">
+          <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
           <Text className="text-red-500">{error}</Text>
         </div>
       )}
 
-      {!loading && !error && config && (
-        <div className="space-y-6">
-          {/* Info banner about read-only settings */}
-          <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3">
-            <Text className="text-blue-400 text-sm">
-              Settings are currently read-only. Configuration updates will be available in a future release.
-            </Text>
-          </div>
+      {success && (
+        <div className="flex items-center gap-2 rounded-lg border border-green-500/30 bg-green-500/10 p-4 mb-4">
+          <Save className="h-5 w-5 text-green-500 flex-shrink-0" />
+          <Text className="text-green-500">Settings saved successfully!</Text>
+        </div>
+      )}
 
+      {!loading && editedConfig && (
+        <div className="space-y-6">
           {/* Batch Window Duration */}
           <div>
-            <div className="block mb-2">
-              <Text className="text-gray-300 font-medium">
-                Batch Window Duration
-              </Text>
-              <Text className="text-gray-500 text-xs mt-1">
-                Time window for grouping detections into events (seconds)
+            <div className="flex justify-between items-end mb-2">
+              <div>
+                <Text className="text-gray-300 font-medium">
+                  Batch Window Duration
+                </Text>
+                <Text className="text-gray-500 text-xs mt-1">
+                  Time window for grouping detections into events (seconds)
+                </Text>
+              </div>
+              <Text className="text-white font-semibold text-lg">
+                {editedConfig.batch_window_seconds}s
               </Text>
             </div>
             <input
-              type="number"
-              value={config.batch_window_seconds}
-              disabled
-              className="nvidia-input w-full opacity-60 cursor-not-allowed"
+              type="range"
+              min="30"
+              max="300"
+              step="10"
+              value={editedConfig.batch_window_seconds}
+              onChange={(e) => setEditedConfig({
+                ...editedConfig,
+                batch_window_seconds: parseInt(e.target.value),
+              })}
+              className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#76B900]"
               aria-label="Batch window duration in seconds"
             />
+            <div className="flex justify-between text-xs text-gray-500 mt-1">
+              <span>30s</span>
+              <span>300s</span>
+            </div>
           </div>
 
           {/* Idle Timeout */}
           <div>
-            <div className="block mb-2">
-              <Text className="text-gray-300 font-medium">
-                Idle Timeout
-              </Text>
-              <Text className="text-gray-500 text-xs mt-1">
-                Time to wait before processing incomplete batch (seconds)
+            <div className="flex justify-between items-end mb-2">
+              <div>
+                <Text className="text-gray-300 font-medium">
+                  Idle Timeout
+                </Text>
+                <Text className="text-gray-500 text-xs mt-1">
+                  Time to wait before processing incomplete batch (seconds)
+                </Text>
+              </div>
+              <Text className="text-white font-semibold text-lg">
+                {editedConfig.batch_idle_timeout_seconds}s
               </Text>
             </div>
             <input
-              type="number"
-              value={config.batch_idle_timeout_seconds}
-              disabled
-              className="nvidia-input w-full opacity-60 cursor-not-allowed"
+              type="range"
+              min="10"
+              max="120"
+              step="5"
+              value={editedConfig.batch_idle_timeout_seconds}
+              onChange={(e) => setEditedConfig({
+                ...editedConfig,
+                batch_idle_timeout_seconds: parseInt(e.target.value),
+              })}
+              className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#76B900]"
               aria-label="Batch idle timeout in seconds"
             />
+            <div className="flex justify-between text-xs text-gray-500 mt-1">
+              <span>10s</span>
+              <span>120s</span>
+            </div>
           </div>
 
           {/* Retention Period */}
           <div>
-            <div className="block mb-2">
-              <Text className="text-gray-300 font-medium">
-                Retention Period
-              </Text>
-              <Text className="text-gray-500 text-xs mt-1">
-                Number of days to retain events and detections
+            <div className="flex justify-between items-end mb-2">
+              <div>
+                <Text className="text-gray-300 font-medium">
+                  Retention Period
+                </Text>
+                <Text className="text-gray-500 text-xs mt-1">
+                  Number of days to retain events and detections
+                </Text>
+              </div>
+              <Text className="text-white font-semibold text-lg">
+                {editedConfig.retention_days} days
               </Text>
             </div>
             <input
-              type="number"
-              value={config.retention_days}
-              disabled
-              className="nvidia-input w-full opacity-60 cursor-not-allowed"
+              type="range"
+              min="1"
+              max="90"
+              step="1"
+              value={editedConfig.retention_days}
+              onChange={(e) => setEditedConfig({
+                ...editedConfig,
+                retention_days: parseInt(e.target.value),
+              })}
+              className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#76B900]"
               aria-label="Retention period in days"
             />
+            <div className="flex justify-between text-xs text-gray-500 mt-1">
+              <span>1 day</span>
+              <span>90 days</span>
+            </div>
+          </div>
+
+          {/* Confidence Threshold */}
+          <div>
+            <div className="flex justify-between items-end mb-2">
+              <div>
+                <Text className="text-gray-300 font-medium">
+                  Confidence Threshold
+                </Text>
+                <Text className="text-gray-500 text-xs mt-1">
+                  Minimum confidence for object detection (0.0 - 1.0)
+                </Text>
+              </div>
+              <Text className="text-white font-semibold text-lg">
+                {editedConfig.detection_confidence_threshold.toFixed(2)}
+              </Text>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={editedConfig.detection_confidence_threshold}
+              onChange={(e) => setEditedConfig({
+                ...editedConfig,
+                detection_confidence_threshold: parseFloat(e.target.value),
+              })}
+              className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#76B900]"
+              aria-label="Detection confidence threshold"
+            />
+            <div className="flex justify-between text-xs text-gray-500 mt-1">
+              <span>0.00</span>
+              <span>1.00</span>
+            </div>
+          </div>
+
+          {/* Storage Usage */}
+          <div className="pt-4 border-t border-gray-800">
+            <div className="flex justify-between items-center mb-3">
+              <Text className="text-gray-300 font-medium">Storage</Text>
+              <Text className="text-gray-500 text-sm">Coming soon</Text>
+            </div>
+            <div className="w-full h-3 bg-gray-700 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-[#76B900] rounded-full transition-all duration-300"
+                style={{ width: '0%' }}
+                aria-label="Storage usage percentage"
+              />
+            </div>
+            <div className="flex justify-between text-xs text-gray-500 mt-1">
+              <span>0 GB used</span>
+              <span>0 GB total</span>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-3 pt-4 border-t border-gray-800">
+            <Button
+              onClick={() => void handleSave()}
+              disabled={!hasChanges || saving}
+              className="flex-1 bg-[#76B900] hover:bg-[#5c8f00] text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Save className="h-4 w-4 mr-2" />
+              {saving ? 'Saving...' : 'Save Changes'}
+            </Button>
+            <Button
+              onClick={handleReset}
+              disabled={!hasChanges || saving}
+              variant="secondary"
+              className="flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Reset
+            </Button>
+          </div>
+
+          <div className="pt-4 border-t border-gray-800">
+            <Button
+              onClick={handleClearData}
+              variant="secondary"
+              className="w-full border-red-500/30 text-red-400 hover:bg-red-500/10"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Clear Old Data
+            </Button>
           </div>
 
           {/* Application Info */}
           <div className="pt-4 border-t border-gray-800">
             <div className="flex justify-between items-center mb-2">
               <Text className="text-gray-400 text-sm">Application</Text>
-              <Text className="text-white font-medium">{config.app_name}</Text>
+              <Text className="text-white font-medium">{config?.app_name}</Text>
             </div>
             <div className="flex justify-between items-center">
               <Text className="text-gray-400 text-sm">Version</Text>
-              <Text className="text-white font-medium">{config.version}</Text>
+              <Text className="text-white font-medium">{config?.version}</Text>
             </div>
           </div>
         </div>

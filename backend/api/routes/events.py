@@ -1,15 +1,21 @@
 """API routes for events management."""
 
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.schemas.detections import DetectionListResponse
-from backend.api.schemas.events import EventListResponse, EventResponse, EventUpdate
+from backend.api.schemas.events import (
+    EventListResponse,
+    EventResponse,
+    EventStatsResponse,
+    EventUpdate,
+)
 from backend.core.database import get_db
+from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
 
@@ -131,6 +137,83 @@ async def list_events(
     }
 
 
+@router.get("/stats", response_model=EventStatsResponse)
+async def get_event_stats(
+    start_date: datetime | None = Query(None, description="Filter by start date (ISO format)"),
+    end_date: datetime | None = Query(None, description="Filter by end date (ISO format)"),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Get aggregated event statistics.
+
+    Returns statistics about events including:
+    - Total event count
+    - Events grouped by risk level (critical, high, medium, low)
+    - Events grouped by camera with camera names
+
+    Args:
+        start_date: Optional start date for date range filter
+        end_date: Optional end date for date range filter
+        db: Database session
+
+    Returns:
+        EventStatsResponse with aggregated statistics
+    """
+    # Build base query with optional date filters
+    query = select(Event)
+    if start_date:
+        query = query.where(Event.started_at >= start_date)
+    if end_date:
+        query = query.where(Event.started_at <= end_date)
+
+    # Get all events matching filters
+    result = await db.execute(query)
+    events = result.scalars().all()
+
+    # Calculate total events
+    total_events = len(events)
+
+    # Calculate events by risk level
+    risk_level_counts = {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+    }
+    for event in events:
+        if event.risk_level and event.risk_level in risk_level_counts:
+            risk_level_counts[event.risk_level] += 1
+
+    # Calculate events by camera
+    camera_event_counts: dict[str, int] = {}
+    for event in events:
+        camera_event_counts[event.camera_id] = camera_event_counts.get(event.camera_id, 0) + 1
+
+    # Get camera names
+    camera_ids = list(camera_event_counts.keys())
+    camera_query = select(Camera).where(Camera.id.in_(camera_ids))
+    camera_result = await db.execute(camera_query)
+    cameras = {camera.id: camera.name for camera in camera_result.scalars().all()}
+
+    # Build events_by_camera list with camera names
+    events_by_camera = [
+        {
+            "camera_id": camera_id,
+            "camera_name": cameras.get(camera_id, "Unknown"),
+            "event_count": count,
+        }
+        for camera_id, count in camera_event_counts.items()
+    ]
+
+    # Sort by event count descending
+    events_by_camera.sort(key=lambda x: cast(int, x["event_count"]), reverse=True)
+
+    return {
+        "total_events": total_events,
+        "events_by_risk_level": risk_level_counts,
+        "events_by_camera": events_by_camera,
+    }
+
+
 @router.get("/{event_id}", response_model=EventResponse)
 async def get_event(
     event_id: int,
@@ -171,6 +254,7 @@ async def get_event(
         "risk_level": event.risk_level,
         "summary": event.summary,
         "reviewed": event.reviewed,
+        "notes": event.notes,
         "detection_count": detection_count,
     }
 
@@ -203,10 +287,11 @@ async def update_event(
             detail=f"Event with id {event_id} not found",
         )
 
-    # Update fields if provided
-    if update_data.reviewed is not None:
+    # Update fields if provided (use exclude_unset to differentiate between None and not provided)
+    update_dict = update_data.model_dump(exclude_unset=True)
+    if "reviewed" in update_dict and update_data.reviewed is not None:
         event.reviewed = update_data.reviewed
-    if update_data.notes is not None:
+    if "notes" in update_dict:
         event.notes = update_data.notes
     await db.commit()
     await db.refresh(event)

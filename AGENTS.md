@@ -14,11 +14,11 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 
 ## Project Status
 
-- **Phase 1-4:** COMPLETE (Setup, Database, Core APIs, AI Pipeline)
-- **Phase 5:** IN PROGRESS (Events APIs, WebSocket, GPU monitor, cleanup service)
-- **Phase 6-8:** NOT STARTED (Dashboard Components, Pages, E2E)
+- **Phase 1-5:** COMPLETE (Setup, Database, Core APIs, AI Pipeline, Events & Real-time)
+- **Phase 6:** IN PROGRESS (Dashboard Components - Risk gauge, camera grid, activity feed)
+- **Phase 7-8:** PENDING (Pages & Modals, Integration & E2E)
 - **Test Coverage:** Backend 98.54% (335 tests), Frontend 98.95% (233 tests)
-- **Last Updated:** 2025-12-24
+- **Last Updated:** 2025-12-25
 
 ## Key Files in Root
 
@@ -100,10 +100,10 @@ bd list --label phase-1    # Project Setup (7 tasks) - COMPLETE
 bd list --label phase-2    # Database & Layout (6 tasks) - COMPLETE
 bd list --label phase-3    # Core APIs & Components (11 tasks) - COMPLETE
 bd list --label phase-4    # AI Pipeline (13 tasks) - COMPLETE
-bd list --label phase-5    # Events & Real-time (9 tasks) - NEXT
-bd list --label phase-6    # Dashboard Components (7 tasks)
-bd list --label phase-7    # Pages & Modals (6 tasks)
-bd list --label phase-8    # Integration & E2E (8 tasks)
+bd list --label phase-5    # Events & Real-time (9 tasks) - COMPLETE
+bd list --label phase-6    # Dashboard Components (7 tasks) - IN PROGRESS
+bd list --label phase-7    # Pages & Modals (6 tasks) - PENDING
+bd list --label phase-8    # Integration & E2E (8 tasks) - PENDING
 ```
 
 ## Development Workflow
@@ -171,7 +171,7 @@ cd frontend && npm test
 ### Starting Point
 
 1. **Read CLAUDE.md** - Comprehensive project instructions
-2. **Check available work:** `bd ready` or `bd list --label phase-5`
+2. **Check available work:** `bd ready` or `bd list --label phase-6`
 3. **Review docs/ROADMAP.md** - Post-MVP roadmap ideas (pursue **after Phases 1–8 are operational**)
 4. **Read directory AGENTS.md files** - Navigate to specific areas using the AGENTS.md files in each directory
 

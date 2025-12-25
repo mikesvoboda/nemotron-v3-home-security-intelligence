@@ -6,23 +6,25 @@ Root directory for all React components in the NVIDIA Security Intelligence home
 
 ## Directory Structure
 
-- **common/** - Shared UI components used across the application (badges, buttons, cards)
-- **dashboard/** - Main dashboard page and related components (risk gauge, camera grid, activity feed, GPU stats)
-- **detection/** - Object detection visualization components (bounding boxes, detection overlays)
-- **events/** - Event-related components (event cards, timeline, detail modal)
-- **layout/** - Application layout components (header, sidebar, main layout wrapper)
-- **settings/** - Settings page components (cameras, AI models, processing configuration)
+- **common/** - Shared UI components used across the application (RiskBadge, ObjectTypeBadge)
+- **dashboard/** - Main dashboard page and related components (RiskGauge, CameraGrid, ActivityFeed, GpuStats, StatsRow)
+- **detection/** - Object detection visualization components (BoundingBoxOverlay, DetectionImage)
+- **events/** - Event-related components (EventCard, EventTimeline, EventDetailModal, ThumbnailStrip)
+- **layout/** - Application layout components (Header, Sidebar, Layout)
+- **logs/** - Logging dashboard components (LogsDashboard, LogsTable, LogFilters, LogStatsCards, LogDetailModal)
+- **settings/** - Settings page components (SettingsPage, CamerasSettings, AIModelsSettings, ProcessingSettings)
 
 ## Component Organization
 
 Components are organized by feature domain to maintain clear separation of concerns:
 
-- **Layout components** - Application structure, navigation (header, sidebar)
-- **Detection components** - AI detection visualization (bounding boxes, overlays)
-- **Dashboard components** - Main monitoring views (risk gauge, camera grid, activity feed, GPU stats)
-- **Common components** - Reusable UI primitives (badges, buttons, cards)
-- **Events components** - Security event displays (event cards, timeline, detail modal)
-- **Settings components** - Configuration pages (cameras, AI models, processing settings)
+- **Layout components** - Application structure, navigation (Header, Sidebar, Layout wrapper)
+- **Detection components** - AI detection visualization (bounding boxes, detection overlays)
+- **Dashboard components** - Main monitoring views (RiskGauge, CameraGrid, ActivityFeed, GpuStats, StatsRow)
+- **Common components** - Reusable UI primitives (RiskBadge, ObjectTypeBadge)
+- **Events components** - Security event displays (EventCard, EventTimeline, EventDetailModal, ThumbnailStrip)
+- **Logs components** - System logging interface (LogsDashboard, LogsTable, LogFilters, LogStatsCards, LogDetailModal)
+- **Settings components** - Configuration pages (SettingsPage, CamerasSettings, AIModelsSettings, ProcessingSettings)
 
 ## Styling Approach
 
@@ -42,6 +44,18 @@ Test files are co-located with their components using the `.test.tsx` extension.
 - **Vitest** as the test runner
 - **React Testing Library** for component testing
 - **95% code coverage** requirement (enforced by pre-commit hooks)
+
+## File Inventory
+
+| Directory | Files |
+|-----------|-------|
+| common/ | RiskBadge.tsx, ObjectTypeBadge.tsx, index.ts |
+| dashboard/ | DashboardPage.tsx, RiskGauge.tsx, CameraGrid.tsx, ActivityFeed.tsx, GpuStats.tsx, StatsRow.tsx, RiskGauge.example.tsx |
+| detection/ | DetectionImage.tsx, BoundingBoxOverlay.tsx, Example.tsx, index.ts, README.md |
+| events/ | EventCard.tsx, EventTimeline.tsx, EventDetailModal.tsx, ThumbnailStrip.tsx |
+| layout/ | Header.tsx, Sidebar.tsx, Layout.tsx |
+| logs/ | LogsDashboard.tsx, LogsTable.tsx, LogFilters.tsx, LogStatsCards.tsx, LogDetailModal.tsx |
+| settings/ | SettingsPage.tsx, CamerasSettings.tsx, AIModelsSettings.tsx, ProcessingSettings.tsx, index.ts, README.md |
 
 ## Navigation
 

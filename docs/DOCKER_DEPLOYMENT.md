@@ -7,7 +7,7 @@ This guide covers deploying the Home Security Intelligence system using Docker C
 The system consists of three main services:
 
 1. **Backend** - FastAPI application (port 8000)
-2. **Frontend** - React/Vite application (port 3000 dev / port 80 prod)
+2. **Frontend** - React/Vite application (port 5173 dev / port 80 prod)
 3. **Redis** - Cache and message broker (port 6379)
 
 **Note:** AI services (RT-DETRv2 and Nemotron) run natively on the host for GPU access and are accessed via `host.docker.internal`.
@@ -109,7 +109,7 @@ The test script will:
 **Development:**
 
 - Image: Built from `frontend/Dockerfile`
-- Port: 3000
+- Port: 5173
 - Command: `npm run dev --host`
 - Health check: HTTP GET to root
 
@@ -262,7 +262,7 @@ Both backend and frontend have `.dockerignore` files to exclude unnecessary file
    docker compose exec redis redis-cli ping
 
    # Frontend
-   curl http://localhost:3000
+   curl http://localhost:5173
    ```
 
 ### Backend cannot connect to Redis
@@ -406,7 +406,7 @@ docker stats
 All services expose health endpoints:
 
 - Backend: `http://localhost:8000/health`
-- Frontend: `http://localhost:3000/` (dev) or `http://localhost:80/health` (prod)
+- Frontend: `http://localhost:5173/` (dev) or `http://localhost:80/health` (prod)
 - Redis: `docker compose exec redis redis-cli ping`
 
 ### Logs
