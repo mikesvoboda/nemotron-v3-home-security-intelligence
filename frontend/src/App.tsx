@@ -1,32 +1,22 @@
-import { useState } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 import DashboardPage from './components/dashboard/DashboardPage';
+import EventTimeline from './components/events/EventTimeline';
 import Layout from './components/layout/Layout';
 import LogsDashboard from './components/logs/LogsDashboard';
+import SettingsPage from './components/settings/SettingsPage';
 
 export default function App() {
-  const [currentPath, setCurrentPath] = useState(window.location.pathname);
-
-  // Listen to navigation changes
-  const handleNavChange = (path: string) => {
-    setCurrentPath(path);
-    window.history.pushState({}, '', path);
-  };
-
-  // Render content based on current path
-  const renderContent = () => {
-    switch (currentPath) {
-      case '/logs':
-        return <LogsDashboard />;
-      case '/':
-      default:
-        return <DashboardPage />;
-    }
-  };
-
   return (
-    <Layout onNavChange={handleNavChange}>
-      {renderContent()}
-    </Layout>
+    <BrowserRouter>
+      <Layout>
+        <Routes>
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/timeline" element={<EventTimeline />} />
+          <Route path="/logs" element={<LogsDashboard />} />
+          <Route path="/settings" element={<SettingsPage />} />
+        </Routes>
+      </Layout>
+    </BrowserRouter>
   );
 }

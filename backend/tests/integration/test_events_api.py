@@ -481,10 +481,10 @@ class TestUpdateEvent:
         )
         assert response.status_code == 422  # Validation error
 
-    async def test_update_event_missing_required_field(self, async_client, sample_event):
-        """Test updating without required field returns 422."""
+    async def test_update_event_empty_payload_valid(self, async_client, sample_event):
+        """Test updating with empty payload succeeds (all fields optional for partial updates)."""
         response = await async_client.patch(f"/api/events/{sample_event.id}", json={})
-        assert response.status_code == 422  # Validation error
+        assert response.status_code == 200  # Valid request, no changes made
 
 
 class TestGetEventDetections:

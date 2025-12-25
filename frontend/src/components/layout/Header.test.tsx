@@ -1,9 +1,22 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 import Header from './Header';
+import * as useSystemStatusModule from '../../hooks/useSystemStatus';
 
 describe('Header', () => {
+  beforeEach(() => {
+    // Mock useSystemStatus to return null status (disconnected state)
+    vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
+      status: null,
+      isConnected: false,
+    });
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('renders without crashing', () => {
     render(<Header />);
     expect(screen.getByRole('banner')).toBeInTheDocument();
@@ -26,18 +39,30 @@ describe('Header', () => {
     expect(iconContainer).toBeInTheDocument();
   });
 
-  it('displays System Online status indicator', () => {
+  it('displays Connecting status when disconnected', () => {
+    render(<Header />);
+    expect(screen.getByText('Connecting...')).toBeInTheDocument();
+  });
+
+  it('displays System Online status when connected and healthy', () => {
+    vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
+      status: {
+        health: 'healthy',
+        gpu_utilization: 45,
+        gpu_temperature: 65,
+        gpu_memory_used: 8192,
+        gpu_memory_total: 24576,
+        active_cameras: 3,
+        last_update: '2025-12-23T10:00:00Z',
+      },
+      isConnected: true,
+    });
+
     render(<Header />);
     expect(screen.getByText('System Online')).toBeInTheDocument();
   });
 
-  it('has a pulsing green status dot', () => {
-    const { container } = render(<Header />);
-    const statusDot = container.querySelector('.bg-green-500.rounded-full.animate-pulse');
-    expect(statusDot).toBeInTheDocument();
-  });
-
-  it('displays GPU stats placeholder', () => {
+  it('displays GPU stats placeholder when no data', () => {
     render(<Header />);
     expect(screen.getByText('GPU:')).toBeInTheDocument();
     expect(screen.getByText('--')).toBeInTheDocument();
@@ -83,5 +108,133 @@ describe('Header', () => {
     render(<Header />);
     const header = screen.getByRole('banner');
     expect(header.tagName).toBe('HEADER');
+  });
+
+  it('displays GPU utilization when available', () => {
+    vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
+      status: {
+        health: 'healthy',
+        gpu_utilization: 75.5,
+        gpu_temperature: null,
+        gpu_memory_used: 8192,
+        gpu_memory_total: 24576,
+        active_cameras: 3,
+        last_update: '2025-12-23T10:00:00Z',
+      },
+      isConnected: true,
+    });
+
+    render(<Header />);
+    expect(screen.getByText('76%')).toBeInTheDocument();
+  });
+
+  it('displays GPU temperature when available', () => {
+    vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
+      status: {
+        health: 'healthy',
+        gpu_utilization: null,
+        gpu_temperature: 65.7,
+        gpu_memory_used: 8192,
+        gpu_memory_total: 24576,
+        active_cameras: 3,
+        last_update: '2025-12-23T10:00:00Z',
+      },
+      isConnected: true,
+    });
+
+    render(<Header />);
+    expect(screen.getByText('66°C')).toBeInTheDocument();
+  });
+
+  it('displays both GPU utilization and temperature when available', () => {
+    vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
+      status: {
+        health: 'healthy',
+        gpu_utilization: 45.2,
+        gpu_temperature: 62.8,
+        gpu_memory_used: 8192,
+        gpu_memory_total: 24576,
+        active_cameras: 3,
+        last_update: '2025-12-23T10:00:00Z',
+      },
+      isConnected: true,
+    });
+
+    render(<Header />);
+    expect(screen.getByText('45% | 63°C')).toBeInTheDocument();
+  });
+
+  it('displays System Degraded status when system is degraded', () => {
+    vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
+      status: {
+        health: 'degraded',
+        gpu_utilization: 85,
+        gpu_temperature: 75,
+        gpu_memory_used: 8192,
+        gpu_memory_total: 24576,
+        active_cameras: 1,
+        last_update: '2025-12-23T10:00:00Z',
+      },
+      isConnected: true,
+    });
+
+    render(<Header />);
+    expect(screen.getByText('System Degraded')).toBeInTheDocument();
+  });
+
+  it('displays System Offline status when system is unhealthy', () => {
+    vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
+      status: {
+        health: 'unhealthy',
+        gpu_utilization: 100,
+        gpu_temperature: 90,
+        gpu_memory_used: 8192,
+        gpu_memory_total: 24576,
+        active_cameras: 0,
+        last_update: '2025-12-23T10:00:00Z',
+      },
+      isConnected: true,
+    });
+
+    render(<Header />);
+    expect(screen.getByText('System Offline')).toBeInTheDocument();
+  });
+
+  it('shows yellow status dot for degraded system', () => {
+    vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
+      status: {
+        health: 'degraded',
+        gpu_utilization: 85,
+        gpu_temperature: 75,
+        gpu_memory_used: 8192,
+        gpu_memory_total: 24576,
+        active_cameras: 1,
+        last_update: '2025-12-23T10:00:00Z',
+      },
+      isConnected: true,
+    });
+
+    const { container } = render(<Header />);
+    const statusDot = container.querySelector('.bg-yellow-500');
+    expect(statusDot).toBeInTheDocument();
+  });
+
+  it('shows red status dot for unhealthy system', () => {
+    vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
+      status: {
+        health: 'unhealthy',
+        gpu_utilization: 100,
+        gpu_temperature: 90,
+        gpu_memory_used: 8192,
+        gpu_memory_total: 24576,
+        active_cameras: 0,
+        last_update: '2025-12-23T10:00:00Z',
+      },
+      isConnected: true,
+    });
+
+    const { container } = render(<Header />);
+    const statusDot = container.querySelector('.bg-red-500');
+    expect(statusDot).toBeInTheDocument();
   });
 });
