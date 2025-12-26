@@ -14,7 +14,7 @@ services:
       - ./backend/data:/app/data
       - /export/foscam:/cameras:ro
     environment:
-      - DATABASE_URL=sqlite:///data/security.db
+      - DATABASE_URL=sqlite+aiosqlite:///data/security.db
       - REDIS_URL=redis://redis:6379
       - RTDETR_URL=http://host.docker.internal:8090
       - NEMOTRON_URL=http://host.docker.internal:8091
@@ -29,7 +29,7 @@ services:
           "CMD",
           "python",
           "-c",
-          "import httpx; exit(0 if httpx.get('http://localhost:8000/health').status_code == 200 else 1)",
+          "import httpx; r = httpx.get('http://localhost:8000/api/system/health/ready'); exit(0 if r.status_code == 200 and r.json().get('ready', False) else 1)",
         ]
       interval: 30s
       timeout: 10s

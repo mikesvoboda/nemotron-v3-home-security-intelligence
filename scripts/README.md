@@ -58,6 +58,7 @@ This will:
 | ---------------- | ------------------------------------------------- |
 | `test-runner.sh` | Run full test suite with 95% coverage enforcement |
 | `validate.sh`    | Quick validation (linting, type checking, tests)  |
+| `smoke-test.sh`  | E2E smoke test for MVP pipeline validation        |
 
 ### Development Tools
 
@@ -96,6 +97,25 @@ cd backend && uvicorn main:app --reload
 
 # Specific test file
 pytest backend/tests/unit/test_feature.py -v
+```
+
+### Running E2E Smoke Test
+
+```bash
+# Basic smoke test (after starting services)
+./scripts/smoke-test.sh
+
+# With verbose output for debugging
+./scripts/smoke-test.sh --verbose
+
+# Keep test artifacts for inspection
+./scripts/smoke-test.sh --skip-cleanup
+
+# Custom API URL and timeout
+./scripts/smoke-test.sh --api-url http://192.168.1.100:8000 --timeout 180
+
+# Show help
+./scripts/smoke-test.sh --help
 ```
 
 ### Seeding Test Data
@@ -231,7 +251,7 @@ The setup script creates a `.env` file from `.env.example`. Review and update th
 CAMERA_ROOT=/export/foscam
 
 # Database
-DATABASE_URL=sqlite:///data/security.db
+DATABASE_URL=sqlite+aiosqlite:///data/security.db
 
 # Redis
 REDIS_URL=redis://localhost:6379

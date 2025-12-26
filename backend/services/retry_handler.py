@@ -1,0 +1,508 @@
+"""Retry handler with exponential backoff and dead-letter queue support.
+
+This module provides retry functionality for AI service calls (detector and LLM)
+with configurable exponential backoff. Failed jobs that exceed the maximum retry
+count are moved to a dead-letter queue (DLQ) for later inspection.
+
+DLQ Structure:
+    dlq:detection_queue - Failed detection jobs
+    dlq:analysis_queue - Failed LLM analysis jobs
+
+Job Format in DLQ:
+    {
+        "original_job": {...},      # Original job payload
+        "error": "error message",    # Last error message
+        "attempt_count": 3,          # Number of attempts made
+        "first_failed_at": "...",    # ISO timestamp of first failure
+        "last_failed_at": "...",     # ISO timestamp of last failure
+        "queue_name": "..."          # Original queue name
+    }
+"""
+
+import asyncio
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any, TypeVar
+
+from backend.core.logging import get_logger
+from backend.core.redis import RedisClient
+
+logger = get_logger(__name__)
+
+T = TypeVar("T")
+
+
+@dataclass
+class RetryConfig:
+    """Configuration for retry behavior."""
+
+    max_retries: int = 3
+    base_delay_seconds: float = 1.0
+    max_delay_seconds: float = 30.0
+    exponential_base: float = 2.0
+    jitter: bool = True
+
+    def get_delay(self, attempt: int) -> float:
+        """Calculate delay for the given attempt number.
+
+        Uses exponential backoff with optional jitter.
+
+        Args:
+            attempt: Current attempt number (1-indexed)
+
+        Returns:
+            Delay in seconds before next retry
+        """
+        import random
+
+        # Calculate exponential delay: base * (exponential_base ^ (attempt - 1))
+        delay = self.base_delay_seconds * (self.exponential_base ** (attempt - 1))
+        delay = min(delay, self.max_delay_seconds)
+
+        if self.jitter:
+            # Add random jitter between 0 and 25% of the delay
+            jitter_amount = delay * 0.25 * random.random()  # noqa: S311
+            delay = delay + jitter_amount
+
+        return delay
+
+
+@dataclass
+class JobFailure:
+    """Record of a failed job."""
+
+    original_job: dict[str, Any]
+    error: str
+    attempt_count: int
+    first_failed_at: str
+    last_failed_at: str
+    queue_name: str
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for storage."""
+        return {
+            "original_job": self.original_job,
+            "error": self.error,
+            "attempt_count": self.attempt_count,
+            "first_failed_at": self.first_failed_at,
+            "last_failed_at": self.last_failed_at,
+            "queue_name": self.queue_name,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "JobFailure":
+        """Create from dictionary."""
+        return cls(
+            original_job=data["original_job"],
+            error=data["error"],
+            attempt_count=data["attempt_count"],
+            first_failed_at=data["first_failed_at"],
+            last_failed_at=data["last_failed_at"],
+            queue_name=data["queue_name"],
+        )
+
+
+@dataclass
+class RetryResult:
+    """Result of a retry operation."""
+
+    success: bool
+    result: Any = None
+    error: str | None = None
+    attempts: int = 0
+    moved_to_dlq: bool = False
+
+
+@dataclass
+class DLQStats:
+    """Statistics about dead-letter queues."""
+
+    detection_queue_count: int = 0
+    analysis_queue_count: int = 0
+    total_count: int = 0
+
+
+class RetryHandler:
+    """Handles retries with exponential backoff and DLQ management.
+
+    This class provides:
+    - Exponential backoff for failed operations
+    - Dead-letter queue for poison jobs
+    - DLQ inspection and management
+
+    Usage:
+        handler = RetryHandler(redis_client)
+
+        # Retry an operation
+        result = await handler.with_retry(
+            operation=some_async_func,
+            job_data={"file_path": "...", "camera_id": "..."},
+            queue_name="detection_queue",
+        )
+
+        # Check DLQ
+        stats = await handler.get_dlq_stats()
+        jobs = await handler.get_dlq_jobs("dlq:detection_queue")
+    """
+
+    # DLQ key prefixes
+    DLQ_PREFIX = "dlq:"
+    DLQ_DETECTION_QUEUE = "dlq:detection_queue"
+    DLQ_ANALYSIS_QUEUE = "dlq:analysis_queue"
+
+    def __init__(
+        self,
+        redis_client: RedisClient | None = None,
+        config: RetryConfig | None = None,
+    ):
+        """Initialize retry handler.
+
+        Args:
+            redis_client: Redis client for DLQ operations
+            config: Retry configuration (uses defaults if not provided)
+        """
+        self._redis = redis_client
+        self._config = config or RetryConfig()
+
+    @property
+    def config(self) -> RetryConfig:
+        """Get the retry configuration."""
+        return self._config
+
+    def _get_dlq_name(self, queue_name: str) -> str:
+        """Get the DLQ name for a given queue.
+
+        Args:
+            queue_name: Original queue name
+
+        Returns:
+            DLQ queue name
+        """
+        # Handle both with and without dlq: prefix
+        if queue_name.startswith(self.DLQ_PREFIX):
+            return queue_name
+        return f"{self.DLQ_PREFIX}{queue_name}"
+
+    async def with_retry(
+        self,
+        operation: Callable[..., Any],
+        job_data: dict[str, Any],
+        queue_name: str,
+        *args: Any,
+        **kwargs: Any,
+    ) -> RetryResult:
+        """Execute an operation with retry logic.
+
+        Retries the operation with exponential backoff. If all retries fail,
+        the job is moved to the dead-letter queue.
+
+        Args:
+            operation: Async callable to execute
+            job_data: Original job data (stored in DLQ on failure)
+            queue_name: Name of the source queue (used for DLQ naming)
+            *args: Arguments to pass to the operation
+            **kwargs: Keyword arguments to pass to the operation
+
+        Returns:
+            RetryResult with success status and result or error info
+        """
+        last_error: str | None = None
+        first_failed_at: str | None = None
+
+        for attempt in range(1, self._config.max_retries + 1):
+            try:
+                logger.debug(
+                    f"Attempt {attempt}/{self._config.max_retries} for {queue_name}",
+                    extra={
+                        "attempt": attempt,
+                        "max_retries": self._config.max_retries,
+                        "queue_name": queue_name,
+                    },
+                )
+
+                result = await operation(*args, **kwargs)
+
+                logger.info(
+                    f"Operation succeeded on attempt {attempt} for {queue_name}",
+                    extra={
+                        "attempt": attempt,
+                        "queue_name": queue_name,
+                    },
+                )
+
+                return RetryResult(
+                    success=True,
+                    result=result,
+                    attempts=attempt,
+                )
+
+            except Exception as e:
+                last_error = str(e)
+                if first_failed_at is None:
+                    first_failed_at = datetime.now(UTC).isoformat()
+
+                logger.warning(
+                    f"Attempt {attempt}/{self._config.max_retries} failed for {queue_name}: {e}",
+                    extra={
+                        "attempt": attempt,
+                        "max_retries": self._config.max_retries,
+                        "queue_name": queue_name,
+                        "error": str(e),
+                    },
+                )
+
+                if attempt < self._config.max_retries:
+                    delay = self._config.get_delay(attempt)
+                    logger.debug(
+                        f"Waiting {delay:.2f}s before retry {attempt + 1}",
+                        extra={
+                            "delay_seconds": delay,
+                            "next_attempt": attempt + 1,
+                        },
+                    )
+                    await asyncio.sleep(delay)
+
+        # All retries exhausted - move to DLQ
+        moved_to_dlq = False
+        if self._redis and first_failed_at:
+            moved_to_dlq = await self._move_to_dlq(
+                job_data=job_data,
+                error=last_error or "Unknown error",
+                attempt_count=self._config.max_retries,
+                first_failed_at=first_failed_at,
+                queue_name=queue_name,
+            )
+
+        logger.error(
+            f"All {self._config.max_retries} retries exhausted for {queue_name}",
+            extra={
+                "queue_name": queue_name,
+                "error": last_error,
+                "moved_to_dlq": moved_to_dlq,
+            },
+        )
+
+        return RetryResult(
+            success=False,
+            error=last_error,
+            attempts=self._config.max_retries,
+            moved_to_dlq=moved_to_dlq,
+        )
+
+    async def _move_to_dlq(
+        self,
+        job_data: dict[str, Any],
+        error: str,
+        attempt_count: int,
+        first_failed_at: str,
+        queue_name: str,
+    ) -> bool:
+        """Move a failed job to the dead-letter queue.
+
+        Args:
+            job_data: Original job data
+            error: Error message from the last failure
+            attempt_count: Number of attempts made
+            first_failed_at: ISO timestamp of first failure
+            queue_name: Original queue name
+
+        Returns:
+            True if job was moved successfully
+        """
+        if not self._redis:
+            logger.warning("Cannot move job to DLQ: Redis client not initialized")
+            return False
+
+        try:
+            dlq_name = self._get_dlq_name(queue_name)
+            failure = JobFailure(
+                original_job=job_data,
+                error=error,
+                attempt_count=attempt_count,
+                first_failed_at=first_failed_at,
+                last_failed_at=datetime.now(UTC).isoformat(),
+                queue_name=queue_name,
+            )
+
+            await self._redis.add_to_queue(dlq_name, failure.to_dict())
+
+            logger.info(
+                f"Moved job to DLQ: {dlq_name}",
+                extra={
+                    "dlq_name": dlq_name,
+                    "original_queue": queue_name,
+                    "attempt_count": attempt_count,
+                    "error": error,
+                },
+            )
+            return True
+
+        except Exception as e:
+            logger.error(
+                f"Failed to move job to DLQ: {e}",
+                extra={"queue_name": queue_name, "error": str(e)},
+                exc_info=True,
+            )
+            return False
+
+    async def get_dlq_stats(self) -> DLQStats:
+        """Get statistics about dead-letter queues.
+
+        Returns:
+            DLQStats with counts for each DLQ
+        """
+        if not self._redis:
+            return DLQStats()
+
+        try:
+            detection_count = await self._redis.get_queue_length(self.DLQ_DETECTION_QUEUE)
+            analysis_count = await self._redis.get_queue_length(self.DLQ_ANALYSIS_QUEUE)
+
+            return DLQStats(
+                detection_queue_count=detection_count,
+                analysis_queue_count=analysis_count,
+                total_count=detection_count + analysis_count,
+            )
+        except Exception as e:
+            logger.error(f"Failed to get DLQ stats: {e}", exc_info=True)
+            return DLQStats()
+
+    async def get_dlq_jobs(
+        self,
+        dlq_name: str,
+        start: int = 0,
+        end: int = -1,
+    ) -> list[JobFailure]:
+        """Get jobs from a dead-letter queue without removing them.
+
+        Args:
+            dlq_name: Name of the DLQ (e.g., "dlq:detection_queue")
+            start: Start index (0-based)
+            end: End index (-1 for all)
+
+        Returns:
+            List of JobFailure objects
+        """
+        if not self._redis:
+            return []
+
+        try:
+            items = await self._redis.peek_queue(dlq_name, start, end)
+            return [JobFailure.from_dict(item) for item in items]
+        except Exception as e:
+            logger.error(f"Failed to get DLQ jobs: {e}", exc_info=True)
+            return []
+
+    async def requeue_dlq_job(self, dlq_name: str) -> dict[str, Any] | None:
+        """Remove and return the oldest job from a DLQ for reprocessing.
+
+        Args:
+            dlq_name: Name of the DLQ
+
+        Returns:
+            Original job data if available, None otherwise
+        """
+        if not self._redis:
+            return None
+
+        try:
+            # Use non-blocking pop with 0 timeout
+            item = await self._redis.get_from_queue(dlq_name, timeout=0)
+            if item:
+                failure = JobFailure.from_dict(item)
+                logger.info(
+                    f"Requeued job from {dlq_name}",
+                    extra={
+                        "dlq_name": dlq_name,
+                        "original_queue": failure.queue_name,
+                    },
+                )
+                return failure.original_job
+            return None
+        except Exception as e:
+            logger.error(f"Failed to requeue DLQ job: {e}", exc_info=True)
+            return None
+
+    async def clear_dlq(self, dlq_name: str) -> bool:
+        """Clear all jobs from a dead-letter queue.
+
+        Args:
+            dlq_name: Name of the DLQ to clear
+
+        Returns:
+            True if cleared successfully
+        """
+        if not self._redis:
+            return False
+
+        try:
+            await self._redis.clear_queue(dlq_name)
+            logger.info(f"Cleared DLQ: {dlq_name}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to clear DLQ: {e}", exc_info=True)
+            return False
+
+    async def move_dlq_job_to_queue(
+        self,
+        dlq_name: str,
+        target_queue: str,
+    ) -> bool:
+        """Move a job from DLQ back to a processing queue.
+
+        Args:
+            dlq_name: Name of the DLQ
+            target_queue: Target queue to move the job to
+
+        Returns:
+            True if moved successfully
+        """
+        if not self._redis:
+            return False
+
+        try:
+            job = await self.requeue_dlq_job(dlq_name)
+            if job:
+                await self._redis.add_to_queue(target_queue, job)
+                logger.info(
+                    f"Moved job from {dlq_name} to {target_queue}",
+                    extra={
+                        "dlq_name": dlq_name,
+                        "target_queue": target_queue,
+                    },
+                )
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"Failed to move DLQ job: {e}", exc_info=True)
+            return False
+
+
+# Global retry handler instance
+_retry_handler: RetryHandler | None = None
+
+
+def get_retry_handler(redis_client: RedisClient | None = None) -> RetryHandler:
+    """Get or create the global retry handler instance.
+
+    Args:
+        redis_client: Redis client (required on first call)
+
+    Returns:
+        RetryHandler instance
+    """
+    global _retry_handler  # noqa: PLW0603
+
+    if _retry_handler is None:
+        _retry_handler = RetryHandler(redis_client=redis_client)
+    elif redis_client is not None and _retry_handler._redis is None:
+        _retry_handler._redis = redis_client
+
+    return _retry_handler
+
+
+def reset_retry_handler() -> None:
+    """Reset the global retry handler (for testing)."""
+    global _retry_handler  # noqa: PLW0603
+    _retry_handler = None

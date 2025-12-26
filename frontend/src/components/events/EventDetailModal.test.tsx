@@ -810,14 +810,50 @@ describe('EventDetailModal', () => {
       });
     });
 
-    it.skip('clears saved indicator after 3 seconds', async () => {
-      // Skipping due to timer issues in test environment
-      // Manual testing confirms this functionality works correctly
+    it('clears saved indicator after 3 seconds', async () => {
+      vi.useFakeTimers();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      const onSaveNotes = vi.fn().mockResolvedValue(undefined);
+
+      render(<EventDetailModal {...mockProps} onSaveNotes={onSaveNotes} />);
+
+      const saveButton = screen.getByRole('button', { name: 'Save notes' });
+      await user.click(saveButton);
+
+      // Wait for the save to complete
+      await vi.waitFor(() => {
+        expect(screen.getByText('Saved')).toBeInTheDocument();
+      });
+
+      // Fast-forward past the 3 second timeout
+      await vi.advanceTimersByTimeAsync(3100);
+
+      // Saved indicator should be cleared
+      await vi.waitFor(() => {
+        expect(screen.queryByText('Saved')).not.toBeInTheDocument();
+      });
+
+      vi.useRealTimers();
     });
 
-    it.skip('handles save errors gracefully', async () => {
-      // Skipping due to async timing issues in test environment
-      // Manual testing confirms error handling works correctly
+    it('handles save errors gracefully', async () => {
+      const user = userEvent.setup();
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const onSaveNotes = vi.fn().mockRejectedValue(new Error('Save failed'));
+
+      render(<EventDetailModal {...mockProps} onSaveNotes={onSaveNotes} />);
+
+      const saveButton = screen.getByRole('button', { name: 'Save notes' });
+      await user.click(saveButton);
+
+      await waitFor(() => {
+        expect(consoleSpy).toHaveBeenCalledWith('Failed to save notes:', expect.any(Error));
+      });
+
+      // Saved indicator should not appear after error
+      expect(screen.queryByText('Saved')).not.toBeInTheDocument();
+
+      consoleSpy.mockRestore();
     });
 
     it('updates notes text when event changes', () => {
@@ -832,14 +868,51 @@ describe('EventDetailModal', () => {
       expect(textarea.value).toBe('Different notes');
     });
 
-    it.skip('clears saved indicator when event changes', async () => {
-      // Skipping due to async timing issues in test environment
-      // Manual testing confirms this functionality works correctly
+    it('clears saved indicator when event changes', async () => {
+      const user = userEvent.setup();
+      const onSaveNotes = vi.fn().mockResolvedValue(undefined);
+
+      const { rerender } = render(<EventDetailModal {...mockProps} onSaveNotes={onSaveNotes} />);
+
+      // Save notes to show the saved indicator
+      const saveButton = screen.getByRole('button', { name: 'Save notes' });
+      await user.click(saveButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Saved')).toBeInTheDocument();
+      });
+
+      // Change to a different event
+      const newEvent = { ...mockEvent, id: 'event-456', notes: 'Different notes' };
+      rerender(<EventDetailModal {...mockProps} event={newEvent} onSaveNotes={onSaveNotes} />);
+
+      // Saved indicator should be cleared when event changes
+      await waitFor(() => {
+        expect(screen.queryByText('Saved')).not.toBeInTheDocument();
+      });
     });
 
-    it.skip('saves empty string as notes', async () => {
-      // Skipping due to async timing issues in test environment
-      // Manual testing confirms this functionality works correctly
+    it('saves empty string as notes', async () => {
+      const user = userEvent.setup();
+      const eventWithNotes = { ...mockEvent, notes: 'Some existing notes' };
+      const onSaveNotes = vi.fn().mockResolvedValue(undefined);
+
+      render(<EventDetailModal {...mockProps} event={eventWithNotes} onSaveNotes={onSaveNotes} />);
+
+      const textarea = screen.getByPlaceholderText<HTMLTextAreaElement>('Add notes about this event...');
+      expect(textarea.value).toBe('Some existing notes');
+
+      // Clear the textarea
+      await user.clear(textarea);
+      expect(textarea.value).toBe('');
+
+      // Save the empty notes
+      const saveButton = screen.getByRole('button', { name: 'Save notes' });
+      await user.click(saveButton);
+
+      await waitFor(() => {
+        expect(onSaveNotes).toHaveBeenCalledWith('event-123', '');
+      });
     });
   });
 
@@ -1127,9 +1200,73 @@ describe('EventDetailModal', () => {
       expect(screen.getByRole('button', { name: 'Mark event as reviewed' })).toBeInTheDocument();
     });
 
-    it.skip('handles multiple interactions without errors', async () => {
-      // Skipping due to async timing issues in test environment
-      // Manual testing confirms all interactions work correctly
+    it('handles multiple interactions without errors', async () => {
+      const user = userEvent.setup();
+      const onClose = vi.fn();
+      const onMarkReviewed = vi.fn();
+      const onNavigate = vi.fn();
+      const onSaveNotes = vi.fn().mockResolvedValue(undefined);
+      const onFlagEvent = vi.fn().mockResolvedValue(undefined);
+      const onDownloadMedia = vi.fn().mockResolvedValue(undefined);
+
+      render(
+        <EventDetailModal
+          {...mockProps}
+          onClose={onClose}
+          onMarkReviewed={onMarkReviewed}
+          onNavigate={onNavigate}
+          onSaveNotes={onSaveNotes}
+          onFlagEvent={onFlagEvent}
+          onDownloadMedia={onDownloadMedia}
+        />
+      );
+
+      // Navigate previous
+      const prevButton = screen.getByRole('button', { name: 'Previous event' });
+      await user.click(prevButton);
+      expect(onNavigate).toHaveBeenCalledWith('prev');
+
+      // Navigate next
+      const nextButton = screen.getByRole('button', { name: 'Next event' });
+      await user.click(nextButton);
+      expect(onNavigate).toHaveBeenCalledWith('next');
+
+      // Flag event
+      const flagButton = screen.getByRole('button', { name: 'Flag event' });
+      await user.click(flagButton);
+      await waitFor(() => {
+        expect(onFlagEvent).toHaveBeenCalledWith('event-123', true);
+      });
+
+      // Download media
+      const downloadButton = screen.getByRole('button', { name: 'Download media' });
+      await user.click(downloadButton);
+      await waitFor(() => {
+        expect(onDownloadMedia).toHaveBeenCalledWith('event-123');
+      });
+
+      // Type in notes
+      const textarea = screen.getByPlaceholderText('Add notes about this event...');
+      await user.type(textarea, 'Test note');
+
+      // Save notes
+      const saveButton = screen.getByRole('button', { name: 'Save notes' });
+      await user.click(saveButton);
+      await waitFor(() => {
+        expect(onSaveNotes).toHaveBeenCalledWith('event-123', 'Test note');
+      });
+
+      // Mark as reviewed
+      const reviewButton = screen.getByRole('button', { name: 'Mark event as reviewed' });
+      await user.click(reviewButton);
+      expect(onMarkReviewed).toHaveBeenCalledWith('event-123');
+
+      // All interactions should work without errors
+      expect(onNavigate).toHaveBeenCalledTimes(2);
+      expect(onFlagEvent).toHaveBeenCalledTimes(1);
+      expect(onDownloadMedia).toHaveBeenCalledTimes(1);
+      expect(onSaveNotes).toHaveBeenCalledTimes(1);
+      expect(onMarkReviewed).toHaveBeenCalledTimes(1);
     });
   });
 });

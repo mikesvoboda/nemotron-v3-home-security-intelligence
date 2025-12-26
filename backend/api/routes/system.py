@@ -1,9 +1,11 @@
 """System monitoring and configuration API endpoints."""
 
+import asyncio
 import os
 import time
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Body, Depends
 from sqlalchemy import func, select
@@ -15,8 +17,11 @@ from backend.api.schemas.system import (
     GPUStatsHistoryResponse,
     GPUStatsResponse,
     HealthResponse,
+    LivenessResponse,
+    ReadinessResponse,
     ServiceStatus,
     SystemStatsResponse,
+    WorkerStatus,
 )
 from backend.core import get_db, get_settings
 from backend.core.redis import RedisClient, get_redis
@@ -26,6 +31,102 @@ router = APIRouter(prefix="/api/system", tags=["system"])
 
 # Track application start time for uptime calculation
 _app_start_time = time.time()
+
+# Timeout for health check operations (in seconds)
+HEALTH_CHECK_TIMEOUT_SECONDS = 5.0
+
+# Global references for worker status tracking (set by main.py at startup)
+_gpu_monitor: "GPUMonitor | None" = None
+_cleanup_service: "CleanupService | None" = None
+_system_broadcaster: "SystemBroadcaster | None" = None
+_file_watcher: "FileWatcher | None" = None
+
+
+def register_workers(
+    gpu_monitor: "GPUMonitor | None" = None,
+    cleanup_service: "CleanupService | None" = None,
+    system_broadcaster: "SystemBroadcaster | None" = None,
+    file_watcher: "FileWatcher | None" = None,
+) -> None:
+    """Register worker instances for readiness monitoring.
+
+    This function should be called from main.py after workers are initialized
+    to enable readiness probes to check worker status.
+
+    Args:
+        gpu_monitor: GPUMonitor instance
+        cleanup_service: CleanupService instance
+        system_broadcaster: SystemBroadcaster instance
+        file_watcher: FileWatcher instance
+    """
+    global _gpu_monitor, _cleanup_service, _system_broadcaster, _file_watcher  # noqa: PLW0603
+    _gpu_monitor = gpu_monitor
+    _cleanup_service = cleanup_service
+    _system_broadcaster = system_broadcaster
+    _file_watcher = file_watcher
+
+
+def _get_worker_statuses() -> list[WorkerStatus]:
+    """Get status of all registered background workers.
+
+    Returns:
+        List of WorkerStatus objects for each registered worker
+    """
+    statuses: list[WorkerStatus] = []
+
+    # Check GPU monitor
+    if _gpu_monitor is not None:
+        is_running = getattr(_gpu_monitor, "running", False)
+        statuses.append(
+            WorkerStatus(
+                name="gpu_monitor",
+                running=is_running,
+                message=None if is_running else "Not running",
+            )
+        )
+
+    # Check cleanup service
+    if _cleanup_service is not None:
+        is_running = getattr(_cleanup_service, "running", False)
+        statuses.append(
+            WorkerStatus(
+                name="cleanup_service",
+                running=is_running,
+                message=None if is_running else "Not running",
+            )
+        )
+
+    # Check system broadcaster
+    if _system_broadcaster is not None:
+        is_running = getattr(_system_broadcaster, "_running", False)
+        statuses.append(
+            WorkerStatus(
+                name="system_broadcaster",
+                running=is_running,
+                message=None if is_running else "Not running",
+            )
+        )
+
+    # Check file watcher
+    if _file_watcher is not None:
+        is_running = getattr(_file_watcher, "running", False)
+        statuses.append(
+            WorkerStatus(
+                name="file_watcher",
+                running=is_running,
+                message=None if is_running else "Not running",
+            )
+        )
+
+    return statuses
+
+
+# Type hints for worker imports (avoid circular imports)
+if TYPE_CHECKING:
+    from backend.services.cleanup_service import CleanupService
+    from backend.services.file_watcher import FileWatcher
+    from backend.services.gpu_monitor import GPUMonitor
+    from backend.services.system_broadcaster import SystemBroadcaster
 
 
 async def get_latest_gpu_stats(db: AsyncSession) -> dict[str, float | int | datetime | None] | None:
@@ -170,6 +271,123 @@ async def get_health(
     return HealthResponse(
         status=overall_status,
         services=services,
+        timestamp=datetime.now(UTC),
+    )
+
+
+@router.get("/health/live", response_model=LivenessResponse)
+async def get_liveness() -> LivenessResponse:
+    """Liveness probe endpoint.
+
+    This endpoint indicates whether the process is running and able to
+    respond to HTTP requests. It always returns 200 with status "alive"
+    if the process is up. This is a minimal check with no dependencies.
+
+    Used by Kubernetes/Docker to determine if the container should be restarted.
+    If this endpoint fails, the process is considered dead and should be restarted.
+
+    Returns:
+        LivenessResponse with status "alive"
+    """
+    return LivenessResponse(status="alive")
+
+
+@router.get("/health/ready", response_model=ReadinessResponse)
+async def get_readiness(
+    db: AsyncSession = Depends(get_db),
+    redis: RedisClient = Depends(get_redis),
+) -> ReadinessResponse:
+    """Readiness probe endpoint.
+
+    This endpoint indicates whether the application is ready to receive
+    traffic and process uploads. It checks all critical dependencies:
+    - Database connectivity (critical)
+    - Redis connectivity (required for queue processing)
+    - AI services availability
+    - Background worker status
+
+    Used by Kubernetes/Docker to determine if traffic should be routed to this instance.
+    If this endpoint returns not_ready, the instance should not receive new requests.
+
+    Health checks have a timeout of HEALTH_CHECK_TIMEOUT_SECONDS (default 5 seconds).
+    If a health check times out, the service is marked as unhealthy.
+
+    Returns:
+        ReadinessResponse with overall readiness status and detailed checks
+    """
+    # Check all infrastructure services with timeout protection
+    try:
+        db_status = await asyncio.wait_for(
+            check_database_health(db),
+            timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
+        )
+    except TimeoutError:
+        db_status = ServiceStatus(
+            status="unhealthy",
+            message="Database health check timed out",
+            details=None,
+        )
+
+    try:
+        redis_status = await asyncio.wait_for(
+            check_redis_health(redis),
+            timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
+        )
+    except TimeoutError:
+        redis_status = ServiceStatus(
+            status="unhealthy",
+            message="Redis health check timed out",
+            details=None,
+        )
+
+    try:
+        ai_status = await asyncio.wait_for(
+            check_ai_services_health(),
+            timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
+        )
+    except TimeoutError:
+        ai_status = ServiceStatus(
+            status="unhealthy",
+            message="AI services health check timed out",
+            details=None,
+        )
+
+    services = {
+        "database": db_status,
+        "redis": redis_status,
+        "ai": ai_status,
+    }
+
+    # Get worker statuses
+    workers = _get_worker_statuses()
+
+    # Determine overall readiness
+    # Ready: All critical services healthy (database is required)
+    # Degraded: Database healthy but some other services unhealthy
+    # Not Ready: Database unhealthy OR Redis unhealthy (can't process uploads)
+
+    db_healthy = db_status.status == "healthy"
+    redis_healthy = redis_status.status == "healthy"
+
+    # Both database and redis are required to process camera uploads
+    if db_healthy and redis_healthy:
+        # Workers are optional for readiness - system can process requests even if some are down
+        ready = True
+        status = "ready"
+    elif db_healthy:
+        # Database up but Redis down - degraded (can't process queues)
+        ready = False
+        status = "degraded"
+    else:
+        # Database down - not ready
+        ready = False
+        status = "not_ready"
+
+    return ReadinessResponse(
+        ready=ready,
+        status=status,
+        services=services,
+        workers=workers,
         timestamp=datetime.now(UTC),
     )
 

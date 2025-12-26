@@ -248,3 +248,106 @@ class SystemStatsResponse(BaseModel):
             }
         }
     )
+
+
+class LivenessResponse(BaseModel):
+    """Response schema for liveness probe endpoint.
+
+    Liveness probes indicate whether the process is running and able to
+    respond to HTTP requests. This is a minimal check that always returns
+    200 if the process is up.
+    """
+
+    status: str = Field(
+        default="alive",
+        description="Liveness status: always 'alive' if process is responding",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "status": "alive",
+            }
+        }
+    )
+
+
+class WorkerStatus(BaseModel):
+    """Status information for a background worker/service."""
+
+    name: str = Field(
+        ...,
+        description="Worker/service name",
+    )
+    running: bool = Field(
+        ...,
+        description="Whether the worker is currently running",
+    )
+    message: str | None = Field(
+        None,
+        description="Optional status message or error details",
+    )
+
+
+class ReadinessResponse(BaseModel):
+    """Response schema for readiness probe endpoint.
+
+    Readiness probes indicate whether the application is ready to receive
+    traffic and process requests. This checks all dependencies:
+    - Database connectivity
+    - Redis connectivity
+    - AI services availability
+    - Background worker status
+    """
+
+    ready: bool = Field(
+        ...,
+        description="Overall readiness status: True if system can process requests",
+    )
+    status: str = Field(
+        ...,
+        description="Status string: 'ready', 'degraded', or 'not_ready'",
+    )
+    services: dict[str, ServiceStatus] = Field(
+        ...,
+        description="Status of infrastructure services (database, redis, ai)",
+    )
+    workers: list[WorkerStatus] = Field(
+        default_factory=list,
+        description="Status of background workers",
+    )
+    timestamp: datetime = Field(
+        ...,
+        description="Timestamp of readiness check",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "ready": True,
+                "status": "ready",
+                "services": {
+                    "database": {
+                        "status": "healthy",
+                        "message": "Database operational",
+                        "details": None,
+                    },
+                    "redis": {
+                        "status": "healthy",
+                        "message": "Redis connected",
+                        "details": {"redis_version": "7.0.0"},
+                    },
+                    "ai": {
+                        "status": "healthy",
+                        "message": "AI services operational",
+                        "details": None,
+                    },
+                },
+                "workers": [
+                    {"name": "gpu_monitor", "running": True, "message": None},
+                    {"name": "cleanup_service", "running": True, "message": None},
+                ],
+                "timestamp": "2025-12-23T10:30:00",
+            }
+        }
+    )

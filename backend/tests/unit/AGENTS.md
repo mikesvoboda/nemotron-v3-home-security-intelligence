@@ -31,9 +31,9 @@ Tests for application configuration and settings management (`backend/core/confi
 
 ```python
 def test_database_url_override(clean_env, monkeypatch):
-    monkeypatch.setenv("DATABASE_URL", "sqlite:///test.db")
+    monkeypatch.setenv("DATABASE_URL", "sqlite+aiosqlite:///test.db")
     settings = get_settings()
-    assert settings.database_url == "sqlite:///test.db"
+    assert settings.database_url == "sqlite+aiosqlite:///test.db"
 ```
 
 #### `test_database.py` (263 lines, 12 tests)
