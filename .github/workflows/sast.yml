@@ -1,0 +1,60 @@
+name: SAST (Static Analysis)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  bandit:
+    name: Bandit Python Security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Bandit
+        run: pip install bandit
+
+      - name: Run Bandit
+        run: |
+          bandit -r backend/ \
+            -x "backend/tests/*" \
+            -f json \
+            -o bandit-report.json \
+            --severity-level medium \
+            || true
+
+      - name: Check for high/critical issues
+        run: |
+          if [ -f bandit-report.json ]; then
+            HIGH=$(cat bandit-report.json | python -c "import sys,json; r=json.load(sys.stdin); print(sum(1 for i in r.get('results',[]) if i['issue_severity'] in ['HIGH','CRITICAL']))")
+            if [ "$HIGH" -gt 0 ]; then
+              echo "Found $HIGH high/critical security issues"
+              cat bandit-report.json | python -c "import sys,json; r=json.load(sys.stdin); [print(f\"{i['filename']}:{i['line_number']} - {i['issue_text']}\") for i in r.get('results',[]) if i['issue_severity'] in ['HIGH','CRITICAL']]"
+              exit 1
+            fi
+          fi
+
+  semgrep:
+    name: Semgrep Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/python
+            p/typescript
+            p/react
+            p/owasp-top-ten
+            semgrep.yml

@@ -712,7 +712,7 @@ async def test_analyze_detection_fast_path_detection_not_found(
 ):
     """Test fast path analysis raises error when detection not found."""
     # Analyze non-existent detection
-    with pytest.raises(ValueError, match="Detection .* not found"):
+    with pytest.raises(ValueError, match=r"Detection .* not found"):
         await analyzer.analyze_detection_fast_path("front_door", "999")
 
 

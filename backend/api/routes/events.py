@@ -205,7 +205,7 @@ async def get_event_stats(
     ]
 
     # Sort by event count descending
-    events_by_camera.sort(key=lambda x: cast(int, x["event_count"]), reverse=True)
+    events_by_camera.sort(key=lambda x: cast("int", x["event_count"]), reverse=True)
 
     return {
         "total_events": total_events,

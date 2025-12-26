@@ -1,0 +1,22 @@
+# Development and CI/CD dependencies
+-r requirements.txt
+
+# Testing
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
+pytest-cov>=4.1.0
+httpx>=0.26.0
+
+# CI/CD - Performance
+pytest-benchmark>=4.0.0
+pytest-memray>=1.5.0
+
+# CI/CD - Security
+bandit>=1.7.0
+
+# CI/CD - Complexity
+# Note: wily includes radon as a dependency (requires radon>=5.1,<5.2)
+wily>=1.25.0
+
+# CI/CD - Big-O analysis
+big-o>=0.11.0
