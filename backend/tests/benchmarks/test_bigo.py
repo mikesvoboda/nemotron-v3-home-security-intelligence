@@ -167,9 +167,9 @@ class TestBatchAggregatorComplexity:
             complexities.Linear,
             complexities.Linearithmic,
         ]
-        assert any(
-            isinstance(best, c) for c in acceptable_complexities
-        ), f"Unexpected complexity: {best}"
+        assert any(isinstance(best, c) for c in acceptable_complexities), (
+            f"Unexpected complexity: {best}"
+        )
 
     def test_filter_detections_complexity(self):
         """Detection filtering should be O(n) or better."""
@@ -193,9 +193,9 @@ class TestBatchAggregatorComplexity:
             complexities.Linear,
             complexities.Linearithmic,  # O(n log n) acceptable due to measurement variance
         ]
-        assert any(
-            isinstance(best, c) for c in acceptable_complexities
-        ), f"Unexpected complexity: {best}"
+        assert any(isinstance(best, c) for c in acceptable_complexities), (
+            f"Unexpected complexity: {best}"
+        )
 
     def test_group_by_timewindow_complexity(self):
         """Time window grouping should be O(n)."""
@@ -219,9 +219,9 @@ class TestBatchAggregatorComplexity:
             complexities.Linear,
             complexities.Linearithmic,
         ]
-        assert any(
-            isinstance(best, c) for c in acceptable_complexities
-        ), f"Unexpected complexity: {best}"
+        assert any(isinstance(best, c) for c in acceptable_complexities), (
+            f"Unexpected complexity: {best}"
+        )
 
 
 @pytest.mark.skipif(not BIG_O_AVAILABLE, reason="big-o library not installed")
@@ -249,9 +249,9 @@ class TestFileWatcherComplexity:
             complexities.Logarithmic,
             complexities.Linear,
         ]
-        assert any(
-            isinstance(best, c) for c in acceptable_complexities
-        ), f"Unexpected complexity: {best}"
+        assert any(isinstance(best, c) for c in acceptable_complexities), (
+            f"Unexpected complexity: {best}"
+        )
 
     def test_path_parsing_complexity(self):
         """Path parsing should be O(n)."""
@@ -275,9 +275,9 @@ class TestFileWatcherComplexity:
             complexities.Logarithmic,
             complexities.Linear,
         ]
-        assert any(
-            isinstance(best, c) for c in acceptable_complexities
-        ), f"Unexpected complexity: {best}"
+        assert any(isinstance(best, c) for c in acceptable_complexities), (
+            f"Unexpected complexity: {best}"
+        )
 
 
 class TestComplexityHelperFunctions:
