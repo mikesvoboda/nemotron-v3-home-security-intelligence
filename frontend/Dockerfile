@@ -21,7 +21,7 @@ RUN chown -R node:node /app
 USER node
 
 # Expose Vite dev server port
-EXPOSE 3000
+EXPOSE 5173
 
 # Run Vite dev server (accessible from host)
-CMD ["npm", "run", "dev", "--", "--host"]
+CMD ["npm", "run", "dev", "--", "--host", "--port", "5173"]

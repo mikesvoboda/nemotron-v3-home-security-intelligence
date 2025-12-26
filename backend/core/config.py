@@ -69,11 +69,11 @@ class Settings(BaseSettings):
 
     # AI service endpoints
     rtdetr_url: str = Field(
-        default="http://localhost:8001",
+        default="http://localhost:8090",
         description="RT-DETRv2 detection service URL",
     )
     nemotron_url: str = Field(
-        default="http://localhost:8090",
+        default="http://localhost:8091",
         description="Nemotron reasoning service URL (llama.cpp server)",
     )
 
