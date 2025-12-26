@@ -68,7 +68,7 @@ LogsDashboard
 ```typescript
 interface LogFiltersProps {
   onFilterChange: (filters: LogFilterParams) => void;
-  cameras?: Array<{ id: string; name: string }>;
+  cameras?: Array;
   className?: string;
 }
 
@@ -140,7 +140,7 @@ interface LogEntry {
   request_id?: string | null;
   detection_id?: number | null;
   duration_ms?: number | null;
-  extra?: Record<string, unknown> | null;
+  extra?: Record | null;
   source: string;
 }
 ```
@@ -185,13 +185,13 @@ interface LogDetailModalProps {
 
 **Level Badge Styling:**
 
-| Level | Background | Text Color | Icon |
-|-------|------------|------------|------|
-| DEBUG | gray-800 | gray-300 | Code2 |
-| INFO | blue-900/30 | blue-400 | Info |
-| WARNING | yellow-900/30 | yellow-400 | AlertCircle |
-| ERROR | red-900/30 | red-400 | XCircle |
-| CRITICAL | red-600 | white | XCircle |
+| Level    | Background    | Text Color | Icon        |
+| -------- | ------------- | ---------- | ----------- |
+| DEBUG    | gray-800      | gray-300   | Code2       |
+| INFO     | blue-900/30   | blue-400   | Info        |
+| WARNING  | yellow-900/30 | yellow-400 | AlertCircle |
+| ERROR    | red-900/30    | red-400    | XCircle     |
+| CRITICAL | red-600       | white      | XCircle     |
 
 ### LogStatsCards.tsx
 
@@ -225,7 +225,7 @@ interface LogStats {
   warnings_today: number;
   total_today: number;
   top_component: string | null;
-  by_component: Record<string, number>;
+  by_component: Record;
 }
 ```
 

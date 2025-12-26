@@ -127,13 +127,13 @@ Router prefix: `/api/cameras`
 
 Router prefix: `/api/events`
 
-| Method | Path                                | Purpose                                 | Request Body  | Response                | Status Codes |
-| ------ | ----------------------------------- | --------------------------------------- | ------------- | ----------------------- | ------------ |
-| GET    | `/api/events`                       | List events with filtering/pagination   | None          | `EventListResponse`     | 200          |
-| GET    | `/api/events/stats`                 | Get aggregated event statistics         | None          | `EventStatsResponse`    | 200          |
-| GET    | `/api/events/{event_id}`            | Get specific event by ID                | None          | `EventResponse`         | 200, 404     |
-| PATCH  | `/api/events/{event_id}`            | Update event (reviewed status & notes)  | `EventUpdate` | `EventResponse`         | 200, 404     |
-| GET    | `/api/events/{event_id}/detections` | Get detections for event                | None          | `DetectionListResponse` | 200, 404     |
+| Method | Path                                | Purpose                                | Request Body  | Response                | Status Codes |
+| ------ | ----------------------------------- | -------------------------------------- | ------------- | ----------------------- | ------------ |
+| GET    | `/api/events`                       | List events with filtering/pagination  | None          | `EventListResponse`     | 200          |
+| GET    | `/api/events/stats`                 | Get aggregated event statistics        | None          | `EventStatsResponse`    | 200          |
+| GET    | `/api/events/{event_id}`            | Get specific event by ID               | None          | `EventResponse`         | 200, 404     |
+| PATCH  | `/api/events/{event_id}`            | Update event (reviewed status & notes) | `EventUpdate` | `EventResponse`         | 200, 404     |
+| GET    | `/api/events/{event_id}/detections` | Get detections for event               | None          | `DetectionListResponse` | 200, 404     |
 
 **Query Parameters (List):**
 
@@ -294,12 +294,12 @@ Router prefix: `/api/media`
 
 Router prefix: `/api/logs`
 
-| Method | Path                 | Purpose                             | Request Body         | Response       | Status Codes |
-| ------ | -------------------- | ----------------------------------- | -------------------- | -------------- | ------------ |
-| GET    | `/api/logs`          | List logs with filtering/pagination | None                 | `LogsResponse` | 200          |
-| GET    | `/api/logs/stats`    | Get log statistics for dashboard    | None                 | `LogStats`     | 200          |
-| GET    | `/api/logs/{log_id}` | Get specific log entry by ID        | None                 | `LogEntry`     | 200, 404     |
-| POST   | `/api/logs/frontend` | Submit frontend log entry           | `FrontendLogCreate`  | `{"status": "created"}` | 201 |
+| Method | Path                 | Purpose                             | Request Body        | Response                | Status Codes |
+| ------ | -------------------- | ----------------------------------- | ------------------- | ----------------------- | ------------ |
+| GET    | `/api/logs`          | List logs with filtering/pagination | None                | `LogsResponse`          | 200          |
+| GET    | `/api/logs/stats`    | Get log statistics for dashboard    | None                | `LogStats`              | 200          |
+| GET    | `/api/logs/{log_id}` | Get specific log entry by ID        | None                | `LogEntry`              | 200, 404     |
+| POST   | `/api/logs/frontend` | Submit frontend log entry           | `FrontendLogCreate` | `{"status": "created"}` | 201          |
 
 **Query Parameters (List):**
 

@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from collections.abc import AsyncIterator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
 
 import pytest
 
@@ -23,7 +25,7 @@ class _FakeRedis:
         self.unsubscribe = AsyncMock(return_value=None)
         self.publish = AsyncMock(return_value=1)
 
-    async def listen(self, _pubsub: Any) -> AsyncIterator[dict[str, Any]]:  # noqa: ANN401
+    async def listen(self, _pubsub: Any) -> AsyncIterator[dict[str, Any]]:
         # Default: no messages
         if False:  # pragma: no cover
             yield {}
@@ -92,7 +94,7 @@ async def test_send_to_all_clients_removes_disconnected() -> None:
 @pytest.mark.asyncio
 async def test_listen_for_events_processes_messages_and_sends() -> None:
     class RedisWithMessages(_FakeRedis):
-        async def listen(self, _pubsub: Any) -> AsyncIterator[dict[str, Any]]:  # noqa: ANN401
+        async def listen(self, _pubsub: Any) -> AsyncIterator[dict[str, Any]]:
             yield {"data": {"type": "event", "data": {"id": 1}}}
 
     redis = RedisWithMessages()
@@ -109,7 +111,7 @@ async def test_listen_for_events_processes_messages_and_sends() -> None:
 @pytest.mark.asyncio
 async def test_listen_for_events_restarts_after_error(monkeypatch) -> None:
     class RedisThatErrors(_FakeRedis):
-        async def listen(self, _pubsub: Any) -> AsyncIterator[dict[str, Any]]:  # noqa: ANN401
+        async def listen(self, _pubsub: Any) -> AsyncIterator[dict[str, Any]]:
             raise RuntimeError("redis blew up")
             if False:  # pragma: no cover
                 yield {}
@@ -128,7 +130,7 @@ async def test_listen_for_events_restarts_after_error(monkeypatch) -> None:
 
     real_create_task = asyncio.create_task
 
-    def _fake_create_task(coro: Any) -> asyncio.Task[None]:  # noqa: ANN401
+    def _fake_create_task(coro: Any) -> asyncio.Task[None]:
         # Use the real create_task to avoid recursion after monkeypatching.
         task: asyncio.Task[None] = real_create_task(coro)
         created.append(task)
@@ -165,5 +167,3 @@ async def test_stop_unsubscribes_and_disconnects_all_connections() -> None:
     await broadcaster.stop()
     redis.unsubscribe.assert_awaited_once_with(broadcaster.CHANNEL_NAME)
     assert broadcaster._connections == set()
-
-

@@ -37,31 +37,32 @@ Main stylesheet with Tailwind directives and custom utility classes. Contains th
 
 #### Card Components
 
-| Class               | Description                                           |
-| ------------------- | ----------------------------------------------------- |
-| `.nvidia-card`      | Standard card: rounded-xl, gray-800 border, shadow-dark-md |
-| `.nvidia-card-hover`| Card with hover: lighter border, larger shadow, 250ms transition |
-| `.nvidia-panel`     | Larger panel: rounded-2xl, gray-850 border, shadow-dark-lg, p-8 |
+| Class                | Description                                                      |
+| -------------------- | ---------------------------------------------------------------- |
+| `.nvidia-card`       | Standard card: rounded-xl, gray-800 border, shadow-dark-md       |
+| `.nvidia-card-hover` | Card with hover: lighter border, larger shadow, 250ms transition |
+| `.nvidia-panel`      | Larger panel: rounded-2xl, gray-850 border, shadow-dark-lg, p-8  |
 
 #### Button Variants
 
-| Class           | Description                                          |
-| --------------- | ---------------------------------------------------- |
-| `.btn-primary`  | NVIDIA green bg, white text, hover/active states     |
-| `.btn-secondary`| Gray-800 bg, hover to gray-700, active gray-600      |
-| `.btn-ghost`    | Transparent, hover shows gray-800 background         |
+| Class            | Description                                      |
+| ---------------- | ------------------------------------------------ |
+| `.btn-primary`   | NVIDIA green bg, white text, hover/active states |
+| `.btn-secondary` | Gray-800 bg, hover to gray-700, active gray-600  |
+| `.btn-ghost`     | Transparent, hover shows gray-800 background     |
 
 All buttons: `rounded-lg`, `px-4 py-2`, `font-medium`, `duration-250` transition
 
 #### Risk Badges
 
-| Class                 | Color   | Risk Range |
-| --------------------- | ------- | ---------- |
-| `.risk-badge-low`     | Green   | 0-25       |
-| `.risk-badge-medium`  | Yellow  | 26-50      |
-| `.risk-badge-high`    | Red     | 51-75      |
+| Class                | Color  | Risk Range |
+| -------------------- | ------ | ---------- |
+| `.risk-badge-low`    | Green  | 0-25       |
+| `.risk-badge-medium` | Yellow | 26-50      |
+| `.risk-badge-high`   | Red    | 51-75      |
 
 Badge styling:
+
 - 10% opacity background (`bg-risk-{level}/10`)
 - Colored text (`text-risk-{level}`)
 - 30% opacity border (`border-risk-{level}/30`)
@@ -69,36 +70,36 @@ Badge styling:
 
 #### Input Styles
 
-| Class          | Description                                          |
-| -------------- | ---------------------------------------------------- |
-| `.nvidia-input`| Dark input: gray-850 bg, gray-700 border, focus ring |
+| Class           | Description                                          |
+| --------------- | ---------------------------------------------------- |
+| `.nvidia-input` | Dark input: gray-850 bg, gray-700 border, focus ring |
 
 Focus state: `ring-2 ring-primary-500`, transparent border
 
 #### Text Utilities
 
-| Class          | Description                    |
-| -------------- | ------------------------------ |
-| `.text-heading`| `font-semibold text-text-primary` |
-| `.text-body`   | `text-text-secondary` (#A0A0A0)   |
-| `.text-muted`  | `text-text-muted` (#707070)       |
+| Class           | Description                       |
+| --------------- | --------------------------------- |
+| `.text-heading` | `font-semibold text-text-primary` |
+| `.text-body`    | `text-text-secondary` (#A0A0A0)   |
+| `.text-muted`   | `text-text-muted` (#707070)       |
 
 #### Loading & Divider
 
-| Class            | Description                      |
-| ---------------- | -------------------------------- |
-| `.skeleton`      | `animate-pulse rounded bg-gray-800` |
-| `.nvidia-divider`| `border-t border-gray-800`         |
+| Class             | Description                         |
+| ----------------- | ----------------------------------- |
+| `.skeleton`       | `animate-pulse rounded bg-gray-800` |
+| `.nvidia-divider` | `border-t border-gray-800`          |
 
 #### Status Indicators
 
-| Class            | Description                                |
-| ---------------- | ------------------------------------------ |
-| `.status-dot`    | Base: `h-2 w-2 rounded-full inline-block`  |
-| `.status-online` | Green with glow, `animate-pulse-glow`      |
-| `.status-offline`| Gray-600                                   |
-| `.status-warning`| Yellow (`bg-risk-medium`)                  |
-| `.status-error`  | Red (`bg-risk-high`)                       |
+| Class             | Description                               |
+| ----------------- | ----------------------------------------- |
+| `.status-dot`     | Base: `h-2 w-2 rounded-full inline-block` |
+| `.status-online`  | Green with glow, `animate-pulse-glow`     |
+| `.status-offline` | Gray-600                                  |
+| `.status-warning` | Yellow (`bg-risk-medium`)                 |
+| `.status-error`   | Red (`bg-risk-high`)                      |
 
 ### Utilities Layer (`@layer utilities`)
 
@@ -114,30 +115,30 @@ Focus state: `ring-2 ring-primary-500`, transparent border
 
 #### Text Effects
 
-| Class                  | Description                              |
-| ---------------------- | ---------------------------------------- |
-| `.text-gradient-nvidia`| Green gradient text (primary-400 to 600) |
+| Class                   | Description                              |
+| ----------------------- | ---------------------------------------- |
+| `.text-gradient-nvidia` | Green gradient text (primary-400 to 600) |
 
 #### Glow Effects
 
-| Class                | Description                                |
-| -------------------- | ------------------------------------------ |
-| `.glow-nvidia`       | 20px green glow, 30% opacity               |
-| `.glow-nvidia-strong`| Dual-layer: 30px + 60px, 50%/30% opacity   |
-| `.hover-glow-nvidia` | Hover-activated glow, 400ms transition     |
+| Class                 | Description                              |
+| --------------------- | ---------------------------------------- |
+| `.glow-nvidia`        | 20px green glow, 30% opacity             |
+| `.glow-nvidia-strong` | Dual-layer: 30px + 60px, 50%/30% opacity |
+| `.hover-glow-nvidia`  | Hover-activated glow, 400ms transition   |
 
 #### Text Truncation
 
-| Class              | Description                |
-| ------------------ | -------------------------- |
-| `.truncate-2-lines`| Webkit line clamp (2 lines)|
-| `.truncate-3-lines`| Webkit line clamp (3 lines)|
+| Class               | Description                 |
+| ------------------- | --------------------------- |
+| `.truncate-2-lines` | Webkit line clamp (2 lines) |
+| `.truncate-3-lines` | Webkit line clamp (3 lines) |
 
 #### Scrollbar Control
 
-| Class            | Description                                |
-| ---------------- | ------------------------------------------ |
-| `.scrollbar-hide`| Hides scrollbar, maintains scroll function |
+| Class             | Description                                |
+| ----------------- | ------------------------------------------ |
+| `.scrollbar-hide` | Hides scrollbar, maintains scroll function |
 
 Works on Firefox (`scrollbar-width: none`) and WebKit (`display: none`)
 
@@ -148,35 +149,40 @@ See `frontend/tailwind.config.js` for extended theme configuration.
 ### Color Palette
 
 **Background Colors:**
+
 - `background`: #0E0E0E (near-black)
 - `panel`: #1A1A1A
 - `card`: #1E1E1E
 
 **Primary (NVIDIA Green):**
+
 - Full 50-900 scale
 - Base: #76B900
 
 **Risk Levels:**
+
 - `low`: #76B900 (green)
 - `medium`: #FFB800 (yellow)
 - `high`: #E74856 (red)
 
 **Text Hierarchy:**
+
 - `primary`: white (#FFFFFF)
 - `secondary`: #A0A0A0
 - `muted`: #707070
 
 **Extended Grays:**
+
 - Standard 50-950 scale
 - Custom: `850` (#1A1A1A), `950` (#0A0A0A)
 
 ### Custom Spacing
 
-| Key   | Value   |
-| ----- | ------- |
-| `18`  | 4.5rem  |
-| `88`  | 22rem   |
-| `128` | 32rem   |
+| Key   | Value  |
+| ----- | ------ |
+| `18`  | 4.5rem |
+| `88`  | 22rem  |
+| `128` | 32rem  |
 
 ### Typography
 
@@ -185,10 +191,10 @@ See `frontend/tailwind.config.js` for extended theme configuration.
 
 ### Border Radius
 
-| Key   | Value   |
-| ----- | ------- |
-| `xl`  | 1rem    |
-| `2xl` | 1.5rem  |
+| Key   | Value  |
+| ----- | ------ |
+| `xl`  | 1rem   |
+| `2xl` | 1.5rem |
 
 ### Custom Shadows
 
@@ -203,18 +209,18 @@ See `frontend/tailwind.config.js` for extended theme configuration.
 
 ### Animations
 
-| Animation     | Description                    |
-| ------------- | ------------------------------ |
-| `pulse-glow`  | 2s infinite green glow pulse   |
-| `slide-in`    | 0.3s slide from right          |
-| `fade-in`     | 0.2s fade in                   |
+| Animation    | Description                  |
+| ------------ | ---------------------------- |
+| `pulse-glow` | 2s infinite green glow pulse |
+| `slide-in`   | 0.3s slide from right        |
+| `fade-in`    | 0.2s fade in                 |
 
 ### Grid Templates
 
-| Template      | Description                    |
-| ------------- | ------------------------------ |
-| `dashboard`   | Auto-fit minmax(300px, 1fr)    |
-| `camera-grid` | Auto-fit minmax(280px, 1fr)    |
+| Template      | Description                 |
+| ------------- | --------------------------- |
+| `dashboard`   | Auto-fit minmax(300px, 1fr) |
+| `camera-grid` | Auto-fit minmax(280px, 1fr) |
 
 ## Usage Examples
 
@@ -257,19 +263,13 @@ See `frontend/tailwind.config.js` for extended theme configuration.
 ### Glass Effect
 
 ```tsx
-<div className="glass rounded-xl p-6">
-  Semi-transparent panel with blur
-</div>
+<div className="glass rounded-xl p-6">Semi-transparent panel with blur</div>
 ```
 
 ### Input with Focus Ring
 
 ```tsx
-<input
-  type="text"
-  className="nvidia-input w-full"
-  placeholder="Search events..."
-/>
+<input type="text" className="nvidia-input w-full" placeholder="Search events..." />
 ```
 
 ### Loading Skeleton

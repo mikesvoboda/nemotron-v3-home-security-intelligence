@@ -182,12 +182,7 @@ Contains all components for the main security dashboard page, including risk vis
 **Usage Example:**
 
 ```tsx
-<StatsRow
-  activeCameras={4}
-  eventsToday={23}
-  currentRiskScore={42}
-  systemStatus="healthy"
-/>
+<StatsRow activeCameras={4} eventsToday={23} currentRiskScore={42} systemStatus="healthy" />
 ```
 
 ### RiskGauge.example.tsx

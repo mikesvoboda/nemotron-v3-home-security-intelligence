@@ -53,7 +53,9 @@ def test_write_runtime_env_merges_existing_lines(tmp_path, monkeypatch) -> None:
         encoding="utf-8",
     )
 
-    system_routes._write_runtime_env({"RETENTION_DAYS": "7", "DETECTION_CONFIDENCE_THRESHOLD": "0.75"})
+    system_routes._write_runtime_env(
+        {"RETENTION_DAYS": "7", "DETECTION_CONFIDENCE_THRESHOLD": "0.75"}
+    )
 
     content = runtime_env.read_text(encoding="utf-8").splitlines()
     # Should be sorted keys and include merged values
@@ -68,4 +70,3 @@ def test_runtime_env_path_default_is_under_data() -> None:
     # Just sanity-check the default (do not touch filesystem)
     p = system_routes._runtime_env_path()
     assert isinstance(p, Path)
-

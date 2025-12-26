@@ -91,7 +91,7 @@ fetchStats(): Promise<SystemStats>                // GET /api/system/stats
 ```typescript
 interface HealthResponse {
   status: string;
-  services: Record<string, string>;
+  services: Record;
   timestamp: string;
 }
 
@@ -178,7 +178,7 @@ interface EventUpdateData {
 
 interface BulkUpdateResult {
   successful: number[];
-  failed: Array<{ id: number; error: string }>;
+  failed: Array;
 }
 ```
 
@@ -229,8 +229,8 @@ interface LogStats {
   total_today: number;
   errors_today: number;
   warnings_today: number;
-  by_component: Record<string, number>;
-  by_level: Record<string, number>;
+  by_component: Record;
+  by_level: Record;
   top_component: string | null;
 }
 
@@ -245,7 +245,7 @@ interface LogEntry {
   request_id?: string | null;
   detection_id?: number | null;
   duration_ms?: number | null;
-  extra?: Record<string, unknown> | null;
+  extra?: Record | null;
   source: string;
   user_agent?: string | null;
 }

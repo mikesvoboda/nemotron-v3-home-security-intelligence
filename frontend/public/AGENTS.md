@@ -150,6 +150,7 @@ The public directory is configured in the Vite build:
 - **No processing**: Unlike `src/assets/`, these files bypass Vite's bundler
 
 The current `index.html` references:
+
 ```html
 <link rel="icon" type="image/svg+xml" href="/vite.svg" />
 ```

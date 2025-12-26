@@ -73,8 +73,8 @@ interface Camera {
   id: string;
   name: string;
   folder_path: string;
-  status: string;           // "active" or "inactive"
-  last_seen_at?: string;    // ISO timestamp
+  status: string; // "active" or "inactive"
+  last_seen_at?: string; // ISO timestamp
 }
 ```
 
@@ -117,11 +117,11 @@ interface AIModelsSettingsProps {
 }
 
 interface ModelInfo {
-  name: string;              // "RT-DETRv2", "Nemotron"
+  name: string; // "RT-DETRv2", "Nemotron"
   status: 'loaded' | 'unloaded' | 'error';
   memoryUsed: number | null; // MB
   inferenceFps: number | null; // Frames per second
-  description: string;       // Model description
+  description: string; // Model description
 }
 ```
 
@@ -172,12 +172,12 @@ const [success, setSuccess] = useState(boolean);
 
 ```typescript
 interface SystemConfig {
-  batch_window_seconds: number;            // Default: 90
-  batch_idle_timeout_seconds: number;      // Default: 30
-  retention_days: number;                  // Default: 30
-  detection_confidence_threshold: number;  // Default: 0.5
-  app_name: string;                        // "NVIDIA Security Intelligence"
-  version: string;                         // e.g., "0.1.0"
+  batch_window_seconds: number; // Default: 90
+  batch_idle_timeout_seconds: number; // Default: 30
+  retention_days: number; // Default: 30
+  detection_confidence_threshold: number; // Default: 0.5
+  app_name: string; // "NVIDIA Security Intelligence"
+  version: string; // e.g., "0.1.0"
 }
 ```
 

@@ -15,11 +15,14 @@ from __future__ import annotations
 
 import os
 import tempfile
-from collections.abc import AsyncGenerator, Generator
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 
 import pytest
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator, Generator
 from httpx import ASGITransport, AsyncClient
 
 
@@ -135,5 +138,3 @@ async def client(integration_db: str, mock_redis: AsyncMock) -> AsyncGenerator[A
     ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             yield ac
-
-

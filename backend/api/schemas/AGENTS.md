@@ -655,7 +655,7 @@ Pydantic schemas for media serving error responses.
   "request_id": "abc123",
   "detection_id": null,
   "duration_ms": 150,
-  "extra": {"file_path": "/export/foscam/front_door/image.jpg"},
+  "extra": { "file_path": "/export/foscam/front_door/image.jpg" },
   "source": "backend"
 }
 ```
@@ -743,7 +743,7 @@ Pydantic schemas for media serving error responses.
   "level": "ERROR",
   "component": "EventTimeline",
   "message": "Failed to load events",
-  "extra": {"errorCode": "NETWORK_ERROR"},
+  "extra": { "errorCode": "NETWORK_ERROR" },
   "url": "/events"
 }
 ```
