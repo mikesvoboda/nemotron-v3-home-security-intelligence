@@ -121,6 +121,65 @@ This directory contains all project documentation including design specification
   - Capture screenshots
 - **Last updated:** 2025-12-25
 
+**COPILOT_SETUP.md**
+
+- **Purpose:** Guide for setting up GitHub Copilot Free tier for this project
+- **Contents:**
+  - How to enable Copilot Free tier (link to GitHub settings)
+  - Free tier limits (2,000 completions/month, 50 chat messages/month)
+  - VS Code extension recommendations
+  - Best practices for using Copilot with this codebase
+  - Tips to maximize value within free tier limits
+- **When to use:**
+  - Setting up Copilot for development
+  - Understanding Copilot usage limits
+  - Optimizing Copilot suggestions
+- **Related file:** `.github/copilot-instructions.md` - Project-specific Copilot context
+- **Last updated:** 2025-12-26
+
+**GITHUB_MODELS.md**
+
+- **Purpose:** Guide for using GitHub Models for AI-assisted development
+- **Contents:**
+  - Available models (GPT-4o, Llama, Phi, Mistral, etc.)
+  - Rate limits (free tier: 10 req/min, 50 req/day for high-tier models)
+  - Authentication (GH_TOKEN, GitHub Actions integration)
+  - gh CLI usage examples
+  - REST API usage with Python
+  - Current project usage (AI code review workflow)
+  - Use cases for this project (code review, test generation, security analysis)
+  - Best practices and troubleshooting
+- **When to use:**
+  - Setting up GitHub Models integration
+  - Understanding rate limits and quotas
+  - Using AI for code review, test generation, or security analysis
+  - Adding new GitHub Actions workflows using AI
+- **Related files:**
+  - `.github/workflows/ai-code-review.yml` - AI code review workflow
+  - `scripts/github-models-examples.py` - Working Python examples
+- **Marketplace:** [https://github.com/marketplace/models](https://github.com/marketplace/models)
+- **Last updated:** 2025-12-26
+
+**SELF_HOSTED_RUNNER.md**
+
+- **Purpose:** Guide for setting up self-hosted GitHub Actions runner with GPU
+- **Contents:**
+  - Prerequisites (hardware, software, GitHub requirements)
+  - Installation steps (driver verification, NVIDIA container toolkit, runner setup)
+  - Configuration (registration, labels, systemd service)
+  - Security considerations (fork protection, resource limits, secrets)
+  - Verification and troubleshooting
+  - Maintenance (updates, monitoring, cleanup)
+- **When to use:**
+  - Setting up GPU-accelerated CI/CD
+  - Troubleshooting self-hosted runner issues
+  - Understanding security implications
+- **Related files:**
+  - `.github/workflows/gpu-tests.yml` - GPU test workflow
+  - `.github/workflows/nightly.yml` - Nightly workflow
+  - `scripts/setup-gpu-runner.sh` - Runner setup script
+- **Last updated:** 2025-12-26
+
 ### Implementation Plans
 
 **plans/2024-12-22-mvp-implementation-plan.md**
@@ -174,9 +233,12 @@ docs/
 ├── AGENTS.md                             # This file - guide to documentation
 ├── ROADMAP.md                            # Post-MVP roadmap ideas
 ├── AI_SETUP.md                           # AI services setup guide
+├── COPILOT_SETUP.md                      # GitHub Copilot Free tier setup guide
 ├── DOCKER_DEPLOYMENT.md                  # Docker deployment guide
 ├── DOCKER_VERIFICATION_SUMMARY.md        # Docker deployment verification summary
 ├── CHROME_DEVTOOLS_MCP.md                # Chrome DevTools MCP server guide
+├── GITHUB_MODELS.md                      # GitHub Models integration guide
+├── SELF_HOSTED_RUNNER.md                 # Self-hosted GPU runner setup guide
 └── plans/
     ├── AGENTS.md                         # Plans directory guide
     ├── 2024-12-21-dashboard-mvp-design.md            # Design specification
