@@ -82,10 +82,10 @@ repos:
     hooks:
       - id: fast-test
         name: Quick Backend Tests
-        entry: bash -c 'redis-cli -n 15 FLUSHDB > /dev/null 2>&1; cd backend && pytest -m "not slow" -n auto'
+        entry: bash -c 'redis-cli -n 15 FLUSHDB > /dev/null 2>&1; source .venv/bin/activate && cd backend && pytest -m "not slow" -n auto'
         language: system
         pass_filenames: false
-        stages: [commit]
+        stages: [pre-commit]
 
       - id: check-test-mocks
         name: Check integration tests mock slow services
