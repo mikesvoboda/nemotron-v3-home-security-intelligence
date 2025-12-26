@@ -126,6 +126,20 @@ describe('LogDetailModal', () => {
       expect(criticalBadge).toHaveClass('text-white');
       expect(criticalBadge).toHaveClass('bg-red-600');
     });
+
+    it('displays default badge styling for unknown log level', () => {
+      const unknownLevelLog: LogEntry = {
+        ...mockLog,
+        // @ts-expect-error Testing with an unknown level
+        level: 'UNKNOWN_LEVEL',
+      };
+
+      render(<LogDetailModal log={unknownLevelLog} isOpen={true} onClose={mockOnClose} />);
+
+      const unknownBadge = screen.getByText('UNKNOWN_LEVEL');
+      expect(unknownBadge).toHaveClass('bg-gray-800');
+      expect(unknownBadge).toHaveClass('text-gray-300');
+    });
   });
 
   describe('Log Details', () => {

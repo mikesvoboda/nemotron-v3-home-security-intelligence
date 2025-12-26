@@ -10,16 +10,35 @@ import {
   fetchHealth,
   fetchGPUStats,
   fetchConfig,
+  updateConfig,
   fetchStats,
+  fetchEvents,
+  fetchEvent,
+  updateEvent,
+  bulkUpdateEvents,
+  fetchEventDetections,
+  fetchLogStats,
+  fetchLogs,
   getMediaUrl,
   getThumbnailUrl,
+  getDetectionImageUrl,
   type Camera,
   type CameraCreate,
   type CameraUpdate,
   type HealthResponse,
   type GPUStats,
   type SystemConfig,
+  type SystemConfigUpdate,
   type SystemStats,
+  type Event,
+  type EventListResponse,
+  type EventsQueryParams,
+  type EventUpdateData,
+  type Detection,
+  type DetectionListResponse,
+  type LogStats,
+  type LogsResponse,
+  type LogsQueryParams,
 } from './api';
 
 // Mock data
@@ -78,6 +97,73 @@ const mockStats: SystemStats = {
   uptime_seconds: 86400,
 };
 
+const mockEvent: Event = {
+  id: 1,
+  camera_id: 'cam-1',
+  started_at: '2025-01-01T10:00:00Z',
+  ended_at: '2025-01-01T10:05:00Z',
+  risk_score: 75,
+  risk_level: 'high',
+  summary: 'Suspicious activity detected',
+  reviewed: false,
+  notes: null,
+  detection_count: 5,
+};
+
+const mockEventListResponse: EventListResponse = {
+  events: [mockEvent],
+  count: 1,
+  limit: 50,
+  offset: 0,
+};
+
+const mockDetection: Detection = {
+  id: 1,
+  camera_id: 'cam-1',
+  file_path: '/path/to/image.jpg',
+  file_type: 'image/jpeg',
+  detected_at: '2025-01-01T10:00:00Z',
+  object_type: 'person',
+  confidence: 0.95,
+  bbox_x: 100,
+  bbox_y: 100,
+  bbox_width: 200,
+  bbox_height: 300,
+  thumbnail_path: '/path/to/thumb.jpg',
+};
+
+const mockDetectionListResponse: DetectionListResponse = {
+  detections: [mockDetection],
+  count: 1,
+  limit: 50,
+  offset: 0,
+};
+
+const mockLogStats: LogStats = {
+  total_today: 100,
+  errors_today: 5,
+  warnings_today: 10,
+  by_component: { frontend: 50, backend: 50 },
+  by_level: { INFO: 85, WARNING: 10, ERROR: 5 },
+  top_component: 'frontend',
+};
+
+const mockLogsResponse: LogsResponse = {
+  logs: [
+    {
+      id: 1,
+      timestamp: '2025-01-01T10:00:00Z',
+      level: 'INFO',
+      component: 'frontend',
+      message: 'Test log message',
+      source: 'frontend',
+    },
+  ],
+  count: 1,
+  limit: 50,
+  offset: 0,
+};
+
 // Helper to create mock fetch response
 function createMockResponse<T>(data: T, status = 200, statusText = 'OK'): Response {
   return {
@@ -129,7 +215,6 @@ describe('Camera API', () => {
 
   describe('fetchCameras', () => {
     it('fetches all cameras successfully', async () => {
-      // API returns { cameras: Camera[], count: number } structure
       vi.mocked(fetch).mockResolvedValueOnce(
         createMockResponse({ cameras: mockCameras, count: mockCameras.length })
       );
@@ -145,7 +230,6 @@ describe('Camera API', () => {
     });
 
     it('handles empty camera list', async () => {
-      // API returns { cameras: Camera[], count: number } structure
       vi.mocked(fetch).mockResolvedValueOnce(createMockResponse({ cameras: [], count: 0 }));
 
       const result = await fetchCameras();
@@ -437,6 +521,52 @@ describe('System API', () => {
     });
   });
 
+  describe('updateConfig', () => {
+    it('updates system config successfully', async () => {
+      const updateData: SystemConfigUpdate = {
+        retention_days: 60,
+        batch_window_seconds: 120,
+      };
+
+      const updatedConfig: SystemConfig = {
+        ...mockConfig,
+        retention_days: 60,
+        batch_window_seconds: 120,
+      };
+
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(updatedConfig));
+
+      const result = await updateConfig(updateData);
+
+      expect(fetch).toHaveBeenCalledWith('/api/system/config', {
+        method: 'PATCH',
+        body: JSON.stringify(updateData),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      expect(result.retention_days).toBe(60);
+      expect(result.batch_window_seconds).toBe(120);
+    });
+
+    it('updates partial config', async () => {
+      const updateData: SystemConfigUpdate = {
+        detection_confidence_threshold: 0.7,
+      };
+
+      const updatedConfig: SystemConfig = {
+        ...mockConfig,
+        detection_confidence_threshold: 0.7,
+      };
+
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(updatedConfig));
+
+      const result = await updateConfig(updateData);
+
+      expect(result.detection_confidence_threshold).toBe(0.7);
+    });
+  });
+
   describe('fetchStats', () => {
     it('fetches system stats successfully', async () => {
       vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockStats));
@@ -467,6 +597,307 @@ describe('System API', () => {
 
       expect(result.total_cameras).toBe(0);
       expect(result.uptime_seconds).toBe(0);
+    });
+  });
+});
+
+describe('Events API', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  describe('fetchEvents', () => {
+    it('fetches events without params', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockEventListResponse));
+
+      const result = await fetchEvents();
+
+      expect(fetch).toHaveBeenCalledWith('/api/events', {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      expect(result.events).toEqual([mockEvent]);
+    });
+
+    it('fetches events with all query params', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockEventListResponse));
+
+      const params: EventsQueryParams = {
+        camera_id: 'cam-1',
+        risk_level: 'high',
+        start_date: '2025-01-01',
+        end_date: '2025-01-31',
+        reviewed: false,
+        object_type: 'person',
+        limit: 25,
+        offset: 10,
+      };
+
+      await fetchEvents(params);
+
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/events?'),
+        expect.any(Object)
+      );
+      const callUrl = vi.mocked(fetch).mock.calls[0][0] as string;
+      expect(callUrl).toContain('camera_id=cam-1');
+      expect(callUrl).toContain('risk_level=high');
+      expect(callUrl).toContain('start_date=2025-01-01');
+      expect(callUrl).toContain('end_date=2025-01-31');
+      expect(callUrl).toContain('reviewed=false');
+      expect(callUrl).toContain('object_type=person');
+      expect(callUrl).toContain('limit=25');
+      expect(callUrl).toContain('offset=10');
+    });
+
+    it('fetches events with partial params', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockEventListResponse));
+
+      const params: EventsQueryParams = {
+        camera_id: 'cam-1',
+        limit: 10,
+      };
+
+      await fetchEvents(params);
+
+      const callUrl = vi.mocked(fetch).mock.calls[0][0] as string;
+      expect(callUrl).toContain('camera_id=cam-1');
+      expect(callUrl).toContain('limit=10');
+      expect(callUrl).not.toContain('risk_level');
+    });
+  });
+
+  describe('fetchEvent', () => {
+    it('fetches a single event', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockEvent));
+
+      const result = await fetchEvent(1);
+
+      expect(fetch).toHaveBeenCalledWith('/api/events/1', {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      expect(result).toEqual(mockEvent);
+    });
+
+    it('throws ApiError on 404', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        createMockErrorResponse(404, 'Not Found', 'Event not found')
+      );
+
+      await expect(fetchEvent(999)).rejects.toThrow(ApiError);
+    });
+  });
+
+  describe('updateEvent', () => {
+    it('updates event reviewed status', async () => {
+      const updateData: EventUpdateData = { reviewed: true };
+      const updatedEvent = { ...mockEvent, reviewed: true };
+
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(updatedEvent));
+
+      const result = await updateEvent(1, updateData);
+
+      expect(fetch).toHaveBeenCalledWith('/api/events/1', {
+        method: 'PATCH',
+        body: JSON.stringify(updateData),
+        headers: { 'Content-Type': 'application/json' },
+      });
+      expect(result.reviewed).toBe(true);
+    });
+
+    it('updates event notes', async () => {
+      const updateData: EventUpdateData = { notes: 'Test notes' };
+      const updatedEvent = { ...mockEvent, notes: 'Test notes' };
+
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(updatedEvent));
+
+      const result = await updateEvent(1, updateData);
+
+      expect(result.notes).toBe('Test notes');
+    });
+
+    it('clears event notes', async () => {
+      const updateData: EventUpdateData = { notes: null };
+      const updatedEvent = { ...mockEvent, notes: null };
+
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(updatedEvent));
+
+      const result = await updateEvent(1, updateData);
+
+      expect(result.notes).toBeNull();
+    });
+  });
+
+  describe('bulkUpdateEvents', () => {
+    it('updates multiple events successfully', async () => {
+      const updatedEvent1 = { ...mockEvent, id: 1, reviewed: true };
+      const updatedEvent2 = { ...mockEvent, id: 2, reviewed: true };
+
+      vi.mocked(fetch)
+        .mockResolvedValueOnce(createMockResponse(updatedEvent1))
+        .mockResolvedValueOnce(createMockResponse(updatedEvent2));
+
+      const result = await bulkUpdateEvents([1, 2], { reviewed: true });
+
+      expect(result.successful).toEqual([1, 2]);
+      expect(result.failed).toEqual([]);
+    });
+
+    it('handles partial failures', async () => {
+      vi.mocked(fetch)
+        .mockResolvedValueOnce(createMockResponse({ ...mockEvent, reviewed: true }))
+        .mockResolvedValueOnce(createMockErrorResponse(404, 'Not Found', 'Event not found'));
+
+      const result = await bulkUpdateEvents([1, 2], { reviewed: true });
+
+      expect(result.successful).toContain(1);
+      expect(result.failed).toHaveLength(1);
+      expect(result.failed[0].id).toBe(2);
+    });
+
+    it('handles non-Error failures', async () => {
+      vi.mocked(fetch)
+        .mockResolvedValueOnce(createMockResponse({ ...mockEvent, reviewed: true }))
+        .mockRejectedValueOnce('string error');
+
+      const result = await bulkUpdateEvents([1, 2], { reviewed: true });
+
+      expect(result.successful).toContain(1);
+      expect(result.failed[0].error).toBe('Network request failed');
+    });
+  });
+});
+
+describe('Detections API', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  describe('fetchEventDetections', () => {
+    it('fetches detections for an event', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockDetectionListResponse));
+
+      const result = await fetchEventDetections(1);
+
+      expect(fetch).toHaveBeenCalledWith('/api/events/1/detections', {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      expect(result.detections).toEqual([mockDetection]);
+    });
+
+    it('fetches detections with pagination params', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockDetectionListResponse));
+
+      await fetchEventDetections(1, { limit: 10, offset: 5 });
+
+      const callUrl = vi.mocked(fetch).mock.calls[0][0] as string;
+      expect(callUrl).toContain('limit=10');
+      expect(callUrl).toContain('offset=5');
+    });
+
+    it('fetches detections with only limit', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockDetectionListResponse));
+
+      await fetchEventDetections(1, { limit: 20 });
+
+      const callUrl = vi.mocked(fetch).mock.calls[0][0] as string;
+      expect(callUrl).toContain('limit=20');
+    });
+  });
+
+  describe('getDetectionImageUrl', () => {
+    it('constructs detection image URL correctly', () => {
+      const url = getDetectionImageUrl(123);
+      expect(url).toBe('/api/detections/123/image');
+    });
+  });
+});
+
+describe('Logs API', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  describe('fetchLogStats', () => {
+    it('fetches log stats successfully', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockLogStats));
+
+      const result = await fetchLogStats();
+
+      expect(fetch).toHaveBeenCalledWith('/api/logs/stats', {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      expect(result.total_today).toBe(100);
+      expect(result.errors_today).toBe(5);
+    });
+  });
+
+  describe('fetchLogs', () => {
+    it('fetches logs without params', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockLogsResponse));
+
+      const result = await fetchLogs();
+
+      expect(fetch).toHaveBeenCalledWith('/api/logs', {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      expect(result.logs).toHaveLength(1);
+    });
+
+    it('fetches logs with all query params', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockLogsResponse));
+
+      const params: LogsQueryParams = {
+        level: 'ERROR',
+        component: 'frontend',
+        camera_id: 'cam-1',
+        source: 'backend',
+        search: 'error message',
+        start_date: '2025-01-01',
+        end_date: '2025-01-31',
+        limit: 25,
+        offset: 10,
+      };
+
+      await fetchLogs(params);
+
+      const callUrl = vi.mocked(fetch).mock.calls[0][0] as string;
+      expect(callUrl).toContain('level=ERROR');
+      expect(callUrl).toContain('component=frontend');
+      expect(callUrl).toContain('camera_id=cam-1');
+      expect(callUrl).toContain('source=backend');
+      expect(callUrl).toContain('search=error+message');
+      expect(callUrl).toContain('start_date=2025-01-01');
+      expect(callUrl).toContain('end_date=2025-01-31');
+      expect(callUrl).toContain('limit=25');
+      expect(callUrl).toContain('offset=10');
+    });
+
+    it('fetches logs with partial params', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockLogsResponse));
+
+      const params: LogsQueryParams = {
+        level: 'WARNING',
+        limit: 50,
+      };
+
+      await fetchLogs(params);
+
+      const callUrl = vi.mocked(fetch).mock.calls[0][0] as string;
+      expect(callUrl).toContain('level=WARNING');
+      expect(callUrl).toContain('limit=50');
+      expect(callUrl).not.toContain('component');
     });
   });
 });

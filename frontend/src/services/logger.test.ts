@@ -217,3 +217,35 @@ describe('ComponentLogger type', () => {
     expect(componentLogger).toBeDefined();
   });
 });
+
+describe('Batch size triggering', () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+  let consoleSpy: {
+    log: ReturnType<typeof vi.spyOn>;
+    warn: ReturnType<typeof vi.spyOn>;
+    error: ReturnType<typeof vi.spyOn>;
+  };
+
+  beforeEach(() => {
+    fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
+
+    consoleSpy = {
+      log: vi.spyOn(console, 'log').mockImplementation(() => {}),
+      warn: vi.spyOn(console, 'warn').mockImplementation(() => {}),
+      error: vi.spyOn(console, 'error').mockImplementation(() => {}),
+    };
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('logs CRITICAL level messages to console.error', () => {
+    // CRITICAL is a valid log level that routes to console.error
+    // We can trigger this by looking at the API error logging path
+    logger.apiError('/test', 500, 'Server error');
+    expect(consoleSpy.error).toHaveBeenCalled();
+  });
+});

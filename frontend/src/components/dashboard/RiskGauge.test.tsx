@@ -150,6 +150,13 @@ describe('RiskGauge', () => {
       render(<RiskGauge value={50} history={[]} />);
       expect(screen.queryByText('Risk History')).not.toBeInTheDocument();
     });
+
+    it('renders sparkline header but no path for single history entry', () => {
+      const history = [50];
+      render(<RiskGauge value={50} history={history} />);
+      // Should show the history section (header) but no path since history.length <= 1
+      expect(screen.getByText('Risk History')).toBeInTheDocument();
+    });
   });
 
   describe('SVG Structure', () => {

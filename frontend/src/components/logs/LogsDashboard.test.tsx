@@ -555,6 +555,26 @@ describe('LogsDashboard', () => {
     });
   });
 
+  describe('Error Handling with non-Error objects', () => {
+    it('displays generic error message when error is not an Error instance', async () => {
+      vi.clearAllMocks();
+      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
+      vi.mocked(api.fetchLogStats).mockResolvedValue(mockLogStats);
+      vi.mocked(api.fetchLogs).mockRejectedValue('string error');
+
+      render(<LogsDashboard />);
+
+      await waitFor(
+        () => {
+          expect(screen.getByText('Error Loading Logs')).toBeInTheDocument();
+        },
+        { timeout: 3000 }
+      );
+
+      expect(screen.getByText('Failed to load logs')).toBeInTheDocument();
+    });
+  });
+
   describe('Empty States', () => {
     it('shows empty state when no logs exist', async () => {
       vi.mocked(api.fetchLogs).mockResolvedValue({

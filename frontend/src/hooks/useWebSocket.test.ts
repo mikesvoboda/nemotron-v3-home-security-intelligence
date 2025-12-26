@@ -436,4 +436,123 @@ describe('useWebSocket', () => {
       expect(result.current.isConnected).toBe(true);
     });
   });
+
+  it('should not create new connection when already connecting', () => {
+    // Create a WebSocket mock that stays in CONNECTING state
+    const slowMockWebSocket: MockWebSocket = new MockWebSocket('ws://localhost:8000/ws');
+    slowMockWebSocket.readyState = WebSocket.CONNECTING;
+
+    window.WebSocket = vi.fn(() => {
+      slowMockWebSocket.readyState = WebSocket.CONNECTING;
+      return slowMockWebSocket as unknown as WebSocket;
+    }) as unknown as typeof WebSocket;
+
+    Object.defineProperty(window.WebSocket, 'CONNECTING', { value: 0 });
+    Object.defineProperty(window.WebSocket, 'OPEN', { value: 1 });
+    Object.defineProperty(window.WebSocket, 'CLOSING', { value: 2 });
+    Object.defineProperty(window.WebSocket, 'CLOSED', { value: 3 });
+
+    const options: WebSocketOptions = {
+      url: 'ws://localhost:8000/ws',
+    };
+
+    const { result } = renderHook(() => useWebSocket(options));
+
+    const callCountAfterInitial = (window.WebSocket as unknown as ReturnType<typeof vi.fn>).mock.calls.length;
+
+    // Try to connect again while still connecting
+    act(() => {
+      result.current.connect();
+    });
+
+    // Should not have created additional WebSocket connections
+    expect((window.WebSocket as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBe(callCountAfterInitial);
+  });
+
+  it('should not create new connection when already open', async () => {
+    const options: WebSocketOptions = {
+      url: 'ws://localhost:8000/ws',
+    };
+
+    const { result } = renderHook(() => useWebSocket(options));
+
+    await waitFor(() => {
+      expect(result.current.isConnected).toBe(true);
+    });
+
+    const callCountAfterOpen = (window.WebSocket as unknown as ReturnType<typeof vi.fn>).mock.calls.length;
+
+    // Try to connect again while already open
+    act(() => {
+      result.current.connect();
+    });
+
+    // Should not have created additional WebSocket connections
+    expect((window.WebSocket as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBe(callCountAfterOpen);
+  });
+
+  it('should handle WebSocket constructor error', () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    // Make WebSocket constructor throw an error
+    window.WebSocket = vi.fn(() => {
+      throw new Error('WebSocket connection failed');
+    }) as unknown as typeof WebSocket;
+
+    Object.defineProperty(window.WebSocket, 'CONNECTING', { value: 0 });
+    Object.defineProperty(window.WebSocket, 'OPEN', { value: 1 });
+
+    const options: WebSocketOptions = {
+      url: 'ws://localhost:8000/ws',
+    };
+
+    const { result } = renderHook(() => useWebSocket(options));
+
+    // Should not crash and isConnected should be false
+    expect(result.current.isConnected).toBe(false);
+    expect(consoleSpy).toHaveBeenCalledWith('WebSocket connection error:', expect.any(Error));
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should not connect when WebSocket is not available', () => {
+    // Remove WebSocket from window to simulate no WebSocket support
+    const savedWebSocket = window.WebSocket;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).WebSocket = undefined;
+
+    const options: WebSocketOptions = {
+      url: 'ws://localhost:8000/ws',
+    };
+
+    const { result } = renderHook(() => useWebSocket(options));
+
+    // Should not crash and isConnected should be false
+    expect(result.current.isConnected).toBe(false);
+
+    // Restore WebSocket
+    window.WebSocket = savedWebSocket;
+  });
+
+  it('should send string data directly without JSON.stringify', async () => {
+    const options: WebSocketOptions = {
+      url: 'ws://localhost:8000/ws',
+    };
+
+    const { result } = renderHook(() => useWebSocket(options));
+
+    await waitFor(() => {
+      expect(result.current.isConnected).toBe(true);
+    });
+
+    const sendSpy = vi.spyOn(mockWebSocket as MockWebSocket, 'send');
+    const testString = 'plain string message';
+
+    act(() => {
+      result.current.send(testString);
+    });
+
+    // String should be sent directly, not JSON.stringified (which would add quotes)
+    expect(sendSpy).toHaveBeenCalledWith(testString);
+  });
 });
