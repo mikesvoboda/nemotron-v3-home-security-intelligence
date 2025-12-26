@@ -1,4 +1,10 @@
-"""Integration tests for media file serving endpoints."""
+"""Integration tests for media file serving endpoints.
+
+Performance optimization: Fixtures use module scope to avoid recreating
+test directories and client for each test (21 tests). This reduces
+overall test time significantly while maintaining test isolation
+since all tests only read from the test directories.
+"""
 
 import tempfile
 from pathlib import Path
@@ -10,35 +16,13 @@ from fastapi.testclient import TestClient
 from backend.main import app
 
 
-@pytest.fixture
-def client():
-    """Create test client with mocked background services."""
-    # Mock background services that have 5-second intervals to avoid slow teardown
-    mock_system_broadcaster = MagicMock()
-    mock_system_broadcaster.start_broadcasting = AsyncMock()
-    mock_system_broadcaster.stop_broadcasting = AsyncMock()
+@pytest.fixture(scope="module")
+def module_temp_foscam_dir():
+    """Create temporary Foscam directory structure once per module.
 
-    mock_gpu_monitor = MagicMock()
-    mock_gpu_monitor.start = AsyncMock()
-    mock_gpu_monitor.stop = AsyncMock()
-
-    mock_cleanup_service = MagicMock()
-    mock_cleanup_service.start = AsyncMock()
-    mock_cleanup_service.stop = AsyncMock()
-
-    # Patch background services to avoid slow teardown
-    with (
-        patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
-        patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor),
-        patch("backend.main.CleanupService", return_value=mock_cleanup_service),
-        TestClient(app) as test_client,
-    ):
-        yield test_client
-
-
-@pytest.fixture
-def temp_foscam_dir(monkeypatch):
-    """Create temporary Foscam directory structure for testing."""
+    This fixture is module-scoped to avoid recreating test files for each test.
+    All tests in this module only read from these directories.
+    """
     with tempfile.TemporaryDirectory() as tmpdir:
         base_path = Path(tmpdir)
         camera_dir = base_path / "test_camera"
@@ -58,25 +42,17 @@ def temp_foscam_dir(monkeypatch):
         (camera_dir / "malware.exe").write_bytes(b"fake exe")
         (camera_dir / "script.sh").write_bytes(b"fake script")
 
-        # Patch the settings to use our temp directory
-        from backend.core.config import Settings
-
-        def mock_get_settings():
-            settings = Settings()
-            settings.foscam_base_path = str(base_path)
-            return settings
-
-        monkeypatch.setattr("backend.api.routes.media.get_settings", mock_get_settings)
-
         yield base_path
 
 
-@pytest.fixture
-def temp_thumbnail_dir(tmp_path):
-    """Create temporary thumbnail directory for testing."""
+@pytest.fixture(scope="module")
+def module_thumbnail_dir():
+    """Create temporary thumbnail directory once per module.
+
+    This fixture is module-scoped to avoid recreating test files for each test.
+    All tests in this module only read from this directory.
+    """
     # Create the directory structure relative to the actual backend location
-    # We're in backend/tests/integration/test_media_api.py
-    # We need to go up to backend/ root, then data/thumbnails/
     thumb_dir = Path(__file__).parent.parent.parent / "data" / "thumbnails"
     thumb_dir.mkdir(parents=True, exist_ok=True)
 
@@ -91,6 +67,63 @@ def temp_thumbnail_dir(tmp_path):
     for file in thumb_dir.glob("*"):
         if file.name in ["thumb1.jpg", "thumb2.png", "malware.exe"]:
             file.unlink()
+
+
+@pytest.fixture(scope="module")
+def client(module_temp_foscam_dir, module_thumbnail_dir):
+    """Create test client with mocked background services (module-scoped).
+
+    Using module scope significantly reduces test time by avoiding
+    21 separate TestClient setup/teardown cycles.
+    """
+    # Mock background services that have 5-second intervals to avoid slow teardown
+    mock_system_broadcaster = MagicMock()
+    mock_system_broadcaster.start_broadcasting = AsyncMock()
+    mock_system_broadcaster.stop_broadcasting = AsyncMock()
+
+    mock_gpu_monitor = MagicMock()
+    mock_gpu_monitor.start = AsyncMock()
+    mock_gpu_monitor.stop = AsyncMock()
+
+    mock_cleanup_service = MagicMock()
+    mock_cleanup_service.start = AsyncMock()
+    mock_cleanup_service.stop = AsyncMock()
+
+    # Create mock settings that uses our temp directory
+    from backend.core.config import Settings
+
+    def mock_get_settings():
+        settings = Settings()
+        settings.foscam_base_path = str(module_temp_foscam_dir)
+        return settings
+
+    # Patch background services and settings to avoid slow teardown
+    with (
+        patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
+        patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor),
+        patch("backend.main.CleanupService", return_value=mock_cleanup_service),
+        patch("backend.api.routes.media.get_settings", mock_get_settings),
+        TestClient(app) as test_client,
+    ):
+        yield test_client
+
+
+@pytest.fixture
+def temp_foscam_dir(module_temp_foscam_dir):
+    """Alias fixture for backward compatibility with existing tests.
+
+    Delegates to module-scoped fixture.
+    """
+    return module_temp_foscam_dir
+
+
+@pytest.fixture
+def temp_thumbnail_dir(module_thumbnail_dir):
+    """Alias fixture for backward compatibility with existing tests.
+
+    Delegates to module-scoped fixture.
+    """
+    return module_thumbnail_dir
 
 
 class TestCameraFileServing:
