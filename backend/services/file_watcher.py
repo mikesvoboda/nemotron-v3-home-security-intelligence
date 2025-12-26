@@ -2,6 +2,17 @@
 
 This service watches camera directories for new image uploads, validates them,
 and queues them for AI processing with debounce logic to prevent duplicate processing.
+
+Idempotency:
+-----------
+Files are deduplicated using SHA256 content hashes stored in Redis with TTL.
+This prevents duplicate processing caused by:
+- Watchdog create/modify event bursts
+- Service restarts during file processing
+- FTP upload retries
+
+The dedupe check happens before enqueueing to Redis, ensuring the same file
+content is never processed twice within the TTL window (default 5 minutes).
 """
 
 import asyncio
@@ -16,6 +27,7 @@ from watchdog.observers import Observer
 
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
+from backend.services.dedupe import DedupeService
 
 logger = get_logger(__name__)
 
@@ -78,6 +90,7 @@ class FileWatcher:
         redis_client: Any | None = None,
         debounce_delay: float = 0.5,
         queue_name: str = "detection_queue",
+        dedupe_service: DedupeService | None = None,
     ):
         """Initialize file watcher.
 
@@ -86,12 +99,20 @@ class FileWatcher:
             redis_client: RedisClient instance for queueing detections
             debounce_delay: Delay in seconds to wait after last file modification
             queue_name: Name of Redis queue for detection jobs
+            dedupe_service: Optional DedupeService for file deduplication
         """
         settings = get_settings()
         self.camera_root = camera_root or settings.foscam_base_path
         self.redis_client = redis_client
         self.debounce_delay = debounce_delay
         self.queue_name = queue_name
+
+        # Initialize dedupe service (creates one if not provided and redis is available)
+        self._dedupe_service: DedupeService | None = None
+        if dedupe_service is not None:
+            self._dedupe_service = dedupe_service
+        elif redis_client is not None:
+            self._dedupe_service = DedupeService(redis_client=redis_client)
 
         # Watchdog observer for filesystem monitoring
         self.observer = Observer()
@@ -108,7 +129,10 @@ class FileWatcher:
         # Create event handler
         self._event_handler = self._create_event_handler()
 
-        logger.info(f"FileWatcher initialized for camera root: {self.camera_root}")
+        logger.info(
+            f"FileWatcher initialized for camera root: {self.camera_root} "
+            f"(dedupe={'enabled' if self._dedupe_service else 'disabled'})"
+        )
 
     def _create_event_handler(self) -> FileSystemEventHandler:
         """Create watchdog event handler for file system events.
@@ -272,7 +296,11 @@ class FileWatcher:
             )
 
     async def _queue_for_detection(self, camera_id: str, file_path: str) -> None:
-        """Add image to detection queue in Redis.
+        """Add image to detection queue in Redis with deduplication.
+
+        Checks if file has already been processed using content hash before
+        enqueueing. This prevents duplicate detections from watchdog event
+        bursts and service restarts.
 
         Args:
             camera_id: Camera identifier
@@ -282,11 +310,26 @@ class FileWatcher:
             logger.warning("Redis client not configured, skipping queue")
             return
 
+        # Check for duplicate using content hash
+        file_hash: str | None = None
+        if self._dedupe_service:
+            is_duplicate, file_hash = await self._dedupe_service.is_duplicate_and_mark(file_path)
+            if is_duplicate:
+                logger.info(
+                    f"Skipping duplicate file: {file_path} (hash={file_hash[:16] if file_hash else 'unknown'}...)",
+                    extra={"camera_id": camera_id, "file_path": file_path, "file_hash": file_hash},
+                )
+                return
+
         detection_data = {
             "camera_id": camera_id,
             "file_path": file_path,
             "timestamp": datetime.now().isoformat(),
         }
+
+        # Include hash in queue data for downstream deduplication if needed
+        if file_hash:
+            detection_data["file_hash"] = file_hash
 
         await self.redis_client.add_to_queue(self.queue_name, detection_data)
 

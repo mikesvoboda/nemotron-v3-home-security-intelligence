@@ -351,7 +351,7 @@ services:
       - ./backend/data:/app/data
       - /export/foscam:/cameras:ro
     environment:
-      - DATABASE_URL=sqlite:///data/security.db
+      - DATABASE_URL=sqlite+aiosqlite:///data/security.db
       - REDIS_URL=redis://redis:6379
       - DETECTOR_URL=http://host.docker.internal:8001
       - LLM_URL=http://host.docker.internal:8002
@@ -390,7 +390,7 @@ volumes:
 CAMERA_ROOT=/export/foscam
 
 # Database
-DATABASE_URL=sqlite:///data/security.db
+DATABASE_URL=sqlite+aiosqlite:///data/security.db
 
 # Redis
 REDIS_URL=redis://localhost:6379
