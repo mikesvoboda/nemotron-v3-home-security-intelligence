@@ -25,6 +25,7 @@ describe('Sidebar', () => {
     expect(screen.getByText('Timeline')).toBeInTheDocument();
     expect(screen.getByText('Entities')).toBeInTheDocument();
     expect(screen.getByText('Alerts')).toBeInTheDocument();
+    expect(screen.getByText('Logs')).toBeInTheDocument();
     expect(screen.getByText('Settings')).toBeInTheDocument();
   });
 
@@ -111,10 +112,10 @@ describe('Sidebar', () => {
     expect(settingsLink).toHaveClass('bg-[#76B900]');
   });
 
-  it('renders all 5 navigation items', () => {
+  it('renders all 6 navigation items', () => {
     renderWithRouter();
     const links = screen.getAllByRole('link');
-    expect(links).toHaveLength(5);
+    expect(links).toHaveLength(6);
   });
 
   it('navigation items have transition classes for smooth hover', () => {

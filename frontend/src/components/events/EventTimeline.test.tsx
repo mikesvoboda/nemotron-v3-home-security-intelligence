@@ -557,7 +557,7 @@ describe('EventTimeline', () => {
       await user.click(nextButton);
 
       await waitFor(() => {
-        expect(screen.getByText('Page 1 of 3')).toBeInTheDocument();
+        expect(screen.getByText('Page 2 of 3')).toBeInTheDocument();
       });
 
       // Navigate back to page 1
@@ -676,7 +676,7 @@ describe('EventTimeline', () => {
       await user.click(nextButton);
 
       await waitFor(() => {
-        expect(screen.getByText('Page 1 of 3')).toBeInTheDocument();
+        expect(screen.getByText('Page 2 of 3')).toBeInTheDocument();
       });
 
       // Apply a filter
@@ -696,7 +696,7 @@ describe('EventTimeline', () => {
 
   describe('Error Handling', () => {
     it('displays error message when fetching events fails', async () => {
-      vi.clearAllMocks();
+      vi.resetAllMocks();
       vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
       vi.mocked(api.fetchEvents).mockRejectedValue(new Error('Network error'));
 
@@ -714,7 +714,7 @@ describe('EventTimeline', () => {
     });
 
     it('handles camera fetch errors gracefully', async () => {
-      vi.clearAllMocks();
+      vi.resetAllMocks();
       vi.mocked(api.fetchCameras).mockRejectedValue(new Error('Camera fetch failed'));
       vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
 
@@ -1242,7 +1242,7 @@ describe('EventTimeline', () => {
     });
 
     it('does not display risk badges when there is an error', async () => {
-      vi.clearAllMocks();
+      vi.resetAllMocks();
       vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
       vi.mocked(api.fetchEvents).mockRejectedValue(new Error('Network error'));
 

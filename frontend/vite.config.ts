@@ -23,6 +23,20 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
     css: true,
+    // Memory optimization: use forks pool with single fork to prevent heap out of memory
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        singleFork: true,
+      },
+    },
+    // Test timeouts
+    testTimeout: 10000,
+    hookTimeout: 10000,
+    // Cache for faster subsequent runs
+    cache: {
+      dir: '.vitest',
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

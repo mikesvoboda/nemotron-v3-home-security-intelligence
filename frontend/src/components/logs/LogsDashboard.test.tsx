@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -495,9 +495,10 @@ describe('LogsDashboard', () => {
           expect(screen.getByRole('dialog')).toBeInTheDocument();
         });
 
-        // Close modal
-        const closeButton = screen.getByLabelText('Close modal');
-        await user.click(closeButton);
+        // Close modal - get first close button in dialog
+        const dialog = screen.getByRole('dialog');
+        const closeButtons = within(dialog).getAllByLabelText('Close modal');
+        await user.click(closeButtons[0]);
 
         await waitFor(() => {
           expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

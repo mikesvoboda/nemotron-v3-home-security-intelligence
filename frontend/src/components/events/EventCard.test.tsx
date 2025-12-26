@@ -1029,7 +1029,7 @@ describe('EventCard', () => {
           ended_at: new Date(BASE_TIME).toISOString(),
         };
         const { unmount } = render(<EventCard {...eventWithDuration} />);
-        expect(screen.getByText(new RegExp(expected))).toBeInTheDocument();
+        expect(screen.getByText(expected, { exact: false })).toBeInTheDocument();
         unmount();
       });
     });
