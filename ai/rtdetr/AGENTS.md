@@ -22,7 +22,7 @@ Main inference server implementation using HuggingFace Transformers:
 - **Pydantic models**: `Detection`, `DetectionResponse`, `BoundingBox`, `HealthResponse`
 - **Security filtering**: Only returns security-relevant object classes
 
-**Port**: 8001
+**Port**: 8090 (configurable via PORT env var)
 **Expected VRAM**: ~3GB
 
 ### `example_client.py` (186 lines)
@@ -203,7 +203,7 @@ cd ai/rtdetr
 python model.py
 ```
 
-Server runs on: `http://0.0.0.0:8001`
+Server runs on: `http://0.0.0.0:8090`
 
 ## Configuration
 
@@ -212,7 +212,7 @@ Environment variables or defaults:
 - `RTDETR_MODEL_PATH`: HuggingFace model name or local path (default: `/export/ai_models/rt-detrv2/rtdetr_v2_r101vd`)
 - `RTDETR_CONFIDENCE`: Minimum detection confidence (default: 0.5)
 - `HOST`: Server host (default: `0.0.0.0`)
-- `PORT`: Server port (default: 8001)
+- `PORT`: Server port (default: 8090)
 
 ## Implementation Patterns
 
@@ -256,7 +256,7 @@ Called by `backend/services/detector_client.py`:
 ```python
 from backend.services.detector_client import DetectorClient
 
-client = DetectorClient()  # Uses settings.rtdetr_url (http://localhost:8001)
+client = DetectorClient()  # Uses settings.rtdetr_url (http://localhost:8090)
 detections = await client.detect_objects(
     image_path="/export/foscam/front_door/image.jpg",
     camera_id="front_door",

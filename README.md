@@ -44,8 +44,8 @@
 ./ai/download_models.sh
 
 # 3. Start AI servers (in separate terminals)
-./ai/start_detector.sh    # RT-DETRv2 on :8001
-./ai/start_llm.sh         # Nemotron on :8090
+./ai/start_detector.sh    # RT-DETRv2 on :8090
+./ai/start_llm.sh         # Nemotron on :8091
 
 # 4. Start the app
 docker compose up --build
@@ -59,7 +59,7 @@ docker compose up --build
 The default `docker-compose.yml` uses `host.docker.internal`. On Linux, either:
 
 - Add `--add-host=host.docker.internal:host-gateway` to your docker run
-- Or set `DETECTOR_URL` and `LLM_URL` explicitly in `.env`
+- Or set `RTDETR_URL` and `NEMOTRON_URL` explicitly in `.env`
 
 </details>
 
@@ -116,8 +116,8 @@ A single "person walks to door" might generate 15 images over 30 seconds. Batchi
 | ----------- | ---- | ------------------- |
 | Frontend    | 5173 | Vite dev server     |
 | Backend API | 8000 | FastAPI + WebSocket |
-| RT-DETRv2   | 8001 | Object detection    |
-| Nemotron    | 8090 | LLM risk analysis   |
+| RT-DETRv2   | 8090 | Object detection    |
+| Nemotron    | 8091 | LLM risk analysis   |
 | Redis       | 6379 | Queues + pub/sub    |
 
 </details>
@@ -193,8 +193,8 @@ Copy `.env.example` to `.env` and adjust as needed.
 **AI Services**
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `RTDETR_URL` | `http://localhost:8001` | Detection service |
-| `NEMOTRON_URL` | `http://localhost:8090` | LLM service |
+| `RTDETR_URL` | `http://localhost:8090` | Detection service |
+| `NEMOTRON_URL` | `http://localhost:8091` | LLM service |
 | `DETECTION_CONFIDENCE_THRESHOLD` | `0.5` | Minimum confidence (0.0-1.0) |
 
 **Batching**
@@ -310,8 +310,8 @@ ai/
 <summary>Backend can't reach AI services</summary>
 
 ```bash
-curl http://localhost:8001/health   # RT-DETRv2
-curl http://localhost:8090/health   # Nemotron
+curl http://localhost:8090/health   # RT-DETRv2
+curl http://localhost:8091/health   # Nemotron
 ```
 
 On Linux, ensure Docker can reach host services (see Quick Start note).

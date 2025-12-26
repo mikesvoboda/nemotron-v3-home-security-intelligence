@@ -252,8 +252,8 @@ RETENTION_DAYS=30
 GPU_POLL_INTERVAL_SECONDS=2
 
 # Frontend
-VITE_API_URL=http://localhost:8000
-VITE_WS_URL=ws://localhost:8000
+VITE_API_BASE_URL=http://localhost:8000
+VITE_WS_BASE_URL=ws://localhost:8000
 ```
 
 ## Next Steps After Setup

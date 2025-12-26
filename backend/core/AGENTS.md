@@ -107,8 +107,8 @@ Manages all application configuration using Pydantic Settings with environment v
 
 **AI Service Endpoints:**
 
-- `rtdetr_url: str` - RT-DETRv2 detection service URL (default: `http://localhost:8001`)
-- `nemotron_url: str` - Nemotron reasoning service URL (default: `http://localhost:8002`)
+- `rtdetr_url: str` - RT-DETRv2 detection service URL (default: `http://localhost:8090`)
+- `nemotron_url: str` - Nemotron reasoning service URL (default: `http://localhost:8091`)
 
 **Detection Settings:**
 

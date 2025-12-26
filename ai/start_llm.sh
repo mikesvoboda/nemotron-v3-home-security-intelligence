@@ -2,7 +2,7 @@
 #
 # Nemotron LLM Server Startup Script (via llama.cpp)
 #
-# Port: 8002
+# Port: 8091 (configurable via NEMOTRON_PORT)
 # VRAM Usage: ~3GB (Q4_K_M quantization)
 # Context: 4096 tokens
 # Parallelism: 2 concurrent requests
@@ -13,7 +13,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NEMOTRON_DIR="$SCRIPT_DIR/nemotron"
 MODEL_FILE_DEFAULT="$NEMOTRON_DIR/nemotron-mini-4b-instruct-q4_k_m.gguf"
 MODEL_FILE="${NEMOTRON_MODEL_PATH:-$MODEL_FILE_DEFAULT}"
-MODEL_PORT=8090
+MODEL_PORT="${NEMOTRON_PORT:-8091}"
 
 # Check if model exists
 if [ ! -f "$MODEL_FILE" ]; then

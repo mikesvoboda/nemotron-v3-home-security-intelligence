@@ -190,8 +190,8 @@ Verified the Docker Compose deployment configuration and enhanced it with health
 
 **Frontend:**
 
-- VITE_API_URL: http://localhost:8000
-- VITE_WS_URL: ws://localhost:8000
+- VITE_API_BASE_URL: http://localhost:8000
+- VITE_WS_BASE_URL: ws://localhost:8000
 
 ## Verification Checklist
 
@@ -341,7 +341,7 @@ All services are running and healthy:
 ### If Frontend cannot connect to Backend:
 
 - Ensure Backend is healthy: `docker compose ps backend`
-- Check VITE_API_URL: `docker compose exec frontend env | grep VITE`
+- Check VITE_API_BASE_URL: `docker compose exec frontend env | grep VITE`
 - Test Backend from host: `curl http://localhost:8000/health`
 
 ## Files Created/Modified
