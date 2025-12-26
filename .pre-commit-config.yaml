@@ -86,3 +86,10 @@ repos:
         language: system
         pass_filenames: false
         stages: [commit]
+
+      - id: check-test-mocks
+        name: Check integration tests mock slow services
+        entry: python scripts/check-test-mocks.py
+        language: system
+        files: ^backend/tests/integration/.*\.py$
+        pass_filenames: true

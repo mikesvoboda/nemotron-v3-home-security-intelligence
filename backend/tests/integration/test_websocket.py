@@ -84,10 +84,26 @@ async def async_client(test_db_setup, mock_redis):
     """Create async HTTP client for testing."""
     from backend.main import app
 
-    # Patch init_db and close_db in lifespan to avoid double initialization
+    # Mock background services that have 5-second intervals to avoid slow teardown
+    mock_system_broadcaster = MagicMock()
+    mock_system_broadcaster.start_broadcasting = AsyncMock()
+    mock_system_broadcaster.stop_broadcasting = AsyncMock()
+
+    mock_gpu_monitor = MagicMock()
+    mock_gpu_monitor.start = AsyncMock()
+    mock_gpu_monitor.stop = AsyncMock()
+
+    mock_cleanup_service = MagicMock()
+    mock_cleanup_service.start = AsyncMock()
+    mock_cleanup_service.stop = AsyncMock()
+
+    # Patch init_db/close_db and background services to avoid slow teardown
     with (
         patch("backend.main.init_db", return_value=None),
         patch("backend.main.close_db", return_value=None),
+        patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
+        patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor),
+        patch("backend.main.CleanupService", return_value=mock_cleanup_service),
     ):
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -99,10 +115,26 @@ def sync_client(test_db_setup, mock_redis):
     """Create synchronous test client for WebSocket testing."""
     from backend.main import app
 
-    # Patch init_db and close_db in lifespan to avoid double initialization
+    # Mock background services that have 5-second intervals to avoid slow teardown
+    mock_system_broadcaster = MagicMock()
+    mock_system_broadcaster.start_broadcasting = AsyncMock()
+    mock_system_broadcaster.stop_broadcasting = AsyncMock()
+
+    mock_gpu_monitor = MagicMock()
+    mock_gpu_monitor.start = AsyncMock()
+    mock_gpu_monitor.stop = AsyncMock()
+
+    mock_cleanup_service = MagicMock()
+    mock_cleanup_service.start = AsyncMock()
+    mock_cleanup_service.stop = AsyncMock()
+
+    # Patch init_db/close_db and background services to avoid slow teardown
     with (
         patch("backend.main.init_db", return_value=None),
         patch("backend.main.close_db", return_value=None),
+        patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
+        patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor),
+        patch("backend.main.CleanupService", return_value=mock_cleanup_service),
         TestClient(app) as client,
     ):
         yield client
@@ -562,10 +594,26 @@ def sync_client_with_auth_enabled(test_db_setup, mock_redis, test_api_key):
     # Clear settings cache to pick up new environment variables
     get_settings.cache_clear()
 
-    # Patch init_db and close_db in lifespan to avoid double initialization
+    # Mock background services that have 5-second intervals to avoid slow teardown
+    mock_system_broadcaster = MagicMock()
+    mock_system_broadcaster.start_broadcasting = AsyncMock()
+    mock_system_broadcaster.stop_broadcasting = AsyncMock()
+
+    mock_gpu_monitor = MagicMock()
+    mock_gpu_monitor.start = AsyncMock()
+    mock_gpu_monitor.stop = AsyncMock()
+
+    mock_cleanup_service = MagicMock()
+    mock_cleanup_service.start = AsyncMock()
+    mock_cleanup_service.stop = AsyncMock()
+
+    # Patch init_db/close_db and background services to avoid slow teardown
     with (
         patch("backend.main.init_db", return_value=None),
         patch("backend.main.close_db", return_value=None),
+        patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
+        patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor),
+        patch("backend.main.CleanupService", return_value=mock_cleanup_service),
         TestClient(app) as client,
     ):
         yield client
