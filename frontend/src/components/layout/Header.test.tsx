@@ -44,7 +44,7 @@ describe('Header', () => {
     expect(screen.getByText('Connecting...')).toBeInTheDocument();
   });
 
-  it('displays System Online status when connected and healthy', () => {
+  it('displays LIVE MONITORING status when connected and healthy', () => {
     vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
       status: {
         health: 'healthy',
@@ -59,7 +59,7 @@ describe('Header', () => {
     });
 
     render(<Header />);
-    expect(screen.getByText('System Online')).toBeInTheDocument();
+    expect(screen.getByText('LIVE MONITORING')).toBeInTheDocument();
   });
 
   it('displays GPU stats placeholder when no data', () => {

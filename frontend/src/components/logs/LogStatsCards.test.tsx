@@ -1,5 +1,5 @@
-import { render, screen, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import LogStatsCards from './LogStatsCards';
 import * as api from '../../services/api';
@@ -30,17 +30,29 @@ describe('LogStatsCards', () => {
   };
 
   beforeEach(() => {
+    vi.useFakeTimers();
     vi.clearAllMocks();
     vi.mocked(api.fetchLogStats).mockResolvedValue(mockStats);
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // Helper to render and wait for initial load
+  const renderAndWaitForLoad = async () => {
+    const result = render(<LogStatsCards />);
+    // Advance timers to trigger any pending microtasks and the immediate effect
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    return result;
+  };
+
   describe('Rendering', () => {
     it('renders the statistics title', async () => {
-      render(<LogStatsCards />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Log Statistics')).toBeInTheDocument();
-      });
+      await renderAndWaitForLoad();
+      expect(screen.getByText('Log Statistics')).toBeInTheDocument();
     });
 
     it('displays loading state initially', () => {
@@ -51,58 +63,43 @@ describe('LogStatsCards', () => {
     });
 
     it('displays all statistics after loading', async () => {
-      render(<LogStatsCards />);
+      await renderAndWaitForLoad();
 
-      await waitFor(() => {
-        expect(screen.getByText('5')).toBeInTheDocument(); // errors_today
-      });
-
+      expect(screen.getByText('5')).toBeInTheDocument(); // errors_today
       expect(screen.getByText('10')).toBeInTheDocument(); // warnings_today
       expect(screen.getByText('150')).toBeInTheDocument(); // total_today
       expect(screen.getByText('api')).toBeInTheDocument(); // top_component
     });
 
     it('displays correct card labels', async () => {
-      render(<LogStatsCards />);
+      await renderAndWaitForLoad();
 
-      await waitFor(() => {
-        expect(screen.getByText('Errors Today')).toBeInTheDocument();
-      });
-
+      expect(screen.getByText('Errors Today')).toBeInTheDocument();
       expect(screen.getByText('Warnings Today')).toBeInTheDocument();
       expect(screen.getByText('Total Today')).toBeInTheDocument();
       expect(screen.getByText('Most Active')).toBeInTheDocument();
     });
 
     it('displays log count for most active component', async () => {
-      render(<LogStatsCards />);
+      await renderAndWaitForLoad();
 
-      await waitFor(() => {
-        expect(screen.getByText('api')).toBeInTheDocument();
-      });
-
+      expect(screen.getByText('api')).toBeInTheDocument();
       expect(screen.getByText('50 logs')).toBeInTheDocument();
     });
   });
 
   describe('Error Badge', () => {
     it('shows red styling when errors exist', async () => {
-      render(<LogStatsCards />);
-
-      await waitFor(() => {
-        expect(screen.getByText('5')).toBeInTheDocument();
-      });
+      await renderAndWaitForLoad();
 
       const errorText = screen.getByText('5');
       expect(errorText).toHaveClass('text-red-500');
     });
 
     it('shows Active badge when errors exist', async () => {
-      render(<LogStatsCards />);
+      await renderAndWaitForLoad();
 
-      await waitFor(() => {
-        expect(screen.getByText('Active')).toBeInTheDocument();
-      });
+      expect(screen.getByText('Active')).toBeInTheDocument();
     });
 
     it('shows gray styling when no errors', async () => {
@@ -113,11 +110,7 @@ describe('LogStatsCards', () => {
 
       vi.mocked(api.fetchLogStats).mockResolvedValue(noErrorStats);
 
-      render(<LogStatsCards />);
-
-      await waitFor(() => {
-        expect(screen.getByText('0')).toBeInTheDocument();
-      });
+      await renderAndWaitForLoad();
 
       const errorText = screen.getByText('0');
       expect(errorText).toHaveClass('text-gray-300');
@@ -127,11 +120,7 @@ describe('LogStatsCards', () => {
 
   describe('Warning Badge', () => {
     it('shows yellow styling when warnings exist', async () => {
-      render(<LogStatsCards />);
-
-      await waitFor(() => {
-        expect(screen.getByText('10')).toBeInTheDocument();
-      });
+      await renderAndWaitForLoad();
 
       const warningText = screen.getByText('10');
       expect(warningText).toHaveClass('text-yellow-500');
@@ -145,11 +134,7 @@ describe('LogStatsCards', () => {
 
       vi.mocked(api.fetchLogStats).mockResolvedValue(noWarningStats);
 
-      render(<LogStatsCards />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Warnings Today')).toBeInTheDocument();
-      });
+      await renderAndWaitForLoad();
 
       const warningText = screen.getByText('0');
       expect(warningText).toHaveClass('text-gray-300');
@@ -165,22 +150,16 @@ describe('LogStatsCards', () => {
 
       vi.mocked(api.fetchLogStats).mockResolvedValue(noTopComponentStats);
 
-      render(<LogStatsCards />);
+      await renderAndWaitForLoad();
 
-      await waitFor(() => {
-        expect(screen.getByText('N/A')).toBeInTheDocument();
-      });
-
+      expect(screen.getByText('N/A')).toBeInTheDocument();
       expect(screen.queryByText('logs')).not.toBeInTheDocument();
     });
 
     it('displays component name and log count', async () => {
-      render(<LogStatsCards />);
+      await renderAndWaitForLoad();
 
-      await waitFor(() => {
-        expect(screen.getByText('api')).toBeInTheDocument();
-      });
-
+      expect(screen.getByText('api')).toBeInTheDocument();
       expect(screen.getByText('50 logs')).toBeInTheDocument();
     });
 
@@ -196,150 +175,128 @@ describe('LogStatsCards', () => {
 
       vi.mocked(api.fetchLogStats).mockResolvedValue(statsWithoutCount);
 
-      render(<LogStatsCards />);
+      await renderAndWaitForLoad();
 
-      await waitFor(() => {
-        expect(screen.getByText('unknown_component')).toBeInTheDocument();
-      });
-
+      expect(screen.getByText('unknown_component')).toBeInTheDocument();
       expect(screen.queryByText('logs')).not.toBeInTheDocument();
     });
   });
 
   describe('Auto-refresh', () => {
     it('refreshes stats every 30 seconds', async () => {
-      vi.clearAllMocks();
-      vi.mocked(api.fetchLogStats).mockResolvedValue(mockStats);
+      await renderAndWaitForLoad();
 
-      render(<LogStatsCards />);
+      expect(api.fetchLogStats).toHaveBeenCalledTimes(1);
+      expect(screen.getByText('5')).toBeInTheDocument();
 
-      // Initial load
-      await waitFor(() => {
-        expect(api.fetchLogStats).toHaveBeenCalledTimes(1);
+      // Advance 30 seconds to trigger interval
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30000);
       });
 
-      // Verify that interval exists (component successfully mounted)
-      expect(screen.getByText('5')).toBeInTheDocument();
+      expect(api.fetchLogStats).toHaveBeenCalledTimes(2);
     });
 
     it('clears interval on unmount', async () => {
-      vi.clearAllMocks();
-      vi.mocked(api.fetchLogStats).mockResolvedValue(mockStats);
+      const { unmount } = await renderAndWaitForLoad();
 
-      const { unmount } = render(<LogStatsCards />);
-
-      await waitFor(() => {
-        expect(api.fetchLogStats).toHaveBeenCalledTimes(1);
-      });
+      expect(api.fetchLogStats).toHaveBeenCalledTimes(1);
 
       unmount();
 
-      // Interval should be cleared, no error should occur
+      // Advance time after unmount - interval should be cleared
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30000);
+      });
+
+      // Should still be 1, interval was cleared
       expect(api.fetchLogStats).toHaveBeenCalledTimes(1);
     });
 
     it('updates display when stats change', async () => {
-      vi.clearAllMocks();
-      vi.mocked(api.fetchLogStats).mockResolvedValue(mockStats);
+      await renderAndWaitForLoad();
 
-      render(<LogStatsCards />);
+      expect(screen.getByText('5')).toBeInTheDocument();
 
-      await waitFor(() => {
-        expect(screen.getByText('5')).toBeInTheDocument();
-      });
-
-      // Update mock stats for next render
+      // Update mock stats for next refresh
       const updatedStats: LogStats = {
         ...mockStats,
         errors_today: 15,
       };
-
       vi.mocked(api.fetchLogStats).mockResolvedValue(updatedStats);
 
-      // Verify initial render shows original stats
-      expect(screen.getByText('5')).toBeInTheDocument();
+      // Advance 30 seconds to trigger interval refresh
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30000);
+      });
+
+      // Should now show updated stats
+      expect(screen.getByText('15')).toBeInTheDocument();
     });
   });
 
   describe('Error Handling', () => {
     it('displays error message when fetching stats fails', async () => {
-      vi.clearAllMocks();
       vi.mocked(api.fetchLogStats).mockRejectedValue(new Error('Network error'));
 
-      render(<LogStatsCards />);
+      await renderAndWaitForLoad();
 
-      await waitFor(() => {
-        expect(screen.getByText('Network error')).toBeInTheDocument();
-      });
-
+      expect(screen.getByText('Network error')).toBeInTheDocument();
       expect(screen.getByText('Log Statistics')).toBeInTheDocument();
     });
 
     it('displays generic error message for non-Error objects', async () => {
-      vi.clearAllMocks();
       vi.mocked(api.fetchLogStats).mockRejectedValue('String error');
 
-      render(<LogStatsCards />);
+      await renderAndWaitForLoad();
 
-      await waitFor(() => {
-        expect(screen.getByText('Failed to load log stats')).toBeInTheDocument();
-      });
+      expect(screen.getByText('Failed to load log stats')).toBeInTheDocument();
     });
 
     it('retains previous stats on refresh error', async () => {
-      vi.clearAllMocks();
-      vi.mocked(api.fetchLogStats).mockResolvedValue(mockStats);
+      await renderAndWaitForLoad();
 
-      render(<LogStatsCards />);
+      expect(screen.getByText('5')).toBeInTheDocument();
+      expect(screen.getByText('150')).toBeInTheDocument();
 
-      await waitFor(() => {
-        expect(screen.getByText('5')).toBeInTheDocument();
+      // Next refresh will fail
+      vi.mocked(api.fetchLogStats).mockRejectedValue(new Error('Refresh error'));
+
+      // Advance 30 seconds to trigger interval refresh
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30000);
       });
 
-      // Stats are loaded and displayed
-      expect(screen.getByText('150')).toBeInTheDocument();
+      // Component shows error state when refresh fails
+      expect(screen.getByText('Refresh error')).toBeInTheDocument();
     });
   });
 
   describe('Custom Styling', () => {
     it('applies custom className', async () => {
-      vi.clearAllMocks();
-      vi.mocked(api.fetchLogStats).mockResolvedValue(mockStats);
-
       const { container } = render(<LogStatsCards className="custom-class" />);
 
-      await waitFor(() => {
-        expect(screen.getByText('Log Statistics')).toBeInTheDocument();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
       });
 
+      expect(screen.getByText('Log Statistics')).toBeInTheDocument();
       const card = container.querySelector('.custom-class');
       expect(card).toBeInTheDocument();
     });
 
     it('uses NVIDIA dark theme colors', async () => {
-      vi.clearAllMocks();
-      vi.mocked(api.fetchLogStats).mockResolvedValue(mockStats);
+      const { container } = await renderAndWaitForLoad();
 
-      const { container } = render(<LogStatsCards />);
-
-      await waitFor(() => {
-        expect(screen.getByText('Log Statistics')).toBeInTheDocument();
-      });
-
+      expect(screen.getByText('Log Statistics')).toBeInTheDocument();
       const card = container.querySelector('.bg-\\[\\#1A1A1A\\]');
       expect(card).toBeInTheDocument();
     });
 
     it('uses green accent color for total today', async () => {
-      vi.clearAllMocks();
-      vi.mocked(api.fetchLogStats).mockResolvedValue(mockStats);
+      await renderAndWaitForLoad();
 
-      render(<LogStatsCards />);
-
-      await waitFor(() => {
-        expect(screen.getByText('150')).toBeInTheDocument();
-      });
-
+      expect(screen.getByText('150')).toBeInTheDocument();
       const totalText = screen.getByText('150');
       expect(totalText).toHaveClass('text-[#76B900]');
     });
@@ -356,15 +313,11 @@ describe('LogStatsCards', () => {
         top_component: null,
       };
 
-      vi.clearAllMocks();
       vi.mocked(api.fetchLogStats).mockResolvedValue(zeroStats);
 
-      render(<LogStatsCards />);
+      await renderAndWaitForLoad();
 
-      await waitFor(() => {
-        expect(screen.getByText('Errors Today')).toBeInTheDocument();
-      });
-
+      expect(screen.getByText('Errors Today')).toBeInTheDocument();
       // Should display all zeros
       const zeros = screen.getAllByText('0');
       expect(zeros.length).toBeGreaterThanOrEqual(3);

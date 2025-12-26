@@ -46,7 +46,7 @@ export default function Header() {
           <div
             className={`h-2 w-2 rounded-full ${
               isConnected && status?.health === 'healthy'
-                ? 'animate-pulse bg-green-500'
+                ? 'animate-pulse bg-red-500'
                 : status?.health === 'degraded'
                   ? 'bg-yellow-500'
                   : 'bg-red-500'
@@ -55,7 +55,7 @@ export default function Header() {
           <span className="text-sm text-gray-400">
             {isConnected
               ? status?.health === 'healthy'
-                ? 'System Online'
+                ? 'LIVE MONITORING'
                 : status?.health === 'degraded'
                   ? 'System Degraded'
                   : 'System Offline'

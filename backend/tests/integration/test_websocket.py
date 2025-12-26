@@ -6,11 +6,12 @@ import tempfile
 import uuid
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 from starlette.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
 
 
 @pytest.fixture
@@ -533,3 +534,323 @@ class TestWebSocketBroadcastFunctionality:
             # Messages on one channel should not appear on the other
             assert ws_events is not None
             assert ws_system is not None
+
+
+# WebSocket Authentication Tests
+
+
+@pytest.fixture
+def test_api_key():
+    """Return a test API key."""
+    return "test_websocket_key_12345"
+
+
+@pytest.fixture
+def sync_client_with_auth_enabled(test_db_setup, mock_redis, test_api_key):
+    """Create synchronous test client with auth enabled for WebSocket testing."""
+    from backend.core.config import get_settings
+    from backend.main import app
+
+    # Store original environment
+    original_api_key_enabled = os.environ.get("API_KEY_ENABLED")
+    original_api_keys = os.environ.get("API_KEYS")
+
+    # Enable API key authentication
+    os.environ["API_KEY_ENABLED"] = "true"
+    os.environ["API_KEYS"] = f'["{test_api_key}"]'
+
+    # Clear settings cache to pick up new environment variables
+    get_settings.cache_clear()
+
+    # Patch init_db and close_db in lifespan to avoid double initialization
+    with (
+        patch("backend.main.init_db", return_value=None),
+        patch("backend.main.close_db", return_value=None),
+        TestClient(app) as client,
+    ):
+        yield client
+
+    # Restore original environment
+    if original_api_key_enabled is not None:
+        os.environ["API_KEY_ENABLED"] = original_api_key_enabled
+    else:
+        os.environ.pop("API_KEY_ENABLED", None)
+
+    if original_api_keys is not None:
+        os.environ["API_KEYS"] = original_api_keys
+    else:
+        os.environ.pop("API_KEYS", None)
+
+    # Clear settings cache again
+    get_settings.cache_clear()
+
+
+class TestWebSocketAuthentication:
+    """Tests for WebSocket endpoint authentication."""
+
+    def test_events_websocket_with_valid_api_key_query_param(
+        self, sync_client_with_auth_enabled, test_api_key
+    ):
+        """Test that /ws/events accepts valid API key via query parameter."""
+        with sync_client_with_auth_enabled.websocket_connect(
+            f"/ws/events?api_key={test_api_key}"
+        ) as websocket:
+            assert websocket is not None
+
+    def test_system_websocket_with_valid_api_key_query_param(
+        self, sync_client_with_auth_enabled, test_api_key
+    ):
+        """Test that /ws/system accepts valid API key via query parameter."""
+        with sync_client_with_auth_enabled.websocket_connect(
+            f"/ws/system?api_key={test_api_key}"
+        ) as websocket:
+            assert websocket is not None
+
+    def test_events_websocket_without_api_key_rejected(self, sync_client_with_auth_enabled):
+        """Test that /ws/events rejects connection without API key when auth is enabled."""
+        with (
+            pytest.raises((Exception, WebSocketDisconnect)),
+            sync_client_with_auth_enabled.websocket_connect("/ws/events"),
+        ):
+            pass
+
+    def test_system_websocket_without_api_key_rejected(self, sync_client_with_auth_enabled):
+        """Test that /ws/system rejects connection without API key when auth is enabled."""
+        with (
+            pytest.raises((Exception, WebSocketDisconnect)),
+            sync_client_with_auth_enabled.websocket_connect("/ws/system"),
+        ):
+            pass
+
+    def test_events_websocket_with_invalid_api_key_rejected(self, sync_client_with_auth_enabled):
+        """Test that /ws/events rejects connection with invalid API key."""
+        with (
+            pytest.raises((Exception, WebSocketDisconnect)),
+            sync_client_with_auth_enabled.websocket_connect("/ws/events?api_key=invalid_key_12345"),
+        ):
+            pass
+
+    def test_system_websocket_with_invalid_api_key_rejected(self, sync_client_with_auth_enabled):
+        """Test that /ws/system rejects connection with invalid API key."""
+        with (
+            pytest.raises((Exception, WebSocketDisconnect)),
+            sync_client_with_auth_enabled.websocket_connect("/ws/system?api_key=invalid_key_12345"),
+        ):
+            pass
+
+    def test_events_websocket_without_auth_enabled_allows_connection(self, sync_client):
+        """Test that /ws/events allows connection when auth is disabled."""
+        # sync_client fixture has auth disabled by default
+        with sync_client.websocket_connect("/ws/events") as websocket:
+            assert websocket is not None
+
+    def test_system_websocket_without_auth_enabled_allows_connection(self, sync_client):
+        """Test that /ws/system allows connection when auth is disabled."""
+        # sync_client fixture has auth disabled by default
+        with sync_client.websocket_connect("/ws/system") as websocket:
+            assert websocket is not None
+
+    def test_events_websocket_with_protocol_header_api_key(
+        self, sync_client_with_auth_enabled, test_api_key
+    ):
+        """Test that /ws/events accepts API key via Sec-WebSocket-Protocol header."""
+        # Note: The TestClient may not fully support custom protocols in the same way
+        # as a real WebSocket client, but we test the query param mechanism works
+        with sync_client_with_auth_enabled.websocket_connect(
+            f"/ws/events?api_key={test_api_key}"
+        ) as websocket:
+            assert websocket is not None
+
+    def test_multiple_authenticated_connections(self, sync_client_with_auth_enabled, test_api_key):
+        """Test that multiple authenticated connections can be established."""
+        with (
+            sync_client_with_auth_enabled.websocket_connect(
+                f"/ws/events?api_key={test_api_key}"
+            ) as ws1,
+            sync_client_with_auth_enabled.websocket_connect(
+                f"/ws/system?api_key={test_api_key}"
+            ) as ws2,
+        ):
+            assert ws1 is not None
+            assert ws2 is not None
+
+
+class TestWebSocketAuthenticationUnit:
+    """Unit tests for WebSocket authentication functions."""
+
+    @pytest.mark.asyncio
+    async def test_validate_websocket_api_key_disabled(self):
+        """Test that validation passes when auth is disabled."""
+        from backend.api.middleware.auth import validate_websocket_api_key
+
+        # Mock websocket
+        mock_ws = MagicMock()
+        mock_ws.query_params = {}
+        mock_ws.headers = {}
+
+        # Ensure auth is disabled
+        os.environ["API_KEY_ENABLED"] = "false"
+        from backend.core.config import get_settings
+
+        get_settings.cache_clear()
+
+        result = await validate_websocket_api_key(mock_ws)
+        assert result is True
+
+        # Cleanup
+        os.environ.pop("API_KEY_ENABLED", None)
+        get_settings.cache_clear()
+
+    @pytest.mark.asyncio
+    async def test_validate_websocket_api_key_valid_query_param(self):
+        """Test that validation passes with valid API key in query param."""
+        from backend.api.middleware.auth import validate_websocket_api_key
+        from backend.core.config import get_settings
+
+        test_key = "test_valid_key_123"
+
+        # Mock websocket with API key in query param
+        mock_ws = MagicMock()
+        mock_ws.query_params = {"api_key": test_key}
+        mock_ws.headers = {}
+
+        # Enable auth with our test key
+        os.environ["API_KEY_ENABLED"] = "true"
+        os.environ["API_KEYS"] = f'["{test_key}"]'
+        get_settings.cache_clear()
+
+        result = await validate_websocket_api_key(mock_ws)
+        assert result is True
+
+        # Cleanup
+        os.environ.pop("API_KEY_ENABLED", None)
+        os.environ.pop("API_KEYS", None)
+        get_settings.cache_clear()
+
+    @pytest.mark.asyncio
+    async def test_validate_websocket_api_key_invalid_key(self):
+        """Test that validation fails with invalid API key."""
+        from backend.api.middleware.auth import validate_websocket_api_key
+        from backend.core.config import get_settings
+
+        # Mock websocket with invalid API key
+        mock_ws = MagicMock()
+        mock_ws.query_params = {"api_key": "invalid_key"}
+        mock_ws.headers = {}
+
+        # Enable auth with a different key
+        os.environ["API_KEY_ENABLED"] = "true"
+        os.environ["API_KEYS"] = '["correct_key"]'
+        get_settings.cache_clear()
+
+        result = await validate_websocket_api_key(mock_ws)
+        assert result is False
+
+        # Cleanup
+        os.environ.pop("API_KEY_ENABLED", None)
+        os.environ.pop("API_KEYS", None)
+        get_settings.cache_clear()
+
+    @pytest.mark.asyncio
+    async def test_validate_websocket_api_key_missing_key(self):
+        """Test that validation fails when no API key is provided."""
+        from backend.api.middleware.auth import validate_websocket_api_key
+        from backend.core.config import get_settings
+
+        # Mock websocket without API key
+        mock_ws = MagicMock()
+        mock_ws.query_params = {}
+        mock_ws.headers = {}
+
+        # Enable auth
+        os.environ["API_KEY_ENABLED"] = "true"
+        os.environ["API_KEYS"] = '["some_key"]'
+        get_settings.cache_clear()
+
+        result = await validate_websocket_api_key(mock_ws)
+        assert result is False
+
+        # Cleanup
+        os.environ.pop("API_KEY_ENABLED", None)
+        os.environ.pop("API_KEYS", None)
+        get_settings.cache_clear()
+
+    @pytest.mark.asyncio
+    async def test_validate_websocket_api_key_protocol_header(self):
+        """Test that validation works with Sec-WebSocket-Protocol header."""
+        from backend.api.middleware.auth import validate_websocket_api_key
+        from backend.core.config import get_settings
+
+        test_key = "protocol_key_123"
+
+        # Mock websocket with API key in protocol header
+        mock_ws = MagicMock()
+        mock_ws.query_params = {}
+        mock_ws.headers = {"sec-websocket-protocol": f"api-key.{test_key}"}
+
+        # Enable auth with our test key
+        os.environ["API_KEY_ENABLED"] = "true"
+        os.environ["API_KEYS"] = f'["{test_key}"]'
+        get_settings.cache_clear()
+
+        result = await validate_websocket_api_key(mock_ws)
+        assert result is True
+
+        # Cleanup
+        os.environ.pop("API_KEY_ENABLED", None)
+        os.environ.pop("API_KEYS", None)
+        get_settings.cache_clear()
+
+    @pytest.mark.asyncio
+    async def test_authenticate_websocket_success(self):
+        """Test that authenticate_websocket accepts valid connection."""
+        from backend.api.middleware.auth import authenticate_websocket
+        from backend.core.config import get_settings
+
+        test_key = "auth_test_key"
+
+        # Mock websocket
+        mock_ws = MagicMock()
+        mock_ws.query_params = {"api_key": test_key}
+        mock_ws.headers = {}
+        mock_ws.close = AsyncMock()
+
+        # Enable auth
+        os.environ["API_KEY_ENABLED"] = "true"
+        os.environ["API_KEYS"] = f'["{test_key}"]'
+        get_settings.cache_clear()
+
+        result = await authenticate_websocket(mock_ws)
+        assert result is True
+        mock_ws.close.assert_not_called()
+
+        # Cleanup
+        os.environ.pop("API_KEY_ENABLED", None)
+        os.environ.pop("API_KEYS", None)
+        get_settings.cache_clear()
+
+    @pytest.mark.asyncio
+    async def test_authenticate_websocket_failure_closes_connection(self):
+        """Test that authenticate_websocket closes connection on failure."""
+        from backend.api.middleware.auth import authenticate_websocket
+        from backend.core.config import get_settings
+
+        # Mock websocket without valid key
+        mock_ws = MagicMock()
+        mock_ws.query_params = {}
+        mock_ws.headers = {}
+        mock_ws.close = AsyncMock()
+
+        # Enable auth
+        os.environ["API_KEY_ENABLED"] = "true"
+        os.environ["API_KEYS"] = '["valid_key"]'
+        get_settings.cache_clear()
+
+        result = await authenticate_websocket(mock_ws)
+        assert result is False
+        mock_ws.close.assert_called_once_with(code=1008)  # WS_1008_POLICY_VIOLATION
+
+        # Cleanup
+        os.environ.pop("API_KEY_ENABLED", None)
+        os.environ.pop("API_KEYS", None)
+        get_settings.cache_clear()

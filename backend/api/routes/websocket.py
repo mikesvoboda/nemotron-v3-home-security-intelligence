@@ -2,6 +2,15 @@
 
 This module provides WebSocket endpoints for clients to receive real-time
 security event notifications as they occur.
+
+WebSocket Authentication:
+    When API key authentication is enabled (api_key_enabled=true in settings),
+    WebSocket connections must provide a valid API key via one of:
+    1. Query parameter: ws://host/ws/events?api_key=YOUR_KEY
+    2. Sec-WebSocket-Protocol header: "api-key.YOUR_KEY"
+
+    Connections without a valid API key will be rejected with code 1008
+    (Policy Violation).
 """
 
 import logging
@@ -9,6 +18,7 @@ import logging
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from fastapi.websockets import WebSocketState
 
+from backend.api.middleware import authenticate_websocket
 from backend.core.redis import RedisClient, get_redis
 from backend.services.event_broadcaster import get_broadcaster
 from backend.services.system_broadcaster import get_system_broadcaster
@@ -28,9 +38,15 @@ async def websocket_events_endpoint(
     Clients connect to this endpoint to receive real-time notifications
     about security events as they are detected and analyzed.
 
+    Authentication:
+        When API key authentication is enabled, provide the key via:
+        - Query parameter: ws://host/ws/events?api_key=YOUR_KEY
+        - Sec-WebSocket-Protocol header: "api-key.YOUR_KEY"
+
     The connection lifecycle:
-    1. Client connects and is registered with the broadcaster
-    2. Client receives events as JSON messages in the format:
+    1. Client connects and is authenticated (if auth enabled)
+    2. Client is registered with the broadcaster
+    3. Client receives events as JSON messages in the format:
        {
            "type": "event",
            "data": {
@@ -43,7 +59,7 @@ async def websocket_events_endpoint(
                "timestamp": "2025-12-23T12:00:00Z"
            }
        }
-    3. Connection is maintained until client disconnects
+    4. Connection is maintained until client disconnects
 
     Args:
         websocket: WebSocket connection instance
@@ -51,13 +67,18 @@ async def websocket_events_endpoint(
 
     Example JavaScript client:
         ```javascript
-        const ws = new WebSocket('ws://localhost:8000/ws/events');
+        const ws = new WebSocket('ws://localhost:8000/ws/events?api_key=YOUR_KEY');
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
             console.log('New event:', data);
         };
         ```
     """
+    # Authenticate WebSocket connection before accepting
+    if not await authenticate_websocket(websocket):
+        logger.warning("WebSocket connection rejected: authentication failed for /ws/events")
+        return
+
     broadcaster = await get_broadcaster(redis)
 
     try:
@@ -104,6 +125,11 @@ async def websocket_events_endpoint(
 async def websocket_system_status(websocket: WebSocket) -> None:
     """WebSocket endpoint for real-time system status updates.
 
+    Authentication:
+        When API key authentication is enabled, provide the key via:
+        - Query parameter: ws://host/ws/system?api_key=YOUR_KEY
+        - Sec-WebSocket-Protocol header: "api-key.YOUR_KEY"
+
     Sends periodic system status updates including:
     - GPU utilization and memory stats
     - Active camera counts
@@ -146,13 +172,18 @@ async def websocket_system_status(websocket: WebSocket) -> None:
 
     Example JavaScript client:
         ```javascript
-        const ws = new WebSocket('ws://localhost:8000/ws/system');
+        const ws = new WebSocket('ws://localhost:8000/ws/system?api_key=YOUR_KEY');
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
             console.log('System status:', data);
         };
         ```
     """
+    # Authenticate WebSocket connection before accepting
+    if not await authenticate_websocket(websocket):
+        logger.warning("WebSocket connection rejected: authentication failed for /ws/system")
+        return
+
     broadcaster = get_system_broadcaster()
 
     try:

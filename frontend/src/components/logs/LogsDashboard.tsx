@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import LogDetailModal from './LogDetailModal';
 import LogFilters, { type LogFilterParams } from './LogFilters';
@@ -71,7 +71,7 @@ export default function LogsDashboard({ className = '' }: LogsDashboardProps) {
   }, [queryParams]);
 
   // Handle filter changes from LogFilters component
-  const handleFilterChange = (filters: LogFilterParams) => {
+  const handleFilterChange = useCallback((filters: LogFilterParams) => {
     setQueryParams((prev) => ({
       ...prev,
       level: filters.level,
@@ -82,7 +82,7 @@ export default function LogsDashboard({ className = '' }: LogsDashboardProps) {
       search: filters.search,
       offset: 0, // Reset to first page when filters change
     }));
-  };
+  }, []);
 
   // Handle pagination from LogsTable component
   const handlePageChange = (offset: number) => {

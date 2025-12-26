@@ -3,12 +3,93 @@
 import hashlib
 from collections.abc import Awaitable, Callable
 
-from fastapi import Request, Response
+from fastapi import Request, Response, WebSocket, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
 from backend.core import get_settings
+
+
+def _hash_key(key: str) -> str:
+    """Hash API key using SHA-256.
+
+    Args:
+        key: Plain text API key
+
+    Returns:
+        SHA-256 hash of the key
+    """
+    return hashlib.sha256(key.encode()).hexdigest()
+
+
+def _get_valid_key_hashes() -> set[str]:
+    """Get the set of valid API key hashes from settings.
+
+    Returns:
+        Set of SHA-256 hashes of valid API keys
+    """
+    settings = get_settings()
+    return {_hash_key(key) for key in settings.api_keys}
+
+
+async def validate_websocket_api_key(websocket: WebSocket) -> bool:
+    """Validate API key for WebSocket connections.
+
+    Checks if API key authentication is enabled and validates the key
+    provided via query parameter or Sec-WebSocket-Protocol header.
+
+    Args:
+        websocket: WebSocket connection to validate
+
+    Returns:
+        True if authentication is disabled or key is valid, False otherwise
+    """
+    settings = get_settings()
+
+    # Skip authentication if disabled
+    if not settings.api_key_enabled:
+        return True
+
+    # Extract API key from query parameter
+    api_key = websocket.query_params.get("api_key")
+
+    # Fall back to Sec-WebSocket-Protocol header
+    if not api_key:
+        # The Sec-WebSocket-Protocol header can contain multiple protocols
+        # We look for one that starts with "api-key." followed by the key
+        protocols = websocket.headers.get("sec-websocket-protocol", "")
+        for protocol in protocols.split(","):
+            stripped_protocol = protocol.strip()
+            if stripped_protocol.startswith("api-key."):
+                api_key = stripped_protocol[8:]  # Extract key after "api-key."
+                break
+
+    # No API key provided
+    if not api_key:
+        return False
+
+    # Validate the API key
+    key_hash = _hash_key(api_key)
+    valid_hashes = _get_valid_key_hashes()
+    return key_hash in valid_hashes
+
+
+async def authenticate_websocket(websocket: WebSocket) -> bool:
+    """Authenticate a WebSocket connection.
+
+    If authentication fails, the connection is closed with a 403 status code.
+
+    Args:
+        websocket: WebSocket connection to authenticate
+
+    Returns:
+        True if authenticated successfully, False if connection was rejected
+    """
+    if not await validate_websocket_api_key(websocket):
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return False
+    return True
 
 
 class AuthMiddleware(BaseHTTPMiddleware):

@@ -12,6 +12,12 @@ RUN npm install
 # Copy application code
 COPY . .
 
+# Change ownership of app directory to non-root user
+RUN chown -R node:node /app
+
+# Switch to non-root user (node user exists in official Node images)
+USER node
+
 # Expose Vite dev server port
 EXPOSE 3000
 

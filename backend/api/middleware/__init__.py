@@ -1,5 +1,5 @@
 """API middleware components."""
 
-from .auth import AuthMiddleware
+from .auth import AuthMiddleware, authenticate_websocket, validate_websocket_api_key
 
-__all__ = ["AuthMiddleware"]
+__all__ = ["AuthMiddleware", "authenticate_websocket", "validate_websocket_api_key"]
