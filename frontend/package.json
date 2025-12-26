@@ -22,7 +22,7 @@
     "@tremor/react": "^3.17.4",
     "clsx": "^2.1.0",
     "lucide-react": "^0.312.0",
-    "react": "^18.2.0",
+    "react": "^19.2.3",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.11.0",
     "tailwind-merge": "^2.2.0"
@@ -32,7 +32,7 @@
     "@testing-library/jest-dom": "^6.2.0",
     "@testing-library/react": "^14.1.2",
     "@testing-library/user-event": "^14.5.2",
-    "@types/react": "^18.2.48",
+    "@types/react": "^19.2.7",
     "@types/react-dom": "^18.2.18",
     "@typescript-eslint/eslint-plugin": "^6.19.0",
     "@typescript-eslint/parser": "^6.19.0",
