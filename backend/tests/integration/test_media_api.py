@@ -2,6 +2,7 @@
 
 import tempfile
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -11,8 +12,28 @@ from backend.main import app
 
 @pytest.fixture
 def client():
-    """Create test client."""
-    return TestClient(app)
+    """Create test client with mocked background services."""
+    # Mock background services that have 5-second intervals to avoid slow teardown
+    mock_system_broadcaster = MagicMock()
+    mock_system_broadcaster.start_broadcasting = AsyncMock()
+    mock_system_broadcaster.stop_broadcasting = AsyncMock()
+
+    mock_gpu_monitor = MagicMock()
+    mock_gpu_monitor.start = AsyncMock()
+    mock_gpu_monitor.stop = AsyncMock()
+
+    mock_cleanup_service = MagicMock()
+    mock_cleanup_service.start = AsyncMock()
+    mock_cleanup_service.stop = AsyncMock()
+
+    # Patch background services to avoid slow teardown
+    with (
+        patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
+        patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor),
+        patch("backend.main.CleanupService", return_value=mock_cleanup_service),
+        TestClient(app) as test_client,
+    ):
+        yield test_client
 
 
 @pytest.fixture
