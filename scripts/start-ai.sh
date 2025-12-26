@@ -25,8 +25,8 @@ RTDETR_DIR="$AI_DIR/rtdetr"
 NEMOTRON_DIR="$AI_DIR/nemotron"
 
 # Service configuration
-DETECTOR_PORT=8001
-LLM_PORT=8002
+DETECTOR_PORT="${RTDETR_PORT:-8090}"
+LLM_PORT="${NEMOTRON_PORT:-8091}"
 DETECTOR_PID_FILE="/tmp/rtdetr-detector.pid"
 LLM_PID_FILE="/tmp/nemotron-llm.pid"
 DETECTOR_LOG_FILE="/tmp/rtdetr-detector.log"

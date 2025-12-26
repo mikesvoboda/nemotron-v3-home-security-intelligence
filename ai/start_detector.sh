@@ -2,14 +2,14 @@
 #
 # RT-DETRv2 Detection Server Startup Script
 #
-# Port: 8001
+# Port: 8090 (configurable via RTDETR_PORT)
 # VRAM Usage: ~4GB
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RTDETR_DIR="$SCRIPT_DIR/rtdetr"
-MODEL_PORT=8001
+MODEL_PORT="${RTDETR_PORT:-8090}"
 MODEL_PATH_DEFAULT="$RTDETR_DIR/rtdetrv2_r50vd.onnx"
 
 echo "Starting RT-DETRv2 Detection Server..."
