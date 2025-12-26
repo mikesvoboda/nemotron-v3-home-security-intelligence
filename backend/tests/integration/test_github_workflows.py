@@ -105,9 +105,9 @@ class TestWorkflowStructure:
         """Verify workflow names are strings."""
         for workflow_file in workflow_files:
             workflow = load_workflow(workflow_file)
-            assert isinstance(
-                workflow["name"], str
-            ), f"{workflow_file.name}: 'name' should be a string"
+            assert isinstance(workflow["name"], str), (
+                f"{workflow_file.name}: 'name' should be a string"
+            )
             assert len(workflow["name"]) > 0, f"{workflow_file.name}: 'name' should not be empty"
 
     def test_workflow_on_trigger_is_valid(self, workflow_files: list[Path]) -> None:
@@ -117,17 +117,17 @@ class TestWorkflowStructure:
             on_trigger = workflow["on"]
             assert on_trigger is not None, f"{workflow_file.name}: 'on' should not be empty"
             # Can be string, list, or dict
-            assert isinstance(
-                on_trigger, str | list | dict
-            ), f"{workflow_file.name}: 'on' should be string, list, or dict"
+            assert isinstance(on_trigger, str | list | dict), (
+                f"{workflow_file.name}: 'on' should be string, list, or dict"
+            )
 
     def test_workflow_jobs_is_dict(self, workflow_files: list[Path]) -> None:
         """Verify jobs is a dictionary."""
         for workflow_file in workflow_files:
             workflow = load_workflow(workflow_file)
-            assert isinstance(
-                workflow["jobs"], dict
-            ), f"{workflow_file.name}: 'jobs' should be a dict"
+            assert isinstance(workflow["jobs"], dict), (
+                f"{workflow_file.name}: 'jobs' should be a dict"
+            )
             assert len(workflow["jobs"]) > 0, f"{workflow_file.name}: 'jobs' should not be empty"
 
 
@@ -141,9 +141,9 @@ class TestJobStructure:
             for job_name, job_config in workflow["jobs"].items():
                 has_runs_on = "runs-on" in job_config
                 has_uses = "uses" in job_config
-                assert (
-                    has_runs_on or has_uses
-                ), f"{workflow_file.name}:{job_name} needs 'runs-on' or 'uses'"
+                assert has_runs_on or has_uses, (
+                    f"{workflow_file.name}:{job_name} needs 'runs-on' or 'uses'"
+                )
 
     def test_jobs_have_steps_unless_reusable(self, workflow_files: list[Path]) -> None:
         """Verify jobs have steps unless they call a reusable workflow."""
@@ -153,12 +153,12 @@ class TestJobStructure:
                 # Reusable workflow calls use 'uses' instead of 'steps'
                 if "uses" not in job_config:
                     assert "steps" in job_config, f"{workflow_file.name}:{job_name} needs 'steps'"
-                    assert isinstance(
-                        job_config["steps"], list
-                    ), f"{workflow_file.name}:{job_name}: 'steps' should be a list"
-                    assert (
-                        len(job_config["steps"]) > 0
-                    ), f"{workflow_file.name}:{job_name}: 'steps' should not be empty"
+                    assert isinstance(job_config["steps"], list), (
+                        f"{workflow_file.name}:{job_name}: 'steps' should be a list"
+                    )
+                    assert len(job_config["steps"]) > 0, (
+                        f"{workflow_file.name}:{job_name}: 'steps' should not be empty"
+                    )
 
     def test_runner_is_valid(self, workflow_files: list[Path]) -> None:
         """Verify runs-on specifies valid runners."""
@@ -170,16 +170,16 @@ class TestJobStructure:
                 runs_on = job_config["runs-on"]
                 # Can be string or list (for self-hosted)
                 if isinstance(runs_on, str):
-                    assert (
-                        runs_on in VALID_RUNNERS
-                    ), f"{workflow_file.name}:{job_name}: unknown runner '{runs_on}'"
+                    assert runs_on in VALID_RUNNERS, (
+                        f"{workflow_file.name}:{job_name}: unknown runner '{runs_on}'"
+                    )
                 elif isinstance(runs_on, list):
                     # Self-hosted runners use lists like [self-hosted, gpu]
                     # At least one should be recognized
                     recognized = set(runs_on) & (VALID_RUNNERS | SELF_HOSTED_LABELS)
-                    assert (
-                        len(recognized) > 0
-                    ), f"{workflow_file.name}:{job_name}: no recognized labels in {runs_on}"
+                    assert len(recognized) > 0, (
+                        f"{workflow_file.name}:{job_name}: no recognized labels in {runs_on}"
+                    )
 
 
 class TestStepStructure:
@@ -196,9 +196,9 @@ class TestStepStructure:
                     has_name = "name" in step
                     has_uses = "uses" in step
                     has_run = "run" in step
-                    assert (
-                        has_uses or has_run
-                    ), f"{workflow_file.name}:{job_name}:step[{i}] needs 'uses' or 'run'"
+                    assert has_uses or has_run, (
+                        f"{workflow_file.name}:{job_name}:step[{i}] needs 'uses' or 'run'"
+                    )
                     # Named steps are recommended but not required
                     if not has_name and not has_uses:
                         # If it's just a 'run' step, that's OK
@@ -281,9 +281,9 @@ class TestConcurrencyConfig:
             pytest.skip("No concurrency config")
         group = workflow["concurrency"]["group"]
         # Should reference github context for uniqueness
-        assert "${{" in group or "github." in str(
-            group
-        ), f"concurrency group should use github context: {group}"
+        assert "${{" in group or "github." in str(group), (
+            f"concurrency group should use github context: {group}"
+        )
 
 
 class TestSpecificWorkflows:
@@ -316,9 +316,9 @@ class TestSpecificWorkflows:
                 if "fork" in if_condition.lower() or "repository" in if_condition:
                     has_protection = True
                     break
-        assert (
-            has_protection
-        ), "gpu-tests.yml should have fork protection (if condition checking repository)"
+        assert has_protection, (
+            "gpu-tests.yml should have fork protection (if condition checking repository)"
+        )
 
     def test_gpu_tests_has_timeout(self, workflows_dir: Path) -> None:
         """Verify GPU tests have timeout for resource protection."""
@@ -330,9 +330,9 @@ class TestSpecificWorkflows:
             # Self-hosted jobs should have timeout
             runs_on = job_config.get("runs-on", [])
             if isinstance(runs_on, list) and "self-hosted" in runs_on:
-                assert (
-                    "timeout-minutes" in job_config
-                ), f"gpu-tests.yml:{job_name} should have timeout-minutes"
+                assert "timeout-minutes" in job_config, (
+                    f"gpu-tests.yml:{job_name} should have timeout-minutes"
+                )
 
     def test_deploy_workflow_on_main_only(self, workflows_dir: Path) -> None:
         """Verify deploy workflow only triggers on main branch."""
@@ -346,9 +346,9 @@ class TestSpecificWorkflows:
             push_config = on_trigger["push"]
             if isinstance(push_config, dict) and "branches" in push_config:
                 branches = push_config["branches"]
-                assert "main" in branches or branches == [
-                    "main"
-                ], "deploy.yml should only deploy from main branch"
+                assert "main" in branches or branches == ["main"], (
+                    "deploy.yml should only deploy from main branch"
+                )
 
     def test_nightly_workflow_has_schedule(self, workflows_dir: Path) -> None:
         """Verify nightly workflow has scheduled trigger."""
