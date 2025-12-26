@@ -37,7 +37,7 @@ jobs:
             -v
 
       - name: Upload memory report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: memory-profile
           path: memray-report.bin
@@ -69,7 +69,7 @@ jobs:
           wily diff backend/ -r HEAD~10..HEAD
 
       - name: Upload wily report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: wily-report
           path: wily-report.html
@@ -110,7 +110,7 @@ jobs:
           bandit -r backend/ -f json -o bandit-full.json || true
 
       - name: Upload security reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: security-audit
           path: |
