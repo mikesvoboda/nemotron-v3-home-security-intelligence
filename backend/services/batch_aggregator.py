@@ -260,7 +260,13 @@ class BatchAggregator:
             raise ValueError(f"Batch {batch_id} not found")
 
         detections_data = await self._redis.get(f"batch:{batch_id}:detections")
-        detections = json.loads(detections_data) if detections_data else []
+        # Handle both pre-deserialized (from redis.get) and string formats
+        if detections_data:
+            detections = (
+                json.loads(detections_data) if isinstance(detections_data, str) else detections_data
+            )
+        else:
+            detections = []
 
         started_at_str = await self._redis.get(f"batch:{batch_id}:started_at")
         started_at = float(started_at_str) if started_at_str else time.time()
