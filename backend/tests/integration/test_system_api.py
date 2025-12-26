@@ -6,6 +6,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from backend.models.gpu_stats import GPUStats
+
+
 @pytest.mark.asyncio
 async def test_health_endpoint_all_services_healthy(client, mock_redis):
     """Test health check endpoint when all services are healthy."""

@@ -202,11 +202,11 @@ The base `useWebSocket` hook handles reconnection with exponential state trackin
 
 All hooks have comprehensive test coverage using Vitest and React Testing Library:
 
-| File                       | Coverage                                           |
-| -------------------------- | -------------------------------------------------- |
-| `useWebSocket.test.ts`     | Connection lifecycle, message handling, reconnects |
-| `useEventStream.test.ts`   | Event buffering, validation, MAX_EVENTS limit      |
-| `useSystemStatus.test.ts`  | Backend message transformation, type guards        |
+| File                      | Coverage                                           |
+| ------------------------- | -------------------------------------------------- |
+| `useWebSocket.test.ts`    | Connection lifecycle, message handling, reconnects |
+| `useEventStream.test.ts`  | Event buffering, validation, MAX_EVENTS limit      |
+| `useSystemStatus.test.ts` | Backend message transformation, type guards        |
 
 **Test Utilities:**
 

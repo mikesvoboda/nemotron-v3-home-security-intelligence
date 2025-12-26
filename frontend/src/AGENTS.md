@@ -131,6 +131,7 @@ Component organization by feature area:
 ### `/services/` - API Client and Services
 
 - **`api.ts`** - REST API client for backend
+
   - Base URL from `import.meta.env.VITE_API_BASE_URL` (defaults to empty string for proxy)
   - Type-safe fetch wrappers for all endpoints
   - Custom `ApiError` class with status codes
@@ -174,6 +175,7 @@ Component organization by feature area:
 ### `/utils/` - Utility Functions
 
 - **`risk.ts`** - Risk level utilities
+
   - `getRiskLevel(score: number): RiskLevel` - Convert 0-100 score to category
   - `getRiskColor(level: RiskLevel): string` - Get hex color for level
   - `getRiskLabel(level: RiskLevel): string` - Get human-readable label

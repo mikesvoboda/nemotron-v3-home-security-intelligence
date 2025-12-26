@@ -1,10 +1,9 @@
 """Integration tests for cameras API endpoints."""
 
+import asyncio
 import uuid
 from datetime import datetime
 from pathlib import Path
-from time import sleep
-from unittest.mock import patch
 
 import pytest
 from sqlalchemy import select
@@ -204,7 +203,7 @@ async def test_get_camera_snapshot_returns_latest_image(client, integration_env)
     older = cam_dir / "a.jpg"
     newer = cam_dir / "b.jpg"
     older.write_bytes(b"older")
-    sleep(0.01)
+    await asyncio.sleep(0.01)
     newer.write_bytes(b"newer")
 
     # Ensure settings pick up our foscam base path.

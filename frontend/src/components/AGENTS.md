@@ -47,15 +47,15 @@ Test files are co-located with their components using the `.test.tsx` extension.
 
 ## File Inventory
 
-| Directory | Files |
-|-----------|-------|
-| common/ | RiskBadge.tsx, ObjectTypeBadge.tsx, index.ts |
+| Directory  | Files                                                                                                                 |
+| ---------- | --------------------------------------------------------------------------------------------------------------------- |
+| common/    | RiskBadge.tsx, ObjectTypeBadge.tsx, index.ts                                                                          |
 | dashboard/ | DashboardPage.tsx, RiskGauge.tsx, CameraGrid.tsx, ActivityFeed.tsx, GpuStats.tsx, StatsRow.tsx, RiskGauge.example.tsx |
-| detection/ | DetectionImage.tsx, BoundingBoxOverlay.tsx, Example.tsx, index.ts, README.md |
-| events/ | EventCard.tsx, EventTimeline.tsx, EventDetailModal.tsx, ThumbnailStrip.tsx |
-| layout/ | Header.tsx, Sidebar.tsx, Layout.tsx |
-| logs/ | LogsDashboard.tsx, LogsTable.tsx, LogFilters.tsx, LogStatsCards.tsx, LogDetailModal.tsx |
-| settings/ | SettingsPage.tsx, CamerasSettings.tsx, AIModelsSettings.tsx, ProcessingSettings.tsx, index.ts, README.md |
+| detection/ | DetectionImage.tsx, BoundingBoxOverlay.tsx, Example.tsx, index.ts, README.md                                          |
+| events/    | EventCard.tsx, EventTimeline.tsx, EventDetailModal.tsx, ThumbnailStrip.tsx                                            |
+| layout/    | Header.tsx, Sidebar.tsx, Layout.tsx                                                                                   |
+| logs/      | LogsDashboard.tsx, LogsTable.tsx, LogFilters.tsx, LogStatsCards.tsx, LogDetailModal.tsx                               |
+| settings/  | SettingsPage.tsx, CamerasSettings.tsx, AIModelsSettings.tsx, ProcessingSettings.tsx, index.ts, README.md              |
 
 ## Navigation
 

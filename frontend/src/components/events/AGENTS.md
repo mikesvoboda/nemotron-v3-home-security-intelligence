@@ -48,9 +48,10 @@ interface EventCardProps {
 
 ```typescript
 interface Detection {
-  label: string;        // "person", "car", "dog"
-  confidence: number;   // 0-1
-  bbox?: {              // Optional bounding box
+  label: string; // "person", "car", "dog"
+  confidence: number; // 0-1
+  bbox?: {
+    // Optional bounding box
     x: number;
     y: number;
     width: number;
@@ -147,9 +148,9 @@ interface EventDetailModalProps {
   onClose: () => void;
   onMarkReviewed?: (eventId: string) => void;
   onNavigate?: (direction: 'prev' | 'next') => void;
-  onSaveNotes?: (eventId: string, notes: string) => Promise<void>;
-  onFlagEvent?: (eventId: string, flagged: boolean) => Promise<void>;
-  onDownloadMedia?: (eventId: string) => Promise<void>;
+  onSaveNotes?: (eventId: string, notes: string) => Promise;
+  onFlagEvent?: (eventId: string, flagged: boolean) => Promise;
+  onDownloadMedia?: (eventId: string) => Promise;
 }
 ```
 
@@ -164,8 +165,8 @@ interface Event {
   risk_label: string;
   summary: string;
   reasoning?: string;
-  image_url?: string;        // Full-size image
-  thumbnail_url?: string;    // Fallback if no image_url
+  image_url?: string; // Full-size image
+  thumbnail_url?: string; // Fallback if no image_url
   detections: Detection[];
   started_at?: string;
   ended_at?: string | null;

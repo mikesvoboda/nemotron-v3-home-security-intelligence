@@ -8,6 +8,7 @@ from sqlalchemy import select
 from backend.core.database import get_session
 from backend.models import Camera, Detection, Event
 
+
 @pytest.mark.asyncio
 async def test_create_camera(integration_db):
     """Test creating a camera in the database."""

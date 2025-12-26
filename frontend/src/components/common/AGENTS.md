@@ -82,14 +82,14 @@ Uses utility functions from `../../utils/risk`:
 
 **Object Type Mappings:**
 
-| Type | Icon | Color | Display Name |
-|------|------|-------|--------------|
-| person | User | blue | Person |
-| car, truck, bus, motorcycle | Car | purple | Vehicle |
-| bicycle | Car | cyan | Bicycle |
-| dog, cat, bird | PawPrint | amber | Animal |
-| package | Package | green | Package |
-| unknown | AlertTriangle | gray | (Capitalized type) |
+| Type                        | Icon          | Color  | Display Name       |
+| --------------------------- | ------------- | ------ | ------------------ |
+| person                      | User          | blue   | Person             |
+| car, truck, bus, motorcycle | Car           | purple | Vehicle            |
+| bicycle                     | Car           | cyan   | Bicycle            |
+| dog, cat, bird              | PawPrint      | amber  | Animal             |
+| package                     | Package       | green  | Package            |
+| unknown                     | AlertTriangle | gray   | (Capitalized type) |
 
 **Size Mappings:**
 

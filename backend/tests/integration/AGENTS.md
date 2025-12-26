@@ -683,17 +683,17 @@ async def test_concurrent_requests(client):
 
 ### Test Files Summary
 
-| File | Tests | Description |
-|------|-------|-------------|
-| test_api.py | 12 | FastAPI app endpoints and middleware |
-| test_cameras_api.py | 30 | Camera CRUD operations |
-| test_detections_api.py | 12 | Detection endpoints |
-| test_events_api.py | 41 | Event endpoints with filtering |
-| test_full_stack.py | 11 | Complete database workflows |
-| test_logs_api.py | 9 | Log endpoints and statistics |
-| test_media_api.py | 21 | Media file serving and security |
-| test_system_api.py | 16 | System health and stats |
-| test_websocket.py | 25 | WebSocket channels |
+| File                   | Tests | Description                          |
+| ---------------------- | ----- | ------------------------------------ |
+| test_api.py            | 12    | FastAPI app endpoints and middleware |
+| test_cameras_api.py    | 30    | Camera CRUD operations               |
+| test_detections_api.py | 12    | Detection endpoints                  |
+| test_events_api.py     | 41    | Event endpoints with filtering       |
+| test_full_stack.py     | 11    | Complete database workflows          |
+| test_logs_api.py       | 9     | Log endpoints and statistics         |
+| test_media_api.py      | 21    | Media file serving and security      |
+| test_system_api.py     | 16    | System health and stats              |
+| test_websocket.py      | 25    | WebSocket channels                   |
 
 ## Dependencies
 

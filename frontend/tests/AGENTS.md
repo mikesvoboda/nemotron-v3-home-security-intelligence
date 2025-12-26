@@ -177,11 +177,11 @@ npm test -- --run
 
 ## Test Types Comparison
 
-| Test Type       | Location             | Purpose                        | Status         |
-| --------------- | -------------------- | ------------------------------ | -------------- |
-| **Unit**        | `src/**/*.test.tsx`  | Component/function isolation   | Implemented    |
-| **Integration** | `tests/integration/` | Multi-component interactions   | Planned        |
-| **E2E**         | `tests/e2e/`         | Full user workflows in browser | Planned        |
+| Test Type       | Location             | Purpose                        | Status      |
+| --------------- | -------------------- | ------------------------------ | ----------- |
+| **Unit**        | `src/**/*.test.tsx`  | Component/function isolation   | Implemented |
+| **Integration** | `tests/integration/` | Multi-component interactions   | Planned     |
+| **E2E**         | `tests/e2e/`         | Full user workflows in browser | Planned     |
 
 ### Current Unit Test Coverage
 

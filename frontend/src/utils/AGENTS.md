@@ -188,11 +188,7 @@ function EventDuration({ event }: { event: Event }) {
   const duration = formatDuration(event.started_at, event.ended_at);
   const ongoing = isEventOngoing(event.ended_at);
 
-  return (
-    <span className={ongoing ? 'text-primary-500' : 'text-text-secondary'}>
-      {duration}
-    </span>
-  );
+  return <span className={ongoing ? 'text-primary-500' : 'text-text-secondary'}>{duration}</span>;
 }
 ```
 

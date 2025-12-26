@@ -151,6 +151,7 @@ batch:{batch_id}:last_activity    → Unix timestamp (float)
 **Fast Path:**
 
 High-priority detections can bypass normal batching for immediate analysis:
+
 - Triggered when confidence >= `fast_path_confidence_threshold` (from settings)
 - AND object_type is in `fast_path_object_types` list (from settings)
 - Immediately calls `NemotronAnalyzer.analyze_detection_fast_path()`
@@ -206,6 +207,7 @@ High-priority detections can bypass normal batching for immediate analysis:
 **Fast Path Analysis:**
 
 For single high-priority detections:
+
 1. Convert detection_id to int
 2. Query database for Detection record and Camera name
 3. Format prompt with single detection

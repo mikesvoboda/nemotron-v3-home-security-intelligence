@@ -79,14 +79,14 @@ Contains the core application layout components that provide consistent structur
 
 **Navigation Routes:**
 
-| ID | Label | Icon | Path | Badge |
-|----|-------|------|------|-------|
-| dashboard | Dashboard | Home | `/` | - |
-| timeline | Timeline | Clock | `/timeline` | - |
-| entities | Entities | Users | `/entities` | WIP |
-| alerts | Alerts | Bell | `/alerts` | - |
-| logs | Logs | ScrollText | `/logs` | - |
-| settings | Settings | Settings | `/settings` | - |
+| ID        | Label     | Icon       | Path        | Badge |
+| --------- | --------- | ---------- | ----------- | ----- |
+| dashboard | Dashboard | Home       | `/`         | -     |
+| timeline  | Timeline  | Clock      | `/timeline` | -     |
+| entities  | Entities  | Users      | `/entities` | WIP   |
+| alerts    | Alerts    | Bell       | `/alerts`   | -     |
+| logs      | Logs      | ScrollText | `/logs`     | -     |
+| settings  | Settings  | Settings   | `/settings` | -     |
 
 **NavItem Interface:**
 
@@ -94,7 +94,7 @@ Contains the core application layout components that provide consistent structur
 interface NavItem {
   id: string;
   label: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType;
   badge?: string;
   path: string;
 }

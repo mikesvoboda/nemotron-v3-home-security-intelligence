@@ -264,10 +264,7 @@ async def lifespan(_app: FastAPI):
     logger.info("Starting RT-DETRv2 Detection Server...")
 
     # Load model configuration from environment or defaults
-    model_path = os.environ.get(
-        "RTDETR_MODEL_PATH",
-        "/export/ai_models/rt-detrv2/rtdetr_v2_r101vd"
-    )
+    model_path = os.environ.get("RTDETR_MODEL_PATH", "/export/ai_models/rt-detrv2/rtdetr_v2_r101vd")
     confidence_threshold = float(os.environ.get("RTDETR_CONFIDENCE", "0.5"))
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
 

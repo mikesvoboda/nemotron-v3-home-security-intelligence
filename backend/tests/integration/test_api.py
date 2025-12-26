@@ -5,6 +5,7 @@ from unittest.mock import patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+
 @pytest.mark.asyncio
 async def test_root_endpoint(client):
     """Test root endpoint returns correct response."""

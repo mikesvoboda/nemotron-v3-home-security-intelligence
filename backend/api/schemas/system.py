@@ -128,7 +128,9 @@ class GPUStatsSample(BaseModel):
 class GPUStatsHistoryResponse(BaseModel):
     """Response schema for GPU stats history endpoint."""
 
-    samples: list[GPUStatsSample] = Field(..., description="GPU stats samples (chronological order)")
+    samples: list[GPUStatsSample] = Field(
+        ..., description="GPU stats samples (chronological order)"
+    )
     count: int = Field(..., description="Number of samples returned", ge=0)
     limit: int = Field(..., description="Applied limit", ge=1)
 
