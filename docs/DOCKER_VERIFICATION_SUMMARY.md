@@ -182,7 +182,7 @@ Verified the Docker Compose deployment configuration and enhanced it with health
 
 **Backend:**
 
-- DATABASE_URL: sqlite:///data/security.db
+- DATABASE_URL: sqlite+aiosqlite:///data/security.db
 - REDIS_URL: redis://redis:6379
 - DETECTOR_URL: http://host.docker.internal:8001
 - LLM_URL: http://host.docker.internal:8002

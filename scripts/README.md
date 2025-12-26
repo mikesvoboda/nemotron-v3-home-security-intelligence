@@ -231,7 +231,7 @@ The setup script creates a `.env` file from `.env.example`. Review and update th
 CAMERA_ROOT=/export/foscam
 
 # Database
-DATABASE_URL=sqlite:///data/security.db
+DATABASE_URL=sqlite+aiosqlite:///data/security.db
 
 # Redis
 REDIS_URL=redis://localhost:6379

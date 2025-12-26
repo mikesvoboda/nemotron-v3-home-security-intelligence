@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from PIL import Image
 
+from backend.services.dedupe import DedupeService
 from backend.services.file_watcher import (
     FileWatcher,
     is_image_file,
@@ -567,3 +568,171 @@ async def test_start_creates_missing_camera_root(temp_camera_root):
         # Should create the directory
         assert nonexistent_root.exists()
         assert watcher.running is True
+
+
+# Deduplication tests
+
+
+@pytest.fixture
+def mock_dedupe_service():
+    """Create mock DedupeService."""
+    mock = AsyncMock(spec=DedupeService)
+    mock.is_duplicate_and_mark = AsyncMock(return_value=(False, "abc123"))
+    return mock
+
+
+@pytest.fixture
+def file_watcher_with_dedupe(temp_camera_root, mock_redis_client, mock_dedupe_service):
+    """Create FileWatcher with mock dedupe service."""
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        debounce_delay=0.1,
+        dedupe_service=mock_dedupe_service,
+    )
+    return watcher
+
+
+def test_file_watcher_creates_dedupe_service_when_redis_provided(
+    temp_camera_root, mock_redis_client
+):
+    """Test FileWatcher creates DedupeService when Redis client is provided."""
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        debounce_delay=0.1,
+    )
+    assert watcher._dedupe_service is not None
+
+
+def test_file_watcher_no_dedupe_without_redis(temp_camera_root):
+    """Test FileWatcher has no DedupeService when Redis is not provided."""
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=None,
+        debounce_delay=0.1,
+    )
+    assert watcher._dedupe_service is None
+
+
+def test_file_watcher_uses_provided_dedupe_service(
+    temp_camera_root, mock_redis_client, mock_dedupe_service
+):
+    """Test FileWatcher uses provided DedupeService instead of creating one."""
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        debounce_delay=0.1,
+        dedupe_service=mock_dedupe_service,
+    )
+    assert watcher._dedupe_service is mock_dedupe_service
+
+
+@pytest.mark.asyncio
+async def test_queue_for_detection_calls_dedupe(
+    file_watcher_with_dedupe, temp_camera_root, mock_redis_client, mock_dedupe_service
+):
+    """Test _queue_for_detection calls dedupe service before queueing."""
+    camera_dir = temp_camera_root / "camera1"
+    image_path = camera_dir / "test.jpg"
+    img = Image.new("RGB", (100, 100), color="blue")
+    img.save(image_path)
+
+    # File is not a duplicate
+    mock_dedupe_service.is_duplicate_and_mark.return_value = (False, "hash123")
+
+    await file_watcher_with_dedupe._queue_for_detection("camera1", str(image_path))
+
+    # Dedupe should be called
+    mock_dedupe_service.is_duplicate_and_mark.assert_called_once_with(str(image_path))
+
+    # File should be queued
+    mock_redis_client.add_to_queue.assert_called_once()
+
+    # Verify hash is included in queue data
+    call_args = mock_redis_client.add_to_queue.call_args[0]
+    queue_data = call_args[1]
+    assert queue_data["file_hash"] == "hash123"
+
+
+@pytest.mark.asyncio
+async def test_queue_for_detection_skips_duplicate(
+    file_watcher_with_dedupe, temp_camera_root, mock_redis_client, mock_dedupe_service
+):
+    """Test _queue_for_detection skips duplicate files."""
+    camera_dir = temp_camera_root / "camera1"
+    image_path = camera_dir / "test.jpg"
+    img = Image.new("RGB", (100, 100), color="red")
+    img.save(image_path)
+
+    # File IS a duplicate
+    mock_dedupe_service.is_duplicate_and_mark.return_value = (True, "hash456")
+
+    await file_watcher_with_dedupe._queue_for_detection("camera1", str(image_path))
+
+    # Dedupe should be called
+    mock_dedupe_service.is_duplicate_and_mark.assert_called_once()
+
+    # File should NOT be queued
+    mock_redis_client.add_to_queue.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_queue_for_detection_without_dedupe_service(temp_camera_root, mock_redis_client):
+    """Test _queue_for_detection works without dedupe service."""
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        debounce_delay=0.1,
+        dedupe_service=None,
+    )
+    # Override _dedupe_service to None (constructor would create one if redis is available)
+    watcher._dedupe_service = None
+
+    camera_dir = temp_camera_root / "camera1"
+    image_path = camera_dir / "test.jpg"
+    img = Image.new("RGB", (100, 100), color="green")
+    img.save(image_path)
+
+    await watcher._queue_for_detection("camera1", str(image_path))
+
+    # File should still be queued (no dedupe)
+    mock_redis_client.add_to_queue.assert_called_once()
+
+    # No file_hash in queue data since dedupe is disabled
+    call_args = mock_redis_client.add_to_queue.call_args[0]
+    queue_data = call_args[1]
+    assert "file_hash" not in queue_data
+
+
+@pytest.mark.asyncio
+async def test_duplicate_file_not_processed_twice(temp_camera_root, mock_redis_client):
+    """Integration test: same file content is not processed twice."""
+    # Create a real dedupe service with mock redis
+    mock_redis_client.exists = AsyncMock(return_value=0)
+    mock_redis_client.set = AsyncMock(return_value=True)
+
+    dedupe = DedupeService(redis_client=mock_redis_client, ttl_seconds=300)
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        debounce_delay=0.1,
+        dedupe_service=dedupe,
+    )
+
+    camera_dir = temp_camera_root / "camera1"
+    image_path = camera_dir / "test.jpg"
+    img = Image.new("RGB", (100, 100), color="purple")
+    img.save(image_path)
+
+    # First queue - should succeed
+    await watcher._queue_for_detection("camera1", str(image_path))
+    assert mock_redis_client.add_to_queue.await_count == 1
+
+    # Simulate Redis now having the key (marked as processed)
+    mock_redis_client.exists.return_value = 1
+
+    # Second queue - should be deduplicated
+    await watcher._queue_for_detection("camera1", str(image_path))
+    # Queue count should still be 1 (not called again)
+    assert mock_redis_client.add_to_queue.await_count == 1

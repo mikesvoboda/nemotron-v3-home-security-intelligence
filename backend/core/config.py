@@ -121,6 +121,14 @@ class Settings(BaseSettings):
         description="List of valid API keys (plain text, hashed on startup)",
     )
 
+    # File deduplication settings
+    dedupe_ttl_seconds: int = Field(
+        default=300,
+        description="TTL for file dedupe entries in Redis (seconds)",
+        ge=60,
+        le=3600,
+    )
+
     # Logging settings
     log_level: str = Field(
         default="INFO",

@@ -137,7 +137,7 @@ Create a `.env` file in the project root (use `.env.example` as template):
 CAMERA_ROOT=/export/foscam
 
 # Database
-DATABASE_URL=sqlite:///data/security.db
+DATABASE_URL=sqlite+aiosqlite:///data/security.db
 
 # Redis
 REDIS_URL=redis://redis:6379
