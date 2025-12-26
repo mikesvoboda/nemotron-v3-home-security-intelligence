@@ -3,7 +3,7 @@
 # Nemotron LLM Server Startup Script (via llama.cpp)
 # Called by ServiceHealthMonitor for auto-recovery
 #
-# Port: 8090
+# Port: 8091 (configurable via NEMOTRON_PORT)
 # VRAM Usage: ~16GB (Nemotron-3-Nano-30B-A3B Q4_K_M quantization)
 # Context: 12288 tokens
 #
@@ -11,7 +11,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PORT="${NEMOTRON_PORT:-8090}"
+PORT="${NEMOTRON_PORT:-8091}"
 HOST="${NEMOTRON_HOST:-127.0.0.1}"
 HEALTH_URL="http://${HOST}:$PORT/health"
 LOG_FILE="/tmp/nemotron.log"

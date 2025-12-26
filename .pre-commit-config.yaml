@@ -82,7 +82,7 @@ repos:
     hooks:
       - id: fast-test
         name: Quick Backend Tests
-        entry: bash -c 'redis-cli -n 15 FLUSHDB > /dev/null 2>&1; cd backend && pytest -m "not slow"'
+        entry: bash -c 'redis-cli -n 15 FLUSHDB > /dev/null 2>&1; cd backend && pytest -m "not slow" -n auto'
         language: system
         pass_filenames: false
         stages: [commit]

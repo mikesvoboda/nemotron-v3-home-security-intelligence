@@ -42,7 +42,7 @@ cd ai/rtdetr
 python model.py
 ```
 
-Server runs on: `http://localhost:8001`
+Server runs on: `http://localhost:8090`
 
 ## API Endpoints
 
@@ -155,7 +155,7 @@ Environment variables or command-line arguments:
 - `MODEL_PATH`: Path to ONNX model file (default: `rtdetrv2_r50vd.onnx`)
 - `CONFIDENCE_THRESHOLD`: Minimum detection confidence (default: 0.5)
 - `DEVICE`: Inference device (default: `cuda:0` if available, else `cpu`)
-- `PORT`: Server port (default: 8001)
+- `PORT`: Server port (default: 8090)
 
 ## Performance
 
@@ -190,6 +190,6 @@ import httpx
 
 async with httpx.AsyncClient() as client:
     files = {"file": open("camera_image.jpg", "rb")}
-    response = await client.post("http://localhost:8001/detect", files=files)
+    response = await client.post("http://localhost:8090/detect", files=files)
     detections = response.json()["detections"]
 ```

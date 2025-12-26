@@ -10,7 +10,7 @@ from pathlib import Path
 import httpx
 
 
-async def check_health(base_url: str = "http://localhost:8001") -> dict:
+async def check_health(base_url: str = "http://localhost:8090") -> dict:
     """Check server health status.
 
     Args:
@@ -25,7 +25,7 @@ async def check_health(base_url: str = "http://localhost:8001") -> dict:
         return response.json()
 
 
-async def detect_from_file(image_path: str | Path, base_url: str = "http://localhost:8001") -> dict:
+async def detect_from_file(image_path: str | Path, base_url: str = "http://localhost:8090") -> dict:
     """Run object detection on an image file.
 
     Args:
@@ -48,7 +48,7 @@ async def detect_from_file(image_path: str | Path, base_url: str = "http://local
 
 
 async def detect_from_base64(
-    image_path: str | Path, base_url: str = "http://localhost:8001"
+    image_path: str | Path, base_url: str = "http://localhost:8090"
 ) -> dict:
     """Run object detection using base64-encoded image.
 
@@ -75,7 +75,7 @@ async def detect_from_base64(
 
 
 async def detect_batch(
-    image_paths: list[str | Path], base_url: str = "http://localhost:8001"
+    image_paths: list[str | Path], base_url: str = "http://localhost:8090"
 ) -> dict:
     """Run batch object detection on multiple images.
 
@@ -122,7 +122,7 @@ def print_detections(result: dict) -> None:
 
 async def main():
     """Example usage of detection client."""
-    base_url = "http://localhost:8001"
+    base_url = "http://localhost:8090"
 
     # Check server health
     print("Checking server health...")

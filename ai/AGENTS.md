@@ -34,7 +34,7 @@ Downloads or locates required AI models:
 
 Starts the RT-DETRv2 object detection server:
 
-- **Port**: 8001
+- **Port**: 8090 (configurable via `RTDETR_PORT`)
 - **VRAM**: ~3GB (uses HuggingFace Transformers)
 - **Purpose**: Detects security-relevant objects in camera images
 - Runs `python ai/rtdetr/model.py`
@@ -44,7 +44,7 @@ Starts the RT-DETRv2 object detection server:
 
 Starts the Nemotron LLM server via llama.cpp:
 
-- **Port**: 8090
+- **Port**: 8091 (configurable via `NEMOTRON_PORT`)
 - **VRAM**: ~3GB (Q4_K_M quantization)
 - **Context**: 4096 tokens
 - **Parallelism**: 2 concurrent requests
@@ -61,7 +61,7 @@ Starts the Nemotron LLM server via llama.cpp:
 │  ┌──────────────────┐         ┌──────────────────┐         │
 │  │  RT-DETRv2       │         │  Nemotron LLM    │         │
 │  │  Detection       │         │  Reasoning       │         │
-│  │  Port: 8001      │         │  Port: 8090      │         │
+│  │  Port: 8090      │         │  Port: 8091      │         │
 │  │  VRAM: ~3GB      │         │  VRAM: ~3GB      │         │
 │  │  HuggingFace     │         │  llama.cpp       │         │
 │  └──────────────────┘         └──────────────────┘         │
@@ -114,7 +114,7 @@ cd /home/msvoboda/github/nemotron-v3-home-security-intelligence
 ./ai/start_detector.sh
 ```
 
-Server runs at: `http://localhost:8001`
+Server runs at: `http://localhost:8090`
 
 ### 3. Start LLM Server
 
@@ -122,7 +122,7 @@ Server runs at: `http://localhost:8001`
 ./ai/start_llm.sh
 ```
 
-Server runs at: `http://localhost:8090`
+Server runs at: `http://localhost:8091`
 
 **Note**: Ensure `llama-server` from llama.cpp is installed and available in PATH before starting the LLM service.
 

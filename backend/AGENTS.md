@@ -535,8 +535,8 @@ REDIS_URL=redis://localhost:6379/0
 FOSCAM_BASE_PATH=/export/foscam
 
 # AI service endpoints
-RTDETR_URL=http://localhost:8001
-NEMOTRON_URL=http://localhost:8002
+RTDETR_URL=http://localhost:8090
+NEMOTRON_URL=http://localhost:8091
 
 # Detection settings
 DETECTION_CONFIDENCE_THRESHOLD=0.5

@@ -16,8 +16,8 @@ services:
     environment:
       - DATABASE_URL=sqlite:///data/security.db
       - REDIS_URL=redis://redis:6379
-      - DETECTOR_URL=http://host.docker.internal:8001
-      - LLM_URL=http://host.docker.internal:8002
+      - RTDETR_URL=http://host.docker.internal:8090
+      - NEMOTRON_URL=http://host.docker.internal:8091
       - CAMERA_ROOT=/cameras
       - DEBUG=false
     depends_on:
@@ -70,10 +70,10 @@ services:
       context: ./frontend
       dockerfile: Dockerfile.prod
     ports:
-      - "3000:80"
+      - "80:80"
     environment:
-      - VITE_API_URL=http://localhost:8000
-      - VITE_WS_URL=ws://localhost:8000
+      - VITE_API_BASE_URL=http://localhost:8000
+      - VITE_WS_BASE_URL=ws://localhost:8000
     depends_on:
       backend:
         condition: service_healthy

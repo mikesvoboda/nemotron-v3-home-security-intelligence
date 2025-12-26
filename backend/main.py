@@ -16,7 +16,9 @@ from backend.core.logging import setup_logging
 from backend.core.redis import close_redis, init_redis
 from backend.services.cleanup_service import CleanupService
 from backend.services.event_broadcaster import get_broadcaster, stop_broadcaster
+from backend.services.file_watcher import FileWatcher
 from backend.services.gpu_monitor import GPUMonitor
+from backend.services.pipeline_workers import get_pipeline_manager, stop_pipeline_manager
 from backend.services.system_broadcaster import get_system_broadcaster
 
 
@@ -31,6 +33,11 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     await init_db()
     print(f"Database initialized: {settings.database_url}")
 
+    # Track whether Redis-dependent services were initialized
+    redis_client = None
+    file_watcher = None
+    pipeline_manager = None
+
     try:
         redis_client = await init_redis()
         print(f"Redis initialized: {settings.redis_url}")
@@ -38,6 +45,17 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
         # Initialize event broadcaster
         await get_broadcaster(redis_client)
         print("Event broadcaster initialized")
+
+        # Initialize file watcher (monitors camera directories for new images)
+        file_watcher = FileWatcher(redis_client=redis_client)
+        await file_watcher.start()
+        print(f"File watcher started: {settings.foscam_base_path}")
+
+        # Initialize pipeline workers (detection queue, analysis queue, batch timeout)
+        pipeline_manager = await get_pipeline_manager(redis_client)
+        await pipeline_manager.start()
+        print("Pipeline workers started (detection, analysis, batch timeout)")
+
     except Exception as e:
         print(f"Redis connection failed: {e}")
         print("Continuing without Redis - some features may be unavailable")
@@ -66,6 +84,16 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     print("Cleanup service stopped")
     await gpu_monitor.stop()
     print("GPU monitor stopped")
+
+    # Stop pipeline workers (before file watcher to allow queue draining)
+    await stop_pipeline_manager()
+    print("Pipeline workers stopped")
+
+    # Stop file watcher
+    if file_watcher:
+        await file_watcher.stop()
+        print("File watcher stopped")
+
     await stop_broadcaster()
     print("Event broadcaster stopped")
     await system_broadcaster.stop_broadcasting()

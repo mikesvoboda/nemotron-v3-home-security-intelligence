@@ -5,7 +5,7 @@ Runs on NVIDIA CUDA for efficient inference on security camera images.
 
 Uses HuggingFace Transformers for model loading and inference.
 
-Port: 8001
+Port: 8090 (configurable via PORT env var)
 Expected VRAM: ~3GB
 """
 
@@ -427,5 +427,5 @@ if __name__ == "__main__":
     import uvicorn
 
     host = os.getenv("HOST", "0.0.0.0")  # noqa: S104
-    port = int(os.getenv("PORT", "8001"))
+    port = int(os.getenv("PORT", "8090"))
     uvicorn.run(app, host=host, port=port, log_level="info")
