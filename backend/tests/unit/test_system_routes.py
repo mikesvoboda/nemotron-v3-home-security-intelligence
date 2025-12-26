@@ -6,8 +6,9 @@ but are important for correctness (and to satisfy the backend coverage gate).
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -409,3 +410,145 @@ async def test_get_readiness_includes_worker_status() -> None:
         assert gpu_worker.running is True
     finally:
         system_routes._gpu_monitor = original_gpu
+
+
+# =============================================================================
+# Health Check Timeout Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_readiness_database_timeout() -> None:
+    """Test readiness endpoint when database health check times out."""
+
+    async def slow_db_execute(*args, **kwargs):
+        """Simulate a slow database query that will timeout."""
+        await asyncio.sleep(10)  # Much longer than the timeout
+
+    db = AsyncMock()
+    db.execute = slow_db_execute
+
+    redis = AsyncMock()
+    redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
+
+    # Use a short timeout for testing
+    with patch.object(system_routes, "HEALTH_CHECK_TIMEOUT_SECONDS", 0.1):
+        response = await system_routes.get_readiness(db, redis)  # type: ignore[arg-type]
+
+    assert isinstance(response, ReadinessResponse)
+    assert response.ready is False
+    assert response.status == "not_ready"
+    assert response.services["database"].status == "unhealthy"
+    assert "timed out" in response.services["database"].message
+
+
+@pytest.mark.asyncio
+async def test_get_readiness_redis_timeout() -> None:
+    """Test readiness endpoint when Redis health check times out."""
+    db = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalar_one.return_value = 5
+    db.execute = AsyncMock(return_value=mock_result)
+
+    async def slow_redis_health_check():
+        """Simulate a slow Redis health check that will timeout."""
+        await asyncio.sleep(10)  # Much longer than the timeout
+
+    redis = AsyncMock()
+    redis.health_check = slow_redis_health_check
+
+    # Use a short timeout for testing
+    with patch.object(system_routes, "HEALTH_CHECK_TIMEOUT_SECONDS", 0.1):
+        response = await system_routes.get_readiness(db, redis)  # type: ignore[arg-type]
+
+    assert isinstance(response, ReadinessResponse)
+    assert response.ready is False
+    assert response.status == "degraded"
+    assert response.services["database"].status == "healthy"
+    assert response.services["redis"].status == "unhealthy"
+    assert "timed out" in response.services["redis"].message
+
+
+@pytest.mark.asyncio
+async def test_get_readiness_ai_services_timeout() -> None:
+    """Test readiness endpoint when AI services health check times out."""
+    db = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalar_one.return_value = 5
+    db.execute = AsyncMock(return_value=mock_result)
+
+    redis = AsyncMock()
+    redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
+
+    async def slow_ai_health_check():
+        """Simulate a slow AI services health check that will timeout."""
+        await asyncio.sleep(10)  # Much longer than the timeout
+        # This return is never reached due to timeout
+        return system_routes.ServiceStatus(
+            status="healthy", message="AI services operational", details=None
+        )
+
+    # Use a short timeout for testing
+    with (
+        patch.object(system_routes, "HEALTH_CHECK_TIMEOUT_SECONDS", 0.1),
+        patch.object(system_routes, "check_ai_services_health", slow_ai_health_check),
+    ):
+        response = await system_routes.get_readiness(db, redis)  # type: ignore[arg-type]
+
+    assert isinstance(response, ReadinessResponse)
+    # Database and Redis are healthy, so system should be ready
+    # but AI services timeout should be reflected
+    assert response.ready is True
+    assert response.status == "ready"
+    assert response.services["database"].status == "healthy"
+    assert response.services["redis"].status == "healthy"
+    assert response.services["ai"].status == "unhealthy"
+    assert "timed out" in response.services["ai"].message
+
+
+@pytest.mark.asyncio
+async def test_get_readiness_all_services_timeout() -> None:
+    """Test readiness endpoint when all health checks timeout."""
+
+    async def slow_db_execute(*args, **kwargs):
+        """Simulate a slow database query that will timeout."""
+        await asyncio.sleep(10)
+
+    async def slow_redis_health_check():
+        """Simulate a slow Redis health check that will timeout."""
+        await asyncio.sleep(10)
+
+    async def slow_ai_health_check():
+        """Simulate a slow AI services health check that will timeout."""
+        await asyncio.sleep(10)
+
+    db = AsyncMock()
+    db.execute = slow_db_execute
+
+    redis = AsyncMock()
+    redis.health_check = slow_redis_health_check
+
+    with (
+        patch.object(system_routes, "HEALTH_CHECK_TIMEOUT_SECONDS", 0.1),
+        patch.object(system_routes, "check_ai_services_health", slow_ai_health_check),
+    ):
+        response = await system_routes.get_readiness(db, redis)  # type: ignore[arg-type]
+
+    assert isinstance(response, ReadinessResponse)
+    assert response.ready is False
+    assert response.status == "not_ready"
+    assert response.services["database"].status == "unhealthy"
+    assert response.services["redis"].status == "unhealthy"
+    assert response.services["ai"].status == "unhealthy"
+    assert "timed out" in response.services["database"].message
+    assert "timed out" in response.services["redis"].message
+    assert "timed out" in response.services["ai"].message
+
+
+@pytest.mark.asyncio
+async def test_health_check_timeout_constant_is_reasonable() -> None:
+    """Test that the health check timeout constant has a reasonable value."""
+    # The timeout should be at least 1 second to allow for slow responses
+    assert system_routes.HEALTH_CHECK_TIMEOUT_SECONDS >= 1.0
+    # The timeout should not be more than 30 seconds
+    assert system_routes.HEALTH_CHECK_TIMEOUT_SECONDS <= 30.0

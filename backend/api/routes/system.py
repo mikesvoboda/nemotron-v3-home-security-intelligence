@@ -1,5 +1,6 @@
 """System monitoring and configuration API endpoints."""
 
+import asyncio
 import os
 import time
 from datetime import UTC, datetime
@@ -30,6 +31,9 @@ router = APIRouter(prefix="/api/system", tags=["system"])
 
 # Track application start time for uptime calculation
 _app_start_time = time.time()
+
+# Timeout for health check operations (in seconds)
+HEALTH_CHECK_TIMEOUT_SECONDS = 5.0
 
 # Global references for worker status tracking (set by main.py at startup)
 _gpu_monitor: "GPUMonitor | None" = None
@@ -305,13 +309,48 @@ async def get_readiness(
     Used by Kubernetes/Docker to determine if traffic should be routed to this instance.
     If this endpoint returns not_ready, the instance should not receive new requests.
 
+    Health checks have a timeout of HEALTH_CHECK_TIMEOUT_SECONDS (default 5 seconds).
+    If a health check times out, the service is marked as unhealthy.
+
     Returns:
         ReadinessResponse with overall readiness status and detailed checks
     """
-    # Check all infrastructure services
-    db_status = await check_database_health(db)
-    redis_status = await check_redis_health(redis)
-    ai_status = await check_ai_services_health()
+    # Check all infrastructure services with timeout protection
+    try:
+        db_status = await asyncio.wait_for(
+            check_database_health(db),
+            timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
+        )
+    except TimeoutError:
+        db_status = ServiceStatus(
+            status="unhealthy",
+            message="Database health check timed out",
+            details=None,
+        )
+
+    try:
+        redis_status = await asyncio.wait_for(
+            check_redis_health(redis),
+            timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
+        )
+    except TimeoutError:
+        redis_status = ServiceStatus(
+            status="unhealthy",
+            message="Redis health check timed out",
+            details=None,
+        )
+
+    try:
+        ai_status = await asyncio.wait_for(
+            check_ai_services_health(),
+            timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
+        )
+    except TimeoutError:
+        ai_status = ServiceStatus(
+            status="unhealthy",
+            message="AI services health check timed out",
+            details=None,
+        )
 
     services = {
         "database": db_status,

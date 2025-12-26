@@ -155,6 +155,10 @@ async def requeue_dlq_job(
     )
 
 
+# Maximum number of jobs to requeue in a single call to prevent resource exhaustion
+MAX_REQUEUE_ITERATIONS = 10000
+
+
 @router.post("/requeue-all/{queue_name}", response_model=DLQRequeueResponse)
 async def requeue_all_dlq_jobs(
     queue_name: DLQName,
@@ -163,7 +167,8 @@ async def requeue_all_dlq_jobs(
     """Requeue all jobs from a DLQ back to their original processing queue.
 
     Removes all jobs from the specified DLQ and adds them back to the
-    original processing queue for retry.
+    original processing queue for retry. Limited to MAX_REQUEUE_ITERATIONS
+    to prevent resource exhaustion.
 
     Args:
         queue_name: Name of the DLQ (detection or analysis)
@@ -175,25 +180,41 @@ async def requeue_all_dlq_jobs(
     handler = get_retry_handler(redis)
     target_queue = _get_target_queue(queue_name)
 
+    # Check queue size before starting - return early if empty
+    queue_length = await redis.get_queue_length(queue_name.value)
+    if queue_length == 0:
+        return DLQRequeueResponse(
+            success=False,
+            message=f"No jobs to requeue from {queue_name.value}",
+            job=None,
+        )
+
     requeued_count = 0
-    while True:
+    for _ in range(MAX_REQUEUE_ITERATIONS):
         success = await handler.move_dlq_job_to_queue(queue_name.value, target_queue)
         if not success:
             break
         requeued_count += 1
 
     if requeued_count > 0:
+        # Check if we hit the limit
+        hit_limit = requeued_count >= MAX_REQUEUE_ITERATIONS
+        message = f"Requeued {requeued_count} jobs from {queue_name.value} to {target_queue}"
+        if hit_limit:
+            message += f" (hit limit of {MAX_REQUEUE_ITERATIONS})"
+
         logger.info(
             f"Requeued {requeued_count} jobs from {queue_name.value} to {target_queue}",
             extra={
                 "dlq_name": queue_name.value,
                 "target_queue": target_queue,
                 "count": requeued_count,
+                "hit_limit": hit_limit,
             },
         )
         return DLQRequeueResponse(
             success=True,
-            message=f"Requeued {requeued_count} jobs from {queue_name.value} to {target_queue}",
+            message=message,
             job=None,
         )
 
@@ -224,10 +245,7 @@ async def clear_dlq(
     handler = get_retry_handler(redis)
 
     # Get count before clearing
-    if queue_name == DLQName.DETECTION:
-        count = await redis.get_queue_length(queue_name.value)
-    else:
-        count = await redis.get_queue_length(queue_name.value)
+    count = await redis.get_queue_length(queue_name.value)
 
     success = await handler.clear_dlq(queue_name.value)
 

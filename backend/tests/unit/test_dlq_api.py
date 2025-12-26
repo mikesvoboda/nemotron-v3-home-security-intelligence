@@ -222,7 +222,8 @@ class TestRequeueAllEndpoint:
 
     def test_requeue_all_success(self, client: TestClient, mock_redis: MagicMock) -> None:
         """Test successful requeue of all jobs."""
-        # First two calls return jobs, third returns None (empty)
+        # First call for get_queue_length returns 2 (non-empty queue)
+        # Then get_from_queue: two calls return jobs, third returns None (empty)
         job_data = {
             "original_job": {"camera_id": "cam1"},
             "error": "Error",
@@ -231,6 +232,7 @@ class TestRequeueAllEndpoint:
             "last_failed_at": "2025-12-23T10:00:15",
             "queue_name": "detection_queue",
         }
+        mock_redis.get_queue_length = AsyncMock(return_value=2)
         mock_redis.get_from_queue = AsyncMock(side_effect=[job_data, job_data, None])
         mock_redis.add_to_queue = AsyncMock(return_value=1)
 
@@ -242,8 +244,9 @@ class TestRequeueAllEndpoint:
         assert "2" in data["message"]  # Should mention count
 
     def test_requeue_all_empty_queue(self, client: TestClient, mock_redis: MagicMock) -> None:
-        """Test requeue all from empty queue."""
-        mock_redis.get_from_queue = AsyncMock(return_value=None)
+        """Test requeue all from empty queue returns early."""
+        # Queue length is 0, so endpoint should return early without calling get_from_queue
+        mock_redis.get_queue_length = AsyncMock(return_value=0)
 
         response = client.post("/api/dlq/requeue-all/dlq:detection_queue")
 
@@ -251,6 +254,41 @@ class TestRequeueAllEndpoint:
         data = response.json()
         assert data["success"] is False
         assert "no jobs" in data["message"].lower()
+        # Verify get_from_queue was NOT called (early return)
+        mock_redis.get_from_queue.assert_not_called()
+
+    def test_requeue_all_respects_max_iterations(
+        self, client: TestClient, mock_redis: MagicMock
+    ) -> None:
+        """Test that requeue-all stops at MAX_REQUEUE_ITERATIONS."""
+        from backend.api.routes.dlq import MAX_REQUEUE_ITERATIONS
+
+        # Simulate a queue that always returns a job (never depletes)
+        job_data = {
+            "original_job": {"camera_id": "cam1"},
+            "error": "Error",
+            "attempt_count": 3,
+            "first_failed_at": "2025-12-23T10:00:00",
+            "last_failed_at": "2025-12-23T10:00:15",
+            "queue_name": "detection_queue",
+        }
+        # Queue reports a large size
+        mock_redis.get_queue_length = AsyncMock(return_value=MAX_REQUEUE_ITERATIONS + 1000)
+        # Always return a job (simulating infinite queue)
+        mock_redis.get_from_queue = AsyncMock(return_value=job_data)
+        mock_redis.add_to_queue = AsyncMock(return_value=1)
+
+        response = client.post("/api/dlq/requeue-all/dlq:detection_queue")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        # Should mention the count equals MAX_REQUEUE_ITERATIONS
+        assert str(MAX_REQUEUE_ITERATIONS) in data["message"]
+        # Should indicate we hit the limit
+        assert "hit limit" in data["message"].lower()
+        # Verify get_from_queue was called exactly MAX_REQUEUE_ITERATIONS times
+        assert mock_redis.get_from_queue.call_count == MAX_REQUEUE_ITERATIONS
 
 
 class TestClearDLQEndpoint:
