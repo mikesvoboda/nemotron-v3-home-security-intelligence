@@ -68,7 +68,7 @@ class DetectorClient:
             logger.error(f"Unexpected error during detector health check: {e}", exc_info=True)
             return False
 
-    async def detect_objects(  # noqa: PLR0911, PLR0915
+    async def detect_objects(  # noqa: PLR0911, PLR0912, PLR0915
         self,
         image_path: str,
         camera_id: str,
@@ -142,8 +142,22 @@ class DetectorClient:
                         continue
 
                     # Extract bbox coordinates [x, y, width, height]
-                    bbox = detection_data.get("bbox", [])
-                    if len(bbox) != 4:
+                    bbox = detection_data.get("bbox", {})
+                    # Handle both dict format {"x", "y", "width", "height"} and array [x, y, w, h]
+                    if isinstance(bbox, dict):
+                        if not all(k in bbox for k in ("x", "y", "width", "height")):
+                            logger.warning(f"Invalid bbox dict format: {bbox}")
+                            continue
+                        bbox_x = int(bbox["x"])
+                        bbox_y = int(bbox["y"])
+                        bbox_width = int(bbox["width"])
+                        bbox_height = int(bbox["height"])
+                    elif isinstance(bbox, (list, tuple)) and len(bbox) == 4:
+                        bbox_x = int(bbox[0])
+                        bbox_y = int(bbox[1])
+                        bbox_width = int(bbox[2])
+                        bbox_height = int(bbox[3])
+                    else:
                         logger.warning(f"Invalid bbox format: {bbox}")
                         continue
 
@@ -155,10 +169,10 @@ class DetectorClient:
                         detected_at=detected_at,
                         object_type=detection_data.get("class"),
                         confidence=confidence,
-                        bbox_x=int(bbox[0]),
-                        bbox_y=int(bbox[1]),
-                        bbox_width=int(bbox[2]),
-                        bbox_height=int(bbox[3]),
+                        bbox_x=bbox_x,
+                        bbox_y=bbox_y,
+                        bbox_width=bbox_width,
+                        bbox_height=bbox_height,
                     )
 
                     session.add(detection)
