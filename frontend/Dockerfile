@@ -1,4 +1,5 @@
-FROM node:20-alpine
+# Use specific Node.js LTS Alpine version for latest security patches
+FROM node:20-alpine3.21
 
 WORKDIR /app
 

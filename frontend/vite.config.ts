@@ -49,6 +49,7 @@ export default defineConfig({
         '**/*.d.ts',
         '**/*.test.{ts,tsx}',
         '**/index.ts',
+        '**/*.example.tsx',
         '**/Example.tsx',
         '*.config.{js,ts,cjs,mjs}',
         '.eslintrc.cjs',

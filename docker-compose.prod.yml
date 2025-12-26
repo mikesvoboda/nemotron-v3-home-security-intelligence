@@ -45,7 +45,7 @@ services:
           memory: 2G
 
   redis:
-    image: redis:7-alpine
+    image: redis:7.4-alpine3.21
     ports:
       - "6379:6379"
     volumes:
