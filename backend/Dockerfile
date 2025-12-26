@@ -1,5 +1,6 @@
-# Use specific Debian Bookworm base for latest security patches
-FROM python:3.11-slim-bookworm
+# Use specific Python version with Debian Bookworm base for latest security patches
+# Python 3.11.14 released October 2025 with security fixes (CVE-2025-59375, tarfile vulnerabilities)
+FROM python:3.11.14-slim-bookworm
 
 WORKDIR /app
 
