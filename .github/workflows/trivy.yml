@@ -14,6 +14,10 @@ on:
       - "backend/requirements.txt"
       - "frontend/package.json"
 
+permissions:
+  contents: read
+  security-events: write
+
 jobs:
   scan-backend:
     name: Scan Backend Image
