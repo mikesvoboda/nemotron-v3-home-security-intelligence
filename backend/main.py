@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.middleware import AuthMiddleware
 from backend.api.middleware.request_id import RequestIDMiddleware
-from backend.api.routes import cameras, detections, events, media, system, websocket
+from backend.api.routes import cameras, detections, dlq, events, media, system, websocket
 from backend.api.routes.logs import router as logs_router
 from backend.core import close_db, get_settings, init_db
 from backend.core.logging import setup_logging
@@ -100,6 +100,7 @@ app.add_middleware(
 # Register routers
 app.include_router(cameras.router)
 app.include_router(detections.router)
+app.include_router(dlq.router)
 app.include_router(events.router)
 app.include_router(logs_router)
 app.include_router(media.router)

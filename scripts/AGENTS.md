@@ -453,31 +453,97 @@ This directory contains development, testing, and deployment automation scripts 
   - jq (for JSON parsing of container status)
   - curl (for HTTP endpoint testing)
 
+**smoke-test.sh** (~650 lines, executable)
+
+- **Purpose:** End-to-end smoke test for validating the complete MVP pipeline
+- **What it does:**
+  1. Checks prerequisites (curl, jq, backend API, Redis, database)
+  2. Creates a test camera in the database
+  3. Generates a test image fixture (using PIL or fallback minimal JPEG)
+  4. Drops the test image into the camera folder
+  5. Waits for detection to be created (polls /api/detections)
+  6. Waits for event to be created (batch processing)
+  7. Verifies API endpoints return expected data
+  8. Cleans up test artifacts (camera, images)
+- **When to use:**
+  - After deployment to verify pipeline is operational
+  - After configuration changes
+  - Before releasing new versions
+  - During incident investigation
+  - As part of production health checks
+- **Usage:**
+
+  ```bash
+  # Basic smoke test
+  ./scripts/smoke-test.sh
+
+  # Verbose output for debugging
+  ./scripts/smoke-test.sh --verbose
+
+  # Keep test artifacts for inspection
+  ./scripts/smoke-test.sh --skip-cleanup
+
+  # Custom API URL and timeout
+  ./scripts/smoke-test.sh --api-url http://192.168.1.100:8000 --timeout 180
+  ```
+
+- **Command-line options:**
+  - `--help, -h` - Show help message with full usage documentation
+  - `--verbose, -v` - Enable verbose output (API responses, debug info)
+  - `--skip-cleanup` - Don't remove test artifacts after completion
+  - `--timeout N` - Timeout in seconds for pipeline completion (default: 90)
+  - `--api-url URL` - Backend API URL (default: http://localhost:8000)
+- **Exit codes:**
+  - `0` - All tests passed
+  - `1` - Test failure (see output for details)
+  - `2` - Prerequisite check failed
+- **Pipeline validation:**
+  - Creates test camera: `smoke-test-camera`
+  - Creates test image in: `data/smoke_test_camera/`
+  - Validates detection created within timeout
+  - Validates event created after batch processing
+  - Verifies all API endpoints return valid responses
+- **Output:**
+  - Colored status messages (PASS/FAIL/WARN)
+  - Diagnostic information on failures
+  - Troubleshooting suggestions
+  - Summary with test duration
+- **Error handling:**
+  - Graceful handling of missing services
+  - Automatic cleanup on exit (via trap)
+  - Helpful troubleshooting messages for each failure mode
+- **Dependencies:**
+  - curl (HTTP requests)
+  - jq (JSON parsing)
+  - Backend API running
+  - Redis running
+  - (Optional) AI services for full pipeline validation
+
 ## Script Comparison
 
 ### Development & Testing Scripts
 
-| Feature                 | setup.sh             | dev.sh               | start-ai.sh           | test-runner.sh        | validate.sh         | test-docker.sh       |
-| ----------------------- | -------------------- | -------------------- | --------------------- | --------------------- | ------------------- | -------------------- |
-| **Purpose**             | Environment setup    | Dev servers          | AI services           | Comprehensive testing | Quick validation    | Docker deployment    |
-| **Run frequency**       | Once per environment | Daily dev use        | When testing AI       | Before commits        | Before commits/push | Before deployment    |
-| **Prerequisite checks** | Yes (Python, Node)   | No                   | Yes (GPU, llama)      | No                    | No                  | Yes (Docker)         |
-| **Starts services**     | No                   | Yes (3 services)     | Yes (2 AI services)   | No                    | No                  | Yes (Docker Compose) |
-| **Backend tests**       | Optional             | No                   | No                    | Yes (pytest)          | Yes (pytest)        | No                   |
-| **Frontend tests**      | Optional             | No                   | No                    | Yes (Vitest)          | Yes (Vitest)        | No                   |
-| **Coverage reports**    | No                   | No                   | No                    | Yes (HTML + JSON)     | No (terminal only)  | No                   |
-| **Coverage threshold**  | N/A                  | N/A                  | N/A                   | 95%                   | 90%                 | N/A                  |
-| **Linting**             | No                   | No                   | No                    | No                    | Yes (ruff + eslint) | No                   |
-| **Type checking**       | No                   | No                   | No                    | No                    | Yes (mypy + tsc)    | No                   |
-| **Health checks**       | No                   | Yes (service status) | Yes (GPU + endpoints) | No                    | No                  | Yes (containers)     |
-| **GPU monitoring**      | Check only           | No                   | Yes (nvidia-smi)      | No                    | No                  | No                   |
-| **Pre-commit hooks**    | Installs             | No                   | No                    | No                    | No                  | No                   |
-| **Colored output**      | Yes                  | Yes                  | Yes                   | Yes                   | Yes                 | Yes                  |
-| **Creates .env**        | Yes                  | No                   | No                    | No                    | No                  | No                   |
-| **Installs deps**       | Yes                  | No                   | No                    | Yes (if missing)      | No                  | No                   |
-| **Command options**     | 4 flags              | 9 commands           | 5 commands            | None                  | None                | 3 flags              |
-| **Windows support**     | setup.ps1            | No                   | No                    | No                    | No                  | No                   |
-| **Cleanup on exit**     | No                   | No                   | No                    | No                    | No                  | Yes (optional)       |
+| Feature                 | setup.sh             | dev.sh               | start-ai.sh           | test-runner.sh        | validate.sh         | test-docker.sh       | smoke-test.sh       |
+| ----------------------- | -------------------- | -------------------- | --------------------- | --------------------- | ------------------- | -------------------- | ------------------- |
+| **Purpose**             | Environment setup    | Dev servers          | AI services           | Comprehensive testing | Quick validation    | Docker deployment    | E2E pipeline test   |
+| **Run frequency**       | Once per environment | Daily dev use        | When testing AI       | Before commits        | Before commits/push | Before deployment    | After deployment    |
+| **Prerequisite checks** | Yes (Python, Node)   | No                   | Yes (GPU, llama)      | No                    | No                  | Yes (Docker)         | Yes (API, Redis)    |
+| **Starts services**     | No                   | Yes (3 services)     | Yes (2 AI services)   | No                    | No                  | Yes (Docker Compose) | No                  |
+| **Backend tests**       | Optional             | No                   | No                    | Yes (pytest)          | Yes (pytest)        | No                   | No (E2E only)       |
+| **Frontend tests**      | Optional             | No                   | No                    | Yes (Vitest)          | Yes (Vitest)        | No                   | No                  |
+| **Coverage reports**    | No                   | No                   | No                    | Yes (HTML + JSON)     | No (terminal only)  | No                   | No                  |
+| **Coverage threshold**  | N/A                  | N/A                  | N/A                   | 95%                   | 90%                 | N/A                  | N/A                 |
+| **Linting**             | No                   | No                   | No                    | No                    | Yes (ruff + eslint) | No                   | No                  |
+| **Type checking**       | No                   | No                   | No                    | No                    | Yes (mypy + tsc)    | No                   | No                  |
+| **Health checks**       | No                   | Yes (service status) | Yes (GPU + endpoints) | No                    | No                  | Yes (containers)     | Yes (API endpoints) |
+| **GPU monitoring**      | Check only           | No                   | Yes (nvidia-smi)      | No                    | No                  | No                   | No                  |
+| **Pre-commit hooks**    | Installs             | No                   | No                    | No                    | No                  | No                   | No                  |
+| **Colored output**      | Yes                  | Yes                  | Yes                   | Yes                   | Yes                 | Yes                  | Yes                 |
+| **Creates .env**        | Yes                  | No                   | No                    | No                    | No                  | No                   | No                  |
+| **Installs deps**       | Yes                  | No                   | No                    | Yes (if missing)      | No                  | No                   | No                  |
+| **Command options**     | 4 flags              | 9 commands           | 5 commands            | None                  | None                | 3 flags              | 4 flags             |
+| **Windows support**     | setup.ps1            | No                   | No                    | No                    | No                  | No                   | No                  |
+| **Cleanup on exit**     | No                   | No                   | No                    | No                    | No                  | Yes (optional)       | Yes (optional)      |
 
 ## Usage Patterns
 

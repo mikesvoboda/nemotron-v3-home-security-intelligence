@@ -23,7 +23,7 @@ services:
           "CMD",
           "python",
           "-c",
-          "import httpx; exit(0 if httpx.get('http://localhost:8000/health').status_code == 200 else 1)",
+          "import httpx; r = httpx.get('http://localhost:8000/api/system/health/ready'); exit(0 if r.status_code == 200 and r.json().get('ready', False) else 1)",
         ]
       interval: 10s
       timeout: 5s
