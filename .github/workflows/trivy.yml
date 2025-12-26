@@ -1,0 +1,70 @@
+name: Trivy Container Scan
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "**/Dockerfile*"
+      - "backend/requirements.txt"
+      - "frontend/package.json"
+  pull_request:
+    branches: [main]
+    paths:
+      - "**/Dockerfile*"
+      - "backend/requirements.txt"
+      - "frontend/package.json"
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  scan-backend:
+    name: Scan Backend Image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: docker build -t backend:${{ github.sha }} -f backend/Dockerfile backend/
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "backend:${{ github.sha }}"
+          format: "sarif"
+          output: "trivy-backend.sarif"
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: "trivy-backend.sarif"
+
+  scan-frontend:
+    name: Scan Frontend Image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build frontend image
+        run: docker build -t frontend:${{ github.sha }} -f frontend/Dockerfile frontend/
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "frontend:${{ github.sha }}"
+          format: "sarif"
+          output: "trivy-frontend.sarif"
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: "trivy-frontend.sarif"
