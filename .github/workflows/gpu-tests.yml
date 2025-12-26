@@ -1,0 +1,63 @@
+name: GPU Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  gpu-integration:
+    name: GPU Integration Tests
+    runs-on: [self-hosted, gpu, rtx-a5500]
+    # Fork protection - only run for trusted sources
+    if: >
+      github.event.pull_request.head.repo.full_name == github.repository ||
+      github.event_name == 'push'
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify GPU availability
+        run: |
+          nvidia-smi
+          echo "GPU Memory: $(nvidia-smi --query-gpu=memory.total --format=csv,noheader)"
+
+      - name: Set up Python
+        run: |
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install -r backend/requirements-dev.txt
+
+      - name: Run GPU tests
+        run: |
+          source .venv/bin/activate
+          pytest backend/tests/ \
+            -m "gpu" \
+            -v \
+            --tb=short
+        env:
+          CUDA_VISIBLE_DEVICES: "0"
+
+      - name: Run AI inference benchmarks
+        run: |
+          source .venv/bin/activate
+          pytest backend/tests/benchmarks/ \
+            --benchmark-only \
+            --benchmark-json=gpu-benchmark.json \
+            -v
+        env:
+          CUDA_VISIBLE_DEVICES: "0"
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpu-benchmark-results
+          path: gpu-benchmark.json
+
+      - name: Check GPU memory usage
+        if: always()
+        run: |
+          nvidia-smi --query-compute-apps=pid,used_memory --format=csv
+          nvidia-smi
