@@ -1,5 +1,6 @@
 # Multi-stage production build for backend
-FROM python:3.11-slim as builder
+# Use specific Debian Bookworm base for latest security patches
+FROM python:3.11-slim-bookworm AS builder
 
 WORKDIR /app
 
@@ -14,7 +15,7 @@ RUN pip install --no-cache-dir --user -r requirements.txt
 
 
 # Production stage
-FROM python:3.11-slim
+FROM python:3.11-slim-bookworm
 
 WORKDIR /app
 
@@ -23,8 +24,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy Python dependencies from builder
-COPY --from=builder /root/.local /root/.local
+# Create non-root user for security
+RUN useradd -m -u 1000 appuser
+
+# Copy Python dependencies from builder to user's home
+COPY --from=builder /root/.local /home/appuser/.local
 
 # Copy application code
 COPY . .
@@ -32,12 +36,13 @@ COPY . .
 # Create data directory for SQLite database
 RUN mkdir -p /app/data
 
-# Add .local/bin to PATH for installed packages
-ENV PATH=/root/.local/bin:$PATH
+# Set ownership of app and user directories
+RUN chown -R appuser:appuser /app /home/appuser/.local
 
-# Create non-root user for security
-RUN useradd -m -u 1000 appuser && \
-    chown -R appuser:appuser /app
+# Add .local/bin to PATH for installed packages
+ENV PATH=/home/appuser/.local/bin:$PATH
+
+# Switch to non-root user
 USER appuser
 
 # Expose FastAPI port

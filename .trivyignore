@@ -1,0 +1,11 @@
+# Trivy ignore file for false positives and accepted risks
+# Documentation: https://aquasecurity.github.io/trivy/latest/docs/configuration/filtering/
+
+# Development-only dependencies (not in production runtime)
+# These are only used during build stage and not present in final images
+
+# Example format for ignoring specific CVEs:
+# CVE-2023-XXXXX  # Description of why this is ignored
+
+# Note: Add CVEs here only after careful review and documentation
+# of why they are false positives or accepted risks.

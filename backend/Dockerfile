@@ -1,4 +1,5 @@
-FROM python:3.11-slim
+# Use specific Debian Bookworm base for latest security patches
+FROM python:3.11-slim-bookworm
 
 WORKDIR /app
 
