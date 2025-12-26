@@ -1,0 +1,117 @@
+name: Nightly Analysis
+
+on:
+  schedule:
+    - cron: "0 7 * * *" # 2am EST / 7am UTC
+  workflow_dispatch:
+
+jobs:
+  extended-benchmarks:
+    name: Extended Benchmarks
+    runs-on: [self-hosted, gpu, rtx-a5500]
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        run: |
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install -r backend/requirements-dev.txt
+
+      - name: Run Big-O benchmarks
+        run: |
+          source .venv/bin/activate
+          pytest backend/tests/benchmarks/test_bigo.py \
+            -v \
+            --tb=short
+
+      - name: Run memory profiling
+        run: |
+          source .venv/bin/activate
+          pytest backend/tests/benchmarks/test_memory.py \
+            --memray \
+            --memray-bin-path=memray-report.bin \
+            -v
+
+      - name: Upload memory report
+        uses: actions/upload-artifact@v4
+        with:
+          name: memory-profile
+          path: memray-report.bin
+
+  complexity-trends:
+    name: Complexity Trends
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history for wily
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install wily
+        run: pip install wily
+
+      - name: Build wily cache
+        run: wily build backend/
+
+      - name: Generate complexity report
+        run: |
+          wily report backend/ --format html -o wily-report.html
+          wily diff backend/ -r HEAD~10..HEAD
+
+      - name: Upload wily report
+        uses: actions/upload-artifact@v4
+        with:
+          name: wily-report
+          path: wily-report.html
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Audit Python dependencies
+        run: |
+          pip install pip-audit
+          pip-audit -r backend/requirements.txt || true
+
+      - name: Audit Node dependencies
+        run: |
+          cd frontend
+          npm audit || true
+
+      - name: Full Bandit scan
+        run: |
+          pip install bandit
+          bandit -r backend/ -f json -o bandit-full.json || true
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-audit
+          path: |
+            bandit-full.json
