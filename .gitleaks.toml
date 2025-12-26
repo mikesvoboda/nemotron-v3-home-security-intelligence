@@ -1,0 +1,10 @@
+title = "Gitleaks Config"
+
+[allowlist]
+description = "Allowlisted patterns"
+paths = [
+  '''\.env\.example$''',
+  '''package-lock\.json$''',
+  '''\.test\.(ts|tsx|py)$''',
+  '''test_.*\.py$''',
+]
