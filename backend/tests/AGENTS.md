@@ -56,7 +56,11 @@ Tests for the complete AI pipeline flow:
 
 ## Shared Fixtures (conftest.py)
 
-### `isolated_db`
+All shared fixtures are defined in `backend/tests/conftest.py`. **DO NOT duplicate these fixtures in subdirectory conftest files or individual test files.**
+
+### Unit Test Fixtures
+
+#### `isolated_db`
 
 - **Scope**: Function
 - **Purpose**: Creates isolated temporary database for each test
@@ -73,32 +77,128 @@ async def test_database_operation(isolated_db):
         pass
 ```
 
-### `test_db`
+#### `test_db`
 
 - **Scope**: Function
 - **Purpose**: Provides a callable session factory for unit tests
 - **Usage**: Returns `get_session` function for database access
 - **Cleanup**: Automatic cleanup and environment restoration
 
-### `reset_settings_cache`
+#### `reset_settings_cache`
 
 - **Scope**: Auto-used for all tests
 - **Purpose**: Clears settings cache before/after each test
 - **Usage**: Prevents global state leakage between tests
+
+### Integration/E2E Test Fixtures
+
+These fixtures are shared across ALL integration and E2E tests. They are defined once in `backend/tests/conftest.py` and inherited by all subdirectories.
+
+#### `integration_env`
+
+- **Scope**: Function
+- **Purpose**: Sets DATABASE_URL, REDIS_URL, and HSI_RUNTIME_ENV_PATH environment variables
+- **Usage**: Environment setup only; use `integration_db` if database needs initialization
+- **Cleanup**: Restores original environment variables after test
+
+#### `integration_db`
+
+- **Scope**: Function
+- **Purpose**: Initializes temporary SQLite database with all tables
+- **Depends on**: `integration_env`
+- **Usage**: Use for any test that needs database access
+
+```python
+@pytest.mark.asyncio
+async def test_full_workflow(integration_db):
+    from backend.core.database import get_session
+
+    async with get_session() as session:
+        # Test code here with real database
+        pass
+```
+
+#### `mock_redis`
+
+- **Scope**: Function
+- **Purpose**: Mocks Redis client so tests don't require actual Redis server
+- **Patches**: `backend.core.redis._redis_client`, `init_redis`, `close_redis`
+- **Pre-configured**: `health_check()` returns healthy status
+
+```python
+@pytest.mark.asyncio
+async def test_with_redis(integration_db, mock_redis):
+    mock_redis.get.return_value = "test_value"
+    # Test code here
+```
+
+#### `db_session`
+
+- **Scope**: Function
+- **Purpose**: Yields a live AsyncSession for direct database access
+- **Depends on**: `integration_db`
+- **Usage**: When you need direct session access without `get_session()` context manager
+
+#### `client`
+
+- **Scope**: Function
+- **Purpose**: httpx AsyncClient bound to FastAPI app for API testing
+- **Depends on**: `integration_db`, `mock_redis`
+- **Patches**: DB init/close in lifespan, Redis init/close
+
+```python
+@pytest.mark.asyncio
+async def test_api_endpoint(client):
+    response = await client.get("/api/health")
+    assert response.status_code == 200
+```
+
+### Fixture Convention: DO NOT Duplicate
+
+**CRITICAL**: Never define these fixtures in subdirectory conftest files:
+- `integration_env`
+- `integration_db`
+- `mock_redis`
+- `db_session`
+- `client`
+
+Instead, all tests should use the shared fixtures from `backend/tests/conftest.py` directly.
+
+## Test Timeout Requirements
+
+**CRITICAL**: All tests must complete within 30 seconds. This ensures fast CI/CD pipelines and prevents hanging tests.
+
+```bash
+# Run tests with 30-second timeout enforcement
+pytest backend/tests/ -v --timeout=30
+```
+
+Tests that exceed 30 seconds indicate:
+- Missing or improper mocking of external services
+- Slow database operations that should be optimized
+- Background tasks not properly mocked
+- Network calls that should be stubbed
+
+### How to Fix Slow Tests
+
+1. **Mock external services**: Use `mock_redis`, patch HTTP clients
+2. **Mock background services**: Patch GPUMonitor, CleanupService, SystemBroadcaster
+3. **Use async sleep sparingly**: Only for testing timing behavior, keep durations short
+4. **Optimize database operations**: Use bulk operations where possible
 
 ## Running Tests
 
 ### All tests
 
 ```bash
-# From project root
-pytest backend/tests/ -v
+# From project root (with 30s timeout)
+pytest backend/tests/ -v --timeout=30
 
 # With coverage
-pytest backend/tests/ -v --cov=backend --cov-report=html
+pytest backend/tests/ -v --cov=backend --cov-report=html --timeout=30
 
 # With coverage threshold check (95%+)
-pytest backend/tests/ -v --cov=backend --cov-report=term-missing --cov-fail-under=95
+pytest backend/tests/ -v --cov=backend --cov-report=term-missing --cov-fail-under=95 --timeout=30
 ```
 
 ### Unit tests only

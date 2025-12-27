@@ -1,11 +1,14 @@
-"""Integration tests for WebSocket endpoints."""
+"""Integration tests for WebSocket endpoints.
+
+Uses shared fixtures from conftest.py:
+- integration_db: Clean SQLite test database
+- mock_redis: Mock Redis client
+"""
 
 import json
 import os
-import tempfile
 import uuid
 from datetime import datetime
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -15,72 +18,7 @@ from starlette.websockets import WebSocketDisconnect
 
 
 @pytest.fixture
-async def test_db_setup():
-    """Set up test database environment."""
-    from backend.core.config import get_settings
-    from backend.core.database import close_db, init_db
-
-    # Close any existing database connections
-    await close_db()
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "test_websocket.db"
-        test_db_url = f"sqlite+aiosqlite:///{db_path}"
-
-        # Store original environment
-        original_db_url = os.environ.get("DATABASE_URL")
-        original_redis_url = os.environ.get("REDIS_URL")
-
-        # Set test environment
-        os.environ["DATABASE_URL"] = test_db_url
-        os.environ["REDIS_URL"] = "redis://localhost:6379/15"  # Test DB
-
-        # Clear settings cache to pick up new environment variables
-        get_settings.cache_clear()
-
-        # Initialize database explicitly
-        await init_db()
-
-        yield test_db_url
-
-        # Cleanup
-        await close_db()
-
-        # Restore original environment
-        if original_db_url:
-            os.environ["DATABASE_URL"] = original_db_url
-        else:
-            os.environ.pop("DATABASE_URL", None)
-
-        if original_redis_url:
-            os.environ["REDIS_URL"] = original_redis_url
-        else:
-            os.environ.pop("REDIS_URL", None)
-
-        # Clear settings cache again
-        get_settings.cache_clear()
-
-
-@pytest.fixture
-async def mock_redis():
-    """Mock Redis operations to avoid requiring Redis server."""
-    mock_redis_client = AsyncMock()
-    mock_redis_client.health_check.return_value = {
-        "status": "healthy",
-        "connected": True,
-        "redis_version": "7.0.0",
-    }
-
-    with (
-        patch("backend.core.redis._redis_client", mock_redis_client),
-        patch("backend.core.redis.init_redis", return_value=None),
-        patch("backend.core.redis.close_redis", return_value=None),
-    ):
-        yield mock_redis_client
-
-
-@pytest.fixture
-async def async_client(test_db_setup, mock_redis):
+async def async_client(integration_db, mock_redis):
     """Create async HTTP client for testing."""
     from backend.main import app
 
@@ -111,9 +49,29 @@ async def async_client(test_db_setup, mock_redis):
 
 
 @pytest.fixture
-def sync_client(test_db_setup, mock_redis):
-    """Create synchronous test client for WebSocket testing."""
+def sync_client(integration_env):
+    """Create synchronous test client for WebSocket testing.
+
+    Note: Uses integration_env (sync) instead of integration_db (async) because
+    TestClient creates its own event loop, which conflicts with async fixtures.
+    The database is initialized by the app's lifespan inside the TestClient context.
+    """
+    from backend.core.database import close_db as _close_db, init_db as _init_db
     from backend.main import app
+
+    # Create mock Redis client for this fixture
+    mock_redis_client = AsyncMock()
+    mock_redis_client.health_check.return_value = {
+        "status": "healthy",
+        "connected": True,
+        "redis_version": "7.0.0",
+    }
+
+    # Create mock init_db that handles prior state
+    async def mock_init_db():
+        """Initialize DB, first closing any existing connection."""
+        await _close_db()
+        await _init_db()
 
     # Mock background services that have 5-second intervals to avoid slow teardown
     mock_system_broadcaster = MagicMock()
@@ -128,10 +86,14 @@ def sync_client(test_db_setup, mock_redis):
     mock_cleanup_service.start = AsyncMock()
     mock_cleanup_service.stop = AsyncMock()
 
-    # Patch init_db/close_db and background services to avoid slow teardown
+    # Patch Redis and background services - use custom init_db that handles prior state
     with (
-        patch("backend.main.init_db", return_value=None),
-        patch("backend.main.close_db", return_value=None),
+        patch("backend.core.redis._redis_client", mock_redis_client),
+        patch("backend.core.redis.init_redis", return_value=mock_redis_client),
+        patch("backend.core.redis.close_redis", return_value=None),
+        patch("backend.main.init_db", mock_init_db),
+        patch("backend.main.init_redis", return_value=mock_redis_client),
+        patch("backend.main.close_redis", return_value=None),
         patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
         patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor),
         patch("backend.main.CleanupService", return_value=mock_cleanup_service),
@@ -141,7 +103,7 @@ def sync_client(test_db_setup, mock_redis):
 
 
 @pytest.fixture
-async def sample_camera(test_db_setup):
+async def sample_camera(integration_db):
     """Create a sample camera in the database."""
     from backend.core.database import get_session
     from backend.models.camera import Camera
@@ -161,7 +123,7 @@ async def sample_camera(test_db_setup):
 
 
 @pytest.fixture
-async def sample_event(test_db_setup, sample_camera):
+async def sample_event(integration_db, sample_camera):
     """Create a sample event in the database."""
     from backend.core.database import get_session
     from backend.models.event import Event
@@ -185,7 +147,7 @@ async def sample_event(test_db_setup, sample_camera):
 
 
 @pytest.fixture
-async def sample_detection(test_db_setup, sample_camera):
+async def sample_detection(integration_db, sample_camera):
     """Create a sample detection in the database."""
     from backend.core.database import get_session
     from backend.models.detection import Detection
@@ -578,9 +540,14 @@ def test_api_key():
 
 
 @pytest.fixture
-def sync_client_with_auth_enabled(test_db_setup, mock_redis, test_api_key):
-    """Create synchronous test client with auth enabled for WebSocket testing."""
+def sync_client_with_auth_enabled(integration_env, test_api_key):
+    """Create synchronous test client with auth enabled for WebSocket testing.
+
+    Note: Uses integration_env (sync) instead of integration_db (async) because
+    TestClient creates its own event loop, which conflicts with async fixtures.
+    """
     from backend.core.config import get_settings
+    from backend.core.database import close_db as _close_db, init_db as _init_db
     from backend.main import app
 
     # Store original environment
@@ -593,6 +560,20 @@ def sync_client_with_auth_enabled(test_db_setup, mock_redis, test_api_key):
 
     # Clear settings cache to pick up new environment variables
     get_settings.cache_clear()
+
+    # Create mock Redis client for this fixture
+    mock_redis_client = AsyncMock()
+    mock_redis_client.health_check.return_value = {
+        "status": "healthy",
+        "connected": True,
+        "redis_version": "7.0.0",
+    }
+
+    # Create mock init_db that handles prior state
+    async def mock_init_db():
+        """Initialize DB, first closing any existing connection."""
+        await _close_db()
+        await _init_db()
 
     # Mock background services that have 5-second intervals to avoid slow teardown
     mock_system_broadcaster = MagicMock()
@@ -607,10 +588,14 @@ def sync_client_with_auth_enabled(test_db_setup, mock_redis, test_api_key):
     mock_cleanup_service.start = AsyncMock()
     mock_cleanup_service.stop = AsyncMock()
 
-    # Patch init_db/close_db and background services to avoid slow teardown
+    # Patch Redis and background services - use custom init_db that handles prior state
     with (
-        patch("backend.main.init_db", return_value=None),
-        patch("backend.main.close_db", return_value=None),
+        patch("backend.core.redis._redis_client", mock_redis_client),
+        patch("backend.core.redis.init_redis", return_value=mock_redis_client),
+        patch("backend.core.redis.close_redis", return_value=None),
+        patch("backend.main.init_db", mock_init_db),
+        patch("backend.main.init_redis", return_value=mock_redis_client),
+        patch("backend.main.close_redis", return_value=None),
         patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
         patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor),
         patch("backend.main.CleanupService", return_value=mock_cleanup_service),

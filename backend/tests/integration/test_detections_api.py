@@ -1,98 +1,27 @@
-"""Integration tests for detections API endpoints."""
+"""Integration tests for detections API endpoints.
 
-import os
-import tempfile
+Uses shared fixtures from conftest.py:
+- integration_db: Clean SQLite test database
+- mock_redis: Mock Redis client
+- db_session: AsyncSession for database
+- client: httpx AsyncClient with test app
+"""
+
 import uuid
 from datetime import datetime
-from pathlib import Path
-from unittest.mock import AsyncMock, patch
 
 import pytest
-from httpx import ASGITransport, AsyncClient
+
+
+# Alias for backward compatibility - tests use async_client but conftest provides client
+@pytest.fixture
+async def async_client(client):
+    """Alias for shared client fixture for backward compatibility."""
+    yield client
 
 
 @pytest.fixture
-async def test_db_setup():
-    """Set up test database environment."""
-    from backend.core.config import get_settings
-    from backend.core.database import close_db, init_db
-
-    # Close any existing database connections
-    await close_db()
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "test_detections_api.db"
-        test_db_url = f"sqlite+aiosqlite:///{db_path}"
-
-        # Store original environment
-        original_db_url = os.environ.get("DATABASE_URL")
-        original_redis_url = os.environ.get("REDIS_URL")
-
-        # Set test environment
-        os.environ["DATABASE_URL"] = test_db_url
-        os.environ["REDIS_URL"] = "redis://localhost:6379/15"  # Test DB
-
-        # Clear settings cache to pick up new environment variables
-        get_settings.cache_clear()
-
-        # Initialize database explicitly
-        await init_db()
-
-        yield test_db_url
-
-        # Cleanup
-        await close_db()
-
-        # Restore original environment
-        if original_db_url:
-            os.environ["DATABASE_URL"] = original_db_url
-        else:
-            os.environ.pop("DATABASE_URL", None)
-
-        if original_redis_url:
-            os.environ["REDIS_URL"] = original_redis_url
-        else:
-            os.environ.pop("REDIS_URL", None)
-
-        # Clear settings cache again
-        get_settings.cache_clear()
-
-
-@pytest.fixture
-async def mock_redis():
-    """Mock Redis operations to avoid requiring Redis server."""
-    mock_redis_client = AsyncMock()
-    mock_redis_client.health_check.return_value = {
-        "status": "healthy",
-        "connected": True,
-        "redis_version": "7.0.0",
-    }
-
-    with (
-        patch("backend.core.redis._redis_client", mock_redis_client),
-        patch("backend.core.redis.init_redis", return_value=None),
-        patch("backend.core.redis.close_redis", return_value=None),
-    ):
-        yield mock_redis_client
-
-
-@pytest.fixture
-async def async_client(test_db_setup, mock_redis):
-    """Create async HTTP client for testing."""
-    from backend.main import app
-
-    # Patch init_db and close_db in lifespan to avoid double initialization
-    with (
-        patch("backend.main.init_db", return_value=None),
-        patch("backend.main.close_db", return_value=None),
-    ):
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            yield client
-
-
-@pytest.fixture
-async def sample_camera(test_db_setup):
+async def sample_camera(integration_db):
     """Create a sample camera in the database."""
     from backend.core.database import get_session
     from backend.models.camera import Camera
@@ -112,7 +41,7 @@ async def sample_camera(test_db_setup):
 
 
 @pytest.fixture
-async def sample_detection(test_db_setup, sample_camera):
+async def sample_detection(integration_db, sample_camera):
     """Create a sample detection in the database."""
     from backend.core.database import get_session
     from backend.models.detection import Detection
