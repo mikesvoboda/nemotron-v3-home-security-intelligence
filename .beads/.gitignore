@@ -11,6 +11,9 @@ daemon.log
 daemon.pid
 bd.sock
 
+# Audit logs (append-only; high churn)
+interactions.jsonl
+
 # Local version tracking (prevents upgrade notification spam after git ops)
 .local_version
 
