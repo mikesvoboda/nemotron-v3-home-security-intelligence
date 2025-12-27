@@ -125,9 +125,19 @@ async def close_db() -> None:
     global _engine, _async_session_factory  # noqa: PLW0603
 
     if _engine is not None:
-        await _engine.dispose()
-        _engine = None
-        _async_session_factory = None
+        try:
+            await _engine.dispose()
+        except ValueError as e:
+            # Handle the case where greenlet is not available (e.g., Python 3.14+)
+            # This can happen when the engine was created in a different context
+            # or when greenlet is not installed. We still need to reset the globals.
+            if "greenlet" in str(e):
+                pass  # Gracefully handle missing greenlet
+            else:
+                raise
+        finally:
+            _engine = None
+            _async_session_factory = None
 
 
 @asynccontextmanager
