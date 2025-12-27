@@ -508,7 +508,7 @@ async def test_max_retries_exceeded(test_config: ServiceConfig, fast_sleep) -> N
 
     # Wait for retries to be exhausted (need enough time for max_retries=2 cycles)
     # Each cycle: check_interval + backoff (0.1 + 0.1*2^attempt)
-    await asyncio.sleep(1.0)
+    await asyncio.sleep(1.0)  # timeout - intentional wait for retry cycles
 
     await monitor.stop()
 

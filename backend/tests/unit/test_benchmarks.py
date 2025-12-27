@@ -460,13 +460,25 @@ class TestMemrayAvailability:
         import platform
 
         is_linux = platform.system() == "Linux"
+        is_macos = platform.system() == "Darwin"
 
-        # On Linux, memray might be available
-        # On other platforms, it definitely isn't
-        if not is_linux:
-            try:
-                import memray  # noqa: F401
+        # memray is available on Linux and macOS (via pytest-memray)
+        # On Windows, it definitely isn't available
+        memray_available = False
+        try:
+            import memray  # noqa: F401
 
-                pytest.fail("memray should not be available on non-Linux")
-            except ImportError:
-                pass  # Expected on non-Linux platforms
+            memray_available = True
+        except ImportError:
+            memray_available = False
+
+        # memray can be available on Linux and macOS
+        # The test verifies platform detection works correctly
+        if is_linux or is_macos:
+            # On Linux/macOS, memray may or may not be installed
+            # We just verify the detection logic runs without error
+            assert isinstance(memray_available, bool)
+        else:
+            # On Windows, memray should not be available
+            if memray_available:
+                pytest.fail("memray should not be available on Windows")

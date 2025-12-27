@@ -28,11 +28,26 @@ from backend.services.pipeline_workers import (
 # Fixtures
 
 
+# Test constants - use short timeouts for fast tests
+TEST_STOP_TIMEOUT = 0.5  # Fast stop timeout for tests (instead of 10-30s)
+TEST_POLL_TIMEOUT = 1  # Fast poll timeout for tests
+
+
 @pytest.fixture
 def mock_redis_client():
-    """Create a mock Redis client."""
+    """Create a mock Redis client.
+
+    IMPORTANT: get_from_queue must yield control to the event loop,
+    otherwise the worker loop will spin without checking _running flag.
+    """
     client = MagicMock()
-    client.get_from_queue = AsyncMock(return_value=None)
+
+    async def mock_get_from_queue(*args, **kwargs):
+        """Mock that yields control like real BLPOP would."""
+        await asyncio.sleep(0.01)  # Yield control to event loop
+        return None
+
+    client.get_from_queue = mock_get_from_queue
     client.add_to_queue = AsyncMock(return_value=1)
     client.get = AsyncMock(return_value=None)
     client.set = AsyncMock(return_value=True)
@@ -139,7 +154,8 @@ async def test_detection_worker_start_stop(mock_redis_client, mock_detector_clie
     worker = DetectionQueueWorker(
         redis_client=mock_redis_client,
         detector_client=mock_detector_client,
-        poll_timeout=1,
+        poll_timeout=TEST_POLL_TIMEOUT,
+        stop_timeout=TEST_STOP_TIMEOUT,
     )
 
     # Start worker
@@ -164,7 +180,8 @@ async def test_detection_worker_idempotent_start(mock_redis_client, mock_detecto
     worker = DetectionQueueWorker(
         redis_client=mock_redis_client,
         detector_client=mock_detector_client,
-        poll_timeout=1,
+        poll_timeout=TEST_POLL_TIMEOUT,
+        stop_timeout=TEST_STOP_TIMEOUT,
     )
 
     await worker.start()
@@ -207,6 +224,7 @@ async def test_detection_worker_processes_item(
     async def mock_get_from_queue(*args, **kwargs):
         nonlocal call_count
         call_count += 1
+        await asyncio.sleep(0.01)  # Yield control to event loop
         if call_count == 1:
             return {
                 "camera_id": "front_door",
@@ -255,6 +273,7 @@ async def test_detection_worker_handles_invalid_item(mock_redis_client, mock_det
     async def mock_get_from_queue(*args, **kwargs):
         nonlocal call_count
         call_count += 1
+        await asyncio.sleep(0.01)  # Yield control to event loop
         if call_count == 1:
             return {"invalid": "item"}  # Missing camera_id and file_path
         return None
@@ -287,6 +306,7 @@ async def test_detection_worker_error_recovery(
     async def mock_get_from_queue(*args, **kwargs):
         nonlocal call_count
         call_count += 1
+        await asyncio.sleep(0.01)  # Yield control to event loop
         if call_count <= 3:
             return {
                 "camera_id": "cam1",
@@ -377,6 +397,7 @@ async def test_analysis_worker_processes_batch(mock_redis_client, mock_analyzer)
     async def mock_get_from_queue(*args, **kwargs):
         nonlocal call_count
         call_count += 1
+        await asyncio.sleep(0.01)  # Yield control to event loop
         if call_count == 1:
             return {
                 "batch_id": "batch_123",
@@ -409,6 +430,7 @@ async def test_analysis_worker_handles_value_error(mock_redis_client, mock_analy
     async def mock_get_from_queue(*args, **kwargs):
         nonlocal call_count
         call_count += 1
+        await asyncio.sleep(0.01)  # Yield control to event loop
         if call_count == 1:
             return {"batch_id": "missing_batch", "camera_id": "cam1"}
         return None
@@ -671,9 +693,9 @@ async def test_worker_cancellation_during_processing(
 ):
     """Test workers handle cancellation during processing."""
 
-    # Slow processing to test cancellation
+    # Slow processing to test cancellation (uses short sleep, stop timeout is mocked)
     async def slow_detect(*args, **kwargs):
-        await asyncio.sleep(10)  # Long operation
+        await asyncio.sleep(0.5)  # Long enough to be in-progress when stop is called
         return []
 
     mock_detector_client.detect_objects = slow_detect
@@ -683,6 +705,7 @@ async def test_worker_cancellation_during_processing(
     async def mock_get_from_queue(*args, **kwargs):
         nonlocal call_count
         call_count += 1
+        await asyncio.sleep(0.01)  # Yield control to event loop
         if call_count == 1:
             return {
                 "camera_id": "cam1",
@@ -697,7 +720,8 @@ async def test_worker_cancellation_during_processing(
         redis_client=mock_redis_client,
         detector_client=mock_detector_client,
         batch_aggregator=mock_batch_aggregator,
-        poll_timeout=1,
+        poll_timeout=TEST_POLL_TIMEOUT,
+        stop_timeout=TEST_STOP_TIMEOUT,
     )
 
     with patch("backend.services.pipeline_workers.get_session") as mock_get_session:
@@ -708,7 +732,6 @@ async def test_worker_cancellation_during_processing(
         await worker.start()
         await asyncio.sleep(0.1)  # Start processing
 
-        # Force stop should cancel the processing task
         await worker.stop()
 
     assert worker.running is False
