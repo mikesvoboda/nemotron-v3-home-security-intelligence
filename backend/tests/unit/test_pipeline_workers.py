@@ -6,9 +6,13 @@ Tests cover:
 - Graceful shutdown handling
 - Error recovery
 - Statistics tracking
+- Timeout handling during stop
+- Signal handler installation
+- Queue metrics worker
 """
 
 import asyncio
+import signal
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -19,6 +23,7 @@ from backend.services.pipeline_workers import (
     BatchTimeoutWorker,
     DetectionQueueWorker,
     PipelineWorkerManager,
+    QueueMetricsWorker,
     WorkerState,
     WorkerStats,
     get_pipeline_manager,
@@ -51,6 +56,7 @@ def mock_redis_client():
     client.get = AsyncMock(return_value=None)
     client.set = AsyncMock(return_value=True)
     client.delete = AsyncMock(return_value=1)
+    client.get_queue_length = AsyncMock(return_value=0)
     client._client = MagicMock()
     client._client.keys = AsyncMock(return_value=[])
     return client
@@ -349,6 +355,121 @@ async def test_detection_worker_error_recovery(
     assert worker.stats.items_processed == 2
 
 
+@pytest.mark.asyncio
+async def test_detection_worker_stop_timeout_forces_cancel(
+    mock_redis_client, mock_detector_client
+):
+    """Test DetectionQueueWorker cancels task when stop times out (lines 165-171)."""
+    # Create a worker with very short stop timeout
+    worker = DetectionQueueWorker(
+        redis_client=mock_redis_client,
+        detector_client=mock_detector_client,
+        poll_timeout=TEST_POLL_TIMEOUT,
+        stop_timeout=0.01,  # Very short timeout
+    )
+
+    # Create a mock task that takes a long time to complete
+    async def long_running_loop():
+        while True:
+            await asyncio.sleep(1.0)  # Sleep for a long time
+
+    await worker.start()
+    # Replace the task with one that won't stop easily
+    original_task = worker._task
+    worker._task = asyncio.create_task(long_running_loop())
+    # Cancel the original task
+    if original_task:
+        original_task.cancel()
+        try:
+            await original_task
+        except asyncio.CancelledError:
+            pass
+
+    # Stop should timeout and force cancel
+    await worker.stop()
+
+    assert worker.running is False
+    assert worker.stats.state == WorkerState.STOPPED
+    assert worker._task is None
+
+
+@pytest.mark.asyncio
+async def test_detection_worker_loop_cancelled_error(
+    mock_redis_client, mock_detector_client
+):
+    """Test DetectionQueueWorker handles CancelledError in loop (lines 195-197)."""
+    call_count = 0
+
+    async def mock_get_from_queue_that_raises(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            await asyncio.sleep(0.01)
+            return None
+        # On second call, raise CancelledError
+        raise asyncio.CancelledError()
+
+    mock_redis_client.get_from_queue = mock_get_from_queue_that_raises
+
+    worker = DetectionQueueWorker(
+        redis_client=mock_redis_client,
+        detector_client=mock_detector_client,
+        poll_timeout=TEST_POLL_TIMEOUT,
+        stop_timeout=TEST_STOP_TIMEOUT,
+    )
+
+    await worker.start()
+    await asyncio.sleep(0.1)
+    # The loop should have exited due to CancelledError
+    # Force stop to clean up
+    worker._running = False
+    if worker._task and not worker._task.done():
+        worker._task.cancel()
+        try:
+            await worker._task
+        except asyncio.CancelledError:
+            pass
+    worker._task = None
+    worker._stats.state = WorkerState.STOPPED
+
+
+@pytest.mark.asyncio
+async def test_detection_worker_loop_general_exception_recovery(
+    mock_redis_client, mock_detector_client
+):
+    """Test DetectionQueueWorker recovers from general exceptions (lines 198-209)."""
+    call_count = 0
+
+    async def mock_get_from_queue_that_raises(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise RuntimeError("Simulated Redis connection error")
+        await asyncio.sleep(0.01)
+        return None
+
+    mock_redis_client.get_from_queue = mock_get_from_queue_that_raises
+
+    worker = DetectionQueueWorker(
+        redis_client=mock_redis_client,
+        detector_client=mock_detector_client,
+        poll_timeout=TEST_POLL_TIMEOUT,
+        stop_timeout=TEST_STOP_TIMEOUT,
+    )
+
+    with patch("backend.services.pipeline_workers.record_pipeline_error") as mock_record:
+        await worker.start()
+        await asyncio.sleep(0.2)  # Allow time for error recovery
+        await worker.stop()
+
+        # Should have recorded the error
+        mock_record.assert_called_with("detection_worker_error")
+
+    # Worker should have recovered and be in stopped state
+    assert worker.stats.errors >= 1
+    assert worker.stats.state == WorkerState.STOPPED
+
+
 # AnalysisQueueWorker tests
 
 
@@ -386,6 +507,45 @@ async def test_analysis_worker_start_stop(mock_redis_client, mock_analyzer):
     await worker.stop()
     assert worker.running is False
     assert worker.stats.state == WorkerState.STOPPED
+
+
+@pytest.mark.asyncio
+async def test_analysis_worker_idempotent_start(mock_redis_client, mock_analyzer):
+    """Test starting AnalysisQueueWorker multiple times is idempotent (lines 334-335)."""
+    worker = AnalysisQueueWorker(
+        redis_client=mock_redis_client,
+        analyzer=mock_analyzer,
+        poll_timeout=TEST_POLL_TIMEOUT,
+        stop_timeout=TEST_STOP_TIMEOUT,
+    )
+
+    await worker.start()
+    first_task = worker._task
+
+    # Start again - should not create new task
+    await worker.start()
+    assert worker._task is first_task
+
+    await worker.stop()
+
+
+@pytest.mark.asyncio
+async def test_analysis_worker_idempotent_stop(mock_redis_client, mock_analyzer):
+    """Test stopping AnalysisQueueWorker multiple times is safe (lines 346-347)."""
+    worker = AnalysisQueueWorker(
+        redis_client=mock_redis_client,
+        analyzer=mock_analyzer,
+    )
+
+    # Stop without starting - should not raise
+    await worker.stop()
+    assert worker.running is False
+
+    # Start then stop twice
+    await worker.start()
+    await worker.stop()
+    await worker.stop()
+    assert worker.running is False
 
 
 @pytest.mark.asyncio
@@ -452,6 +612,171 @@ async def test_analysis_worker_handles_value_error(mock_redis_client, mock_analy
     assert worker.stats.items_processed == 0
 
 
+@pytest.mark.asyncio
+async def test_analysis_worker_handles_invalid_item(mock_redis_client, mock_analyzer):
+    """Test AnalysisQueueWorker handles invalid queue items (lines 417-418)."""
+    call_count = 0
+
+    async def mock_get_from_queue(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        await asyncio.sleep(0.01)
+        if call_count == 1:
+            return {"camera_id": "cam1"}  # Missing batch_id
+        return None
+
+    mock_redis_client.get_from_queue = mock_get_from_queue
+
+    worker = AnalysisQueueWorker(
+        redis_client=mock_redis_client,
+        analyzer=mock_analyzer,
+        poll_timeout=1,
+    )
+
+    await worker.start()
+    await asyncio.sleep(0.1)
+    await worker.stop()
+
+    # Should not increment items_processed for invalid items
+    assert worker.stats.items_processed == 0
+    # analyze_batch should not have been called
+    mock_analyzer.analyze_batch.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_analysis_worker_general_exception_handling(mock_redis_client, mock_analyzer):
+    """Test AnalysisQueueWorker handles general exceptions (lines 449-452)."""
+    call_count = 0
+
+    async def mock_get_from_queue(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        await asyncio.sleep(0.01)
+        if call_count == 1:
+            return {"batch_id": "batch_123", "camera_id": "cam1"}
+        return None
+
+    mock_redis_client.get_from_queue = mock_get_from_queue
+    mock_analyzer.analyze_batch = AsyncMock(side_effect=RuntimeError("Database error"))
+
+    worker = AnalysisQueueWorker(
+        redis_client=mock_redis_client,
+        analyzer=mock_analyzer,
+        poll_timeout=1,
+    )
+
+    with patch("backend.services.pipeline_workers.record_pipeline_error") as mock_record:
+        await worker.start()
+        await asyncio.sleep(0.2)
+        await worker.stop()
+
+        mock_record.assert_called_with("analysis_batch_error")
+
+    assert worker.stats.errors == 1
+    assert worker.stats.items_processed == 0
+
+
+@pytest.mark.asyncio
+async def test_analysis_worker_stop_timeout_forces_cancel(mock_redis_client, mock_analyzer):
+    """Test AnalysisQueueWorker cancels task when stop times out (lines 356-362)."""
+    worker = AnalysisQueueWorker(
+        redis_client=mock_redis_client,
+        analyzer=mock_analyzer,
+        poll_timeout=TEST_POLL_TIMEOUT,
+        stop_timeout=0.01,  # Very short timeout
+    )
+
+    async def long_running_loop():
+        while True:
+            await asyncio.sleep(1.0)
+
+    await worker.start()
+    original_task = worker._task
+    worker._task = asyncio.create_task(long_running_loop())
+    if original_task:
+        original_task.cancel()
+        try:
+            await original_task
+        except asyncio.CancelledError:
+            pass
+
+    await worker.stop()
+
+    assert worker.running is False
+    assert worker.stats.state == WorkerState.STOPPED
+    assert worker._task is None
+
+
+@pytest.mark.asyncio
+async def test_analysis_worker_loop_cancelled_error(mock_redis_client, mock_analyzer):
+    """Test AnalysisQueueWorker handles CancelledError in loop (lines 385-387)."""
+    call_count = 0
+
+    async def mock_get_from_queue_that_raises(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            await asyncio.sleep(0.01)
+            return None
+        raise asyncio.CancelledError()
+
+    mock_redis_client.get_from_queue = mock_get_from_queue_that_raises
+
+    worker = AnalysisQueueWorker(
+        redis_client=mock_redis_client,
+        analyzer=mock_analyzer,
+        poll_timeout=TEST_POLL_TIMEOUT,
+        stop_timeout=TEST_STOP_TIMEOUT,
+    )
+
+    await worker.start()
+    await asyncio.sleep(0.1)
+    worker._running = False
+    if worker._task and not worker._task.done():
+        worker._task.cancel()
+        try:
+            await worker._task
+        except asyncio.CancelledError:
+            pass
+    worker._task = None
+    worker._stats.state = WorkerState.STOPPED
+
+
+@pytest.mark.asyncio
+async def test_analysis_worker_loop_general_exception_recovery(
+    mock_redis_client, mock_analyzer
+):
+    """Test AnalysisQueueWorker recovers from general exceptions (lines 388-398)."""
+    call_count = 0
+
+    async def mock_get_from_queue_that_raises(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise RuntimeError("Simulated Redis connection error")
+        await asyncio.sleep(0.01)
+        return None
+
+    mock_redis_client.get_from_queue = mock_get_from_queue_that_raises
+
+    worker = AnalysisQueueWorker(
+        redis_client=mock_redis_client,
+        analyzer=mock_analyzer,
+        poll_timeout=TEST_POLL_TIMEOUT,
+        stop_timeout=TEST_STOP_TIMEOUT,
+    )
+
+    with patch("backend.services.pipeline_workers.record_pipeline_error") as mock_record:
+        await worker.start()
+        await asyncio.sleep(0.2)
+        await worker.stop()
+
+        mock_record.assert_called_with("analysis_worker_error")
+
+    assert worker.stats.errors >= 1
+    assert worker.stats.state == WorkerState.STOPPED
+
+
 # BatchTimeoutWorker tests
 
 
@@ -487,6 +812,46 @@ async def test_timeout_worker_start_stop(mock_redis_client, mock_batch_aggregato
     await worker.stop()
     assert worker.running is False
     assert worker.stats.state == WorkerState.STOPPED
+
+
+@pytest.mark.asyncio
+async def test_timeout_worker_idempotent_start(mock_redis_client, mock_batch_aggregator):
+    """Test starting BatchTimeoutWorker multiple times is idempotent (lines 507-508)."""
+    worker = BatchTimeoutWorker(
+        redis_client=mock_redis_client,
+        batch_aggregator=mock_batch_aggregator,
+        check_interval=0.1,
+        stop_timeout=TEST_STOP_TIMEOUT,
+    )
+
+    await worker.start()
+    first_task = worker._task
+
+    # Start again - should not create new task
+    await worker.start()
+    assert worker._task is first_task
+
+    await worker.stop()
+
+
+@pytest.mark.asyncio
+async def test_timeout_worker_idempotent_stop(mock_redis_client, mock_batch_aggregator):
+    """Test stopping BatchTimeoutWorker multiple times is safe (lines 522-523)."""
+    worker = BatchTimeoutWorker(
+        redis_client=mock_redis_client,
+        batch_aggregator=mock_batch_aggregator,
+        check_interval=0.1,
+    )
+
+    # Stop without starting - should not raise
+    await worker.stop()
+    assert worker.running is False
+
+    # Start then stop twice
+    await worker.start()
+    await worker.stop()
+    await worker.stop()
+    assert worker.running is False
 
 
 @pytest.mark.asyncio
@@ -546,6 +911,186 @@ async def test_timeout_worker_error_recovery(mock_redis_client, mock_batch_aggre
     # Should have recovered from error
     assert worker.stats.errors >= 1
     assert worker.stats.items_processed >= 1
+
+
+@pytest.mark.asyncio
+async def test_timeout_worker_stop_timeout_forces_cancel(
+    mock_redis_client, mock_batch_aggregator
+):
+    """Test BatchTimeoutWorker cancels task when stop times out (lines 532-538)."""
+    worker = BatchTimeoutWorker(
+        redis_client=mock_redis_client,
+        batch_aggregator=mock_batch_aggregator,
+        check_interval=0.1,
+        stop_timeout=0.01,  # Very short timeout
+    )
+
+    async def long_running_loop():
+        while True:
+            await asyncio.sleep(1.0)
+
+    await worker.start()
+    original_task = worker._task
+    worker._task = asyncio.create_task(long_running_loop())
+    if original_task:
+        original_task.cancel()
+        try:
+            await original_task
+        except asyncio.CancelledError:
+            pass
+
+    await worker.stop()
+
+    assert worker.running is False
+    assert worker.stats.state == WorkerState.STOPPED
+    assert worker._task is None
+
+
+# QueueMetricsWorker tests
+
+
+@pytest.mark.asyncio
+async def test_queue_metrics_worker_initialization(mock_redis_client):
+    """Test QueueMetricsWorker initializes correctly."""
+    worker = QueueMetricsWorker(
+        redis_client=mock_redis_client,
+        update_interval=5.0,
+    )
+
+    assert worker.running is False
+    assert worker._update_interval == 5.0
+
+
+@pytest.mark.asyncio
+async def test_queue_metrics_worker_start_stop(mock_redis_client):
+    """Test QueueMetricsWorker start and stop lifecycle."""
+    worker = QueueMetricsWorker(
+        redis_client=mock_redis_client,
+        update_interval=0.1,
+    )
+
+    await worker.start()
+    assert worker.running is True
+
+    await asyncio.sleep(0.15)
+
+    await worker.stop()
+    assert worker.running is False
+
+
+@pytest.mark.asyncio
+async def test_queue_metrics_worker_idempotent_start(mock_redis_client):
+    """Test starting QueueMetricsWorker multiple times is idempotent (lines 632-633)."""
+    worker = QueueMetricsWorker(
+        redis_client=mock_redis_client,
+        update_interval=0.1,
+    )
+
+    await worker.start()
+    first_task = worker._task
+
+    # Start again - should not create new task
+    await worker.start()
+    assert worker._task is first_task
+
+    await worker.stop()
+
+
+@pytest.mark.asyncio
+async def test_queue_metrics_worker_idempotent_stop(mock_redis_client):
+    """Test stopping QueueMetricsWorker multiple times is safe (line 645)."""
+    worker = QueueMetricsWorker(
+        redis_client=mock_redis_client,
+        update_interval=0.1,
+    )
+
+    # Stop without starting - should not raise
+    await worker.stop()
+    assert worker.running is False
+
+    # Start then stop twice
+    await worker.start()
+    await worker.stop()
+    await worker.stop()
+    assert worker.running is False
+
+
+@pytest.mark.asyncio
+async def test_queue_metrics_worker_updates_metrics(mock_redis_client):
+    """Test QueueMetricsWorker updates queue depth metrics (lines 671-677)."""
+    mock_redis_client.get_queue_length = AsyncMock(side_effect=[10, 5])
+
+    worker = QueueMetricsWorker(
+        redis_client=mock_redis_client,
+        update_interval=0.05,
+    )
+
+    with patch("backend.services.pipeline_workers.set_queue_depth") as mock_set_depth:
+        await worker.start()
+        await asyncio.sleep(0.1)
+        await worker.stop()
+
+        # Should have called set_queue_depth for detection and analysis queues
+        assert mock_set_depth.call_count >= 2
+        # Check that set_queue_depth was called with queue names
+        call_args_list = mock_set_depth.call_args_list
+        queue_names = [call[0][0] for call in call_args_list]
+        assert "detection" in queue_names
+        assert "analysis" in queue_names
+
+
+@pytest.mark.asyncio
+async def test_queue_metrics_worker_loop_cancelled_error(mock_redis_client):
+    """Test QueueMetricsWorker handles CancelledError in loop (lines 682-683)."""
+
+    async def mock_get_queue_length_that_raises(*args, **kwargs):
+        raise asyncio.CancelledError()
+
+    mock_redis_client.get_queue_length = mock_get_queue_length_that_raises
+
+    worker = QueueMetricsWorker(
+        redis_client=mock_redis_client,
+        update_interval=0.05,
+    )
+
+    await worker.start()
+    await asyncio.sleep(0.1)
+    # Worker should have exited due to CancelledError
+    worker._running = False
+    if worker._task and not worker._task.done():
+        worker._task.cancel()
+        try:
+            await worker._task
+        except asyncio.CancelledError:
+            pass
+    worker._task = None
+
+
+@pytest.mark.asyncio
+async def test_queue_metrics_worker_handles_redis_error(mock_redis_client):
+    """Test QueueMetricsWorker handles Redis errors gracefully."""
+    call_count = 0
+
+    async def mock_get_queue_length(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count <= 2:
+            raise RuntimeError("Redis connection error")
+        return 0
+
+    mock_redis_client.get_queue_length = mock_get_queue_length
+
+    worker = QueueMetricsWorker(
+        redis_client=mock_redis_client,
+        update_interval=0.05,
+    )
+
+    # Should not raise exception
+    await worker.start()
+    await asyncio.sleep(0.2)
+    await worker.stop()
+
+    assert worker.running is False
 
 
 # PipelineWorkerManager tests
@@ -611,6 +1156,20 @@ async def test_manager_get_status(mock_redis_client):
 
 
 @pytest.mark.asyncio
+async def test_manager_get_status_with_metrics_worker(mock_redis_client):
+    """Test PipelineWorkerManager status includes metrics worker."""
+    manager = PipelineWorkerManager(
+        redis_client=mock_redis_client,
+        enable_metrics_worker=True,
+    )
+
+    status = manager.get_status()
+
+    assert "metrics" in status["workers"]
+    assert "running" in status["workers"]["metrics"]
+
+
+@pytest.mark.asyncio
 async def test_manager_idempotent_start(mock_redis_client):
     """Test PipelineWorkerManager start is idempotent."""
     manager = PipelineWorkerManager(redis_client=mock_redis_client)
@@ -635,6 +1194,99 @@ async def test_manager_idempotent_stop(mock_redis_client):
     await manager.stop()
     await manager.stop()  # Double stop
     assert manager.running is False
+
+
+@pytest.mark.asyncio
+async def test_manager_signal_handler_installation(mock_redis_client):
+    """Test PipelineWorkerManager installs signal handlers (lines 870-871)."""
+    manager = PipelineWorkerManager(redis_client=mock_redis_client)
+
+    # Mock the signal handler installation
+    with patch.object(asyncio, "get_running_loop") as mock_get_loop:
+        mock_loop = MagicMock()
+        mock_get_loop.return_value = mock_loop
+
+        await manager.start()
+
+        # Verify add_signal_handler was called for SIGTERM and SIGINT
+        assert mock_loop.add_signal_handler.call_count == 2
+        signal_calls = mock_loop.add_signal_handler.call_args_list
+        signals_registered = [call[0][0] for call in signal_calls]
+        assert signal.SIGTERM in signals_registered
+        assert signal.SIGINT in signals_registered
+
+    await manager.stop()
+
+
+@pytest.mark.asyncio
+async def test_manager_signal_handler_not_implemented(mock_redis_client):
+    """Test PipelineWorkerManager handles NotImplementedError for signals (lines 879-881)."""
+    manager = PipelineWorkerManager(redis_client=mock_redis_client)
+
+    # Mock the signal handler to raise NotImplementedError (like on Windows)
+    with patch.object(asyncio, "get_running_loop") as mock_get_loop:
+        mock_loop = MagicMock()
+        mock_loop.add_signal_handler.side_effect = NotImplementedError(
+            "Signals not supported"
+        )
+        mock_get_loop.return_value = mock_loop
+
+        # Should not raise, just log debug message
+        await manager.start()
+        assert manager._signal_handlers_installed is False
+
+    await manager.stop()
+
+
+@pytest.mark.asyncio
+async def test_manager_signal_handler_runtime_error(mock_redis_client):
+    """Test PipelineWorkerManager handles RuntimeError for signals (lines 879-881)."""
+    manager = PipelineWorkerManager(redis_client=mock_redis_client)
+
+    # Mock the signal handler to raise RuntimeError (e.g., not in main thread)
+    with patch.object(asyncio, "get_running_loop") as mock_get_loop:
+        mock_loop = MagicMock()
+        mock_loop.add_signal_handler.side_effect = RuntimeError("Not in main thread")
+        mock_get_loop.return_value = mock_loop
+
+        # Should not raise, just log debug message
+        await manager.start()
+        assert manager._signal_handlers_installed is False
+
+    await manager.stop()
+
+
+@pytest.mark.asyncio
+async def test_manager_signal_handler_triggers_stop(mock_redis_client):
+    """Test that signal handler actually triggers stop when invoked."""
+    manager = PipelineWorkerManager(redis_client=mock_redis_client)
+
+    captured_handlers = {}
+
+    def capture_add_signal_handler(sig, handler):
+        captured_handlers[sig] = handler
+
+    with patch.object(asyncio, "get_running_loop") as mock_get_loop:
+        mock_loop = MagicMock()
+        mock_loop.add_signal_handler.side_effect = capture_add_signal_handler
+        mock_get_loop.return_value = mock_loop
+
+        await manager.start()
+
+        # Verify handlers were captured
+        assert signal.SIGTERM in captured_handlers
+        assert signal.SIGINT in captured_handlers
+
+        # Verify the handler creates a stop task when called
+        with patch.object(manager, "stop", new_callable=AsyncMock) as mock_stop:
+            with patch("asyncio.create_task") as mock_create_task:
+                # Call the SIGTERM handler
+                captured_handlers[signal.SIGTERM]()
+                mock_create_task.assert_called_once()
+
+    # Clean up
+    manager._running = False
+    await manager.stop()
 
 
 # Global singleton tests
@@ -751,3 +1403,44 @@ async def test_manager_stops_all_workers_on_shutdown(mock_redis_client):
     assert manager._detection_worker.running is False
     assert manager._analysis_worker.running is False
     assert manager._timeout_worker.running is False
+
+
+@pytest.mark.asyncio
+async def test_manager_with_all_workers_disabled(mock_redis_client):
+    """Test PipelineWorkerManager with all workers disabled."""
+    manager = PipelineWorkerManager(
+        redis_client=mock_redis_client,
+        enable_detection_worker=False,
+        enable_analysis_worker=False,
+        enable_timeout_worker=False,
+        enable_metrics_worker=False,
+    )
+
+    assert manager._detection_worker is None
+    assert manager._analysis_worker is None
+    assert manager._timeout_worker is None
+    assert manager._metrics_worker is None
+
+    # Should still be able to start/stop without error
+    await manager.start()
+    assert manager.running is True
+
+    await manager.stop()
+    assert manager.running is False
+
+
+@pytest.mark.asyncio
+async def test_manager_get_status_with_no_workers(mock_redis_client):
+    """Test PipelineWorkerManager status with no workers enabled."""
+    manager = PipelineWorkerManager(
+        redis_client=mock_redis_client,
+        enable_detection_worker=False,
+        enable_analysis_worker=False,
+        enable_timeout_worker=False,
+        enable_metrics_worker=False,
+    )
+
+    status = manager.get_status()
+
+    assert status["running"] is False
+    assert status["workers"] == {}
