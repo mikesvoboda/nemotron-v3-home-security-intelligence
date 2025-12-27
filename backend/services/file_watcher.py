@@ -144,7 +144,7 @@ class FileWatcher:
         class ImageEventHandler(FileSystemEventHandler):
             """Handle file system events for image files."""
 
-            def __init__(self, watcher: "FileWatcher"):
+            def __init__(self, watcher: FileWatcher):
                 self.watcher = watcher
                 super().__init__()
 

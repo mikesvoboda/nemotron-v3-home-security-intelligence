@@ -155,9 +155,7 @@ def main() -> int:
             failed_files.append((file_path, issues))
 
     if failed_files:
-        print(
-            "\nERROR: Integration tests using TestClient must mock slow background " "services.\n"
-        )
+        print("\nERROR: Integration tests using TestClient must mock slow background services.\n")
 
         for file_path, issues in failed_files:
             print(f"  {file_path}")

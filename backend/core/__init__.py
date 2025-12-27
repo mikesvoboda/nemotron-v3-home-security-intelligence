@@ -16,6 +16,15 @@ from backend.core.logging import (
     set_request_id,
     setup_logging,
 )
+from backend.core.metrics import (
+    get_metrics_response,
+    observe_ai_request_duration,
+    observe_stage_duration,
+    record_detection_processed,
+    record_event_created,
+    record_pipeline_error,
+    set_queue_depth,
+)
 from backend.core.redis import (
     RedisClient,
     close_redis,
@@ -32,6 +41,7 @@ __all__ = [
     "get_db",
     "get_engine",
     "get_logger",
+    "get_metrics_response",
     "get_redis",
     "get_request_id",
     "get_session",
@@ -39,6 +49,12 @@ __all__ = [
     "get_settings",
     "init_db",
     "init_redis",
+    "observe_ai_request_duration",
+    "observe_stage_duration",
+    "record_detection_processed",
+    "record_event_created",
+    "record_pipeline_error",
+    "set_queue_depth",
     "set_request_id",
     "setup_logging",
 ]

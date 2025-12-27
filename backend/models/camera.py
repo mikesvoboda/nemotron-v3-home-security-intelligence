@@ -33,10 +33,10 @@ class Camera(Base):
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Relationships
-    detections: Mapped[list["Detection"]] = relationship(
+    detections: Mapped[list[Detection]] = relationship(
         "Detection", back_populates="camera", cascade="all, delete-orphan"
     )
-    events: Mapped[list["Event"]] = relationship(
+    events: Mapped[list[Event]] = relationship(
         "Event", back_populates="camera", cascade="all, delete-orphan"
     )
 

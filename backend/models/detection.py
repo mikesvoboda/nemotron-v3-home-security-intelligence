@@ -37,7 +37,7 @@ class Detection(Base):
     thumbnail_path: Mapped[str | None] = mapped_column(String, nullable=True)
 
     # Relationships
-    camera: Mapped["Camera"] = relationship("Camera", back_populates="detections")
+    camera: Mapped[Camera] = relationship("Camera", back_populates="detections")
 
     # Indexes for common queries
     __table_args__ = (

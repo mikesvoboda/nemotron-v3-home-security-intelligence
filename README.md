@@ -178,7 +178,7 @@ Full models in `backend/models/`
 
 ## Configuration
 
-Copy `.env.example` to `.env` and adjust as needed.
+Copy `.env.example` to `.env` and adjust as needed. See [docs/RUNTIME_CONFIG.md](docs/RUNTIME_CONFIG.md) for complete reference.
 
 <details>
 <summary>Environment variables</summary>

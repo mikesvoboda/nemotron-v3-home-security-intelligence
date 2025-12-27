@@ -51,8 +51,7 @@ class SleepVisitor(ast.NodeVisitor):
 
         # Check if this looks like a mock function (local def used for mocking)
         is_mock_func = any(
-            pattern in node.name.lower()
-            for pattern in ["mock_", "slow_", "fake_", "stub_"]
+            pattern in node.name.lower() for pattern in ["mock_", "slow_", "fake_", "stub_"]
         )
 
         old_in_mock = self.in_mock_function
@@ -83,12 +82,18 @@ class SleepVisitor(ast.NodeVisitor):
         if sleep_value is not None and sleep_value >= SLEEP_THRESHOLD:
             # Check if this is in a safe context
             if not self._is_safe_context(node):
-                line = self.source_lines[node.lineno - 1] if node.lineno <= len(self.source_lines) else ""
-                self.issues.append((
-                    node.lineno,
-                    f"sleep({sleep_value}) found - may cause slow tests",
-                    line.strip(),
-                ))
+                line = (
+                    self.source_lines[node.lineno - 1]
+                    if node.lineno <= len(self.source_lines)
+                    else ""
+                )
+                self.issues.append(
+                    (
+                        node.lineno,
+                        f"sleep({sleep_value}) found - may cause slow tests",
+                        line.strip(),
+                    )
+                )
 
         self.generic_visit(node)
 

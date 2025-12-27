@@ -170,7 +170,7 @@ def create_mock_httpx_response(json_data: dict[str, Any], status_code: int = 200
 
 
 @pytest.mark.asyncio
-async def test_full_pipeline_single_image(  # noqa: PLR0915
+async def test_full_pipeline_single_image(
     integration_db: str,
     mock_redis: MockRedisClient,
     test_camera: Camera,
