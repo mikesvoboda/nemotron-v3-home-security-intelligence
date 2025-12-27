@@ -7,7 +7,7 @@ import { Camera, Circle, Video, VideoOff } from 'lucide-react';
 export interface CameraStatus {
   id: string;
   name: string;
-  status: 'online' | 'offline' | 'recording' | 'unknown';
+  status: 'online' | 'offline' | 'error' | 'recording' | 'unknown';
   thumbnail_url?: string;
   last_seen_at?: string;
 }
@@ -29,7 +29,8 @@ function getStatusColor(status: CameraStatus['status']): string {
   const colors = {
     online: 'bg-green-500',
     recording: 'bg-yellow-500',
-    offline: 'bg-red-500',
+    offline: 'bg-gray-500',
+    error: 'bg-red-500',
     unknown: 'bg-gray-500',
   };
   return colors[status];
@@ -43,6 +44,7 @@ function getStatusLabel(status: CameraStatus['status']): string {
     online: 'Online',
     recording: 'Recording',
     offline: 'Offline',
+    error: 'Error',
     unknown: 'Unknown',
   };
   return labels[status];
@@ -56,6 +58,7 @@ function getStatusIcon(status: CameraStatus['status']) {
     case 'recording':
       return Video;
     case 'offline':
+    case 'error':
       return VideoOff;
     case 'online':
     case 'unknown':

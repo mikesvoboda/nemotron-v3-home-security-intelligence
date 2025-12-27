@@ -315,11 +315,11 @@ async def test_complete_pipeline_flow_with_mocked_services(  # noqa: PLR0915
     channel = last_call[0][0]
     message = last_call[0][1]
 
-    assert channel == "events"
-    assert message["type"] == "event_created"
-    assert message["event_id"] == event.id
-    assert message["camera_id"] == camera_id
-    assert message["risk_score"] == 75
+    assert channel == "security_events"  # Canonical channel name
+    assert message["type"] == "event"  # Envelope format
+    assert message["data"]["event_id"] == event.id
+    assert message["data"]["camera_id"] == camera_id
+    assert message["data"]["risk_score"] == 75
 
 
 @pytest.mark.e2e

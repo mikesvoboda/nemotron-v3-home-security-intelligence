@@ -9,7 +9,7 @@ services:
       - ./backend/data:/app/data
       - /export/foscam:/cameras:ro
     environment:
-      - DATABASE_URL=sqlite+aiosqlite:///data/security.db
+      - DATABASE_URL=sqlite+aiosqlite:////app/data/security.db
       - REDIS_URL=redis://redis:6379
       - RTDETR_URL=http://host.docker.internal:8090
       - NEMOTRON_URL=http://host.docker.internal:8091

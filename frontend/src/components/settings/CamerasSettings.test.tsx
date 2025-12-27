@@ -32,7 +32,7 @@ describe('CamerasSettings', () => {
       id: 'cam-1',
       name: 'Front Door',
       folder_path: '/export/foscam/front_door',
-      status: 'active',
+      status: 'online',
       created_at: '2025-01-01T00:00:00Z',
       last_seen_at: '2025-01-10T12:00:00Z',
     },
@@ -40,7 +40,7 @@ describe('CamerasSettings', () => {
       id: 'cam-2',
       name: 'Backyard',
       folder_path: '/export/foscam/backyard',
-      status: 'inactive',
+      status: 'offline',
       created_at: '2025-01-01T00:00:00Z',
       last_seen_at: null,
     },
@@ -88,7 +88,7 @@ describe('CamerasSettings', () => {
       });
 
       // Check status text exists
-      const statusElements = screen.getAllByText(/active|inactive/i);
+      const statusElements = screen.getAllByText(/online|offline|error/i);
       expect(statusElements).toHaveLength(2);
     });
 
@@ -261,7 +261,7 @@ describe('CamerasSettings', () => {
         id: 'cam-3',
         name: 'Test Camera',
         folder_path: '/export/foscam/test',
-        status: 'active',
+        status: 'online',
         created_at: '2025-01-10T00:00:00Z',
         last_seen_at: null,
       };
@@ -299,7 +299,7 @@ describe('CamerasSettings', () => {
         expect(api.createCamera).toHaveBeenCalledWith({
           name: 'Test Camera',
           folder_path: '/export/foscam/test',
-          status: 'active',
+          status: 'online',
         });
       });
 
@@ -429,7 +429,7 @@ describe('CamerasSettings', () => {
         expect(api.updateCamera).toHaveBeenCalledWith('cam-1', {
           name: 'Updated Camera',
           folder_path: '/export/foscam/updated',
-          status: 'active',
+          status: 'online',
         });
       });
 
@@ -639,9 +639,9 @@ describe('CamerasSettings', () => {
       });
 
       const statusSelect = screen.getByLabelText('Status');
-      await user.selectOptions(statusSelect, 'inactive');
+      await user.selectOptions(statusSelect, 'offline');
 
-      expect(statusSelect).toHaveValue('inactive');
+      expect(statusSelect).toHaveValue('offline');
     });
   });
 });

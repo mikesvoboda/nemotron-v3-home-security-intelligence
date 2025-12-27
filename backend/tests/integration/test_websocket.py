@@ -902,3 +902,265 @@ class TestWebSocketAuthenticationUnit:
         os.environ.pop("API_KEY_ENABLED", None)
         os.environ.pop("API_KEYS", None)
         get_settings.cache_clear()
+
+
+# End-to-End Pipeline Tests: NemotronAnalyzer -> Redis -> EventBroadcaster -> WebSocket
+
+
+class TestEventBroadcastPipeline:
+    """Tests for the end-to-end event broadcast pipeline.
+
+    This test class verifies that:
+    1. NemotronAnalyzer publishes to the canonical 'security_events' Redis channel
+    2. EventBroadcaster subscribes to the same channel
+    3. Messages have the correct envelope format: {"type": "event", "data": {...}}
+    4. WebSocket clients receive events properly formatted
+    """
+
+    @pytest.mark.asyncio
+    async def test_channel_alignment(self):
+        """Verify NemotronAnalyzer and EventBroadcaster use the same Redis channel.
+
+        This is the critical test that ensures the channel mismatch bug is fixed.
+        """
+        from backend.services.event_broadcaster import EventBroadcaster
+        from backend.services.nemotron_analyzer import NemotronAnalyzer
+        from unittest.mock import AsyncMock, MagicMock
+
+        # Create mock Redis client
+        mock_redis = MagicMock()
+        mock_redis.publish = AsyncMock(return_value=1)
+
+        # Create both services
+        broadcaster = EventBroadcaster(mock_redis)
+        analyzer = NemotronAnalyzer(mock_redis)
+
+        # The channel names should be the same
+        # NemotronAnalyzer now imports EventBroadcaster.CHANNEL_NAME
+        assert broadcaster.CHANNEL_NAME == "security_events"
+
+        # Test that both use the same channel
+        # Broadcast through EventBroadcaster
+        await broadcaster.broadcast_event({"test": "data"})
+        broadcast_channel = mock_redis.publish.call_args[0][0]
+
+        # Reset mock
+        mock_redis.publish.reset_mock()
+
+        # Broadcast through NemotronAnalyzer
+        from backend.models.event import Event
+        from datetime import datetime
+
+        test_event = Event(
+            id=1,
+            batch_id="test_batch",
+            camera_id="test_camera",
+            started_at=datetime(2025, 12, 23, 12, 0, 0),
+            risk_score=50,
+            risk_level="medium",
+            summary="Test",
+        )
+        await analyzer._broadcast_event(test_event)
+        analyzer_channel = mock_redis.publish.call_args[0][0]
+
+        # Both should use the same channel
+        assert broadcast_channel == analyzer_channel
+        assert broadcast_channel == "security_events"
+
+    @pytest.mark.asyncio
+    async def test_message_envelope_format(self):
+        """Verify NemotronAnalyzer sends messages in the correct envelope format.
+
+        The canonical format is: {"type": "event", "data": {...}}
+        """
+        from backend.services.nemotron_analyzer import NemotronAnalyzer
+        from backend.models.event import Event
+        from datetime import datetime
+        from unittest.mock import AsyncMock, MagicMock
+
+        # Create mock Redis client
+        mock_redis = MagicMock()
+        mock_redis.publish = AsyncMock(return_value=1)
+
+        # Create analyzer
+        analyzer = NemotronAnalyzer(mock_redis)
+
+        # Create test event
+        test_event = Event(
+            id=42,
+            batch_id="envelope_test_batch",
+            camera_id="envelope_test_camera",
+            started_at=datetime(2025, 12, 23, 14, 30, 0),
+            risk_score=75,
+            risk_level="high",
+            summary="Test envelope format",
+        )
+
+        # Broadcast the event
+        await analyzer._broadcast_event(test_event)
+
+        # Verify the message format
+        call_args = mock_redis.publish.call_args
+        message = call_args[0][1]
+
+        # Verify envelope structure
+        assert "type" in message
+        assert message["type"] == "event"
+        assert "data" in message
+
+        # Verify data contents
+        data = message["data"]
+        assert data["id"] == 42
+        assert data["event_id"] == 42  # Legacy field
+        assert data["batch_id"] == "envelope_test_batch"
+        assert data["camera_id"] == "envelope_test_camera"
+        assert data["risk_score"] == 75
+        assert data["risk_level"] == "high"
+        assert data["summary"] == "Test envelope format"
+        assert data["started_at"] == "2025-12-23T14:30:00"
+
+    @pytest.mark.asyncio
+    async def test_broadcaster_wraps_missing_type(self):
+        """Verify EventBroadcaster wraps messages missing 'type' field.
+
+        If a message is published without a 'type' field, EventBroadcaster
+        should wrap it in the canonical envelope format.
+        """
+        from backend.services.event_broadcaster import EventBroadcaster
+        from unittest.mock import AsyncMock, MagicMock
+
+        # Create mock Redis client
+        mock_redis = MagicMock()
+        mock_redis.publish = AsyncMock(return_value=1)
+
+        # Create broadcaster
+        broadcaster = EventBroadcaster(mock_redis)
+
+        # Broadcast a message without 'type' field
+        payload = {"id": 123, "risk_score": 50}
+        await broadcaster.broadcast_event(payload)
+
+        # Verify it was wrapped
+        message = mock_redis.publish.call_args[0][1]
+        assert message["type"] == "event"
+        assert message["data"] == payload
+
+    @pytest.mark.asyncio
+    async def test_end_to_end_publish_subscribe(self):
+        """Verify messages published flow through to WebSocket clients.
+
+        This tests the complete pipeline:
+        1. NemotronAnalyzer publishes event to Redis
+        2. EventBroadcaster receives event from Redis pub/sub
+        3. EventBroadcaster sends to all connected WebSocket clients
+        """
+        from backend.services.event_broadcaster import EventBroadcaster
+        from backend.services.nemotron_analyzer import NemotronAnalyzer
+        from backend.models.event import Event
+        from datetime import datetime
+        from unittest.mock import AsyncMock, MagicMock
+        import json
+
+        # Track messages received by WebSocket clients
+        received_messages = []
+
+        # Create mock WebSocket
+        mock_ws = MagicMock()
+        mock_ws.send_text = AsyncMock(
+            side_effect=lambda msg: received_messages.append(json.loads(msg))
+        )
+        mock_ws.close = AsyncMock()
+
+        # Create mock Redis client with pub/sub simulation
+        published_messages = []
+
+        async def mock_publish(channel, message):
+            published_messages.append((channel, message))
+            return 1
+
+        # Create mock pubsub that yields published messages
+        class MockPubSub:
+            pass
+
+        mock_pubsub = MockPubSub()
+
+        async def mock_subscribe(channel):
+            return mock_pubsub
+
+        async def mock_listen(_pubsub):
+            # Yield all published messages
+            for channel, message in published_messages:
+                yield {"data": message}
+
+        mock_redis = MagicMock()
+        mock_redis.publish = AsyncMock(side_effect=mock_publish)
+        mock_redis.subscribe = AsyncMock(side_effect=mock_subscribe)
+        mock_redis.listen = mock_listen
+
+        # Create services
+        broadcaster = EventBroadcaster(mock_redis)
+        analyzer = NemotronAnalyzer(mock_redis)
+
+        # Add WebSocket connection to broadcaster
+        broadcaster._connections.add(mock_ws)
+
+        # Create and broadcast test event via NemotronAnalyzer
+        test_event = Event(
+            id=99,
+            batch_id="e2e_test_batch",
+            camera_id="e2e_test_camera",
+            started_at=datetime(2025, 12, 23, 16, 0, 0),
+            risk_score=85,
+            risk_level="critical",
+            summary="End-to-end test event",
+        )
+
+        await analyzer._broadcast_event(test_event)
+
+        # Verify message was published to correct channel
+        assert len(published_messages) == 1
+        channel, message = published_messages[0]
+        assert channel == "security_events"
+
+        # Simulate broadcaster receiving the message
+        await broadcaster._send_to_all_clients(message)
+
+        # Verify WebSocket client received the message
+        assert len(received_messages) == 1
+        received = received_messages[0]
+        assert received["type"] == "event"
+        assert received["data"]["id"] == 99
+        assert received["data"]["risk_score"] == 85
+        assert received["data"]["summary"] == "End-to-end test event"
+
+
+class TestChannelDocumentation:
+    """Tests verifying that channel names and message formats are documented."""
+
+    def test_broadcaster_channel_name_is_documented(self):
+        """Verify EventBroadcaster.CHANNEL_NAME is a class constant."""
+        from backend.services.event_broadcaster import EventBroadcaster
+
+        # CHANNEL_NAME should be a class attribute
+        assert hasattr(EventBroadcaster, "CHANNEL_NAME")
+        assert EventBroadcaster.CHANNEL_NAME == "security_events"
+
+    def test_agents_md_documents_channel(self):
+        """Verify AGENTS.md documents the canonical channel name."""
+        import os
+
+        agents_path = os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "..",
+            "services",
+            "AGENTS.md"
+        )
+
+        with open(agents_path, "r") as f:
+            content = f.read()
+
+        # Channel name should be documented
+        assert "security_events" in content
+        # Message format should be documented
+        assert '"type": "event"' in content or "type.*event" in content
