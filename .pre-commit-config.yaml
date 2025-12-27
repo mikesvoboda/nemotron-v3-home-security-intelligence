@@ -81,8 +81,8 @@ repos:
   - repo: local
     hooks:
       - id: fast-test
-        name: Quick Backend Tests
-        entry: bash -c 'redis-cli -n 15 FLUSHDB > /dev/null 2>&1; source .venv/bin/activate && cd backend && pytest -m "not slow" -n 8'
+        name: Quick Backend Tests (Unit Only)
+        entry: bash -c 'redis-cli -n 15 FLUSHDB > /dev/null 2>&1; source .venv/bin/activate && pytest backend/tests/unit/ -m "not slow" -q --tb=no'
         language: system
         pass_filenames: false
         stages: [pre-commit]
@@ -92,4 +92,11 @@ repos:
         entry: python scripts/check-test-mocks.py
         language: system
         files: ^backend/tests/integration/.*\.py$
+        pass_filenames: true
+
+      - id: check-test-timeouts
+        name: Check tests mock slow sleeps/timeouts
+        entry: python scripts/check-test-timeouts.py
+        language: system
+        files: ^backend/tests/.*\.py$
         pass_filenames: true
