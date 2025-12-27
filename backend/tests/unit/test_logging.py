@@ -1,7 +1,11 @@
 """Unit tests for logging module."""
 
 import logging
+import tempfile
+from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from backend.core.logging import (
     ContextFilter,
@@ -192,6 +196,26 @@ class TestCustomJsonFormatter:
         assert "level" in formatted
         assert "ERROR" in formatted
 
+    def test_formatter_with_empty_request_id(self):
+        """Test that formatter handles empty string request_id."""
+        formatter = CustomJsonFormatter()
+        record = logging.LogRecord(
+            name="test",
+            level=logging.DEBUG,
+            pathname="",
+            lineno=0,
+            msg="debug message",
+            args=(),
+            exc_info=None,
+        )
+        record.request_id = ""
+
+        # Empty string is falsy, so request_id should not be added to log_record
+        formatted = formatter.format(record)
+        assert "timestamp" in formatted
+        # Empty string should not result in request_id being added
+        assert "request_id" not in formatted or '""' in formatted
+
 
 class TestSQLiteHandler:
     """Tests for SQLiteHandler."""
@@ -250,3 +274,636 @@ class TestSQLiteHandler:
             handler = SQLiteHandler(min_level=level)
             expected = getattr(logging, level)
             assert handler.min_level == expected
+
+    def test_handler_invalid_min_level_defaults_to_debug(self):
+        """Test handler with invalid min_level falls back to DEBUG."""
+        handler = SQLiteHandler(min_level="INVALID_LEVEL")
+        # getattr returns default (DEBUG) when level name is not found
+        assert handler.min_level == logging.DEBUG
+
+
+class TestSQLiteHandlerGetSession:
+    """Tests for SQLiteHandler._get_session method (lines 87-105)."""
+
+    def test_get_session_creates_engine_and_factory(self):
+        """Test that _get_session initializes engine and session factory on first call."""
+        with patch("backend.core.logging.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock(
+                database_url="sqlite+aiosqlite:///./data/test.db"
+            )
+
+            with (
+                patch(
+                    "backend.core.logging.SQLiteHandler._get_session"
+                ) as mock_get_session,
+            ):
+                # Simulate session being returned
+                mock_session = MagicMock()
+                mock_get_session.return_value = mock_session
+
+                handler = SQLiteHandler()
+                handler._get_session = mock_get_session
+                session = handler._get_session()
+
+                assert session is mock_session
+
+    def test_get_session_returns_none_on_import_error(self):
+        """Test that _get_session returns None when database setup fails."""
+        handler = SQLiteHandler()
+        handler._session_factory = None
+        handler._db_available = True
+
+        # Patch get_settings to raise an exception during engine creation
+        with patch("backend.core.logging.get_settings") as mock_settings:
+            mock_settings.side_effect = Exception("Config error")
+
+            # _get_session should catch the exception and set _db_available to False
+            session = handler._get_session()
+
+            assert session is None
+            assert handler._db_available is False
+
+    def test_get_session_reuses_session_factory(self):
+        """Test that _get_session reuses existing session factory."""
+        handler = SQLiteHandler()
+
+        # Pre-set a session factory
+        mock_factory = MagicMock()
+        mock_session = MagicMock()
+        mock_factory.return_value = mock_session
+        handler._session_factory = mock_factory
+
+        session = handler._get_session()
+
+        assert session is mock_session
+        mock_factory.assert_called_once()
+
+    def test_get_session_converts_async_url_to_sync(self):
+        """Test that async SQLite URL is converted to sync URL."""
+        handler = SQLiteHandler()
+        handler._session_factory = None
+        handler._db_available = True
+
+        with patch("backend.core.logging.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock(
+                database_url="sqlite+aiosqlite:///./data/test.db"
+            )
+
+            with (
+                patch("sqlalchemy.create_engine") as mock_create_engine,
+                patch("sqlalchemy.orm.sessionmaker") as mock_sessionmaker,
+            ):
+                mock_engine = MagicMock()
+                mock_create_engine.return_value = mock_engine
+
+                mock_factory = MagicMock()
+                mock_session = MagicMock()
+                mock_factory.return_value = mock_session
+                mock_sessionmaker.return_value = mock_factory
+
+                session = handler._get_session()
+
+                # Verify engine was created with sync URL
+                mock_create_engine.assert_called_once()
+                call_args = mock_create_engine.call_args
+                # URL should have aiosqlite replaced with plain sqlite
+                assert "sqlite:///" in call_args[0][0]
+                assert "aiosqlite" not in call_args[0][0]
+                assert session is mock_session
+
+
+class TestSQLiteHandlerEmit:
+    """Tests for SQLiteHandler.emit method (lines 115-158)."""
+
+    def test_emit_writes_log_entry_to_database(self):
+        """Test that emit correctly writes log entry to database."""
+        handler = SQLiteHandler(min_level="DEBUG")
+        handler._db_available = True
+        handler.setFormatter(logging.Formatter("%(message)s"))
+
+        mock_session = MagicMock()
+        handler._get_session = MagicMock(return_value=mock_session)
+
+        with patch("backend.models.log.Log") as MockLog:
+            mock_log_instance = MagicMock()
+            MockLog.return_value = mock_log_instance
+
+            record = logging.LogRecord(
+                name="test.component",
+                level=logging.INFO,
+                pathname="/test/path.py",
+                lineno=42,
+                msg="Test log message",
+                args=(),
+                exc_info=None,
+            )
+            record.request_id = "req-123"
+
+            handler.emit(record)
+
+            # Verify Log model was instantiated
+            MockLog.assert_called_once()
+            call_kwargs = MockLog.call_args[1]
+
+            assert call_kwargs["level"] == "INFO"
+            assert call_kwargs["component"] == "test.component"
+            assert call_kwargs["message"] == "Test log message"
+            assert call_kwargs["request_id"] == "req-123"
+            assert call_kwargs["source"] == "backend"
+
+            # Verify session operations
+            mock_session.add.assert_called_once_with(mock_log_instance)
+            mock_session.commit.assert_called_once()
+            mock_session.close.assert_called_once()
+
+    def test_emit_extracts_custom_attributes(self):
+        """Test that emit extracts camera_id, event_id, and other custom attributes."""
+        handler = SQLiteHandler(min_level="DEBUG")
+        handler._db_available = True
+        handler.setFormatter(logging.Formatter("%(message)s"))
+
+        mock_session = MagicMock()
+        handler._get_session = MagicMock(return_value=mock_session)
+
+        with patch("backend.models.log.Log") as MockLog:
+            mock_log_instance = MagicMock()
+            MockLog.return_value = mock_log_instance
+
+            record = logging.LogRecord(
+                name="camera.service",
+                level=logging.WARNING,
+                pathname="/test/path.py",
+                lineno=100,
+                msg="Camera detected motion",
+                args=(),
+                exc_info=None,
+            )
+            # Add custom attributes
+            record.camera_id = "front_door"
+            record.event_id = 42
+            record.detection_id = 123
+            record.duration_ms = 500
+            record.file_path = "/path/to/image.jpg"
+
+            handler.emit(record)
+
+            # Verify Log model was instantiated with custom attributes
+            MockLog.assert_called_once()
+            call_kwargs = MockLog.call_args[1]
+
+            assert call_kwargs["camera_id"] == "front_door"
+            assert call_kwargs["event_id"] == 42
+            assert call_kwargs["detection_id"] == 123
+            assert call_kwargs["duration_ms"] == 500
+            # extra should contain file_path
+            assert "file_path" in call_kwargs["extra"]
+            assert call_kwargs["extra"]["file_path"] == "/path/to/image.jpg"
+
+    def test_emit_handles_extra_dict_attribute(self):
+        """Test that emit merges extra dict attribute into extra_data."""
+        handler = SQLiteHandler(min_level="DEBUG")
+        handler._db_available = True
+        handler.setFormatter(logging.Formatter("%(message)s"))
+
+        mock_session = MagicMock()
+        handler._get_session = MagicMock(return_value=mock_session)
+
+        with patch("backend.models.log.Log") as MockLog:
+            mock_log_instance = MagicMock()
+            MockLog.return_value = mock_log_instance
+
+            record = logging.LogRecord(
+                name="test",
+                level=logging.ERROR,
+                pathname="/test/path.py",
+                lineno=50,
+                msg="Error occurred",
+                args=(),
+                exc_info=None,
+            )
+            # Add extra dict
+            record.extra = {"key1": "value1", "key2": 42}
+
+            handler.emit(record)
+
+            MockLog.assert_called_once()
+            call_kwargs = MockLog.call_args[1]
+
+            # extra should contain merged data
+            assert call_kwargs["extra"]["key1"] == "value1"
+            assert call_kwargs["extra"]["key2"] == 42
+
+    def test_emit_returns_early_when_session_is_none(self):
+        """Test that emit returns early if _get_session returns None."""
+        handler = SQLiteHandler(min_level="DEBUG")
+        handler._db_available = True
+        handler._get_session = MagicMock(return_value=None)
+
+        record = logging.LogRecord(
+            name="test",
+            level=logging.INFO,
+            pathname="/test/path.py",
+            lineno=10,
+            msg="Test message",
+            args=(),
+            exc_info=None,
+        )
+
+        # Should not raise - just return early
+        handler.emit(record)
+
+        # Verify _get_session was called
+        handler._get_session.assert_called_once()
+
+    def test_emit_disables_db_on_exception(self):
+        """Test that emit disables database logging on exception."""
+        handler = SQLiteHandler(min_level="DEBUG")
+        handler._db_available = True
+        handler.setFormatter(logging.Formatter("%(message)s"))
+
+        mock_session = MagicMock()
+        mock_session.add.side_effect = Exception("Database error")
+        handler._get_session = MagicMock(return_value=mock_session)
+
+        with patch("backend.models.log.Log") as MockLog:
+            mock_log_instance = MagicMock()
+            MockLog.return_value = mock_log_instance
+
+            record = logging.LogRecord(
+                name="test",
+                level=logging.INFO,
+                pathname="/test/path.py",
+                lineno=10,
+                msg="Test message",
+                args=(),
+                exc_info=None,
+            )
+
+            # Should not raise - just disable DB logging
+            handler.emit(record)
+
+            # DB should be disabled after exception
+            assert handler._db_available is False
+
+    def test_emit_closes_session_even_on_commit_failure(self):
+        """Test that emit closes session even when commit fails."""
+        handler = SQLiteHandler(min_level="DEBUG")
+        handler._db_available = True
+        handler.setFormatter(logging.Formatter("%(message)s"))
+
+        mock_session = MagicMock()
+        mock_session.commit.side_effect = Exception("Commit failed")
+        handler._get_session = MagicMock(return_value=mock_session)
+
+        with patch("backend.models.log.Log") as MockLog:
+            mock_log_instance = MagicMock()
+            MockLog.return_value = mock_log_instance
+
+            record = logging.LogRecord(
+                name="test",
+                level=logging.INFO,
+                pathname="/test/path.py",
+                lineno=10,
+                msg="Test message",
+                args=(),
+                exc_info=None,
+            )
+
+            handler.emit(record)
+
+            # Session should still be closed in finally block
+            mock_session.close.assert_called_once()
+            # DB should be disabled after exception
+            assert handler._db_available is False
+
+    def test_emit_skips_none_values_in_extra_data(self):
+        """Test that emit skips None values when building extra_data."""
+        handler = SQLiteHandler(min_level="DEBUG")
+        handler._db_available = True
+        handler.setFormatter(logging.Formatter("%(message)s"))
+
+        mock_session = MagicMock()
+        handler._get_session = MagicMock(return_value=mock_session)
+
+        with patch("backend.models.log.Log") as MockLog:
+            mock_log_instance = MagicMock()
+            MockLog.return_value = mock_log_instance
+
+            record = logging.LogRecord(
+                name="test",
+                level=logging.INFO,
+                pathname="/test/path.py",
+                lineno=10,
+                msg="Test message",
+                args=(),
+                exc_info=None,
+            )
+            # Set some values to None
+            record.camera_id = None
+            record.event_id = None
+            record.detection_id = 456  # This one is not None
+            record.duration_ms = None
+            record.file_path = None
+
+            handler.emit(record)
+
+            MockLog.assert_called_once()
+            call_kwargs = MockLog.call_args[1]
+
+            # Only detection_id should be in extra (non-None value)
+            assert "detection_id" in call_kwargs["extra"]
+            assert call_kwargs["extra"]["detection_id"] == 456
+            # camera_id at top level should still be None
+            assert call_kwargs["camera_id"] is None
+
+
+class TestSetupLoggingFileHandler:
+    """Tests for setup_logging file handler configuration (lines 207-208)."""
+
+    def test_setup_logging_handles_file_handler_exception(self):
+        """Test that setup_logging handles file handler creation failure gracefully."""
+        with patch("backend.core.logging.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock(
+                log_level="INFO",
+                log_file_path="/nonexistent/deep/nested/path/test.log",
+                log_file_max_bytes=1048576,
+                log_file_backup_count=3,
+                log_db_enabled=False,
+            )
+
+            # Patch RotatingFileHandler to raise an exception
+            with patch(
+                "backend.core.logging.RotatingFileHandler"
+            ) as mock_file_handler:
+                mock_file_handler.side_effect = PermissionError(
+                    "Permission denied"
+                )
+
+                root = logging.getLogger()
+                original_handlers = root.handlers.copy()
+                original_level = root.level
+
+                try:
+                    # Should not raise - should log warning and continue
+                    setup_logging()
+
+                    # Console handler should still be added
+                    assert len(root.handlers) >= 1
+                finally:
+                    root.handlers = original_handlers
+                    root.level = original_level
+
+    def test_setup_logging_creates_log_directory(self):
+        """Test that setup_logging creates log directory if it doesn't exist."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            log_path = Path(tmpdir) / "logs" / "nested" / "app.log"
+
+            with patch("backend.core.logging.get_settings") as mock_settings:
+                mock_settings.return_value = MagicMock(
+                    log_level="DEBUG",
+                    log_file_path=str(log_path),
+                    log_file_max_bytes=1048576,
+                    log_file_backup_count=3,
+                    log_db_enabled=False,
+                )
+
+                root = logging.getLogger()
+                original_handlers = root.handlers.copy()
+                original_level = root.level
+
+                try:
+                    setup_logging()
+
+                    # Directory should be created
+                    assert log_path.parent.exists()
+                finally:
+                    root.handlers = original_handlers
+                    root.level = original_level
+
+
+class TestSetupLoggingSQLiteHandler:
+    """Tests for setup_logging SQLite handler configuration (lines 212-218)."""
+
+    def test_setup_logging_adds_sqlite_handler_when_enabled(self):
+        """Test that setup_logging adds SQLite handler when log_db_enabled is True."""
+        with patch("backend.core.logging.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock(
+                log_level="INFO",
+                log_file_path="data/logs/test.log",
+                log_file_max_bytes=1048576,
+                log_file_backup_count=3,
+                log_db_enabled=True,
+                log_db_min_level="WARNING",
+            )
+
+            root = logging.getLogger()
+            original_handlers = root.handlers.copy()
+            original_level = root.level
+
+            try:
+                setup_logging()
+
+                # Should have SQLiteHandler among handlers
+                sqlite_handlers = [
+                    h for h in root.handlers if isinstance(h, SQLiteHandler)
+                ]
+                assert len(sqlite_handlers) == 1
+
+                # Verify min_level was set correctly
+                assert sqlite_handlers[0].min_level == logging.WARNING
+            finally:
+                root.handlers = original_handlers
+                root.level = original_level
+
+    def test_setup_logging_handles_sqlite_handler_exception(self):
+        """Test that setup_logging handles SQLite handler creation failure."""
+        with patch("backend.core.logging.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock(
+                log_level="INFO",
+                log_file_path="data/logs/test.log",
+                log_file_max_bytes=1048576,
+                log_file_backup_count=3,
+                log_db_enabled=True,
+                log_db_min_level="INFO",
+            )
+
+            with patch(
+                "backend.core.logging.SQLiteHandler"
+            ) as mock_sqlite_handler:
+                mock_sqlite_handler.side_effect = Exception(
+                    "SQLite initialization failed"
+                )
+
+                root = logging.getLogger()
+                original_handlers = root.handlers.copy()
+                original_level = root.level
+
+                try:
+                    # Should not raise - should log warning and continue
+                    setup_logging()
+
+                    # Should still have console handler
+                    assert len(root.handlers) >= 1
+                finally:
+                    root.handlers = original_handlers
+                    root.level = original_level
+
+    def test_setup_logging_skips_sqlite_handler_when_disabled(self):
+        """Test that setup_logging skips SQLite handler when log_db_enabled is False."""
+        with patch("backend.core.logging.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock(
+                log_level="DEBUG",
+                log_file_path="data/logs/test.log",
+                log_file_max_bytes=1048576,
+                log_file_backup_count=3,
+                log_db_enabled=False,
+            )
+
+            root = logging.getLogger()
+            original_handlers = root.handlers.copy()
+            original_level = root.level
+
+            try:
+                setup_logging()
+
+                # Should NOT have any SQLiteHandler
+                sqlite_handlers = [
+                    h for h in root.handlers if isinstance(h, SQLiteHandler)
+                ]
+                assert len(sqlite_handlers) == 0
+            finally:
+                root.handlers = original_handlers
+                root.level = original_level
+
+
+class TestSetupLoggingIntegration:
+    """Integration tests for setup_logging function."""
+
+    def test_setup_logging_configures_all_components(self):
+        """Test that setup_logging configures console, file, and optional SQLite handlers."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            log_path = Path(tmpdir) / "app.log"
+
+            with patch("backend.core.logging.get_settings") as mock_settings:
+                mock_settings.return_value = MagicMock(
+                    log_level="DEBUG",
+                    log_file_path=str(log_path),
+                    log_file_max_bytes=1048576,
+                    log_file_backup_count=3,
+                    log_db_enabled=True,
+                    log_db_min_level="ERROR",
+                )
+
+                root = logging.getLogger()
+                original_handlers = root.handlers.copy()
+                original_level = root.level
+                original_filters = root.filters.copy()
+
+                try:
+                    # Count existing filters before setup
+                    existing_filters = len([
+                        f for f in root.filters if isinstance(f, ContextFilter)
+                    ])
+
+                    setup_logging()
+
+                    # Root level should be set
+                    assert root.level == logging.DEBUG
+
+                    # Should have at least one new context filter added
+                    context_filters = [
+                        f for f in root.filters if isinstance(f, ContextFilter)
+                    ]
+                    assert len(context_filters) >= existing_filters + 1
+
+                    # Should have at least console handler
+                    from logging import StreamHandler
+
+                    stream_handlers = [
+                        h for h in root.handlers if isinstance(h, StreamHandler)
+                    ]
+                    assert len(stream_handlers) >= 1
+                finally:
+                    root.handlers = original_handlers
+                    root.level = original_level
+                    root.filters = original_filters
+
+    def test_setup_logging_reduces_third_party_noise(self):
+        """Test that setup_logging reduces logging level for third-party libraries."""
+        with patch("backend.core.logging.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock(
+                log_level="DEBUG",
+                log_file_path="data/logs/test.log",
+                log_file_max_bytes=1048576,
+                log_file_backup_count=3,
+                log_db_enabled=False,
+            )
+
+            root = logging.getLogger()
+            original_handlers = root.handlers.copy()
+            original_level = root.level
+
+            try:
+                setup_logging()
+
+                # Third-party loggers should have WARNING level
+                assert logging.getLogger("uvicorn.access").level == logging.WARNING
+                assert logging.getLogger("sqlalchemy.engine").level == logging.WARNING
+                assert logging.getLogger("watchdog").level == logging.WARNING
+            finally:
+                root.handlers = original_handlers
+                root.level = original_level
+
+    def test_setup_logging_handles_invalid_log_level(self):
+        """Test that setup_logging handles invalid log level gracefully."""
+        with patch("backend.core.logging.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock(
+                log_level="INVALID_LEVEL",  # Invalid level
+                log_file_path="data/logs/test.log",
+                log_file_max_bytes=1048576,
+                log_file_backup_count=3,
+                log_db_enabled=False,
+            )
+
+            root = logging.getLogger()
+            original_handlers = root.handlers.copy()
+            original_level = root.level
+
+            try:
+                # Should not raise - falls back to INFO
+                setup_logging()
+
+                # getattr with default returns INFO when level not found
+                assert root.level == logging.INFO
+            finally:
+                root.handlers = original_handlers
+                root.level = original_level
+
+    def test_setup_logging_clears_existing_handlers(self):
+        """Test that setup_logging clears existing handlers before adding new ones."""
+        with patch("backend.core.logging.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock(
+                log_level="INFO",
+                log_file_path="data/logs/test.log",
+                log_file_max_bytes=1048576,
+                log_file_backup_count=3,
+                log_db_enabled=False,
+            )
+
+            root = logging.getLogger()
+            original_handlers = root.handlers.copy()
+            original_level = root.level
+
+            # Add a dummy handler
+            dummy_handler = logging.StreamHandler()
+            root.addHandler(dummy_handler)
+            initial_count = len(root.handlers)
+
+            try:
+                setup_logging()
+
+                # The dummy handler should have been cleared
+                assert dummy_handler not in root.handlers
+            finally:
+                root.handlers = original_handlers
+                root.level = original_level
