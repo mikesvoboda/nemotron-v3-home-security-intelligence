@@ -79,7 +79,7 @@ jobs:
           cache-dependency-path: backend/requirements*.txt
 
       - name: Install dependencies
-        run: pip install -r backend/requirements-dev.txt
+        run: pip install -r backend/requirements.txt
 
       - name: Run unit tests with coverage
         run: |
@@ -126,7 +126,7 @@ jobs:
           cache-dependency-path: backend/requirements*.txt
 
       - name: Install dependencies
-        run: pip install -r backend/requirements-dev.txt
+        run: pip install -r backend/requirements.txt
 
       - name: Wait for Redis
         run: |

@@ -43,7 +43,7 @@ export default function CamerasSettings() {
   const [formData, setFormData] = useState<CameraFormData>({
     name: '',
     folder_path: '',
-    status: 'active',
+    status: 'online',
   });
   const [formErrors, setFormErrors] = useState<CameraFormErrors>({});
   const [submitting, setSubmitting] = useState(false);
@@ -89,7 +89,7 @@ export default function CamerasSettings() {
 
   const handleOpenAddModal = () => {
     setEditingCamera(null);
-    setFormData({ name: '', folder_path: '', status: 'active' });
+    setFormData({ name: '', folder_path: '', status: 'online' });
     setFormErrors({});
     setIsModalOpen(true);
   };
@@ -108,7 +108,7 @@ export default function CamerasSettings() {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingCamera(null);
-    setFormData({ name: '', folder_path: '', status: 'active' });
+    setFormData({ name: '', folder_path: '', status: 'online' });
     setFormErrors({});
   };
 
@@ -184,10 +184,12 @@ export default function CamerasSettings() {
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
-      case 'active':
+      case 'online':
         return 'text-green-500';
-      case 'inactive':
+      case 'offline':
         return 'text-gray-500';
+      case 'error':
+        return 'text-red-500';
       default:
         return 'text-gray-400';
     }
@@ -438,8 +440,9 @@ export default function CamerasSettings() {
                         onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                         className="mt-1 block w-full rounded-lg border border-gray-800 bg-card px-3 py-2 text-text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
                       >
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
+                        <option value="online">Online</option>
+                        <option value="offline">Offline</option>
+                        <option value="error">Error</option>
                       </select>
                     </div>
 

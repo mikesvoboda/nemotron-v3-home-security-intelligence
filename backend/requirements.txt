@@ -21,7 +21,7 @@ pillow>=10.0.0
 pynvml>=11.5.0
 
 # HTTP client (for AI services)
-httpx>=0.25.0
+httpx>=0.26.0
 
 # Utilities
 python-dotenv>=1.0.0
@@ -32,7 +32,21 @@ pydantic-settings>=2.0.0
 python-json-logger>=2.0.0
 
 # Testing
-pytest>=7.4.0
-pytest-asyncio>=0.21.0
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
 pytest-cov>=4.1.0
-pytest-xdist>=3.5.0  # Parallel test execution
+pytest-xdist>=3.5.0
+fakeredis>=2.20.0
+
+# CI/CD - Performance
+pytest-benchmark>=4.0.0
+pytest-memray>=1.5.0
+
+# CI/CD - Security
+bandit>=1.7.0
+
+# CI/CD - Complexity
+wily>=1.25.0  # Includes radon as dependency
+
+# CI/CD - Big-O analysis
+big-o>=0.11.0

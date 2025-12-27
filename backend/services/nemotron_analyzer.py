@@ -525,6 +525,12 @@ class NemotronAnalyzer:
     async def _broadcast_event(self, event: Event) -> None:
         """Broadcast event via WebSocket (optional).
 
+        Publishes to the canonical 'security_events' Redis channel with the standard
+        message envelope format: {"type": "event", "data": {...}}.
+
+        This allows EventBroadcaster (which subscribes to 'security_events') to forward
+        the event to all connected /ws/events WebSocket clients.
+
         Args:
             event: Event to broadcast
         """
@@ -532,18 +538,24 @@ class NemotronAnalyzer:
             return
 
         try:
+            # Use the canonical message envelope format expected by EventBroadcaster
+            # and frontend WebSocket clients: {"type": "event", "data": {...}}
             message = {
-                "type": "event_created",
-                "event_id": event.id,
-                "batch_id": event.batch_id,
-                "camera_id": event.camera_id,
-                "risk_score": event.risk_score,
-                "risk_level": event.risk_level,
-                "summary": event.summary,
-                "started_at": event.started_at.isoformat() if event.started_at else None,
+                "type": "event",
+                "data": {
+                    "id": event.id,
+                    "event_id": event.id,  # Legacy field for compatibility
+                    "batch_id": event.batch_id,
+                    "camera_id": event.camera_id,
+                    "risk_score": event.risk_score,
+                    "risk_level": event.risk_level,
+                    "summary": event.summary,
+                    "started_at": event.started_at.isoformat() if event.started_at else None,
+                },
             }
 
-            await self._redis.publish("events", message)
+            from backend.services.event_broadcaster import EventBroadcaster
+            await self._redis.publish(EventBroadcaster.CHANNEL_NAME, message)
             logger.debug(f"Broadcasted event {event.id} via WebSocket")
         except Exception as e:  # pragma: no cover
             logger.warning(f"Failed to broadcast event: {e}")  # pragma: no cover
