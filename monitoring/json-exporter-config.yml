@@ -1,0 +1,168 @@
+# JSON Exporter configuration for Home Security Intelligence
+# Converts JSON API responses to Prometheus metrics
+
+modules:
+  # System health metrics
+  health:
+    metrics:
+      - name: hsi_system_healthy
+        path: "{ .status }"
+        type: value
+        help: "System health status (1=healthy, 0=unhealthy)"
+        values:
+          healthy: 1
+          degraded: 0.5
+          unhealthy: 0
+
+      - name: hsi_database_healthy
+        path: "{ .services.database.status }"
+        type: value
+        help: "Database health status"
+        values:
+          healthy: 1
+          unhealthy: 0
+
+      - name: hsi_redis_healthy
+        path: "{ .services.redis.status }"
+        type: value
+        help: "Redis health status"
+        values:
+          healthy: 1
+          unhealthy: 0
+
+      - name: hsi_ai_healthy
+        path: "{ .services.ai.status }"
+        type: value
+        help: "AI services health status"
+        values:
+          healthy: 1
+          unhealthy: 0
+
+  # Pipeline telemetry metrics
+  telemetry:
+    metrics:
+      # Queue depths
+      - name: hsi_detection_queue_depth
+        path: "{ .queues.detection_queue }"
+        type: value
+        help: "Number of items in detection queue"
+
+      - name: hsi_analysis_queue_depth
+        path: "{ .queues.analysis_queue }"
+        type: value
+        help: "Number of batches in analysis queue"
+
+      # Watch stage latencies
+      - name: hsi_watch_latency_avg_ms
+        path: "{ .latencies.watch.avg_ms }"
+        type: value
+        help: "Watch stage average latency in milliseconds"
+
+      - name: hsi_watch_latency_p95_ms
+        path: "{ .latencies.watch.p95_ms }"
+        type: value
+        help: "Watch stage P95 latency in milliseconds"
+
+      - name: hsi_watch_latency_p99_ms
+        path: "{ .latencies.watch.p99_ms }"
+        type: value
+        help: "Watch stage P99 latency in milliseconds"
+
+      # Detect stage latencies
+      - name: hsi_detect_latency_avg_ms
+        path: "{ .latencies.detect.avg_ms }"
+        type: value
+        help: "Detect stage average latency in milliseconds"
+
+      - name: hsi_detect_latency_p95_ms
+        path: "{ .latencies.detect.p95_ms }"
+        type: value
+        help: "Detect stage P95 latency in milliseconds"
+
+      - name: hsi_detect_latency_p99_ms
+        path: "{ .latencies.detect.p99_ms }"
+        type: value
+        help: "Detect stage P99 latency in milliseconds"
+
+      # Batch stage latencies
+      - name: hsi_batch_latency_avg_ms
+        path: "{ .latencies.batch.avg_ms }"
+        type: value
+        help: "Batch stage average latency in milliseconds"
+
+      - name: hsi_batch_latency_p95_ms
+        path: "{ .latencies.batch.p95_ms }"
+        type: value
+        help: "Batch stage P95 latency in milliseconds"
+
+      - name: hsi_batch_latency_p99_ms
+        path: "{ .latencies.batch.p99_ms }"
+        type: value
+        help: "Batch stage P99 latency in milliseconds"
+
+      # Analyze stage latencies
+      - name: hsi_analyze_latency_avg_ms
+        path: "{ .latencies.analyze.avg_ms }"
+        type: value
+        help: "Analyze stage average latency in milliseconds"
+
+      - name: hsi_analyze_latency_p95_ms
+        path: "{ .latencies.analyze.p95_ms }"
+        type: value
+        help: "Analyze stage P95 latency in milliseconds"
+
+      - name: hsi_analyze_latency_p99_ms
+        path: "{ .latencies.analyze.p99_ms }"
+        type: value
+        help: "Analyze stage P99 latency in milliseconds"
+
+  # System statistics
+  stats:
+    metrics:
+      - name: hsi_total_cameras
+        path: "{ .total_cameras }"
+        type: value
+        help: "Total number of cameras"
+
+      - name: hsi_total_events
+        path: "{ .total_events }"
+        type: value
+        help: "Total number of events"
+
+      - name: hsi_total_detections
+        path: "{ .total_detections }"
+        type: value
+        help: "Total number of detections"
+
+      - name: hsi_uptime_seconds
+        path: "{ .uptime_seconds }"
+        type: value
+        help: "Application uptime in seconds"
+
+  # GPU statistics
+  gpu:
+    metrics:
+      - name: hsi_gpu_utilization
+        path: "{ .utilization }"
+        type: value
+        help: "GPU utilization percentage"
+
+      - name: hsi_gpu_memory_used_mb
+        path: "{ .memory_used }"
+        type: value
+        help: "GPU memory used in MB"
+
+      - name: hsi_gpu_memory_total_mb
+        path: "{ .memory_total }"
+        type: value
+        help: "Total GPU memory in MB"
+
+      - name: hsi_gpu_temperature
+        path: "{ .temperature }"
+        type: value
+        help: "GPU temperature in Celsius"
+
+      - name: hsi_inference_fps
+        path: "{ .inference_fps }"
+        type: value
+        help: "Inference frames per second"

@@ -28,6 +28,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
+from backend.core.metrics import (
+    observe_ai_request_duration,
+    record_detection_processed,
+    record_pipeline_error,
+)
 from backend.models.detection import Detection
 
 logger = get_logger(__name__)
@@ -97,6 +102,7 @@ class DetectorClient:
                 f"Image file not found: {image_path}",
                 extra={"camera_id": camera_id, "file_path": image_path},
             )
+            record_pipeline_error("file_not_found")
             return []
 
         logger.debug(
@@ -108,6 +114,9 @@ class DetectorClient:
             # Read image file
             image_data = image_file.read_bytes()
 
+            # Track AI request time separately
+            ai_start_time = time.time()
+
             # Send to detector
             async with httpx.AsyncClient(timeout=self._timeout) as client:
                 files = {"file": (image_file.name, image_data, "image/jpeg")}
@@ -117,11 +126,16 @@ class DetectorClient:
                 )
                 response.raise_for_status()
 
+            # Record AI request duration
+            ai_duration = time.time() - ai_start_time
+            observe_ai_request_duration("rtdetr", ai_duration)
+
             # Parse response
             result = response.json()
 
             if "detections" not in result:
                 logger.warning(f"Malformed response from detector (missing 'detections'): {result}")
+                record_pipeline_error("malformed_response")
                 return []
 
             # Process detections
@@ -185,12 +199,15 @@ class DetectorClient:
 
                 except Exception as e:
                     logger.error(f"Error processing detection data: {e}", exc_info=True)
+                    record_pipeline_error("detection_processing_error")
                     continue
 
             # Commit to database
             if detections:
                 await session.commit()
                 duration_ms = int((time.time() - start_time) * 1000)
+                # Record detection metrics
+                record_detection_processed(count=len(detections))
                 logger.info(
                     f"Stored {len(detections)} detections for {camera_id} from {image_path}",
                     extra={
@@ -215,6 +232,7 @@ class DetectorClient:
 
         except httpx.ConnectError as e:
             duration_ms = int((time.time() - start_time) * 1000)
+            record_pipeline_error("rtdetr_connection_error")
             logger.error(
                 f"Failed to connect to detector service: {e}",
                 extra={"camera_id": camera_id, "file_path": image_path, "duration_ms": duration_ms},
@@ -223,6 +241,7 @@ class DetectorClient:
 
         except httpx.TimeoutException as e:
             duration_ms = int((time.time() - start_time) * 1000)
+            record_pipeline_error("rtdetr_timeout")
             logger.error(
                 f"Detector request timed out: {e}",
                 extra={"camera_id": camera_id, "file_path": image_path, "duration_ms": duration_ms},
@@ -231,6 +250,7 @@ class DetectorClient:
 
         except httpx.HTTPStatusError as e:
             duration_ms = int((time.time() - start_time) * 1000)
+            record_pipeline_error("rtdetr_http_error")
             logger.error(
                 f"Detector returned HTTP error: {e.response.status_code} - {e}",
                 extra={"camera_id": camera_id, "file_path": image_path, "duration_ms": duration_ms},
@@ -239,6 +259,7 @@ class DetectorClient:
 
         except Exception as e:
             duration_ms = int((time.time() - start_time) * 1000)
+            record_pipeline_error("rtdetr_unexpected_error")
             logger.error(
                 f"Unexpected error during object detection: {e}",
                 extra={"camera_id": camera_id, "file_path": image_path, "duration_ms": duration_ms},
