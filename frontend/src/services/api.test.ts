@@ -25,6 +25,7 @@ import {
   type Camera,
   type CameraCreate,
   type CameraUpdate,
+  type ServiceStatus,
   type HealthResponse,
   type GPUStats,
   type SystemConfig,
@@ -46,7 +47,7 @@ const mockCamera: Camera = {
   id: 'cam-1',
   name: 'Front Door',
   folder_path: '/export/foscam/front-door',
-  status: 'active',
+  status: 'online',
   created_at: '2025-01-01T00:00:00Z',
   last_seen_at: '2025-01-02T12:00:00Z',
 };
@@ -57,7 +58,7 @@ const mockCameras: Camera[] = [
     id: 'cam-2',
     name: 'Backyard',
     folder_path: '/export/foscam/backyard',
-    status: 'active',
+    status: 'online',
     created_at: '2025-01-01T00:00:00Z',
     last_seen_at: null,
   },
@@ -66,9 +67,9 @@ const mockCameras: Camera[] = [
 const mockHealth: HealthResponse = {
   status: 'healthy',
   services: {
-    database: 'healthy',
-    redis: 'healthy',
-    ai_detector: 'healthy',
+    database: { status: 'healthy', message: 'Database operational', details: null },
+    redis: { status: 'healthy', message: 'Redis connected', details: { version: '7.0.0' } },
+    ai: { status: 'healthy', message: 'AI services operational', details: null },
   },
   timestamp: '2025-01-01T00:00:00Z',
 };
@@ -302,7 +303,7 @@ describe('Camera API', () => {
       const createData: CameraCreate = {
         name: 'New Camera',
         folder_path: '/export/foscam/new-camera',
-        status: 'active',
+        status: 'online',
       };
 
       vi.mocked(fetch).mockResolvedValueOnce(
@@ -350,7 +351,7 @@ describe('Camera API', () => {
     it('updates a camera successfully', async () => {
       const updateData: CameraUpdate = {
         name: 'Updated Front Door',
-        status: 'inactive',
+        status: 'offline',
       };
 
       vi.mocked(fetch).mockResolvedValueOnce(createMockResponse({ ...mockCamera, ...updateData }));
@@ -369,13 +370,13 @@ describe('Camera API', () => {
     });
 
     it('updates camera with partial data', async () => {
-      const updateData: CameraUpdate = { status: 'inactive' };
+      const updateData: CameraUpdate = { status: 'offline' };
 
       vi.mocked(fetch).mockResolvedValueOnce(createMockResponse({ ...mockCamera, ...updateData }));
 
       const result = await updateCamera('cam-1', updateData);
 
-      expect(result.status).toBe('inactive');
+      expect(result.status).toBe('offline');
       expect(result.name).toBe(mockCamera.name);
     });
 
@@ -454,12 +455,13 @@ describe('System API', () => {
     });
 
     it('handles degraded health status', async () => {
-      const degradedHealth = {
+      const degradedHealth: HealthResponse = {
         ...mockHealth,
         status: 'degraded',
         services: {
-          database: 'healthy',
-          redis: 'unhealthy',
+          database: { status: 'healthy', message: 'Database operational', details: null },
+          redis: { status: 'unhealthy', message: 'Redis connection error', details: null },
+          ai: { status: 'healthy', message: null, details: null },
         },
       };
 
@@ -468,7 +470,7 @@ describe('System API', () => {
       const result = await fetchHealth();
 
       expect(result.status).toBe('degraded');
-      expect(result.services.redis).toBe('unhealthy');
+      expect(result.services.redis.status).toBe('unhealthy');
     });
   });
 

@@ -644,7 +644,13 @@ async def test_analyze_batch_detections_not_in_database(analyzer, mock_redis_cli
 
 @pytest.mark.asyncio
 async def test_broadcast_event(analyzer, mock_redis_client):
-    """Test event broadcasting via Redis pub/sub."""
+    """Test event broadcasting via Redis pub/sub.
+
+    Verifies that events are published to the canonical 'security_events' channel
+    with the standard message envelope format: {"type": "event", "data": {...}}.
+    """
+    from backend.services.event_broadcaster import EventBroadcaster
+
     event = Event(
         id=1,
         batch_id="batch_123",
@@ -659,14 +665,20 @@ async def test_broadcast_event(analyzer, mock_redis_client):
 
     await analyzer._broadcast_event(event)
 
-    # Verify publish was called
+    # Verify publish was called with correct channel
     mock_redis_client.publish.assert_called_once()
     call_args = mock_redis_client.publish.call_args
-    assert call_args[0][0] == "events"
+    assert call_args[0][0] == EventBroadcaster.CHANNEL_NAME  # canonical: "security_events"
+
+    # Verify message envelope format: {"type": "event", "data": {...}}
     message = call_args[0][1]
-    assert message["event_id"] == 1
-    assert message["risk_score"] == 75
-    assert message["risk_level"] == "high"
+    assert message["type"] == "event"
+    assert "data" in message
+    data = message["data"]
+    assert data["id"] == 1
+    assert data["event_id"] == 1  # Legacy field for compatibility
+    assert data["risk_score"] == 75
+    assert data["risk_level"] == "high"
 
 
 @pytest.mark.asyncio
@@ -955,11 +967,18 @@ async def test_analyze_detection_fast_path_broadcast_called(
 
         event = await analyzer.analyze_detection_fast_path(camera_id, detection_id)
 
-    # Verify publish was called (broadcast)
+    # Verify publish was called to canonical 'security_events' channel
+    from backend.services.event_broadcaster import EventBroadcaster
+
     mock_redis_client.publish.assert_called_once()
     call_args = mock_redis_client.publish.call_args
-    assert call_args[0][0] == "events"
+    assert call_args[0][0] == EventBroadcaster.CHANNEL_NAME  # canonical: "security_events"
+
+    # Verify message envelope format: {"type": "event", "data": {...}}
     message = call_args[0][1]
-    assert message["event_id"] == event.id
-    assert message["risk_score"] == 85
-    assert message["risk_level"] == "critical"
+    assert message["type"] == "event"
+    assert "data" in message
+    data = message["data"]
+    assert data["event_id"] == event.id
+    assert data["risk_score"] == 85
+    assert data["risk_level"] == "critical"

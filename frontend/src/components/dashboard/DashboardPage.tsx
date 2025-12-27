@@ -83,7 +83,7 @@ export default function DashboardPage() {
   const riskHistory = events.slice(0, 10).reverse().map((event) => event.risk_score);
 
   // Calculate active cameras count
-  const activeCamerasCount = cameras.filter((camera) => camera.status === 'active').length;
+  const activeCamerasCount = cameras.filter((camera) => camera.status === 'online').length;
 
   // Calculate events today count
   const eventsToday = events.filter((event) => {
@@ -103,7 +103,7 @@ export default function DashboardPage() {
   const cameraStatuses: CameraStatus[] = cameras.map((camera) => ({
     id: camera.id,
     name: camera.name,
-    status: camera.status === 'active' ? 'online' : camera.status === 'inactive' ? 'offline' : 'unknown',
+    status: (camera.status === 'online' || camera.status === 'offline' || camera.status === 'error') ? camera.status : 'unknown',
     last_seen_at: camera.last_seen_at ?? undefined,
   }));
 

@@ -72,23 +72,48 @@ High-level hook for receiving security events via WebSocket (`/ws/events` endpoi
 
 **Features:**
 
-- Receives and validates `SecurityEvent` objects (validates all required fields)
+- Receives backend event messages in envelope format: `{type: "event", data: {...}}`
+- Type guard functions (`isSecurityEvent`, `isBackendEventMessage`) for message validation
+- Ignores non-event messages (e.g., `service_status`, `ping`)
 - Maintains in-memory buffer of last 100 events (newest first, constant `MAX_EVENTS`)
 - Provides `latestEvent` computed value via `useMemo`
 - `clearEvents()` method to reset buffer
 - Auto-constructs WebSocket URL based on `window.location`
 
-**SecurityEvent Interface:**
+**Backend Message Structure (received):**
+
+```typescript
+interface BackendEventMessage {
+  type: 'event';
+  data: {
+    id: number;
+    event_id?: number;
+    batch_id?: string;
+    camera_id: string;
+    camera_name?: string;
+    risk_score: number;
+    risk_level: 'low' | 'medium' | 'high' | 'critical';
+    summary: string;
+    timestamp?: string;
+    started_at?: string;
+  };
+}
+```
+
+**SecurityEvent Interface (extracted from data):**
 
 ```typescript
 interface SecurityEvent {
-  id: string;
+  id: string | number;
+  event_id?: number;
+  batch_id?: string;
   camera_id: string;
-  camera_name: string;
+  camera_name?: string;
   risk_score: number;
   risk_level: 'low' | 'medium' | 'high' | 'critical';
   summary: string;
-  timestamp: string;
+  timestamp?: string;
+  started_at?: string;
 }
 ```
 
@@ -170,23 +195,31 @@ if (status) {
 All WebSocket hooks construct URLs dynamically for protocol-agnostic connections:
 
 ```typescript
-const url = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/events`;
+const wsProtocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const wsHost = typeof window !== 'undefined' ? window.location.host : 'localhost:8000';
+const url = wsProtocol + '//' + wsHost + '/ws/events';
 ```
 
-### Message Validation Pattern
+### Message Envelope Pattern
 
-Hooks validate incoming messages before processing:
+Both `useEventStream` and `useSystemStatus` expect messages in envelope format:
 
 ```typescript
-if (
-  data &&
-  typeof data === 'object' &&
-  'id' in data &&
-  'camera_id' in data
-  // ... other required fields
-) {
-  const event = data as SecurityEvent;
-  // Process event
+// Backend sends messages wrapped in an envelope
+{
+  type: 'event' | 'system_status',  // Message type discriminator
+  data: { ... },                     // Actual payload
+  timestamp?: string                 // Optional timestamp
+}
+```
+
+Type guards validate the envelope structure before processing:
+
+```typescript
+function isBackendEventMessage(data: unknown): data is BackendEventMessage {
+  if (!data || typeof data !== 'object') return false;
+  const msg = data as Record<string, unknown>;
+  return msg.type === 'event' && isSecurityEvent(msg.data);
 }
 ```
 
@@ -202,11 +235,11 @@ The base `useWebSocket` hook handles reconnection with exponential state trackin
 
 All hooks have comprehensive test coverage using Vitest and React Testing Library:
 
-| File                      | Coverage                                           |
-| ------------------------- | -------------------------------------------------- |
-| `useWebSocket.test.ts`    | Connection lifecycle, message handling, reconnects |
-| `useEventStream.test.ts`  | Event buffering, validation, MAX_EVENTS limit      |
-| `useSystemStatus.test.ts` | Backend message transformation, type guards        |
+| File                      | Coverage                                                  |
+| ------------------------- | --------------------------------------------------------- |
+| `useWebSocket.test.ts`    | Connection lifecycle, message handling, reconnects        |
+| `useEventStream.test.ts`  | Event buffering, envelope parsing, non-event filtering    |
+| `useSystemStatus.test.ts` | Backend message transformation, type guards               |
 
 **Test Utilities:**
 
@@ -214,6 +247,7 @@ All hooks have comprehensive test coverage using Vitest and React Testing Librar
 - `renderHook` from `@testing-library/react` for hook testing
 - `waitFor` for async state updates
 - `vi.fn()` for callback mocking
+- Helper function `wrapInEnvelope()` for creating test messages
 
 ## Dependencies
 
@@ -228,3 +262,4 @@ All hooks have comprehensive test coverage using Vitest and React Testing Librar
 - Connection state is tracked per hook instance
 - The `useWebSocket` hook auto-connects on mount and disconnects on unmount
 - Message parsing falls back to raw data if JSON parsing fails
+- Non-event messages (e.g., `service_status`, `ping`) are silently ignored by `useEventStream`

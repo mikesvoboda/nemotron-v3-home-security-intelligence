@@ -28,9 +28,15 @@ export interface CameraUpdate {
   status?: string;
 }
 
+export interface ServiceStatus {
+  status: string;
+  message: string | null;
+  details: Record<string, string> | null;
+}
+
 export interface HealthResponse {
   status: string;
-  services: Record<string, string>;
+  services: Record<string, ServiceStatus>;
   timestamp: string;
 }
 
