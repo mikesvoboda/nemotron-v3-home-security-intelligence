@@ -91,6 +91,7 @@ class DetectionQueueWorker:
         batch_aggregator: BatchAggregator | None = None,
         queue_name: str = "detection_queue",
         poll_timeout: int = 5,
+        stop_timeout: float = 10.0,
     ) -> None:
         """Initialize detection queue worker.
 
@@ -100,12 +101,14 @@ class DetectionQueueWorker:
             batch_aggregator: Aggregator for batching detections. If None, will be created.
             queue_name: Name of the Redis queue to consume from
             poll_timeout: Timeout in seconds for BLPOP (allows checking shutdown signal)
+            stop_timeout: Timeout in seconds for graceful stop before force cancel
         """
         self._redis = redis_client
         self._detector = detector_client or DetectorClient()
         self._aggregator = batch_aggregator or BatchAggregator(redis_client=redis_client)
         self._queue_name = queue_name
         self._poll_timeout = poll_timeout
+        self._stop_timeout = stop_timeout
 
         self._running = False
         self._task: asyncio.Task | None = None
@@ -153,7 +156,7 @@ class DetectionQueueWorker:
         if self._task:
             # Wait for task to complete with timeout
             try:
-                await asyncio.wait_for(self._task, timeout=10.0)
+                await asyncio.wait_for(self._task, timeout=self._stop_timeout)
             except TimeoutError:
                 logger.warning("DetectionQueueWorker task did not stop in time, cancelling")
                 self._task.cancel()
@@ -282,6 +285,7 @@ class AnalysisQueueWorker:
         analyzer: NemotronAnalyzer | None = None,
         queue_name: str = "analysis_queue",
         poll_timeout: int = 5,
+        stop_timeout: float = 30.0,
     ) -> None:
         """Initialize analysis queue worker.
 
@@ -290,11 +294,13 @@ class AnalysisQueueWorker:
             analyzer: NemotronAnalyzer instance. If None, will be created.
             queue_name: Name of the Redis queue to consume from
             poll_timeout: Timeout in seconds for BLPOP
+            stop_timeout: Timeout in seconds for graceful stop before force cancel
         """
         self._redis = redis_client
         self._analyzer = analyzer or NemotronAnalyzer(redis_client=redis_client)
         self._queue_name = queue_name
         self._poll_timeout = poll_timeout
+        self._stop_timeout = stop_timeout
 
         self._running = False
         self._task: asyncio.Task | None = None
@@ -334,7 +340,7 @@ class AnalysisQueueWorker:
 
         if self._task:
             try:
-                await asyncio.wait_for(self._task, timeout=30.0)  # Longer timeout for LLM
+                await asyncio.wait_for(self._task, timeout=self._stop_timeout)
             except TimeoutError:
                 logger.warning("AnalysisQueueWorker task did not stop in time, cancelling")
                 self._task.cancel()
@@ -452,6 +458,7 @@ class BatchTimeoutWorker:
         redis_client: RedisClient,
         batch_aggregator: BatchAggregator | None = None,
         check_interval: float = 10.0,
+        stop_timeout: float = 10.0,
     ) -> None:
         """Initialize batch timeout worker.
 
@@ -459,10 +466,12 @@ class BatchTimeoutWorker:
             redis_client: Redis client for batch operations
             batch_aggregator: Aggregator for batch timeout checks. If None, will be created.
             check_interval: How often to check for timeouts (seconds)
+            stop_timeout: Timeout in seconds for graceful stop before force cancel
         """
         self._redis = redis_client
         self._aggregator = batch_aggregator or BatchAggregator(redis_client=redis_client)
         self._check_interval = check_interval
+        self._stop_timeout = stop_timeout
 
         self._running = False
         self._task: asyncio.Task | None = None
@@ -505,7 +514,7 @@ class BatchTimeoutWorker:
 
         if self._task:
             try:
-                await asyncio.wait_for(self._task, timeout=10.0)
+                await asyncio.wait_for(self._task, timeout=self._stop_timeout)
             except TimeoutError:
                 logger.warning("BatchTimeoutWorker task did not stop in time, cancelling")
                 self._task.cancel()

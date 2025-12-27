@@ -403,7 +403,7 @@ class TestGracefulShutdown:
             nonlocal queue_read_cancelled
             queue_read_started.set()
             try:
-                await asyncio.sleep(10)  # Long timeout simulating BLPOP
+                await asyncio.sleep(10)  # cancelled - simulating BLPOP, task.cancel() below
             except asyncio.CancelledError:
                 queue_read_cancelled = True
                 raise
