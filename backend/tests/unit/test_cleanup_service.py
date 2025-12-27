@@ -909,9 +909,7 @@ async def test_run_cleanup_includes_log_cleanup(test_db):
 
     async with test_db() as session:
         # Create camera for event/detection tests
-        camera = Camera(
-            id="test_camera", name="Test Camera", folder_path="/export/foscam/test"
-        )
+        camera = Camera(id="test_camera", name="Test Camera", folder_path="/export/foscam/test")
         session.add(camera)
         await session.flush()
 

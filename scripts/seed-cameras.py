@@ -9,10 +9,9 @@ from pathlib import Path
 # Add backend to Python path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from sqlalchemy import delete, select
-
 from backend.core.database import get_session, init_db
 from backend.models.camera import Camera
+from sqlalchemy import delete, select
 
 # Sample camera configurations
 SAMPLE_CAMERAS = [

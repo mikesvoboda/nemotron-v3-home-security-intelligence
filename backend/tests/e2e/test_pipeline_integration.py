@@ -184,7 +184,7 @@ def mock_nemotron_response():
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_complete_pipeline_flow_with_mocked_services(  # noqa: PLR0915
+async def test_complete_pipeline_flow_with_mocked_services(
     integration_db,
     test_camera,
     test_image_path,

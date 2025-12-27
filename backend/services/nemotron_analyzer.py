@@ -144,7 +144,7 @@ class NemotronAnalyzer:
                     detections_list=detections_list,
                 )
                 llm_duration_ms = int((time.time() - llm_start) * 1000)
-                llm_duration_seconds = (time.time() - llm_start)
+                llm_duration_seconds = time.time() - llm_start
                 # Record Nemotron AI request duration
                 observe_ai_request_duration("nemotron", llm_duration_seconds)
                 logger.debug(
@@ -157,7 +157,7 @@ class NemotronAnalyzer:
                 )
             except Exception as e:
                 llm_duration_ms = int((time.time() - llm_start) * 1000)
-                llm_duration_seconds = (time.time() - llm_start)
+                llm_duration_seconds = time.time() - llm_start
                 # Record duration even on failure
                 observe_ai_request_duration("nemotron", llm_duration_seconds)
                 record_pipeline_error("nemotron_analysis_error")
@@ -297,7 +297,7 @@ class NemotronAnalyzer:
                     detections_list=detections_list,
                 )
                 llm_duration_ms = int((time.time() - llm_start) * 1000)
-                llm_duration_seconds = (time.time() - llm_start)
+                llm_duration_seconds = time.time() - llm_start
                 # Record Nemotron AI request duration
                 observe_ai_request_duration("nemotron", llm_duration_seconds)
                 logger.debug(
@@ -310,7 +310,7 @@ class NemotronAnalyzer:
                 )
             except Exception as e:
                 llm_duration_ms = int((time.time() - llm_start) * 1000)
-                llm_duration_seconds = (time.time() - llm_start)
+                llm_duration_seconds = time.time() - llm_start
                 # Record duration even on failure
                 observe_ai_request_duration("nemotron", llm_duration_seconds)
                 record_pipeline_error("nemotron_fast_path_error")

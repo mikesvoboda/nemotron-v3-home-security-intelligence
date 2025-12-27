@@ -73,7 +73,7 @@ class DetectorClient:
             logger.error(f"Unexpected error during detector health check: {e}", exc_info=True)
             return False
 
-    async def detect_objects(  # noqa: PLR0911, PLR0912, PLR0915
+    async def detect_objects(  # noqa: PLR0911, PLR0912
         self,
         image_path: str,
         camera_id: str,

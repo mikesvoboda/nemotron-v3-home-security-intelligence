@@ -43,17 +43,17 @@ _app_start_time = time.time()
 HEALTH_CHECK_TIMEOUT_SECONDS = 5.0
 
 # Global references for worker status tracking (set by main.py at startup)
-_gpu_monitor: "GPUMonitor | None" = None
-_cleanup_service: "CleanupService | None" = None
-_system_broadcaster: "SystemBroadcaster | None" = None
-_file_watcher: "FileWatcher | None" = None
+_gpu_monitor: GPUMonitor | None = None
+_cleanup_service: CleanupService | None = None
+_system_broadcaster: SystemBroadcaster | None = None
+_file_watcher: FileWatcher | None = None
 
 
 def register_workers(
-    gpu_monitor: "GPUMonitor | None" = None,
-    cleanup_service: "CleanupService | None" = None,
-    system_broadcaster: "SystemBroadcaster | None" = None,
-    file_watcher: "FileWatcher | None" = None,
+    gpu_monitor: GPUMonitor | None = None,
+    cleanup_service: CleanupService | None = None,
+    system_broadcaster: SystemBroadcaster | None = None,
+    file_watcher: FileWatcher | None = None,
 ) -> None:
     """Register worker instances for readiness monitoring.
 

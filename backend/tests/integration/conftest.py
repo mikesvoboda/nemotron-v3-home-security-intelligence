@@ -27,7 +27,7 @@ from httpx import ASGITransport, AsyncClient
 
 
 @pytest.fixture
-def integration_env() -> Generator[str, None, None]:
+def integration_env() -> Generator[str]:
     """Set DATABASE_URL/REDIS_URL to a temporary per-test database.
 
     This fixture ONLY sets environment variables and clears cached settings.
@@ -73,7 +73,7 @@ def integration_env() -> Generator[str, None, None]:
 
 
 @pytest.fixture
-async def integration_db(integration_env: str) -> AsyncGenerator[str, None]:
+async def integration_db(integration_env: str) -> AsyncGenerator[str]:
     """Initialize a temporary SQLite DB for integration tests and cleanly tear it down."""
     from backend.core.config import get_settings
     from backend.core.database import close_db, init_db
@@ -92,7 +92,7 @@ async def integration_db(integration_env: str) -> AsyncGenerator[str, None]:
 
 
 @pytest.fixture
-async def mock_redis() -> AsyncGenerator[AsyncMock, None]:
+async def mock_redis() -> AsyncGenerator[AsyncMock]:
     """Mock Redis operations so integration tests don't require an actual Redis server."""
     mock_redis_client = AsyncMock()
     mock_redis_client.health_check.return_value = {
@@ -119,7 +119,7 @@ async def db_session(integration_db: str):
 
 
 @pytest.fixture
-async def client(integration_db: str, mock_redis: AsyncMock) -> AsyncGenerator[AsyncClient, None]:
+async def client(integration_db: str, mock_redis: AsyncMock) -> AsyncGenerator[AsyncClient]:
     """Async HTTP client bound to the FastAPI app (no network, no server startup).
 
     Notes:

@@ -32,13 +32,20 @@ ignore = [
     "E501",   # line too long (handled by formatter)
     "B008",   # do not perform function calls in argument defaults
     "PLR0913",# too many arguments
+    "PLR0915",# too many statements (complex business logic)
     "PLR2004",# magic value comparison
     "S101",   # use of assert detected (ok in tests)
     "PLC0415",# import not at top level (necessary for circular imports/isolation)
     "ASYNC109",# timeout parameter in async function (standard in Redis blpop)
+    "ASYNC110",# asyncio.sleep in while loop (valid for shutdown monitoring)
     "ASYNC230",# open in async function (acceptable for small file I/O)
+    "SIM105",  # contextlib.suppress not suitable for async CancelledError patterns
+    "RUF006",  # asyncio.create_task without storing (valid in signal handlers)
     "PTH110", # os.path.exists() - acceptable pattern
     "PTH123", # open() instead of Path.open() - acceptable pattern
+    "TC001",  # Python 3.14 deferred annotations break TYPE_CHECKING imports with mocking
+    "TC002",  # Python 3.14 deferred annotations break TYPE_CHECKING imports with mocking
+    "TC003",  # Python 3.14 deferred annotations break TYPE_CHECKING imports with mocking
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -54,6 +61,9 @@ ignore = [
 ]
 "ai/**/*.py" = [
     "ASYNC230", # blocking I/O in async ok for example clients
+]
+"scripts/**/*.py" = [
+    "SIM102",  # nested ifs more readable in utility scripts
 ]
 
 [tool.ruff.format]

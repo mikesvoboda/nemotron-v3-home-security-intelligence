@@ -11,8 +11,8 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from backend.core.metrics import (
-    ANALYSIS_QUEUE_DEPTH,
     AI_REQUEST_DURATION,
+    ANALYSIS_QUEUE_DEPTH,
     DETECTION_QUEUE_DEPTH,
     DETECTIONS_PROCESSED_TOTAL,
     EVENTS_CREATED_TOTAL,
