@@ -6,3 +6,10 @@ export type { SecurityEvent, UseEventStreamReturn } from './useEventStream';
 
 export { useSystemStatus } from './useSystemStatus';
 export type { SystemStatus, UseSystemStatusReturn } from './useSystemStatus';
+
+export { useGpuHistory } from './useGpuHistory';
+export type {
+  GpuMetricDataPoint,
+  UseGpuHistoryOptions,
+  UseGpuHistoryReturn,
+} from './useGpuHistory';

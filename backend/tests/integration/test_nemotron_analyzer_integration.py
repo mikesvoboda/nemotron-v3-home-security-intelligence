@@ -3,14 +3,15 @@
 Tests the NemotronAnalyzer service with a real SQLite database and mocked
 HTTP calls to the Nemotron LLM service. Verifies that detection batches
 are properly analyzed and Event records are created correctly.
+
+Uses shared fixtures from conftest.py:
+- integration_db: Clean SQLite test database
+- mock_redis: Mock Redis client
 """
 
 import json
-import os
-import tempfile
 import uuid
 from datetime import datetime
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -24,54 +25,7 @@ from backend.services.nemotron_analyzer import NemotronAnalyzer
 
 
 @pytest.fixture
-async def test_db_setup():
-    """Set up test database environment."""
-    from backend.core.config import get_settings
-    from backend.core.database import close_db, init_db
-
-    # Close any existing database connections
-    await close_db()
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "test_nemotron_analyzer.db"
-        test_db_url = f"sqlite+aiosqlite:///{db_path}"
-
-        # Store original environment
-        original_db_url = os.environ.get("DATABASE_URL")
-        original_redis_url = os.environ.get("REDIS_URL")
-
-        # Set test environment
-        os.environ["DATABASE_URL"] = test_db_url
-        os.environ["REDIS_URL"] = "redis://localhost:6379/15"
-
-        # Clear settings cache to pick up new environment variables
-        get_settings.cache_clear()
-
-        # Initialize database explicitly
-        await init_db()
-
-        yield test_db_url
-
-        # Cleanup
-        await close_db()
-
-        # Restore original environment
-        if original_db_url:
-            os.environ["DATABASE_URL"] = original_db_url
-        else:
-            os.environ.pop("DATABASE_URL", None)
-
-        if original_redis_url:
-            os.environ["REDIS_URL"] = original_redis_url
-        else:
-            os.environ.pop("REDIS_URL", None)
-
-        # Clear settings cache again
-        get_settings.cache_clear()
-
-
-@pytest.fixture
-async def sample_camera(test_db_setup):
+async def sample_camera(integration_db):
     """Create a sample camera in the database."""
     from backend.core.database import get_session
 
@@ -90,7 +44,7 @@ async def sample_camera(test_db_setup):
 
 
 @pytest.fixture
-async def sample_detections(test_db_setup, sample_camera):
+async def sample_detections(integration_db, sample_camera):
     """Create sample detections in the database."""
     from backend.core.database import get_session
 
@@ -167,7 +121,7 @@ class TestAnalyzeBatchCreatesEvent:
     """Tests for analyze_batch creating Event records."""
 
     async def test_analyze_batch_creates_event(
-        self, test_db_setup, sample_camera, sample_detections, mock_redis_client, mock_llm_response
+        self, integration_db, sample_camera, sample_detections, mock_redis_client, mock_llm_response
     ):
         """Test that analyze_batch creates an Event from a batch of detections."""
         from backend.core.database import get_session
@@ -209,7 +163,7 @@ class TestAnalyzeBatchCreatesEvent:
             assert db_event.batch_id == batch_id
 
     async def test_analyze_batch_links_detections_to_event(
-        self, test_db_setup, sample_camera, sample_detections, mock_redis_client, mock_llm_response
+        self, integration_db, sample_camera, sample_detections, mock_redis_client, mock_llm_response
     ):
         """Test that analyze_batch stores detection IDs in the Event record."""
         batch_id = f"batch_{uuid.uuid4()}"
@@ -238,7 +192,7 @@ class TestAnalyzeBatchCreatesEvent:
         assert sorted(stored_detection_ids) == sorted(detection_ids)
 
     async def test_analyze_batch_sets_risk_score(
-        self, test_db_setup, sample_camera, sample_detections, mock_redis_client, mock_llm_response
+        self, integration_db, sample_camera, sample_detections, mock_redis_client, mock_llm_response
     ):
         """Test that analyze_batch correctly populates risk_score and risk_level."""
         batch_id = f"batch_{uuid.uuid4()}"
@@ -269,7 +223,7 @@ class TestAnalyzeBatchCreatesEvent:
         assert "Multiple persons" in event.reasoning
 
     async def test_analyze_batch_sets_time_window(
-        self, test_db_setup, sample_camera, sample_detections, mock_redis_client, mock_llm_response
+        self, integration_db, sample_camera, sample_detections, mock_redis_client, mock_llm_response
     ):
         """Test that analyze_batch correctly sets started_at and ended_at from detections."""
         batch_id = f"batch_{uuid.uuid4()}"
@@ -302,7 +256,7 @@ class TestAnalyzeBatchErrorHandling:
     """Tests for analyze_batch error handling."""
 
     async def test_analyze_batch_handles_llm_failure(
-        self, test_db_setup, sample_camera, sample_detections, mock_redis_client
+        self, integration_db, sample_camera, sample_detections, mock_redis_client
     ):
         """Test that analyze_batch gracefully handles LLM service errors."""
         from backend.core.database import get_session
@@ -341,7 +295,7 @@ class TestAnalyzeBatchErrorHandling:
             assert db_event is not None
 
     async def test_analyze_batch_empty_detections(
-        self, test_db_setup, sample_camera, mock_redis_client
+        self, integration_db, sample_camera, mock_redis_client
     ):
         """Test that analyze_batch raises error when no detections found in database."""
         batch_id = f"batch_{uuid.uuid4()}"
@@ -357,7 +311,7 @@ class TestAnalyzeBatchErrorHandling:
         with pytest.raises(ValueError, match="No detections found"):
             await analyzer.analyze_batch(batch_id)
 
-    async def test_analyze_batch_missing_batch(self, test_db_setup, mock_redis_client):
+    async def test_analyze_batch_missing_batch(self, integration_db, mock_redis_client):
         """Test that analyze_batch raises error when batch not found in Redis."""
         batch_id = "nonexistent_batch"
 
@@ -370,7 +324,7 @@ class TestAnalyzeBatchErrorHandling:
             await analyzer.analyze_batch(batch_id)
 
     async def test_analyze_batch_empty_detection_list(
-        self, test_db_setup, sample_camera, mock_redis_client
+        self, integration_db, sample_camera, mock_redis_client
     ):
         """Test that analyze_batch raises error when batch has no detection IDs."""
         batch_id = f"batch_{uuid.uuid4()}"
@@ -386,7 +340,7 @@ class TestAnalyzeBatchErrorHandling:
         with pytest.raises(ValueError, match="has no detections"):
             await analyzer.analyze_batch(batch_id)
 
-    async def test_analyze_batch_no_redis_client(self, test_db_setup):
+    async def test_analyze_batch_no_redis_client(self, integration_db):
         """Test that analyze_batch raises error when Redis client not initialized."""
         analyzer = NemotronAnalyzer(redis_client=None)
 
@@ -398,7 +352,7 @@ class TestAnalyzeDetectionFastPath:
     """Tests for analyze_detection_fast_path method."""
 
     async def test_analyze_detection_fast_path(
-        self, test_db_setup, sample_camera, sample_detections, mock_redis_client, mock_llm_response
+        self, integration_db, sample_camera, sample_detections, mock_redis_client, mock_llm_response
     ):
         """Test fast path analysis for a single high-priority detection."""
         from backend.core.database import get_session
@@ -444,7 +398,7 @@ class TestAnalyzeDetectionFastPath:
             assert db_event.is_fast_path is True
 
     async def test_analyze_detection_fast_path_missing_detection(
-        self, test_db_setup, sample_camera, mock_redis_client
+        self, integration_db, sample_camera, mock_redis_client
     ):
         """Test fast path raises error when detection not found."""
         mock_redis_client.publish.return_value = 1
@@ -455,7 +409,7 @@ class TestAnalyzeDetectionFastPath:
             await analyzer.analyze_detection_fast_path(sample_camera.id, "99999")
 
     async def test_analyze_detection_fast_path_invalid_detection_id(
-        self, test_db_setup, sample_camera, mock_redis_client
+        self, integration_db, sample_camera, mock_redis_client
     ):
         """Test fast path raises error for invalid detection ID format."""
         analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
@@ -463,7 +417,7 @@ class TestAnalyzeDetectionFastPath:
         with pytest.raises(ValueError, match="Invalid detection_id"):
             await analyzer.analyze_detection_fast_path(sample_camera.id, "not_a_number")
 
-    async def test_analyze_detection_fast_path_no_redis_client(self, test_db_setup):
+    async def test_analyze_detection_fast_path_no_redis_client(self, integration_db):
         """Test fast path raises error when Redis client not initialized."""
         analyzer = NemotronAnalyzer(redis_client=None)
 
@@ -471,7 +425,7 @@ class TestAnalyzeDetectionFastPath:
             await analyzer.analyze_detection_fast_path("camera_id", "123")
 
     async def test_analyze_detection_fast_path_handles_llm_failure(
-        self, test_db_setup, sample_camera, sample_detections, mock_redis_client
+        self, integration_db, sample_camera, sample_detections, mock_redis_client
     ):
         """Test fast path gracefully handles LLM service errors."""
         detection = sample_detections[0]
@@ -497,7 +451,7 @@ class TestLLMResponseParsing:
     """Tests for LLM response parsing and validation."""
 
     async def test_analyze_batch_validates_risk_score_bounds(
-        self, test_db_setup, sample_camera, sample_detections, mock_redis_client
+        self, integration_db, sample_camera, sample_detections, mock_redis_client
     ):
         """Test that risk_score is clamped to 0-100 range."""
         batch_id = f"batch_{uuid.uuid4()}"
@@ -535,7 +489,7 @@ class TestLLMResponseParsing:
         assert event.risk_score == 100
 
     async def test_analyze_batch_normalizes_invalid_risk_level(
-        self, test_db_setup, sample_camera, sample_detections, mock_redis_client
+        self, integration_db, sample_camera, sample_detections, mock_redis_client
     ):
         """Test that invalid risk_level is normalized based on risk_score."""
         batch_id = f"batch_{uuid.uuid4()}"
@@ -573,7 +527,7 @@ class TestLLMResponseParsing:
         assert event.risk_level == "critical"
 
     async def test_analyze_batch_handles_json_in_text_response(
-        self, test_db_setup, sample_camera, sample_detections, mock_redis_client
+        self, integration_db, sample_camera, sample_detections, mock_redis_client
     ):
         """Test that LLM response with extra text around JSON is handled."""
         batch_id = f"batch_{uuid.uuid4()}"
@@ -608,7 +562,7 @@ class TestLLMResponseParsing:
 class TestHealthCheck:
     """Tests for the health_check method."""
 
-    async def test_health_check_success(self, test_db_setup):
+    async def test_health_check_success(self, integration_db):
         """Test health check when LLM is available."""
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -620,7 +574,7 @@ class TestHealthCheck:
 
         assert result is True
 
-    async def test_health_check_failure(self, test_db_setup):
+    async def test_health_check_failure(self, integration_db):
         """Test health check when LLM is unavailable."""
         analyzer = NemotronAnalyzer(redis_client=None)
 
@@ -631,7 +585,7 @@ class TestHealthCheck:
 
         assert result is False
 
-    async def test_health_check_non_200_status(self, test_db_setup):
+    async def test_health_check_non_200_status(self, integration_db):
         """Test health check with non-200 response."""
         mock_response = MagicMock()
         mock_response.status_code = 503
@@ -648,7 +602,7 @@ class TestWebSocketBroadcast:
     """Tests for WebSocket event broadcasting."""
 
     async def test_broadcast_event_success(
-        self, test_db_setup, sample_camera, sample_detections, mock_redis_client, mock_llm_response
+        self, integration_db, sample_camera, sample_detections, mock_redis_client, mock_llm_response
     ):
         """Test that event is broadcasted via WebSocket after creation."""
         batch_id = f"batch_{uuid.uuid4()}"
@@ -682,7 +636,7 @@ class TestWebSocketBroadcast:
         assert message["camera_id"] == sample_camera.id
 
     async def test_broadcast_event_failure_does_not_fail_analysis(
-        self, test_db_setup, sample_camera, sample_detections, mock_redis_client, mock_llm_response
+        self, integration_db, sample_camera, sample_detections, mock_redis_client, mock_llm_response
     ):
         """Test that WebSocket broadcast failure doesn't fail the analysis."""
         batch_id = f"batch_{uuid.uuid4()}"
