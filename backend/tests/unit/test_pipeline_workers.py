@@ -45,7 +45,6 @@ def mock_redis_client():
     async def mock_get_from_queue(*args, **kwargs):
         """Mock that yields control like real BLPOP would."""
         await asyncio.sleep(0.01)  # Yield control to event loop
-        return None
 
     client.get_from_queue = mock_get_from_queue
     client.add_to_queue = AsyncMock(return_value=1)

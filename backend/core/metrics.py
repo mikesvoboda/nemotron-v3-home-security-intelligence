@@ -28,7 +28,6 @@ Usage:
 
 from prometheus_client import (
     REGISTRY,
-    CollectorRegistry,
     Counter,
     Gauge,
     Histogram,
@@ -210,4 +209,4 @@ def get_metrics_response() -> bytes:
     Returns:
         Bytes containing the metrics in Prometheus exposition format
     """
-    return generate_latest(_registry)
+    return generate_latest(_registry)  # type: ignore[no-any-return]

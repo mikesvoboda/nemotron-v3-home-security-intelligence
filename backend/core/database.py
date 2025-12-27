@@ -141,7 +141,7 @@ async def close_db() -> None:
 
 
 @asynccontextmanager
-async def get_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_session() -> AsyncGenerator[AsyncSession]:
     """Get an async database session as a context manager.
 
     Usage:
@@ -165,7 +165,7 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
             raise
 
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
+async def get_db() -> AsyncGenerator[AsyncSession]:
     """FastAPI dependency for database sessions.
 
     This function is designed to be used with FastAPI's Depends():

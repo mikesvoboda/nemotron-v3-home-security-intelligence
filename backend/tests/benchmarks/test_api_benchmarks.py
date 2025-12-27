@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def benchmark_env() -> Generator[str, None, None]:
+def benchmark_env() -> Generator[str]:
     """Set DATABASE_URL/REDIS_URL to a temporary per-test database."""
     from backend.core.config import get_settings
 
@@ -67,7 +67,7 @@ def benchmark_env() -> Generator[str, None, None]:
 
 
 @pytest.fixture
-async def benchmark_db(benchmark_env: str) -> AsyncGenerator[str, None]:
+async def benchmark_db(benchmark_env: str) -> AsyncGenerator[str]:
     """Initialize a temporary SQLite DB for benchmark tests."""
     from backend.core.config import get_settings
     from backend.core.database import close_db, init_db
@@ -84,7 +84,7 @@ async def benchmark_db(benchmark_env: str) -> AsyncGenerator[str, None]:
 
 
 @pytest.fixture
-async def mock_redis_client() -> AsyncGenerator[AsyncMock, None]:
+async def mock_redis_client() -> AsyncGenerator[AsyncMock]:
     """Mock Redis operations for benchmarks."""
     mock_redis = AsyncMock()
     mock_redis.health_check.return_value = {
@@ -104,7 +104,7 @@ async def mock_redis_client() -> AsyncGenerator[AsyncMock, None]:
 async def benchmark_client(
     benchmark_db: str,
     mock_redis_client: AsyncMock,
-) -> AsyncGenerator[AsyncClient, None]:
+) -> AsyncGenerator[AsyncClient]:
     """Async HTTP client for benchmark tests."""
     from backend.main import app
 

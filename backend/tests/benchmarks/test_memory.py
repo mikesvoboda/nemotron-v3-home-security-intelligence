@@ -37,7 +37,7 @@ if MEMRAY_AVAILABLE:
 
 
 @pytest.fixture
-def memory_test_env() -> Generator[str, None, None]:
+def memory_test_env() -> Generator[str]:
     """Set DATABASE_URL/REDIS_URL to a temporary per-test database."""
     from backend.core.config import get_settings
 
@@ -78,7 +78,7 @@ def memory_test_env() -> Generator[str, None, None]:
 
 
 @pytest.fixture
-async def memory_test_db(memory_test_env: str) -> AsyncGenerator[str, None]:
+async def memory_test_db(memory_test_env: str) -> AsyncGenerator[str]:
     """Initialize a temporary SQLite DB for memory tests."""
     from backend.core.config import get_settings
     from backend.core.database import close_db, init_db
@@ -95,7 +95,7 @@ async def memory_test_db(memory_test_env: str) -> AsyncGenerator[str, None]:
 
 
 @pytest.fixture
-def mock_redis_for_memory() -> Generator[AsyncMock, None, None]:
+def mock_redis_for_memory() -> Generator[AsyncMock]:
     """Mock Redis operations for memory tests."""
     mock_redis = AsyncMock()
     mock_redis.health_check.return_value = {

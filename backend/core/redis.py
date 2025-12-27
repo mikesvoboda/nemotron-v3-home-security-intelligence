@@ -244,7 +244,7 @@ class RedisClient:
         if self._pubsub:
             await self._pubsub.unsubscribe(*channels)
 
-    async def listen(self, pubsub: PubSub) -> AsyncGenerator[dict[str, Any], None]:
+    async def listen(self, pubsub: PubSub) -> AsyncGenerator[dict[str, Any]]:
         """Listen for messages from subscribed channels.
 
         Args:
@@ -323,7 +323,7 @@ class RedisClient:
 _redis_client: RedisClient | None = None
 
 
-async def get_redis() -> AsyncGenerator[RedisClient, None]:
+async def get_redis() -> AsyncGenerator[RedisClient]:
     """FastAPI dependency for Redis client.
 
     Yields:

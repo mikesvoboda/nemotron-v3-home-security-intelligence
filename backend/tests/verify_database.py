@@ -23,7 +23,7 @@ class TestItem(Base):
     description = Column(String(255))
 
 
-async def main():  # noqa: PLR0915
+async def main():
     """Test database connection and operations."""
     print("Testing database connection...")
 

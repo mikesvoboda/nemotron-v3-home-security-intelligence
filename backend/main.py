@@ -23,7 +23,7 @@ from backend.services.system_broadcaster import get_system_broadcaster
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     """Manage application lifecycle - startup and shutdown events."""
     # Initialize logging first (before any other initialization)
     setup_logging()

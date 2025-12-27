@@ -91,7 +91,7 @@ class JobFailure:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "JobFailure":
+    def from_dict(cls, data: dict[str, Any]) -> JobFailure:
         """Create from dictionary."""
         return cls(
             original_job=data["original_job"],

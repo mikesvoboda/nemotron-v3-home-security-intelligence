@@ -16,7 +16,7 @@ from backend.core.database import close_db, init_db
 
 
 @pytest.fixture
-async def integration_db() -> AsyncGenerator[str, None]:
+async def integration_db() -> AsyncGenerator[str]:
     """Initialize a temporary SQLite DB for E2E tests.
 
     This fixture:

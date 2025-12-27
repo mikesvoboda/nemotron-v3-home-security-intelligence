@@ -26,13 +26,10 @@ Error Handling:
 
 import hashlib
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
-
-if TYPE_CHECKING:
-    from backend.core.redis import RedisClient
+from backend.core.redis import RedisClient
 
 logger = get_logger(__name__)
 
@@ -88,7 +85,7 @@ class DedupeService:
 
     def __init__(
         self,
-        redis_client: "RedisClient | None" = None,
+        redis_client: RedisClient | None = None,
         ttl_seconds: int = DEFAULT_DEDUPE_TTL_SECONDS,
     ):
         """Initialize dedupe service.
@@ -278,7 +275,7 @@ class DedupeService:
 _dedupe_service: DedupeService | None = None
 
 
-def get_dedupe_service(redis_client: "RedisClient | None" = None) -> DedupeService:
+def get_dedupe_service(redis_client: RedisClient | None = None) -> DedupeService:
     """Get or create the global dedupe service instance.
 
     Args:

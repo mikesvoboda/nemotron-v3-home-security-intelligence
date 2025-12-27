@@ -310,7 +310,9 @@ async def test_system_broadcaster_stop_broadcasting():
     """Test stopping periodic broadcasting."""
     broadcaster = SystemBroadcaster()
     broadcaster._running = True
-    broadcaster._broadcast_task = asyncio.create_task(asyncio.sleep(10))  # cancelled in stop_broadcasting
+    broadcaster._broadcast_task = asyncio.create_task(
+        asyncio.sleep(10)
+    )  # cancelled in stop_broadcasting
 
     await broadcaster.stop_broadcasting()
 
