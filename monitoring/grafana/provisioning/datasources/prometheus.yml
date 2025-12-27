@@ -1,0 +1,25 @@
+# Grafana datasource provisioning for Prometheus
+# Auto-configures Prometheus as the default data source
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: "15s"
+      httpMethod: POST
+
+  # JSON API datasource for direct backend API access
+  - name: Backend-API
+    type: marcusolsson-json-datasource
+    access: proxy
+    url: http://backend:8000
+    isDefault: false
+    editable: false
+    jsonData:
+      tlsSkipVerify: true

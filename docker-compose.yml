@@ -76,8 +76,104 @@ services:
     networks:
       - security-net
 
+  # =============================================================================
+  # Monitoring Stack (Optional)
+  # =============================================================================
+  # To enable monitoring: docker compose --profile monitoring up
+  # Access Grafana at http://localhost:3001 (admin/admin)
+  # Access Prometheus at http://localhost:9090
+
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    profiles:
+      - monitoring
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - security-net
+
+  grafana:
+    image: grafana/grafana:10.2.3
+    profiles:
+      - monitoring
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3001
+      - GF_INSTALL_PLUGINS=marcusolsson-json-datasource
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - security-net
+
+  # Redis exporter for Prometheus metrics
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.55.0
+    profiles:
+      - monitoring
+    ports:
+      - "9121:9121"
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9121/metrics"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - security-net
+
+  # JSON exporter for scraping JSON APIs as Prometheus metrics
+  json-exporter:
+    image: prometheuscommunity/json-exporter:v0.6.0
+    profiles:
+      - monitoring
+    ports:
+      - "7979:7979"
+    volumes:
+      - ./monitoring/json-exporter-config.yml:/etc/json-exporter/config.yml:ro
+    command:
+      - "--config.file=/etc/json-exporter/config.yml"
+    restart: unless-stopped
+    networks:
+      - security-net
+
 volumes:
   redis_data:
+  prometheus_data:
+  grafana_data:
 
 networks:
   security-net:

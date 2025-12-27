@@ -130,11 +130,13 @@ The test script will:
 
 ## Environment Variables
 
-Create a `.env` file in the project root (use `.env.example` as template):
+Create a `.env` file in the project root (use `.env.example` as template).
+
+> **Note:** See [docs/RUNTIME_CONFIG.md](RUNTIME_CONFIG.md) for the complete environment variable reference.
 
 ```bash
 # Camera Configuration
-CAMERA_ROOT=/export/foscam
+FOSCAM_BASE_PATH=/export/foscam
 
 # Database
 DATABASE_URL=sqlite+aiosqlite:///data/security.db
@@ -143,8 +145,8 @@ DATABASE_URL=sqlite+aiosqlite:///data/security.db
 REDIS_URL=redis://redis:6379
 
 # AI Services (native, not in Docker)
-DETECTOR_URL=http://host.docker.internal:8001
-LLM_URL=http://host.docker.internal:8002
+RTDETR_URL=http://host.docker.internal:8090
+NEMOTRON_URL=http://host.docker.internal:8091
 
 # Processing
 BATCH_WINDOW_SECONDS=90
@@ -203,7 +205,7 @@ All services are connected via a custom bridge network `security-net`:
 - Services can communicate using service names as hostnames
 - Backend connects to Redis via `redis://redis:6379`
 - Frontend connects to Backend via `http://backend:8000` (internal) or `http://localhost:8000` (from host)
-- AI services accessed via `host.docker.internal:8001` and `host.docker.internal:8002`
+- AI services accessed via `host.docker.internal:8090` and `host.docker.internal:8091`
 
 ## Volume Management
 
@@ -283,7 +285,7 @@ Both backend and frontend have `.dockerignore` files to exclude unnecessary file
 
 AI services (RT-DETRv2 and Nemotron) run natively on the host. Ensure they are:
 
-1. Running on the correct ports (8001 and 8002)
+1. Running on the correct ports (8090 and 8091)
 2. Accessible from containers via `host.docker.internal`
 3. Check backend logs for connection errors: `docker compose logs backend | grep -i detector`
 

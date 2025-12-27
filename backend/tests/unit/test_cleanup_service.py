@@ -747,3 +747,326 @@ async def test_wait_until_next_cleanup():
         mock_sleep.assert_called_once()
         wait_seconds = mock_sleep.call_args[0][0]
         assert wait_seconds > 0  # Should be waiting for future time
+
+
+# Log retention tests
+
+
+@pytest.mark.asyncio
+async def test_cleanup_old_logs_deletes_old_logs(test_db):
+    """Test cleanup_old_logs deletes logs older than retention period."""
+    from datetime import UTC
+
+    from backend.models.log import Log
+
+    # Create old log (10 days ago - should be deleted with 7-day default retention)
+    old_date = datetime.now(UTC) - timedelta(days=10)
+
+    async with test_db() as session:
+        old_log = Log(
+            timestamp=old_date,
+            level="INFO",
+            component="test",
+            message="Old log message",
+        )
+        session.add(old_log)
+
+        # Create recent log (3 days ago - should be kept)
+        recent_date = datetime.now(UTC) - timedelta(days=3)
+        recent_log = Log(
+            timestamp=recent_date,
+            level="INFO",
+            component="test",
+            message="Recent log message",
+        )
+        session.add(recent_log)
+        await session.commit()
+
+    # Run log cleanup
+    service = CleanupService()
+    deleted_count = await service.cleanup_old_logs()
+
+    # Verify old log was deleted
+    assert deleted_count == 1
+
+    # Verify recent log still exists
+    async with test_db() as session:
+        from backend.models.log import Log
+
+        result = await session.execute(select(Log))
+        logs = result.scalars().all()
+        assert len(logs) == 1
+        assert logs[0].message == "Recent log message"
+
+
+@pytest.mark.asyncio
+async def test_cleanup_old_logs_respects_log_retention_days_setting(test_db):
+    """Test cleanup_old_logs uses log_retention_days from config."""
+    import os
+    from datetime import UTC
+
+    from backend.core.config import get_settings
+    from backend.models.log import Log
+
+    # Clear settings cache and set custom retention
+    get_settings.cache_clear()
+    original_retention = os.environ.get("LOG_RETENTION_DAYS")
+    os.environ["LOG_RETENTION_DAYS"] = "3"
+    get_settings.cache_clear()
+
+    try:
+        # Create log 5 days old (should be deleted with 3-day retention)
+        old_date = datetime.now(UTC) - timedelta(days=5)
+
+        async with test_db() as session:
+            old_log = Log(
+                timestamp=old_date,
+                level="WARNING",
+                component="test",
+                message="Should be deleted",
+            )
+            session.add(old_log)
+
+            # Create log 2 days old (should be kept with 3-day retention)
+            recent_date = datetime.now(UTC) - timedelta(days=2)
+            recent_log = Log(
+                timestamp=recent_date,
+                level="WARNING",
+                component="test",
+                message="Should be kept",
+            )
+            session.add(recent_log)
+            await session.commit()
+
+        # Run cleanup
+        service = CleanupService()
+        deleted_count = await service.cleanup_old_logs()
+
+        assert deleted_count == 1
+
+        # Verify only recent log remains
+        async with test_db() as session:
+            result = await session.execute(select(Log))
+            logs = result.scalars().all()
+            assert len(logs) == 1
+            assert logs[0].message == "Should be kept"
+
+    finally:
+        # Restore original setting
+        if original_retention:
+            os.environ["LOG_RETENTION_DAYS"] = original_retention
+        else:
+            os.environ.pop("LOG_RETENTION_DAYS", None)
+        get_settings.cache_clear()
+
+
+@pytest.mark.asyncio
+async def test_cleanup_old_logs_no_old_logs(test_db):
+    """Test cleanup_old_logs returns 0 when no old logs exist."""
+    from datetime import UTC
+
+    from backend.models.log import Log
+
+    # Create only recent log (1 day ago)
+    recent_date = datetime.now(UTC) - timedelta(days=1)
+
+    async with test_db() as session:
+        recent_log = Log(
+            timestamp=recent_date,
+            level="INFO",
+            component="test",
+            message="Recent log",
+        )
+        session.add(recent_log)
+        await session.commit()
+
+    # Run cleanup
+    service = CleanupService()
+    deleted_count = await service.cleanup_old_logs()
+
+    # Verify nothing was deleted
+    assert deleted_count == 0
+
+    # Verify log still exists
+    async with test_db() as session:
+        from backend.models.log import Log
+
+        result = await session.execute(select(Log))
+        logs = result.scalars().all()
+        assert len(logs) == 1
+
+
+@pytest.mark.asyncio
+async def test_run_cleanup_includes_log_cleanup(test_db):
+    """Test run_cleanup includes log cleanup in the stats."""
+    from datetime import UTC
+
+    from backend.models.camera import Camera
+    from backend.models.log import Log
+
+    # Create old log (40 days ago)
+    old_log_date = datetime.now(UTC) - timedelta(days=40)
+
+    async with test_db() as session:
+        # Create camera for event/detection tests
+        camera = Camera(
+            id="test_camera", name="Test Camera", folder_path="/export/foscam/test"
+        )
+        session.add(camera)
+        await session.flush()
+
+        # Create old log
+        old_log = Log(
+            timestamp=old_log_date,
+            level="ERROR",
+            component="test",
+            message="Old error log",
+        )
+        session.add(old_log)
+
+        # Create recent log (1 day ago)
+        recent_log_date = datetime.now(UTC) - timedelta(days=1)
+        recent_log = Log(
+            timestamp=recent_log_date,
+            level="INFO",
+            component="test",
+            message="Recent info log",
+        )
+        session.add(recent_log)
+        await session.commit()
+
+    # Run full cleanup with 30-day retention
+    service = CleanupService(retention_days=30)
+    stats = await service.run_cleanup()
+
+    # Verify logs_deleted is included in stats
+    assert stats.logs_deleted == 1
+
+    # Verify recent log still exists
+    async with test_db() as session:
+        from backend.models.log import Log
+
+        result = await session.execute(select(Log))
+        logs = result.scalars().all()
+        assert len(logs) == 1
+        assert logs[0].message == "Recent info log"
+
+
+@pytest.mark.asyncio
+async def test_cleanup_old_logs_preserves_boundary_logs(test_db):
+    """Test that logs slightly newer than the retention boundary are preserved."""
+    from datetime import UTC
+
+    from backend.models.log import Log
+
+    settings_retention = 7  # Default log_retention_days
+
+    # Create log slightly newer than boundary (should be kept)
+    # Using 6 days to be safely within retention period
+    safe_date = datetime.now(UTC) - timedelta(days=settings_retention - 1)
+
+    async with test_db() as session:
+        safe_log = Log(
+            timestamp=safe_date,
+            level="INFO",
+            component="test",
+            message="Safe log within retention",
+        )
+        session.add(safe_log)
+
+        # Create log clearly past boundary (should be deleted)
+        old_date = datetime.now(UTC) - timedelta(days=settings_retention + 1)
+        old_log = Log(
+            timestamp=old_date,
+            level="INFO",
+            component="test",
+            message="Old log past boundary",
+        )
+        session.add(old_log)
+        await session.commit()
+
+    # Run cleanup
+    service = CleanupService()
+    deleted_count = await service.cleanup_old_logs()
+
+    # Only the old log should be deleted
+    assert deleted_count == 1
+
+    # Verify safe log still exists
+    async with test_db() as session:
+        from backend.models.log import Log
+
+        result = await session.execute(select(Log))
+        logs = result.scalars().all()
+        assert len(logs) == 1
+        assert logs[0].message == "Safe log within retention"
+
+
+@pytest.mark.asyncio
+async def test_log_cleanup_does_not_break_queries(test_db):
+    """Test that log queries still work correctly after cleanup."""
+    from datetime import UTC
+
+    from backend.models.log import Log
+
+    # Create multiple logs with different levels and timestamps
+    async with test_db() as session:
+        now = datetime.now(UTC)
+
+        # Old logs (will be deleted)
+        for i in range(3):
+            old_log = Log(
+                timestamp=now - timedelta(days=15),
+                level="DEBUG",
+                component=f"component_{i}",
+                message=f"Old debug message {i}",
+            )
+            session.add(old_log)
+
+        # Recent logs (will be kept)
+        for i in range(5):
+            recent_log = Log(
+                timestamp=now - timedelta(days=2),
+                level="INFO" if i % 2 == 0 else "WARNING",
+                component=f"component_{i}",
+                message=f"Recent message {i}",
+            )
+            session.add(recent_log)
+
+        await session.commit()
+
+    # Run cleanup
+    service = CleanupService()
+    deleted_count = await service.cleanup_old_logs()
+
+    # Verify correct number deleted
+    assert deleted_count == 3
+
+    # Verify queries still work correctly
+    async with test_db() as session:
+        from sqlalchemy import func
+
+        from backend.models.log import Log
+
+        # Query all remaining logs
+        result = await session.execute(select(Log))
+        all_logs = result.scalars().all()
+        assert len(all_logs) == 5
+
+        # Query by level (filter query)
+        result = await session.execute(
+            select(func.count()).select_from(Log).where(Log.level == "INFO")
+        )
+        info_count = result.scalar()
+        assert info_count == 3  # 0, 2, 4 are even indices
+
+        result = await session.execute(
+            select(func.count()).select_from(Log).where(Log.level == "WARNING")
+        )
+        warning_count = result.scalar()
+        assert warning_count == 2  # 1, 3 are odd indices
+
+        # Query by component
+        result = await session.execute(select(Log).where(Log.component == "component_0"))
+        component_logs = result.scalars().all()
+        assert len(component_logs) == 1
