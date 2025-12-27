@@ -139,7 +139,7 @@ Key variables:
 - `REDIS_URL` - Redis connection URL
 - `DETECTOR_URL` - RT-DETRv2 service URL
 - `LLM_URL` - Nemotron service URL
-- `CAMERA_ROOT` - Camera uploads directory
+- `FOSCAM_BASE_PATH` - Camera uploads directory
 
 ## 📁 Important Files
 
@@ -234,8 +234,8 @@ Before deploying:
 
 - [ ] Docker is installed and running
 - [ ] `.env` file is configured
-- [ ] `/export/foscam` directory exists (or update CAMERA_ROOT)
-- [ ] AI services are running (RT-DETRv2 on 8001, Nemotron on 8002)
+- [ ] `/export/foscam` directory exists (or update FOSCAM_BASE_PATH)
+- [ ] AI services are running (RT-DETRv2 on 8090, Nemotron on 8091)
 - [ ] Ports 5173, 6379, and 8000 are available
 
 Test deployment:

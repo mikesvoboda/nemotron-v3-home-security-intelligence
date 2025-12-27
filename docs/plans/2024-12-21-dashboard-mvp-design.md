@@ -353,9 +353,9 @@ services:
     environment:
       - DATABASE_URL=sqlite+aiosqlite:///data/security.db
       - REDIS_URL=redis://redis:6379
-      - DETECTOR_URL=http://host.docker.internal:8001
-      - LLM_URL=http://host.docker.internal:8002
-      - CAMERA_ROOT=/cameras
+      - RTDETR_URL=http://host.docker.internal:8090
+      - NEMOTRON_URL=http://host.docker.internal:8091
+      - FOSCAM_BASE_PATH=/cameras
     depends_on:
       - redis
     restart: unless-stopped
@@ -387,7 +387,7 @@ volumes:
 
 ```bash
 # Camera Configuration
-CAMERA_ROOT=/export/foscam
+FOSCAM_BASE_PATH=/export/foscam
 
 # Database
 DATABASE_URL=sqlite+aiosqlite:///data/security.db
@@ -396,8 +396,8 @@ DATABASE_URL=sqlite+aiosqlite:///data/security.db
 REDIS_URL=redis://localhost:6379
 
 # AI Services (native, not in Docker)
-DETECTOR_URL=http://localhost:8001
-LLM_URL=http://localhost:8002
+RTDETR_URL=http://localhost:8090
+NEMOTRON_URL=http://localhost:8091
 
 # Processing
 BATCH_WINDOW_SECONDS=90

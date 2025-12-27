@@ -239,8 +239,8 @@ This directory contains development, testing, and deployment automation scripts 
 - **Purpose:** Manage AI inference services (RT-DETRv2 and Nemotron LLM) for GPU-accelerated detection and reasoning
 - **What it does:**
   1. Checks prerequisites (NVIDIA GPU, CUDA, llama-server, model files)
-  2. Starts RT-DETRv2 object detection server (port 8001)
-  3. Starts Nemotron LLM server (port 8002)
+  2. Starts RT-DETRv2 object detection server (port 8090)
+  3. Starts Nemotron LLM server (port 8091)
   4. Waits for services to become healthy (60s timeout each)
   5. Monitors GPU usage and VRAM consumption
   6. Provides health checks and status reporting
@@ -275,8 +275,8 @@ This directory contains development, testing, and deployment automation scripts 
   - `status` - Show service status, PIDs, and GPU usage
   - `health` - Test health endpoints and show detailed info
 - **Service configuration:**
-  - RT-DETRv2 Detection Server: http://localhost:8001 (~4GB VRAM)
-  - Nemotron LLM Server: http://localhost:8002 (~3GB VRAM)
+  - RT-DETRv2 Detection Server: http://localhost:8090 (~4GB VRAM)
+  - Nemotron LLM Server: http://localhost:8091 (~3GB VRAM)
   - Total VRAM usage: ~7GB
 - **Model files:**
   - RT-DETRv2: `ai/rtdetr/rtdetrv2_r50vd.onnx`
@@ -651,7 +651,7 @@ git push origin main
 
 # 2. Start AI services
 ./scripts/start-ai.sh start
-# This starts: RT-DETRv2 (8001), Nemotron LLM (8002)
+# This starts: RT-DETRv2 (8090), Nemotron LLM (8091)
 
 # 3. Check GPU usage and service status
 ./scripts/start-ai.sh status
@@ -874,8 +874,8 @@ NC='\033[0m'          # No Color (reset)
 
    # AI services
    ./scripts/start-ai.sh health
-   curl http://localhost:8001/health  # RT-DETRv2
-   curl http://localhost:8002/health  # Nemotron
+   curl http://localhost:8090/health  # RT-DETRv2
+   curl http://localhost:8091/health  # Nemotron
    ```
 
 3. **GPU monitoring:**

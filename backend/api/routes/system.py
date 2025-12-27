@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import httpx
 from fastapi import APIRouter, Body, Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -212,21 +213,115 @@ async def check_redis_health(redis: RedisClient) -> ServiceStatus:
         )
 
 
-async def check_ai_services_health() -> ServiceStatus:
-    """Check AI services health.
+async def _check_rtdetr_health(rtdetr_url: str, timeout: float) -> tuple[bool, str | None]:
+    """Check RT-DETR object detection service health.
 
-    This is a placeholder that can be expanded to check RT-DETR and Nemotron services.
+    Args:
+        rtdetr_url: Base URL for RT-DETR service
+        timeout: Request timeout in seconds
 
     Returns:
-        ServiceStatus with AI services health information
+        Tuple of (is_healthy, error_message)
     """
-    # For now, return a basic status
-    # In the future, this could ping the RT-DETR and Nemotron endpoints
-    return ServiceStatus(
-        status="healthy",
-        message="AI services not monitored",
-        details=None,
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.get(f"{rtdetr_url}/health")
+            response.raise_for_status()
+            return True, None
+    except httpx.ConnectError:
+        return False, "RT-DETR service connection refused"
+    except httpx.TimeoutException:
+        return False, "RT-DETR service request timed out"
+    except httpx.HTTPStatusError as e:
+        return False, f"RT-DETR service returned HTTP {e.response.status_code}"
+    except Exception as e:
+        return False, f"RT-DETR service error: {e!s}"
+
+
+async def _check_nemotron_health(nemotron_url: str, timeout: float) -> tuple[bool, str | None]:
+    """Check Nemotron LLM service health.
+
+    Args:
+        nemotron_url: Base URL for Nemotron service (llama.cpp server)
+        timeout: Request timeout in seconds
+
+    Returns:
+        Tuple of (is_healthy, error_message)
+    """
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.get(f"{nemotron_url}/health")
+            response.raise_for_status()
+            return True, None
+    except httpx.ConnectError:
+        return False, "Nemotron service connection refused"
+    except httpx.TimeoutException:
+        return False, "Nemotron service request timed out"
+    except httpx.HTTPStatusError as e:
+        return False, f"Nemotron service returned HTTP {e.response.status_code}"
+    except Exception as e:
+        return False, f"Nemotron service error: {e!s}"
+
+
+# Timeout for individual AI service health checks (in seconds)
+AI_HEALTH_CHECK_TIMEOUT_SECONDS = 3.0
+
+
+async def check_ai_services_health() -> ServiceStatus:
+    """Check AI services health by pinging RT-DETR and Nemotron endpoints.
+
+    Performs concurrent health checks on both AI services:
+    - RT-DETR (object detection): GET {rtdetr_url}/health
+    - Nemotron (LLM reasoning): GET {nemotron_url}/health
+
+    Returns:
+        ServiceStatus with AI services health information:
+        - healthy: Both services are responding
+        - degraded: At least one service is down but some AI capability remains
+        - unhealthy: Both services are down (no AI capability)
+    """
+    settings = get_settings()
+    rtdetr_url = settings.rtdetr_url
+    nemotron_url = settings.nemotron_url
+
+    # Check both services concurrently
+    rtdetr_result, nemotron_result = await asyncio.gather(
+        _check_rtdetr_health(rtdetr_url, AI_HEALTH_CHECK_TIMEOUT_SECONDS),
+        _check_nemotron_health(nemotron_url, AI_HEALTH_CHECK_TIMEOUT_SECONDS),
     )
+
+    rtdetr_healthy, rtdetr_error = rtdetr_result
+    nemotron_healthy, nemotron_error = nemotron_result
+
+    # Build details dict with individual service status
+    details: dict[str, str] = {
+        "rtdetr": "healthy" if rtdetr_healthy else (rtdetr_error or "unknown error"),
+        "nemotron": "healthy" if nemotron_healthy else (nemotron_error or "unknown error"),
+    }
+
+    # Determine overall AI status
+    if rtdetr_healthy and nemotron_healthy:
+        return ServiceStatus(
+            status="healthy",
+            message="AI services operational",
+            details=details,
+        )
+    elif rtdetr_healthy or nemotron_healthy:
+        # At least one service is up - degraded but partially functional
+        working_service = "RT-DETR" if rtdetr_healthy else "Nemotron"
+        failed_service = "Nemotron" if rtdetr_healthy else "RT-DETR"
+        return ServiceStatus(
+            status="degraded",
+            message=f"{failed_service} service unavailable, {working_service} operational",
+            details=details,
+        )
+    else:
+        # Both services are down
+        return ServiceStatus(
+            status="unhealthy",
+            message="All AI services unavailable",
+            details=details,
+        )
 
 
 @router.get("/health", response_model=HealthResponse)

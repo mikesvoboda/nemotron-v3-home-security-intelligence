@@ -65,7 +65,7 @@ NEMOTRON_MODEL_PATH=/path/to/model.gguf ./ai/start_llm.sh
 
 This starts `llama-server` with configuration (also mirrored in `ai/nemotron/config.json`):
 
-- **Port**: 8090
+- **Port**: 8091
 - **Model**: `ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf`
 - **Context size**: 4096 tokens
 - **GPU layers**: 99 (all on GPU)
@@ -73,7 +73,7 @@ This starts `llama-server` with configuration (also mirrored in `ai/nemotron/con
 - **Parallelism**: 2 concurrent requests
 - **Continuous batching**: Enabled for better throughput
 
-Server runs at: `http://localhost:8090`
+Server runs at: `http://localhost:8091`
 
 ## API Endpoints (llama.cpp)
 
@@ -246,10 +246,10 @@ sudo ln -s $(pwd)/llama-server /usr/local/bin/llama-server
 
 ```bash
 # Test health endpoint
-curl http://localhost:8090/health
+curl http://localhost:8091/health
 
 # Test completion endpoint
-curl -X POST http://localhost:8090/completion \
+curl -X POST http://localhost:8091/completion \
   -H "Content-Type: application/json" \
   -d '{
     "prompt": "Analyze this security event: A person was detected at 14:30.",

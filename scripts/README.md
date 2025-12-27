@@ -248,7 +248,7 @@ The setup script creates a `.env` file from `.env.example`. Review and update th
 
 ```bash
 # Camera Configuration
-CAMERA_ROOT=/export/foscam
+FOSCAM_BASE_PATH=/export/foscam
 
 # Database
 DATABASE_URL=sqlite+aiosqlite:///data/security.db
@@ -257,8 +257,8 @@ DATABASE_URL=sqlite+aiosqlite:///data/security.db
 REDIS_URL=redis://localhost:6379
 
 # AI Services
-DETECTOR_URL=http://localhost:8001
-LLM_URL=http://localhost:8002
+RTDETR_URL=http://localhost:8090
+NEMOTRON_URL=http://localhost:8091
 
 # Processing
 BATCH_WINDOW_SECONDS=90

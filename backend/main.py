@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.api.middleware import AuthMiddleware
 from backend.api.middleware.request_id import RequestIDMiddleware
 from backend.api.routes import cameras, detections, dlq, events, media, system, websocket
+from backend.api.routes.system import register_workers
 from backend.api.routes.logs import router as logs_router
 from backend.core import close_db, get_settings, init_db
 from backend.core.logging import setup_logging
@@ -76,6 +77,15 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     cleanup_service = CleanupService()
     await cleanup_service.start()
     print("Cleanup service initialized")
+
+    # Register workers with system routes for readiness checks
+    register_workers(
+        gpu_monitor=gpu_monitor,
+        cleanup_service=cleanup_service,
+        system_broadcaster=system_broadcaster,
+        file_watcher=file_watcher,
+    )
+    print("Workers registered for readiness monitoring")
 
     yield
 
