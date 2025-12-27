@@ -13,6 +13,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.schemas.system import (
+    CleanupResponse,
     ConfigResponse,
     ConfigUpdateRequest,
     GPUStatsHistoryResponse,
@@ -766,3 +767,63 @@ async def get_telemetry(
         latencies=latencies,
         timestamp=datetime.now(UTC),
     )
+
+
+# =============================================================================
+# Cleanup Endpoint
+# =============================================================================
+
+
+@router.post("/cleanup", response_model=CleanupResponse)
+async def trigger_cleanup() -> CleanupResponse:
+    """Trigger manual data cleanup based on retention settings.
+
+    This endpoint runs the CleanupService to delete old data according to
+    the configured retention period. It deletes:
+    - Events older than retention period
+    - Detections older than retention period
+    - GPU stats older than retention period
+    - Logs older than log retention period
+    - Associated thumbnail files
+    - Optionally original image files (if delete_images is enabled)
+
+    The cleanup respects the current retention_days setting from the system
+    configuration. To change the retention period before running cleanup,
+    use PATCH /api/system/config first.
+
+    Returns:
+        CleanupResponse with statistics about the cleanup operation
+    """
+    from backend.services.cleanup_service import CleanupService
+
+    settings = get_settings()
+
+    logger.info(f"Manual cleanup triggered with retention_days={settings.retention_days}")
+
+    # Create a CleanupService instance with current settings
+    cleanup_service = CleanupService(
+        retention_days=settings.retention_days,
+        thumbnail_dir="backend/data/thumbnails",
+        delete_images=False,  # Keep original images by default for safety
+    )
+
+    try:
+        # Run the cleanup operation
+        stats = await cleanup_service.run_cleanup()
+
+        logger.info(f"Manual cleanup completed: {stats}")
+
+        return CleanupResponse(
+            events_deleted=stats.events_deleted,
+            detections_deleted=stats.detections_deleted,
+            gpu_stats_deleted=stats.gpu_stats_deleted,
+            logs_deleted=stats.logs_deleted,
+            thumbnails_deleted=stats.thumbnails_deleted,
+            images_deleted=stats.images_deleted,
+            space_reclaimed=stats.space_reclaimed,
+            retention_days=settings.retention_days,
+            timestamp=datetime.now(UTC),
+        )
+    except Exception as e:
+        logger.error(f"Manual cleanup failed: {e}", exc_info=True)
+        raise

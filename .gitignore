@@ -43,6 +43,8 @@ htmlcov/
 .pytest_cache/
 .vitest/
 *.coverage
+test-results/
+playwright-report/
 
 # OS
 .DS_Store

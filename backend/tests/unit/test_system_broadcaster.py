@@ -1,7 +1,7 @@
 """Unit tests for system broadcaster service."""
 
 import asyncio
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -16,6 +16,65 @@ async def test_system_broadcaster_init():
     assert broadcaster.connections == set()
     assert broadcaster._broadcast_task is None
     assert broadcaster._running is False
+    assert broadcaster._redis_client is None
+    assert broadcaster._redis_getter is None
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_init_with_redis_client():
+    """Test SystemBroadcaster initialization with Redis client."""
+    mock_redis = AsyncMock()
+    broadcaster = SystemBroadcaster(redis_client=mock_redis)
+
+    assert broadcaster._redis_client is mock_redis
+    assert broadcaster._redis_getter is None
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_init_with_redis_getter():
+    """Test SystemBroadcaster initialization with Redis getter."""
+    mock_redis = AsyncMock()
+    mock_getter = MagicMock(return_value=mock_redis)
+    broadcaster = SystemBroadcaster(redis_getter=mock_getter)
+
+    assert broadcaster._redis_client is None
+    assert broadcaster._redis_getter is mock_getter
+    # Calling _get_redis should use the getter
+    assert broadcaster._get_redis() is mock_redis
+    mock_getter.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_get_redis_prefers_client():
+    """Test that _get_redis prefers direct client over getter."""
+    mock_client = AsyncMock()
+    mock_getter_redis = AsyncMock()
+    mock_getter = MagicMock(return_value=mock_getter_redis)
+
+    broadcaster = SystemBroadcaster(redis_client=mock_client, redis_getter=mock_getter)
+
+    # Should return the direct client, not call the getter
+    assert broadcaster._get_redis() is mock_client
+    mock_getter.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_get_redis_returns_none():
+    """Test that _get_redis returns None when no Redis is configured."""
+    broadcaster = SystemBroadcaster()
+    assert broadcaster._get_redis() is None
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_set_redis_client():
+    """Test setting Redis client after initialization."""
+    broadcaster = SystemBroadcaster()
+    assert broadcaster._redis_client is None
+
+    mock_redis = AsyncMock()
+    broadcaster.set_redis_client(mock_redis)
+    assert broadcaster._redis_client is mock_redis
+    assert broadcaster._get_redis() is mock_redis
 
 
 @pytest.mark.asyncio
@@ -213,8 +272,6 @@ async def test_system_broadcaster_get_camera_stats_empty(isolated_db):
 @pytest.mark.asyncio
 async def test_system_broadcaster_get_queue_stats():
     """Test getting queue statistics from Redis."""
-    broadcaster = SystemBroadcaster()
-
     # Mock Redis client
     mock_redis = AsyncMock()
     mock_redis.get_queue_length.side_effect = lambda queue: {
@@ -222,8 +279,9 @@ async def test_system_broadcaster_get_queue_stats():
         "analysis_queue": 2,
     }.get(queue, 0)
 
-    with patch("backend.services.system_broadcaster._redis_client", mock_redis):
-        queue_stats = await broadcaster._get_queue_stats()
+    # Use dependency injection
+    broadcaster = SystemBroadcaster(redis_client=mock_redis)
+    queue_stats = await broadcaster._get_queue_stats()
 
     # Should return correct counts
     assert queue_stats["pending"] == 5
@@ -233,11 +291,9 @@ async def test_system_broadcaster_get_queue_stats():
 @pytest.mark.asyncio
 async def test_system_broadcaster_get_queue_stats_redis_unavailable():
     """Test getting queue stats when Redis is unavailable."""
+    # No Redis client provided
     broadcaster = SystemBroadcaster()
-
-    # Mock Redis client to be None
-    with patch("backend.services.system_broadcaster._redis_client", None):
-        queue_stats = await broadcaster._get_queue_stats()
+    queue_stats = await broadcaster._get_queue_stats()
 
     # Should return zeros
     assert queue_stats["pending"] == 0
@@ -247,14 +303,13 @@ async def test_system_broadcaster_get_queue_stats_redis_unavailable():
 @pytest.mark.asyncio
 async def test_system_broadcaster_get_queue_stats_redis_error():
     """Test getting queue stats when Redis raises an error."""
-    broadcaster = SystemBroadcaster()
-
     # Mock Redis to raise an exception
     mock_redis = AsyncMock()
     mock_redis.get_queue_length.side_effect = Exception("Redis error")
 
-    with patch("backend.services.system_broadcaster._redis_client", mock_redis):
-        queue_stats = await broadcaster._get_queue_stats()
+    # Use dependency injection
+    broadcaster = SystemBroadcaster(redis_client=mock_redis)
+    queue_stats = await broadcaster._get_queue_stats()
 
     # Should return zeros on error
     assert queue_stats["pending"] == 0
@@ -264,15 +319,14 @@ async def test_system_broadcaster_get_queue_stats_redis_error():
 @pytest.mark.asyncio
 async def test_system_broadcaster_get_health_status_healthy(isolated_db):
     """Test health status when all services are healthy."""
-    broadcaster = SystemBroadcaster()
-
     # Mock Redis to be healthy
     mock_redis = AsyncMock()
     # health_check is awaited, so it needs to return a coroutine
     mock_redis.health_check = AsyncMock(return_value={"status": "healthy"})
 
-    with patch("backend.services.system_broadcaster._redis_client", mock_redis):
-        health_status = await broadcaster._get_health_status()
+    # Use dependency injection
+    broadcaster = SystemBroadcaster(redis_client=mock_redis)
+    health_status = await broadcaster._get_health_status()
 
     assert health_status == "healthy"
 
@@ -280,14 +334,23 @@ async def test_system_broadcaster_get_health_status_healthy(isolated_db):
 @pytest.mark.asyncio
 async def test_system_broadcaster_get_health_status_degraded(isolated_db):
     """Test health status when Redis is down."""
-    broadcaster = SystemBroadcaster()
-
     # Mock Redis to fail
     mock_redis = AsyncMock()
     mock_redis.health_check.side_effect = Exception("Redis connection failed")
 
-    with patch("backend.services.system_broadcaster._redis_client", mock_redis):
-        health_status = await broadcaster._get_health_status()
+    # Use dependency injection
+    broadcaster = SystemBroadcaster(redis_client=mock_redis)
+    health_status = await broadcaster._get_health_status()
+
+    assert health_status == "degraded"
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_get_health_status_no_redis(isolated_db):
+    """Test health status when Redis is not configured."""
+    # No Redis client provided - should report degraded
+    broadcaster = SystemBroadcaster()
+    health_status = await broadcaster._get_health_status()
 
     assert health_status == "degraded"
 
@@ -344,6 +407,69 @@ async def test_get_system_broadcaster_singleton():
 
     # Should be the same instance
     assert broadcaster1 is broadcaster2
+
+    # Cleanup
+    backend.services.system_broadcaster._system_broadcaster = None
+
+
+@pytest.mark.asyncio
+async def test_get_system_broadcaster_with_redis_client():
+    """Test that get_system_broadcaster accepts Redis client."""
+    # Clear global instance first
+    import backend.services.system_broadcaster
+
+    backend.services.system_broadcaster._system_broadcaster = None
+
+    mock_redis = AsyncMock()
+    broadcaster = get_system_broadcaster(redis_client=mock_redis)
+
+    assert broadcaster._redis_client is mock_redis
+    assert broadcaster._get_redis() is mock_redis
+
+    # Cleanup
+    backend.services.system_broadcaster._system_broadcaster = None
+
+
+@pytest.mark.asyncio
+async def test_get_system_broadcaster_updates_redis_client():
+    """Test that subsequent calls to get_system_broadcaster can update Redis client."""
+    # Clear global instance first
+    import backend.services.system_broadcaster
+
+    backend.services.system_broadcaster._system_broadcaster = None
+
+    # First call without Redis
+    broadcaster1 = get_system_broadcaster()
+    assert broadcaster1._redis_client is None
+
+    # Second call with Redis - should update existing singleton
+    mock_redis = AsyncMock()
+    broadcaster2 = get_system_broadcaster(redis_client=mock_redis)
+
+    assert broadcaster1 is broadcaster2  # Same singleton
+    assert broadcaster1._redis_client is mock_redis
+
+    # Cleanup
+    backend.services.system_broadcaster._system_broadcaster = None
+
+
+@pytest.mark.asyncio
+async def test_get_system_broadcaster_with_redis_getter():
+    """Test that get_system_broadcaster accepts Redis getter."""
+    # Clear global instance first
+    import backend.services.system_broadcaster
+
+    backend.services.system_broadcaster._system_broadcaster = None
+
+    mock_redis = AsyncMock()
+    mock_getter = MagicMock(return_value=mock_redis)
+    broadcaster = get_system_broadcaster(redis_getter=mock_getter)
+
+    assert broadcaster._redis_getter is mock_getter
+    assert broadcaster._get_redis() is mock_redis
+
+    # Cleanup
+    backend.services.system_broadcaster._system_broadcaster = None
 
 
 @pytest.mark.asyncio

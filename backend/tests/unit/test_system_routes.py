@@ -15,6 +15,7 @@ import pytest
 
 from backend.api.routes import system as system_routes
 from backend.api.schemas.system import (
+    CleanupResponse,
     ConfigResponse,
     GPUStatsHistoryResponse,
     GPUStatsResponse,
@@ -1497,3 +1498,208 @@ async def test_get_latency_stats_mixed_valid_invalid() -> None:
     assert result.watch is not None
     # Only 3 valid values: 10.0, "20.0" (converted), 30.0
     assert result.watch.sample_count == 3
+
+
+# =============================================================================
+# Cleanup Endpoint Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_trigger_cleanup_success() -> None:
+    """Test trigger_cleanup successfully runs cleanup and returns stats."""
+    mock_stats = MagicMock()
+    mock_stats.events_deleted = 10
+    mock_stats.detections_deleted = 50
+    mock_stats.gpu_stats_deleted = 100
+    mock_stats.logs_deleted = 25
+    mock_stats.thumbnails_deleted = 50
+    mock_stats.images_deleted = 0
+    mock_stats.space_reclaimed = 1024000
+
+    mock_settings = MagicMock()
+    mock_settings.retention_days = 30
+
+    mock_cleanup_service = MagicMock()
+    mock_cleanup_service.run_cleanup = AsyncMock(return_value=mock_stats)
+
+    with (
+        patch.object(system_routes, "get_settings", return_value=mock_settings),
+        patch(
+            "backend.services.cleanup_service.CleanupService",
+            return_value=mock_cleanup_service,
+        ),
+    ):
+        response = await system_routes.trigger_cleanup()
+
+    assert isinstance(response, CleanupResponse)
+    assert response.events_deleted == 10
+    assert response.detections_deleted == 50
+    assert response.gpu_stats_deleted == 100
+    assert response.logs_deleted == 25
+    assert response.thumbnails_deleted == 50
+    assert response.images_deleted == 0
+    assert response.space_reclaimed == 1024000
+    assert response.retention_days == 30
+    assert response.timestamp is not None
+
+
+@pytest.mark.asyncio
+async def test_trigger_cleanup_uses_retention_from_settings() -> None:
+    """Test trigger_cleanup uses retention_days from current settings."""
+    mock_stats = MagicMock()
+    mock_stats.events_deleted = 0
+    mock_stats.detections_deleted = 0
+    mock_stats.gpu_stats_deleted = 0
+    mock_stats.logs_deleted = 0
+    mock_stats.thumbnails_deleted = 0
+    mock_stats.images_deleted = 0
+    mock_stats.space_reclaimed = 0
+
+    mock_settings = MagicMock()
+    mock_settings.retention_days = 7  # Custom retention
+
+    mock_cleanup_service = MagicMock()
+    mock_cleanup_service.run_cleanup = AsyncMock(return_value=mock_stats)
+
+    with (
+        patch.object(system_routes, "get_settings", return_value=mock_settings),
+        patch(
+            "backend.services.cleanup_service.CleanupService",
+            return_value=mock_cleanup_service,
+        ) as mock_cleanup_class,
+    ):
+        response = await system_routes.trigger_cleanup()
+
+    # Verify CleanupService was instantiated with correct retention_days
+    mock_cleanup_class.assert_called_once_with(
+        retention_days=7,
+        thumbnail_dir="backend/data/thumbnails",
+        delete_images=False,
+    )
+    assert response.retention_days == 7
+
+
+@pytest.mark.asyncio
+async def test_trigger_cleanup_zero_deletions() -> None:
+    """Test trigger_cleanup when nothing needs to be cleaned up."""
+    mock_stats = MagicMock()
+    mock_stats.events_deleted = 0
+    mock_stats.detections_deleted = 0
+    mock_stats.gpu_stats_deleted = 0
+    mock_stats.logs_deleted = 0
+    mock_stats.thumbnails_deleted = 0
+    mock_stats.images_deleted = 0
+    mock_stats.space_reclaimed = 0
+
+    mock_settings = MagicMock()
+    mock_settings.retention_days = 30
+
+    mock_cleanup_service = MagicMock()
+    mock_cleanup_service.run_cleanup = AsyncMock(return_value=mock_stats)
+
+    with (
+        patch.object(system_routes, "get_settings", return_value=mock_settings),
+        patch(
+            "backend.services.cleanup_service.CleanupService",
+            return_value=mock_cleanup_service,
+        ),
+    ):
+        response = await system_routes.trigger_cleanup()
+
+    assert isinstance(response, CleanupResponse)
+    assert response.events_deleted == 0
+    assert response.detections_deleted == 0
+    assert response.gpu_stats_deleted == 0
+    assert response.logs_deleted == 0
+    assert response.thumbnails_deleted == 0
+
+
+@pytest.mark.asyncio
+async def test_trigger_cleanup_exception_propagates() -> None:
+    """Test trigger_cleanup propagates exception from CleanupService."""
+    mock_settings = MagicMock()
+    mock_settings.retention_days = 30
+
+    mock_cleanup_service = MagicMock()
+    mock_cleanup_service.run_cleanup = AsyncMock(
+        side_effect=RuntimeError("Database connection failed")
+    )
+
+    with (
+        patch.object(system_routes, "get_settings", return_value=mock_settings),
+        patch(
+            "backend.services.cleanup_service.CleanupService",
+            return_value=mock_cleanup_service,
+        ),
+        pytest.raises(RuntimeError, match="Database connection failed"),
+    ):
+        await system_routes.trigger_cleanup()
+
+
+@pytest.mark.asyncio
+async def test_trigger_cleanup_does_not_delete_images_by_default() -> None:
+    """Test trigger_cleanup does not delete original images by default."""
+    mock_stats = MagicMock()
+    mock_stats.events_deleted = 5
+    mock_stats.detections_deleted = 20
+    mock_stats.gpu_stats_deleted = 50
+    mock_stats.logs_deleted = 10
+    mock_stats.thumbnails_deleted = 20
+    mock_stats.images_deleted = 0  # Should be 0 when delete_images=False
+    mock_stats.space_reclaimed = 512000
+
+    mock_settings = MagicMock()
+    mock_settings.retention_days = 30
+
+    mock_cleanup_service = MagicMock()
+    mock_cleanup_service.run_cleanup = AsyncMock(return_value=mock_stats)
+
+    with (
+        patch.object(system_routes, "get_settings", return_value=mock_settings),
+        patch(
+            "backend.services.cleanup_service.CleanupService",
+            return_value=mock_cleanup_service,
+        ) as mock_cleanup_class,
+    ):
+        response = await system_routes.trigger_cleanup()
+
+    # Verify delete_images=False
+    mock_cleanup_class.assert_called_once()
+    call_kwargs = mock_cleanup_class.call_args[1]
+    assert call_kwargs["delete_images"] is False
+    assert response.images_deleted == 0
+
+
+@pytest.mark.asyncio
+async def test_trigger_cleanup_logs_operation() -> None:
+    """Test trigger_cleanup logs the cleanup operation."""
+    mock_stats = MagicMock()
+    mock_stats.events_deleted = 10
+    mock_stats.detections_deleted = 50
+    mock_stats.gpu_stats_deleted = 100
+    mock_stats.logs_deleted = 25
+    mock_stats.thumbnails_deleted = 50
+    mock_stats.images_deleted = 0
+    mock_stats.space_reclaimed = 1024000
+
+    mock_settings = MagicMock()
+    mock_settings.retention_days = 30
+
+    mock_cleanup_service = MagicMock()
+    mock_cleanup_service.run_cleanup = AsyncMock(return_value=mock_stats)
+
+    with (
+        patch.object(system_routes, "get_settings", return_value=mock_settings),
+        patch(
+            "backend.services.cleanup_service.CleanupService",
+            return_value=mock_cleanup_service,
+        ),
+        patch.object(system_routes.logger, "info") as mock_logger,
+    ):
+        await system_routes.trigger_cleanup()
+
+    # Verify logging calls
+    log_messages = [call[0][0] for call in mock_logger.call_args_list]
+    assert any("Manual cleanup triggered" in msg for msg in log_messages)
+    assert any("Manual cleanup completed" in msg for msg in log_messages)

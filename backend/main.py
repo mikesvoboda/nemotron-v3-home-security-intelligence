@@ -60,8 +60,9 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         print(f"Redis connection failed: {e}")
         print("Continuing without Redis - some features may be unavailable")
 
-    # Initialize system broadcaster (runs independently of Redis)
-    system_broadcaster = get_system_broadcaster()
+    # Initialize system broadcaster (runs independently of Redis, but uses it when available)
+    # Pass the Redis client if it was successfully initialized
+    system_broadcaster = get_system_broadcaster(redis_client=redis_client)
     await system_broadcaster.start_broadcasting(interval=5.0)
     print("System status broadcaster initialized (5s interval)")
 

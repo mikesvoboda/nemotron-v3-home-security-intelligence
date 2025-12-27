@@ -298,9 +298,19 @@ describe('ProcessingSettings', () => {
     expect(screen.getByText('Reset').closest('button')).toBeDisabled();
   });
 
-  it('Clear Old Data button shows alert', async () => {
+  it('Clear Old Data button triggers cleanup API', async () => {
     vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
-    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+    vi.mocked(api.triggerCleanup).mockResolvedValue({
+      events_deleted: 10,
+      detections_deleted: 50,
+      gpu_stats_deleted: 100,
+      logs_deleted: 25,
+      thumbnails_deleted: 50,
+      images_deleted: 0,
+      space_reclaimed: 1024000,
+      retention_days: 30,
+      timestamp: '2025-12-27T10:30:00Z',
+    });
 
     render(<ProcessingSettings />);
 
@@ -311,8 +321,98 @@ describe('ProcessingSettings', () => {
     const clearButton = screen.getByText('Clear Old Data').closest('button');
     fireEvent.click(clearButton!);
 
-    expect(alertSpy).toHaveBeenCalledWith('Clear old data functionality coming soon!');
-    alertSpy.mockRestore();
+    // Wait for cleanup to complete and results to display
+    await waitFor(() => {
+      expect(api.triggerCleanup).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Cleanup Complete')).toBeInTheDocument();
+    });
+
+    // Check that results are displayed
+    expect(screen.getByText('Events deleted:')).toBeInTheDocument();
+    expect(screen.getByText('10')).toBeInTheDocument();
+  });
+
+  it('Clear Old Data button shows loading state', async () => {
+    vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+    // Create a promise that won't resolve immediately
+    let resolveCleanup: (value: api.CleanupResponse) => void;
+    const cleanupPromise = new Promise<api.CleanupResponse>((resolve) => {
+      resolveCleanup = resolve;
+    });
+    vi.mocked(api.triggerCleanup).mockReturnValue(cleanupPromise);
+
+    render(<ProcessingSettings />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Clear Old Data')).toBeInTheDocument();
+    });
+
+    const clearButton = screen.getByText('Clear Old Data').closest('button');
+    fireEvent.click(clearButton!);
+
+    // Should show loading state
+    await waitFor(() => {
+      expect(screen.getByText('Running Cleanup...')).toBeInTheDocument();
+    });
+
+    // The button should be disabled during cleanup
+    expect(screen.getByText('Running Cleanup...').closest('button')).toBeDisabled();
+
+    // Resolve the cleanup
+    resolveCleanup!({
+      events_deleted: 0,
+      detections_deleted: 0,
+      gpu_stats_deleted: 0,
+      logs_deleted: 0,
+      thumbnails_deleted: 0,
+      images_deleted: 0,
+      space_reclaimed: 0,
+      retention_days: 30,
+      timestamp: '2025-12-27T10:30:00Z',
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText('Running Cleanup...')).not.toBeInTheDocument();
+    });
+  });
+
+  it('Clear Old Data button handles errors', async () => {
+    vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+    vi.mocked(api.triggerCleanup).mockRejectedValue(new Error('Cleanup failed'));
+
+    render(<ProcessingSettings />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Clear Old Data')).toBeInTheDocument();
+    });
+
+    const clearButton = screen.getByText('Clear Old Data').closest('button');
+    fireEvent.click(clearButton!);
+
+    await waitFor(() => {
+      expect(screen.getByText('Cleanup failed')).toBeInTheDocument();
+    });
+  });
+
+  it('Clear Old Data button handles non-Error objects', async () => {
+    vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+    vi.mocked(api.triggerCleanup).mockRejectedValue('Unknown error');
+
+    render(<ProcessingSettings />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Clear Old Data')).toBeInTheDocument();
+    });
+
+    const clearButton = screen.getByText('Clear Old Data').closest('button');
+    fireEvent.click(clearButton!);
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to run cleanup')).toBeInTheDocument();
+    });
   });
 
   describe('error handling', () => {
