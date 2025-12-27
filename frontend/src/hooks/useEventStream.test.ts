@@ -4,6 +4,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useEventStream, SecurityEvent } from './useEventStream';
 import * as useWebSocketModule from './useWebSocket';
 
+// Helper to wrap event data in the backend envelope format
+function wrapInEnvelope(event: SecurityEvent): { type: 'event'; data: SecurityEvent } {
+  return { type: 'event', data: event };
+}
+
 describe('useEventStream', () => {
   const mockWebSocketReturn = {
     isConnected: true,
@@ -47,21 +52,22 @@ describe('useEventStream', () => {
     );
   });
 
-  it('should add valid security events to the events array', () => {
+  it('should add valid security events from envelope format to the events array', () => {
     const { result } = renderHook(() => useEventStream());
 
     const event: SecurityEvent = {
-      id: 'event-1',
-      camera_id: 'cam-1',
-      camera_name: 'Front Door',
+      id: 1,
+      event_id: 1,
+      batch_id: 'batch_123',
+      camera_id: 'front_door',
       risk_score: 75,
       risk_level: 'high',
       summary: 'Person detected at front door',
-      timestamp: '2025-12-23T10:00:00Z',
+      started_at: '2025-12-27T14:30:00',
     };
 
     act(() => {
-      onMessageCallback?.(event);
+      onMessageCallback?.(wrapInEnvelope(event));
     });
 
     expect(result.current.events).toHaveLength(1);
@@ -73,31 +79,29 @@ describe('useEventStream', () => {
     const { result } = renderHook(() => useEventStream());
 
     const event1: SecurityEvent = {
-      id: 'event-1',
+      id: 1,
       camera_id: 'cam-1',
-      camera_name: 'Front Door',
       risk_score: 50,
       risk_level: 'medium',
       summary: 'Event 1',
-      timestamp: '2025-12-23T10:00:00Z',
+      started_at: '2025-12-23T10:00:00Z',
     };
 
     const event2: SecurityEvent = {
-      id: 'event-2',
+      id: 2,
       camera_id: 'cam-2',
-      camera_name: 'Back Door',
       risk_score: 80,
       risk_level: 'high',
       summary: 'Event 2',
-      timestamp: '2025-12-23T10:05:00Z',
+      started_at: '2025-12-23T10:05:00Z',
     };
 
     act(() => {
-      onMessageCallback?.(event1);
+      onMessageCallback?.(wrapInEnvelope(event1));
     });
 
     act(() => {
-      onMessageCallback?.(event2);
+      onMessageCallback?.(wrapInEnvelope(event2));
     });
 
     expect(result.current.events).toHaveLength(2);
@@ -113,29 +117,76 @@ describe('useEventStream', () => {
     act(() => {
       for (let i = 0; i < 110; i++) {
         const event: SecurityEvent = {
-          id: `event-${i}`,
-          camera_id: `cam-${i}`,
-          camera_name: `Camera ${i}`,
+          id: i,
+          camera_id: 'cam-' + i,
           risk_score: 50,
           risk_level: 'medium',
-          summary: `Event ${i}`,
-          timestamp: `2025-12-23T10:${String(i).padStart(2, '0')}:00Z`,
+          summary: 'Event ' + i,
+          started_at: '2025-12-23T10:' + String(i).padStart(2, '0') + ':00Z',
         };
-        onMessageCallback?.(event);
+        onMessageCallback?.(wrapInEnvelope(event));
       }
     });
 
     expect(result.current.events).toHaveLength(100);
-    expect(result.current.events[0].id).toBe('event-109'); // Most recent
-    expect(result.current.events[99].id).toBe('event-10'); // Oldest kept
+    expect(result.current.events[0].id).toBe(109); // Most recent
+    expect(result.current.events[99].id).toBe(10); // Oldest kept
+  });
+
+  it('should ignore messages without envelope format', () => {
+    const { result } = renderHook(() => useEventStream());
+
+    // Try sending event directly without envelope - should be ignored
+    const rawEvent: SecurityEvent = {
+      id: 1,
+      camera_id: 'cam-1',
+      risk_score: 75,
+      risk_level: 'high',
+      summary: 'Test event',
+      started_at: '2025-12-23T10:00:00Z',
+    };
+
+    act(() => {
+      onMessageCallback?.(rawEvent);
+    });
+
+    expect(result.current.events).toHaveLength(0);
+    expect(result.current.latestEvent).toBeNull();
+  });
+
+  it('should ignore non-event message types (e.g., service_status)', () => {
+    const { result } = renderHook(() => useEventStream());
+
+    const serviceStatusMessage = {
+      type: 'service_status',
+      data: {
+        service: 'detector',
+        status: 'healthy',
+      },
+    };
+
+    const pingMessage = {
+      type: 'ping',
+      timestamp: '2025-12-23T10:00:00Z',
+    };
+
+    act(() => {
+      onMessageCallback?.(serviceStatusMessage);
+      onMessageCallback?.(pingMessage);
+    });
+
+    expect(result.current.events).toHaveLength(0);
+    expect(result.current.latestEvent).toBeNull();
   });
 
   it('should ignore invalid messages missing required fields', () => {
     const { result } = renderHook(() => useEventStream());
 
     const invalidMessages = [
-      { id: 'event-1' }, // Missing other fields
-      { camera_id: 'cam-1', camera_name: 'Front' }, // Missing id
+      { type: 'event', data: { id: 1 } }, // Missing other fields
+      { type: 'event', data: { camera_id: 'cam-1' } }, // Missing id, risk fields
+      { type: 'event', data: null },
+      { type: 'event' }, // No data
       null,
       undefined,
       'string message',
@@ -151,19 +202,21 @@ describe('useEventStream', () => {
     expect(result.current.latestEvent).toBeNull();
   });
 
-  it('should ignore messages with partial SecurityEvent fields', () => {
+  it('should ignore messages with partial SecurityEvent fields in data', () => {
     const { result } = renderHook(() => useEventStream());
 
-    const partialEvent = {
-      id: 'event-1',
-      camera_id: 'cam-1',
-      camera_name: 'Front Door',
-      risk_score: 75,
-      // Missing risk_level, summary, timestamp
+    const partialEventMessage = {
+      type: 'event',
+      data: {
+        id: 1,
+        camera_id: 'cam-1',
+        risk_score: 75,
+        // Missing risk_level, summary
+      },
     };
 
     act(() => {
-      onMessageCallback?.(partialEvent);
+      onMessageCallback?.(partialEventMessage);
     });
 
     expect(result.current.events).toHaveLength(0);
@@ -174,17 +227,16 @@ describe('useEventStream', () => {
     const { result } = renderHook(() => useEventStream());
 
     const event: SecurityEvent = {
-      id: 'event-1',
+      id: 1,
       camera_id: 'cam-1',
-      camera_name: 'Front Door',
       risk_score: 75,
       risk_level: 'high',
       summary: 'Test event',
-      timestamp: '2025-12-23T10:00:00Z',
+      started_at: '2025-12-23T10:00:00Z',
     };
 
     act(() => {
-      onMessageCallback?.(event);
+      onMessageCallback?.(wrapInEnvelope(event));
     });
 
     expect(result.current.events).toHaveLength(1);
@@ -201,33 +253,31 @@ describe('useEventStream', () => {
     const { result } = renderHook(() => useEventStream());
 
     const event1: SecurityEvent = {
-      id: 'event-1',
+      id: 1,
       camera_id: 'cam-1',
-      camera_name: 'Front Door',
       risk_score: 50,
       risk_level: 'medium',
       summary: 'Event 1',
-      timestamp: '2025-12-23T10:00:00Z',
+      started_at: '2025-12-23T10:00:00Z',
     };
 
     const event2: SecurityEvent = {
-      id: 'event-2',
+      id: 2,
       camera_id: 'cam-2',
-      camera_name: 'Back Door',
       risk_score: 80,
       risk_level: 'high',
       summary: 'Event 2',
-      timestamp: '2025-12-23T10:05:00Z',
+      started_at: '2025-12-23T10:05:00Z',
     };
 
     act(() => {
-      onMessageCallback?.(event1);
+      onMessageCallback?.(wrapInEnvelope(event1));
     });
 
     expect(result.current.latestEvent).toEqual(event1);
 
     act(() => {
-      onMessageCallback?.(event2);
+      onMessageCallback?.(wrapInEnvelope(event2));
     });
 
     expect(result.current.latestEvent).toEqual(event2);
@@ -252,17 +302,16 @@ describe('useEventStream', () => {
 
     riskLevels.forEach((level, index: number) => {
       const event: SecurityEvent = {
-        id: `event-${index}`,
-        camera_id: `cam-${index}`,
-        camera_name: `Camera ${index}`,
+        id: index,
+        camera_id: 'cam-' + index,
         risk_score: 25 * (index + 1),
         risk_level: level,
-        summary: `${level} risk event`,
-        timestamp: `2025-12-23T10:${String(index).padStart(2, '0')}:00Z`,
+        summary: level + ' risk event',
+        started_at: '2025-12-23T10:' + String(index).padStart(2, '0') + ':00Z',
       };
 
       act(() => {
-        onMessageCallback?.(event);
+        onMessageCallback?.(wrapInEnvelope(event));
       });
     });
 
@@ -277,33 +326,31 @@ describe('useEventStream', () => {
     const { result } = renderHook(() => useEventStream());
 
     const event1: SecurityEvent = {
-      id: 'event-1',
+      id: 1,
       camera_id: 'cam-1',
-      camera_name: 'Front Door',
       risk_score: 50,
       risk_level: 'medium',
       summary: 'Event 1',
-      timestamp: '2025-12-23T10:00:00Z',
+      started_at: '2025-12-23T10:00:00Z',
     };
 
     act(() => {
-      onMessageCallback?.(event1);
+      onMessageCallback?.(wrapInEnvelope(event1));
     });
 
     const firstEventsRef = result.current.events;
 
     const event2: SecurityEvent = {
-      id: 'event-2',
+      id: 2,
       camera_id: 'cam-2',
-      camera_name: 'Back Door',
       risk_score: 80,
       risk_level: 'high',
       summary: 'Event 2',
-      timestamp: '2025-12-23T10:05:00Z',
+      started_at: '2025-12-23T10:05:00Z',
     };
 
     act(() => {
-      onMessageCallback?.(event2);
+      onMessageCallback?.(wrapInEnvelope(event2));
     });
 
     const secondEventsRef = result.current.events;
@@ -322,17 +369,16 @@ describe('useEventStream', () => {
     expect(result.current.latestEvent).toBeNull();
 
     const event: SecurityEvent = {
-      id: 'event-1',
+      id: 1,
       camera_id: 'cam-1',
-      camera_name: 'Front Door',
       risk_score: 75,
       risk_level: 'high',
       summary: 'Test event',
-      timestamp: '2025-12-23T10:00:00Z',
+      started_at: '2025-12-23T10:00:00Z',
     };
 
     act(() => {
-      onMessageCallback?.(event);
+      onMessageCallback?.(wrapInEnvelope(event));
     });
 
     const firstLatestEvent = result.current.latestEvent;
@@ -351,40 +397,38 @@ describe('useEventStream', () => {
     const events: SecurityEvent[] = [];
     for (let i = 0; i < 10; i++) {
       events.push({
-        id: `event-${i}`,
-        camera_id: `cam-${i % 3}`, // Cycle through 3 cameras
-        camera_name: `Camera ${i % 3}`,
+        id: i,
+        camera_id: 'cam-' + (i % 3), // Cycle through 3 cameras
         risk_score: 50 + i * 5,
         risk_level: 'medium',
-        summary: `Rapid event ${i}`,
-        timestamp: `2025-12-23T10:00:${String(i).padStart(2, '0')}Z`,
+        summary: 'Rapid event ' + i,
+        started_at: '2025-12-23T10:00:' + String(i).padStart(2, '0') + 'Z',
       });
     }
 
     act(() => {
-      events.forEach((event) => onMessageCallback?.(event));
+      events.forEach((event) => onMessageCallback?.(wrapInEnvelope(event)));
     });
 
     expect(result.current.events).toHaveLength(10);
-    expect(result.current.events[0].id).toBe('event-9'); // Most recent
-    expect(result.current.events[9].id).toBe('event-0'); // Oldest
+    expect(result.current.events[0].id).toBe(9); // Most recent
+    expect(result.current.events[9].id).toBe(0); // Oldest
   });
 
   it('should handle clearEvents being called multiple times', () => {
     const { result } = renderHook(() => useEventStream());
 
     const event: SecurityEvent = {
-      id: 'event-1',
+      id: 1,
       camera_id: 'cam-1',
-      camera_name: 'Front Door',
       risk_score: 75,
       risk_level: 'high',
       summary: 'Test event',
-      timestamp: '2025-12-23T10:00:00Z',
+      started_at: '2025-12-23T10:00:00Z',
     };
 
     act(() => {
-      onMessageCallback?.(event);
+      onMessageCallback?.(wrapInEnvelope(event));
     });
 
     expect(result.current.events).toHaveLength(1);
@@ -409,5 +453,61 @@ describe('useEventStream', () => {
 
     // useCallback should maintain the same reference
     expect(firstClearEvents).toBe(secondClearEvents);
+  });
+
+  it('should handle backend canonical message format', () => {
+    const { result } = renderHook(() => useEventStream());
+
+    // This is the exact format from the backend as documented
+    const backendMessage = {
+      type: 'event',
+      data: {
+        id: 1,
+        event_id: 1,
+        batch_id: 'batch_123',
+        camera_id: 'front_door',
+        risk_score: 75,
+        risk_level: 'high' as const,
+        summary: 'Person detected at front door',
+        started_at: '2025-12-27T14:30:00',
+      },
+    };
+
+    act(() => {
+      onMessageCallback?.(backendMessage);
+    });
+
+    expect(result.current.events).toHaveLength(1);
+    expect(result.current.events[0].id).toBe(1);
+    expect(result.current.events[0].event_id).toBe(1);
+    expect(result.current.events[0].batch_id).toBe('batch_123');
+    expect(result.current.events[0].camera_id).toBe('front_door');
+    expect(result.current.events[0].risk_score).toBe(75);
+    expect(result.current.events[0].risk_level).toBe('high');
+    expect(result.current.events[0].summary).toBe('Person detected at front door');
+    expect(result.current.events[0].started_at).toBe('2025-12-27T14:30:00');
+  });
+
+  it('should accept events with event_id instead of id', () => {
+    const { result } = renderHook(() => useEventStream());
+
+    // Event with only event_id (no id field)
+    const backendMessage = {
+      type: 'event',
+      data: {
+        event_id: 42,
+        camera_id: 'back_yard',
+        risk_score: 30,
+        risk_level: 'low' as const,
+        summary: 'Motion detected',
+      },
+    };
+
+    act(() => {
+      onMessageCallback?.(backendMessage);
+    });
+
+    expect(result.current.events).toHaveLength(1);
+    expect(result.current.events[0].event_id).toBe(42);
   });
 });

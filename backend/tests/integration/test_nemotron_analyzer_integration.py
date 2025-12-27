@@ -673,13 +673,13 @@ class TestWebSocketBroadcast:
         # Verify publish was called
         mock_redis_client.publish.assert_called_once()
         call_args = mock_redis_client.publish.call_args
-        assert call_args[0][0] == "events"  # Channel name
+        assert call_args[0][0] == "security_events"  # Canonical channel name
 
-        # Verify message content
+        # Verify message content (envelope format: {"type": "event", "data": {...}})
         message = call_args[0][1]
-        assert message["type"] == "event_created"
-        assert message["event_id"] == event.id
-        assert message["camera_id"] == sample_camera.id
+        assert message["type"] == "event"
+        assert message["data"]["event_id"] == event.id
+        assert message["data"]["camera_id"] == sample_camera.id
 
     async def test_broadcast_event_failure_does_not_fail_analysis(
         self, test_db_setup, sample_camera, sample_detections, mock_redis_client, mock_llm_response
