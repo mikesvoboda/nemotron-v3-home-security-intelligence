@@ -302,7 +302,7 @@ class TestFileWatcherMultipleCameras:
             create_test_image(img3, color="blue")
 
             # Wait for all detections
-            await asyncio.sleep(1.0)
+            await asyncio.sleep(1.0)  # timeout - intentional wait for file watcher
 
             # Collect all camera IDs from queued items
             camera_ids = set()
@@ -505,7 +505,7 @@ class TestFileWatcherRapidFileCreation:
                 await asyncio.sleep(0.02)
 
             # Wait for all files to be processed (debounce + processing)
-            await asyncio.sleep(2.0)
+            await asyncio.sleep(2.0)  # timeout - intentional wait for debounce
 
             # Verify all files were queued
             queued_files = set()
@@ -611,7 +611,7 @@ class TestFileWatcherRapidFileCreation:
                 created_files[cam] = image_path
 
             # Wait for processing
-            await asyncio.sleep(1.0)
+            await asyncio.sleep(1.0)  # timeout - intentional wait for file watcher
 
             # Verify all cameras had files queued
             queued_cameras = set()
