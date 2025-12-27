@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.middleware import AuthMiddleware
 from backend.api.middleware.request_id import RequestIDMiddleware
-from backend.api.routes import cameras, detections, dlq, events, media, system, websocket
+from backend.api.routes import cameras, detections, dlq, events, media, metrics, system, websocket
 from backend.api.routes.logs import router as logs_router
 from backend.core import close_db, get_settings, init_db
 from backend.core.logging import setup_logging
@@ -23,7 +23,7 @@ from backend.services.system_broadcaster import get_system_broadcaster
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     """Manage application lifecycle - startup and shutdown events."""
     # Initialize logging first (before any other initialization)
     setup_logging()
@@ -54,7 +54,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
         # Initialize pipeline workers (detection queue, analysis queue, batch timeout)
         pipeline_manager = await get_pipeline_manager(redis_client)
         await pipeline_manager.start()
-        print("Pipeline workers started (detection, analysis, batch timeout)")
+        print("Pipeline workers started (detection, analysis, batch timeout, metrics)")
 
     except Exception as e:
         print(f"Redis connection failed: {e}")
@@ -132,6 +132,7 @@ app.include_router(dlq.router)
 app.include_router(events.router)
 app.include_router(logs_router)
 app.include_router(media.router)
+app.include_router(metrics.router)
 app.include_router(system.router)
 app.include_router(websocket.router)
 

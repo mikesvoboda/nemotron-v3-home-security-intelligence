@@ -24,6 +24,12 @@ from sqlalchemy import select
 from backend.core.config import get_settings
 from backend.core.database import get_session
 from backend.core.logging import get_logger
+from backend.core.metrics import (
+    observe_ai_request_duration,
+    observe_stage_duration,
+    record_event_created,
+    record_pipeline_error,
+)
 from backend.core.redis import RedisClient
 from backend.models.camera import Camera
 from backend.models.detection import Detection
@@ -138,6 +144,9 @@ class NemotronAnalyzer:
                     detections_list=detections_list,
                 )
                 llm_duration_ms = int((time.time() - llm_start) * 1000)
+                llm_duration_seconds = time.time() - llm_start
+                # Record Nemotron AI request duration
+                observe_ai_request_duration("nemotron", llm_duration_seconds)
                 logger.debug(
                     f"LLM analysis completed for batch {batch_id}",
                     extra={
@@ -148,6 +157,10 @@ class NemotronAnalyzer:
                 )
             except Exception as e:
                 llm_duration_ms = int((time.time() - llm_start) * 1000)
+                llm_duration_seconds = time.time() - llm_start
+                # Record duration even on failure
+                observe_ai_request_duration("nemotron", llm_duration_seconds)
+                record_pipeline_error("nemotron_analysis_error")
                 logger.error(
                     f"LLM analysis failed for batch {batch_id}: {e}",
                     extra={
@@ -184,6 +197,12 @@ class NemotronAnalyzer:
             await session.refresh(event)
 
             total_duration_ms = int((time.time() - analysis_start) * 1000)
+            total_duration_seconds = time.time() - analysis_start
+
+            # Record stage duration and event creation metrics
+            observe_stage_duration("analyze", total_duration_seconds)
+            record_event_created()
+
             logger.info(
                 f"Created event {event.id} for batch {batch_id}: "
                 f"risk_score={event.risk_score}, risk_level={event.risk_level}",
@@ -278,6 +297,9 @@ class NemotronAnalyzer:
                     detections_list=detections_list,
                 )
                 llm_duration_ms = int((time.time() - llm_start) * 1000)
+                llm_duration_seconds = time.time() - llm_start
+                # Record Nemotron AI request duration
+                observe_ai_request_duration("nemotron", llm_duration_seconds)
                 logger.debug(
                     f"Fast path LLM analysis completed for detection {detection_id}",
                     extra={
@@ -288,6 +310,10 @@ class NemotronAnalyzer:
                 )
             except Exception as e:
                 llm_duration_ms = int((time.time() - llm_start) * 1000)
+                llm_duration_seconds = time.time() - llm_start
+                # Record duration even on failure
+                observe_ai_request_duration("nemotron", llm_duration_seconds)
+                record_pipeline_error("nemotron_fast_path_error")
                 logger.error(
                     f"LLM analysis failed for fast path detection {detection_id}: {e}",
                     extra={
@@ -325,6 +351,12 @@ class NemotronAnalyzer:
             await session.refresh(event)
 
             total_duration_ms = int((time.time() - analysis_start) * 1000)
+            total_duration_seconds = time.time() - analysis_start
+
+            # Record stage duration and event creation metrics
+            observe_stage_duration("analyze", total_duration_seconds)
+            record_event_created()
+
             logger.info(
                 f"Created fast path event {event.id} for detection {detection_id}: "
                 f"risk_score={event.risk_score}, risk_level={event.risk_level}",

@@ -478,7 +478,6 @@ class TestMemrayAvailability:
             # On Linux/macOS, memray may or may not be installed
             # We just verify the detection logic runs without error
             assert isinstance(memray_available, bool)
-        else:
-            # On Windows, memray should not be available
-            if memray_available:
-                pytest.fail("memray should not be available on Windows")
+        # On Windows, memray should not be available
+        elif memray_available:
+            pytest.fail("memray should not be available on Windows")

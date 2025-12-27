@@ -38,7 +38,7 @@ class Event(Base):
     is_fast_path: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Relationships
-    camera: Mapped["Camera"] = relationship("Camera", back_populates="events")
+    camera: Mapped[Camera] = relationship("Camera", back_populates="events")
 
     # Indexes for common queries
     __table_args__ = (

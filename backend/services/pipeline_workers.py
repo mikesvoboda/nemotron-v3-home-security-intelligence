@@ -35,6 +35,11 @@ from typing import Any
 from backend.core.config import get_settings
 from backend.core.database import get_session
 from backend.core.logging import get_logger
+from backend.core.metrics import (
+    observe_stage_duration,
+    record_pipeline_error,
+    set_queue_depth,
+)
 from backend.core.redis import RedisClient
 from backend.services.batch_aggregator import BatchAggregator
 from backend.services.detector_client import DetectorClient
@@ -193,6 +198,7 @@ class DetectionQueueWorker:
             except Exception as e:
                 self._stats.errors += 1
                 self._stats.state = WorkerState.ERROR
+                record_pipeline_error("detection_worker_error")
                 logger.error(
                     f"Error in DetectionQueueWorker loop: {e}",
                     exc_info=True,
@@ -215,6 +221,7 @@ class DetectionQueueWorker:
         """
         import time
 
+        start_time = time.time()
         camera_id = item.get("camera_id")
         file_path = item.get("file_path")
 
@@ -249,6 +256,10 @@ class DetectionQueueWorker:
             self._stats.items_processed += 1
             self._stats.last_processed_at = time.time()
 
+            # Record detect stage duration
+            duration = time.time() - start_time
+            observe_stage_duration("detect", duration)
+
             logger.debug(
                 f"Processed {len(detections)} detections from {file_path}",
                 extra={
@@ -260,6 +271,7 @@ class DetectionQueueWorker:
 
         except Exception as e:
             self._stats.errors += 1
+            record_pipeline_error("detection_processing_error")
             logger.error(
                 f"Failed to process detection item: {e}",
                 extra={"camera_id": camera_id, "file_path": file_path},
@@ -376,6 +388,7 @@ class AnalysisQueueWorker:
             except Exception as e:
                 self._stats.errors += 1
                 self._stats.state = WorkerState.ERROR
+                record_pipeline_error("analysis_worker_error")
                 logger.error(
                     f"Error in AnalysisQueueWorker loop: {e}",
                     exc_info=True,
@@ -435,6 +448,7 @@ class AnalysisQueueWorker:
             )
         except Exception as e:
             self._stats.errors += 1
+            record_pipeline_error("analysis_batch_error")
             logger.error(
                 f"Failed to analyze batch {batch_id}: {e}",
                 extra={"batch_id": batch_id, "camera_id": camera_id},
@@ -535,12 +549,19 @@ class BatchTimeoutWorker:
 
         while self._running:
             try:
+                start_time = time.time()
+
                 # Check for batch timeouts
                 closed_batches = await self._aggregator.check_batch_timeouts()
 
                 if closed_batches:
                     self._stats.items_processed += len(closed_batches)
                     self._stats.last_processed_at = time.time()
+
+                    # Record batch stage duration
+                    duration = time.time() - start_time
+                    observe_stage_duration("batch", duration)
+
                     logger.info(
                         f"Closed {len(closed_batches)} timed-out batches",
                         extra={
@@ -558,6 +579,7 @@ class BatchTimeoutWorker:
             except Exception as e:
                 self._stats.errors += 1
                 self._stats.state = WorkerState.ERROR
+                record_pipeline_error("batch_timeout_error")
                 logger.error(
                     f"Error in BatchTimeoutWorker loop: {e}",
                     exc_info=True,
@@ -570,6 +592,101 @@ class BatchTimeoutWorker:
             "BatchTimeoutWorker loop exited",
             extra={"batches_closed": self._stats.items_processed},
         )
+
+
+class QueueMetricsWorker:
+    """Worker that periodically updates queue depth metrics for Prometheus.
+
+    This worker runs at a configurable interval and:
+    1. Queries Redis for detection_queue and analysis_queue lengths
+    2. Updates Prometheus gauge metrics with current depths
+
+    This provides observability into queue backlogs without impacting
+    the main processing workers.
+    """
+
+    def __init__(
+        self,
+        redis_client: RedisClient,
+        update_interval: float = 5.0,
+    ) -> None:
+        """Initialize queue metrics worker.
+
+        Args:
+            redis_client: Redis client for queue length queries
+            update_interval: How often to update metrics (seconds)
+        """
+        self._redis = redis_client
+        self._update_interval = update_interval
+        self._running = False
+        self._task: asyncio.Task | None = None
+
+    @property
+    def running(self) -> bool:
+        """Check if worker is running."""
+        return self._running
+
+    async def start(self) -> None:
+        """Start the queue metrics worker."""
+        if self._running:
+            logger.warning("QueueMetricsWorker already running")
+            return
+
+        logger.info(
+            "Starting QueueMetricsWorker",
+            extra={"update_interval": self._update_interval},
+        )
+        self._running = True
+        self._task = asyncio.create_task(self._run_loop())
+
+    async def stop(self) -> None:
+        """Stop the queue metrics worker gracefully."""
+        if not self._running:
+            return
+
+        logger.info("Stopping QueueMetricsWorker")
+        self._running = False
+
+        if self._task:
+            try:
+                await asyncio.wait_for(self._task, timeout=5.0)
+            except TimeoutError:
+                self._task.cancel()
+                try:
+                    await self._task
+                except asyncio.CancelledError:
+                    pass
+            self._task = None
+
+        logger.info("QueueMetricsWorker stopped")
+
+    async def _run_loop(self) -> None:
+        """Main loop for updating queue metrics."""
+        logger.info("QueueMetricsWorker loop started")
+
+        while self._running:
+            try:
+                # Get queue depths from Redis
+                detection_depth = await self._redis.get_queue_length("detection_queue")
+                analysis_depth = await self._redis.get_queue_length("analysis_queue")
+
+                # Update Prometheus metrics
+                set_queue_depth("detection", detection_depth)
+                set_queue_depth("analysis", analysis_depth)
+
+                logger.debug(
+                    f"Updated queue metrics: detection={detection_depth}, analysis={analysis_depth}"
+                )
+
+            except asyncio.CancelledError:
+                logger.info("QueueMetricsWorker loop cancelled")
+                break
+            except Exception as e:
+                logger.warning(f"Failed to update queue metrics: {e}")
+
+            await asyncio.sleep(self._update_interval)
+
+        logger.info("QueueMetricsWorker loop exited")
 
 
 class PipelineWorkerManager:
@@ -596,6 +713,7 @@ class PipelineWorkerManager:
         enable_detection_worker: bool = True,
         enable_analysis_worker: bool = True,
         enable_timeout_worker: bool = True,
+        enable_metrics_worker: bool = True,
     ) -> None:
         """Initialize pipeline worker manager.
 
@@ -606,6 +724,7 @@ class PipelineWorkerManager:
             enable_detection_worker: Whether to start detection queue worker
             enable_analysis_worker: Whether to start analysis queue worker
             enable_timeout_worker: Whether to start batch timeout worker
+            enable_metrics_worker: Whether to start queue metrics worker
         """
         self._redis = redis_client
         settings = get_settings()
@@ -617,6 +736,7 @@ class PipelineWorkerManager:
         self._detection_worker: DetectionQueueWorker | None = None
         self._analysis_worker: AnalysisQueueWorker | None = None
         self._timeout_worker: BatchTimeoutWorker | None = None
+        self._metrics_worker: QueueMetricsWorker | None = None
 
         if enable_detection_worker:
             self._detection_worker = DetectionQueueWorker(
@@ -638,6 +758,12 @@ class PipelineWorkerManager:
                 redis_client=redis_client,
                 batch_aggregator=self._aggregator,
                 check_interval=check_interval,
+            )
+
+        if enable_metrics_worker:
+            self._metrics_worker = QueueMetricsWorker(
+                redis_client=redis_client,
+                update_interval=5.0,  # Update metrics every 5 seconds
             )
 
         self._running = False
@@ -668,6 +794,9 @@ class PipelineWorkerManager:
         if self._timeout_worker:
             status["workers"]["timeout"] = self._timeout_worker.stats.to_dict()
 
+        if self._metrics_worker:
+            status["workers"]["metrics"] = {"running": self._metrics_worker.running}
+
         return status
 
     async def start(self) -> None:
@@ -694,6 +823,8 @@ class PipelineWorkerManager:
             start_tasks.append(self._analysis_worker.start())
         if self._timeout_worker:
             start_tasks.append(self._timeout_worker.start())
+        if self._metrics_worker:
+            start_tasks.append(self._metrics_worker.start())
 
         if start_tasks:
             await asyncio.gather(*start_tasks)
@@ -717,6 +848,8 @@ class PipelineWorkerManager:
             stop_tasks.append(self._analysis_worker.stop())
         if self._timeout_worker:
             stop_tasks.append(self._timeout_worker.stop())
+        if self._metrics_worker:
+            stop_tasks.append(self._metrics_worker.stop())
 
         if stop_tasks:
             await asyncio.gather(*stop_tasks, return_exceptions=True)

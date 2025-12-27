@@ -351,3 +351,219 @@ class ReadinessResponse(BaseModel):
             }
         }
     )
+
+
+# =============================================================================
+# Telemetry Schemas
+# =============================================================================
+
+
+class QueueDepths(BaseModel):
+    """Queue depth information for pipeline queues."""
+
+    detection_queue: int = Field(
+        ...,
+        description="Number of items in detection queue waiting for RT-DETRv2 processing",
+        ge=0,
+    )
+    analysis_queue: int = Field(
+        ...,
+        description="Number of batches in analysis queue waiting for Nemotron LLM analysis",
+        ge=0,
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "detection_queue": 5,
+                "analysis_queue": 2,
+            }
+        }
+    )
+
+
+class StageLatency(BaseModel):
+    """Latency statistics for a single pipeline stage."""
+
+    avg_ms: float | None = Field(
+        None,
+        description="Average latency in milliseconds",
+        ge=0,
+    )
+    min_ms: float | None = Field(
+        None,
+        description="Minimum latency in milliseconds",
+        ge=0,
+    )
+    max_ms: float | None = Field(
+        None,
+        description="Maximum latency in milliseconds",
+        ge=0,
+    )
+    p50_ms: float | None = Field(
+        None,
+        description="50th percentile (median) latency in milliseconds",
+        ge=0,
+    )
+    p95_ms: float | None = Field(
+        None,
+        description="95th percentile latency in milliseconds",
+        ge=0,
+    )
+    p99_ms: float | None = Field(
+        None,
+        description="99th percentile latency in milliseconds",
+        ge=0,
+    )
+    sample_count: int = Field(
+        ...,
+        description="Number of samples used to calculate statistics",
+        ge=0,
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "avg_ms": 150.5,
+                "min_ms": 50.0,
+                "max_ms": 500.0,
+                "p50_ms": 120.0,
+                "p95_ms": 400.0,
+                "p99_ms": 480.0,
+                "sample_count": 100,
+            }
+        }
+    )
+
+
+class PipelineLatencies(BaseModel):
+    """Latency statistics for all pipeline stages.
+
+    Pipeline stages:
+    - watch: File watcher detecting new images (file event -> queue)
+    - detect: RT-DETRv2 object detection (image -> detections)
+    - batch: Batch aggregation window (detections -> batch)
+    - analyze: Nemotron LLM risk analysis (batch -> event)
+    """
+
+    watch: StageLatency | None = Field(
+        None,
+        description="File watcher stage latency (file event to queue)",
+    )
+    detect: StageLatency | None = Field(
+        None,
+        description="Object detection stage latency (RT-DETRv2 inference)",
+    )
+    batch: StageLatency | None = Field(
+        None,
+        description="Batch aggregation window time",
+    )
+    analyze: StageLatency | None = Field(
+        None,
+        description="LLM analysis stage latency (Nemotron inference)",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "watch": {
+                    "avg_ms": 10.0,
+                    "min_ms": 5.0,
+                    "max_ms": 50.0,
+                    "p50_ms": 8.0,
+                    "p95_ms": 40.0,
+                    "p99_ms": 48.0,
+                    "sample_count": 500,
+                },
+                "detect": {
+                    "avg_ms": 200.0,
+                    "min_ms": 100.0,
+                    "max_ms": 800.0,
+                    "p50_ms": 180.0,
+                    "p95_ms": 600.0,
+                    "p99_ms": 750.0,
+                    "sample_count": 500,
+                },
+                "batch": {
+                    "avg_ms": 30000.0,
+                    "min_ms": 5000.0,
+                    "max_ms": 90000.0,
+                    "p50_ms": 25000.0,
+                    "p95_ms": 80000.0,
+                    "p99_ms": 88000.0,
+                    "sample_count": 100,
+                },
+                "analyze": {
+                    "avg_ms": 5000.0,
+                    "min_ms": 2000.0,
+                    "max_ms": 15000.0,
+                    "p50_ms": 4500.0,
+                    "p95_ms": 12000.0,
+                    "p99_ms": 14000.0,
+                    "sample_count": 100,
+                },
+            }
+        }
+    )
+
+
+class TelemetryResponse(BaseModel):
+    """Response schema for pipeline telemetry endpoint.
+
+    Provides real-time visibility into:
+    - Queue depths: How many items are waiting in detection/analysis queues
+    - Stage latencies: How long each pipeline stage is taking
+
+    This helps operators:
+    - Identify pipeline bottlenecks
+    - Detect backlog situations
+    - Monitor processing performance
+    - Debug pipeline stalls
+    """
+
+    queues: QueueDepths = Field(
+        ...,
+        description="Current queue depths for detection and analysis queues",
+    )
+    latencies: PipelineLatencies | None = Field(
+        None,
+        description="Latency statistics for each pipeline stage",
+    )
+    timestamp: datetime = Field(
+        ...,
+        description="Timestamp of telemetry snapshot",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "queues": {
+                    "detection_queue": 5,
+                    "analysis_queue": 2,
+                },
+                "latencies": {
+                    "watch": {
+                        "avg_ms": 10.0,
+                        "min_ms": 5.0,
+                        "max_ms": 50.0,
+                        "p50_ms": 8.0,
+                        "p95_ms": 40.0,
+                        "p99_ms": 48.0,
+                        "sample_count": 500,
+                    },
+                    "detect": {
+                        "avg_ms": 200.0,
+                        "min_ms": 100.0,
+                        "max_ms": 800.0,
+                        "p50_ms": 180.0,
+                        "p95_ms": 600.0,
+                        "p99_ms": 750.0,
+                        "sample_count": 500,
+                    },
+                    "batch": None,
+                    "analyze": None,
+                },
+                "timestamp": "2025-12-27T10:30:00Z",
+            }
+        }
+    )
