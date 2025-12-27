@@ -2,259 +2,105 @@
 
 ## Purpose
 
-End-to-end test suite for full user workflows using a real browser environment. E2E tests verify the entire application stack from frontend to backend, including real API calls, WebSocket connections, and database interactions.
+End-to-end test suite for full user workflows using a real browser environment. E2E tests verify the application UI renders correctly and responds to user interactions.
 
 ## Current Status
 
-**Status**: Planned (Phase 8)
+**Status**: Implemented (Phase 8)
 
-Directory currently contains:
+This directory contains minimal Playwright smoke tests for the Home Security Dashboard.
 
-- `.gitkeep` - Placeholder file to maintain directory in git
-- `AGENTS.md` - This documentation file
-
-E2E tests will be implemented in **Phase 8 (Integration & E2E)** of the project roadmap. Prerequisites include:
-
-1. All Phase 1-7 tasks complete
-2. Backend API fully operational
-3. WebSocket channels working
-4. Database with test data available
-
-## Planned E2E Framework
-
-### Options
-
-- **Playwright** (recommended): Multi-browser, fast, reliable
-- **Cypress**: Developer-friendly, time-travel debugging
-- **Puppeteer**: Chrome-focused, lightweight
-
-### Recommended: Playwright
-
-```bash
-npm install -D @playwright/test
-npx playwright install
-```
-
-## Planned Test Structure
+## Directory Contents
 
 ```
 frontend/tests/e2e/
-├── fixtures/              # Page objects and helpers
-│   ├── pages/
-│   │   ├── DashboardPage.ts
-│   │   ├── CameraPage.ts
-│   │   └── EventsPage.ts
-│   └── api/
-│       └── mockServer.ts
-├── specs/                 # Test specifications
-│   ├── dashboard.spec.ts
-│   ├── cameras.spec.ts
-│   ├── events.spec.ts
-│   └── websocket.spec.ts
-├── playwright.config.ts   # Playwright configuration
-└── AGENTS.md             # This file
+├── smoke.spec.ts      # Dashboard loading and component visibility tests
+├── navigation.spec.ts # Page navigation and routing tests
+├── realtime.spec.ts   # Real-time updates and WebSocket tests
+├── AGENTS.md          # This documentation file
+└── .gitkeep           # Placeholder file to maintain directory in git
 ```
 
-## Planned Test Scenarios
+## Test Files
 
-### Dashboard Workflow
+### smoke.spec.ts
 
-```typescript
-// specs/dashboard.spec.ts
-import { test, expect } from '@playwright/test';
+Dashboard smoke tests that verify:
+- Dashboard page loads successfully
+- Dashboard displays key components (Risk Level, Camera Status, Live Activity)
+- Dashboard shows real-time monitoring subtitle
+- Dashboard has correct dark theme styling
+- Header displays NVIDIA branding
+- Sidebar navigation is visible
 
-test.describe('Dashboard', () => {
-  test('displays system status on load', async ({ page }) => {
-    await page.goto('/');
+### navigation.spec.ts
 
-    // System health visible
-    await expect(page.getByText('System Status')).toBeVisible();
+Navigation tests that verify:
+- Can navigate to dashboard from root
+- Can navigate to timeline page
+- Can navigate to logs page
+- Can navigate to settings page
+- Sidebar navigation works
+- URL reflects current page
+- Page transitions preserve layout
 
-    // Camera grid visible
-    await expect(page.getByRole('heading', { name: /cameras/i })).toBeVisible();
+### realtime.spec.ts
 
-    // Risk gauge visible
-    await expect(page.getByText(/risk level/i)).toBeVisible();
-  });
+Real-time feature tests that verify:
+- Dashboard shows disconnected state when WebSocket fails
+- Activity feed shows empty state when no events
+- System status indicator is visible
+- GPU stats display updates from API
+- Dashboard shows error state when API fails
 
-  test('updates risk score in real-time', async ({ page }) => {
-    await page.goto('/');
+## E2E Framework
 
-    // Mock WebSocket message
-    await page.evaluate(() => {
-      window.dispatchEvent(
-        new MessageEvent('message', {
-          data: JSON.stringify({
-            id: 'evt-1',
-            risk_score: 85,
-            risk_level: 'critical',
-            summary: 'Intrusion detected',
-          }),
-        })
-      );
-    });
+**Playwright** is used for E2E testing with the following configuration:
 
-    // Risk score updates
-    await expect(page.getByText('85')).toBeVisible();
-    await expect(page.getByText('Critical')).toBeVisible();
-  });
-});
-```
+- **Browser**: Chromium only (for minimal smoke tests)
+- **Mode**: Headless in CI, headed locally (optional)
+- **API Mocking**: All backend endpoints are mocked using route interception
+- **Web Server**: Dev server auto-starts before tests
 
-### Camera Management
+## Running Tests
 
-```typescript
-// specs/cameras.spec.ts
-test.describe('Camera Management', () => {
-  test('creates new camera', async ({ page }) => {
-    await page.goto('/cameras');
-    await page.click('button:has-text("Add Camera")');
+```bash
+# Run all E2E tests (headless)
+npm run test:e2e
 
-    await page.fill('input[name="name"]', 'Back Yard');
-    await page.fill('input[name="folder_path"]', '/export/foscam/back_yard');
-    await page.click('button:has-text("Save")');
+# Run E2E tests with browser visible
+npm run test:e2e:headed
 
-    await expect(page.getByText('Back Yard')).toBeVisible();
-  });
+# Run E2E tests in debug mode
+npm run test:e2e:debug
 
-  test('deletes camera', async ({ page }) => {
-    await page.goto('/cameras');
-    await page.click('[data-testid="camera-1-menu"]');
-    await page.click('text=Delete');
-    await page.click('button:has-text("Confirm")');
+# View the HTML test report
+npm run test:e2e:report
 
-    await expect(page.getByText('Front Door')).not.toBeVisible();
-  });
-});
-```
-
-### Event Timeline
-
-```typescript
-// specs/events.spec.ts
-test.describe('Event Timeline', () => {
-  test('filters events by risk level', async ({ page }) => {
-    await page.goto('/events');
-
-    // Select high risk filter
-    await page.selectOption('select[name="risk_filter"]', 'high');
-
-    // Only high-risk events visible
-    await expect(page.getByText('High')).toHaveCount(5);
-    await expect(page.getByText('Low')).not.toBeVisible();
-  });
-
-  test('opens event detail modal', async ({ page }) => {
-    await page.goto('/events');
-    await page.click('[data-testid="event-evt-1"]');
-
-    // Modal visible with details
-    await expect(page.getByRole('dialog')).toBeVisible();
-    await expect(page.getByText('Detection Details')).toBeVisible();
-    await expect(page.getByText('Risk Score: 75')).toBeVisible();
-  });
-});
-```
-
-### WebSocket Connection
-
-```typescript
-// specs/websocket.spec.ts
-test.describe('Real-time Updates', () => {
-  test('maintains WebSocket connection', async ({ page }) => {
-    await page.goto('/');
-
-    // Connection indicator shows connected
-    await expect(page.getByTestId('ws-status')).toHaveClass(/connected/);
-
-    // Receives live events
-    await page.waitForSelector('[data-testid="live-event"]', { timeout: 30000 });
-  });
-
-  test('reconnects after disconnect', async ({ page }) => {
-    await page.goto('/');
-
-    // Simulate disconnect
-    await page.evaluate(() => {
-      // Close WebSocket connection
-      window.dispatchEvent(new Event('offline'));
-    });
-
-    await expect(page.getByTestId('ws-status')).toHaveClass(/disconnected/);
-
-    // Auto-reconnects
-    await page.waitForTimeout(3000);
-    await expect(page.getByTestId('ws-status')).toHaveClass(/connected/);
-  });
-});
-```
-
-## Page Object Pattern
-
-```typescript
-// fixtures/pages/DashboardPage.ts
-export class DashboardPage {
-  constructor(private page: Page) {}
-
-  async goto() {
-    await this.page.goto('/');
-  }
-
-  async waitForLoad() {
-    await this.page.waitForSelector('[data-testid="dashboard"]');
-  }
-
-  async getRiskScore() {
-    const text = await this.page.textContent('[data-testid="risk-score"]');
-    return parseInt(text || '0', 10);
-  }
-
-  async getCameraCount() {
-    return await this.page.locator('[data-testid="camera-card"]').count();
-  }
-
-  async clickCamera(name: string) {
-    await this.page.click(`[data-testid="camera-${name}"]`);
-  }
-}
-
-// Usage in test
-test('dashboard displays cameras', async ({ page }) => {
-  const dashboard = new DashboardPage(page);
-  await dashboard.goto();
-  await dashboard.waitForLoad();
-
-  const count = await dashboard.getCameraCount();
-  expect(count).toBeGreaterThan(0);
-});
+# Run a specific test file
+npx playwright test smoke.spec.ts
 ```
 
 ## Configuration
 
-```typescript
-// playwright.config.ts (place in frontend root)
-import { defineConfig, devices } from '@playwright/test';
+The Playwright configuration is in `frontend/playwright.config.ts`:
 
+```typescript
 export default defineConfig({
-  testDir: './tests/e2e/specs',
+  testDir: './tests/e2e',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-
   use: {
     baseURL: 'http://localhost:5173',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
   },
-
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
-    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
   ],
-
   webServer: {
     command: 'npm run dev',
     url: 'http://localhost:5173',
@@ -264,95 +110,99 @@ export default defineConfig({
 });
 ```
 
-## Running E2E Tests
+## API Mocking Pattern
 
-```bash
-# Run all tests
-npx playwright test
+All tests mock backend API endpoints using Playwright's route interception:
 
-# Run specific test file
-npx playwright test dashboard.spec.ts
+```typescript
+test.beforeEach(async ({ page }) => {
+  // Mock the cameras endpoint
+  await page.route('**/api/cameras', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify([
+        {
+          id: 'cam-1',
+          name: 'Front Door',
+          folder_path: '/export/foscam/front_door',
+          status: 'online',
+          created_at: new Date().toISOString(),
+          last_seen_at: new Date().toISOString(),
+        },
+      ]),
+    });
+  });
 
-# Run in headed mode (see browser)
-npx playwright test --headed
+  // Mock WebSocket connections to prevent errors
+  await page.route('**/ws/**', async (route) => {
+    await route.abort('connectionfailed');
+  });
+});
+```
 
-# Run in debug mode
-npx playwright test --debug
+This approach:
+- Makes tests reliable and independent of backend state
+- Allows testing error scenarios (API failures, disconnections)
+- Runs faster without needing a real backend
 
-# Run specific browser
-npx playwright test --project=chromium
+## CI Integration
 
-# Generate code (record actions)
-npx playwright codegen http://localhost:5173
+E2E tests run in GitHub Actions CI:
+
+```yaml
+frontend-e2e:
+  name: Frontend E2E Tests (Playwright)
+  runs-on: ubuntu-latest
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install dependencies
+      run: cd frontend && npm ci
+
+    - name: Install Playwright Chromium
+      run: cd frontend && npx playwright install chromium --with-deps
+
+    - name: Run E2E tests
+      run: cd frontend && npm run test:e2e
+
+    - name: Upload Playwright report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: playwright-report
+        path: frontend/playwright-report/
+        retention-days: 7
 ```
 
 ## Best Practices
 
-1. **Use data-testid attributes**: Stable selectors immune to style changes
-2. **Page Object Pattern**: Encapsulate page interactions in reusable classes
-3. **Wait for conditions**: Use `waitFor*` methods, avoid hard-coded timeouts
-4. **Test isolation**: Each test should be independent and clean up after itself
-5. **Mock external APIs**: Use MSW or Playwright's route interception for reliability
-6. **Screenshots on failure**: Automatic in config (screenshot + video + trace)
-7. **Parallel execution**: Speeds up test runs (configured per browser)
-8. **Semantic queries**: Use `getByRole`, `getByLabel` for accessibility-friendly selectors
+1. **Mock all backend endpoints**: Ensures tests are reliable and fast
+2. **Use semantic queries**: `getByRole`, `getByText` for accessibility-friendly selectors
+3. **Wait for conditions**: Use `toBeVisible()` with timeout instead of hard-coded waits
+4. **Test isolation**: Each test should be independent
+5. **Screenshots on failure**: Automatic via Playwright config
+6. **Keep tests minimal**: Focus on smoke tests, not comprehensive coverage
 
-## Prerequisites for E2E Tests
+## Test Output
 
-Before implementing E2E tests, ensure:
-
-1. **Backend server running**: E2E tests require full stack
-
-   - FastAPI backend on port 8000
-   - SQLite database initialized (this project uses SQLite, not PostgreSQL)
-   - Redis for WebSocket support and caching
-
-2. **Test data setup**: Seed database with predictable test data
-
-   - Sample cameras (matching `/export/foscam/{camera_name}/` structure)
-   - Sample events with various risk levels (low, medium, high, critical)
-   - Known detection patterns from RT-DETRv2
-
-3. **Environment variables**: Configure test environment
-
-   - `VITE_API_BASE_URL` (defaults to empty for proxy mode)
-   - Backend configured for test mode (faster, no side effects)
-
-4. **Docker services**: Can use Docker Compose for consistent test environment
-   - `docker-compose up -d backend redis` for backend services
-   - Frontend runs via `npm run dev` or Playwright's built-in server
-
-## Integration with CI/CD
-
-E2E tests should run in CI/CD pipeline:
-
-```yaml
-# .github/workflows/test.yml (example)
-- name: Install Playwright
-  run: npx playwright install --with-deps
-
-- name: Start backend
-  run: docker-compose up -d backend redis
-
-- name: Run E2E tests
-  run: npm run test:e2e
-
-- name: Upload test results
-  if: always()
-  uses: actions/upload-artifact@v3
-  with:
-    name: playwright-report
-    path: playwright-report/
-```
+- **Console output**: Test results during run
+- **HTML report**: `frontend/playwright-report/` (view with `npm run test:e2e:report`)
+- **Test artifacts**: `frontend/test-results/` (screenshots, videos, traces on failure)
 
 ## Notes for AI Agents
 
-- E2E tests require **full system setup** (frontend + backend + database + Redis)
-- Tests verify **user workflows**, not implementation details
-- Use **Page Object Pattern** to avoid duplication and improve maintainability
-- E2E tests are **slower** than unit/integration tests - use sparingly for critical paths
-- Focus on **happy paths** and **critical error scenarios**
-- Consider **visual regression testing** with Playwright's screenshot comparison
-- E2E tests should work with both development and production builds
-- Use `test.beforeEach` for common setup (authentication, navigation)
-- Backend server should be in "test mode" to avoid side effects (email sending, external API calls, etc.)
+- E2E tests use **mocked backend** - no real backend required
+- Tests verify **UI behavior**, not implementation details
+- All API mocking is done in `test.beforeEach` hooks
+- WebSocket connections are aborted to test disconnection handling
+- Focus is on **smoke testing** critical paths
+- Tests should pass in under 60 seconds total

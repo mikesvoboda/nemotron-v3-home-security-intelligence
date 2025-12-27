@@ -567,3 +567,77 @@ class TelemetryResponse(BaseModel):
             }
         }
     )
+
+
+# =============================================================================
+# Cleanup Schemas
+# =============================================================================
+
+
+class CleanupResponse(BaseModel):
+    """Response schema for data cleanup endpoint.
+
+    Returns statistics about the cleanup operation including counts of
+    deleted records and files.
+    """
+
+    events_deleted: int = Field(
+        ...,
+        description="Number of events deleted",
+        ge=0,
+    )
+    detections_deleted: int = Field(
+        ...,
+        description="Number of detections deleted",
+        ge=0,
+    )
+    gpu_stats_deleted: int = Field(
+        ...,
+        description="Number of GPU stat records deleted",
+        ge=0,
+    )
+    logs_deleted: int = Field(
+        ...,
+        description="Number of log records deleted",
+        ge=0,
+    )
+    thumbnails_deleted: int = Field(
+        ...,
+        description="Number of thumbnail files deleted",
+        ge=0,
+    )
+    images_deleted: int = Field(
+        ...,
+        description="Number of original image files deleted",
+        ge=0,
+    )
+    space_reclaimed: int = Field(
+        ...,
+        description="Estimated disk space freed in bytes",
+        ge=0,
+    )
+    retention_days: int = Field(
+        ...,
+        description="Retention period used for cleanup",
+        ge=1,
+    )
+    timestamp: datetime = Field(
+        ...,
+        description="Timestamp of cleanup operation",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "events_deleted": 15,
+                "detections_deleted": 89,
+                "gpu_stats_deleted": 2880,
+                "logs_deleted": 150,
+                "thumbnails_deleted": 89,
+                "images_deleted": 0,
+                "space_reclaimed": 524288000,
+                "retention_days": 30,
+                "timestamp": "2025-12-27T10:30:00Z",
+            }
+        }
+    )

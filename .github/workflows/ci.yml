@@ -161,6 +161,36 @@ jobs:
   # Frontend Jobs
   # ============================================================================
 
+  api-types-check:
+    name: API Types Contract Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+          cache-dependency-path: backend/requirements*.txt
+
+      - name: Install backend dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+
+      - name: Check API types are current
+        run: ./scripts/generate-types.sh --check
+
   frontend-lint:
     name: Frontend Lint (ESLint)
     runs-on: ubuntu-latest
@@ -228,6 +258,45 @@ jobs:
           flags: frontend
           fail_ci_if_error: false
 
+  frontend-e2e:
+    name: Frontend E2E Tests (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: Install Playwright Chromium
+        run: cd frontend && npx playwright install chromium --with-deps
+
+      - name: Run E2E tests
+        run: cd frontend && npm run test:e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: frontend/test-results/
+          retention-days: 7
+
   # ============================================================================
   # Build Job (depends on all tests passing)
   # ============================================================================
@@ -240,9 +309,11 @@ jobs:
       - typecheck
       - unit-tests
       - integration-tests
+      - api-types-check
       - frontend-lint
       - frontend-typecheck
       - frontend-tests
+      - frontend-e2e
     steps:
       - name: Checkout
         uses: actions/checkout@v4

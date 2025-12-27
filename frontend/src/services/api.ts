@@ -1,95 +1,81 @@
 /**
  * API Client for Home Security Dashboard
  * Provides typed fetch wrappers for all REST endpoints
+ *
+ * Types are now generated from the backend OpenAPI specification.
+ * Run `./scripts/generate-types.sh` to regenerate types after backend changes.
+ *
+ * @see frontend/src/types/generated/ - Auto-generated OpenAPI types
  */
 
 // ============================================================================
-// Types
+// Re-export generated types for backward compatibility
+// These types are generated from backend/api/schemas/*.py via OpenAPI
 // ============================================================================
 
-export interface Camera {
-  id: string;
-  name: string;
-  folder_path: string;
-  status: string;
-  created_at: string;
-  last_seen_at: string | null;
-}
+export type {
+  Camera,
+  CameraCreate,
+  CameraUpdate,
+  CameraListResponse,
+  Event,
+  EventListResponse,
+  EventStatsResponse,
+  Detection,
+  DetectionListResponse,
+  HealthResponse,
+  ServiceStatus,
+  GPUStats,
+  GPUStatsSample,
+  GPUStatsHistoryResponse,
+  SystemConfig,
+  SystemConfigUpdate,
+  SystemStats,
+  LivenessResponse,
+  ReadinessResponse,
+  WorkerStatus,
+  TelemetryResponse,
+  QueueDepths,
+  PipelineLatencies,
+  StageLatency,
+  LogEntry,
+  LogsResponse,
+  LogStats,
+  FrontendLogCreate,
+  DLQJobResponse,
+  DLQJobsResponse,
+  DLQStatsResponse,
+  DLQClearResponse,
+  DLQRequeueResponse,
+  DLQName,
+  MediaErrorResponse,
+  CleanupResponse,
+  HTTPValidationError,
+  ValidationError,
+} from '../types/generated';
 
-export interface CameraCreate {
-  name: string;
-  folder_path: string;
-  status?: string;
-}
+// Import concrete types for use in this module
+import type {
+  Camera,
+  CameraCreate,
+  CameraUpdate,
+  CameraListResponse as GeneratedCameraListResponse,
+  Event,
+  EventListResponse as GeneratedEventListResponse,
+  DetectionListResponse as GeneratedDetectionListResponse,
+  HealthResponse,
+  GPUStats,
+  SystemConfig,
+  SystemConfigUpdate,
+  SystemStats,
+  LogsResponse as GeneratedLogsResponse,
+  LogStats,
+  CleanupResponse,
+} from '../types/generated';
 
-export interface CameraUpdate {
-  name?: string;
-  folder_path?: string;
-  status?: string;
-}
-
-export interface ServiceStatus {
-  status: string;
-  message: string | null;
-  details: Record<string, string> | null;
-}
-
-export interface HealthResponse {
-  status: string;
-  services: Record<string, ServiceStatus>;
-  timestamp: string;
-}
-
-export interface GPUStats {
-  utilization: number | null;
-  memory_used: number | null;
-  memory_total: number | null;
-  temperature: number | null;
-  inference_fps: number | null;
-}
-
-export interface SystemConfig {
-  app_name: string;
-  version: string;
-  retention_days: number;
-  batch_window_seconds: number;
-  batch_idle_timeout_seconds: number;
-  detection_confidence_threshold: number;
-}
-
-export interface SystemConfigUpdate {
-  retention_days?: number;
-  batch_window_seconds?: number;
-  batch_idle_timeout_seconds?: number;
-  detection_confidence_threshold?: number;
-}
-
-export interface SystemStats {
-  total_cameras: number;
-  total_events: number;
-  total_detections: number;
-  uptime_seconds: number;
-}
-
-export interface Event {
-  id: number;
-  camera_id: string;
-  started_at: string;
-  ended_at: string | null;
-  risk_score: number | null;
-  risk_level: string | null;
-  summary: string | null;
-  reviewed: boolean;
-  notes: string | null;
-  detection_count: number;
-}
-
-export interface EventListResponse {
-  events: Event[];
-  count: number;
-  limit: number;
-  offset: number;
-}
+// ============================================================================
+// Additional types not in OpenAPI (client-side only)
+// ============================================================================
 
 export interface EventsQueryParams {
   camera_id?: string;
@@ -188,13 +174,8 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
 // Camera Endpoints
 // ============================================================================
 
-export interface CameraListResponse {
-  cameras: Camera[];
-  count: number;
-}
-
 export async function fetchCameras(): Promise<Camera[]> {
-  const response = await fetchApi<CameraListResponse>('/api/cameras');
+  const response = await fetchApi<GeneratedCameraListResponse>('/api/cameras');
   return response.cameras;
 }
 
@@ -249,11 +230,17 @@ export async function fetchStats(): Promise<SystemStats> {
   return fetchApi<SystemStats>('/api/system/stats');
 }
 
+export async function triggerCleanup(): Promise<CleanupResponse> {
+  return fetchApi<CleanupResponse>('/api/system/cleanup', {
+    method: 'POST',
+  });
+}
+
 // ============================================================================
 // Event Endpoints
 // ============================================================================
 
-export async function fetchEvents(params?: EventsQueryParams): Promise<EventListResponse> {
+export async function fetchEvents(params?: EventsQueryParams): Promise<GeneratedEventListResponse> {
   const queryParams = new URLSearchParams();
 
   if (params) {
@@ -270,7 +257,7 @@ export async function fetchEvents(params?: EventsQueryParams): Promise<EventList
   const queryString = queryParams.toString();
   const endpoint = queryString ? `/api/events?${queryString}` : '/api/events';
 
-  return fetchApi<EventListResponse>(endpoint);
+  return fetchApi<GeneratedEventListResponse>(endpoint);
 }
 
 export async function fetchEvent(id: number): Promise<Event> {
@@ -321,35 +308,13 @@ export async function bulkUpdateEvents(
 }
 
 // ============================================================================
-// Detection Types and Endpoints
+// Detection Endpoints
 // ============================================================================
-
-export interface Detection {
-  id: number;
-  camera_id: string;
-  file_path: string;
-  file_type: string | null;
-  detected_at: string;
-  object_type: string | null;
-  confidence: number | null;
-  bbox_x: number | null;
-  bbox_y: number | null;
-  bbox_width: number | null;
-  bbox_height: number | null;
-  thumbnail_path: string | null;
-}
-
-export interface DetectionListResponse {
-  detections: Detection[];
-  count: number;
-  limit: number;
-  offset: number;
-}
 
 export async function fetchEventDetections(
   eventId: number,
   params?: { limit?: number; offset?: number }
-): Promise<DetectionListResponse> {
+): Promise<GeneratedDetectionListResponse> {
   const queryParams = new URLSearchParams();
 
   if (params) {
@@ -362,7 +327,7 @@ export async function fetchEventDetections(
     ? `/api/events/${eventId}/detections?${queryString}`
     : `/api/events/${eventId}/detections`;
 
-  return fetchApi<DetectionListResponse>(endpoint);
+  return fetchApi<GeneratedDetectionListResponse>(endpoint);
 }
 
 // ============================================================================
@@ -381,40 +346,8 @@ export function getThumbnailUrl(filename: string): string {
 // Logs Endpoints
 // ============================================================================
 
-export interface LogStats {
-  total_today: number;
-  errors_today: number;
-  warnings_today: number;
-  by_component: Record<string, number>;
-  by_level: Record<string, number>;
-  top_component: string | null;
-}
-
 export async function fetchLogStats(): Promise<LogStats> {
   return fetchApi<LogStats>('/api/logs/stats');
-}
-
-export interface LogEntry {
-  id: number;
-  timestamp: string;
-  level: 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL';
-  component: string;
-  message: string;
-  camera_id?: string | null;
-  event_id?: number | null;
-  request_id?: string | null;
-  detection_id?: number | null;
-  duration_ms?: number | null;
-  extra?: Record<string, unknown> | null;
-  source: string;
-  user_agent?: string | null;
-}
-
-export interface LogsResponse {
-  logs: LogEntry[];
-  count: number;
-  limit: number;
-  offset: number;
 }
 
 export interface LogsQueryParams {
@@ -429,7 +362,7 @@ export interface LogsQueryParams {
   offset?: number;
 }
 
-export async function fetchLogs(params?: LogsQueryParams): Promise<LogsResponse> {
+export async function fetchLogs(params?: LogsQueryParams): Promise<GeneratedLogsResponse> {
   const queryParams = new URLSearchParams();
 
   if (params) {
@@ -447,7 +380,7 @@ export async function fetchLogs(params?: LogsQueryParams): Promise<LogsResponse>
   const queryString = queryParams.toString();
   const endpoint = queryString ? `/api/logs?${queryString}` : '/api/logs';
 
-  return fetchApi<LogsResponse>(endpoint);
+  return fetchApi<GeneratedLogsResponse>(endpoint);
 }
 
 export function getDetectionImageUrl(detectionId: number): string {

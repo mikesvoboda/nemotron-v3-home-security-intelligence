@@ -2,7 +2,7 @@ import { Card, Title, Text, Button } from '@tremor/react';
 import { AlertCircle, Settings as SettingsIcon, Save, RotateCcw, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { fetchConfig, updateConfig, type SystemConfig, type SystemConfigUpdate } from '../../services/api';
+import { fetchConfig, updateConfig, triggerCleanup, type SystemConfig, type SystemConfigUpdate, type CleanupResponse } from '../../services/api';
 
 export interface ProcessingSettingsProps {
   className?: string;
@@ -22,8 +22,10 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
   const [editedConfig, setEditedConfig] = useState<SystemConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [cleaning, setCleaning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [cleanupResult, setCleanupResult] = useState<CleanupResponse | null>(null);
 
   useEffect(() => {
     const loadConfig = async () => {
@@ -87,9 +89,22 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
     }
   };
 
-  const handleClearData = () => {
-    // TODO: Implement data cleanup endpoint
-    alert('Clear old data functionality coming soon!');
+  const handleClearData = async () => {
+    try {
+      setCleaning(true);
+      setError(null);
+      setCleanupResult(null);
+
+      const result = await triggerCleanup();
+      setCleanupResult(result);
+
+      // Clear cleanup result after 10 seconds
+      setTimeout(() => setCleanupResult(null), 10000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to run cleanup');
+    } finally {
+      setCleaning(false);
+    }
   };
 
   return (
@@ -304,13 +319,33 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
 
           <div className="pt-4 border-t border-gray-800">
             <Button
-              onClick={handleClearData}
+              onClick={() => void handleClearData()}
+              disabled={cleaning}
               variant="secondary"
-              className="w-full border-red-500/30 text-red-400 hover:bg-red-500/10"
+              className="w-full border-red-500/30 text-red-400 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Trash2 className="h-4 w-4 mr-2" />
-              Clear Old Data
+              {cleaning ? 'Running Cleanup...' : 'Clear Old Data'}
             </Button>
+            {cleanupResult && (
+              <div className="mt-3 rounded-lg border border-green-500/30 bg-green-500/10 p-3">
+                <Text className="text-green-400 font-medium mb-2">Cleanup Complete</Text>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <Text className="text-gray-400">Events deleted:</Text>
+                  <Text className="text-white">{cleanupResult.events_deleted}</Text>
+                  <Text className="text-gray-400">Detections deleted:</Text>
+                  <Text className="text-white">{cleanupResult.detections_deleted}</Text>
+                  <Text className="text-gray-400">GPU stats deleted:</Text>
+                  <Text className="text-white">{cleanupResult.gpu_stats_deleted}</Text>
+                  <Text className="text-gray-400">Logs deleted:</Text>
+                  <Text className="text-white">{cleanupResult.logs_deleted}</Text>
+                  <Text className="text-gray-400">Thumbnails deleted:</Text>
+                  <Text className="text-white">{cleanupResult.thumbnails_deleted}</Text>
+                  <Text className="text-gray-400">Retention period:</Text>
+                  <Text className="text-white">{cleanupResult.retention_days} days</Text>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Application Info */}

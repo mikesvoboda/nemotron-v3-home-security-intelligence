@@ -25,7 +25,6 @@ import {
   type Camera,
   type CameraCreate,
   type CameraUpdate,
-  type ServiceStatus,
   type HealthResponse,
   type GPUStats,
   type SystemConfig,
@@ -323,10 +322,11 @@ describe('Camera API', () => {
       expect(result.folder_path).toBe(createData.folder_path);
     });
 
-    it('creates a camera with minimal data', async () => {
+    it('creates a camera with default status', async () => {
       const createData: CameraCreate = {
         name: 'Minimal Camera',
         folder_path: '/export/foscam/minimal',
+        status: 'online', // Required field with backend default
       };
 
       vi.mocked(fetch).mockResolvedValueOnce(
@@ -343,7 +343,9 @@ describe('Camera API', () => {
         createMockErrorResponse(400, 'Bad Request', 'Invalid folder path')
       );
 
-      await expect(createCamera({ name: 'Bad', folder_path: 'invalid' })).rejects.toThrow(ApiError);
+      await expect(
+        createCamera({ name: 'Bad', folder_path: 'invalid', status: 'online' })
+      ).rejects.toThrow(ApiError);
     });
   });
 

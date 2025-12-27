@@ -6,11 +6,17 @@ This document describes the testing infrastructure and test coverage for the fro
 
 ## Testing Stack
 
+### Unit/Integration Tests
 - **Test Runner**: Vitest
 - **Testing Library**: React Testing Library (@testing-library/react)
 - **User Interactions**: @testing-library/user-event
 - **DOM Matchers**: @testing-library/jest-dom
 - **Environment**: jsdom
+
+### E2E Tests
+- **Test Framework**: Playwright
+- **Browser**: Chromium (headless in CI)
+- **Test Location**: `tests/e2e/`
 
 ## Installation
 
@@ -28,11 +34,20 @@ This will install all testing dependencies listed in `package.json`:
 - `@testing-library/user-event`
 - `jsdom`
 - `vitest`
+- `@playwright/test`
+
+For E2E tests, also install the Chromium browser:
+
+```bash
+npx playwright install chromium
+```
 
 ## Running Tests
 
+### Unit Tests (Vitest)
+
 ```bash
-# Run all tests
+# Run all unit tests
 npm test
 
 # Run tests in watch mode
@@ -43,6 +58,28 @@ npm test -- --coverage
 
 # Run a specific test file
 npm test -- Layout.test.tsx
+```
+
+### E2E Tests (Playwright)
+
+```bash
+# Run all E2E tests (headless)
+npm run test:e2e
+
+# Run E2E tests with browser visible
+npm run test:e2e:headed
+
+# Run E2E tests in debug mode
+npm run test:e2e:debug
+
+# View the HTML test report
+npm run test:e2e:report
+
+# Run a specific E2E test file
+npx playwright test smoke.spec.ts
+
+# Run tests with specific browser
+npx playwright test --project=chromium
 ```
 
 ## Test Files
@@ -224,17 +261,73 @@ test: {
 
 4. **Async tests timing out**: Use `await` with userEvent interactions and increase timeout if needed
 
+## E2E Test Files
+
+E2E tests are located in `tests/e2e/`:
+
+### smoke.spec.ts
+- Dashboard page loads successfully
+- Dashboard displays key components (Risk Level, Camera Status, Live Activity)
+- Dashboard shows real-time monitoring subtitle
+- Dashboard has correct dark theme styling
+- Header displays NVIDIA branding
+- Sidebar navigation is visible
+
+### navigation.spec.ts
+- Can navigate to dashboard from root
+- Can navigate to timeline page
+- Can navigate to logs page
+- Can navigate to settings page
+- Sidebar navigation works for dashboard
+- URL reflects current page
+- Page transitions preserve layout
+
+### realtime.spec.ts
+- Dashboard shows disconnected state when WebSocket fails
+- Activity feed shows empty state when no events
+- Dashboard can handle simulated event injection
+- Header shows system status indicator
+- GPU stats display updates from API
+- Dashboard shows error state when API fails
+
+## E2E Test Configuration
+
+E2E tests are configured in `playwright.config.ts`:
+
+- **Test Directory**: `./tests/e2e`
+- **Base URL**: `http://localhost:5173`
+- **Browser**: Chromium only (for minimal smoke tests)
+- **Retries**: 2 in CI, 0 locally
+- **Artifacts**: Screenshots on failure, video on failure, trace on first retry
+- **Web Server**: Automatically starts dev server before tests
+
+### API Mocking
+
+E2E tests mock all backend API endpoints using Playwright's route interception:
+
+```typescript
+await page.route('**/api/cameras', async (route) => {
+  await route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify([/* mock data */]),
+  });
+});
+```
+
+This ensures tests are reliable and don't require a running backend.
+
 ## Future Enhancements
 
-- Add integration tests for API interactions
-- Add E2E tests with Playwright or Cypress
-- Set up test coverage thresholds
-- Add visual regression tests
-- Test WebSocket connections
-- Test error boundaries
+- Add visual regression tests with Playwright screenshots
+- Test WebSocket connections with mock server
+- Add accessibility tests (axe-core integration)
+- Test mobile viewport responsiveness
 
 ## References
 
 - [Vitest Documentation](https://vitest.dev/)
 - [React Testing Library](https://testing-library.com/react)
 - [Testing Library Best Practices](https://kentcdodds.com/blog/common-mistakes-with-react-testing-library)
+- [Playwright Documentation](https://playwright.dev/docs/intro)
+- [Playwright API Mocking](https://playwright.dev/docs/mock)
