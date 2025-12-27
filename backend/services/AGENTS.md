@@ -714,7 +714,7 @@ All services use `backend.core.config.get_settings()` for configuration:
 
 ### External Services
 
-- **RT-DETRv2 HTTP server** (port 8001) - Object detection
+- **RT-DETRv2 HTTP server** (port 8090) - Object detection
 - **llama.cpp server** (port 8080) - LLM inference
 - **Redis** - Queue and cache storage
 - **SQLite** - Persistent storage (via SQLAlchemy async)
