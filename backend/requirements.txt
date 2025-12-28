@@ -7,6 +7,7 @@ python-multipart>=0.0.6
 sqlalchemy>=2.0.0
 aiosqlite>=0.19.0  # SQLite async driver (development)
 asyncpg>=0.29.0  # PostgreSQL async driver (production)
+psycopg2-binary>=2.9.0  # PostgreSQL sync driver (for Alembic migrations)
 alembic>=1.13.0  # Database migrations
 greenlet>=3.0.0  # Required for SQLAlchemy async support
 
