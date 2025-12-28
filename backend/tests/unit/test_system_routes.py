@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
+from fastapi import HTTPException
 
 from backend.api.routes import system as system_routes
 from backend.api.schemas.system import (
@@ -2236,3 +2237,414 @@ async def test_circuit_breaker_records_success_on_health_check_success() -> None
 
     # Failure count should be reset to 0
     assert system_routes._health_circuit_breaker._failures.get("rtdetr", 0) == 0
+
+
+# =============================================================================
+# API Key Authentication Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_verify_api_key_skips_when_disabled() -> None:
+    """Test that API key verification is skipped when api_key_enabled is False."""
+    mock_settings = MagicMock()
+    mock_settings.api_key_enabled = False
+
+    with patch.object(system_routes, "get_settings", return_value=mock_settings):
+        # Should not raise any exception
+        await system_routes.verify_api_key(x_api_key=None)
+
+
+@pytest.mark.asyncio
+async def test_verify_api_key_returns_401_when_missing() -> None:
+    """Test that API key verification returns 401 when key is missing but required."""
+    mock_settings = MagicMock()
+    mock_settings.api_key_enabled = True
+
+    with (
+        patch.object(system_routes, "get_settings", return_value=mock_settings),
+        pytest.raises(HTTPException) as exc_info,
+    ):
+        await system_routes.verify_api_key(x_api_key=None)
+
+    assert exc_info.value.status_code == 401
+    assert "API key required" in exc_info.value.detail
+
+
+@pytest.mark.asyncio
+async def test_verify_api_key_returns_401_for_invalid_key() -> None:
+    """Test that API key verification returns 401 for invalid key."""
+    mock_settings = MagicMock()
+    mock_settings.api_key_enabled = True
+    mock_settings.api_keys = ["valid-api-key-123"]
+
+    with (
+        patch.object(system_routes, "get_settings", return_value=mock_settings),
+        pytest.raises(HTTPException) as exc_info,
+    ):
+        await system_routes.verify_api_key(x_api_key="invalid-key")
+
+    assert exc_info.value.status_code == 401
+    assert "Invalid API key" in exc_info.value.detail
+
+
+@pytest.mark.asyncio
+async def test_verify_api_key_accepts_valid_key() -> None:
+    """Test that API key verification accepts valid key."""
+    mock_settings = MagicMock()
+    mock_settings.api_key_enabled = True
+    mock_settings.api_keys = ["valid-api-key-123", "another-valid-key"]
+
+    with patch.object(system_routes, "get_settings", return_value=mock_settings):
+        # Should not raise any exception
+        await system_routes.verify_api_key(x_api_key="valid-api-key-123")
+
+
+@pytest.mark.asyncio
+async def test_verify_api_key_accepts_any_valid_key_from_list() -> None:
+    """Test that API key verification accepts any valid key from the list."""
+    mock_settings = MagicMock()
+    mock_settings.api_key_enabled = True
+    mock_settings.api_keys = ["key-one", "key-two", "key-three"]
+
+    with patch.object(system_routes, "get_settings", return_value=mock_settings):
+        # Should accept any key from the list
+        await system_routes.verify_api_key(x_api_key="key-one")
+        await system_routes.verify_api_key(x_api_key="key-two")
+        await system_routes.verify_api_key(x_api_key="key-three")
+
+
+# =============================================================================
+# Cleanup Endpoint Authentication Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_cleanup_endpoint_requires_api_key_when_enabled() -> None:
+    """Test that cleanup endpoint requires API key when authentication is enabled.
+
+    This test verifies that the POST /cleanup endpoint has the verify_api_key
+    dependency applied, matching the behavior of PATCH /config.
+    """
+    # Verify the dependency is in the endpoint's dependencies
+    # by checking the route's dependencies list
+    cleanup_route = None
+    for route in system_routes.router.routes:
+        # Routes have the full path including prefix when accessed from router.routes
+        if hasattr(route, "path") and route.path == "/api/system/cleanup":
+            cleanup_route = route
+            break
+
+    assert cleanup_route is not None, "Cleanup route not found"
+    assert cleanup_route.dependencies is not None, "Cleanup route has no dependencies"
+    assert len(cleanup_route.dependencies) > 0, "Cleanup route has empty dependencies"
+
+    # Check that verify_api_key is in the dependencies
+    dependency_names = []
+    for dep in cleanup_route.dependencies:
+        if hasattr(dep, "dependency"):
+            dep_name = getattr(dep.dependency, "__name__", str(dep.dependency))
+            dependency_names.append(dep_name)
+
+    assert "verify_api_key" in dependency_names, (
+        f"verify_api_key dependency not found in cleanup route. "
+        f"Found dependencies: {dependency_names}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_cleanup_endpoint_has_same_auth_as_patch_config() -> None:
+    """Test that cleanup endpoint uses the same auth pattern as patch_config.
+
+    Both endpoints should use the verify_api_key dependency for authentication.
+    """
+    cleanup_route = None
+    config_route = None
+
+    for route in system_routes.router.routes:
+        if hasattr(route, "path"):
+            path = route.path
+            # Routes have full path with prefix
+            if (
+                path == "/api/system/cleanup"
+                and hasattr(route, "methods")
+                and "POST" in route.methods
+            ):
+                cleanup_route = route
+            if (
+                path == "/api/system/config"
+                and hasattr(route, "methods")
+                and "PATCH" in route.methods
+            ):
+                config_route = route
+
+    assert cleanup_route is not None, "Cleanup route not found"
+    assert config_route is not None, "Config PATCH route not found"
+
+    # Both should have dependencies
+    assert cleanup_route.dependencies is not None
+    assert config_route.dependencies is not None
+
+    # Extract dependency function names
+    def get_dep_names(route):
+        names = []
+        for dep in route.dependencies:
+            if hasattr(dep, "dependency"):
+                dep_name = getattr(dep.dependency, "__name__", str(dep.dependency))
+                names.append(dep_name)
+        return names
+
+    cleanup_deps = get_dep_names(cleanup_route)
+    config_deps = get_dep_names(config_route)
+
+    # Both should have verify_api_key
+    assert "verify_api_key" in cleanup_deps, "verify_api_key not in cleanup dependencies"
+    assert "verify_api_key" in config_deps, "verify_api_key not in config dependencies"
+
+
+# =============================================================================
+# Cleanup Endpoint Dry Run Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_trigger_cleanup_dry_run_returns_stats_without_deleting() -> None:
+    """Test trigger_cleanup with dry_run=True returns stats without deleting."""
+    mock_stats = MagicMock()
+    mock_stats.events_deleted = 15
+    mock_stats.detections_deleted = 75
+    mock_stats.gpu_stats_deleted = 200
+    mock_stats.logs_deleted = 50
+    mock_stats.thumbnails_deleted = 75
+    mock_stats.images_deleted = 0
+    mock_stats.space_reclaimed = 2048000
+
+    mock_settings = MagicMock()
+    mock_settings.retention_days = 30
+
+    mock_cleanup_service = MagicMock()
+    mock_cleanup_service.dry_run_cleanup = AsyncMock(return_value=mock_stats)
+
+    with (
+        patch.object(system_routes, "get_settings", return_value=mock_settings),
+        patch(
+            "backend.services.cleanup_service.CleanupService",
+            return_value=mock_cleanup_service,
+        ),
+    ):
+        response = await system_routes.trigger_cleanup(dry_run=True)
+
+    assert isinstance(response, CleanupResponse)
+    assert response.events_deleted == 15
+    assert response.detections_deleted == 75
+    assert response.gpu_stats_deleted == 200
+    assert response.logs_deleted == 50
+    assert response.thumbnails_deleted == 75
+    assert response.images_deleted == 0
+    assert response.space_reclaimed == 2048000
+    assert response.retention_days == 30
+    assert response.dry_run is True
+    assert response.timestamp is not None
+
+    # Verify dry_run_cleanup was called, NOT run_cleanup
+    mock_cleanup_service.dry_run_cleanup.assert_called_once()
+    mock_cleanup_service.run_cleanup.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_trigger_cleanup_dry_run_false_performs_actual_deletion() -> None:
+    """Test trigger_cleanup with dry_run=False performs actual deletion."""
+    mock_stats = MagicMock()
+    mock_stats.events_deleted = 10
+    mock_stats.detections_deleted = 50
+    mock_stats.gpu_stats_deleted = 100
+    mock_stats.logs_deleted = 25
+    mock_stats.thumbnails_deleted = 50
+    mock_stats.images_deleted = 0
+    mock_stats.space_reclaimed = 1024000
+
+    mock_settings = MagicMock()
+    mock_settings.retention_days = 30
+
+    mock_cleanup_service = MagicMock()
+    mock_cleanup_service.run_cleanup = AsyncMock(return_value=mock_stats)
+
+    with (
+        patch.object(system_routes, "get_settings", return_value=mock_settings),
+        patch(
+            "backend.services.cleanup_service.CleanupService",
+            return_value=mock_cleanup_service,
+        ),
+    ):
+        response = await system_routes.trigger_cleanup(dry_run=False)
+
+    assert isinstance(response, CleanupResponse)
+    assert response.dry_run is False
+
+    # Verify run_cleanup was called, NOT dry_run_cleanup
+    mock_cleanup_service.run_cleanup.assert_called_once()
+    mock_cleanup_service.dry_run_cleanup.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_trigger_cleanup_default_dry_run_is_false() -> None:
+    """Test trigger_cleanup defaults dry_run to False."""
+    mock_stats = MagicMock()
+    mock_stats.events_deleted = 5
+    mock_stats.detections_deleted = 20
+    mock_stats.gpu_stats_deleted = 50
+    mock_stats.logs_deleted = 10
+    mock_stats.thumbnails_deleted = 20
+    mock_stats.images_deleted = 0
+    mock_stats.space_reclaimed = 512000
+
+    mock_settings = MagicMock()
+    mock_settings.retention_days = 30
+
+    mock_cleanup_service = MagicMock()
+    mock_cleanup_service.run_cleanup = AsyncMock(return_value=mock_stats)
+
+    with (
+        patch.object(system_routes, "get_settings", return_value=mock_settings),
+        patch(
+            "backend.services.cleanup_service.CleanupService",
+            return_value=mock_cleanup_service,
+        ),
+    ):
+        # Call without specifying dry_run
+        response = await system_routes.trigger_cleanup()
+
+    assert response.dry_run is False
+    # Verify run_cleanup was called (actual deletion)
+    mock_cleanup_service.run_cleanup.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_trigger_cleanup_dry_run_exception_propagates() -> None:
+    """Test trigger_cleanup dry_run propagates exception from CleanupService."""
+    mock_settings = MagicMock()
+    mock_settings.retention_days = 30
+
+    mock_cleanup_service = MagicMock()
+    mock_cleanup_service.dry_run_cleanup = AsyncMock(
+        side_effect=RuntimeError("Database query failed")
+    )
+
+    with (
+        patch.object(system_routes, "get_settings", return_value=mock_settings),
+        patch(
+            "backend.services.cleanup_service.CleanupService",
+            return_value=mock_cleanup_service,
+        ),
+        pytest.raises(RuntimeError, match="Database query failed"),
+    ):
+        await system_routes.trigger_cleanup(dry_run=True)
+
+
+@pytest.mark.asyncio
+async def test_trigger_cleanup_dry_run_logs_operation() -> None:
+    """Test trigger_cleanup dry_run logs the operation."""
+    mock_stats = MagicMock()
+    mock_stats.events_deleted = 10
+    mock_stats.detections_deleted = 50
+    mock_stats.gpu_stats_deleted = 100
+    mock_stats.logs_deleted = 25
+    mock_stats.thumbnails_deleted = 50
+    mock_stats.images_deleted = 0
+    mock_stats.space_reclaimed = 1024000
+
+    mock_settings = MagicMock()
+    mock_settings.retention_days = 30
+
+    mock_cleanup_service = MagicMock()
+    mock_cleanup_service.dry_run_cleanup = AsyncMock(return_value=mock_stats)
+
+    with (
+        patch.object(system_routes, "get_settings", return_value=mock_settings),
+        patch(
+            "backend.services.cleanup_service.CleanupService",
+            return_value=mock_cleanup_service,
+        ),
+        patch.object(system_routes.logger, "info") as mock_logger,
+    ):
+        await system_routes.trigger_cleanup(dry_run=True)
+
+    # Verify logging calls
+    log_messages = [call[0][0] for call in mock_logger.call_args_list]
+    assert any("dry run triggered" in msg for msg in log_messages)
+    assert any("dry run completed" in msg for msg in log_messages)
+
+
+@pytest.mark.asyncio
+async def test_trigger_cleanup_dry_run_uses_retention_from_settings() -> None:
+    """Test trigger_cleanup dry_run uses retention_days from settings."""
+    mock_stats = MagicMock()
+    mock_stats.events_deleted = 0
+    mock_stats.detections_deleted = 0
+    mock_stats.gpu_stats_deleted = 0
+    mock_stats.logs_deleted = 0
+    mock_stats.thumbnails_deleted = 0
+    mock_stats.images_deleted = 0
+    mock_stats.space_reclaimed = 0
+
+    mock_settings = MagicMock()
+    mock_settings.retention_days = 14  # Custom retention
+
+    mock_cleanup_service = MagicMock()
+    mock_cleanup_service.dry_run_cleanup = AsyncMock(return_value=mock_stats)
+
+    with (
+        patch.object(system_routes, "get_settings", return_value=mock_settings),
+        patch(
+            "backend.services.cleanup_service.CleanupService",
+            return_value=mock_cleanup_service,
+        ) as mock_cleanup_class,
+    ):
+        response = await system_routes.trigger_cleanup(dry_run=True)
+
+    # Verify CleanupService was instantiated with correct retention_days
+    mock_cleanup_class.assert_called_once_with(
+        retention_days=14,
+        thumbnail_dir="backend/data/thumbnails",
+        delete_images=False,
+    )
+    assert response.retention_days == 14
+    assert response.dry_run is True
+
+
+@pytest.mark.asyncio
+async def test_trigger_cleanup_dry_run_zero_counts() -> None:
+    """Test trigger_cleanup dry_run when nothing would be deleted."""
+    mock_stats = MagicMock()
+    mock_stats.events_deleted = 0
+    mock_stats.detections_deleted = 0
+    mock_stats.gpu_stats_deleted = 0
+    mock_stats.logs_deleted = 0
+    mock_stats.thumbnails_deleted = 0
+    mock_stats.images_deleted = 0
+    mock_stats.space_reclaimed = 0
+
+    mock_settings = MagicMock()
+    mock_settings.retention_days = 30
+
+    mock_cleanup_service = MagicMock()
+    mock_cleanup_service.dry_run_cleanup = AsyncMock(return_value=mock_stats)
+
+    with (
+        patch.object(system_routes, "get_settings", return_value=mock_settings),
+        patch(
+            "backend.services.cleanup_service.CleanupService",
+            return_value=mock_cleanup_service,
+        ),
+    ):
+        response = await system_routes.trigger_cleanup(dry_run=True)
+
+    assert isinstance(response, CleanupResponse)
+    assert response.events_deleted == 0
+    assert response.detections_deleted == 0
+    assert response.gpu_stats_deleted == 0
+    assert response.logs_deleted == 0
+    assert response.thumbnails_deleted == 0
+    assert response.images_deleted == 0
+    assert response.space_reclaimed == 0
+    assert response.dry_run is True

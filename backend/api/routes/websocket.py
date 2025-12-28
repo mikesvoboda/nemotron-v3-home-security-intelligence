@@ -11,14 +11,29 @@ WebSocket Authentication:
 
     Connections without a valid API key will be rejected with code 1008
     (Policy Violation).
+
+WebSocket Message Validation:
+    All incoming messages are validated for proper JSON structure and schema.
+    Invalid messages receive an error response with details about the issue.
+    Supported message types: ping, subscribe, unsubscribe.
 """
 
+import json
 import logging
+from typing import Any
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from fastapi.websockets import WebSocketState
+from pydantic import ValidationError
 
 from backend.api.middleware import authenticate_websocket
+from backend.api.schemas.websocket import (
+    WebSocketErrorCode,
+    WebSocketErrorResponse,
+    WebSocketMessage,
+    WebSocketMessageType,
+    WebSocketPongResponse,
+)
 from backend.core.redis import RedisClient, get_redis
 from backend.services.event_broadcaster import get_broadcaster
 from backend.services.system_broadcaster import get_system_broadcaster
@@ -26,6 +41,89 @@ from backend.services.system_broadcaster import get_system_broadcaster
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["websocket"])
+
+
+async def validate_websocket_message(
+    websocket: WebSocket, raw_data: str
+) -> WebSocketMessage | None:
+    """Validate an incoming WebSocket message.
+
+    Attempts to parse the raw data as JSON and validate it against the
+    WebSocketMessage schema. If validation fails, sends an error response
+    to the client and returns None.
+
+    Args:
+        websocket: The WebSocket connection to send error responses to.
+        raw_data: The raw string data received from the client.
+
+    Returns:
+        A validated WebSocketMessage if successful, None if validation failed.
+    """
+    # Try to parse as JSON
+    try:
+        message_data: dict[str, Any] = json.loads(raw_data)
+    except json.JSONDecodeError as e:
+        logger.warning(f"WebSocket received invalid JSON: {e}")
+        error_response = WebSocketErrorResponse(
+            error=WebSocketErrorCode.INVALID_JSON,
+            message="Message must be valid JSON",
+            details={"raw_data_preview": raw_data[:100] if raw_data else None},
+        )
+        await websocket.send_text(error_response.model_dump_json())
+        return None
+
+    # Validate message structure
+    try:
+        message = WebSocketMessage.model_validate(message_data)
+        return message
+    except ValidationError as e:
+        logger.warning(f"WebSocket received invalid message format: {e}")
+        error_response = WebSocketErrorResponse(
+            error=WebSocketErrorCode.INVALID_MESSAGE_FORMAT,
+            message="Message does not match expected schema",
+            details={"validation_errors": e.errors()},
+        )
+        await websocket.send_text(error_response.model_dump_json())
+        return None
+
+
+async def handle_validated_message(websocket: WebSocket, message: WebSocketMessage) -> None:
+    """Handle a validated WebSocket message.
+
+    Dispatches the message to the appropriate handler based on its type.
+    Unknown message types receive an error response.
+
+    Args:
+        websocket: The WebSocket connection.
+        message: The validated WebSocket message.
+    """
+    message_type = message.type.lower()
+
+    if message_type == WebSocketMessageType.PING.value:
+        # Respond with pong
+        pong_response = WebSocketPongResponse()
+        await websocket.send_text(pong_response.model_dump_json())
+        logger.debug("Sent pong response to WebSocket client")
+
+    elif message_type == WebSocketMessageType.SUBSCRIBE.value:
+        # Future: handle subscription
+        logger.debug(f"Received subscribe message: {message.data}")
+        # For now, just acknowledge (subscription logic TBD)
+
+    elif message_type == WebSocketMessageType.UNSUBSCRIBE.value:
+        # Future: handle unsubscription
+        logger.debug(f"Received unsubscribe message: {message.data}")
+        # For now, just acknowledge (unsubscription logic TBD)
+
+    else:
+        # Unknown message type
+        logger.warning(f"WebSocket received unknown message type: {message_type}")
+        error_response = WebSocketErrorResponse(
+            error=WebSocketErrorCode.UNKNOWN_MESSAGE_TYPE,
+            message=f"Unknown message type: {message_type}",
+            details={"supported_types": [t.value for t in WebSocketMessageType]},
+        )
+        await websocket.send_text(error_response.model_dump_json())
 
 
 @router.websocket("/ws/events")
@@ -87,18 +185,22 @@ async def websocket_events_endpoint(
         logger.info("WebSocket client connected to /ws/events")
 
         # Keep the connection alive by waiting for messages
-        # In this case, we don't expect clients to send messages, but we need
-        # to keep the connection open to send events to them
+        # Clients can send ping messages for keep-alive and other commands
         while True:
             try:
-                # Wait for any message from the client (mostly keep-alive)
-                # We don't process client messages, just keep the connection alive
+                # Wait for any message from the client
                 data = await websocket.receive_text()
                 logger.debug(f"Received message from WebSocket client: {data}")
 
-                # Optionally send a pong response for keep-alive
+                # Support legacy plain "ping" string for backward compatibility
                 if data == "ping":
                     await websocket.send_text('{"type":"pong"}')
+                    continue
+
+                # Validate and handle JSON messages
+                message = await validate_websocket_message(websocket, data)
+                if message is not None:
+                    await handle_validated_message(websocket, message)
 
             except WebSocketDisconnect:
                 logger.info("WebSocket client disconnected normally")
@@ -192,16 +294,22 @@ async def websocket_system_status(websocket: WebSocket) -> None:
         logger.info("WebSocket client connected to /ws/system")
 
         # Keep connection alive and handle messages
+        # Clients can send ping messages for keep-alive and other commands
         while True:
             try:
-                # Wait for any message from the client (mostly keep-alive)
-                # We don't process client messages, just keep the connection alive
+                # Wait for any message from the client
                 data = await websocket.receive_text()
                 logger.debug(f"Received message from WebSocket client: {data}")
 
-                # Optionally send a pong response for keep-alive
+                # Support legacy plain "ping" string for backward compatibility
                 if data == "ping":
                     await websocket.send_text('{"type":"pong"}')
+                    continue
+
+                # Validate and handle JSON messages
+                message = await validate_websocket_message(websocket, data)
+                if message is not None:
+                    await handle_validated_message(websocket, message)
 
             except WebSocketDisconnect:
                 logger.info("WebSocket client disconnected normally")

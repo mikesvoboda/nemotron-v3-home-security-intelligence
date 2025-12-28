@@ -14,29 +14,29 @@ This directory contains Grafana dashboard JSON definitions that are automaticall
 
 **Sections and Panels:**
 
-| Row | Panel | Type | Data Source | Endpoint |
-|-----|-------|------|-------------|----------|
-| System Overview | System Health | stat | Backend-API | /api/system/health |
-| System Overview | Total Cameras | stat | Backend-API | /api/system/stats |
-| System Overview | Total Events | stat | Backend-API | /api/system/stats |
-| System Overview | Total Detections | stat | Backend-API | /api/system/stats |
-| System Overview | Uptime | stat | Backend-API | /api/system/stats |
-| Queue Depths | Detection Queue | stat | Backend-API | /api/system/telemetry |
-| Queue Depths | Analysis Queue | stat | Backend-API | /api/system/telemetry |
-| Queue Depths | Over Time | timeseries | Backend-API | /api/system/telemetry |
-| Pipeline Latencies | Watch P95 | stat | Backend-API | /api/system/telemetry |
-| Pipeline Latencies | Detect P95 | stat | Backend-API | /api/system/telemetry |
-| Pipeline Latencies | Batch P95 | stat | Backend-API | /api/system/telemetry |
-| Pipeline Latencies | Analysis P95 | stat | Backend-API | /api/system/telemetry |
-| Pipeline Latencies | Histogram | barchart | Backend-API | /api/system/telemetry |
-| GPU Statistics | GPU Utilization | gauge | Backend-API | /api/system/gpu |
-| GPU Statistics | GPU Temperature | stat | Backend-API | /api/system/gpu |
-| GPU Statistics | Memory Used | stat | Backend-API | /api/system/gpu |
-| GPU Statistics | Inference FPS | stat | Backend-API | /api/system/gpu |
-| Service Health | Database | stat | Backend-API | /api/system/health |
-| Service Health | Redis | stat | Backend-API | /api/system/health |
-| Service Health | AI Services | stat | Backend-API | /api/system/health |
-| Service Health | Readiness | stat | Backend-API | /api/system/health/ready |
+| Row                | Panel            | Type       | Data Source | Endpoint                 |
+| ------------------ | ---------------- | ---------- | ----------- | ------------------------ |
+| System Overview    | System Health    | stat       | Backend-API | /api/system/health       |
+| System Overview    | Total Cameras    | stat       | Backend-API | /api/system/stats        |
+| System Overview    | Total Events     | stat       | Backend-API | /api/system/stats        |
+| System Overview    | Total Detections | stat       | Backend-API | /api/system/stats        |
+| System Overview    | Uptime           | stat       | Backend-API | /api/system/stats        |
+| Queue Depths       | Detection Queue  | stat       | Backend-API | /api/system/telemetry    |
+| Queue Depths       | Analysis Queue   | stat       | Backend-API | /api/system/telemetry    |
+| Queue Depths       | Over Time        | timeseries | Backend-API | /api/system/telemetry    |
+| Pipeline Latencies | Watch P95        | stat       | Backend-API | /api/system/telemetry    |
+| Pipeline Latencies | Detect P95       | stat       | Backend-API | /api/system/telemetry    |
+| Pipeline Latencies | Batch P95        | stat       | Backend-API | /api/system/telemetry    |
+| Pipeline Latencies | Analysis P95     | stat       | Backend-API | /api/system/telemetry    |
+| Pipeline Latencies | Histogram        | barchart   | Backend-API | /api/system/telemetry    |
+| GPU Statistics     | GPU Utilization  | gauge      | Backend-API | /api/system/gpu          |
+| GPU Statistics     | GPU Temperature  | stat       | Backend-API | /api/system/gpu          |
+| GPU Statistics     | Memory Used      | stat       | Backend-API | /api/system/gpu          |
+| GPU Statistics     | Inference FPS    | stat       | Backend-API | /api/system/gpu          |
+| Service Health     | Database         | stat       | Backend-API | /api/system/health       |
+| Service Health     | Redis            | stat       | Backend-API | /api/system/health       |
+| Service Health     | AI Services      | stat       | Backend-API | /api/system/health       |
+| Service Health     | Readiness        | stat       | Backend-API | /api/system/health/ready |
 
 **Key Metrics Visualized:**
 
@@ -61,9 +61,15 @@ This directory contains Grafana dashboard JSON definitions that are automaticall
       "type": "stat|gauge|timeseries|barchart",
       "title": "Panel title",
       "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
-      "targets": [ /* data queries */ ],
-      "fieldConfig": { /* display config */ },
-      "options": { /* panel-specific options */ }
+      "targets": [
+        /* data queries */
+      ],
+      "fieldConfig": {
+        /* display config */
+      },
+      "options": {
+        /* panel-specific options */
+      }
     }
   ]
 }
@@ -72,6 +78,7 @@ This directory contains Grafana dashboard JSON definitions that are automaticall
 ### Grid Positioning
 
 Grafana uses a 24-column grid:
+
 - `w`: Width in columns (1-24)
 - `h`: Height in rows
 - `x`: X position (0-23)
@@ -123,6 +130,7 @@ Grafana uses a 24-column grid:
 ### Changing Thresholds
 
 Locate and modify the `thresholds` section:
+
 ```json
 "thresholds": {
   "mode": "absolute",
@@ -137,6 +145,7 @@ Locate and modify the `thresholds` section:
 ### Updating JSONPath Queries
 
 For Backend-API datasource panels:
+
 ```json
 "fields": [
   {

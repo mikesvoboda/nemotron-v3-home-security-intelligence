@@ -93,7 +93,8 @@ async def test_redis_connection_retry(mock_redis_pool):
 
     with patch("backend.core.redis.Redis", return_value=mock_client):
         client = RedisClient()
-        client._retry_delay = 0.01  # Speed up test
+        client._base_delay = 0.01  # Speed up test
+        client._max_delay = 0.1  # Speed up test
         await client.connect()
 
         # Should have retried 3 times
@@ -110,7 +111,8 @@ async def test_redis_connection_failure_after_retries(mock_redis_pool):
 
     with patch("backend.core.redis.Redis", return_value=mock_client):
         client = RedisClient()
-        client._retry_delay = 0.01  # Speed up test
+        client._base_delay = 0.01  # Speed up test
+        client._max_delay = 0.1  # Speed up test
 
         with pytest.raises(ConnectionError):
             await client.connect()
@@ -124,6 +126,154 @@ async def test_redis_disconnect(redis_client):
     assert redis_client._client is None
     assert redis_client._pool is None
     assert redis_client._pubsub is None
+
+
+# Exponential Backoff Tests
+
+
+def test_calculate_backoff_delay_first_attempt():
+    """Test backoff delay calculation for first attempt."""
+    client = RedisClient()
+    client._base_delay = 1.0
+    client._max_delay = 30.0
+    client._jitter_factor = 0.0  # Disable jitter for deterministic test
+
+    delay = client._calculate_backoff_delay(1)
+
+    # First attempt: 1.0 * 2^0 = 1.0
+    assert delay == 1.0
+
+
+def test_calculate_backoff_delay_second_attempt():
+    """Test backoff delay calculation for second attempt."""
+    client = RedisClient()
+    client._base_delay = 1.0
+    client._max_delay = 30.0
+    client._jitter_factor = 0.0  # Disable jitter for deterministic test
+
+    delay = client._calculate_backoff_delay(2)
+
+    # Second attempt: 1.0 * 2^1 = 2.0
+    assert delay == 2.0
+
+
+def test_calculate_backoff_delay_third_attempt():
+    """Test backoff delay calculation for third attempt."""
+    client = RedisClient()
+    client._base_delay = 1.0
+    client._max_delay = 30.0
+    client._jitter_factor = 0.0  # Disable jitter for deterministic test
+
+    delay = client._calculate_backoff_delay(3)
+
+    # Third attempt: 1.0 * 2^2 = 4.0
+    assert delay == 4.0
+
+
+def test_calculate_backoff_delay_exponential_growth():
+    """Test that backoff delay grows exponentially."""
+    client = RedisClient()
+    client._base_delay = 1.0
+    client._max_delay = 100.0  # High cap to test growth
+    client._jitter_factor = 0.0  # Disable jitter for deterministic test
+
+    delays = [client._calculate_backoff_delay(i) for i in range(1, 7)]
+
+    # Expected: 1, 2, 4, 8, 16, 32
+    assert delays == [1.0, 2.0, 4.0, 8.0, 16.0, 32.0]
+
+
+def test_calculate_backoff_delay_max_cap():
+    """Test that backoff delay is capped at max_delay."""
+    client = RedisClient()
+    client._base_delay = 1.0
+    client._max_delay = 30.0
+    client._jitter_factor = 0.0  # Disable jitter for deterministic test
+
+    # Attempt 6 would be 32s without cap, but should be capped at 30s
+    delay = client._calculate_backoff_delay(6)
+
+    assert delay == 30.0
+
+
+def test_calculate_backoff_delay_max_cap_with_high_attempts():
+    """Test that backoff delay stays capped for very high attempt numbers."""
+    client = RedisClient()
+    client._base_delay = 1.0
+    client._max_delay = 30.0
+    client._jitter_factor = 0.0  # Disable jitter for deterministic test
+
+    # Even at attempt 100, delay should be capped
+    delay = client._calculate_backoff_delay(100)
+
+    assert delay == 30.0
+
+
+def test_calculate_backoff_delay_with_jitter():
+    """Test that backoff delay includes jitter within expected range."""
+    client = RedisClient()
+    client._base_delay = 1.0
+    client._max_delay = 30.0
+    client._jitter_factor = 0.25  # 25% jitter
+
+    # Run multiple times to verify jitter behavior
+    delays = [client._calculate_backoff_delay(1) for _ in range(100)]
+
+    # Base delay is 1.0, jitter adds 0-25% (0-0.25s)
+    # So delay should be between 1.0 and 1.25
+    assert all(1.0 <= d <= 1.25 for d in delays)
+    # Verify there's some variation (jitter is working)
+    assert len(set(delays)) > 1  # Not all delays are identical
+
+
+def test_calculate_backoff_delay_with_jitter_second_attempt():
+    """Test that jitter scales with delay for second attempt."""
+    client = RedisClient()
+    client._base_delay = 1.0
+    client._max_delay = 30.0
+    client._jitter_factor = 0.25  # 25% jitter
+
+    delays = [client._calculate_backoff_delay(2) for _ in range(100)]
+
+    # Base delay is 2.0, jitter adds 0-25% (0-0.5s)
+    # So delay should be between 2.0 and 2.5
+    assert all(2.0 <= d <= 2.5 for d in delays)
+
+
+def test_calculate_backoff_delay_jitter_range_at_max():
+    """Test that jitter is applied correctly when delay hits max cap."""
+    client = RedisClient()
+    client._base_delay = 1.0
+    client._max_delay = 30.0
+    client._jitter_factor = 0.25  # 25% jitter
+
+    delays = [client._calculate_backoff_delay(10) for _ in range(100)]
+
+    # Base delay is capped at 30.0, jitter adds 0-25% (0-7.5s)
+    # So delay should be between 30.0 and 37.5
+    assert all(30.0 <= d <= 37.5 for d in delays)
+
+
+def test_calculate_backoff_delay_custom_base_delay():
+    """Test backoff with custom base delay."""
+    client = RedisClient()
+    client._base_delay = 0.5
+    client._max_delay = 30.0
+    client._jitter_factor = 0.0
+
+    delays = [client._calculate_backoff_delay(i) for i in range(1, 5)]
+
+    # Expected: 0.5, 1.0, 2.0, 4.0
+    assert delays == [0.5, 1.0, 2.0, 4.0]
+
+
+def test_default_backoff_settings():
+    """Test that default backoff settings are as expected."""
+    client = RedisClient()
+
+    assert client._base_delay == 1.0
+    assert client._max_delay == 30.0
+    assert client._jitter_factor == 0.25
 
 
 @pytest.mark.asyncio

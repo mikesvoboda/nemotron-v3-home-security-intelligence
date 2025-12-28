@@ -278,7 +278,7 @@ async def test_stop_cancels_listener_task() -> None:
     # Create a mock task that simulates a long-running listener
     async def long_running_task() -> None:
         try:
-            await asyncio.sleep(100)
+            await asyncio.sleep(100)  # cancelled - task is cancelled by stop()
         except asyncio.CancelledError:
             raise
 
@@ -301,7 +301,7 @@ async def test_stop_handles_task_already_cancelled() -> None:
 
     # Create and immediately cancel a task
     async def dummy() -> None:
-        await asyncio.sleep(100)
+        await asyncio.sleep(100)  # cancelled - task is cancelled immediately after creation
 
     task = asyncio.create_task(dummy())
     task.cancel()

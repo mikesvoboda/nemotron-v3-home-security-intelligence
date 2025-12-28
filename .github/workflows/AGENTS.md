@@ -14,18 +14,19 @@ This directory contains GitHub Actions workflow definitions for the Home Securit
 
 **Jobs:**
 
-| Job | Duration | Description |
-|-----|----------|-------------|
-| lint | ~1m | Ruff check and format verification |
-| typecheck | ~2m | Mypy static type analysis |
-| unit-tests | ~3m | pytest unit tests with coverage |
-| integration-tests | ~4m | pytest with Redis service container |
-| frontend-lint | ~1m | ESLint checking |
-| frontend-typecheck | ~1m | TypeScript compilation check |
-| frontend-tests | ~2m | Vitest with coverage |
-| build | ~5m | Docker image builds (depends on all tests) |
+| Job                | Duration | Description                                |
+| ------------------ | -------- | ------------------------------------------ |
+| lint               | ~1m      | Ruff check and format verification         |
+| typecheck          | ~2m      | Mypy static type analysis                  |
+| unit-tests         | ~3m      | pytest unit tests with coverage            |
+| integration-tests  | ~4m      | pytest with Redis service container        |
+| frontend-lint      | ~1m      | ESLint checking                            |
+| frontend-typecheck | ~1m      | TypeScript compilation check               |
+| frontend-tests     | ~2m      | Vitest with coverage                       |
+| build              | ~5m      | Docker image builds (depends on all tests) |
 
 **Environment:**
+
 - Python 3.14
 - Node.js 20
 - Coverage uploaded to Codecov
@@ -39,12 +40,14 @@ This directory contains GitHub Actions workflow definitions for the Home Securit
 **Purpose:** Build and push Docker images to GitHub Container Registry.
 
 **Process:**
+
 1. Authenticate to GHCR
 2. Build images with Buildx (caching enabled)
 3. Scan with Trivy (fail on CRITICAL/HIGH)
 4. Push with tags: `sha-{commit}`, `latest`
 
 **Permissions Required:**
+
 - `contents: read`
 - `packages: write`
 
@@ -55,12 +58,14 @@ This directory contains GitHub Actions workflow definitions for the Home Securit
 **Purpose:** Automated code review using GPT-4o via GitHub Models.
 
 **Process:**
+
 1. Extract PR diff (limited to 20KB)
 2. Install `gh-models` extension
 3. Run diff through GPT-4o
 4. Post review as PR comment
 
 **Review Focus:**
+
 - Security vulnerabilities
 - Performance issues
 - Best practices
@@ -74,13 +79,14 @@ This directory contains GitHub Actions workflow definitions for the Home Securit
 
 **Jobs:**
 
-| Job | Runner | Purpose |
-|-----|--------|---------|
+| Job                 | Runner          | Purpose                       |
+| ------------------- | --------------- | ----------------------------- |
 | extended-benchmarks | self-hosted GPU | Big-O tests, memory profiling |
-| complexity-trends | ubuntu-latest | Wily code complexity reports |
-| security-audit | ubuntu-latest | pip-audit, npm audit, Bandit |
+| complexity-trends   | ubuntu-latest   | Wily code complexity reports  |
+| security-audit      | ubuntu-latest   | pip-audit, npm audit, Bandit  |
 
 **Artifacts Generated:**
+
 - `memory-profile` - Memray profiling data
 - `wily-report` - HTML complexity report
 - `security-audit` - Bandit JSON report
@@ -92,11 +98,13 @@ This directory contains GitHub Actions workflow definitions for the Home Securit
 **Purpose:** Run tests requiring GPU hardware.
 
 **Requirements:**
+
 - Self-hosted runner with labels: `gpu`, `rtx-a5500`
 - Fork protection (only runs for trusted sources)
 - 30-minute timeout
 
 **Tests:**
+
 - pytest tests marked with `@pytest.mark.gpu`
 - AI inference benchmarks
 
@@ -110,12 +118,13 @@ This directory contains GitHub Actions workflow definitions for the Home Securit
 
 **Tools Used:**
 
-| Tool | Language | Focus |
-|------|----------|-------|
-| Bandit | Python | Security vulnerabilities |
-| Semgrep | Python/TS/React | OWASP Top 10, patterns |
+| Tool    | Language        | Focus                    |
+| ------- | --------------- | ------------------------ |
+| Bandit  | Python          | Security vulnerabilities |
+| Semgrep | Python/TS/React | OWASP Top 10, patterns   |
 
 **Semgrep Rulesets:**
+
 - `p/python` - Python security rules
 - `p/typescript` - TypeScript rules
 - `p/react` - React-specific rules
@@ -132,6 +141,7 @@ This directory contains GitHub Actions workflow definitions for the Home Securit
 **Configuration:** Uses `.github/codeql/codeql-config.yml`
 
 **Permissions:**
+
 - `security-events: write` - Required for uploading results
 
 ### gitleaks.yml - Secret Detection
@@ -143,6 +153,7 @@ This directory contains GitHub Actions workflow definitions for the Home Securit
 **Configuration:** `.gitleaks.toml` in project root
 
 **Detects:**
+
 - API keys
 - Passwords
 - Private keys
@@ -164,6 +175,7 @@ This directory contains GitHub Actions workflow definitions for the Home Securit
 ### Caching Dependencies
 
 **Python:**
+
 ```yaml
 - uses: actions/setup-python@v5
   with:
@@ -173,6 +185,7 @@ This directory contains GitHub Actions workflow definitions for the Home Securit
 ```
 
 **Node.js:**
+
 ```yaml
 - uses: actions/setup-node@v4
   with:

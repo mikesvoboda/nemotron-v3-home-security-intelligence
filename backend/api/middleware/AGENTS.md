@@ -20,18 +20,18 @@ API key authentication middleware for securing HTTP endpoints and WebSocket conn
 
 **Classes:**
 
-| Class | Purpose |
-|-------|---------|
+| Class            | Purpose                                            |
+| ---------------- | -------------------------------------------------- |
 | `AuthMiddleware` | BaseHTTPMiddleware for HTTP API key authentication |
 
 **Functions:**
 
-| Function | Purpose |
-|----------|---------|
-| `validate_websocket_api_key(websocket)` | Validate API key for WebSocket connections |
-| `authenticate_websocket(websocket)` | Authenticate WebSocket and close if invalid |
-| `_hash_key(key)` | Hash API key using SHA-256 |
-| `_get_valid_key_hashes()` | Get valid API key hashes from settings |
+| Function                                | Purpose                                     |
+| --------------------------------------- | ------------------------------------------- |
+| `validate_websocket_api_key(websocket)` | Validate API key for WebSocket connections  |
+| `authenticate_websocket(websocket)`     | Authenticate WebSocket and close if invalid |
+| `_hash_key(key)`                        | Hash API key using SHA-256                  |
+| `_get_valid_key_hashes()`               | Get valid API key hashes from settings      |
 
 ### `request_id.py`
 
@@ -39,8 +39,8 @@ Request ID generation and propagation middleware for request tracing and log cor
 
 **Classes:**
 
-| Class | Purpose |
-|-------|---------|
+| Class                 | Purpose                            |
+| --------------------- | ---------------------------------- |
 | `RequestIDMiddleware` | Generate and propagate request IDs |
 
 ---
@@ -91,13 +91,15 @@ curl http://localhost:8000/api/cameras?api_key=your_secret_key_1
 When API key authentication is enabled, WebSocket connections must authenticate via:
 
 **Query Parameter:**
+
 ```javascript
-const ws = new WebSocket('ws://localhost:8000/ws/events?api_key=YOUR_KEY');
+const ws = new WebSocket("ws://localhost:8000/ws/events?api_key=YOUR_KEY");
 ```
 
 **Sec-WebSocket-Protocol Header:**
+
 ```javascript
-const ws = new WebSocket('ws://localhost:8000/ws/events', ['api-key.YOUR_KEY']);
+const ws = new WebSocket("ws://localhost:8000/ws/events", ["api-key.YOUR_KEY"]);
 ```
 
 Unauthenticated WebSocket connections are closed with code 1008 (Policy Violation).
@@ -148,10 +150,12 @@ HTTP 401 Unauthorized
 **Class:** `AuthMiddleware(BaseHTTPMiddleware)`
 
 **Constructor Parameters:**
+
 - `app: ASGIApp` - FastAPI application
 - `valid_key_hashes: set[str] | None` - Set of SHA-256 hashed API keys (optional, loads from settings if None)
 
 **Methods:**
+
 - `_load_key_hashes() -> set[str]` - Load and hash API keys from settings
 - `_hash_key(key: str) -> str` - Hash API key using SHA-256
 - `_is_exempt_path(path: str) -> bool` - Check if path bypasses authentication
@@ -198,11 +202,13 @@ Generates unique request IDs for each HTTP request and propagates them through t
 ### Usage
 
 Request IDs appear in:
+
 - Log entries with `request_id` field
 - Response headers as `X-Request-ID`
 - Can be used to trace requests in distributed systems
 
 **Example Log Entry:**
+
 ```json
 {
   "timestamp": "2025-12-23T10:30:00Z",
@@ -213,6 +219,7 @@ Request IDs appear in:
 ```
 
 **Response Header:**
+
 ```
 X-Request-ID: a1b2c3d4
 ```
@@ -232,6 +239,7 @@ app.add_middleware(RequestIDMiddleware)
 ```
 
 **Order matters:** Middleware is executed in reverse order of registration. For typical setups:
+
 1. Register `AuthMiddleware` first (runs last, after request ID is set)
 2. Register `RequestIDMiddleware` second (runs first, sets context for all handlers)
 
@@ -305,11 +313,13 @@ async def protected_endpoint(api_key: str = Depends(verify_api_key)):
 ```
 
 **Middleware is better for:**
+
 - Global authentication across all routes
 - Complex pre/post-processing logic
 - Performance (no per-route overhead)
 
 **Dependencies are better for:**
+
 - Route-specific authentication
 - Multiple authentication schemes
 - Easier testing (can mock dependencies)
@@ -333,6 +343,7 @@ async def protected_endpoint(api_key: str = Depends(verify_api_key)):
 Potential improvements for production deployments:
 
 1. **Database Storage** - Store API keys in database with metadata:
+
    - Key name/description
    - Created timestamp
    - Last used timestamp
@@ -340,22 +351,26 @@ Potential improvements for production deployments:
    - Associated user/service
 
 2. **Key Rotation** - Support key expiration and rotation:
+
    - Expiration timestamps
    - Automatic key rotation schedules
    - Grace periods for old keys
 
 3. **Rate Limiting** - Per-API key rate limits:
+
    - Request count per time window
    - Different limits per key
    - Burst allowance
 
 4. **Audit Logging** - Log API key usage:
+
    - Request timestamp
    - Endpoint accessed
    - Source IP address
    - Response status
 
 5. **Key Permissions** - Scope-based access control:
+
    - Read-only vs read-write keys
    - Resource-specific permissions
    - Role-based access control

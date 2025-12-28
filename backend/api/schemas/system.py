@@ -580,42 +580,43 @@ class CleanupResponse(BaseModel):
     """Response schema for data cleanup endpoint.
 
     Returns statistics about the cleanup operation including counts of
-    deleted records and files.
+    deleted records and files. When dry_run is True, the counts represent
+    what would be deleted without actually deleting.
     """
 
     events_deleted: int = Field(
         ...,
-        description="Number of events deleted",
+        description="Number of events deleted (or would be deleted in dry run)",
         ge=0,
     )
     detections_deleted: int = Field(
         ...,
-        description="Number of detections deleted",
+        description="Number of detections deleted (or would be deleted in dry run)",
         ge=0,
     )
     gpu_stats_deleted: int = Field(
         ...,
-        description="Number of GPU stat records deleted",
+        description="Number of GPU stat records deleted (or would be deleted in dry run)",
         ge=0,
     )
     logs_deleted: int = Field(
         ...,
-        description="Number of log records deleted",
+        description="Number of log records deleted (or would be deleted in dry run)",
         ge=0,
     )
     thumbnails_deleted: int = Field(
         ...,
-        description="Number of thumbnail files deleted",
+        description="Number of thumbnail files deleted (or would be deleted in dry run)",
         ge=0,
     )
     images_deleted: int = Field(
         ...,
-        description="Number of original image files deleted",
+        description="Number of original image files deleted (or would be deleted in dry run)",
         ge=0,
     )
     space_reclaimed: int = Field(
         ...,
-        description="Estimated disk space freed in bytes",
+        description="Estimated disk space freed in bytes (or would be freed in dry run)",
         ge=0,
     )
     retention_days: int = Field(
@@ -623,6 +624,10 @@ class CleanupResponse(BaseModel):
         description="Retention period used for cleanup",
         ge=1,
         le=365,
+    )
+    dry_run: bool = Field(
+        default=False,
+        description="Whether this was a dry run (no actual deletion performed)",
     )
     timestamp: datetime = Field(
         ...,
@@ -640,6 +645,7 @@ class CleanupResponse(BaseModel):
                 "images_deleted": 0,
                 "space_reclaimed": 524288000,
                 "retention_days": 30,
+                "dry_run": False,
                 "timestamp": "2025-12-27T10:30:00Z",
             }
         }

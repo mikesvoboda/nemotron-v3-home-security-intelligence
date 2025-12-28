@@ -119,16 +119,16 @@ test: {
 
 ### Configuration Details
 
-| Setting           | Value                    | Purpose                                          |
-| ----------------- | ------------------------ | ------------------------------------------------ |
-| `globals`         | `true`                   | `describe`, `it`, `expect` available globally    |
-| `environment`     | `jsdom`                  | Browser-like DOM environment                     |
-| `setupFiles`      | `./src/test/setup.ts`    | This setup file                                  |
-| `css`             | `true`                   | Process CSS for style-dependent components       |
-| `pool`            | `forks`                  | Use fork pool for memory optimization            |
-| `singleFork`      | `true`                   | Prevents heap out of memory errors               |
-| `testTimeout`     | `10000`                  | 10 second timeout per test                       |
-| `hookTimeout`     | `10000`                  | 10 second timeout for hooks                      |
+| Setting       | Value                 | Purpose                                       |
+| ------------- | --------------------- | --------------------------------------------- |
+| `globals`     | `true`                | `describe`, `it`, `expect` available globally |
+| `environment` | `jsdom`               | Browser-like DOM environment                  |
+| `setupFiles`  | `./src/test/setup.ts` | This setup file                               |
+| `css`         | `true`                | Process CSS for style-dependent components    |
+| `pool`        | `forks`               | Use fork pool for memory optimization         |
+| `singleFork`  | `true`                | Prevents heap out of memory errors            |
+| `testTimeout` | `10000`               | 10 second timeout per test                    |
+| `hookTimeout` | `10000`               | 10 second timeout for hooks                   |
 
 ### Available Matchers
 
@@ -197,12 +197,12 @@ npm run test:ui
 
 This project requires **95% coverage** across all metrics:
 
-| Metric       | Threshold |
-| ------------ | --------- |
-| Statements   | 95%       |
-| Branches     | 94%       |
-| Functions    | 95%       |
-| Lines        | 95%       |
+| Metric     | Threshold |
+| ---------- | --------- |
+| Statements | 95%       |
+| Branches   | 94%       |
+| Functions  | 95%       |
+| Lines      | 95%       |
 
 Coverage reports are generated in `./coverage/` directory.
 

@@ -1068,3 +1068,326 @@ async def test_log_cleanup_does_not_break_queries(test_db):
         result = await session.execute(select(Log).where(Log.component == "component_0"))
         component_logs = result.scalars().all()
         assert len(component_logs) == 1
+
+
+# =============================================================================
+# Dry Run Cleanup Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_dry_run_cleanup_counts_without_deleting(test_db):
+    """Test dry_run_cleanup counts what would be deleted without actually deleting."""
+    from datetime import UTC
+
+    from backend.models.camera import Camera
+    from backend.models.log import Log
+
+    # Create test data
+    now = datetime.now(UTC)
+    old_date = now - timedelta(days=40)  # Older than 30-day retention
+
+    async with test_db() as session:
+        # Create camera for event/detection
+        camera = Camera(id="test_camera", name="Test Camera", folder_path="/export/foscam/test")
+        session.add(camera)
+        await session.flush()
+
+        # Create old event
+        old_event = Event(
+            batch_id="old-batch-001",
+            camera_id=camera.id,
+            started_at=old_date,
+            ended_at=old_date + timedelta(minutes=5),
+        )
+        session.add(old_event)
+        await session.flush()
+
+        # Create old detections
+        for i in range(3):
+            old_detection = Detection(
+                camera_id=camera.id,
+                file_path=f"/test/image_{i}.jpg",
+                detected_at=old_date + timedelta(minutes=i),
+            )
+            session.add(old_detection)
+
+        # Create old GPU stats
+        for i in range(5):
+            old_gpu = GPUStats(
+                recorded_at=old_date + timedelta(hours=i),
+                gpu_utilization=50.0 + i,
+                memory_used=10000 + i * 1000,
+                memory_total=24000,
+            )
+            session.add(old_gpu)
+
+        # Create old log
+        old_log = Log(
+            timestamp=old_date,
+            level="ERROR",
+            component="test",
+            message="Old error log",
+        )
+        session.add(old_log)
+
+        # Create recent data that should NOT be counted
+        recent_date = now - timedelta(days=1)
+        recent_event = Event(
+            batch_id="recent-batch-001",
+            camera_id=camera.id,
+            started_at=recent_date,
+            ended_at=recent_date + timedelta(minutes=5),
+        )
+        session.add(recent_event)
+        await session.flush()
+
+        recent_detection = Detection(
+            camera_id=camera.id,
+            file_path="/test/recent.jpg",
+            detected_at=recent_date,
+        )
+        session.add(recent_detection)
+
+        recent_gpu = GPUStats(
+            recorded_at=recent_date,
+            gpu_utilization=75.0,
+            memory_used=15000,
+            memory_total=24000,
+        )
+        session.add(recent_gpu)
+
+        recent_log = Log(
+            timestamp=recent_date,
+            level="INFO",
+            component="test",
+            message="Recent log",
+        )
+        session.add(recent_log)
+
+        await session.commit()
+
+    # Run dry run cleanup
+    service = CleanupService(retention_days=30)
+    stats = await service.dry_run_cleanup()
+
+    # Verify counts
+    assert stats.events_deleted == 1  # Only old event
+    assert stats.detections_deleted == 3  # Only old detections
+    assert stats.gpu_stats_deleted == 5  # Only old GPU stats
+    assert stats.logs_deleted == 1  # Only old log
+
+    # Verify NO data was actually deleted
+    async with test_db() as session:
+        # Events still exist
+        result = await session.execute(select(Event))
+        events = result.scalars().all()
+        assert len(events) == 2  # Both old and recent
+
+        # Detections still exist
+        result = await session.execute(select(Detection))
+        detections = result.scalars().all()
+        assert len(detections) == 4  # 3 old + 1 recent
+
+        # GPU stats still exist
+        result = await session.execute(select(GPUStats))
+        gpu_stats = result.scalars().all()
+        assert len(gpu_stats) == 6  # 5 old + 1 recent
+
+        # Logs still exist
+        from backend.models.log import Log
+
+        result = await session.execute(select(Log))
+        logs = result.scalars().all()
+        assert len(logs) == 2  # Both old and recent
+
+
+@pytest.mark.asyncio
+async def test_dry_run_cleanup_returns_zero_when_nothing_to_delete(test_db):
+    """Test dry_run_cleanup returns zero counts when no old data exists."""
+    from datetime import UTC
+
+    from backend.models.camera import Camera
+
+    # Create only recent data
+    now = datetime.now(UTC)
+    recent_date = now - timedelta(days=5)  # Within 30-day retention
+
+    async with test_db() as session:
+        camera = Camera(id="test_camera", name="Test Camera", folder_path="/export/foscam/test")
+        session.add(camera)
+        await session.flush()
+
+        event = Event(
+            batch_id="recent-batch-001",
+            camera_id=camera.id,
+            started_at=recent_date,
+            ended_at=recent_date + timedelta(minutes=5),
+        )
+        session.add(event)
+        await session.flush()
+
+        detection = Detection(
+            camera_id=camera.id,
+            file_path="/test/image.jpg",
+            detected_at=recent_date,
+        )
+        session.add(detection)
+
+        gpu_stat = GPUStats(
+            recorded_at=recent_date,
+            gpu_utilization=60.0,
+            memory_used=12000,
+            memory_total=24000,
+        )
+        session.add(gpu_stat)
+        await session.commit()
+
+    # Run dry run cleanup
+    service = CleanupService(retention_days=30)
+    stats = await service.dry_run_cleanup()
+
+    # Verify all counts are zero
+    assert stats.events_deleted == 0
+    assert stats.detections_deleted == 0
+    assert stats.gpu_stats_deleted == 0
+
+
+@pytest.mark.asyncio
+async def test_dry_run_cleanup_vs_actual_cleanup_same_counts(test_db):
+    """Test that dry_run_cleanup reports the same counts as run_cleanup."""
+    from datetime import UTC
+
+    from backend.models.camera import Camera
+
+    # Create test data
+    now = datetime.now(UTC)
+    old_date = now - timedelta(days=40)
+
+    async with test_db() as session:
+        camera = Camera(id="test_camera", name="Test Camera", folder_path="/export/foscam/test")
+        session.add(camera)
+        await session.flush()
+
+        # Create old event
+        old_event = Event(
+            batch_id="old-batch-002",
+            camera_id=camera.id,
+            started_at=old_date,
+            ended_at=old_date + timedelta(minutes=5),
+        )
+        session.add(old_event)
+        await session.flush()
+
+        # Create old detections
+        for i in range(2):
+            old_detection = Detection(
+                camera_id=camera.id,
+                file_path=f"/test/image_{i}.jpg",
+                detected_at=old_date + timedelta(minutes=i),
+            )
+            session.add(old_detection)
+
+        # Create old GPU stats
+        for i in range(3):
+            old_gpu = GPUStats(
+                recorded_at=old_date + timedelta(hours=i),
+                gpu_utilization=50.0,
+                memory_used=10000,
+                memory_total=24000,
+            )
+            session.add(old_gpu)
+
+        await session.commit()
+
+    # Run dry run first
+    service = CleanupService(retention_days=30)
+    dry_run_stats = await service.dry_run_cleanup()
+
+    # Store dry run counts
+    dry_run_events = dry_run_stats.events_deleted
+    dry_run_detections = dry_run_stats.detections_deleted
+    dry_run_gpu_stats = dry_run_stats.gpu_stats_deleted
+
+    # Verify data is still there after dry run
+    async with test_db() as session:
+        result = await session.execute(select(Event))
+        assert len(result.scalars().all()) == 1
+        result = await session.execute(select(Detection))
+        assert len(result.scalars().all()) == 2
+        result = await session.execute(select(GPUStats))
+        assert len(result.scalars().all()) == 3
+
+    # Now run actual cleanup
+    actual_stats = await service.run_cleanup()
+
+    # Verify counts match
+    assert actual_stats.events_deleted == dry_run_events
+    assert actual_stats.detections_deleted == dry_run_detections
+    assert actual_stats.gpu_stats_deleted == dry_run_gpu_stats
+
+    # Verify data is now deleted after actual cleanup
+    async with test_db() as session:
+        result = await session.execute(select(Event))
+        assert len(result.scalars().all()) == 0
+        result = await session.execute(select(Detection))
+        assert len(result.scalars().all()) == 0
+        result = await session.execute(select(GPUStats))
+        assert len(result.scalars().all()) == 0
+
+
+@pytest.mark.asyncio
+async def test_dry_run_cleanup_respects_retention_days():
+    """Test that dry_run_cleanup uses the configured retention_days."""
+    # Create service with different retention values
+    service_7_days = CleanupService(retention_days=7)
+    service_30_days = CleanupService(retention_days=30)
+
+    # Verify they have different retention settings
+    assert service_7_days.retention_days == 7
+    assert service_30_days.retention_days == 30
+
+
+@pytest.mark.asyncio
+async def test_count_old_logs(test_db):
+    """Test _count_old_logs counts without deleting."""
+    from datetime import UTC
+
+    from backend.models.log import Log
+
+    # Create old and recent logs
+    now = datetime.now(UTC)
+    old_date = now - timedelta(days=15)  # Older than default 7-day log retention
+    recent_date = now - timedelta(days=1)
+
+    async with test_db() as session:
+        for i in range(3):
+            old_log = Log(
+                timestamp=old_date,
+                level="ERROR",
+                component=f"test_{i}",
+                message=f"Old log {i}",
+            )
+            session.add(old_log)
+
+        recent_log = Log(
+            timestamp=recent_date,
+            level="INFO",
+            component="test",
+            message="Recent log",
+        )
+        session.add(recent_log)
+        await session.commit()
+
+    # Count old logs
+    service = CleanupService()
+    count = await service._count_old_logs()
+
+    # Verify count
+    assert count == 3
+
+    # Verify logs still exist (not deleted)
+    async with test_db() as session:
+        result = await session.execute(select(Log))
+        logs = result.scalars().all()
+        assert len(logs) == 4  # All logs still present

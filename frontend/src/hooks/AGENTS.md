@@ -195,7 +195,8 @@ if (status) {
 All WebSocket hooks construct URLs dynamically for protocol-agnostic connections:
 
 ```typescript
-const wsProtocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const wsProtocol =
+  typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 const wsHost = typeof window !== 'undefined' ? window.location.host : 'localhost:8000';
 const url = wsProtocol + '//' + wsHost + '/ws/events';
 ```
@@ -218,7 +219,7 @@ Type guards validate the envelope structure before processing:
 ```typescript
 function isBackendEventMessage(data: unknown): data is BackendEventMessage {
   if (!data || typeof data !== 'object') return false;
-  const msg = data as Record<string, unknown>;
+  const msg = data as Record;
   return msg.type === 'event' && isSecurityEvent(msg.data);
 }
 ```
@@ -235,11 +236,11 @@ The base `useWebSocket` hook handles reconnection with exponential state trackin
 
 All hooks have comprehensive test coverage using Vitest and React Testing Library:
 
-| File                      | Coverage                                                  |
-| ------------------------- | --------------------------------------------------------- |
-| `useWebSocket.test.ts`    | Connection lifecycle, message handling, reconnects        |
-| `useEventStream.test.ts`  | Event buffering, envelope parsing, non-event filtering    |
-| `useSystemStatus.test.ts` | Backend message transformation, type guards               |
+| File                      | Coverage                                               |
+| ------------------------- | ------------------------------------------------------ |
+| `useWebSocket.test.ts`    | Connection lifecycle, message handling, reconnects     |
+| `useEventStream.test.ts`  | Event buffering, envelope parsing, non-event filtering |
+| `useSystemStatus.test.ts` | Backend message transformation, type guards            |
 
 **Test Utilities:**
 

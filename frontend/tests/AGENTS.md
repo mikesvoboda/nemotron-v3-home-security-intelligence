@@ -43,11 +43,11 @@ frontend/tests/
 
 ## Test Types Overview
 
-| Test Type       | Location             | Purpose                        | Framework          | Status      |
-| --------------- | -------------------- | ------------------------------ | ------------------ | ----------- |
-| **Unit**        | `src/**/*.test.tsx`  | Component/function isolation   | Vitest + RTL       | Implemented |
-| **Integration** | `tests/integration/` | Multi-component interactions   | Vitest + MSW       | Planned     |
-| **E2E**         | `tests/e2e/`         | Full user workflows in browser | Playwright         | Planned     |
+| Test Type       | Location             | Purpose                        | Framework    | Status      |
+| --------------- | -------------------- | ------------------------------ | ------------ | ----------- |
+| **Unit**        | `src/**/*.test.tsx`  | Component/function isolation   | Vitest + RTL | Implemented |
+| **Integration** | `tests/integration/` | Multi-component interactions   | Vitest + MSW | Planned     |
+| **E2E**         | `tests/e2e/`         | Full user workflows in browser | Playwright   | Planned     |
 
 ## Integration Tests
 
@@ -149,7 +149,7 @@ export function renderWithProviders(ui: React.ReactElement) {
 
 ```typescript
 // helpers/mocks.ts
-export function createMockCamera(overrides?: Partial<Camera>): Camera {
+export function createMockCamera(overrides?: Partial): Camera {
   return {
     id: 'cam-1',
     name: 'Test Camera',
@@ -188,12 +188,12 @@ npx playwright test
 
 This project requires **95% coverage** across all metrics:
 
-| Metric       | Threshold |
-| ------------ | --------- |
-| Statements   | 95%       |
-| Branches     | 94%       |
-| Functions    | 95%       |
-| Lines        | 95%       |
+| Metric     | Threshold |
+| ---------- | --------- |
+| Statements | 95%       |
+| Branches   | 94%       |
+| Functions  | 95%       |
+| Lines      | 95%       |
 
 ## Current Unit Test Coverage
 
@@ -225,15 +225,15 @@ The project has extensive unit test coverage for:
 
 ## When to Use This Directory
 
-| Action                                          | Location              |
-| ----------------------------------------------- | --------------------- |
-| Unit test for a component                       | Co-locate in `src/`   |
-| Unit test for a hook                            | Co-locate in `src/`   |
-| Test multiple components together               | `tests/integration/`  |
-| Test API + component interactions               | `tests/integration/`  |
-| Full user workflow in real browser              | `tests/e2e/`          |
-| Shared test fixtures                            | `tests/fixtures/`     |
-| Custom render functions                         | `tests/helpers/`      |
+| Action                             | Location             |
+| ---------------------------------- | -------------------- |
+| Unit test for a component          | Co-locate in `src/`  |
+| Unit test for a hook               | Co-locate in `src/`  |
+| Test multiple components together  | `tests/integration/` |
+| Test API + component interactions  | `tests/integration/` |
+| Full user workflow in real browser | `tests/e2e/`         |
+| Shared test fixtures               | `tests/fixtures/`    |
+| Custom render functions            | `tests/helpers/`     |
 
 ## Related Documentation
 

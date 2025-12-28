@@ -1121,9 +1121,12 @@ async def get_telemetry(
 # =============================================================================
 
 
-@router.post("/cleanup", response_model=CleanupResponse)
-async def trigger_cleanup() -> CleanupResponse:
+@router.post("/cleanup", response_model=CleanupResponse, dependencies=[Depends(verify_api_key)])
+async def trigger_cleanup(dry_run: bool = False) -> CleanupResponse:
     """Trigger manual data cleanup based on retention settings.
+
+    Requires API key authentication when api_key_enabled is True in settings.
+    Provide the API key via X-API-Key header.
 
     This endpoint runs the CleanupService to delete old data according to
     the configured retention period. It deletes:
@@ -1138,39 +1141,80 @@ async def trigger_cleanup() -> CleanupResponse:
     configuration. To change the retention period before running cleanup,
     use PATCH /api/system/config first.
 
+    Args:
+        dry_run: If True, calculate and return what would be deleted without
+                 actually performing the deletion. Useful for verification
+                 before destructive operations.
+
     Returns:
-        CleanupResponse with statistics about the cleanup operation
+        CleanupResponse with statistics about the cleanup operation.
+        When dry_run=True, the counts represent what would be deleted.
     """
     from backend.services.cleanup_service import CleanupService
 
     settings = get_settings()
 
-    logger.info(f"Manual cleanup triggered with retention_days={settings.retention_days}")
-
-    # Create a CleanupService instance with current settings
-    cleanup_service = CleanupService(
-        retention_days=settings.retention_days,
-        thumbnail_dir="backend/data/thumbnails",
-        delete_images=False,  # Keep original images by default for safety
-    )
-
-    try:
-        # Run the cleanup operation
-        stats = await cleanup_service.run_cleanup()
-
-        logger.info(f"Manual cleanup completed: {stats}")
-
-        return CleanupResponse(
-            events_deleted=stats.events_deleted,
-            detections_deleted=stats.detections_deleted,
-            gpu_stats_deleted=stats.gpu_stats_deleted,
-            logs_deleted=stats.logs_deleted,
-            thumbnails_deleted=stats.thumbnails_deleted,
-            images_deleted=stats.images_deleted,
-            space_reclaimed=stats.space_reclaimed,
-            retention_days=settings.retention_days,
-            timestamp=datetime.now(UTC),
+    if dry_run:
+        logger.info(
+            f"Manual cleanup dry run triggered with retention_days={settings.retention_days}"
         )
-    except Exception as e:
-        logger.error(f"Manual cleanup failed: {e}", exc_info=True)
-        raise
+
+        # Create a CleanupService instance to use for dry run calculations
+        cleanup_service = CleanupService(
+            retention_days=settings.retention_days,
+            thumbnail_dir="backend/data/thumbnails",
+            delete_images=False,
+        )
+
+        try:
+            # Run the dry run to calculate what would be deleted
+            stats = await cleanup_service.dry_run_cleanup()
+
+            logger.info(f"Manual cleanup dry run completed: {stats}")
+
+            return CleanupResponse(
+                events_deleted=stats.events_deleted,
+                detections_deleted=stats.detections_deleted,
+                gpu_stats_deleted=stats.gpu_stats_deleted,
+                logs_deleted=stats.logs_deleted,
+                thumbnails_deleted=stats.thumbnails_deleted,
+                images_deleted=stats.images_deleted,
+                space_reclaimed=stats.space_reclaimed,
+                retention_days=settings.retention_days,
+                dry_run=True,
+                timestamp=datetime.now(UTC),
+            )
+        except Exception as e:
+            logger.error(f"Manual cleanup dry run failed: {e}", exc_info=True)
+            raise
+    else:
+        logger.info(f"Manual cleanup triggered with retention_days={settings.retention_days}")
+
+        # Create a CleanupService instance with current settings
+        cleanup_service = CleanupService(
+            retention_days=settings.retention_days,
+            thumbnail_dir="backend/data/thumbnails",
+            delete_images=False,  # Keep original images by default for safety
+        )
+
+        try:
+            # Run the cleanup operation
+            stats = await cleanup_service.run_cleanup()
+
+            logger.info(f"Manual cleanup completed: {stats}")
+
+            return CleanupResponse(
+                events_deleted=stats.events_deleted,
+                detections_deleted=stats.detections_deleted,
+                gpu_stats_deleted=stats.gpu_stats_deleted,
+                logs_deleted=stats.logs_deleted,
+                thumbnails_deleted=stats.thumbnails_deleted,
+                images_deleted=stats.images_deleted,
+                space_reclaimed=stats.space_reclaimed,
+                retention_days=settings.retention_days,
+                dry_run=False,
+                timestamp=datetime.now(UTC),
+            )
+        except Exception as e:
+            logger.error(f"Manual cleanup failed: {e}", exc_info=True)
+            raise
