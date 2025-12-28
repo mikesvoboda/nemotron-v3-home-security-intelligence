@@ -56,7 +56,8 @@ def sync_client(integration_env):
     TestClient creates its own event loop, which conflicts with async fixtures.
     The database is initialized by the app's lifespan inside the TestClient context.
     """
-    from backend.core.database import close_db as _close_db, init_db as _init_db
+    from backend.core.database import close_db as _close_db
+    from backend.core.database import init_db as _init_db
     from backend.main import app
 
     # Create mock Redis client for this fixture
@@ -547,7 +548,8 @@ def sync_client_with_auth_enabled(integration_env, test_api_key):
     TestClient creates its own event loop, which conflicts with async fixtures.
     """
     from backend.core.config import get_settings
-    from backend.core.database import close_db as _close_db, init_db as _init_db
+    from backend.core.database import close_db as _close_db
+    from backend.core.database import init_db as _init_db
     from backend.main import app
 
     # Store original environment

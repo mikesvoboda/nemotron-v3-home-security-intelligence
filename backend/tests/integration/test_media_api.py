@@ -98,14 +98,11 @@ def client(module_temp_foscam_dir, module_thumbnail_dir):
         settings.foscam_base_path = str(module_temp_foscam_dir)
         return settings
 
-    # Store original serve_thumbnail to create patched version
+    # Import media module to create patched version of serve_thumbnail
     from backend.api.routes import media as media_module
-
-    original_serve_thumbnail = media_module.serve_thumbnail
 
     async def patched_serve_thumbnail(filename: str):
         """Patched version that uses temp thumbnail directory."""
-        from fastapi import HTTPException
         from fastapi.responses import FileResponse
 
         from backend.api.routes.media import ALLOWED_TYPES, _validate_and_resolve_path
