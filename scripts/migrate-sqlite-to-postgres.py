@@ -70,6 +70,7 @@ def migrate_table(
     # Read from SQLite
     sqlite_conn = sqlite_session()
     cols = ", ".join(columns)
+    # nosemgrep: avoid-sqlalchemy-text - table/column names from hardcoded metadata, not user input
     result = sqlite_conn.execute(text(f"SELECT {cols} FROM {table_name}"))  # noqa: S608
     rows = result.fetchall()
     sqlite_conn.close()
@@ -83,6 +84,7 @@ def migrate_table(
 
     # Build insert statement with placeholders
     placeholders = ", ".join([f":{col}" for col in columns])
+    # nosemgrep: avoid-sqlalchemy-text - table/column names from hardcoded metadata, not user input
     insert_sql = f"INSERT INTO {table_name} ({cols}) VALUES ({placeholders})"  # noqa: S608
 
     # Convert rows to dicts
@@ -92,6 +94,7 @@ def migrate_table(
     batch_size = 1000
     for i in range(0, len(row_dicts), batch_size):
         batch = row_dicts[i : i + batch_size]
+        # nosemgrep: avoid-sqlalchemy-text  # noqa: ERA001
         postgres_conn.execute(text(insert_sql), batch)
 
     postgres_conn.commit()
@@ -108,12 +111,14 @@ def reset_sequence(postgres_session: sessionmaker, table_name: str, id_column: s
     """
     conn = postgres_session()
     # Get max ID
+    # nosemgrep: avoid-sqlalchemy-text - table/column names from function args, not user input
     result = conn.execute(text(f"SELECT COALESCE(MAX({id_column}), 0) FROM {table_name}"))  # noqa: S608
     max_id = result.scalar()
 
     if max_id and max_id > 0:
         # Reset sequence
         seq_name = f"{table_name}_{id_column}_seq"
+        # nosemgrep: avoid-sqlalchemy-text - seq_name derived from table name, not user input
         conn.execute(text(f"SELECT setval('{seq_name}', {max_id})"))
         conn.commit()
 
@@ -127,11 +132,13 @@ def verify_counts(
 ) -> bool:
     """Verify row counts match between databases."""
     sqlite_conn = sqlite_session()
+    # nosemgrep: avoid-sqlalchemy-text - table_name from hardcoded metadata, not user input
     result = sqlite_conn.execute(text(f"SELECT COUNT(*) FROM {table_name}"))  # noqa: S608
     sqlite_count = result.scalar()
     sqlite_conn.close()
 
     postgres_conn = postgres_session()
+    # nosemgrep: avoid-sqlalchemy-text - table_name from hardcoded metadata, not user input
     result = postgres_conn.execute(text(f"SELECT COUNT(*) FROM {table_name}"))  # noqa: S608
     postgres_count = result.scalar()
     postgres_conn.close()
