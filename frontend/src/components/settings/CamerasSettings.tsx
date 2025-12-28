@@ -148,7 +148,7 @@ export default function CamerasSettings() {
         const createData: CameraCreate = {
           name: formData.name.trim(),
           folder_path: formData.folder_path.trim(),
-          status: formData.status,
+          status: formData.status ?? 'online',
         };
         await createCamera(createData);
       }

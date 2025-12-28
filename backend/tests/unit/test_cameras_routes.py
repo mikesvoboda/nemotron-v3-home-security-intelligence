@@ -28,7 +28,6 @@ from backend.api.schemas.camera import (
 from backend.core.database import get_db
 from backend.models.camera import Camera
 
-
 # =============================================================================
 # Fixtures
 # =============================================================================
@@ -794,7 +793,6 @@ class TestGetCameraSnapshot:
         self, client: TestClient, mock_db_session: AsyncMock, tmp_path: Path
     ) -> None:
         """Test snapshot endpoint returns the most recently modified PNG image."""
-        import time
 
         # Set up paths
         foscam_root = tmp_path / "foscam"
@@ -866,7 +864,6 @@ class TestGetCameraSnapshot:
         self, client: TestClient, mock_db_session: AsyncMock, tmp_path: Path
     ) -> None:
         """Test snapshot endpoint finds images in subdirectories (rglob)."""
-        import time
 
         # Set up paths
         foscam_root = tmp_path / "foscam"
