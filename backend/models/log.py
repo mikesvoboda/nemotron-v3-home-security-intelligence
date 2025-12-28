@@ -3,7 +3,8 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, DateTime, Index, Integer, String, Text, func
+from sqlalchemy import DateTime, Index, Integer, String, Text, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .camera import Base
@@ -19,9 +20,7 @@ class Log(Base):
     __tablename__ = "logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    timestamp: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
-    )
+    timestamp: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
     level: Mapped[str] = mapped_column(String(10), nullable=False)
     component: Mapped[str] = mapped_column(String(50), nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
@@ -34,7 +33,7 @@ class Log(Base):
 
     # Performance/debug fields
     duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    extra: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    extra: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     # Source tracking
     source: Mapped[str] = mapped_column(String(10), default="backend", nullable=False)

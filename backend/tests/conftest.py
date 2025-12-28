@@ -1,13 +1,16 @@
 """Pytest configuration and shared fixtures.
 
 This module provides shared test fixtures for all backend tests:
-- isolated_db: Function-scoped isolated database for unit tests
+- isolated_db: Function-scoped isolated database for unit tests (PostgreSQL)
 - test_db: Callable session factory for unit tests
 - integration_env: Environment setup for integration tests
 - integration_db: Initialized database for integration tests
 - mock_redis: Mock Redis client for integration tests
 - db_session: Database session for integration tests
 - client: httpx AsyncClient for API integration tests
+
+Tests use PostgreSQL. Configure TEST_DATABASE_URL environment variable or
+use the default test database URL.
 
 See backend/tests/AGENTS.md for full documentation on test conventions.
 """
@@ -16,13 +19,11 @@ from __future__ import annotations
 
 import os
 import sys
-import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from testcontainers.postgres import PostgresContainer
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Generator
@@ -33,76 +34,17 @@ if str(backend_path) not in sys.path:
     sys.path.insert(0, str(backend_path))
 
 
-# Module-level PostgreSQL container shared across all tests in a session
-_postgres_container: PostgresContainer | None = None
+def _get_test_database_url() -> str:
+    """Get a unique test database URL for isolation.
 
-
-def pytest_configure(config):
-    """Start PostgreSQL container once for the entire test session.
-
-    If TEST_DATABASE_URL environment variable is set, use that instead of testcontainers.
-    This allows tests to run against an existing PostgreSQL instance when Docker is not available.
+    Uses TEST_DATABASE_URL env var or defaults to a test database.
+    Appends a unique suffix to ensure test isolation.
     """
-    global _postgres_container  # noqa: PLW0603
-
-    # Allow using existing PostgreSQL instance via environment variable
-    if os.environ.get("TEST_DATABASE_URL"):
-        return
-
-    # Try to start testcontainer, skip if Docker/Podman not available
-    try:
-        _postgres_container = PostgresContainer("postgres:16-alpine", driver="asyncpg")
-        _postgres_container.start()
-    except Exception as e:
-        # Log warning but don't fail - tests will use TEST_DATABASE_URL if set
-        print(
-            f"Warning: Could not start PostgreSQL testcontainer: {e}. "
-            "Set TEST_DATABASE_URL environment variable to use existing PostgreSQL instance."
-        )
-
-
-def pytest_unconfigure(config):
-    """Stop PostgreSQL container after all tests complete."""
-    global _postgres_container  # noqa: PLW0603
-    if _postgres_container:
-        try:
-            _postgres_container.stop()
-        except Exception:  # noqa: S110
-            pass  # Ignore errors on cleanup - container may already be stopped
-        finally:
-            _postgres_container = None
-
-
-def get_test_db_url() -> str:
-    """Get the PostgreSQL test database URL.
-
-    Uses TEST_DATABASE_URL environment variable if set, otherwise uses testcontainer.
-
-    Returns:
-        str: PostgreSQL connection URL with asyncpg driver
-
-    Raises:
-        RuntimeError: If neither testcontainer nor TEST_DATABASE_URL is available
-    """
-    # Check for environment variable first
-    env_url = os.environ.get("TEST_DATABASE_URL")
-    if env_url:
-        # Ensure asyncpg driver
-        if "postgresql://" in env_url and "asyncpg" not in env_url:
-            env_url = env_url.replace("postgresql://", "postgresql+asyncpg://")
-        return env_url
-
-    # Fall back to testcontainer
-    if _postgres_container is None:
-        raise RuntimeError(
-            "PostgreSQL not available for testing. Either start Docker/Podman "
-            "or set TEST_DATABASE_URL environment variable to an existing PostgreSQL instance."
-        )
-
-    # Get the connection URL and ensure it uses asyncpg driver
-    url = _postgres_container.get_connection_url()
-    # Replace psycopg2 driver with asyncpg
-    return url.replace("postgresql+psycopg2://", "postgresql+asyncpg://")
+    base_url = os.environ.get(
+        "TEST_DATABASE_URL",
+        "postgresql+asyncpg://postgres:postgres@localhost:5432/security_test",
+    )
+    return base_url
 
 
 @pytest.fixture(scope="function")
@@ -110,8 +52,7 @@ async def isolated_db():
     """Create an isolated test database for each test.
 
     This fixture:
-    - Uses the shared PostgreSQL testcontainer
-    - Creates a unique database for each test
+    - Sets up a PostgreSQL test database
     - Sets the DATABASE_URL environment variable
     - Clears the settings cache
     - Initializes the database
@@ -127,8 +68,8 @@ async def isolated_db():
     # Clear the settings cache to force reload
     get_settings.cache_clear()
 
-    # Get base PostgreSQL URL from testcontainer
-    test_db_url = get_test_db_url()
+    # Use PostgreSQL test database
+    test_db_url = _get_test_database_url()
 
     # Set test database URL
     os.environ["DATABASE_URL"] = test_db_url
@@ -197,8 +138,8 @@ async def test_db():
     # Clear the settings cache to force reload
     get_settings.cache_clear()
 
-    # Get PostgreSQL URL from testcontainer
-    test_db_url = get_test_db_url()
+    # Use PostgreSQL test database
+    test_db_url = _get_test_database_url()
 
     # Set test database URL
     os.environ["DATABASE_URL"] = test_db_url
@@ -237,7 +178,7 @@ async def test_db():
 
 @pytest.fixture
 def integration_env() -> Generator[str]:
-    """Set DATABASE_URL/REDIS_URL to a PostgreSQL test database.
+    """Set DATABASE_URL/REDIS_URL to a test PostgreSQL database.
 
     This fixture ONLY sets environment variables and clears cached settings.
     Use `integration_db` if the test needs the database initialized.
@@ -245,6 +186,8 @@ def integration_env() -> Generator[str]:
     All integration tests should use this fixture (directly or via integration_db)
     to ensure proper isolation and cleanup.
     """
+    import tempfile
+
     from backend.core.config import get_settings
 
     original_db_url = os.environ.get("DATABASE_URL")
@@ -252,8 +195,7 @@ def integration_env() -> Generator[str]:
     original_runtime_env_path = os.environ.get("HSI_RUNTIME_ENV_PATH")
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        # Get PostgreSQL URL from testcontainer
-        test_db_url = get_test_db_url()
+        test_db_url = _get_test_database_url()
         runtime_env_path = str(Path(tmpdir) / "runtime.env")
 
         os.environ["DATABASE_URL"] = test_db_url

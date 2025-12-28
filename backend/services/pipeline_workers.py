@@ -42,8 +42,9 @@ from backend.core.metrics import (
 )
 from backend.core.redis import RedisClient
 from backend.services.batch_aggregator import BatchAggregator
-from backend.services.detector_client import DetectorClient
+from backend.services.detector_client import DetectorClient, DetectorUnavailableError
 from backend.services.nemotron_analyzer import NemotronAnalyzer
+from backend.services.retry_handler import RetryConfig, RetryHandler
 from backend.services.video_processor import VideoProcessor
 
 logger = get_logger(__name__)
@@ -96,6 +97,7 @@ class DetectionQueueWorker:
         detector_client: DetectorClient | None = None,
         batch_aggregator: BatchAggregator | None = None,
         video_processor: VideoProcessor | None = None,
+        retry_handler: RetryHandler | None = None,
         queue_name: str = "detection_queue",
         poll_timeout: int = 5,
         stop_timeout: float = 10.0,
@@ -107,6 +109,7 @@ class DetectionQueueWorker:
             detector_client: Client for RT-DETRv2. If None, will be created.
             batch_aggregator: Aggregator for batching detections. If None, will be created.
             video_processor: Processor for video frame extraction. If None, will be created.
+            retry_handler: Handler for retry logic and DLQ. If None, will be created.
             queue_name: Name of the Redis queue to consume from
             poll_timeout: Timeout in seconds for BLPOP (allows checking shutdown signal)
             stop_timeout: Timeout in seconds for graceful stop before force cancel
@@ -121,6 +124,19 @@ class DetectionQueueWorker:
         self._queue_name = queue_name
         self._poll_timeout = poll_timeout
         self._stop_timeout = stop_timeout
+
+        # Retry handler for transient failures (detector unavailable, etc.)
+        # Uses configurable retry settings with exponential backoff
+        self._retry_handler = retry_handler or RetryHandler(
+            redis_client=redis_client,
+            config=RetryConfig(
+                max_retries=3,
+                base_delay_seconds=1.0,
+                max_delay_seconds=30.0,
+                exponential_base=2.0,
+                jitter=True,
+            ),
+        )
 
         # Video processing settings
         self._video_frame_interval = settings.video_frame_interval_seconds
@@ -230,6 +246,10 @@ class DetectionQueueWorker:
         Handles both image and video files. For videos, extracts frames
         and runs detection on each frame.
 
+        When the detector is unavailable (DetectorUnavailableError), the retry
+        handler will retry with exponential backoff. After max retries, the job
+        is moved to the dead-letter queue (DLQ) for later inspection/replay.
+
         Args:
             item: Queue item with camera_id, file_path, timestamp, media_type
         """
@@ -251,9 +271,9 @@ class DetectionQueueWorker:
 
         try:
             if media_type == "video":
-                await self._process_video_detection(camera_id, file_path)
+                await self._process_video_detection(camera_id, file_path, item)
             else:
-                await self._process_image_detection(camera_id, file_path)
+                await self._process_image_detection(camera_id, file_path, item)
 
             self._stats.items_processed += 1
             self._stats.last_processed_at = time.time()
@@ -261,6 +281,20 @@ class DetectionQueueWorker:
             # Record detect stage duration
             duration = time.time() - start_time
             observe_stage_duration("detect", duration)
+
+        except DetectorUnavailableError as e:
+            # This is expected when detector is down and retries exhausted
+            # The retry handler already moved the job to DLQ
+            self._stats.errors += 1
+            logger.warning(
+                f"Detection unavailable for {file_path}, job sent to DLQ: {e}",
+                extra={
+                    "camera_id": camera_id,
+                    "file_path": file_path,
+                    "media_type": media_type,
+                },
+            )
+            # Don't record as generic error - already recorded by retry handler
 
         except Exception as e:
             self._stats.errors += 1
@@ -271,19 +305,56 @@ class DetectionQueueWorker:
                 exc_info=True,
             )
 
-    async def _process_image_detection(self, camera_id: str, file_path: str) -> None:
+    async def _process_image_detection(
+        self, camera_id: str, file_path: str, job_data: dict[str, Any]
+    ) -> None:
         """Process a single image file for object detection.
+
+        Uses retry handler to handle transient failures (detector unavailable).
+        After max retries, the job is moved to the dead-letter queue.
 
         Args:
             camera_id: Camera identifier
             file_path: Path to the image file
+            job_data: Original job data for DLQ tracking
         """
-        async with get_session() as session:
-            detections = await self._detector.detect_objects(
-                image_path=file_path,
-                camera_id=camera_id,
-                session=session,
+
+        async def _detect_with_session() -> list[Any]:
+            """Inner function to perform detection with database session."""
+            async with get_session() as session:
+                return await self._detector.detect_objects(
+                    image_path=file_path,
+                    camera_id=camera_id,
+                    session=session,
+                )
+
+        # Use retry handler to handle DetectorUnavailableError
+        result = await self._retry_handler.with_retry(
+            operation=_detect_with_session,
+            job_data=job_data,
+            queue_name=self._queue_name,
+        )
+
+        if not result.success:
+            # All retries exhausted - job moved to DLQ
+            logger.warning(
+                f"Detection failed after {result.attempts} attempts for {file_path}, "
+                f"moved to DLQ: {result.moved_to_dlq}",
+                extra={
+                    "camera_id": camera_id,
+                    "file_path": file_path,
+                    "attempts": result.attempts,
+                    "moved_to_dlq": result.moved_to_dlq,
+                    "error": result.error,
+                },
             )
+            record_pipeline_error("detection_max_retries_exceeded")
+            # Re-raise to signal failure to caller
+            raise DetectorUnavailableError(
+                f"Detection failed after {result.attempts} retries: {result.error}"
+            )
+
+        detections = result.result or []
 
         # Add detections to batch
         for detection in detections:
@@ -301,18 +372,25 @@ class DetectionQueueWorker:
                 "camera_id": camera_id,
                 "detection_count": len(detections),
                 "items_processed": self._stats.items_processed,
+                "retry_attempts": result.attempts,
             },
         )
 
-    async def _process_video_detection(self, camera_id: str, video_path: str) -> None:
+    async def _process_video_detection(
+        self, camera_id: str, video_path: str, job_data: dict[str, Any]
+    ) -> None:
         """Process a video file by extracting frames and running detection on each.
 
         Extracts frames at configured intervals, runs object detection on each frame,
         then cleans up the extracted frames.
 
+        Uses retry handler for transient detector failures. If all retries fail,
+        the video job is moved to DLQ.
+
         Args:
             camera_id: Camera identifier
             video_path: Path to the video file
+            job_data: Original job data for DLQ tracking
         """
         logger.info(
             f"Processing video for detection: {video_path}",
@@ -334,6 +412,7 @@ class DetectionQueueWorker:
             return
 
         total_detections = 0
+        detector_failed = False
 
         try:
             # Get video metadata for storing with detections
@@ -343,14 +422,44 @@ class DetectionQueueWorker:
             async with get_session() as session:
                 for frame_path in frame_paths:
                     try:
-                        detections = await self._detector.detect_objects(
-                            image_path=frame_path,
-                            camera_id=camera_id,
-                            session=session,
-                            # Pass video metadata to associate detections with the video
-                            video_path=video_path,
-                            video_metadata=video_metadata,
+                        # Capture frame_path in a closure to avoid loop variable binding issue
+                        current_frame = frame_path
+
+                        async def _detect_frame(
+                            fp: str = current_frame,
+                        ) -> list[Any]:
+                            """Inner function for detection with retry support."""
+                            return await self._detector.detect_objects(
+                                image_path=fp,
+                                camera_id=camera_id,
+                                session=session,
+                                video_path=video_path,
+                                video_metadata=video_metadata,
+                            )
+
+                        # Use retry handler for each frame
+                        result = await self._retry_handler.with_retry(
+                            operation=_detect_frame,
+                            job_data=job_data,  # Use video job data for DLQ
+                            queue_name=self._queue_name,
                         )
+
+                        if not result.success:
+                            # Detector is down - fail the entire video job
+                            logger.warning(
+                                f"Detector unavailable during video processing: {video_path}",
+                                extra={
+                                    "camera_id": camera_id,
+                                    "video_path": video_path,
+                                    "frame_path": frame_path,
+                                    "attempts": result.attempts,
+                                    "moved_to_dlq": result.moved_to_dlq,
+                                },
+                            )
+                            detector_failed = True
+                            break
+
+                        detections = result.result or []
 
                         # Add detections to batch
                         for detection in detections:
@@ -364,6 +473,10 @@ class DetectionQueueWorker:
 
                         total_detections += len(detections)
 
+                    except DetectorUnavailableError:
+                        # Retry handler already moved to DLQ
+                        detector_failed = True
+                        break
                     except Exception as e:
                         logger.warning(
                             f"Failed to process frame {frame_path}: {e}",
@@ -374,6 +487,11 @@ class DetectionQueueWorker:
         finally:
             # Clean up extracted frames
             self._video_processor.cleanup_extracted_frames(video_path)
+
+        if detector_failed:
+            raise DetectorUnavailableError(
+                f"Detector unavailable during video processing: {video_path}"
+            )
 
         logger.info(
             f"Processed video {video_path}: {total_detections} detections "

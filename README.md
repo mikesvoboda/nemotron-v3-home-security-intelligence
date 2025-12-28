@@ -1,22 +1,16 @@
 # Home Security Intelligence
 
-> Turn dumb security cameras into an intelligent threat detection system—**100% local, no cloud APIs required.**
+> Turn dumb security cameras into an intelligent threat detection system.
 
-![Dashboard](docs/images/dashboard.png)
+![Dashboard Mockup](docs/images/dashboard-mockup.svg)
+_Dashboard mockup showing the main interface layout_
 
-**What it does:** Your security cameras upload images via FTP. This system watches those uploads, runs object detection (RT-DETRv2), and uses a **locally-running LLM** (Nemotron Mini 4B) to generate contextual risk assessments—not just "person detected" but _"unfamiliar person approaching back entrance at 2am, risk: high."_
-
-### Why Local AI?
-
-- **Privacy:** Your security footage never leaves your network
-- **No subscriptions:** No monthly API fees or cloud dependencies
-- **Works offline:** Full functionality without internet
-- **Fast:** Sub-second inference on consumer GPUs (even older ones!)
+**What it does:** Your Foscam cameras upload images via FTP. This system watches those uploads, runs object detection (RT-DETRv2), and uses an LLM (Nemotron) to generate contextual risk assessments—not just "person detected" but _"unfamiliar person approaching back entrance at 2am, risk: high."_
 
 |                |                                        |
 | -------------- | -------------------------------------- |
 | **Detection**  | RT-DETRv2 (30-50ms/image)              |
-| **Analysis**   | Nemotron Mini 4B via llama.cpp         |
+| **Analysis**   | Nemotron 4B via llama.cpp              |
 | **Storage**    | PostgreSQL + 30-day retention          |
 | **Interface**  | React dashboard + REST API + WebSocket |
 | **Target GPU** | NVIDIA RTX (8GB+ VRAM)                 |
@@ -141,17 +135,6 @@ A single "person walks to door" might generate 15 images over 30 seconds. Batchi
 | **30-day Retention**    | Automatic cleanup, configurable           |
 
 <details>
-<summary>📸 More Screenshots</summary>
-
-**Event Timeline** — Browse and filter all security events
-![Timeline](docs/images/timeline.png)
-
-**Alerts** — High-risk events requiring attention
-![Alerts](docs/images/alerts.png)
-
-</details>
-
-<details>
 <summary>REST API endpoints</summary>
 
 All endpoints documented at [http://localhost:8000/docs](http://localhost:8000/docs) (Swagger UI)
@@ -202,7 +185,7 @@ Copy `.env.example` to `.env` and adjust as needed. See [docs/RUNTIME_CONFIG.md]
 **Core**
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATABASE_URL` | `sqlite+aiosqlite:///./data/security.db` | Database connection |
+| `DATABASE_URL` | `postgresql+asyncpg://postgres:postgres@localhost:5432/security` | PostgreSQL connection |
 | `REDIS_URL` | `redis://localhost:6379/0` | Redis connection |
 | `FOSCAM_BASE_PATH` | `/export/foscam` | Camera upload directory |
 
@@ -343,15 +326,12 @@ On Linux, ensure Docker can reach host services (see Quick Start note).
 
 </details>
 
----
+<details>
+<summary>Database connection issues</summary>
 
-## Documentation
+Ensure PostgreSQL is running and accessible. Check the connection URL and credentials.
 
-📚 **[Full Documentation](docs/README.md)** — Comprehensive guides for all audiences:
-
-- **[User Guide](docs/user-guide/)** — How to use the dashboard (non-technical)
-- **[Architecture](docs/architecture/)** — System design and decisions
-- **[Development](docs/AI_SETUP.md)** — Setup and contributing
+</details>
 
 ---
 

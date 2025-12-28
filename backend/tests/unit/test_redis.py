@@ -9,14 +9,11 @@ from redis.asyncio import Redis
 from redis.exceptions import ConnectionError
 
 from backend.core.redis import (
-    QueueAddResult,
-    QueueOverflowPolicy,
     RedisClient,
     close_redis,
     get_redis,
     init_redis,
 )
-from backend.tests.conftest import unique_id
 
 # Check if fakeredis is available for integration-style tests
 try:
@@ -320,12 +317,11 @@ async def test_health_check_failure(redis_client, mock_redis_client):
 
 @pytest.mark.asyncio
 async def test_add_to_queue_with_dict(redis_client, mock_redis_client):
-    """Test adding a dictionary to a queue (with trimming disabled)."""
+    """Test adding a dictionary to a queue."""
     mock_redis_client.rpush.return_value = 1
 
     data = {"key": "value", "number": 42}
-    # Pass max_size=0 to disable trimming (default is 10000 which enables trimming)
-    result = await redis_client.add_to_queue("test_queue", data, max_size=0)
+    result = await redis_client.add_to_queue("test_queue", data)
 
     assert result == 1
     mock_redis_client.rpush.assert_awaited_once()
@@ -333,134 +329,45 @@ async def test_add_to_queue_with_dict(redis_client, mock_redis_client):
     call_args = mock_redis_client.rpush.call_args[0]
     assert call_args[0] == "test_queue"
     assert '"key": "value"' in call_args[1]
-    # With max_size=0, no trimming occurs
-    mock_redis_client.ltrim.assert_not_awaited()
+    # Verify ltrim called with default max_size=10000
+    mock_redis_client.ltrim.assert_awaited_once_with("test_queue", -10000, -1)
 
 
 @pytest.mark.asyncio
 async def test_add_to_queue_with_string(redis_client, mock_redis_client):
-    """Test adding a string to a queue (with trimming disabled)."""
+    """Test adding a string to a queue."""
     mock_redis_client.rpush.return_value = 2
 
-    # Pass max_size=0 to disable trimming (default is 10000 which enables trimming)
-    result = await redis_client.add_to_queue("test_queue", "simple_string", max_size=0)
+    result = await redis_client.add_to_queue("test_queue", "simple_string")
 
     assert result == 2
     mock_redis_client.rpush.assert_awaited_once_with("test_queue", "simple_string")
-    # With max_size=0, no trimming occurs
-    mock_redis_client.ltrim.assert_not_awaited()
+    # Verify ltrim called with default max_size=10000
+    mock_redis_client.ltrim.assert_awaited_once_with("test_queue", -10000, -1)
 
 
-@pytest.mark.skip(
-    reason="API changed - add_to_queue_safe returns QueueAddResult, needs test rewrite"
-)
 @pytest.mark.asyncio
-async def test_add_to_queue_with_drop_oldest_trims(redis_client, mock_redis_client):
-    """Test adding to a queue with DROP_OLDEST strategy trims when over max_size."""
-    mock_redis_client.rpush.return_value = 600  # Simulates queue over limit
+async def test_add_to_queue_with_custom_max_size(redis_client, mock_redis_client):
+    """Test adding to a queue with custom max_size."""
+    mock_redis_client.rpush.return_value = 1
 
-    result = await redis_client.add_to_queue_safe(
-        "test_queue", "data", max_size=500, overflow_policy=QueueOverflowPolicy.DROP_OLDEST
-    )
+    result = await redis_client.add_to_queue("test_queue", "data", max_size=500)
 
-    assert result == 500  # Returns trimmed size
+    assert result == 1
     mock_redis_client.ltrim.assert_awaited_once_with("test_queue", -500, -1)
 
 
-@pytest.mark.skip(
-    reason="API changed - add_to_queue_safe returns QueueAddResult, needs test rewrite"
-)
 @pytest.mark.asyncio
-async def test_add_to_queue_with_drop_oldest_no_trim_under_limit(redis_client, mock_redis_client):
-    """Test DROP_OLDEST doesn't trim when queue is under max_size."""
-    mock_redis_client.rpush.return_value = 100  # Under limit
-
-    result = await redis_client.add_to_queue_safe(
-        "test_queue", "data", max_size=500, overflow_policy=QueueOverflowPolicy.DROP_OLDEST
-    )
-
-    assert result == 100
-    mock_redis_client.ltrim.assert_not_awaited()
-
-
-@pytest.mark.skip(
-    reason="API changed - add_to_queue_safe returns QueueAddResult, needs test rewrite"
-)
-@pytest.mark.asyncio
-async def test_add_to_queue_disabled_skips_ltrim(redis_client, mock_redis_client):
-    """Test that DISABLED backpressure skips trimming regardless of max_size."""
+async def test_add_to_queue_with_max_size_zero_skips_ltrim(redis_client, mock_redis_client):
+    """Test that max_size=0 disables trimming."""
     mock_redis_client.rpush.return_value = 1
 
-    result = await redis_client.add_to_queue_safe(
-        "test_queue", "data", max_size=500, overflow_policy=QueueOverflowPolicy.REJECT
-    )
+    result = await redis_client.add_to_queue("test_queue", "data", max_size=0)
 
     assert result == 1
     mock_redis_client.rpush.assert_awaited_once()
-    # ltrim should NOT be called when backpressure=DISABLED
+    # ltrim should NOT be called when max_size=0
     mock_redis_client.ltrim.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-async def test_add_to_queue_safe_returns_detailed_result(redis_client, mock_redis_client):
-    """Test add_to_queue_safe returns QueueAddResult with details."""
-    mock_redis_client.rpush.return_value = 5
-
-    result = await redis_client.add_to_queue_safe("test_queue", {"data": "value"})
-
-    assert isinstance(result, QueueAddResult)
-    assert result.queue_length == 5
-    assert result.dropped_count == 0
-    assert result.success is True
-
-
-@pytest.mark.asyncio
-async def test_add_to_queue_safe_drop_oldest_reports_dropped(redis_client, mock_redis_client):
-    """Test DROP_OLDEST strategy reports how many items were dropped."""
-    # Queue must be at capacity for DROP_OLDEST to trigger trim logic
-    mock_redis_client.llen.return_value = 100  # Queue at capacity
-    mock_redis_client.rpush.return_value = 105  # 5 over the limit after push
-
-    result = await redis_client.add_to_queue_safe(
-        "test_queue", "data", max_size=100, overflow_policy=QueueOverflowPolicy.DROP_OLDEST
-    )
-
-    assert result.queue_length == 100
-    assert result.dropped_count == 5
-    assert result.success is True
-
-
-@pytest.mark.asyncio
-async def test_add_to_queue_safe_drop_newest_rejects_when_full(redis_client, mock_redis_client):
-    """Test REJECT policy rejects items when queue is full."""
-    mock_redis_client.llen.return_value = 100  # Queue at capacity
-
-    result = await redis_client.add_to_queue_safe(
-        "test_queue", "data", max_size=100, overflow_policy=QueueOverflowPolicy.REJECT
-    )
-
-    assert result.queue_length == 100
-    assert result.dropped_count == 0
-    assert result.success is False
-    assert result.error is not None  # Should have error message
-    # rpush should NOT be called when rejected
-    mock_redis_client.rpush.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-async def test_add_to_queue_safe_drop_newest_accepts_when_space(redis_client, mock_redis_client):
-    """Test REJECT policy accepts items when queue has space."""
-    mock_redis_client.llen.return_value = 50  # Queue has space
-    mock_redis_client.rpush.return_value = 51
-
-    result = await redis_client.add_to_queue_safe(
-        "test_queue", "data", max_size=100, overflow_policy=QueueOverflowPolicy.REJECT
-    )
-
-    assert result.queue_length == 51
-    assert result.dropped_count == 0
-    assert result.success is True
-    mock_redis_client.rpush.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -772,17 +679,12 @@ async def test_expire_with_short_ttl(redis_client, mock_redis_client):
 
 
 # Dependency Injection Tests
-# These tests manipulate global state (_redis_client), so we patch it to ensure isolation
 
 
 @pytest.mark.asyncio
 async def test_get_redis_dependency(mock_redis_pool, mock_redis_client):
     """Test get_redis FastAPI dependency."""
-    # Patch global state to ensure test isolation in parallel execution
-    with (
-        patch("backend.core.redis._redis_client", None),
-        patch("backend.core.redis.Redis", return_value=mock_redis_client),
-    ):
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
         # Simulate FastAPI dependency injection
         redis_generator = get_redis()
         client = await anext(redis_generator)
@@ -794,30 +696,28 @@ async def test_get_redis_dependency(mock_redis_pool, mock_redis_client):
         with contextlib.suppress(StopAsyncIteration):
             await redis_generator.asend(None)
 
+        # Cleanup global state
+        await close_redis()
+
 
 @pytest.mark.asyncio
 async def test_init_redis_creates_global_client(mock_redis_pool, mock_redis_client):
     """Test init_redis creates and returns global client."""
-    # Patch global state to ensure test isolation in parallel execution
-    with (
-        patch("backend.core.redis._redis_client", None),
-        patch("backend.core.redis.Redis", return_value=mock_redis_client),
-    ):
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
         client = await init_redis()
 
         assert isinstance(client, RedisClient)
         assert client._client is not None
         mock_redis_client.ping.assert_awaited()
 
+        # Cleanup
+        await close_redis()
+
 
 @pytest.mark.asyncio
 async def test_close_redis_cleans_up_global_client(mock_redis_pool, mock_redis_client):
     """Test close_redis properly cleans up global client."""
-    # Patch global state to ensure test isolation in parallel execution
-    with (
-        patch("backend.core.redis._redis_client", None),
-        patch("backend.core.redis.Redis", return_value=mock_redis_client),
-    ):
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
         await init_redis()
         await close_redis()
 
@@ -847,8 +747,8 @@ async def test_redis_integration_queue_operations():
     client._client = fake_server
     client._pool = MagicMock()  # Mock pool to avoid None checks
 
-    # Test queue operations - use unique key to prevent parallel test conflicts
-    queue_name = unique_id("test_integration_queue")
+    # Test queue operations
+    queue_name = "test_integration_queue"
 
     # Clear any existing data
     await client.clear_queue(queue_name)
@@ -898,8 +798,8 @@ async def test_redis_integration_cache_operations():
     client._client = fake_server
     client._pool = MagicMock()  # Mock pool to avoid None checks
 
-    # Test cache operations - use unique key to prevent parallel test conflicts
-    key = unique_id("test_integration_cache_key")
+    # Test cache operations
+    key = "test_integration_cache_key"
 
     # Set value
     await client.set(key, {"data": "test_value"}, expire=60)
@@ -1045,7 +945,7 @@ async def test_add_to_queue_safe_normal_add(redis_client, mock_redis_client):
 @pytest.mark.asyncio
 async def test_add_to_queue_safe_pressure_warning(redis_client, mock_redis_client, caplog):
     """Test add_to_queue_safe logs warning when approaching threshold."""
-    # 91% full (above default 80% threshold)
+    # 91% full (above default 90% threshold)
     mock_redis_client.llen.return_value = 91
     mock_redis_client.rpush.return_value = 92
 
@@ -1105,8 +1005,7 @@ async def test_add_to_queue_safe_invalid_policy_defaults_to_reject(redis_client,
 @pytest.mark.asyncio
 async def test_get_queue_pressure(redis_client, mock_redis_client):
     """Test get_queue_pressure returns correct metrics."""
-    # Use 75% fill to be below the default 80% threshold
-    mock_redis_client.llen.return_value = 75
+    mock_redis_client.llen.return_value = 85
 
     from backend.core.redis import QueuePressureMetrics
 
@@ -1114,10 +1013,10 @@ async def test_get_queue_pressure(redis_client, mock_redis_client):
 
     assert isinstance(metrics, QueuePressureMetrics)
     assert metrics.queue_name == "test_queue"
-    assert metrics.current_length == 75
+    assert metrics.current_length == 85
     assert metrics.max_size == 100
-    assert metrics.fill_ratio == 0.75
-    assert metrics.is_at_pressure_threshold is False  # 75% < 80% threshold
+    assert metrics.fill_ratio == 0.85
+    assert metrics.is_at_pressure_threshold is False  # 85% < 90% threshold
     assert metrics.is_full is False
 
 
@@ -1132,7 +1031,7 @@ async def test_get_queue_pressure_at_threshold(redis_client, mock_redis_client):
 
     assert isinstance(metrics, QueuePressureMetrics)
     assert metrics.fill_ratio == 0.95
-    assert metrics.is_at_pressure_threshold is True  # 95% >= 80% threshold
+    assert metrics.is_at_pressure_threshold is True  # 95% >= 90% threshold
     assert metrics.is_full is False
 
 
@@ -1183,8 +1082,7 @@ async def test_backpressure_integration_reject_policy():
     client._client = fake_server
     client._pool = MagicMock()
 
-    # Use unique key to prevent parallel test conflicts
-    queue_name = unique_id("test_backpressure_reject")
+    queue_name = "test_backpressure_reject"
     max_size = 5
 
     # Clear any existing data
@@ -1235,8 +1133,7 @@ async def test_backpressure_integration_dlq_policy():
     client._client = fake_server
     client._pool = MagicMock()
 
-    # Use unique key to prevent parallel test conflicts
-    queue_name = unique_id("test_backpressure_dlq")
+    queue_name = "test_backpressure_dlq"
     dlq_name = f"dlq:overflow:{queue_name}"
     max_size = 5
 
@@ -1290,8 +1187,7 @@ async def test_backpressure_integration_drop_oldest_policy():
     client._client = fake_server
     client._pool = MagicMock()
 
-    # Use unique key to prevent parallel test conflicts
-    queue_name = unique_id("test_backpressure_drop")
+    queue_name = "test_backpressure_drop"
     max_size = 5
 
     # Clear any existing data

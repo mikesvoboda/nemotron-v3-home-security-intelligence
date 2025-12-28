@@ -1,12 +1,14 @@
-"""Unit tests for database connection and session management."""
+"""Unit tests for database connection and session management.
+
+Tests use PostgreSQL. Set TEST_DATABASE_URL environment variable or
+use the default test database.
+"""
 
 import contextlib
 import os
-import tempfile
-from pathlib import Path
 
 import pytest
-from sqlalchemy import Column, Integer, String, select, text
+from sqlalchemy import Column, Integer, String, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.config import get_settings
@@ -19,6 +21,14 @@ from backend.core.database import (
     get_session_factory,
     init_db,
 )
+
+
+def _get_test_database_url() -> str:
+    """Get the test database URL."""
+    return os.environ.get(
+        "TEST_DATABASE_URL",
+        "postgresql+asyncpg://postgres:postgres@localhost:5432/security_test",
+    )
 
 
 # Test model for database operations
@@ -49,35 +59,33 @@ async def test_init_db():
     original_db_url = os.environ.get("DATABASE_URL")
     get_settings.cache_clear()
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "test_init.db"
-        test_db_url = f"sqlite+aiosqlite:///{db_path}"
+    test_db_url = _get_test_database_url()
 
-        os.environ["DATABASE_URL"] = test_db_url
+    os.environ["DATABASE_URL"] = test_db_url
+    get_settings.cache_clear()
+
+    try:
+        # Ensure clean state
+        await close_db()
+
+        await init_db()
+
+        # Verify engine was created
+        engine = get_engine()
+        assert engine is not None
+        assert str(engine.url) == test_db_url
+
+        # Verify session factory was created
+        factory = get_session_factory()
+        assert factory is not None
+
+    finally:
+        await close_db()
+        if original_db_url:
+            os.environ["DATABASE_URL"] = original_db_url
+        else:
+            os.environ.pop("DATABASE_URL", None)
         get_settings.cache_clear()
-
-        try:
-            # Ensure clean state
-            await close_db()
-
-            await init_db()
-
-            # Verify engine was created
-            engine = get_engine()
-            assert engine is not None
-            assert str(engine.url) == test_db_url
-
-            # Verify session factory was created
-            factory = get_session_factory()
-            assert factory is not None
-
-        finally:
-            await close_db()
-            if original_db_url:
-                os.environ["DATABASE_URL"] = original_db_url
-            else:
-                os.environ.pop("DATABASE_URL", None)
-            get_settings.cache_clear()
 
 
 @pytest.mark.asyncio
@@ -233,62 +241,45 @@ async def test_close_db():
     original_db_url = os.environ.get("DATABASE_URL")
     get_settings.cache_clear()
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "test_close.db"
-        test_db_url = f"sqlite+aiosqlite:///{db_path}"
+    test_db_url = _get_test_database_url()
 
-        os.environ["DATABASE_URL"] = test_db_url
+    os.environ["DATABASE_URL"] = test_db_url
+    get_settings.cache_clear()
+
+    try:
+        # Ensure clean state
+        await close_db()
+
+        await init_db()
+        engine = get_engine()
+        assert engine is not None
+
+        await close_db()
+
+        # After closing, accessing engine should raise error
+        with pytest.raises(RuntimeError, match="Database not initialized"):
+            get_engine()
+
+    finally:
+        if original_db_url:
+            os.environ["DATABASE_URL"] = original_db_url
+        else:
+            os.environ.pop("DATABASE_URL", None)
         get_settings.cache_clear()
-
-        try:
-            # Ensure clean state
-            await close_db()
-
-            await init_db()
-            engine = get_engine()
-            assert engine is not None
-
-            await close_db()
-
-            # After closing, accessing engine should raise error
-            with pytest.raises(RuntimeError, match="Database not initialized"):
-                get_engine()
-
-        finally:
-            if original_db_url:
-                os.environ["DATABASE_URL"] = original_db_url
-            else:
-                os.environ.pop("DATABASE_URL", None)
-            get_settings.cache_clear()
 
 
 @pytest.mark.asyncio
-async def test_sqlite_pragmas_configured(isolated_db):
-    """Test that SQLite PRAGMAs are properly configured for concurrency.
+async def test_postgresql_connection(isolated_db):
+    """Test that PostgreSQL connection is properly configured.
 
     Verifies:
-    - busy_timeout is set to 30000ms (30 seconds) to prevent lock errors
-    - journal_mode is WAL for better concurrent access
-    - foreign_keys is enabled for referential integrity
-    - synchronous is NORMAL for balance of safety and speed
+    - Connection to PostgreSQL works
+    - Can execute basic queries
     """
     async with get_session() as session:
-        # Check busy_timeout (should be 30000ms = 30 seconds)
-        result = await session.execute(text("PRAGMA busy_timeout"))
-        busy_timeout = result.scalar()
-        assert busy_timeout == 30000, f"Expected busy_timeout=30000, got {busy_timeout}"
+        # Verify we can execute a simple query
+        from sqlalchemy import text
 
-        # Check journal_mode (should be WAL)
-        result = await session.execute(text("PRAGMA journal_mode"))
-        journal_mode = result.scalar()
-        assert journal_mode.lower() == "wal", f"Expected journal_mode=wal, got {journal_mode}"
-
-        # Check foreign_keys (should be enabled)
-        result = await session.execute(text("PRAGMA foreign_keys"))
-        foreign_keys = result.scalar()
-        assert foreign_keys == 1, f"Expected foreign_keys=1, got {foreign_keys}"
-
-        # Check synchronous (should be NORMAL = 1)
-        result = await session.execute(text("PRAGMA synchronous"))
-        synchronous = result.scalar()
-        assert synchronous == 1, f"Expected synchronous=1 (NORMAL), got {synchronous}"
+        result = await session.execute(text("SELECT 1"))
+        value = result.scalar()
+        assert value == 1, f"Expected SELECT 1 to return 1, got {value}"

@@ -10,7 +10,7 @@ from .clip_generator import (
     reset_clip_generator,
 )
 from .dedupe import DedupeService, compute_file_hash, get_dedupe_service, reset_dedupe_service
-from .detector_client import DetectorClient
+from .detector_client import DetectorClient, DetectorUnavailableError
 from .event_broadcaster import EventBroadcaster, get_broadcaster, stop_broadcaster
 from .file_watcher import FileWatcher, is_image_file, is_valid_image
 from .gpu_monitor import GPUMonitor
@@ -45,6 +45,7 @@ __all__ = [
     "DedupeService",
     "DeliveryResult",
     "DetectorClient",
+    "DetectorUnavailableError",
     "EventBroadcaster",
     "FileWatcher",
     "GPUMonitor",

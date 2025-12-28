@@ -1,8 +1,10 @@
-"""Database connection and session management using SQLAlchemy 2.0 async patterns with PostgreSQL."""
+"""Database connection and session management using SQLAlchemy 2.0 async patterns.
+
+This module provides PostgreSQL database connectivity using asyncpg.
+"""
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import Any
 
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -58,35 +60,23 @@ async def init_db() -> None:
     """Initialize the database engine and create all tables.
 
     This function should be called once during application startup.
-    It creates the async engine, configures connection pooling,
+    It creates the async engine with PostgreSQL connection pooling,
     and creates all tables defined in the Base metadata.
-
-    Requires PostgreSQL with asyncpg driver (postgresql+asyncpg://).
     """
     global _engine, _async_session_factory  # noqa: PLW0603
 
     settings = get_settings()
-    db_url = settings.database_url
 
-    # Validate PostgreSQL URL format
-    if not db_url.startswith("postgresql+asyncpg://"):
-        raise ValueError(
-            f"Invalid database URL. Expected postgresql+asyncpg:// format, got: {db_url}"
-        )
-
-    # PostgreSQL connection pooling configuration
-    # These settings optimize for concurrent access
-    engine_kwargs: dict[str, Any] = {
-        "echo": settings.debug,
-        "future": True,
-        "pool_size": 10,  # Base pool size
-        "max_overflow": 20,  # Additional connections beyond pool_size
-        "pool_timeout": 30,  # Seconds to wait for available connection
-        "pool_recycle": 1800,  # Recycle connections after 30 minutes
-    }
-
-    # Create async engine
-    _engine = create_async_engine(db_url, **engine_kwargs)
+    # Create async engine for PostgreSQL with asyncpg
+    # Connection pooling is handled by SQLAlchemy's default QueuePool
+    _engine = create_async_engine(
+        settings.database_url,
+        echo=settings.debug,
+        future=True,
+        pool_size=5,
+        max_overflow=10,
+        pool_pre_ping=True,  # Verify connections before use
+    )
 
     # Create session factory
     _async_session_factory = async_sessionmaker(

@@ -73,17 +73,15 @@ services:
 
 ### Database Configuration
 
-| Variable       | Default                                                       | Description                   |
-| -------------- | ------------------------------------------------------------- | ----------------------------- |
-| `DATABASE_URL` | `postgresql+asyncpg://user:pass@localhost:5432/home_security` | SQLAlchemy async database URL |
+| Variable       | Default                                                          | Description                   |
+| -------------- | ---------------------------------------------------------------- | ----------------------------- |
+| `DATABASE_URL` | `postgresql+asyncpg://postgres:postgres@localhost:5432/security` | PostgreSQL async database URL |
 
 **Notes:**
 
-- PostgreSQL is required for this application
-- Use the `postgresql+asyncpg://` prefix for async operations
-- Format: `postgresql+asyncpg://username:password@host:port/database_name`
-- Inside Docker, use the service name (e.g., `postgres:5432`) instead of `localhost`
-- Database must exist before starting the application
+- PostgreSQL is required (SQLite is no longer supported)
+- Use `asyncpg` driver for async operations
+- Inside Docker, use `postgres` as the hostname (service name)
 
 ### Redis Configuration
 
@@ -119,46 +117,15 @@ services:
 
 ### File Watching (Camera Integration)
 
-| Variable                        | Default          | Range    | Description                           |
-| ------------------------------- | ---------------- | -------- | ------------------------------------- |
-| `FOSCAM_BASE_PATH`              | `/export/foscam` | -        | Base directory for Foscam FTP uploads |
-| `FILE_WATCHER_POLLING`          | `false`          | -        | Use polling instead of native events  |
-| `FILE_WATCHER_POLLING_INTERVAL` | `1.0`            | 0.1-30.0 | Polling interval in seconds           |
+| Variable           | Default          | Description                           |
+| ------------------ | ---------------- | ------------------------------------- |
+| `FOSCAM_BASE_PATH` | `/export/foscam` | Base directory for Foscam FTP uploads |
 
 **Notes:**
 
 - Cameras upload via FTP to `{FOSCAM_BASE_PATH}/{camera_name}/`
 - Inside Docker, this maps to `/cameras` via volume mount
 - Directory must exist and be readable by the backend process
-
-**Native vs Polling Observer:**
-
-By default, the file watcher uses native filesystem event APIs:
-
-- Linux: inotify (kernel-level notifications)
-- macOS: FSEvents (native filesystem event API)
-- Windows: ReadDirectoryChangesW (native API)
-
-Native observers are more efficient (near-instant detection, no CPU polling), but they **do not work reliably on Docker Desktop volume mounts** on macOS and Windows. The Docker Desktop file sharing layer does not propagate inotify/FSEvents events from the host to the container.
-
-**When to Enable Polling:**
-
-Set `FILE_WATCHER_POLLING=true` if:
-
-- Running the backend in Docker Desktop on macOS or Windows
-- Monitoring network-mounted filesystems (NFS, SMB, CIFS)
-- Native events are not triggering file processing
-
-**Polling Interval Considerations:**
-
-| Interval | Detection Latency | CPU Usage | Use Case                   |
-| -------- | ----------------- | --------- | -------------------------- |
-| 0.5s     | ~500ms            | Higher    | Near real-time, small dirs |
-| 1.0s     | ~1s               | Moderate  | Default, good balance      |
-| 5.0s     | ~5s               | Low       | Large dirs, many cameras   |
-| 10-30s   | Higher            | Minimal   | Non-critical monitoring    |
-
-Lower intervals mean faster detection but increased CPU usage from directory scanning.
 
 ### AI Service Endpoints
 
@@ -227,7 +194,7 @@ The GPU monitor uses `pynvml` (NVIDIA Management Library Python bindings) to que
 - GPU temperature (Celsius)
 - Power consumption (Watts)
 
-These metrics are stored in PostgreSQL for historical analysis and broadcast via WebSocket for real-time dashboard updates.
+These metrics are stored in the database for historical analysis and broadcast via WebSocket for real-time dashboard updates.
 
 **Performance Impact Considerations:**
 
@@ -305,7 +272,7 @@ docker compose restart backend
 | `LOG_FILE_PATH`         | `data/logs/security.log` | Path for rotating log file                            |
 | `LOG_FILE_MAX_BYTES`    | `10485760` (10MB)        | Maximum size of each log file                         |
 | `LOG_FILE_BACKUP_COUNT` | `7`                      | Number of backup log files to keep                    |
-| `LOG_DB_ENABLED`        | `true`                   | Write logs to PostgreSQL database                     |
+| `LOG_DB_ENABLED`        | `true`                   | Write logs to database                                |
 | `LOG_DB_MIN_LEVEL`      | `DEBUG`                  | Minimum level for database logging                    |
 
 ### Frontend Environment Variables
@@ -348,7 +315,7 @@ Running everything on your development machine:
 
 ```bash
 # .env
-DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/home_security
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/security
 REDIS_URL=redis://localhost:6379/0
 RTDETR_URL=http://localhost:8090
 NEMOTRON_URL=http://localhost:8091
@@ -363,7 +330,7 @@ Using Docker Compose for backend/frontend/redis/postgres, native AI services:
 
 ```bash
 # .env (values are set in docker-compose.yml, this is for reference)
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/home_security
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/security
 REDIS_URL=redis://redis:6379
 RTDETR_URL=http://host.docker.internal:8090
 NEMOTRON_URL=http://host.docker.internal:8091
@@ -373,7 +340,7 @@ NEMOTRON_URL=http://host.docker.internal:8091
 
 ```bash
 # .env
-DATABASE_URL=postgresql+asyncpg://postgres:securepw@postgres:5432/home_security
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/security
 REDIS_URL=redis://redis:6379
 RTDETR_URL=http://host.docker.internal:8090
 NEMOTRON_URL=http://host.docker.internal:8091
@@ -434,14 +401,12 @@ docker compose down && docker compose up -d
 
 ### Database connection issues
 
-**Symptom:** Database connection errors or authentication failures
+**Symptom:** Database connection errors
 
-**Solution:** Ensure PostgreSQL is running and credentials are correct:
+**Solution:** Ensure PostgreSQL is running and connection URL is correct:
 
-- Native: `postgresql+asyncpg://username:password@localhost:5432/home_security`
-- Docker: `postgresql+asyncpg://postgres:postgres@postgres:5432/home_security` (use service name)
-- Verify PostgreSQL is accessible: `psql -h localhost -U username -d home_security`
-- Ensure the database exists before starting the application
+- Native: `postgresql+asyncpg://postgres:postgres@localhost:5432/security`
+- Docker: `postgresql+asyncpg://postgres:postgres@postgres:5432/security`
 
 ## Security Considerations
 
@@ -560,19 +525,18 @@ await redis.xadd("events:stream", event_data)
 
 **Database**
 
-- Already using PostgreSQL for concurrent access
+- PostgreSQL is already used for concurrent access
 - Consider read replicas for heavy query loads
-- Add connection pooling (pgBouncer) for high-concurrency scenarios
 
 ### What Would Need to Change
 
-| Component       | Current                  | Multi-Node                          |
-| --------------- | ------------------------ | ----------------------------------- |
-| Task scheduling | asyncio background tasks | Celery/RQ workers                   |
-| Event pub/sub   | Redis PUBLISH/SUBSCRIBE  | Redis Streams with consumer groups  |
-| Database        | PostgreSQL (single-node) | PostgreSQL cluster with replication |
-| Session state   | In-memory                | Redis-backed sessions               |
-| File storage    | Local filesystem         | S3/MinIO object storage             |
-| Deployment      | Docker Compose           | Kubernetes                          |
+| Component       | Current                  | Multi-Node                         |
+| --------------- | ------------------------ | ---------------------------------- |
+| Task scheduling | asyncio background tasks | Celery/RQ workers                  |
+| Event pub/sub   | Redis PUBLISH/SUBSCRIBE  | Redis Streams with consumer groups |
+| Database        | PostgreSQL               | PostgreSQL with read replicas      |
+| Session state   | In-memory                | Redis-backed sessions              |
+| File storage    | Local filesystem         | S3/MinIO object storage            |
+| Deployment      | Docker Compose           | Kubernetes                         |
 
 **Note:** These changes are out of scope for the MVP. The current architecture is appropriate for single-user home deployments.
