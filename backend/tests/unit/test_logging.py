@@ -287,7 +287,7 @@ class TestSQLiteHandlerGetSession:
         """Test that _get_session initializes engine and session factory on first call."""
         with patch("backend.core.logging.get_settings") as mock_settings:
             mock_settings.return_value = MagicMock(
-                database_url="sqlite+aiosqlite:///./data/test.db"
+                database_url="postgresql+asyncpg://postgres:postgres@localhost:5432/security"
             )
 
             with (
@@ -335,14 +335,14 @@ class TestSQLiteHandlerGetSession:
         mock_factory.assert_called_once()
 
     def test_get_session_converts_async_url_to_sync(self):
-        """Test that async SQLite URL is converted to sync URL."""
+        """Test that async PostgreSQL URL is converted to sync URL."""
         handler = SQLiteHandler()
         handler._session_factory = None
         handler._db_available = True
 
         with patch("backend.core.logging.get_settings") as mock_settings:
             mock_settings.return_value = MagicMock(
-                database_url="sqlite+aiosqlite:///./data/test.db"
+                database_url="postgresql+asyncpg://postgres:postgres@localhost:5432/security"
             )
 
             with (
@@ -362,9 +362,9 @@ class TestSQLiteHandlerGetSession:
                 # Verify engine was created with sync URL
                 mock_create_engine.assert_called_once()
                 call_args = mock_create_engine.call_args
-                # URL should have aiosqlite replaced with plain sqlite
-                assert "sqlite:///" in call_args[0][0]
-                assert "aiosqlite" not in call_args[0][0]
+                # URL should have asyncpg replaced with psycopg2
+                assert "postgresql" in call_args[0][0]
+                assert "asyncpg" not in call_args[0][0]
                 assert session is mock_session
 
 
