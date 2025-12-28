@@ -917,7 +917,8 @@ export interface paths {
          *     If a health check times out, the service is marked as unhealthy.
          *
          *     Returns:
-         *         HealthResponse with overall status and individual service statuses
+         *         HealthResponse with overall status and individual service statuses.
+         *         HTTP 200 if healthy, 503 if degraded or unhealthy.
          */
         get: operations["get_health_api_system_health_get"];
         put?: never;
@@ -983,7 +984,8 @@ export interface paths {
          *     If a health check times out, the service is marked as unhealthy.
          *
          *     Returns:
-         *         ReadinessResponse with overall readiness status and detailed checks
+         *         ReadinessResponse with overall readiness status and detailed checks.
+         *         HTTP 200 if ready, 503 if degraded or not ready.
          */
         get: operations["get_readiness_api_system_health_ready_get"];
         put?: never;
