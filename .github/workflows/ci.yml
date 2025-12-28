@@ -340,4 +340,3 @@ jobs:
           tags: frontend:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-# CI timestamp: 1766893767
