@@ -1,7 +1,6 @@
 """Unit tests for Nemotron analyzer service."""
 
 import json
-import random
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -13,7 +12,6 @@ from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.services.nemotron_analyzer import NemotronAnalyzer
-from backend.tests.conftest import unique_id
 
 # Fixtures
 
@@ -36,52 +34,37 @@ def analyzer(mock_redis_client):
 
 
 @pytest.fixture
-def sample_detections_factory():
-    """Factory to create sample detections with specified camera_id."""
+def sample_detections():
+    """Sample detections for testing."""
     from datetime import UTC
 
-    def _create_detections(camera_id: str, start_id: int = 1):
-        base_time = datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC)
-        return [
-            Detection(
-                id=start_id,
-                camera_id=camera_id,
-                file_path=f"/export/foscam/{camera_id}/img1.jpg",
-                detected_at=base_time,
-                object_type="person",
-                confidence=0.95,
-            ),
-            Detection(
-                id=start_id + 1,
-                camera_id=camera_id,
-                file_path=f"/export/foscam/{camera_id}/img2.jpg",
-                detected_at=datetime(2025, 12, 23, 14, 30, 15, tzinfo=UTC),
-                object_type="car",
-                confidence=0.88,
-            ),
-            Detection(
-                id=start_id + 2,
-                camera_id=camera_id,
-                file_path=f"/export/foscam/{camera_id}/img3.jpg",
-                detected_at=datetime(2025, 12, 23, 14, 30, 30, tzinfo=UTC),
-                object_type="person",
-                confidence=0.92,
-            ),
-        ]
-
-    return _create_detections
-
-
-@pytest.fixture
-def sample_detections(sample_detections_factory):
-    """Sample detections for testing (backwards compatibility).
-
-    Note: For parallel test safety, prefer using sample_detections_factory
-    with unique camera_id per test.
-    """
-    # Use a unique camera_id to avoid conflicts in parallel tests
-    camera_id = unique_id("camera")
-    return sample_detections_factory(camera_id)
+    base_time = datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC)
+    return [
+        Detection(
+            id=1,
+            camera_id="front_door",
+            file_path="/export/foscam/front_door/img1.jpg",
+            detected_at=base_time,
+            object_type="person",
+            confidence=0.95,
+        ),
+        Detection(
+            id=2,
+            camera_id="front_door",
+            file_path="/export/foscam/front_door/img2.jpg",
+            detected_at=datetime(2025, 12, 23, 14, 30, 15, tzinfo=UTC),
+            object_type="car",
+            confidence=0.88,
+        ),
+        Detection(
+            id=3,
+            camera_id="front_door",
+            file_path="/export/foscam/front_door/img3.jpg",
+            detected_at=datetime(2025, 12, 23, 14, 30, 30, tzinfo=UTC),
+            object_type="person",
+            confidence=0.92,
+        ),
+    ]
 
 
 # Test: Health Check
@@ -420,19 +403,11 @@ async def test_analyze_batch_no_detections(analyzer, mock_redis_client):
 
 
 @pytest.mark.asyncio
-async def test_analyze_batch_success(
-    analyzer, mock_redis_client, isolated_db, sample_detections_factory
-):
+async def test_analyze_batch_success(analyzer, mock_redis_client, isolated_db, sample_detections):
     """Test successful batch analysis creates Event."""
-    # Use unique IDs for test isolation in parallel execution
-    batch_id = unique_id("batch")
-    camera_id = unique_id("camera")
-    # Use high detection IDs to avoid conflicts with other tests
-    base_det_id = random.randint(100000, 999999)  # noqa: S311
-    detection_ids = [base_det_id, base_det_id + 1, base_det_id + 2]
-
-    # Create detections with matching IDs and camera
-    detections = sample_detections_factory(camera_id, start_id=base_det_id)
+    batch_id = "batch_123"
+    camera_id = "front_door"
+    detection_ids = [1, 2, 3]
 
     # Setup Redis mocks
     async def mock_get(key):
@@ -454,12 +429,12 @@ async def test_analyze_batch_success(
         camera = Camera(
             id=camera_id,
             name="Front Door",
-            folder_path=f"/export/foscam/{camera_id}",
+            folder_path="/export/foscam/front_door",
         )
         session.add(camera)
 
         # Create detections
-        for det in detections:
+        for det in sample_detections:
             session.add(det)
 
         await session.commit()
@@ -504,17 +479,12 @@ async def test_analyze_batch_success(
 
 @pytest.mark.asyncio
 async def test_analyze_batch_llm_failure_uses_fallback(
-    analyzer, mock_redis_client, isolated_db, sample_detections_factory
+    analyzer, mock_redis_client, isolated_db, sample_detections
 ):
     """Test batch analysis uses fallback risk data when LLM fails."""
-    # Use unique IDs for test isolation in parallel execution
-    batch_id = unique_id("batch")
-    camera_id = unique_id("camera")
-    base_det_id = random.randint(100000, 999999)  # noqa: S311
-    detection_ids = [base_det_id, base_det_id + 1, base_det_id + 2]
-
-    # Create detections with matching IDs and camera
-    detections = sample_detections_factory(camera_id, start_id=base_det_id)
+    batch_id = "batch_456"
+    camera_id = "front_door"
+    detection_ids = [1, 2, 3]
 
     # Setup Redis mocks
     async def mock_get(key):
@@ -535,11 +505,11 @@ async def test_analyze_batch_llm_failure_uses_fallback(
         camera = Camera(
             id=camera_id,
             name="Front Door",
-            folder_path=f"/export/foscam/{camera_id}",
+            folder_path="/export/foscam/front_door",
         )
         session.add(camera)
 
-        for det in detections:
+        for det in sample_detections:
             session.add(det)
 
         await session.commit()
@@ -559,41 +529,50 @@ async def test_analyze_batch_llm_failure_uses_fallback(
 
 @pytest.mark.asyncio
 async def test_analyze_batch_camera_not_found(
-    analyzer, mock_redis_client, isolated_db, sample_detections_factory
+    analyzer, mock_redis_client, isolated_db, sample_detections
 ):
     """Test batch analysis handles missing camera gracefully by using camera_id as name."""
-    # Use unique IDs for test isolation in parallel execution
-    batch_id = unique_id("batch")
-    real_camera_id = unique_id("real_camera")
-    base_det_id = random.randint(100000, 999999)  # noqa: S311
-    detection_ids = [base_det_id, base_det_id + 1, base_det_id + 2]
+    batch_id = "batch_789"
+    camera_id = "nonexistent_camera"
+    detection_ids = [1, 2, 3]
 
-    # Create detections with matching IDs and camera
-    detections = sample_detections_factory(real_camera_id, start_id=base_det_id)
+    # Setup Redis mocks
+    async def mock_get(key):
+        if f"batch:{batch_id}:camera_id" in key:
+            return camera_id
+        elif f"batch:{batch_id}:detections" in key:
+            return json.dumps(detection_ids)
+        elif f"batch:{batch_id}:started_at" in key:
+            return "1703341800.0"
+        return None
+
+    mock_redis_client.get.side_effect = mock_get
 
     # Setup database - create a different camera and detections with nonexistent camera_id
+    # We need to use SQLite's PRAGMA to temporarily disable foreign keys for testing
     from backend.core.database import get_session
 
     async with get_session() as session:
         # Create a real camera first to avoid FK constraint issues
         real_camera = Camera(
-            id=real_camera_id,
+            id="real_camera",
             name="Real Camera",
-            folder_path=f"/export/foscam/{real_camera_id}",
+            folder_path="/export/foscam/real",
         )
         session.add(real_camera)
         await session.commit()
 
     async with get_session() as session:
         # Create detections for the camera
-        for det in detections:
+        for det in sample_detections:
+            det.camera_id = "real_camera"
             session.add(det)
         await session.commit()
 
-    # Setup Redis mock to return real_camera ID
+    # Update mock to return real_camera ID
     async def mock_get_real(key):
         if f"batch:{batch_id}:camera_id" in key:
-            return real_camera_id
+            return "real_camera"
         elif f"batch:{batch_id}:detections" in key:
             return json.dumps(detection_ids)
         elif f"batch:{batch_id}:started_at" in key:
@@ -623,7 +602,7 @@ async def test_analyze_batch_camera_not_found(
         # Analyze batch
         event = await analyzer.analyze_batch(batch_id)
 
-    assert event.camera_id == real_camera_id
+    assert event.camera_id == "real_camera"
     # Verify event was created successfully
     assert event.risk_score == 50
     assert event.risk_level == "medium"
@@ -632,12 +611,9 @@ async def test_analyze_batch_camera_not_found(
 @pytest.mark.asyncio
 async def test_analyze_batch_detections_not_in_database(analyzer, mock_redis_client, isolated_db):
     """Test batch analysis raises error when detections not found in database."""
-    # Use unique IDs for test isolation in parallel execution
-    batch_id = unique_id("batch")
-    camera_id = unique_id("camera")
-    # Use random high IDs that won't exist
-    base_det_id = random.randint(900000, 999999)  # noqa: S311
-    detection_ids = [base_det_id, base_det_id + 1, base_det_id + 2]
+    batch_id = "batch_888"
+    camera_id = "front_door"
+    detection_ids = [999, 998, 997]  # IDs that don't exist
 
     # Setup Redis mocks
     async def mock_get(key):
@@ -658,7 +634,7 @@ async def test_analyze_batch_detections_not_in_database(analyzer, mock_redis_cli
         camera = Camera(
             id=camera_id,
             name="Front Door",
-            folder_path=f"/export/foscam/{camera_id}",
+            folder_path="/export/foscam/front_door",
         )
         session.add(camera)
         await session.commit()
@@ -756,17 +732,11 @@ async def test_analyze_detection_fast_path_detection_not_found(
 
 @pytest.mark.asyncio
 async def test_analyze_detection_fast_path_success(
-    analyzer, mock_redis_client, isolated_db, sample_detections_factory
+    analyzer, mock_redis_client, isolated_db, sample_detections
 ):
     """Test successful fast path analysis creates Event with is_fast_path=True."""
-    # Use unique IDs for test isolation in parallel execution
-    camera_id = unique_id("camera")
-    det_id = random.randint(100000, 999999)  # noqa: S311
-    detection_id = str(det_id)
-
-    # Create detection with matching ID and camera
-    detections = sample_detections_factory(camera_id, start_id=det_id)
-    detection = detections[0]
+    camera_id = "front_door"
+    detection_id = "1"
 
     # Setup database with camera and detection
     from backend.core.database import get_session
@@ -776,11 +746,12 @@ async def test_analyze_detection_fast_path_success(
         camera = Camera(
             id=camera_id,
             name="Front Door",
-            folder_path=f"/export/foscam/{camera_id}",
+            folder_path="/export/foscam/front_door",
         )
         session.add(camera)
 
         # Create detection
+        detection = sample_detections[0]
         session.add(detection)
 
         await session.commit()
@@ -829,16 +800,11 @@ async def test_analyze_detection_fast_path_success(
 
 @pytest.mark.asyncio
 async def test_analyze_detection_fast_path_llm_failure(
-    analyzer, mock_redis_client, isolated_db, sample_detections_factory
+    analyzer, mock_redis_client, isolated_db, sample_detections
 ):
     """Test fast path analysis uses fallback when LLM fails."""
-    # Use unique IDs for test isolation in parallel execution
-    camera_id = unique_id("camera")
-    det_id = random.randint(100000, 999999)  # noqa: S311
-    detection_id = str(det_id)
-
-    # Create detection with matching ID and camera
-    detections = sample_detections_factory(camera_id, start_id=det_id)
+    camera_id = "front_door"
+    detection_id = "1"
 
     # Setup database
     from backend.core.database import get_session
@@ -847,10 +813,10 @@ async def test_analyze_detection_fast_path_llm_failure(
         camera = Camera(
             id=camera_id,
             name="Front Door",
-            folder_path=f"/export/foscam/{camera_id}",
+            folder_path="/export/foscam/front_door",
         )
         session.add(camera)
-        session.add(detections[0])
+        session.add(sample_detections[0])
         await session.commit()
 
     # Mock LLM call to fail
@@ -869,17 +835,11 @@ async def test_analyze_detection_fast_path_llm_failure(
 
 @pytest.mark.asyncio
 async def test_analyze_detection_fast_path_single_detection_time(
-    analyzer, mock_redis_client, isolated_db, sample_detections_factory
+    analyzer, mock_redis_client, isolated_db, sample_detections
 ):
     """Test fast path uses same timestamp for started_at and ended_at."""
-    # Use unique IDs for test isolation in parallel execution
-    camera_id = unique_id("camera")
-    det_id = random.randint(100000, 999999)  # noqa: S311
-    detection_id = str(det_id)
-
-    # Create detection with matching ID and camera
-    detections = sample_detections_factory(camera_id, start_id=det_id)
-    detection = detections[0]
+    camera_id = "front_door"
+    detection_id = "1"
 
     # Setup database
     from backend.core.database import get_session
@@ -888,10 +848,10 @@ async def test_analyze_detection_fast_path_single_detection_time(
         camera = Camera(
             id=camera_id,
             name="Front Door",
-            folder_path=f"/export/foscam/{camera_id}",
+            folder_path="/export/foscam/front_door",
         )
         session.add(camera)
-        session.add(detection)
+        session.add(sample_detections[0])
         await session.commit()
 
     # Mock LLM call
@@ -916,21 +876,16 @@ async def test_analyze_detection_fast_path_single_detection_time(
 
     # Verify started_at and ended_at are the same
     assert event.started_at == event.ended_at
-    assert event.started_at == detection.detected_at
+    assert event.started_at == sample_detections[0].detected_at
 
 
 @pytest.mark.asyncio
 async def test_analyze_detection_fast_path_detection_ids_format(
-    analyzer, mock_redis_client, isolated_db, sample_detections_factory
+    analyzer, mock_redis_client, isolated_db, sample_detections
 ):
     """Test fast path stores detection_ids as JSON array with single integer."""
-    # Use unique IDs for test isolation in parallel execution
-    camera_id = unique_id("camera")
-    det_id = random.randint(100000, 999999)  # noqa: S311
-    detection_id = str(det_id)
-
-    # Create detection with matching ID and camera
-    detections = sample_detections_factory(camera_id, start_id=det_id)
+    camera_id = "front_door"
+    detection_id = "1"
 
     # Setup database
     from backend.core.database import get_session
@@ -939,10 +894,10 @@ async def test_analyze_detection_fast_path_detection_ids_format(
         camera = Camera(
             id=camera_id,
             name="Front Door",
-            folder_path=f"/export/foscam/{camera_id}",
+            folder_path="/export/foscam/front_door",
         )
         session.add(camera)
-        session.add(detections[0])
+        session.add(sample_detections[0])
         await session.commit()
 
     # Mock LLM call
@@ -970,21 +925,16 @@ async def test_analyze_detection_fast_path_detection_ids_format(
     detection_ids_list = json.loads(event.detection_ids)
     assert isinstance(detection_ids_list, list)
     assert len(detection_ids_list) == 1
-    assert detection_ids_list[0] == det_id
+    assert detection_ids_list[0] == 1
 
 
 @pytest.mark.asyncio
 async def test_analyze_detection_fast_path_broadcast_called(
-    analyzer, mock_redis_client, isolated_db, sample_detections_factory
+    analyzer, mock_redis_client, isolated_db, sample_detections
 ):
     """Test fast path broadcasts event after creation."""
-    # Use unique IDs for test isolation in parallel execution
-    camera_id = unique_id("camera")
-    det_id = random.randint(100000, 999999)  # noqa: S311
-    detection_id = str(det_id)
-
-    # Create detection with matching ID and camera
-    detections = sample_detections_factory(camera_id, start_id=det_id)
+    camera_id = "front_door"
+    detection_id = "1"
 
     # Setup database
     from backend.core.database import get_session
@@ -993,10 +943,10 @@ async def test_analyze_detection_fast_path_broadcast_called(
         camera = Camera(
             id=camera_id,
             name="Front Door",
-            folder_path=f"/export/foscam/{camera_id}",
+            folder_path="/export/foscam/front_door",
         )
         session.add(camera)
-        session.add(detections[0])
+        session.add(sample_detections[0])
         await session.commit()
 
     # Mock LLM call
