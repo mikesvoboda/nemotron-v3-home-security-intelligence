@@ -1,0 +1,796 @@
+"""Unit tests for alert rules engine.
+
+Tests use PostgreSQL via the isolated_db fixture since models use
+PostgreSQL-specific features.
+
+Tests cover:
+- Each condition type (risk_threshold, object_types, camera_ids, min_confidence, schedule)
+- AND logic for multiple conditions
+- Time-based conditions (overnight schedules, day filtering)
+- Cooldown behavior
+- Rule testing against historical events
+"""
+
+from datetime import datetime, timedelta
+
+import pytest
+
+from backend.models import Alert, AlertRule, AlertSeverity, AlertStatus, Camera, Detection, Event
+from backend.services.alert_engine import (
+    DAY_NAMES,
+    SEVERITY_PRIORITY,
+    AlertRuleEngine,
+    EvaluationResult,
+    TriggeredRule,
+)
+
+
+@pytest.fixture
+async def session(isolated_db):
+    """Create a new database session for each test.
+
+    Uses PostgreSQL via the isolated_db fixture from conftest.py.
+    """
+    from backend.core.database import get_session
+
+    async with get_session() as session:
+        yield session
+
+
+@pytest.fixture
+async def test_camera(session):
+    """Create a test camera."""
+    camera = Camera(
+        id="front_door",
+        name="Front Door Camera",
+        folder_path="/export/foscam/front_door",
+    )
+    session.add(camera)
+    await session.flush()
+    return camera
+
+
+@pytest.fixture
+async def test_camera2(session):
+    """Create a second test camera."""
+    camera = Camera(
+        id="backyard",
+        name="Backyard Camera",
+        folder_path="/export/foscam/backyard",
+    )
+    session.add(camera)
+    await session.flush()
+    return camera
+
+
+@pytest.fixture
+async def test_event(session, test_camera):
+    """Create a test event with default high risk score."""
+    event = Event(
+        batch_id="batch_001",
+        camera_id=test_camera.id,
+        started_at=datetime.utcnow(),
+        risk_score=80,
+        risk_level="high",
+        detection_ids="[1, 2]",
+    )
+    session.add(event)
+    await session.flush()
+    return event
+
+
+@pytest.fixture
+async def test_detections(session, test_camera):
+    """Create test detections."""
+    det1 = Detection(
+        camera_id=test_camera.id,
+        file_path="/export/foscam/front_door/image1.jpg",
+        detected_at=datetime.utcnow(),
+        object_type="person",
+        confidence=0.95,
+    )
+    det2 = Detection(
+        camera_id=test_camera.id,
+        file_path="/export/foscam/front_door/image2.jpg",
+        detected_at=datetime.utcnow(),
+        object_type="vehicle",
+        confidence=0.85,
+    )
+    session.add_all([det1, det2])
+    await session.flush()
+    return [det1, det2]
+
+
+@pytest.fixture
+async def engine(session):
+    """Create an AlertRuleEngine instance."""
+    return AlertRuleEngine(session)
+
+
+class TestSeverityPriority:
+    """Tests for severity priority constants."""
+
+    def test_severity_priority_order(self):
+        """Verify severity priority ordering."""
+        assert SEVERITY_PRIORITY[AlertSeverity.LOW] < SEVERITY_PRIORITY[AlertSeverity.MEDIUM]
+        assert SEVERITY_PRIORITY[AlertSeverity.MEDIUM] < SEVERITY_PRIORITY[AlertSeverity.HIGH]
+        assert SEVERITY_PRIORITY[AlertSeverity.HIGH] < SEVERITY_PRIORITY[AlertSeverity.CRITICAL]
+
+    def test_day_names_complete(self):
+        """Verify day names are complete."""
+        assert len(DAY_NAMES) == 7
+        assert "monday" in DAY_NAMES
+        assert "sunday" in DAY_NAMES
+
+
+class TestTriggeredRule:
+    """Tests for the TriggeredRule dataclass."""
+
+    def test_triggered_rule_creation(self):
+        """Test creating a TriggeredRule."""
+
+        # Create a mock rule
+        class MockRule:
+            id = "rule-123"
+            name = "Test Rule"
+
+        triggered = TriggeredRule(
+            rule=MockRule(),
+            severity=AlertSeverity.HIGH,
+            matched_conditions=["risk_score >= 70", "camera_id in ['front_door']"],
+            dedup_key="front_door:rule-123",
+        )
+
+        assert triggered.severity == AlertSeverity.HIGH
+        assert len(triggered.matched_conditions) == 2
+        assert triggered.dedup_key == "front_door:rule-123"
+
+
+class TestEvaluationResult:
+    """Tests for the EvaluationResult dataclass."""
+
+    def test_evaluation_result_empty(self):
+        """Test empty EvaluationResult."""
+        result = EvaluationResult()
+        assert result.has_triggers is False
+        assert result.highest_severity is None
+        assert len(result.triggered_rules) == 0
+        assert len(result.skipped_rules) == 0
+
+    def test_evaluation_result_with_triggers(self):
+        """Test EvaluationResult with triggers."""
+
+        class MockRule:
+            id = "rule-123"
+            name = "Test Rule"
+
+        triggered = TriggeredRule(
+            rule=MockRule(),
+            severity=AlertSeverity.HIGH,
+            matched_conditions=["test"],
+            dedup_key="test",
+        )
+
+        result = EvaluationResult(
+            triggered_rules=[triggered],
+            highest_severity=AlertSeverity.HIGH,
+        )
+
+        assert result.has_triggers is True
+        assert result.highest_severity == AlertSeverity.HIGH
+
+
+class TestRiskThresholdCondition:
+    """Tests for risk_threshold condition."""
+
+    @pytest.mark.asyncio
+    async def test_risk_threshold_matches(self, session, test_event, engine):
+        """Test that risk_threshold matches when risk_score >= threshold."""
+        rule = AlertRule(
+            name="High Risk Alert",
+            enabled=True,
+            risk_threshold=70,
+        )
+        session.add(rule)
+        await session.flush()
+
+        # Event has risk_score=80, threshold is 70
+        result = await engine.evaluate_event(test_event, [])
+
+        assert result.has_triggers is True
+        assert len(result.triggered_rules) == 1
+        assert "risk_score >= 70" in result.triggered_rules[0].matched_conditions
+
+    @pytest.mark.asyncio
+    async def test_risk_threshold_no_match(self, session, test_event, engine):
+        """Test that risk_threshold doesn't match when risk_score < threshold."""
+        rule = AlertRule(
+            name="Critical Alert",
+            enabled=True,
+            risk_threshold=90,  # Higher than event's 80
+        )
+        session.add(rule)
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, [])
+
+        assert result.has_triggers is False
+
+    @pytest.mark.asyncio
+    async def test_risk_threshold_null_score(self, session, test_camera, engine):
+        """Test that risk_threshold doesn't match when risk_score is None."""
+        # Create event with no risk score
+        event = Event(
+            batch_id="batch_002",
+            camera_id=test_camera.id,
+            started_at=datetime.utcnow(),
+            risk_score=None,
+        )
+        session.add(event)
+
+        rule = AlertRule(
+            name="Any Risk Alert",
+            enabled=True,
+            risk_threshold=0,  # Should match any score, but not None
+        )
+        session.add(rule)
+        await session.flush()
+
+        result = await engine.evaluate_event(event, [])
+
+        assert result.has_triggers is False
+
+
+class TestObjectTypesCondition:
+    """Tests for object_types condition."""
+
+    @pytest.mark.asyncio
+    async def test_object_types_matches(self, session, test_event, test_detections, engine):
+        """Test that object_types matches when detection has matching type."""
+        rule = AlertRule(
+            name="Person Alert",
+            enabled=True,
+            object_types=["person"],
+        )
+        session.add(rule)
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, test_detections)
+
+        assert result.has_triggers is True
+        assert "object_type in ['person']" in result.triggered_rules[0].matched_conditions
+
+    @pytest.mark.asyncio
+    async def test_object_types_case_insensitive(
+        self, session, test_event, test_detections, engine
+    ):
+        """Test that object_types matching is case insensitive."""
+        rule = AlertRule(
+            name="Person Alert",
+            enabled=True,
+            object_types=["PERSON"],  # Uppercase
+        )
+        session.add(rule)
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, test_detections)
+
+        assert result.has_triggers is True
+
+    @pytest.mark.asyncio
+    async def test_object_types_multiple(self, session, test_event, test_detections, engine):
+        """Test that object_types matches any of the specified types."""
+        rule = AlertRule(
+            name="Person or Vehicle Alert",
+            enabled=True,
+            object_types=["person", "vehicle"],
+        )
+        session.add(rule)
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, test_detections)
+
+        assert result.has_triggers is True
+
+    @pytest.mark.asyncio
+    async def test_object_types_no_match(self, session, test_event, test_detections, engine):
+        """Test that object_types doesn't match when no detection matches."""
+        rule = AlertRule(
+            name="Animal Alert",
+            enabled=True,
+            object_types=["dog", "cat"],  # Neither in detections
+        )
+        session.add(rule)
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, test_detections)
+
+        assert result.has_triggers is False
+
+
+class TestCameraIdsCondition:
+    """Tests for camera_ids condition."""
+
+    @pytest.mark.asyncio
+    async def test_camera_ids_matches(self, session, test_event, engine):
+        """Test that camera_ids matches when event's camera is in list."""
+        rule = AlertRule(
+            name="Front Door Alert",
+            enabled=True,
+            camera_ids=["front_door", "back_door"],
+        )
+        session.add(rule)
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, [])
+
+        assert result.has_triggers is True
+        assert (
+            "camera_id in ['front_door', 'back_door']"
+            in result.triggered_rules[0].matched_conditions
+        )
+
+    @pytest.mark.asyncio
+    async def test_camera_ids_no_match(self, session, test_event, engine):
+        """Test that camera_ids doesn't match when event's camera not in list."""
+        rule = AlertRule(
+            name="Backyard Only Alert",
+            enabled=True,
+            camera_ids=["backyard"],  # Event is from front_door
+        )
+        session.add(rule)
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, [])
+
+        assert result.has_triggers is False
+
+
+class TestMinConfidenceCondition:
+    """Tests for min_confidence condition."""
+
+    @pytest.mark.asyncio
+    async def test_min_confidence_matches(self, session, test_event, test_detections, engine):
+        """Test that min_confidence matches when any detection meets threshold."""
+        rule = AlertRule(
+            name="High Confidence Alert",
+            enabled=True,
+            min_confidence=0.9,  # det1 has 0.95
+        )
+        session.add(rule)
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, test_detections)
+
+        assert result.has_triggers is True
+        assert "confidence >= 0.9" in result.triggered_rules[0].matched_conditions
+
+    @pytest.mark.asyncio
+    async def test_min_confidence_no_match(self, session, test_event, test_detections, engine):
+        """Test that min_confidence doesn't match when no detection meets threshold."""
+        rule = AlertRule(
+            name="Very High Confidence Alert",
+            enabled=True,
+            min_confidence=0.99,  # Neither detection meets this
+        )
+        session.add(rule)
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, test_detections)
+
+        assert result.has_triggers is False
+
+
+class TestScheduleCondition:
+    """Tests for schedule (time-based) condition."""
+
+    @pytest.mark.asyncio
+    async def test_schedule_no_schedule_always_matches(self, session, test_event, engine):
+        """Test that no schedule means always active (vacation mode)."""
+        rule = AlertRule(
+            name="Always Active Alert",
+            enabled=True,
+            schedule=None,  # No schedule
+        )
+        session.add(rule)
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, [])
+
+        assert result.has_triggers is True
+
+    @pytest.mark.asyncio
+    async def test_schedule_time_range_matches(self, session, test_event, engine):
+        """Test that schedule matches when within time range."""
+        # Test at 2:00 AM (should match 22:00-06:00)
+        test_time = datetime(2025, 12, 28, 2, 0, 0)  # Saturday 2:00 AM
+
+        rule = AlertRule(
+            name="Night Alert",
+            enabled=True,
+            schedule={
+                "start_time": "22:00",
+                "end_time": "06:00",
+                "timezone": "UTC",
+            },
+        )
+        session.add(rule)
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, [], current_time=test_time)
+
+        assert result.has_triggers is True
+        assert "within_schedule" in result.triggered_rules[0].matched_conditions
+
+    @pytest.mark.asyncio
+    async def test_schedule_time_range_outside(self, session, test_event, engine):
+        """Test that schedule doesn't match when outside time range."""
+        # Test at 12:00 PM (should not match 22:00-06:00)
+        test_time = datetime(2025, 12, 28, 12, 0, 0)  # Saturday noon
+
+        rule = AlertRule(
+            name="Night Alert",
+            enabled=True,
+            schedule={
+                "start_time": "22:00",
+                "end_time": "06:00",
+                "timezone": "UTC",
+            },
+        )
+        session.add(rule)
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, [], current_time=test_time)
+
+        assert result.has_triggers is False
+
+    @pytest.mark.asyncio
+    async def test_schedule_day_filter_matches(self, session, test_event, engine):
+        """Test that schedule matches when on specified day."""
+        # Saturday, December 28, 2025
+        test_time = datetime(2025, 12, 28, 10, 0, 0)
+
+        rule = AlertRule(
+            name="Weekend Alert",
+            enabled=True,
+            schedule={
+                "days": ["saturday", "sunday"],
+                "timezone": "UTC",
+            },
+        )
+        session.add(rule)
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, [], current_time=test_time)
+
+        assert result.has_triggers is True
+
+    @pytest.mark.asyncio
+    async def test_schedule_day_filter_outside(self, session, test_event, engine):
+        """Test that schedule doesn't match when not on specified day."""
+        # Monday, December 29, 2025
+        test_time = datetime(2025, 12, 29, 10, 0, 0)
+
+        rule = AlertRule(
+            name="Weekend Alert",
+            enabled=True,
+            schedule={
+                "days": ["saturday", "sunday"],
+                "timezone": "UTC",
+            },
+        )
+        session.add(rule)
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, [], current_time=test_time)
+
+        assert result.has_triggers is False
+
+    @pytest.mark.asyncio
+    async def test_schedule_normal_time_range(self, session, test_event, engine):
+        """Test schedule with normal time range (not overnight)."""
+        # Test at 10:00 AM (should match 09:00-17:00)
+        test_time = datetime(2025, 12, 28, 10, 0, 0)
+
+        rule = AlertRule(
+            name="Business Hours Alert",
+            enabled=True,
+            schedule={
+                "start_time": "09:00",
+                "end_time": "17:00",
+                "timezone": "UTC",
+            },
+        )
+        session.add(rule)
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, [], current_time=test_time)
+
+        assert result.has_triggers is True
+
+
+class TestAndLogic:
+    """Tests for AND logic combining multiple conditions."""
+
+    @pytest.mark.asyncio
+    async def test_all_conditions_must_match(self, session, test_event, test_detections, engine):
+        """Test that all conditions must match (AND logic)."""
+        rule = AlertRule(
+            name="Multi-Condition Alert",
+            enabled=True,
+            risk_threshold=70,
+            object_types=["person"],
+            camera_ids=["front_door"],
+            min_confidence=0.9,
+        )
+        session.add(rule)
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, test_detections)
+
+        assert result.has_triggers is True
+        # All conditions should be in matched_conditions
+        conditions = result.triggered_rules[0].matched_conditions
+        assert any("risk_score" in c for c in conditions)
+        assert any("object_type" in c for c in conditions)
+        assert any("camera_id" in c for c in conditions)
+        assert any("confidence" in c for c in conditions)
+
+    @pytest.mark.asyncio
+    async def test_one_condition_fails(self, session, test_event, test_detections, engine):
+        """Test that rule doesn't match if any condition fails."""
+        rule = AlertRule(
+            name="Multi-Condition Alert",
+            enabled=True,
+            risk_threshold=70,  # Matches (80 >= 70)
+            object_types=["person"],  # Matches
+            camera_ids=["backyard"],  # Does NOT match (event is from front_door)
+        )
+        session.add(rule)
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, test_detections)
+
+        assert result.has_triggers is False
+
+
+class TestMultipleRules:
+    """Tests for multiple rules triggering."""
+
+    @pytest.mark.asyncio
+    async def test_multiple_rules_trigger(self, session, test_event, engine):
+        """Test that multiple rules can trigger for the same event."""
+        rule1 = AlertRule(
+            name="Low Threshold Alert",
+            enabled=True,
+            risk_threshold=50,
+            severity=AlertSeverity.LOW,
+        )
+        rule2 = AlertRule(
+            name="High Threshold Alert",
+            enabled=True,
+            risk_threshold=70,
+            severity=AlertSeverity.HIGH,
+        )
+        session.add_all([rule1, rule2])
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, [])
+
+        assert result.has_triggers is True
+        assert len(result.triggered_rules) == 2
+        # Should be sorted by severity (highest first)
+        assert result.triggered_rules[0].severity == AlertSeverity.HIGH
+        assert result.triggered_rules[1].severity == AlertSeverity.LOW
+        assert result.highest_severity == AlertSeverity.HIGH
+
+    @pytest.mark.asyncio
+    async def test_disabled_rules_not_evaluated(self, session, test_event, engine):
+        """Test that disabled rules are not evaluated."""
+        rule = AlertRule(
+            name="Disabled Alert",
+            enabled=False,  # Disabled
+            risk_threshold=50,
+        )
+        session.add(rule)
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, [])
+
+        assert result.has_triggers is False
+
+
+class TestCooldown:
+    """Tests for cooldown behavior."""
+
+    @pytest.mark.asyncio
+    async def test_cooldown_skips_rule(self, session, test_event, engine):
+        """Test that rule is skipped when in cooldown."""
+        rule = AlertRule(
+            name="Alert with Cooldown",
+            enabled=True,
+            risk_threshold=50,
+            cooldown_seconds=300,  # 5 minutes
+        )
+        session.add(rule)
+        await session.flush()
+
+        # Create existing alert within cooldown
+        existing_alert = Alert(
+            event_id=test_event.id,
+            rule_id=rule.id,
+            dedup_key=f"front_door:{rule.id}",
+            created_at=datetime.utcnow() - timedelta(minutes=2),  # 2 minutes ago
+        )
+        session.add(existing_alert)
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, [])
+
+        # Rule matched but should be skipped due to cooldown
+        assert result.has_triggers is False
+        assert len(result.skipped_rules) == 1
+        assert result.skipped_rules[0][1] == "in_cooldown"
+
+    @pytest.mark.asyncio
+    async def test_cooldown_expired_triggers(self, session, test_event, engine):
+        """Test that rule triggers when cooldown has expired."""
+        rule = AlertRule(
+            name="Alert with Cooldown",
+            enabled=True,
+            risk_threshold=50,
+            cooldown_seconds=300,  # 5 minutes
+        )
+        session.add(rule)
+        await session.flush()
+
+        # Create existing alert outside cooldown
+        existing_alert = Alert(
+            event_id=test_event.id,
+            rule_id=rule.id,
+            dedup_key=f"front_door:{rule.id}",
+            created_at=datetime.utcnow() - timedelta(minutes=10),  # 10 minutes ago
+        )
+        session.add(existing_alert)
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, [])
+
+        assert result.has_triggers is True
+
+
+class TestDedupKey:
+    """Tests for dedup key generation."""
+
+    @pytest.mark.asyncio
+    async def test_dedup_key_default_template(self, session, test_event, test_detections, engine):
+        """Test dedup key with default template."""
+        rule = AlertRule(
+            name="Test Alert",
+            enabled=True,
+            dedup_key_template="{camera_id}:{rule_id}",
+        )
+        session.add(rule)
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, test_detections)
+
+        assert result.has_triggers is True
+        expected_key = f"front_door:{rule.id}"
+        assert result.triggered_rules[0].dedup_key == expected_key
+
+    @pytest.mark.asyncio
+    async def test_dedup_key_with_object_type(self, session, test_event, test_detections, engine):
+        """Test dedup key with object_type variable."""
+        rule = AlertRule(
+            name="Test Alert",
+            enabled=True,
+            dedup_key_template="{camera_id}:{object_type}:{rule_id}",
+        )
+        session.add(rule)
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, test_detections)
+
+        assert result.has_triggers is True
+        # First detection is "person"
+        expected_key = f"front_door:person:{rule.id}"
+        assert result.triggered_rules[0].dedup_key == expected_key
+
+
+class TestRuleTesting:
+    """Tests for rule testing against historical events."""
+
+    @pytest.mark.asyncio
+    async def test_test_rule_against_events(self, session, test_camera, engine):
+        """Test testing a rule against multiple events."""
+        # Create multiple events with different characteristics
+        event1 = Event(
+            batch_id="batch_001",
+            camera_id=test_camera.id,
+            started_at=datetime.utcnow(),
+            risk_score=80,
+        )
+        event2 = Event(
+            batch_id="batch_002",
+            camera_id=test_camera.id,
+            started_at=datetime.utcnow(),
+            risk_score=60,
+        )
+        event3 = Event(
+            batch_id="batch_003",
+            camera_id=test_camera.id,
+            started_at=datetime.utcnow(),
+            risk_score=90,
+        )
+        session.add_all([event1, event2, event3])
+        await session.flush()
+
+        rule = AlertRule(
+            name="High Risk Alert",
+            enabled=True,
+            risk_threshold=70,
+        )
+        session.add(rule)
+        await session.flush()
+
+        results = await engine.test_rule_against_events(rule, [event1, event2, event3])
+
+        assert len(results) == 3
+        # Event 1 (80) should match
+        assert results[0]["matches"] is True
+        # Event 2 (60) should not match
+        assert results[1]["matches"] is False
+        # Event 3 (90) should match
+        assert results[2]["matches"] is True
+
+
+class TestNoConditionsRule:
+    """Tests for rules with no conditions."""
+
+    @pytest.mark.asyncio
+    async def test_no_conditions_always_matches(self, session, test_event, engine):
+        """Test that a rule with no conditions always matches."""
+        rule = AlertRule(
+            name="Catch All Alert",
+            enabled=True,
+            # No conditions specified
+        )
+        session.add(rule)
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, [])
+
+        assert result.has_triggers is True
+        assert "no_conditions" in result.triggered_rules[0].matched_conditions[0]
+
+
+class TestCreateAlertsForEvent:
+    """Tests for creating alerts from triggered rules."""
+
+    @pytest.mark.asyncio
+    async def test_create_alerts(self, session, test_event, engine):
+        """Test creating alerts for triggered rules."""
+        rule = AlertRule(
+            name="Test Alert",
+            enabled=True,
+            risk_threshold=50,
+            severity=AlertSeverity.HIGH,
+            channels=["pushover", "email"],
+        )
+        session.add(rule)
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, [])
+        assert result.has_triggers is True
+
+        alerts = await engine.create_alerts_for_event(test_event, result.triggered_rules)
+
+        assert len(alerts) == 1
+        alert = alerts[0]
+        assert alert.event_id == test_event.id
+        assert alert.rule_id == rule.id
+        assert alert.severity == AlertSeverity.HIGH
+        assert alert.status == AlertStatus.PENDING
+        assert alert.channels == ["pushover", "email"]
+        assert "matched_conditions" in alert.alert_metadata

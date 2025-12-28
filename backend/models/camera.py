@@ -11,6 +11,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 if TYPE_CHECKING:
     from .detection import Detection
     from .event import Event
+    from .zone import Zone
 
 
 class Base(DeclarativeBase):
@@ -40,6 +41,9 @@ class Camera(Base):
     )
     events: Mapped[list[Event]] = relationship(
         "Event", back_populates="camera", cascade="all, delete-orphan"
+    )
+    zones: Mapped[list[Zone]] = relationship(
+        "Zone", back_populates="camera", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:
