@@ -9,8 +9,8 @@ from redis.asyncio import Redis
 from redis.exceptions import ConnectionError
 
 from backend.core.redis import (
-    BackpressureStrategy,
     QueueAddResult,
+    QueueOverflowPolicy,
     RedisClient,
     close_redis,
     get_redis,
@@ -354,7 +354,7 @@ async def test_add_to_queue_with_drop_oldest_trims(redis_client, mock_redis_clie
     mock_redis_client.rpush.return_value = 600  # Simulates queue over limit
 
     result = await redis_client.add_to_queue(
-        "test_queue", "data", max_size=500, backpressure=BackpressureStrategy.DROP_OLDEST
+        "test_queue", "data", max_size=500, backpressure=QueueOverflowPolicy.DROP_OLDEST
     )
 
     assert result == 500  # Returns trimmed size
@@ -367,7 +367,7 @@ async def test_add_to_queue_with_drop_oldest_no_trim_under_limit(redis_client, m
     mock_redis_client.rpush.return_value = 100  # Under limit
 
     result = await redis_client.add_to_queue(
-        "test_queue", "data", max_size=500, backpressure=BackpressureStrategy.DROP_OLDEST
+        "test_queue", "data", max_size=500, backpressure=QueueOverflowPolicy.DROP_OLDEST
     )
 
     assert result == 100
@@ -380,7 +380,7 @@ async def test_add_to_queue_disabled_skips_ltrim(redis_client, mock_redis_client
     mock_redis_client.rpush.return_value = 1
 
     result = await redis_client.add_to_queue(
-        "test_queue", "data", max_size=500, backpressure=BackpressureStrategy.DISABLED
+        "test_queue", "data", max_size=500, backpressure=QueueOverflowPolicy.DISABLED
     )
 
     assert result == 1
@@ -408,7 +408,7 @@ async def test_add_to_queue_safe_drop_oldest_reports_dropped(redis_client, mock_
     mock_redis_client.rpush.return_value = 105  # 5 over the limit
 
     result = await redis_client.add_to_queue_safe(
-        "test_queue", "data", max_size=100, backpressure=BackpressureStrategy.DROP_OLDEST
+        "test_queue", "data", max_size=100, backpressure=QueueOverflowPolicy.DROP_OLDEST
     )
 
     assert result.queue_length == 100
@@ -422,7 +422,7 @@ async def test_add_to_queue_safe_drop_newest_rejects_when_full(redis_client, moc
     mock_redis_client.llen.return_value = 100  # Queue at capacity
 
     result = await redis_client.add_to_queue_safe(
-        "test_queue", "data", max_size=100, backpressure=BackpressureStrategy.DROP_NEWEST
+        "test_queue", "data", max_size=100, backpressure=QueueOverflowPolicy.DROP_NEWEST
     )
 
     assert result.queue_length == 100
@@ -439,7 +439,7 @@ async def test_add_to_queue_safe_drop_newest_accepts_when_space(redis_client, mo
     mock_redis_client.rpush.return_value = 51
 
     result = await redis_client.add_to_queue_safe(
-        "test_queue", "data", max_size=100, backpressure=BackpressureStrategy.DROP_NEWEST
+        "test_queue", "data", max_size=100, backpressure=QueueOverflowPolicy.DROP_NEWEST
     )
 
     assert result.queue_length == 51
