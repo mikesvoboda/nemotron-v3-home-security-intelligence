@@ -525,7 +525,9 @@ class TestGPUStatsModel:
     @pytest.mark.asyncio
     async def test_gpu_stats_time_series(self, session):
         """Test storing and retrieving GPU stats as time series."""
-        base_time = datetime.utcnow()
+        from datetime import UTC
+
+        base_time = datetime.now(UTC)
 
         # Record stats every 10 seconds for 1 minute
         for i in range(6):

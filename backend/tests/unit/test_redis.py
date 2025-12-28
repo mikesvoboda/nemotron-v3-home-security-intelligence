@@ -416,7 +416,9 @@ async def test_add_to_queue_safe_returns_detailed_result(redis_client, mock_redi
 @pytest.mark.asyncio
 async def test_add_to_queue_safe_drop_oldest_reports_dropped(redis_client, mock_redis_client):
     """Test DROP_OLDEST strategy reports how many items were dropped."""
-    mock_redis_client.rpush.return_value = 105  # 5 over the limit
+    # Queue must be at capacity for DROP_OLDEST to trigger trim logic
+    mock_redis_client.llen.return_value = 100  # Queue at capacity
+    mock_redis_client.rpush.return_value = 105  # 5 over the limit after push
 
     result = await redis_client.add_to_queue_safe(
         "test_queue", "data", max_size=100, overflow_policy=QueueOverflowPolicy.DROP_OLDEST
