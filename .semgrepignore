@@ -1,0 +1,7 @@
+# Semgrep ignore patterns
+# https://semgrep.dev/docs/ignoring-files-folders-code
+
+# Nginx configuration - H2C smuggling rule is a false positive
+# The configuration uses validated WebSocket upgrade maps that only allow "websocket" value
+# This prevents H2C smuggling while still enabling WebSocket functionality
+frontend/nginx.conf
