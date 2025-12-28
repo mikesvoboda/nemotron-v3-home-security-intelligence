@@ -63,7 +63,7 @@ async def isolated_db():
     from sqlalchemy import text
 
     from backend.core.config import get_settings
-    from backend.core.database import close_db, get_session, init_db
+    from backend.core.database import close_db, get_engine, init_db
 
     # Save original state
     original_db_url = os.environ.get("DATABASE_URL")
@@ -87,12 +87,15 @@ async def isolated_db():
     await init_db()
 
     # Clean up any existing data before the test (for test isolation)
-    async with get_session() as session:
-        # Truncate all tables in correct order to respect FK constraints
-        await session.execute(text("TRUNCATE TABLE logs, gpu_stats, api_keys CASCADE"))
-        await session.execute(text("TRUNCATE TABLE detections, events CASCADE"))
-        await session.execute(text("TRUNCATE TABLE cameras CASCADE"))
-        await session.commit()
+    # Use a raw connection to ensure immediate visibility and avoid session caching
+    async with get_engine().begin() as conn:
+        # Single TRUNCATE with RESTART IDENTITY ensures clean state
+        await conn.execute(
+            text(
+                "TRUNCATE TABLE logs, gpu_stats, api_keys, detections, events, cameras "
+                "RESTART IDENTITY CASCADE"
+            )
+        )
 
     yield
 
@@ -277,7 +280,7 @@ async def integration_db(integration_env: str) -> AsyncGenerator[str]:
     from sqlalchemy import text
 
     from backend.core.config import get_settings
-    from backend.core.database import close_db, get_session, init_db
+    from backend.core.database import close_db, get_engine, init_db
 
     # Ensure clean state
     get_settings.cache_clear()
@@ -286,16 +289,30 @@ async def integration_db(integration_env: str) -> AsyncGenerator[str]:
     await init_db()
 
     # Clean up any existing data before the test (for test isolation)
-    async with get_session() as session:
-        # Truncate all tables in correct order to respect FK constraints
-        await session.execute(text("TRUNCATE TABLE logs, gpu_stats, api_keys CASCADE"))
-        await session.execute(text("TRUNCATE TABLE detections, events CASCADE"))
-        await session.execute(text("TRUNCATE TABLE cameras CASCADE"))
-        await session.commit()
+    # Use a raw connection to ensure immediate visibility and avoid session caching
+    async with get_engine().begin() as conn:
+        # Single TRUNCATE with RESTART IDENTITY ensures clean state
+        await conn.execute(
+            text(
+                "TRUNCATE TABLE logs, gpu_stats, api_keys, detections, events, cameras "
+                "RESTART IDENTITY CASCADE"
+            )
+        )
 
     try:
         yield integration_env
     finally:
+        # Clean up after test too for good measure
+        try:
+            async with get_engine().begin() as conn:
+                await conn.execute(
+                    text(
+                        "TRUNCATE TABLE logs, gpu_stats, api_keys, detections, events, cameras "
+                        "RESTART IDENTITY CASCADE"
+                    )
+                )
+        except Exception:  # noqa: S110 - ignore cleanup errors
+            pass
         await close_db()
         get_settings.cache_clear()
 
