@@ -546,6 +546,8 @@ class TestGetEventDetections:
 
     async def test_get_event_detections_success(self, async_client, sample_event, sample_detection):
         """Test getting detections for an event."""
+        import json
+
         # Update event to reference the detection
         from backend.core.database import get_session
 
@@ -556,7 +558,8 @@ class TestGetEventDetections:
 
             result = await db.execute(select(Event).where(Event.id == sample_event.id))
             event = result.scalar_one()
-            event.detection_ids = str(sample_detection.id)
+            # detection_ids must be a JSON array, not a plain string
+            event.detection_ids = json.dumps([sample_detection.id])
             await db.commit()
 
         response = await async_client.get(f"/api/events/{sample_event.id}/detections")
@@ -596,6 +599,8 @@ class TestGetEventDetections:
 
     async def test_get_event_detections_multiple(self, async_client, sample_event, sample_camera):
         """Test getting multiple detections for an event."""
+        import json
+
         from backend.core.database import get_session
         from backend.models.detection import Detection
 
@@ -638,7 +643,8 @@ class TestGetEventDetections:
 
             result = await db.execute(select(Event).where(Event.id == sample_event.id))
             event = result.scalar_one()
-            event.detection_ids = f"{detection1.id},{detection2.id}"
+            # detection_ids must be a JSON array
+            event.detection_ids = json.dumps([detection1.id, detection2.id])
             await db.commit()
 
         response = await async_client.get(f"/api/events/{sample_event.id}/detections")
