@@ -1,9 +1,13 @@
-"""Unit tests for database connection and session management."""
+"""Unit tests for database connection and session management.
+
+Tests use PostgreSQL. Set TEST_DATABASE_URL environment variable or
+use the default test database.
+"""
 
 import contextlib
 
 import pytest
-from sqlalchemy import Column, Integer, String, select, text
+from sqlalchemy import Column, Integer, String, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.database import (
@@ -231,3 +235,20 @@ async def test_close_db(isolated_db):
 
     # Re-initialize for cleanup by isolated_db fixture
     await init_db()
+
+
+@pytest.mark.asyncio
+async def test_postgresql_connection(isolated_db):
+    """Test that PostgreSQL connection is properly configured.
+
+    Verifies:
+    - Connection to PostgreSQL works
+    - Can execute basic queries
+    """
+    async with get_session() as session:
+        # Verify we can execute a simple query
+        from sqlalchemy import text
+
+        result = await session.execute(text("SELECT 1"))
+        value = result.scalar()
+        assert value == 1, f"Expected SELECT 1 to return 1, got {value}"

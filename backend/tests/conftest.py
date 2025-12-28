@@ -1,13 +1,16 @@
 """Pytest configuration and shared fixtures.
 
 This module provides shared test fixtures for all backend tests:
-- isolated_db: Function-scoped isolated database for unit tests
+- isolated_db: Function-scoped isolated database for unit tests (PostgreSQL)
 - test_db: Callable session factory for unit tests
 - integration_env: Environment setup for integration tests
 - integration_db: Initialized database for integration tests
 - mock_redis: Mock Redis client for integration tests
 - db_session: Database session for integration tests
 - client: httpx AsyncClient for API integration tests
+
+Tests use PostgreSQL. Configure TEST_DATABASE_URL environment variable or
+use the default test database URL.
 
 See backend/tests/AGENTS.md for full documentation on test conventions.
 """
@@ -17,7 +20,6 @@ from __future__ import annotations
 import os
 import socket
 import sys
-import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
@@ -425,6 +427,8 @@ def integration_env() -> Generator[str]:
     All integration tests should use this fixture (directly or via integration_db)
     to ensure proper isolation and cleanup.
     """
+    import tempfile
+
     from backend.core.config import get_settings
 
     original_db_url = os.environ.get("DATABASE_URL")

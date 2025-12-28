@@ -73,13 +73,13 @@ services:
 
 ### Database Configuration
 
-| Variable       | Default                                                       | Description                   |
-| -------------- | ------------------------------------------------------------- | ----------------------------- |
-| `DATABASE_URL` | `postgresql+asyncpg://user:pass@localhost:5432/home_security` | SQLAlchemy async database URL |
+| Variable       | Default                                                                | Description                   |
+| -------------- | ---------------------------------------------------------------------- | ----------------------------- |
+| `DATABASE_URL` | `postgresql+asyncpg://security:security_dev_password@localhost:5432/security` | SQLAlchemy async database URL |
 
 **Notes:**
 
-- PostgreSQL is required for this application
+- PostgreSQL is required for this application (SQLite is not supported)
 - Use the `postgresql+asyncpg://` prefix for async operations
 - Format: `postgresql+asyncpg://username:password@host:port/database_name`
 - Inside Docker, use the service name (e.g., `postgres:5432`) instead of `localhost`
@@ -348,7 +348,7 @@ Running everything on your development machine:
 
 ```bash
 # .env
-DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/home_security
+DATABASE_URL=postgresql+asyncpg://security:security_dev_password@localhost:5432/security
 REDIS_URL=redis://localhost:6379/0
 RTDETR_URL=http://localhost:8090
 NEMOTRON_URL=http://localhost:8091
@@ -363,7 +363,7 @@ Using Docker Compose for backend/frontend/redis/postgres, native AI services:
 
 ```bash
 # .env (values are set in docker-compose.yml, this is for reference)
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/home_security
+DATABASE_URL=postgresql+asyncpg://security:security_dev_password@postgres:5432/security
 REDIS_URL=redis://redis:6379
 RTDETR_URL=http://host.docker.internal:8090
 NEMOTRON_URL=http://host.docker.internal:8091
@@ -373,7 +373,7 @@ NEMOTRON_URL=http://host.docker.internal:8091
 
 ```bash
 # .env
-DATABASE_URL=postgresql+asyncpg://postgres:securepw@postgres:5432/home_security
+DATABASE_URL=postgresql+asyncpg://security:your_secure_password@postgres:5432/security
 REDIS_URL=redis://redis:6379
 RTDETR_URL=http://host.docker.internal:8090
 NEMOTRON_URL=http://host.docker.internal:8091
@@ -438,9 +438,9 @@ docker compose down && docker compose up -d
 
 **Solution:** Ensure PostgreSQL is running and credentials are correct:
 
-- Native: `postgresql+asyncpg://username:password@localhost:5432/home_security`
-- Docker: `postgresql+asyncpg://postgres:postgres@postgres:5432/home_security` (use service name)
-- Verify PostgreSQL is accessible: `psql -h localhost -U username -d home_security`
+- Native: `postgresql+asyncpg://security:security_dev_password@localhost:5432/security`
+- Docker: `postgresql+asyncpg://security:security_dev_password@postgres:5432/security` (use service name)
+- Verify PostgreSQL is accessible: `psql -h localhost -U security -d security`
 - Ensure the database exists before starting the application
 
 ## Security Considerations
