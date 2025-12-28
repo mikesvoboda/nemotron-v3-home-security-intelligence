@@ -7,8 +7,6 @@ without actually running performance benchmarks.
 from __future__ import annotations
 
 import os
-import tempfile
-from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
@@ -355,9 +353,9 @@ class TestBenchmarkEnvironmentFixtures:
         original_db_url = os.environ.get("DATABASE_URL")
         original_redis_url = os.environ.get("REDIS_URL")
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = Path(tmpdir) / "test.db"
-            test_db_url = f"sqlite+aiosqlite:///{db_path}"
+        try:
+            # Use PostgreSQL URL for testing (PostgreSQL-only configuration)
+            test_db_url = "postgresql+asyncpg://postgres:postgres@localhost:5432/security_test"
 
             os.environ["DATABASE_URL"] = test_db_url
             os.environ["REDIS_URL"] = "redis://localhost:6379/15"
@@ -365,20 +363,21 @@ class TestBenchmarkEnvironmentFixtures:
             get_settings.cache_clear()
 
             settings = get_settings()
-            assert str(db_path) in settings.database_url
+            assert settings.database_url == test_db_url
 
-        # Restore
-        if original_db_url is not None:
-            os.environ["DATABASE_URL"] = original_db_url
-        else:
-            os.environ.pop("DATABASE_URL", None)
+        finally:
+            # Restore
+            if original_db_url is not None:
+                os.environ["DATABASE_URL"] = original_db_url
+            else:
+                os.environ.pop("DATABASE_URL", None)
 
-        if original_redis_url is not None:
-            os.environ["REDIS_URL"] = original_redis_url
-        else:
-            os.environ.pop("REDIS_URL", None)
+            if original_redis_url is not None:
+                os.environ["REDIS_URL"] = original_redis_url
+            else:
+                os.environ.pop("REDIS_URL", None)
 
-        get_settings.cache_clear()
+            get_settings.cache_clear()
 
     def test_mock_redis_fixture_concept(self):
         """Verify the mock Redis pattern works."""

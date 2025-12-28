@@ -1,13 +1,11 @@
 """Unit tests for PostgreSQL support in database module.
 
 These tests verify that the database module correctly handles:
-- URL detection for PostgreSQL vs SQLite
-- Engine configuration differences between database types
+- URL detection for PostgreSQL vs SQLite (legacy helper functions)
+- Engine configuration for PostgreSQL
 """
 
 import os
-import tempfile
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -18,7 +16,6 @@ from backend.core.database import (
     _is_postgresql,
     _is_sqlite,
     close_db,
-    get_engine,
     init_db,
 )
 
@@ -71,94 +68,6 @@ class TestIsSqlite:
         assert _is_sqlite("postgresql+asyncpg://localhost:5432/db") is False
 
 
-class TestSqliteEngineConfiguration:
-    """Tests for SQLite engine configuration in init_db."""
-
-    @pytest.mark.asyncio
-    async def test_sqlite_uses_nullpool(self) -> None:
-        """Verify that SQLite databases are configured with NullPool."""
-        original_db_url = os.environ.get("DATABASE_URL")
-        get_settings.cache_clear()
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = Path(tmpdir) / "test_nullpool.db"
-            test_db_url = f"sqlite+aiosqlite:///{db_path}"
-
-            os.environ["DATABASE_URL"] = test_db_url
-            get_settings.cache_clear()
-
-            try:
-                await close_db()
-                await init_db()
-
-                engine = get_engine()
-
-                # SQLite should use NullPool
-                assert isinstance(engine.pool, pool.NullPool)
-
-            finally:
-                await close_db()
-                if original_db_url:
-                    os.environ["DATABASE_URL"] = original_db_url
-                else:
-                    os.environ.pop("DATABASE_URL", None)
-                get_settings.cache_clear()
-
-    @pytest.mark.asyncio
-    async def test_sqlite_connect_args(self) -> None:
-        """Verify that SQLite databases get correct connect_args."""
-        original_db_url = os.environ.get("DATABASE_URL")
-        get_settings.cache_clear()
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = Path(tmpdir) / "test_connect_args.db"
-            test_db_url = f"sqlite+aiosqlite:///{db_path}"
-
-            os.environ["DATABASE_URL"] = test_db_url
-            get_settings.cache_clear()
-
-            try:
-                await close_db()
-
-                # Mock create_async_engine to capture the arguments
-                with patch("backend.core.database.create_async_engine") as mock_create:
-                    # Create a mock engine that supports async operations
-                    mock_engine = MagicMock()
-                    mock_engine.dispose = AsyncMock()
-                    mock_engine.begin = MagicMock(
-                        return_value=MagicMock(__aenter__=MagicMock(), __aexit__=MagicMock())
-                    )
-                    mock_create.return_value = mock_engine
-
-                    # Call init_db but expect it to fail on table creation
-                    # We just want to verify the engine creation arguments
-                    try:
-                        await init_db()
-                    except Exception:  # noqa: S110
-                        pass  # Expected - we only care about engine creation args
-
-                    # Verify create_async_engine was called
-                    mock_create.assert_called_once()
-                    call_kwargs = mock_create.call_args[1]
-
-                    # Check connect_args
-                    assert "connect_args" in call_kwargs
-                    connect_args = call_kwargs["connect_args"]
-                    assert connect_args.get("check_same_thread") is False
-                    assert connect_args.get("timeout") == 30
-
-                    # Check poolclass
-                    assert call_kwargs.get("poolclass") == pool.NullPool
-
-            finally:
-                await close_db()
-                if original_db_url:
-                    os.environ["DATABASE_URL"] = original_db_url
-                else:
-                    os.environ.pop("DATABASE_URL", None)
-                get_settings.cache_clear()
-
-
 class TestPostgresqlEngineConfiguration:
     """Tests for PostgreSQL engine configuration in init_db."""
 
@@ -198,10 +107,9 @@ class TestPostgresqlEngineConfiguration:
                 call_kwargs = mock_create.call_args[1]
 
                 # PostgreSQL should have connection pool settings
-                assert call_kwargs.get("pool_size") == 10
-                assert call_kwargs.get("max_overflow") == 20
-                assert call_kwargs.get("pool_timeout") == 30
-                assert call_kwargs.get("pool_recycle") == 1800
+                assert call_kwargs.get("pool_size") == 5
+                assert call_kwargs.get("max_overflow") == 10
+                assert call_kwargs.get("pool_pre_ping") is True
 
                 # PostgreSQL should NOT have poolclass (uses default QueuePool)
                 assert "poolclass" not in call_kwargs
