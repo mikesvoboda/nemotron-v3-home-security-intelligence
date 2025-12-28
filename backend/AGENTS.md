@@ -10,14 +10,15 @@ The backend is a FastAPI-based REST API server for an AI-powered home security m
 - **Real-time capabilities** - Redis for queues, pub/sub, and caching
 - **Media serving** - Secure file serving with path traversal protection
 - **System monitoring** - Health checks, GPU stats, and system statistics
+- **Observability** - Prometheus metrics, structured logging, dead-letter queues
 
 ## Directory Structure
 
 ```
 backend/
 ├── main.py                 # FastAPI application entry point
-├── core/                   # Infrastructure (database, Redis, config)
-├── api/                    # REST API routes and schemas
+├── core/                   # Infrastructure (database, Redis, config, metrics)
+├── api/                    # REST API routes, schemas, and middleware
 ├── models/                 # SQLAlchemy ORM models
 ├── services/               # Business logic and AI pipeline
 ├── tests/                  # Unit and integration tests
@@ -32,9 +33,12 @@ backend/
 
 - Lifespan context manager for startup/shutdown
 - CORS middleware configuration
+- Authentication middleware (optional API key validation)
+- Request ID middleware for log correlation
 - Health check endpoints (`/`, `/health`)
-- Router registration (cameras, media, system)
+- Router registration (cameras, detections, dlq, events, logs, media, metrics, system, websocket)
 - Database and Redis initialization
+- Service initialization (FileWatcher, PipelineWorkerManager, GPUMonitor, CleanupService, SystemBroadcaster)
 
 ### Core Infrastructure (`core/`)
 
@@ -48,6 +52,7 @@ backend/
 - Retention and batch processing timings
 - AI service endpoints (RT-DETR, Nemotron)
 - Detection confidence thresholds
+- Fast path settings for high-priority detections
 - Cached singleton pattern via `@lru_cache`
 
 **`database.py`** - SQLAlchemy 2.0 async database layer:
@@ -65,7 +70,7 @@ backend/
 
 - `RedisClient` class with connection pooling
 - Retry logic with exponential backoff (3 retries, 1s base delay)
-- Queue operations (RPUSH, BLPOP, LLEN, LRANGE)
+- Queue operations (RPUSH, BLPOP, LLEN, LRANGE, peek_queue, clear_queue)
 - Pub/Sub operations (publish, subscribe, listen)
 - Cache operations (get, set, delete, exists)
 - JSON serialization/deserialization for all operations
@@ -85,6 +90,13 @@ backend/
 - Rotating file handler with configurable size and backup count
 - Structured logging with camera_id, event_id, detection_id, duration_ms
 - Reduces noise from third-party libraries (uvicorn, sqlalchemy, watchdog)
+
+**`metrics.py`** - Prometheus metrics for observability:
+
+- Pipeline stage duration histograms (detect, batch, analyze)
+- Queue depth gauges (detection_queue, analysis_queue)
+- Error counters by type
+- `get_metrics_response()` - Returns metrics in Prometheus exposition format
 
 ### Database Models (`models/`)
 
@@ -124,6 +136,7 @@ All models inherit from `Base` (defined in `camera.py`) and use SQLAlchemy 2.0 `
 - `detection_ids` (text) - JSON array of detection IDs
 - `reviewed` (bool) - User review flag
 - `notes` (text) - User notes
+- `is_fast_path` (bool) - Whether event used fast path analysis
 - Indexes on camera_id, started_at, risk_score, reviewed, batch_id
 
 **`gpu_stats.py`** - GPU performance metrics:
@@ -151,6 +164,14 @@ All models inherit from `Base` (defined in `camera.py`) and use SQLAlchemy 2.0 `
 - `user_agent` (text, nullable) - Browser user agent for frontend logs
 - Indexes on timestamp, level, component, camera_id, source
 
+**`api_key.py`** - API key authentication:
+
+- `id` (int, auto-increment)
+- `key_hash` (str, unique) - SHA-256 hash of API key
+- `name` (str) - Human-readable key name
+- `created_at` (datetime)
+- `is_active` (bool) - Active status flag
+
 ### API Routes (`api/routes/`)
 
 **`cameras.py`** - Camera CRUD operations:
@@ -177,6 +198,7 @@ All models inherit from `Base` (defined in `camera.py`) and use SQLAlchemy 2.0 `
 - `GET /api/system/gpu` - Latest GPU statistics
 - `GET /api/system/config` - Public configuration settings
 - `GET /api/system/stats` - Aggregate counts (cameras, events, detections, uptime)
+- `GET /api/system/pipeline` - Pipeline worker status
 - Helper functions: `check_database_health()`, `check_redis_health()`, `check_ai_services_health()`
 
 **`detections.py`** - Detection CRUD operations:
@@ -205,14 +227,22 @@ All models inherit from `Base` (defined in `camera.py`) and use SQLAlchemy 2.0 `
 **`logs.py`** - Log management API:
 
 - `GET /api/logs` - List logs with filtering and pagination
-  - Query params: level, component, camera_id, source, search, start_date, end_date, limit, offset
-  - Returns paginated log entries with total count
 - `GET /api/logs/stats` - Get log statistics for dashboard
-  - Returns: total_today, errors_today, warnings_today, by_component, by_level, top_component
 - `GET /api/logs/{log_id}` - Get single log entry by ID
 - `POST /api/logs/frontend` - Receive and store frontend logs
-  - Accepts: level, component, message, extra (optional), user_agent (optional)
-  - Sets source="frontend" automatically
+
+**`dlq.py`** - Dead-letter queue management:
+
+- `GET /api/dlq/stats` - Get DLQ statistics (counts for each queue)
+- `GET /api/dlq/jobs/{queue_name}` - List jobs in a specific DLQ
+- `POST /api/dlq/requeue/{queue_name}` - Requeue oldest job from DLQ
+- `POST /api/dlq/requeue-all/{queue_name}` - Requeue all jobs from DLQ
+- `DELETE /api/dlq/{queue_name}` - Clear all jobs from a DLQ
+
+**`metrics.py`** - Prometheus metrics endpoint:
+
+- `GET /api/metrics` - Return all metrics in Prometheus exposition format
+- No authentication required for Prometheus scraping
 
 ### API Middleware (`api/middleware/`)
 
@@ -233,122 +263,37 @@ All models inherit from `Base` (defined in `camera.py`) and use SQLAlchemy 2.0 `
 
 ### Services (`services/`)
 
-**`file_watcher.py`** - Filesystem monitoring service:
+See `services/AGENTS.md` for detailed service documentation.
 
-- Watches Foscam camera directories for new image uploads
-- Uses `watchdog` library for file system events
-- Debounce logic (0.5s delay) to wait for file writes to complete
-- Image validation (PIL verify, non-zero size)
-- Extracts camera ID from path structure
-- Queues detections to Redis `detection_queue`
-- Async-compatible with thread-safe event loop scheduling
-- `start()` / `stop()` lifecycle management
+**Core AI Pipeline:**
 
-**`detector_client.py`** - RT-DETRv2 HTTP client:
+- `file_watcher.py` - Monitors camera directories for new uploads
+- `detector_client.py` - RT-DETRv2 HTTP client for object detection
+- `batch_aggregator.py` - Groups detections into time-based batches
+- `nemotron_analyzer.py` - LLM risk analysis via llama.cpp
+- `thumbnail_generator.py` - Detection visualization with bounding boxes
+- `dedupe.py` - File deduplication using content hashes
 
-- Sends images to RT-DETRv2 service via `POST /detect`
-- Filters detections by confidence threshold (from settings)
-- Creates `Detection` models in database
-- HTTP client with 30s timeout
-- Error handling for connection errors, timeouts, HTTP errors
-- `health_check()` method for service availability
-- Returns list of `Detection` instances
+**Pipeline Workers:**
 
-**`batch_aggregator.py`** - Detection batching service:
+- `pipeline_workers.py` - Background worker processes (DetectionQueueWorker, AnalysisQueueWorker, BatchTimeoutWorker, QueueMetricsWorker, PipelineWorkerManager)
 
-- Groups detections from same camera into time-based batches
-- **Batch window**: 90 seconds from batch start
-- **Idle timeout**: 30 seconds since last detection
-- Redis keys pattern:
-  - `batch:{camera_id}:current` - Active batch ID for camera
-  - `batch:{batch_id}:camera_id` - Camera for batch
-  - `batch:{batch_id}:detections` - JSON array of detection IDs
-  - `batch:{batch_id}:started_at` - Unix timestamp (float)
-  - `batch:{batch_id}:last_activity` - Unix timestamp (float)
-- `add_detection()` - Add to active batch or create new one
-- `check_batch_timeouts()` - Scan all batches, close expired ones
-- `close_batch()` - Push to `analysis_queue` and cleanup Redis keys
+**Broadcasting:**
 
-**`nemotron_analyzer.py`** - LLM risk analysis service:
+- `event_broadcaster.py` - WebSocket event distribution via Redis pub/sub
+- `system_broadcaster.py` - Periodic system status broadcasting
 
-- Consumes from `analysis_queue` (populated by batch aggregator)
-- Fetches detection details from database
-- Formats prompt with camera name, time window, detection list
-- Calls llama.cpp server (`POST /completion`) with Nemotron model
-- Parses JSON response from LLM (extracts from markdown if needed)
-- Validates risk data (score 0-100, valid level)
-- Creates `Event` record with risk assessment
-- Broadcasts event via Redis pub/sub (optional)
-- Fallback risk data on LLM errors
-- `health_check()` method for LLM service availability
+**Background Services:**
 
-**`thumbnail_generator.py`** - Detection visualization:
+- `gpu_monitor.py` - NVIDIA GPU statistics monitoring
+- `cleanup_service.py` - Data retention and disk cleanup
+- `health_monitor.py` - Service health monitoring with auto-recovery
 
-- Generates thumbnail images with bounding boxes
-- PIL/Pillow for image manipulation
-- Color-coded boxes by object type (person=red, car=blue, dog=green, etc.)
-- Draws labels with object type and confidence
-- Resizes to 320x240 with aspect ratio preservation and padding
-- Saves as JPEG (quality 85) to `data/thumbnails/`
-- Filename pattern: `{detection_id}_thumb.jpg`
-- Font loading with fallback to default PIL font
+**Infrastructure:**
 
-**`prompts.py`** - LLM prompt templates:
-
-- `RISK_ANALYSIS_PROMPT` - Template for Nemotron risk assessment
-- Formats camera name, time window, and detection list
-- Instructs LLM to return JSON with risk_score, risk_level, summary, reasoning
-
-**`cleanup_service.py`** - Data retention and cleanup:
-
-- Automated cleanup service for enforcing retention policies
-- Runs daily at scheduled time (default: 03:00)
-- Deletes events, detections, and GPU stats older than retention period (default: 30 days)
-- Removes associated thumbnail files and optionally original images
-- Transaction-safe deletions with rollback support
-- Tracks cleanup statistics (records deleted, space reclaimed)
-- Configurable retention days and cleanup schedule
-- `start()` / `stop()` lifecycle management
-- Returns `CleanupStats` with operation details
-
-**`event_broadcaster.py`** - WebSocket event distribution:
-
-- Manages WebSocket connections for real-time event notifications
-- Uses Redis pub/sub as event backbone for multi-instance support
-- `EventBroadcaster` class with connection pool management
-- `connect(websocket)` - Register new WebSocket client
-- `disconnect(websocket)` - Unregister and cleanup client
-- `broadcast_event(event_data)` - Publish event to Redis channel
-- Background listener task forwards Redis messages to all WebSocket clients
-- Automatic cleanup of disconnected clients
-- Channel: `security_events`
-- Global singleton pattern via `get_broadcaster()` / `stop_broadcaster()`
-
-**`gpu_monitor.py`** - GPU performance monitoring:
-
-- Monitors NVIDIA GPU statistics using pynvml library
-- Polls GPU metrics at configurable interval (default: 5 seconds)
-- Collects: utilization, memory usage, temperature, power consumption
-- Stores metrics in database (GPUStats table)
-- Maintains in-memory circular buffer (last 1000 readings)
-- Optional WebSocket broadcasting via event broadcaster
-- Mock data mode when GPU unavailable (development/testing)
-- Graceful handling of missing GPU or driver errors
-- `get_current_stats()` - Real-time GPU statistics
-- `get_stats_history(minutes)` - In-memory historical data
-- `get_stats_from_db(minutes, limit)` - Database query
-- `start()` / `stop()` lifecycle with pynvml initialization/shutdown
-
-**`system_broadcaster.py`** - System status broadcasting:
-
-- Broadcasts periodic system health and status updates via WebSocket
-- Aggregates data from multiple sources (database, Redis, GPU monitor)
-- Periodic broadcast interval (default: 5 seconds)
-- System stats include: camera counts, event counts, detection counts, uptime
-- GPU stats integration for real-time monitoring
-- Health check status (database, Redis, AI services)
-- Background task with start/stop lifecycle management
-- Channel: `system_status`
+- `retry_handler.py` - Exponential backoff and dead-letter queue support
+- `service_managers.py` - Strategy pattern for service management (Shell/Docker)
+- `prompts.py` - LLM prompt templates
 
 ## Configuration Patterns
 
@@ -448,17 +393,20 @@ All database and Redis operations are **fully async**:
 
 ```
 main.py
-  ├── core (config, database, redis)
-  ├── api.routes (cameras, media, system)
-  └── models (Camera, Detection, Event, GPUStats)
+  ├── core (config, database, redis, logging, metrics)
+  ├── api.routes (cameras, detections, dlq, events, logs, media, metrics, system, websocket)
+  ├── api.middleware (auth, request_id)
+  ├── models (Camera, Detection, Event, GPUStats, Log, APIKey)
+  └── services (FileWatcher, PipelineWorkerManager, GPUMonitor, CleanupService, broadcasters)
 
 api.routes
   ├── core (database, redis, config)
   ├── models (ORM classes)
-  └── api.schemas (Pydantic request/response models)
+  ├── api.schemas (Pydantic request/response models)
+  └── services (retry_handler for DLQ routes)
 
 services
-  ├── core (config, database, redis)
+  ├── core (config, database, redis, logging, metrics)
   ├── models (ORM classes)
   └── other services (for composition)
 ```
@@ -473,33 +421,39 @@ services
 ### Data Flow
 
 ```
-Camera uploads → FileWatcher → detection_queue (Redis)
-                                      ↓
-                              DetectorClient → RT-DETRv2
-                                      ↓
-                               Detection (DB) → BatchAggregator
-                                      ↓               ↓
+Camera uploads -> FileWatcher -> detection_queue (Redis)
+                                      |
+                              DetectionQueueWorker
+                                      |
+                               DetectorClient -> RT-DETRv2
+                                      |
+                               Detection (DB) -> BatchAggregator
+                                      |               |
                          ThumbnailGenerator   analysis_queue (Redis)
-                                                      ↓
-                                             NemotronAnalyzer → Nemotron LLM
-                                                      ↓
+                                                      |
+                                          AnalysisQueueWorker
+                                                      |
+                                             NemotronAnalyzer -> Nemotron LLM
+                                                      |
                                                  Event (DB)
-                                                      ↓
+                                                      |
                                            EventBroadcaster (Redis pub/sub)
-                                                      ↓
+                                                      |
                                              WebSocket clients
 
-GPU stats (pynvml) → GPUMonitor → GPUStats (DB) → SystemBroadcaster → WebSocket
-                                        ↓
+GPU stats (pynvml) -> GPUMonitor -> GPUStats (DB) -> SystemBroadcaster -> WebSocket
+                                        |
                                   In-memory buffer
 
-Scheduled cleanup → CleanupService → Delete old records → Remove files
+Scheduled cleanup -> CleanupService -> Delete old records -> Remove files
 
-Backend operations → get_logger() → SQLiteHandler → Log (DB)
-                                  → RotatingFileHandler → security.log
-                                  → StreamHandler → console
+Backend operations -> get_logger() -> SQLiteHandler -> Log (DB)
+                                   -> RotatingFileHandler -> security.log
+                                   -> StreamHandler -> console
 
-Frontend logs → POST /api/logs/frontend → Log (DB)
+Frontend logs -> POST /api/logs/frontend -> Log (DB)
+
+Failed jobs -> RetryHandler (with backoff) -> DLQ (Redis) -> /api/dlq/* endpoints
 ```
 
 ## Testing
@@ -639,3 +593,11 @@ def process_data(items: list[dict[str, Any]]) -> int:
 - **GPU**: NVIDIA RTX A5500 (24GB) for RT-DETRv2 and Nemotron models
 - **File storage**: Foscam cameras upload to `/export/foscam/{camera_name}/`
 - **Retention**: 30-day automatic cleanup (configurable)
+
+## Related Documentation
+
+- `/backend/models/AGENTS.md` - Database model documentation
+- `/backend/services/AGENTS.md` - Service layer documentation
+- `/backend/api/routes/AGENTS.md` - API endpoint documentation
+- `/backend/core/AGENTS.md` - Core infrastructure documentation
+- `/backend/tests/AGENTS.md` - Test infrastructure documentation

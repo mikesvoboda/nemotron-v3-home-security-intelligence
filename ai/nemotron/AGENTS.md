@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This directory contains the Nemotron Mini 4B Instruct language model used for AI-powered risk reasoning and natural language generation in the home security system. The model runs via llama.cpp server and analyzes batches of object detections to generate risk scores and summaries.
+This directory contains the Nemotron language model configuration and files used for AI-powered risk reasoning and natural language generation in the home security system. The model runs via llama.cpp server and analyzes batches of object detections to generate risk scores and summaries.
 
 ## Directory Contents
 
@@ -13,6 +13,24 @@ ai/nemotron/
 ├── .gitkeep                                     # Placeholder for git
 └── nemotron-mini-4b-instruct-q4_k_m.gguf       # Downloaded model file (not in git)
 ```
+
+### `config.json`
+
+Reference configuration for llama.cpp server:
+
+```json
+{
+  "model": "ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf",
+  "host": "0.0.0.0",
+  "port": 8090,
+  "ctx_size": 4096,
+  "n_gpu_layers": 99,
+  "parallel": 2,
+  "cont_batching": true
+}
+```
+
+**Note**: This file is informational. The actual startup scripts (`start_llm.sh` and `start_nemotron.sh`) configure the server directly via command-line arguments.
 
 ### Model File (Downloaded)
 
@@ -25,6 +43,33 @@ ai/nemotron/
 - **Base model**: NVIDIA Nemotron Mini 4B Instruct
 - **Purpose**: Risk assessment and natural language reasoning
 
+## How Nemotron is Used for Risk Reasoning
+
+Nemotron Mini 4B Instruct performs AI-powered security risk analysis:
+
+1. **Detection Aggregation**: The batch aggregator collects detections over 90-second time windows
+2. **Context Building**: Detection data is formatted into a structured prompt with camera name, timestamps, and detected objects
+3. **LLM Analysis**: Nemotron evaluates patterns, timing, and object combinations
+4. **Risk Scoring**: Generates a 0-100 risk score based on security context
+5. **Natural Language Output**: Produces human-readable summaries and detailed reasoning
+6. **Event Creation**: Results are stored as Event records in the database
+
+### Risk Scoring Guidelines
+
+- **0-25 (low)**: Normal activity, no concern
+- **26-50 (medium)**: Unusual but not threatening
+- **51-75 (high)**: Suspicious activity requiring attention
+- **76-100 (critical)**: Potential security threat, immediate action needed
+
+### Analysis Considerations
+
+The LLM considers factors like:
+- Object types detected (person vs. car vs. animal)
+- Time of day (nighttime activity weighted higher)
+- Number and frequency of detections
+- Camera location context
+- Unusual patterns or combinations
+
 ## Model Information
 
 ### Nemotron Mini 4B Instruct
@@ -36,10 +81,20 @@ ai/nemotron/
 - **Quantization**: Q4_K_M reduces memory from ~8GB to ~2.5GB with minimal quality loss
 - **Inference speed**: ~2-5 seconds per risk analysis
 
+### Alternative: Nemotron-3-Nano-30B-A3B
+
+The `start_nemotron.sh` script also supports the larger Nemotron-3-Nano-30B-A3B model:
+
+- **Parameters**: 30 billion (with A3B sparse attention)
+- **VRAM**: ~16GB
+- **Context**: 12288 tokens
+- **Location**: `/export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/`
+
 ### VRAM Usage
 
-- **Q4_K_M quantization**: ~3GB VRAM
-- **GPU layers**: 99 (all layers offloaded to GPU)
+- **Q4_K_M quantization (4B)**: ~3GB VRAM
+- **Q4_K_M quantization (30B)**: ~16GB VRAM
+- **GPU layers**: 45-99 (configurable, all layers offloaded to GPU)
 - **CPU fallback**: Available but much slower
 
 ## Starting the Service
@@ -47,14 +102,14 @@ ai/nemotron/
 ### Download model (first time only):
 
 ```bash
-cd /home/msvoboda/github/nemotron-v3-home-security-intelligence
+cd /path/to/home_security_intelligence
 ./ai/download_models.sh
 
 # Or provide custom model path:
 NEMOTRON_GGUF_PATH=/path/to/model.gguf ./ai/download_models.sh
 ```
 
-### Start LLM server:
+### Start LLM server (simple):
 
 ```bash
 ./ai/start_llm.sh
@@ -63,17 +118,29 @@ NEMOTRON_GGUF_PATH=/path/to/model.gguf ./ai/download_models.sh
 NEMOTRON_MODEL_PATH=/path/to/model.gguf ./ai/start_llm.sh
 ```
 
-This starts `llama-server` with configuration (also mirrored in `ai/nemotron/config.json`):
-
-- **Port**: 8090
-- **Model**: `ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf`
+Configuration:
+- **Port**: 8091
 - **Context size**: 4096 tokens
 - **GPU layers**: 99 (all on GPU)
-- **Host**: 0.0.0.0 (accessible from network)
 - **Parallelism**: 2 concurrent requests
-- **Continuous batching**: Enabled for better throughput
+- **Continuous batching**: Enabled
 
-Server runs at: `http://localhost:8090`
+### Start LLM server (advanced with auto-recovery):
+
+```bash
+./ai/start_nemotron.sh
+```
+
+Configuration:
+- **Port**: 8091 (configurable via `NEMOTRON_PORT`)
+- **Host**: 127.0.0.1 (configurable via `NEMOTRON_HOST`)
+- **Context size**: 12288 tokens (configurable via `NEMOTRON_CONTEXT_SIZE`)
+- **GPU layers**: 45 (configurable via `NEMOTRON_GPU_LAYERS`)
+- **Log file**: `/tmp/nemotron.log`
+- **Startup timeout**: 90 seconds
+- Features: Health check, auto-skip if running, background process
+
+Server runs at: `http://localhost:8091`
 
 ## API Endpoints (llama.cpp)
 
@@ -162,12 +229,45 @@ Provide a risk assessment as JSON:
 """
 ```
 
-### Risk Scoring Guidelines
+## Important Patterns and Conventions
 
-- **0-25 (low)**: Normal activity, no concern
-- **26-50 (medium)**: Unusual but not threatening
-- **51-75 (high)**: Suspicious activity requiring attention
-- **76-100 (critical)**: Potential security threat, immediate action needed
+### Prompt Engineering
+
+- Keep prompts concise and structured
+- Request JSON output explicitly with schema
+- Provide clear scoring guidelines in prompt
+- Include context (camera name, timestamps)
+
+### Response Handling
+
+- Use regex to extract JSON from mixed text/JSON responses
+- Validate required fields: `risk_score`, `risk_level`
+- Normalize values to valid ranges (0-100 for scores)
+- Infer missing fields from available data
+
+### Error Handling
+
+Handled by `backend/services/nemotron_analyzer.py`:
+
+**LLM Service Unavailable**: Falls back to default risk assessment:
+```python
+{
+    "risk_score": 50,
+    "risk_level": "medium",
+    "summary": "Analysis unavailable - LLM service error",
+    "reasoning": "Failed to analyze detections: <error details>"
+}
+```
+
+**Invalid JSON Response**:
+- Uses regex to extract JSON from mixed text/JSON responses
+- Validates required fields
+- Normalizes values to valid ranges
+
+**Timeout**:
+- Default timeout: 60 seconds
+- Catches `httpx.TimeoutException`
+- Returns fallback risk assessment
 
 ## Performance Characteristics
 
@@ -180,8 +280,8 @@ Provide a risk assessment as JSON:
 
 ### Memory Usage
 
-- **Model weights**: ~2.5GB disk, ~3GB VRAM
-- **Context buffer**: ~1GB (4096 tokens × 4 bytes × batch)
+- **Model weights**: ~2.5GB disk, ~3GB VRAM (4B model)
+- **Context buffer**: ~1GB (4096 tokens x 4 bytes x batch)
 - **KV cache**: Dynamic, scales with active requests
 
 ### Quality
@@ -190,43 +290,13 @@ Provide a risk assessment as JSON:
 - **Accuracy**: Minimal degradation vs. full precision (~2-3% perplexity increase)
 - **Reasoning**: Suitable for risk assessment and natural language generation
 
-## Error Handling
-
-Handled by `backend/services/nemotron_analyzer.py`:
-
-### LLM Service Unavailable
-
-Falls back to default risk assessment:
-
-```python
-{
-    "risk_score": 50,
-    "risk_level": "medium",
-    "summary": "Analysis unavailable - LLM service error",
-    "reasoning": "Failed to analyze detections: <error details>"
-}
-```
-
-### Invalid JSON Response
-
-- Uses regex to extract JSON from mixed text/JSON responses
-- Validates required fields: `risk_score`, `risk_level`
-- Normalizes values to valid ranges
-- Infers missing fields from available data
-
-### Timeout
-
-- Default timeout: 60 seconds
-- Catches `httpx.TimeoutException`
-- Returns fallback risk assessment
-
 ## Development Notes
 
 ### Prerequisites
 
 - **llama.cpp**: Must be installed with `llama-server` command available
 - **CUDA**: Required for GPU acceleration (NVIDIA GPU only)
-- **VRAM**: Minimum 3GB free for model
+- **VRAM**: Minimum 3GB free for 4B model, 16GB for 30B model
 
 ### Installation
 
@@ -246,10 +316,10 @@ sudo ln -s $(pwd)/llama-server /usr/local/bin/llama-server
 
 ```bash
 # Test health endpoint
-curl http://localhost:8090/health
+curl http://localhost:8091/health
 
 # Test completion endpoint
-curl -X POST http://localhost:8090/completion \
+curl -X POST http://localhost:8091/completion \
   -H "Content-Type: application/json" \
   -d '{
     "prompt": "Analyze this security event: A person was detected at 14:30.",
@@ -261,7 +331,7 @@ curl -X POST http://localhost:8090/completion \
 ### Monitoring
 
 - Check GPU usage: `nvidia-smi`
-- View logs: Check stdout/stderr from `start_llm.sh`
+- View logs: Check stdout/stderr from startup script or `/tmp/nemotron.log`
 - Health checks: Backend performs periodic health checks
 
 ## Model Characteristics
@@ -269,14 +339,14 @@ curl -X POST http://localhost:8090/completion \
 ### Strengths
 
 - Fast inference on GPU (~2-5 seconds)
-- Low VRAM usage (~3GB)
+- Low VRAM usage (~3GB for 4B model)
 - Good at structured output (JSON)
 - Effective for risk reasoning tasks
 - Stable and reliable responses
 
 ### Limitations
 
-- Small context window (4096 tokens)
+- Small context window (4096 tokens for 4B model)
 - Limited to analyzing ~50-100 detections per batch
 - May struggle with very complex scenarios
 - Quantization causes minor quality degradation
@@ -289,6 +359,14 @@ curl -X POST http://localhost:8090/completion \
 - Provide clear scoring guidelines
 - Validate and normalize responses
 - Handle edge cases with fallback logic
+
+## Entry Points for Understanding the Code
+
+1. **Start here**: Read this file for overview
+2. **Model config**: `config.json` for llama.cpp settings reference
+3. **Backend integration**: `backend/services/nemotron_analyzer.py`
+4. **Prompt templates**: `backend/services/prompts.py`
+5. **Startup scripts**: `../start_llm.sh` and `../start_nemotron.sh`
 
 ## Future Enhancements
 

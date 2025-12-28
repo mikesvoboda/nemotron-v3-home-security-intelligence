@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The `backend/api/middleware/` directory contains HTTP middleware components that handle cross-cutting concerns for the FastAPI application. Middleware processes requests before they reach route handlers and responses before they're sent to clients.
+The `backend/api/middleware/` directory contains HTTP middleware components that handle cross-cutting concerns for the FastAPI application. Middleware processes requests before they reach route handlers and responses before they are sent to clients.
 
 ## Files
 
@@ -10,33 +10,48 @@ The `backend/api/middleware/` directory contains HTTP middleware components that
 
 Package initialization with public exports:
 
-- `AuthMiddleware`
+- `AuthMiddleware` - HTTP API key authentication middleware
+- `authenticate_websocket` - WebSocket authentication helper
+- `validate_websocket_api_key` - WebSocket API key validation
 
 ### `auth.py`
 
-API key authentication middleware for securing endpoints.
+API key authentication middleware for securing HTTP endpoints and WebSocket connections.
 
-**Key Features:**
+**Classes:**
 
-- SHA-256 hashed API key validation
-- Configurable enable/disable via environment variable
-- Exempt paths for health checks and documentation
-- Header and query parameter support
-- Descriptive error messages
+| Class | Purpose |
+|-------|---------|
+| `AuthMiddleware` | BaseHTTPMiddleware for HTTP API key authentication |
 
-### `README.md`
+**Functions:**
 
-Detailed documentation for middleware usage and configuration.
+| Function | Purpose |
+|----------|---------|
+| `validate_websocket_api_key(websocket)` | Validate API key for WebSocket connections |
+| `authenticate_websocket(websocket)` | Authenticate WebSocket and close if invalid |
+| `_hash_key(key)` | Hash API key using SHA-256 |
+| `_get_valid_key_hashes()` | Get valid API key hashes from settings |
 
-## Middleware Components
+### `request_id.py`
 
-### Authentication Middleware (`auth.py`)
+Request ID generation and propagation middleware for request tracing and log correlation.
 
-#### Purpose
+**Classes:**
+
+| Class | Purpose |
+|-------|---------|
+| `RequestIDMiddleware` | Generate and propagate request IDs |
+
+---
+
+## Authentication Middleware (`auth.py`)
+
+### Purpose
 
 Provides optional API key authentication to secure endpoints. Disabled by default for development convenience.
 
-#### Configuration
+### Configuration
 
 Authentication is controlled via environment variables:
 
@@ -55,7 +70,7 @@ API_KEY_ENABLED=true
 API_KEYS=["your_secret_key_1", "your_secret_key_2"]
 ```
 
-#### Usage
+### HTTP Authentication
 
 **Header Authentication (Recommended):**
 
@@ -71,9 +86,25 @@ curl http://localhost:8000/api/cameras?api_key=your_secret_key_1
 
 **Priority:** Header `X-API-Key` takes precedence over `api_key` query parameter.
 
-#### Exempt Endpoints
+### WebSocket Authentication
 
-The following paths bypass authentication:
+When API key authentication is enabled, WebSocket connections must authenticate via:
+
+**Query Parameter:**
+```javascript
+const ws = new WebSocket('ws://localhost:8000/ws/events?api_key=YOUR_KEY');
+```
+
+**Sec-WebSocket-Protocol Header:**
+```javascript
+const ws = new WebSocket('ws://localhost:8000/ws/events', ['api-key.YOUR_KEY']);
+```
+
+Unauthenticated WebSocket connections are closed with code 1008 (Policy Violation).
+
+### Exempt Endpoints
+
+The following paths bypass HTTP authentication:
 
 - `/` - Root endpoint
 - `/health` - Health check endpoint
@@ -84,15 +115,15 @@ The following paths bypass authentication:
 
 Any path starting with `/docs` or `/redoc` is also exempt.
 
-#### Security Features
+### Security Features
 
 1. **Key Hashing:** API keys are hashed using SHA-256 before validation
 2. **No Plaintext Storage:** Keys are not stored in plaintext in memory
 3. **Header Priority:** Header authentication preferred over query parameters
-4. **Development Mode:** Authentication disabled by default (`API_KEY_ENABLED=false`)
+4. **Development Mode:** Authentication disabled by default
 5. **Configurable Keys:** Keys loaded from environment variables
 
-#### Error Responses
+### Error Responses
 
 **Missing API Key:**
 
@@ -112,17 +143,15 @@ HTTP 401 Unauthorized
 }
 ```
 
-#### Implementation Details
+### Implementation Details
 
 **Class:** `AuthMiddleware(BaseHTTPMiddleware)`
 
 **Constructor Parameters:**
-
 - `app: ASGIApp` - FastAPI application
 - `valid_key_hashes: set[str] | None` - Set of SHA-256 hashed API keys (optional, loads from settings if None)
 
 **Methods:**
-
 - `_load_key_hashes() -> set[str]` - Load and hash API keys from settings
 - `_hash_key(key: str) -> str` - Hash API key using SHA-256
 - `_is_exempt_path(path: str) -> bool` - Check if path bypasses authentication
@@ -141,6 +170,55 @@ HTTP 401 Unauthorized
 9. If invalid, return 401 error
 10. If valid, pass through to next handler
 
+---
+
+## Request ID Middleware (`request_id.py`)
+
+### Purpose
+
+Generates unique request IDs for each HTTP request and propagates them through the logging context. This enables:
+
+- Request tracing across log entries
+- Correlation of logs from the same request
+- Debugging distributed operations
+
+### Implementation
+
+**Class:** `RequestIDMiddleware(BaseHTTPMiddleware)`
+
+**Flow:**
+
+1. Check for existing `X-Request-ID` header (allows client-provided IDs)
+2. If no header, generate new 8-character UUID
+3. Set request ID in logging context via `set_request_id()`
+4. Process request through route handler
+5. Add `X-Request-ID` header to response
+6. Clear logging context
+
+### Usage
+
+Request IDs appear in:
+- Log entries with `request_id` field
+- Response headers as `X-Request-ID`
+- Can be used to trace requests in distributed systems
+
+**Example Log Entry:**
+```json
+{
+  "timestamp": "2025-12-23T10:30:00Z",
+  "level": "INFO",
+  "message": "Processing detection",
+  "request_id": "a1b2c3d4"
+}
+```
+
+**Response Header:**
+```
+X-Request-ID: a1b2c3d4
+```
+
+---
+
 ## Integration with FastAPI
 
 Middleware is registered in the FastAPI application during startup:
@@ -150,9 +228,14 @@ from backend.api.middleware import AuthMiddleware
 
 app = FastAPI()
 app.add_middleware(AuthMiddleware)
+app.add_middleware(RequestIDMiddleware)
 ```
 
-Order matters: middleware is executed in reverse order of registration. Authentication middleware should be registered early to protect all routes.
+**Order matters:** Middleware is executed in reverse order of registration. For typical setups:
+1. Register `AuthMiddleware` first (runs last, after request ID is set)
+2. Register `RequestIDMiddleware` second (runs first, sets context for all handlers)
+
+---
 
 ## Testing
 
@@ -170,6 +253,8 @@ backend/tests/unit/test_auth_middleware.py
 - Exempt paths
 - Header vs query parameter authentication
 - SHA-256 hash validation
+- WebSocket authentication
+- Request ID generation and propagation
 
 **Run Tests:**
 
@@ -177,47 +262,7 @@ backend/tests/unit/test_auth_middleware.py
 pytest backend/tests/unit/test_auth_middleware.py -v
 ```
 
-## Future Enhancements
-
-Potential improvements for production deployments:
-
-1. **Database Storage** - Store API keys in database with metadata:
-
-   - Key name/description
-   - Created timestamp
-   - Last used timestamp
-   - Is active flag
-   - Associated user/service
-
-2. **Key Rotation** - Support key expiration and rotation:
-
-   - Expiration timestamps
-   - Automatic key rotation schedules
-   - Grace periods for old keys
-
-3. **Rate Limiting** - Per-API key rate limits:
-
-   - Request count per time window
-   - Different limits per key
-   - Burst allowance
-
-4. **Audit Logging** - Log API key usage:
-
-   - Request timestamp
-   - Endpoint accessed
-   - Source IP address
-   - Response status
-
-5. **Key Permissions** - Scope-based access control:
-
-   - Read-only vs read-write keys
-   - Resource-specific permissions
-   - Role-based access control
-
-6. **Multiple Authentication Methods** - Support additional auth:
-   - JWT tokens
-   - OAuth2
-   - Session-based authentication
+---
 
 ## Common Patterns
 
@@ -259,17 +304,17 @@ async def protected_endpoint(api_key: str = Depends(verify_api_key)):
     return {"message": "Protected data"}
 ```
 
-Middleware is better for:
-
+**Middleware is better for:**
 - Global authentication across all routes
 - Complex pre/post-processing logic
 - Performance (no per-route overhead)
 
-Dependencies are better for:
-
+**Dependencies are better for:**
 - Route-specific authentication
 - Multiple authentication schemes
 - Easier testing (can mock dependencies)
+
+---
 
 ## Best Practices
 
@@ -279,3 +324,43 @@ Dependencies are better for:
 4. **Monitoring:** Monitor for suspicious authentication patterns
 5. **Logging:** Log authentication failures for security auditing
 6. **Documentation:** Keep API key documentation updated for consumers
+7. **Request IDs:** Always include request IDs in error reports
+
+---
+
+## Future Enhancements
+
+Potential improvements for production deployments:
+
+1. **Database Storage** - Store API keys in database with metadata:
+   - Key name/description
+   - Created timestamp
+   - Last used timestamp
+   - Is active flag
+   - Associated user/service
+
+2. **Key Rotation** - Support key expiration and rotation:
+   - Expiration timestamps
+   - Automatic key rotation schedules
+   - Grace periods for old keys
+
+3. **Rate Limiting** - Per-API key rate limits:
+   - Request count per time window
+   - Different limits per key
+   - Burst allowance
+
+4. **Audit Logging** - Log API key usage:
+   - Request timestamp
+   - Endpoint accessed
+   - Source IP address
+   - Response status
+
+5. **Key Permissions** - Scope-based access control:
+   - Read-only vs read-write keys
+   - Resource-specific permissions
+   - Role-based access control
+
+6. **Multiple Authentication Methods** - Support additional auth:
+   - JWT tokens
+   - OAuth2
+   - Session-based authentication

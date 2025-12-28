@@ -6,7 +6,7 @@ This directory contains design specifications and implementation plans that defi
 
 ## Key Files
 
-### Design Specification
+### MVP Design and Implementation
 
 **2024-12-21-dashboard-mvp-design.md** (572 lines)
 
@@ -27,7 +27,7 @@ This directory contains design specifications and implementation plans that defi
 2. **System Architecture** (lines 22-57)
 
    - ASCII diagram showing complete data flow
-   - FTP upload → File Watcher → RT-DETRv2 → Redis → Nemotron → WebSocket → Dashboard
+   - FTP upload -> File Watcher -> RT-DETRv2 -> Redis -> Nemotron -> WebSocket -> Dashboard
 
 3. **Data Flow** (lines 59-65)
 
@@ -127,18 +127,16 @@ This directory contains design specifications and implementation plans that defi
     - Natural language search
     - Analytics/heatmaps
 
-### Implementation Plan
-
 **2024-12-22-mvp-implementation-plan.md** (223 lines)
 
 - **Purpose:** Task breakdown and execution plan for MVP
-- **Status:** IN PROGRESS (Phase 4 complete, Phase 5 in progress)
+- **Status:** IN PROGRESS (Phase 5 complete, Phase 6 in progress)
 - **Date:** 2024-12-22
-- **Last Updated:** 2025-12-24
+- **Last Updated:** 2025-12-27
 
 ### Logging System Documentation
 
-**2024-12-24-logging-system-design.md** (Design Spec)
+**2024-12-24-logging-system-design.md**
 
 - **Purpose:** Design specification for comprehensive logging system
 - **Status:** APPROVED
@@ -157,7 +155,7 @@ This directory contains design specifications and implementation plans that defi
   - Adding log entries to services
   - Troubleshooting log configuration
 
-**2024-12-24-logging-implementation-plan.md** (Implementation Plan)
+**2024-12-24-logging-implementation-plan.md**
 
 - **Purpose:** Detailed task breakdown for logging system implementation
 - **Status:** IN PROGRESS
@@ -174,59 +172,90 @@ This directory contains design specifications and implementation plans that defi
   - Finding specific implementation instructions
 - **Beads Epic:** `home_security_intelligence-cfd`
 
-### MVP Implementation Plan Contents Overview
+### GitHub CI/CD Documentation
 
-The following details the contents of `2024-12-22-mvp-implementation-plan.md`:
+**2025-12-26-github-cicd-design.md**
 
-1. **Issue Tracking** (lines 13-24)
+- **Purpose:** GitHub CI/CD pipeline design with security scanning and performance analysis
+- **Status:** APPROVED
+- **Date:** 2025-12-26
+- **Contents:**
+  - Three-phase rollout (Security, Performance, Claude Code Review)
+  - Runner strategy (GitHub-hosted vs self-hosted GPU)
+  - Workflow triggers matrix
+  - Security scanning tools (Dependabot, CodeQL, Trivy, Bandit, Semgrep, Gitleaks)
+  - Performance metrics and thresholds
+  - Complexity analysis tools (radon, wily, big-o)
+  - Self-hosted runner setup and security
+  - Container strategy (GitHub Container Registry)
+  - Required PR status checks
+- **When to use:**
+  - Setting up or modifying CI/CD workflows
+  - Understanding security scanning configuration
+  - Configuring performance benchmarks
+  - Setting up self-hosted runners
 
-   - bd (beads) commands for task management
-   - Epic status tracking
+**2025-12-26-github-cicd-implementation.md**
 
-2. **Epic Overview** (lines 28-38)
+- **Purpose:** Detailed implementation tasks for GitHub CI/CD
+- **Status:** IN PROGRESS
+- **Date:** 2025-12-26
+- **Contents:**
+  - Phase 1: Security scanning workflows
+  - Phase 2: Performance benchmarking workflows
+  - Phase 3: Self-hosted runner configuration
+  - Phase 4: Container build and push workflows
+  - Integration with existing pre-commit hooks
+- **When to use:**
+  - Implementing CI/CD features step-by-step
+  - Understanding workflow file structure
+  - Adding new checks to the pipeline
 
-   - 5 epics, 67 total tasks
-   - Project Setup (8 tasks)
-   - Backend Core (18 tasks)
-   - AI Pipeline (13 tasks)
-   - Frontend Dashboard (20 tasks)
-   - Integration & E2E (8 tasks)
+### Service Health Monitoring
 
-3. **Execution Phases** (lines 40-156)
+**2025-12-26-service-health-monitoring-design.md**
 
-   - **Phase 1: Project Setup (P0)** - 7 tasks
-     - Directory structures, Docker, env config, requirements files
-   - **Phase 2: Database & Layout (P1)** - 6 tasks
-     - SQLAlchemy models, Redis, Tailwind theme, app layout
-   - **Phase 3: Core APIs & Components (P2)** - 11 tasks
-     - Cameras/system/media endpoints, API client, WebSocket hooks, basic components
-   - **Phase 4: AI Pipeline (P3/P4)** - 13 tasks
-     - File watcher, RT-DETRv2 wrapper, detector client, batch aggregator, Nemotron analyzer
-   - **Phase 5: Events & Real-time (P4)** - 9 tasks
-     - Events/detections APIs, WebSocket channels, GPU monitor, cleanup service, Fast Path
-   - **Phase 6: Dashboard Components (P3)** - 7 tasks
-     - Risk Gauge, Activity Feed, Camera Grid, GPU Stats, EventCard
-   - **Phase 7: Pages & Modals (P4)** - 6 tasks
-     - Dashboard page, Timeline page, Event Detail Modal, Settings tabs
-   - **Phase 8: Integration & E2E (P4)** - 8 tasks
-     - Unit tests, E2E tests, deployment verification, seed script, README
+- **Purpose:** Design for automatic health monitoring and recovery
+- **Status:** APPROVED
+- **Date:** 2025-12-26
+- **Epic:** home_security_intelligence-a2v
+- **Contents:**
+  - ServiceManager abstraction (strategy pattern)
+  - ShellServiceManager vs DockerServiceManager
+  - ServiceHealthMonitor service
+  - Health check loop with exponential backoff
+  - WebSocket status broadcasts
+  - Frontend ServiceStatusAlert component
+  - Configuration settings
+  - Task breakdown with priorities
+  - Acceptance criteria
+- **When to use:**
+  - Implementing service health monitoring
+  - Adding new monitored services
+  - Understanding recovery strategies
+  - Debugging service restart issues
 
-4. **TDD Workflow** (lines 158-172)
+### README Redesign
 
-   - Test-first for tasks labeled `tdd`
-   - Write failing test → implement → verify → commit
+**2025-12-26-readme-redesign.md**
 
-5. **NVIDIA Persona Perspectives** (lines 174-223)
-   - Future roadmap ideas from different NVIDIA personas
-   - **Edge AI Developer:** Spatial Context Injection
-   - **NIM PM:** NVIDIA NIM Migration for scale
-   - **Digital Twin Architect:** USD Event Reconstruction for Omniverse
-   - **Cybersecurity Engineer:** Baseline Anomaly Scoring
-   - **RTX Marketing:** RAG-based Security Chat
+- **Purpose:** Plan for README.md restructuring
+- **Status:** APPROVED
+- **Date:** 2025-12-26
+- **Contents:**
+  - Target audiences (future self, contributors, deployers, showcase)
+  - Design principles (problem-first, layered, scannable, visual)
+  - 7-section structure outline
+  - Visual assets needed (hero screenshot, architecture diagram)
+  - Implementation notes
+- **When to use:**
+  - Restructuring the README
+  - Understanding documentation philosophy
+  - Adding new README sections
 
 ## Relationship Between Files
 
-### Design Spec → Implementation Plan
+### Design Spec -> Implementation Plan
 
 1. Design spec defines **WHAT** to build (architecture, schema, APIs, UI)
 2. Implementation plan defines **HOW** to build it (task breakdown, order, TDD)
@@ -315,6 +344,15 @@ The following details the contents of `2024-12-22-mvp-implementation-plan.md`:
 - Batch aggregation logic
 - Analysis timing
 
+### For CI/CD Development
+
+**GitHub CI/CD Design** (2025-12-26-github-cicd-design.md)
+
+- Workflow structure and triggers
+- Security scanning configuration
+- Performance benchmark thresholds
+- Self-hosted runner setup
+
 ## Key Design Decisions Documented
 
 ### Batch Processing (Design Spec)
@@ -340,6 +378,18 @@ The following details the contents of `2024-12-22-mvp-implementation-plan.md`:
 - **Decision:** SQLite + Redis
 - **Rationale:** Single-user, local deployment, no remote access
 - **Location:** Lines 15, 67-122
+
+### Service Health Recovery (2025-12-26-service-health-monitoring-design.md)
+
+- **Decision:** Strategy pattern for shell vs Docker restart
+- **Rationale:** Support both dev (shell scripts) and prod (Docker) environments
+- **Location:** ServiceManager abstraction
+
+### CI/CD Strategy (2025-12-26-github-cicd-design.md)
+
+- **Decision:** Three-phase rollout with GitHub-hosted and self-hosted runners
+- **Rationale:** Security scanning on all PRs, GPU tests only on safe contexts
+- **Location:** Runner Strategy section
 
 ## Conventions
 
@@ -398,49 +448,49 @@ The following details the contents of `2024-12-22-mvp-implementation-plan.md`:
 
 ## Implementation Progress
 
-### Completed Phases (1-4)
+### Completed Phases (1-5)
 
-**Phase 1: Project Setup (P0)** - ✅ COMPLETE
+**Phase 1: Project Setup (P0)** - COMPLETE
 
 - Directory structures, Docker, environment, dependencies
 - All 7 tasks completed
 
-**Phase 2: Database & Layout Foundation (P1)** - ✅ COMPLETE
+**Phase 2: Database & Layout Foundation (P1)** - COMPLETE
 
 - SQLAlchemy models, Redis connection, Tailwind theme, app layout
 - All 6 tasks completed
 
-**Phase 3: Core APIs & Components (P2)** - ✅ COMPLETE
+**Phase 3: Core APIs & Components (P2)** - COMPLETE
 
 - Cameras API, system API, WebSocket hooks, API client, basic UI components
 - All 11 tasks completed
 
-**Phase 4: AI Pipeline (P3/P4)** - ✅ COMPLETE
+**Phase 4: AI Pipeline (P3/P4)** - COMPLETE
 
 - File watcher, RT-DETRv2 wrapper, detector client, batch aggregator, Nemotron analyzer
 - All 13 tasks completed
 - Test coverage: Backend 98.54% (335 tests), Frontend 98.95% (233 tests)
 
-### Current Phase (5)
-
-**Phase 5: Events & Real-time (P4)** - 🔄 IN PROGRESS
+**Phase 5: Events & Real-time (P4)** - COMPLETE
 
 - Events API, detections API, WebSocket channels, GPU monitor, cleanup service
-- 9 tasks remaining
+- All 9 tasks completed
 
-### Remaining Phases (6-8)
+### Current Phase (6)
 
-**Phase 6: Dashboard Components (P3)** - ⏳ NOT STARTED
+**Phase 6: Dashboard Components (P3)** - IN PROGRESS
 
 - Risk gauge, camera grid, live activity feed, GPU stats, EventCard
-- 7 tasks
+- 7 tasks remaining
 
-**Phase 7: Pages & Modals (P4)** - ⏳ NOT STARTED
+### Remaining Phases (7-8)
+
+**Phase 7: Pages & Modals (P4)** - NOT STARTED
 
 - Main dashboard, event timeline, event detail modal, settings pages
 - 6 tasks
 
-**Phase 8: Integration & E2E (P4)** - ⏳ NOT STARTED
+**Phase 8: Integration & E2E (P4)** - NOT STARTED
 
 - Unit tests, E2E tests, deployment verification, documentation
 - 8 tasks (Docker deployment verification already completed)

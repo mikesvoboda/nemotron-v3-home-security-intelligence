@@ -8,7 +8,7 @@ Unit tests verify individual components in isolation. Each test focuses on a sin
 
 ### Core Components
 
-#### `test_config.py` (479 lines, 60+ tests)
+#### `test_config.py`
 
 Tests for application configuration and settings management (`backend/core/config.py`).
 
@@ -36,7 +36,7 @@ def test_database_url_override(clean_env, monkeypatch):
     assert settings.database_url == "sqlite+aiosqlite:///test.db"
 ```
 
-#### `test_database.py` (263 lines, 12 tests)
+#### `test_database.py`
 
 Tests for database connection and session management (`backend/core/database.py`).
 
@@ -55,20 +55,7 @@ Tests for database connection and session management (`backend/core/database.py`
 - Temporary database creation per test
 - Async session management with context managers
 
-**Example:**
-
-```python
-@pytest.mark.asyncio
-async def test_session_transaction_rollback(isolated_db):
-    async with get_session() as session:
-        obj = TestModel(value="test")
-        session.add(obj)
-        await session.flush()
-        # Force error
-        await session.rollback()
-```
-
-#### `test_redis.py` (536 lines, 40+ tests)
+#### `test_redis.py`
 
 Tests for Redis client operations (`backend/core/redis.py`).
 
@@ -89,21 +76,22 @@ Tests for Redis client operations (`backend/core/redis.py`).
 - JSON serialization/deserialization testing
 - Optional integration tests marked with `pytest.mark.skipif`
 
-**Example:**
+#### `test_logging.py`
 
-```python
-@pytest.mark.asyncio
-async def test_queue_operations():
-    mock_client = AsyncMock()
-    redis = RedisClient(client=mock_client)
+Tests for structured logging module (`backend/core/logging.py`).
 
-    await redis.add_to_queue("test_queue", {"data": "value"})
-    mock_client.rpush.assert_called_once()
-```
+**Coverage:**
+
+- Logger creation and configuration
+- Request ID context management
+- Custom JSON formatter
+- SQLite handler for database logging
+- Context filter functionality
+- Log level configuration
 
 ### Database Models
 
-#### `test_models.py` (692 lines, 50+ tests)
+#### `test_models.py`
 
 Tests for SQLAlchemy database models (`backend/models/`).
 
@@ -123,22 +111,19 @@ Tests for SQLAlchemy database models (`backend/models/`).
 - Session-per-test with automatic rollback
 - Comprehensive relationship testing
 
-**Example:**
+#### `test_log_model.py`
 
-```python
-def test_camera_detection_relationship(session):
-    camera = Camera(id="cam1", name="Test")
-    detection = Detection(camera_id="cam1", object_type="person")
-    session.add_all([camera, detection])
-    session.commit()
+Tests for Log SQLAlchemy model (`backend/models/log.py`).
 
-    assert len(camera.detections) == 1
-    assert detection.camera.id == "cam1"
-```
+**Coverage:**
+
+- Log creation with required fields
+- Optional metadata fields (camera_id, request_id, duration_ms, extra)
+- String representation
 
 ### AI Services
 
-#### `test_file_watcher.py` (569 lines, 30+ tests)
+#### `test_file_watcher.py`
 
 Tests for file system monitoring service (`backend/services/file_watcher.py`).
 
@@ -159,23 +144,7 @@ Tests for file system monitoring service (`backend/services/file_watcher.py`).
 - Watchdog event simulation
 - Async task scheduling and cancellation
 
-**Example:**
-
-```python
-@pytest.mark.asyncio
-async def test_file_detection(temp_camera_root, mock_redis):
-    watcher = FileWatcher(redis_client=mock_redis)
-
-    # Create test image
-    image_path = temp_camera_root / "camera1" / "test.jpg"
-    Image.new("RGB", (640, 480)).save(image_path)
-
-    # Verify file is detected
-    await watcher._handle_file_event(str(image_path))
-    mock_redis.add_to_queue.assert_called()
-```
-
-#### `test_detector_client.py` (540 lines, 25+ tests)
+#### `test_detector_client.py`
 
 Tests for RT-DETRv2 object detection client (`backend/services/detector_client.py`).
 
@@ -196,26 +165,7 @@ Tests for RT-DETRv2 object detection client (`backend/services/detector_client.p
 - File path mocking
 - Database session mocking
 
-**Example:**
-
-```python
-@pytest.mark.asyncio
-async def test_detect_objects(mock_http_client, mock_session):
-    mock_response = {"detections": [
-        {"class": "person", "confidence": 0.95, "bbox": [100, 150, 200, 300]}
-    ]}
-
-    with patch("httpx.AsyncClient.post") as mock_post:
-        mock_post.return_value.json = MagicMock(return_value=mock_response)
-
-        client = DetectorClient()
-        detections = await client.detect_objects("test.jpg", "cam1", mock_session)
-
-        assert len(detections) == 1
-        assert detections[0].object_type == "person"
-```
-
-#### `test_batch_aggregator.py` (515 lines, 30+ tests)
+#### `test_batch_aggregator.py`
 
 Tests for detection batch aggregation service (`backend/services/batch_aggregator.py`).
 
@@ -237,21 +187,7 @@ Tests for detection batch aggregation service (`backend/services/batch_aggregato
 - Batch metadata tracking in Redis
 - Queue format validation
 
-**Example:**
-
-```python
-@pytest.mark.asyncio
-async def test_batch_aggregation(mock_redis):
-    aggregator = BatchAggregator(redis_client=mock_redis)
-
-    batch_id = await aggregator.add_detection("cam1", "det1", "test.jpg")
-
-    # Verify batch metadata
-    camera_id = await mock_redis.get(f"batch:{batch_id}:camera_id")
-    assert camera_id == "cam1"
-```
-
-#### `test_nemotron_analyzer.py` (688 lines, 35+ tests)
+#### `test_nemotron_analyzer.py`
 
 Tests for Nemotron LLM risk analysis service (`backend/services/nemotron_analyzer.py`).
 
@@ -273,27 +209,7 @@ Tests for Nemotron LLM risk analysis service (`backend/services/nemotron_analyze
 - Database integration with `isolated_db`
 - Sample detections fixture
 
-**Example:**
-
-```python
-@pytest.mark.asyncio
-async def test_analyze_batch(mock_http_client, mock_redis, isolated_db):
-    mock_response = {"content": json.dumps({
-        "risk_score": 75,
-        "risk_level": "high",
-        "summary": "Person detected"
-    })}
-
-    with patch("httpx.AsyncClient.post") as mock_post:
-        mock_post.return_value.json = MagicMock(return_value=mock_response)
-
-        analyzer = NemotronAnalyzer(redis_client=mock_redis)
-        event = await analyzer.analyze_batch("batch_id")
-
-        assert event.risk_score == 75
-```
-
-#### `test_thumbnail_generator.py` (807 lines, 45+ tests)
+#### `test_thumbnail_generator.py`
 
 Tests for thumbnail generation with bounding boxes (`backend/services/thumbnail_generator.py`).
 
@@ -314,9 +230,21 @@ Tests for thumbnail generation with bounding boxes (`backend/services/thumbnail_
 - Font fallback testing
 - Path validation
 
+#### `test_pipeline_worker.py` and `test_pipeline_workers.py`
+
+Tests for the AI pipeline worker orchestration.
+
+**Coverage:**
+
+- Worker lifecycle management (start, stop)
+- Queue consumption and processing
+- Error handling and retries
+- Dead letter queue (DLQ) handling
+- Concurrent worker operation
+
 ### Broadcaster Services
 
-#### `test_event_broadcaster.py` (169 lines, 10+ tests)
+#### `test_event_broadcaster.py`
 
 Tests for event WebSocket broadcasting (`backend/services/event_broadcaster.py`).
 
@@ -328,7 +256,7 @@ Tests for event WebSocket broadcasting (`backend/services/event_broadcaster.py`)
 - Redis pub/sub integration
 - Multiple subscriber handling
 
-#### `test_system_broadcaster.py` (380 lines, 20+ tests)
+#### `test_system_broadcaster.py`
 
 Tests for system status broadcasting (`backend/services/system_broadcaster.py`).
 
@@ -340,7 +268,7 @@ Tests for system status broadcasting (`backend/services/system_broadcaster.py`).
 - Message format validation
 - Periodic broadcast scheduling
 
-#### `test_gpu_monitor.py` (480 lines, 25+ tests)
+#### `test_gpu_monitor.py`
 
 Tests for GPU monitoring service (`backend/services/gpu_monitor.py`).
 
@@ -352,7 +280,7 @@ Tests for GPU monitoring service (`backend/services/gpu_monitor.py`).
 - Error handling (no GPU, driver errors)
 - Periodic monitoring
 
-#### `test_cleanup_service.py` (650 lines, 31 tests)
+#### `test_cleanup_service.py`
 
 Tests for data cleanup service (`backend/services/cleanup_service.py`).
 
@@ -365,50 +293,21 @@ Tests for data cleanup service (`backend/services/cleanup_service.py`).
 - Scheduled cleanup tasks
 - Configuration override
 
-### Logging
-
-#### `test_logging.py` (260 lines, 15 tests)
-
-Tests for structured logging module (`backend/core/logging.py`).
-
-**Coverage:**
-
-- Logger creation and configuration
-- Request ID context management
-- Custom JSON formatter
-- SQLite handler for database logging
-- Context filter functionality
-- Log level configuration
-
-**Key patterns:**
-
-- Mocking settings for configuration testing
-- Context variable testing
-- Handler output testing
-
-**Example:**
-
-```python
-def test_request_id_context():
-    set_request_id("test-123")
-    assert get_request_id() == "test-123"
-    set_request_id(None)
-    assert get_request_id() is None
-```
-
-#### `test_log_model.py` (49 lines, 3 tests)
-
-Tests for Log SQLAlchemy model (`backend/models/log.py`).
-
-**Coverage:**
-
-- Log creation with required fields
-- Optional metadata fields (camera_id, request_id, duration_ms, extra)
-- String representation
-
 ### API Routes
 
-#### `test_detections_api.py` (100 lines, 8 tests)
+#### `test_cameras_routes.py`
+
+Tests for camera CRUD route handlers (`backend/api/routes/cameras.py`).
+
+**Coverage:**
+
+- List cameras, get by ID
+- Create camera with validation
+- Update camera fields
+- Delete camera with cascade
+- Filtering and pagination
+
+#### `test_detections_routes.py`
 
 Tests for detection API route handlers (`backend/api/routes/detections.py`).
 
@@ -419,7 +318,7 @@ Tests for detection API route handlers (`backend/api/routes/detections.py`).
 - Filter validation
 - Response schema validation
 
-#### `test_events_api.py` (320 lines, 21 tests)
+#### `test_events_routes.py`
 
 Tests for event API route handlers (`backend/api/routes/events.py`).
 
@@ -432,7 +331,7 @@ Tests for event API route handlers (`backend/api/routes/events.py`).
 - Filter and pagination validation
 - Risk level filtering
 
-#### `test_system_routes.py` (65 lines, 5 tests)
+#### `test_system_routes.py`
 
 Tests for system API route handlers (`backend/api/routes/system.py`).
 
@@ -443,7 +342,31 @@ Tests for system API route handlers (`backend/api/routes/system.py`).
 - Config endpoint
 - Stats endpoint
 
-#### `test_websocket.py` (600 lines, 30+ tests)
+#### `test_logs_routes.py`
+
+Tests for logs API route handlers (`backend/api/routes/logs.py`).
+
+**Coverage:**
+
+- List logs endpoint
+- Get single log endpoint
+- Filter by level, component, time range
+- Log statistics
+- Frontend log submission
+
+#### `test_media_routes.py`
+
+Tests for media file serving (`backend/api/routes/media.py`).
+
+**Coverage:**
+
+- Camera file serving
+- Thumbnail serving
+- Path traversal prevention
+- File type validation
+- Content-Type headers
+
+#### `test_websocket_routes.py`
 
 Tests for WebSocket route handlers (`backend/api/routes/websocket.py`).
 
@@ -455,7 +378,9 @@ Tests for WebSocket route handlers (`backend/api/routes/websocket.py`).
 - Connection cleanup
 - Error handling
 
-#### `test_auth_middleware.py` (260 lines, 15+ tests)
+### Middleware and Authentication
+
+#### `test_auth_middleware.py`
 
 Tests for authentication middleware (`backend/api/middleware/auth.py`).
 
@@ -464,6 +389,50 @@ Tests for authentication middleware (`backend/api/middleware/auth.py`).
 - No-auth mode (default for single-user)
 - Request validation
 - Response headers
+
+#### `test_middleware.py`
+
+Tests for general middleware functionality.
+
+**Coverage:**
+
+- Request logging
+- Error handling
+- Response timing
+
+### Utility Components
+
+#### `test_dedupe.py`
+
+Tests for deduplication logic.
+
+#### `test_retry_handler.py`
+
+Tests for retry logic and error handling.
+
+#### `test_dlq_api.py`
+
+Tests for dead letter queue API.
+
+#### `test_telemetry_api.py`
+
+Tests for telemetry and metrics API.
+
+#### `test_metrics.py`
+
+Tests for metrics collection.
+
+#### `test_health_monitor.py`
+
+Tests for health monitoring service.
+
+#### `test_service_managers.py`
+
+Tests for service lifecycle management.
+
+#### `test_benchmarks.py`
+
+Unit tests for benchmark helper functions.
 
 ## Running Unit Tests
 
@@ -749,35 +718,32 @@ with patch("httpx.AsyncClient"):
 
 ## Test Statistics
 
-- **Total test files**: 22
-- **Total test cases**: 453
+- **Total test files**: 40+
 - **Average execution time**: <10 seconds (unit tests only)
 - **Coverage**: 98%+ for unit-tested components
 
-### Test Files Summary
+### Key Test Files
 
-| File                        | Tests | Description                 |
-| --------------------------- | ----- | --------------------------- |
-| test_auth_middleware.py     | 18    | Authentication middleware   |
-| test_batch_aggregator.py    | 29    | Detection batch aggregation |
-| test_cleanup_service.py     | 31    | Data cleanup service        |
-| test_config.py              | 49    | Configuration and settings  |
-| test_database.py            | 11    | Database connections        |
-| test_detections_api.py      | 6     | Detections API routes       |
-| test_detector_client.py     | 20    | RT-DETRv2 client            |
-| test_event_broadcaster.py   | 7     | Event broadcasting          |
-| test_events_api.py          | 21    | Events API routes           |
-| test_file_watcher.py        | 34    | File system monitoring      |
-| test_gpu_monitor.py         | 27    | GPU monitoring              |
-| test_logging.py             | 15    | Structured logging          |
-| test_log_model.py           | 3     | Log model                   |
-| test_models.py              | 26    | Database models             |
-| test_nemotron_analyzer.py   | 38    | Nemotron LLM analyzer       |
-| test_redis.py               | 30    | Redis client                |
-| test_system_broadcaster.py  | 23    | System broadcasting         |
-| test_system_routes.py       | 4     | System API routes           |
-| test_thumbnail_generator.py | 36    | Thumbnail generation        |
-| test_websocket.py           | 25    | WebSocket handlers          |
+| File                       | Description                 |
+| -------------------------- | --------------------------- |
+| test_auth_middleware.py    | Authentication middleware   |
+| test_batch_aggregator.py   | Detection batch aggregation |
+| test_cleanup_service.py    | Data cleanup service        |
+| test_config.py             | Configuration and settings  |
+| test_database.py           | Database connections        |
+| test_detections_routes.py  | Detections API routes       |
+| test_detector_client.py    | RT-DETRv2 client            |
+| test_event_broadcaster.py  | Event broadcasting          |
+| test_events_routes.py      | Events API routes           |
+| test_file_watcher.py       | File system monitoring      |
+| test_gpu_monitor.py        | GPU monitoring              |
+| test_logging.py            | Structured logging          |
+| test_models.py             | Database models             |
+| test_nemotron_analyzer.py  | Nemotron LLM analyzer       |
+| test_redis.py              | Redis client                |
+| test_system_broadcaster.py | System broadcasting         |
+| test_thumbnail_generator.py| Thumbnail generation        |
+| test_websocket_routes.py   | WebSocket handlers          |
 
 ## Next Steps for AI Agents
 
@@ -793,5 +759,6 @@ with patch("httpx.AsyncClient"):
 - `/backend/tests/AGENTS.md` - Test infrastructure overview
 - `/backend/tests/integration/AGENTS.md` - Integration test patterns
 - `/backend/tests/e2e/AGENTS.md` - End-to-end pipeline testing
+- `/backend/tests/benchmarks/AGENTS.md` - Performance benchmarks
 - `/backend/AGENTS.md` - Backend architecture overview
 - `/CLAUDE.md` - Project instructions and testing requirements

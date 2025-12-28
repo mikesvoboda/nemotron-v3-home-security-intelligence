@@ -4,22 +4,25 @@
 
 Test suite directory for integration and end-to-end tests. This directory complements the co-located unit tests that live alongside source files in `src/`.
 
+## Directory Structure
+
+```
+frontend/tests/
+├── AGENTS.md            # This documentation file
+└── e2e/                 # End-to-end test directory
+    ├── AGENTS.md        # E2E test documentation
+    └── .gitkeep         # Placeholder
+```
+
 ## Current Status
 
-**Status**: Placeholder for future test organization
-
-Currently contains:
-
-- `AGENTS.md` - This documentation file
-- `e2e/` - End-to-end test directory (see `e2e/AGENTS.md`)
+**Unit Tests**: Implemented (co-located in `src/`)
+**Integration Tests**: Planned (this directory)
+**E2E Tests**: Planned (`tests/e2e/`)
 
 **Important**: Unit tests are co-located with source files (e.g., `src/components/events/EventCard.test.tsx`), NOT in this directory. This directory is reserved for integration and E2E tests that require multi-component or full-stack setups.
 
-## Intended Structure
-
-This directory is planned for integration and E2E tests that require full system setup:
-
-## Planned Organization
+## Planned Structure
 
 ```
 frontend/tests/
@@ -37,6 +40,14 @@ frontend/tests/
 │   └── server.ts     # MSW server setup
 └── e2e/              # End-to-end tests (see e2e/AGENTS.md)
 ```
+
+## Test Types Overview
+
+| Test Type       | Location             | Purpose                        | Framework          | Status      |
+| --------------- | -------------------- | ------------------------------ | ------------------ | ----------- |
+| **Unit**        | `src/**/*.test.tsx`  | Component/function isolation   | Vitest + RTL       | Implemented |
+| **Integration** | `tests/integration/` | Multi-component interactions   | Vitest + MSW       | Planned     |
+| **E2E**         | `tests/e2e/`         | Full user workflows in browser | Playwright         | Planned     |
 
 ## Integration Tests
 
@@ -96,7 +107,6 @@ export const mockCameras: Camera[] = [
     created_at: '2024-01-01T00:00:00Z',
     last_seen_at: '2024-01-01T12:00:00Z',
   },
-  // ...
 ];
 
 // fixtures/events.ts
@@ -110,7 +120,6 @@ export const mockEvents: SecurityEvent[] = [
     summary: 'Unknown person detected',
     timestamp: '2024-01-01T12:00:00Z',
   },
-  // ...
 ];
 ```
 
@@ -140,7 +149,7 @@ export function renderWithProviders(ui: React.ReactElement) {
 
 ```typescript
 // helpers/mocks.ts
-export function createMockCamera(overrides?: Partial): Camera {
+export function createMockCamera(overrides?: Partial<Camera>): Camera {
   return {
     id: 'cam-1',
     name: 'Test Camera',
@@ -157,65 +166,88 @@ export function createMockCamera(overrides?: Partial): Camera {
 
 ```bash
 # Unit tests (co-located in src/)
-npm test
+cd frontend && npm test
+
+# Run tests once (CI mode)
+npm test -- --run
 
 # Specific test file
-npm test -- Layout.test.tsx
-
-# Integration tests (when implemented)
-npm test tests/integration
+npm test -- EventCard.test.tsx
 
 # All tests with coverage
 npm run test:coverage
 
-# Watch mode (default)
-npm test
+# Integration tests (when implemented)
+npm test tests/integration
 
-# Single run (for CI)
-npm test -- --run
+# E2E tests (when implemented)
+npx playwright test
 ```
 
-## Test Types Comparison
+## Coverage Requirements
 
-| Test Type       | Location             | Purpose                        | Status      |
-| --------------- | -------------------- | ------------------------------ | ----------- |
-| **Unit**        | `src/**/*.test.tsx`  | Component/function isolation   | Implemented |
-| **Integration** | `tests/integration/` | Multi-component interactions   | Planned     |
-| **E2E**         | `tests/e2e/`         | Full user workflows in browser | Planned     |
+This project requires **95% coverage** across all metrics:
 
-### Current Unit Test Coverage
+| Metric       | Threshold |
+| ------------ | --------- |
+| Statements   | 95%       |
+| Branches     | 94%       |
+| Functions    | 95%       |
+| Lines        | 95%       |
+
+## Current Unit Test Coverage
 
 The project has extensive unit test coverage for:
 
-- **Components**: All major components have co-located test files
-  - Dashboard: `DashboardPage`, `RiskGauge`, `CameraGrid`, `ActivityFeed`, `GpuStats`, `StatsRow`
-  - Events: `EventCard`, `EventTimeline`, `EventDetailModal`, `ThumbnailStrip`
-  - Logs: `LogsDashboard`, `LogsTable`, `LogFilters`, `LogDetailModal`, `LogStatsCards`
-  - Settings: `SettingsPage`, `CamerasSettings`, `AIModelsSettings`, `ProcessingSettings`
-  - Common: `RiskBadge`, `ObjectTypeBadge`
-  - Layout: `Header`, `Layout`, `Sidebar`
-- **Hooks**: `useWebSocket`, `useEventStream`, `useSystemStatus`
-- **Services**: `api.ts` API client
-- **Utilities**: `risk.ts`, `time.ts`
+### Components
+
+- **Dashboard**: `DashboardPage`, `RiskGauge`, `CameraGrid`, `ActivityFeed`, `GpuStats`, `StatsRow`
+- **Events**: `EventCard`, `EventTimeline`, `EventDetailModal`, `ThumbnailStrip`
+- **Logs**: `LogsDashboard`, `LogsTable`, `LogFilters`, `LogDetailModal`, `LogStatsCards`
+- **Settings**: `SettingsPage`, `CamerasSettings`, `AIModelsSettings`, `ProcessingSettings`
+- **Common**: `RiskBadge`, `ObjectTypeBadge`
+- **Layout**: `Header`, `Layout`, `Sidebar`
+
+### Hooks
+
+- `useWebSocket`
+- `useEventStream`
+- `useSystemStatus`
+
+### Services
+
+- `api.ts` - API client
+
+### Utilities
+
+- `risk.ts` - Risk level calculations
+- `time.ts` - Time formatting utilities
 
 ## When to Use This Directory
 
-- **DON'T** put unit tests here - they belong alongside source files in `src/`
-- **DO** put integration tests that span multiple modules
-- **DO** put shared test fixtures and helpers
-- **DO** put E2E tests in `tests/e2e/` subdirectory
+| Action                                          | Location              |
+| ----------------------------------------------- | --------------------- |
+| Unit test for a component                       | Co-locate in `src/`   |
+| Unit test for a hook                            | Co-locate in `src/`   |
+| Test multiple components together               | `tests/integration/`  |
+| Test API + component interactions               | `tests/integration/`  |
+| Full user workflow in real browser              | `tests/e2e/`          |
+| Shared test fixtures                            | `tests/fixtures/`     |
+| Custom render functions                         | `tests/helpers/`      |
 
 ## Related Documentation
 
-- See `../TESTING.md` for comprehensive testing documentation
-- See `../src/test/AGENTS.md` for test setup configuration
-- See `e2e/AGENTS.md` for E2E test planning
+- `/frontend/src/test/AGENTS.md` - Test setup configuration
+- `/frontend/tests/e2e/AGENTS.md` - E2E test planning
+- `/frontend/vite.config.ts` - Vitest configuration
 
 ## Notes for AI Agents
 
 - Unit tests are NOT in this directory - they're co-located with source files
-- This directory is for future integration and E2E test organization
+- This directory is for integration and E2E test organization
 - MSW (Mock Service Worker) should be used for API mocking in integration tests
 - Fixtures should match backend API response shapes exactly
 - Global test setup is in `src/test/setup.ts`, not here
 - Current test coverage is focused on unit tests in `src/`
+- E2E tests require full system setup (frontend + backend + database + Redis)
+- Use Page Object Pattern for E2E tests to improve maintainability

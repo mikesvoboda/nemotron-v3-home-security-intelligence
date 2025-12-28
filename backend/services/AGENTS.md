@@ -9,43 +9,64 @@ This directory contains the core business logic and background services for the 
 The services implement a multi-stage async pipeline with real-time broadcasting and background maintenance:
 
 ```
-File Upload → Detection → Batching → Analysis → Event Creation → Broadcasting
+File Upload -> Detection -> Batching -> Analysis -> Event Creation -> Broadcasting
    (1)          (2)         (3)         (4)         (5)              (6)
 
                      Monitoring Services (Parallel)
                      ├── GPUMonitor (polls GPU stats)
                      ├── SystemBroadcaster (system status)
+                     ├── HealthMonitor (service recovery)
                      └── CleanupService (retention policy)
 ```
 
 ### Core AI Pipeline Services
 
 1. **FileWatcher** - Monitors camera directories for new uploads
-2. **DetectorClient** - Sends images to RT-DETRv2 for object detection
-3. **BatchAggregator** - Groups detections into time-based batches
-4. **NemotronAnalyzer** - Analyzes batches with LLM for risk scoring
-5. **ThumbnailGenerator** - Creates preview images with bounding boxes
-6. **EventBroadcaster** - Distributes events via WebSocket to frontend
+2. **DedupeService** - Prevents duplicate file processing via content hashing
+3. **DetectorClient** - Sends images to RT-DETRv2 for object detection
+4. **BatchAggregator** - Groups detections into time-based batches
+5. **NemotronAnalyzer** - Analyzes batches with LLM for risk scoring
+6. **ThumbnailGenerator** - Creates preview images with bounding boxes
+7. **EventBroadcaster** - Distributes events via WebSocket to frontend
+
+### Pipeline Workers
+
+- **DetectionQueueWorker** - Consumes from detection_queue, runs detection
+- **AnalysisQueueWorker** - Consumes from analysis_queue, runs LLM analysis
+- **BatchTimeoutWorker** - Periodically checks and closes timed-out batches
+- **QueueMetricsWorker** - Updates Prometheus metrics for queue depths
+- **PipelineWorkerManager** - Unified lifecycle management for all workers
 
 ### Background Services
 
 - **GPUMonitor** - Polls NVIDIA GPU metrics and stores statistics
 - **SystemBroadcaster** - Aggregates and broadcasts system health status
 - **CleanupService** - Enforces data retention policies and frees disk space
+- **ServiceHealthMonitor** - Monitors external service health with auto-recovery
+
+### Infrastructure Services
+
+- **RetryHandler** - Exponential backoff and dead-letter queue support
+- **ServiceManager** - Strategy pattern for service restarts (Shell/Docker)
 
 ## Service Files Overview
 
 | Service                  | Purpose                                     | Type          | Dependencies                         |
 | ------------------------ | ------------------------------------------- | ------------- | ------------------------------------ |
 | `file_watcher.py`        | Monitor camera directories for new uploads  | Core Pipeline | watchdog, Redis                      |
+| `dedupe.py`              | Prevent duplicate file processing           | Core Pipeline | Redis (primary), Database (fallback) |
 | `detector_client.py`     | Send images to RT-DETRv2 for detection      | Core Pipeline | httpx, SQLAlchemy                    |
 | `batch_aggregator.py`    | Group detections into time-based batches    | Core Pipeline | Redis                                |
 | `nemotron_analyzer.py`   | LLM-based risk analysis via llama.cpp       | Core Pipeline | httpx, SQLAlchemy, Redis             |
 | `thumbnail_generator.py` | Generate preview images with bounding boxes | Core Pipeline | PIL/Pillow                           |
+| `pipeline_workers.py`    | Background queue workers and manager        | Workers       | Redis, all pipeline services         |
 | `event_broadcaster.py`   | Distribute events via WebSocket             | Broadcasting  | Redis, FastAPI WebSocket             |
-| `gpu_monitor.py`         | Poll NVIDIA GPU metrics                     | Background    | pynvml, SQLAlchemy                   |
 | `system_broadcaster.py`  | Broadcast system health status              | Broadcasting  | SQLAlchemy, Redis, FastAPI WebSocket |
+| `gpu_monitor.py`         | Poll NVIDIA GPU metrics                     | Background    | pynvml, SQLAlchemy                   |
 | `cleanup_service.py`     | Enforce data retention policies             | Background    | SQLAlchemy                           |
+| `health_monitor.py`      | Monitor service health with auto-recovery   | Background    | service_managers, httpx              |
+| `retry_handler.py`       | Exponential backoff and DLQ support         | Infrastructure| Redis                                |
+| `service_managers.py`    | Strategy pattern for service management     | Infrastructure| httpx, asyncio subprocess            |
 | `prompts.py`             | LLM prompt templates                        | Utility       | -                                    |
 
 ## Service Files
@@ -83,6 +104,41 @@ File Upload → Detection → Batching → Analysis → Event Creation → Broad
 - Warns on invalid/corrupted images (skips processing)
 - Logs errors for queue failures
 - Creates camera root directory if missing
+
+### dedupe.py
+
+**Purpose:** Provides file deduplication to prevent duplicate processing using content hashes.
+
+**Key Features:**
+
+- SHA256 content hash of image files for idempotency
+- Redis as primary dedupe cache with configurable TTL (default 5 minutes)
+- Database fallback when Redis is unavailable
+- Fail-open design for availability (processes if dedupe unavailable)
+- Thread-safe and async-compatible
+
+**Public API:**
+
+- `compute_file_hash(file_path)` - Compute SHA256 hash of file content
+- `DedupeService(redis_client, ttl_seconds)` - Initialize service
+- `async is_duplicate(file_path, file_hash)` - Check if file was already processed
+- `async mark_processed(file_path, file_hash)` - Mark file as processed
+- `async is_duplicate_and_mark(file_path)` - Atomic check-and-mark operation
+- `async clear_hash(file_hash)` - Clear hash from cache (for testing/reprocessing)
+- `get_dedupe_service(redis_client)` - Get/create global singleton
+- `reset_dedupe_service()` - Reset singleton (for testing)
+
+**Redis Keys:**
+
+```
+dedupe:{sha256_hash}  -> file_path (with TTL)
+```
+
+**Error Handling:**
+
+- Redis unavailable: Fails open (allows processing)
+- File read errors: Returns False (don't process corrupted files)
+- Empty files: Logs warning, returns None hash
 
 ### detector_client.py
 
@@ -134,11 +190,11 @@ File Upload → Detection → Batching → Analysis → Event Creation → Broad
 **Redis Keys:**
 
 ```
-batch:{camera_id}:current         → current batch ID (string)
-batch:{batch_id}:camera_id        → camera ID (string)
-batch:{batch_id}:detections       → JSON array of detection IDs
-batch:{batch_id}:started_at       → Unix timestamp (float)
-batch:{batch_id}:last_activity    → Unix timestamp (float)
+batch:{camera_id}:current         -> current batch ID (string)
+batch:{batch_id}:camera_id        -> camera ID (string)
+batch:{batch_id}:detections       -> JSON array of detection IDs
+batch:{batch_id}:started_at       -> Unix timestamp (float)
+batch:{batch_id}:last_activity    -> Unix timestamp (float)
 ```
 
 **Public API:**
@@ -297,6 +353,243 @@ default:           white (#FFFFFF)
 }
 ```
 
+### pipeline_workers.py
+
+**Purpose:** Background worker processes for continuous detection and analysis processing.
+
+**Key Features:**
+
+- Always-on worker processes as asyncio background tasks
+- Consumes from Redis queues (detection_queue, analysis_queue)
+- Batch timeout checks on configurable interval
+- Queue metrics updates for Prometheus
+- Signal handling for graceful shutdown (SIGTERM/SIGINT)
+- Worker state tracking and statistics
+
+**Worker Classes:**
+
+**`DetectionQueueWorker`:**
+- Consumes from detection_queue (Redis BLPOP)
+- Runs RT-DETRv2 detection via DetectorClient
+- Adds detections to batch via BatchAggregator
+- Tracks items_processed, errors, last_processed_at
+
+**`AnalysisQueueWorker`:**
+- Consumes from analysis_queue (Redis BLPOP)
+- Runs Nemotron LLM analysis via NemotronAnalyzer
+- Creates Event records with risk scores
+- 30-second stop timeout for LLM completion
+
+**`BatchTimeoutWorker`:**
+- Runs on configurable interval (default 10s)
+- Calls BatchAggregator.check_batch_timeouts()
+- Closed batches automatically pushed to analysis_queue
+- Records batch stage duration metrics
+
+**`QueueMetricsWorker`:**
+- Runs on configurable interval (default 5s)
+- Queries Redis for queue lengths
+- Updates Prometheus gauge metrics
+
+**`PipelineWorkerManager`:**
+- Unified start/stop for all workers
+- Signal handler installation (SIGTERM/SIGINT)
+- Status reporting via get_status()
+- Configurable worker enable/disable
+
+**Public API:**
+
+- `DetectionQueueWorker(redis_client, detector_client, batch_aggregator, queue_name, poll_timeout, stop_timeout)`
+- `AnalysisQueueWorker(redis_client, analyzer, queue_name, poll_timeout, stop_timeout)`
+- `BatchTimeoutWorker(redis_client, batch_aggregator, check_interval, stop_timeout)`
+- `QueueMetricsWorker(redis_client, update_interval)`
+- `PipelineWorkerManager(redis_client, detector_client, analyzer, enable_*_worker)`
+- `async get_pipeline_manager(redis_client)` - Get/create global singleton
+- `async stop_pipeline_manager()` - Stop and cleanup global instance
+
+**Worker States:**
+
+```python
+WorkerState.STOPPED    # Not running
+WorkerState.STARTING   # Starting up
+WorkerState.RUNNING    # Running normally
+WorkerState.STOPPING   # Shutting down
+WorkerState.ERROR      # Error occurred (recovers automatically)
+```
+
+**Standalone Mode:**
+
+Can be run as separate process for multi-instance deployments:
+
+```bash
+python -m backend.services.pipeline_workers
+```
+
+### retry_handler.py
+
+**Purpose:** Retry logic with exponential backoff and dead-letter queue support.
+
+**Key Features:**
+
+- Exponential backoff with configurable parameters
+- Optional jitter to prevent thundering herd
+- Dead-letter queue for poison jobs
+- DLQ inspection and management
+
+**Configuration:**
+
+```python
+@dataclass
+class RetryConfig:
+    max_retries: int = 3
+    base_delay_seconds: float = 1.0
+    max_delay_seconds: float = 30.0
+    exponential_base: float = 2.0
+    jitter: bool = True
+```
+
+**DLQ Structure:**
+
+```
+dlq:detection_queue  - Failed detection jobs
+dlq:analysis_queue   - Failed LLM analysis jobs
+```
+
+**Job Failure Format:**
+
+```json
+{
+    "original_job": {...},
+    "error": "error message",
+    "attempt_count": 3,
+    "first_failed_at": "2024-01-15T10:30:00",
+    "last_failed_at": "2024-01-15T10:30:30",
+    "queue_name": "detection_queue"
+}
+```
+
+**Public API:**
+
+- `RetryHandler(redis_client, config)` - Initialize handler
+- `async with_retry(operation, job_data, queue_name, *args, **kwargs)` - Execute with retries
+- `async get_dlq_stats()` - Get counts for each DLQ
+- `async get_dlq_jobs(dlq_name, start, end)` - List jobs without removing
+- `async requeue_dlq_job(dlq_name)` - Pop and return oldest job
+- `async clear_dlq(dlq_name)` - Clear all jobs from DLQ
+- `async move_dlq_job_to_queue(dlq_name, target_queue)` - Move job back for reprocessing
+- `get_retry_handler(redis_client)` - Get/create global singleton
+- `reset_retry_handler()` - Reset singleton (for testing)
+
+**Retry Result:**
+
+```python
+@dataclass
+class RetryResult:
+    success: bool
+    result: Any = None
+    error: str | None = None
+    attempts: int = 0
+    moved_to_dlq: bool = False
+```
+
+### service_managers.py
+
+**Purpose:** Strategy pattern for managing external services (Redis, RT-DETRv2, Nemotron).
+
+**Key Features:**
+
+- Abstract ServiceManager interface
+- ShellServiceManager for shell script restarts (dev)
+- DockerServiceManager for Docker container restarts (prod)
+- HTTP health checks for services
+- Redis ping via redis-cli
+
+**Service Configuration:**
+
+```python
+@dataclass
+class ServiceConfig:
+    name: str                    # Service identifier
+    health_url: str              # HTTP health endpoint
+    restart_cmd: str             # Restart command/container name
+    health_timeout: float = 5.0  # Health check timeout
+    max_retries: int = 3         # Max restart attempts
+    backoff_base: float = 5.0    # Exponential backoff base
+```
+
+**ShellServiceManager:**
+
+- Health checks via HTTP GET to health_url
+- Redis health via `redis-cli ping`
+- Restarts via asyncio subprocess
+- Configurable subprocess timeout
+
+**DockerServiceManager:**
+
+- Health checks same as ShellServiceManager
+- Restarts via `docker restart <container_name>`
+- Extracts container name from restart_cmd or uses service name
+
+**Public API:**
+
+- `ServiceManager.check_health(config)` - Check if service is healthy
+- `ServiceManager.restart(config)` - Attempt to restart service
+- `ShellServiceManager(subprocess_timeout)` - Shell-based manager
+- `DockerServiceManager(subprocess_timeout)` - Docker-based manager
+
+### health_monitor.py
+
+**Purpose:** Monitors service health and orchestrates automatic recovery with exponential backoff.
+
+**Key Features:**
+
+- Periodic health checks for all configured services
+- Automatic restart with exponential backoff on failure
+- Configurable max retries before giving up
+- WebSocket broadcast of service status changes
+- Graceful shutdown support
+
+**Service Status Values:**
+
+- `healthy` - Service responding normally
+- `unhealthy` - Health check failed
+- `restarting` - Restart in progress
+- `restart_failed` - Restart attempt failed
+- `failed` - Max retries exceeded, giving up
+
+**Public API:**
+
+- `ServiceHealthMonitor(manager, services, broadcaster, check_interval)` - Initialize monitor
+- `async start()` - Start health check loop
+- `async stop()` - Stop monitoring gracefully
+- `get_status()` - Get current status of all services
+- `is_running` - Property to check if running
+
+**Recovery Flow:**
+
+1. Health check fails
+2. Increment failure count
+3. Calculate backoff delay: `backoff_base * 2^(failures-1)`
+4. Wait for backoff period
+5. Broadcast "restarting" status
+6. Attempt restart via ServiceManager
+7. Verify health after restart
+8. If healthy, reset failure count
+9. If still unhealthy, repeat from step 2
+10. After max_retries, broadcast "failed" and give up
+
+**WebSocket Broadcast Format:**
+
+```json
+{
+    "type": "service_status",
+    "service": "rtdetr",
+    "status": "healthy",
+    "message": "Service recovered",
+    "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
 ### cleanup_service.py
 
 **Purpose:** Automated data retention and disk space management service.
@@ -372,6 +665,8 @@ default:           white (#FFFFFF)
 - `async connect(websocket)` - Register new WebSocket connection
 - `async disconnect(websocket)` - Unregister WebSocket connection
 - `async broadcast_event(event_data)` - Publish event to Redis channel
+- `get_broadcaster(redis_client)` - Get/create global singleton
+- `stop_broadcaster()` - Stop and cleanup global instance
 
 **Redis Channel:**
 
@@ -380,7 +675,7 @@ default:           white (#FFFFFF)
 
 **Data Flow:**
 
-1. Event created → `broadcast_event()` publishes to Redis
+1. Event created -> `broadcast_event()` publishes to Redis
 2. Redis pub/sub broadcasts to all backend instances
 3. `_listen_for_events()` receives message from Redis
 4. `_send_to_all_clients()` sends to all WebSocket connections
@@ -392,11 +687,6 @@ default:           white (#FFFFFF)
 - Continues listening after individual message failures
 - Restarts listener task if error occurs
 - Graceful shutdown with task cancellation
-
-**Factory Functions:**
-
-- `get_broadcaster(redis_client)` - Get/create global singleton
-- `stop_broadcaster()` - Stop and cleanup global instance
 
 ### gpu_monitor.py
 
@@ -478,6 +768,7 @@ Activated when:
 - `async broadcast_status(status_data)` - Send status to all clients
 - `async start_broadcasting(interval)` - Start periodic broadcasts
 - `async stop_broadcasting()` - Stop periodic broadcasts
+- `get_system_broadcaster()` - Get/create global singleton
 
 **System Status Structure:**
 
@@ -522,10 +813,6 @@ Activated when:
 - Continues broadcasting even if one metric fails
 - Removes disconnected clients automatically
 
-**Factory Function:**
-
-- `get_system_broadcaster()` - Get/create global singleton
-
 ### prompts.py
 
 **Purpose:** Centralized prompt templates for LLM analysis.
@@ -545,64 +832,77 @@ Activated when:
 
 ```
 1. FileWatcher
-   ↓ Queues to Redis: detection_queue
+   | Queues to Redis: detection_queue
 
-2. [Background Worker]
-   ↓ Consumes from: detection_queue
-   ↓ Calls: DetectorClient.detect_objects()
-   ↓ Stores: Detection records in SQLite
+2. [DetectionQueueWorker]
+   | Consumes from: detection_queue
+   | Calls: DedupeService.is_duplicate_and_mark()
+   | Calls: DetectorClient.detect_objects()
+   | Stores: Detection records in SQLite
 
-3. [Background Worker]
-   ↓ Calls: BatchAggregator.add_detection(confidence, object_type)
-   ├─→ [Fast Path] If high-confidence critical detection:
-   │   ↓ Calls: NemotronAnalyzer.analyze_detection_fast_path()
-   │   ↓ Creates: Event with is_fast_path=True
-   │   ↓ Broadcasts: WebSocket immediately
-   │
-   └─→ [Normal Path] Otherwise:
-       ↓ Updates Redis batch keys
+3. [DetectionQueueWorker]
+   | Calls: BatchAggregator.add_detection(confidence, object_type)
+   |---> [Fast Path] If high-confidence critical detection:
+   |     | Calls: NemotronAnalyzer.analyze_detection_fast_path()
+   |     | Creates: Event with is_fast_path=True
+   |     | Broadcasts: WebSocket immediately
+   |
+   └---> [Normal Path] Otherwise:
+         | Updates Redis batch keys
 
-4. [Periodic Task]
-   ↓ Calls: BatchAggregator.check_batch_timeouts()
-   ↓ Queues to Redis: analysis_queue
+4. [BatchTimeoutWorker]
+   | Calls: BatchAggregator.check_batch_timeouts()
+   | Queues to Redis: analysis_queue
 
-5. [Background Worker]
-   ↓ Consumes from: analysis_queue
-   ↓ Calls: NemotronAnalyzer.analyze_batch()
-   ↓ Stores: Event records in SQLite
+5. [AnalysisQueueWorker]
+   | Consumes from: analysis_queue
+   | Calls: NemotronAnalyzer.analyze_batch()
+   | Stores: Event records in SQLite
 
-6. [Background Worker]
-   ↓ Calls: EventBroadcaster.broadcast_event()
-   ↓ Publishes: Redis pub/sub channel "security_events"
-   ↓ Broadcasts: WebSocket to all connected clients
+6. [NemotronAnalyzer]
+   | Calls: EventBroadcaster.broadcast_event()
+   | Publishes: Redis pub/sub channel "security_events"
+   | Broadcasts: WebSocket to all connected clients
 
 7. [On Demand]
-   ↓ Calls: ThumbnailGenerator.generate_thumbnail()
-   ↓ Stores: Thumbnail files in data/thumbnails/
+   | Calls: ThumbnailGenerator.generate_thumbnail()
+   | Stores: Thumbnail files in data/thumbnails/
 ```
 
 **Background Services (Parallel):**
 
 ```
 GPUMonitor (Continuous Polling)
-   ↓ Every poll_interval seconds (default from settings)
-   ↓ Reads: pynvml GPU metrics
-   ↓ Stores: GPUStats records in SQLite
-   ↓ Appends: In-memory circular buffer (max 1000)
-   ↓ Broadcasts: WebSocket to SystemBroadcaster (optional)
+   | Every poll_interval seconds (default from settings)
+   | Reads: pynvml GPU metrics
+   | Stores: GPUStats records in SQLite
+   | Appends: In-memory circular buffer (max 1000)
+   | Broadcasts: WebSocket to SystemBroadcaster (optional)
 
 SystemBroadcaster (Periodic Broadcasting)
-   ↓ Every 5 seconds (configurable)
-   ↓ Queries: Latest GPUStats, Camera counts, Redis queue lengths
-   ↓ Checks: Database + Redis health
-   ↓ Broadcasts: WebSocket system_status to all connected clients
+   | Every 5 seconds (configurable)
+   | Queries: Latest GPUStats, Camera counts, Redis queue lengths
+   | Checks: Database + Redis health
+   | Broadcasts: WebSocket system_status to all connected clients
 
 CleanupService (Daily Scheduled)
-   ↓ Once per day at cleanup_time (default: 03:00)
-   ↓ Deletes: Events, Detections, GPUStats older than retention_days
-   ↓ Deletes: Logs older than log_retention_days
-   ↓ Removes: Thumbnail files (and optionally original images)
-   ↓ Logs: CleanupStats (records deleted, space reclaimed)
+   | Once per day at cleanup_time (default: 03:00)
+   | Deletes: Events, Detections, GPUStats older than retention_days
+   | Deletes: Logs older than log_retention_days
+   | Removes: Thumbnail files (and optionally original images)
+   | Logs: CleanupStats (records deleted, space reclaimed)
+
+ServiceHealthMonitor (Periodic Health Checks)
+   | Every check_interval seconds (default: 15s)
+   | Checks: HTTP health endpoints for RT-DETRv2, Nemotron
+   | Checks: Redis via redis-cli ping
+   | Restarts: Failed services with exponential backoff
+   | Broadcasts: Service status changes via WebSocket
+
+QueueMetricsWorker (Periodic Metrics)
+   | Every update_interval seconds (default: 5s)
+   | Queries: Redis queue lengths
+   | Updates: Prometheus gauge metrics
 ```
 
 ### Redis Queue Structure
@@ -681,17 +981,22 @@ async with httpx.AsyncClient(timeout=30.0) as client:
 2. **NemotronAnalyzer:** Falls back to default risk score (50, medium) on LLM failure
 3. **ThumbnailGenerator:** Returns `None` on failure (allows processing to continue)
 4. **FileWatcher:** Skips invalid images, logs warnings (doesn't stop monitoring)
+5. **DedupeService:** Fails open when Redis unavailable (allows processing)
+6. **RetryHandler:** Moves jobs to DLQ after max retries
 
 ### Idempotent Operations
 
 - **FileWatcher.start()** can be called multiple times safely
 - **BatchAggregator** creates new batch if none exists (no race conditions)
+- **DedupeService** prevents duplicate processing via content hashes
+- **PipelineWorkerManager** workers are idempotent start/stop
 
 ### Resource Cleanup
 
 - **FileWatcher.stop()** cancels all pending tasks with timeout
 - Redis keys are cleaned up after batch close
 - Database sessions are automatically committed/rolled back via async context managers
+- **PipelineWorkerManager** waits for workers to complete current work
 
 ## Configuration
 
@@ -709,6 +1014,7 @@ All services use `backend.core.config.get_settings()` for configuration:
 - `gpu_stats_history_minutes` - GPU stats in-memory history retention
 - `retention_days` - Data retention period for cleanup service
 - `log_retention_days` - Log retention period for cleanup service
+- `dedupe_ttl_seconds` - TTL for dedupe entries in Redis (default: 300s)
 
 ## Dependencies
 
@@ -739,7 +1045,7 @@ The system uses two distinct WebSocket channels for different data streams:
 - **Channel:** `security_events` (Redis pub/sub)
 - **Data:** Individual security events with risk scores
 - **Trigger:** Event creation after batch analysis
-- **Pattern:** Publish to Redis → All instances listen → Broadcast to WebSocket clients
+- **Pattern:** Publish to Redis -> All instances listen -> Broadcast to WebSocket clients
 
 **Message Structure:**
 
@@ -764,7 +1070,7 @@ The system uses two distinct WebSocket channels for different data streams:
 - **Interval:** Every 5 seconds (configurable)
 - **Data:** Aggregated system status (GPU, cameras, queues, health)
 - **Trigger:** Periodic broadcast loop
-- **Pattern:** Query all sources → Aggregate → Broadcast to WebSocket clients
+- **Pattern:** Query all sources -> Aggregate -> Broadcast to WebSocket clients
 
 **Message Structure:**
 
@@ -799,6 +1105,13 @@ All services include comprehensive error handling for testing:
 - Mock filesystem events for FileWatcher
 - Use in-memory PIL images for ThumbnailGenerator tests
 
+### Pipeline Workers
+
+- Mock queue items with test data
+- Test worker lifecycle (start/stop/error recovery)
+- Verify signal handling for graceful shutdown
+- Test metrics recording
+
 ### Broadcasting Services
 
 - Mock WebSocket connections for EventBroadcaster and SystemBroadcaster
@@ -812,5 +1125,20 @@ All services include comprehensive error handling for testing:
 - Mock database queries for SystemBroadcaster
 - Test CleanupService with in-memory database or test fixtures
 - Verify task cancellation and graceful shutdown
+- Test ServiceHealthMonitor with mock health endpoints
+
+### Infrastructure Services
+
+- Test RetryHandler with failing operations
+- Verify exponential backoff timing
+- Test DLQ operations (add, list, requeue, clear)
+- Mock subprocess for ServiceManager tests
 
 See `backend/tests/unit/` and `backend/tests/integration/` for test examples.
+
+## Related Documentation
+
+- `/backend/AGENTS.md` - Backend architecture overview
+- `/backend/models/AGENTS.md` - Database model documentation
+- `/backend/api/routes/AGENTS.md` - API endpoint documentation
+- `/backend/core/AGENTS.md` - Core infrastructure documentation

@@ -1001,3 +1001,116 @@ echo -e "${GREEN}Complete!${NC}"
 - **pytest.ini:** Pytest configuration
 - **frontend/package.json:** Frontend test scripts
 - **CLAUDE.md:** Git and testing workflow rules
+
+## Additional Scripts
+
+### Pre-commit Hooks
+
+**check-test-mocks.py** (213 lines, executable)
+
+- **Purpose:** Pre-commit hook to detect integration tests that don't mock slow background services
+- **What it does:**
+  1. Parses integration test files as AST
+  2. Identifies tests using `TestClient(app)`
+  3. Checks for required mocks: SystemBroadcaster, GPUMonitor, CleanupService
+  4. Fails if slow services aren't properly mocked
+- **When to use:**
+  - Runs automatically via pre-commit
+  - Manual: `python scripts/check-test-mocks.py backend/tests/integration/*.py`
+- **Background:**
+  - Tests without mocks take 5+ seconds due to background tasks
+  - Required mocks prevent lifespan services from starting
+- **Exit codes:**
+  - `0` - All tests properly mock services
+  - `1` - Missing mocks detected
+
+**check-test-timeouts.py** (215 lines, executable)
+
+- **Purpose:** Pre-commit hook to detect potentially slow sleeps in test files
+- **What it does:**
+  1. Parses test files looking for `asyncio.sleep()` or `time.sleep()`
+  2. Flags sleep calls >= 1 second that aren't properly handled
+  3. Recognizes safe patterns (cancelled, wait_for wrapped, in mock function)
+- **When to use:**
+  - Runs automatically via pre-commit
+  - Manual: `python scripts/check-test-timeouts.py backend/tests/*.py`
+- **Safe patterns recognized:**
+  - Sleep inside `mock_*`, `slow_*`, `fake_*` functions
+  - Sleep wrapped in `asyncio.wait_for()`
+  - Comments: `# cancelled`, `# timeout`, `# mocked`, `# patched`
+- **Exit codes:**
+  - `0` - No problematic sleeps found
+  - `1` - Potentially slow sleeps detected
+
+### Test Utilities
+
+**find-slow-tests.sh** (34 lines, executable)
+
+- **Purpose:** Find tests that hang or take too long by running each test file individually with timeout
+- **What it does:**
+  1. Runs each unit test file with 15-second timeout
+  2. Runs each integration test file with 30-second timeout
+  3. Reports TIMEOUT, FAILED, or OK for each file
+- **When to use:**
+  - Diagnosing which test file is causing slow test runs
+  - Finding hanging tests after changes
+- **Usage:**
+  ```bash
+  ./scripts/find-slow-tests.sh
+  ```
+- **Output:**
+  - `TIMEOUT: test_file.py` - Test exceeded time limit
+  - `FAILED: test_file.py - error message` - Test failed
+  - `OK: test_file.py - passed in X.Xs` - Test passed
+
+### Service Management
+
+**start_redis.sh** (68 lines, executable)
+
+- **Purpose:** Redis server startup script with auto-recovery support
+- **What it does:**
+  1. Checks if Redis is already running (exits if yes)
+  2. Attempts systemd start if Redis is systemd-managed
+  3. Falls back to direct `redis-server --daemonize yes` start
+  4. Waits for Redis to become ready (10 second timeout)
+- **When to use:**
+  - Called by ServiceHealthMonitor for auto-recovery
+  - Manual Redis startup when Docker isn't available
+- **Environment variables:**
+  - `REDIS_PORT` - Port number (default: 6379)
+  - `REDIS_HOST` - Bind address (default: 127.0.0.1)
+- **Usage:**
+  ```bash
+  ./scripts/start_redis.sh
+  # Or with custom port
+  REDIS_PORT=6380 ./scripts/start_redis.sh
+  ```
+- **Log file:** `/tmp/redis.log`
+
+**setup-gpu-runner.sh** (executable)
+
+- **Purpose:** Setup script for self-hosted GitHub Actions runner with GPU support
+- **What it does:**
+  1. Verifies NVIDIA GPU and drivers
+  2. Installs GitHub Actions runner
+  3. Configures runner with GPU labels
+  4. Sets up runner as a service
+- **When to use:**
+  - Setting up self-hosted runner for GPU tests
+  - After hardware changes or driver updates
+- **Requirements:**
+  - NVIDIA RTX A5500 or compatible GPU
+  - CUDA drivers installed
+  - sudo access for service installation
+
+### GitHub Integration
+
+**github-models-examples.py** (executable)
+
+- **Purpose:** Example script demonstrating GitHub Models API usage
+- **What it does:**
+  - Shows how to call GPT-4o and other models via GitHub Models
+  - Provides templates for AI-assisted code analysis
+- **When to use:**
+  - Learning GitHub Models API
+  - Developing AI-powered tooling

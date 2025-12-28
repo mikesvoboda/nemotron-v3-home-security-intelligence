@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Global CSS styles and Tailwind CSS configuration for the NVIDIA-themed dark mode security dashboard.
+Global CSS styles and Tailwind CSS configuration for the NVIDIA-themed dark mode security dashboard. Contains the main stylesheet with custom utility classes, component styles, and theme customizations.
 
 ## Key Files
 
@@ -281,7 +281,31 @@ See `frontend/tailwind.config.js` for extended theme configuration.
 </div>
 ```
 
-## Notes
+## Testing Styles
+
+When testing components that use these styles:
+
+1. **Use `css: true` in Vitest config** - Already configured in `vite.config.ts`
+2. **Test class presence** - Use `toHaveClass()` matcher
+3. **Test style effects** - Use `toHaveStyle()` for computed styles
+4. **Visual regression** - Consider Playwright screenshots for E2E
+
+```typescript
+import { render, screen } from '@testing-library/react';
+
+it('applies correct risk badge class', () => {
+  render(<RiskBadge level="high" />);
+  expect(screen.getByText(/high/i)).toHaveClass('risk-badge-high');
+});
+```
+
+## Related Files
+
+- `/frontend/tailwind.config.js` - Tailwind theme configuration
+- `/frontend/postcss.config.js` - PostCSS configuration
+- `/frontend/src/main.tsx` - Imports this stylesheet
+
+## Notes for AI Agents
 
 - All colors follow NVIDIA brand guidelines
 - Dark theme optimized for low-light environments (security monitoring)
@@ -291,3 +315,4 @@ See `frontend/tailwind.config.js` for extended theme configuration.
 - Custom animations use `@keyframes` for performance
 - Webkit-specific styles have fallbacks for Firefox
 - Transition duration utility classes: `duration-250`, `duration-400`
+- Test CSS classes using `toHaveClass()` matcher in Vitest
