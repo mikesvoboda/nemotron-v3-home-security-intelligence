@@ -1130,12 +1130,14 @@ class TestChannelDocumentation:
     """Tests verifying that channel names and message formats are documented."""
 
     def test_broadcaster_channel_name_is_documented(self):
-        """Verify EventBroadcaster.CHANNEL_NAME is a class constant."""
-        from backend.services.event_broadcaster import EventBroadcaster
+        """Verify get_event_channel returns the canonical channel name from settings."""
+        from backend.services.event_broadcaster import EventBroadcaster, get_event_channel
 
-        # CHANNEL_NAME should be a class attribute
+        # get_event_channel should return the configured channel name
+        assert get_event_channel() == "security_events"
+
+        # CHANNEL_NAME should still be accessible as an instance property for backward compat
         assert hasattr(EventBroadcaster, "CHANNEL_NAME")
-        assert EventBroadcaster.CHANNEL_NAME == "security_events"
 
     def test_agents_md_documents_channel(self):
         """Verify AGENTS.md documents the canonical channel name."""

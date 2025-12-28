@@ -21,6 +21,15 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def get_event_channel() -> str:
+    """Get the Redis event channel name from settings.
+
+    Returns:
+        The configured Redis event channel name.
+    """
+    return get_settings().redis_event_channel
+
+
 class EventBroadcaster:
     """Manages WebSocket connections and broadcasts events via Redis pub/sub.
 
@@ -29,10 +38,10 @@ class EventBroadcaster:
     """
 
     # Kept for backward compatibility - fetches from settings dynamically
-    @classmethod
+    # Note: This is a property that returns the current settings value each time
     @property
-    def CHANNEL_NAME(cls) -> str:
-        """Get the Redis channel name from settings."""
+    def CHANNEL_NAME(self) -> str:
+        """Get the Redis channel name from settings (for backward compatibility)."""
         return get_settings().redis_event_channel
 
     def __init__(self, redis_client: RedisClient, channel_name: str | None = None):
@@ -141,7 +150,7 @@ class EventBroadcaster:
                 event_data = {"type": "event", "data": event_data}
 
             # Publish to Redis channel
-            subscriber_count = await self._redis.publish(self.CHANNEL_NAME, event_data)
+            subscriber_count = await self._redis.publish(self._channel_name, event_data)
             logger.debug(
                 f"Event broadcast to Redis: {event_data.get('type')} "
                 f"(subscribers: {subscriber_count})"

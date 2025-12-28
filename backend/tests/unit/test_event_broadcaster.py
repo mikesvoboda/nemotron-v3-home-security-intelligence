@@ -17,6 +17,7 @@ from backend.services import event_broadcaster
 from backend.services.event_broadcaster import (
     EventBroadcaster,
     get_broadcaster,
+    get_event_channel,
     stop_broadcaster,
 )
 
@@ -790,8 +791,15 @@ async def test_stop_when_not_started() -> None:
 
 @pytest.mark.asyncio
 async def test_channel_name_constant() -> None:
-    """Test that the CHANNEL_NAME constant is set correctly."""
-    assert EventBroadcaster.CHANNEL_NAME == "security_events"
+    """Test that the CHANNEL_NAME and get_event_channel return the default channel name."""
+    # Test the module-level function
+    assert get_event_channel() == "security_events"
+
+    # Test the instance property (for backward compatibility)
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+    assert broadcaster.CHANNEL_NAME == "security_events"
+    assert broadcaster.channel_name == "security_events"
 
 
 @pytest.mark.asyncio
