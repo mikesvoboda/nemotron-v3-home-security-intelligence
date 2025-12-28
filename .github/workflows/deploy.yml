@@ -46,9 +46,13 @@ jobs:
             type=sha,prefix=
             type=raw,value=latest
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # Build single-arch image for Trivy scanning (can't scan multi-arch)
       - name: Build image for scanning
         uses: docker/build-push-action@v5
         with:
@@ -56,6 +60,7 @@ jobs:
           file: ${{ matrix.dockerfile }}
           push: false
           load: true
+          platforms: linux/amd64
           tags: ${{ matrix.image }}:scan
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -68,12 +73,14 @@ jobs:
           exit-code: "1"
           severity: "CRITICAL,HIGH"
 
-      - name: Build and push
+      # Build and push multi-arch images (amd64 + arm64)
+      - name: Build and push multi-arch
         uses: docker/build-push-action@v5
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
