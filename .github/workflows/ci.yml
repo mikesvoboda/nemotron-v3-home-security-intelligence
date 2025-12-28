@@ -118,6 +118,7 @@ jobs:
             --cov=backend \
             --cov-report=xml:coverage-unit.xml \
             --cov-report=term-missing \
+            --cov-fail-under=93 \
             -v
 
       - name: Upload unit test coverage
