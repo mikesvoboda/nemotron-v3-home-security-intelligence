@@ -140,11 +140,18 @@ class TestDetectObjectsStoresInDatabase:
     async def test_detect_objects_stores_correct_file_type(
         self, integration_db, sample_camera, detector_client
     ):
-        """Test that file type is correctly extracted and stored."""
+        """Test that file type is correctly stored as MIME type."""
         from backend.core.database import get_session
 
+        # Map of extensions to expected MIME types
+        extension_to_mime = {
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".png": "image/png",
+        }
+
         # Create temp files with different extensions
-        for ext in [".jpg", ".jpeg", ".png"]:
+        for ext, expected_mime in extension_to_mime.items():
             with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as f:
                 f.write(b"fake image data")
                 temp_path = f.name
@@ -176,7 +183,7 @@ class TestDetectObjectsStoresInDatabase:
                         )
 
                         assert len(detections) == 1
-                        assert detections[0].file_type == ext
+                        assert detections[0].file_type == expected_mime
             finally:
                 Path(temp_path).unlink(missing_ok=True)
 

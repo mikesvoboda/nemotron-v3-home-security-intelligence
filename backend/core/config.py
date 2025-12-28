@@ -173,6 +173,24 @@ class Settings(BaseSettings):
         description="Maximum iterations for requeue-all operations",
     )
 
+    # Video processing settings
+    video_frame_interval_seconds: float = Field(
+        default=2.0,
+        ge=0.5,
+        le=30.0,
+        description="Interval in seconds between extracted frames for video detection",
+    )
+    video_max_frames: int = Field(
+        default=30,
+        ge=1,
+        le=300,
+        description="Maximum number of frames to extract from a single video",
+    )
+    video_thumbnails_dir: str = Field(
+        default="data/thumbnails",
+        description="Directory for storing video thumbnails and extracted frames",
+    )
+
     @field_validator("log_file_path")
     @classmethod
     def validate_log_file_path(cls, v: str) -> str:

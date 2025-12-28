@@ -22,6 +22,7 @@ Error Handling:
 import time
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,6 +34,7 @@ from backend.core.metrics import (
     record_detection_processed,
     record_pipeline_error,
 )
+from backend.core.mime_types import get_mime_type_with_default
 from backend.models.detection import Detection
 
 logger = get_logger(__name__)
@@ -78,6 +80,8 @@ class DetectorClient:
         image_path: str,
         camera_id: str,
         session: AsyncSession,
+        video_path: str | None = None,
+        video_metadata: dict[str, Any] | None = None,
     ) -> list[Detection]:
         """Send image to detector service and store detections.
 
@@ -85,10 +89,16 @@ class DetectorClient:
         the response, filters by confidence threshold, and stores detections
         in the database.
 
+        For video frame detection, the video_path and video_metadata parameters
+        allow associating the detection with the source video file instead of
+        the extracted frame.
+
         Args:
-            image_path: Path to the image file
+            image_path: Path to the image file (or extracted video frame)
             camera_id: Camera identifier for the image
             session: Database session for storing detections
+            video_path: Optional path to the source video (if detecting from video frame)
+            video_metadata: Optional video metadata dict with duration, codec, etc.
 
         Returns:
             List of Detection model instances that were stored
@@ -140,8 +150,19 @@ class DetectorClient:
 
             # Process detections
             detections = []
-            file_type = image_file.suffix
             detected_at = datetime.now(UTC)
+
+            # Use video path and file type if this is a video frame detection
+            if video_path is not None and video_metadata is not None:
+                detection_file_path = video_path
+                file_type = video_metadata.get("file_type", "video/mp4")
+                media_type = "video"
+                is_video = True
+            else:
+                detection_file_path = image_path
+                file_type = get_mime_type_with_default(image_file)
+                media_type = "image"
+                is_video = False
 
             for detection_data in result["detections"]:
                 try:
@@ -175,10 +196,10 @@ class DetectorClient:
                         logger.warning(f"Invalid bbox format: {bbox}")
                         continue
 
-                    # Create Detection model
+                    # Create Detection model with video metadata if applicable
                     detection = Detection(
                         camera_id=camera_id,
-                        file_path=image_path,
+                        file_path=detection_file_path,
                         file_type=file_type,
                         detected_at=detected_at,
                         object_type=detection_data.get("class"),
@@ -187,7 +208,15 @@ class DetectorClient:
                         bbox_y=bbox_y,
                         bbox_width=bbox_width,
                         bbox_height=bbox_height,
+                        media_type=media_type,
                     )
+
+                    # Add video-specific metadata if this is a video detection
+                    if is_video and video_metadata:
+                        detection.duration = video_metadata.get("duration")
+                        detection.video_codec = video_metadata.get("video_codec")
+                        detection.video_width = video_metadata.get("video_width")
+                        detection.video_height = video_metadata.get("video_height")
 
                     session.add(detection)
                     detections.append(detection)

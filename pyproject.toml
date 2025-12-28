@@ -43,9 +43,9 @@ ignore = [
     "RUF006",  # asyncio.create_task without storing (valid in signal handlers)
     "PTH110", # os.path.exists() - acceptable pattern
     "PTH123", # open() instead of Path.open() - acceptable pattern
-    "TC001",  # Python 3.14 deferred annotations break TYPE_CHECKING imports with mocking
-    "TC002",  # Python 3.14 deferred annotations break TYPE_CHECKING imports with mocking
-    "TC003",  # Python 3.14 deferred annotations break TYPE_CHECKING imports with mocking
+    "TC001",  # TYPE_CHECKING imports break mocking in tests - keep imports at runtime
+    "TC002",  # TYPE_CHECKING imports break mocking in tests - keep imports at runtime
+    "TC003",  # TYPE_CHECKING imports break mocking in tests - keep imports at runtime
 ]
 
 [tool.ruff.lint.per-file-ignores]

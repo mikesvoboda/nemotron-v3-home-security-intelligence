@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.schemas.detections import DetectionListResponse, DetectionResponse
 from backend.core.database import get_db
+from backend.core.mime_types import DEFAULT_VIDEO_MIME, normalize_file_type
 from backend.models.detection import Detection
 from backend.services.thumbnail_generator import ThumbnailGenerator
 from backend.services.video_processor import VideoProcessor
@@ -303,7 +304,10 @@ async def stream_detection_video(
         )
 
     file_size = Path(detection.file_path).stat().st_size
-    content_type = detection.file_type or "video/mp4"
+    # Normalize file_type to MIME type, handling legacy extension values (e.g., ".mp4")
+    content_type = (
+        normalize_file_type(detection.file_type, detection.file_path) or DEFAULT_VIDEO_MIME
+    )
 
     # Handle range request
     if range_header:

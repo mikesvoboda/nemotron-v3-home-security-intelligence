@@ -31,7 +31,7 @@ Represents an object detection result from RT-DETRv2.
 - `id` (int, PK): Auto-incrementing ID
 - `camera_id` (str, FK): References cameras.id
 - `file_path` (str): Path to source image file
-- `file_type` (str, optional): File type/extension
+- `file_type` (str, optional): MIME type (e.g., "image/jpeg", "video/mp4")
 - `detected_at` (datetime): Detection timestamp
 - `object_type` (str, optional): Detected object class
 - `confidence` (float, optional): Detection confidence (0-1)
