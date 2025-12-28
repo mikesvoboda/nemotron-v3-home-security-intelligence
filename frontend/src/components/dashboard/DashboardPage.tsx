@@ -1,13 +1,23 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 
 import ActivityFeed, { type ActivityEvent } from './ActivityFeed';
 import CameraGrid, { type CameraStatus } from './CameraGrid';
 import GpuStats from './GpuStats';
 import RiskGauge from './RiskGauge';
 import StatsRow from './StatsRow';
-import { useEventStream } from '../../hooks/useEventStream';
+import { useEventStream, type SecurityEvent } from '../../hooks/useEventStream';
 import { useSystemStatus } from '../../hooks/useSystemStatus';
-import { fetchCameras, fetchGPUStats, type Camera, type GPUStats } from '../../services/api';
+import {
+  fetchCameras,
+  fetchGPUStats,
+  fetchEvents,
+  fetchEventStats,
+  getCameraSnapshotUrl,
+  type Camera,
+  type GPUStats,
+  type Event,
+  type EventStatsResponse,
+} from '../../services/api';
 
 /**
  * Main Dashboard Page Component
@@ -27,28 +37,39 @@ export default function DashboardPage() {
   // State for REST API data
   const [cameras, setCameras] = useState<Camera[]>([]);
   const [gpuStats, setGpuStats] = useState<GPUStats | null>(null);
+  const [initialEvents, setInitialEvents] = useState<Event[]>([]);
+  const [eventStats, setEventStats] = useState<EventStatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // WebSocket hooks for real-time data
-  const { events, isConnected: eventsConnected } = useEventStream();
+  const { events: wsEvents, isConnected: eventsConnected } = useEventStream();
   const { status: systemStatus, isConnected: systemConnected } = useSystemStatus();
 
-  // Fetch initial data
+  // Fetch initial data including events and stats
   useEffect(() => {
     async function loadInitialData() {
       setLoading(true);
       setError(null);
 
       try {
-        // Fetch cameras and GPU stats in parallel
-        const [camerasData, gpuData] = await Promise.all([
+        // Calculate today's date range for stats
+        const today = new Date();
+        const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const startDate = startOfDay.toISOString();
+
+        // Fetch cameras, GPU stats, events, and event stats in parallel
+        const [camerasData, gpuData, eventsData, statsData] = await Promise.all([
           fetchCameras(),
           fetchGPUStats(),
+          fetchEvents({ limit: 50 }),
+          fetchEventStats({ start_date: startDate }),
         ]);
 
         setCameras(camerasData);
         setGpuStats(gpuData);
+        setInitialEvents(eventsData.events);
+        setEventStats(statsData);
       } catch (err) {
         console.error('Failed to load initial data:', err);
         setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
@@ -76,27 +97,63 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Calculate current risk score from system status or latest event
-  const currentRiskScore = events.length > 0 ? events[0].risk_score : 0;
+  // Merge WebSocket events with initial events, avoiding duplicates
+  // WebSocket events take precedence (they're newer)
+  const mergedEvents: SecurityEvent[] = useMemo(() => {
+    // Create a Set of WebSocket event IDs for deduplication
+    const wsEventIds = new Set(wsEvents.map((e) => String(e.id)));
 
-  // Calculate risk history from recent events (last 10)
-  const riskHistory = events.slice(0, 10).reverse().map((event) => event.risk_score);
+    // Convert initial events to SecurityEvent format, excluding any that are also in wsEvents
+    const initialSecurityEvents: SecurityEvent[] = initialEvents
+      .filter((event) => !wsEventIds.has(String(event.id)))
+      .map((event) => ({
+        id: event.id,
+        camera_id: event.camera_id,
+        risk_score: event.risk_score ?? 0,
+        risk_level: (event.risk_level as SecurityEvent['risk_level']) ?? 'low',
+        summary: event.summary ?? '',
+        started_at: event.started_at,
+      }));
+
+    // Combine: WebSocket events first (newest), then initial events
+    return [...wsEvents, ...initialSecurityEvents];
+  }, [wsEvents, initialEvents]);
+
+  // Calculate current risk score from latest merged event
+  const currentRiskScore = mergedEvents.length > 0 ? mergedEvents[0].risk_score : 0;
+
+  // Calculate risk history from recent merged events (last 10)
+  const riskHistory = mergedEvents.slice(0, 10).reverse().map((event) => event.risk_score);
 
   // Calculate active cameras count
   const activeCamerasCount = cameras.filter((camera) => camera.status === 'online').length;
 
-  // Calculate events today count
-  const eventsToday = events.filter((event) => {
-    const eventTimestamp = event.timestamp ?? event.started_at;
-    if (!eventTimestamp) return false;
-    const eventDate = new Date(eventTimestamp);
+  // Calculate events today count from stats API (accurate) plus any new WebSocket events
+  // eventStats.total_events gives us the count at page load, then we add new WS events from today
+  const eventsToday = useMemo(() => {
+    // Start with stats from API (events today at time of page load)
+    const statsCount = eventStats?.total_events ?? 0;
+
+    // Count WebSocket events that are from today and not in initial events
+    // (to avoid double-counting events that were already in the stats)
+    const initialEventIds = new Set(initialEvents.map((e) => String(e.id)));
     const today = new Date();
-    return (
-      eventDate.getDate() === today.getDate() &&
-      eventDate.getMonth() === today.getMonth() &&
-      eventDate.getFullYear() === today.getFullYear()
-    );
-  }).length;
+    const newWsEventsToday = wsEvents.filter((event) => {
+      // Skip if this event was in initial load (already counted in stats)
+      if (initialEventIds.has(String(event.id))) return false;
+
+      const eventTimestamp = event.timestamp ?? event.started_at;
+      if (!eventTimestamp) return false;
+      const eventDate = new Date(eventTimestamp);
+      return (
+        eventDate.getDate() === today.getDate() &&
+        eventDate.getMonth() === today.getMonth() &&
+        eventDate.getFullYear() === today.getFullYear()
+      );
+    }).length;
+
+    return statsCount + newWsEventsToday;
+  }, [eventStats, wsEvents, initialEvents]);
 
   // Determine system health status
   const systemHealth = systemStatus?.health ?? 'unknown';
@@ -106,11 +163,12 @@ export default function DashboardPage() {
     id: camera.id,
     name: camera.name,
     status: (camera.status === 'online' || camera.status === 'offline' || camera.status === 'error') ? camera.status : 'unknown',
+    thumbnail_url: getCameraSnapshotUrl(camera.id),
     last_seen_at: camera.last_seen_at ?? undefined,
   }));
 
-  // Convert SecurityEvent[] to ActivityEvent[] for ActivityFeed
-  const activityEvents: ActivityEvent[] = events.map((event) => ({
+  // Convert merged events to ActivityEvent[] for ActivityFeed
+  const activityEvents: ActivityEvent[] = mergedEvents.map((event) => ({
     id: String(event.id),
     timestamp: event.timestamp ?? event.started_at ?? new Date().toISOString(),
     camera_name: event.camera_name ?? 'Unknown Camera',

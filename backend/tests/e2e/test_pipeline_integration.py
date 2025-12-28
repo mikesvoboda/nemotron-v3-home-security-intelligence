@@ -117,12 +117,13 @@ async def mock_redis_client():
         # Simulate publishing (return subscriber count)
         return 1
 
-    async def mock_keys(pattern):
-        # Return keys matching pattern
+    async def mock_scan_iter(match="*", count=100):
+        """Async generator for SCAN iteration (replacement for KEYS)."""
         import fnmatch
 
-        matching_keys = [k for k in batch_data if fnmatch.fnmatch(k, pattern)]
-        return matching_keys
+        for k in batch_data:
+            if fnmatch.fnmatch(k, match):
+                yield k
 
     mock_redis.get = AsyncMock(side_effect=mock_get)
     mock_redis.set = AsyncMock(side_effect=mock_set)
@@ -130,9 +131,9 @@ async def mock_redis_client():
     mock_redis.add_to_queue = AsyncMock(side_effect=mock_add_to_queue)
     mock_redis.publish = AsyncMock(side_effect=mock_publish)
 
-    # Mock internal _client for batch timeout checks
-    mock_internal_client = AsyncMock()
-    mock_internal_client.keys = AsyncMock(side_effect=mock_keys)
+    # Mock internal _client for batch timeout checks (using scan_iter instead of keys)
+    mock_internal_client = MagicMock()
+    mock_internal_client.scan_iter = mock_scan_iter
     mock_redis._client = mock_internal_client
 
     # Store batch_data for test verification

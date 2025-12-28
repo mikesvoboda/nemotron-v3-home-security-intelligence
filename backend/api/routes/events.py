@@ -124,6 +124,7 @@ async def list_events(
             "risk_score": event.risk_score,
             "risk_level": event.risk_level,
             "summary": event.summary,
+            "reasoning": event.reasoning,
             "reviewed": event.reviewed,
             "detection_count": detection_count,
         }
@@ -253,6 +254,7 @@ async def get_event(
         "risk_score": event.risk_score,
         "risk_level": event.risk_level,
         "summary": event.summary,
+        "reasoning": event.reasoning,
         "reviewed": event.reviewed,
         "notes": event.notes,
         "detection_count": detection_count,
@@ -309,6 +311,7 @@ async def update_event(
         "risk_score": event.risk_score,
         "risk_level": event.risk_level,
         "summary": event.summary,
+        "reasoning": event.reasoning,
         "reviewed": event.reviewed,
         "notes": event.notes,
         "detection_count": detection_count,

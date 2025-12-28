@@ -28,6 +28,7 @@ export interface EventCardProps {
   started_at?: string;
   ended_at?: string | null;
   onViewDetails?: (eventId: string) => void;
+  onClick?: (eventId: string) => void;
   className?: string;
 }
 
@@ -46,6 +47,7 @@ export default function EventCard({
   started_at,
   ended_at,
   onViewDetails,
+  onClick,
   className = '',
 }: EventCardProps) {
   const [showReasoning, setShowReasoning] = useState(false);
@@ -128,14 +130,43 @@ export default function EventCard({
     return borderColors[riskLevel];
   };
 
+  // Handle card click - don't trigger if clicking on interactive elements
+  const handleCardClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Check if the click target is an interactive element (button, etc.)
+    const target = e.target as HTMLElement;
+    const isInteractive = target.closest('button') || target.closest('a');
+
+    if (onClick && !isInteractive) {
+      onClick(id);
+    }
+  };
+
+  // Determine if card should be clickable
+  const isClickable = !!onClick;
+
   return (
     <div
-      className={`rounded-lg border border-gray-800 ${getBorderColorClass()} border-l-4 bg-[#1F1F1F] p-4 shadow-lg transition-all hover:border-gray-700 ${className}`}
+      className={`rounded-lg border border-gray-800 ${getBorderColorClass()} border-l-4 bg-[#1F1F1F] p-4 shadow-lg transition-all hover:border-gray-700 ${isClickable ? 'cursor-pointer hover:bg-[#252525]' : ''} ${className}`}
+      onClick={handleCardClick}
+      onKeyDown={(e) => {
+        if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          onClick?.(id);
+        }
+      }}
+      role={isClickable ? 'button' : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      aria-label={isClickable ? `View details for event from ${camera_name}` : undefined}
     >
       {/* Header: Camera name, timestamp, risk badge */}
       <div className="mb-3 flex items-start justify-between">
-        <div className="flex-1">
-          <h3 className="text-base font-semibold text-white">{camera_name}</h3>
+        <div className="min-w-0 flex-1">
+          <h3
+            className="truncate text-base font-semibold text-white"
+            title={camera_name}
+          >
+            {camera_name}
+          </h3>
           <div className="mt-1 flex flex-col gap-1">
             <div className="flex items-center gap-1.5 text-sm text-gray-400">
               <Clock className="h-3.5 w-3.5" />

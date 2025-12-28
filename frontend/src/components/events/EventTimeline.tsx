@@ -2,11 +2,13 @@ import { Calendar, CheckSquare, ChevronLeft, ChevronRight, Filter, Search, Squar
 import { useEffect, useState } from 'react';
 
 import EventCard from './EventCard';
-import { bulkUpdateEvents, fetchCameras, fetchEvents } from '../../services/api';
+import EventDetailModal from './EventDetailModal';
+import { bulkUpdateEvents, fetchCameras, fetchEvents, updateEvent } from '../../services/api';
 import { getRiskLevel } from '../../utils/risk';
 import RiskBadge from '../common/RiskBadge';
 
 import type { Detection } from './EventCard';
+import type { Event as ModalEvent } from './EventDetailModal';
 import type { Camera, Event, EventsQueryParams } from '../../services/api';
 import type { RiskLevel } from '../../utils/risk';
 
@@ -43,6 +45,9 @@ export default function EventTimeline({
   // State for selection and bulk actions
   const [selectedEventIds, setSelectedEventIds] = useState<Set<number>>(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
+
+  // State for event detail modal
+  const [selectedEventForModal, setSelectedEventForModal] = useState<number | null>(null);
 
   // Load cameras for filter dropdown
   useEffect(() => {
@@ -219,6 +224,62 @@ export default function EventTimeline({
       onViewDetails: onViewEventDetails
         ? () => onViewEventDetails(event.id)
         : undefined,
+      onClick: (eventId: string) => setSelectedEventForModal(parseInt(eventId, 10)),
+    };
+  };
+
+  // Handle modal close
+  const handleModalClose = () => {
+    setSelectedEventForModal(null);
+  };
+
+  // Handle mark as reviewed from modal
+  const handleMarkReviewed = async (eventId: string) => {
+    try {
+      await updateEvent(parseInt(eventId, 10), { reviewed: true });
+      // Reload events to reflect changes
+      const response = await fetchEvents(filters);
+      setEvents(response.events);
+      setTotalCount(response.count);
+    } catch (err) {
+      console.error('Failed to mark event as reviewed:', err);
+    }
+  };
+
+  // Handle navigation between events in modal
+  const handleNavigate = (direction: 'prev' | 'next') => {
+    if (selectedEventForModal === null) return;
+
+    const currentIndex = filteredEvents.findIndex((e) => e.id === selectedEventForModal);
+    if (currentIndex === -1) return;
+
+    const newIndex = direction === 'prev' ? currentIndex - 1 : currentIndex + 1;
+    if (newIndex >= 0 && newIndex < filteredEvents.length) {
+      setSelectedEventForModal(filteredEvents[newIndex].id);
+    }
+  };
+
+  // Convert API Event to ModalEvent format
+  const getModalEvent = (): ModalEvent | null => {
+    if (selectedEventForModal === null) return null;
+
+    const event = filteredEvents.find((e) => e.id === selectedEventForModal);
+    if (!event) return null;
+
+    const camera = cameras.find((c) => c.id === event.camera_id);
+
+    return {
+      id: String(event.id),
+      timestamp: event.started_at,
+      camera_name: camera?.name || 'Unknown Camera',
+      risk_score: event.risk_score || 0,
+      risk_label: event.risk_level || getRiskLevel(event.risk_score || 0),
+      summary: event.summary || 'No summary available',
+      detections: [], // Detections will be loaded by the modal
+      started_at: event.started_at,
+      ended_at: event.ended_at,
+      reviewed: event.reviewed,
+      notes: event.notes,
     };
   };
 
@@ -410,7 +471,9 @@ export default function EventTimeline({
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-2">
           <p className="text-sm text-gray-400">
-            Showing {offset + 1}-{Math.min(offset + filteredEvents.length, totalCount)} of {totalCount} events
+            {totalCount === 0
+              ? '0 events'
+              : `Showing ${offset + 1}-${Math.min(offset + filteredEvents.length, totalCount)} of ${totalCount} events`}
           </p>
           {/* Risk Summary Badges */}
           {!loading && !error && filteredEvents.length > 0 && (
@@ -580,6 +643,15 @@ export default function EventTimeline({
           </button>
         </div>
       )}
+
+      {/* Event Detail Modal */}
+      <EventDetailModal
+        event={getModalEvent()}
+        isOpen={selectedEventForModal !== null}
+        onClose={handleModalClose}
+        onMarkReviewed={(eventId) => void handleMarkReviewed(eventId)}
+        onNavigate={handleNavigate}
+      />
     </div>
   );
 }

@@ -788,6 +788,45 @@ describe('EventTimeline', () => {
         screen.getByText('Try adjusting your filters or search query')
       ).toBeInTheDocument();
     });
+
+    it('shows "0 events" instead of confusing "1-0 of 0" when empty', async () => {
+      vi.mocked(api.fetchEvents).mockResolvedValue({
+        events: [],
+        count: 0,
+        limit: 20,
+        offset: 0,
+      });
+
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('No Events Found')).toBeInTheDocument();
+      });
+
+      // Should show "0 events" not "1-0 of 0 events"
+      expect(screen.getByText('0 events')).toBeInTheDocument();
+      expect(screen.queryByText(/1-0 of 0/)).not.toBeInTheDocument();
+    });
+
+    it('does not show pagination controls when empty', async () => {
+      vi.mocked(api.fetchEvents).mockResolvedValue({
+        events: [],
+        count: 0,
+        limit: 20,
+        offset: 0,
+      });
+
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('No Events Found')).toBeInTheDocument();
+      });
+
+      // Pagination controls should not be present when there are no events
+      expect(screen.queryByLabelText('Previous page')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Next page')).not.toBeInTheDocument();
+      expect(screen.queryByText(/Page \d+ of \d+/)).not.toBeInTheDocument();
+    });
   });
 
   describe('Event Card Integration', () => {
@@ -1439,6 +1478,83 @@ describe('EventTimeline', () => {
       await waitFor(() => {
         expect(screen.getByText('2', { selector: '.text-orange-400' })).toBeInTheDocument(); // High
       });
+    });
+  });
+
+  describe('Event Detail Modal', () => {
+    it('opens modal when clicking on event card', async () => {
+      const user = userEvent.setup();
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Click on the event summary text (part of the card, not a button)
+      const summaryText = screen.getByText('Person detected near entrance');
+      await user.click(summaryText);
+
+      // Modal should open - check for modal title (camera name)
+      await waitFor(() => {
+        // The modal should display the camera name as title
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+    });
+
+    it('closes modal when close button is clicked', async () => {
+      const user = userEvent.setup();
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Open modal by clicking on event
+      const summaryText = screen.getByText('Person detected near entrance');
+      await user.click(summaryText);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
+      // Close modal
+      const closeButton = screen.getByLabelText('Close modal');
+      await user.click(closeButton);
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
+    });
+
+    it('event cards are clickable with cursor-pointer', async () => {
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Find event cards by their role (they should have role="button" since onClick is provided)
+      const cardButtons = screen.getAllByRole('button', {
+        name: /View details for event from/,
+      });
+      expect(cardButtons.length).toBeGreaterThan(0);
+    });
+
+    it('View Details button calls onViewEventDetails when provided', async () => {
+      const user = userEvent.setup();
+      const handleViewDetails = vi.fn();
+      render(<EventTimeline onViewEventDetails={handleViewDetails} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Click View Details button
+      const viewDetailsButtons = screen.getAllByText('View Details');
+      await user.click(viewDetailsButtons[0]);
+
+      // onViewEventDetails should be called
+      expect(handleViewDetails).toHaveBeenCalledWith(1);
     });
   });
 });

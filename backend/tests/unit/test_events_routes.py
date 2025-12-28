@@ -31,6 +31,7 @@ def create_mock_event(
     risk_score: int | None = 75,
     risk_level: str | None = "medium",
     summary: str | None = "Test event",
+    reasoning: str | None = None,
     reviewed: bool = False,
     notes: str | None = None,
     detection_ids: str | None = "1,2,3",
@@ -44,6 +45,7 @@ def create_mock_event(
     mock.risk_score = risk_score
     mock.risk_level = risk_level
     mock.summary = summary
+    mock.reasoning = reasoning
     mock.reviewed = reviewed
     mock.notes = notes
     mock.detection_ids = detection_ids
@@ -600,6 +602,78 @@ async def test_list_events_detection_ids_with_whitespace() -> None:
     assert response["events"][0]["detection_count"] == 4
 
 
+@pytest.mark.asyncio
+async def test_list_events_returns_reasoning_field() -> None:
+    """Test that list_events returns the reasoning field for each event."""
+    db = AsyncMock()
+
+    mock_event = create_mock_event(
+        event_id=1,
+        reasoning="Multiple persons detected during late night hours",
+    )
+
+    # Mock count query
+    count_result = MagicMock()
+    count_result.scalar.return_value = 1
+
+    # Mock events query
+    events_result = MagicMock()
+    events_result.scalars.return_value.all.return_value = [mock_event]
+
+    db.execute = AsyncMock(side_effect=[count_result, events_result])
+
+    response = await events_routes.list_events(
+        camera_id=None,
+        risk_level=None,
+        start_date=None,
+        end_date=None,
+        reviewed=None,
+        object_type=None,
+        limit=50,
+        offset=0,
+        db=db,
+    )
+
+    assert len(response["events"]) == 1
+    assert response["events"][0]["reasoning"] == "Multiple persons detected during late night hours"
+
+
+@pytest.mark.asyncio
+async def test_list_events_returns_none_reasoning_when_not_set() -> None:
+    """Test that list_events returns None reasoning when not set."""
+    db = AsyncMock()
+
+    mock_event = create_mock_event(
+        event_id=1,
+        reasoning=None,
+    )
+
+    # Mock count query
+    count_result = MagicMock()
+    count_result.scalar.return_value = 1
+
+    # Mock events query
+    events_result = MagicMock()
+    events_result.scalars.return_value.all.return_value = [mock_event]
+
+    db.execute = AsyncMock(side_effect=[count_result, events_result])
+
+    response = await events_routes.list_events(
+        camera_id=None,
+        risk_level=None,
+        start_date=None,
+        end_date=None,
+        reviewed=None,
+        object_type=None,
+        limit=50,
+        offset=0,
+        db=db,
+    )
+
+    assert len(response["events"]) == 1
+    assert response["events"][0]["reasoning"] is None
+
+
 # =============================================================================
 # get_event_stats Endpoint Tests
 # =============================================================================
@@ -901,9 +975,50 @@ async def test_get_event_includes_all_fields() -> None:
     assert "risk_score" in response
     assert "risk_level" in response
     assert "summary" in response
+    assert "reasoning" in response
     assert "reviewed" in response
     assert "notes" in response
     assert "detection_count" in response
+
+
+@pytest.mark.asyncio
+async def test_get_event_returns_reasoning_field() -> None:
+    """Test that get_event returns the reasoning field."""
+    db = AsyncMock()
+
+    mock_event = create_mock_event(
+        event_id=42,
+        risk_score=85,
+        risk_level="high",
+        reasoning="Person detected at unusual hour near restricted area",
+    )
+
+    result = MagicMock()
+    result.scalar_one_or_none.return_value = mock_event
+    db.execute = AsyncMock(return_value=result)
+
+    response = await events_routes.get_event(event_id=42, db=db)
+
+    assert response["reasoning"] == "Person detected at unusual hour near restricted area"
+
+
+@pytest.mark.asyncio
+async def test_get_event_returns_none_reasoning_when_not_set() -> None:
+    """Test that get_event returns None reasoning when not set."""
+    db = AsyncMock()
+
+    mock_event = create_mock_event(
+        event_id=1,
+        reasoning=None,
+    )
+
+    result = MagicMock()
+    result.scalar_one_or_none.return_value = mock_event
+    db.execute = AsyncMock(return_value=result)
+
+    response = await events_routes.get_event(event_id=1, db=db)
+
+    assert response["reasoning"] is None
 
 
 # =============================================================================
@@ -1060,8 +1175,32 @@ async def test_update_event_returns_correct_response() -> None:
     assert "risk_score" in response
     assert "risk_level" in response
     assert "summary" in response
+    assert "reasoning" in response
     assert "reviewed" in response
     assert "notes" in response
+
+
+@pytest.mark.asyncio
+async def test_update_event_preserves_reasoning_field() -> None:
+    """Test that update_event preserves reasoning field in response."""
+    db = AsyncMock()
+
+    mock_event = create_mock_event(
+        event_id=1,
+        reasoning="Original reasoning for risk score",
+        reviewed=False,
+    )
+
+    result = MagicMock()
+    result.scalar_one_or_none.return_value = mock_event
+    db.execute = AsyncMock(return_value=result)
+    db.commit = AsyncMock()
+    db.refresh = AsyncMock()
+
+    update_data = EventUpdate(reviewed=True)
+    response = await events_routes.update_event(event_id=1, update_data=update_data, db=db)
+
+    assert response["reasoning"] == "Original reasoning for risk score"
 
 
 @pytest.mark.asyncio

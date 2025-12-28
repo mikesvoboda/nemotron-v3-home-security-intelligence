@@ -10,6 +10,7 @@ import {
   createCamera,
   updateCamera,
   deleteCamera,
+  getCameraSnapshotUrl,
   fetchHealth,
   fetchGPUStats,
   fetchConfig,
@@ -17,6 +18,7 @@ import {
   fetchStats,
   fetchEvents,
   fetchEvent,
+  fetchEventStats,
   updateEvent,
   bulkUpdateEvents,
   fetchEventDetections,
@@ -35,7 +37,9 @@ import {
   type SystemStats,
   type Event,
   type EventListResponse,
+  type EventStatsResponse,
   type EventsQueryParams,
+  type EventStatsQueryParams,
   type EventUpdateData,
   type Detection,
   type DetectionListResponse,
@@ -118,6 +122,28 @@ const mockEventListResponse: EventListResponse = {
   count: 1,
   limit: 50,
   offset: 0,
+};
+
+const mockEventStatsResponse: EventStatsResponse = {
+  total_events: 44,
+  events_by_risk_level: {
+    critical: 2,
+    high: 5,
+    medium: 12,
+    low: 25,
+  },
+  events_by_camera: [
+    {
+      camera_id: 'cam-1',
+      camera_name: 'Front Door',
+      event_count: 30,
+    },
+    {
+      camera_id: 'cam-2',
+      camera_name: 'Backyard',
+      event_count: 14,
+    },
+  ],
 };
 
 const mockDetection: Detection = {
@@ -840,6 +866,92 @@ describe('Events API', () => {
     });
   });
 
+  describe('fetchEventStats', () => {
+    it('fetches event stats without params', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockEventStatsResponse));
+
+      const result = await fetchEventStats();
+
+      expect(fetch).toHaveBeenCalledWith('/api/events/stats', {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      expect(result).toEqual(mockEventStatsResponse);
+      expect(result.total_events).toBe(44);
+    });
+
+    it('fetches event stats with date params', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockEventStatsResponse));
+
+      const params: EventStatsQueryParams = {
+        start_date: '2025-01-01T00:00:00Z',
+        end_date: '2025-01-31T23:59:59Z',
+      };
+
+      await fetchEventStats(params);
+
+      const callUrl = vi.mocked(fetch).mock.calls[0][0] as string;
+      expect(callUrl).toContain('/api/events/stats?');
+      expect(callUrl).toContain('start_date=2025-01-01T00%3A00%3A00Z');
+      expect(callUrl).toContain('end_date=2025-01-31T23%3A59%3A59Z');
+    });
+
+    it('fetches event stats with only start_date', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockEventStatsResponse));
+
+      const params: EventStatsQueryParams = {
+        start_date: '2025-01-01T00:00:00Z',
+      };
+
+      await fetchEventStats(params);
+
+      const callUrl = vi.mocked(fetch).mock.calls[0][0] as string;
+      expect(callUrl).toContain('start_date=2025-01-01T00%3A00%3A00Z');
+      expect(callUrl).not.toContain('end_date');
+    });
+
+    it('returns events by risk level breakdown', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockEventStatsResponse));
+
+      const result = await fetchEventStats();
+
+      expect(result.events_by_risk_level.critical).toBe(2);
+      expect(result.events_by_risk_level.high).toBe(5);
+      expect(result.events_by_risk_level.medium).toBe(12);
+      expect(result.events_by_risk_level.low).toBe(25);
+    });
+
+    it('returns events by camera breakdown', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockEventStatsResponse));
+
+      const result = await fetchEventStats();
+
+      expect(result.events_by_camera).toHaveLength(2);
+      expect(result.events_by_camera[0].camera_id).toBe('cam-1');
+      expect(result.events_by_camera[0].camera_name).toBe('Front Door');
+      expect(result.events_by_camera[0].event_count).toBe(30);
+    });
+
+    it('handles empty stats', async () => {
+      const emptyStats: EventStatsResponse = {
+        total_events: 0,
+        events_by_risk_level: {
+          critical: 0,
+          high: 0,
+          medium: 0,
+          low: 0,
+        },
+        events_by_camera: [],
+      };
+
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(emptyStats));
+
+      const result = await fetchEventStats();
+
+      expect(result.total_events).toBe(0);
+      expect(result.events_by_camera).toEqual([]);
+    });
+  });
+
   describe('updateEvent', () => {
     it('updates event reviewed status', async () => {
       const updateData: EventUpdateData = { reviewed: true };
@@ -1070,6 +1182,28 @@ describe('Media URLs', () => {
   it('handles URL-encoded characters', () => {
     const url = getThumbnailUrl('image%20encoded.jpg');
     expect(url).toBe('/api/media/thumbnails/image%20encoded.jpg');
+  });
+});
+
+describe('Camera Snapshot URL', () => {
+  it('constructs camera snapshot URL correctly', () => {
+    const url = getCameraSnapshotUrl('cam-123');
+    expect(url).toBe('/api/cameras/cam-123/snapshot');
+  });
+
+  it('handles UUIDs correctly', () => {
+    const url = getCameraSnapshotUrl('123e4567-e89b-12d3-a456-426614174000');
+    expect(url).toBe('/api/cameras/123e4567-e89b-12d3-a456-426614174000/snapshot');
+  });
+
+  it('URL-encodes special characters in camera ID', () => {
+    const url = getCameraSnapshotUrl('camera with spaces');
+    expect(url).toBe('/api/cameras/camera%20with%20spaces/snapshot');
+  });
+
+  it('handles camera IDs with special URL characters', () => {
+    const url = getCameraSnapshotUrl('camera/path');
+    expect(url).toBe('/api/cameras/camera%2Fpath/snapshot');
   });
 });
 

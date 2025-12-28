@@ -12,6 +12,16 @@ from backend.services.batch_aggregator import BatchAggregator
 # Fixtures
 
 
+def create_async_generator(items):
+    """Create an async generator that yields items."""
+
+    async def _generator():
+        for item in items:
+            yield item
+
+    return _generator()
+
+
 @pytest.fixture
 def mock_redis_client():
     """Mock Redis client with common operations."""
@@ -23,7 +33,8 @@ def mock_redis_client():
     mock_client.rpush = AsyncMock(return_value=1)
     mock_client.lrange = AsyncMock(return_value=[])
     mock_client.llen = AsyncMock(return_value=0)
-    mock_client.keys = AsyncMock(return_value=[])
+    # Use scan_iter instead of keys (returns async generator)
+    mock_client.scan_iter = MagicMock(return_value=create_async_generator([]))
     return mock_client
 
 
@@ -164,7 +175,9 @@ async def test_check_batch_timeouts_window_exceeded(batch_aggregator, mock_redis
     # Mock: Batch that started 95 seconds ago (exceeds 90s window)
     start_time = time.time() - 95
 
-    mock_redis_instance._client.keys.return_value = [f"batch:{camera_id}:current"]
+    mock_redis_instance._client.scan_iter = MagicMock(
+        return_value=create_async_generator([f"batch:{camera_id}:current"])
+    )
 
     async def mock_get(key):
         if key == f"batch:{camera_id}:current":
@@ -200,7 +213,9 @@ async def test_check_batch_timeouts_idle_exceeded(batch_aggregator, mock_redis_i
     start_time = time.time() - 40
     last_activity = time.time() - 35
 
-    mock_redis_instance._client.keys.return_value = [f"batch:{camera_id}:current"]
+    mock_redis_instance._client.scan_iter = MagicMock(
+        return_value=create_async_generator([f"batch:{camera_id}:current"])
+    )
 
     async def mock_get(key):
         if key == f"batch:{camera_id}:current":
@@ -233,7 +248,9 @@ async def test_check_batch_timeouts_no_timeout(batch_aggregator, mock_redis_inst
     start_time = time.time() - 30  # 30s ago
     last_activity = time.time() - 5  # 5s ago
 
-    mock_redis_instance._client.keys.return_value = [f"batch:{camera_id}:current"]
+    mock_redis_instance._client.scan_iter = MagicMock(
+        return_value=create_async_generator([f"batch:{camera_id}:current"])
+    )
 
     async def mock_get(key):
         if key == f"batch:{camera_id}:current":
@@ -451,7 +468,9 @@ async def test_check_batch_timeouts_missing_started_at(batch_aggregator, mock_re
     batch_id = "batch_no_start"
     camera_id = "front_door"
 
-    mock_redis_instance._client.keys.return_value = [f"batch:{camera_id}:current"]
+    mock_redis_instance._client.scan_iter = MagicMock(
+        return_value=create_async_generator([f"batch:{camera_id}:current"])
+    )
 
     async def mock_get(key):
         if key == f"batch:{camera_id}:current":
@@ -476,7 +495,9 @@ async def test_check_batch_timeouts_exception_handling(batch_aggregator, mock_re
     batch_id = "batch_error"
     camera_id = "front_door"
 
-    mock_redis_instance._client.keys.return_value = [f"batch:{camera_id}:current"]
+    mock_redis_instance._client.scan_iter = MagicMock(
+        return_value=create_async_generator([f"batch:{camera_id}:current"])
+    )
 
     async def mock_get(key):
         if key == f"batch:{camera_id}:current":
@@ -499,7 +520,9 @@ async def test_check_batch_timeouts_no_batch_id(batch_aggregator, mock_redis_ins
     """Test handling when batch key exists but batch_id is None."""
     camera_id = "front_door"
 
-    mock_redis_instance._client.keys.return_value = [f"batch:{camera_id}:current"]
+    mock_redis_instance._client.scan_iter = MagicMock(
+        return_value=create_async_generator([f"batch:{camera_id}:current"])
+    )
 
     async def mock_get(key):
         if key == f"batch:{camera_id}:current":
@@ -511,6 +534,64 @@ async def test_check_batch_timeouts_no_batch_id(batch_aggregator, mock_redis_ins
     closed_batches = await batch_aggregator.check_batch_timeouts()
 
     # Should skip when batch_id is None
+    assert len(closed_batches) == 0
+
+
+@pytest.mark.asyncio
+async def test_check_batch_timeouts_uses_scan_iter_with_count(
+    batch_aggregator, mock_redis_instance
+):
+    """Test that check_batch_timeouts uses scan_iter with count parameter instead of keys.
+
+    This verifies that we use SCAN instead of KEYS to avoid blocking Redis on large keyspaces.
+    The count parameter (100) ensures reasonable batch sizes during iteration.
+    """
+    camera_id1 = "front_door"
+    camera_id2 = "back_door"
+    batch_id1 = "batch_1"
+    batch_id2 = "batch_2"
+
+    # Mock scan_iter to return multiple batch keys
+    mock_redis_instance._client.scan_iter = MagicMock(
+        return_value=create_async_generator(
+            [
+                f"batch:{camera_id1}:current",
+                f"batch:{camera_id2}:current",
+            ]
+        )
+    )
+
+    # Mock: Both batches have recent activity (no timeout)
+    start_time = time.time() - 10
+    last_activity = time.time() - 5
+
+    # Use dict-based lookup to avoid too many return statements
+    mock_values = {
+        f"batch:{camera_id1}:current": batch_id1,
+        f"batch:{camera_id2}:current": batch_id2,
+        f"batch:{batch_id1}:started_at": str(start_time),
+        f"batch:{batch_id2}:started_at": str(start_time),
+        f"batch:{batch_id1}:last_activity": str(last_activity),
+        f"batch:{batch_id2}:last_activity": str(last_activity),
+        f"batch:{batch_id1}:detections": json.dumps(["det_001"]),
+        f"batch:{batch_id2}:detections": json.dumps(["det_001"]),
+        f"batch:{batch_id1}:camera_id": camera_id1,
+        f"batch:{batch_id2}:camera_id": camera_id2,
+    }
+
+    async def mock_get(key):
+        return mock_values.get(key)
+
+    mock_redis_instance.get.side_effect = mock_get
+
+    closed_batches = await batch_aggregator.check_batch_timeouts()
+
+    # Verify scan_iter was called with correct parameters
+    mock_redis_instance._client.scan_iter.assert_called_once_with(
+        match="batch:*:current", count=100
+    )
+
+    # Should not close any batches (within timeout window)
     assert len(closed_batches) == 0
 
 

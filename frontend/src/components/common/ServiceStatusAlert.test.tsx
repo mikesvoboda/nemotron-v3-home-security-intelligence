@@ -7,6 +7,18 @@ import {
   ServiceStatus,
 } from './ServiceStatusAlert';
 
+/**
+ * Tests for ServiceStatusAlert component.
+ *
+ * NOTE: This component is currently DEPRECATED because useServiceStatus hook
+ * (which would provide data for this component) is not wired up on the backend.
+ * The backend's ServiceHealthMonitor exists but is not initialized in main.py.
+ *
+ * These tests are retained for when/if the backend is wired up in the future.
+ *
+ * See bead vq8.11 for context.
+ */
+
 // Helper to create service status
 function createServiceStatus(
   service: ServiceName,
@@ -30,7 +42,7 @@ function createEmptyServices(): Record<ServiceName, ServiceStatus | null> {
   };
 }
 
-describe('ServiceStatusAlert', () => {
+describe('ServiceStatusAlert (DEPRECATED - backend not wired)', () => {
   describe('visibility', () => {
     it('returns null when all services are null', () => {
       const services = createEmptyServices();

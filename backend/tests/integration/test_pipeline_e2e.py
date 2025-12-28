@@ -39,9 +39,19 @@ class MockRedisClient:
     def __init__(self) -> None:
         self._store: dict[str, Any] = {}
         self._queues: dict[str, list[Any]] = {}
-        # Create a mock inner client that supports async keys()
+        # Create a mock inner client that supports async scan_iter()
         self._client = AsyncMock()
-        self._client.keys = AsyncMock(return_value=[])
+        # scan_iter returns an async generator - we'll set it up dynamically
+        self._client.scan_iter = self._create_scan_iter_mock([])
+
+    def _create_scan_iter_mock(self, keys: list[str]) -> MagicMock:
+        """Create a mock scan_iter that returns an async generator."""
+
+        async def _generator():
+            for key in keys:
+                yield key
+
+        return MagicMock(return_value=_generator())
 
     async def get(self, key: str) -> Any | None:
         return self._store.get(key)
@@ -684,9 +694,9 @@ async def test_batch_timeout_closes_batch(
     past_time = time.time() - 1.0  # 1 second ago
     await mock_redis.set(f"batch:{batch_id}:last_activity", str(past_time))
 
-    # Update the mock's _client.keys to return the batch key
+    # Update the mock's _client.scan_iter to return the batch keys
     batch_keys = mock_redis.get_batch_keys()
-    mock_redis._client.keys = AsyncMock(return_value=batch_keys)
+    mock_redis._client.scan_iter = mock_redis._create_scan_iter_mock(batch_keys)
 
     # Check for timeouts
     closed_batches = await aggregator.check_batch_timeouts()
