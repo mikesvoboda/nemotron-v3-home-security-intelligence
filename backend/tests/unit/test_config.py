@@ -100,8 +100,8 @@ class TestSettingsDefaults:
     def test_default_ai_service_urls(self, clean_env):
         """Test default AI service endpoint URLs."""
         settings = Settings()
-        assert str(settings.rtdetr_url) == "http://localhost:8090/"
-        assert str(settings.nemotron_url) == "http://localhost:8091/"
+        assert settings.rtdetr_url == "http://localhost:8090"
+        assert settings.nemotron_url == "http://localhost:8091"
 
 
 class TestEnvironmentOverrides:
@@ -189,13 +189,13 @@ class TestEnvironmentOverrides:
         """Test RTDETR_URL environment variable overrides default."""
         clean_env.setenv("RTDETR_URL", "http://gpu-server:8001")
         settings = Settings()
-        assert str(settings.rtdetr_url) == "http://gpu-server:8001/"
+        assert settings.rtdetr_url == "http://gpu-server:8001"
 
     def test_override_nemotron_url(self, clean_env):
         """Test NEMOTRON_URL environment variable overrides default."""
         clean_env.setenv("NEMOTRON_URL", "http://gpu-server:8002")
         settings = Settings()
-        assert str(settings.nemotron_url) == "http://gpu-server:8002/"
+        assert settings.nemotron_url == "http://gpu-server:8002"
 
 
 class TestTypeCoercion:
@@ -427,25 +427,25 @@ class TestAIServiceUrlValidation:
         """Test that RTDETR_URL accepts valid HTTP URLs."""
         clean_env.setenv("RTDETR_URL", "http://localhost:8090")
         settings = Settings()
-        assert str(settings.rtdetr_url) == "http://localhost:8090/"
+        assert settings.rtdetr_url == "http://localhost:8090"
 
     def test_rtdetr_url_validates_https(self, clean_env):
         """Test that RTDETR_URL accepts valid HTTPS URLs."""
         clean_env.setenv("RTDETR_URL", "https://secure-server:8090/api")
         settings = Settings()
-        assert str(settings.rtdetr_url) == "https://secure-server:8090/api"
+        assert settings.rtdetr_url == "https://secure-server:8090/api"
 
     def test_nemotron_url_validates_http(self, clean_env):
         """Test that NEMOTRON_URL accepts valid HTTP URLs."""
         clean_env.setenv("NEMOTRON_URL", "http://localhost:8091")
         settings = Settings()
-        assert str(settings.nemotron_url) == "http://localhost:8091/"
+        assert settings.nemotron_url == "http://localhost:8091"
 
     def test_nemotron_url_validates_https(self, clean_env):
         """Test that NEMOTRON_URL accepts valid HTTPS URLs."""
         clean_env.setenv("NEMOTRON_URL", "https://secure-server:8091/v1/completions")
         settings = Settings()
-        assert str(settings.nemotron_url) == "https://secure-server:8091/v1/completions"
+        assert settings.nemotron_url == "https://secure-server:8091/v1/completions"
 
     def test_invalid_rtdetr_url_raises_error(self, clean_env):
         """Test that invalid RTDETR_URL raises validation error."""
