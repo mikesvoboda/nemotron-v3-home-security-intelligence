@@ -5,6 +5,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from PIL import Image
+from watchdog.observers import Observer
+from watchdog.observers.polling import PollingObserver
 
 from backend.services.dedupe import DedupeService
 from backend.services.file_watcher import (
@@ -736,3 +738,101 @@ async def test_duplicate_file_not_processed_twice(temp_camera_root, mock_redis_c
     await watcher._queue_for_detection("camera1", str(image_path))
     # Queue count should still be 1 (not called again)
     assert mock_redis_client.add_to_queue.await_count == 1
+
+
+# Polling observer configuration tests
+
+
+def test_file_watcher_uses_native_observer_by_default(temp_camera_root, mock_redis_client):
+    """Test FileWatcher uses native Observer by default."""
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        debounce_delay=0.1,
+    )
+    assert isinstance(watcher.observer, Observer)
+    assert not isinstance(watcher.observer, PollingObserver)
+
+
+def test_file_watcher_uses_polling_observer_when_configured(temp_camera_root, mock_redis_client):
+    """Test FileWatcher uses PollingObserver when use_polling=True."""
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        debounce_delay=0.1,
+        use_polling=True,
+    )
+    assert isinstance(watcher.observer, PollingObserver)
+
+
+def test_file_watcher_polling_interval_configuration(temp_camera_root, mock_redis_client):
+    """Test FileWatcher respects custom polling interval."""
+    custom_interval = 5.0
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        debounce_delay=0.1,
+        use_polling=True,
+        polling_interval=custom_interval,
+    )
+    assert isinstance(watcher.observer, PollingObserver)
+    # PollingObserver stores timeout as the polling interval
+    assert watcher._polling_interval == custom_interval
+
+
+def test_file_watcher_uses_settings_for_polling(temp_camera_root, mock_redis_client):
+    """Test FileWatcher uses settings when use_polling is not explicitly set."""
+    with patch("backend.services.file_watcher.get_settings") as mock_settings:
+        mock_settings.return_value.foscam_base_path = str(temp_camera_root)
+        mock_settings.return_value.file_watcher_polling = True
+        mock_settings.return_value.file_watcher_polling_interval = 2.5
+
+        watcher = FileWatcher(
+            camera_root=str(temp_camera_root),
+            redis_client=mock_redis_client,
+            debounce_delay=0.1,
+        )
+
+        assert isinstance(watcher.observer, PollingObserver)
+        assert watcher._polling_interval == 2.5
+
+
+def test_file_watcher_explicit_use_polling_overrides_settings(temp_camera_root, mock_redis_client):
+    """Test explicit use_polling parameter overrides settings."""
+    with patch("backend.services.file_watcher.get_settings") as mock_settings:
+        mock_settings.return_value.foscam_base_path = str(temp_camera_root)
+        mock_settings.return_value.file_watcher_polling = True  # Settings say use polling
+        mock_settings.return_value.file_watcher_polling_interval = 2.5
+
+        # Explicitly disable polling
+        watcher = FileWatcher(
+            camera_root=str(temp_camera_root),
+            redis_client=mock_redis_client,
+            debounce_delay=0.1,
+            use_polling=False,
+        )
+
+        # Should use native observer despite settings
+        assert isinstance(watcher.observer, Observer)
+        assert not isinstance(watcher.observer, PollingObserver)
+
+
+def test_file_watcher_stores_polling_config(temp_camera_root, mock_redis_client):
+    """Test FileWatcher stores polling configuration for inspection."""
+    watcher_native = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        debounce_delay=0.1,
+        use_polling=False,
+    )
+    assert watcher_native._use_polling is False
+
+    watcher_polling = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        debounce_delay=0.1,
+        use_polling=True,
+        polling_interval=3.0,
+    )
+    assert watcher_polling._use_polling is True
+    assert watcher_polling._polling_interval == 3.0
