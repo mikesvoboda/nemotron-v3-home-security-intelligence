@@ -1088,7 +1088,11 @@ async def record_stage_latency(
     """Record a latency sample for a pipeline stage.
 
     Stores latency samples in Redis lists for later statistical analysis.
-    Samples are automatically trimmed to MAX_LATENCY_SAMPLES and expire after TTL.
+    Samples are automatically trimmed to MAX_LATENCY_SAMPLES (keeping newest)
+    and the key TTL is refreshed to LATENCY_TTL_SECONDS on each write.
+
+    The list uses RPUSH (append to end), so newer samples are at the end.
+    When trimmed, we keep the last MAX_LATENCY_SAMPLES items (newest).
 
     Args:
         redis: Redis client
@@ -1101,10 +1105,11 @@ async def record_stage_latency(
 
     key = f"{LATENCY_KEY_PREFIX}{stage}"
     try:
-        # Add to list (newest first)
-        await redis.add_to_queue(key, latency_ms)
-        # Note: Trimming and TTL would be handled by Redis commands
-        # For simplicity, we just add to the queue
+        # Add to list (appends to end, so newest samples are last)
+        # max_size trims to keep only the last MAX_LATENCY_SAMPLES items
+        await redis.add_to_queue(key, latency_ms, max_size=MAX_LATENCY_SAMPLES)
+        # Refresh TTL so inactive stages eventually expire
+        await redis.expire(key, LATENCY_TTL_SECONDS)
     except Exception as e:
         logger.warning(f"Failed to record latency for stage {stage}: {e}")
 

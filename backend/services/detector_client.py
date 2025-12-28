@@ -12,11 +12,12 @@ Detection Flow:
     6. Return Detection model instances
 
 Error Handling:
-    - Connection errors: Log and return empty list
-    - Timeouts: Log and return empty list
-    - HTTP errors: Log and return empty list
-    - Invalid JSON: Log and return empty list
-    - Missing files: Log and return empty list
+    - Connection errors: Raise DetectorUnavailableError (allows retry)
+    - Timeouts: Raise DetectorUnavailableError (allows retry)
+    - HTTP 5xx errors: Raise DetectorUnavailableError (allows retry)
+    - HTTP 4xx errors: Log and return empty list (client error, no retry)
+    - Invalid JSON: Log and return empty list (malformed response)
+    - Missing files: Log and return empty list (local file issue)
 """
 
 import time
@@ -38,6 +39,29 @@ from backend.core.mime_types import get_mime_type_with_default
 from backend.models.detection import Detection
 
 logger = get_logger(__name__)
+
+
+class DetectorUnavailableError(Exception):
+    """Raised when the RT-DETR detector service is unavailable.
+
+    This exception is raised when the detector cannot be reached due to:
+    - Connection errors (service down, network issues)
+    - Timeout errors (service overloaded, slow response)
+    - HTTP 5xx errors (server-side failures)
+
+    This exception signals that the operation should be retried later,
+    as the failure is transient and not due to invalid input.
+    """
+
+    def __init__(self, message: str, original_error: Exception | None = None):
+        """Initialize the error.
+
+        Args:
+            message: Human-readable error description
+            original_error: The underlying exception that caused this error
+        """
+        super().__init__(message)
+        self.original_error = original_error
 
 
 class DetectorClient:
@@ -75,7 +99,7 @@ class DetectorClient:
             logger.error(f"Unexpected error during detector health check: {sanitize_error(e)}")
             return False
 
-    async def detect_objects(  # noqa: PLR0911, PLR0912
+    async def detect_objects(  # noqa: PLR0912
         self,
         image_path: str,
         camera_id: str,
@@ -266,7 +290,11 @@ class DetectorClient:
                 f"Failed to connect to detector service: {e}",
                 extra={"camera_id": camera_id, "file_path": image_path, "duration_ms": duration_ms},
             )
-            return []
+            # Raise exception to signal retry is needed
+            raise DetectorUnavailableError(
+                f"Failed to connect to detector service: {e}",
+                original_error=e,
+            ) from e
 
         except httpx.TimeoutException as e:
             duration_ms = int((time.time() - start_time) * 1000)
@@ -275,14 +303,43 @@ class DetectorClient:
                 f"Detector request timed out: {e}",
                 extra={"camera_id": camera_id, "file_path": image_path, "duration_ms": duration_ms},
             )
-            return []
+            # Raise exception to signal retry is needed
+            raise DetectorUnavailableError(
+                f"Detector request timed out: {e}",
+                original_error=e,
+            ) from e
 
         except httpx.HTTPStatusError as e:
             duration_ms = int((time.time() - start_time) * 1000)
-            record_pipeline_error("rtdetr_http_error")
+            status_code = e.response.status_code
+
+            # 5xx errors are server-side failures that should be retried
+            if status_code >= 500:
+                record_pipeline_error("rtdetr_server_error")
+                logger.error(
+                    f"Detector returned server error: {status_code} - {e}",
+                    extra={
+                        "camera_id": camera_id,
+                        "file_path": image_path,
+                        "duration_ms": duration_ms,
+                        "status_code": status_code,
+                    },
+                )
+                raise DetectorUnavailableError(
+                    f"Detector returned server error: {status_code}",
+                    original_error=e,
+                ) from e
+
+            # 4xx errors are client errors (bad request, etc.) - don't retry
+            record_pipeline_error("rtdetr_client_error")
             logger.error(
-                f"Detector returned HTTP error: {e.response.status_code} - {e}",
-                extra={"camera_id": camera_id, "file_path": image_path, "duration_ms": duration_ms},
+                f"Detector returned client error: {status_code} - {e}",
+                extra={
+                    "camera_id": camera_id,
+                    "file_path": image_path,
+                    "duration_ms": duration_ms,
+                    "status_code": status_code,
+                },
             )
             return []
 
@@ -293,4 +350,9 @@ class DetectorClient:
                 f"Unexpected error during object detection: {sanitize_error(e)}",
                 extra={"camera_id": camera_id, "duration_ms": duration_ms},
             )
-            return []
+            # For unexpected errors, also raise to allow retry
+            # This could be network issues, DNS failures, etc.
+            raise DetectorUnavailableError(
+                f"Unexpected error during object detection: {sanitize_error(e)}",
+                original_error=e,
+            ) from e

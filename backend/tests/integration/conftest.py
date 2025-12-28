@@ -11,7 +11,7 @@ from __future__ import annotations
 
 # Integration tests use the shared fixtures from backend/tests/conftest.py:
 # - integration_env: Environment setup only (no DB init)
-# - integration_db: Isolated temporary SQLite database
+# - integration_db: PostgreSQL test database
 # - mock_redis: Mock Redis client
 # - db_session: Database session for direct DB access
 # - client: httpx AsyncClient for API testing
@@ -28,9 +28,17 @@ if TYPE_CHECKING:
 from httpx import ASGITransport, AsyncClient
 
 
+def _get_test_database_url() -> str:
+    """Get the test database URL."""
+    return os.environ.get(
+        "TEST_DATABASE_URL",
+        "postgresql+asyncpg://postgres:postgres@localhost:5432/security_test",
+    )
+
+
 @pytest.fixture
 def integration_env() -> Generator[str]:
-    """Set DATABASE_URL/REDIS_URL to a temporary per-test database.
+    """Set DATABASE_URL/REDIS_URL to a PostgreSQL test database.
 
     This fixture ONLY sets environment variables and clears cached settings.
     Use `integration_db` if the test needs the database initialized.
@@ -42,8 +50,7 @@ def integration_env() -> Generator[str]:
     original_runtime_env_path = os.environ.get("HSI_RUNTIME_ENV_PATH")
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "integration_test.db"
-        test_db_url = f"sqlite+aiosqlite:///{db_path}"
+        test_db_url = _get_test_database_url()
         runtime_env_path = str(Path(tmpdir) / "runtime.env")
 
         os.environ["DATABASE_URL"] = test_db_url
@@ -79,7 +86,7 @@ def integration_env() -> Generator[str]:
 
 @pytest.fixture
 async def integration_db(integration_env: str) -> AsyncGenerator[str]:
-    """Initialize a temporary SQLite DB for integration tests and cleanly tear it down."""
+    """Initialize a PostgreSQL test database for integration tests."""
     from backend.core.config import get_settings
     from backend.core.database import close_db, init_db
 

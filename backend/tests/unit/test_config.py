@@ -1,8 +1,5 @@
 """Unit tests for application configuration settings."""
 
-import tempfile
-from pathlib import Path
-
 import pytest
 
 from backend.core.config import Settings, get_settings
@@ -38,21 +35,16 @@ def clean_env(monkeypatch):
     yield monkeypatch
 
 
-@pytest.fixture
-def temp_db_path():
-    """Provide a temporary database path for testing."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "data" / "test.db"
-        yield db_path
-
-
 class TestSettingsDefaults:
     """Test that Settings class has correct default values."""
 
     def test_default_database_url(self, clean_env):
-        """Test default database URL is SQLite with correct path."""
+        """Test default database URL is PostgreSQL with correct format."""
         settings = Settings()
-        assert settings.database_url == "sqlite+aiosqlite:///./data/security.db"
+        assert (
+            settings.database_url
+            == "postgresql+asyncpg://postgres:postgres@localhost:5432/security"
+        )
 
     def test_default_redis_url(self, clean_env):
         """Test default Redis URL points to localhost."""
@@ -109,9 +101,9 @@ class TestEnvironmentOverrides:
 
     def test_override_database_url(self, clean_env):
         """Test DATABASE_URL environment variable overrides default."""
-        clean_env.setenv("DATABASE_URL", "postgresql://user:pass@localhost/testdb")
+        clean_env.setenv("DATABASE_URL", "postgresql+asyncpg://user:pass@localhost:5432/testdb")
         settings = Settings()
-        assert settings.database_url == "postgresql://user:pass@localhost/testdb"
+        assert settings.database_url == "postgresql+asyncpg://user:pass@localhost:5432/testdb"
 
     def test_override_redis_url(self, clean_env):
         """Test REDIS_URL environment variable overrides default."""
@@ -310,58 +302,41 @@ class TestSettingsSingleton:
 
 
 class TestDatabaseUrlValidation:
-    """Test the database URL validator that creates directories."""
+    """Test the database URL validator for PostgreSQL."""
 
-    def test_validator_creates_directory_for_sqlite(self, clean_env, temp_db_path):
-        """Test that SQLite database directory is created if it doesn't exist."""
-        # Use a path that doesn't exist yet
-        db_url = f"sqlite+aiosqlite:///{temp_db_path}"
-        assert not temp_db_path.parent.exists()
-
-        clean_env.setenv("DATABASE_URL", db_url)
-        _settings = Settings()
-
-        # Validator should have created the parent directory
-        assert temp_db_path.parent.exists()
-        assert temp_db_path.parent.is_dir()
-
-    def test_validator_handles_existing_directory(self, clean_env, temp_db_path):
-        """Test that validator works when directory already exists."""
-        # Create the directory first
-        temp_db_path.parent.mkdir(parents=True, exist_ok=True)
-        assert temp_db_path.parent.exists()
-
-        db_url = f"sqlite+aiosqlite:///{temp_db_path}"
-        clean_env.setenv("DATABASE_URL", db_url)
-
-        # Should not raise an error
-        settings = Settings()
-        assert settings.database_url == db_url
-
-    def test_validator_handles_memory_database(self, clean_env):
-        """Test that in-memory SQLite database doesn't create directories."""
-        clean_env.setenv("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
-        _ = Settings()
-
-    def test_validator_handles_non_sqlite_urls(self, clean_env):
-        """Test that non-SQLite database URLs are not modified."""
+    def test_validator_accepts_postgresql_asyncpg_url(self, clean_env):
+        """Test that PostgreSQL with asyncpg driver is accepted."""
         postgres_url = "postgresql+asyncpg://user:pass@localhost:5432/dbname"
         clean_env.setenv("DATABASE_URL", postgres_url)
         settings = Settings()
         assert settings.database_url == postgres_url
 
-    def test_validator_handles_nested_directory_creation(self, clean_env):
-        """Test that validator creates nested directories."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            nested_path = Path(tmpdir) / "level1" / "level2" / "level3" / "db.sqlite"
-            db_url = f"sqlite+aiosqlite:///{nested_path}"
+    def test_validator_accepts_postgresql_url(self, clean_env):
+        """Test that PostgreSQL URL without driver is accepted."""
+        postgres_url = "postgresql://user:pass@localhost:5432/dbname"
+        clean_env.setenv("DATABASE_URL", postgres_url)
+        settings = Settings()
+        assert settings.database_url == postgres_url
 
-            clean_env.setenv("DATABASE_URL", db_url)
-            _settings = Settings()
+    def test_validator_rejects_sqlite_url(self, clean_env):
+        """Test that SQLite URLs are rejected."""
+        sqlite_url = "sqlite+aiosqlite:///./data/test.db"
+        clean_env.setenv("DATABASE_URL", sqlite_url)
+        with pytest.raises(ValueError, match="Only PostgreSQL is supported"):
+            Settings()
 
-            # All nested directories should be created
-            assert nested_path.parent.exists()
-            assert (Path(tmpdir) / "level1" / "level2" / "level3").is_dir()
+    def test_validator_rejects_mysql_url(self, clean_env):
+        """Test that MySQL URLs are rejected."""
+        mysql_url = "mysql+aiomysql://user:pass@localhost:3306/dbname"
+        clean_env.setenv("DATABASE_URL", mysql_url)
+        with pytest.raises(ValueError, match="Only PostgreSQL is supported"):
+            Settings()
+
+    def test_validator_rejects_memory_database(self, clean_env):
+        """Test that in-memory SQLite database is rejected."""
+        clean_env.setenv("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+        with pytest.raises(ValueError, match="Only PostgreSQL is supported"):
+            Settings()
 
 
 class TestSettingsConfiguration:

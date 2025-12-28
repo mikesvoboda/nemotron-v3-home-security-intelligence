@@ -63,7 +63,7 @@ Represents a security event aggregated from multiple detections.
 - `risk_level` (str, optional): Risk level classification
 - `summary` (text, optional): LLM-generated event summary
 - `reasoning` (text, optional): LLM reasoning for risk assessment
-- `detection_ids` (text, optional): Comma-separated detection IDs
+- `detection_ids` (text, optional): JSON array of detection IDs (e.g., "[1, 2, 3]")
 - `reviewed` (bool): User review flag (default: False)
 - `notes` (text, optional): User notes
 

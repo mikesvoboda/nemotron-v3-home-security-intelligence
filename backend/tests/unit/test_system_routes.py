@@ -1610,13 +1610,29 @@ async def test_get_stats_zero_counts() -> None:
 
 @pytest.mark.asyncio
 async def test_record_stage_latency_valid_stage() -> None:
-    """Test record_stage_latency with valid pipeline stage."""
+    """Test record_stage_latency with valid pipeline stage.
+
+    Verifies that:
+    - add_to_queue is called with correct key and max_size for trimming
+    - expire is called to set TTL on the key
+    """
     redis = AsyncMock()
     redis.add_to_queue = AsyncMock()
+    redis.expire = AsyncMock()
 
     await system_routes.record_stage_latency(redis, "watch", 10.5)  # type: ignore[arg-type]
 
-    redis.add_to_queue.assert_called_once_with("telemetry:latency:watch", 10.5)
+    # Verify add_to_queue called with max_size=MAX_LATENCY_SAMPLES
+    redis.add_to_queue.assert_called_once_with(
+        "telemetry:latency:watch",
+        10.5,
+        max_size=system_routes.MAX_LATENCY_SAMPLES,
+    )
+    # Verify TTL is set
+    redis.expire.assert_called_once_with(
+        "telemetry:latency:watch",
+        system_routes.LATENCY_TTL_SECONDS,
+    )
 
 
 @pytest.mark.asyncio
@@ -1993,6 +2009,125 @@ async def test_get_latency_stats_mixed_valid_invalid() -> None:
     assert result.watch is not None
     # Only 3 valid values: 10.0, "20.0" (converted), 30.0
     assert result.watch.sample_count == 3
+
+
+# =============================================================================
+# TTL and Max-Sample Behavior Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_record_stage_latency_sets_ttl() -> None:
+    """Test record_stage_latency sets TTL on the latency key.
+
+    The TTL should be refreshed on each write to ensure active stages
+    don't expire while inactive stages eventually do.
+    """
+    redis = AsyncMock()
+    redis.add_to_queue = AsyncMock()
+    redis.expire = AsyncMock(return_value=True)
+
+    await system_routes.record_stage_latency(redis, "detect", 100.0)  # type: ignore[arg-type]
+
+    # Verify expire was called with correct TTL
+    redis.expire.assert_called_once_with(
+        "telemetry:latency:detect",
+        system_routes.LATENCY_TTL_SECONDS,
+    )
+
+
+@pytest.mark.asyncio
+async def test_record_stage_latency_uses_max_samples() -> None:
+    """Test record_stage_latency passes max_size to limit stored samples.
+
+    This ensures memory usage is bounded by trimming old samples
+    when the list exceeds MAX_LATENCY_SAMPLES.
+    """
+    redis = AsyncMock()
+    redis.add_to_queue = AsyncMock()
+    redis.expire = AsyncMock()
+
+    await system_routes.record_stage_latency(redis, "batch", 5000.0)  # type: ignore[arg-type]
+
+    # Verify add_to_queue called with max_size parameter
+    redis.add_to_queue.assert_called_once()
+    call_args = redis.add_to_queue.call_args
+    assert call_args.kwargs.get("max_size") == system_routes.MAX_LATENCY_SAMPLES
+
+
+@pytest.mark.asyncio
+async def test_record_stage_latency_all_stages_use_correct_keys() -> None:
+    """Test record_stage_latency uses correct Redis keys for all stages."""
+    redis = AsyncMock()
+    redis.add_to_queue = AsyncMock()
+    redis.expire = AsyncMock()
+
+    for stage in system_routes.PIPELINE_STAGES:
+        redis.add_to_queue.reset_mock()
+        redis.expire.reset_mock()
+
+        await system_routes.record_stage_latency(redis, stage, 50.0)  # type: ignore[arg-type]
+
+        expected_key = f"{system_routes.LATENCY_KEY_PREFIX}{stage}"
+        redis.add_to_queue.assert_called_once()
+        assert redis.add_to_queue.call_args[0][0] == expected_key
+        redis.expire.assert_called_once()
+        assert redis.expire.call_args[0][0] == expected_key
+
+
+@pytest.mark.asyncio
+async def test_record_stage_latency_expire_failure_logs_warning() -> None:
+    """Test record_stage_latency logs warning if expire fails."""
+    redis = AsyncMock()
+    redis.add_to_queue = AsyncMock()
+    redis.expire = AsyncMock(side_effect=RuntimeError("redis expire error"))
+
+    with patch.object(system_routes.logger, "warning") as mock_warning:
+        await system_routes.record_stage_latency(redis, "analyze", 200.0)  # type: ignore[arg-type]
+
+    # Should have logged a warning about the failure
+    mock_warning.assert_called_once()
+    assert "Failed to record latency" in mock_warning.call_args[0][0]
+
+
+@pytest.mark.asyncio
+async def test_record_stage_latency_ttl_refreshes_on_each_write() -> None:
+    """Test that TTL is refreshed on each write to keep active stages alive.
+
+    This simulates multiple writes and verifies expire is called each time.
+    """
+    redis = AsyncMock()
+    redis.add_to_queue = AsyncMock()
+    redis.expire = AsyncMock(return_value=True)
+
+    # Record multiple samples
+    for i in range(5):
+        await system_routes.record_stage_latency(redis, "watch", float(i * 10))  # type: ignore[arg-type]
+
+    # expire should be called once per write
+    assert redis.expire.call_count == 5
+
+
+def test_max_latency_samples_is_reasonable() -> None:
+    """Test MAX_LATENCY_SAMPLES is set to a reasonable value.
+
+    1000 samples is enough for statistical analysis while keeping
+    memory usage bounded.
+    """
+    assert system_routes.MAX_LATENCY_SAMPLES == 1000
+    assert system_routes.MAX_LATENCY_SAMPLES > 100  # Enough for percentiles
+    assert system_routes.MAX_LATENCY_SAMPLES < 10000  # Not excessive
+
+
+def test_latency_ttl_is_reasonable() -> None:
+    """Test LATENCY_TTL_SECONDS is set to a reasonable value.
+
+    1 hour (3600 seconds) allows capturing latency trends while
+    ensuring inactive stages eventually expire.
+    """
+    assert system_routes.LATENCY_TTL_SECONDS == 3600
+    assert system_routes.LATENCY_TTL_SECONDS >= 60  # At least 1 minute
+    assert system_routes.LATENCY_TTL_SECONDS <= 86400  # At most 1 day
 
 
 # =============================================================================

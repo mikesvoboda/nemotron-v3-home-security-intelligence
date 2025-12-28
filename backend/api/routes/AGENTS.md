@@ -65,7 +65,7 @@ Security event management, querying, and statistics.
 **Key Features:**
 
 - Object type filtering via detection join
-- Detection count calculation from comma-separated detection_ids
+- Detection count calculation from JSON array detection_ids
 - Aggregated statistics by risk level and camera
 - User notes support
 
