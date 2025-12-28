@@ -136,22 +136,26 @@ done
 
 cd "$PROJECT_ROOT"
 
-# Step 1: Check for virtual environment
-print_step "Checking for Python virtual environment..."
+# Step 1: Check for Python environment
+print_step "Checking for Python environment..."
 VENV_DIR="$PROJECT_ROOT/.venv"
-if [ ! -d "$VENV_DIR" ]; then
+
+# In CI, dependencies are installed system-wide, no venv needed
+if [ -n "$GITHUB_ACTIONS" ] || [ -n "$CI" ]; then
+    print_success "Running in CI environment - using system Python"
+elif [ -d "$VENV_DIR" ]; then
+    # Local development - activate virtual environment
+    if [ -f "$VENV_DIR/bin/activate" ]; then
+        # shellcheck disable=SC1091
+        . "$VENV_DIR/bin/activate"
+        print_success "Virtual environment activated"
+    else
+        print_error "Could not find $VENV_DIR/bin/activate"
+        exit 1
+    fi
+else
     print_error "Virtual environment not found at $VENV_DIR"
     echo "Run ./scripts/setup.sh first"
-    exit 1
-fi
-
-# Activate virtual environment
-if [ -f "$VENV_DIR/bin/activate" ]; then
-    # shellcheck disable=SC1091
-    . "$VENV_DIR/bin/activate"
-    print_success "Virtual environment activated"
-else
-    print_error "Could not find $VENV_DIR/bin/activate"
     exit 1
 fi
 
