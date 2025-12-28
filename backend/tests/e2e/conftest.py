@@ -48,6 +48,9 @@ async def integration_db() -> AsyncGenerator[str]:
 
         # Set test database URL
         os.environ["DATABASE_URL"] = test_db_url
+        # Use Redis database 15 for test isolation. This keeps test data separate
+        # from development (database 0). FLUSHDB in pre-commit hooks only affects DB 15.
+        # See backend/tests/AGENTS.md for full documentation on test database isolation.
         os.environ["REDIS_URL"] = "redis://localhost:6379/15"
 
         # Clear cache again after setting env var

@@ -186,6 +186,61 @@ Detections are grouped into events based on time windows.
 | `GPU_POLL_INTERVAL_SECONDS` | `5.0`   | 1.0-60.0 | How often to poll GPU stats (seconds)      |
 | `GPU_STATS_HISTORY_MINUTES` | `60`    | 1-1440   | Minutes of GPU history to retain in memory |
 
+**How GPU Polling Works:**
+
+The GPU monitor uses `pynvml` (NVIDIA Management Library Python bindings) to query GPU metrics. Each poll cycle reads:
+
+- GPU utilization percentage (compute load)
+- VRAM usage (used/total MB)
+- GPU temperature (Celsius)
+- Power consumption (Watts)
+
+These metrics are stored in SQLite for historical analysis and broadcast via WebSocket for real-time dashboard updates.
+
+**Performance Impact Considerations:**
+
+Each poll involves:
+
+1. Multiple NVML API calls to the GPU driver
+2. A database write to persist the stats
+3. A WebSocket broadcast to connected clients
+
+While individual polls are lightweight (~1-5ms), frequent polling can add cumulative overhead:
+
+- At 1 second intervals: ~60 DB writes/minute, higher CPU/disk I/O
+- At 5 seconds (default): ~12 DB writes/minute, balanced responsiveness
+- At 15+ seconds: ~4 DB writes/minute, minimal overhead
+
+**Recommended Values:**
+
+| Scenario                          | Interval | Rationale                                    |
+| --------------------------------- | -------- | -------------------------------------------- |
+| Active monitoring/debugging       | 1-2s     | Real-time visibility during development      |
+| Normal operation (default)        | 5s       | Good balance of responsiveness and overhead  |
+| Low-overhead/background operation | 15-30s   | Reduce system pressure during heavy AI loads |
+| Minimal monitoring                | 60s      | Just enough for trend analysis               |
+
+**When to Increase the Interval:**
+
+- System is under heavy CPU/disk I/O pressure
+- AI inference pipeline is saturating GPU bandwidth
+- Database is on slow storage (HDD, network mount)
+- Running on lower-spec hardware
+- Observing high context-switch counts in system monitors
+
+**Runtime Adjustment:**
+
+To change the interval without restarting, modify `.env` or `data/runtime.env` and restart the backend service:
+
+```bash
+# In .env or data/runtime.env
+GPU_POLL_INTERVAL_SECONDS=15.0
+
+# Then restart backend
+docker compose restart backend
+# or for native: kill and restart the uvicorn process
+```
+
 ### Authentication Settings
 
 | Variable          | Default | Description                   |
@@ -353,3 +408,45 @@ docker compose down && docker compose up -d
 
 - Native: `sqlite+aiosqlite:///./data/security.db` (relative to backend/)
 - Docker: `sqlite+aiosqlite:///data/security.db` (maps to /app/data/ in container)
+
+## Security Considerations
+
+### AI Service URLs - HTTPS in Production
+
+**WARNING:** The default AI service URLs use HTTP, which is vulnerable to man-in-the-middle (MITM) attacks. In a MITM attack, an attacker could:
+
+- Intercept and modify detection requests/responses
+- Inject false detection data
+- Exfiltrate camera images being sent for analysis
+
+**Recommendations:**
+
+| Environment  | Protocol | Notes                                                        |
+| ------------ | -------- | ------------------------------------------------------------ |
+| Local dev    | HTTP     | Acceptable when both services run on localhost               |
+| Docker dev   | HTTP     | Acceptable within trusted Docker network                     |
+| Production   | HTTPS    | **Required** - Use TLS certificates for AI service endpoints |
+| Remote AI    | HTTPS    | **Required** - Never send images over untrusted networks     |
+
+**Production Configuration Example:**
+
+```bash
+# Use HTTPS for production AI services
+RTDETR_URL=https://your-rtdetr-host:8090
+NEMOTRON_URL=https://your-nemotron-host:8091
+```
+
+**Setting up HTTPS for AI services:**
+
+1. Obtain TLS certificates (Let's Encrypt, self-signed for internal, or purchased)
+2. Configure your AI service (llama.cpp server, RT-DETRv2 wrapper) to use TLS
+3. Update the environment variables to use `https://` URLs
+4. If using self-signed certificates, configure the backend to trust them
+
+### Other Security Best Practices
+
+- Enable `API_KEY_ENABLED=true` for exposed deployments
+- Use strong, unique API keys in `API_KEYS`
+- Restrict `CORS_ORIGINS` to only trusted domains
+- Keep `DEBUG=false` in production
+- Use a firewall to restrict access to Redis and database ports

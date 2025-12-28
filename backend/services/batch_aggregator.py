@@ -11,7 +11,7 @@ Batching Logic:
         * 30 seconds with no new detections (idle timeout)
     - On batch close: push to analysis_queue with batch_id, camera_id, detection_ids
 
-Redis Keys:
+Redis Keys (all keys have 1-hour TTL for orphan cleanup):
     - batch:{camera_id}:current - Current batch ID for camera
     - batch:{batch_id}:camera_id - Camera ID for batch
     - batch:{batch_id}:detections - JSON list of detection IDs
@@ -40,6 +40,9 @@ class BatchAggregator:
     - Checking for and closing timed-out batches
     - Pushing completed batches to the analysis queue
     """
+
+    # TTL for batch Redis keys (1 hour) - ensures orphan cleanup if service crashes
+    BATCH_KEY_TTL_SECONDS = 3600
 
     def __init__(self, redis_client: RedisClient | None = None, analyzer: Any | None = None):
         """Initialize batch aggregator with Redis client.
@@ -115,12 +118,13 @@ class BatchAggregator:
                 extra={"camera_id": camera_id, "batch_id": batch_id},
             )
 
-            # Set batch metadata
-            await self._redis.set(batch_key, batch_id)
-            await self._redis.set(f"batch:{batch_id}:camera_id", camera_id)
-            await self._redis.set(f"batch:{batch_id}:started_at", str(current_time))
-            await self._redis.set(f"batch:{batch_id}:last_activity", str(current_time))
-            await self._redis.set(f"batch:{batch_id}:detections", json.dumps([]))
+            # Set batch metadata with TTL for orphan cleanup
+            ttl = self.BATCH_KEY_TTL_SECONDS
+            await self._redis.set(batch_key, batch_id, expire=ttl)
+            await self._redis.set(f"batch:{batch_id}:camera_id", camera_id, expire=ttl)
+            await self._redis.set(f"batch:{batch_id}:started_at", str(current_time), expire=ttl)
+            await self._redis.set(f"batch:{batch_id}:last_activity", str(current_time), expire=ttl)
+            await self._redis.set(f"batch:{batch_id}:detections", json.dumps([]), expire=ttl)
 
         # Add detection to batch
         detections_key = f"batch:{batch_id}:detections"
@@ -135,9 +139,10 @@ class BatchAggregator:
 
         detections.append(detection_id)
 
-        # Update batch with new detection and activity timestamp
-        await self._redis.set(detections_key, json.dumps(detections))
-        await self._redis.set(f"batch:{batch_id}:last_activity", str(current_time))
+        # Update batch with new detection and activity timestamp (refresh TTL)
+        ttl = self.BATCH_KEY_TTL_SECONDS
+        await self._redis.set(detections_key, json.dumps(detections), expire=ttl)
+        await self._redis.set(f"batch:{batch_id}:last_activity", str(current_time), expire=ttl)
 
         logger.debug(
             f"Added detection {detection_id} to batch {batch_id} "

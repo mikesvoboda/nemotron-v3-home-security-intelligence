@@ -309,6 +309,39 @@ All test dependencies are in `backend/requirements.txt`:
 4. **Speed**: Unit tests fast (<10s total), integration moderate (<30s), E2E comprehensive (<1min)
 5. **Maintainability**: Keep tests simple and readable, avoid complex test logic
 
+## Test Database Isolation
+
+### SQLite
+
+Tests use temporary SQLite databases created in temporary directories. Each test function gets a fresh database instance that is automatically cleaned up after the test completes.
+
+### Redis
+
+Tests use Redis database index 15 (`redis://localhost:6379/15`) to isolate test data from development data.
+
+| Purpose | Database Index | URL |
+|---------|----------------|-----|
+| Production | 0 | `redis://localhost:6379/0` |
+| Development | 0 (default) | `redis://localhost:6379/0` |
+| **Testing** | **15** | `redis://localhost:6379/15` |
+
+**Key points:**
+- The test Redis URL is set in `conftest.py` fixtures (`integration_env`, `integration_db`, etc.)
+- `FLUSHDB` is called by pre-commit hooks before running tests (see `.pre-commit-config.yaml`)
+- `FLUSHDB` is safe because it only affects database 15, leaving dev/prod data untouched
+- **Never use database 15 for non-test purposes**
+
+**Why database 15?**
+- Redis supports 16 databases (0-15) by default
+- Database 15 is the highest index, minimizing collision risk with other uses
+- It provides clear separation from the default database 0 used in development
+
+**Pre-commit integration:**
+The pre-commit hook runs `redis-cli -n 15 FLUSHDB` before executing tests to ensure a clean slate:
+```bash
+redis-cli -n 15 FLUSHDB > /dev/null 2>&1
+```
+
 ## Common Test Scenarios
 
 ### Testing Database Operations
