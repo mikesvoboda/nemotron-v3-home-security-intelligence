@@ -479,6 +479,7 @@ describe('DlqMonitor', () => {
       // Initial call should have happened (check outside waitFor for clarity)
       expect(api.fetchDlqStats).toHaveBeenCalledTimes(1);
 
+
       // Click refresh button using aria-label for reliable selection
       const refreshButton = screen.getByLabelText('Refresh DLQ stats');
       expect(refreshButton).toBeInTheDocument();
