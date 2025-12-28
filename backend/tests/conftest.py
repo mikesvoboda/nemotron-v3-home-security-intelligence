@@ -367,6 +367,8 @@ async def test_db():
             # Use session for database operations
             ...
     """
+    from sqlalchemy import text
+
     from backend.core.config import get_settings
     from backend.core.database import close_db, get_session, init_db
 
