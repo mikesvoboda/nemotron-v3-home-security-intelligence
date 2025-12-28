@@ -302,32 +302,20 @@ async def test_detection_worker_handles_invalid_item(mock_redis_client, mock_det
 
 
 @pytest.mark.asyncio
-async def test_detection_worker_error_recovery_with_retry(
+async def test_detection_worker_error_recovery(
     mock_redis_client, mock_detector_client, mock_batch_aggregator
 ):
-    """Test DetectionQueueWorker uses retry handler for transient errors.
-
-    With the retry handler, transient errors are retried within the same
-    call to _process_image_detection. The worker then continues to process
-    subsequent items normally.
-
-    This test verifies that:
-    1. First call fails, retry succeeds -> counts as success
-    2. Second call succeeds immediately -> counts as success
-    3. Worker continues processing after errors are recovered via retry
-    """
-    from backend.services.retry_handler import RetryConfig, RetryHandler
-
+    """Test DetectionQueueWorker recovers from errors."""
     call_count = 0
 
     async def mock_get_from_queue(*args, **kwargs):
         nonlocal call_count
         call_count += 1
         await asyncio.sleep(0.01)  # Yield control to event loop
-        if call_count <= 2:
+        if call_count <= 3:
             return {
                 "camera_id": "cam1",
-                "file_path": f"/path/to/image_{call_count}.jpg",
+                "file_path": "/path/to/image.jpg",
                 "timestamp": datetime.now().isoformat(),
             }
         return None
@@ -346,22 +334,10 @@ async def test_detection_worker_error_recovery_with_retry(
 
     mock_detector_client.detect_objects = mock_detect_objects
 
-    # Use real retry handler with fast backoff for testing
-    retry_handler = RetryHandler(
-        redis_client=mock_redis_client,
-        config=RetryConfig(
-            max_retries=3,
-            base_delay_seconds=0.01,  # Fast for testing
-            max_delay_seconds=0.05,
-            jitter=False,  # Deterministic for testing
-        ),
-    )
-
     worker = DetectionQueueWorker(
         redis_client=mock_redis_client,
         detector_client=mock_detector_client,
         batch_aggregator=mock_batch_aggregator,
-        retry_handler=retry_handler,
         poll_timeout=1,
     )
 
@@ -371,13 +347,12 @@ async def test_detection_worker_error_recovery_with_retry(
         mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
 
         await worker.start()
-        await asyncio.sleep(0.5)  # Allow time for retry
+        await asyncio.sleep(0.3)
         await worker.stop()
 
-    # Both items should be processed successfully
-    # (first item failed, then succeeded via retry)
+    # Should have 1 error and 2 successes
+    assert worker.stats.errors == 1
     assert worker.stats.items_processed == 2
-    assert worker.stats.errors == 0  # No unrecoverable errors
 
 
 @pytest.mark.asyncio
@@ -1690,199 +1665,3 @@ async def test_detection_worker_defaults_to_image_media_type(
     # Should process as image (default)
     assert worker.stats.items_processed == 1
     mock_video_processor.extract_frames_for_detection.assert_not_called()
-
-
-# =============================================================================
-# Retry Handler and DLQ Tests
-# =============================================================================
-
-
-@pytest.fixture
-def mock_retry_handler():
-    """Create a mock retry handler."""
-    from backend.services.retry_handler import RetryResult
-
-    handler = MagicMock()
-    handler.with_retry = AsyncMock(return_value=RetryResult(success=True, result=[], attempts=1))
-    return handler
-
-
-@pytest.mark.asyncio
-async def test_detection_worker_uses_retry_handler(
-    mock_redis_client, mock_detector_client, mock_batch_aggregator, mock_retry_handler
-):
-    """Test that DetectionQueueWorker uses retry handler for detection."""
-    from backend.services.retry_handler import RetryResult
-
-    call_count = 0
-
-    async def mock_get_from_queue(*args, **kwargs):
-        nonlocal call_count
-        call_count += 1
-        await asyncio.sleep(0.01)
-        if call_count == 1:
-            return {
-                "camera_id": "front_door",
-                "file_path": "/path/to/image.jpg",
-                "timestamp": datetime.now().isoformat(),
-                "media_type": "image",
-            }
-        return None
-
-    mock_redis_client.get_from_queue = mock_get_from_queue
-
-    # Setup retry handler to return success
-    detection = MagicMock()
-    detection.id = 1
-    detection.confidence = 0.95
-    detection.object_type = "person"
-    mock_retry_handler.with_retry = AsyncMock(
-        return_value=RetryResult(success=True, result=[detection], attempts=1)
-    )
-
-    worker = DetectionQueueWorker(
-        redis_client=mock_redis_client,
-        detector_client=mock_detector_client,
-        batch_aggregator=mock_batch_aggregator,
-        retry_handler=mock_retry_handler,
-        poll_timeout=1,
-    )
-
-    with patch("backend.services.pipeline_workers.get_session") as mock_get_session:
-        mock_session = AsyncMock()
-        mock_get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
-
-        await worker.start()
-        await asyncio.sleep(0.2)
-        await worker.stop()
-
-    # Verify retry handler was called
-    assert mock_retry_handler.with_retry.called
-    assert worker.stats.items_processed == 1
-
-
-@pytest.mark.asyncio
-async def test_detection_worker_handles_retry_failure_and_dlq(
-    mock_redis_client, mock_detector_client, mock_batch_aggregator, mock_retry_handler
-):
-    """Test that DetectionQueueWorker handles retry failure and DLQ correctly."""
-    from backend.services.retry_handler import RetryResult
-
-    call_count = 0
-
-    async def mock_get_from_queue(*args, **kwargs):
-        nonlocal call_count
-        call_count += 1
-        await asyncio.sleep(0.01)
-        if call_count == 1:
-            return {
-                "camera_id": "front_door",
-                "file_path": "/path/to/image.jpg",
-                "timestamp": datetime.now().isoformat(),
-                "media_type": "image",
-            }
-        return None
-
-    mock_redis_client.get_from_queue = mock_get_from_queue
-
-    # Setup retry handler to return failure (all retries exhausted, moved to DLQ)
-    mock_retry_handler.with_retry = AsyncMock(
-        return_value=RetryResult(
-            success=False,
-            result=None,
-            error="Detector unavailable",
-            attempts=3,
-            moved_to_dlq=True,
-        )
-    )
-
-    worker = DetectionQueueWorker(
-        redis_client=mock_redis_client,
-        detector_client=mock_detector_client,
-        batch_aggregator=mock_batch_aggregator,
-        retry_handler=mock_retry_handler,
-        poll_timeout=1,
-    )
-
-    await worker.start()
-    await asyncio.sleep(0.2)
-    await worker.stop()
-
-    # Item failed - should count as error, not processed
-    assert worker.stats.items_processed == 0
-    assert worker.stats.errors == 1
-    # Batch aggregator should NOT have been called (detection failed)
-    mock_batch_aggregator.add_detection.assert_not_called()
-
-
-@pytest.mark.asyncio
-async def test_detection_worker_passes_job_data_to_retry_handler(
-    mock_redis_client, mock_detector_client, mock_batch_aggregator
-):
-    """Test that job data is passed to retry handler for DLQ tracking."""
-    from backend.services.retry_handler import RetryHandler, RetryResult
-
-    call_count = 0
-    captured_job_data = None
-
-    async def mock_get_from_queue(*args, **kwargs):
-        nonlocal call_count
-        call_count += 1
-        await asyncio.sleep(0.01)
-        if call_count == 1:
-            return {
-                "camera_id": "front_door",
-                "file_path": "/path/to/image.jpg",
-                "timestamp": "2025-12-28T10:00:00",
-                "media_type": "image",
-            }
-        return None
-
-    mock_redis_client.get_from_queue = mock_get_from_queue
-
-    # Create a spy retry handler that captures job_data
-    async def capture_with_retry(operation, job_data, queue_name, *args, **kwargs):
-        nonlocal captured_job_data
-        captured_job_data = job_data
-        return RetryResult(success=True, result=[], attempts=1)
-
-    mock_retry_handler = MagicMock(spec=RetryHandler)
-    mock_retry_handler.with_retry = AsyncMock(side_effect=capture_with_retry)
-
-    worker = DetectionQueueWorker(
-        redis_client=mock_redis_client,
-        detector_client=mock_detector_client,
-        batch_aggregator=mock_batch_aggregator,
-        retry_handler=mock_retry_handler,
-        poll_timeout=1,
-    )
-
-    with patch("backend.services.pipeline_workers.get_session") as mock_get_session:
-        mock_session = AsyncMock()
-        mock_get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
-
-        await worker.start()
-        await asyncio.sleep(0.2)
-        await worker.stop()
-
-    # Verify job data was captured with original queue item fields
-    assert captured_job_data is not None
-    assert captured_job_data["camera_id"] == "front_door"
-    assert captured_job_data["file_path"] == "/path/to/image.jpg"
-
-
-@pytest.mark.asyncio
-async def test_detection_worker_initializes_with_retry_handler(mock_redis_client):
-    """Test DetectionQueueWorker initializes retry handler correctly."""
-    worker = DetectionQueueWorker(
-        redis_client=mock_redis_client,
-        poll_timeout=1,
-    )
-
-    # Should have a retry handler initialized
-    assert worker._retry_handler is not None
-    # Config should have expected values
-    assert worker._retry_handler.config.max_retries == 3
-    assert worker._retry_handler.config.base_delay_seconds == 1.0

@@ -137,7 +137,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "/api/system/health",
             "/api/system/health/live",  # Liveness probe for Docker healthchecks
             "/api/system/health/ready",  # Readiness probe for Docker healthchecks
-            "/api/metrics",  # Prometheus scraping endpoint
             "/docs",
             "/redoc",
             "/openapi.json",

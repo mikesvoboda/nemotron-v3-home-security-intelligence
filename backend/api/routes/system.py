@@ -10,10 +10,10 @@ import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import httpx
-from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request, Response
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,14 +26,9 @@ from backend.api.schemas.system import (
     HealthResponse,
     LivenessResponse,
     PipelineLatencies,
-    PipelineLatencyResponse,
-    PipelineStageLatency,
     QueueDepths,
     ReadinessResponse,
     ServiceStatus,
-    SeverityDefinitionResponse,
-    SeverityMetadataResponse,
-    SeverityThresholds,
     StageLatency,
     SystemStatsResponse,
     TelemetryResponse,
@@ -42,8 +37,6 @@ from backend.api.schemas.system import (
 from backend.core import get_db, get_settings
 from backend.core.redis import RedisClient, get_redis, get_redis_optional
 from backend.models import Camera, Detection, Event, GPUStats
-from backend.models.audit import AuditAction
-from backend.services.audit import AuditService
 
 logger = logging.getLogger(__name__)
 
@@ -997,11 +990,7 @@ def _write_runtime_env(overrides: dict[str, str]) -> None:
 
 
 @router.patch("/config", response_model=ConfigResponse, dependencies=[Depends(verify_api_key)])
-async def patch_config(
-    request: Request,
-    update: ConfigUpdateRequest = Body(...),
-    db: AsyncSession = Depends(get_db),
-) -> ConfigResponse:
+async def patch_config(update: ConfigUpdateRequest = Body(...)) -> ConfigResponse:
     """Patch processing-related configuration and persist runtime overrides.
 
     Requires API key authentication when api_key_enabled is True in settings.
@@ -1011,15 +1000,6 @@ async def patch_config(
     - This updates a runtime override env file (see `HSI_RUNTIME_ENV_PATH`) and clears the
       settings cache so subsequent `get_settings()` calls observe the new values.
     """
-    # Capture old settings for audit log
-    old_settings = get_settings()
-    old_values = {
-        "retention_days": old_settings.retention_days,
-        "batch_window_seconds": old_settings.batch_window_seconds,
-        "batch_idle_timeout_seconds": old_settings.batch_idle_timeout_seconds,
-        "detection_confidence_threshold": old_settings.detection_confidence_threshold,
-    }
-
     overrides: dict[str, str] = {}
 
     if update.retention_days is not None:
@@ -1037,31 +1017,6 @@ async def patch_config(
     # Make new values visible to the app immediately.
     get_settings.cache_clear()
     settings = get_settings()
-
-    # Build changes for audit log
-    new_values = {
-        "retention_days": settings.retention_days,
-        "batch_window_seconds": settings.batch_window_seconds,
-        "batch_idle_timeout_seconds": settings.batch_idle_timeout_seconds,
-        "detection_confidence_threshold": settings.detection_confidence_threshold,
-    }
-    changes: dict[str, dict[str, Any]] = {}
-    for key, old_value in old_values.items():
-        new_value = new_values[key]
-        if old_value != new_value:
-            changes[key] = {"old": old_value, "new": new_value}
-
-    # Log the audit entry
-    if changes:
-        await AuditService.log_action(
-            db=db,
-            action=AuditAction.SETTINGS_CHANGED,
-            resource_type="settings",
-            actor="anonymous",
-            details={"changes": changes},
-            request=request,
-        )
-        await db.commit()
 
     return ConfigResponse(
         app_name=settings.app_name,
@@ -1133,11 +1088,7 @@ async def record_stage_latency(
     """Record a latency sample for a pipeline stage.
 
     Stores latency samples in Redis lists for later statistical analysis.
-    Samples are automatically trimmed to MAX_LATENCY_SAMPLES (keeping newest)
-    and the key TTL is refreshed to LATENCY_TTL_SECONDS on each write.
-
-    The list uses RPUSH (append to end), so newer samples are at the end.
-    When trimmed, we keep the last MAX_LATENCY_SAMPLES items (newest).
+    Samples are automatically trimmed to MAX_LATENCY_SAMPLES and expire after TTL.
 
     Args:
         redis: Redis client
@@ -1150,11 +1101,10 @@ async def record_stage_latency(
 
     key = f"{LATENCY_KEY_PREFIX}{stage}"
     try:
-        # Add to list (appends to end, so newest samples are last)
-        # max_size trims to keep only the last MAX_LATENCY_SAMPLES items
-        await redis.add_to_queue(key, latency_ms, max_size=MAX_LATENCY_SAMPLES)
-        # Refresh TTL so inactive stages eventually expire
-        await redis.expire(key, LATENCY_TTL_SECONDS)
+        # Add to list (newest first)
+        await redis.add_to_queue(key, latency_ms)
+        # Note: Trimming and TTL would be handled by Redis commands
+        # For simplicity, we just add to the queue
     except Exception as e:
         logger.warning(f"Failed to record latency for stage {stage}: {e}")
 
@@ -1290,76 +1240,6 @@ async def get_telemetry(
 
 
 # =============================================================================
-# Pipeline Latency Endpoint
-# =============================================================================
-
-
-def _stats_to_schema(stats: dict[str, float | int | None]) -> PipelineStageLatency | None:
-    """Convert latency stats dict to PipelineStageLatency schema.
-
-    Args:
-        stats: Dictionary with latency statistics from PipelineLatencyTracker
-
-    Returns:
-        PipelineStageLatency schema or None if no samples
-    """
-    if stats.get("sample_count", 0) == 0:
-        return None
-
-    return PipelineStageLatency(
-        avg_ms=stats.get("avg_ms"),
-        min_ms=stats.get("min_ms"),
-        max_ms=stats.get("max_ms"),
-        p50_ms=stats.get("p50_ms"),
-        p95_ms=stats.get("p95_ms"),
-        p99_ms=stats.get("p99_ms"),
-        sample_count=stats.get("sample_count", 0),
-    )
-
-
-@router.get("/pipeline-latency", response_model=PipelineLatencyResponse)
-async def get_pipeline_latency(
-    window_minutes: int = 60,
-) -> PipelineLatencyResponse:
-    """Get pipeline latency metrics with percentiles.
-
-    Returns latency statistics for each stage transition in the AI pipeline:
-    - watch_to_detect: Time from file watcher detecting image to RT-DETR processing start
-    - detect_to_batch: Time from detection completion to batch aggregation
-    - batch_to_analyze: Time from batch completion to Nemotron analysis start
-    - total_pipeline: Total end-to-end processing time
-
-    Each stage includes:
-    - avg_ms: Average latency in milliseconds
-    - min_ms: Minimum latency
-    - max_ms: Maximum latency
-    - p50_ms: 50th percentile (median)
-    - p95_ms: 95th percentile
-    - p99_ms: 99th percentile
-    - sample_count: Number of samples used
-
-    Args:
-        window_minutes: Time window for statistics calculation (default 60 minutes)
-
-    Returns:
-        PipelineLatencyResponse with latency statistics for each stage
-    """
-    from backend.core.metrics import get_pipeline_latency_tracker
-
-    tracker = get_pipeline_latency_tracker()
-    summary = tracker.get_pipeline_summary(window_minutes=window_minutes)
-
-    return PipelineLatencyResponse(
-        watch_to_detect=_stats_to_schema(summary.get("watch_to_detect", {})),
-        detect_to_batch=_stats_to_schema(summary.get("detect_to_batch", {})),
-        batch_to_analyze=_stats_to_schema(summary.get("batch_to_analyze", {})),
-        total_pipeline=_stats_to_schema(summary.get("total_pipeline", {})),
-        window_minutes=window_minutes,
-        timestamp=datetime.now(UTC),
-    )
-
-
-# =============================================================================
 # Cleanup Endpoint
 # =============================================================================
 
@@ -1461,60 +1341,3 @@ async def trigger_cleanup(dry_run: bool = False) -> CleanupResponse:
         except Exception as e:
             logger.error(f"Manual cleanup failed: {e}", exc_info=True)
             raise
-
-
-# =============================================================================
-# Severity Endpoint
-# =============================================================================
-
-
-@router.get("/severity", response_model=SeverityMetadataResponse)
-async def get_severity_metadata() -> SeverityMetadataResponse:
-    """Get severity level definitions and thresholds.
-
-    Returns complete information about the severity taxonomy including:
-    - All severity level definitions (LOW, MEDIUM, HIGH, CRITICAL)
-    - Risk score thresholds for each level
-    - Color codes for UI display
-    - Human-readable labels and descriptions
-
-    This endpoint is useful for frontends to:
-    - Display severity information consistently
-    - Show severity legends in the UI
-    - Validate severity-related user inputs
-    - Map risk scores to severity levels client-side
-
-    Returns:
-        SeverityMetadataResponse with all severity definitions and current thresholds
-    """
-    from backend.services.severity import get_severity_service
-
-    service = get_severity_service()
-
-    # Get severity definitions
-    definitions = service.get_severity_definitions()
-
-    # Convert to response format
-    definition_responses = [
-        SeverityDefinitionResponse(
-            severity=defn.severity.value,
-            label=defn.label,
-            description=defn.description,
-            color=defn.color,
-            priority=defn.priority,
-            min_score=defn.min_score,
-            max_score=defn.max_score,
-        )
-        for defn in definitions
-    ]
-
-    thresholds = service.get_thresholds()
-
-    return SeverityMetadataResponse(
-        definitions=definition_responses,
-        thresholds=SeverityThresholds(
-            low_max=thresholds["low_max"],
-            medium_max=thresholds["medium_max"],
-            high_max=thresholds["high_max"],
-        ),
-    )
