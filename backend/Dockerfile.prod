@@ -19,8 +19,8 @@ FROM python:3.12-alpine
 
 WORKDIR /app
 
-# Install only runtime dependencies (wget for healthcheck)
-RUN apk add --no-cache wget
+# Install runtime dependencies (wget for healthcheck, ffmpeg for video processing)
+RUN apk add --no-cache wget ffmpeg
 
 # Create non-root user for security
 RUN adduser -D -u 1000 appuser

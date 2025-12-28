@@ -1497,10 +1497,19 @@ async def test_record_stage_latency_valid_stage() -> None:
     """Test record_stage_latency with valid pipeline stage."""
     redis = AsyncMock()
     redis.add_to_queue = AsyncMock()
+    # Mock _ensure_connected to return a mock client for expire() call
+    mock_client = AsyncMock()
+    mock_client.expire = AsyncMock()
+    redis._ensure_connected = lambda: mock_client
 
     await system_routes.record_stage_latency(redis, "watch", 10.5)  # type: ignore[arg-type]
 
-    redis.add_to_queue.assert_called_once_with("telemetry:latency:watch", 10.5)
+    # Should add to queue with max_size=MAX_LATENCY_SAMPLES (1000)
+    redis.add_to_queue.assert_called_once_with("telemetry:latency:watch", 10.5, max_size=1000)
+    # Should set TTL on the key
+    mock_client.expire.assert_called_once_with(
+        "telemetry:latency:watch", system_routes.LATENCY_TTL_SECONDS
+    )
 
 
 @pytest.mark.asyncio
@@ -2628,6 +2637,53 @@ async def test_verify_api_key_accepts_any_valid_key_from_list() -> None:
         await system_routes.verify_api_key(x_api_key="key-one")
         await system_routes.verify_api_key(x_api_key="key-two")
         await system_routes.verify_api_key(x_api_key="key-three")
+
+
+@pytest.mark.asyncio
+async def test_verify_api_key_accepts_query_param() -> None:
+    """Test that API key verification accepts key via query parameter."""
+    mock_settings = MagicMock()
+    mock_settings.api_key_enabled = True
+    mock_settings.api_keys = ["valid-api-key-123"]
+
+    with patch.object(system_routes, "get_settings", return_value=mock_settings):
+        # Should accept key via query parameter when header is not provided
+        await system_routes.verify_api_key(x_api_key=None, api_key="valid-api-key-123")
+
+
+@pytest.mark.asyncio
+async def test_verify_api_key_header_takes_precedence() -> None:
+    """Test that X-API-Key header takes precedence over query parameter."""
+    mock_settings = MagicMock()
+    mock_settings.api_key_enabled = True
+    mock_settings.api_keys = ["header-key"]
+
+    with patch.object(system_routes, "get_settings", return_value=mock_settings):
+        # Should use header key even when query param is also provided
+        # This should succeed because header-key is valid
+        await system_routes.verify_api_key(x_api_key="header-key", api_key="query-key")
+
+        # This should fail because invalid-header is not valid (even though query-key is not valid either)
+        with pytest.raises(HTTPException) as exc_info:
+            await system_routes.verify_api_key(x_api_key="invalid-header", api_key="query-key")
+        assert exc_info.value.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_verify_api_key_rejects_invalid_query_param() -> None:
+    """Test that API key verification rejects invalid query parameter."""
+    mock_settings = MagicMock()
+    mock_settings.api_key_enabled = True
+    mock_settings.api_keys = ["valid-api-key-123"]
+
+    with (
+        patch.object(system_routes, "get_settings", return_value=mock_settings),
+        pytest.raises(HTTPException) as exc_info,
+    ):
+        await system_routes.verify_api_key(x_api_key=None, api_key="invalid-key")
+
+    assert exc_info.value.status_code == 401
+    assert "Invalid API key" in exc_info.value.detail
 
 
 # =============================================================================

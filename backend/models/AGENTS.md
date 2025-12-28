@@ -110,7 +110,7 @@ Defines the Event model for aggregated security events.
 - `risk_level` (str, nullable) - Risk classification (e.g., "low", "medium", "high", "critical")
 - `summary` (text, nullable) - LLM-generated event summary
 - `reasoning` (text, nullable) - LLM reasoning for risk assessment
-- `detection_ids` (text, nullable) - Comma-separated detection IDs in this event
+- `detection_ids` (text, nullable) - JSON array of detection IDs in this event (e.g., "[1, 2, 3]")
 - `reviewed` (bool) - User review flag (default: False)
 - `notes` (text, nullable) - User-added notes
 - `is_fast_path` (bool) - Fast path flag for high-priority analysis (default: False)

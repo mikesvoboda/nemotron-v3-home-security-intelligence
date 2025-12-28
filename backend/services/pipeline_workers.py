@@ -42,8 +42,10 @@ from backend.core.metrics import (
 )
 from backend.core.redis import RedisClient
 from backend.services.batch_aggregator import BatchAggregator
-from backend.services.detector_client import DetectorClient
+from backend.services.dedupe import DedupeService
+from backend.services.detector_client import DetectorClient, DetectorServiceError
 from backend.services.nemotron_analyzer import NemotronAnalyzer
+from backend.services.retry_handler import RetryHandler
 
 logger = get_logger(__name__)
 
@@ -94,6 +96,8 @@ class DetectionQueueWorker:
         redis_client: RedisClient,
         detector_client: DetectorClient | None = None,
         batch_aggregator: BatchAggregator | None = None,
+        dedupe_service: DedupeService | None = None,
+        retry_handler: RetryHandler | None = None,
         queue_name: str = "detection_queue",
         poll_timeout: int = 5,
         stop_timeout: float = 10.0,
@@ -104,6 +108,9 @@ class DetectionQueueWorker:
             redis_client: Redis client for queue operations
             detector_client: Client for RT-DETRv2. If None, will be created.
             batch_aggregator: Aggregator for batching detections. If None, will be created.
+            dedupe_service: Service for clearing dedupe hashes on retry-able failures.
+                           If None, will be created with the redis_client.
+            retry_handler: Handler for retry logic and DLQ. If None, will be created.
             queue_name: Name of the Redis queue to consume from
             poll_timeout: Timeout in seconds for BLPOP (allows checking shutdown signal)
             stop_timeout: Timeout in seconds for graceful stop before force cancel
@@ -111,6 +118,8 @@ class DetectionQueueWorker:
         self._redis = redis_client
         self._detector = detector_client or DetectorClient()
         self._aggregator = batch_aggregator or BatchAggregator(redis_client=redis_client)
+        self._dedupe = dedupe_service or DedupeService(redis_client=redis_client)
+        self._retry_handler = retry_handler or RetryHandler(redis_client=redis_client)
         self._queue_name = queue_name
         self._poll_timeout = poll_timeout
         self._stop_timeout = stop_timeout
@@ -216,14 +225,19 @@ class DetectionQueueWorker:
     async def _process_detection_item(self, item: dict[str, Any]) -> None:
         """Process a single detection queue item.
 
+        Handles DetectorServiceError (transient failures) differently from other errors:
+        - DetectorServiceError: Clear dedupe hash and use retry handler (allows reprocessing)
+        - Other errors: Log and continue (permanent failure, no retry)
+
         Args:
-            item: Queue item with camera_id, file_path, timestamp
+            item: Queue item with camera_id, file_path, timestamp, file_hash
         """
         import time
 
         start_time = time.time()
         camera_id = item.get("camera_id")
         file_path = item.get("file_path")
+        file_hash = item.get("file_hash")  # Hash from file watcher for dedupe clearing
 
         if not camera_id or not file_path:
             logger.warning(f"Invalid detection queue item: {item}")
@@ -269,7 +283,40 @@ class DetectionQueueWorker:
                 },
             )
 
+        except DetectorServiceError as e:
+            # Transient failure - RT-DETR service is unavailable
+            # Clear the dedupe hash so the file can be reprocessed when service recovers
+            self._stats.errors += 1
+            record_pipeline_error("detection_service_unavailable")
+
+            if file_hash:
+                cleared = await self._dedupe.clear_hash(file_hash)
+                if cleared:
+                    logger.info(
+                        f"Cleared dedupe hash for {file_path} to allow retry",
+                        extra={
+                            "camera_id": camera_id,
+                            "file_path": file_path,
+                            "file_hash": file_hash[:16],
+                        },
+                    )
+
+            # Move to DLQ for later retry (when service recovers)
+            await self._retry_handler._move_to_dlq(
+                job_data=item,
+                error=str(e),
+                attempt_count=1,
+                first_failed_at=item.get("timestamp", ""),
+                queue_name=self._queue_name,
+            )
+
+            logger.error(
+                f"RT-DETR service unavailable for {file_path}, moved to DLQ for retry",
+                extra={"camera_id": camera_id, "file_path": file_path, "error": str(e)},
+            )
+
         except Exception as e:
+            # Non-transient failure - likely a permanent error with this specific file
             self._stats.errors += 1
             record_pipeline_error("detection_processing_error")
             logger.error(
@@ -738,6 +785,10 @@ class PipelineWorkerManager:
         # Create shared batch aggregator for detection and timeout workers
         self._aggregator = BatchAggregator(redis_client=redis_client)
 
+        # Create shared dedupe service and retry handler for detection worker
+        self._dedupe = DedupeService(redis_client=redis_client)
+        self._retry_handler = RetryHandler(redis_client=redis_client)
+
         # Initialize workers
         self._detection_worker: DetectionQueueWorker | None = None
         self._analysis_worker: AnalysisQueueWorker | None = None
@@ -749,6 +800,8 @@ class PipelineWorkerManager:
                 redis_client=redis_client,
                 detector_client=detector_client,
                 batch_aggregator=self._aggregator,
+                dedupe_service=self._dedupe,
+                retry_handler=self._retry_handler,
             )
 
         if enable_analysis_worker:
