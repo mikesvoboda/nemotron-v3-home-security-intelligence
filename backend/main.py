@@ -10,8 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.api.middleware import AuthMiddleware
 from backend.api.middleware.request_id import RequestIDMiddleware
 from backend.api.routes import cameras, detections, dlq, events, media, metrics, system, websocket
-from backend.api.routes.system import register_workers
 from backend.api.routes.logs import router as logs_router
+from backend.api.routes.system import register_workers
 from backend.core import close_db, get_settings, init_db
 from backend.core.logging import setup_logging
 from backend.core.redis import close_redis, init_redis

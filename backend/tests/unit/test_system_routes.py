@@ -11,6 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 
 from backend.api.routes import system as system_routes
@@ -1704,9 +1705,6 @@ async def test_trigger_cleanup_logs_operation() -> None:
 # =============================================================================
 # AI Services Health Check Tests
 # =============================================================================
-
-
-import httpx
 
 
 @pytest.mark.asyncio

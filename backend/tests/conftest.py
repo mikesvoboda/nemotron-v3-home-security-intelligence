@@ -17,10 +17,9 @@ from __future__ import annotations
 import os
 import sys
 import tempfile
+from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
-
-from pathlib import Path
 
 import pytest
 
@@ -167,7 +166,7 @@ async def test_db():
 
 
 @pytest.fixture
-def integration_env() -> Generator[str, None, None]:
+def integration_env() -> Generator[str]:
     """Set DATABASE_URL/REDIS_URL to a temporary per-test database.
 
     This fixture ONLY sets environment variables and clears cached settings.
@@ -216,7 +215,7 @@ def integration_env() -> Generator[str, None, None]:
 
 
 @pytest.fixture
-async def integration_db(integration_env: str) -> AsyncGenerator[str, None]:
+async def integration_db(integration_env: str) -> AsyncGenerator[str]:
     """Initialize a temporary SQLite DB for integration/E2E tests.
 
     This fixture:
@@ -245,7 +244,7 @@ async def integration_db(integration_env: str) -> AsyncGenerator[str, None]:
 
 
 @pytest.fixture
-async def mock_redis() -> AsyncGenerator[AsyncMock, None]:
+async def mock_redis() -> AsyncGenerator[AsyncMock]:
     """Mock Redis operations so integration tests don't require an actual Redis server.
 
     This fixture provides a mock Redis client with common operations pre-configured:
