@@ -11,7 +11,7 @@ Uses shared fixtures from conftest.py:
 
 import json
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -248,8 +248,10 @@ class TestAnalyzeBatchCreatesEvent:
             event = await analyzer.analyze_batch(batch_id)
 
         # Verify time window matches detection times
-        assert event.started_at == datetime(2025, 12, 23, 14, 0, 0)
-        assert event.ended_at == datetime(2025, 12, 23, 14, 2, 0)
+        # Note: Database stores UTC-aware datetimes, so we need to compare with tz-aware
+
+        assert event.started_at == datetime(2025, 12, 23, 14, 0, 0, tzinfo=UTC)
+        assert event.ended_at == datetime(2025, 12, 23, 14, 2, 0, tzinfo=UTC)
 
 
 class TestAnalyzeBatchErrorHandling:

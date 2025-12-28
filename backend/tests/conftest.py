@@ -363,27 +363,19 @@ async def client(integration_db: str, mock_redis: AsyncMock) -> AsyncGenerator:
     - The DB is pre-initialized by `integration_db`.
     - We patch app lifespan DB init/close to avoid double initialization.
     - We patch Redis init/close in `backend.main` so lifespan does not connect.
-    - We truncate all tables at the start of each test for isolation.
+    - Tests that need isolation should use clean_events, clean_cameras, or clean_logs
+      fixtures which will truncate tables before data fixtures create their data.
 
     Use this fixture for testing API endpoints.
     """
     from httpx import ASGITransport, AsyncClient
-    from sqlalchemy import text
-
-    from backend.core.database import get_engine
 
     # Import the app only after env is set up.
     from backend.main import app
 
-    # Truncate all tables at the start of each test for proper isolation
-    # This ensures no data persists from previous tests
-    async with get_engine().begin() as conn:
-        await conn.execute(
-            text(
-                "TRUNCATE TABLE logs, gpu_stats, api_keys, detections, events, cameras "
-                "RESTART IDENTITY CASCADE"
-            )
-        )
+    # NOTE: Removed TRUNCATE from here because it was running AFTER data fixtures
+    # (sample_event, sample_camera, etc) created their data due to pytest fixture
+    # ordering. Tests that need clean state should use clean_* fixtures explicitly.
 
     with (
         patch("backend.main.init_db", return_value=None),
