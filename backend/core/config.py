@@ -186,6 +186,26 @@ class Settings(BaseSettings):
         description="Maximum iterations for requeue-all operations",
     )
 
+    # Severity threshold settings (risk score 0-100)
+    severity_low_max: int = Field(
+        default=29,
+        ge=0,
+        le=100,
+        description="Maximum risk score for LOW severity (0 to this value = LOW)",
+    )
+    severity_medium_max: int = Field(
+        default=59,
+        ge=0,
+        le=100,
+        description="Maximum risk score for MEDIUM severity",
+    )
+    severity_high_max: int = Field(
+        default=84,
+        ge=0,
+        le=100,
+        description="Maximum risk score for HIGH severity (above = CRITICAL)",
+    )
+
     @field_validator("log_file_path")
     @classmethod
     def validate_log_file_path(cls, v: str) -> str:
