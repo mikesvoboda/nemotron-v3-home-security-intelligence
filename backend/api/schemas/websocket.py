@@ -190,3 +190,99 @@ class WebSocketErrorCode:
     INVALID_MESSAGE_FORMAT = "invalid_message_format"
     UNKNOWN_MESSAGE_TYPE = "unknown_message_type"
     VALIDATION_ERROR = "validation_error"
+
+
+# Outgoing message schemas (server -> client)
+
+
+class WebSocketEventData(BaseModel):
+    """Data payload for event messages broadcast to /ws/events clients.
+
+    This schema defines the contract for event data sent from the backend
+    to WebSocket clients. Any changes to this schema must be reflected in:
+    - backend/api/routes/websocket.py docstring
+    - backend/services/nemotron_analyzer.py _broadcast_event()
+    - frontend WebSocket event handlers
+
+    Fields:
+        id: Unique event identifier
+        event_id: Legacy alias for id (for backward compatibility)
+        batch_id: Detection batch identifier
+        camera_id: UUID of the camera that captured the event
+        risk_score: Risk assessment score (0-100)
+        risk_level: Risk classification ("low", "medium", "high", "critical")
+        summary: Human-readable description of the event
+        started_at: ISO 8601 timestamp when the event started (nullable)
+    """
+
+    id: int = Field(..., description="Unique event identifier")
+    event_id: int = Field(..., description="Legacy alias for id (backward compatibility)")
+    batch_id: str = Field(..., description="Detection batch identifier")
+    camera_id: str = Field(..., description="UUID of the camera that captured the event")
+    risk_score: int = Field(..., ge=0, le=100, description="Risk assessment score (0-100)")
+    risk_level: str = Field(
+        ..., description='Risk classification ("low", "medium", "high", "critical")'
+    )
+    summary: str = Field(..., description="Human-readable description of the event")
+    started_at: str | None = Field(None, description="ISO 8601 timestamp when the event started")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "id": 1,
+                "event_id": 1,
+                "batch_id": "batch_abc123",
+                "camera_id": "cam-uuid",
+                "risk_score": 75,
+                "risk_level": "high",
+                "summary": "Person detected at front door",
+                "started_at": "2025-12-23T12:00:00",
+            }
+        }
+    )
+
+
+class WebSocketEventMessage(BaseModel):
+    """Complete event message envelope sent to /ws/events clients.
+
+    This is the canonical format for event messages broadcast via WebSocket.
+    The message wraps event data in a standard envelope with a type field.
+
+    Format:
+        {
+            "type": "event",
+            "data": {
+                "id": 1,
+                "event_id": 1,
+                "batch_id": "batch_abc123",
+                "camera_id": "cam-uuid",
+                "risk_score": 75,
+                "risk_level": "high",
+                "summary": "Person detected at front door",
+                "started_at": "2025-12-23T12:00:00"
+            }
+        }
+    """
+
+    type: Literal["event"] = Field(
+        default="event", description="Message type, always 'event' for event messages"
+    )
+    data: WebSocketEventData = Field(..., description="Event data payload")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "type": "event",
+                "data": {
+                    "id": 1,
+                    "event_id": 1,
+                    "batch_id": "batch_abc123",
+                    "camera_id": "cam-uuid",
+                    "risk_score": 75,
+                    "risk_level": "high",
+                    "summary": "Person detected at front door",
+                    "started_at": "2025-12-23T12:00:00",
+                },
+            }
+        }
+    )

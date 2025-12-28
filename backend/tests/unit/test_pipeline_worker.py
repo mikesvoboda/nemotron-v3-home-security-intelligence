@@ -55,6 +55,16 @@ async def fake_redis():
     await client.aclose()
 
 
+def _create_empty_async_generator():
+    """Create an empty async generator for scan_iter mocking."""
+
+    async def _generator():
+        return
+        yield  # Makes this an async generator
+
+    return _generator()
+
+
 @pytest.fixture
 def mock_redis_client():
     """Create a mock RedisClient with all necessary methods.
@@ -66,7 +76,8 @@ def mock_redis_client():
 
     # Internal client mock for low-level operations
     mock_internal = AsyncMock()
-    mock_internal.keys = AsyncMock(return_value=[])
+    # Use scan_iter instead of keys (returns async generator)
+    mock_internal.scan_iter = MagicMock(return_value=_create_empty_async_generator())
     mock_internal.ping = AsyncMock(return_value=True)
     mock_client._client = mock_internal
 
@@ -226,7 +237,11 @@ class TestQueueConsumerLoop:
         camera_id = "test_cam"
         old_timestamp = str(time.time() - 100)  # 100 seconds ago
 
-        mock_redis_client._client.keys.return_value = [f"batch:{camera_id}:current"]
+        # Create async generator for scan_iter that yields batch keys
+        async def mock_scan_iter(match="*", count=100):
+            yield f"batch:{camera_id}:current"
+
+        mock_redis_client._client.scan_iter = MagicMock(return_value=mock_scan_iter())
 
         async def mock_get(key):
             if key == f"batch:{camera_id}:current":
@@ -553,8 +568,14 @@ class TestErrorHandling:
         self, batch_aggregator, mock_redis_client
     ):
         """Test batch aggregator handles Redis errors without crashing."""
-        # Simulate Redis error during batch timeout check
-        mock_redis_client._client.keys.side_effect = Exception("Redis connection error")
+
+        # Create async generator that raises an error when iterated
+        async def error_scan_iter(match="*", count=100):
+            raise Exception("Redis connection error")
+            yield  # Makes this an async generator
+
+        # Simulate Redis error during batch timeout check (scan_iter iteration)
+        mock_redis_client._client.scan_iter = MagicMock(return_value=error_scan_iter())
 
         # The error propagates up as Exception (Redis operations fail)
         with pytest.raises(Exception, match="Redis connection error"):

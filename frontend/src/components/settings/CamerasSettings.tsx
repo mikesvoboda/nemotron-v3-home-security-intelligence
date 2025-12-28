@@ -302,9 +302,7 @@ export default function CamerasSettings() {
                     </span>
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 text-sm text-text-secondary">
-                    {camera.last_seen_at
-                      ? new Date(camera.last_seen_at).toLocaleString()
-                      : 'Never'}
+                    {camera.last_seen_at ? new Date(camera.last_seen_at).toLocaleString() : 'Never'}
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
@@ -509,7 +507,9 @@ export default function CamerasSettings() {
                       </Dialog.Title>
                       <p className="mt-2 text-sm text-text-secondary">
                         Are you sure you want to delete{' '}
-                        <span className="font-medium text-text-primary">{deletingCamera?.name}</span>
+                        <span className="font-medium text-text-primary">
+                          {deletingCamera?.name}
+                        </span>
                         ? This action cannot be undone.
                       </p>
                     </div>

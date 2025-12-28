@@ -74,6 +74,7 @@ async def init_db() -> None:
         # SQLite-specific configuration
         connect_args = {
             "check_same_thread": False,  # Required for async SQLite
+            "timeout": 30,  # Wait up to 30 seconds for database lock
         }
         # Use NullPool for SQLite to avoid connection reuse issues
         poolclass = pool.NullPool
@@ -91,10 +92,13 @@ async def init_db() -> None:
     if "sqlite" in settings.database_url:
 
         @event.listens_for(_engine.sync_engine, "connect")
-        def enable_foreign_keys(dbapi_conn: Any, _connection_record: Any) -> None:
-            """Enable foreign key constraints for SQLite."""
+        def configure_sqlite(dbapi_conn: Any, _connection_record: Any) -> None:
+            """Configure SQLite pragmas for better concurrency and reliability."""
             cursor = dbapi_conn.cursor()
             cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.execute("PRAGMA journal_mode=WAL")  # Better concurrent access
+            cursor.execute("PRAGMA busy_timeout=30000")  # 30 second timeout
+            cursor.execute("PRAGMA synchronous=NORMAL")  # Balance safety/speed
             cursor.close()
 
     # Create session factory

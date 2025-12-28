@@ -48,12 +48,12 @@ docker compose -f docker-compose.prod.yml down
 
 ## 📋 Service Endpoints
 
-| Service  | Port | URL                        | Health Check        |
-| -------- | ---- | -------------------------- | ------------------- |
-| Backend  | 8000 | http://localhost:8000      | /health             |
-| API Docs | 8000 | http://localhost:8000/docs | -                   |
-| Frontend | 5173 | http://localhost:5173      | / (Vite dev server) |
-| Redis    | 6379 | redis://localhost:6379     | redis-cli ping      |
+| Service  | Port | URL                        | Health Check             |
+| -------- | ---- | -------------------------- | ------------------------ |
+| Backend  | 8000 | http://localhost:8000      | /api/system/health/ready |
+| API Docs | 8000 | http://localhost:8000/docs | -                        |
+| Frontend | 5173 | http://localhost:5173      | / (Vite dev server)      |
+| Redis    | 6379 | redis://localhost:6379     | redis-cli ping           |
 
 ## 🔍 Health Checks
 
@@ -61,8 +61,11 @@ docker compose -f docker-compose.prod.yml down
 # Check all services
 docker compose ps
 
-# Check Backend health
-curl http://localhost:8000/health
+# Check Backend health (readiness probe)
+curl http://localhost:8000/api/system/health/ready
+
+# Check Backend liveness (basic health)
+curl http://localhost:8000/api/system/health
 
 # Check Redis
 docker compose exec redis redis-cli ping
@@ -133,13 +136,50 @@ Create `.env` file in project root (copy from `.env.example`):
 cp .env.example .env
 ```
 
-Key variables:
+### Core Configuration
 
-- `DATABASE_URL` - SQLite database location
-- `REDIS_URL` - Redis connection URL
-- `DETECTOR_URL` - RT-DETRv2 service URL
-- `LLM_URL` - Nemotron service URL
-- `FOSCAM_BASE_PATH` - Camera uploads directory
+| Variable       | Default                                  | Description                             |
+| -------------- | ---------------------------------------- | --------------------------------------- |
+| `DATABASE_URL` | `sqlite+aiosqlite:///./data/security.db` | SQLAlchemy database URL                 |
+| `REDIS_URL`    | `redis://localhost:6379/0`               | Redis connection URL                    |
+| `RTDETR_URL`   | `http://localhost:8090`                  | RT-DETRv2 object detection service URL  |
+| `NEMOTRON_URL` | `http://localhost:8091`                  | Nemotron LLM risk reasoning service URL |
+
+### Camera Path Configuration
+
+There are two related but distinct path variables:
+
+| Variable           | Used In            | Default          | Description                                                                           |
+| ------------------ | ------------------ | ---------------- | ------------------------------------------------------------------------------------- |
+| `CAMERA_PATH`      | docker-compose.yml | `/export/foscam` | **Host machine path** - where camera images are stored on your host                   |
+| `FOSCAM_BASE_PATH` | Backend config     | `/cameras`       | **Container internal path** - where the backend looks for images inside the container |
+
+**How they work together:**
+
+```yaml
+# In docker-compose.yml:
+volumes:
+  - ${CAMERA_PATH:-/export/foscam}:/cameras:ro # Host path -> Container path
+
+environment:
+  - FOSCAM_BASE_PATH=/cameras # Backend looks here (inside container)
+```
+
+**Common scenarios:**
+
+1. **Default setup** (images at `/export/foscam` on host):
+
+   - No changes needed, defaults work
+
+2. **Custom host path** (e.g., images at `/mnt/cameras` on host):
+
+   ```bash
+   export CAMERA_PATH=/mnt/cameras
+   docker compose up -d
+   ```
+
+3. **Different container mount point** (advanced):
+   - Change both the volume mount and `FOSCAM_BASE_PATH` to match
 
 ## 📁 Important Files
 
@@ -234,7 +274,7 @@ Before deploying:
 
 - [ ] Docker is installed and running
 - [ ] `.env` file is configured
-- [ ] `/export/foscam` directory exists (or update FOSCAM_BASE_PATH)
+- [ ] Camera images directory exists (default: `/export/foscam`, or set `CAMERA_PATH`)
 - [ ] AI services are running (RT-DETRv2 on 8090, Nemotron on 8091)
 - [ ] Ports 5173, 6379, and 8000 are available
 

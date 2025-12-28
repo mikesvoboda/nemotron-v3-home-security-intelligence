@@ -114,7 +114,9 @@ describe('LogsDashboard', () => {
 
       expect(screen.getByText('System Logs')).toBeInTheDocument();
       expect(
-        screen.getByText('View and filter all system logs from backend services and frontend components')
+        screen.getByText(
+          'View and filter all system logs from backend services and frontend components'
+        )
       ).toBeInTheDocument();
     });
 
@@ -286,7 +288,9 @@ describe('LogsDashboard', () => {
       await user.click(clearButton);
 
       await waitFor(() => {
-        expect(api.fetchLogs).toHaveBeenCalledWith(expect.not.objectContaining({ search: expect.anything() }));
+        expect(api.fetchLogs).toHaveBeenCalledWith(
+          expect.not.objectContaining({ search: expect.anything() })
+        );
       });
     });
 
@@ -327,9 +331,7 @@ describe('LogsDashboard', () => {
       await user.click(nextButton);
 
       await waitFor(() => {
-        expect(api.fetchLogs).toHaveBeenCalledWith(
-          expect.objectContaining({ offset: 50 })
-        );
+        expect(api.fetchLogs).toHaveBeenCalledWith(expect.objectContaining({ offset: 50 }));
       });
 
       // Now apply a filter - this should reset to page 1
@@ -387,9 +389,7 @@ describe('LogsDashboard', () => {
       await user.click(nextButton);
 
       await waitFor(() => {
-        expect(api.fetchLogs).toHaveBeenCalledWith(
-          expect.objectContaining({ offset: 50 })
-        );
+        expect(api.fetchLogs).toHaveBeenCalledWith(expect.objectContaining({ offset: 50 }));
       });
     });
 
@@ -406,9 +406,7 @@ describe('LogsDashboard', () => {
       await user.click(nextButton);
 
       await waitFor(() => {
-        expect(api.fetchLogs).toHaveBeenCalledWith(
-          expect.objectContaining({ offset: 50 })
-        );
+        expect(api.fetchLogs).toHaveBeenCalledWith(expect.objectContaining({ offset: 50 }));
       });
 
       // Now navigate back to page 1
@@ -416,9 +414,7 @@ describe('LogsDashboard', () => {
       await user.click(prevButton);
 
       await waitFor(() => {
-        expect(api.fetchLogs).toHaveBeenCalledWith(
-          expect.objectContaining({ offset: 0 })
-        );
+        expect(api.fetchLogs).toHaveBeenCalledWith(expect.objectContaining({ offset: 0 }));
       });
     });
 

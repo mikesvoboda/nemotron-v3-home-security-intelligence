@@ -155,12 +155,12 @@ export default function ObservabilityPanel({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Server className="h-6 w-6 text-[#76B900]" />
-          <Title className="text-white text-2xl">System Observability</Title>
+          <Title className="text-2xl text-white">System Observability</Title>
         </div>
         {/* Health Status Indicator */}
         <div className="flex items-center gap-2">
           <div
-            className="h-3 w-3 rounded-full animate-pulse"
+            className="h-3 w-3 animate-pulse rounded-full"
             style={{ backgroundColor: healthColor }}
             aria-label={`System health: ${healthLabel}`}
           />
@@ -171,8 +171,8 @@ export default function ObservabilityPanel({
       {/* Main Grid Layout */}
       <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
         {/* GPU Utilization Chart */}
-        <Card className="bg-[#1A1A1A] border-gray-800 shadow-lg xl:col-span-2">
-          <div className="flex items-center justify-between mb-4">
+        <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg xl:col-span-2">
+          <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Activity className="h-5 w-5 text-[#76B900]" />
               <Title className="text-white">GPU Utilization Over Time</Title>
@@ -181,12 +181,12 @@ export default function ObservabilityPanel({
               <Metric className="text-[#76B900]">
                 {gpuUtilization !== null ? `${gpuUtilization.toFixed(0)}%` : 'N/A'}
               </Metric>
-              <Text className="text-gray-400 text-sm">Current</Text>
+              <Text className="text-sm text-gray-400">Current</Text>
             </div>
           </div>
           {chartData.length > 0 ? (
             <AreaChart
-              className="h-48 mt-4"
+              className="mt-4 h-48"
               data={chartData}
               index="time"
               categories={['GPU Utilization']}
@@ -197,20 +197,20 @@ export default function ObservabilityPanel({
               curveType="monotone"
             />
           ) : (
-            <div className="h-48 flex items-center justify-center text-gray-500">
+            <div className="flex h-48 items-center justify-center text-gray-500">
               <Text>No data available</Text>
             </div>
           )}
         </Card>
 
         {/* Memory Usage Card */}
-        <Card className="bg-[#1A1A1A] border-gray-800 shadow-lg">
-          <div className="flex items-center gap-2 mb-4">
+        <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg">
+          <div className="mb-4 flex items-center gap-2">
             <Zap className="h-5 w-5 text-[#76B900]" />
             <Title className="text-white">GPU Memory</Title>
           </div>
 
-          <div className="flex items-center justify-center mb-4">
+          <div className="mb-4 flex items-center justify-center">
             <DonutChart
               className="h-36 w-36"
               data={memoryDonutData}
@@ -224,13 +224,13 @@ export default function ObservabilityPanel({
           </div>
 
           <div className="space-y-2">
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
               <Text className="text-gray-300">Used</Text>
-              <Text className="text-white font-medium">{formatMemoryGB(gpuMemoryUsed)}</Text>
+              <Text className="font-medium text-white">{formatMemoryGB(gpuMemoryUsed)}</Text>
             </div>
-            <div className="flex justify-between items-center">
+            <div className="flex items-center justify-between">
               <Text className="text-gray-300">Total</Text>
-              <Text className="text-white font-medium">{formatMemoryGB(gpuMemoryTotal)}</Text>
+              <Text className="font-medium text-white">{formatMemoryGB(gpuMemoryTotal)}</Text>
             </div>
             <ProgressBar
               value={memoryPercentage ?? 0}
@@ -241,8 +241,8 @@ export default function ObservabilityPanel({
         </Card>
 
         {/* Temperature Gauge Card */}
-        <Card className="bg-[#1A1A1A] border-gray-800 shadow-lg">
-          <div className="flex items-center gap-2 mb-4">
+        <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg">
+          <div className="mb-4 flex items-center gap-2">
             <Thermometer className="h-5 w-5 text-[#76B900]" />
             <Title className="text-white">GPU Temperature</Title>
           </div>
@@ -261,13 +261,9 @@ export default function ObservabilityPanel({
             <Text className="text-gray-400">{gpuTemperature !== null ? 'Celsius' : ''}</Text>
           </div>
 
-          <ProgressBar
-            value={gpuTemperature ?? 0}
-            color={tempColor}
-            className="mt-4"
-          />
+          <ProgressBar value={gpuTemperature ?? 0} color={tempColor} className="mt-4" />
 
-          <div className="flex justify-between mt-2 text-xs text-gray-500">
+          <div className="mt-2 flex justify-between text-xs text-gray-500">
             <span>0</span>
             <span>70</span>
             <span>80</span>
@@ -276,43 +272,43 @@ export default function ObservabilityPanel({
         </Card>
 
         {/* Queue Stats Card */}
-        <Card className="bg-[#1A1A1A] border-gray-800 shadow-lg">
-          <div className="flex items-center gap-2 mb-4">
+        <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg">
+          <div className="mb-4 flex items-center gap-2">
             <Layers className="h-5 w-5 text-[#76B900]" />
             <Title className="text-white">Pipeline Queue</Title>
           </div>
 
           <div className="space-y-4">
-            <div className="flex justify-between items-center p-3 bg-[#121212] rounded-lg">
+            <div className="flex items-center justify-between rounded-lg bg-[#121212] p-3">
               <div>
-                <Text className="text-gray-400 text-sm">Pending</Text>
+                <Text className="text-sm text-gray-400">Pending</Text>
                 <Metric className="text-white">{queueStats?.pending ?? 0}</Metric>
               </div>
-              <div className="h-12 w-12 rounded-full bg-yellow-500/20 flex items-center justify-center">
-                <span className="text-yellow-500 font-bold">{queueStats?.pending ?? 0}</span>
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-yellow-500/20">
+                <span className="font-bold text-yellow-500">{queueStats?.pending ?? 0}</span>
               </div>
             </div>
 
-            <div className="flex justify-between items-center p-3 bg-[#121212] rounded-lg">
+            <div className="flex items-center justify-between rounded-lg bg-[#121212] p-3">
               <div>
-                <Text className="text-gray-400 text-sm">Processing</Text>
+                <Text className="text-sm text-gray-400">Processing</Text>
                 <Metric className="text-white">{queueStats?.processing ?? 0}</Metric>
               </div>
-              <div className="h-12 w-12 rounded-full bg-[#76B900]/20 flex items-center justify-center">
-                <span className="text-[#76B900] font-bold">{queueStats?.processing ?? 0}</span>
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#76B900]/20">
+                <span className="font-bold text-[#76B900]">{queueStats?.processing ?? 0}</span>
               </div>
             </div>
           </div>
         </Card>
 
         {/* Grafana Link Card */}
-        <Card className="bg-[#1A1A1A] border-gray-800 shadow-lg">
-          <div className="flex items-center gap-2 mb-4">
+        <Card className="border-gray-800 bg-[#1A1A1A] shadow-lg">
+          <div className="mb-4 flex items-center gap-2">
             <Cpu className="h-5 w-5 text-[#76B900]" />
             <Title className="text-white">Detailed Metrics</Title>
           </div>
 
-          <Text className="text-gray-400 mb-4">
+          <Text className="mb-4 text-gray-400">
             View comprehensive system metrics, historical data, and custom dashboards in Grafana.
           </Text>
 
@@ -320,13 +316,13 @@ export default function ObservabilityPanel({
             href={grafanaUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-[#76B900] hover:bg-[#8BCB00] text-black font-medium rounded-lg transition-colors"
+            className="inline-flex items-center gap-2 rounded-lg bg-[#76B900] px-4 py-2 font-medium text-black transition-colors hover:bg-[#8BCB00]"
           >
             <ExternalLink className="h-4 w-4" />
             Open Grafana
           </a>
 
-          <Text className="text-gray-500 text-xs mt-3">Opens in new tab at {grafanaUrl}</Text>
+          <Text className="mt-3 text-xs text-gray-500">Opens in new tab at {grafanaUrl}</Text>
         </Card>
       </div>
     </div>

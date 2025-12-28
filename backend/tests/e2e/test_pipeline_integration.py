@@ -117,12 +117,13 @@ async def mock_redis_client():
         # Simulate publishing (return subscriber count)
         return 1
 
-    async def mock_keys(pattern):
-        # Return keys matching pattern
+    async def mock_scan_iter(match="*", count=100):
+        """Async generator for SCAN iteration (replacement for KEYS)."""
         import fnmatch
 
-        matching_keys = [k for k in batch_data if fnmatch.fnmatch(k, pattern)]
-        return matching_keys
+        for k in batch_data:
+            if fnmatch.fnmatch(k, match):
+                yield k
 
     mock_redis.get = AsyncMock(side_effect=mock_get)
     mock_redis.set = AsyncMock(side_effect=mock_set)
@@ -130,9 +131,9 @@ async def mock_redis_client():
     mock_redis.add_to_queue = AsyncMock(side_effect=mock_add_to_queue)
     mock_redis.publish = AsyncMock(side_effect=mock_publish)
 
-    # Mock internal _client for batch timeout checks
-    mock_internal_client = AsyncMock()
-    mock_internal_client.keys = AsyncMock(side_effect=mock_keys)
+    # Mock internal _client for batch timeout checks (using scan_iter instead of keys)
+    mock_internal_client = MagicMock()
+    mock_internal_client.scan_iter = mock_scan_iter
     mock_redis._client = mock_internal_client
 
     # Store batch_data for test verification
@@ -274,14 +275,18 @@ async def test_complete_pipeline_flow_with_mocked_services(
         mock_client.post = AsyncMock(return_value=mock_response)
         mock_http_client.return_value.__aenter__.return_value = mock_client
 
-        # Manually set batch metadata for analyzer (since it reads from Redis)
-        await mock_redis_client.set(f"batch:{batch_id}:camera_id", camera_id)
+        # Get the detection_ids for analysis
         detection_ids = [str(d.id) for d in detections]
-        await mock_redis_client.set(f"batch:{batch_id}:detections", json.dumps(detection_ids))
 
-        # Run analyzer
+        # Run analyzer - pass camera_id and detection_ids directly (as queue worker does)
+        # This tests the fixed handoff where close_batch deletes Redis keys but
+        # the queue payload contains all needed data
         analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
-        event = await analyzer.analyze_batch(batch_id)
+        event = await analyzer.analyze_batch(
+            batch_id=batch_id,
+            camera_id=camera_id,
+            detection_ids=detection_ids,
+        )
 
     # Step 6: Verify event was created
     assert event is not None
@@ -571,9 +576,8 @@ async def test_pipeline_handles_nemotron_failure_gracefully(
         _file_path=test_image_path,
     )
 
-    # Set up batch metadata for analyzer
-    await mock_redis_client.set(f"batch:{batch_id}:camera_id", camera_id)
-    await mock_redis_client.set(f"batch:{batch_id}:detections", json.dumps([str(detection.id)]))
+    # Get detection_ids for analysis
+    detection_ids = [str(detection.id)]
 
     # Mock Nemotron to fail
     with patch("httpx.AsyncClient") as mock_http_client:
@@ -581,9 +585,13 @@ async def test_pipeline_handles_nemotron_failure_gracefully(
         mock_client.post.side_effect = Exception("LLM service unavailable")
         mock_http_client.return_value.__aenter__.return_value = mock_client
 
-        # Run analyzer (should not crash)
+        # Run analyzer (should not crash) - pass camera_id and detection_ids directly
         analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
-        event = await analyzer.analyze_batch(batch_id)
+        event = await analyzer.analyze_batch(
+            batch_id=batch_id,
+            camera_id=camera_id,
+            detection_ids=detection_ids,
+        )
 
     # Event should be created with fallback values
     assert event is not None

@@ -332,7 +332,9 @@ run_frontend_validation() {
 
     # Run Prettier check
     print_step "Running Prettier check..."
-    if ! npx --prefix "$FRONTEND_DIR" prettier --check "$FRONTEND_DIR/src/**/*.{ts,tsx}"; then
+    # NOTE: Use the frontend npm script so Prettier loads plugins (e.g. prettier-plugin-tailwindcss)
+    # from frontend/node_modules correctly. `npx --prefix` can fail to resolve plugins on some setups.
+    if ! npm run format:check --prefix "$FRONTEND_DIR"; then
         print_error "Prettier check failed"
         echo ""
         echo "To auto-format, run:"

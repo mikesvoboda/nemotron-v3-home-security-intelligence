@@ -45,8 +45,8 @@ export default function LogStatsCards({ className }: LogStatsCardsProps) {
 
   if (loading && !stats) {
     return (
-      <Card className={clsx('bg-[#1A1A1A] border-gray-800 shadow-lg', className)}>
-        <Title className="text-white mb-4 flex items-center gap-2">
+      <Card className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)}>
+        <Title className="mb-4 flex items-center gap-2 text-white">
           <FileText className="h-5 w-5 text-[#76B900]" />
           Log Statistics
         </Title>
@@ -57,8 +57,8 @@ export default function LogStatsCards({ className }: LogStatsCardsProps) {
 
   if (error) {
     return (
-      <Card className={clsx('bg-[#1A1A1A] border-gray-800 shadow-lg', className)}>
-        <Title className="text-white mb-4 flex items-center gap-2">
+      <Card className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)}>
+        <Title className="mb-4 flex items-center gap-2 text-white">
           <FileText className="h-5 w-5 text-[#76B900]" />
           Log Statistics
         </Title>
@@ -72,19 +72,19 @@ export default function LogStatsCards({ className }: LogStatsCardsProps) {
   }
 
   return (
-    <Card className={clsx('bg-[#1A1A1A] border-gray-800 shadow-lg', className)}>
-      <Title className="text-white mb-4 flex items-center gap-2">
+    <Card className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)}>
+      <Title className="mb-4 flex items-center gap-2 text-white">
         <FileText className="h-5 w-5 text-[#76B900]" />
         Log Statistics
       </Title>
 
       <Grid numItemsSm={2} numItemsLg={4} className="gap-4">
         {/* Error Count */}
-        <Card className="bg-zinc-900 border-gray-700">
+        <Card className="border-gray-700 bg-zinc-900">
           <div className="flex items-center justify-between">
             <div>
-              <Text className="text-gray-400 text-sm">Errors Today</Text>
-              <div className="flex items-center gap-2 mt-1">
+              <Text className="text-sm text-gray-400">Errors Today</Text>
+              <div className="mt-1 flex items-center gap-2">
                 <Text
                   className={clsx(
                     'text-2xl font-semibold',
@@ -101,22 +101,19 @@ export default function LogStatsCards({ className }: LogStatsCardsProps) {
               </div>
             </div>
             <AlertCircle
-              className={clsx(
-                'h-8 w-8',
-                stats.errors_today > 0 ? 'text-red-500' : 'text-gray-600'
-              )}
+              className={clsx('h-8 w-8', stats.errors_today > 0 ? 'text-red-500' : 'text-gray-600')}
             />
           </div>
         </Card>
 
         {/* Warning Count */}
-        <Card className="bg-zinc-900 border-gray-700">
+        <Card className="border-gray-700 bg-zinc-900">
           <div className="flex items-center justify-between">
             <div>
-              <Text className="text-gray-400 text-sm">Warnings Today</Text>
+              <Text className="text-sm text-gray-400">Warnings Today</Text>
               <Text
                 className={clsx(
-                  'text-2xl font-semibold mt-1',
+                  'mt-1 text-2xl font-semibold',
                   stats.warnings_today > 0 ? 'text-yellow-500' : 'text-gray-300'
                 )}
               >
@@ -133,11 +130,11 @@ export default function LogStatsCards({ className }: LogStatsCardsProps) {
         </Card>
 
         {/* Total Today */}
-        <Card className="bg-zinc-900 border-gray-700">
+        <Card className="border-gray-700 bg-zinc-900">
           <div className="flex items-center justify-between">
             <div>
-              <Text className="text-gray-400 text-sm">Total Today</Text>
-              <Text className="text-2xl font-semibold text-[#76B900] mt-1">
+              <Text className="text-sm text-gray-400">Total Today</Text>
+              <Text className="mt-1 text-2xl font-semibold text-[#76B900]">
                 {stats.total_today}
               </Text>
             </div>
@@ -146,15 +143,15 @@ export default function LogStatsCards({ className }: LogStatsCardsProps) {
         </Card>
 
         {/* Most Active Component */}
-        <Card className="bg-zinc-900 border-gray-700">
+        <Card className="border-gray-700 bg-zinc-900">
           <div className="flex items-center justify-between">
             <div>
-              <Text className="text-gray-400 text-sm">Most Active</Text>
-              <Text className="text-lg font-medium text-white mt-1 truncate">
+              <Text className="text-sm text-gray-400">Most Active</Text>
+              <Text className="mt-1 truncate text-lg font-medium text-white">
                 {stats.top_component || 'N/A'}
               </Text>
               {stats.top_component && stats.by_component[stats.top_component] && (
-                <Text className="text-xs text-gray-500 mt-0.5">
+                <Text className="mt-0.5 text-xs text-gray-500">
                   {stats.by_component[stats.top_component]} logs
                 </Text>
               )}

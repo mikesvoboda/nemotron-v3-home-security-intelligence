@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 
 import { useWebSocket } from './useWebSocket';
+import { buildWebSocketUrl } from '../services/api';
 
 export interface SecurityEvent {
   id: string | number;
@@ -77,11 +78,11 @@ export function useEventStream(): UseEventStreamReturn {
     // Ignore non-event messages (e.g., service_status, ping, etc.)
   }, []);
 
-  const wsProtocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsHost = typeof window !== 'undefined' ? window.location.host : 'localhost:8000';
+  // Build WebSocket URL using helper (respects VITE_WS_BASE_URL and adds api_key if configured)
+  const wsUrl = buildWebSocketUrl('/ws/events');
 
   const { isConnected } = useWebSocket({
-    url: wsProtocol + '//' + wsHost + '/ws/events',
+    url: wsUrl,
     onMessage: handleMessage,
   });
 

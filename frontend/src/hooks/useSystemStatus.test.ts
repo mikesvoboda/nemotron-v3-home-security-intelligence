@@ -225,7 +225,13 @@ describe('useSystemStatus', () => {
     const invalidMessage = {
       type: 'system_status',
       data: {
-        gpu: { utilization: 45.5, temperature: 65, memory_used: 8192, memory_total: 24576, inference_fps: 30 },
+        gpu: {
+          utilization: 45.5,
+          temperature: 65,
+          memory_used: 8192,
+          memory_total: 24576,
+          inference_fps: 30,
+        },
         cameras: { active: 3, total: 6 },
         queue: { pending: 0, processing: 0 },
         // Missing health
@@ -266,7 +272,13 @@ describe('useSystemStatus', () => {
     const invalidMessage = {
       type: 'system_status',
       data: {
-        gpu: { utilization: 45.5, temperature: 65, memory_used: 8192, memory_total: 24576, inference_fps: 30 },
+        gpu: {
+          utilization: 45.5,
+          temperature: 65,
+          memory_used: 8192,
+          memory_total: 24576,
+          inference_fps: 30,
+        },
         // Missing cameras
         health: 'healthy',
       },
@@ -286,7 +298,13 @@ describe('useSystemStatus', () => {
     const invalidMessage = {
       type: 'system_status',
       data: {
-        gpu: { utilization: 45.5, temperature: 65, memory_used: 8192, memory_total: 24576, inference_fps: 30 },
+        gpu: {
+          utilization: 45.5,
+          temperature: 65,
+          memory_used: 8192,
+          memory_total: 24576,
+          inference_fps: 30,
+        },
         cameras: { active: 3, total: 6 },
         health: 'healthy',
       },
@@ -342,7 +360,13 @@ describe('useSystemStatus', () => {
     const testValues = [0, 25.5, 50, 75.75, 100, null];
 
     testValues.forEach((gpuUtil, index) => {
-      const message = createBackendMessage('healthy', gpuUtil, 65, 3, `2025-12-23T10:0${index}:00Z`);
+      const message = createBackendMessage(
+        'healthy',
+        gpuUtil,
+        65,
+        3,
+        `2025-12-23T10:0${index}:00Z`
+      );
 
       act(() => {
         onMessageCallback?.(message);
@@ -358,7 +382,13 @@ describe('useSystemStatus', () => {
     const testValues = [0, 1, 5, 10, 100];
 
     testValues.forEach((cameras, index) => {
-      const message = createBackendMessage('healthy', 50, 65, cameras, `2025-12-23T10:0${index}:00Z`);
+      const message = createBackendMessage(
+        'healthy',
+        50,
+        65,
+        cameras,
+        `2025-12-23T10:0${index}:00Z`
+      );
 
       act(() => {
         onMessageCallback?.(message);
@@ -387,7 +417,13 @@ describe('useSystemStatus', () => {
     const extremeValues = [-1, 0, 0.01, 99.99, 100, 150];
 
     extremeValues.forEach((value, index) => {
-      const message = createBackendMessage('healthy', value, 65, 3, `2025-12-23T10:${String(index).padStart(2, '0')}:00Z`);
+      const message = createBackendMessage(
+        'healthy',
+        value,
+        65,
+        3,
+        `2025-12-23T10:${String(index).padStart(2, '0')}:00Z`
+      );
 
       act(() => {
         onMessageCallback?.(message);

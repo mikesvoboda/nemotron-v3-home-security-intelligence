@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -74,9 +74,7 @@ describe('CameraGrid', () => {
     });
 
     it('should apply custom className when provided', () => {
-      const { container } = render(
-        <CameraGrid cameras={mockCameras} className="custom-class" />
-      );
+      const { container } = render(<CameraGrid cameras={mockCameras} className="custom-class" />);
 
       const grid = container.querySelector('.custom-class');
       expect(grid).toBeInTheDocument();
@@ -266,6 +264,67 @@ describe('CameraGrid', () => {
 
       const thumbnail = screen.getByAltText('Front Door thumbnail');
       expect(thumbnail).toHaveAttribute('loading', 'lazy');
+    });
+
+    it('should show loading skeleton initially while image loads', () => {
+      render(<CameraGrid cameras={[mockCameras[0]]} />);
+
+      // The loading skeleton has animate-pulse class
+      const { container } = render(<CameraGrid cameras={[mockCameras[0]]} />);
+      const skeleton = container.querySelector('.animate-pulse');
+      expect(skeleton).toBeInTheDocument();
+    });
+
+    it('should hide loading skeleton after image loads', () => {
+      render(<CameraGrid cameras={[mockCameras[0]]} />);
+
+      const thumbnail = screen.getByAltText('Front Door thumbnail');
+
+      // Initially should have opacity-0 while loading
+      expect(thumbnail).toHaveClass('opacity-0');
+
+      // Simulate image load event using fireEvent
+      fireEvent.load(thumbnail);
+
+      // After load, the image should be fully visible (opacity-100)
+      expect(thumbnail).toHaveClass('opacity-100');
+    });
+
+    it('should show placeholder on image error', () => {
+      render(<CameraGrid cameras={[mockCameras[0]]} />);
+
+      const thumbnail = screen.getByAltText('Front Door thumbnail');
+
+      // Simulate image error event using fireEvent
+      fireEvent.error(thumbnail);
+
+      // After error, the thumbnail image should be hidden (not in document)
+      // and placeholder icon should be visible
+      expect(screen.queryByAltText('Front Door thumbnail')).not.toBeInTheDocument();
+    });
+
+    it('should show placeholder when thumbnail_url is not provided', () => {
+      const cameraWithoutThumbnail: CameraStatus = {
+        id: 'cam-no-thumb',
+        name: 'No Thumbnail Camera',
+        status: 'online',
+      };
+
+      render(<CameraGrid cameras={[cameraWithoutThumbnail]} />);
+
+      // Should not have an img element
+      expect(screen.queryByAltText('No Thumbnail Camera thumbnail')).not.toBeInTheDocument();
+
+      // Should render the camera name
+      expect(screen.getByText('No Thumbnail Camera')).toBeInTheDocument();
+    });
+
+    it('should apply opacity transition classes to thumbnail image', () => {
+      render(<CameraGrid cameras={[mockCameras[0]]} />);
+
+      const thumbnail = screen.getByAltText('Front Door thumbnail');
+      expect(thumbnail).toHaveClass('transition-opacity');
+      expect(thumbnail).toHaveClass('duration-300');
     });
   });
 });

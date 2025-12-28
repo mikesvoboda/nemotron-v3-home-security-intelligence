@@ -19,8 +19,10 @@ class EventResponse(BaseModel):
                 "risk_score": 75,
                 "risk_level": "medium",
                 "summary": "Person detected near front entrance",
+                "reasoning": "Person approaching entrance during daytime, no suspicious behavior",
                 "reviewed": False,
                 "detection_count": 5,
+                "detection_ids": [1, 2, 3, 4, 5],
             }
         },
     )
@@ -32,9 +34,13 @@ class EventResponse(BaseModel):
     risk_score: int | None = Field(None, description="Risk score (0-100)")
     risk_level: str | None = Field(None, description="Risk level (low, medium, high, critical)")
     summary: str | None = Field(None, description="LLM-generated event summary")
+    reasoning: str | None = Field(None, description="LLM reasoning for risk score")
     reviewed: bool = Field(False, description="Whether event has been reviewed")
     notes: str | None = Field(None, description="User notes for the event")
     detection_count: int = Field(0, description="Number of detections in this event")
+    detection_ids: list[int] = Field(
+        default_factory=list, description="List of detection IDs associated with this event"
+    )
 
 
 class EventUpdate(BaseModel):
@@ -68,8 +74,10 @@ class EventListResponse(BaseModel):
                         "risk_score": 75,
                         "risk_level": "medium",
                         "summary": "Person detected near front entrance",
+                        "reasoning": "Person approaching entrance during daytime, no suspicious behavior",
                         "reviewed": False,
                         "detection_count": 5,
+                        "detection_ids": [1, 2, 3, 4, 5],
                     }
                 ],
                 "count": 1,

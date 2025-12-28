@@ -23,6 +23,7 @@ class TestEventResponseSchema:
             "summary": "Person detected near front entrance",
             "reviewed": False,
             "detection_count": 5,
+            "detection_ids": [1, 2, 3, 4, 5],
         }
         event = EventResponse(**data)
         assert event.id == 1
@@ -32,6 +33,7 @@ class TestEventResponseSchema:
         assert event.summary == "Person detected near front entrance"
         assert event.reviewed is False
         assert event.detection_count == 5
+        assert event.detection_ids == [1, 2, 3, 4, 5]
 
     def test_event_response_minimal(self):
         """Test EventResponse with minimal required fields."""
@@ -55,6 +57,7 @@ class TestEventResponseSchema:
         assert event.summary is None
         assert event.reviewed is False
         assert event.detection_count == 0
+        assert event.detection_ids == []  # Default to empty list
 
     def test_event_response_missing_required_field(self):
         """Test EventResponse raises ValidationError when required field is missing."""
@@ -100,11 +103,15 @@ class TestEventResponseSchema:
             notes = None
             detection_count = 5
 
+            def __init__(self):
+                self.detection_ids = [1, 2, 3, 4, 5]
+
         event = EventResponse.model_validate(MockEvent())
         assert event.id == 1
         assert event.camera_id == "123e4567-e89b-12d3-a456-426614174000"
         assert event.risk_score == 75
         assert event.notes is None
+        assert event.detection_ids == [1, 2, 3, 4, 5]
 
     def test_event_response_with_notes(self):
         """Test EventResponse with notes field."""
@@ -123,6 +130,63 @@ class TestEventResponseSchema:
         event = EventResponse(**data)
         assert event.notes == "Verified - known visitor"
         assert event.reviewed is True
+
+    def test_event_response_with_reasoning(self):
+        """Test EventResponse with reasoning field."""
+        data = {
+            "id": 1,
+            "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+            "started_at": datetime(2025, 12, 23, 12, 0, 0),
+            "ended_at": datetime(2025, 12, 23, 12, 2, 30),
+            "risk_score": 85,
+            "risk_level": "high",
+            "summary": "Person detected at unusual hour",
+            "reasoning": "Person detected at 2 AM near restricted area with suspicious behavior",
+            "reviewed": False,
+            "detection_count": 3,
+        }
+        event = EventResponse(**data)
+        assert (
+            event.reasoning
+            == "Person detected at 2 AM near restricted area with suspicious behavior"
+        )
+
+    def test_event_response_reasoning_none(self):
+        """Test EventResponse with None reasoning field."""
+        data = {
+            "id": 1,
+            "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+            "started_at": datetime(2025, 12, 23, 12, 0, 0),
+            "ended_at": None,
+            "risk_score": 50,
+            "risk_level": "medium",
+            "summary": "Test summary",
+            "reasoning": None,
+            "reviewed": False,
+            "detection_count": 0,
+        }
+        event = EventResponse(**data)
+        assert event.reasoning is None
+
+    def test_event_response_from_orm_with_reasoning(self):
+        """Test EventResponse can be created from ORM model with reasoning attribute."""
+
+        # Simulate ORM model with attributes including reasoning
+        class MockEventWithReasoning:
+            id = 1
+            camera_id = "123e4567-e89b-12d3-a456-426614174000"
+            started_at = datetime(2025, 12, 23, 12, 0, 0)
+            ended_at = datetime(2025, 12, 23, 12, 2, 30)
+            risk_score = 75
+            risk_level = "medium"
+            summary = "Person detected near front entrance"
+            reasoning = "LLM explanation for risk score"
+            reviewed = False
+            notes = None
+            detection_count = 5
+
+        event = EventResponse.model_validate(MockEventWithReasoning())
+        assert event.reasoning == "LLM explanation for risk score"
 
 
 class TestEventUpdateSchema:

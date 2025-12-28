@@ -13,3 +13,6 @@ export type {
   UseGpuHistoryOptions,
   UseGpuHistoryReturn,
 } from './useGpuHistory';
+
+export { useHealthStatus } from './useHealthStatus';
+export type { UseHealthStatusOptions, UseHealthStatusReturn } from './useHealthStatus';

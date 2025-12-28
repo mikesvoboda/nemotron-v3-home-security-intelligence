@@ -412,6 +412,7 @@ class AnalysisQueueWorker:
 
         batch_id = item.get("batch_id")
         camera_id = item.get("camera_id")
+        detection_ids = item.get("detection_ids")
 
         if not batch_id:
             logger.warning(f"Invalid analysis queue item: {item}")
@@ -423,8 +424,13 @@ class AnalysisQueueWorker:
         )
 
         try:
-            # Run LLM analysis
-            event = await self._analyzer.analyze_batch(batch_id)
+            # Run LLM analysis - pass camera_id and detection_ids from queue payload
+            # This avoids the need to read batch metadata from Redis (which is deleted after close_batch)
+            event = await self._analyzer.analyze_batch(
+                batch_id=batch_id,
+                camera_id=camera_id,
+                detection_ids=detection_ids,
+            )
 
             self._stats.items_processed += 1
             self._stats.last_processed_at = time.time()

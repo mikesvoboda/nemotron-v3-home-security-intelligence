@@ -33,11 +33,7 @@ export default function ThumbnailStrip({
         </h3>
         <div className="flex gap-2 overflow-x-auto pb-2">
           {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="flex flex-col items-center gap-1"
-              style={{ minWidth: '120px' }}
-            >
+            <div key={i} className="flex flex-col items-center gap-1" style={{ minWidth: '120px' }}>
               <div className="h-20 w-full animate-pulse rounded-lg bg-gray-800" />
               <div className="h-4 w-16 animate-pulse rounded bg-gray-800" />
             </div>

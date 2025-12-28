@@ -88,25 +88,13 @@ describe('ObservabilityPanel', () => {
     });
 
     it('displays memory values in GB', () => {
-      render(
-        <ObservabilityPanel
-          {...defaultProps}
-          gpuMemoryUsed={12288}
-          gpuMemoryTotal={24576}
-        />
-      );
+      render(<ObservabilityPanel {...defaultProps} gpuMemoryUsed={12288} gpuMemoryTotal={24576} />);
       expect(screen.getByText('12.0 GB')).toBeInTheDocument();
       expect(screen.getByText('24.0 GB')).toBeInTheDocument();
     });
 
     it('displays N/A for null memory values', () => {
-      render(
-        <ObservabilityPanel
-          {...defaultProps}
-          gpuMemoryUsed={null}
-          gpuMemoryTotal={null}
-        />
-      );
+      render(<ObservabilityPanel {...defaultProps} gpuMemoryUsed={null} gpuMemoryTotal={null} />);
       const naElements = screen.getAllByText('N/A');
       expect(naElements.length).toBeGreaterThanOrEqual(2);
     });
@@ -183,9 +171,7 @@ describe('ObservabilityPanel', () => {
     });
 
     it('renders custom Grafana URL', () => {
-      render(
-        <ObservabilityPanel {...defaultProps} grafanaUrl="http://custom-grafana:3000" />
-      );
+      render(<ObservabilityPanel {...defaultProps} grafanaUrl="http://custom-grafana:3000" />);
       const link = screen.getByRole('link', { name: /open grafana/i });
       expect(link).toHaveAttribute('href', 'http://custom-grafana:3000');
     });

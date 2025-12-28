@@ -1,7 +1,36 @@
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import GpuStats from './GpuStats';
+import * as api from '../../services/api';
+
+// Mock the API module
+vi.mock('../../services/api', async () => {
+  const actual = await vi.importActual<typeof api>('../../services/api');
+  return {
+    ...actual,
+    fetchGpuHistory: vi.fn(),
+  };
+});
+
+// Mock ResizeObserver for Tremor charts
+beforeEach(() => {
+  globalThis.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+  // Default mock for fetchGpuHistory - returns empty history
+  vi.mocked(api.fetchGpuHistory).mockResolvedValue({
+    samples: [],
+    count: 0,
+    limit: 100,
+  });
+});
+
+afterEach(() => {
+  vi.resetAllMocks();
+});
 
 describe('GpuStats', () => {
   it('renders component with title', () => {
@@ -217,7 +246,7 @@ describe('GpuStats', () => {
       );
 
       const naElements = screen.getAllByText('N/A');
-      const tempNa = naElements.find(el => el.closest('[class*="text-gray"]'));
+      const tempNa = naElements.find((el) => el.closest('[class*="text-gray"]'));
       expect(tempNa).toBeDefined();
     });
   });
@@ -330,6 +359,183 @@ describe('GpuStats', () => {
       expect(screen.getByText('76%')).toBeInTheDocument();
       expect(screen.getByText('65°C')).toBeInTheDocument();
       expect(screen.getByText('29')).toBeInTheDocument();
+    });
+  });
+
+  describe('GPU history chart', () => {
+    it('shows loading state initially', () => {
+      // Delay resolution to see loading state
+      vi.mocked(api.fetchGpuHistory).mockImplementation(
+        () =>
+          new Promise((resolve) =>
+            setTimeout(
+              () =>
+                resolve({
+                  samples: [],
+                  count: 0,
+                  limit: 100,
+                }),
+              100
+            )
+          )
+      );
+
+      render(
+        <GpuStats
+          utilization={50}
+          memoryUsed={12000}
+          memoryTotal={24000}
+          temperature={60}
+          inferenceFps={30}
+        />
+      );
+
+      expect(screen.getByTestId('gpu-history-loading')).toBeInTheDocument();
+      expect(screen.getByText('Loading history...')).toBeInTheDocument();
+    });
+
+    it('displays history chart when data is available', async () => {
+      const mockHistory = {
+        samples: [
+          {
+            recorded_at: '2025-01-01T10:00:00Z',
+            utilization: 45.5,
+            memory_used: 8192,
+            memory_total: 24576,
+            temperature: 65,
+            inference_fps: 30.2,
+          },
+          {
+            recorded_at: '2025-01-01T10:01:00Z',
+            utilization: 50.0,
+            memory_used: 8500,
+            memory_total: 24576,
+            temperature: 66,
+            inference_fps: 28.5,
+          },
+        ],
+        count: 2,
+        limit: 100,
+      };
+
+      vi.mocked(api.fetchGpuHistory).mockResolvedValue(mockHistory);
+
+      render(
+        <GpuStats
+          utilization={50}
+          memoryUsed={12000}
+          memoryTotal={24000}
+          temperature={60}
+          inferenceFps={30}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('gpu-history-loading')).not.toBeInTheDocument();
+      });
+
+      // The chart should be rendered - check that the empty state is not shown
+      expect(screen.queryByTestId('gpu-history-empty')).not.toBeInTheDocument();
+    });
+
+    it('shows empty state when no history data', async () => {
+      vi.mocked(api.fetchGpuHistory).mockResolvedValue({
+        samples: [],
+        count: 0,
+        limit: 100,
+      });
+
+      render(
+        <GpuStats
+          utilization={50}
+          memoryUsed={12000}
+          memoryTotal={24000}
+          temperature={60}
+          inferenceFps={30}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('gpu-history-empty')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('No history data available')).toBeInTheDocument();
+    });
+
+    it('shows error state when fetch fails', async () => {
+      vi.mocked(api.fetchGpuHistory).mockRejectedValue(new Error('Network error'));
+
+      render(
+        <GpuStats
+          utilization={50}
+          memoryUsed={12000}
+          memoryTotal={24000}
+          temperature={60}
+          inferenceFps={30}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('gpu-history-error')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Network error')).toBeInTheDocument();
+    });
+
+    it('shows generic error message for non-Error failures', async () => {
+      vi.mocked(api.fetchGpuHistory).mockRejectedValue('Unknown failure');
+
+      render(
+        <GpuStats
+          utilization={50}
+          memoryUsed={12000}
+          memoryTotal={24000}
+          temperature={60}
+          inferenceFps={30}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('gpu-history-error')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Failed to load GPU history')).toBeInTheDocument();
+    });
+
+    it('calls fetchGpuHistory with default limit on mount', async () => {
+      vi.mocked(api.fetchGpuHistory).mockResolvedValue({
+        samples: [],
+        count: 0,
+        limit: 100,
+      });
+
+      render(
+        <GpuStats
+          utilization={50}
+          memoryUsed={12000}
+          memoryTotal={24000}
+          temperature={60}
+          inferenceFps={30}
+        />
+      );
+
+      await waitFor(() => {
+        expect(api.fetchGpuHistory).toHaveBeenCalledWith(100);
+      });
+    });
+
+    it('displays Utilization History section title', () => {
+      render(
+        <GpuStats
+          utilization={50}
+          memoryUsed={12000}
+          memoryTotal={24000}
+          temperature={60}
+          inferenceFps={30}
+        />
+      );
+
+      expect(screen.getByText('Utilization History')).toBeInTheDocument();
     });
   });
 });
