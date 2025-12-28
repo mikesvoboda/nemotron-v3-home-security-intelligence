@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This directory contains all automated tests for the backend Python application. Tests are organized into three levels: unit tests (isolated component testing), integration tests (multi-component workflows), and end-to-end tests (complete pipeline validation).
+This directory contains all automated tests for the backend Python application. Tests are organized into four levels: unit tests (isolated component testing), integration tests (multi-component workflows), end-to-end tests (complete pipeline validation), and benchmarks (performance regression detection).
 
 ## Directory Structure
 
@@ -12,6 +12,7 @@ backend/tests/
 ├── unit/                    # Unit tests for isolated components
 ├── integration/             # Integration tests for API and multi-component workflows
 ├── e2e/                     # End-to-end pipeline integration tests
+├── benchmarks/              # Performance and complexity benchmarks
 ├── check_syntax.py          # Syntax validation script
 └── verify_database.py       # Database verification script
 ```
@@ -22,13 +23,13 @@ backend/tests/
 
 Tests for individual components in isolation:
 
-- **Core**: Configuration, database connections, Redis client
+- **Core**: Configuration, database connections, Redis client, logging
 - **Models**: Database model definitions and relationships
 - **Services**: Business logic (file watcher, detectors, analyzers, aggregators, broadcasters)
 - **API Routes**: Individual endpoint handlers
 - **Mocking**: All external dependencies (HTTP, Redis, file system) are mocked
 
-**Total**: 22 test files, 453 test cases
+**Total**: 40+ test files covering core functionality
 
 ### Integration Tests (`integration/`)
 
@@ -38,21 +39,33 @@ Tests for complete workflows across multiple components:
 - **Full stack**: Database workflows from camera creation to event generation
 - **Media serving**: File serving and security validation
 - **WebSocket**: Real-time communication channels
+- **GitHub Workflows**: CI/CD pipeline validation
 - **Mocking**: Redis mocked, database uses temporary SQLite
 
-**Total**: 10 test files, 177 test cases
+**Total**: 15+ test files covering API and workflow integration
 
 ### End-to-End Tests (`e2e/`)
 
 Tests for the complete AI pipeline flow:
 
-- **Complete pipeline**: File detection → RT-DETRv2 → Batch aggregation → Nemotron → Event creation → WebSocket broadcast
+- **Complete pipeline**: File detection -> RT-DETRv2 -> Batch aggregation -> Nemotron -> Event creation -> WebSocket broadcast
 - **Error handling**: Service failures, timeouts, fallback behavior
 - **Batch logic**: Time windows, idle timeouts, cleanup
 - **Relationships**: Database integrity across cameras, detections, events
 - **Mocking**: External AI services mocked, database and business logic real
 
-**Total**: 1 test file, 8+ comprehensive E2E scenarios
+**Total**: 1 comprehensive test file with 8+ E2E scenarios
+
+### Benchmarks (`benchmarks/`)
+
+Performance and complexity tests:
+
+- **API Benchmarks**: Response time measurements for critical endpoints
+- **Big-O Complexity**: Algorithmic complexity verification (O(n) vs O(n^2))
+- **Memory Profiling**: Memory usage limits for repeated operations
+- **Regression Detection**: Baseline comparison for performance degradation
+
+**Total**: 3 test files with performance validation
 
 ## Shared Fixtures (conftest.py)
 
@@ -122,6 +135,22 @@ pytest backend/tests/e2e/ -v
 pytest -m e2e -v
 ```
 
+### Benchmark tests
+
+```bash
+# API response time benchmarks
+pytest backend/tests/benchmarks/test_api_benchmarks.py --benchmark-only
+
+# Big-O complexity tests
+pytest backend/tests/benchmarks/test_bigo.py -v
+
+# Memory profiling (Linux only)
+pytest backend/tests/benchmarks/test_memory.py --memray -v
+
+# Compare against baseline
+pytest backend/tests/benchmarks/ --benchmark-compare
+```
+
 ### Specific test file
 
 ```bash
@@ -184,12 +213,13 @@ async def test_async_operation():
 - **Unit tests**: Mock all external dependencies (HTTP, Redis, file system)
 - **Integration tests**: Mock Redis, use real database
 - **E2E tests**: Mock external AI services, use real business logic and database
+- **Benchmarks**: Mock Redis, use real database for realistic measurements
 - Common mocks: Redis client, HTTP clients (httpx), file system operations
 
 ### Fixture Organization
 
-- Shared fixtures in `conftest.py`
-- Test-specific fixtures in individual test files or subdirectory conftest
+- Shared fixtures in `conftest.py` (project root and subdirectories)
+- Test-specific fixtures in individual test files
 - Use function scope for isolation, session scope sparingly
 
 ## Test Dependencies
@@ -199,7 +229,12 @@ All test dependencies are in `backend/requirements.txt`:
 - `pytest>=7.4.0` - Test framework
 - `pytest-asyncio>=0.21.0` - Async test support
 - `pytest-cov>=4.1.0` - Coverage reporting
+- `pytest-benchmark>=4.0.0` - Performance benchmarks
 - `httpx>=0.25.0` - Async HTTP client for API testing
+
+Optional dependencies:
+- `pytest-memray` - Memory profiling (Linux only)
+- `big-o` - Algorithmic complexity testing
 
 ## Testing Philosophy
 
@@ -257,10 +292,11 @@ with patch("httpx.AsyncClient") as mock_http:
 
 ### Overall Test Count
 
-- **Unit tests**: 453 test cases across 22 files
-- **Integration tests**: 177 test cases across 10 files
+- **Unit tests**: 40+ test files covering core, models, services, API routes
+- **Integration tests**: 15+ test files covering API endpoints and workflows
 - **E2E tests**: 8+ comprehensive scenarios in 1 file
-- **Total**: 630+ test cases covering 95%+ of backend code
+- **Benchmarks**: 3 test files for performance validation
+- **Total**: Comprehensive coverage of 95%+ of backend code
 
 ### Coverage by Component
 
@@ -337,7 +373,7 @@ pre-commit run --all-files
 
 ## Next Steps for AI Agents
 
-1. **Read subdirectory AGENTS.md**: Explore `unit/`, `integration/`, or `e2e/` for specific test patterns
+1. **Read subdirectory AGENTS.md**: Explore `unit/`, `integration/`, `e2e/`, or `benchmarks/` for specific test patterns
 2. **Understand fixtures**: Check conftest.py files for available test fixtures
 3. **Run tests**: Use Bash tool with pytest command to verify current state
 4. **Add tests**: Follow existing patterns for new functionality
@@ -349,5 +385,6 @@ pre-commit run --all-files
 - `/backend/tests/unit/AGENTS.md` - Unit test patterns and fixtures
 - `/backend/tests/integration/AGENTS.md` - Integration test architecture
 - `/backend/tests/e2e/AGENTS.md` - End-to-end pipeline testing
+- `/backend/tests/benchmarks/AGENTS.md` - Performance benchmarks
 - `/backend/AGENTS.md` - Backend architecture overview
 - `/CLAUDE.md` - Project instructions and testing requirements

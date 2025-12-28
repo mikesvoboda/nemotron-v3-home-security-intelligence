@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This directory contains all project documentation including design specifications, implementation plans, and session handoff documents.
+This directory contains all project documentation including design specifications, implementation plans, setup guides, and session handoff documents.
 
 ## Key Files
 
@@ -182,49 +182,18 @@ This directory contains all project documentation including design specification
 
 ### Implementation Plans
 
-**plans/2024-12-22-mvp-implementation-plan.md**
+**plans/** directory contains design specifications and implementation plans:
 
-- **Purpose:** Master implementation plan with task breakdown
-- **Contents:**
-  - Epic overview (5 epics, 67 tasks total)
-  - 8-phase execution plan with task IDs
-  - TDD workflow guidance
-  - Issue tracking commands (bd)
-  - NVIDIA persona perspectives for future roadmap
-- **When to use:**
-  - Understanding overall project scope
-  - Finding specific task requirements
-  - Planning work across phases
-- **Key sections:**
-  - Phase definitions (1: Setup, 2: Database, 3: Core APIs, 4: AI Pipeline, 5: Events, 6: Dashboard, 7: Pages, 8: E2E)
-  - TDD task identification
-  - Future enhancement ideas
+- **2024-12-21-dashboard-mvp-design.md** - Complete MVP design specification (architecture, schema, APIs, UI)
+- **2024-12-22-mvp-implementation-plan.md** - Task breakdown with 8 execution phases
+- **2024-12-24-logging-system-design.md** - Logging system architecture spec
+- **2024-12-24-logging-implementation-plan.md** - Logging implementation tasks
+- **2025-12-26-github-cicd-design.md** - GitHub CI/CD pipeline design with security scanning
+- **2025-12-26-github-cicd-implementation.md** - CI/CD implementation tasks
+- **2025-12-26-service-health-monitoring-design.md** - Auto-recovery and health monitoring design
+- **2025-12-26-readme-redesign.md** - README structure redesign plan
 
-**plans/2024-12-21-dashboard-mvp-design.md**
-
-- **Purpose:** Comprehensive design specification and architecture
-- **Contents:**
-  - System architecture diagram
-  - Data flow explanation
-  - Database schema (cameras, detections, events, gpu_stats)
-  - API endpoint specifications (REST + WebSocket)
-  - Processing pipeline details
-  - Nemotron prompt template
-  - UI design (color scheme, layout, mockups)
-  - Component library choices
-  - Configuration specifications
-- **When to use:**
-  - Understanding system architecture
-  - Implementing new API endpoints
-  - Understanding data model relationships
-  - Designing UI components
-  - Understanding AI pipeline flow
-- **Key sections:**
-  - Database Schema (lines 67-122)
-  - API Endpoints (lines 124-169)
-  - Processing Pipeline (lines 172-200)
-  - Nemotron Prompt (lines 202-239)
-  - UI Mockups (lines 434-553)
+See `plans/AGENTS.md` for detailed documentation of plan files.
 
 ## Directory Structure
 
@@ -239,17 +208,23 @@ docs/
 ├── CHROME_DEVTOOLS_MCP.md                # Chrome DevTools MCP server guide
 ├── GITHUB_MODELS.md                      # GitHub Models integration guide
 ├── SELF_HOSTED_RUNNER.md                 # Self-hosted GPU runner setup guide
-└── plans/
-    ├── AGENTS.md                         # Plans directory guide
-    ├── 2024-12-21-dashboard-mvp-design.md            # Design specification
-    ├── 2024-12-22-mvp-implementation-plan.md         # Implementation plan
-    ├── 2024-12-24-logging-system-design.md           # Logging system design spec
-    └── 2024-12-24-logging-implementation-plan.md     # Logging implementation tasks
+├── plans/                                # Design and implementation plans
+│   ├── AGENTS.md                         # Plans directory guide
+│   ├── 2024-12-21-dashboard-mvp-design.md
+│   ├── 2024-12-22-mvp-implementation-plan.md
+│   ├── 2024-12-24-logging-system-design.md
+│   ├── 2024-12-24-logging-implementation-plan.md
+│   ├── 2025-12-26-github-cicd-design.md
+│   ├── 2025-12-26-github-cicd-implementation.md
+│   ├── 2025-12-26-service-health-monitoring-design.md
+│   └── 2025-12-26-readme-redesign.md
+└── images/                               # Visual assets (placeholder)
+    └── .gitkeep
 ```
 
 ## Relationship to Project
 
-### Design → Implementation → Deployment Flow
+### Design -> Implementation -> Deployment Flow
 
 1. **Design Phase:** `plans/2024-12-21-dashboard-mvp-design.md`
 
@@ -330,7 +305,7 @@ docs/
 The design specification documents these critical decisions:
 
 1. **Batch Processing:** 90s window + 30s idle timeout (vs real-time per-frame analysis)
-2. **Risk Scoring:** LLM-determined (Nemotron) vs rule-based
+2. **Risk Scoring:** LLM-determined via Nemotron
 3. **Deployment:** Hybrid (Docker for services, native for GPU models)
 4. **Database:** SQLite (single-user) vs PostgreSQL
 5. **Authentication:** None for MVP (single-user local deployment)
@@ -383,7 +358,7 @@ The design specification documents these critical decisions:
 ### Markdown Structure
 
 - Use `#` for top-level headings
-- Use code blocks with language hints (`bash, `python, ```sql)
+- Use code blocks with language hints (`bash`, `python`, `sql`)
 - Use tables for structured data
 - Use bullet points for lists
 - Use bold for emphasis on critical information

@@ -18,7 +18,7 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 - **Phase 6:** IN PROGRESS (Dashboard Components - Risk gauge, camera grid, activity feed)
 - **Phase 7-8:** PENDING (Pages & Modals, Integration & E2E)
 - **Test Coverage:** Backend 98.54% (335 tests), Frontend 98.95% (233 tests)
-- **Last Updated:** 2025-12-25
+- **Last Updated:** 2025-12-27
 
 ## Key Files in Root
 
@@ -26,7 +26,7 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 
 - **AGENTS.md** (this file) - Quick reference for AI agents
 - **CLAUDE.md** - Comprehensive Claude Code instructions with project overview, phase execution order, TDD approach, testing requirements, and git rules
-- **docs/ROADMAP.md** - Post-MVP roadmap ideas to pursue **after Phases 1–8 are operational**
+- **docs/ROADMAP.md** - Post-MVP roadmap ideas to pursue **after Phases 1-8 are operational**
 
 ### Configuration Files
 
@@ -54,7 +54,7 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 ## Directory Structure
 
 ```
-/home/msvoboda/github/nemotron-v3-home-security-intelligence/
+/Users/msvoboda/github/home_security_intelligence/
 ├── backend/              # FastAPI backend (Python)
 │   ├── api/              # REST endpoints and WebSocket routes
 │   ├── core/             # Database, Redis, config
@@ -172,7 +172,7 @@ cd frontend && npm test
 
 1. **Read CLAUDE.md** - Comprehensive project instructions
 2. **Check available work:** `bd ready` or `bd list --label phase-6`
-3. **Review docs/ROADMAP.md** - Post-MVP roadmap ideas (pursue **after Phases 1–8 are operational**)
+3. **Review docs/ROADMAP.md** - Post-MVP roadmap ideas (pursue **after Phases 1-8 are operational**)
 4. **Read directory AGENTS.md files** - Navigate to specific areas using the AGENTS.md files in each directory
 
 ### Understanding the Codebase
@@ -227,7 +227,7 @@ Before ending a session, ALWAYS:
 
 ## Resources
 
-- **Git Remote:** github.com:mikesvoboda/nemotron-v3-home-security-intelligence.git
+- **Git Remote:** github.com:mikesvoboda/home-security-intelligence.git
 - **Issue Tracker:** bd (beads) - syncs with `.beads/` directory
 - **Documentation:** `docs/` directory
 - **Coverage Reports:** `coverage/backend/index.html` and `frontend/coverage/index.html`

@@ -9,8 +9,8 @@ This directory contains comprehensive end-to-end tests for the complete AI pipel
 The E2E tests validate the full pipeline flow:
 
 ```
-File Upload → Detection → Batching → Analysis → Event Creation → WebSocket Broadcast
-   (1)          (2)         (3)         (4)         (5)              (6)
+File Upload -> Detection -> Batching -> Analysis -> Event Creation -> WebSocket Broadcast
+   (1)          (2)          (3)         (4)           (5)              (6)
 ```
 
 1. **File Detection**: Image file appears in camera folder
@@ -22,7 +22,7 @@ File Upload → Detection → Batching → Analysis → Event Creation → WebSo
 
 ## Test Files
 
-### `conftest.py` (73 lines)
+### `conftest.py`
 
 Shared fixtures for E2E pipeline tests.
 
@@ -44,7 +44,7 @@ async def test_pipeline_flow(integration_db):
     pass
 ```
 
-### `test_pipeline_integration.py` (723 lines, 8+ E2E tests)
+### `test_pipeline_integration.py`
 
 Comprehensive end-to-end pipeline tests covering the complete AI flow.
 
@@ -82,21 +82,6 @@ Complete end-to-end flow testing all components working together.
 - LLM analysis and risk scoring
 - Event creation with relationships
 - WebSocket broadcasting
-
-```python
-@pytest.mark.e2e
-@pytest.mark.asyncio
-async def test_complete_pipeline_flow_with_mocked_services(
-    integration_db,
-    test_camera,
-    test_image_path,
-    mock_redis_client,
-    mock_detector_response,
-    mock_nemotron_response,
-):
-    # Test validates full pipeline from detection to event
-    # All business logic is real, only AI services mocked
-```
 
 #### 2. `test_pipeline_with_multiple_detections_in_batch`
 
@@ -354,20 +339,7 @@ async with get_session() as session:
     await session.refresh(model)
 ```
 
-### 3. Mock HTTP Responses
-
-HTTP responses are mocked using `unittest.mock`:
-
-```python
-with patch("httpx.AsyncClient") as mock_http_client:
-    mock_response = MagicMock()
-    mock_response.json = MagicMock(return_value=expected_data)
-    mock_client = AsyncMock()
-    mock_client.post = AsyncMock(return_value=mock_response)
-    mock_http_client.return_value.__aenter__.return_value = mock_client
-```
-
-### 4. Batch Data Verification
+### 3. Batch Data Verification
 
 Tests verify batch data in Redis mock:
 
@@ -376,7 +348,7 @@ assert analysis_queue_key in mock_redis_client._test_data
 assert len(mock_redis_client._test_data[analysis_queue_key]) == 1
 ```
 
-### 5. Event Broadcasting Verification
+### 4. Event Broadcasting Verification
 
 Tests verify WebSocket broadcasts were called:
 
@@ -504,20 +476,10 @@ After E2E tests are passing, proceed to:
    - Service orchestration
    - Health monitoring
 
-## Related Documentation
-
-- `/backend/services/AGENTS.md` - Services architecture overview
-- `/backend/tests/AGENTS.md` - Test infrastructure overview
-- `/backend/tests/unit/AGENTS.md` - Unit test patterns
-- `/backend/tests/integration/AGENTS.md` - Integration tests documentation
-- `/backend/tests/e2e/README.md` - Additional E2E test documentation
-- `/CLAUDE.md` - Project instructions and phase overview
-
 ## Test Statistics
 
 - **Total test files**: 1 (test_pipeline_integration.py)
 - **Total test cases**: 8+ comprehensive E2E scenarios
-- **Lines of code**: 723 lines
 - **Coverage**: Validates all major pipeline components
 - **Execution time**: <10 seconds (all mocked services)
 - **Markers**: `@pytest.mark.e2e` for filtering
@@ -531,3 +493,13 @@ E2E tests strike a balance between:
 - **Realism**: Use real business logic and database operations
 - **Reliability**: Tests should pass consistently without flakiness
 - **Maintainability**: Clear test structure and descriptive names
+
+## Related Documentation
+
+- `/backend/services/AGENTS.md` - Services architecture overview
+- `/backend/tests/AGENTS.md` - Test infrastructure overview
+- `/backend/tests/unit/AGENTS.md` - Unit test patterns
+- `/backend/tests/integration/AGENTS.md` - Integration tests documentation
+- `/backend/tests/benchmarks/AGENTS.md` - Performance benchmarks
+- `/backend/tests/e2e/README.md` - Additional E2E test documentation
+- `/CLAUDE.md` - Project instructions and phase overview

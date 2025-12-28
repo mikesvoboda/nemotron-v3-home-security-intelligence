@@ -13,29 +13,32 @@ Directory currently contains:
 - `.gitkeep` - Placeholder file to maintain directory in git
 - `AGENTS.md` - This documentation file
 
-E2E tests will be implemented in **Phase 8 (Integration & E2E)** of the project roadmap. Prerequisites include:
+E2E tests will be implemented in **Phase 8 (Integration & E2E)** of the project roadmap.
+
+### Prerequisites
 
 1. All Phase 1-7 tasks complete
 2. Backend API fully operational
 3. WebSocket channels working
 4. Database with test data available
 
-## Planned E2E Framework
-
-### Options
-
-- **Playwright** (recommended): Multi-browser, fast, reliable
-- **Cypress**: Developer-friendly, time-travel debugging
-- **Puppeteer**: Chrome-focused, lightweight
-
-### Recommended: Playwright
+## Recommended Framework: Playwright
 
 ```bash
 npm install -D @playwright/test
 npx playwright install
 ```
 
-## Planned Test Structure
+### Why Playwright
+
+- Multi-browser support (Chromium, Firefox, WebKit)
+- Fast and reliable execution
+- Built-in test isolation
+- Screenshot and video on failure
+- Network interception
+- Mobile viewport testing
+
+## Planned Structure
 
 ```
 frontend/tests/e2e/
@@ -67,13 +70,8 @@ test.describe('Dashboard', () => {
   test('displays system status on load', async ({ page }) => {
     await page.goto('/');
 
-    // System health visible
     await expect(page.getByText('System Status')).toBeVisible();
-
-    // Camera grid visible
     await expect(page.getByRole('heading', { name: /cameras/i })).toBeVisible();
-
-    // Risk gauge visible
     await expect(page.getByText(/risk level/i)).toBeVisible();
   });
 
@@ -94,7 +92,6 @@ test.describe('Dashboard', () => {
       );
     });
 
-    // Risk score updates
     await expect(page.getByText('85')).toBeVisible();
     await expect(page.getByText('Critical')).toBeVisible();
   });
@@ -136,10 +133,8 @@ test.describe('Event Timeline', () => {
   test('filters events by risk level', async ({ page }) => {
     await page.goto('/events');
 
-    // Select high risk filter
     await page.selectOption('select[name="risk_filter"]', 'high');
 
-    // Only high-risk events visible
     await expect(page.getByText('High')).toHaveCount(5);
     await expect(page.getByText('Low')).not.toBeVisible();
   });
@@ -148,10 +143,8 @@ test.describe('Event Timeline', () => {
     await page.goto('/events');
     await page.click('[data-testid="event-evt-1"]');
 
-    // Modal visible with details
     await expect(page.getByRole('dialog')).toBeVisible();
     await expect(page.getByText('Detection Details')).toBeVisible();
-    await expect(page.getByText('Risk Score: 75')).toBeVisible();
   });
 });
 ```
@@ -164,25 +157,18 @@ test.describe('Real-time Updates', () => {
   test('maintains WebSocket connection', async ({ page }) => {
     await page.goto('/');
 
-    // Connection indicator shows connected
     await expect(page.getByTestId('ws-status')).toHaveClass(/connected/);
-
-    // Receives live events
     await page.waitForSelector('[data-testid="live-event"]', { timeout: 30000 });
   });
 
   test('reconnects after disconnect', async ({ page }) => {
     await page.goto('/');
 
-    // Simulate disconnect
     await page.evaluate(() => {
-      // Close WebSocket connection
       window.dispatchEvent(new Event('offline'));
     });
 
     await expect(page.getByTestId('ws-status')).toHaveClass(/disconnected/);
-
-    // Auto-reconnects
     await page.waitForTimeout(3000);
     await expect(page.getByTestId('ws-status')).toHaveClass(/connected/);
   });
@@ -193,6 +179,8 @@ test.describe('Real-time Updates', () => {
 
 ```typescript
 // fixtures/pages/DashboardPage.ts
+import { Page } from '@playwright/test';
+
 export class DashboardPage {
   constructor(private page: Page) {}
 
@@ -284,50 +272,82 @@ npx playwright test --project=chromium
 
 # Generate code (record actions)
 npx playwright codegen http://localhost:5173
+
+# View test report
+npx playwright show-report
 ```
 
 ## Best Practices
 
-1. **Use data-testid attributes**: Stable selectors immune to style changes
-2. **Page Object Pattern**: Encapsulate page interactions in reusable classes
-3. **Wait for conditions**: Use `waitFor*` methods, avoid hard-coded timeouts
-4. **Test isolation**: Each test should be independent and clean up after itself
-5. **Mock external APIs**: Use MSW or Playwright's route interception for reliability
-6. **Screenshots on failure**: Automatic in config (screenshot + video + trace)
-7. **Parallel execution**: Speeds up test runs (configured per browser)
-8. **Semantic queries**: Use `getByRole`, `getByLabel` for accessibility-friendly selectors
+### Selectors
+
+1. **Use data-testid** - Stable selectors immune to style changes
+2. **Use semantic queries** - `getByRole`, `getByLabel` for accessibility
+3. **Avoid CSS selectors** - Fragile, break with style changes
+
+```typescript
+// Good
+await page.getByRole('button', { name: 'Submit' });
+await page.getByTestId('camera-card');
+
+// Avoid
+await page.click('.btn-primary');
+await page.click('#submit-button');
+```
+
+### Assertions
+
+```typescript
+// Use web-first assertions (auto-wait)
+await expect(page.getByText('Success')).toBeVisible();
+
+// NOT
+const text = await page.textContent('.message');
+expect(text).toBe('Success');
+```
+
+### Test Isolation
+
+```typescript
+test.beforeEach(async ({ page }) => {
+  // Reset to known state
+  await page.goto('/');
+});
+
+test.afterEach(async ({ page }) => {
+  // Cleanup if needed
+});
+```
 
 ## Prerequisites for E2E Tests
 
-Before implementing E2E tests, ensure:
+### Backend Setup
 
-1. **Backend server running**: E2E tests require full stack
+- FastAPI backend on port 8000
+- SQLite database initialized
+- Redis for WebSocket support and caching
 
-   - FastAPI backend on port 8000
-   - SQLite database initialized (this project uses SQLite, not PostgreSQL)
-   - Redis for WebSocket support and caching
+### Test Data
 
-2. **Test data setup**: Seed database with predictable test data
+- Sample cameras (matching `/export/foscam/{camera_name}/` structure)
+- Sample events with various risk levels (low, medium, high, critical)
+- Known detection patterns from RT-DETRv2
 
-   - Sample cameras (matching `/export/foscam/{camera_name}/` structure)
-   - Sample events with various risk levels (low, medium, high, critical)
-   - Known detection patterns from RT-DETRv2
+### Environment Variables
 
-3. **Environment variables**: Configure test environment
+- `VITE_API_BASE_URL` (defaults to empty for proxy mode)
+- Backend configured for test mode
 
-   - `VITE_API_BASE_URL` (defaults to empty for proxy mode)
-   - Backend configured for test mode (faster, no side effects)
+### Docker Services
 
-4. **Docker services**: Can use Docker Compose for consistent test environment
-   - `docker-compose up -d backend redis` for backend services
-   - Frontend runs via `npm run dev` or Playwright's built-in server
+```bash
+docker-compose up -d backend redis
+```
 
 ## Integration with CI/CD
 
-E2E tests should run in CI/CD pipeline:
-
 ```yaml
-# .github/workflows/test.yml (example)
+# .github/workflows/test.yml
 - name: Install Playwright
   run: npx playwright install --with-deps
 
@@ -345,6 +365,12 @@ E2E tests should run in CI/CD pipeline:
     path: playwright-report/
 ```
 
+## Related Files
+
+- `/frontend/tests/AGENTS.md` - Tests directory overview
+- `/frontend/src/test/AGENTS.md` - Unit test setup
+- `/frontend/vite.config.ts` - Vitest configuration
+
 ## Notes for AI Agents
 
 - E2E tests require **full system setup** (frontend + backend + database + Redis)
@@ -354,5 +380,6 @@ E2E tests should run in CI/CD pipeline:
 - Focus on **happy paths** and **critical error scenarios**
 - Consider **visual regression testing** with Playwright's screenshot comparison
 - E2E tests should work with both development and production builds
-- Use `test.beforeEach` for common setup (authentication, navigation)
-- Backend server should be in "test mode" to avoid side effects (email sending, external API calls, etc.)
+- Use `test.beforeEach` for common setup (navigation, authentication)
+- Backend server should be in "test mode" to avoid side effects
+- Add `data-testid` attributes to components that need E2E testing
