@@ -128,7 +128,7 @@ Comprehensive demonstration of Redis client usage patterns in the home security 
 
 **Real-World Usage:**
 
-- FastAPI health endpoint (`/api/health`)
+- FastAPI health endpoint (`/api/system/health`)
 - Docker container readiness checks
 - Service startup validation
 

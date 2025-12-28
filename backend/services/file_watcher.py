@@ -24,15 +24,19 @@ from typing import Any
 from PIL import Image
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
+from watchdog.observers.polling import PollingObserver
 
-# NOTE: We use watchdog's default Observer (not PollingObserver) for efficiency.
+# NOTE: By default we use watchdog's native Observer for efficiency.
 # Observer auto-selects the best native backend for each platform:
 #   - Linux: inotify (kernel-level filesystem notifications)
 #   - macOS: FSEvents (native filesystem event API)
 #   - Windows: ReadDirectoryChangesW (native API)
 # This provides near-instant event detection without CPU-intensive polling.
-# Only use PollingObserver if monitoring network filesystems (NFS/SMB) where
-# inotify events may not propagate.
+#
+# However, native filesystem events don't propagate through Docker Desktop
+# volume mounts on macOS/Windows. For these environments, set
+# FILE_WATCHER_POLLING=true to use PollingObserver instead.
+# See also: FILE_WATCHER_POLLING_INTERVAL for configuring poll frequency.
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
 from backend.services.dedupe import DedupeService
@@ -99,6 +103,8 @@ class FileWatcher:
         debounce_delay: float = 0.5,
         queue_name: str = "detection_queue",
         dedupe_service: DedupeService | None = None,
+        use_polling: bool | None = None,
+        polling_interval: float | None = None,
     ):
         """Initialize file watcher.
 
@@ -108,12 +114,27 @@ class FileWatcher:
             debounce_delay: Delay in seconds to wait after last file modification
             queue_name: Name of Redis queue for detection jobs
             dedupe_service: Optional DedupeService for file deduplication
+            use_polling: Use PollingObserver instead of native Observer. If None,
+                         uses FILE_WATCHER_POLLING from settings. Enable for Docker
+                         Desktop/macOS volume mounts.
+            polling_interval: Polling interval in seconds when using PollingObserver.
+                              If None, uses FILE_WATCHER_POLLING_INTERVAL from settings.
         """
         settings = get_settings()
         self.camera_root = camera_root or settings.foscam_base_path
         self.redis_client = redis_client
         self.debounce_delay = debounce_delay
         self.queue_name = queue_name
+
+        # Determine whether to use polling observer
+        self._use_polling = (
+            use_polling if use_polling is not None else settings.file_watcher_polling
+        )
+        self._polling_interval = (
+            polling_interval
+            if polling_interval is not None
+            else settings.file_watcher_polling_interval
+        )
 
         # Initialize dedupe service (creates one if not provided and redis is available)
         self._dedupe_service: DedupeService | None = None
@@ -123,7 +144,13 @@ class FileWatcher:
             self._dedupe_service = DedupeService(redis_client=redis_client)
 
         # Watchdog observer for filesystem monitoring
-        self.observer = Observer()
+        # Use PollingObserver for Docker Desktop/macOS mounts where native events don't work
+        if self._use_polling:
+            self.observer = PollingObserver(timeout=self._polling_interval)
+            observer_type = f"PollingObserver (interval={self._polling_interval}s)"
+        else:
+            self.observer = Observer()
+            observer_type = "native Observer"
 
         # Track running state
         self.running = False
@@ -139,7 +166,8 @@ class FileWatcher:
 
         logger.info(
             f"FileWatcher initialized for camera root: {self.camera_root} "
-            f"(dedupe={'enabled' if self._dedupe_service else 'disabled'})"
+            f"(dedupe={'enabled' if self._dedupe_service else 'disabled'}, "
+            f"observer={observer_type})"
         )
 
     def _create_event_handler(self) -> FileSystemEventHandler:

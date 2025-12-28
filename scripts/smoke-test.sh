@@ -48,9 +48,12 @@ VERBOSE="${VERBOSE:-false}"
 SKIP_CLEANUP="${SKIP_CLEANUP:-false}"
 
 # Test artifacts
-TEST_CAMERA_ID="smoke-test-camera"
+# Note: Camera IDs are auto-generated UUIDs by the API, not user-provided
 TEST_CAMERA_NAME="Smoke Test Camera"
-TEST_CAMERA_FOLDER="$PROJECT_ROOT/data/smoke_test_camera"
+# Camera folders must be under FOSCAM_BASE_PATH (default: /export/foscam)
+# Format: /export/foscam/{camera_name}/ per CLAUDE.md convention
+FOSCAM_BASE_PATH="${FOSCAM_BASE_PATH:-/export/foscam}"
+TEST_CAMERA_FOLDER="$FOSCAM_BASE_PATH/smoke_test_camera"
 TEST_IMAGE_PATH="$TEST_CAMERA_FOLDER/smoke_test_image.jpg"
 FIXTURE_IMAGE="$PROJECT_ROOT/data/fixtures/smoke_test_fixture.jpg"
 
@@ -388,27 +391,34 @@ BASE64_EOF
 create_test_camera() {
     print_step "Creating test camera in database..."
 
-    # First check if camera already exists
-    local existing
-    existing=$(curl -s "$API_URL/api/cameras/$TEST_CAMERA_ID" 2>/dev/null)
-    if echo "$existing" | jq -e '.id' &>/dev/null; then
-        print_warn "Test camera already exists, will reuse it"
-        CREATED_CAMERA_ID="$TEST_CAMERA_ID"
+    # First check if a camera with our test folder already exists
+    local existing_cameras
+    existing_cameras=$(curl -s "$API_URL/api/cameras" 2>/dev/null)
+    local existing_id
+    existing_id=$(echo "$existing_cameras" | jq -r ".cameras[] | select(.folder_path == \"$TEST_CAMERA_FOLDER\") | .id" 2>/dev/null | head -1)
+
+    if [ -n "$existing_id" ] && [ "$existing_id" != "null" ]; then
+        print_warn "Test camera already exists (ID: $existing_id), will reuse it"
+        CREATED_CAMERA_ID="$existing_id"
         return 0
     fi
 
-    # Create camera folder
-    mkdir -p "$TEST_CAMERA_FOLDER"
+    # Create camera folder (may require sudo for /export/foscam)
+    if ! mkdir -p "$TEST_CAMERA_FOLDER" 2>/dev/null; then
+        print_warn "Cannot create $TEST_CAMERA_FOLDER directly, trying with sudo..."
+        sudo mkdir -p "$TEST_CAMERA_FOLDER"
+        sudo chmod 777 "$TEST_CAMERA_FOLDER"
+    fi
 
     # Create camera via API
+    # Note: Camera ID is auto-generated as UUID by the API, not user-provided
     local response
     response=$(curl -s -X POST "$API_URL/api/cameras" \
         -H "Content-Type: application/json" \
         -d "{
-            \"id\": \"$TEST_CAMERA_ID\",
             \"name\": \"$TEST_CAMERA_NAME\",
             \"folder_path\": \"$TEST_CAMERA_FOLDER\",
-            \"status\": \"active\"
+            \"status\": \"online\"
         }" 2>/dev/null)
 
     print_debug "Create camera response: $response"
@@ -416,9 +426,10 @@ create_test_camera() {
     local camera_id
     camera_id=$(echo "$response" | jq -r '.id' 2>/dev/null)
 
-    if [ "$camera_id" = "$TEST_CAMERA_ID" ]; then
+    # Camera ID should be a valid UUID (not null or empty)
+    if [ -n "$camera_id" ] && [ "$camera_id" != "null" ]; then
         CREATED_CAMERA_ID="$camera_id"
-        print_success "Created test camera: $TEST_CAMERA_ID"
+        print_success "Created test camera: $CREATED_CAMERA_ID"
         return 0
     else
         print_fail "Failed to create test camera"
@@ -459,9 +470,9 @@ wait_for_detection() {
     local found=false
 
     while [ $(($(date +%s) - start_time)) -lt "$TIMEOUT" ]; do
-        # Query detections for our test camera
+        # Query detections for our test camera (using auto-generated UUID)
         local response
-        response=$(curl -s "$API_URL/api/detections?camera_id=$TEST_CAMERA_ID&limit=5" 2>/dev/null)
+        response=$(curl -s "$API_URL/api/detections?camera_id=$CREATED_CAMERA_ID&limit=5" 2>/dev/null)
 
         print_debug "Detections query response: $response"
 
@@ -494,7 +505,7 @@ wait_for_detection() {
         echo "    1. Is file watcher running? Check backend logs"
         echo "    2. Is RT-DETRv2 service running? ./scripts/start-ai.sh status"
         echo "    3. Check file permissions on camera folder"
-        echo "    4. Try: curl -s $API_URL/api/detections?camera_id=$TEST_CAMERA_ID | jq ."
+        echo "    4. Try: curl -s $API_URL/api/detections?camera_id=$CREATED_CAMERA_ID | jq ."
         return 1
     fi
 
@@ -514,9 +525,9 @@ wait_for_event() {
     local event_timeout=$((TIMEOUT + 60))
 
     while [ $(($(date +%s) - start_time)) -lt "$event_timeout" ]; do
-        # Query events for our test camera
+        # Query events for our test camera (using auto-generated UUID)
         local response
-        response=$(curl -s "$API_URL/api/events?camera_id=$TEST_CAMERA_ID&limit=5" 2>/dev/null)
+        response=$(curl -s "$API_URL/api/events?camera_id=$CREATED_CAMERA_ID&limit=5" 2>/dev/null)
 
         print_debug "Events query response: $response"
 
@@ -553,7 +564,7 @@ wait_for_event() {
         echo "    - Idle timeout: 30 seconds"
         echo ""
         echo "  If you're running without AI services, fallback events should still be created."
-        echo "  Check: curl -s $API_URL/api/events?camera_id=$TEST_CAMERA_ID | jq ."
+        echo "  Check: curl -s $API_URL/api/events?camera_id=$CREATED_CAMERA_ID | jq ."
         # Don't fail - detection existing is the primary test
         return 0
     fi
@@ -636,10 +647,11 @@ cleanup_test_artifacts() {
 
     if [ "$SKIP_CLEANUP" = "true" ]; then
         print_warn "Skipping cleanup (--skip-cleanup specified)"
-        echo "  Test camera ID: $TEST_CAMERA_ID"
+        echo "  Test camera ID: $CREATED_CAMERA_ID"
         echo "  Test image: $TEST_IMAGE_PATH"
+        echo "  Test folder: $TEST_CAMERA_FOLDER"
         echo "  To manually cleanup, delete the camera via API:"
-        echo "    curl -X DELETE $API_URL/api/cameras/$TEST_CAMERA_ID"
+        echo "    curl -X DELETE $API_URL/api/cameras/$CREATED_CAMERA_ID"
         return 0
     fi
 
@@ -647,7 +659,7 @@ cleanup_test_artifacts() {
     if [ -n "$CREATED_CAMERA_ID" ]; then
         print_step "Deleting test camera and related data..."
         local response
-        response=$(curl -s -X DELETE "$API_URL/api/cameras/$TEST_CAMERA_ID" -w "%{http_code}" 2>/dev/null)
+        response=$(curl -s -X DELETE "$API_URL/api/cameras/$CREATED_CAMERA_ID" -w "%{http_code}" 2>/dev/null)
         local http_code="${response: -3}"
         if [ "$http_code" = "204" ] || [ "$http_code" = "200" ] || [ "$http_code" = "404" ]; then
             print_success "Deleted test camera"
@@ -658,13 +670,14 @@ cleanup_test_artifacts() {
 
     # Remove test image file
     if [ -f "$TEST_IMAGE_PATH" ]; then
-        rm -f "$TEST_IMAGE_PATH"
+        rm -f "$TEST_IMAGE_PATH" 2>/dev/null || sudo rm -f "$TEST_IMAGE_PATH"
         print_success "Removed test image"
     fi
 
     # Remove test camera folder if empty
     if [ -d "$TEST_CAMERA_FOLDER" ]; then
-        rmdir "$TEST_CAMERA_FOLDER" 2>/dev/null && print_success "Removed test camera folder" || true
+        rmdir "$TEST_CAMERA_FOLDER" 2>/dev/null || sudo rmdir "$TEST_CAMERA_FOLDER" 2>/dev/null
+        print_success "Removed test camera folder" || true
     fi
 
     print_success "Cleanup complete"
