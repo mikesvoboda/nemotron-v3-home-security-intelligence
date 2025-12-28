@@ -6,7 +6,7 @@ FastAPI-based HTTP server that wraps RT-DETRv2 object detection model for real-t
 
 ## Key Files
 
-### `model.py` (~430 lines)
+### `model.py` (432 lines)
 
 Main inference server implementation using HuggingFace Transformers:
 
@@ -17,15 +17,15 @@ Main inference server implementation using HuggingFace Transformers:
   - Preprocesses images (RGB conversion, normalization)
   - Runs inference with PyTorch on GPU
   - Postprocesses outputs using processor's `post_process_object_detection()`
-  - Performs model warmup on startup (3 iterations)
+  - Performs model warmup on startup (3 iterations with 640x480 gray images)
 - **FastAPI endpoints**: `/health`, `/detect`, `/detect/batch`
 - **Pydantic models**: `Detection`, `DetectionResponse`, `BoundingBox`, `HealthResponse`
 - **Security filtering**: Only returns security-relevant object classes
 
 **Port**: 8090 (configurable via PORT env var)
-**Expected VRAM**: ~4GB
+**Expected VRAM**: ~3GB
 
-### `example_client.py` (~186 lines)
+### `example_client.py` (187 lines)
 
 Example HTTP client demonstrating API usage:
 
@@ -35,9 +35,9 @@ Example HTTP client demonstrating API usage:
 - `detect_batch()`: Batch detection for multiple images
 - `print_detections()`: Pretty-print detection results
 
-### `test_model.py` (~336 lines)
+### `test_model.py` (337 lines)
 
-Comprehensive unit tests with pytest:
+Unit tests with pytest:
 
 - **Pydantic model tests**: BoundingBox, Detection, DetectionResponse
 - **RTDETRv2Model tests**:
@@ -52,16 +52,15 @@ Comprehensive unit tests with pytest:
   - Batch detection
   - Error handling (model not loaded, invalid input)
 
-**Coverage**: ~95%
-
-### `requirements.txt`
+### `requirements.txt` (24 lines)
 
 Python dependencies:
 
-- **Web**: fastapi, uvicorn, python-multipart
-- **Deep learning**: torch, torchvision, transformers
-- **Image processing**: pillow, opencv-python, numpy
-- **Utilities**: pydantic, python-dotenv, pynvml
+- **Web**: fastapi>=0.104.0, uvicorn[standard]>=0.24.0, python-multipart>=0.0.6
+- **Deep learning**: torch>=2.0.0, torchvision>=0.15.0, transformers>=4.35.0
+- **Image processing**: pillow>=10.0.0, opencv-python>=4.8.0, numpy>=1.24.0
+- **Utilities**: pydantic>=2.4.0, python-dotenv>=1.0.0
+- **Monitoring**: pynvml>=11.5.0
 
 ### `README.md`
 
@@ -70,17 +69,6 @@ Comprehensive documentation for RT-DETRv2 server (see file for full details)
 ### `__init__.py`
 
 Package initialization with version: "1.0.0"
-
-## How RT-DETRv2 is Used for Object Detection
-
-RT-DETRv2 (Real-Time Detection Transformer v2) is a state-of-the-art object detection model that combines the accuracy of transformer-based detectors with real-time inference speed:
-
-1. **Image Input**: Camera images arrive via HTTP POST to `/detect` endpoint
-2. **Preprocessing**: Images are converted to RGB and processed by `AutoImageProcessor`
-3. **Inference**: PyTorch model runs on CUDA GPU with `torch.no_grad()` for efficiency
-4. **Postprocessing**: `post_process_object_detection()` extracts bounding boxes and labels
-5. **Filtering**: Only security-relevant classes (person, car, truck, etc.) are returned
-6. **Output**: JSON response with detections, confidence scores, and bounding boxes
 
 ## Model Information
 
@@ -96,7 +84,7 @@ RT-DETRv2 (Real-Time Detection Transformer v2) is a state-of-the-art object dete
 
 ### Security-Relevant Classes
 
-The server filters detections to these 9 classes:
+The server filters detections to these 9 classes (defined in `SECURITY_CLASSES` constant):
 
 - `person` - Human detection
 - `car` - Passenger vehicle
@@ -125,7 +113,7 @@ Health check with GPU status.
   "device": "cuda:0",
   "cuda_available": true,
   "model_name": "/export/ai_models/rt-detrv2/rtdetr_v2_r101vd",
-  "vram_used_gb": 4.2
+  "vram_used_gb": 3.2
 }
 ```
 
@@ -219,12 +207,14 @@ Server runs on: `http://0.0.0.0:8090`
 
 ## Configuration
 
-Environment variables or defaults:
+Environment variables with defaults:
 
-- `RTDETR_MODEL_PATH`: HuggingFace model name or local path (default: `/export/ai_models/rt-detrv2/rtdetr_v2_r101vd`)
-- `RTDETR_CONFIDENCE`: Minimum detection confidence (default: 0.5)
-- `HOST`: Server host (default: `0.0.0.0`)
-- `PORT`: Server port (default: 8090)
+| Variable            | Default                                        | Description                  |
+| ------------------- | ---------------------------------------------- | ---------------------------- |
+| `RTDETR_MODEL_PATH` | `/export/ai_models/rt-detrv2/rtdetr_v2_r101vd` | HuggingFace model path       |
+| `RTDETR_CONFIDENCE` | `0.5`                                          | Minimum detection confidence |
+| `HOST`              | `0.0.0.0`                                      | Server host                  |
+| `PORT`              | `8090`                                         | Server port                  |
 
 ## Important Patterns and Conventions
 
@@ -293,14 +283,14 @@ python example_client.py
 ## Performance Characteristics
 
 - **Inference time**: 30-50ms per image (RTX A5500)
-- **VRAM usage**: ~4GB
+- **VRAM usage**: ~3GB
 - **Throughput**: ~20-30 images/second
 - **Batch processing**: Currently sequential (room for optimization)
 - **Warmup overhead**: ~1-2 seconds on startup
 
 ## Error Handling
 
-- **Model not found**: Server fails to start with error message
+- **Model not found**: Server fails to start with error message (or starts in degraded mode)
 - **Model load failure**: Returns 503 on detection requests until model loads
 - **Invalid image**: Returns 400 with error details
 - **CUDA unavailable**: Falls back to CPU inference (slower)
@@ -312,5 +302,5 @@ python example_client.py
 1. **Start here**: Read this file and `README.md`
 2. **Main server**: `model.py` - FastAPI app with detection endpoints
 3. **API testing**: `example_client.py` - Example client usage
-4. **Unit tests**: `test_model.py` - Comprehensive test coverage
+4. **Unit tests**: `test_model.py` - Test coverage
 5. **Dependencies**: `requirements.txt` - Required packages

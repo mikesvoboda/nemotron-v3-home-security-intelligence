@@ -8,11 +8,20 @@ This directory contains observability and monitoring infrastructure configuratio
 
 ```
 monitoring/
-  prometheus.yml           # Prometheus scrape configuration
-  json-exporter-config.yml # JSON Exporter module definitions
-  grafana/                 # Grafana configuration
-    dashboards/            # Dashboard JSON definitions
-    provisioning/          # Auto-provisioning configs
+  AGENTS.md                    # This file
+  prometheus.yml               # Prometheus scrape configuration
+  json-exporter-config.yml     # JSON Exporter module definitions
+  grafana/                     # Grafana configuration
+    AGENTS.md                  # Grafana directory guide
+    dashboards/                # Dashboard JSON definitions
+      AGENTS.md                # Dashboards guide
+      pipeline.json            # Main AI pipeline monitoring dashboard
+    provisioning/              # Auto-provisioning configs
+      AGENTS.md                # Provisioning guide
+      dashboards/
+        dashboard.yml          # Dashboard provider config
+      datasources/
+        prometheus.yml         # Datasource configuration
 ```
 
 ## Key Files
@@ -21,7 +30,7 @@ monitoring/
 
 **Purpose:** Prometheus server configuration for metrics scraping.
 
-**Scrape Jobs Defined:**
+**Scrape Jobs:**
 
 | Job Name         | Endpoint                                | Interval | Description                         |
 | ---------------- | --------------------------------------- | -------- | ----------------------------------- |
@@ -91,15 +100,11 @@ Backend API --> JSON Exporter --> Prometheus --> Grafana
 
 ### Starting Monitoring Stack
 
-The monitoring stack is typically started with Docker Compose:
-
 ```bash
+# With Docker Compose (if monitoring profile exists)
 docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
-```
 
-Or if monitoring services are in the main compose file:
-
-```bash
+# Or individual services
 docker compose up -d prometheus grafana json-exporter redis-exporter
 ```
 
@@ -108,11 +113,9 @@ docker compose up -d prometheus grafana json-exporter redis-exporter
 1. Open Grafana at http://localhost:3000
 2. Default credentials: admin/admin (change on first login)
 3. Navigate to "Home Security Intelligence" folder
-4. Select "Pipeline" dashboard for AI pipeline monitoring
+4. Select "Pipeline" dashboard
 
 ### Prometheus Queries
-
-Example PromQL queries:
 
 ```promql
 # System health (1 = healthy)
@@ -126,26 +129,23 @@ hsi_detect_latency_p95_ms
 
 # GPU utilization
 hsi_gpu_utilization
-
-# Events per minute (requires counter, this is gauge)
-rate(hsi_total_events[5m])
 ```
 
 ## Important Patterns
 
 ### JSON Path Syntax
 
-The JSON exporter uses JSONPath expressions to extract values:
+The JSON exporter uses JSONPath expressions:
 
 ```yaml
-path: "{ .status }"              # Top-level field
+path: "{ .status }"               # Top-level field
 path: "{ .services.redis.status }" # Nested field
 path: "{ .queues.detection_queue }" # Nested numeric
 ```
 
 ### Value Mappings
 
-For string-to-numeric conversions (health status):
+For string-to-numeric conversions:
 
 ```yaml
 values:
@@ -173,20 +173,14 @@ relabel_configs:
 ### Prometheus Not Scraping
 
 1. Check targets: http://localhost:9090/targets
-2. Verify JSON exporter is running: `curl http://localhost:7979/probe?target=http://backend:8000/api/system/health`
-3. Check backend health endpoint: `curl http://localhost:8000/api/system/health`
+2. Verify JSON exporter: `curl http://localhost:7979/probe?target=http://backend:8000/api/system/health`
+3. Check backend: `curl http://localhost:8000/api/system/health`
 
 ### Missing Metrics
 
 1. Verify endpoint returns expected JSON structure
 2. Check JSON exporter logs: `docker compose logs json-exporter`
 3. Test module directly: `curl "http://localhost:7979/probe?module=health&target=http://backend:8000/api/system/health"`
-
-### Grafana Dashboard Issues
-
-1. Verify datasource connectivity in Grafana settings
-2. Check dashboard JSON syntax
-3. Ensure provisioning has correct paths
 
 ## Related Files
 

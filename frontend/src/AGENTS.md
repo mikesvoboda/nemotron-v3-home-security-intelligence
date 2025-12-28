@@ -17,143 +17,169 @@ This directory contains all React application source code including components, 
 ### Root Component
 
 - **`App.tsx`** - Root application component
-  - Wraps `<DashboardPage />` in `<Layout />`
-  - Defines overall application structure
-  - No routing yet (single page app for now)
+  - Uses `BrowserRouter` for client-side routing
+  - Wraps all routes in `<Layout />` component
+  - Defines routes for all pages (see Routes section)
+
+### Tests
+
+- **`App.test.tsx`** - Tests for root App component
 
 ### Type Definitions
 
-- **`vite-env.d.ts`** - Vite client type definitions
-  - References Vite types for `import.meta.env`
+- **`vite-env.d.ts`** - Vite client type definitions for `import.meta.env`
 
 ## Directory Structure
 
 ### `/components/` - React Components
 
-Component organization by feature area:
+Components are organized by feature area. Each component directory contains:
 
-- **`common/`** - Reusable UI components
+- Component files (`.tsx`)
+- Co-located test files (`.test.tsx`)
+- Optional index files for barrel exports
+- Optional README documentation
 
-  - `RiskBadge.tsx` - Displays risk level badges (low/medium/high/critical)
-  - `ObjectTypeBadge.tsx` - Displays object type badges for detections (person/vehicle/animal/package)
-  - `index.ts` - Barrel export for common components
+#### Feature Directories
 
-- **`layout/`** - Layout and navigation components
+| Directory    | Description                      |
+| ------------ | -------------------------------- |
+| `alerts/`    | Alert management page            |
+| `common/`    | Reusable UI components           |
+| `dashboard/` | Main dashboard components        |
+| `detection/` | Object detection visualization   |
+| `entities/`  | Entity tracking page             |
+| `events/`    | Event list and detail components |
+| `layout/`    | Layout, header, and sidebar      |
+| `logs/`      | Application logs viewer          |
+| `settings/`  | Settings pages and forms         |
+| `system/`    | System monitoring components     |
+| `video/`     | Video player component           |
 
-  - `Layout.tsx` - Main layout wrapper with header and sidebar
-  - `Header.tsx` - Top navigation bar with branding and system status
-  - `Sidebar.tsx` - Left navigation menu with icon buttons
+#### `/components/common/`
 
-- **`dashboard/`** - Dashboard page components
+Reusable UI components:
 
-  - `DashboardPage.tsx` - Main dashboard view with real-time monitoring
-  - `RiskGauge.tsx` - Risk score visualization with Tremor DonutChart
-  - `CameraGrid.tsx` - Multi-camera grid display
-  - `ActivityFeed.tsx` - Real-time event activity stream
-  - `GpuStats.tsx` - GPU utilization and metrics display
-  - `StatsRow.tsx` - Dashboard statistics row displaying key metrics
-  - `RiskGauge.example.tsx` - Interactive example for development
+- `RiskBadge.tsx` - Displays risk level badges (low/medium/high/critical)
+- `ObjectTypeBadge.tsx` - Displays object type badges (person/vehicle/animal/package)
+- `ServiceStatusAlert.tsx` - Service status alert banner
+- `index.ts` - Barrel export
 
-- **`detection/`** - Object detection visualization components
+#### `/components/layout/`
 
-  - `BoundingBoxOverlay.tsx` - Renders detection boxes over images
-  - `DetectionImage.tsx` - Displays image with detection overlays
-  - `Example.tsx` - Example usage component (not covered by tests)
-  - `index.ts` - Barrel export
-  - `README.md` - Documentation for detection components
+Application layout and navigation:
 
-- **`events/`** - Event-related components
+- `Layout.tsx` - Main layout wrapper with header and sidebar
+- `Header.tsx` - Top navigation bar with branding and system status
+- `Sidebar.tsx` - Left navigation menu with icon buttons
 
-  - `EventCard.tsx` - Individual event card with thumbnail and risk badge
-  - `EventTimeline.tsx` - Chronological event list with filtering
-  - `EventDetailModal.tsx` - Full event details modal with image and detections
-  - `ThumbnailStrip.tsx` - Horizontal strip of event thumbnails for navigation
+#### `/components/dashboard/`
 
-- **`logs/`** - Application logging components
+Main dashboard components:
 
-  - `LogsDashboard.tsx` - Main logs dashboard view with statistics and table
-  - `LogsTable.tsx` - Paginated table of log entries with sorting
-  - `LogFilters.tsx` - Log filtering controls (level, source, date range)
-  - `LogDetailModal.tsx` - Detailed log entry modal view
-  - `LogStatsCards.tsx` - Statistics cards showing log counts by level
+- `DashboardPage.tsx` - Main dashboard view with real-time monitoring
+- `RiskGauge.tsx` - Risk score visualization with Tremor DonutChart
+- `CameraGrid.tsx` - Multi-camera grid display
+- `ActivityFeed.tsx` - Real-time event activity stream
+- `GpuStats.tsx` - GPU utilization and metrics display
+- `StatsRow.tsx` - Dashboard statistics row
+- `PipelineQueues.tsx` - Pipeline queue depths visualization
+- `RiskGauge.example.tsx` - Interactive example for development
 
-- **`settings/`** - Settings page components
+#### `/components/detection/`
 
-  - `SettingsPage.tsx` - Main settings page with tabbed navigation
-  - `CamerasSettings.tsx` - Camera management (add, edit, delete)
-  - `AIModelsSettings.tsx` - AI model status and GPU memory display
-  - `ProcessingSettings.tsx` - Batch processing and retention configuration
-  - `AIModelsSettings.example.tsx` - Interactive example for development
-  - `ProcessingSettings.example.tsx` - Interactive example for development
-  - `README.md` - Documentation for settings components
-  - `index.ts` - Barrel export
+Object detection visualization:
 
-**Component Patterns**:
+- `BoundingBoxOverlay.tsx` - Renders detection boxes over images
+- `DetectionImage.tsx` - Displays image with detection overlays
+- `DetectionThumbnail.tsx` - Thumbnail with detection box
+- `Example.tsx` - Example usage component
+- `index.ts` - Barrel export
+- `README.md` - Documentation
 
-- Each component has co-located `.test.tsx` file
-- Use TypeScript for all components
-- Export default for main component
-- Use named exports for types/interfaces
-- Follow Tailwind utility-first styling
+#### `/components/events/`
+
+Event-related components:
+
+- `EventCard.tsx` - Individual event card with thumbnail and risk badge
+- `EventTimeline.tsx` - Chronological event list with filtering
+- `EventDetailModal.tsx` - Full event details modal
+- `ThumbnailStrip.tsx` - Horizontal strip of event thumbnails
+- `index.ts` - Barrel export
+
+#### `/components/logs/`
+
+Application logging components:
+
+- `LogsDashboard.tsx` - Main logs dashboard view
+- `LogsTable.tsx` - Paginated table of log entries
+- `LogFilters.tsx` - Log filtering controls
+- `LogDetailModal.tsx` - Detailed log entry modal
+- `LogStatsCards.tsx` - Statistics cards by log level
+
+#### `/components/settings/`
+
+Settings page components:
+
+- `SettingsPage.tsx` - Main settings page with tabbed navigation
+- `CamerasSettings.tsx` - Camera management (add, edit, delete)
+- `AIModelsSettings.tsx` - AI model status and GPU memory
+- `ProcessingSettings.tsx` - Batch processing and retention config
+- `DlqMonitor.tsx` - Dead letter queue monitoring
+- `index.ts` - Barrel export
+- `README.md` - Documentation
+
+#### `/components/system/`
+
+System monitoring:
+
+- `SystemMonitoringPage.tsx` - System health and metrics page
+- `ObservabilityPanel.tsx` - Observability metrics panel
+- `index.ts` - Barrel export
+
+#### `/components/alerts/`
+
+Alert management:
+
+- `AlertsPage.tsx` - Alert listing and management
+
+#### `/components/entities/`
+
+Entity tracking:
+
+- `EntitiesPage.tsx` - Entity tracking page
+
+#### `/components/video/`
+
+Video playback:
+
+- `VideoPlayer.tsx` - Video player component with controls
+- `index.ts` - Barrel export
 
 ### `/hooks/` - Custom React Hooks
 
-- **`useWebSocket.ts`** - WebSocket connection management
+| Hook                  | Purpose                                             |
+| --------------------- | --------------------------------------------------- |
+| `useWebSocket.ts`     | WebSocket connection management with auto-reconnect |
+| `useEventStream.ts`   | Event stream subscription for `/ws/events`          |
+| `useSystemStatus.ts`  | System status monitoring via `/ws/system`           |
+| `useGpuHistory.ts`    | GPU metrics history with polling                    |
+| `useHealthStatus.ts`  | Health status polling                               |
+| `useServiceStatus.ts` | Service status aggregation                          |
+| `index.ts`            | Barrel export for all hooks                         |
 
-  - Handles connection lifecycle (connect, disconnect, reconnect)
-  - Auto-reconnection with configurable attempts and interval
-  - JSON message parsing
-  - Returns: `{ isConnected, lastMessage, send, connect, disconnect }`
-
-- **`useEventStream.ts`** - Event stream subscription hook
-
-  - Wraps `useWebSocket` for `/ws/events` endpoint
-  - Receives `SecurityEvent` objects via WebSocket
-  - Maintains buffer of last 100 events (newest first)
-  - Provides `latestEvent` computed value
-  - `clearEvents()` method to reset buffer
-
-- **`useSystemStatus.ts`** - System status monitoring hook
-
-  - Wraps `useWebSocket` for `/ws/system` endpoint
-  - Receives `SystemStatus` objects with health, GPU utilization, active cameras
-  - Auto-connects to system status WebSocket channel
-
-- **`index.ts`** - Barrel export for all hooks
-
-**Hook Patterns**:
-
-- Co-located `.test.ts` files for unit tests
-- Return object with named properties
-- Use TypeScript for all parameters and returns
-- Handle cleanup in `useEffect` return functions
+Each hook has a co-located `.test.ts` file.
 
 ### `/services/` - API Client and Services
 
-- **`api.ts`** - REST API client for backend
+| File             | Purpose                                   |
+| ---------------- | ----------------------------------------- |
+| `api.ts`         | REST API client with typed fetch wrappers |
+| `api.test.ts`    | API client tests                          |
+| `logger.ts`      | Client-side structured logging            |
+| `logger.test.ts` | Logger tests                              |
 
-  - Base URL from `import.meta.env.VITE_API_BASE_URL` (defaults to empty string for proxy)
-  - Type-safe fetch wrappers for all endpoints
-  - Custom `ApiError` class with status codes
-  - Camera endpoints: `fetchCameras()`, `fetchCamera(id)`, `createCamera()`, `updateCamera()`, `deleteCamera()`
-  - System endpoints: `fetchHealth()`, `fetchGPUStats()`, `fetchConfig()`, `fetchStats()`
-  - Event endpoints: `fetchEvents(params?)`, `fetchEvent(id)`, `updateEvent(id, reviewed)`
-  - Log endpoints: `fetchLogs(params?)`, `fetchLogStats()`
-  - Media URL builders: `getMediaUrl()`, `getThumbnailUrl()`
-  - Exported types: `Camera`, `HealthResponse`, `GPUStats`, `SystemConfig`, `SystemStats`, `Event`, `EventListResponse`, `EventsQueryParams`, `LogEntry`, `LogsQueryParams`, `LogStats`
-
-- **`logger.ts`** - Client-side structured logging service
-  - Log levels: debug, info, warn, error
-  - Structured log format with timestamps and context
-  - Console output with colored level indicators
-  - Optionally sends logs to backend API for centralized logging
-
-**API Patterns**:
-
-- All functions return Promises with typed responses
-- Error handling with `ApiError` class
-- JSON content-type by default
-- Handles 204 No Content responses
+The `api.ts` file re-exports all types from `types/generated/` for convenience.
 
 ### `/styles/` - Global Styles
 
@@ -161,152 +187,111 @@ Component organization by feature area:
   - `@tailwind base` - Base styles reset
   - `@tailwind components` - Component classes
   - `@tailwind utilities` - Utility classes
-  - Custom component classes: `.nvidia-card`, `.nvidia-panel`, `.btn-primary`, etc.
-  - Custom utilities: `.glass`, `.text-gradient-nvidia`, `.glow-nvidia`
-  - Scrollbar styling for dark theme
+  - Custom component classes (`.nvidia-card`, `.btn-primary`, etc.)
+  - Custom utilities (`.glass`, `.text-gradient-nvidia`, `.glow-nvidia`)
+  - Dark theme scrollbar styling
   - Selection color with NVIDIA green
 
 ### `/test/` - Test Setup
 
 - **`setup.ts`** - Vitest test configuration
-  - Extends Vitest expect with jest-dom matchers
-  - Imported automatically before each test file
+  - Extends expect with jest-dom matchers
+  - Mocks ResizeObserver and IntersectionObserver for jsdom
+  - Fixes HeadlessUI focus issues
+  - Cleanup after each test
+
+### `/types/` - TypeScript Types
+
+- **`generated/`** - Auto-generated from backend OpenAPI
+  - `api.ts` - Full OpenAPI types (DO NOT EDIT)
+  - `index.ts` - Re-exports with convenient aliases
 
 ### `/utils/` - Utility Functions
 
-- **`risk.ts`** - Risk level utilities
+| File      | Purpose                                                               |
+| --------- | --------------------------------------------------------------------- |
+| `risk.ts` | Risk level utilities (getRiskLevel, getRiskColor, getRiskLabel)       |
+| `time.ts` | Time formatting (formatRelativeTime, formatTimestamp, formatDuration) |
 
-  - `getRiskLevel(score: number): RiskLevel` - Convert 0-100 score to category
-  - `getRiskColor(level: RiskLevel): string` - Get hex color for level
-  - `getRiskLabel(level: RiskLevel): string` - Get human-readable label
-  - Risk levels: low (0-25), medium (26-50), high (51-75), critical (76-100)
+Each utility has a co-located `.test.ts` file.
 
-- **`time.ts`** - Time formatting utilities
-  - `formatRelativeTime(date: Date | string): string` - Format as "X minutes ago", "X hours ago", etc.
-  - `formatTimestamp(date: Date | string): string` - Format as locale-appropriate date/time
-  - `formatDuration(seconds: number): string` - Format duration in human-readable form
-  - `isWithinLast(date: Date | string, minutes: number): boolean` - Check if date is within timeframe
+### `/__tests__/` - Additional Tests
+
+- `lighthouserc.test.ts` - Lighthouse CI configuration tests
+
+## Application Routes
+
+Defined in `App.tsx`:
+
+```typescript
+<Routes>
+  <Route path="/" element={<DashboardPage />} />
+  <Route path="/timeline" element={<EventTimeline />} />
+  <Route path="/alerts" element={<AlertsPage />} />
+  <Route path="/entities" element={<EntitiesPage />} />
+  <Route path="/logs" element={<LogsDashboard />} />
+  <Route path="/system" element={<SystemMonitoringPage />} />
+  <Route path="/settings" element={<SettingsPage />} />
+</Routes>
+```
 
 ## Testing
 
 All test files use naming convention: `*.test.ts` or `*.test.tsx`
 
-### Component Tests
+### Test Coverage Thresholds
 
-- `App.test.tsx` - Root component tests
-- `components/common/RiskBadge.test.tsx`, `ObjectTypeBadge.test.tsx`
-- `components/layout/Header.test.tsx`, `Layout.test.tsx`, `Sidebar.test.tsx`
-- `components/dashboard/DashboardPage.test.tsx`, `RiskGauge.test.tsx`, `CameraGrid.test.tsx`, `ActivityFeed.test.tsx`, `GpuStats.test.tsx`, `StatsRow.test.tsx`
-- `components/detection/BoundingBoxOverlay.test.tsx`, `DetectionImage.test.tsx`
-- `components/events/EventCard.test.tsx`, `EventTimeline.test.tsx`, `EventDetailModal.test.tsx`, `ThumbnailStrip.test.tsx`
-- `components/logs/LogsDashboard.test.tsx`, `LogsTable.test.tsx`, `LogFilters.test.tsx`, `LogDetailModal.test.tsx`, `LogStatsCards.test.tsx`
-- `components/settings/SettingsPage.test.tsx`, `CamerasSettings.test.tsx`, `AIModelsSettings.test.tsx`, `ProcessingSettings.test.tsx`
+- Statements: 93%
+- Branches: 89%
+- Functions: 91%
+- Lines: 94%
 
-### Hook Tests
+### Test Setup
 
-- `hooks/useWebSocket.test.ts`
-- `hooks/useEventStream.test.ts`
-- `hooks/useSystemStatus.test.ts`
-
-### Service Tests
-
-- `services/api.test.ts`
-
-### Utility Tests
-
-- `utils/risk.test.ts`
-- `utils/time.test.ts`
-
-**Test Coverage**: 95% threshold for statements, functions, and lines; 94% for branches
+- Environment: jsdom
+- Setup file: `test/setup.ts`
+- Provider: v8 coverage
+- Pool: forks (single fork for memory optimization)
 
 ## Type Safety
 
-All TypeScript files use strict mode with these checks enabled:
+TypeScript strict mode with:
 
 - `strict: true`
 - `noUnusedLocals: true`
 - `noUnusedParameters: true`
 - `noFallthroughCasesInSwitch: true`
 
-Use explicit types for:
-
-- Function parameters
-- Return values (inferred is okay for simple cases)
-- Props interfaces
-- State types
-
 ## Styling Guidelines
 
-### Tailwind Usage
+### Tailwind Colors
 
-- **Layout**: Use flexbox (`flex`, `flex-col`) and grid (`grid`)
-- **Colors**: Reference custom colors from theme
+| Color                     | Usage                        |
+| ------------------------- | ---------------------------- |
+| `bg-background`           | Page background (`#0E0E0E`)  |
+| `bg-panel`                | Panel background (`#1A1A1A`) |
+| `bg-card`                 | Card background (`#1E1E1E`)  |
+| `bg-primary-500`          | Primary action (`#76B900`)   |
+| `bg-risk-low/medium/high` | Risk level indicators        |
+| `text-text-primary`       | Main text (`#FFFFFF`)        |
+| `text-text-secondary`     | Secondary text (`#A0A0A0`)   |
+| `text-text-muted`         | Muted text (`#707070`)       |
 
-  - Background: `bg-background`, `bg-panel`, `bg-card`
-  - Primary: `bg-primary-500`, `text-primary-500`
-  - Risk levels: `bg-risk-low`, `bg-risk-medium`, `bg-risk-high`
-  - Text: `text-text-primary`, `text-text-secondary`, `text-text-muted`
+### Custom CSS Classes
 
-- **Custom Classes**: Use predefined component classes
-  - Cards: `.nvidia-card`, `.nvidia-card-hover`
-  - Panels: `.nvidia-panel`
-  - Buttons: `.btn-primary`, `.btn-secondary`, `.btn-ghost`
-  - Risk badges: `.risk-badge-low`, `.risk-badge-medium`, `.risk-badge-high`
-  - Inputs: `.nvidia-input`
-  - Status dots: `.status-online`, `.status-offline`, `.status-warning`, `.status-error`
-
-### Dark Theme
-
-All components assume dark theme:
-
-- Dark backgrounds (`#0E0E0E`, `#1A1A1A`, `#1E1E1E`)
-- Light text on dark surfaces
-- NVIDIA green for highlights and primary actions
-- Subtle borders and shadows
-
-## Best Practices for AI Agents
-
-1. **Co-locate tests**: Every component/hook/utility must have a test file
-2. **Use TypeScript**: No `any` types unless absolutely necessary
-3. **Follow component structure**:
-
-   - Props interface at top
-   - Component function with typed props
-   - Return JSX with Tailwind classes
-   - Export default at bottom
-
-4. **API calls**:
-
-   - Use functions from `services/api.ts`
-   - Handle loading and error states
-   - Use hooks for component data fetching
-
-5. **WebSocket**:
-
-   - Use `useWebSocket` hook for connections
-   - Parse JSON messages automatically
-   - Handle disconnection gracefully
-
-6. **Styling**:
-
-   - Prefer existing custom classes
-   - Use Tailwind utilities for one-off styles
-   - Never inline CSS styles
-   - Use `clsx` or `tailwind-merge` for conditional classes
-
-7. **Testing**:
-
-   - Test user-visible behavior, not implementation
-   - Use `screen` queries from React Testing Library
-   - Use `userEvent` for interactions
-   - Mock external dependencies (API, WebSocket)
-
-8. **File organization**:
-   - Components in `/components/{feature}/`
-   - Reusable hooks in `/hooks/`
-   - API client in `/services/`
-   - Utilities in `/utils/`
-   - Tests co-located with source files
+| Class                                  | Purpose                |
+| -------------------------------------- | ---------------------- |
+| `.nvidia-card`                         | Standard card styling  |
+| `.nvidia-card-hover`                   | Card with hover effect |
+| `.nvidia-panel`                        | Panel styling          |
+| `.btn-primary`                         | Primary button         |
+| `.btn-secondary`                       | Secondary button       |
+| `.btn-ghost`                           | Ghost button           |
+| `.nvidia-input`                        | Input field styling    |
+| `.risk-badge-low/medium/high`          | Risk badges            |
+| `.status-online/offline/warning/error` | Status dots            |
+| `.glass`                               | Glass morphism effect  |
+| `.glow-nvidia`                         | NVIDIA green glow      |
 
 ## Common Imports
 
@@ -317,38 +302,49 @@ import { useState, useEffect, useCallback } from 'react';
 // Routing
 import { useNavigate, useParams, Link } from 'react-router-dom';
 
-// API client
-import { fetchCameras, fetchHealth, type Camera } from '@/services/api';
-
-// Logging
-import { logger } from '@/services/logger';
+// API client and types
+import { fetchCameras, fetchHealth } from '../services/api';
+import type { Camera, Event, HealthResponse } from '../services/api';
 
 // Hooks
-import { useWebSocket, useEventStream, useSystemStatus } from '@/hooks';
+import { useWebSocket, useEventStream, useSystemStatus } from '../hooks';
 
 // Components
-import { RiskBadge, ObjectTypeBadge } from '@/components/common';
+import { RiskBadge, ObjectTypeBadge } from '../components/common';
 
 // Utilities
-import { getRiskLevel, getRiskColor } from '@/utils/risk';
-import { formatRelativeTime, formatTimestamp } from '@/utils/time';
+import { getRiskLevel, getRiskColor } from '../utils/risk';
+import { formatRelativeTime, formatTimestamp } from '../utils/time';
 
 // Icons
 import { Activity, Camera, Settings, AlertTriangle } from 'lucide-react';
 
-// Tremor (data viz)
+// Tremor (data visualization)
 import { Card, Title, Text, DonutChart, BarChart } from '@tremor/react';
 
 // Headless UI (accessible components)
 import { Dialog, Transition, Tab } from '@headlessui/react';
 ```
 
+## Best Practices
+
+1. **Co-locate tests**: Every component/hook/utility must have a test file
+2. **Use TypeScript**: No `any` types unless absolutely necessary
+3. **Follow component structure**:
+   - Props interface at top
+   - Component function with typed props
+   - Return JSX with Tailwind classes
+   - Export default at bottom
+4. **API calls**: Use functions from `services/api.ts`
+5. **WebSocket**: Use hooks from `/hooks/` for connections
+6. **Styling**: Prefer existing custom classes, use Tailwind utilities for one-offs
+7. **Testing**: Test user-visible behavior, not implementation details
+8. **File organization**: Components in feature directories, hooks in `/hooks/`
+
 ## Notes
 
-- **Routing**: Uses react-router-dom v7 for client-side routing
-- **WebSocket channels**: Backend supports event streams at `/ws/events` and `/ws/system`
-- **Media URLs**: Images served from `/api/media/cameras/{cameraId}/{filename}`
-- **Environment variables**: Use `import.meta.env.VITE_*` for Vite env vars
-- **Build**: Vite bundles all imports, tree-shakes unused code
-- **Hot reload**: Vite dev server supports HMR for instant updates
-- **Logging**: Client-side logging available via `logger.ts` service
+- **Routing**: Uses react-router-dom v7
+- **WebSocket channels**: `/ws/events` and `/ws/system`
+- **Media URLs**: `/api/media/cameras/{cameraId}/{filename}`
+- **Environment variables**: Use `import.meta.env.VITE_*`
+- **Hot reload**: Vite HMR for instant updates

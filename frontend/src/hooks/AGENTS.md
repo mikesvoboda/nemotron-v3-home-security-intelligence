@@ -2,18 +2,32 @@
 
 ## Purpose
 
-React custom hooks for managing WebSocket connections, real-time event streams, and system status monitoring in the home security dashboard.
+React custom hooks for managing WebSocket connections, real-time event streams, system status monitoring, and GPU metrics polling in the home security dashboard.
 
 ## Key Files
 
-### `index.ts`
+| File                  | Purpose                                         |
+| --------------------- | ----------------------------------------------- |
+| `index.ts`            | Central export point for all hooks and types    |
+| `useWebSocket.ts`     | Low-level WebSocket connection manager          |
+| `useEventStream.ts`   | Security events via `/ws/events` WebSocket      |
+| `useSystemStatus.ts`  | System health via `/ws/system` WebSocket        |
+| `useGpuHistory.ts`    | GPU metrics polling with history buffer         |
+| `useHealthStatus.ts`  | REST-based health status polling                |
+| `useServiceStatus.ts` | **DEPRECATED** - Per-service status (not wired) |
 
-Central export point for all custom hooks and their TypeScript types. Import hooks from this file:
+### Test Files
 
-```typescript
-import { useWebSocket, useEventStream, useSystemStatus } from '@/hooks';
-import type { SecurityEvent, SystemStatus, WebSocketOptions } from '@/hooks';
-```
+| File                       | Coverage                                               |
+| -------------------------- | ------------------------------------------------------ |
+| `useWebSocket.test.ts`     | Connection lifecycle, message handling, reconnects     |
+| `useEventStream.test.ts`   | Event buffering, envelope parsing, non-event filtering |
+| `useSystemStatus.test.ts`  | Backend message transformation, type guards            |
+| `useGpuHistory.test.ts`    | Polling, history buffer, start/stop controls           |
+| `useHealthStatus.test.ts`  | REST polling, error handling, refresh                  |
+| `useServiceStatus.test.ts` | Service status parsing (deprecated hook)               |
+
+## Hook Details
 
 ### `useWebSocket.ts`
 
@@ -56,16 +70,6 @@ interface UseWebSocketReturn {
 }
 ```
 
-**Usage:**
-
-```typescript
-const { isConnected, lastMessage, send, connect, disconnect } = useWebSocket({
-  url: 'ws://localhost:8000/ws',
-  onMessage: (data) => console.log(data),
-  reconnect: true,
-});
-```
-
 ### `useEventStream.ts`
 
 High-level hook for receiving security events via WebSocket (`/ws/events` endpoint).
@@ -78,29 +82,9 @@ High-level hook for receiving security events via WebSocket (`/ws/events` endpoi
 - Maintains in-memory buffer of last 100 events (newest first, constant `MAX_EVENTS`)
 - Provides `latestEvent` computed value via `useMemo`
 - `clearEvents()` method to reset buffer
-- Auto-constructs WebSocket URL based on `window.location`
+- Uses `buildWebSocketUrl()` from api service for URL construction
 
-**Backend Message Structure (received):**
-
-```typescript
-interface BackendEventMessage {
-  type: 'event';
-  data: {
-    id: number;
-    event_id?: number;
-    batch_id?: string;
-    camera_id: string;
-    camera_name?: string;
-    risk_score: number;
-    risk_level: 'low' | 'medium' | 'high' | 'critical';
-    summary: string;
-    timestamp?: string;
-    started_at?: string;
-  };
-}
-```
-
-**SecurityEvent Interface (extracted from data):**
+**SecurityEvent Interface:**
 
 ```typescript
 interface SecurityEvent {
@@ -117,18 +101,15 @@ interface SecurityEvent {
 }
 ```
 
-**Usage:**
+**Return Interface:**
 
 ```typescript
-const { events, isConnected, latestEvent, clearEvents } = useEventStream();
-
-// Display latest event
-if (latestEvent) {
-  console.log(`New event: ${latestEvent.summary} (Risk: ${latestEvent.risk_level})`);
+interface UseEventStreamReturn {
+  events: SecurityEvent[];
+  isConnected: boolean;
+  latestEvent: SecurityEvent | null;
+  clearEvents: () => void;
 }
-
-// Clear event buffer
-clearEvents();
 ```
 
 ### `useSystemStatus.ts`
@@ -141,32 +122,9 @@ High-level hook for receiving system health updates via WebSocket (`/ws/system` 
 - Tracks GPU metrics: utilization, temperature, memory (used/total)
 - Tracks active camera count and overall system health
 - Type guard function `isBackendSystemStatus()` for message validation
-- Auto-constructs WebSocket URL based on `window.location`
+- Uses `buildWebSocketUrl()` from api service for URL construction
 
-**Note:** The `/ws/system` endpoint ONLY provides `system_status` messages. There is no `service_status` message type on this endpoint (see `useServiceStatus.ts` deprecation notice).
-
-**Backend Message Structure (received):**
-
-```typescript
-interface BackendSystemStatus {
-  type: 'system_status';
-  data: {
-    gpu: {
-      utilization: number | null;
-      memory_used: number | null;
-      memory_total: number | null;
-      temperature: number | null;
-      inference_fps: number | null;
-    };
-    cameras: { active: number; total: number };
-    queue: { pending: number; processing: number };
-    health: 'healthy' | 'degraded' | 'unhealthy';
-  };
-  timestamp: string;
-}
-```
-
-**Frontend SystemStatus Interface (returned):**
+**SystemStatus Interface:**
 
 ```typescript
 interface SystemStatus {
@@ -180,27 +138,119 @@ interface SystemStatus {
 }
 ```
 
-**Usage:**
+**Return Interface:**
 
 ```typescript
-const { status, isConnected } = useSystemStatus();
-
-if (status) {
-  console.log(`Health: ${status.health}, GPU: ${status.gpu_utilization}%`);
+interface UseSystemStatusReturn {
+  status: SystemStatus | null;
+  isConnected: boolean;
 }
 ```
+
+### `useGpuHistory.ts`
+
+Hook for polling GPU stats and maintaining a rolling history buffer for time-series visualization.
+
+**Features:**
+
+- Polls `GET /api/system/gpu` at configurable intervals (default: 5000ms)
+- Maintains rolling buffer of historical metrics (default: 60 data points)
+- Start/stop polling controls
+- Clear history method
+- Auto-start option (default: true)
+
+**Options Interface:**
+
+```typescript
+interface UseGpuHistoryOptions {
+  pollingInterval?: number; // default: 5000ms
+  maxDataPoints?: number; // default: 60
+  autoStart?: boolean; // default: true
+}
+```
+
+**GpuMetricDataPoint Interface:**
+
+```typescript
+interface GpuMetricDataPoint {
+  timestamp: string;
+  utilization: number;
+  memory_used: number;
+  temperature: number;
+}
+```
+
+**Return Interface:**
+
+```typescript
+interface UseGpuHistoryReturn {
+  current: GPUStats | null;
+  history: GpuMetricDataPoint[];
+  isLoading: boolean;
+  error: string | null;
+  start: () => void;
+  stop: () => void;
+  clearHistory: () => void;
+}
+```
+
+### `useHealthStatus.ts`
+
+Hook for REST-based health status polling from `GET /api/system/health`.
+
+**Features:**
+
+- Polls health endpoint at configurable intervals (default: 30000ms)
+- Provides overall system status and per-service status
+- Manual refresh capability
+- Mount-safe state updates (tracks mounted state)
+- Preserves previous health data on error
+
+**Options Interface:**
+
+```typescript
+interface UseHealthStatusOptions {
+  pollingInterval?: number; // default: 30000ms
+  enabled?: boolean; // default: true
+}
+```
+
+**Return Interface:**
+
+```typescript
+interface UseHealthStatusReturn {
+  health: HealthResponse | null;
+  isLoading: boolean;
+  error: string | null;
+  overallStatus: 'healthy' | 'degraded' | 'unhealthy' | null;
+  services: Record;
+  refresh: () => Promise;
+}
+```
+
+### `useServiceStatus.ts` (DEPRECATED)
+
+**WARNING:** This hook is NOT currently wired up on the backend.
+
+The backend's `ServiceHealthMonitor` (health_monitor.py) exists but is not initialized in `main.py`, so no `service_status` messages are broadcast to `/ws/system`. The `SystemBroadcaster` only emits `system_status` messages.
+
+**Use `useSystemStatus` instead** for system health information - it correctly handles `system_status` messages which include an overall health field.
+
+See bead vq8.11 for context on this decision.
 
 ## Custom Hooks Patterns
 
 ### URL Construction Pattern
 
-All WebSocket hooks construct URLs dynamically for protocol-agnostic connections:
+WebSocket hooks use `buildWebSocketUrl()` from `../services/api` for URL construction:
 
 ```typescript
-const wsProtocol =
-  typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-const wsHost = typeof window !== 'undefined' ? window.location.host : 'localhost:8000';
-const url = wsProtocol + '//' + wsHost + '/ws/events';
+import { buildWebSocketUrl } from '../services/api';
+
+// Respects VITE_WS_BASE_URL env var
+// Falls back to window.location.host
+// Appends api_key query param if VITE_API_KEY is configured
+const wsUrl = buildWebSocketUrl('/ws/events');
 ```
 
 ### Message Envelope Pattern
@@ -216,60 +266,69 @@ Both `useEventStream` and `useSystemStatus` expect messages in envelope format:
 }
 ```
 
-Type guards validate the envelope structure before processing:
-
-```typescript
-function isBackendEventMessage(data: unknown): data is BackendEventMessage {
-  if (!data || typeof data !== 'object') return false;
-  const msg = data as Record;
-  return msg.type === 'event' && isSecurityEvent(msg.data);
-}
-```
+Type guards validate the envelope structure before processing.
 
 ### Reconnection Pattern
 
-The base `useWebSocket` hook handles reconnection with exponential state tracking:
+The base `useWebSocket` hook handles reconnection with counter tracking:
 
 - Reconnect counter resets on successful connection
 - Reconnection stops when `disconnect()` is called manually
 - Cleanup clears pending reconnection timeouts
 
-## Testing
-
-All hooks have comprehensive test coverage using Vitest and React Testing Library:
-
-| File                      | Coverage                                               |
-| ------------------------- | ------------------------------------------------------ |
-| `useWebSocket.test.ts`    | Connection lifecycle, message handling, reconnects     |
-| `useEventStream.test.ts`  | Event buffering, envelope parsing, non-event filtering |
-| `useSystemStatus.test.ts` | Backend message transformation, type guards            |
-
-**Test Utilities:**
-
-- Mock WebSocket implementation for testing
-- `renderHook` from `@testing-library/react` for hook testing
-- `waitFor` for async state updates
-- `vi.fn()` for callback mocking
-- Helper function `wrapInEnvelope()` for creating test messages
-
 ## Dependencies
 
 - React hooks: `useState`, `useEffect`, `useRef`, `useCallback`, `useMemo`
-- Testing: `vitest`, `@testing-library/react`, `@testing-library/jest-dom`
+- API service: `buildWebSocketUrl`, `fetchGPUStats`, `fetchHealth`
+- Testing: `vitest`, `@testing-library/react`
 
-## Deprecated Hooks
+## Usage Examples
 
-### `useServiceStatus.ts` (DEPRECATED)
+### Event Stream
 
-This hook is NOT currently wired up on the backend. The backend's `ServiceHealthMonitor` (health_monitor.py) exists but is not initialized in `main.py`, so no `service_status` messages are broadcast to `/ws/system`. The `SystemBroadcaster` only emits `system_status` messages.
+```typescript
+const { events, isConnected, latestEvent, clearEvents } = useEventStream();
 
-**Use `useSystemStatus` instead** for system health information - it correctly handles `system_status` messages which include an overall health field.
+if (latestEvent) {
+  console.log(\`New event: \${latestEvent.summary} (Risk: \${latestEvent.risk_level})\`);
+}
+```
 
-If per-service status monitoring is needed in the future, see bead vq8.11 for implementation guidance.
+### System Status
+
+```typescript
+const { status, isConnected } = useSystemStatus();
+
+if (status) {
+  console.log(\`Health: \${status.health}, GPU: \${status.gpu_utilization}%\`);
+}
+```
+
+### GPU History
+
+```typescript
+const { current, history, isLoading, start, stop } = useGpuHistory({
+  pollingInterval: 5000,
+  maxDataPoints: 60,
+});
+
+// Use history array for time-series chart
+```
+
+### Health Status
+
+```typescript
+const { health, overallStatus, services, refresh } = useHealthStatus({
+  pollingInterval: 30000,
+});
+
+// Manual refresh
+await refresh();
+```
 
 ## Notes
 
-- All WebSocket URLs are dynamically constructed using `window.location` for protocol (`ws:`/`wss:`) and host
+- All WebSocket URLs are constructed via `buildWebSocketUrl()` which respects `VITE_WS_BASE_URL` and `VITE_API_KEY`
 - SSR-safe: checks for `window.WebSocket` availability before connecting
 - Events are stored in reverse chronological order (newest first)
 - Connection state is tracked per hook instance
