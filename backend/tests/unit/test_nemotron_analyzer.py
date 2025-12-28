@@ -36,7 +36,9 @@ def analyzer(mock_redis_client):
 @pytest.fixture
 def sample_detections():
     """Sample detections for testing."""
-    base_time = datetime(2025, 12, 23, 14, 30, 0)
+    from datetime import UTC
+
+    base_time = datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC)
     return [
         Detection(
             id=1,
@@ -50,7 +52,7 @@ def sample_detections():
             id=2,
             camera_id="front_door",
             file_path="/export/foscam/front_door/img2.jpg",
-            detected_at=datetime(2025, 12, 23, 14, 30, 15),
+            detected_at=datetime(2025, 12, 23, 14, 30, 15, tzinfo=UTC),
             object_type="car",
             confidence=0.88,
         ),
@@ -58,7 +60,7 @@ def sample_detections():
             id=3,
             camera_id="front_door",
             file_path="/export/foscam/front_door/img3.jpg",
-            detected_at=datetime(2025, 12, 23, 14, 30, 30),
+            detected_at=datetime(2025, 12, 23, 14, 30, 30, tzinfo=UTC),
             object_type="person",
             confidence=0.92,
         ),
