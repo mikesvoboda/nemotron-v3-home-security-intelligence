@@ -75,7 +75,7 @@ backend/models/
 | `id`             | int (PK, autoincrement) | Unique detection ID                           |
 | `camera_id`      | str (FK->cameras.id)    | Source camera reference                       |
 | `file_path`      | str                     | Path to source image/video file               |
-| `file_type`      | str (nullable)          | File extension (e.g., "jpg", "mp4")           |
+| `file_type`      | str (nullable)          | MIME type (e.g., "image/jpeg", "video/mp4")   |
 | `detected_at`    | datetime                | Detection timestamp (default: utcnow)         |
 | `object_type`    | str (nullable)          | Detected object class (e.g., "person", "car") |
 | `confidence`     | float (nullable)        | Detection confidence score (0.0-1.0)          |
