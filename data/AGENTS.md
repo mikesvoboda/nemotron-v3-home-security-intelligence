@@ -4,9 +4,14 @@
 
 This directory stores runtime data for the Home Security Intelligence application, including image thumbnails and temporary processing files. **Note:** The database has been migrated from SQLite to PostgreSQL and is no longer stored in this directory.
 
-## Key Files and Directories
+## Directory Contents
 
-### Database
+```
+data/
+  AGENTS.md           # This file
+  thumbnails/         # Cached image thumbnails (runtime)
+  logs/               # Application log files (runtime)
+```
 
 **MIGRATED TO POSTGRESQL** - This directory no longer stores the database.
 
@@ -31,31 +36,32 @@ The application now uses PostgreSQL instead of SQLite:
 - **Retention:** Events older than 30 days are cleaned up by `backend/services/cleanup_service.py`
 - **Backup:** Use PostgreSQL native backup tools (`pg_dump`, `pg_basebackup`)
 
-### Thumbnails
+## Key Files
 
-**thumbnails/** (subdirectory for cached image thumbnails)
+### thumbnails/
 
-- **Purpose:** Store resized thumbnails for faster web UI loading
-- **What it contains:**
-  - Thumbnail images for event snapshots
-  - Generated on-demand by backend services
-  - Cached for performance
-- **Format:** JPEG images (typically 200x150px or similar)
-- **Naming convention:** `{event_id}.jpg` or `{image_hash}.jpg`
-- **Cleanup:** Orphaned thumbnails are removed by cleanup service
-- **Disk usage:** Grows with event volume, cleaned up with old events
+**Purpose:** Store resized thumbnails for faster web UI loading.
 
-### Temporary Files (Not Committed)
+**Contents:**
 
-These files may appear during runtime but are not committed to git:
+- Thumbnail images for event snapshots
+- Generated on-demand by backend services
+- Format: JPEG images (typically 200x150px)
+- Naming: `{event_id}.jpg` or `{image_hash}.jpg`
 
-- **processing/** - Temporary storage for in-flight image processing
-- **.tmp/** - Temporary files during batch processing
-- **cache/** - Redis-backed cache files (if using disk cache)
+### logs/
 
-## Database Schema Overview
+**Purpose:** Application log files.
 
-### Cameras Table
+**Contents:**
+
+- Backend server logs
+- Frontend build logs (if applicable)
+- Debug output
+
+## Database Schema
+
+### cameras Table
 
 ```sql
 CREATE TABLE cameras (
@@ -68,7 +74,7 @@ CREATE TABLE cameras (
 );
 ```
 
-### Events Table
+### events Table
 
 ```sql
 CREATE TABLE events (
@@ -84,7 +90,7 @@ CREATE TABLE events (
 );
 ```
 
-### Detections Table
+### detections Table
 
 ```sql
 CREATE TABLE detections (
@@ -101,7 +107,7 @@ CREATE TABLE detections (
 );
 ```
 
-### GPU Stats Table
+### gpu_stats Table
 
 ```sql
 CREATE TABLE gpu_stats (
@@ -118,34 +124,20 @@ CREATE TABLE gpu_stats (
 
 ## Database Operations
 
-### Initialization
-
-The database is automatically initialized when the backend starts:
-
-```python
-# backend/core/database.py
-async def init_db():
-    """Initialize database tables."""
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-```
-
 ### Seeding Test Data
 
-Use the seed-cameras.py script to populate test cameras:
-
 ```bash
-# Seed 6 cameras (default)
+# Seed 6 default cameras
 ./scripts/seed-cameras.py
 
-# Seed specific number without creating folders
-./scripts/seed-cameras.py --count 3 --no-folders
-
-# List existing cameras
-./scripts/seed-cameras.py --list
+# Seed without creating folders
+./scripts/seed-cameras.py --no-folders
 
 # Clear and re-seed
 ./scripts/seed-cameras.py --clear --count 6
+
+# List existing cameras
+./scripts/seed-cameras.py --list
 ```
 
 ### Manual Database Inspection
@@ -167,15 +159,16 @@ SELECT * FROM events ORDER BY timestamp DESC LIMIT 10;
 
 ### Database Reset
 
-To start fresh (development only):
-
 ```bash
 # Stop backend server first
-# Delete database
-rm -f data/security.db
+./scripts/dev.sh stop
 
-# Restart backend (will recreate database)
-cd backend && uvicorn main:app --reload
+# Drop and recreate database (PostgreSQL)
+psql -h localhost -U username -c "DROP DATABASE IF EXISTS home_security;"
+psql -h localhost -U username -c "CREATE DATABASE home_security;"
+
+# Restart backend (will recreate tables)
+./scripts/dev.sh start
 
 # Re-seed test data
 ./scripts/seed-cameras.py
@@ -185,19 +178,17 @@ cd backend && uvicorn main:app --reload
 
 ### Automatic Cleanup
 
-The cleanup service runs periodically to remove old data:
-
 - **Default retention:** 30 days
 - **Configuration:** RETENTION_DAYS in .env
 - **Service:** `backend/services/cleanup_service.py`
-- **Schedule:** Runs every 24 hours (configurable)
-- **What it removes:**
-  - Events older than retention period
-  - Associated detections
-  - Orphaned thumbnails
-  - Orphaned image files
+- **Schedule:** Runs every 24 hours
 
-### Manual Cleanup
+**What it removes:**
+
+- Events older than retention period
+- Associated detections
+- Orphaned thumbnails
+- Orphaned image files
 
 ```python
 # Run cleanup service manually
@@ -220,10 +211,10 @@ data/
 
 ## Git Ignore Rules
 
-The following files are excluded from git (in `.gitignore`):
+The following files are excluded from git:
 
 ```gitignore
-# Database files
+# Database files (legacy SQLite - no longer used)
 data/*.db
 data/*.db-journal
 data/*.db-shm
@@ -232,10 +223,8 @@ data/*.db-wal
 # Thumbnails
 data/thumbnails/*
 
-# Temporary files
-data/.tmp/
-data/processing/
-data/cache/
+# Logs
+data/logs/*
 ```
 
 ## Backup and Restore
@@ -243,39 +232,24 @@ data/cache/
 ### Manual Backup
 
 ```bash
-# Backup database
-cp data/security.db data/security.db.backup
+# PostgreSQL backup
+pg_dump -h localhost -U username -F c home_security > backup.dump
 
 # Backup with timestamp
-cp data/security.db data/security.db.$(date +%Y%m%d_%H%M%S)
+pg_dump -h localhost -U username -F c home_security > backup_$(date +%Y%m%d_%H%M%S).dump
 
-# Backup with compression
-tar -czf security_backup_$(date +%Y%m%d).tar.gz data/
-```
-
-### Automated Backup (Production)
-
-For production deployments, set up automated backups:
-
-```bash
-# Example cron job (daily at 2 AM)
-0 2 * * * tar -czf /backups/security_$(date +\%Y\%m\%d).tar.gz /path/to/data/
-
-# Keep last 7 days of backups
-0 3 * * * find /backups/ -name "security_*.tar.gz" -mtime +7 -delete
+# Compressed backup including thumbnails
+tar -czf security_backup_$(date +%Y%m%d).tar.gz data/thumbnails/
 ```
 
 ### Restore from Backup
 
 ```bash
-# Stop backend server
+# Stop backend
 ./scripts/dev.sh stop
 
-# Restore database
-cp data/security.db.backup data/security.db
-
-# Or restore from compressed backup
-tar -xzf security_backup_20231224.tar.gz
+# Restore PostgreSQL database
+pg_restore -h localhost -U username -d home_security -c backup.dump
 
 # Restart backend
 ./scripts/dev.sh start
@@ -285,14 +259,14 @@ tar -xzf security_backup_20231224.tar.gz
 
 When database schema changes:
 
-1. **Alembic migrations** (future feature):
+1. **Alembic migrations** (recommended):
 
    ```bash
    alembic revision --autogenerate -m "Add new field"
    alembic upgrade head
    ```
 
-2. **Manual migration** (current approach):
+2. **Manual migration** (if needed):
    - Schema changes are applied automatically on startup
    - SQLAlchemy creates missing tables/columns
    - For complex changes, backup database first
@@ -362,34 +336,12 @@ psql -h localhost -U username -d home_security -c "SELECT pg_size_pretty(pg_data
 # Check total data directory size (for thumbnails)
 du -sh data/
 
-# Run cleanup service manually
+# Run cleanup manually
 curl -X POST http://localhost:8000/api/v1/admin/cleanup
 
-# Reduce retention period
-# Edit .env: RETENTION_DAYS=7
+# Reduce retention period in .env
+# RETENTION_DAYS=7
 ```
-
-## Security Considerations
-
-### File Permissions
-
-```bash
-# Ensure proper ownership
-chown -R $USER:$USER data/
-
-# Secure database file
-chmod 600 data/security.db
-
-# Secure directory
-chmod 755 data/
-```
-
-### Sensitive Data
-
-- **No passwords stored:** Application is single-user, no authentication
-- **Camera paths:** May contain sensitive location information
-- **Event images:** May contain personal identifiable information
-- **Backup encryption:** Consider encrypting backups for sensitive deployments
 
 ## Related Documentation
 
@@ -412,8 +364,7 @@ chmod 755 data/
 2. **Check database size:**
 
    ```bash
-   du -h data/security.db
-   ls -lh data/security.db
+   psql -h localhost -U username -d home_security -c "SELECT pg_size_pretty(pg_database_size('home_security'));"
    ```
 
 3. **Query database:**
@@ -436,10 +387,10 @@ chmod 755 data/
    ./scripts/dev.sh stop
    ```
 
-2. **Delete database:**
+2. **Drop and recreate database:**
 
    ```bash
-   rm -f data/security.db
+   psql -h localhost -U username -c "DROP DATABASE IF EXISTS home_security; CREATE DATABASE home_security;"
    ```
 
 3. **Restart backend:**
@@ -458,7 +409,7 @@ chmod 755 data/
 1. **Create backup:**
 
    ```bash
-   cp data/security.db data/security.db.backup
+   pg_dump -h localhost -U username -F c home_security > backup.dump
    ```
 
 2. **Make changes...**
@@ -466,6 +417,6 @@ chmod 755 data/
 3. **Restore if needed:**
    ```bash
    ./scripts/dev.sh stop
-   cp data/security.db.backup data/security.db
+   pg_restore -h localhost -U username -d home_security -c backup.dump
    ./scripts/dev.sh start
    ```
