@@ -19,37 +19,37 @@ SAMPLE_CAMERAS = [
         "id": "front-door",
         "name": "Front Door",
         "folder_path": "/export/foscam/front_door",
-        "status": "active",
+        "status": "online",
     },
     {
         "id": "backyard",
         "name": "Backyard",
         "folder_path": "/export/foscam/backyard",
-        "status": "active",
+        "status": "online",
     },
     {
         "id": "garage",
         "name": "Garage",
         "folder_path": "/export/foscam/garage",
-        "status": "inactive",
+        "status": "offline",
     },
     {
         "id": "driveway",
         "name": "Driveway",
         "folder_path": "/export/foscam/driveway",
-        "status": "active",
+        "status": "online",
     },
     {
         "id": "side-gate",
         "name": "Side Gate",
         "folder_path": "/export/foscam/side_gate",
-        "status": "active",
+        "status": "online",
     },
     {
         "id": "living-room",
         "name": "Living Room",
         "folder_path": "/export/foscam/living_room",
-        "status": "inactive",
+        "status": "offline",
     },
 ]
 

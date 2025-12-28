@@ -4,12 +4,13 @@ FROM python:3.12-alpine
 WORKDIR /app
 
 # Install build dependencies for Python packages with C extensions
-# and runtime dependencies for healthcheck
+# and runtime dependencies for healthcheck and video processing
 RUN apk add --no-cache \
     gcc \
     musl-dev \
     libffi-dev \
-    wget
+    wget \
+    ffmpeg
 
 # Install Python dependencies
 COPY requirements.txt .

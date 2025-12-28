@@ -6,13 +6,9 @@ import { ServiceStatusAlert, ServiceName, ServiceStatus } from './ServiceStatusA
 /**
  * Tests for ServiceStatusAlert component.
  *
- * NOTE: This component is currently DEPRECATED because useServiceStatus hook
- * (which would provide data for this component) is not wired up on the backend.
- * The backend's ServiceHealthMonitor exists but is not initialized in main.py.
- *
- * These tests are retained for when/if the backend is wired up in the future.
- *
- * See bead vq8.11 for context.
+ * This component displays service health status alerts based on data from
+ * the useServiceStatus hook, which receives `service_status` WebSocket messages
+ * from the backend's ServiceHealthMonitor.
  */
 
 // Helper to create service status

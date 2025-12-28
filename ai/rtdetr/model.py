@@ -426,6 +426,9 @@ async def detect_objects_batch(files: list[UploadFile] = File(...)) -> JSONRespo
 if __name__ == "__main__":
     import uvicorn
 
+    # Default to 0.0.0.0 to allow connections from Docker/Podman containers.
+    # When AI servers run natively on host while backend runs in containers,
+    # binding to 127.0.0.1 would prevent container-to-host connectivity.
     host = os.getenv("HOST", "0.0.0.0")  # noqa: S104
     port = int(os.getenv("PORT", "8090"))
     uvicorn.run(app, host=host, port=port, log_level="info")

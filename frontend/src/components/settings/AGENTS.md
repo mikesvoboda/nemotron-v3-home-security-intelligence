@@ -73,7 +73,7 @@ interface Camera {
   id: string;
   name: string;
   folder_path: string;
-  status: string; // "active" or "inactive"
+  status: string; // "online", "offline", or "error"
   last_seen_at?: string; // ISO timestamp
 }
 ```
