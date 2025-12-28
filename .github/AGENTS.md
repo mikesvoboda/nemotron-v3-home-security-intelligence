@@ -34,15 +34,16 @@ This directory contains GitHub-specific configuration files for the Home Securit
 
 **Ecosystems Monitored:**
 
-| Ecosystem | Directory | Schedule | PR Limit |
-|-----------|-----------|----------|----------|
-| pip (Python) | /backend | Weekly (Monday) | 5 |
-| npm (Node.js) | /frontend | Weekly (Monday) | 5 |
-| github-actions | / | Weekly (Monday) | 3 |
-| docker | /backend | Monthly | - |
-| docker | /frontend | Monthly | - |
+| Ecosystem      | Directory | Schedule        | PR Limit |
+| -------------- | --------- | --------------- | -------- |
+| pip (Python)   | /backend  | Weekly (Monday) | 5        |
+| npm (Node.js)  | /frontend | Weekly (Monday) | 5        |
+| github-actions | /         | Weekly (Monday) | 3        |
+| docker         | /backend  | Monthly         | -        |
+| docker         | /frontend | Monthly         | -        |
 
 **Labels Applied:**
+
 - `dependencies` - All dependency PRs
 - Language-specific: `python`, `javascript`, `github-actions`, `docker`
 - Commit prefix: `chore(deps):`
@@ -52,6 +53,7 @@ This directory contains GitHub-specific configuration files for the Home Securit
 **Purpose:** Provides context to GitHub Copilot for better code suggestions.
 
 **Contents:**
+
 - Tech stack overview (FastAPI, React, RT-DETRv2, Nemotron)
 - Coding conventions for Python and TypeScript
 - Domain context (security monitoring concepts)
@@ -62,6 +64,7 @@ This directory contains GitHub-specific configuration files for the Home Securit
 **Purpose:** Configures CodeQL security analysis.
 
 **Settings:**
+
 - Uses `security-and-quality` query suite
 - Excludes test files from analysis:
   - `**/*.test.ts`, `**/*.test.tsx`
@@ -73,6 +76,7 @@ This directory contains GitHub-specific configuration files for the Home Securit
 **Purpose:** System prompt for AI-powered code review in PRs.
 
 **Review Focus Areas:**
+
 - Security: Injection, XSS, secrets, path traversal
 - Performance: N+1 queries, re-renders, async patterns
 - Code Quality: Types, error handling, duplication
@@ -86,16 +90,16 @@ This directory contains GitHub-specific configuration files for the Home Securit
 
 **Jobs:**
 
-| Job | Runner | Purpose |
-|-----|--------|---------|
-| lint | ubuntu-latest | Ruff linting and formatting |
-| typecheck | ubuntu-latest | Mypy type checking |
-| unit-tests | ubuntu-latest | pytest unit tests with coverage |
-| integration-tests | ubuntu-latest | pytest integration tests with Redis |
-| frontend-lint | ubuntu-latest | ESLint |
-| frontend-typecheck | ubuntu-latest | TypeScript checking |
-| frontend-tests | ubuntu-latest | Vitest with coverage |
-| build | ubuntu-latest | Docker image builds (after all tests) |
+| Job                | Runner        | Purpose                               |
+| ------------------ | ------------- | ------------------------------------- |
+| lint               | ubuntu-latest | Ruff linting and formatting           |
+| typecheck          | ubuntu-latest | Mypy type checking                    |
+| unit-tests         | ubuntu-latest | pytest unit tests with coverage       |
+| integration-tests  | ubuntu-latest | pytest integration tests with Redis   |
+| frontend-lint      | ubuntu-latest | ESLint                                |
+| frontend-typecheck | ubuntu-latest | TypeScript checking                   |
+| frontend-tests     | ubuntu-latest | Vitest with coverage                  |
+| build              | ubuntu-latest | Docker image builds (after all tests) |
 
 **Concurrency:** Cancels in-progress runs on same branch.
 
@@ -104,34 +108,38 @@ This directory contains GitHub-specific configuration files for the Home Securit
 **Trigger:** Push to main branch only
 
 **Process:**
+
 1. Login to GitHub Container Registry (GHCR)
 2. Build Docker images (backend, frontend)
 3. Scan with Trivy for vulnerabilities
 4. Push to GHCR with tags: `sha-xxx`, `latest`
 
 **Image Names:**
+
 - `ghcr.io/{owner}/{repo}/backend:latest`
 - `ghcr.io/{owner}/{repo}/frontend:latest`
 
 ### Security Workflows
 
-| Workflow | Tool | Trigger | Purpose |
-|----------|------|---------|---------|
-| sast.yml | Bandit, Semgrep | Push/PR | Python security + OWASP |
-| codeql.yml | CodeQL | Push/PR/Weekly | Deep code analysis |
-| gitleaks.yml | Gitleaks | Push/PR | Secret detection |
-| trivy.yml | Trivy | Push/PR (Dockerfile changes) | Container vulnerabilities |
+| Workflow     | Tool            | Trigger                      | Purpose                   |
+| ------------ | --------------- | ---------------------------- | ------------------------- |
+| sast.yml     | Bandit, Semgrep | Push/PR                      | Python security + OWASP   |
+| codeql.yml   | CodeQL          | Push/PR/Weekly               | Deep code analysis        |
+| gitleaks.yml | Gitleaks        | Push/PR                      | Secret detection          |
+| trivy.yml    | Trivy           | Push/PR (Dockerfile changes) | Container vulnerabilities |
 
 ### GPU Tests (gpu-tests.yml)
 
 **Runner:** Self-hosted with `gpu, rtx-a5500` labels
 
 **Requirements:**
+
 - NVIDIA GPU available
 - CUDA drivers installed
 - Trusted source (fork protection enabled)
 
 **Tests Run:**
+
 - GPU-marked pytest tests (`-m gpu`)
 - AI inference benchmarks
 
@@ -140,11 +148,14 @@ This directory contains GitHub-specific configuration files for the Home Securit
 **Schedule:** 2am EST (7am UTC) daily
 
 **Jobs:**
+
 1. **Extended Benchmarks** (GPU runner)
+
    - Big-O complexity tests
    - Memory profiling with memray
 
 2. **Complexity Trends** (ubuntu)
+
    - Wily code complexity analysis
    - Historical trend reports
 
@@ -158,6 +169,7 @@ This directory contains GitHub-specific configuration files for the Home Securit
 **Trigger:** PR opened/synchronized (non-draft, non-dependabot)
 
 **Process:**
+
 1. Get PR diff (truncated to 20KB for token limits)
 2. Run through GPT-4o via GitHub Models
 3. Post review comment on PR
@@ -244,10 +256,10 @@ runs-on: [self-hosted, gpu, rtx-a5500]
 
 ## Secrets Required
 
-| Secret | Purpose | Used In |
-|--------|---------|---------|
-| GITHUB_TOKEN | Auto-provided, PR comments, GHCR | All workflows |
-| CODECOV_TOKEN | (Optional) Coverage upload | ci.yml |
+| Secret        | Purpose                          | Used In       |
+| ------------- | -------------------------------- | ------------- |
+| GITHUB_TOKEN  | Auto-provided, PR comments, GHCR | All workflows |
+| CODECOV_TOKEN | (Optional) Coverage upload       | ci.yml        |
 
 ## Troubleshooting
 

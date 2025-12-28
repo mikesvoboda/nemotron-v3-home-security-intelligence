@@ -21,6 +21,7 @@ provisioning/
 **Purpose:** Configures automatic dashboard loading from the file system.
 
 **Configuration:**
+
 ```yaml
 apiVersion: 1
 providers:
@@ -37,6 +38,7 @@ providers:
 ```
 
 **Key Settings:**
+
 - `folder`: Dashboard folder name in Grafana UI
 - `updateIntervalSeconds`: How often to check for dashboard changes (30s)
 - `allowUiUpdates`: Permits editing dashboards in Grafana UI (true)
@@ -49,6 +51,7 @@ providers:
 **Datasources Defined:**
 
 1. **Prometheus** (Default)
+
    ```yaml
    name: Prometheus
    type: prometheus
@@ -58,6 +61,7 @@ providers:
      timeInterval: "15s"
      httpMethod: POST
    ```
+
    - Used for time-series metrics
    - Scrape interval: 15s
    - Default datasource for new panels
@@ -86,6 +90,7 @@ providers:
 ### File Mounting (Docker)
 
 In docker-compose.yml:
+
 ```yaml
 grafana:
   volumes:
@@ -105,6 +110,7 @@ grafana:
 ### Adding a New Datasource
 
 1. Create new YAML file in `datasources/` or add to existing file:
+
    ```yaml
    - name: MySource
      type: datasource-type
@@ -121,6 +127,7 @@ grafana:
 ### Adding a Dashboard Provider
 
 Add to `dashboards/dashboard.yml`:
+
 ```yaml
 providers:
   - name: "Additional Dashboards"
@@ -133,11 +140,13 @@ providers:
 ### Debugging Provisioning
 
 1. Check Grafana logs:
+
    ```bash
    docker compose logs grafana | grep -i provisioning
    ```
 
 2. Verify file permissions:
+
    ```bash
    docker compose exec grafana ls -la /etc/grafana/provisioning/
    ```
@@ -152,6 +161,7 @@ providers:
 ### Datasource UID References
 
 Dashboard panels reference datasources by UID:
+
 ```json
 "datasource": {
   "type": "marcusolsson-json-datasource",
@@ -164,6 +174,7 @@ The UID defaults to the datasource name if not specified.
 ### Folder Organization
 
 Dashboards can be organized into folders:
+
 ```yaml
 folder: "Home Security Intelligence"
 folderUid: "hsi-dashboards"
@@ -199,9 +210,11 @@ This creates a folder in Grafana's dashboard browser.
 ## Required Grafana Plugins
 
 The Backend-API datasource requires:
+
 - `marcusolsson-json-datasource` - JSON API datasource plugin
 
 Install via environment variable:
+
 ```yaml
 grafana:
   environment:

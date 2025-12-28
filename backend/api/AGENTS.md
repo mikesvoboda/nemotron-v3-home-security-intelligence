@@ -27,39 +27,39 @@ Package initialization. Contains a simple docstring: "API package for routes and
 
 Contains FastAPI routers that define HTTP endpoints:
 
-| File | Purpose |
-|------|---------|
-| `cameras.py` | Camera CRUD operations and snapshot serving |
-| `events.py` | Security event management, queries, and statistics |
-| `detections.py` | Object detection listing and thumbnail serving |
-| `logs.py` | System and frontend log management |
-| `websocket.py` | WebSocket endpoints for real-time updates |
-| `system.py` | System health, GPU stats, configuration, telemetry |
-| `media.py` | Secure file serving for images/videos |
-| `dlq.py` | Dead-letter queue inspection and management |
-| `metrics.py` | Prometheus metrics endpoint |
+| File            | Purpose                                            |
+| --------------- | -------------------------------------------------- |
+| `cameras.py`    | Camera CRUD operations and snapshot serving        |
+| `events.py`     | Security event management, queries, and statistics |
+| `detections.py` | Object detection listing and thumbnail serving     |
+| `logs.py`       | System and frontend log management                 |
+| `websocket.py`  | WebSocket endpoints for real-time updates          |
+| `system.py`     | System health, GPU stats, configuration, telemetry |
+| `media.py`      | Secure file serving for images/videos              |
+| `dlq.py`        | Dead-letter queue inspection and management        |
+| `metrics.py`    | Prometheus metrics endpoint                        |
 
 ### Schemas (`schemas/`)
 
 Contains Pydantic models for request/response validation:
 
-| File | Purpose |
-|------|---------|
-| `camera.py` | Camera data validation schemas |
-| `events.py` | Event request/response and statistics schemas |
-| `detections.py` | Detection response schemas |
-| `logs.py` | Log entry and statistics schemas |
-| `system.py` | System monitoring, config, health, and telemetry schemas |
-| `media.py` | Media error response schemas |
-| `dlq.py` | Dead-letter queue schemas |
+| File            | Purpose                                                  |
+| --------------- | -------------------------------------------------------- |
+| `camera.py`     | Camera data validation schemas                           |
+| `events.py`     | Event request/response and statistics schemas            |
+| `detections.py` | Detection response schemas                               |
+| `logs.py`       | Log entry and statistics schemas                         |
+| `system.py`     | System monitoring, config, health, and telemetry schemas |
+| `media.py`      | Media error response schemas                             |
+| `dlq.py`        | Dead-letter queue schemas                                |
 
 ### Middleware (`middleware/`)
 
 HTTP middleware for cross-cutting concerns:
 
-| File | Purpose |
-|------|---------|
-| `auth.py` | API key authentication (HTTP and WebSocket) |
+| File            | Purpose                                           |
+| --------------- | ------------------------------------------------- |
+| `auth.py`       | API key authentication (HTTP and WebSocket)       |
 | `request_id.py` | Request ID generation and propagation for tracing |
 
 ## Architecture Overview

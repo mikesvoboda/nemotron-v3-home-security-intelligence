@@ -17,23 +17,23 @@ This project is a **local single-user deployment** for home security monitoring.
 
 ### Bead 6fj: Embed Grafana vs Native Charts
 
-| Option | Description | Pros | Cons |
-|--------|-------------|------|------|
-| A | iframe embed Grafana panels | Rich visualization, pre-built dashboards | Auth complexity, CSP/X-Frame-Options issues, cross-origin challenges |
-| B | Grafana public/snapshot dashboards | Shareable, no auth for viewers | Requires Grafana Enterprise or public exposure, overkill for local use |
-| C | Pull Grafana-rendered images | Simple integration, no iframe issues | Stale data, requires image generation API, polling overhead |
-| **D** | **Native Tremor charts from backend metrics API** | **Simple, no auth, already in stack, real-time** | **Less feature-rich than Grafana** |
+| Option | Description                                       | Pros                                             | Cons                                                                   |
+| ------ | ------------------------------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------- |
+| A      | iframe embed Grafana panels                       | Rich visualization, pre-built dashboards         | Auth complexity, CSP/X-Frame-Options issues, cross-origin challenges   |
+| B      | Grafana public/snapshot dashboards                | Shareable, no auth for viewers                   | Requires Grafana Enterprise or public exposure, overkill for local use |
+| C      | Pull Grafana-rendered images                      | Simple integration, no iframe issues             | Stale data, requires image generation API, polling overhead            |
+| **D**  | **Native Tremor charts from backend metrics API** | **Simple, no auth, already in stack, real-time** | **Less feature-rich than Grafana**                                     |
 
 **Decision: Option D - Native Tremor Charts**
 
 ### Bead c3s: Local Auth Strategy for Grafana
 
-| Option | Description | Pros | Cons |
-|--------|-------------|------|------|
-| Anonymous mode | Enable anonymous access in Grafana | Simple, no login required | Security concern if exposed beyond localhost |
-| Reverse proxy auth | Auth at nginx/traefik level | Single sign-on possible | Complex setup, overkill for single-user |
-| API token + server-side render | Backend fetches panels with token | Secure, controlled access | Adds complexity, latency |
-| **Minimal integration** | **Just link to standalone Grafana** | **Simple, separation of concerns** | **User must navigate separately** |
+| Option                         | Description                         | Pros                               | Cons                                         |
+| ------------------------------ | ----------------------------------- | ---------------------------------- | -------------------------------------------- |
+| Anonymous mode                 | Enable anonymous access in Grafana  | Simple, no login required          | Security concern if exposed beyond localhost |
+| Reverse proxy auth             | Auth at nginx/traefik level         | Single sign-on possible            | Complex setup, overkill for single-user      |
+| API token + server-side render | Backend fetches panels with token   | Secure, controlled access          | Adds complexity, latency                     |
+| **Minimal integration**        | **Just link to standalone Grafana** | **Simple, separation of concerns** | **User must navigate separately**            |
 
 **Decision: Minimal Integration - Link to Standalone Grafana**
 
@@ -44,6 +44,7 @@ This project is a **local single-user deployment** for home security monitoring.
 1. **No additional auth complexity** - The dashboard already has no authentication (single-user local deployment). Adding Grafana embeds would require configuring anonymous mode, dealing with CORS, and potentially CSP headers.
 
 2. **No CSP/iframe issues** - Embedding Grafana panels in iframes requires:
+
    - Setting `allow_embedding = true` in Grafana
    - Configuring `X-Frame-Options` header
    - Handling cross-origin cookie issues (SameSite)
@@ -52,6 +53,7 @@ This project is a **local single-user deployment** for home security monitoring.
 3. **Tremor already in frontend stack** - The frontend uses React + Tremor for UI components. Tremor provides excellent chart components (LineChart, BarChart, AreaChart, DonutChart) that integrate seamlessly with React state management.
 
 4. **Backend already has metrics endpoints** - The backend exposes metrics through existing API routes:
+
    - `/api/v1/system/health` - System health status
    - `/api/v1/system/gpu` - GPU metrics (utilization, memory, temperature)
    - Event and detection statistics
@@ -85,6 +87,7 @@ import { AreaChart } from '@tremor/react';
 ```
 
 Metrics to display natively:
+
 - GPU utilization and memory (from `/api/v1/system/gpu`)
 - Event counts by risk level (from `/api/v1/events/stats`)
 - Detection counts by object type
@@ -119,17 +122,20 @@ allow_embedding = true
 ## Consequences
 
 ### Positive
+
 - Simpler architecture
 - Faster dashboard load times
 - No cross-origin complications
 - Easier to maintain and test
 
 ### Negative
+
 - Less sophisticated charting than Grafana
 - No built-in alerting through dashboard (Grafana has this)
 - Users wanting detailed metrics must open separate Grafana window
 
 ### Neutral
+
 - Grafana remains available for power users
 - Backend metrics API serves both dashboard and Grafana data sources
 

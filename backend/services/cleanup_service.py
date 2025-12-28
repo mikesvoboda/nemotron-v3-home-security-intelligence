@@ -258,6 +258,124 @@ class CleanupService:
             logger.error(f"Cleanup failed: {e}", exc_info=True)
             raise
 
+    async def dry_run_cleanup(self) -> CleanupStats:
+        """Calculate what would be deleted without actually deleting.
+
+        This method performs the same queries as run_cleanup but uses COUNT
+        queries instead of DELETE statements, and does not modify any data.
+        Useful for verification before destructive operations.
+
+        Returns:
+            CleanupStats object with counts of what would be deleted
+
+        Raises:
+            Exception: If the dry run fails
+        """
+        from pathlib import Path
+
+        from sqlalchemy import func
+
+        logger.info(f"Starting cleanup dry run (retention: {self.retention_days} days)")
+        stats = CleanupStats()
+
+        # Calculate cutoff date
+        cutoff_date = datetime.now() - timedelta(days=self.retention_days)
+        logger.info(f"Dry run: would delete records older than {cutoff_date}")
+
+        try:
+            async with get_session() as session:
+                # Count detections that would be deleted
+                detections_count_query = (
+                    select(func.count())
+                    .select_from(Detection)
+                    .where(Detection.detected_at < cutoff_date)
+                )
+                result = await session.execute(detections_count_query)
+                stats.detections_deleted = result.scalar_one()
+                logger.info(f"Dry run: would delete {stats.detections_deleted} detections")
+
+                # Get detections to count files that would be deleted
+                detections_query = select(Detection).where(Detection.detected_at < cutoff_date)
+                det_result = await session.execute(detections_query)
+                detections_to_delete: list[Detection] = list(det_result.scalars().all())  # type: ignore[arg-type]
+
+                # Count thumbnail and image files that would be deleted
+                for detection in detections_to_delete:
+                    if detection.thumbnail_path:
+                        path = Path(detection.thumbnail_path)
+                        if path.exists() and path.is_file():
+                            stats.thumbnails_deleted += 1
+                            # Estimate space reclaimed from thumbnail
+                            try:
+                                stats.space_reclaimed += path.stat().st_size
+                            except OSError:
+                                pass
+                    if self.delete_images and detection.file_path:
+                        path = Path(detection.file_path)
+                        if path.exists() and path.is_file():
+                            stats.images_deleted += 1
+                            # Estimate space reclaimed from image
+                            try:
+                                stats.space_reclaimed += path.stat().st_size
+                            except OSError:
+                                pass
+
+                logger.info(f"Dry run: would delete {stats.thumbnails_deleted} thumbnail files")
+                if self.delete_images:
+                    logger.info(f"Dry run: would delete {stats.images_deleted} image files")
+
+                # Count events that would be deleted
+                events_count_query = (
+                    select(func.count()).select_from(Event).where(Event.started_at < cutoff_date)
+                )
+                result = await session.execute(events_count_query)
+                stats.events_deleted = result.scalar_one()
+                logger.info(f"Dry run: would delete {stats.events_deleted} events")
+
+                # Count GPU stats that would be deleted
+                gpu_stats_count_query = (
+                    select(func.count())
+                    .select_from(GPUStats)
+                    .where(GPUStats.recorded_at < cutoff_date)
+                )
+                result = await session.execute(gpu_stats_count_query)
+                stats.gpu_stats_deleted = result.scalar_one()
+                logger.info(f"Dry run: would delete {stats.gpu_stats_deleted} GPU stats")
+
+            # Count logs that would be deleted
+            stats.logs_deleted = await self._count_old_logs()
+
+            logger.info(f"Cleanup dry run completed: {stats}")
+            return stats
+
+        except Exception as e:
+            logger.error(f"Cleanup dry run failed: {e}", exc_info=True)
+            raise
+
+    async def _count_old_logs(self) -> int:
+        """Count logs older than retention period without deleting.
+
+        Returns:
+            Number of logs that would be deleted
+        """
+        from sqlalchemy import func
+
+        settings = get_settings()
+        cutoff = datetime.now(UTC) - timedelta(days=settings.log_retention_days)
+
+        async with get_session() as session:
+            result = await session.execute(
+                select(func.count()).select_from(Log).where(Log.timestamp < cutoff)
+            )
+            count = result.scalar_one()
+
+        if count > 0:
+            logger.info(
+                f"Dry run: would delete {count} logs older than {settings.log_retention_days} days"
+            )
+
+        return count
+
     async def cleanup_old_logs(self) -> int:
         """Delete logs older than retention period.
 

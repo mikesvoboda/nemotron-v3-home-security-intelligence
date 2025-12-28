@@ -12,24 +12,24 @@ Tests for Lighthouse CI configuration validation. Ensures the `lighthouserc.js` 
 
 **Test Categories:**
 
-| Category               | Description                                                  |
-| ---------------------- | ------------------------------------------------------------ |
-| Config Structure       | Validates `ci.collect`, `ci.assert`, `ci.upload` properties  |
-| Collect Configuration  | Verifies `staticDistDir`, `numberOfRuns` settings            |
-| Assert Configuration   | Checks for Core Web Vitals assertions                        |
-| Assertion Thresholds   | Validates performance score and metric thresholds            |
-| Threshold Value Ranges | Ensures exact threshold values match project requirements    |
-| Upload Configuration   | Verifies upload target configuration                         |
+| Category               | Description                                                 |
+| ---------------------- | ----------------------------------------------------------- |
+| Config Structure       | Validates `ci.collect`, `ci.assert`, `ci.upload` properties |
+| Collect Configuration  | Verifies `staticDistDir`, `numberOfRuns` settings           |
+| Assert Configuration   | Checks for Core Web Vitals assertions                       |
+| Assertion Thresholds   | Validates performance score and metric thresholds           |
+| Threshold Value Ranges | Ensures exact threshold values match project requirements   |
+| Upload Configuration   | Verifies upload target configuration                        |
 
 **Core Web Vitals Thresholds Tested:**
 
-| Metric                     | Threshold | Level |
-| -------------------------- | --------- | ----- |
-| Performance Score          | 80%       | warn  |
-| First Contentful Paint     | 2000ms    | warn  |
-| Largest Contentful Paint   | 4000ms    | warn  |
-| Cumulative Layout Shift    | 0.1       | warn  |
-| Total Blocking Time        | 300ms     | warn  |
+| Metric                   | Threshold | Level |
+| ------------------------ | --------- | ----- |
+| Performance Score        | 80%       | warn  |
+| First Contentful Paint   | 2000ms    | warn  |
+| Largest Contentful Paint | 4000ms    | warn  |
+| Cumulative Layout Shift  | 0.1       | warn  |
+| Total Blocking Time      | 300ms     | warn  |
 
 ## Test Framework
 
@@ -62,7 +62,7 @@ npm run test:coverage
 This directory separates **infrastructure/configuration tests** from **component/feature tests**:
 
 - **`src/__tests__/`**: Configuration validation, build tool tests, CI/CD config tests
-- **`src/**/*.test.tsx`**: Component and feature tests (co-located with source)
+- **`src/**/\*.test.tsx`\*\*: Component and feature tests (co-located with source)
 - **`tests/integration/`**: Multi-component integration tests
 - **`tests/e2e/`**: End-to-end browser tests
 

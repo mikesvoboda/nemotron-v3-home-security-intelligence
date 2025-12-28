@@ -4,6 +4,7 @@ import asyncio
 import contextlib
 import json
 import logging
+import random
 from collections.abc import AsyncGenerator
 from typing import Any, cast
 
@@ -31,10 +32,28 @@ class RedisClient:
         self._client: Redis | None = None
         self._pubsub: PubSub | None = None
         self._max_retries = 3
-        self._retry_delay = 1.0
+        # Exponential backoff settings
+        self._base_delay = 1.0  # Base delay in seconds
+        self._max_delay = 30.0  # Maximum delay cap in seconds
+        self._jitter_factor = 0.25  # Random jitter 0-25% of delay
+
+    def _calculate_backoff_delay(self, attempt: int) -> float:
+        """Calculate exponential backoff delay with jitter.
+
+        Args:
+            attempt: Current attempt number (1-indexed)
+
+        Returns:
+            Delay in seconds with exponential backoff and random jitter
+        """
+        # Exponential backoff: base_delay * 2^(attempt-1), capped at max_delay
+        delay: float = min(self._base_delay * (2 ** (attempt - 1)), self._max_delay)
+        # Add random jitter (0-25% of delay) - not cryptographic, just for retry timing
+        jitter: float = delay * random.uniform(0, self._jitter_factor)  # noqa: S311
+        return delay + jitter
 
     async def connect(self) -> None:
-        """Establish Redis connection with retry logic."""
+        """Establish Redis connection with exponential backoff retry logic."""
         for attempt in range(1, self._max_retries + 1):
             try:
                 self._pool = ConnectionPool.from_url(
@@ -56,7 +75,9 @@ class RedisClient:
                     f"Redis connection attempt {attempt}/{self._max_retries} failed: {e}"
                 )
                 if attempt < self._max_retries:
-                    await asyncio.sleep(self._retry_delay * attempt)
+                    backoff_delay = self._calculate_backoff_delay(attempt)
+                    logger.info(f"Retrying in {backoff_delay:.2f} seconds...")
+                    await asyncio.sleep(backoff_delay)
                 else:
                     logger.error("Failed to connect to Redis after all retries")
                     raise

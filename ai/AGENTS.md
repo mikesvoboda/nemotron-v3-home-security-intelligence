@@ -135,6 +135,7 @@ Nemotron Mini 4B Instruct performs AI-powered risk analysis on batches of detect
 5. **Output**: Event records with risk scores, summaries, and reasoning
 
 **Risk Scoring Guidelines**:
+
 - 0-25 (low): Normal activity, no concern
 - 26-50 (medium): Unusual but not threatening
 - 51-75 (high): Suspicious activity requiring attention

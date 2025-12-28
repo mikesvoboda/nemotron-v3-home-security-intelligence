@@ -23,18 +23,19 @@ monitoring/
 
 **Scrape Jobs Defined:**
 
-| Job Name          | Endpoint                              | Interval | Description                        |
-| ----------------- | ------------------------------------- | -------- | ---------------------------------- |
-| hsi-health        | /api/system/health via JSON exporter  | 10s      | System health status               |
-| hsi-telemetry     | /api/system/telemetry via JSON exporter | 10s    | Pipeline queue depths and latencies |
-| hsi-stats         | /api/system/stats via JSON exporter   | 30s      | Camera, event, detection counts    |
-| hsi-gpu           | /api/system/gpu via JSON exporter     | 10s      | GPU utilization and memory         |
-| backend-liveness  | /api/system/health/live               | 10s      | Direct liveness probe              |
-| redis             | redis-exporter:9121                   | 15s      | Redis metrics via redis_exporter   |
-| prometheus        | localhost:9090                        | Default  | Prometheus self-monitoring         |
-| json-exporter     | json-exporter:7979                    | Default  | JSON exporter health               |
+| Job Name         | Endpoint                                | Interval | Description                         |
+| ---------------- | --------------------------------------- | -------- | ----------------------------------- |
+| hsi-health       | /api/system/health via JSON exporter    | 10s      | System health status                |
+| hsi-telemetry    | /api/system/telemetry via JSON exporter | 10s      | Pipeline queue depths and latencies |
+| hsi-stats        | /api/system/stats via JSON exporter     | 30s      | Camera, event, detection counts     |
+| hsi-gpu          | /api/system/gpu via JSON exporter       | 10s      | GPU utilization and memory          |
+| backend-liveness | /api/system/health/live                 | 10s      | Direct liveness probe               |
+| redis            | redis-exporter:9121                     | 15s      | Redis metrics via redis_exporter    |
+| prometheus       | localhost:9090                          | Default  | Prometheus self-monitoring          |
+| json-exporter    | json-exporter:7979                      | Default  | JSON exporter health                |
 
 **Architecture:**
+
 ```
 Backend API --> JSON Exporter --> Prometheus --> Grafana
      |
@@ -48,12 +49,14 @@ Backend API --> JSON Exporter --> Prometheus --> Grafana
 **Modules:**
 
 1. **health** - System health metrics
+
    - `hsi_system_healthy` - Overall system status (healthy/degraded/unhealthy)
    - `hsi_database_healthy` - Database connection status
    - `hsi_redis_healthy` - Redis connection status
    - `hsi_ai_healthy` - AI services status
 
 2. **telemetry** - Pipeline performance metrics
+
    - Queue depths: `hsi_detection_queue_depth`, `hsi_analysis_queue_depth`
    - Watch stage latencies: avg, P95, P99
    - Detect stage latencies: avg, P95, P99
@@ -61,6 +64,7 @@ Backend API --> JSON Exporter --> Prometheus --> Grafana
    - Analyze stage latencies: avg, P95, P99
 
 3. **stats** - System statistics
+
    - `hsi_total_cameras` - Total cameras configured
    - `hsi_total_events` - Total security events
    - `hsi_total_detections` - Total object detections
@@ -75,13 +79,13 @@ Backend API --> JSON Exporter --> Prometheus --> Grafana
 
 ## Service Ports
 
-| Service        | Port | URL                     |
-| -------------- | ---- | ----------------------- |
-| Prometheus     | 9090 | http://localhost:9090   |
-| Grafana        | 3000 | http://localhost:3000   |
-| JSON Exporter  | 7979 | http://localhost:7979   |
-| Redis Exporter | 9121 | http://localhost:9121   |
-| Backend API    | 8000 | http://localhost:8000   |
+| Service        | Port | URL                   |
+| -------------- | ---- | --------------------- |
+| Prometheus     | 9090 | http://localhost:9090 |
+| Grafana        | 3000 | http://localhost:3000 |
+| JSON Exporter  | 7979 | http://localhost:7979 |
+| Redis Exporter | 9121 | http://localhost:9121 |
+| Backend API    | 8000 | http://localhost:8000 |
 
 ## Usage
 

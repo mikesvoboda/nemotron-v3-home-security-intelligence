@@ -21,12 +21,12 @@ Pydantic schemas for camera management endpoints.
 
 **Schemas:**
 
-| Schema | Purpose |
-|--------|---------|
-| `CameraCreate` | Validate data for creating a new camera |
-| `CameraUpdate` | Validate data for updating a camera (partial updates) |
-| `CameraResponse` | Serialize camera data in API responses |
-| `CameraListResponse` | Serialize list of cameras with count |
+| Schema               | Purpose                                               |
+| -------------------- | ----------------------------------------------------- |
+| `CameraCreate`       | Validate data for creating a new camera               |
+| `CameraUpdate`       | Validate data for updating a camera (partial updates) |
+| `CameraResponse`     | Serialize camera data in API responses                |
+| `CameraListResponse` | Serialize list of cameras with count                  |
 
 ### `events.py`
 
@@ -34,14 +34,14 @@ Pydantic schemas for event management and statistics endpoints.
 
 **Schemas:**
 
-| Schema | Purpose |
-|--------|---------|
-| `EventResponse` | Serialize event data with detection count |
-| `EventUpdate` | Validate event updates (reviewed, notes) |
-| `EventListResponse` | Serialize paginated event list |
-| `EventsByRiskLevel` | Events count by risk level |
-| `EventsByCamera` | Events count for a single camera |
-| `EventStatsResponse` | Aggregated event statistics |
+| Schema               | Purpose                                   |
+| -------------------- | ----------------------------------------- |
+| `EventResponse`      | Serialize event data with detection count |
+| `EventUpdate`        | Validate event updates (reviewed, notes)  |
+| `EventListResponse`  | Serialize paginated event list            |
+| `EventsByRiskLevel`  | Events count by risk level                |
+| `EventsByCamera`     | Events count for a single camera          |
+| `EventStatsResponse` | Aggregated event statistics               |
 
 ### `detections.py`
 
@@ -49,10 +49,10 @@ Pydantic schemas for detection listing endpoints.
 
 **Schemas:**
 
-| Schema | Purpose |
-|--------|---------|
-| `DetectionResponse` | Serialize detection with bounding box data |
-| `DetectionListResponse` | Serialize paginated detection list |
+| Schema                  | Purpose                                    |
+| ----------------------- | ------------------------------------------ |
+| `DetectionResponse`     | Serialize detection with bounding box data |
+| `DetectionListResponse` | Serialize paginated detection list         |
 
 ### `logs.py`
 
@@ -60,12 +60,12 @@ Pydantic schemas for log management and statistics endpoints.
 
 **Schemas:**
 
-| Schema | Purpose |
-|--------|---------|
-| `LogEntry` | Serialize a single log entry |
-| `LogsResponse` | Serialize paginated logs response |
-| `LogStats` | Log statistics for dashboard |
-| `FrontendLogCreate` | Validate frontend log submission |
+| Schema              | Purpose                           |
+| ------------------- | --------------------------------- |
+| `LogEntry`          | Serialize a single log entry      |
+| `LogsResponse`      | Serialize paginated logs response |
+| `LogStats`          | Log statistics for dashboard      |
+| `FrontendLogCreate` | Validate frontend log submission  |
 
 ### `system.py`
 
@@ -73,23 +73,23 @@ Pydantic schemas for system monitoring, configuration, and telemetry endpoints.
 
 **Schemas:**
 
-| Schema | Purpose |
-|--------|---------|
-| `ServiceStatus` | Status of individual service components |
-| `HealthResponse` | Complete system health check response |
-| `LivenessResponse` | Liveness probe response (Kubernetes-style) |
-| `WorkerStatus` | Status of background workers |
-| `ReadinessResponse` | Readiness probe response (Kubernetes-style) |
-| `GPUStatsResponse` | Current GPU performance metrics |
-| `GPUStatsSample` | Single time-series GPU sample |
-| `GPUStatsHistoryResponse` | GPU stats time series |
-| `ConfigResponse` | Public configuration settings |
-| `ConfigUpdateRequest` | Configuration update request |
-| `SystemStatsResponse` | System-wide statistics |
-| `QueueDepths` | Pipeline queue depth information |
-| `StageLatency` | Latency statistics for a pipeline stage |
-| `PipelineLatencies` | Latency stats for all pipeline stages |
-| `TelemetryResponse` | Pipeline telemetry data |
+| Schema                    | Purpose                                     |
+| ------------------------- | ------------------------------------------- |
+| `ServiceStatus`           | Status of individual service components     |
+| `HealthResponse`          | Complete system health check response       |
+| `LivenessResponse`        | Liveness probe response (Kubernetes-style)  |
+| `WorkerStatus`            | Status of background workers                |
+| `ReadinessResponse`       | Readiness probe response (Kubernetes-style) |
+| `GPUStatsResponse`        | Current GPU performance metrics             |
+| `GPUStatsSample`          | Single time-series GPU sample               |
+| `GPUStatsHistoryResponse` | GPU stats time series                       |
+| `ConfigResponse`          | Public configuration settings               |
+| `ConfigUpdateRequest`     | Configuration update request                |
+| `SystemStatsResponse`     | System-wide statistics                      |
+| `QueueDepths`             | Pipeline queue depth information            |
+| `StageLatency`            | Latency statistics for a pipeline stage     |
+| `PipelineLatencies`       | Latency stats for all pipeline stages       |
+| `TelemetryResponse`       | Pipeline telemetry data                     |
 
 ### `media.py`
 
@@ -97,8 +97,8 @@ Pydantic schemas for media serving error responses.
 
 **Schemas:**
 
-| Schema | Purpose |
-|--------|---------|
+| Schema               | Purpose                                  |
+| -------------------- | ---------------------------------------- |
 | `MediaErrorResponse` | Error response for media access failures |
 
 ### `dlq.py`
@@ -107,13 +107,13 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 
 **Schemas:**
 
-| Schema | Purpose |
-|--------|---------|
-| `DLQJobResponse` | Single job in the dead-letter queue |
-| `DLQStatsResponse` | DLQ statistics (counts per queue) |
-| `DLQJobsResponse` | List of jobs in a DLQ |
-| `DLQRequeueResponse` | Response for requeue operation |
-| `DLQClearResponse` | Response for clear operation |
+| Schema               | Purpose                             |
+| -------------------- | ----------------------------------- |
+| `DLQJobResponse`     | Single job in the dead-letter queue |
+| `DLQStatsResponse`   | DLQ statistics (counts per queue)   |
+| `DLQJobsResponse`    | List of jobs in a DLQ               |
+| `DLQRequeueResponse` | Response for requeue operation      |
+| `DLQClearResponse`   | Response for clear operation        |
 
 ---
 
@@ -124,6 +124,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `CameraCreate`
 
 **Fields:**
+
 - `name: str` - Camera name (1-255 chars, required)
 - `folder_path: str` - File system path (1-500 chars, required)
 - `status: str` - Status (default: "online")
@@ -131,6 +132,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `CameraUpdate`
 
 **Fields:** (all optional for partial updates)
+
 - `name: str | None`
 - `folder_path: str | None`
 - `status: str | None`
@@ -138,6 +140,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `CameraResponse`
 
 **Fields:**
+
 - `id: str` - Camera UUID
 - `name: str` - Camera name
 - `folder_path: str` - File system path
@@ -150,6 +153,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `CameraListResponse`
 
 **Fields:**
+
 - `cameras: list[CameraResponse]` - List of cameras
 - `count: int` - Total number of cameras
 
@@ -160,6 +164,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `EventResponse`
 
 **Fields:**
+
 - `id: int` - Event ID
 - `camera_id: str` - Camera UUID
 - `started_at: datetime` - Event start timestamp
@@ -174,12 +179,14 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `EventUpdate`
 
 **Fields:**
+
 - `reviewed: bool | None` - Mark as reviewed
 - `notes: str | None` - User notes
 
 #### `EventListResponse`
 
 **Fields:**
+
 - `events: list[EventResponse]` - List of events
 - `count: int` - Total matching filters
 - `limit: int` - Max results returned
@@ -188,6 +195,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `EventsByRiskLevel`
 
 **Fields:**
+
 - `critical: int` - Critical risk count (default: 0)
 - `high: int` - High risk count (default: 0)
 - `medium: int` - Medium risk count (default: 0)
@@ -196,6 +204,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `EventsByCamera`
 
 **Fields:**
+
 - `camera_id: str` - Camera UUID
 - `camera_name: str` - Camera name
 - `event_count: int` - Events for this camera
@@ -203,6 +212,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `EventStatsResponse`
 
 **Fields:**
+
 - `total_events: int` - Total events
 - `events_by_risk_level: EventsByRiskLevel` - By risk level
 - `events_by_camera: list[EventsByCamera]` - By camera (sorted by count)
@@ -214,6 +224,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `DetectionResponse`
 
 **Fields:**
+
 - `id: int` - Detection ID
 - `camera_id: str` - Camera UUID
 - `file_path: str` - Source image path
@@ -230,6 +241,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `DetectionListResponse`
 
 **Fields:**
+
 - `detections: list[DetectionResponse]` - List of detections
 - `count: int` - Total matching filters
 - `limit: int` - Max results returned
@@ -242,6 +254,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `LogEntry`
 
 **Fields:**
+
 - `id: int` - Log entry ID
 - `timestamp: datetime` - Log timestamp
 - `level: str` - DEBUG, INFO, WARNING, ERROR, CRITICAL
@@ -258,6 +271,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `LogsResponse`
 
 **Fields:**
+
 - `logs: list[LogEntry]` - List of log entries
 - `count: int` - Total matching filters
 - `limit: int` - Page size
@@ -266,6 +280,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `LogStats`
 
 **Fields:**
+
 - `total_today: int` - Total logs today
 - `errors_today: int` - Error count today
 - `warnings_today: int` - Warning count today
@@ -276,6 +291,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `FrontendLogCreate`
 
 **Fields:**
+
 - `level: str` - Log level (pattern validated)
 - `component: str` - Frontend component name (max 50 chars)
 - `message: str` - Log message (max 2000 chars)
@@ -290,6 +306,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `ServiceStatus`
 
 **Fields:**
+
 - `status: str` - healthy, unhealthy, or not_initialized
 - `message: str | None` - Status message or error
 - `details: dict[str, str] | None` - Service-specific details
@@ -297,6 +314,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `HealthResponse`
 
 **Fields:**
+
 - `status: str` - healthy, degraded, or unhealthy
 - `services: dict[str, ServiceStatus]` - database, redis, ai
 - `timestamp: datetime` - Health check timestamp
@@ -304,11 +322,13 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `LivenessResponse`
 
 **Fields:**
+
 - `status: str` - Always "alive" if process is responding
 
 #### `WorkerStatus`
 
 **Fields:**
+
 - `name: str` - Worker/service name
 - `running: bool` - Whether currently running
 - `message: str | None` - Status message
@@ -316,6 +336,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `ReadinessResponse`
 
 **Fields:**
+
 - `ready: bool` - Overall readiness
 - `status: str` - ready, degraded, or not_ready
 - `services: dict[str, ServiceStatus]` - Infrastructure services
@@ -325,6 +346,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `GPUStatsResponse`
 
 **Fields:** (all nullable if unavailable)
+
 - `utilization: float | None` - GPU % (0-100)
 - `memory_used: int | None` - Memory used (MB)
 - `memory_total: int | None` - Total memory (MB)
@@ -334,6 +356,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `GPUStatsSample`
 
 **Fields:**
+
 - `recorded_at: datetime` - Sample timestamp
 - `utilization: float | None` - GPU %
 - `memory_used: int | None` - Memory used
@@ -346,6 +369,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `GPUStatsHistoryResponse`
 
 **Fields:**
+
 - `samples: list[GPUStatsSample]` - Chronological samples
 - `count: int` - Number of samples
 - `limit: int` - Applied limit
@@ -353,6 +377,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `ConfigResponse`
 
 **Fields:** (public configuration only)
+
 - `app_name: str` - Application name
 - `version: str` - Application version
 - `retention_days: int` - Data retention period (>= 1)
@@ -363,6 +388,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `ConfigUpdateRequest`
 
 **Fields:** (all optional for partial updates)
+
 - `retention_days: int | None`
 - `batch_window_seconds: int | None`
 - `batch_idle_timeout_seconds: int | None`
@@ -371,6 +397,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `SystemStatsResponse`
 
 **Fields:**
+
 - `total_cameras: int` - Total cameras (>= 0)
 - `total_events: int` - Total events (>= 0)
 - `total_detections: int` - Total detections (>= 0)
@@ -379,12 +406,14 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `QueueDepths`
 
 **Fields:**
+
 - `detection_queue: int` - Items waiting for RT-DETRv2
 - `analysis_queue: int` - Batches waiting for Nemotron
 
 #### `StageLatency`
 
 **Fields:**
+
 - `avg_ms: float | None` - Average latency
 - `min_ms: float | None` - Minimum latency
 - `max_ms: float | None` - Maximum latency
@@ -396,6 +425,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `PipelineLatencies`
 
 **Fields:**
+
 - `watch: StageLatency | None` - File watcher stage
 - `detect: StageLatency | None` - RT-DETRv2 stage
 - `batch: StageLatency | None` - Batch aggregation
@@ -404,6 +434,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `TelemetryResponse`
 
 **Fields:**
+
 - `queues: QueueDepths` - Current queue depths
 - `latencies: PipelineLatencies | None` - Stage latencies
 - `timestamp: datetime` - Telemetry snapshot time
@@ -415,6 +446,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `MediaErrorResponse`
 
 **Fields:**
+
 - `error: str` - Error message
 - `path: str` - Attempted path
 
@@ -425,6 +457,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `DLQJobResponse`
 
 **Fields:**
+
 - `original_job: dict` - Original job payload
 - `error: str` - Error from last failure
 - `attempt_count: int` - Processing attempts (>= 1)
@@ -435,6 +468,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `DLQStatsResponse`
 
 **Fields:**
+
 - `detection_queue_count: int` - Detection DLQ count
 - `analysis_queue_count: int` - Analysis DLQ count
 - `total_count: int` - Total across all DLQs
@@ -442,6 +476,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `DLQJobsResponse`
 
 **Fields:**
+
 - `queue_name: str` - DLQ name
 - `jobs: list[DLQJobResponse]` - Jobs in queue
 - `count: int` - Jobs returned
@@ -449,6 +484,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `DLQRequeueResponse`
 
 **Fields:**
+
 - `success: bool` - Operation succeeded
 - `message: str` - Status message
 - `job: dict | None` - Requeued job data
@@ -456,6 +492,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 #### `DLQClearResponse`
 
 **Fields:**
+
 - `success: bool` - Operation succeeded
 - `message: str` - Status message
 - `queue_name: str` - Cleared queue name
@@ -489,12 +526,12 @@ model_config = ConfigDict(
 
 ### Request/Response Patterns
 
-| Pattern | Request Schema | Response Schema |
-|---------|---------------|-----------------|
-| Create | `*Create` (all required) | `*Response` (with ID) |
-| Update | `*Update` (all optional) | `*Response` (updated) |
-| List | Query params | `*ListResponse` (paginated) |
-| Error | N/A | `*ErrorResponse` |
+| Pattern | Request Schema           | Response Schema             |
+| ------- | ------------------------ | --------------------------- |
+| Create  | `*Create` (all required) | `*Response` (with ID)       |
+| Update  | `*Update` (all optional) | `*Response` (updated)       |
+| List    | Query params             | `*ListResponse` (paginated) |
+| Error   | N/A                      | `*ErrorResponse`            |
 
 ### ORM Integration
 

@@ -7,6 +7,7 @@ This document describes the testing infrastructure and test coverage for the fro
 ## Testing Stack
 
 ### Unit/Integration Tests
+
 - **Test Runner**: Vitest
 - **Testing Library**: React Testing Library (@testing-library/react)
 - **User Interactions**: @testing-library/user-event
@@ -14,6 +15,7 @@ This document describes the testing infrastructure and test coverage for the fro
 - **Environment**: jsdom
 
 ### E2E Tests
+
 - **Test Framework**: Playwright
 - **Browser**: Chromium (headless in CI)
 - **Test Location**: `tests/e2e/`
@@ -266,6 +268,7 @@ test: {
 E2E tests are located in `tests/e2e/`:
 
 ### smoke.spec.ts
+
 - Dashboard page loads successfully
 - Dashboard displays key components (Risk Level, Camera Status, Live Activity)
 - Dashboard shows real-time monitoring subtitle
@@ -274,6 +277,7 @@ E2E tests are located in `tests/e2e/`:
 - Sidebar navigation is visible
 
 ### navigation.spec.ts
+
 - Can navigate to dashboard from root
 - Can navigate to timeline page
 - Can navigate to logs page
@@ -283,6 +287,7 @@ E2E tests are located in `tests/e2e/`:
 - Page transitions preserve layout
 
 ### realtime.spec.ts
+
 - Dashboard shows disconnected state when WebSocket fails
 - Activity feed shows empty state when no events
 - Dashboard can handle simulated event injection
@@ -310,7 +315,9 @@ await page.route('**/api/cameras', async (route) => {
   await route.fulfill({
     status: 200,
     contentType: 'application/json',
-    body: JSON.stringify([/* mock data */]),
+    body: JSON.stringify([
+      /* mock data */
+    ]),
   });
 });
 ```

@@ -128,7 +128,7 @@ Uses utility functions from `../../utils/risk`:
 
 ```typescript
 interface ServiceStatusAlertProps {
-  services: Record<ServiceName, ServiceStatus | null>;
+  services: Record;
   onDismiss?: () => void;
 }
 ```
@@ -167,7 +167,12 @@ interface ServiceStatus {
 <ServiceStatusAlert
   services={{
     redis: { service: 'redis', status: 'healthy', timestamp: '...' },
-    rtdetr: { service: 'rtdetr', status: 'restarting', message: 'Loading model...', timestamp: '...' },
+    rtdetr: {
+      service: 'rtdetr',
+      status: 'restarting',
+      message: 'Loading model...',
+      timestamp: '...',
+    },
     nemotron: null,
   }}
   onDismiss={() => setDismissed(true)}

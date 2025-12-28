@@ -20,16 +20,17 @@ Camera management CRUD endpoints and snapshot serving.
 
 **Endpoints:**
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| GET | `/api/cameras` | List all cameras with optional status filter |
-| GET | `/api/cameras/{camera_id}` | Get a specific camera by UUID |
-| GET | `/api/cameras/{camera_id}/snapshot` | Get latest snapshot image |
-| POST | `/api/cameras` | Create a new camera |
-| PATCH | `/api/cameras/{camera_id}` | Update an existing camera |
-| DELETE | `/api/cameras/{camera_id}` | Delete a camera (cascades to detections/events) |
+| Method | Path                                | Purpose                                         |
+| ------ | ----------------------------------- | ----------------------------------------------- |
+| GET    | `/api/cameras`                      | List all cameras with optional status filter    |
+| GET    | `/api/cameras/{camera_id}`          | Get a specific camera by UUID                   |
+| GET    | `/api/cameras/{camera_id}/snapshot` | Get latest snapshot image                       |
+| POST   | `/api/cameras`                      | Create a new camera                             |
+| PATCH  | `/api/cameras/{camera_id}`          | Update an existing camera                       |
+| DELETE | `/api/cameras/{camera_id}`          | Delete a camera (cascades to detections/events) |
 
 **Key Features:**
+
 - UUID generation for new cameras
 - Partial updates via PATCH (only updates provided fields)
 - Cascade deletion of related data
@@ -44,15 +45,16 @@ Security event management, querying, and statistics.
 
 **Endpoints:**
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| GET | `/api/events` | List events with filtering/pagination |
-| GET | `/api/events/stats` | Get aggregated event statistics |
-| GET | `/api/events/{event_id}` | Get specific event by ID |
-| PATCH | `/api/events/{event_id}` | Update event (reviewed status & notes) |
-| GET | `/api/events/{event_id}/detections` | Get detections for event |
+| Method | Path                                | Purpose                                |
+| ------ | ----------------------------------- | -------------------------------------- |
+| GET    | `/api/events`                       | List events with filtering/pagination  |
+| GET    | `/api/events/stats`                 | Get aggregated event statistics        |
+| GET    | `/api/events/{event_id}`            | Get specific event by ID               |
+| PATCH  | `/api/events/{event_id}`            | Update event (reviewed status & notes) |
+| GET    | `/api/events/{event_id}/detections` | Get detections for event               |
 
 **Query Parameters (List):**
+
 - `camera_id` - Filter by camera UUID
 - `risk_level` - Filter by risk level (low, medium, high, critical)
 - `start_date` / `end_date` - Date range filter (ISO format)
@@ -61,6 +63,7 @@ Security event management, querying, and statistics.
 - `limit` / `offset` - Pagination (default: 50, max: 1000)
 
 **Key Features:**
+
 - Object type filtering via detection join
 - Detection count calculation from comma-separated detection_ids
 - Aggregated statistics by risk level and camera
@@ -74,13 +77,14 @@ Object detection listing and thumbnail image serving.
 
 **Endpoints:**
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| GET | `/api/detections` | List detections with filtering/pagination |
-| GET | `/api/detections/{detection_id}` | Get specific detection by ID |
-| GET | `/api/detections/{detection_id}/image` | Get thumbnail with bounding box |
+| Method | Path                                   | Purpose                                   |
+| ------ | -------------------------------------- | ----------------------------------------- |
+| GET    | `/api/detections`                      | List detections with filtering/pagination |
+| GET    | `/api/detections/{detection_id}`       | Get specific detection by ID              |
+| GET    | `/api/detections/{detection_id}/image` | Get thumbnail with bounding box           |
 
 **Query Parameters (List):**
+
 - `camera_id` - Filter by camera UUID
 - `object_type` - Filter by object type (person, car, etc.)
 - `start_date` / `end_date` - Date range filter
@@ -88,6 +92,7 @@ Object detection listing and thumbnail image serving.
 - `limit` / `offset` - Pagination
 
 **Key Features:**
+
 - On-the-fly thumbnail generation if not cached
 - Bounding box overlay on images
 - Image caching with 1-hour cache headers
@@ -101,14 +106,15 @@ System and frontend log management.
 
 **Endpoints:**
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| GET | `/api/logs` | List logs with filtering/pagination |
-| GET | `/api/logs/stats` | Get log statistics for dashboard |
-| GET | `/api/logs/{log_id}` | Get specific log entry by ID |
-| POST | `/api/logs/frontend` | Submit frontend log entry |
+| Method | Path                 | Purpose                             |
+| ------ | -------------------- | ----------------------------------- |
+| GET    | `/api/logs`          | List logs with filtering/pagination |
+| GET    | `/api/logs/stats`    | Get log statistics for dashboard    |
+| GET    | `/api/logs/{log_id}` | Get specific log entry by ID        |
+| POST   | `/api/logs/frontend` | Submit frontend log entry           |
 
 **Query Parameters (List):**
+
 - `level` - Filter by log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 - `component` - Filter by component/module name
 - `camera_id` - Filter by associated camera UUID
@@ -118,6 +124,7 @@ System and frontend log management.
 - `limit` / `offset` - Pagination (default: 100)
 
 **Key Features:**
+
 - Dashboard statistics (today's counts by level and component)
 - Frontend log ingestion with automatic user agent capture
 - Top component identification
@@ -130,27 +137,31 @@ WebSocket endpoints for real-time communication.
 
 **Endpoints:**
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| WS | `/ws/events` | Real-time security event stream |
-| WS | `/ws/system` | Real-time system status stream |
+| Method | Path         | Purpose                         |
+| ------ | ------------ | ------------------------------- |
+| WS     | `/ws/events` | Real-time security event stream |
+| WS     | `/ws/system` | Real-time system status stream  |
 
 **Event Stream (`/ws/events`):**
+
 - Broadcasts security events as they are analyzed
 - Message format: `{"type": "event", "data": {...}}`
 - Uses EventBroadcaster service
 
 **System Stream (`/ws/system`):**
+
 - Broadcasts system status updates every 5 seconds
 - Message format: `{"type": "system_status", "data": {...}}`
 - Uses SystemBroadcaster service
 
 **Authentication:**
 When API key auth is enabled, provide key via:
+
 - Query parameter: `ws://host/ws/events?api_key=YOUR_KEY`
 - Sec-WebSocket-Protocol header: `api-key.YOUR_KEY`
 
 **Connection Lifecycle:**
+
 1. Client connects and is authenticated (if enabled)
 2. Connection registered with broadcaster
 3. Client receives broadcast messages
@@ -165,38 +176,43 @@ System monitoring, health checks, GPU stats, configuration, and telemetry.
 
 **Endpoints:**
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| GET | `/api/system/health` | Detailed system health check |
-| GET | `/api/system/health/live` | Liveness probe (always returns "alive") |
-| GET | `/api/system/health/ready` | Readiness probe (checks all dependencies) |
-| GET | `/api/system/gpu` | Current GPU statistics |
-| GET | `/api/system/gpu/history` | GPU stats time series |
-| GET | `/api/system/stats` | System statistics (counts, uptime) |
-| GET | `/api/system/config` | Public configuration settings |
-| PATCH | `/api/system/config` | Update configuration settings |
-| GET | `/api/system/telemetry` | Pipeline queue depths and latency stats |
+| Method | Path                       | Purpose                                   |
+| ------ | -------------------------- | ----------------------------------------- |
+| GET    | `/api/system/health`       | Detailed system health check              |
+| GET    | `/api/system/health/live`  | Liveness probe (always returns "alive")   |
+| GET    | `/api/system/health/ready` | Readiness probe (checks all dependencies) |
+| GET    | `/api/system/gpu`          | Current GPU statistics                    |
+| GET    | `/api/system/gpu/history`  | GPU stats time series                     |
+| GET    | `/api/system/stats`        | System statistics (counts, uptime)        |
+| GET    | `/api/system/config`       | Public configuration settings             |
+| PATCH  | `/api/system/config`       | Update configuration settings             |
+| GET    | `/api/system/telemetry`    | Pipeline queue depths and latency stats   |
 
 **Health Status Logic:**
+
 - `healthy` - All services operational
 - `degraded` - Some non-critical services down
 - `unhealthy` - Critical services (database) down
 
 **Readiness Logic:**
+
 - `ready` - Database and Redis healthy
 - `degraded` - Database up but Redis down
 - `not_ready` - Database down
 
 **Worker Status Tracking:**
+
 - GPU monitor, cleanup service, system broadcaster, file watcher
 - Workers registered via `register_workers()` at startup
 
 **Telemetry:**
+
 - Queue depths for detection and analysis queues
 - Per-stage latency statistics (watch, detect, batch, analyze)
 - Percentile calculations (p50, p95, p99)
 
 **Key Features:**
+
 - Multi-service health checks with timeout protection (5 seconds)
 - Runtime configuration updates persisted to env file
 - Application uptime tracking
@@ -210,23 +226,26 @@ Secure media file serving for camera images and detection thumbnails.
 
 **Endpoints:**
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| GET | `/api/media/cameras/{camera_id}/{filename}` | Serve camera images/videos |
-| GET | `/api/media/thumbnails/{filename}` | Serve detection thumbnails |
-| GET | `/api/media/{path}` | Compatibility route for legacy paths |
+| Method | Path                                        | Purpose                              |
+| ------ | ------------------------------------------- | ------------------------------------ |
+| GET    | `/api/media/cameras/{camera_id}/{filename}` | Serve camera images/videos           |
+| GET    | `/api/media/thumbnails/{filename}`          | Serve detection thumbnails           |
+| GET    | `/api/media/{path}`                         | Compatibility route for legacy paths |
 
 **Allowed File Types:**
+
 - Images: `.jpg`, `.jpeg`, `.png`, `.gif`
 - Videos: `.mp4`, `.avi`, `.webm`
 
 **Security Features:**
+
 - Path traversal prevention (blocks `..` and `/` prefixes)
 - File type whitelist enforcement
 - Base path validation (resolved path must be within allowed directory)
 - Descriptive error responses via `MediaErrorResponse`
 
 **Base Paths:**
+
 - Camera files: `{foscam_base_path}/{camera_id}/`
 - Thumbnails: `backend/data/thumbnails/`
 
@@ -238,19 +257,21 @@ Dead-letter queue (DLQ) inspection and management.
 
 **Endpoints:**
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| GET | `/api/dlq/stats` | Get DLQ statistics |
-| GET | `/api/dlq/jobs/{queue_name}` | List jobs in a specific DLQ |
-| POST | `/api/dlq/requeue/{queue_name}` | Requeue oldest job from DLQ |
-| POST | `/api/dlq/requeue-all/{queue_name}` | Requeue all jobs from DLQ |
-| DELETE | `/api/dlq/{queue_name}` | Clear all jobs from DLQ |
+| Method | Path                                | Purpose                     |
+| ------ | ----------------------------------- | --------------------------- |
+| GET    | `/api/dlq/stats`                    | Get DLQ statistics          |
+| GET    | `/api/dlq/jobs/{queue_name}`        | List jobs in a specific DLQ |
+| POST   | `/api/dlq/requeue/{queue_name}`     | Requeue oldest job from DLQ |
+| POST   | `/api/dlq/requeue-all/{queue_name}` | Requeue all jobs from DLQ   |
+| DELETE | `/api/dlq/{queue_name}`             | Clear all jobs from DLQ     |
 
 **Queue Names:**
+
 - `dlq:detection_queue` - Failed detection jobs
 - `dlq:analysis_queue` - Failed analysis jobs
 
 **Key Features:**
+
 - View failed job payloads and error messages
 - Retry failed jobs by moving back to processing queue
 - Bulk requeue with iteration limit (10,000 max)
@@ -264,11 +285,12 @@ Prometheus metrics endpoint for observability.
 
 **Endpoints:**
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| GET | `/api/metrics` | Return Prometheus metrics in exposition format |
+| Method | Path           | Purpose                                        |
+| ------ | -------------- | ---------------------------------------------- |
+| GET    | `/api/metrics` | Return Prometheus metrics in exposition format |
 
 **Key Features:**
+
 - No authentication required (for Prometheus scraping)
 - Standard Prometheus text format
 - Integrates with `backend.core.metrics`
@@ -308,6 +330,7 @@ async def endpoint(...) -> ResponseType:
 ### Dependency Injection
 
 Routes use FastAPI dependencies for:
+
 - `db: AsyncSession = Depends(get_db)` - Database session
 - `redis: RedisClient = Depends(get_redis)` - Redis client
 - `get_settings()` - Configuration settings
@@ -355,6 +378,7 @@ Routes use FastAPI dependencies for:
 ### Configuration
 
 Uses `backend.core.config.Settings` for:
+
 - Foscam base path
 - Application name/version
 - Batch processing settings

@@ -369,7 +369,7 @@ async def test_detection_worker_stop_timeout_forces_cancel(mock_redis_client, mo
     # Create a mock task that takes a long time to complete
     async def long_running_loop():
         while True:
-            await asyncio.sleep(1.0)  # Sleep for a long time
+            await asyncio.sleep(1.0)  # cancelled - task is cancelled in test
 
     await worker.start()
     # Replace the task with one that won't stop easily
@@ -683,7 +683,7 @@ async def test_analysis_worker_stop_timeout_forces_cancel(mock_redis_client, moc
 
     async def long_running_loop():
         while True:
-            await asyncio.sleep(1.0)
+            await asyncio.sleep(1.0)  # cancelled - task is cancelled in test
 
     await worker.start()
     original_task = worker._task
@@ -917,7 +917,7 @@ async def test_timeout_worker_stop_timeout_forces_cancel(mock_redis_client, mock
 
     async def long_running_loop():
         while True:
-            await asyncio.sleep(1.0)
+            await asyncio.sleep(1.0)  # cancelled - task is cancelled in test
 
     await worker.start()
     original_task = worker._task

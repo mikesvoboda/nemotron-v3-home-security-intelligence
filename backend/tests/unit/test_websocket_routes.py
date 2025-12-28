@@ -156,10 +156,10 @@ class TestWebSocketEventsEndpoint:
         mock_websocket.send_text.assert_awaited_once_with('{"type":"pong"}')
 
     @pytest.mark.asyncio
-    async def test_non_ping_message_does_not_send_pong(
+    async def test_non_ping_message_sends_error_for_invalid_json(
         self, mock_websocket, mock_redis_client, mock_event_broadcaster
     ):
-        """Test that non-ping messages do not trigger a pong response."""
+        """Test that non-JSON messages receive an error response."""
         from fastapi import WebSocketDisconnect
 
         mock_websocket.receive_text = AsyncMock(
@@ -178,8 +178,14 @@ class TestWebSocketEventsEndpoint:
         ):
             await websocket_events_endpoint(mock_websocket, mock_redis_client)
 
-        # Should NOT have sent any text (no pong for non-ping)
-        mock_websocket.send_text.assert_not_awaited()
+        # Should have sent an error response for invalid JSON
+        mock_websocket.send_text.assert_awaited_once()
+        import json
+
+        call_args = mock_websocket.send_text.call_args[0][0]
+        response = json.loads(call_args)
+        assert response["type"] == "error"
+        assert response["error"] == "invalid_json"
 
     @pytest.mark.asyncio
     async def test_websocket_disconnect_during_receive(
@@ -301,7 +307,11 @@ class TestWebSocketEventsEndpoint:
     async def test_multiple_messages_before_disconnect(
         self, mock_websocket, mock_redis_client, mock_event_broadcaster
     ):
-        """Test handling multiple messages before disconnect."""
+        """Test handling multiple messages before disconnect.
+
+        Now with validation, invalid messages receive error responses,
+        and valid ping gets pong response.
+        """
         from fastapi import WebSocketDisconnect
 
         mock_websocket.receive_text = AsyncMock(
@@ -320,8 +330,11 @@ class TestWebSocketEventsEndpoint:
         ):
             await websocket_events_endpoint(mock_websocket, mock_redis_client)
 
-        # Should have sent pong once (for the "ping" message)
-        mock_websocket.send_text.assert_awaited_once_with('{"type":"pong"}')
+        # Should have sent responses for:
+        # - msg1: error (invalid JSON)
+        # - ping: pong (legacy string support)
+        # - msg2: error (invalid JSON)
+        assert mock_websocket.send_text.await_count == 3
         # And cleaned up
         mock_event_broadcaster.disconnect.assert_awaited_once_with(mock_websocket)
 
@@ -394,10 +407,10 @@ class TestWebSocketSystemEndpoint:
         mock_websocket.send_text.assert_awaited_once_with('{"type":"pong"}')
 
     @pytest.mark.asyncio
-    async def test_non_ping_message_does_not_send_pong(
+    async def test_non_ping_message_sends_error_for_invalid_json(
         self, mock_websocket, mock_system_broadcaster
     ):
-        """Test that non-ping messages do not trigger a pong response."""
+        """Test that non-JSON messages receive an error response."""
         from fastapi import WebSocketDisconnect
 
         mock_websocket.receive_text = AsyncMock(side_effect=["keepalive", WebSocketDisconnect()])
@@ -414,8 +427,14 @@ class TestWebSocketSystemEndpoint:
         ):
             await websocket_system_status(mock_websocket)
 
-        # Should NOT have sent any text (no pong for non-ping)
-        mock_websocket.send_text.assert_not_awaited()
+        # Should have sent an error response for invalid JSON
+        mock_websocket.send_text.assert_awaited_once()
+        import json
+
+        call_args = mock_websocket.send_text.call_args[0][0]
+        response = json.loads(call_args)
+        assert response["type"] == "error"
+        assert response["error"] == "invalid_json"
 
     @pytest.mark.asyncio
     async def test_websocket_disconnect_during_receive(
@@ -535,7 +554,11 @@ class TestWebSocketSystemEndpoint:
     async def test_multiple_messages_before_disconnect(
         self, mock_websocket, mock_system_broadcaster
     ):
-        """Test handling multiple messages before disconnect."""
+        """Test handling multiple messages before disconnect.
+
+        Now with validation, invalid messages receive error responses,
+        and valid ping gets pong response.
+        """
         from fastapi import WebSocketDisconnect
 
         mock_websocket.receive_text = AsyncMock(
@@ -554,9 +577,11 @@ class TestWebSocketSystemEndpoint:
         ):
             await websocket_system_status(mock_websocket)
 
-        # Should have sent pong twice (for the two "ping" messages)
-        assert mock_websocket.send_text.await_count == 2
-        mock_websocket.send_text.assert_awaited_with('{"type":"pong"}')
+        # Should have sent responses for:
+        # - status: error (invalid JSON)
+        # - ping: pong (legacy string support)
+        # - ping: pong (legacy string support)
+        assert mock_websocket.send_text.await_count == 3
         # And cleaned up
         mock_system_broadcaster.disconnect.assert_awaited_once_with(mock_websocket)
 
@@ -573,7 +598,7 @@ class TestWebSocketEdgeCases:
     async def test_events_endpoint_handles_empty_message(
         self, mock_websocket, mock_redis_client, mock_event_broadcaster
     ):
-        """Test that empty messages are handled gracefully."""
+        """Test that empty messages receive an error response for invalid JSON."""
         from fastapi import WebSocketDisconnect
 
         mock_websocket.receive_text = AsyncMock(side_effect=["", WebSocketDisconnect()])
@@ -590,8 +615,14 @@ class TestWebSocketEdgeCases:
         ):
             await websocket_events_endpoint(mock_websocket, mock_redis_client)
 
-        # Empty message should not trigger pong
-        mock_websocket.send_text.assert_not_awaited()
+        # Empty message should receive an error (invalid JSON)
+        mock_websocket.send_text.assert_awaited_once()
+        import json
+
+        call_args = mock_websocket.send_text.call_args[0][0]
+        response = json.loads(call_args)
+        assert response["type"] == "error"
+        assert response["error"] == "invalid_json"
         # Connection should be cleaned up
         mock_event_broadcaster.disconnect.assert_awaited_once()
 
@@ -599,7 +630,7 @@ class TestWebSocketEdgeCases:
     async def test_system_endpoint_handles_empty_message(
         self, mock_websocket, mock_system_broadcaster
     ):
-        """Test that empty messages are handled gracefully."""
+        """Test that empty messages receive an error response for invalid JSON."""
         from fastapi import WebSocketDisconnect
 
         mock_websocket.receive_text = AsyncMock(side_effect=["", WebSocketDisconnect()])
@@ -616,8 +647,14 @@ class TestWebSocketEdgeCases:
         ):
             await websocket_system_status(mock_websocket)
 
-        # Empty message should not trigger pong
-        mock_websocket.send_text.assert_not_awaited()
+        # Empty message should receive an error (invalid JSON)
+        mock_websocket.send_text.assert_awaited_once()
+        import json
+
+        call_args = mock_websocket.send_text.call_args[0][0]
+        response = json.loads(call_args)
+        assert response["type"] == "error"
+        assert response["error"] == "invalid_json"
         # Connection should be cleaned up
         mock_system_broadcaster.disconnect.assert_awaited_once()
 
@@ -899,10 +936,14 @@ class TestWebSocketConcurrency:
     async def test_events_rapid_messages(
         self, mock_websocket, mock_redis_client, mock_event_broadcaster
     ):
-        """Test handling of rapid successive messages."""
+        """Test handling of rapid successive messages.
+
+        Now with validation, invalid messages receive error responses.
+        """
         from fastapi import WebSocketDisconnect
 
         # Simulate many rapid messages followed by disconnect
+        # Each invalid message gets an error response, ping gets pong
         messages = ["msg" + str(i) for i in range(100)] + ["ping"]
         mock_websocket.receive_text = AsyncMock(side_effect=[*messages, WebSocketDisconnect()])
 
@@ -918,8 +959,10 @@ class TestWebSocketConcurrency:
         ):
             await websocket_events_endpoint(mock_websocket, mock_redis_client)
 
-        # Should have handled all messages and sent one pong
-        mock_websocket.send_text.assert_awaited_once_with('{"type":"pong"}')
+        # Should have handled all messages:
+        # - 100 error responses for invalid JSON messages
+        # - 1 pong response for the "ping" message
+        assert mock_websocket.send_text.await_count == 101
         mock_event_broadcaster.disconnect.assert_awaited_once()
 
     @pytest.mark.asyncio

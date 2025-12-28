@@ -26,6 +26,7 @@ grafana/
 **Dashboard Sections:**
 
 1. **System Overview** (Row 1)
+
    - System Health status indicator (healthy/degraded/unhealthy)
    - Total Cameras count
    - Total Events count
@@ -33,11 +34,13 @@ grafana/
    - Uptime display
 
 2. **Queue Depths** (Row 2)
+
    - Detection Queue Depth - items waiting for RT-DETRv2 processing
    - Analysis Queue Depth - batches waiting for Nemotron analysis
    - Queue Depths Over Time graph
 
 3. **Pipeline Latencies** (Row 3)
+
    - Watch Latency (P95) - file watcher to queue time
    - Detection Latency (P95) - RT-DETRv2 inference time
    - Batch Latency (P95) - aggregation window time
@@ -45,6 +48,7 @@ grafana/
    - Pipeline Latency Histogram - bar chart of all percentiles
 
 4. **GPU Statistics** (Row 4)
+
    - GPU Utilization gauge (0-100%)
    - GPU Temperature
    - GPU Memory Used (VRAM in MB)
@@ -57,6 +61,7 @@ grafana/
    - Readiness status (ready/degraded/not_ready)
 
 **Dashboard Configuration:**
+
 - UID: `hsi-pipeline`
 - Auto-refresh: 10 seconds
 - Default time range: Last 1 hour
@@ -67,6 +72,7 @@ grafana/
 **Purpose:** Configures automatic dashboard provisioning.
 
 **Settings:**
+
 - Provider name: "Home Security Intelligence"
 - Folder: "Home Security Intelligence" (folderUid: `hsi-dashboards`)
 - Update interval: 30 seconds
@@ -80,6 +86,7 @@ grafana/
 **Datasources:**
 
 1. **Prometheus** (default)
+
    - Type: prometheus
    - URL: http://prometheus:9090
    - Time interval: 15s
@@ -95,6 +102,7 @@ grafana/
 ### Accessing Grafana
 
 1. Start the monitoring stack:
+
    ```bash
    docker compose up -d grafana
    ```
@@ -115,12 +123,14 @@ grafana/
 Dashboards can be edited in two ways:
 
 **In Grafana UI:**
+
 1. Open the dashboard
 2. Click the gear icon (top right)
 3. Make changes
 4. Save dashboard
 
 **In JSON files:**
+
 1. Edit `dashboards/pipeline.json`
 2. Restart Grafana or wait 30 seconds for auto-reload
 
@@ -193,6 +203,7 @@ For Backend-API datasource:
 ### Changing Refresh Rate
 
 Edit `pipeline.json`:
+
 ```json
 "refresh": "10s"  // Change to "30s", "1m", etc.
 ```

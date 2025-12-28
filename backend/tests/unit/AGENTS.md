@@ -724,26 +724,26 @@ with patch("httpx.AsyncClient"):
 
 ### Key Test Files
 
-| File                       | Description                 |
-| -------------------------- | --------------------------- |
-| test_auth_middleware.py    | Authentication middleware   |
-| test_batch_aggregator.py   | Detection batch aggregation |
-| test_cleanup_service.py    | Data cleanup service        |
-| test_config.py             | Configuration and settings  |
-| test_database.py           | Database connections        |
-| test_detections_routes.py  | Detections API routes       |
-| test_detector_client.py    | RT-DETRv2 client            |
-| test_event_broadcaster.py  | Event broadcasting          |
-| test_events_routes.py      | Events API routes           |
-| test_file_watcher.py       | File system monitoring      |
-| test_gpu_monitor.py        | GPU monitoring              |
-| test_logging.py            | Structured logging          |
-| test_models.py             | Database models             |
-| test_nemotron_analyzer.py  | Nemotron LLM analyzer       |
-| test_redis.py              | Redis client                |
-| test_system_broadcaster.py | System broadcasting         |
-| test_thumbnail_generator.py| Thumbnail generation        |
-| test_websocket_routes.py   | WebSocket handlers          |
+| File                        | Description                 |
+| --------------------------- | --------------------------- |
+| test_auth_middleware.py     | Authentication middleware   |
+| test_batch_aggregator.py    | Detection batch aggregation |
+| test_cleanup_service.py     | Data cleanup service        |
+| test_config.py              | Configuration and settings  |
+| test_database.py            | Database connections        |
+| test_detections_routes.py   | Detections API routes       |
+| test_detector_client.py     | RT-DETRv2 client            |
+| test_event_broadcaster.py   | Event broadcasting          |
+| test_events_routes.py       | Events API routes           |
+| test_file_watcher.py        | File system monitoring      |
+| test_gpu_monitor.py         | GPU monitoring              |
+| test_logging.py             | Structured logging          |
+| test_models.py              | Database models             |
+| test_nemotron_analyzer.py   | Nemotron LLM analyzer       |
+| test_redis.py               | Redis client                |
+| test_system_broadcaster.py  | System broadcasting         |
+| test_thumbnail_generator.py | Thumbnail generation        |
+| test_websocket_routes.py    | WebSocket handlers          |
 
 ## Next Steps for AI Agents
 
