@@ -332,10 +332,10 @@ class TestVideoProcessor:
 
     def test_get_mime_type(self, video_processor) -> None:
         """Test MIME type detection."""
-        assert video_processor._get_mime_type("/path/to/video.mp4") == "video/mp4"
-        assert video_processor._get_mime_type("/path/to/video.mkv") == "video/x-matroska"
-        assert video_processor._get_mime_type("/path/to/video.avi") == "video/x-msvideo"
-        assert video_processor._get_mime_type("/path/to/video.mov") == "video/quicktime"
+        assert video_processor._get_mime_type("/path/to/video.mp4", "") == "video/mp4"
+        assert video_processor._get_mime_type("/path/to/video.mkv", "") == "video/x-matroska"
+        assert video_processor._get_mime_type("/path/to/video.avi", "") == "video/x-msvideo"
+        assert video_processor._get_mime_type("/path/to/video.mov", "") == "video/quicktime"
 
     @pytest.mark.asyncio
     async def test_get_video_metadata_file_not_found(self, video_processor) -> None:
@@ -350,30 +350,6 @@ class TestVideoProcessor:
         """Test extract_thumbnail returns None for missing file."""
         result = await video_processor.extract_thumbnail("/nonexistent/video.mp4")
         assert result is None
-
-    @pytest.mark.asyncio
-    async def test_extract_frames_for_detection_file_not_found(self, video_processor) -> None:
-        """Test extract_frames_for_detection returns empty list for missing file."""
-        result = await video_processor.extract_frames_for_detection("/nonexistent/video.mp4")
-        assert result == []
-
-    def test_cleanup_extracted_frames_nonexistent(self, video_processor) -> None:
-        """Test cleanup_extracted_frames returns False for nonexistent directory."""
-        result = video_processor.cleanup_extracted_frames("/nonexistent/video.mp4")
-        assert result is False
-
-    def test_cleanup_extracted_frames_success(self, video_processor, tmp_path: Path) -> None:
-        """Test cleanup_extracted_frames removes frames directory."""
-        # Create a mock frames directory
-        video_stem = "test_video"
-        frames_dir = video_processor.output_dir / f"{video_stem}_frames"
-        frames_dir.mkdir(parents=True)
-        (frames_dir / "frame_0000.jpg").touch()
-
-        result = video_processor.cleanup_extracted_frames(f"/path/to/{video_stem}.mp4")
-
-        assert result is True
-        assert not frames_dir.exists()
 
 
 # =============================================================================

@@ -538,6 +538,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/detections/{detection_id}/video": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream Detection Video
+         * @description Stream detection video with HTTP Range request support.
+         *
+         *     Supports partial content requests for video seeking and efficient playback.
+         *     Returns 206 Partial Content for range requests, 200 OK for full content.
+         *
+         *     Args:
+         *         detection_id: Detection ID
+         *         range_header: HTTP Range header for partial content requests
+         *         db: Database session
+         *
+         *     Returns:
+         *         StreamingResponse with video content
+         *
+         *     Raises:
+         *         HTTPException: 404 if detection not found or not a video
+         *         HTTPException: 416 if range is not satisfiable
+         */
+        get: operations["stream_detection_video_api_detections__detection_id__video_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/detections/{detection_id}/video/thumbnail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Video Thumbnail
+         * @description Get thumbnail frame from a video detection.
+         *
+         *     Extracts and returns a thumbnail frame from the video. If thumbnail
+         *     doesn't exist, generates it on the fly using ffmpeg.
+         *
+         *     Args:
+         *         detection_id: Detection ID
+         *         db: Database session
+         *
+         *     Returns:
+         *         JPEG thumbnail image
+         *
+         *     Raises:
+         *         HTTPException: 404 if detection not found or not a video
+         *         HTTPException: 500 if thumbnail generation fails
+         */
+        get: operations["get_video_thumbnail_api_detections__detection_id__video_thumbnail_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/dlq/stats": {
         parameters: {
             query?: never;
@@ -2648,6 +2717,7 @@ export interface components {
          *       "file_path": "/export/foscam/front_door/20251223_120000.jpg",
          *       "file_type": "image/jpeg",
          *       "id": 1,
+         *       "media_type": "image",
          *       "object_type": "person",
          *       "thumbnail_path": "/data/thumbnails/1_thumb.jpg"
          *     }
@@ -2665,7 +2735,7 @@ export interface components {
             camera_id: string;
             /**
              * File Path
-             * @description Path to source image file
+             * @description Path to source image or video file
              */
             file_path: string;
             /**
@@ -2714,6 +2784,32 @@ export interface components {
              * @description Path to thumbnail image with bbox overlay
              */
             thumbnail_path?: string | null;
+            /**
+             * Media Type
+             * @description Media type: 'image' or 'video'
+             * @default image
+             */
+            media_type: string | null;
+            /**
+             * Duration
+             * @description Video duration in seconds (video only)
+             */
+            duration?: number | null;
+            /**
+             * Video Codec
+             * @description Video codec (e.g., h264, hevc)
+             */
+            video_codec?: string | null;
+            /**
+             * Video Width
+             * @description Video resolution width
+             */
+            video_width?: number | null;
+            /**
+             * Video Height
+             * @description Video resolution height
+             */
+            video_height?: number | null;
         };
         /**
          * EventListResponse
@@ -4932,6 +5028,66 @@ export interface operations {
         };
     };
     get_detection_image_api_detections__detection_id__image_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                detection_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stream_detection_video_api_detections__detection_id__video_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                Range?: string | null;
+            };
+            path: {
+                detection_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_video_thumbnail_api_detections__detection_id__video_thumbnail_get: {
         parameters: {
             query?: never;
             header?: never;

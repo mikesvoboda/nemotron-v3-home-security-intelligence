@@ -22,14 +22,12 @@ import {
 } from '../../services/api';
 import { getRiskLevel } from '../../utils/risk';
 import { formatDuration } from '../../utils/time';
-import Lightbox from '../common/Lightbox';
 import RiskBadge from '../common/RiskBadge';
 import DetectionImage from '../detection/DetectionImage';
 import VideoPlayer from '../video/VideoPlayer';
 
 import type { DetectionThumbnail } from './ThumbnailStrip';
 import type { Detection as ApiDetection } from '../../types/generated';
-import type { LightboxImage } from '../common/Lightbox';
 import type { BoundingBox } from '../detection/BoundingBoxOverlay';
 
 export interface Detection {
@@ -98,10 +96,6 @@ export default function EventDetailModal({
 
   // State for download media
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
-
-  // State for thumbnail lightbox
-  const [thumbnailLightboxOpen, setThumbnailLightboxOpen] = useState<boolean>(false);
-  const [thumbnailLightboxIndex, setThumbnailLightboxIndex] = useState<number>(0);
 
   // Initialize notes text when event changes
   useEffect(() => {
@@ -222,48 +216,6 @@ export default function EventDetailModal({
     setSelectedDetectionId(detectionId);
     // TODO: Could add logic to update the main image view to show this specific detection
   };
-
-  // Handle thumbnail double-click to open lightbox for full-size view
-  const handleThumbnailLightbox = (detectionId: number) => {
-    const index = detectionSequence.findIndex((d) => d.id === detectionId);
-    if (index !== -1) {
-      setThumbnailLightboxIndex(index);
-      setThumbnailLightboxOpen(true);
-    }
-  };
-
-  // Build lightbox images array from detection sequence (images only, not videos)
-  const thumbnailLightboxImages = useMemo((): LightboxImage[] => {
-    // Helper to format timestamp for lightbox
-    const formatDetectionTimestamp = (isoString: string): string => {
-      try {
-        const date = new Date(isoString);
-        return date.toLocaleString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          hour: 'numeric',
-          minute: '2-digit',
-          hour12: true,
-        });
-      } catch {
-        return isoString;
-      }
-    };
-
-    return detectionSequence
-      .filter((d) => {
-        // Exclude videos from lightbox (they use video player instead)
-        const detection = detectionsData.find((det) => det.id === d.id);
-        return detection?.media_type !== 'video';
-      })
-      .map((detection) => ({
-        src: getDetectionImageUrl(detection.id),
-        alt: `Detection ${detection.object_type || 'object'} at ${formatDetectionTimestamp(detection.detected_at)}`,
-        caption: detection.object_type
-          ? `${detection.object_type}${detection.confidence !== undefined ? ` (${Math.round(detection.confidence * 100)}%)` : ''}`
-          : undefined,
-      }));
-  }, [detectionSequence, detectionsData]);
 
   // Handle escape key to close modal
   useEffect(() => {
@@ -502,17 +454,12 @@ export default function EventDetailModal({
                           showLabels={true}
                           showConfidence={true}
                           className="w-full"
-                          enableLightbox={true}
-                          lightboxCaption={`${event.camera_name} - ${formatTimestamp(event.timestamp)}`}
                         />
                       ) : (
-                        <DetectionImage
+                        <img
                           src={imageUrl}
                           alt={`${event.camera_name} at ${formatTimestamp(event.timestamp)}`}
-                          boxes={[]}
-                          className="w-full"
-                          enableLightbox={true}
-                          lightboxCaption={`${event.camera_name} - ${formatTimestamp(event.timestamp)}`}
+                          className="w-full object-contain"
                         />
                       )}
                     </div>
@@ -524,7 +471,6 @@ export default function EventDetailModal({
                       detections={detectionSequence}
                       selectedDetectionId={selectedDetectionId}
                       onThumbnailClick={handleThumbnailClick}
-                      onThumbnailDoubleClick={handleThumbnailLightbox}
                       loading={loadingDetections}
                     />
                   </div>
@@ -769,17 +715,6 @@ export default function EventDetailModal({
           </div>
         </div>
       </Dialog>
-
-      {/* Lightbox for thumbnail images */}
-      {thumbnailLightboxImages.length > 0 && (
-        <Lightbox
-          images={thumbnailLightboxImages}
-          initialIndex={thumbnailLightboxIndex}
-          isOpen={thumbnailLightboxOpen}
-          onClose={() => setThumbnailLightboxOpen(false)}
-          onIndexChange={setThumbnailLightboxIndex}
-        />
-      )}
     </Transition>
   );
 }

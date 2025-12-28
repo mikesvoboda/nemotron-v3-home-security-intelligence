@@ -17,23 +17,10 @@ This prevents duplicate processing caused by:
 
 The dedupe check happens before enqueueing to Redis, ensuring the same file
 content is never processed twice within the TTL window (default 5 minutes).
-
-Camera ID Contract:
-------------------
-Camera IDs are derived from upload directory names using normalize_camera_id().
-This ensures a consistent mapping between filesystem paths and database records:
-
-    Upload path: /export/foscam/Front Door/image.jpg
-    -> folder_name: "Front Door"
-    -> camera_id: "front_door" (normalized)
-
-When a new upload directory is detected, a Camera record is auto-created if
-auto_create_cameras is enabled (default: True).
 """
 
 import asyncio
 import time
-from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -52,7 +39,6 @@ from watchdog.observers import Observer
 # inotify events may not propagate.
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
-from backend.models.camera import Camera, normalize_camera_id
 from backend.services.dedupe import DedupeService
 
 logger = get_logger(__name__)
@@ -204,16 +190,10 @@ class FileWatcher:
     - Media file integrity validation before queuing
     - Async-compatible design
     - Graceful shutdown handling
-    - Auto-creation of cameras for new upload directories
 
     Supported formats:
     - Images: .jpg, .jpeg, .png
     - Videos: .mp4, .mkv, .avi, .mov
-
-    Camera ID Contract:
-    - Camera IDs are normalized from folder names (e.g., "Front Door" -> "front_door")
-    - This ensures consistent mapping between filesystem paths and database records
-    - When auto_create_cameras=True, new cameras are created automatically
     """
 
     def __init__(
@@ -223,8 +203,6 @@ class FileWatcher:
         debounce_delay: float = 0.5,
         queue_name: str = "detection_queue",
         dedupe_service: DedupeService | None = None,
-        auto_create_cameras: bool = True,
-        camera_creator: Callable[[Camera], Any] | None = None,
     ):
         """Initialize file watcher.
 
@@ -234,21 +212,12 @@ class FileWatcher:
             debounce_delay: Delay in seconds to wait after last file modification
             queue_name: Name of Redis queue for detection jobs
             dedupe_service: Optional DedupeService for file deduplication
-            auto_create_cameras: If True, auto-create camera records for new directories
-            camera_creator: Async callback to create camera in database.
-                            Signature: async def creator(camera: Camera) -> None
-                            If None, auto-creation is disabled even if auto_create_cameras=True
         """
         settings = get_settings()
         self.camera_root = camera_root or settings.foscam_base_path
         self.redis_client = redis_client
         self.debounce_delay = debounce_delay
         self.queue_name = queue_name
-        self.auto_create_cameras = auto_create_cameras
-        self._camera_creator = camera_creator
-
-        # Track which cameras we've already tried to create (avoid repeated attempts)
-        self._known_cameras: set[str] = set()
 
         # Initialize dedupe service (creates one if not provided and redis is available)
         self._dedupe_service: DedupeService | None = None
@@ -264,7 +233,7 @@ class FileWatcher:
         self.running = False
 
         # Debounce tracking: maps file_path -> asyncio.Task
-        self._pending_tasks: dict[str, asyncio.Task[None]] = {}
+        self._pending_tasks: dict[str, asyncio.Task] = {}
 
         # Event loop reference (set during start())
         self._loop: asyncio.AbstractEventLoop | None = None
@@ -274,8 +243,7 @@ class FileWatcher:
 
         logger.info(
             f"FileWatcher initialized for camera root: {self.camera_root} "
-            f"(dedupe={'enabled' if self._dedupe_service else 'disabled'}, "
-            f"auto_create={'enabled' if auto_create_cameras and camera_creator else 'disabled'})"
+            f"(dedupe={'enabled' if self._dedupe_service else 'disabled'})"
         )
 
     def _create_event_handler(self) -> FileSystemEventHandler:
@@ -328,19 +296,14 @@ class FileWatcher:
 
         return MediaEventHandler(self)
 
-    def _get_camera_id_from_path(self, file_path: str) -> tuple[str | None, str | None]:
-        """Extract normalized camera ID and folder name from file path.
-
-        Uses normalize_camera_id() to convert directory names to consistent IDs.
-        This ensures that "Front Door", "front-door", and "front_door" all map
-        to the same camera_id: "front_door".
+    def _get_camera_id_from_path(self, file_path: str) -> str | None:
+        """Extract camera ID from file path.
 
         Args:
             file_path: Full path to image file
 
         Returns:
-            Tuple of (camera_id, folder_name) or (None, None) if not found.
-            folder_name is the original directory name (for auto-creation).
+            Camera ID (directory name under camera_root) or None if not found
         """
         try:
             path = Path(file_path)
@@ -349,64 +312,12 @@ class FileWatcher:
             # Get relative path from camera root
             relative_path = path.relative_to(camera_root_path)
 
-            # First component is the folder name (original directory name)
-            folder_name = relative_path.parts[0]
-
-            # Normalize to camera ID
-            camera_id = normalize_camera_id(folder_name)
-
-            if not camera_id:
-                logger.warning(f"Empty camera ID after normalization for folder: {folder_name}")
-                return None, None
-
-            return camera_id, folder_name
+            # First component is camera ID
+            camera_id = relative_path.parts[0]
+            return camera_id
         except (ValueError, IndexError):
             logger.warning(f"Could not extract camera ID from path: {file_path}")
-            return None, None
-
-    async def _ensure_camera_exists(self, camera_id: str, folder_name: str) -> None:
-        """Ensure camera record exists in database, creating if necessary.
-
-        This method is called when auto_create_cameras is enabled. It uses
-        a local set to track cameras we've already processed, avoiding
-        repeated database operations for known cameras.
-
-        Args:
-            camera_id: Normalized camera ID
-            folder_name: Original folder name (for display name)
-        """
-        # Skip if we've already processed this camera
-        if camera_id in self._known_cameras:
-            return
-
-        # Mark as known to avoid repeated attempts
-        self._known_cameras.add(camera_id)
-
-        if not self._camera_creator:
-            return
-
-        try:
-            # Construct full folder path
-            folder_path = str(Path(self.camera_root) / folder_name)
-
-            # Create camera instance using the factory method
-            camera = Camera.from_folder_name(folder_name, folder_path)
-
-            logger.info(
-                f"Auto-creating camera '{camera_id}' for folder '{folder_name}'",
-                extra={"camera_id": camera_id, "folder_path": folder_path},
-            )
-
-            # Call the creator callback (handles database operations)
-            await self._camera_creator(camera)
-
-        except Exception as e:
-            # Don't fail file processing if camera creation fails
-            # The detection will still be queued; FK constraint will catch missing cameras
-            logger.warning(
-                f"Failed to auto-create camera '{camera_id}': {e}",
-                extra={"camera_id": camera_id, "folder_name": folder_name},
-            )
+            return None
 
     async def _schedule_file_processing(self, file_path: str) -> None:
         """Schedule file processing with debounce logic.
@@ -452,8 +363,8 @@ class FileWatcher:
         """
         start_time = time.time()
 
-        # Extract camera ID and folder name for context
-        camera_id, folder_name = self._get_camera_id_from_path(file_path)
+        # Extract camera ID early for context
+        camera_id = self._get_camera_id_from_path(file_path)
         media_type = get_media_type(file_path)
 
         logger.debug(
@@ -482,10 +393,6 @@ class FileWatcher:
                 f"Could not determine camera ID for: {file_path}", extra={"file_path": file_path}
             )
             return
-
-        # Auto-create camera if enabled and callback is set
-        if self.auto_create_cameras and self._camera_creator and folder_name:
-            await self._ensure_camera_exists(camera_id, folder_name)
 
         # Queue for detection
         try:
