@@ -5,9 +5,11 @@ This module provides:
 - Structured JSON logging with contextual fields
 - Request ID context propagation via contextvars
 - Helper functions for getting configured loggers
+- Error message sanitization for secure logging
 """
 
 import logging
+import re
 import sys
 from contextvars import ContextVar
 from datetime import UTC, datetime
@@ -18,6 +20,13 @@ from typing import Any
 from pythonjsonlogger.json import JsonFormatter
 
 from backend.core.config import get_settings
+
+# Patterns for sensitive data sanitization
+_PATH_PATTERN = re.compile(r"(/[^\s:]+)+")
+_CREDENTIAL_PATTERNS = [
+    re.compile(r"(password|secret|token|api[_-]?key|auth)[=:]\s*\S+", re.IGNORECASE),
+    re.compile(r"Bearer\s+\S+", re.IGNORECASE),
+]
 
 # Context variable for request ID propagation
 _request_id: ContextVar[str | None] = ContextVar("request_id", default=None)
@@ -226,6 +235,45 @@ def setup_logging() -> None:
         f"Logging configured: level={settings.log_level}, "
         f"file={settings.log_file_path}, db_enabled={settings.log_db_enabled}"
     )
+
+
+def sanitize_error(error: Exception, max_length: int = 500) -> str:
+    """Sanitize error message for secure logging.
+
+    Removes potentially sensitive information from error messages:
+    - Full file paths (keeps only filename)
+    - Credentials/tokens/API keys
+    - Truncates long error messages
+
+    Args:
+        error: The exception to sanitize
+        max_length: Maximum length of the sanitized message (default 500)
+
+    Returns:
+        Sanitized error message safe for logging
+    """
+    msg = str(error)
+
+    # Remove credential patterns
+    for pattern in _CREDENTIAL_PATTERNS:
+        msg = pattern.sub("[REDACTED]", msg)
+
+    # Simplify file paths - keep only the filename for context
+    def _simplify_path(match: re.Match[str]) -> str:
+        path = match.group(0)
+        # Keep the filename portion
+        parts = path.rsplit("/", 1)
+        if len(parts) == 2:
+            return f".../{parts[1]}"
+        return path
+
+    msg = _PATH_PATTERN.sub(_simplify_path, msg)
+
+    # Truncate long messages
+    if len(msg) > max_length:
+        msg = msg[:max_length] + "...[truncated]"
+
+    return msg
 
 
 def get_logger(name: str) -> logging.Logger:

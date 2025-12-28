@@ -27,7 +27,7 @@ import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.config import get_settings
-from backend.core.logging import get_logger
+from backend.core.logging import get_logger, sanitize_error
 from backend.core.metrics import (
     observe_ai_request_duration,
     record_detection_processed,
@@ -70,7 +70,7 @@ class DetectorClient:
             logger.warning(f"Detector health check returned error status: {e}")
             return False
         except Exception as e:
-            logger.error(f"Unexpected error during detector health check: {e}", exc_info=True)
+            logger.error(f"Unexpected error during detector health check: {sanitize_error(e)}")
             return False
 
     async def detect_objects(  # noqa: PLR0911, PLR0912
@@ -198,7 +198,7 @@ class DetectorClient:
                     )
 
                 except Exception as e:
-                    logger.error(f"Error processing detection data: {e}", exc_info=True)
+                    logger.error(f"Error processing detection data: {sanitize_error(e)}")
                     record_pipeline_error("detection_processing_error")
                     continue
 
@@ -261,8 +261,7 @@ class DetectorClient:
             duration_ms = int((time.time() - start_time) * 1000)
             record_pipeline_error("rtdetr_unexpected_error")
             logger.error(
-                f"Unexpected error during object detection: {e}",
-                extra={"camera_id": camera_id, "file_path": image_path, "duration_ms": duration_ms},
-                exc_info=True,
+                f"Unexpected error during object detection: {sanitize_error(e)}",
+                extra={"camera_id": camera_id, "duration_ms": duration_ms},
             )
             return []

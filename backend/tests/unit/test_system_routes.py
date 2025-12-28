@@ -787,7 +787,20 @@ async def test_get_health_all_healthy() -> None:
     redis = AsyncMock()
     redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
 
-    response = await system_routes.get_health(db, redis)  # type: ignore[arg-type]
+    # Patch AI health check to avoid network calls
+    with (
+        patch.object(
+            system_routes,
+            "_check_rtdetr_health_with_circuit_breaker",
+            return_value=(True, None),
+        ),
+        patch.object(
+            system_routes,
+            "_check_nemotron_health_with_circuit_breaker",
+            return_value=(True, None),
+        ),
+    ):
+        response = await system_routes.get_health(db, redis)  # type: ignore[arg-type]
 
     assert isinstance(response, HealthResponse)
     assert response.status == "healthy"
@@ -810,7 +823,20 @@ async def test_get_health_degraded_when_redis_unhealthy() -> None:
         return_value={"status": "unhealthy", "error": "connection refused"}
     )
 
-    response = await system_routes.get_health(db, redis)  # type: ignore[arg-type]
+    # Patch AI health check to avoid network calls
+    with (
+        patch.object(
+            system_routes,
+            "_check_rtdetr_health_with_circuit_breaker",
+            return_value=(True, None),
+        ),
+        patch.object(
+            system_routes,
+            "_check_nemotron_health_with_circuit_breaker",
+            return_value=(True, None),
+        ),
+    ):
+        response = await system_routes.get_health(db, redis)  # type: ignore[arg-type]
 
     assert isinstance(response, HealthResponse)
     assert response.status == "degraded"
@@ -827,7 +853,20 @@ async def test_get_health_unhealthy_when_database_down() -> None:
     redis = AsyncMock()
     redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
 
-    response = await system_routes.get_health(db, redis)  # type: ignore[arg-type]
+    # Patch AI health check to avoid network calls
+    with (
+        patch.object(
+            system_routes,
+            "_check_rtdetr_health_with_circuit_breaker",
+            return_value=(True, None),
+        ),
+        patch.object(
+            system_routes,
+            "_check_nemotron_health_with_circuit_breaker",
+            return_value=(True, None),
+        ),
+    ):
+        response = await system_routes.get_health(db, redis)  # type: ignore[arg-type]
 
     assert isinstance(response, HealthResponse)
     assert response.status == "unhealthy"
@@ -843,7 +882,20 @@ async def test_get_health_unhealthy_when_all_services_down() -> None:
     redis = AsyncMock()
     redis.health_check = AsyncMock(return_value={"status": "unhealthy", "error": "redis error"})
 
-    response = await system_routes.get_health(db, redis)  # type: ignore[arg-type]
+    # Patch AI health check to avoid network calls
+    with (
+        patch.object(
+            system_routes,
+            "_check_rtdetr_health_with_circuit_breaker",
+            return_value=(True, None),
+        ),
+        patch.object(
+            system_routes,
+            "_check_nemotron_health_with_circuit_breaker",
+            return_value=(True, None),
+        ),
+    ):
+        response = await system_routes.get_health(db, redis)  # type: ignore[arg-type]
 
     assert isinstance(response, HealthResponse)
     assert response.status == "unhealthy"
@@ -1407,10 +1459,23 @@ async def test_check_redis_health_exception() -> None:
 @pytest.mark.asyncio
 async def test_check_ai_services_health() -> None:
     """Test check_ai_services_health returns expected status."""
-    status = await system_routes.check_ai_services_health()
+    # Patch to avoid network calls and test the happy path
+    with (
+        patch.object(
+            system_routes,
+            "_check_rtdetr_health_with_circuit_breaker",
+            return_value=(True, None),
+        ),
+        patch.object(
+            system_routes,
+            "_check_nemotron_health_with_circuit_breaker",
+            return_value=(True, None),
+        ),
+    ):
+        status = await system_routes.check_ai_services_health()
 
     assert status.status == "healthy"
-    assert status.message == "AI services not monitored"
+    assert status.message == "AI services operational"
 
 
 def test_write_runtime_env_creates_directory(tmp_path, monkeypatch) -> None:
@@ -1843,8 +1908,16 @@ async def test_check_nemotron_health_unexpected_error() -> None:
 async def test_check_ai_services_health_both_healthy() -> None:
     """Test AI services health check when both services are healthy."""
     with (
-        patch.object(system_routes, "_check_rtdetr_health", return_value=(True, None)),
-        patch.object(system_routes, "_check_nemotron_health", return_value=(True, None)),
+        patch.object(
+            system_routes,
+            "_check_rtdetr_health_with_circuit_breaker",
+            return_value=(True, None),
+        ),
+        patch.object(
+            system_routes,
+            "_check_nemotron_health_with_circuit_breaker",
+            return_value=(True, None),
+        ),
     ):
         status = await system_routes.check_ai_services_health()
 
@@ -1861,10 +1934,14 @@ async def test_check_ai_services_health_rtdetr_down() -> None:
     with (
         patch.object(
             system_routes,
-            "_check_rtdetr_health",
+            "_check_rtdetr_health_with_circuit_breaker",
             return_value=(False, "RT-DETR service returned HTTP 500"),
         ),
-        patch.object(system_routes, "_check_nemotron_health", return_value=(True, None)),
+        patch.object(
+            system_routes,
+            "_check_nemotron_health_with_circuit_breaker",
+            return_value=(True, None),
+        ),
     ):
         status = await system_routes.check_ai_services_health()
 
@@ -1882,10 +1959,14 @@ async def test_check_ai_services_health_rtdetr_down() -> None:
 async def test_check_ai_services_health_nemotron_down() -> None:
     """Test AI services health check when Nemotron is down but RT-DETR is up."""
     with (
-        patch.object(system_routes, "_check_rtdetr_health", return_value=(True, None)),
         patch.object(
             system_routes,
-            "_check_nemotron_health",
+            "_check_rtdetr_health_with_circuit_breaker",
+            return_value=(True, None),
+        ),
+        patch.object(
+            system_routes,
+            "_check_nemotron_health_with_circuit_breaker",
             return_value=(False, "Nemotron service returned HTTP 500"),
         ),
     ):
@@ -1907,12 +1988,12 @@ async def test_check_ai_services_health_both_down() -> None:
     with (
         patch.object(
             system_routes,
-            "_check_rtdetr_health",
+            "_check_rtdetr_health_with_circuit_breaker",
             return_value=(False, "RT-DETR service returned HTTP 500"),
         ),
         patch.object(
             system_routes,
-            "_check_nemotron_health",
+            "_check_nemotron_health_with_circuit_breaker",
             return_value=(False, "Nemotron service returned HTTP 503"),
         ),
     ):
@@ -1941,12 +2022,12 @@ async def test_check_ai_services_health_returns_details() -> None:
     with (
         patch.object(
             system_routes,
-            "_check_rtdetr_health",
+            "_check_rtdetr_health_with_circuit_breaker",
             return_value=(False, "RT-DETR connection refused"),
         ),
         patch.object(
             system_routes,
-            "_check_nemotron_health",
+            "_check_nemotron_health_with_circuit_breaker",
             return_value=(False, "Nemotron connection refused"),
         ),
     ):
@@ -1963,10 +2044,14 @@ async def test_check_ai_services_health_uses_config_urls() -> None:
     with (
         patch.object(system_routes, "get_settings") as mock_settings,
         patch.object(
-            system_routes, "_check_rtdetr_health", return_value=(True, None)
+            system_routes,
+            "_check_rtdetr_health_with_circuit_breaker",
+            return_value=(True, None),
         ) as mock_rtdetr,
         patch.object(
-            system_routes, "_check_nemotron_health", return_value=(True, None)
+            system_routes,
+            "_check_nemotron_health_with_circuit_breaker",
+            return_value=(True, None),
         ) as mock_nemotron,
     ):
         mock_settings.return_value.rtdetr_url = "http://custom-rtdetr:9000"
@@ -1974,8 +2059,180 @@ async def test_check_ai_services_health_uses_config_urls() -> None:
 
         await system_routes.check_ai_services_health()
 
-        # Verify the config URLs were passed to the health check functions
+        # Verify the circuit breaker health check functions were called
         mock_rtdetr.assert_called_once()
         mock_nemotron.assert_called_once()
+        # Verify the config URLs were passed
         assert mock_rtdetr.call_args[0][0] == "http://custom-rtdetr:9000"
         assert mock_nemotron.call_args[0][0] == "http://custom-nemotron:9001"
+
+
+# =============================================================================
+# Circuit Breaker Tests
+# =============================================================================
+
+
+class TestCircuitBreaker:
+    """Tests for the CircuitBreaker class."""
+
+    def test_circuit_breaker_starts_closed(self) -> None:
+        """Test that circuit starts in closed state."""
+        cb = system_routes.CircuitBreaker()
+        assert cb.is_open("service1") is False
+        assert cb.get_state("service1") == "closed"
+
+    def test_circuit_breaker_records_failures(self) -> None:
+        """Test that circuit breaker tracks failure count."""
+        cb = system_routes.CircuitBreaker(failure_threshold=3)
+
+        cb.record_failure("service1", "error 1")
+        assert cb.is_open("service1") is False  # Not yet at threshold
+
+        cb.record_failure("service1", "error 2")
+        assert cb.is_open("service1") is False  # Still not at threshold
+
+        cb.record_failure("service1", "error 3")
+        assert cb.is_open("service1") is True  # Now open after 3 failures
+
+    def test_circuit_breaker_opens_after_threshold(self) -> None:
+        """Test that circuit opens after failure threshold is reached."""
+        cb = system_routes.CircuitBreaker(failure_threshold=2)
+
+        cb.record_failure("rtdetr", "Connection refused")
+        cb.record_failure("rtdetr", "Connection refused")
+
+        assert cb.is_open("rtdetr") is True
+        assert cb.get_state("rtdetr") == "open"
+
+    def test_circuit_breaker_caches_last_error(self) -> None:
+        """Test that circuit breaker caches the last error message."""
+        cb = system_routes.CircuitBreaker(failure_threshold=2)
+
+        cb.record_failure("service1", "first error")
+        cb.record_failure("service1", "second error")
+
+        assert cb.get_cached_error("service1") == "second error"
+
+    def test_circuit_breaker_success_resets_failures(self) -> None:
+        """Test that recording success resets the failure count."""
+        cb = system_routes.CircuitBreaker(failure_threshold=3)
+
+        cb.record_failure("service1", "error 1")
+        cb.record_failure("service1", "error 2")
+        cb.record_success("service1")  # Reset
+
+        cb.record_failure("service1", "error 3")
+        assert cb.is_open("service1") is False  # Only 1 failure after reset
+
+    def test_circuit_breaker_success_clears_cached_error(self) -> None:
+        """Test that recording success clears the cached error."""
+        cb = system_routes.CircuitBreaker(failure_threshold=2)
+
+        cb.record_failure("service1", "some error")
+        assert cb.get_cached_error("service1") == "some error"
+
+        cb.record_success("service1")
+        assert cb.get_cached_error("service1") is None
+
+    def test_circuit_breaker_isolates_services(self) -> None:
+        """Test that circuit breaker tracks services independently."""
+        cb = system_routes.CircuitBreaker(failure_threshold=2)
+
+        cb.record_failure("rtdetr", "error")
+        cb.record_failure("rtdetr", "error")
+        cb.record_failure("nemotron", "error")
+
+        assert cb.is_open("rtdetr") is True
+        assert cb.is_open("nemotron") is False  # Only 1 failure
+
+    def test_circuit_breaker_get_cached_error_returns_none_for_unknown(self) -> None:
+        """Test that get_cached_error returns None for unknown service."""
+        cb = system_routes.CircuitBreaker()
+        assert cb.get_cached_error("unknown_service") is None
+
+
+@pytest.mark.asyncio
+async def test_check_rtdetr_health_with_circuit_breaker_skips_when_open() -> None:
+    """Test that circuit breaker skips health check when circuit is open."""
+    # Reset the global circuit breaker state
+    system_routes._health_circuit_breaker = system_routes.CircuitBreaker(failure_threshold=2)
+
+    # Open the circuit by recording failures
+    system_routes._health_circuit_breaker.record_failure("rtdetr", "Connection refused")
+    system_routes._health_circuit_breaker.record_failure("rtdetr", "Connection refused")
+
+    # Health check should return cached error without making HTTP call
+    is_healthy, error = await system_routes._check_rtdetr_health_with_circuit_breaker(
+        "http://localhost:8090", 3.0
+    )
+
+    assert is_healthy is False
+    assert error == "Connection refused"
+
+
+@pytest.mark.asyncio
+async def test_check_rtdetr_health_with_circuit_breaker_makes_call_when_closed() -> None:
+    """Test that circuit breaker performs health check when circuit is closed."""
+    # Reset the global circuit breaker state
+    system_routes._health_circuit_breaker = system_routes.CircuitBreaker(failure_threshold=3)
+
+    with patch.object(
+        system_routes, "_check_rtdetr_health", return_value=(True, None)
+    ) as mock_check:
+        is_healthy, error = await system_routes._check_rtdetr_health_with_circuit_breaker(
+            "http://localhost:8090", 3.0
+        )
+
+        assert is_healthy is True
+        assert error is None
+        mock_check.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_check_nemotron_health_with_circuit_breaker_skips_when_open() -> None:
+    """Test that circuit breaker skips Nemotron health check when circuit is open."""
+    # Reset the global circuit breaker state
+    system_routes._health_circuit_breaker = system_routes.CircuitBreaker(failure_threshold=2)
+
+    # Open the circuit
+    system_routes._health_circuit_breaker.record_failure("nemotron", "Service timeout")
+    system_routes._health_circuit_breaker.record_failure("nemotron", "Service timeout")
+
+    # Health check should return cached error without making HTTP call
+    is_healthy, error = await system_routes._check_nemotron_health_with_circuit_breaker(
+        "http://localhost:8091", 3.0
+    )
+
+    assert is_healthy is False
+    assert error == "Service timeout"
+
+
+@pytest.mark.asyncio
+async def test_circuit_breaker_records_failure_on_health_check_error() -> None:
+    """Test that circuit breaker records failure when health check fails."""
+    # Reset the global circuit breaker state
+    system_routes._health_circuit_breaker = system_routes.CircuitBreaker(failure_threshold=3)
+
+    with patch.object(
+        system_routes, "_check_rtdetr_health", return_value=(False, "Connection refused")
+    ):
+        await system_routes._check_rtdetr_health_with_circuit_breaker("http://localhost:8090", 3.0)
+        await system_routes._check_rtdetr_health_with_circuit_breaker("http://localhost:8090", 3.0)
+        await system_routes._check_rtdetr_health_with_circuit_breaker("http://localhost:8090", 3.0)
+
+    # Circuit should now be open after 3 failures
+    assert system_routes._health_circuit_breaker.is_open("rtdetr") is True
+
+
+@pytest.mark.asyncio
+async def test_circuit_breaker_records_success_on_health_check_success() -> None:
+    """Test that circuit breaker records success when health check succeeds."""
+    # Reset with 1 failure already recorded
+    system_routes._health_circuit_breaker = system_routes.CircuitBreaker(failure_threshold=3)
+    system_routes._health_circuit_breaker.record_failure("rtdetr", "Previous error")
+
+    with patch.object(system_routes, "_check_rtdetr_health", return_value=(True, None)):
+        await system_routes._check_rtdetr_health_with_circuit_breaker("http://localhost:8090", 3.0)
+
+    # Failure count should be reset to 0
+    assert system_routes._health_circuit_breaker._failures.get("rtdetr", 0) == 0

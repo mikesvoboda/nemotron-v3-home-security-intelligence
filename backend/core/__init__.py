@@ -13,6 +13,7 @@ from backend.core.database import (
 from backend.core.logging import (
     get_logger,
     get_request_id,
+    sanitize_error,
     set_request_id,
     setup_logging,
 )
@@ -54,6 +55,7 @@ __all__ = [
     "record_detection_processed",
     "record_event_created",
     "record_pipeline_error",
+    "sanitize_error",
     "set_queue_depth",
     "set_request_id",
     "setup_logging",
