@@ -552,13 +552,27 @@ async def client(integration_db: str, mock_redis: AsyncMock) -> AsyncGenerator:
     - The DB is pre-initialized by `integration_db`.
     - We patch app lifespan DB init/close to avoid double initialization.
     - We patch Redis init/close in `backend.main` so lifespan does not connect.
+    - We truncate all tables at the start of each test for isolation.
 
     Use this fixture for testing API endpoints.
     """
     from httpx import ASGITransport, AsyncClient
+    from sqlalchemy import text
+
+    from backend.core.database import get_engine
 
     # Import the app only after env is set up.
     from backend.main import app
+
+    # Truncate all tables at the start of each test for proper isolation
+    # This ensures no data persists from previous tests
+    async with get_engine().begin() as conn:
+        await conn.execute(
+            text(
+                "TRUNCATE TABLE logs, gpu_stats, api_keys, detections, events, cameras "
+                "RESTART IDENTITY CASCADE"
+            )
+        )
 
     with (
         patch("backend.main.init_db", return_value=None),
