@@ -337,7 +337,7 @@ class Settings(BaseSettings):
     # Video processing settings
     video_thumbnails_dir: str = Field(
         default="data/thumbnails",
-        description="Directory to store video thumbnails",
+        description="Directory for storing video thumbnails and extracted frames",
     )
     video_frame_interval_seconds: float = Field(
         default=1.0,

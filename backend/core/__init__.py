@@ -26,11 +26,23 @@ from backend.core.metrics import (
     record_pipeline_error,
     set_queue_depth,
 )
+from backend.core.mime_types import (
+    DEFAULT_IMAGE_MIME,
+    DEFAULT_VIDEO_MIME,
+    EXTENSION_TO_MIME,
+    get_mime_type,
+    get_mime_type_with_default,
+    is_image_mime_type,
+    is_supported_mime_type,
+    is_video_mime_type,
+    normalize_file_type,
+)
 from backend.core.redis import (
     QueueAddResult,
     RedisClient,
     close_redis,
     get_redis,
+    get_redis_optional,
     init_redis,
 )
 from backend.core.tls import (
@@ -48,6 +60,9 @@ from backend.core.tls import (
 )
 
 __all__ = [
+    "DEFAULT_IMAGE_MIME",
+    "DEFAULT_VIDEO_MIME",
+    "EXTENSION_TO_MIME",
     "Base",
     "CertificateNotFoundError",
     "CertificateValidationError",
@@ -65,7 +80,10 @@ __all__ = [
     "get_engine",
     "get_logger",
     "get_metrics_response",
+    "get_mime_type",
+    "get_mime_type_with_default",
     "get_redis",
+    "get_redis_optional",
     "get_request_id",
     "get_session",
     "get_session_factory",
@@ -73,8 +91,12 @@ __all__ = [
     "get_tls_config",
     "init_db",
     "init_redis",
+    "is_image_mime_type",
+    "is_supported_mime_type",
     "is_tls_enabled",
+    "is_video_mime_type",
     "load_certificate_paths",
+    "normalize_file_type",
     "observe_ai_request_duration",
     "observe_stage_duration",
     "record_detection_processed",
