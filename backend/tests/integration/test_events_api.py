@@ -21,8 +21,39 @@ async def async_client(client):
 
 
 @pytest.fixture
-async def sample_camera(integration_db):
-    """Create a sample camera in the database."""
+async def clean_events(integration_db):
+    """Truncate events and related tables before test runs for proper isolation.
+
+    This ensures tests that expect specific event counts start with empty tables.
+    Uses direct database operations since there's no DELETE endpoint for events.
+    """
+    from sqlalchemy import text
+
+    from backend.core.database import get_engine
+
+    async with get_engine().begin() as conn:
+        await conn.execute(
+            text("TRUNCATE TABLE detections, events, cameras RESTART IDENTITY CASCADE")
+        )
+
+    yield
+
+    # Cleanup after test too (best effort)
+    try:
+        async with get_engine().begin() as conn:
+            await conn.execute(
+                text("TRUNCATE TABLE detections, events, cameras RESTART IDENTITY CASCADE")
+            )
+    except Exception:  # noqa: S110 - ignore cleanup errors
+        pass
+
+
+@pytest.fixture
+async def sample_camera(integration_db, clean_events):
+    """Create a sample camera in the database.
+
+    Depends on clean_events to ensure test isolation.
+    """
     from backend.core.database import get_session
     from backend.models.camera import Camera
 
@@ -174,7 +205,7 @@ async def multiple_events(integration_db, sample_camera):
 class TestListEvents:
     """Tests for GET /api/events endpoint."""
 
-    async def test_list_events_empty(self, async_client):
+    async def test_list_events_empty(self, async_client, clean_events):
         """Test listing events when none exist."""
         response = await async_client.get("/api/events")
         assert response.status_code == 200
@@ -622,7 +653,7 @@ class TestGetEventDetections:
 class TestGetEventStats:
     """Tests for GET /api/events/stats endpoint."""
 
-    async def test_get_event_stats_empty(self, async_client):
+    async def test_get_event_stats_empty(self, async_client, clean_events):
         """Test getting stats when no events exist."""
         response = await async_client.get("/api/events/stats")
         assert response.status_code == 200
