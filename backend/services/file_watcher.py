@@ -33,7 +33,6 @@ from watchdog.observers import Observer
 # This provides near-instant event detection without CPU-intensive polling.
 # Only use PollingObserver if monitoring network filesystems (NFS/SMB) where
 # inotify events may not propagate.
-
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
 from backend.services.dedupe import DedupeService
