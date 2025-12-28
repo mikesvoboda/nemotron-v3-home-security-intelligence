@@ -319,11 +319,12 @@ async def test_health_check_failure(redis_client, mock_redis_client):
 
 @pytest.mark.asyncio
 async def test_add_to_queue_with_dict(redis_client, mock_redis_client):
-    """Test adding a dictionary to a queue (default: no trimming)."""
+    """Test adding a dictionary to a queue (with trimming disabled)."""
     mock_redis_client.rpush.return_value = 1
 
     data = {"key": "value", "number": 42}
-    result = await redis_client.add_to_queue("test_queue", data)
+    # Pass max_size=0 to disable trimming (default is 10000 which enables trimming)
+    result = await redis_client.add_to_queue("test_queue", data, max_size=0)
 
     assert result == 1
     mock_redis_client.rpush.assert_awaited_once()
@@ -331,20 +332,21 @@ async def test_add_to_queue_with_dict(redis_client, mock_redis_client):
     call_args = mock_redis_client.rpush.call_args[0]
     assert call_args[0] == "test_queue"
     assert '"key": "value"' in call_args[1]
-    # By default, no trimming (backpressure=DISABLED)
+    # With max_size=0, no trimming occurs
     mock_redis_client.ltrim.assert_not_awaited()
 
 
 @pytest.mark.asyncio
 async def test_add_to_queue_with_string(redis_client, mock_redis_client):
-    """Test adding a string to a queue (default: no trimming)."""
+    """Test adding a string to a queue (with trimming disabled)."""
     mock_redis_client.rpush.return_value = 2
 
-    result = await redis_client.add_to_queue("test_queue", "simple_string")
+    # Pass max_size=0 to disable trimming (default is 10000 which enables trimming)
+    result = await redis_client.add_to_queue("test_queue", "simple_string", max_size=0)
 
     assert result == 2
     mock_redis_client.rpush.assert_awaited_once_with("test_queue", "simple_string")
-    # By default, no trimming (backpressure=DISABLED)
+    # With max_size=0, no trimming occurs
     mock_redis_client.ltrim.assert_not_awaited()
 
 
@@ -407,8 +409,8 @@ async def test_add_to_queue_safe_returns_detailed_result(redis_client, mock_redi
 
     assert isinstance(result, QueueAddResult)
     assert result.queue_length == 5
-    assert result.items_dropped == 0
-    assert result.was_rejected is False
+    assert result.dropped_count == 0
+    assert result.success is True
 
 
 @pytest.mark.asyncio
@@ -421,13 +423,13 @@ async def test_add_to_queue_safe_drop_oldest_reports_dropped(redis_client, mock_
     )
 
     assert result.queue_length == 100
-    assert result.items_dropped == 5
-    assert result.was_rejected is False
+    assert result.dropped_count == 5
+    assert result.success is True
 
 
 @pytest.mark.asyncio
 async def test_add_to_queue_safe_drop_newest_rejects_when_full(redis_client, mock_redis_client):
-    """Test DROP_NEWEST strategy rejects items when queue is full."""
+    """Test REJECT policy rejects items when queue is full."""
     mock_redis_client.llen.return_value = 100  # Queue at capacity
 
     result = await redis_client.add_to_queue_safe(
@@ -435,15 +437,16 @@ async def test_add_to_queue_safe_drop_newest_rejects_when_full(redis_client, moc
     )
 
     assert result.queue_length == 100
-    assert result.items_dropped == 0
-    assert result.was_rejected is True
+    assert result.dropped_count == 0
+    assert result.success is False
+    assert result.error is not None  # Should have error message
     # rpush should NOT be called when rejected
     mock_redis_client.rpush.assert_not_awaited()
 
 
 @pytest.mark.asyncio
 async def test_add_to_queue_safe_drop_newest_accepts_when_space(redis_client, mock_redis_client):
-    """Test DROP_NEWEST strategy accepts items when queue has space."""
+    """Test REJECT policy accepts items when queue has space."""
     mock_redis_client.llen.return_value = 50  # Queue has space
     mock_redis_client.rpush.return_value = 51
 
@@ -452,8 +455,8 @@ async def test_add_to_queue_safe_drop_newest_accepts_when_space(redis_client, mo
     )
 
     assert result.queue_length == 51
-    assert result.items_dropped == 0
-    assert result.was_rejected is False
+    assert result.dropped_count == 0
+    assert result.success is True
     mock_redis_client.rpush.assert_awaited_once()
 
 
