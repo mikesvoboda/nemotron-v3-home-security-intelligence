@@ -19,7 +19,7 @@ from sqlalchemy import select
 
 from backend.models.camera import Camera
 from backend.models.detection import Detection
-from backend.services.detector_client import DetectorClient
+from backend.services.detector_client import DetectorClient, DetectorServiceError
 
 
 @pytest.fixture
@@ -278,26 +278,27 @@ class TestConfidenceFiltering:
 
 
 class TestConnectionErrorHandling:
-    """Tests for handling connection errors gracefully."""
+    """Tests for handling connection errors with DetectorServiceError."""
 
     async def test_detect_objects_handles_connection_error(
         self, integration_db, sample_camera, temp_image_file, detector_client
     ):
-        """Test graceful handling when detector service is unreachable."""
+        """Test that connection errors raise DetectorServiceError for retry handling."""
         from backend.core.database import get_session
 
         with patch.object(
             httpx.AsyncClient, "post", side_effect=httpx.ConnectError("Connection refused")
         ):
             async with get_session() as session:
-                detections = await detector_client.detect_objects(
-                    image_path=temp_image_file,
-                    camera_id=sample_camera.id,
-                    session=session,
-                )
+                # Connection errors should raise DetectorServiceError to allow retry
+                with pytest.raises(DetectorServiceError) as exc_info:
+                    await detector_client.detect_objects(
+                        image_path=temp_image_file,
+                        camera_id=sample_camera.id,
+                        session=session,
+                    )
 
-        # Should return empty list, not raise exception
-        assert detections == []
+                assert "Cannot connect to RT-DETR service" in str(exc_info.value)
 
         # Verify nothing was stored
         async with get_session() as session:
@@ -308,26 +309,27 @@ class TestConnectionErrorHandling:
 
 
 class TestTimeoutHandling:
-    """Tests for handling timeout scenarios."""
+    """Tests for handling timeout scenarios with DetectorServiceError."""
 
     async def test_detect_objects_handles_timeout(
         self, integration_db, sample_camera, temp_image_file, detector_client
     ):
-        """Test graceful handling when detector service times out."""
+        """Test that timeouts raise DetectorServiceError for retry handling."""
         from backend.core.database import get_session
 
         with patch.object(
             httpx.AsyncClient, "post", side_effect=httpx.TimeoutException("Request timeout")
         ):
             async with get_session() as session:
-                detections = await detector_client.detect_objects(
-                    image_path=temp_image_file,
-                    camera_id=sample_camera.id,
-                    session=session,
-                )
+                # Timeouts should raise DetectorServiceError to allow retry
+                with pytest.raises(DetectorServiceError) as exc_info:
+                    await detector_client.detect_objects(
+                        image_path=temp_image_file,
+                        camera_id=sample_camera.id,
+                        session=session,
+                    )
 
-        # Should return empty list, not raise exception
-        assert detections == []
+                assert "timed out" in str(exc_info.value)
 
         # Verify nothing was stored
         async with get_session() as session:
@@ -445,7 +447,7 @@ class TestBadResponseHandling:
     async def test_detect_objects_handles_http_error(
         self, integration_db, sample_camera, temp_image_file, detector_client
     ):
-        """Test handling when detector returns HTTP error status."""
+        """Test that HTTP 5xx errors raise DetectorServiceError for retry handling."""
         from backend.core.database import get_session
 
         mock_response = MagicMock()
@@ -456,13 +458,15 @@ class TestBadResponseHandling:
 
         with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
             async with get_session() as session:
-                detections = await detector_client.detect_objects(
-                    image_path=temp_image_file,
-                    camera_id=sample_camera.id,
-                    session=session,
-                )
+                # 5xx errors should raise DetectorServiceError to allow retry
+                with pytest.raises(DetectorServiceError) as exc_info:
+                    await detector_client.detect_objects(
+                        image_path=temp_image_file,
+                        camera_id=sample_camera.id,
+                        session=session,
+                    )
 
-        assert detections == []
+                assert "HTTP 500" in str(exc_info.value)
 
     async def test_detect_objects_handles_missing_detections_key(
         self, integration_db, sample_camera, temp_image_file, detector_client

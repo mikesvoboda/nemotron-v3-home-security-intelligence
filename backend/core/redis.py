@@ -6,6 +6,8 @@ import json
 import logging
 import random
 from collections.abc import AsyncGenerator
+from dataclasses import dataclass
+from enum import Enum
 from typing import Any, cast
 
 from redis.asyncio import ConnectionPool, Redis
@@ -15,6 +17,29 @@ from redis.exceptions import ConnectionError, TimeoutError
 from backend.core.config import get_settings
 
 logger = logging.getLogger(__name__)
+
+
+class BackpressureStrategy(Enum):
+    """Strategy for handling queue backpressure when max_size is reached."""
+
+    DROP_OLDEST = "drop_oldest"  # Default: trim oldest items (current behavior)
+    DROP_NEWEST = "drop_newest"  # Reject new items when queue is full
+    DISABLED = "disabled"  # No trimming, queue can grow unbounded
+
+
+@dataclass
+class QueueAddResult:
+    """Result of adding an item to a queue.
+
+    Attributes:
+        queue_length: Current length of the queue after the operation
+        items_dropped: Number of items that were dropped due to backpressure
+        was_rejected: True if the item was rejected (DROP_NEWEST strategy)
+    """
+
+    queue_length: int
+    items_dropped: int = 0
+    was_rejected: bool = False
 
 
 class RedisClient:
@@ -136,26 +161,114 @@ class RedisClient:
 
     # Queue operations
 
-    async def add_to_queue(self, queue_name: str, data: Any, max_size: int = 10000) -> int:
+    async def add_to_queue(
+        self,
+        queue_name: str,
+        data: Any,
+        max_size: int = 0,
+        backpressure: BackpressureStrategy = BackpressureStrategy.DISABLED,
+    ) -> int:
         """Add item to the end of a queue (RPUSH) with optional size limit.
 
         Args:
             queue_name: Name of the queue (Redis list key)
             data: Data to add (will be JSON-serialized if not a string)
-            max_size: Maximum queue size (default 10000). After RPUSH, queue is
-                trimmed to keep only the last max_size items (newest). Set to 0
-                to disable trimming.
+            max_size: Maximum queue size (default 0 = no limit). Only used when
+                backpressure is not DISABLED.
+            backpressure: Strategy for handling full queues:
+                - DISABLED (default): No trimming, queue grows unbounded
+                - DROP_OLDEST: Trim oldest items to make room (may lose unprocessed jobs)
+                - DROP_NEWEST: Reject new items when queue is full (safe for job queues)
 
         Returns:
             Length of the queue after adding the item
+
+        Note:
+            For detailed information about dropped items, use add_to_queue_safe() instead.
+        """
+        result = await self.add_to_queue_safe(queue_name, data, max_size, backpressure)
+        return result.queue_length
+
+    async def add_to_queue_safe(
+        self,
+        queue_name: str,
+        data: Any,
+        max_size: int = 0,
+        backpressure: BackpressureStrategy = BackpressureStrategy.DISABLED,
+    ) -> QueueAddResult:
+        """Add item to queue with detailed result about backpressure behavior.
+
+        This method provides full visibility into whether items were dropped
+        or rejected due to backpressure settings.
+
+        Args:
+            queue_name: Name of the queue (Redis list key)
+            data: Data to add (will be JSON-serialized if not a string)
+            max_size: Maximum queue size (default 0 = no limit). Only used when
+                backpressure is not DISABLED.
+            backpressure: Strategy for handling full queues:
+                - DISABLED (default): No trimming, queue grows unbounded
+                - DROP_OLDEST: Trim oldest items to make room (logs warning when items dropped)
+                - DROP_NEWEST: Reject new items when queue is full (logs warning on rejection)
+
+        Returns:
+            QueueAddResult with:
+                - queue_length: Current queue length
+                - items_dropped: Number of old items dropped (DROP_OLDEST only)
+                - was_rejected: True if item was rejected (DROP_NEWEST only)
         """
         client = self._ensure_connected()
         serialized = json.dumps(data) if not isinstance(data, str) else data
-        result = cast("int", await client.rpush(queue_name, serialized))  # type: ignore[misc]
-        # Trim to max_size (keep newest items)
-        if max_size > 0:
+
+        # Handle DROP_NEWEST: check queue length first, reject if full
+        if backpressure == BackpressureStrategy.DROP_NEWEST and max_size > 0:
+            current_length = cast("int", await client.llen(queue_name))  # type: ignore[misc]
+            if current_length >= max_size:
+                logger.warning(
+                    f"Queue backpressure: Rejecting item for queue '{queue_name}' "
+                    f"(current size: {current_length}, max: {max_size})",
+                    extra={
+                        "queue_name": queue_name,
+                        "current_length": current_length,
+                        "max_size": max_size,
+                        "strategy": "drop_newest",
+                    },
+                )
+                return QueueAddResult(
+                    queue_length=current_length,
+                    items_dropped=0,
+                    was_rejected=True,
+                )
+
+        # Add the item
+        queue_length = cast("int", await client.rpush(queue_name, serialized))  # type: ignore[misc]
+        items_dropped = 0
+
+        # Handle DROP_OLDEST: trim after adding
+        if (
+            backpressure == BackpressureStrategy.DROP_OLDEST
+            and max_size > 0
+            and queue_length > max_size
+        ):
+            items_dropped = queue_length - max_size
             await client.ltrim(queue_name, -max_size, -1)  # type: ignore[misc]
-        return result
+            logger.warning(
+                f"Queue backpressure: Dropped {items_dropped} oldest item(s) "
+                f"from queue '{queue_name}' (trimmed to max_size: {max_size})",
+                extra={
+                    "queue_name": queue_name,
+                    "items_dropped": items_dropped,
+                    "max_size": max_size,
+                    "strategy": "drop_oldest",
+                },
+            )
+            queue_length = max_size
+
+        return QueueAddResult(
+            queue_length=queue_length,
+            items_dropped=items_dropped,
+            was_rejected=False,
+        )
 
     async def get_from_queue(self, queue_name: str, timeout: int = 0) -> Any | None:
         """Get item from the front of a queue (BLPOP).

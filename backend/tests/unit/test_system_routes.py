@@ -1497,10 +1497,19 @@ async def test_record_stage_latency_valid_stage() -> None:
     """Test record_stage_latency with valid pipeline stage."""
     redis = AsyncMock()
     redis.add_to_queue = AsyncMock()
+    # Mock _ensure_connected to return a mock client for expire() call
+    mock_client = AsyncMock()
+    mock_client.expire = AsyncMock()
+    redis._ensure_connected = lambda: mock_client
 
     await system_routes.record_stage_latency(redis, "watch", 10.5)  # type: ignore[arg-type]
 
-    redis.add_to_queue.assert_called_once_with("telemetry:latency:watch", 10.5)
+    # Should add to queue with max_size=MAX_LATENCY_SAMPLES (1000)
+    redis.add_to_queue.assert_called_once_with("telemetry:latency:watch", 10.5, max_size=1000)
+    # Should set TTL on the key
+    mock_client.expire.assert_called_once_with(
+        "telemetry:latency:watch", system_routes.LATENCY_TTL_SECONDS
+    )
 
 
 @pytest.mark.asyncio

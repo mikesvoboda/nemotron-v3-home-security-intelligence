@@ -1090,10 +1090,12 @@ async def record_stage_latency(
 
     key = f"{LATENCY_KEY_PREFIX}{stage}"
     try:
-        # Add to list (newest first)
-        await redis.add_to_queue(key, latency_ms)
-        # Note: Trimming and TTL would be handled by Redis commands
-        # For simplicity, we just add to the queue
+        # Add to list (oldest at index 0, newest at end via RPUSH)
+        # Trimming is handled by add_to_queue's max_size parameter
+        await redis.add_to_queue(key, latency_ms, max_size=MAX_LATENCY_SAMPLES)
+        # Set TTL to ensure stale data expires even if no new samples arrive
+        client = redis._ensure_connected()
+        await client.expire(key, LATENCY_TTL_SECONDS)
     except Exception as e:
         logger.warning(f"Failed to record latency for stage {stage}: {e}")
 

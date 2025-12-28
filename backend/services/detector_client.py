@@ -12,11 +12,16 @@ Detection Flow:
     6. Return Detection model instances
 
 Error Handling:
-    - Connection errors: Log and return empty list
-    - Timeouts: Log and return empty list
-    - HTTP errors: Log and return empty list
-    - Invalid JSON: Log and return empty list
-    - Missing files: Log and return empty list
+    - Connection errors: Raise DetectorServiceError (allows retry)
+    - Timeouts: Raise DetectorServiceError (allows retry)
+    - HTTP 5xx errors: Raise DetectorServiceError (allows retry)
+    - HTTP 4xx errors: Log and return empty list (client error, no retry)
+    - Invalid JSON: Log and return empty list (malformed response)
+    - Missing files: Log and return empty list (permanent error)
+
+The distinction between DetectorServiceError and empty list is critical:
+    - DetectorServiceError: Transient failure, should be retried
+    - Empty list: Successful detection with no objects found OR permanent error
 """
 
 import time
@@ -36,6 +41,31 @@ from backend.core.metrics import (
 from backend.models.detection import Detection
 
 logger = get_logger(__name__)
+
+
+class DetectorServiceError(Exception):
+    """Exception raised when RT-DETR service is unavailable or returns a server error.
+
+    This exception indicates a transient failure that should trigger a retry.
+    It is raised when:
+    - Cannot connect to the detector service
+    - Request times out
+    - Detector returns HTTP 5xx error
+
+    Callers should catch this exception and either:
+    - Retry the request with exponential backoff
+    - Move the job to a dead-letter queue after max retries
+    """
+
+    def __init__(self, message: str, cause: Exception | None = None) -> None:
+        """Initialize the exception.
+
+        Args:
+            message: Description of the error
+            cause: Original exception that caused this error
+        """
+        super().__init__(message)
+        self.cause = cause
 
 
 class DetectorClient:
@@ -73,7 +103,7 @@ class DetectorClient:
             logger.error(f"Unexpected error during detector health check: {sanitize_error(e)}")
             return False
 
-    async def detect_objects(  # noqa: PLR0911, PLR0912
+    async def detect_objects(  # noqa: PLR0912
         self,
         image_path: str,
         camera_id: str,
@@ -237,7 +267,11 @@ class DetectorClient:
                 f"Failed to connect to detector service: {e}",
                 extra={"camera_id": camera_id, "file_path": image_path, "duration_ms": duration_ms},
             )
-            return []
+            # Raise exception to signal retry-able failure
+            raise DetectorServiceError(
+                f"Cannot connect to RT-DETR service at {self._detector_url}: {e}",
+                cause=e,
+            ) from e
 
         except httpx.TimeoutException as e:
             duration_ms = int((time.time() - start_time) * 1000)
@@ -246,7 +280,11 @@ class DetectorClient:
                 f"Detector request timed out: {e}",
                 extra={"camera_id": camera_id, "file_path": image_path, "duration_ms": duration_ms},
             )
-            return []
+            # Raise exception to signal retry-able failure
+            raise DetectorServiceError(
+                f"RT-DETR request timed out after {self._timeout}s: {e}",
+                cause=e,
+            ) from e
 
         except httpx.HTTPStatusError as e:
             duration_ms = int((time.time() - start_time) * 1000)
@@ -255,6 +293,13 @@ class DetectorClient:
                 f"Detector returned HTTP error: {e.response.status_code} - {e}",
                 extra={"camera_id": camera_id, "file_path": image_path, "duration_ms": duration_ms},
             )
+            # Server errors (5xx) are retry-able, client errors (4xx) are not
+            if e.response.status_code >= 500:
+                raise DetectorServiceError(
+                    f"RT-DETR service returned HTTP {e.response.status_code}: {e}",
+                    cause=e,
+                ) from e
+            # 4xx errors are client errors - return empty list (no retry)
             return []
 
         except Exception as e:
@@ -264,4 +309,8 @@ class DetectorClient:
                 f"Unexpected error during object detection: {sanitize_error(e)}",
                 extra={"camera_id": camera_id, "duration_ms": duration_ms},
             )
-            return []
+            # For unexpected errors, treat as transient and allow retry
+            raise DetectorServiceError(
+                f"Unexpected error during object detection: {sanitize_error(e)}",
+                cause=e,
+            ) from e
