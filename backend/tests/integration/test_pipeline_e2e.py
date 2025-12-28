@@ -120,7 +120,38 @@ async def mock_redis() -> MockRedisClient:
 
 
 @pytest.fixture
-async def test_camera(integration_db: str) -> Camera:
+async def clean_pipeline(integration_db):
+    """Truncate all tables before test runs for proper isolation.
+
+    These tests use hardcoded camera IDs, so they need clean state.
+    """
+    from sqlalchemy import text
+
+    from backend.core.database import get_engine
+
+    async with get_engine().begin() as conn:
+        await conn.execute(
+            text(
+                "TRUNCATE TABLE logs, gpu_stats, api_keys, detections, events, cameras RESTART IDENTITY CASCADE"
+            )
+        )
+
+    yield
+
+    # Cleanup after test too (best effort)
+    try:
+        async with get_engine().begin() as conn:
+            await conn.execute(
+                text(
+                    "TRUNCATE TABLE logs, gpu_stats, api_keys, detections, events, cameras RESTART IDENTITY CASCADE"
+                )
+            )
+    except Exception:  # noqa: S110 - ignore cleanup errors
+        pass
+
+
+@pytest.fixture
+async def test_camera(integration_db: str, clean_pipeline) -> Camera:
     """Create a test camera in the database."""
     async with get_session() as session:
         camera = Camera(
