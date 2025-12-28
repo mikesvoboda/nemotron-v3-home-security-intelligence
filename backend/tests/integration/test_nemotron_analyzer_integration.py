@@ -284,7 +284,7 @@ class TestAnalyzeBatchErrorHandling:
         assert event.risk_score == 50  # Default fallback
         assert event.risk_level == "medium"  # Default fallback
         assert "LLM service error" in event.summary
-        assert "LLM service unavailable" in event.reasoning
+        assert "Failed to analyze detections due to service error" in event.reasoning
 
         # Verify event persisted
         async with get_session() as db:
