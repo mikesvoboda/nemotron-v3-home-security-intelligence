@@ -56,12 +56,24 @@ def get_session_factory() -> async_sessionmaker[AsyncSession]:
     return _async_session_factory
 
 
+def _is_postgresql(url: str) -> bool:
+    """Check if the database URL is for PostgreSQL."""
+    return "postgresql" in url or "postgres" in url
+
+
+def _is_sqlite(url: str) -> bool:
+    """Check if the database URL is for SQLite."""
+    return "sqlite" in url
+
+
 async def init_db() -> None:
     """Initialize the database engine and create all tables.
 
     This function should be called once during application startup.
     It creates the async engine with PostgreSQL connection pooling,
     and creates all tables defined in the Base metadata.
+
+    Supports both SQLite (development) and PostgreSQL (production).
     """
     global _engine, _async_session_factory  # noqa: PLW0603
 

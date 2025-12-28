@@ -9,6 +9,28 @@ This project is an AI-powered home security monitoring dashboard.
 - **AI:** RT-DETRv2 (object detection) + Nemotron via llama.cpp (risk reasoning)
 - **GPU:** NVIDIA RTX A5500 (24GB)
 - **Cameras:** Foscam FTP uploads to `/export/foscam/{camera_name}/`
+- **Containers:** Podman (not Docker)
+
+## Local Development Environment
+
+This project uses **Podman** for container management (not Docker):
+
+```bash
+# Start containers
+podman-compose -f docker-compose.prod.yml up -d
+
+# View logs
+podman-compose -f docker-compose.prod.yml logs -f
+
+# Stop containers
+podman-compose -f docker-compose.prod.yml down
+```
+
+For macOS with Podman, set the AI host:
+
+```bash
+export AI_HOST=host.containers.internal
+```
 
 ## Issue Tracking
 

@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     )
 
     # Database configuration
+    # SQLite (dev): sqlite+aiosqlite:///./data/security.db
+    # PostgreSQL (prod): postgresql+asyncpg://user:pass@host:5432/dbname
     database_url: str = Field(
         default="postgresql+asyncpg://postgres:postgres@localhost:5432/security",
         description="PostgreSQL database URL (format: postgresql+asyncpg://user:pass@host:port/db)",
