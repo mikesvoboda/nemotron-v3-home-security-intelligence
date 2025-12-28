@@ -4,6 +4,8 @@ This service manages WebSocket connections and broadcasts security events
 to all connected clients using Redis pub/sub as the event backbone.
 """
 
+from __future__ import annotations
+
 import asyncio
 import contextlib
 import json
