@@ -153,6 +153,7 @@ class ConfigResponse(BaseModel):
         ...,
         description="Number of days to retain events and detections",
         ge=1,
+        le=365,
     )
     batch_window_seconds: int = Field(
         ...,
@@ -195,6 +196,7 @@ class ConfigUpdateRequest(BaseModel):
         None,
         description="Number of days to retain events and detections",
         ge=1,
+        le=365,
     )
     batch_window_seconds: int | None = Field(
         None,
@@ -620,6 +622,7 @@ class CleanupResponse(BaseModel):
         ...,
         description="Retention period used for cleanup",
         ge=1,
+        le=365,
     )
     timestamp: datetime = Field(
         ...,

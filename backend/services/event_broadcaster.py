@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 from fastapi import WebSocket
 
+from backend.core.config import get_settings
 from backend.core.redis import RedisClient
 
 if TYPE_CHECKING:
@@ -27,19 +28,31 @@ class EventBroadcaster:
     connections, allowing multiple backend instances to share event notifications.
     """
 
-    CHANNEL_NAME = "security_events"
+    # Kept for backward compatibility - fetches from settings dynamically
+    @classmethod
+    @property
+    def CHANNEL_NAME(cls) -> str:
+        """Get the Redis channel name from settings."""
+        return get_settings().redis_event_channel
 
-    def __init__(self, redis_client: RedisClient):
+    def __init__(self, redis_client: RedisClient, channel_name: str | None = None):
         """Initialize the event broadcaster.
 
         Args:
             redis_client: Connected Redis client instance
+            channel_name: Optional channel name override. Defaults to settings.redis_event_channel.
         """
         self._redis = redis_client
+        self._channel_name = channel_name or get_settings().redis_event_channel
         self._connections: set[WebSocket] = set()
         self._pubsub: PubSub | None = None
         self._listener_task: asyncio.Task[None] | None = None
         self._is_listening = False
+
+    @property
+    def channel_name(self) -> str:
+        """Get the Redis channel name for this broadcaster instance."""
+        return self._channel_name
 
     async def start(self) -> None:
         """Start listening for events from Redis pub/sub."""
@@ -48,10 +61,10 @@ class EventBroadcaster:
             return
 
         try:
-            self._pubsub = await self._redis.subscribe(self.CHANNEL_NAME)
+            self._pubsub = await self._redis.subscribe(self._channel_name)
             self._is_listening = True
             self._listener_task = asyncio.create_task(self._listen_for_events())
-            logger.info(f"Event broadcaster started, listening on channel: {self.CHANNEL_NAME}")
+            logger.info(f"Event broadcaster started, listening on channel: {self._channel_name}")
         except Exception as e:
             logger.error(f"Failed to start event broadcaster: {e}")
             raise
@@ -67,7 +80,7 @@ class EventBroadcaster:
             self._listener_task = None
 
         if self._pubsub:
-            await self._redis.unsubscribe(self.CHANNEL_NAME)
+            await self._redis.unsubscribe(self._channel_name)
             self._pubsub = None
 
         # Disconnect all active WebSocket connections

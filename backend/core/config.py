@@ -4,7 +4,7 @@ import os
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field, field_validator
+from pydantic import AnyHttpUrl, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     redis_url: str = Field(
         default="redis://localhost:6379/0",
         description="Redis connection URL",
+    )
+    redis_event_channel: str = Field(
+        default="security_events",
+        description="Redis pub/sub channel for security events",
     )
 
     # Application settings
@@ -68,11 +72,11 @@ class Settings(BaseSettings):
     )
 
     # AI service endpoints
-    rtdetr_url: str = Field(
+    rtdetr_url: AnyHttpUrl = Field(
         default="http://localhost:8090",
         description="RT-DETRv2 detection service URL",
     )
-    nemotron_url: str = Field(
+    nemotron_url: AnyHttpUrl = Field(
         default="http://localhost:8091",
         description="Nemotron reasoning service URL (llama.cpp server)",
     )

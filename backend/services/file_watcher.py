@@ -25,6 +25,15 @@ from PIL import Image
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
 
+# NOTE: We use watchdog's default Observer (not PollingObserver) for efficiency.
+# Observer auto-selects the best native backend for each platform:
+#   - Linux: inotify (kernel-level filesystem notifications)
+#   - macOS: FSEvents (native filesystem event API)
+#   - Windows: ReadDirectoryChangesW (native API)
+# This provides near-instant event detection without CPU-intensive polling.
+# Only use PollingObserver if monitoring network filesystems (NFS/SMB) where
+# inotify events may not propagate.
+
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
 from backend.services.dedupe import DedupeService

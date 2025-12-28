@@ -32,19 +32,17 @@ class DLQName(str, Enum):
     DETECTION = "dlq:detection_queue"
     ANALYSIS = "dlq:analysis_queue"
 
+    @property
+    def target_queue(self) -> str:
+        """Get the target queue name for requeuing from this DLQ.
 
-def _get_target_queue(dlq_name: DLQName) -> str:
-    """Get the target queue name for requeuing from a DLQ.
-
-    Args:
-        dlq_name: DLQ name enum
-
-    Returns:
-        Target queue name
-    """
-    if dlq_name == DLQName.DETECTION:
-        return "detection_queue"
-    return "analysis_queue"
+        Returns:
+            Target queue name
+        """
+        return {
+            DLQName.DETECTION: "detection_queue",
+            DLQName.ANALYSIS: "analysis_queue",
+        }[self]
 
 
 @router.get("/stats", response_model=DLQStatsResponse)
@@ -129,7 +127,7 @@ async def requeue_dlq_job(
         DLQRequeueResponse with operation result
     """
     handler = get_retry_handler(redis)
-    target_queue = _get_target_queue(queue_name)
+    target_queue = queue_name.target_queue
 
     # Move job from DLQ to target queue
     success = await handler.move_dlq_job_to_queue(queue_name.value, target_queue)
@@ -178,7 +176,7 @@ async def requeue_all_dlq_jobs(
         DLQRequeueResponse with operation result and count
     """
     handler = get_retry_handler(redis)
-    target_queue = _get_target_queue(queue_name)
+    target_queue = queue_name.target_queue
 
     # Check queue size before starting - return early if empty
     queue_length = await redis.get_queue_length(queue_name.value)

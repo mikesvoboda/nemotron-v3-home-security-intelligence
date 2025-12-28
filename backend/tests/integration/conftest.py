@@ -46,6 +46,9 @@ def integration_env() -> Generator[str]:
         runtime_env_path = str(Path(tmpdir) / "runtime.env")
 
         os.environ["DATABASE_URL"] = test_db_url
+        # Use Redis database 15 for test isolation. This keeps test data separate
+        # from development (database 0). FLUSHDB in pre-commit hooks only affects DB 15.
+        # See backend/tests/AGENTS.md for full documentation on test database isolation.
         os.environ["REDIS_URL"] = "redis://localhost:6379/15"
         os.environ["HSI_RUNTIME_ENV_PATH"] = runtime_env_path
 
