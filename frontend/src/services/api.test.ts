@@ -2,6 +2,9 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 import {
   ApiError,
+  buildWebSocketUrl,
+  buildWebSocketUrlInternal,
+  getApiKey,
   fetchCameras,
   fetchCamera,
   createCamera,
@@ -185,6 +188,148 @@ function createMockErrorResponse(status: number, statusText: string, detail?: st
     headers: new Headers({ 'Content-Type': 'application/json' }),
   } as Response;
 }
+
+describe('buildWebSocketUrlInternal', () => {
+  describe('without VITE_WS_BASE_URL', () => {
+    it('builds WS URL from window.location.host when wsBaseUrl not set', () => {
+      const url = buildWebSocketUrlInternal('/ws/events', undefined, undefined, {
+        protocol: 'http:',
+        host: 'localhost:5173',
+      });
+      expect(url).toBe('ws://localhost:5173/ws/events');
+    });
+
+    it('uses ws: protocol for http: pages', () => {
+      const url = buildWebSocketUrlInternal('/ws/system', undefined, undefined, {
+        protocol: 'http:',
+        host: 'example.com',
+      });
+      expect(url).toBe('ws://example.com/ws/system');
+    });
+
+    it('uses wss: protocol for https: pages', () => {
+      const url = buildWebSocketUrlInternal('/ws/events', undefined, undefined, {
+        protocol: 'https:',
+        host: 'secure.example.com',
+      });
+      expect(url).toBe('wss://secure.example.com/ws/events');
+    });
+
+    it('falls back to localhost:8000 when no window location', () => {
+      const url = buildWebSocketUrlInternal('/ws/events', undefined, undefined, undefined);
+      expect(url).toBe('ws://localhost:8000/ws/events');
+    });
+  });
+
+  describe('with VITE_WS_BASE_URL', () => {
+    it('uses configured WS base URL', () => {
+      const url = buildWebSocketUrlInternal(
+        '/ws/events',
+        'ws://backend:8000',
+        undefined,
+        { protocol: 'http:', host: 'localhost:5173' }
+      );
+      expect(url).toBe('ws://backend:8000/ws/events');
+    });
+
+    it('strips trailing slash from WS base URL', () => {
+      const url = buildWebSocketUrlInternal(
+        '/ws/events',
+        'wss://api.example.com/',
+        undefined,
+        { protocol: 'http:', host: 'localhost:5173' }
+      );
+      expect(url).toBe('wss://api.example.com/ws/events');
+    });
+
+    it('ignores window.location when WS base URL is set', () => {
+      const url = buildWebSocketUrlInternal(
+        '/ws/system',
+        'wss://production.api.com',
+        undefined,
+        { protocol: 'http:', host: 'localhost:3000' }
+      );
+      expect(url).toBe('wss://production.api.com/ws/system');
+    });
+  });
+
+  describe('with API key', () => {
+    it('appends api_key query parameter when apiKey is set', () => {
+      const url = buildWebSocketUrlInternal('/ws/events', undefined, 'secret-key-123', {
+        protocol: 'http:',
+        host: 'localhost:5173',
+      });
+      expect(url).toBe('ws://localhost:5173/ws/events?api_key=secret-key-123');
+    });
+
+    it('appends api_key to URL with existing query params using &', () => {
+      const url = buildWebSocketUrlInternal(
+        '/ws/events?filter=active',
+        undefined,
+        'my-api-key',
+        { protocol: 'http:', host: 'localhost:5173' }
+      );
+      expect(url).toBe('ws://localhost:5173/ws/events?filter=active&api_key=my-api-key');
+    });
+
+    it('URL-encodes special characters in API key', () => {
+      const url = buildWebSocketUrlInternal('/ws/events', undefined, 'key with spaces&special=chars', {
+        protocol: 'http:',
+        host: 'localhost:5173',
+      });
+      expect(url).toContain('api_key=key%20with%20spaces%26special%3Dchars');
+    });
+
+    it('works with both WS base URL and API key', () => {
+      const url = buildWebSocketUrlInternal(
+        '/ws/events',
+        'wss://api.example.com',
+        'secure-token',
+        { protocol: 'http:', host: 'localhost:5173' }
+      );
+      expect(url).toBe('wss://api.example.com/ws/events?api_key=secure-token');
+    });
+
+    it('does not append api_key when apiKey is undefined', () => {
+      const url = buildWebSocketUrlInternal('/ws/events', undefined, undefined, {
+        protocol: 'http:',
+        host: 'localhost:5173',
+      });
+      expect(url).not.toContain('api_key');
+    });
+
+    it('does not append api_key when apiKey is empty string', () => {
+      const url = buildWebSocketUrlInternal('/ws/events', undefined, '', {
+        protocol: 'http:',
+        host: 'localhost:5173',
+      });
+      expect(url).not.toContain('api_key');
+    });
+  });
+});
+
+describe('buildWebSocketUrl', () => {
+  it('builds WS URL using window.location in browser environment', () => {
+    // In jsdom test environment, this should use window.location
+    const url = buildWebSocketUrl('/ws/events');
+    expect(url).toContain('/ws/events');
+    expect(url).toMatch(/^wss?:\/\//);
+  });
+
+  it('returns URL with correct structure', () => {
+    const url = buildWebSocketUrl('/ws/system');
+    // Should have protocol, host, and endpoint
+    expect(url).toMatch(/^wss?:\/\/[^/]+\/ws\/system$/);
+  });
+});
+
+describe('getApiKey', () => {
+  it('returns undefined when VITE_API_KEY is not set', () => {
+    // In test environment, VITE_API_KEY is not set by default
+    const apiKey = getApiKey();
+    expect(apiKey).toBeUndefined();
+  });
+});
 
 describe('ApiError', () => {
   it('creates an error with status and message', () => {

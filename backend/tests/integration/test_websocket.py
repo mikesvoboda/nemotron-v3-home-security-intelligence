@@ -87,6 +87,21 @@ def sync_client(integration_env):
     mock_cleanup_service.start = AsyncMock()
     mock_cleanup_service.stop = AsyncMock()
 
+    # Mock FileWatcher to prevent real filesystem watching
+    mock_file_watcher = MagicMock()
+    mock_file_watcher.start = AsyncMock()
+    mock_file_watcher.stop = AsyncMock()
+
+    # Mock PipelineWorkerManager to prevent real background workers
+    mock_pipeline_manager = MagicMock()
+    mock_pipeline_manager.start = AsyncMock()
+    mock_pipeline_manager.stop = AsyncMock()
+
+    # Mock EventBroadcaster
+    mock_event_broadcaster = MagicMock()
+    mock_event_broadcaster.start = AsyncMock()
+    mock_event_broadcaster.stop = AsyncMock()
+
     # Patch Redis and background services - use custom init_db that handles prior state
     with (
         patch("backend.core.redis._redis_client", mock_redis_client),
@@ -98,6 +113,11 @@ def sync_client(integration_env):
         patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
         patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor),
         patch("backend.main.CleanupService", return_value=mock_cleanup_service),
+        patch("backend.main.FileWatcher", return_value=mock_file_watcher),
+        patch("backend.main.get_pipeline_manager", AsyncMock(return_value=mock_pipeline_manager)),
+        patch("backend.main.stop_pipeline_manager", AsyncMock()),
+        patch("backend.main.get_broadcaster", AsyncMock(return_value=mock_event_broadcaster)),
+        patch("backend.main.stop_broadcaster", AsyncMock()),
         TestClient(app) as client,
     ):
         yield client
@@ -590,6 +610,21 @@ def sync_client_with_auth_enabled(integration_env, test_api_key):
     mock_cleanup_service.start = AsyncMock()
     mock_cleanup_service.stop = AsyncMock()
 
+    # Mock FileWatcher to prevent real filesystem watching
+    mock_file_watcher = MagicMock()
+    mock_file_watcher.start = AsyncMock()
+    mock_file_watcher.stop = AsyncMock()
+
+    # Mock PipelineWorkerManager to prevent real background workers
+    mock_pipeline_manager = MagicMock()
+    mock_pipeline_manager.start = AsyncMock()
+    mock_pipeline_manager.stop = AsyncMock()
+
+    # Mock EventBroadcaster
+    mock_event_broadcaster = MagicMock()
+    mock_event_broadcaster.start = AsyncMock()
+    mock_event_broadcaster.stop = AsyncMock()
+
     # Patch Redis and background services - use custom init_db that handles prior state
     with (
         patch("backend.core.redis._redis_client", mock_redis_client),
@@ -601,6 +636,11 @@ def sync_client_with_auth_enabled(integration_env, test_api_key):
         patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
         patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor),
         patch("backend.main.CleanupService", return_value=mock_cleanup_service),
+        patch("backend.main.FileWatcher", return_value=mock_file_watcher),
+        patch("backend.main.get_pipeline_manager", AsyncMock(return_value=mock_pipeline_manager)),
+        patch("backend.main.stop_pipeline_manager", AsyncMock()),
+        patch("backend.main.get_broadcaster", AsyncMock(return_value=mock_event_broadcaster)),
+        patch("backend.main.stop_broadcaster", AsyncMock()),
         TestClient(app) as client,
     ):
         yield client
@@ -1152,3 +1192,157 @@ class TestChannelDocumentation:
         assert "security_events" in content
         # Message format should be documented
         assert '"type": "event"' in content or "type.*event" in content
+
+
+class TestWebSocketEventMessageContract:
+    """Contract tests to ensure WebSocket message schema stays in sync.
+
+    These tests validate that:
+    1. NemotronAnalyzer._broadcast_event() produces messages matching the schema
+    2. The schema in websocket.py matches the documented format
+    3. Any drift between documentation and implementation is detected
+    """
+
+    @pytest.mark.asyncio
+    async def test_broadcast_event_matches_schema(self):
+        """Verify NemotronAnalyzer._broadcast_event produces messages matching WebSocketEventMessage schema.
+
+        This is the critical contract test - if _broadcast_event() changes its output format,
+        this test will fail, alerting developers to update the schema.
+        """
+        from datetime import datetime
+        from unittest.mock import AsyncMock, MagicMock
+
+        from pydantic import ValidationError
+
+        from backend.api.schemas.websocket import WebSocketEventMessage
+        from backend.models.event import Event
+        from backend.services.nemotron_analyzer import NemotronAnalyzer
+
+        # Create mock Redis that captures the published message
+        published_message = None
+
+        async def capture_publish(channel, message):
+            nonlocal published_message
+            published_message = message
+            return 1
+
+        mock_redis = MagicMock()
+        mock_redis.publish = AsyncMock(side_effect=capture_publish)
+
+        # Create analyzer and test event
+        analyzer = NemotronAnalyzer(mock_redis)
+        test_event = Event(
+            id=42,
+            batch_id="contract_test_batch",
+            camera_id="contract_test_camera",
+            started_at=datetime(2025, 12, 23, 14, 30, 0),
+            risk_score=75,
+            risk_level="high",
+            summary="Contract test event",
+        )
+
+        # Broadcast the event
+        await analyzer._broadcast_event(test_event)
+
+        # Verify a message was published
+        assert published_message is not None, "No message was published"
+
+        # Validate the message matches the schema
+        # This will raise ValidationError if the message doesn't match
+        try:
+            validated_message = WebSocketEventMessage.model_validate(published_message)
+        except ValidationError as e:
+            pytest.fail(
+                f"Broadcast message does not match WebSocketEventMessage schema: {e}\n"
+                f"Actual message: {published_message}"
+            )
+
+        # Verify specific field values
+        assert validated_message.type == "event"
+        assert validated_message.data.id == 42
+        assert validated_message.data.event_id == 42  # Legacy field
+        assert validated_message.data.batch_id == "contract_test_batch"
+        assert validated_message.data.camera_id == "contract_test_camera"
+        assert validated_message.data.risk_score == 75
+        assert validated_message.data.risk_level == "high"
+        assert validated_message.data.summary == "Contract test event"
+        assert validated_message.data.started_at == "2025-12-23T14:30:00"
+
+    def test_schema_fields_match_documentation(self):
+        """Verify WebSocketEventData schema fields match the documented fields.
+
+        This test ensures the Pydantic schema stays in sync with what we document.
+        If fields are added/removed from the schema, this test helps catch drift.
+        """
+        from backend.api.schemas.websocket import WebSocketEventData
+
+        # Expected fields based on documentation in websocket.py docstring
+        expected_fields = {
+            "id",
+            "event_id",
+            "batch_id",
+            "camera_id",
+            "risk_score",
+            "risk_level",
+            "summary",
+            "started_at",
+        }
+
+        actual_fields = set(WebSocketEventData.model_fields.keys())
+
+        # Check for missing fields
+        missing = expected_fields - actual_fields
+        assert not missing, f"Schema is missing documented fields: {missing}"
+
+        # Check for undocumented fields
+        extra = actual_fields - expected_fields
+        assert not extra, f"Schema has undocumented fields: {extra}"
+
+    def test_schema_example_is_valid(self):
+        """Verify the schema example in WebSocketEventMessage is self-consistent."""
+        from backend.api.schemas.websocket import WebSocketEventMessage
+
+        # Get the example from the schema
+        example = WebSocketEventMessage.model_config.get("json_schema_extra", {}).get("example", {})
+
+        # The example should validate against the schema
+        validated = WebSocketEventMessage.model_validate(example)
+        assert validated.type == "event"
+        assert validated.data.id == 1
+
+    @pytest.mark.asyncio
+    async def test_broadcast_event_with_none_started_at(self):
+        """Verify broadcast handles events where started_at is None."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        from backend.api.schemas.websocket import WebSocketEventMessage
+        from backend.models.event import Event
+        from backend.services.nemotron_analyzer import NemotronAnalyzer
+
+        published_message = None
+
+        async def capture_publish(channel, message):
+            nonlocal published_message
+            published_message = message
+            return 1
+
+        mock_redis = MagicMock()
+        mock_redis.publish = AsyncMock(side_effect=capture_publish)
+
+        analyzer = NemotronAnalyzer(mock_redis)
+        test_event = Event(
+            id=99,
+            batch_id="none_started_at_batch",
+            camera_id="test_camera",
+            started_at=None,  # Explicitly None
+            risk_score=50,
+            risk_level="medium",
+            summary="Event without started_at",
+        )
+
+        await analyzer._broadcast_event(test_event)
+
+        # Should still validate - started_at is optional in schema
+        validated = WebSocketEventMessage.model_validate(published_message)
+        assert validated.data.started_at is None

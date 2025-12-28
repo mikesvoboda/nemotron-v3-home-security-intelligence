@@ -274,14 +274,18 @@ async def test_complete_pipeline_flow_with_mocked_services(
         mock_client.post = AsyncMock(return_value=mock_response)
         mock_http_client.return_value.__aenter__.return_value = mock_client
 
-        # Manually set batch metadata for analyzer (since it reads from Redis)
-        await mock_redis_client.set(f"batch:{batch_id}:camera_id", camera_id)
+        # Get the detection_ids for analysis
         detection_ids = [str(d.id) for d in detections]
-        await mock_redis_client.set(f"batch:{batch_id}:detections", json.dumps(detection_ids))
 
-        # Run analyzer
+        # Run analyzer - pass camera_id and detection_ids directly (as queue worker does)
+        # This tests the fixed handoff where close_batch deletes Redis keys but
+        # the queue payload contains all needed data
         analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
-        event = await analyzer.analyze_batch(batch_id)
+        event = await analyzer.analyze_batch(
+            batch_id=batch_id,
+            camera_id=camera_id,
+            detection_ids=detection_ids,
+        )
 
     # Step 6: Verify event was created
     assert event is not None
@@ -571,9 +575,8 @@ async def test_pipeline_handles_nemotron_failure_gracefully(
         _file_path=test_image_path,
     )
 
-    # Set up batch metadata for analyzer
-    await mock_redis_client.set(f"batch:{batch_id}:camera_id", camera_id)
-    await mock_redis_client.set(f"batch:{batch_id}:detections", json.dumps([str(detection.id)]))
+    # Get detection_ids for analysis
+    detection_ids = [str(detection.id)]
 
     # Mock Nemotron to fail
     with patch("httpx.AsyncClient") as mock_http_client:
@@ -581,9 +584,13 @@ async def test_pipeline_handles_nemotron_failure_gracefully(
         mock_client.post.side_effect = Exception("LLM service unavailable")
         mock_http_client.return_value.__aenter__.return_value = mock_client
 
-        # Run analyzer (should not crash)
+        # Run analyzer (should not crash) - pass camera_id and detection_ids directly
         analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
-        event = await analyzer.analyze_batch(batch_id)
+        event = await analyzer.analyze_batch(
+            batch_id=batch_id,
+            camera_id=camera_id,
+            detection_ids=detection_ids,
+        )
 
     # Event should be created with fallback values
     assert event is not None

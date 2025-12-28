@@ -83,9 +83,10 @@ services:
       dockerfile: Dockerfile.prod
     ports:
       - "80:80"
-    environment:
-      - VITE_API_BASE_URL=http://localhost:8000
-      - VITE_WS_BASE_URL=ws://localhost:8000
+    # NOTE: VITE_* environment variables are NOT used at runtime.
+    # Vite bakes these values at build time. The frontend uses relative URLs
+    # (empty BASE_URL), and nginx proxies /api and /ws to the backend.
+    # See frontend/nginx.conf for proxy configuration.
     depends_on:
       backend:
         condition: service_healthy

@@ -573,7 +573,12 @@ async def test_analysis_worker_processes_batch(mock_redis_client, mock_analyzer)
     await worker.stop()
 
     assert worker.stats.items_processed == 1
-    mock_analyzer.analyze_batch.assert_called_once_with("batch_123")
+    # Worker now passes camera_id and detection_ids from queue payload
+    mock_analyzer.analyze_batch.assert_called_once_with(
+        batch_id="batch_123",
+        camera_id="front_door",
+        detection_ids=[1, 2, 3],
+    )
 
 
 @pytest.mark.asyncio
