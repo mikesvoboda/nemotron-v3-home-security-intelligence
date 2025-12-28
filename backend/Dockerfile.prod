@@ -1,31 +1,29 @@
-# Multi-stage production build for backend
-# Use specific Python version with Debian Bookworm base for latest security patches
-FROM python:3.14-slim-bookworm AS builder
+# Multi-stage production build using Alpine for smaller image and fewer CVEs
+FROM python:3.12-alpine AS builder
 
 WORKDIR /app
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install build dependencies for Python packages with C extensions
+RUN apk add --no-cache \
     gcc \
-    && rm -rf /var/lib/apt/lists/*
+    musl-dev \
+    libffi-dev
 
-# Install Python dependencies
+# Install Python dependencies to user directory
 COPY requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt
 
 
-# Production stage
-FROM python:3.14-slim-bookworm
+# Production stage - minimal runtime image
+FROM python:3.12-alpine
 
 WORKDIR /app
 
-# Install runtime dependencies for healthcheck
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    wget \
-    && rm -rf /var/lib/apt/lists/*
+# Install only runtime dependencies (wget for healthcheck)
+RUN apk add --no-cache wget
 
 # Create non-root user for security
-RUN useradd -m -u 1000 appuser
+RUN adduser -D -u 1000 appuser
 
 # Copy Python dependencies from builder to user's home
 COPY --from=builder /root/.local /home/appuser/.local
