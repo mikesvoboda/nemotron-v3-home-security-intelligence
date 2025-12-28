@@ -10,6 +10,8 @@ Supported message types:
 - unsubscribe: Unsubscribe from event channels (future)
 """
 
+from __future__ import annotations
+
 from enum import Enum
 from typing import Any, Literal
 
