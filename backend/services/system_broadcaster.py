@@ -10,6 +10,8 @@ status updates to connected clients. It handles:
 - Processing queue status
 """
 
+from __future__ import annotations
+
 import asyncio
 import contextlib
 import logging
