@@ -1,12 +1,15 @@
-# Use specific Python version with Debian Bookworm base for latest security patches
-FROM python:3.14-slim-bookworm
+# Development Dockerfile using Alpine for smaller image and fewer CVEs
+FROM python:3.12-alpine
 
 WORKDIR /app
 
-# Install system dependencies for healthcheck
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    wget \
-    && rm -rf /var/lib/apt/lists/*
+# Install build dependencies for Python packages with C extensions
+# and runtime dependencies for healthcheck
+RUN apk add --no-cache \
+    gcc \
+    musl-dev \
+    libffi-dev \
+    wget
 
 # Install Python dependencies
 COPY requirements.txt .
@@ -19,8 +22,8 @@ COPY . .
 RUN mkdir -p /app/data
 
 # Create non-root user
-RUN groupadd --gid 1000 appgroup && \
-    useradd --uid 1000 --gid appgroup --shell /bin/bash --create-home appuser
+RUN addgroup -g 1000 appgroup && \
+    adduser -D -u 1000 -G appgroup appuser
 
 # Change ownership of app directory to non-root user
 RUN chown -R appuser:appgroup /app
