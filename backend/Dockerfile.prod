@@ -9,9 +9,9 @@ RUN apk add --no-cache \
     musl-dev \
     libffi-dev
 
-# Install Python dependencies to user directory
-COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+# Install production dependencies only (no test/CI deps)
+COPY requirements-prod.txt .
+RUN pip install --no-cache-dir --user -r requirements-prod.txt
 
 
 # Production stage - minimal runtime image

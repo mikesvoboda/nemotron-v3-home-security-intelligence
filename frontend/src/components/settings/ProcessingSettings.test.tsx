@@ -309,6 +309,7 @@ describe('ProcessingSettings', () => {
       images_deleted: 0,
       space_reclaimed: 1024000,
       retention_days: 30,
+      dry_run: false,
       timestamp: '2025-12-27T10:30:00Z',
     });
 
@@ -371,6 +372,7 @@ describe('ProcessingSettings', () => {
       images_deleted: 0,
       space_reclaimed: 0,
       retention_days: 30,
+      dry_run: false,
       timestamp: '2025-12-27T10:30:00Z',
     });
 

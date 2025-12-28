@@ -180,7 +180,7 @@ describe('ObjectTypeBadge', () => {
 
     it('renders AlertTriangle icon for unknown types', () => {
       const { container } = render(<ObjectTypeBadge type="unknown" />);
-      const icon = container.querySelector('svg.lucide-alert-triangle');
+      const icon = container.querySelector('svg.lucide-triangle-alert');
       expect(icon).toBeInTheDocument();
     });
 
