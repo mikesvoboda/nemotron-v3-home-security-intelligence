@@ -108,6 +108,52 @@ Contains components for visualizing AI object detection results on images. Provi
 - Hover: stroke-width increases from 3 to 5
 - Transition: 0.2s ease
 
+### DetectionThumbnail.tsx
+
+**Purpose:** Displays detection images with server-rendered bounding boxes from the API
+
+**Key Features:**
+
+- Fetches detection images from `/api/detections/{id}/image` endpoint
+- Backend renders bounding boxes and confidence labels on the image
+- Shows loading skeleton while image loads
+- Handles error states with retry functionality
+- Size variants: sm (120x90), md (240x180), lg (320x240)
+- Supports click handlers with proper keyboard accessibility
+
+**Props:**
+
+- `detectionId: number` - Detection ID to fetch image for (required)
+- `alt: string` - Image alt text for accessibility (required)
+- `size?: DetectionThumbnailSize` - Size variant: 'sm' | 'md' | 'lg' (default: 'md')
+- `className?: string` - Additional CSS classes
+- `onClick?: () => void` - Click handler
+- `showLoading?: boolean` - Show loading placeholder (default: true)
+- `loadingPlaceholder?: ReactNode` - Custom loading component
+- `errorComponent?: ReactNode` - Custom error component
+
+**States:**
+
+- `loading` - Shows skeleton while image loads
+- `loaded` - Shows the image from API
+- `error` - Shows error display with retry button
+
+**Pattern:**
+
+```tsx
+<DetectionThumbnail
+  detectionId={123}
+  alt="Person detected at front door"
+  size="md"
+  onClick={() => openDetailModal(123)}
+/>
+```
+
+**When to Use:**
+
+- Use `DetectionThumbnail` when you want server-rendered bounding boxes (simpler, pre-rendered)
+- Use `DetectionImage` when you need client-side control over bounding box rendering
+
 ### Example.tsx
 
 **Purpose:** Example component demonstrating detection visualization usage
@@ -130,13 +176,16 @@ export type { BoundingBox, BoundingBoxOverlayProps } from './BoundingBoxOverlay'
 
 export { default as DetectionImage } from './DetectionImage';
 export type { DetectionImageProps } from './DetectionImage';
+
+export { default as DetectionThumbnail } from './DetectionThumbnail';
+export type { DetectionThumbnailProps, DetectionThumbnailSize } from './DetectionThumbnail';
 ```
 
 **Usage:**
 
 ```tsx
-import { DetectionImage, BoundingBoxOverlay } from '../detection';
-import type { BoundingBox } from '../detection';
+import { DetectionImage, DetectionThumbnail, BoundingBoxOverlay } from '../detection';
+import type { BoundingBox, DetectionThumbnailSize } from '../detection';
 ```
 
 ### README.md
@@ -222,11 +271,13 @@ Comprehensive test suites:
 
 - `DetectionImage.test.tsx` - Image loading, dimension capture, prop forwarding
 - `BoundingBoxOverlay.test.tsx` - SVG rendering, colors, labels, filtering, click handlers
+- `DetectionThumbnail.test.tsx` - API image loading, loading/error states, retry, accessibility
 
 ## Entry Points
 
-**Start here:** `DetectionImage.tsx` - Understand the wrapper pattern
-**Then explore:** `BoundingBoxOverlay.tsx` - Deep dive into SVG rendering
+**Start here:** `DetectionThumbnail.tsx` - Simple API-based image loading with server-rendered bboxes
+**Then explore:** `DetectionImage.tsx` - Client-side bounding box rendering wrapper
+**Deep dive:** `BoundingBoxOverlay.tsx` - Pure SVG rendering for bounding boxes
 **Reference:** `README.md` - Usage examples and integration guide
 
 ## Dependencies

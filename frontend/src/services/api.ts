@@ -62,6 +62,7 @@ import type {
   CameraListResponse as GeneratedCameraListResponse,
   Event,
   EventListResponse as GeneratedEventListResponse,
+  EventStatsResponse as GeneratedEventStatsResponse,
   DetectionListResponse as GeneratedDetectionListResponse,
   HealthResponse,
   GPUStats,
@@ -272,6 +273,17 @@ export async function deleteCamera(id: string): Promise<void> {
   });
 }
 
+/**
+ * Get the URL for a camera's latest snapshot.
+ * This URL can be used directly in an img src attribute.
+ *
+ * @param cameraId - The camera UUID
+ * @returns The full URL to the camera's snapshot endpoint
+ */
+export function getCameraSnapshotUrl(cameraId: string): string {
+  return `${BASE_URL}/api/cameras/${encodeURIComponent(cameraId)}/snapshot`;
+}
+
 // ============================================================================
 // System Endpoints
 // ============================================================================
@@ -331,6 +343,27 @@ export async function fetchEvents(params?: EventsQueryParams): Promise<Generated
 
 export async function fetchEvent(id: number): Promise<Event> {
   return fetchApi<Event>(`/api/events/${id}`);
+}
+
+export interface EventStatsQueryParams {
+  start_date?: string;
+  end_date?: string;
+}
+
+export async function fetchEventStats(
+  params?: EventStatsQueryParams
+): Promise<GeneratedEventStatsResponse> {
+  const queryParams = new URLSearchParams();
+
+  if (params) {
+    if (params.start_date) queryParams.append('start_date', params.start_date);
+    if (params.end_date) queryParams.append('end_date', params.end_date);
+  }
+
+  const queryString = queryParams.toString();
+  const endpoint = queryString ? `/api/events/stats?${queryString}` : '/api/events/stats';
+
+  return fetchApi<GeneratedEventStatsResponse>(endpoint);
 }
 
 export interface EventUpdateData {

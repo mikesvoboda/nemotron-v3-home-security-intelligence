@@ -1,3 +1,21 @@
+/**
+ * @deprecated This hook is NOT currently wired up on the backend.
+ *
+ * The backend's ServiceHealthMonitor (health_monitor.py) exists but is not
+ * initialized in main.py, so no `service_status` messages are ever broadcast
+ * to /ws/system. The SystemBroadcaster only emits `system_status` messages.
+ *
+ * For system health information, use `useSystemStatus` instead, which correctly
+ * handles the `system_status` messages from /ws/system. The system_status
+ * payload includes an overall health field ('healthy', 'degraded', 'unhealthy').
+ *
+ * If per-service status monitoring is needed in the future:
+ * 1. Wire ServiceHealthMonitor in backend/main.py
+ * 2. Have it broadcast to /ws/system (currently it would broadcast to event channel)
+ * 3. Then this hook can be un-deprecated
+ *
+ * See bead vq8.11 for context on this decision.
+ */
 import { useState, useCallback, useMemo } from 'react';
 
 import { useWebSocket } from './useWebSocket';
@@ -76,6 +94,10 @@ function createInitialServices(): Record<ServiceName, ServiceStatus | null> {
   };
 }
 
+/**
+ * @deprecated See file-level deprecation notice.
+ * Use `useSystemStatus` for system health information instead.
+ */
 export function useServiceStatus(): UseServiceStatusResult {
   const [services, setServices] = useState<Record<ServiceName, ServiceStatus | null>>(
     createInitialServices

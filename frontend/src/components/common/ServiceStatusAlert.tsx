@@ -1,3 +1,19 @@
+/**
+ * @deprecated This component is NOT currently used in the application.
+ *
+ * The useServiceStatus hook that would provide data for this component is not
+ * wired up on the backend. The backend's ServiceHealthMonitor exists but is not
+ * initialized in main.py, so no `service_status` messages are broadcast.
+ *
+ * For system health information, the application uses useSystemStatus which
+ * receives `system_status` messages with an overall health field.
+ *
+ * If per-service status alerts are needed in the future:
+ * 1. Wire ServiceHealthMonitor in backend/main.py
+ * 2. Use this component with data from a properly wired useServiceStatus hook
+ *
+ * See bead vq8.11 for context on this decision.
+ */
 import { clsx } from 'clsx';
 import { AlertTriangle, RefreshCw, X, XCircle } from 'lucide-react';
 
@@ -145,6 +161,8 @@ function buildMessage(affectedServices: ServiceStatus[]): string {
  * - Red/Error banner when any service is "unhealthy", "restart_failed", or "failed"
  * - Shows worst status when multiple services are unhealthy
  * - Animates in/out smoothly with Tailwind transitions
+ *
+ * @deprecated See file-level deprecation notice.
  */
 export function ServiceStatusAlert({ services, onDismiss }: ServiceStatusAlertProps): React.ReactNode {
   const result = getWorstStatus(services);

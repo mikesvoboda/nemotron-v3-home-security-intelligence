@@ -4,7 +4,16 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useServiceStatus, ServiceName, ServiceStatusType } from './useServiceStatus';
 import * as useWebSocketModule from './useWebSocket';
 
-describe('useServiceStatus', () => {
+/**
+ * Tests for useServiceStatus hook.
+ *
+ * NOTE: This hook is currently DEPRECATED because the backend's ServiceHealthMonitor
+ * is not wired into main.py, so no `service_status` messages are broadcast.
+ * These tests are retained for when/if the backend is wired up in the future.
+ *
+ * See bead vq8.11 for context.
+ */
+describe('useServiceStatus (DEPRECATED - backend not wired)', () => {
   const mockWebSocketReturn = {
     isConnected: true,
     lastMessage: null,

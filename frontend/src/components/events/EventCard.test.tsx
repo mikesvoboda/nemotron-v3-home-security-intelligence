@@ -59,6 +59,13 @@ describe('EventCard', () => {
       expect(heading.tagName).toBe('H3');
     });
 
+    it('camera name has truncation class and title attribute for tooltip', () => {
+      render(<EventCard {...mockProps} />);
+      const heading = screen.getByRole('heading', { name: 'Front Door' });
+      expect(heading).toHaveClass('truncate');
+      expect(heading).toHaveAttribute('title', 'Front Door');
+    });
+
     it('renders summary text', () => {
       render(<EventCard {...mockProps} />);
       const summary = screen.getByText('Person detected approaching the front entrance');
@@ -933,6 +940,19 @@ describe('EventCard', () => {
       expect(screen.getByText('Front Door Main Entrance Camera Position Alpha')).toBeInTheDocument();
     });
 
+    it('applies truncation and title tooltip to camera name', () => {
+      const longCameraNameEvent = {
+        ...mockProps,
+        camera_name: 'Front Door Main Entrance Camera Position Alpha',
+      };
+      render(<EventCard {...longCameraNameEvent} />);
+      const heading = screen.getByRole('heading', {
+        name: 'Front Door Main Entrance Camera Position Alpha',
+      });
+      expect(heading).toHaveClass('truncate');
+      expect(heading).toHaveAttribute('title', 'Front Door Main Entrance Camera Position Alpha');
+    });
+
     it('handles risk score at boundary (25)', () => {
       const boundaryEvent = { ...mockProps, risk_score: 25 };
       render(<EventCard {...boundaryEvent} />);
@@ -1171,6 +1191,182 @@ describe('EventCard', () => {
       const { container } = render(<EventCard {...minRiskEvent} />);
       const card = container.firstChild as HTMLElement;
       expect(card).toHaveClass('border-l-risk-low');
+    });
+  });
+
+  describe('card click behavior', () => {
+    it('calls onClick when card is clicked', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const handleClick = vi.fn();
+      const { container } = render(<EventCard {...mockProps} onClick={handleClick} />);
+
+      const card = container.firstChild as HTMLElement;
+      await user.click(card);
+
+      expect(handleClick).toHaveBeenCalledWith('event-123');
+      expect(handleClick).toHaveBeenCalledTimes(1);
+
+      vi.useFakeTimers();
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('does not call onClick when clicking on interactive elements (buttons)', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const handleClick = vi.fn();
+      const handleViewDetails = vi.fn();
+      render(<EventCard {...mockProps} onClick={handleClick} onViewDetails={handleViewDetails} />);
+
+      // Click on View Details button
+      const viewDetailsButton = screen.getByRole('button', {
+        name: /View details for event event-123/i,
+      });
+      await user.click(viewDetailsButton);
+
+      // onClick should not be called, only onViewDetails
+      expect(handleClick).not.toHaveBeenCalled();
+      expect(handleViewDetails).toHaveBeenCalledWith('event-123');
+
+      vi.useFakeTimers();
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('does not call onClick when clicking AI Reasoning toggle', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const handleClick = vi.fn();
+      render(<EventCard {...mockProps} onClick={handleClick} />);
+
+      const reasoningToggle = screen.getByRole('button', { name: /AI Reasoning/i });
+      await user.click(reasoningToggle);
+
+      expect(handleClick).not.toHaveBeenCalled();
+
+      vi.useFakeTimers();
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('applies cursor-pointer class when onClick is provided', () => {
+      const handleClick = vi.fn();
+      const { container } = render(<EventCard {...mockProps} onClick={handleClick} />);
+
+      const card = container.firstChild as HTMLElement;
+      expect(card).toHaveClass('cursor-pointer');
+    });
+
+    it('applies hover:bg-[#252525] class when onClick is provided', () => {
+      const handleClick = vi.fn();
+      const { container } = render(<EventCard {...mockProps} onClick={handleClick} />);
+
+      const card = container.firstChild as HTMLElement;
+      expect(card).toHaveClass('hover:bg-[#252525]');
+    });
+
+    it('does not apply cursor-pointer class when onClick is not provided', () => {
+      const { container } = render(<EventCard {...mockProps} />);
+
+      const card = container.firstChild as HTMLElement;
+      expect(card).not.toHaveClass('cursor-pointer');
+    });
+
+    it('has role="button" when onClick is provided', () => {
+      const handleClick = vi.fn();
+      const { container } = render(<EventCard {...mockProps} onClick={handleClick} />);
+
+      const card = container.firstChild as HTMLElement;
+      expect(card).toHaveAttribute('role', 'button');
+    });
+
+    it('does not have role="button" when onClick is not provided', () => {
+      const { container } = render(<EventCard {...mockProps} />);
+
+      const card = container.firstChild as HTMLElement;
+      expect(card).not.toHaveAttribute('role', 'button');
+    });
+
+    it('has tabIndex=0 when onClick is provided', () => {
+      const handleClick = vi.fn();
+      const { container } = render(<EventCard {...mockProps} onClick={handleClick} />);
+
+      const card = container.firstChild as HTMLElement;
+      expect(card).toHaveAttribute('tabIndex', '0');
+    });
+
+    it('does not have tabIndex when onClick is not provided', () => {
+      const { container } = render(<EventCard {...mockProps} />);
+
+      const card = container.firstChild as HTMLElement;
+      expect(card).not.toHaveAttribute('tabIndex');
+    });
+
+    it('has aria-label when onClick is provided', () => {
+      const handleClick = vi.fn();
+      const { container } = render(<EventCard {...mockProps} onClick={handleClick} />);
+
+      const card = container.firstChild as HTMLElement;
+      expect(card).toHaveAttribute('aria-label', 'View details for event from Front Door');
+    });
+
+    it('calls onClick when Enter key is pressed', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const handleClick = vi.fn();
+      const { container } = render(<EventCard {...mockProps} onClick={handleClick} />);
+
+      const card = container.firstChild as HTMLElement;
+      card.focus();
+      await user.keyboard('{Enter}');
+
+      expect(handleClick).toHaveBeenCalledWith('event-123');
+
+      vi.useFakeTimers();
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('calls onClick when Space key is pressed', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const handleClick = vi.fn();
+      const { container } = render(<EventCard {...mockProps} onClick={handleClick} />);
+
+      const card = container.firstChild as HTMLElement;
+      card.focus();
+      await user.keyboard(' ');
+
+      expect(handleClick).toHaveBeenCalledWith('event-123');
+
+      vi.useFakeTimers();
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('both onClick and onViewDetails can be provided together', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const handleClick = vi.fn();
+      const handleViewDetails = vi.fn();
+      render(
+        <EventCard {...mockProps} onClick={handleClick} onViewDetails={handleViewDetails} />
+      );
+
+      // Click on card (not on button)
+      const summaryText = screen.getByText('Person detected approaching the front entrance');
+      await user.click(summaryText);
+
+      expect(handleClick).toHaveBeenCalledWith('event-123');
+      expect(handleViewDetails).not.toHaveBeenCalled();
+
+      // Now click on View Details button
+      const viewDetailsButton = screen.getByRole('button', {
+        name: /View details for event event-123/i,
+      });
+      await user.click(viewDetailsButton);
+
+      expect(handleClick).toHaveBeenCalledTimes(1); // Still only 1 call
+      expect(handleViewDetails).toHaveBeenCalledWith('event-123');
+
+      vi.useFakeTimers();
+      vi.setSystemTime(BASE_TIME);
     });
   });
 

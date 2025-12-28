@@ -1,5 +1,6 @@
 import { clsx } from 'clsx';
 import { Camera, Circle, Video, VideoOff } from 'lucide-react';
+import { useState } from 'react';
 
 /**
  * Camera status information for the grid
@@ -81,6 +82,11 @@ function CameraCard({
 }) {
   const StatusIcon = getStatusIcon(camera.status);
   const hasThumbnail = Boolean(camera.thumbnail_url);
+  const [imageLoading, setImageLoading] = useState(true);
+  const [imageError, setImageError] = useState(false);
+
+  // Show placeholder if no thumbnail URL or if image failed to load
+  const showPlaceholder = !hasThumbnail || imageError;
 
   return (
     <button
@@ -98,14 +104,33 @@ function CameraCard({
     >
       {/* Thumbnail or placeholder */}
       <div className="relative aspect-video w-full bg-gray-900">
-        {hasThumbnail ? (
+        {/* Loading skeleton - shown while image is loading */}
+        {hasThumbnail && imageLoading && !imageError && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="h-full w-full animate-pulse bg-gray-800" />
+          </div>
+        )}
+
+        {/* Actual thumbnail image */}
+        {hasThumbnail && !imageError && (
           <img
             src={camera.thumbnail_url}
             alt={`${camera.name} thumbnail`}
-            className="h-full w-full object-cover"
+            className={clsx(
+              'h-full w-full object-cover transition-opacity duration-300',
+              imageLoading ? 'opacity-0' : 'opacity-100'
+            )}
             loading="lazy"
+            onLoad={() => setImageLoading(false)}
+            onError={() => {
+              setImageLoading(false);
+              setImageError(true);
+            }}
           />
-        ) : (
+        )}
+
+        {/* Placeholder - shown when no thumbnail or on error */}
+        {showPlaceholder && (
           <div className="flex h-full w-full items-center justify-center">
             <StatusIcon className="h-12 w-12 text-gray-700" />
           </div>
