@@ -1,7 +1,4 @@
-"""Database connection and session management using SQLAlchemy 2.0 async patterns.
-
-This module provides PostgreSQL database connectivity using asyncpg.
-"""
+"""Database connection and session management using SQLAlchemy 2.0 async patterns with PostgreSQL."""
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -61,7 +58,7 @@ async def init_db() -> None:
     """Initialize the database engine and create all tables.
 
     This function should be called once during application startup.
-    It creates the async engine with PostgreSQL connection pooling,
+    It creates the async engine, configures connection pooling,
     and creates all tables defined in the Base metadata.
 
     Requires PostgreSQL with asyncpg driver (postgresql+asyncpg://).
@@ -86,7 +83,6 @@ async def init_db() -> None:
         "max_overflow": 20,  # Additional connections beyond pool_size
         "pool_timeout": 30,  # Seconds to wait for available connection
         "pool_recycle": 1800,  # Recycle connections after 30 minutes
-        "pool_pre_ping": True,  # Verify connections before use
     }
 
     # Create async engine
@@ -102,7 +98,7 @@ async def init_db() -> None:
     )
 
     # Import all models to ensure they're registered with Base.metadata
-    from backend.models import Camera, Detection, Event, GPUStats, Zone  # noqa: F401
+    from backend.models import Camera, Detection, Event, GPUStats  # noqa: F401
 
     # Create all tables
     # Use the Base from models, not the one defined in this module

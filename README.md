@@ -202,7 +202,7 @@ Copy `.env.example` to `.env` and adjust as needed. See [docs/RUNTIME_CONFIG.md]
 **Core**
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATABASE_URL` | `postgresql+asyncpg://postgres:postgres@localhost:5432/security` | PostgreSQL connection |
+| `DATABASE_URL` | `sqlite+aiosqlite:///./data/security.db` | Database connection |
 | `REDIS_URL` | `redis://localhost:6379/0` | Redis connection |
 | `FOSCAM_BASE_PATH` | `/export/foscam` | Camera upload directory |
 
@@ -340,17 +340,6 @@ On Linux, ensure Docker can reach host services (see Quick Start note).
 - Backend running? `curl http://localhost:8000/api/system/health`
 - Check browser console for CORS errors
 - Verify frontend proxy config in `vite.config.ts`
-
-</details>
-
-<details>
-<summary>Database connection issues</summary>
-
-Ensure PostgreSQL is running and accessible. Check the connection URL and credentials.
-
-- Native: `postgresql+asyncpg://security:security_dev_password@localhost:5432/security`
-- Docker: `postgresql+asyncpg://security:security_dev_password@postgres:5432/security`
-- Verify PostgreSQL is accessible: `psql -h localhost -U security -d security`
 
 </details>
 

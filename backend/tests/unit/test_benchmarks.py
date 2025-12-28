@@ -353,31 +353,29 @@ class TestBenchmarkEnvironmentFixtures:
         original_db_url = os.environ.get("DATABASE_URL")
         original_redis_url = os.environ.get("REDIS_URL")
 
-        try:
-            # Use PostgreSQL URL for testing (PostgreSQL-only configuration)
-            test_db_url = "postgresql+asyncpg://test:test@localhost:5432/benchmark_test"
+        # Use a PostgreSQL URL since the codebase now requires PostgreSQL
+        test_db_url = "postgresql+asyncpg://test:test@localhost:5432/benchmark_test"
 
-            os.environ["DATABASE_URL"] = test_db_url
-            os.environ["REDIS_URL"] = "redis://localhost:6379/15"
+        os.environ["DATABASE_URL"] = test_db_url
+        os.environ["REDIS_URL"] = "redis://localhost:6379/15"
 
-            get_settings.cache_clear()
+        get_settings.cache_clear()
 
-            settings = get_settings()
-            assert settings.database_url == test_db_url
+        settings = get_settings()
+        assert settings.database_url == test_db_url
 
-        finally:
-            # Restore
-            if original_db_url is not None:
-                os.environ["DATABASE_URL"] = original_db_url
-            else:
-                os.environ.pop("DATABASE_URL", None)
+        # Restore
+        if original_db_url is not None:
+            os.environ["DATABASE_URL"] = original_db_url
+        else:
+            os.environ.pop("DATABASE_URL", None)
 
-            if original_redis_url is not None:
-                os.environ["REDIS_URL"] = original_redis_url
-            else:
-                os.environ.pop("REDIS_URL", None)
+        if original_redis_url is not None:
+            os.environ["REDIS_URL"] = original_redis_url
+        else:
+            os.environ.pop("REDIS_URL", None)
 
-            get_settings.cache_clear()
+        get_settings.cache_clear()
 
     def test_mock_redis_fixture_concept(self):
         """Verify the mock Redis pattern works."""

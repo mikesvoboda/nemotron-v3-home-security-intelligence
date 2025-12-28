@@ -3,8 +3,7 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, Index, Integer, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import JSON, DateTime, Index, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .camera import Base
@@ -35,7 +34,7 @@ class Log(Base):
 
     # Performance/debug fields
     duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    extra: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    extra: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     # Source tracking
     source: Mapped[str] = mapped_column(String(10), default="backend", nullable=False)
