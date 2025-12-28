@@ -235,7 +235,7 @@ Secure media file serving for camera images and detection thumbnails.
 **Allowed File Types:**
 
 - Images: `.jpg`, `.jpeg`, `.png`, `.gif`
-- Videos: `.mp4`, `.avi`, `.webm`
+- Videos: `.mp4`, `.mkv`, `.avi`, `.mov`
 
 **Security Features:**
 

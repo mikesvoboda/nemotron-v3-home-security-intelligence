@@ -11,7 +11,7 @@
 #   ./scripts/generate-types.sh --help       # Show help
 #
 # Requirements:
-#   - Python 3.11+ with backend dependencies installed
+#   - Python 3.14+ with backend dependencies installed
 #   - Node.js 18+ with frontend dependencies installed
 #   - Virtual environment at .venv/
 #
@@ -88,7 +88,7 @@ The script will:
 3. Optionally check if types are current (--check mode for CI)
 
 Requirements:
-    Backend:  Python 3.11+, .venv with backend dependencies
+    Backend:  Python 3.14+, .venv with backend dependencies
     Frontend: Node.js 18+, npm with openapi-typescript installed
 
 EOF

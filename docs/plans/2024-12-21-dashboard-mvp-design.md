@@ -173,7 +173,7 @@ WS /ws/system
 ```
 1. FILE WATCHER (watchdog library)
    ├── Monitors: /export/foscam/{camera_name}/
-   ├── Triggers on: new .jpg, .png, .mp4, .avi files
+   ├── Triggers on: new .jpg, .jpeg, .png, .mp4, .mkv, .avi, .mov files
    ├── Debounce: 500ms
    └── Output: file_path, camera_id, timestamp
 
