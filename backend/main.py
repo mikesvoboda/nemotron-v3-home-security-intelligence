@@ -85,6 +85,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         cleanup_service=cleanup_service,
         system_broadcaster=system_broadcaster,
         file_watcher=file_watcher,
+        pipeline_manager=pipeline_manager,
     )
     print("Workers registered for readiness monitoring")
 

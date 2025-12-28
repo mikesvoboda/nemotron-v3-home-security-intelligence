@@ -108,6 +108,67 @@ export class ApiError extends Error {
 // ============================================================================
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) || '';
+const API_KEY = import.meta.env.VITE_API_KEY as string | undefined;
+const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL as string | undefined;
+
+// ============================================================================
+// WebSocket URL Helper
+// ============================================================================
+
+/**
+ * Internal function for building WebSocket URLs. Exported for testing.
+ * @internal
+ */
+export function buildWebSocketUrlInternal(
+  endpoint: string,
+  wsBaseUrl: string | undefined,
+  apiKey: string | undefined,
+  windowLocation: { protocol: string; host: string } | undefined
+): string {
+  let wsUrl: string;
+
+  if (wsBaseUrl) {
+    // Use configured WS base URL
+    wsUrl = wsBaseUrl.replace(/\/$/, '') + endpoint;
+  } else {
+    // Fall back to window.location.host
+    const protocol = windowLocation?.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = windowLocation?.host || 'localhost:8000';
+    wsUrl = `${protocol}//${host}${endpoint}`;
+  }
+
+  // Append API key if configured
+  if (apiKey) {
+    const separator = wsUrl.includes('?') ? '&' : '?';
+    wsUrl = `${wsUrl}${separator}api_key=${encodeURIComponent(apiKey)}`;
+  }
+
+  return wsUrl;
+}
+
+/**
+ * Constructs a WebSocket URL for the given endpoint.
+ * Uses VITE_WS_BASE_URL if set, otherwise falls back to window.location.host.
+ * Appends api_key query parameter if VITE_API_KEY is set.
+ *
+ * @param endpoint - The WebSocket endpoint path (e.g., '/ws/events')
+ * @returns The full WebSocket URL with optional api_key query parameter
+ */
+export function buildWebSocketUrl(endpoint: string): string {
+  const windowLocation =
+    typeof window !== 'undefined'
+      ? { protocol: window.location.protocol, host: window.location.host }
+      : undefined;
+  return buildWebSocketUrlInternal(endpoint, WS_BASE_URL, API_KEY, windowLocation);
+}
+
+/**
+ * Returns the API key if configured, otherwise undefined.
+ * Useful for components that need to check if API key auth is enabled.
+ */
+export function getApiKey(): string | undefined {
+  return API_KEY;
+}
 
 // ============================================================================
 // Helper Functions
@@ -150,13 +211,21 @@ async function handleResponse<T>(response: Response): Promise<T> {
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${BASE_URL}${endpoint}`;
 
+  // Build headers with optional API key
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...options?.headers,
+  };
+
+  // Add API key header if configured
+  if (API_KEY) {
+    (headers as Record<string, string>)['X-API-Key'] = API_KEY;
+  }
+
   try {
     const response = await fetch(url, {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
+      headers,
     });
 
     return handleResponse<T>(response);

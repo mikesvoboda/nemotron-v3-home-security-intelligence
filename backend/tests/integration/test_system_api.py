@@ -356,3 +356,190 @@ async def test_gpu_history_with_data_and_since_filter(client, db_session, mock_r
     data2 = resp2.json()
     assert data2["count"] == 1
     assert data2["samples"][0]["utilization"] == 20.0
+
+
+# =============================================================================
+# Pipeline Worker Readiness Integration Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_readiness_endpoint_includes_pipeline_workers(client, mock_redis):
+    """Test that readiness endpoint includes pipeline worker status in workers list."""
+    from unittest.mock import MagicMock
+
+    from backend.api.routes import system as system_routes
+
+    # Save original
+    original_pipeline_manager = system_routes._pipeline_manager
+
+    try:
+        # Mock pipeline manager with running workers
+        mock_manager = MagicMock()
+        mock_manager.get_status.return_value = {
+            "running": True,
+            "workers": {
+                "detection": {"state": "running", "items_processed": 100},
+                "analysis": {"state": "running", "items_processed": 50},
+                "timeout": {"state": "running", "items_processed": 10},
+                "metrics": {"running": True},
+            },
+        }
+        system_routes._pipeline_manager = mock_manager
+
+        mock_redis.health_check.return_value = {
+            "status": "healthy",
+            "connected": True,
+            "redis_version": "7.0.0",
+        }
+
+        response = await client.get("/api/system/health/ready")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should be ready when all workers are running
+        assert data["ready"] is True
+        assert data["status"] == "ready"
+
+        # Check that workers list includes pipeline workers
+        workers = data["workers"]
+        worker_names = [w["name"] for w in workers]
+
+        assert "detection_worker" in worker_names
+        assert "analysis_worker" in worker_names
+
+        # Verify detection_worker status
+        detection_worker = next(w for w in workers if w["name"] == "detection_worker")
+        assert detection_worker["running"] is True
+
+        # Verify analysis_worker status
+        analysis_worker = next(w for w in workers if w["name"] == "analysis_worker")
+        assert analysis_worker["running"] is True
+
+    finally:
+        system_routes._pipeline_manager = original_pipeline_manager
+
+
+@pytest.mark.asyncio
+async def test_readiness_endpoint_not_ready_when_pipeline_workers_stopped(client, mock_redis):
+    """Test that readiness endpoint returns not_ready when pipeline workers are stopped."""
+    from unittest.mock import MagicMock
+
+    from backend.api.routes import system as system_routes
+
+    # Save original
+    original_pipeline_manager = system_routes._pipeline_manager
+
+    try:
+        # Mock pipeline manager with stopped workers
+        mock_manager = MagicMock()
+        mock_manager.get_status.return_value = {
+            "running": True,
+            "workers": {
+                "detection": {"state": "stopped", "items_processed": 100},
+                "analysis": {"state": "stopped", "items_processed": 50},
+            },
+        }
+        system_routes._pipeline_manager = mock_manager
+
+        mock_redis.health_check.return_value = {
+            "status": "healthy",
+            "connected": True,
+            "redis_version": "7.0.0",
+        }
+
+        response = await client.get("/api/system/health/ready")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should NOT be ready when critical workers are stopped
+        assert data["ready"] is False
+        assert data["status"] == "not_ready"
+
+        # Database and Redis should still be healthy
+        assert data["services"]["database"]["status"] == "healthy"
+        assert data["services"]["redis"]["status"] == "healthy"
+
+        # Workers should show stopped status
+        workers = data["workers"]
+        detection_worker = next((w for w in workers if w["name"] == "detection_worker"), None)
+        assert detection_worker is not None
+        assert detection_worker["running"] is False
+
+    finally:
+        system_routes._pipeline_manager = original_pipeline_manager
+
+
+@pytest.mark.asyncio
+async def test_readiness_endpoint_not_ready_when_detection_worker_in_error(client, mock_redis):
+    """Test that readiness endpoint returns not_ready when detection worker is in error state."""
+    from unittest.mock import MagicMock
+
+    from backend.api.routes import system as system_routes
+
+    # Save original
+    original_pipeline_manager = system_routes._pipeline_manager
+
+    try:
+        # Mock pipeline manager with detection worker in error state
+        mock_manager = MagicMock()
+        mock_manager.get_status.return_value = {
+            "running": True,
+            "workers": {
+                "detection": {"state": "error", "items_processed": 100, "errors": 10},
+                "analysis": {"state": "running", "items_processed": 50},
+            },
+        }
+        system_routes._pipeline_manager = mock_manager
+
+        mock_redis.health_check.return_value = {
+            "status": "healthy",
+            "connected": True,
+            "redis_version": "7.0.0",
+        }
+
+        response = await client.get("/api/system/health/ready")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should NOT be ready when detection worker is in error state
+        assert data["ready"] is False
+        assert data["status"] == "not_ready"
+
+    finally:
+        system_routes._pipeline_manager = original_pipeline_manager
+
+
+@pytest.mark.asyncio
+async def test_readiness_endpoint_graceful_when_no_pipeline_manager(client, mock_redis):
+    """Test that readiness endpoint works gracefully when pipeline manager is not registered."""
+    from backend.api.routes import system as system_routes
+
+    # Save original
+    original_pipeline_manager = system_routes._pipeline_manager
+
+    try:
+        # Set pipeline manager to None (not registered)
+        system_routes._pipeline_manager = None
+
+        mock_redis.health_check.return_value = {
+            "status": "healthy",
+            "connected": True,
+            "redis_version": "7.0.0",
+        }
+
+        response = await client.get("/api/system/health/ready")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Should be ready when no pipeline manager is registered (graceful degradation)
+        # because we can't check pipeline workers
+        assert data["ready"] is True
+        assert data["status"] == "ready"
+
+    finally:
+        system_routes._pipeline_manager = original_pipeline_manager
