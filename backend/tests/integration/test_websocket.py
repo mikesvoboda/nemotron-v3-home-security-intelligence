@@ -923,9 +923,10 @@ class TestEventBroadcastPipeline:
 
         This is the critical test that ensures the channel mismatch bug is fixed.
         """
+        from unittest.mock import AsyncMock, MagicMock
+
         from backend.services.event_broadcaster import EventBroadcaster
         from backend.services.nemotron_analyzer import NemotronAnalyzer
-        from unittest.mock import AsyncMock, MagicMock
 
         # Create mock Redis client
         mock_redis = MagicMock()
@@ -948,8 +949,9 @@ class TestEventBroadcastPipeline:
         mock_redis.publish.reset_mock()
 
         # Broadcast through NemotronAnalyzer
-        from backend.models.event import Event
         from datetime import datetime
+
+        from backend.models.event import Event
 
         test_event = Event(
             id=1,
@@ -973,10 +975,11 @@ class TestEventBroadcastPipeline:
 
         The canonical format is: {"type": "event", "data": {...}}
         """
-        from backend.services.nemotron_analyzer import NemotronAnalyzer
-        from backend.models.event import Event
         from datetime import datetime
         from unittest.mock import AsyncMock, MagicMock
+
+        from backend.models.event import Event
+        from backend.services.nemotron_analyzer import NemotronAnalyzer
 
         # Create mock Redis client
         mock_redis = MagicMock()
@@ -1026,8 +1029,9 @@ class TestEventBroadcastPipeline:
         If a message is published without a 'type' field, EventBroadcaster
         should wrap it in the canonical envelope format.
         """
-        from backend.services.event_broadcaster import EventBroadcaster
         from unittest.mock import AsyncMock, MagicMock
+
+        from backend.services.event_broadcaster import EventBroadcaster
 
         # Create mock Redis client
         mock_redis = MagicMock()
@@ -1054,12 +1058,13 @@ class TestEventBroadcastPipeline:
         2. EventBroadcaster receives event from Redis pub/sub
         3. EventBroadcaster sends to all connected WebSocket clients
         """
-        from backend.services.event_broadcaster import EventBroadcaster
-        from backend.services.nemotron_analyzer import NemotronAnalyzer
-        from backend.models.event import Event
+        import json
         from datetime import datetime
         from unittest.mock import AsyncMock, MagicMock
-        import json
+
+        from backend.models.event import Event
+        from backend.services.event_broadcaster import EventBroadcaster
+        from backend.services.nemotron_analyzer import NemotronAnalyzer
 
         # Track messages received by WebSocket clients
         received_messages = []
@@ -1147,17 +1152,11 @@ class TestChannelDocumentation:
 
     def test_agents_md_documents_channel(self):
         """Verify AGENTS.md documents the canonical channel name."""
-        import os
+        from pathlib import Path
 
-        agents_path = os.path.join(
-            os.path.dirname(__file__),
-            "..",
-            "..",
-            "services",
-            "AGENTS.md"
-        )
+        agents_path = Path(__file__).parent.parent.parent / "services" / "AGENTS.md"
 
-        with open(agents_path, "r") as f:
+        with open(agents_path) as f:
             content = f.read()
 
         # Channel name should be documented

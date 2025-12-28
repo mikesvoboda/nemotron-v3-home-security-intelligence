@@ -44,7 +44,6 @@ describe('LogsDashboard', () => {
       duration_ms: 150,
       extra: { error_code: '500' },
       source: 'backend',
-      user_agent: 'Mozilla/5.0',
     },
     {
       id: 2,
@@ -59,7 +58,6 @@ describe('LogsDashboard', () => {
       duration_ms: 250,
       extra: null,
       source: 'backend',
-      user_agent: null,
     },
     {
       id: 3,
@@ -74,7 +72,6 @@ describe('LogsDashboard', () => {
       duration_ms: 3000,
       extra: { threshold_ms: 2000 },
       source: 'frontend',
-      user_agent: 'Mozilla/5.0',
     },
   ];
 
@@ -310,7 +307,6 @@ describe('LogsDashboard', () => {
         duration_ms: null,
         extra: null,
         source: 'backend',
-        user_agent: null,
       }));
 
       vi.mocked(api.fetchLogs).mockResolvedValue({
@@ -367,7 +363,6 @@ describe('LogsDashboard', () => {
         duration_ms: null,
         extra: null,
         source: 'backend',
-        user_agent: null,
       }));
 
       vi.mocked(api.fetchLogs).mockResolvedValue({

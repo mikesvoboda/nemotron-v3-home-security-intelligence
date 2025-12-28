@@ -59,7 +59,8 @@ export default function LogsDashboard({ className = '' }: LogsDashboardProps) {
       setError(null);
       try {
         const response = await fetchLogs(queryParams);
-        setLogs(response.logs);
+        // Cast logs to match LogEntry type from LogsTable (level as union type)
+        setLogs(response.logs as LogEntry[]);
         setTotalCount(response.count);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load logs');

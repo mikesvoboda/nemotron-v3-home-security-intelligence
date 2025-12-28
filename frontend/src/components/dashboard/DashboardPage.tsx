@@ -87,7 +87,9 @@ export default function DashboardPage() {
 
   // Calculate events today count
   const eventsToday = events.filter((event) => {
-    const eventDate = new Date(event.timestamp);
+    const eventTimestamp = event.timestamp ?? event.started_at;
+    if (!eventTimestamp) return false;
+    const eventDate = new Date(eventTimestamp);
     const today = new Date();
     return (
       eventDate.getDate() === today.getDate() &&
@@ -109,9 +111,9 @@ export default function DashboardPage() {
 
   // Convert SecurityEvent[] to ActivityEvent[] for ActivityFeed
   const activityEvents: ActivityEvent[] = events.map((event) => ({
-    id: event.id,
-    timestamp: event.timestamp,
-    camera_name: event.camera_name,
+    id: String(event.id),
+    timestamp: event.timestamp ?? event.started_at ?? new Date().toISOString(),
+    camera_name: event.camera_name ?? 'Unknown Camera',
     risk_score: event.risk_score,
     summary: event.summary,
   }));
