@@ -253,7 +253,7 @@ async def test_complete_workflow_camera_to_event(test_db):
     # Step 2: Add detections (separate session)
     detections = [...]
     # Step 3: Create event from detections
-    event = Event(detection_ids="1,2,3", ...)
+    event = Event(detection_ids="[1, 2, 3]", ...)
     # Step 4: Verify complete chain
 ```
 

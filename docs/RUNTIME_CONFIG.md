@@ -73,16 +73,15 @@ services:
 
 ### Database Configuration
 
-| Variable       | Default                                  | Description                   |
-| -------------- | ---------------------------------------- | ----------------------------- |
-| `DATABASE_URL` | `sqlite+aiosqlite:///./data/security.db` | SQLAlchemy async database URL |
+| Variable       | Default                                                          | Description                   |
+| -------------- | ---------------------------------------------------------------- | ----------------------------- |
+| `DATABASE_URL` | `postgresql+asyncpg://postgres:postgres@localhost:5432/security` | PostgreSQL async database URL |
 
 **Notes:**
 
-- SQLite is the default; suitable for single-user deployments
-- Path is relative to the backend working directory
-- Inside Docker, the path maps to `/app/data/security.db`
-- Directory is auto-created if it doesn't exist
+- PostgreSQL is required (SQLite is no longer supported)
+- Use `asyncpg` driver for async operations
+- Inside Docker, use `postgres` as the hostname (service name)
 
 ### Redis Configuration
 
@@ -195,7 +194,7 @@ The GPU monitor uses `pynvml` (NVIDIA Management Library Python bindings) to que
 - GPU temperature (Celsius)
 - Power consumption (Watts)
 
-These metrics are stored in SQLite for historical analysis and broadcast via WebSocket for real-time dashboard updates.
+These metrics are stored in the database for historical analysis and broadcast via WebSocket for real-time dashboard updates.
 
 **Performance Impact Considerations:**
 
@@ -273,7 +272,7 @@ docker compose restart backend
 | `LOG_FILE_PATH`         | `data/logs/security.log` | Path for rotating log file                            |
 | `LOG_FILE_MAX_BYTES`    | `10485760` (10MB)        | Maximum size of each log file                         |
 | `LOG_FILE_BACKUP_COUNT` | `7`                      | Number of backup log files to keep                    |
-| `LOG_DB_ENABLED`        | `true`                   | Write logs to SQLite database                         |
+| `LOG_DB_ENABLED`        | `true`                   | Write logs to database                                |
 | `LOG_DB_MIN_LEVEL`      | `DEBUG`                  | Minimum level for database logging                    |
 
 ### Frontend Environment Variables
@@ -316,7 +315,7 @@ Running everything on your development machine:
 
 ```bash
 # .env
-DATABASE_URL=sqlite+aiosqlite:///./data/security.db
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/security
 REDIS_URL=redis://localhost:6379/0
 RTDETR_URL=http://localhost:8090
 NEMOTRON_URL=http://localhost:8091
@@ -327,11 +326,11 @@ LOG_LEVEL=DEBUG
 
 ### Development (Docker)
 
-Using Docker Compose for backend/frontend/redis, native AI services:
+Using Docker Compose for backend/frontend/redis/postgres, native AI services:
 
 ```bash
 # .env (values are set in docker-compose.yml, this is for reference)
-DATABASE_URL=sqlite+aiosqlite:///data/security.db
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/security
 REDIS_URL=redis://redis:6379
 RTDETR_URL=http://host.docker.internal:8090
 NEMOTRON_URL=http://host.docker.internal:8091
@@ -341,7 +340,7 @@ NEMOTRON_URL=http://host.docker.internal:8091
 
 ```bash
 # .env
-DATABASE_URL=sqlite+aiosqlite:///data/security.db
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/security
 REDIS_URL=redis://redis:6379
 RTDETR_URL=http://host.docker.internal:8090
 NEMOTRON_URL=http://host.docker.internal:8091
@@ -400,14 +399,14 @@ docker compose down && docker compose up -d
 # Settings are cached; restart clears the cache
 ```
 
-### Wrong database path
+### Database connection issues
 
-**Symptom:** Database not found or permission errors
+**Symptom:** Database connection errors
 
-**Solution:** Ensure path is correct for your deployment:
+**Solution:** Ensure PostgreSQL is running and connection URL is correct:
 
-- Native: `sqlite+aiosqlite:///./data/security.db` (relative to backend/)
-- Docker: `sqlite+aiosqlite:///data/security.db` (maps to /app/data/ in container)
+- Native: `postgresql+asyncpg://postgres:postgres@localhost:5432/security`
+- Docker: `postgresql+asyncpg://postgres:postgres@postgres:5432/security`
 
 ## Security Considerations
 
@@ -526,7 +525,7 @@ await redis.xadd("events:stream", event_data)
 
 **Database**
 
-- Migrate from SQLite to PostgreSQL for concurrent access
+- PostgreSQL is already used for concurrent access
 - Consider read replicas for heavy query loads
 
 ### What Would Need to Change
@@ -535,7 +534,7 @@ await redis.xadd("events:stream", event_data)
 | --------------- | ------------------------ | ---------------------------------- |
 | Task scheduling | asyncio background tasks | Celery/RQ workers                  |
 | Event pub/sub   | Redis PUBLISH/SUBSCRIBE  | Redis Streams with consumer groups |
-| Database        | SQLite (single-writer)   | PostgreSQL (multi-writer)          |
+| Database        | PostgreSQL               | PostgreSQL with read replicas      |
 | Session state   | In-memory                | Redis-backed sessions              |
 | File storage    | Local filesystem         | S3/MinIO object storage            |
 | Deployment      | Docker Compose           | Kubernetes                         |

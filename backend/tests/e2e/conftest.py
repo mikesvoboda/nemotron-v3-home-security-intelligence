@@ -8,14 +8,12 @@ root conftest.py file.
 """
 
 # E2E tests use the shared fixtures from backend/tests/conftest.py:
-# - integration_db: Isolated temporary SQLite database
+# - integration_db: PostgreSQL test database
 # - mock_redis: Mock Redis client
 # - client: httpx AsyncClient for API testing
 
 import os
-import tempfile
 from collections.abc import AsyncGenerator
-from pathlib import Path
 
 import pytest
 
@@ -23,12 +21,20 @@ from backend.core.config import get_settings
 from backend.core.database import close_db, init_db
 
 
+def _get_test_database_url() -> str:
+    """Get the test database URL."""
+    return os.environ.get(
+        "TEST_DATABASE_URL",
+        "postgresql+asyncpg://postgres:postgres@localhost:5432/security_test",
+    )
+
+
 @pytest.fixture
 async def integration_db() -> AsyncGenerator[str]:
-    """Initialize a temporary SQLite DB for E2E tests.
+    """Initialize a PostgreSQL test database for E2E tests.
 
     This fixture:
-    - Creates a temporary database file
+    - Sets up a PostgreSQL test database
     - Sets the DATABASE_URL environment variable
     - Clears the settings cache
     - Initializes the database
@@ -41,32 +47,30 @@ async def integration_db() -> AsyncGenerator[str]:
     # Clear the settings cache to force reload
     get_settings.cache_clear()
 
-    # Create temporary database
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "e2e_test.db"
-        test_db_url = f"sqlite+aiosqlite:///{db_path}"
+    # Use PostgreSQL test database
+    test_db_url = _get_test_database_url()
 
-        # Set test database URL
-        os.environ["DATABASE_URL"] = test_db_url
-        # Use Redis database 15 for test isolation. This keeps test data separate
-        # from development (database 0). FLUSHDB in pre-commit hooks only affects DB 15.
-        # See backend/tests/AGENTS.md for full documentation on test database isolation.
-        os.environ["REDIS_URL"] = "redis://localhost:6379/15"
+    # Set test database URL
+    os.environ["DATABASE_URL"] = test_db_url
+    # Use Redis database 15 for test isolation. This keeps test data separate
+    # from development (database 0). FLUSHDB in pre-commit hooks only affects DB 15.
+    # See backend/tests/AGENTS.md for full documentation on test database isolation.
+    os.environ["REDIS_URL"] = "redis://localhost:6379/15"
 
-        # Clear cache again after setting env var
-        get_settings.cache_clear()
+    # Clear cache again after setting env var
+    get_settings.cache_clear()
 
-        # Ensure database is closed before initializing
+    # Ensure database is closed before initializing
+    await close_db()
+
+    # Initialize database
+    await init_db()
+
+    try:
+        yield test_db_url
+    finally:
+        # Cleanup
         await close_db()
-
-        # Initialize database
-        await init_db()
-
-        try:
-            yield test_db_url
-        finally:
-            # Cleanup
-            await close_db()
 
     # Restore original state
     if original_db_url:

@@ -1,10 +1,11 @@
-"""Database connection and session management using SQLAlchemy 2.0 async patterns."""
+"""Database connection and session management using SQLAlchemy 2.0 async patterns.
+
+This module provides PostgreSQL database connectivity using asyncpg.
+"""
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import Any
 
-from sqlalchemy import event, pool
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -59,47 +60,23 @@ async def init_db() -> None:
     """Initialize the database engine and create all tables.
 
     This function should be called once during application startup.
-    It creates the async engine, configures connection pooling,
+    It creates the async engine with PostgreSQL connection pooling,
     and creates all tables defined in the Base metadata.
     """
     global _engine, _async_session_factory  # noqa: PLW0603
 
     settings = get_settings()
 
-    # Configure engine with appropriate pooling for SQLite
-    connect_args: dict[str, Any] = {}
-    poolclass = None
-
-    if "sqlite" in settings.database_url:
-        # SQLite-specific configuration
-        connect_args = {
-            "check_same_thread": False,  # Required for async SQLite
-            "timeout": 30,  # Wait up to 30 seconds for database lock
-        }
-        # Use NullPool for SQLite to avoid connection reuse issues
-        poolclass = pool.NullPool
-
-    # Create async engine
+    # Create async engine for PostgreSQL with asyncpg
+    # Connection pooling is handled by SQLAlchemy's default QueuePool
     _engine = create_async_engine(
         settings.database_url,
         echo=settings.debug,
-        connect_args=connect_args,
-        poolclass=poolclass,
         future=True,
+        pool_size=5,
+        max_overflow=10,
+        pool_pre_ping=True,  # Verify connections before use
     )
-
-    # Enable SQLite foreign keys if using SQLite
-    if "sqlite" in settings.database_url:
-
-        @event.listens_for(_engine.sync_engine, "connect")
-        def configure_sqlite(dbapi_conn: Any, _connection_record: Any) -> None:
-            """Configure SQLite pragmas for better concurrency and reliability."""
-            cursor = dbapi_conn.cursor()
-            cursor.execute("PRAGMA foreign_keys=ON")
-            cursor.execute("PRAGMA journal_mode=WAL")  # Better concurrent access
-            cursor.execute("PRAGMA busy_timeout=30000")  # 30 second timeout
-            cursor.execute("PRAGMA synchronous=NORMAL")  # Balance safety/speed
-            cursor.close()
 
     # Create session factory
     _async_session_factory = async_sessionmaker(

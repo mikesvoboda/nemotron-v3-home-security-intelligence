@@ -1,13 +1,16 @@
 """Pytest configuration and shared fixtures.
 
 This module provides shared test fixtures for all backend tests:
-- isolated_db: Function-scoped isolated database for unit tests
+- isolated_db: Function-scoped isolated database for unit tests (PostgreSQL)
 - test_db: Callable session factory for unit tests
 - integration_env: Environment setup for integration tests
 - integration_db: Initialized database for integration tests
 - mock_redis: Mock Redis client for integration tests
 - db_session: Database session for integration tests
 - client: httpx AsyncClient for API integration tests
+
+Tests use PostgreSQL. Configure TEST_DATABASE_URL environment variable or
+use the default test database URL.
 
 See backend/tests/AGENTS.md for full documentation on test conventions.
 """
@@ -16,7 +19,6 @@ from __future__ import annotations
 
 import os
 import sys
-import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
@@ -32,12 +34,25 @@ if str(backend_path) not in sys.path:
     sys.path.insert(0, str(backend_path))
 
 
+def _get_test_database_url() -> str:
+    """Get a unique test database URL for isolation.
+
+    Uses TEST_DATABASE_URL env var or defaults to a test database.
+    Appends a unique suffix to ensure test isolation.
+    """
+    base_url = os.environ.get(
+        "TEST_DATABASE_URL",
+        "postgresql+asyncpg://postgres:postgres@localhost:5432/security_test",
+    )
+    return base_url
+
+
 @pytest.fixture(scope="function")
 async def isolated_db():
     """Create an isolated test database for each test.
 
     This fixture:
-    - Creates a temporary database file
+    - Sets up a PostgreSQL test database
     - Sets the DATABASE_URL environment variable
     - Clears the settings cache
     - Initializes the database
@@ -53,27 +68,25 @@ async def isolated_db():
     # Clear the settings cache to force reload
     get_settings.cache_clear()
 
-    # Create temporary database
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "test.db"
-        test_db_url = f"sqlite+aiosqlite:///{db_path}"
+    # Use PostgreSQL test database
+    test_db_url = _get_test_database_url()
 
-        # Set test database URL
-        os.environ["DATABASE_URL"] = test_db_url
+    # Set test database URL
+    os.environ["DATABASE_URL"] = test_db_url
 
-        # Clear cache again after setting env var
-        get_settings.cache_clear()
+    # Clear cache again after setting env var
+    get_settings.cache_clear()
 
-        # Ensure database is closed before initializing
-        await close_db()
+    # Ensure database is closed before initializing
+    await close_db()
 
-        # Initialize database
-        await init_db()
+    # Initialize database
+    await init_db()
 
-        yield
+    yield
 
-        # Cleanup
-        await close_db()
+    # Cleanup
+    await close_db()
 
     # Restore original state
     if original_db_url:
@@ -109,7 +122,7 @@ async def test_db():
     """Create test database session factory for unit tests.
 
     This fixture provides a callable that returns a context manager for database sessions.
-    It sets up a temporary database for testing and ensures cleanup.
+    It sets up a PostgreSQL test database and ensures cleanup.
 
     Usage:
         async with test_db() as session:
@@ -125,28 +138,26 @@ async def test_db():
     # Clear the settings cache to force reload
     get_settings.cache_clear()
 
-    # Create temporary database
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "test.db"
-        test_db_url = f"sqlite+aiosqlite:///{db_path}"
+    # Use PostgreSQL test database
+    test_db_url = _get_test_database_url()
 
-        # Set test database URL
-        os.environ["DATABASE_URL"] = test_db_url
+    # Set test database URL
+    os.environ["DATABASE_URL"] = test_db_url
 
-        # Clear cache again after setting env var
-        get_settings.cache_clear()
+    # Clear cache again after setting env var
+    get_settings.cache_clear()
 
-        # Ensure database is closed before initializing
-        await close_db()
+    # Ensure database is closed before initializing
+    await close_db()
 
-        # Initialize database
-        await init_db()
+    # Initialize database
+    await init_db()
 
-        # Return the get_session function as a callable
-        yield get_session
+    # Return the get_session function as a callable
+    yield get_session
 
-        # Cleanup
-        await close_db()
+    # Cleanup
+    await close_db()
 
     # Restore original state
     if original_db_url:
@@ -167,7 +178,7 @@ async def test_db():
 
 @pytest.fixture
 def integration_env() -> Generator[str]:
-    """Set DATABASE_URL/REDIS_URL to a temporary per-test database.
+    """Set DATABASE_URL/REDIS_URL to a test PostgreSQL database.
 
     This fixture ONLY sets environment variables and clears cached settings.
     Use `integration_db` if the test needs the database initialized.
@@ -175,6 +186,8 @@ def integration_env() -> Generator[str]:
     All integration tests should use this fixture (directly or via integration_db)
     to ensure proper isolation and cleanup.
     """
+    import tempfile
+
     from backend.core.config import get_settings
 
     original_db_url = os.environ.get("DATABASE_URL")
@@ -182,8 +195,7 @@ def integration_env() -> Generator[str]:
     original_runtime_env_path = os.environ.get("HSI_RUNTIME_ENV_PATH")
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "integration_test.db"
-        test_db_url = f"sqlite+aiosqlite:///{db_path}"
+        test_db_url = _get_test_database_url()
         runtime_env_path = str(Path(tmpdir) / "runtime.env")
 
         os.environ["DATABASE_URL"] = test_db_url
@@ -219,7 +231,7 @@ def integration_env() -> Generator[str]:
 
 @pytest.fixture
 async def integration_db(integration_env: str) -> AsyncGenerator[str]:
-    """Initialize a temporary SQLite DB for integration/E2E tests.
+    """Initialize a PostgreSQL test database for integration/E2E tests.
 
     This fixture:
     - Depends on integration_env for environment setup

@@ -11,7 +11,7 @@ _Dashboard mockup showing the main interface layout_
 | -------------- | -------------------------------------- |
 | **Detection**  | RT-DETRv2 (30-50ms/image)              |
 | **Analysis**   | Nemotron 4B via llama.cpp              |
-| **Storage**    | SQLite + 30-day retention              |
+| **Storage**    | PostgreSQL + 30-day retention          |
 | **Interface**  | React dashboard + REST API + WebSocket |
 | **Target GPU** | NVIDIA RTX (8GB+ VRAM)                 |
 
@@ -185,7 +185,7 @@ Copy `.env.example` to `.env` and adjust as needed. See [docs/RUNTIME_CONFIG.md]
 **Core**
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATABASE_URL` | `sqlite+aiosqlite:///./data/security.db` | Database connection |
+| `DATABASE_URL` | `postgresql+asyncpg://postgres:postgres@localhost:5432/security` | PostgreSQL connection |
 | `REDIS_URL` | `redis://localhost:6379/0` | Redis connection |
 | `FOSCAM_BASE_PATH` | `/export/foscam` | Camera upload directory |
 
@@ -327,9 +327,9 @@ On Linux, ensure Docker can reach host services (see Quick Start note).
 </details>
 
 <details>
-<summary>Database locked</summary>
+<summary>Database connection issues</summary>
 
-SQLite allows one writer. Ensure only one backend instance is running.
+Ensure PostgreSQL is running and accessible. Check the connection URL and credentials.
 
 </details>
 

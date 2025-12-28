@@ -20,8 +20,8 @@ class Settings(BaseSettings):
 
     # Database configuration
     database_url: str = Field(
-        default="sqlite+aiosqlite:///./data/security.db",
-        description="SQLAlchemy database URL for async SQLite",
+        default="postgresql+asyncpg://postgres:postgres@localhost:5432/security",
+        description="PostgreSQL database URL (format: postgresql+asyncpg://user:pass@host:port/db)",
     )
 
     # Redis configuration
@@ -154,7 +154,7 @@ class Settings(BaseSettings):
     )
     log_db_enabled: bool = Field(
         default=True,
-        description="Enable writing logs to SQLite database",
+        description="Enable writing logs to database",
     )
     log_db_min_level: str = Field(
         default="DEBUG",
@@ -171,6 +171,24 @@ class Settings(BaseSettings):
         ge=1,
         le=100000,
         description="Maximum iterations for requeue-all operations",
+    )
+
+    # Queue backpressure settings
+    queue_max_size: int = Field(
+        default=10000,
+        ge=100,
+        le=1000000,
+        description="Maximum queue size before backpressure is applied",
+    )
+    queue_backpressure_threshold: float = Field(
+        default=0.9,
+        ge=0.5,
+        le=1.0,
+        description="Queue fill ratio (0.0-1.0) at which warnings are logged",
+    )
+    queue_overflow_policy: str = Field(
+        default="reject",
+        description="Policy when queue is full: 'reject' (return error), 'dlq' (move oldest to DLQ), 'drop_oldest' (silent trim with warning)",
     )
 
     # Video processing settings
@@ -201,13 +219,12 @@ class Settings(BaseSettings):
     @field_validator("database_url")
     @classmethod
     def validate_database_url(cls, v: str) -> str:
-        """Ensure database directory exists for SQLite."""
-        if v.startswith("sqlite"):
-            # Extract path from SQLite URL
-            db_path = v.split("///")[-1] if "///" in v else v.split("//")[-1]
-            if db_path and db_path != ":memory:":
-                # Create data directory if it doesn't exist
-                Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+        """Validate PostgreSQL database URL format."""
+        if not v.startswith("postgresql"):
+            raise ValueError(
+                "Only PostgreSQL is supported. "
+                "URL must start with 'postgresql+asyncpg://' or 'postgresql://'"
+            )
         return v
 
 
