@@ -128,17 +128,22 @@ jobs:
       - name: Install dependencies
         run: pip install -r backend/requirements.txt
 
+      - name: Install Redis CLI
+        run: sudo apt-get update && sudo apt-get install -y redis-tools
+
       - name: Wait for Redis
         run: |
+          echo "Checking Redis service container..."
           for i in {1..30}; do
-            if redis-cli -h localhost -p 6379 ping 2>/dev/null | grep -q PONG; then
+            if redis-cli -h localhost -p 6379 ping 2>&1 | grep -q PONG; then
               echo "Redis is ready"
               exit 0
             fi
             echo "Waiting for Redis... ($i/30)"
             sleep 1
           done
-          echo "Redis failed to start"
+          echo "Redis failed to start - checking container status..."
+          docker ps -a || true
           exit 1
 
       - name: Run integration tests with coverage
