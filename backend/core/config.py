@@ -19,9 +19,11 @@ class Settings(BaseSettings):
     )
 
     # Database configuration
+    # SQLite (dev): sqlite+aiosqlite:///./data/security.db
+    # PostgreSQL (prod): postgresql+asyncpg://user:pass@host:5432/dbname
     database_url: str = Field(
         default="sqlite+aiosqlite:///./data/security.db",
-        description="SQLAlchemy database URL for async SQLite",
+        description="SQLAlchemy database URL (SQLite for dev, PostgreSQL for prod)",
     )
 
     # Redis configuration
@@ -154,7 +156,7 @@ class Settings(BaseSettings):
     )
     log_db_enabled: bool = Field(
         default=True,
-        description="Enable writing logs to SQLite database",
+        description="Enable writing logs to database",
     )
     log_db_min_level: str = Field(
         default="DEBUG",

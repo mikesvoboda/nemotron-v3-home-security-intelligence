@@ -55,22 +55,39 @@ def get_session_factory() -> async_sessionmaker[AsyncSession]:
     return _async_session_factory
 
 
+def _is_postgresql(url: str) -> bool:
+    """Check if the database URL is for PostgreSQL."""
+    return "postgresql" in url or "postgres" in url
+
+
+def _is_sqlite(url: str) -> bool:
+    """Check if the database URL is for SQLite."""
+    return "sqlite" in url
+
+
 async def init_db() -> None:
     """Initialize the database engine and create all tables.
 
     This function should be called once during application startup.
     It creates the async engine, configures connection pooling,
     and creates all tables defined in the Base metadata.
+
+    Supports both SQLite (development) and PostgreSQL (production).
     """
     global _engine, _async_session_factory  # noqa: PLW0603
 
     settings = get_settings()
+    db_url = settings.database_url
 
-    # Configure engine with appropriate pooling for SQLite
+    # Configure engine based on database type
     connect_args: dict[str, Any] = {}
-    poolclass = None
+    poolclass: type[pool.Pool] | None = None
+    pool_size: int | None = None
+    max_overflow: int | None = None
+    pool_timeout: int | None = None
+    pool_recycle: int | None = None
 
-    if "sqlite" in settings.database_url:
+    if _is_sqlite(db_url):
         # SQLite-specific configuration
         connect_args = {
             "check_same_thread": False,  # Required for async SQLite
@@ -79,17 +96,38 @@ async def init_db() -> None:
         # Use NullPool for SQLite to avoid connection reuse issues
         poolclass = pool.NullPool
 
+    elif _is_postgresql(db_url):
+        # PostgreSQL-specific configuration with connection pooling
+        # These settings optimize for concurrent access
+        pool_size = 10  # Base pool size
+        max_overflow = 20  # Additional connections beyond pool_size
+        pool_timeout = 30  # Seconds to wait for available connection
+        pool_recycle = 1800  # Recycle connections after 30 minutes
+
+    # Build engine kwargs
+    engine_kwargs: dict[str, Any] = {
+        "echo": settings.debug,
+        "future": True,
+    }
+
+    if connect_args:
+        engine_kwargs["connect_args"] = connect_args
+    if poolclass is not None:
+        engine_kwargs["poolclass"] = poolclass
+    if pool_size is not None:
+        engine_kwargs["pool_size"] = pool_size
+    if max_overflow is not None:
+        engine_kwargs["max_overflow"] = max_overflow
+    if pool_timeout is not None:
+        engine_kwargs["pool_timeout"] = pool_timeout
+    if pool_recycle is not None:
+        engine_kwargs["pool_recycle"] = pool_recycle
+
     # Create async engine
-    _engine = create_async_engine(
-        settings.database_url,
-        echo=settings.debug,
-        connect_args=connect_args,
-        poolclass=poolclass,
-        future=True,
-    )
+    _engine = create_async_engine(db_url, **engine_kwargs)
 
     # Enable SQLite foreign keys if using SQLite
-    if "sqlite" in settings.database_url:
+    if _is_sqlite(db_url):
 
         @event.listens_for(_engine.sync_engine, "connect")
         def configure_sqlite(dbapi_conn: Any, _connection_record: Any) -> None:
