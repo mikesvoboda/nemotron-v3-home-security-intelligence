@@ -421,12 +421,12 @@ docker compose down && docker compose up -d
 
 **Recommendations:**
 
-| Environment  | Protocol | Notes                                                        |
-| ------------ | -------- | ------------------------------------------------------------ |
-| Local dev    | HTTP     | Acceptable when both services run on localhost               |
-| Docker dev   | HTTP     | Acceptable within trusted Docker network                     |
-| Production   | HTTPS    | **Required** - Use TLS certificates for AI service endpoints |
-| Remote AI    | HTTPS    | **Required** - Never send images over untrusted networks     |
+| Environment | Protocol | Notes                                                        |
+| ----------- | -------- | ------------------------------------------------------------ |
+| Local dev   | HTTP     | Acceptable when both services run on localhost               |
+| Docker dev  | HTTP     | Acceptable within trusted Docker network                     |
+| Production  | HTTPS    | **Required** - Use TLS certificates for AI service endpoints |
+| Remote AI   | HTTPS    | **Required** - Never send images over untrusted networks     |
 
 **Production Configuration Example:**
 
@@ -450,3 +450,94 @@ NEMOTRON_URL=https://your-nemotron-host:8091
 - Restrict `CORS_ORIGINS` to only trusted domains
 - Keep `DEBUG=false` in production
 - Use a firewall to restrict access to Redis and database ports
+
+## Scalability Considerations
+
+### Current Architecture (Single-Node)
+
+The MVP runs all background workers **in-process** with the FastAPI application:
+
+| Worker            | Description                                    |
+| ----------------- | ---------------------------------------------- |
+| `FileWatcher`     | Monitors FTP directories for new camera images |
+| `GPUMonitor`      | Polls GPU metrics via pynvml                   |
+| `CleanupService`  | Prunes old events and detections               |
+| `BatchAggregator` | Groups detections into time-windowed events    |
+
+These workers are started as asyncio background tasks when the FastAPI application starts (`@app.on_event("startup")`). They share the same process memory space and event loop.
+
+**This is intentional for the MVP:**
+
+- Single-user local deployment (one household)
+- All services run on one machine with GPU
+- No need for distributed coordination
+- Simpler deployment and debugging
+
+### Single-Node Limitations
+
+The in-process worker architecture has inherent limitations:
+
+- **Horizontal scaling:** Cannot distribute workers across multiple nodes
+- **Fault isolation:** A crashing worker can affect the API process
+- **Resource contention:** Workers compete with API handlers for CPU/memory
+- **No work distribution:** Cannot balance load across multiple consumers
+
+For the target use case (single home, single GPU server), these limitations are acceptable.
+
+### Multi-Node Deployment (Future)
+
+If scaling beyond a single node becomes necessary (e.g., multi-site deployment, commercial product), the architecture would need these changes:
+
+**Task Queue (Replace In-Process Workers)**
+
+- Use **Celery** or **RQ** (Redis Queue) for distributed task processing
+- Workers become standalone processes/containers
+- Tasks are serialized and distributed via Redis/RabbitMQ
+
+```python
+# Current (in-process)
+asyncio.create_task(file_watcher.watch())
+
+# Future (Celery)
+@celery.task
+def process_image(image_path: str):
+    ...
+```
+
+**Event Distribution (Replace Redis Pub/Sub)**
+
+- Use **Redis Streams** for durable, multi-consumer event delivery
+- Consumer groups ensure each event is processed exactly once
+- Supports replay and acknowledgment
+
+```python
+# Current (pub/sub - fire and forget)
+await redis.publish("events", event_json)
+
+# Future (streams - durable)
+await redis.xadd("events:stream", event_data)
+```
+
+**Container Orchestration**
+
+- **Kubernetes** for container scheduling and scaling
+- Separate deployments for API, workers, and AI services
+- Horizontal Pod Autoscaler for demand-based scaling
+
+**Database**
+
+- Migrate from SQLite to PostgreSQL for concurrent access
+- Consider read replicas for heavy query loads
+
+### What Would Need to Change
+
+| Component       | Current                  | Multi-Node                         |
+| --------------- | ------------------------ | ---------------------------------- |
+| Task scheduling | asyncio background tasks | Celery/RQ workers                  |
+| Event pub/sub   | Redis PUBLISH/SUBSCRIBE  | Redis Streams with consumer groups |
+| Database        | SQLite (single-writer)   | PostgreSQL (multi-writer)          |
+| Session state   | In-memory                | Redis-backed sessions              |
+| File storage    | Local filesystem         | S3/MinIO object storage            |
+| Deployment      | Docker Compose           | Kubernetes                         |
+
+**Note:** These changes are out of scope for the MVP. The current architecture is appropriate for single-user home deployments.

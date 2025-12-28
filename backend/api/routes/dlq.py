@@ -5,11 +5,15 @@ This module provides endpoints to:
 - List jobs in each DLQ
 - Requeue jobs from DLQ back to processing
 - Clear DLQ contents
+
+Destructive operations (requeue, clear) require API key authentication
+when api_key_enabled is set to True in settings.
 """
 
+import hashlib
 from enum import Enum
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 
 from backend.api.schemas.dlq import (
     DLQClearResponse,
@@ -17,6 +21,7 @@ from backend.api.schemas.dlq import (
     DLQRequeueResponse,
     DLQStatsResponse,
 )
+from backend.core.config import get_settings
 from backend.core.logging import get_logger
 from backend.core.redis import RedisClient, get_redis
 from backend.services.retry_handler import get_retry_handler
@@ -24,6 +29,42 @@ from backend.services.retry_handler import get_retry_handler
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/dlq", tags=["dlq"])
+
+
+async def verify_api_key(x_api_key: str | None = Header(None)) -> None:
+    """Verify API key for destructive DLQ operations.
+
+    This dependency validates the API key when api_key_enabled is True.
+    When authentication is disabled, all requests are allowed.
+
+    Args:
+        x_api_key: API key provided via X-API-Key header
+
+    Raises:
+        HTTPException: 401 if API key is missing or invalid when auth is enabled
+    """
+    settings = get_settings()
+
+    # Skip authentication if disabled
+    if not settings.api_key_enabled:
+        return
+
+    # Require API key when authentication is enabled
+    if not x_api_key:
+        raise HTTPException(
+            status_code=401,
+            detail="API key required. Provide via X-API-Key header.",
+        )
+
+    # Hash the provided key and compare against valid keys
+    key_hash = hashlib.sha256(x_api_key.encode()).hexdigest()
+    valid_hashes = {hashlib.sha256(key.encode()).hexdigest() for key in settings.api_keys}
+
+    if key_hash not in valid_hashes:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid API key",
+        )
 
 
 class DLQName(str, Enum):
@@ -113,6 +154,7 @@ async def get_dlq_jobs(
 async def requeue_dlq_job(
     queue_name: DLQName,
     redis: RedisClient = Depends(get_redis),
+    _auth: None = Depends(verify_api_key),
 ) -> DLQRequeueResponse:
     """Requeue the oldest job from a DLQ back to its original processing queue.
 
@@ -153,19 +195,16 @@ async def requeue_dlq_job(
     )
 
 
-# Maximum number of jobs to requeue in a single call to prevent resource exhaustion
-MAX_REQUEUE_ITERATIONS = 10000
-
-
 @router.post("/requeue-all/{queue_name}", response_model=DLQRequeueResponse)
 async def requeue_all_dlq_jobs(
     queue_name: DLQName,
     redis: RedisClient = Depends(get_redis),
+    _auth: None = Depends(verify_api_key),
 ) -> DLQRequeueResponse:
     """Requeue all jobs from a DLQ back to their original processing queue.
 
     Removes all jobs from the specified DLQ and adds them back to the
-    original processing queue for retry. Limited to MAX_REQUEUE_ITERATIONS
+    original processing queue for retry. Limited to settings.max_requeue_iterations
     to prevent resource exhaustion.
 
     Args:
@@ -175,6 +214,9 @@ async def requeue_all_dlq_jobs(
     Returns:
         DLQRequeueResponse with operation result and count
     """
+    settings = get_settings()
+    max_iterations = settings.max_requeue_iterations
+
     handler = get_retry_handler(redis)
     target_queue = queue_name.target_queue
 
@@ -188,7 +230,7 @@ async def requeue_all_dlq_jobs(
         )
 
     requeued_count = 0
-    for _ in range(MAX_REQUEUE_ITERATIONS):
+    for _ in range(max_iterations):
         success = await handler.move_dlq_job_to_queue(queue_name.value, target_queue)
         if not success:
             break
@@ -196,10 +238,10 @@ async def requeue_all_dlq_jobs(
 
     if requeued_count > 0:
         # Check if we hit the limit
-        hit_limit = requeued_count >= MAX_REQUEUE_ITERATIONS
+        hit_limit = requeued_count >= max_iterations
         message = f"Requeued {requeued_count} jobs from {queue_name.value} to {target_queue}"
         if hit_limit:
-            message += f" (hit limit of {MAX_REQUEUE_ITERATIONS})"
+            message += f" (hit limit of {max_iterations})"
 
         logger.info(
             f"Requeued {requeued_count} jobs from {queue_name.value} to {target_queue}",
@@ -227,6 +269,7 @@ async def requeue_all_dlq_jobs(
 async def clear_dlq(
     queue_name: DLQName,
     redis: RedisClient = Depends(get_redis),
+    _auth: None = Depends(verify_api_key),
 ) -> DLQClearResponse:
     """Clear all jobs from a dead-letter queue.
 

@@ -115,19 +115,26 @@ class RedisClient:
 
     # Queue operations
 
-    async def add_to_queue(self, queue_name: str, data: Any) -> int:
-        """Add item to the end of a queue (RPUSH).
+    async def add_to_queue(self, queue_name: str, data: Any, max_size: int = 10000) -> int:
+        """Add item to the end of a queue (RPUSH) with optional size limit.
 
         Args:
             queue_name: Name of the queue (Redis list key)
             data: Data to add (will be JSON-serialized if not a string)
+            max_size: Maximum queue size (default 10000). After RPUSH, queue is
+                trimmed to keep only the last max_size items (newest). Set to 0
+                to disable trimming.
 
         Returns:
             Length of the queue after adding the item
         """
         client = self._ensure_connected()
         serialized = json.dumps(data) if not isinstance(data, str) else data
-        return await client.rpush(queue_name, serialized)  # type: ignore
+        result = cast("int", await client.rpush(queue_name, serialized))  # type: ignore[misc]
+        # Trim to max_size (keep newest items)
+        if max_size > 0:
+            await client.ltrim(queue_name, -max_size, -1)  # type: ignore[misc]
+        return result
 
     async def get_from_queue(self, queue_name: str, timeout: int = 0) -> Any | None:
         """Get item from the front of a queue (BLPOP).
@@ -161,17 +168,26 @@ class RedisClient:
         client = self._ensure_connected()
         return cast("int", await client.llen(queue_name))  # type: ignore[misc]
 
-    async def peek_queue(self, queue_name: str, start: int = 0, end: int = -1) -> list[Any]:
+    async def peek_queue(
+        self,
+        queue_name: str,
+        start: int = 0,
+        end: int = 100,
+        max_items: int = 1000,
+    ) -> list[Any]:
         """Peek at items in a queue without removing them (LRANGE).
 
         Args:
             queue_name: Name of the queue (Redis list key)
             start: Start index (0-based)
-            end: End index (-1 for all items)
+            end: End index (default 100, use -1 for all up to max_items)
+            max_items: Hard cap on items returned (default 1000)
 
         Returns:
             List of deserialized items
         """
+        end = max_items - 1 if end == -1 else min(end, start + max_items - 1)
+
         client = self._ensure_connected()
         items = cast("list[str]", await client.lrange(queue_name, start, end))  # type: ignore[misc]
         result = []

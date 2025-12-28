@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, TypeVar
 
-from backend.core.logging import get_logger
+from backend.core.logging import get_logger, sanitize_error
 from backend.core.redis import RedisClient
 
 logger = get_logger(__name__)
@@ -340,9 +340,8 @@ class RetryHandler:
 
         except Exception as e:
             logger.error(
-                f"Failed to move job to DLQ: {e}",
-                extra={"queue_name": queue_name, "error": str(e)},
-                exc_info=True,
+                f"Failed to move job to DLQ: {sanitize_error(e)}",
+                extra={"queue_name": queue_name},
             )
             return False
 
@@ -365,7 +364,7 @@ class RetryHandler:
                 total_count=detection_count + analysis_count,
             )
         except Exception as e:
-            logger.error(f"Failed to get DLQ stats: {e}", exc_info=True)
+            logger.error(f"Failed to get DLQ stats: {sanitize_error(e)}")
             return DLQStats()
 
     async def get_dlq_jobs(
@@ -391,7 +390,7 @@ class RetryHandler:
             items = await self._redis.peek_queue(dlq_name, start, end)
             return [JobFailure.from_dict(item) for item in items]
         except Exception as e:
-            logger.error(f"Failed to get DLQ jobs: {e}", exc_info=True)
+            logger.error(f"Failed to get DLQ jobs: {sanitize_error(e)}")
             return []
 
     async def requeue_dlq_job(self, dlq_name: str) -> dict[str, Any] | None:
@@ -421,7 +420,7 @@ class RetryHandler:
                 return failure.original_job
             return None
         except Exception as e:
-            logger.error(f"Failed to requeue DLQ job: {e}", exc_info=True)
+            logger.error(f"Failed to requeue DLQ job: {sanitize_error(e)}")
             return None
 
     async def clear_dlq(self, dlq_name: str) -> bool:
@@ -441,7 +440,7 @@ class RetryHandler:
             logger.info(f"Cleared DLQ: {dlq_name}")
             return True
         except Exception as e:
-            logger.error(f"Failed to clear DLQ: {e}", exc_info=True)
+            logger.error(f"Failed to clear DLQ: {sanitize_error(e)}")
             return False
 
     async def move_dlq_job_to_queue(
@@ -475,7 +474,7 @@ class RetryHandler:
                 return True
             return False
         except Exception as e:
-            logger.error(f"Failed to move DLQ job: {e}", exc_info=True)
+            logger.error(f"Failed to move DLQ job: {sanitize_error(e)}")
             return False
 
 

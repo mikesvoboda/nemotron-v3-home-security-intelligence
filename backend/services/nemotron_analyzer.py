@@ -23,7 +23,7 @@ from sqlalchemy import select
 
 from backend.core.config import get_settings
 from backend.core.database import get_session
-from backend.core.logging import get_logger
+from backend.core.logging import get_logger, sanitize_error
 from backend.core.metrics import (
     observe_ai_request_duration,
     observe_stage_duration,
@@ -161,21 +161,21 @@ class NemotronAnalyzer:
                 # Record duration even on failure
                 observe_ai_request_duration("nemotron", llm_duration_seconds)
                 record_pipeline_error("nemotron_analysis_error")
+                sanitized_error = sanitize_error(e)
                 logger.error(
-                    f"LLM analysis failed for batch {batch_id}: {e}",
+                    f"LLM analysis failed for batch {batch_id}: {sanitized_error}",
                     extra={
                         "camera_id": camera_id,
                         "batch_id": batch_id,
                         "duration_ms": llm_duration_ms,
                     },
-                    exc_info=True,
                 )
-                # Create fallback risk data
+                # Create fallback risk data - use sanitized error for user-facing content
                 risk_data = {
                     "risk_score": 50,
                     "risk_level": "medium",
                     "summary": "Analysis unavailable - LLM service error",
-                    "reasoning": f"Failed to analyze detections: {e!s}",
+                    "reasoning": "Failed to analyze detections due to service error",
                 }
 
             # Create Event record
@@ -314,21 +314,21 @@ class NemotronAnalyzer:
                 # Record duration even on failure
                 observe_ai_request_duration("nemotron", llm_duration_seconds)
                 record_pipeline_error("nemotron_fast_path_error")
+                sanitized_error = sanitize_error(e)
                 logger.error(
-                    f"LLM analysis failed for fast path detection {detection_id}: {e}",
+                    f"LLM analysis failed for fast path detection {detection_id}: {sanitized_error}",
                     extra={
                         "camera_id": camera_id,
                         "detection_id": detection_id_int,
                         "duration_ms": llm_duration_ms,
                     },
-                    exc_info=True,
                 )
-                # Create fallback risk data
+                # Create fallback risk data - use generic message for user-facing content
                 risk_data = {
                     "risk_score": 50,
                     "risk_level": "medium",
                     "summary": "Analysis unavailable - LLM service error",
-                    "reasoning": f"Failed to analyze detection: {e!s}",
+                    "reasoning": "Failed to analyze detection due to service error",
                 }
 
             # Create Event record with is_fast_path=True

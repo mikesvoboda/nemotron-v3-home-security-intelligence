@@ -4,7 +4,7 @@ import os
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import AnyHttpUrl, Field, field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -71,14 +71,16 @@ class Settings(BaseSettings):
         description="Idle timeout before processing incomplete batch",
     )
 
-    # AI service endpoints
-    rtdetr_url: AnyHttpUrl = Field(
+    # AI service endpoints (validated as URLs, stored as strings for compatibility)
+    rtdetr_url: str = Field(
         default="http://localhost:8090",
         description="RT-DETRv2 detection service URL",
+        pattern=r"^https?://.*",
     )
-    nemotron_url: AnyHttpUrl = Field(
+    nemotron_url: str = Field(
         default="http://localhost:8091",
         description="Nemotron reasoning service URL (llama.cpp server)",
+        pattern=r"^https?://.*",
     )
 
     # Detection settings
@@ -161,6 +163,14 @@ class Settings(BaseSettings):
     log_retention_days: int = Field(
         default=7,
         description="Number of days to retain logs",
+    )
+
+    # DLQ settings
+    max_requeue_iterations: int = Field(
+        default=10000,
+        ge=1,
+        le=100000,
+        description="Maximum iterations for requeue-all operations",
     )
 
     @field_validator("log_file_path")

@@ -1,15 +1,17 @@
 """System monitoring and configuration API endpoints."""
 
 import asyncio
+import hashlib
 import logging
 import os
 import time
-from datetime import UTC, datetime
+from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import httpx
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Body, Depends, Header, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -37,6 +39,148 @@ from backend.models import Camera, Detection, Event, GPUStats
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/system", tags=["system"])
+
+
+# =============================================================================
+# Circuit Breaker for Health Checks
+# =============================================================================
+
+
+@dataclass
+class CircuitBreaker:
+    """Simple circuit breaker for health checks.
+
+    Tracks failures for external services and temporarily skips health checks
+    for services that are repeatedly failing. This prevents health checks from
+    blocking on slow/unavailable services.
+
+    States:
+    - CLOSED: Normal operation, health checks are executed
+    - OPEN: Service is failing, health checks are skipped (returns cached failure)
+
+    After reset_timeout expires, the circuit transitions back to CLOSED
+    and allows the next health check to proceed (half-open state implicit).
+
+    Attributes:
+        failure_threshold: Number of consecutive failures before opening circuit
+        reset_timeout: Time to wait before allowing health checks again
+    """
+
+    failure_threshold: int = 3
+    reset_timeout: timedelta = field(default_factory=lambda: timedelta(seconds=30))
+    _failures: dict[str, int] = field(default_factory=dict)
+    _open_until: dict[str, datetime] = field(default_factory=dict)
+    _last_error: dict[str, str] = field(default_factory=dict)
+
+    def is_open(self, service: str) -> bool:
+        """Check if circuit is open (service should be skipped).
+
+        Args:
+            service: Name of the service to check
+
+        Returns:
+            True if circuit is open and service should be skipped,
+            False if circuit is closed and health check should proceed
+        """
+        if service in self._open_until:
+            if datetime.now(UTC) < self._open_until[service]:
+                return True
+            # Reset after timeout (transition to half-open/closed)
+            del self._open_until[service]
+            self._failures[service] = 0
+        return False
+
+    def get_cached_error(self, service: str) -> str | None:
+        """Get the last error message for a service with open circuit.
+
+        Args:
+            service: Name of the service
+
+        Returns:
+            Last error message or None if no cached error
+        """
+        return self._last_error.get(service)
+
+    def record_failure(self, service: str, error_msg: str | None = None) -> None:
+        """Record a health check failure for a service.
+
+        Increments failure count and opens circuit if threshold is reached.
+
+        Args:
+            service: Name of the service that failed
+            error_msg: Optional error message to cache
+        """
+        self._failures[service] = self._failures.get(service, 0) + 1
+        if error_msg:
+            self._last_error[service] = error_msg
+        if self._failures[service] >= self.failure_threshold:
+            self._open_until[service] = datetime.now(UTC) + self.reset_timeout
+            logger.warning(
+                f"Circuit breaker opened for {service} after "
+                f"{self._failures[service]} failures. "
+                f"Will retry after {self.reset_timeout.total_seconds()}s"
+            )
+
+    def record_success(self, service: str) -> None:
+        """Record a successful health check for a service.
+
+        Resets failure count and clears any cached error.
+
+        Args:
+            service: Name of the service that succeeded
+        """
+        self._failures[service] = 0
+        if service in self._last_error:
+            del self._last_error[service]
+
+    def get_state(self, service: str) -> str:
+        """Get the current circuit breaker state for a service.
+
+        Args:
+            service: Name of the service
+
+        Returns:
+            'open' if circuit is open, 'closed' otherwise
+        """
+        return "open" if self.is_open(service) else "closed"
+
+
+# Global circuit breaker instance for health checks
+_health_circuit_breaker = CircuitBreaker()
+
+
+async def verify_api_key(x_api_key: str | None = Header(None)) -> None:
+    """Verify API key for protected endpoints.
+
+    This dependency checks if API key authentication is enabled in settings,
+    and if so, validates the provided API key against the configured keys.
+
+    Args:
+        x_api_key: API key from X-API-Key header
+
+    Raises:
+        HTTPException: 401 if API key is required but missing or invalid
+    """
+    settings = get_settings()
+
+    # Skip authentication if disabled
+    if not settings.api_key_enabled:
+        return
+
+    # Require API key if authentication is enabled
+    if not x_api_key:
+        raise HTTPException(
+            status_code=401,
+            detail="API key required. Provide via X-API-Key header.",
+        )
+
+    # Hash and validate the API key
+    key_hash = hashlib.sha256(x_api_key.encode()).hexdigest()
+    valid_hashes = {hashlib.sha256(k.encode()).hexdigest() for k in settings.api_keys}
+
+    if key_hash not in valid_hashes:
+        raise HTTPException(status_code=401, detail="Invalid API key")
+
 
 # Track application start time for uptime calculation
 _app_start_time = time.time()
@@ -275,6 +419,76 @@ async def _check_nemotron_health(nemotron_url: str, timeout: float) -> tuple[boo
 AI_HEALTH_CHECK_TIMEOUT_SECONDS = 3.0
 
 
+async def _check_rtdetr_health_with_circuit_breaker(
+    rtdetr_url: str, timeout: float
+) -> tuple[bool, str | None]:
+    """Check RT-DETR health with circuit breaker protection.
+
+    If the circuit is open (service repeatedly failing), returns cached error
+    immediately without making network call. Otherwise performs health check
+    and records result in circuit breaker.
+
+    Args:
+        rtdetr_url: Base URL for RT-DETR service
+        timeout: Request timeout in seconds
+
+    Returns:
+        Tuple of (is_healthy, error_message)
+    """
+    service_name = "rtdetr"
+
+    # Check if circuit is open (service is down, skip the check)
+    if _health_circuit_breaker.is_open(service_name):
+        cached_error = _health_circuit_breaker.get_cached_error(service_name)
+        return False, cached_error or "RT-DETR service unavailable (circuit open)"
+
+    # Circuit is closed, perform actual health check
+    is_healthy, error_msg = await _check_rtdetr_health(rtdetr_url, timeout)
+
+    # Record result in circuit breaker
+    if is_healthy:
+        _health_circuit_breaker.record_success(service_name)
+    else:
+        _health_circuit_breaker.record_failure(service_name, error_msg)
+
+    return is_healthy, error_msg
+
+
+async def _check_nemotron_health_with_circuit_breaker(
+    nemotron_url: str, timeout: float
+) -> tuple[bool, str | None]:
+    """Check Nemotron health with circuit breaker protection.
+
+    If the circuit is open (service repeatedly failing), returns cached error
+    immediately without making network call. Otherwise performs health check
+    and records result in circuit breaker.
+
+    Args:
+        nemotron_url: Base URL for Nemotron service
+        timeout: Request timeout in seconds
+
+    Returns:
+        Tuple of (is_healthy, error_message)
+    """
+    service_name = "nemotron"
+
+    # Check if circuit is open (service is down, skip the check)
+    if _health_circuit_breaker.is_open(service_name):
+        cached_error = _health_circuit_breaker.get_cached_error(service_name)
+        return False, cached_error or "Nemotron service unavailable (circuit open)"
+
+    # Circuit is closed, perform actual health check
+    is_healthy, error_msg = await _check_nemotron_health(nemotron_url, timeout)
+
+    # Record result in circuit breaker
+    if is_healthy:
+        _health_circuit_breaker.record_success(service_name)
+    else:
+        _health_circuit_breaker.record_failure(service_name, error_msg)
+
+    return is_healthy, error_msg
+
+
 async def check_ai_services_health() -> ServiceStatus:
     """Check AI services health by pinging RT-DETR and Nemotron endpoints.
 
@@ -292,10 +506,10 @@ async def check_ai_services_health() -> ServiceStatus:
     rtdetr_url = settings.rtdetr_url
     nemotron_url = settings.nemotron_url
 
-    # Check both services concurrently
+    # Check both services concurrently with circuit breaker protection
     rtdetr_result, nemotron_result = await asyncio.gather(
-        _check_rtdetr_health(rtdetr_url, AI_HEALTH_CHECK_TIMEOUT_SECONDS),
-        _check_nemotron_health(nemotron_url, AI_HEALTH_CHECK_TIMEOUT_SECONDS),
+        _check_rtdetr_health_with_circuit_breaker(rtdetr_url, AI_HEALTH_CHECK_TIMEOUT_SECONDS),
+        _check_nemotron_health_with_circuit_breaker(nemotron_url, AI_HEALTH_CHECK_TIMEOUT_SECONDS),
     )
 
     rtdetr_healthy, rtdetr_error = rtdetr_result
@@ -344,13 +558,48 @@ async def get_health(
     - Redis connectivity
     - AI services status
 
+    Health checks have a timeout of HEALTH_CHECK_TIMEOUT_SECONDS (default 5 seconds).
+    If a health check times out, the service is marked as unhealthy.
+
     Returns:
         HealthResponse with overall status and individual service statuses
     """
-    # Check all services
-    db_status = await check_database_health(db)
-    redis_status = await check_redis_health(redis)
-    ai_status = await check_ai_services_health()
+    # Check all services with timeout protection
+    try:
+        db_status = await asyncio.wait_for(
+            check_database_health(db),
+            timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
+        )
+    except TimeoutError:
+        db_status = ServiceStatus(
+            status="unhealthy",
+            message="Database health check timed out",
+            details=None,
+        )
+
+    try:
+        redis_status = await asyncio.wait_for(
+            check_redis_health(redis),
+            timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
+        )
+    except TimeoutError:
+        redis_status = ServiceStatus(
+            status="unhealthy",
+            message="Redis health check timed out",
+            details=None,
+        )
+
+    try:
+        ai_status = await asyncio.wait_for(
+            check_ai_services_health(),
+            timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
+        )
+    except TimeoutError:
+        ai_status = ServiceStatus(
+            status="unhealthy",
+            message="AI services health check timed out",
+            details=None,
+        )
 
     # Determine overall status
     services = {
@@ -617,9 +866,12 @@ def _write_runtime_env(overrides: dict[str, str]) -> None:
     path.write_text(content, encoding="utf-8")
 
 
-@router.patch("/config", response_model=ConfigResponse)
+@router.patch("/config", response_model=ConfigResponse, dependencies=[Depends(verify_api_key)])
 async def patch_config(update: ConfigUpdateRequest = Body(...)) -> ConfigResponse:
     """Patch processing-related configuration and persist runtime overrides.
+
+    Requires API key authentication when api_key_enabled is True in settings.
+    Provide the API key via X-API-Key header.
 
     Notes:
     - This updates a runtime override env file (see `HSI_RUNTIME_ENV_PATH`) and clears the
