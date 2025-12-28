@@ -7,7 +7,7 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 ## Tech Stack
 
 - **Frontend:** React + TypeScript + Tailwind + Tremor
-- **Backend:** Python FastAPI + SQLite + Redis
+- **Backend:** Python FastAPI + PostgreSQL + Redis
 - **AI:** RT-DETRv2 (object detection) + Nemotron via llama.cpp (risk reasoning)
 - **GPU:** NVIDIA RTX A5500 (24GB)
 - **Cameras:** Foscam FTP uploads to `/export/foscam/{camera_name}/`
@@ -164,7 +164,7 @@ cd frontend && npm test
 2. File watcher detects new files, sends to RT-DETRv2
 3. Detections accumulate in Redis queue
 4. Every 90 seconds (or 30s idle), batch sent to Nemotron for risk assessment
-5. Results stored in SQLite, pushed to dashboard via WebSocket
+5. Results stored in PostgreSQL, pushed to dashboard via WebSocket
 
 ## Entry Points for Agents
 

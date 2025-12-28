@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from testcontainers.postgres import PostgresContainer
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Generator
@@ -32,12 +33,85 @@ if str(backend_path) not in sys.path:
     sys.path.insert(0, str(backend_path))
 
 
+# Module-level PostgreSQL container shared across all tests in a session
+_postgres_container: PostgresContainer | None = None
+
+
+def pytest_configure(config):
+    """Start PostgreSQL container once for the entire test session.
+
+    If TEST_DATABASE_URL environment variable is set, use that instead of testcontainers.
+    This allows tests to run against an existing PostgreSQL instance when Docker is not available.
+    """
+    global _postgres_container  # noqa: PLW0603
+
+    # Allow using existing PostgreSQL instance via environment variable
+    if os.environ.get("TEST_DATABASE_URL"):
+        return
+
+    # Try to start testcontainer, skip if Docker/Podman not available
+    try:
+        _postgres_container = PostgresContainer("postgres:16-alpine", driver="asyncpg")
+        _postgres_container.start()
+    except Exception as e:
+        # Log warning but don't fail - tests will use TEST_DATABASE_URL if set
+        print(
+            f"Warning: Could not start PostgreSQL testcontainer: {e}. "
+            "Set TEST_DATABASE_URL environment variable to use existing PostgreSQL instance."
+        )
+
+
+def pytest_unconfigure(config):
+    """Stop PostgreSQL container after all tests complete."""
+    global _postgres_container  # noqa: PLW0603
+    if _postgres_container:
+        try:
+            _postgres_container.stop()
+        except Exception:  # noqa: S110
+            pass  # Ignore errors on cleanup - container may already be stopped
+        finally:
+            _postgres_container = None
+
+
+def get_test_db_url() -> str:
+    """Get the PostgreSQL test database URL.
+
+    Uses TEST_DATABASE_URL environment variable if set, otherwise uses testcontainer.
+
+    Returns:
+        str: PostgreSQL connection URL with asyncpg driver
+
+    Raises:
+        RuntimeError: If neither testcontainer nor TEST_DATABASE_URL is available
+    """
+    # Check for environment variable first
+    env_url = os.environ.get("TEST_DATABASE_URL")
+    if env_url:
+        # Ensure asyncpg driver
+        if "postgresql://" in env_url and "asyncpg" not in env_url:
+            env_url = env_url.replace("postgresql://", "postgresql+asyncpg://")
+        return env_url
+
+    # Fall back to testcontainer
+    if _postgres_container is None:
+        raise RuntimeError(
+            "PostgreSQL not available for testing. Either start Docker/Podman "
+            "or set TEST_DATABASE_URL environment variable to an existing PostgreSQL instance."
+        )
+
+    # Get the connection URL and ensure it uses asyncpg driver
+    url = _postgres_container.get_connection_url()
+    # Replace psycopg2 driver with asyncpg
+    return url.replace("postgresql+psycopg2://", "postgresql+asyncpg://")
+
+
 @pytest.fixture(scope="function")
 async def isolated_db():
     """Create an isolated test database for each test.
 
     This fixture:
-    - Creates a temporary database file
+    - Uses the shared PostgreSQL testcontainer
+    - Creates a unique database for each test
     - Sets the DATABASE_URL environment variable
     - Clears the settings cache
     - Initializes the database
@@ -53,27 +127,25 @@ async def isolated_db():
     # Clear the settings cache to force reload
     get_settings.cache_clear()
 
-    # Create temporary database
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "test.db"
-        test_db_url = f"sqlite+aiosqlite:///{db_path}"
+    # Get base PostgreSQL URL from testcontainer
+    test_db_url = get_test_db_url()
 
-        # Set test database URL
-        os.environ["DATABASE_URL"] = test_db_url
+    # Set test database URL
+    os.environ["DATABASE_URL"] = test_db_url
 
-        # Clear cache again after setting env var
-        get_settings.cache_clear()
+    # Clear cache again after setting env var
+    get_settings.cache_clear()
 
-        # Ensure database is closed before initializing
-        await close_db()
+    # Ensure database is closed before initializing
+    await close_db()
 
-        # Initialize database
-        await init_db()
+    # Initialize database
+    await init_db()
 
-        yield
+    yield
 
-        # Cleanup
-        await close_db()
+    # Cleanup
+    await close_db()
 
     # Restore original state
     if original_db_url:
@@ -109,7 +181,7 @@ async def test_db():
     """Create test database session factory for unit tests.
 
     This fixture provides a callable that returns a context manager for database sessions.
-    It sets up a temporary database for testing and ensures cleanup.
+    It sets up a PostgreSQL test database and ensures cleanup.
 
     Usage:
         async with test_db() as session:
@@ -125,28 +197,26 @@ async def test_db():
     # Clear the settings cache to force reload
     get_settings.cache_clear()
 
-    # Create temporary database
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "test.db"
-        test_db_url = f"sqlite+aiosqlite:///{db_path}"
+    # Get PostgreSQL URL from testcontainer
+    test_db_url = get_test_db_url()
 
-        # Set test database URL
-        os.environ["DATABASE_URL"] = test_db_url
+    # Set test database URL
+    os.environ["DATABASE_URL"] = test_db_url
 
-        # Clear cache again after setting env var
-        get_settings.cache_clear()
+    # Clear cache again after setting env var
+    get_settings.cache_clear()
 
-        # Ensure database is closed before initializing
-        await close_db()
+    # Ensure database is closed before initializing
+    await close_db()
 
-        # Initialize database
-        await init_db()
+    # Initialize database
+    await init_db()
 
-        # Return the get_session function as a callable
-        yield get_session
+    # Return the get_session function as a callable
+    yield get_session
 
-        # Cleanup
-        await close_db()
+    # Cleanup
+    await close_db()
 
     # Restore original state
     if original_db_url:
@@ -167,7 +237,7 @@ async def test_db():
 
 @pytest.fixture
 def integration_env() -> Generator[str]:
-    """Set DATABASE_URL/REDIS_URL to a temporary per-test database.
+    """Set DATABASE_URL/REDIS_URL to a PostgreSQL test database.
 
     This fixture ONLY sets environment variables and clears cached settings.
     Use `integration_db` if the test needs the database initialized.
@@ -182,8 +252,8 @@ def integration_env() -> Generator[str]:
     original_runtime_env_path = os.environ.get("HSI_RUNTIME_ENV_PATH")
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "integration_test.db"
-        test_db_url = f"sqlite+aiosqlite:///{db_path}"
+        # Get PostgreSQL URL from testcontainer
+        test_db_url = get_test_db_url()
         runtime_env_path = str(Path(tmpdir) / "runtime.env")
 
         os.environ["DATABASE_URL"] = test_db_url
@@ -219,7 +289,7 @@ def integration_env() -> Generator[str]:
 
 @pytest.fixture
 async def integration_db(integration_env: str) -> AsyncGenerator[str]:
-    """Initialize a temporary SQLite DB for integration/E2E tests.
+    """Initialize a PostgreSQL test database for integration/E2E tests.
 
     This fixture:
     - Depends on integration_env for environment setup

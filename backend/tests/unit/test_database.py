@@ -1,15 +1,11 @@
 """Unit tests for database connection and session management."""
 
 import contextlib
-import os
-import tempfile
-from pathlib import Path
 
 import pytest
 from sqlalchemy import Column, Integer, String, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.core.config import get_settings
 from backend.core.database import (
     Base,
     close_db,
@@ -43,41 +39,18 @@ async def test_db(isolated_db):
 
 
 @pytest.mark.asyncio
-async def test_init_db():
+async def test_init_db(isolated_db):
     """Test database initialization."""
-    # Save original state
-    original_db_url = os.environ.get("DATABASE_URL")
-    get_settings.cache_clear()
+    # isolated_db fixture already initializes the database
+    # Verify engine was created
+    engine = get_engine()
+    assert engine is not None
+    assert "postgresql" in str(engine.url)
+    assert "asyncpg" in str(engine.url)
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "test_init.db"
-        test_db_url = f"sqlite+aiosqlite:///{db_path}"
-
-        os.environ["DATABASE_URL"] = test_db_url
-        get_settings.cache_clear()
-
-        try:
-            # Ensure clean state
-            await close_db()
-
-            await init_db()
-
-            # Verify engine was created
-            engine = get_engine()
-            assert engine is not None
-            assert str(engine.url) == test_db_url
-
-            # Verify session factory was created
-            factory = get_session_factory()
-            assert factory is not None
-
-        finally:
-            await close_db()
-            if original_db_url:
-                os.environ["DATABASE_URL"] = original_db_url
-            else:
-                os.environ.pop("DATABASE_URL", None)
-            get_settings.cache_clear()
+    # Verify session factory was created
+    factory = get_session_factory()
+    assert factory is not None
 
 
 @pytest.mark.asyncio
@@ -227,36 +200,17 @@ async def test_table_creation(test_db):
 
 
 @pytest.mark.asyncio
-async def test_close_db():
+async def test_close_db(isolated_db):
     """Test database cleanup and resource disposal."""
-    # Save original state
-    original_db_url = os.environ.get("DATABASE_URL")
-    get_settings.cache_clear()
+    # isolated_db fixture already initializes the database
+    engine = get_engine()
+    assert engine is not None
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "test_close.db"
-        test_db_url = f"sqlite+aiosqlite:///{db_path}"
+    await close_db()
 
-        os.environ["DATABASE_URL"] = test_db_url
-        get_settings.cache_clear()
+    # After closing, accessing engine should raise error
+    with pytest.raises(RuntimeError, match="Database not initialized"):
+        get_engine()
 
-        try:
-            # Ensure clean state
-            await close_db()
-
-            await init_db()
-            engine = get_engine()
-            assert engine is not None
-
-            await close_db()
-
-            # After closing, accessing engine should raise error
-            with pytest.raises(RuntimeError, match="Database not initialized"):
-                get_engine()
-
-        finally:
-            if original_db_url:
-                os.environ["DATABASE_URL"] = original_db_url
-            else:
-                os.environ.pop("DATABASE_URL", None)
-            get_settings.cache_clear()
+    # Re-initialize for cleanup by isolated_db fixture
+    await init_db()

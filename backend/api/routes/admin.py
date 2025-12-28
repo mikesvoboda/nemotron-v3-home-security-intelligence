@@ -2,7 +2,7 @@
 
 import random
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -311,7 +311,7 @@ async def seed_events(
 
         # Generate timestamps (spread over last 24 hours)
         hours_ago = random.uniform(0, 24)  # noqa: S311
-        started_at = datetime.utcnow() - timedelta(hours=hours_ago)
+        started_at = datetime.now(UTC) - timedelta(hours=hours_ago)
         duration_seconds = random.randint(10, 180)  # noqa: S311
         ended_at = started_at + timedelta(seconds=duration_seconds)
 

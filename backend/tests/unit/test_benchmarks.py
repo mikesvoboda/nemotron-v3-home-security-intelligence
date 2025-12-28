@@ -7,8 +7,6 @@ without actually running performance benchmarks.
 from __future__ import annotations
 
 import os
-import tempfile
-from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
@@ -355,17 +353,16 @@ class TestBenchmarkEnvironmentFixtures:
         original_db_url = os.environ.get("DATABASE_URL")
         original_redis_url = os.environ.get("REDIS_URL")
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db_path = Path(tmpdir) / "test.db"
-            test_db_url = f"sqlite+aiosqlite:///{db_path}"
+        # Use a PostgreSQL URL since the codebase now requires PostgreSQL
+        test_db_url = "postgresql+asyncpg://test:test@localhost:5432/benchmark_test"
 
-            os.environ["DATABASE_URL"] = test_db_url
-            os.environ["REDIS_URL"] = "redis://localhost:6379/15"
+        os.environ["DATABASE_URL"] = test_db_url
+        os.environ["REDIS_URL"] = "redis://localhost:6379/15"
 
-            get_settings.cache_clear()
+        get_settings.cache_clear()
 
-            settings = get_settings()
-            assert str(db_path) in settings.database_url
+        settings = get_settings()
+        assert settings.database_url == test_db_url
 
         # Restore
         if original_db_url is not None:
