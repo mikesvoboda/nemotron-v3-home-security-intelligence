@@ -11,11 +11,17 @@ from sqlalchemy import select
 
 from backend.models import Camera, Detection, Event, GPUStats
 
-# Import unique_id helper from conftest for test isolation
-from backend.tests.conftest import unique_id
 
-# Note: The 'session' fixture is provided by conftest.py with transaction
-# rollback isolation for parallel test execution.
+@pytest.fixture
+async def session(isolated_db):
+    """Create a new database session for each test.
+
+    Uses PostgreSQL via the isolated_db fixture from conftest.py.
+    """
+    from backend.core.database import get_session
+
+    async with get_session() as session:
+        yield session
 
 
 class TestCameraModel:
@@ -24,18 +30,17 @@ class TestCameraModel:
     @pytest.mark.asyncio
     async def test_create_camera(self, session):
         """Test creating a camera with required fields."""
-        camera_id = unique_id("front_door")
         camera = Camera(
-            id=camera_id,
+            id="front_door",
             name="Front Door Camera",
-            folder_path=f"/export/foscam/{camera_id}",
+            folder_path="/export/foscam/front_door",
         )
         session.add(camera)
         await session.flush()
 
-        assert camera.id == camera_id
+        assert camera.id == "front_door"
         assert camera.name == "Front Door Camera"
-        assert camera.folder_path == f"/export/foscam/{camera_id}"
+        assert camera.folder_path == "/export/foscam/front_door"
         assert camera.status == "online"
         assert isinstance(camera.created_at, datetime)
         assert camera.last_seen_at is None
@@ -43,11 +48,10 @@ class TestCameraModel:
     @pytest.mark.asyncio
     async def test_camera_default_status(self, session):
         """Test that camera status defaults to 'online'."""
-        camera_id = unique_id("garage")
         camera = Camera(
-            id=camera_id,
+            id="garage",
             name="Garage Camera",
-            folder_path=f"/export/foscam/{camera_id}",
+            folder_path="/export/foscam/garage",
         )
         session.add(camera)
         await session.flush()
@@ -57,11 +61,10 @@ class TestCameraModel:
     @pytest.mark.asyncio
     async def test_camera_custom_status(self, session):
         """Test creating a camera with custom status."""
-        camera_id = unique_id("backyard")
         camera = Camera(
-            id=camera_id,
+            id="backyard",
             name="Backyard Camera",
-            folder_path=f"/export/foscam/{camera_id}",
+            folder_path="/export/foscam/backyard",
             status="offline",
         )
         session.add(camera)
@@ -72,11 +75,10 @@ class TestCameraModel:
     @pytest.mark.asyncio
     async def test_camera_last_seen_update(self, session):
         """Test updating camera last_seen_at timestamp."""
-        camera_id = unique_id("driveway")
         camera = Camera(
-            id=camera_id,
+            id="driveway",
             name="Driveway Camera",
-            folder_path=f"/export/foscam/{camera_id}",
+            folder_path="/export/foscam/driveway",
         )
         session.add(camera)
         await session.flush()
@@ -90,11 +92,10 @@ class TestCameraModel:
     @pytest.mark.asyncio
     async def test_camera_repr(self, session):
         """Test camera string representation."""
-        camera_id = unique_id("side_gate")
         camera = Camera(
-            id=camera_id,
+            id="side_gate",
             name="Side Gate Camera",
-            folder_path=f"/export/foscam/{camera_id}",
+            folder_path="/export/foscam/side_gate",
         )
         session.add(camera)
         await session.flush()
@@ -102,25 +103,24 @@ class TestCameraModel:
         repr_str = repr(camera)
 
         assert "Camera" in repr_str
-        assert camera_id in repr_str
+        assert "side_gate" in repr_str
         assert "Side Gate Camera" in repr_str
         assert "online" in repr_str
 
     @pytest.mark.asyncio
     async def test_query_camera_by_id(self, session):
         """Test querying camera by ID."""
-        camera_id = unique_id("test_cam")
         camera = Camera(
-            id=camera_id,
+            id="test_cam",
             name="Test Camera",
-            folder_path=f"/export/foscam/{camera_id}",
+            folder_path="/export/foscam/test",
         )
         session.add(camera)
         await session.flush()
 
-        result = await session.get(Camera, camera_id)
+        result = await session.get(Camera, "test_cam")
         assert result is not None
-        assert result.id == camera_id
+        assert result.id == "test_cam"
         assert result.name == "Test Camera"
 
 
@@ -130,42 +130,40 @@ class TestDetectionModel:
     @pytest.mark.asyncio
     async def test_create_detection(self, session):
         """Test creating a detection with required fields."""
-        camera_id = unique_id("front_door")
         camera = Camera(
-            id=camera_id,
+            id="front_door",
             name="Front Door Camera",
-            folder_path=f"/export/foscam/{camera_id}",
+            folder_path="/export/foscam/front_door",
         )
         session.add(camera)
         await session.flush()
 
         detection = Detection(
-            camera_id=camera_id,
-            file_path=f"/export/foscam/{camera_id}/image_001.jpg",
+            camera_id="front_door",
+            file_path="/export/foscam/front_door/image_001.jpg",
         )
         session.add(detection)
         await session.flush()
 
         assert detection.id is not None
-        assert detection.camera_id == camera_id
-        assert detection.file_path == f"/export/foscam/{camera_id}/image_001.jpg"
+        assert detection.camera_id == "front_door"
+        assert detection.file_path == "/export/foscam/front_door/image_001.jpg"
         assert isinstance(detection.detected_at, datetime)
 
     @pytest.mark.asyncio
     async def test_detection_with_bbox(self, session):
         """Test creating a detection with bounding box coordinates."""
-        camera_id = unique_id("garage")
         camera = Camera(
-            id=camera_id,
+            id="garage",
             name="Garage Camera",
-            folder_path=f"/export/foscam/{camera_id}",
+            folder_path="/export/foscam/garage",
         )
         session.add(camera)
         await session.flush()
 
         detection = Detection(
-            camera_id=camera_id,
-            file_path=f"/export/foscam/{camera_id}/image_002.jpg",
+            camera_id="garage",
+            file_path="/export/foscam/garage/image_002.jpg",
             object_type="person",
             confidence=0.95,
             bbox_x=100,
@@ -186,18 +184,17 @@ class TestDetectionModel:
     @pytest.mark.asyncio
     async def test_detection_camera_relationship(self, session):
         """Test the relationship between Detection and Camera."""
-        camera_id = unique_id("backyard")
         camera = Camera(
-            id=camera_id,
+            id="backyard",
             name="Backyard Camera",
-            folder_path=f"/export/foscam/{camera_id}",
+            folder_path="/export/foscam/backyard",
         )
         session.add(camera)
         await session.flush()
 
         detection = Detection(
-            camera_id=camera_id,
-            file_path=f"/export/foscam/{camera_id}/image_003.jpg",
+            camera_id="backyard",
+            file_path="/export/foscam/backyard/image_003.jpg",
             object_type="car",
         )
         session.add(detection)
@@ -206,24 +203,23 @@ class TestDetectionModel:
         # Test forward relationship - need to refresh to load relationship
         await session.refresh(detection, ["camera"])
         assert detection.camera is not None
-        assert detection.camera.id == camera_id
+        assert detection.camera.id == "backyard"
         assert detection.camera.name == "Backyard Camera"
 
     @pytest.mark.asyncio
     async def test_detection_repr(self, session):
         """Test detection string representation."""
-        camera_id = unique_id("front_door")
         camera = Camera(
-            id=camera_id,
+            id="front_door",
             name="Front Door Camera",
-            folder_path=f"/export/foscam/{camera_id}",
+            folder_path="/export/foscam/front_door",
         )
         session.add(camera)
         await session.flush()
 
         detection = Detection(
-            camera_id=camera_id,
-            file_path=f"/export/foscam/{camera_id}/image_001.jpg",
+            camera_id="front_door",
+            file_path="/export/foscam/front_door/image_001.jpg",
             object_type="person",
             confidence=0.89,
         )
@@ -238,17 +234,15 @@ class TestDetectionModel:
     @pytest.mark.asyncio
     async def test_query_detections_by_camera(self, session):
         """Test querying all detections for a specific camera."""
-        cam1_id = unique_id("cam1")
-        cam2_id = unique_id("cam2")
         camera1 = Camera(
-            id=cam1_id,
+            id="cam1",
             name="Camera 1",
-            folder_path=f"/export/foscam/{cam1_id}",
+            folder_path="/export/foscam/cam1",
         )
         camera2 = Camera(
-            id=cam2_id,
+            id="cam2",
             name="Camera 2",
-            folder_path=f"/export/foscam/{cam2_id}",
+            folder_path="/export/foscam/cam2",
         )
         session.add_all([camera1, camera2])
         await session.flush()
@@ -256,26 +250,26 @@ class TestDetectionModel:
         # Add detections to camera1
         for i in range(3):
             detection = Detection(
-                camera_id=cam1_id,
-                file_path=f"/export/foscam/{cam1_id}/image_{i:03d}.jpg",
+                camera_id="cam1",
+                file_path=f"/export/foscam/cam1/image_{i:03d}.jpg",
             )
             session.add(detection)
 
         # Add detection to camera2
         detection = Detection(
-            camera_id=cam2_id,
-            file_path=f"/export/foscam/{cam2_id}/image_001.jpg",
+            camera_id="cam2",
+            file_path="/export/foscam/cam2/image_001.jpg",
         )
         session.add(detection)
         await session.flush()
 
         # Query detections for camera1
-        stmt = select(Detection).where(Detection.camera_id == cam1_id)
+        stmt = select(Detection).where(Detection.camera_id == "cam1")
         result = await session.execute(stmt)
         results = result.scalars().all()
 
         assert len(results) == 3
-        assert all(d.camera_id == cam1_id for d in results)
+        assert all(d.camera_id == "cam1" for d in results)
 
 
 class TestEventModel:
@@ -284,11 +278,10 @@ class TestEventModel:
     @pytest.mark.asyncio
     async def test_create_event(self, session):
         """Test creating an event with required fields."""
-        camera_id = unique_id("front_door")
         camera = Camera(
-            id=camera_id,
+            id="front_door",
             name="Front Door Camera",
-            folder_path=f"/export/foscam/{camera_id}",
+            folder_path="/export/foscam/front_door",
         )
         session.add(camera)
         await session.flush()
@@ -296,7 +289,7 @@ class TestEventModel:
         now = datetime.utcnow()
         event = Event(
             batch_id="batch_001",
-            camera_id=camera_id,
+            camera_id="front_door",
             started_at=now,
         )
         session.add(event)
@@ -304,18 +297,17 @@ class TestEventModel:
 
         assert event.id is not None
         assert event.batch_id == "batch_001"
-        assert event.camera_id == camera_id
+        assert event.camera_id == "front_door"
         assert event.started_at == now
         assert event.reviewed is False
 
     @pytest.mark.asyncio
     async def test_event_with_risk_assessment(self, session):
         """Test creating an event with LLM risk assessment."""
-        camera_id = unique_id("backyard")
         camera = Camera(
-            id=camera_id,
+            id="backyard",
             name="Backyard Camera",
-            folder_path=f"/export/foscam/{camera_id}",
+            folder_path="/export/foscam/backyard",
         )
         session.add(camera)
         await session.flush()
@@ -323,7 +315,7 @@ class TestEventModel:
         now = datetime.utcnow()
         event = Event(
             batch_id="batch_002",
-            camera_id=camera_id,
+            camera_id="backyard",
             started_at=now,
             ended_at=now + timedelta(seconds=90),
             risk_score=75,
@@ -344,18 +336,17 @@ class TestEventModel:
     @pytest.mark.asyncio
     async def test_event_camera_relationship(self, session):
         """Test the relationship between Event and Camera."""
-        camera_id = unique_id("garage")
         camera = Camera(
-            id=camera_id,
+            id="garage",
             name="Garage Camera",
-            folder_path=f"/export/foscam/{camera_id}",
+            folder_path="/export/foscam/garage",
         )
         session.add(camera)
         await session.flush()
 
         event = Event(
             batch_id="batch_003",
-            camera_id=camera_id,
+            camera_id="garage",
             started_at=datetime.utcnow(),
         )
         session.add(event)
@@ -364,24 +355,23 @@ class TestEventModel:
         # Test forward relationship
         await session.refresh(event, ["camera"])
         assert event.camera is not None
-        assert event.camera.id == camera_id
+        assert event.camera.id == "garage"
         assert event.camera.name == "Garage Camera"
 
     @pytest.mark.asyncio
     async def test_event_reviewed_flag(self, session):
         """Test event reviewed flag functionality."""
-        camera_id = unique_id("driveway")
         camera = Camera(
-            id=camera_id,
+            id="driveway",
             name="Driveway Camera",
-            folder_path=f"/export/foscam/{camera_id}",
+            folder_path="/export/foscam/driveway",
         )
         session.add(camera)
         await session.flush()
 
         event = Event(
             batch_id="batch_004",
-            camera_id=camera_id,
+            camera_id="driveway",
             started_at=datetime.utcnow(),
         )
         session.add(event)
@@ -400,18 +390,17 @@ class TestEventModel:
     @pytest.mark.asyncio
     async def test_event_repr(self, session):
         """Test event string representation."""
-        camera_id = unique_id("front_door")
         camera = Camera(
-            id=camera_id,
+            id="front_door",
             name="Front Door Camera",
-            folder_path=f"/export/foscam/{camera_id}",
+            folder_path="/export/foscam/front_door",
         )
         session.add(camera)
         await session.flush()
 
         event = Event(
             batch_id="batch_005",
-            camera_id=camera_id,
+            camera_id="front_door",
             started_at=datetime.utcnow(),
             risk_score=85,
         )
@@ -421,17 +410,16 @@ class TestEventModel:
         repr_str = repr(event)
         assert "Event" in repr_str
         assert "batch_005" in repr_str
-        assert camera_id in repr_str
+        assert "front_door" in repr_str
         assert "85" in repr_str
 
     @pytest.mark.asyncio
     async def test_query_high_risk_events(self, session):
         """Test querying events by risk score."""
-        camera_id = unique_id("test_cam")
         camera = Camera(
-            id=camera_id,
+            id="test_cam",
             name="Test Camera",
-            folder_path=f"/export/foscam/{camera_id}",
+            folder_path="/export/foscam/test",
         )
         session.add(camera)
         await session.flush()
@@ -440,18 +428,15 @@ class TestEventModel:
         for i, score in enumerate([10, 45, 75, 90, 25]):
             event = Event(
                 batch_id=f"batch_{i:03d}",
-                camera_id=camera_id,
+                camera_id="test_cam",
                 started_at=datetime.utcnow(),
                 risk_score=score,
             )
             session.add(event)
         await session.flush()
 
-        # Query high risk events (score >= 70) for this specific camera
-        stmt = select(Event).where(
-            Event.camera_id == camera_id,
-            Event.risk_score >= 70,
-        )
+        # Query high risk events (score >= 70)
+        stmt = select(Event).where(Event.risk_score >= 70)
         result = await session.execute(stmt)
         results = result.scalars().all()
 
@@ -519,25 +504,18 @@ class TestGPUStatsModel:
         """Test querying GPU stats by time range."""
         now = datetime.utcnow()
 
-        # Create stats at different times with unique utilization values
-        # Use a unique base value to identify our records
-        base_util = 50.0
-        created_ids = []
+        # Create stats at different times
         for i in range(5):
             stats = GPUStats(
                 recorded_at=now - timedelta(minutes=i),
-                gpu_utilization=base_util + i * 10,
+                gpu_utilization=50.0 + i * 10,
             )
             session.add(stats)
-            await session.flush()
-            created_ids.append(stats.id)
+        await session.flush()
 
-        # Query stats from last 3 minutes, filtering by IDs we created
+        # Query stats from last 3 minutes
         cutoff = now - timedelta(minutes=3)
-        stmt = select(GPUStats).where(
-            GPUStats.id.in_(created_ids),
-            GPUStats.recorded_at >= cutoff,
-        )
+        stmt = select(GPUStats).where(GPUStats.recorded_at >= cutoff)
         result = await session.execute(stmt)
         results = result.scalars().all()
 
@@ -547,12 +525,9 @@ class TestGPUStatsModel:
     @pytest.mark.asyncio
     async def test_gpu_stats_time_series(self, session):
         """Test storing and retrieving GPU stats as time series."""
-        from datetime import UTC
-
-        base_time = datetime.now(UTC)
+        base_time = datetime.utcnow()
 
         # Record stats every 10 seconds for 1 minute
-        created_ids = []
         for i in range(6):
             stats = GPUStats(
                 recorded_at=base_time + timedelta(seconds=i * 10),
@@ -561,11 +536,10 @@ class TestGPUStatsModel:
                 temperature=70.0 + i * 0.5,
             )
             session.add(stats)
-            await session.flush()
-            created_ids.append(stats.id)
+        await session.flush()
 
-        # Query stats we created, ordered by time
-        stmt = select(GPUStats).where(GPUStats.id.in_(created_ids)).order_by(GPUStats.recorded_at)
+        # Query all stats ordered by time
+        stmt = select(GPUStats).order_by(GPUStats.recorded_at)
         result = await session.execute(stmt)
         results = result.scalars().all()
 
@@ -582,11 +556,10 @@ class TestModelIntegration:
     async def test_complete_workflow(self, session):
         """Test a complete workflow: camera -> detections -> event."""
         # Create camera
-        camera_id = unique_id("test_workflow")
         camera = Camera(
-            id=camera_id,
+            id="test_workflow",
             name="Test Workflow Camera",
-            folder_path=f"/export/foscam/{camera_id}",
+            folder_path="/export/foscam/test_workflow",
         )
         session.add(camera)
         await session.flush()
@@ -595,8 +568,8 @@ class TestModelIntegration:
         detection_ids = []
         for i in range(5):
             detection = Detection(
-                camera_id=camera_id,
-                file_path=f"/export/foscam/{camera_id}/image_{i:03d}.jpg",
+                camera_id="test_workflow",
+                file_path=f"/export/foscam/test_workflow/image_{i:03d}.jpg",
                 object_type="person" if i % 2 == 0 else "car",
                 confidence=0.85 + i * 0.02,
             )
@@ -607,7 +580,7 @@ class TestModelIntegration:
         # Create event referencing detections
         event = Event(
             batch_id="workflow_batch_001",
-            camera_id=camera_id,
+            camera_id="test_workflow",
             started_at=datetime.utcnow(),
             ended_at=datetime.utcnow() + timedelta(seconds=90),
             risk_score=65,
@@ -619,60 +592,58 @@ class TestModelIntegration:
         await session.flush()
 
         # Verify camera exists
-        result = await session.get(Camera, camera_id)
+        result = await session.get(Camera, "test_workflow")
         assert result is not None
-        assert result.id == camera_id
+        assert result.id == "test_workflow"
 
     @pytest.mark.asyncio
     async def test_multiple_cameras_isolation(self, session):
         """Test that data is properly isolated between cameras."""
-        # Create two cameras with unique IDs
-        cam1_id = unique_id("cam1")
-        cam2_id = unique_id("cam2")
+        # Create two cameras
         camera1 = Camera(
-            id=cam1_id,
+            id="cam1",
             name="Camera 1",
-            folder_path=f"/export/foscam/{cam1_id}",
+            folder_path="/export/foscam/cam1",
         )
         camera2 = Camera(
-            id=cam2_id,
+            id="cam2",
             name="Camera 2",
-            folder_path=f"/export/foscam/{cam2_id}",
+            folder_path="/export/foscam/cam2",
         )
         session.add_all([camera1, camera2])
         await session.flush()
 
         # Add data to each camera
         detection1 = Detection(
-            camera_id=cam1_id,
-            file_path=f"/export/foscam/{cam1_id}/image_001.jpg",
+            camera_id="cam1",
+            file_path="/export/foscam/cam1/image_001.jpg",
         )
         detection2 = Detection(
-            camera_id=cam2_id,
-            file_path=f"/export/foscam/{cam2_id}/image_001.jpg",
+            camera_id="cam2",
+            file_path="/export/foscam/cam2/image_001.jpg",
         )
         session.add_all([detection1, detection2])
         await session.flush()
 
         event1 = Event(
-            batch_id=f"batch_{cam1_id}",
-            camera_id=cam1_id,
+            batch_id="batch_cam1",
+            camera_id="cam1",
             started_at=datetime.utcnow(),
         )
         event2 = Event(
-            batch_id=f"batch_{cam2_id}",
-            camera_id=cam2_id,
+            batch_id="batch_cam2",
+            camera_id="cam2",
             started_at=datetime.utcnow(),
         )
         session.add_all([event1, event2])
         await session.flush()
 
         # Query to verify isolation
-        stmt1 = select(Detection).where(Detection.camera_id == cam1_id)
+        stmt1 = select(Detection).where(Detection.camera_id == "cam1")
         result1 = await session.execute(stmt1)
         cam1_detections = result1.scalars().all()
 
-        stmt2 = select(Detection).where(Detection.camera_id == cam2_id)
+        stmt2 = select(Detection).where(Detection.camera_id == "cam2")
         result2 = await session.execute(stmt2)
         cam2_detections = result2.scalars().all()
 
