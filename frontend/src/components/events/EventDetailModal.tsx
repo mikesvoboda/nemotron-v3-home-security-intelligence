@@ -5,21 +5,29 @@ import {
   CheckCircle2,
   Clock,
   Download,
+  Film,
   Flag,
   Save,
   Timer,
   X,
 } from 'lucide-react';
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 
 import ThumbnailStrip from './ThumbnailStrip';
-import { fetchEventDetections, getDetectionImageUrl } from '../../services/api';
+import {
+  fetchEventDetections,
+  getDetectionImageUrl,
+  getDetectionVideoThumbnailUrl,
+  getDetectionVideoUrl,
+} from '../../services/api';
 import { getRiskLevel } from '../../utils/risk';
 import { formatDuration } from '../../utils/time';
 import RiskBadge from '../common/RiskBadge';
 import DetectionImage from '../detection/DetectionImage';
+import VideoPlayer from '../video/VideoPlayer';
 
 import type { DetectionThumbnail } from './ThumbnailStrip';
+import type { Detection as ApiDetection } from '../../types/generated';
 import type { BoundingBox } from '../detection/BoundingBoxOverlay';
 
 export interface Detection {
@@ -80,6 +88,9 @@ export default function EventDetailModal({
   const [loadingDetections, setLoadingDetections] = useState<boolean>(false);
   const [selectedDetectionId, setSelectedDetectionId] = useState<number | undefined>();
 
+  // State for full detection data (including video metadata)
+  const [detectionsData, setDetectionsData] = useState<ApiDetection[]>([]);
+
   // State for flag event
   const [isFlagging, setIsFlagging] = useState<boolean>(false);
 
@@ -98,6 +109,7 @@ export default function EventDetailModal({
   useEffect(() => {
     if (!event || !event.id) {
       setDetectionSequence([]);
+      setDetectionsData([]);
       setSelectedDetectionId(undefined);
       return;
     }
@@ -114,11 +126,18 @@ export default function EventDetailModal({
 
         const response = await fetchEventDetections(eventId, { limit: 100 });
 
+        // Store full detection data for video metadata access
+        setDetectionsData(response.detections);
+
         // Transform API detections to thumbnail format
+        // For videos, use the video thumbnail endpoint; for images, use the image endpoint
         const thumbnails: DetectionThumbnail[] = response.detections.map((detection) => ({
           id: detection.id,
           detected_at: detection.detected_at,
-          thumbnail_url: getDetectionImageUrl(detection.id),
+          thumbnail_url:
+            detection.media_type === 'video'
+              ? getDetectionVideoThumbnailUrl(detection.id)
+              : getDetectionImageUrl(detection.id),
           object_type: detection.object_type || undefined,
           confidence: detection.confidence || undefined,
         }));
@@ -132,6 +151,7 @@ export default function EventDetailModal({
       } catch (error) {
         console.error('Failed to fetch detections:', error);
         setDetectionSequence([]);
+        setDetectionsData([]);
       } finally {
         setLoadingDetections(false);
       }
@@ -227,9 +247,35 @@ export default function EventDetailModal({
     return () => document.removeEventListener('keydown', handleKeyboard);
   }, [isOpen, onNavigate]);
 
+  // Get the currently selected detection's full data (including video metadata)
+  const selectedDetection = useMemo(() => {
+    if (!selectedDetectionId || detectionsData.length === 0) return null;
+    return detectionsData.find((d) => d.id === selectedDetectionId) || null;
+  }, [selectedDetectionId, detectionsData]);
+
+  // Determine if selected detection is a video
+  const isVideoDetection = selectedDetection?.media_type === 'video';
+
   if (!event) {
     return null;
   }
+
+  // Format video duration (e.g., "2m 30s" or "45s")
+  const formatVideoDuration = (seconds: number): string => {
+    if (!seconds || !isFinite(seconds)) return 'Unknown';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.round(seconds % 60);
+    if (mins > 0) {
+      return `${mins}m ${secs}s`;
+    }
+    return `${secs}s`;
+  };
+
+  // Format video resolution (e.g., "1920x1080")
+  const formatVideoResolution = (width?: number | null, height?: number | null): string | null => {
+    if (!width || !height) return null;
+    return `${width}x${height}`;
+  };
 
   // Convert ISO timestamp to readable format
   const formatTimestamp = (isoString: string): string => {
@@ -355,8 +401,50 @@ export default function EventDetailModal({
 
                 {/* Content */}
                 <div className="max-h-[calc(100vh-200px)] overflow-y-auto p-6">
-                  {/* Full-size image with bounding boxes */}
-                  {imageUrl && (
+                  {/* Media display: Video or Image based on selected detection */}
+                  {isVideoDetection && selectedDetectionId ? (
+                    <div className="mb-6 overflow-hidden rounded-lg bg-black">
+                      <VideoPlayer
+                        src={getDetectionVideoUrl(selectedDetectionId)}
+                        poster={getDetectionVideoThumbnailUrl(selectedDetectionId)}
+                        className="w-full"
+                      />
+                      {/* Video metadata badge */}
+                      <div className="flex items-center gap-3 border-t border-gray-800 bg-black/50 px-4 py-2">
+                        <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                          <Film className="h-3.5 w-3.5" />
+                          <span>Video</span>
+                        </div>
+                        {selectedDetection?.duration && (
+                          <div className="text-xs text-gray-400">
+                            <span className="font-medium text-gray-300">
+                              {formatVideoDuration(selectedDetection.duration)}
+                            </span>
+                          </div>
+                        )}
+                        {formatVideoResolution(
+                          selectedDetection?.video_width,
+                          selectedDetection?.video_height
+                        ) && (
+                          <div className="text-xs text-gray-400">
+                            <span className="font-medium text-gray-300">
+                              {formatVideoResolution(
+                                selectedDetection?.video_width,
+                                selectedDetection?.video_height
+                              )}
+                            </span>
+                          </div>
+                        )}
+                        {selectedDetection?.video_codec && (
+                          <div className="text-xs text-gray-400">
+                            <span className="font-medium text-gray-300">
+                              {selectedDetection.video_codec.toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : imageUrl ? (
                     <div className="mb-6 overflow-hidden rounded-lg bg-black">
                       {hasBoundingBoxes ? (
                         <DetectionImage
@@ -375,7 +463,7 @@ export default function EventDetailModal({
                         />
                       )}
                     </div>
-                  )}
+                  ) : null}
 
                   {/* Detection Sequence Thumbnail Strip */}
                   <div className="mb-6">
@@ -506,6 +594,47 @@ export default function EventDetailModal({
                           )}
                         </dd>
                       </div>
+                      {/* Video metadata in event details */}
+                      {isVideoDetection && selectedDetection && (
+                        <>
+                          <div className="mt-2 border-t border-gray-700 pt-2">
+                            <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-primary">
+                              <Film className="h-3.5 w-3.5" />
+                              <span>Video Details</span>
+                            </div>
+                          </div>
+                          {selectedDetection.duration && (
+                            <div className="flex justify-between">
+                              <dt className="text-gray-400">Video Duration</dt>
+                              <dd className="text-gray-300">
+                                {formatVideoDuration(selectedDetection.duration)}
+                              </dd>
+                            </div>
+                          )}
+                          {formatVideoResolution(
+                            selectedDetection.video_width,
+                            selectedDetection.video_height
+                          ) && (
+                            <div className="flex justify-between">
+                              <dt className="text-gray-400">Resolution</dt>
+                              <dd className="text-gray-300">
+                                {formatVideoResolution(
+                                  selectedDetection.video_width,
+                                  selectedDetection.video_height
+                                )}
+                              </dd>
+                            </div>
+                          )}
+                          {selectedDetection.video_codec && (
+                            <div className="flex justify-between">
+                              <dt className="text-gray-400">Codec</dt>
+                              <dd className="text-gray-300">
+                                {selectedDetection.video_codec.toUpperCase()}
+                              </dd>
+                            </div>
+                          )}
+                        </>
+                      )}
                     </dl>
                   </div>
                 </div>

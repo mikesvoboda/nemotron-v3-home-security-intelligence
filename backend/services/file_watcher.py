@@ -1,7 +1,11 @@
 """File watcher service for monitoring Foscam camera uploads.
 
-This service watches camera directories for new image uploads, validates them,
+This service watches camera directories for new image and video uploads, validates them,
 and queues them for AI processing with debounce logic to prevent duplicate processing.
+
+Supported file types:
+- Images: .jpg, .jpeg, .png
+- Videos: .mp4, .mkv, .avi, .mov
 
 Idempotency:
 -----------
@@ -39,6 +43,11 @@ from backend.services.dedupe import DedupeService
 
 logger = get_logger(__name__)
 
+# Supported file extensions
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
+VIDEO_EXTENSIONS = {".mp4", ".mkv", ".avi", ".mov"}
+SUPPORTED_EXTENSIONS = IMAGE_EXTENSIONS | VIDEO_EXTENSIONS
+
 
 def is_image_file(file_path: str) -> bool:
     """Check if file has a valid image extension.
@@ -49,8 +58,48 @@ def is_image_file(file_path: str) -> bool:
     Returns:
         True if file has image extension (.jpg, .jpeg, .png)
     """
-    valid_extensions = {".jpg", ".jpeg", ".png"}
-    return Path(file_path).suffix.lower() in valid_extensions
+    return Path(file_path).suffix.lower() in IMAGE_EXTENSIONS
+
+
+def is_video_file(file_path: str) -> bool:
+    """Check if file has a valid video extension.
+
+    Args:
+        file_path: Path to the file to check
+
+    Returns:
+        True if file has video extension (.mp4, .mkv, .avi, .mov)
+    """
+    return Path(file_path).suffix.lower() in VIDEO_EXTENSIONS
+
+
+def is_supported_media_file(file_path: str) -> bool:
+    """Check if file has a supported media extension (image or video).
+
+    Args:
+        file_path: Path to the file to check
+
+    Returns:
+        True if file has a supported image or video extension
+    """
+    return Path(file_path).suffix.lower() in SUPPORTED_EXTENSIONS
+
+
+def get_media_type(file_path: str) -> str | None:
+    """Get the media type (image or video) for a file.
+
+    Args:
+        file_path: Path to the file to check
+
+    Returns:
+        "image" for image files, "video" for video files, None for unsupported
+    """
+    suffix = Path(file_path).suffix.lower()
+    if suffix in IMAGE_EXTENSIONS:
+        return "image"
+    elif suffix in VIDEO_EXTENSIONS:
+        return "video"
+    return None
 
 
 def is_valid_image(file_path: str) -> bool:
@@ -82,14 +131,69 @@ def is_valid_image(file_path: str) -> bool:
         return False
 
 
+def is_valid_video(file_path: str) -> bool:
+    """Validate that file is a valid video with content.
+
+    Note: This performs a basic validation (file exists and has content).
+    Full video validation (codec, corruption) is done during processing.
+
+    Args:
+        file_path: Path to the video file
+
+    Returns:
+        True if file exists and has content
+    """
+    try:
+        file_path_obj = Path(file_path)
+        if not file_path_obj.exists():
+            return False
+
+        # Check file has content (videos should be at least a few KB)
+        file_size = file_path_obj.stat().st_size
+        if file_size == 0:
+            logger.warning(f"Empty video file detected: {file_path}")
+            return False
+
+        # Minimum video file size check (1KB minimum)
+        if file_size < 1024:
+            logger.warning(f"Video file too small ({file_size} bytes): {file_path}")
+            return False
+
+        return True
+    except Exception as e:
+        logger.warning(f"Invalid video file {file_path}: {e}")
+        return False
+
+
+def is_valid_media_file(file_path: str) -> bool:
+    """Validate that file is a valid image or video.
+
+    Args:
+        file_path: Path to the media file
+
+    Returns:
+        True if file is valid
+    """
+    if is_image_file(file_path):
+        return is_valid_image(file_path)
+    elif is_video_file(file_path):
+        return is_valid_video(file_path)
+    return False
+
+
 class FileWatcher:
-    """Watches camera directories for new image uploads and queues for processing.
+    """Watches camera directories for new media (image/video) uploads and queues for processing.
 
     Features:
+    - Support for both image and video files
     - Debounce logic to wait for file writes to complete
-    - Image integrity validation before queuing
+    - Media file integrity validation before queuing
     - Async-compatible design
     - Graceful shutdown handling
+
+    Supported formats:
+    - Images: .jpg, .jpeg, .png
+    - Videos: .mp4, .mkv, .avi, .mov
     """
 
     def __init__(
@@ -149,8 +253,8 @@ class FileWatcher:
             FileSystemEventHandler instance
         """
 
-        class ImageEventHandler(FileSystemEventHandler):
-            """Handle file system events for image files."""
+        class MediaEventHandler(FileSystemEventHandler):
+            """Handle file system events for media files (images and videos)."""
 
             def __init__(self, watcher: FileWatcher):
                 self.watcher = watcher
@@ -162,7 +266,7 @@ class FileWatcher:
                 src_path = (
                     event.src_path if isinstance(event.src_path, str) else event.src_path.decode()
                 )
-                if not event.is_directory and is_image_file(src_path):
+                if not event.is_directory and is_supported_media_file(src_path):
                     self._schedule_async_task(src_path)
 
             def on_modified(self, event: FileSystemEvent) -> None:
@@ -171,7 +275,7 @@ class FileWatcher:
                 src_path = (
                     event.src_path if isinstance(event.src_path, str) else event.src_path.decode()
                 )
-                if not event.is_directory and is_image_file(src_path):
+                if not event.is_directory and is_supported_media_file(src_path):
                     self._schedule_async_task(src_path)
 
             def _schedule_async_task(self, file_path: str) -> None:
@@ -190,7 +294,7 @@ class FileWatcher:
                 else:
                     logger.warning(f"Event loop not available for processing {file_path}")
 
-        return ImageEventHandler(self)
+        return MediaEventHandler(self)
 
     def _get_camera_id_from_path(self, file_path: str) -> str | None:
         """Extract camera ID from file path.
@@ -255,30 +359,32 @@ class FileWatcher:
         """Process a file by validating and queuing for detection.
 
         Args:
-            file_path: Path to the image file
+            file_path: Path to the image or video file
         """
         start_time = time.time()
 
         # Extract camera ID early for context
         camera_id = self._get_camera_id_from_path(file_path)
+        media_type = get_media_type(file_path)
 
         logger.debug(
-            f"Processing file: {file_path}", extra={"camera_id": camera_id, "file_path": file_path}
+            f"Processing file: {file_path}",
+            extra={"camera_id": camera_id, "file_path": file_path, "media_type": media_type},
         )
 
         # Validate file type
-        if not is_image_file(file_path):
+        if not is_supported_media_file(file_path):
             logger.debug(
-                f"Skipping non-image file: {file_path}",
+                f"Skipping unsupported file: {file_path}",
                 extra={"camera_id": camera_id, "file_path": file_path},
             )
             return
 
-        # Validate image integrity
-        if not is_valid_image(file_path):
+        # Validate media file integrity
+        if not is_valid_media_file(file_path):
             logger.warning(
-                f"Skipping invalid/corrupted image: {file_path}",
-                extra={"camera_id": camera_id, "file_path": file_path},
+                f"Skipping invalid/corrupted {media_type} file: {file_path}",
+                extra={"camera_id": camera_id, "file_path": file_path, "media_type": media_type},
             )
             return
 
@@ -290,21 +396,33 @@ class FileWatcher:
 
         # Queue for detection
         try:
-            await self._queue_for_detection(camera_id, file_path)
+            await self._queue_for_detection(camera_id, file_path, media_type)
             duration_ms = int((time.time() - start_time) * 1000)
             logger.info(
-                f"Queued image for detection: {file_path} (camera: {camera_id})",
-                extra={"camera_id": camera_id, "file_path": file_path, "duration_ms": duration_ms},
+                f"Queued {media_type} for detection: {file_path} (camera: {camera_id})",
+                extra={
+                    "camera_id": camera_id,
+                    "file_path": file_path,
+                    "media_type": media_type,
+                    "duration_ms": duration_ms,
+                },
             )
         except Exception as e:
             duration_ms = int((time.time() - start_time) * 1000)
             logger.error(
-                f"Failed to queue image {file_path}: {e}",
-                extra={"camera_id": camera_id, "file_path": file_path, "duration_ms": duration_ms},
+                f"Failed to queue {media_type} {file_path}: {e}",
+                extra={
+                    "camera_id": camera_id,
+                    "file_path": file_path,
+                    "media_type": media_type,
+                    "duration_ms": duration_ms,
+                },
             )
 
-    async def _queue_for_detection(self, camera_id: str, file_path: str) -> None:
-        """Add image to detection queue in Redis with deduplication.
+    async def _queue_for_detection(
+        self, camera_id: str, file_path: str, media_type: str | None = None
+    ) -> None:
+        """Add media file to detection queue in Redis with deduplication.
 
         Checks if file has already been processed using content hash before
         enqueueing. This prevents duplicate detections from watchdog event
@@ -312,7 +430,8 @@ class FileWatcher:
 
         Args:
             camera_id: Camera identifier
-            file_path: Path to the image file
+            file_path: Path to the image or video file
+            media_type: Type of media ("image" or "video")
         """
         if not self.redis_client:
             logger.warning("Redis client not configured, skipping queue")
@@ -333,6 +452,7 @@ class FileWatcher:
             "camera_id": camera_id,
             "file_path": file_path,
             "timestamp": datetime.now().isoformat(),
+            "media_type": media_type or get_media_type(file_path) or "image",
         }
 
         # Include hash in queue data for downstream deduplication if needed

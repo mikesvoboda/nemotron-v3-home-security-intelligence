@@ -24,13 +24,18 @@ class DetectionResponse(BaseModel):
                 "bbox_width": 200,
                 "bbox_height": 400,
                 "thumbnail_path": "/data/thumbnails/1_thumb.jpg",
+                "media_type": "image",
+                "duration": None,
+                "video_codec": None,
+                "video_width": None,
+                "video_height": None,
             }
         },
     )
 
     id: int = Field(..., description="Detection ID")
     camera_id: str = Field(..., description="Camera UUID")
-    file_path: str = Field(..., description="Path to source image file")
+    file_path: str = Field(..., description="Path to source image or video file")
     file_type: str | None = Field(None, description="MIME type of source file")
     detected_at: datetime = Field(..., description="Timestamp when detection was made")
     object_type: str | None = Field(None, description="Type of detected object (person, car, etc.)")
@@ -42,6 +47,12 @@ class DetectionResponse(BaseModel):
     thumbnail_path: str | None = Field(
         None, description="Path to thumbnail image with bbox overlay"
     )
+    # Video-specific fields
+    media_type: str | None = Field("image", description="Media type: 'image' or 'video'")
+    duration: float | None = Field(None, description="Video duration in seconds (video only)")
+    video_codec: str | None = Field(None, description="Video codec (e.g., h264, hevc)")
+    video_width: int | None = Field(None, description="Video resolution width")
+    video_height: int | None = Field(None, description="Video resolution height")
 
 
 class DetectionListResponse(BaseModel):
