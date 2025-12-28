@@ -552,29 +552,6 @@ export function getDetectionVideoThumbnailUrl(detectionId: number): string {
   return appendApiKeyIfConfigured(baseUrl);
 }
 
-/**
- * Get the URL for streaming a detection video.
- * This URL can be used directly in a video src attribute.
- * The backend supports HTTP Range requests for efficient video streaming.
- *
- * @param detectionId - The detection ID
- * @returns The full URL to the detection's video stream endpoint
- */
-export function getDetectionVideoUrl(detectionId: number): string {
-  return `${BASE_URL}/api/detections/${detectionId}/video`;
-}
-
-/**
- * Get the URL for a detection video's thumbnail.
- * Returns a poster image for the video player.
- *
- * @param detectionId - The detection ID
- * @returns The full URL to the detection's video thumbnail endpoint
- */
-export function getDetectionVideoThumbnailUrl(detectionId: number): string {
-  return `${BASE_URL}/api/detections/${detectionId}/video/thumbnail`;
-}
-
 // ============================================================================
 // DLQ Endpoints
 // ============================================================================
