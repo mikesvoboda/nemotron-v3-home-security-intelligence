@@ -146,7 +146,7 @@ function buildMessage(affectedServices: ServiceStatus[]): string {
  * - Shows worst status when multiple services are unhealthy
  * - Animates in/out smoothly with Tailwind transitions
  */
-export function ServiceStatusAlert({ services, onDismiss }: ServiceStatusAlertProps): JSX.Element | null {
+export function ServiceStatusAlert({ services, onDismiss }: ServiceStatusAlertProps): React.ReactNode {
   const result = getWorstStatus(services);
 
   // Return null if no alerts to show

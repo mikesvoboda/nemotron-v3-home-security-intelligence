@@ -71,13 +71,14 @@ describe('SettingsPage', () => {
     const processingTab = screen.getByRole('tab', { name: /processing/i });
 
     // First tab should be selected by default (Headless UI handles aria-selected)
-    expect(camerasTab).toHaveAttribute('data-headlessui-state', 'selected');
+    // Note: headlessui 2.x may include additional states like "hover" in the attribute
+    expect(camerasTab.getAttribute('data-headlessui-state')).toMatch(/selected/);
 
     // Click processing tab
     await user.click(processingTab);
 
     // Processing tab should now be selected
-    expect(processingTab).toHaveAttribute('data-headlessui-state', 'selected');
+    expect(processingTab.getAttribute('data-headlessui-state')).toMatch(/selected/);
   });
 
   it('should support keyboard navigation between tabs', async () => {
