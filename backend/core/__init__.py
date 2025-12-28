@@ -27,6 +27,8 @@ from backend.core.metrics import (
     set_queue_depth,
 )
 from backend.core.redis import (
+    BackpressureStrategy,
+    QueueAddResult,
     RedisClient,
     close_redis,
     get_redis,
@@ -34,7 +36,9 @@ from backend.core.redis import (
 )
 
 __all__ = [
+    "BackpressureStrategy",
     "Base",
+    "QueueAddResult",
     "RedisClient",
     "Settings",
     "close_db",

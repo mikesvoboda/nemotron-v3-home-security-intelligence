@@ -41,7 +41,7 @@ This directory contains design specifications and implementation plans that defi
    - `events` - Batched Nemotron analysis with risk scores
    - `gpu_stats` - GPU performance snapshots
    - **Key relationships:**
-     - Events reference multiple detections via `detection_ids` (comma-separated)
+     - Events reference multiple detections via `detection_ids` (JSON array, e.g., "[1, 2, 3]")
      - Detections reference cameras via `camera_id`
      - All timestamps for temporal queries
 
