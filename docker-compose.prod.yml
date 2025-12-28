@@ -82,7 +82,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile.prod
     ports:
-      - "80:80"
+      - "${FRONTEND_PORT:-8080}:80"
     # NOTE: VITE_* environment variables are NOT used at runtime.
     # Vite bakes these values at build time. The frontend uses relative URLs
     # (empty BASE_URL), and nginx proxies /api and /ws to the backend.
