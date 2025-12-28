@@ -227,10 +227,7 @@ class TestAuditAPI:
 
 
 class TestAuditIntegration:
-    """Test that audit logging is integrated with other endpoints.
-
-    These tests verify that camera CRUD operations properly create audit logs.
-    """
+    """Test that audit logging is integrated with other endpoints."""
 
     @pytest.mark.asyncio
     async def test_camera_create_logs_audit(self, client: AsyncClient, db_session: AsyncSession):

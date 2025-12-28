@@ -14,26 +14,27 @@ from backend.services.alert_dedup import (
     DedupResult,
     build_dedup_key,
 )
-from backend.tests.conftest import unique_id
-
-# Note: The 'session' fixture is provided by conftest.py with transaction
-# rollback isolation for parallel test execution.
 
 
 @pytest.fixture
-def test_prefix():
-    """Generate a unique prefix for this test run to ensure isolation."""
-    return unique_id("dedup")
+async def session(isolated_db):
+    """Create a new database session for each test.
+
+    Uses PostgreSQL via the isolated_db fixture from conftest.py.
+    """
+    from backend.core.database import get_session
+
+    async with get_session() as session:
+        yield session
 
 
 @pytest.fixture
-async def test_camera(session, test_prefix):
+async def test_camera(session):
     """Create a test camera for use in dedup tests."""
-    camera_id = f"{test_prefix}_front_door"
     camera = Camera(
-        id=camera_id,
+        id="front_door",
         name="Front Door Camera",
-        folder_path=f"/export/foscam/{camera_id}",
+        folder_path="/export/foscam/front_door",
     )
     session.add(camera)
     await session.flush()
@@ -44,7 +45,7 @@ async def test_camera(session, test_prefix):
 async def test_event(session, test_camera):
     """Create a test event for use in dedup tests."""
     event = Event(
-        batch_id=unique_id("batch"),
+        batch_id="batch_001",
         camera_id=test_camera.id,
         started_at=datetime.utcnow(),
         risk_score=80,
@@ -123,13 +124,10 @@ class TestAlertDeduplicationService:
     """Tests for the AlertDeduplicationService."""
 
     @pytest.mark.asyncio
-    async def test_check_duplicate_no_existing_alert(
-        self, session, dedup_service, test_event, test_prefix
-    ):
+    async def test_check_duplicate_no_existing_alert(self, session, dedup_service, test_event):
         """Test check_duplicate when no existing alert."""
-        dedup_key = f"{test_prefix}:person:entry_zone"
         result = await dedup_service.check_duplicate(
-            dedup_key=dedup_key,
+            dedup_key="front_door:person:entry_zone",
             cooldown_seconds=300,
         )
 
@@ -139,14 +137,13 @@ class TestAlertDeduplicationService:
 
     @pytest.mark.asyncio
     async def test_check_duplicate_existing_alert_within_cooldown(
-        self, session, dedup_service, test_event, test_prefix
+        self, session, dedup_service, test_event
     ):
         """Test check_duplicate when an alert exists within cooldown."""
-        dedup_key = f"{test_prefix}:person:entry_zone"
         # Create an existing alert
         existing_alert = Alert(
             event_id=test_event.id,
-            dedup_key=dedup_key,
+            dedup_key="front_door:person:entry_zone",
             created_at=datetime.utcnow() - timedelta(minutes=2),  # 2 minutes ago
         )
         session.add(existing_alert)
@@ -154,7 +151,7 @@ class TestAlertDeduplicationService:
 
         # Check for duplicate (5 minute cooldown)
         result = await dedup_service.check_duplicate(
-            dedup_key=dedup_key,
+            dedup_key="front_door:person:entry_zone",
             cooldown_seconds=300,
         )
 
@@ -166,14 +163,13 @@ class TestAlertDeduplicationService:
 
     @pytest.mark.asyncio
     async def test_check_duplicate_existing_alert_outside_cooldown(
-        self, session, dedup_service, test_event, test_prefix
+        self, session, dedup_service, test_event
     ):
         """Test check_duplicate when an alert exists but outside cooldown."""
-        dedup_key = f"{test_prefix}:person:entry_zone"
         # Create an old alert
         old_alert = Alert(
             event_id=test_event.id,
-            dedup_key=dedup_key,
+            dedup_key="front_door:person:entry_zone",
             created_at=datetime.utcnow() - timedelta(minutes=10),  # 10 minutes ago
         )
         session.add(old_alert)
@@ -181,7 +177,7 @@ class TestAlertDeduplicationService:
 
         # Check for duplicate (5 minute cooldown)
         result = await dedup_service.check_duplicate(
-            dedup_key=dedup_key,
+            dedup_key="front_door:person:entry_zone",
             cooldown_seconds=300,
         )
 
@@ -189,16 +185,12 @@ class TestAlertDeduplicationService:
         assert result.existing_alert is None
 
     @pytest.mark.asyncio
-    async def test_check_duplicate_different_dedup_key(
-        self, session, dedup_service, test_event, test_prefix
-    ):
+    async def test_check_duplicate_different_dedup_key(self, session, dedup_service, test_event):
         """Test check_duplicate with different dedup keys."""
-        dedup_key1 = f"{test_prefix}:person:entry_zone"
-        dedup_key2 = f"{test_prefix}:vehicle:driveway"
         # Create an alert with one key
         existing_alert = Alert(
             event_id=test_event.id,
-            dedup_key=dedup_key1,
+            dedup_key="front_door:person:entry_zone",
             created_at=datetime.utcnow(),
         )
         session.add(existing_alert)
@@ -206,17 +198,17 @@ class TestAlertDeduplicationService:
 
         # Check with different key
         result = await dedup_service.check_duplicate(
-            dedup_key=dedup_key2,
+            dedup_key="backyard:vehicle:driveway",
             cooldown_seconds=300,
         )
 
         assert result.is_duplicate is False
 
     @pytest.mark.asyncio
-    async def test_get_cooldown_for_rule_with_rule(self, session, dedup_service, test_prefix):
+    async def test_get_cooldown_for_rule_with_rule(self, session, dedup_service):
         """Test get_cooldown_for_rule with an existing rule."""
         rule = AlertRule(
-            name=f"Test Rule {test_prefix}",
+            name="Test Rule",
             cooldown_seconds=600,
         )
         session.add(rule)
@@ -234,22 +226,17 @@ class TestAlertDeduplicationService:
     @pytest.mark.asyncio
     async def test_get_cooldown_for_rule_nonexistent(self, session, dedup_service):
         """Test get_cooldown_for_rule with non-existent rule ID."""
-        import uuid
-
-        # Use a valid UUID format since the rule_id column is UUID type
-        nonexistent_uuid = str(uuid.uuid4())
-        cooldown = await dedup_service.get_cooldown_for_rule(nonexistent_uuid)
+        cooldown = await dedup_service.get_cooldown_for_rule("nonexistent-rule-id-12345678")
         assert cooldown == 300  # Default
 
     @pytest.mark.asyncio
     async def test_create_alert_if_not_duplicate_new_alert(
-        self, session, dedup_service, test_event, test_prefix
+        self, session, dedup_service, test_event
     ):
         """Test create_alert_if_not_duplicate creates a new alert."""
-        dedup_key = f"{test_prefix}:person:entry_zone"
         alert, is_new = await dedup_service.create_alert_if_not_duplicate(
             event_id=test_event.id,
-            dedup_key=dedup_key,
+            dedup_key="front_door:person:entry_zone",
             severity=AlertSeverity.HIGH,
             channels=["pushover"],
             alert_metadata={"camera_name": "Front Door"},
@@ -257,7 +244,7 @@ class TestAlertDeduplicationService:
 
         assert is_new is True
         assert alert.event_id == test_event.id
-        assert alert.dedup_key == dedup_key
+        assert alert.dedup_key == "front_door:person:entry_zone"
         assert alert.severity == AlertSeverity.HIGH
         assert alert.status == AlertStatus.PENDING
         assert alert.channels == ["pushover"]
@@ -265,14 +252,13 @@ class TestAlertDeduplicationService:
 
     @pytest.mark.asyncio
     async def test_create_alert_if_not_duplicate_returns_existing(
-        self, session, dedup_service, test_event, test_prefix
+        self, session, dedup_service, test_event
     ):
         """Test create_alert_if_not_duplicate returns existing alert."""
-        dedup_key = f"{test_prefix}:person:entry_zone"
         # Create first alert
         first_alert, is_new = await dedup_service.create_alert_if_not_duplicate(
             event_id=test_event.id,
-            dedup_key=dedup_key,
+            dedup_key="front_door:person:entry_zone",
             severity=AlertSeverity.HIGH,
         )
         assert is_new is True
@@ -280,7 +266,7 @@ class TestAlertDeduplicationService:
         # Try to create duplicate
         second_alert, is_new = await dedup_service.create_alert_if_not_duplicate(
             event_id=test_event.id,
-            dedup_key=dedup_key,
+            dedup_key="front_door:person:entry_zone",
             severity=AlertSeverity.CRITICAL,  # Different severity
         )
 
@@ -291,13 +277,12 @@ class TestAlertDeduplicationService:
 
     @pytest.mark.asyncio
     async def test_create_alert_if_not_duplicate_uses_rule_cooldown(
-        self, session, dedup_service, test_event, test_prefix
+        self, session, dedup_service, test_event
     ):
         """Test that create_alert uses rule's cooldown setting."""
-        dedup_key = f"{test_prefix}:person"
         # Create rule with short cooldown
         rule = AlertRule(
-            name=f"Short Cooldown Rule {test_prefix}",
+            name="Short Cooldown Rule",
             cooldown_seconds=60,  # 1 minute
         )
         session.add(rule)
@@ -306,7 +291,7 @@ class TestAlertDeduplicationService:
         # Create first alert
         first_alert, is_new = await dedup_service.create_alert_if_not_duplicate(
             event_id=test_event.id,
-            dedup_key=dedup_key,
+            dedup_key="front_door:person",
             rule_id=rule.id,
         )
         assert is_new is True
@@ -318,7 +303,7 @@ class TestAlertDeduplicationService:
         # Try to create another - should be duplicate (within 60s cooldown)
         second_alert, is_new = await dedup_service.create_alert_if_not_duplicate(
             event_id=test_event.id,
-            dedup_key=dedup_key,
+            dedup_key="front_door:person",
             rule_id=rule.id,
         )
         assert is_new is False
@@ -326,14 +311,13 @@ class TestAlertDeduplicationService:
 
     @pytest.mark.asyncio
     async def test_create_alert_if_not_duplicate_override_cooldown(
-        self, session, dedup_service, test_event, test_prefix
+        self, session, dedup_service, test_event
     ):
         """Test create_alert with explicit cooldown override."""
-        dedup_key = f"{test_prefix}:person"
         # Create first alert
         first_alert, is_new = await dedup_service.create_alert_if_not_duplicate(
             event_id=test_event.id,
-            dedup_key=dedup_key,
+            dedup_key="front_door:person",
             cooldown_seconds=60,
         )
         assert is_new is True
@@ -345,53 +329,48 @@ class TestAlertDeduplicationService:
         # Try to create with same 60s cooldown - should NOT be duplicate
         second_alert, is_new = await dedup_service.create_alert_if_not_duplicate(
             event_id=test_event.id,
-            dedup_key=dedup_key,
+            dedup_key="front_door:person",
             cooldown_seconds=60,
         )
         assert is_new is True
         assert second_alert.id != first_alert.id
 
     @pytest.mark.asyncio
-    async def test_get_recent_alerts_for_key(self, session, dedup_service, test_event, test_prefix):
+    async def test_get_recent_alerts_for_key(self, session, dedup_service, test_event):
         """Test getting recent alerts for a dedup key."""
-        dedup_key = f"{test_prefix}:person"
         now = datetime.utcnow()
 
-        # Create alerts at different times (all within 23 hours to avoid boundary issues)
-        # The query uses >= cutoff_time, so we need to stay well within the window
+        # Create alerts at different times
         for i in range(5):
             alert = Alert(
                 event_id=test_event.id,
-                dedup_key=dedup_key,
-                created_at=now - timedelta(hours=i * 4),  # 0, 4, 8, 12, 16 hours ago
+                dedup_key="front_door:person",
+                created_at=now - timedelta(hours=i * 6),  # 0, 6, 12, 18, 24 hours ago
             )
             session.add(alert)
         await session.flush()
 
         # Get alerts from last 24 hours
         recent = await dedup_service.get_recent_alerts_for_key(
-            dedup_key=dedup_key,
+            dedup_key="front_door:person",
             hours=24,
         )
 
-        # Should get all 5 alerts (all well within the 24 hour lookback)
+        # Should get all 5 alerts (24 hours lookback includes all)
         assert len(recent) == 5
         # Should be ordered by most recent first
         assert recent[0].created_at > recent[-1].created_at
 
     @pytest.mark.asyncio
-    async def test_get_recent_alerts_for_key_limited(
-        self, session, dedup_service, test_event, test_prefix
-    ):
+    async def test_get_recent_alerts_for_key_limited(self, session, dedup_service, test_event):
         """Test getting recent alerts with limit."""
-        dedup_key = f"{test_prefix}:person"
         now = datetime.utcnow()
 
         # Create 10 alerts
         for i in range(10):
             alert = Alert(
                 event_id=test_event.id,
-                dedup_key=dedup_key,
+                dedup_key="front_door:person",
                 created_at=now - timedelta(minutes=i),
             )
             session.add(alert)
@@ -399,7 +378,7 @@ class TestAlertDeduplicationService:
 
         # Get only 3 most recent
         recent = await dedup_service.get_recent_alerts_for_key(
-            dedup_key=dedup_key,
+            dedup_key="front_door:person",
             hours=24,
             limit=3,
         )
@@ -407,22 +386,17 @@ class TestAlertDeduplicationService:
         assert len(recent) == 3
 
     @pytest.mark.asyncio
-    async def test_get_duplicate_stats(self, session, dedup_service, test_event, test_prefix):
-        """Test getting deduplication statistics.
-
-        Note: This test creates alerts with unique prefixed dedup keys and
-        verifies the count matches what was created in this test. With savepoint
-        isolation, this test only sees its own data.
-        """
+    async def test_get_duplicate_stats(self, session, dedup_service, test_event):
+        """Test getting deduplication statistics."""
         now = datetime.utcnow()
 
-        # Create alerts with various dedup keys (all prefixed for isolation)
+        # Create alerts with various dedup keys
         dedup_keys = [
-            f"{test_prefix}:person",
-            f"{test_prefix}:person",  # duplicate
-            f"{test_prefix}:vehicle",
-            f"{test_prefix}:garage",
-            f"{test_prefix}:person",  # another duplicate
+            "front_door:person",
+            "front_door:person",  # duplicate
+            "backyard:vehicle",
+            "garage:person",
+            "front_door:person",  # another duplicate
         ]
 
         for key in dedup_keys:
@@ -436,18 +410,13 @@ class TestAlertDeduplicationService:
 
         stats = await dedup_service.get_duplicate_stats(hours=24)
 
-        # With savepoint isolation, we should only see the 5 alerts we created
         assert stats["total_alerts"] == 5
         assert stats["unique_dedup_keys"] == 3
         assert stats["dedup_ratio"] == 0.6  # 3/5 = 0.6
 
     @pytest.mark.asyncio
     async def test_get_duplicate_stats_empty(self, session, dedup_service):
-        """Test duplicate stats with no alerts.
-
-        Note: With savepoint isolation, this test only sees its own data,
-        so the database should appear empty from this test's perspective.
-        """
+        """Test duplicate stats with no alerts."""
         stats = await dedup_service.get_duplicate_stats(hours=24)
 
         assert stats["total_alerts"] == 0
@@ -459,14 +428,13 @@ class TestDedupCooldownBehavior:
     """Tests for cooldown window edge cases."""
 
     @pytest.mark.asyncio
-    async def test_cooldown_boundary_exact(self, session, test_event, dedup_service, test_prefix):
+    async def test_cooldown_boundary_exact(self, session, test_event, dedup_service):
         """Test behavior at exact cooldown boundary."""
-        dedup_key = f"{test_prefix}:boundary"
         # Create an alert exactly at cooldown boundary
         cooldown_seconds = 300
         alert = Alert(
             event_id=test_event.id,
-            dedup_key=dedup_key,
+            dedup_key="test:boundary",
             created_at=datetime.utcnow() - timedelta(seconds=cooldown_seconds),
         )
         session.add(alert)
@@ -474,44 +442,40 @@ class TestDedupCooldownBehavior:
 
         # This should NOT be a duplicate (at exact boundary)
         result = await dedup_service.check_duplicate(
-            dedup_key=dedup_key,
+            dedup_key="test:boundary",
             cooldown_seconds=cooldown_seconds,
         )
 
         assert result.is_duplicate is False
 
     @pytest.mark.asyncio
-    async def test_cooldown_just_inside(self, session, test_event, dedup_service, test_prefix):
+    async def test_cooldown_just_inside(self, session, test_event, dedup_service):
         """Test behavior just inside cooldown window."""
-        dedup_key = f"{test_prefix}:inside"
         cooldown_seconds = 300
-        # Create alert 10 seconds inside the window (more buffer to avoid timing issues)
         alert = Alert(
             event_id=test_event.id,
-            dedup_key=dedup_key,
-            created_at=datetime.utcnow() - timedelta(seconds=cooldown_seconds - 10),
+            dedup_key="test:inside",
+            created_at=datetime.utcnow() - timedelta(seconds=cooldown_seconds - 1),
         )
         session.add(alert)
         await session.flush()
 
-        # This should be a duplicate (10 seconds inside window)
+        # This should be a duplicate (1 second inside window)
         result = await dedup_service.check_duplicate(
-            dedup_key=dedup_key,
+            dedup_key="test:inside",
             cooldown_seconds=cooldown_seconds,
         )
 
         assert result.is_duplicate is True
-        # Should have about 10 seconds remaining (give or take a few for test timing)
-        assert 5 <= result.seconds_until_cooldown_expires <= 15
+        assert result.seconds_until_cooldown_expires == 1
 
     @pytest.mark.asyncio
-    async def test_zero_cooldown(self, session, test_event, dedup_service, test_prefix):
+    async def test_zero_cooldown(self, session, test_event, dedup_service):
         """Test with zero cooldown (effectively no deduplication)."""
-        dedup_key = f"{test_prefix}:zero"
         # Create an alert just now
         alert = Alert(
             event_id=test_event.id,
-            dedup_key=dedup_key,
+            dedup_key="test:zero",
             created_at=datetime.utcnow(),
         )
         session.add(alert)
@@ -519,7 +483,7 @@ class TestDedupCooldownBehavior:
 
         # With zero cooldown, should NOT be duplicate
         result = await dedup_service.check_duplicate(
-            dedup_key=dedup_key,
+            dedup_key="test:zero",
             cooldown_seconds=0,
         )
 
@@ -527,33 +491,27 @@ class TestDedupCooldownBehavior:
 
     @pytest.mark.asyncio
     async def test_multiple_duplicates_returns_most_recent(
-        self, session, test_event, dedup_service, test_prefix
+        self, session, test_event, dedup_service
     ):
         """Test that check_duplicate returns the most recent alert."""
-        dedup_key = f"{test_prefix}:multiple"
         now = datetime.utcnow()
 
-        # Create multiple alerts with same dedup_key at different times
-        # The most recent alert (created last with smallest time offset) should be HIGH
-        severities = [AlertSeverity.LOW, AlertSeverity.LOW, AlertSeverity.HIGH]
+        # Create multiple alerts with same dedup_key
         for i in range(3):
             alert = Alert(
                 event_id=test_event.id,
-                dedup_key=dedup_key,
-                severity=severities[i],
-                # i=0: 2 min ago (oldest, LOW)
-                # i=1: 1 min ago (middle, LOW)
-                # i=2: 0 min ago (most recent, HIGH)
-                created_at=now - timedelta(minutes=2 - i),
+                dedup_key="test:multiple",
+                severity=AlertSeverity.LOW if i < 2 else AlertSeverity.HIGH,
+                created_at=now - timedelta(minutes=i),  # 0, 1, 2 minutes ago
             )
             session.add(alert)
         await session.flush()
 
         result = await dedup_service.check_duplicate(
-            dedup_key=dedup_key,
+            dedup_key="test:multiple",
             cooldown_seconds=300,
         )
 
         assert result.is_duplicate is True
-        # Should return the most recent (HIGH severity, created at 'now')
+        # Should return the most recent (HIGH severity, 0 minutes ago)
         assert result.existing_alert.severity == AlertSeverity.HIGH

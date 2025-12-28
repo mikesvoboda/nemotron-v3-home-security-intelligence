@@ -418,7 +418,7 @@ class AlertRuleEngine:
                 status=AlertStatus.PENDING,
                 dedup_key=triggered.dedup_key,
                 channels=triggered.rule.channels or [],
-                alert_metadata={
+                metadata={
                     "matched_conditions": triggered.matched_conditions,
                     "rule_name": triggered.rule.name,
                 },

@@ -17,20 +17,27 @@ from backend.models import (
     Camera,
     Event,
 )
-from backend.tests.conftest import unique_id
 
-# Note: The 'session' fixture is provided by conftest.py with transaction
-# rollback isolation for parallel test execution.
+
+@pytest.fixture
+async def session(isolated_db):
+    """Create a new database session for each test.
+
+    Uses PostgreSQL via the isolated_db fixture from conftest.py.
+    """
+    from backend.core.database import get_session
+
+    async with get_session() as session:
+        yield session
 
 
 @pytest.fixture
 async def test_camera(session):
     """Create a test camera for use in alert tests."""
-    camera_id = unique_id("test_camera")
     camera = Camera(
-        id=camera_id,
+        id="test_camera",
         name="Test Camera",
-        folder_path=f"/export/foscam/{camera_id}",
+        folder_path="/export/foscam/test_camera",
     )
     session.add(camera)
     await session.flush()
@@ -41,7 +48,7 @@ async def test_camera(session):
 async def test_event(session, test_camera):
     """Create a test event for use in alert tests."""
     event = Event(
-        batch_id=unique_id("batch"),
+        batch_id="batch_001",
         camera_id=test_camera.id,
         started_at=datetime.utcnow(),
         risk_score=75,
@@ -282,7 +289,7 @@ class TestAlertModel:
         await session.refresh(alert, ["event"])
         assert alert.event is not None
         assert alert.event.id == test_event.id
-        assert alert.event.batch_id.startswith("batch_")
+        assert alert.event.batch_id == "batch_001"
 
     @pytest.mark.asyncio
     async def test_alert_rule_relationship(self, session, test_event):
@@ -375,11 +382,9 @@ class TestAlertModel:
     @pytest.mark.asyncio
     async def test_alert_cascade_delete_on_event(self, session, test_camera):
         """Test that alerts are deleted when parent event is deleted."""
-        # Create event with unique batch_id
-        batch_id = unique_id("batch_cascade")
-        dedup_prefix = unique_id("cascade_test")
+        # Create event
         event = Event(
-            batch_id=batch_id,
+            batch_id="batch_cascade",
             camera_id=test_camera.id,
             started_at=datetime.utcnow(),
         )
@@ -390,7 +395,7 @@ class TestAlertModel:
         for i in range(3):
             alert = Alert(
                 event_id=event.id,
-                dedup_key=f"{dedup_prefix}_{i}",
+                dedup_key=f"cascade_test_{i}",
             )
             session.add(alert)
         await session.flush()
@@ -406,50 +411,36 @@ class TestAlertModel:
         await session.flush()
 
         # Verify alerts are also deleted
-        stmt = select(Alert).where(Alert.dedup_key.like(f"{dedup_prefix}%"))
+        stmt = select(Alert).where(Alert.dedup_key.like("cascade_test_%"))
         result = await session.execute(stmt)
         alerts = result.scalars().all()
         assert len(alerts) == 0
 
     @pytest.mark.asyncio
-    async def test_alert_cascade_on_rule_delete(self, session, test_event):
-        """Test that alerts are deleted when their rule is deleted.
-
-        Note: The AlertRule.alerts relationship uses cascade="all, delete-orphan",
-        which means SQLAlchemy will delete associated alerts at the ORM level.
-        This overrides the database-level ondelete="SET NULL" behavior.
-        """
+    async def test_alert_rule_set_null_on_delete(self, session, test_event):
+        """Test that alert.rule_id is set to NULL when rule is deleted."""
         # Create rule
         rule = AlertRule(name="Deletable Rule")
         session.add(rule)
         await session.flush()
+        rule_id = rule.id
 
-        # Create alerts referencing the rule
-        dedup_prefix = unique_id("rule_delete")
-        for i in range(2):
-            alert = Alert(
-                event_id=test_event.id,
-                rule_id=rule.id,
-                dedup_key=f"{dedup_prefix}_{i}",
-            )
-            session.add(alert)
+        # Create alert referencing the rule
+        alert = Alert(
+            event_id=test_event.id,
+            rule_id=rule_id,
+            dedup_key="test:rule_delete",
+        )
+        session.add(alert)
         await session.flush()
 
-        # Verify alerts exist
-        stmt = select(Alert).where(Alert.dedup_key.like(f"{dedup_prefix}%"))
-        result = await session.execute(stmt)
-        alerts = result.scalars().all()
-        assert len(alerts) == 2
-
-        # Delete the rule (cascade deletes alerts via ORM relationship)
+        # Delete the rule
         await session.delete(rule)
         await session.flush()
 
-        # Verify alerts are also deleted (due to ORM cascade="all, delete-orphan")
-        stmt = select(Alert).where(Alert.dedup_key.like(f"{dedup_prefix}%"))
-        result = await session.execute(stmt)
-        alerts = result.scalars().all()
-        assert len(alerts) == 0
+        # Refresh alert and verify rule_id is NULL
+        await session.refresh(alert)
+        assert alert.rule_id is None
 
 
 class TestAlertIndexes:
