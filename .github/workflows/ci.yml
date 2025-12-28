@@ -118,8 +118,7 @@ jobs:
             --cov=backend \
             --cov-report=xml:coverage-unit.xml \
             --cov-report=term-missing \
-            -v \
-            -n auto
+            -v
 
       - name: Upload unit test coverage
         uses: codecov/codecov-action@v4
@@ -213,8 +212,7 @@ jobs:
             --cov-report=xml:coverage-integration.xml \
             --cov-report=term-missing \
             --cov-fail-under=0 \
-            -v \
-            -n auto
+            -v
 
       - name: Upload integration test coverage
         uses: codecov/codecov-action@v4
