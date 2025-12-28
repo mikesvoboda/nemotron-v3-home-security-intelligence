@@ -56,11 +56,14 @@ async def isolated_db():
     - Sets the DATABASE_URL environment variable
     - Clears the settings cache
     - Initializes the database
+    - Truncates all tables for clean state
     - Yields control to the test
     - Cleans up and restores the original state
     """
+    from sqlalchemy import text
+
     from backend.core.config import get_settings
-    from backend.core.database import close_db, init_db
+    from backend.core.database import close_db, get_session, init_db
 
     # Save original state
     original_db_url = os.environ.get("DATABASE_URL")
@@ -82,6 +85,14 @@ async def isolated_db():
 
     # Initialize database
     await init_db()
+
+    # Clean up any existing data before the test (for test isolation)
+    async with get_session() as session:
+        # Truncate all tables in correct order to respect FK constraints
+        await session.execute(text("TRUNCATE TABLE logs, gpu_stats, api_keys CASCADE"))
+        await session.execute(text("TRUNCATE TABLE detections, events CASCADE"))
+        await session.execute(text("TRUNCATE TABLE cameras CASCADE"))
+        await session.commit()
 
     yield
 
