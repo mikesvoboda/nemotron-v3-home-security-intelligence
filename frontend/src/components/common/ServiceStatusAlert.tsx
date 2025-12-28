@@ -1,18 +1,16 @@
 /**
- * @deprecated This component is NOT currently used in the application.
+ * ServiceStatusAlert component displays a dismissible banner for service status notifications.
  *
- * The useServiceStatus hook that would provide data for this component is not
- * wired up on the backend. The backend's ServiceHealthMonitor exists but is not
- * initialized in main.py, so no `service_status` messages are broadcast.
+ * The backend's ServiceHealthMonitor monitors RT-DETRv2 and Nemotron services,
+ * broadcasting `service_status` messages when health changes. Use this component
+ * with the `useServiceStatus` hook to show detailed per-service status alerts.
  *
- * For system health information, the application uses useSystemStatus which
- * receives `system_status` messages with an overall health field.
- *
- * If per-service status alerts are needed in the future:
- * 1. Wire ServiceHealthMonitor in backend/main.py
- * 2. Use this component with data from a properly wired useServiceStatus hook
- *
- * See bead vq8.11 for context on this decision.
+ * Features:
+ * - Hidden when all services are healthy or null
+ * - Yellow/Warning banner when any service is "restarting"
+ * - Red/Error banner when any service is "unhealthy", "restart_failed", or "failed"
+ * - Shows worst status when multiple services are unhealthy
+ * - Animates in/out smoothly with Tailwind transitions
  */
 import { clsx } from 'clsx';
 import { AlertTriangle, RefreshCw, X, XCircle } from 'lucide-react';
@@ -159,15 +157,10 @@ function buildMessage(affectedServices: ServiceStatus[]): string {
 }
 
 /**
- * ServiceStatusAlert component displays a dismissible banner for service status notifications.
+ * Display a dismissible alert banner showing service health status.
  *
- * - Hidden when all services are healthy or null
- * - Yellow/Warning banner when any service is "restarting"
- * - Red/Error banner when any service is "unhealthy", "restart_failed", or "failed"
- * - Shows worst status when multiple services are unhealthy
- * - Animates in/out smoothly with Tailwind transitions
- *
- * @deprecated See file-level deprecation notice.
+ * @param services - Map of service names to their current status
+ * @param onDismiss - Optional callback when the alert is dismissed
  */
 export function ServiceStatusAlert({
   services,

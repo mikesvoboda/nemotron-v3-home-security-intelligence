@@ -7,13 +7,10 @@ import * as useWebSocketModule from './useWebSocket';
 /**
  * Tests for useServiceStatus hook.
  *
- * NOTE: This hook is currently DEPRECATED because the backend's ServiceHealthMonitor
- * is not wired into main.py, so no `service_status` messages are broadcast.
- * These tests are retained for when/if the backend is wired up in the future.
- *
- * See bead vq8.11 for context.
+ * This hook tracks per-service health status (RT-DETRv2, Nemotron) via WebSocket
+ * messages broadcast by the backend's ServiceHealthMonitor.
  */
-describe('useServiceStatus (DEPRECATED - backend not wired)', () => {
+describe('useServiceStatus', () => {
   const mockWebSocketReturn = {
     isConnected: true,
     lastMessage: null,

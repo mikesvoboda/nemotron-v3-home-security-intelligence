@@ -35,7 +35,7 @@ from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.services.batch_aggregator import BatchAggregator
-from backend.services.detector_client import DetectorClient
+from backend.services.detector_client import DetectorClient, DetectorServiceError
 from backend.services.nemotron_analyzer import NemotronAnalyzer
 
 
@@ -509,12 +509,12 @@ async def test_pipeline_handles_detector_failure_gracefully(
     test_image_path,
     mock_redis_client,
 ):
-    """Test that pipeline handles detector service failures gracefully.
+    """Test that pipeline handles detector service failures with DetectorServiceError.
 
     This test validates:
-    - Detector connection errors are handled
-    - Empty detection list is returned on failure
-    - Pipeline continues without crashing
+    - Detector connection errors raise DetectorServiceError
+    - This allows the pipeline to retry or move to DLQ
+    - The exception carries enough information for retry decisions
     """
     camera_id = test_camera.id
 
@@ -524,17 +524,19 @@ async def test_pipeline_handles_detector_failure_gracefully(
         mock_client.post.side_effect = Exception("Connection refused")
         mock_http_client.return_value.__aenter__.return_value = mock_client
 
-        # Process image (should not crash)
+        # Process image - should raise DetectorServiceError for retry handling
         detector = DetectorClient()
         async with get_session() as session:
-            detections = await detector.detect_objects(
-                image_path=test_image_path,
-                camera_id=camera_id,
-                session=session,
-            )
+            with pytest.raises(DetectorServiceError) as exc_info:
+                await detector.detect_objects(
+                    image_path=test_image_path,
+                    camera_id=camera_id,
+                    session=session,
+                )
 
-    # Should return empty list on error
-    assert detections == []
+            # Verify exception contains useful info for retry decisions
+            assert "Unexpected error" in str(exc_info.value)
+            assert exc_info.value.cause is not None
 
 
 @pytest.mark.e2e

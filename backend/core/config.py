@@ -56,6 +56,17 @@ class Settings(BaseSettings):
         default="/export/foscam",
         description="Base path for Foscam FTP uploads",
     )
+    file_watcher_polling: bool = Field(
+        default=False,
+        description="Use polling observer instead of native filesystem events. "
+        "Enable for Docker Desktop/macOS volume mounts where inotify/FSEvents don't work.",
+    )
+    file_watcher_polling_interval: float = Field(
+        default=1.0,
+        description="Polling interval in seconds when using polling observer",
+        ge=0.1,
+        le=30.0,
+    )
 
     # Retention settings
     retention_days: int = Field(

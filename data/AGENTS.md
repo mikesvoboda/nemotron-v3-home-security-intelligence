@@ -66,7 +66,7 @@ CREATE TABLE cameras (
     id VARCHAR PRIMARY KEY,           -- Camera identifier (e.g., "front-door")
     name VARCHAR NOT NULL,            -- Display name (e.g., "Front Door")
     folder_path VARCHAR NOT NULL,     -- Path to camera images
-    status VARCHAR NOT NULL,          -- "active" or "inactive"
+    status VARCHAR NOT NULL,          -- "online", "offline", or "error"
     created_at TIMESTAMP,
     updated_at TIMESTAMP
 );

@@ -19,6 +19,8 @@ def clean_env(monkeypatch):
         "API_PORT",
         "CORS_ORIGINS",
         "FOSCAM_BASE_PATH",
+        "FILE_WATCHER_POLLING",
+        "FILE_WATCHER_POLLING_INTERVAL",
         "RETENTION_DAYS",
         "BATCH_WINDOW_SECONDS",
         "BATCH_IDLE_TIMEOUT_SECONDS",
@@ -77,6 +79,12 @@ class TestSettingsDefaults:
         """Test default Foscam base path."""
         settings = Settings()
         assert settings.foscam_base_path == "/export/foscam"
+
+    def test_default_file_watcher_polling(self, clean_env):
+        """Test default file watcher polling settings."""
+        settings = Settings()
+        assert settings.file_watcher_polling is False
+        assert settings.file_watcher_polling_interval == 1.0
 
     def test_default_retention_days(self, clean_env):
         """Test default retention period is 30 days."""
@@ -159,6 +167,18 @@ class TestEnvironmentOverrides:
         settings = Settings()
         assert settings.foscam_base_path == "/mnt/cameras/foscam"
 
+    def test_override_file_watcher_polling(self, clean_env):
+        """Test FILE_WATCHER_POLLING environment variable overrides default."""
+        clean_env.setenv("FILE_WATCHER_POLLING", "true")
+        settings = Settings()
+        assert settings.file_watcher_polling is True
+
+    def test_override_file_watcher_polling_interval(self, clean_env):
+        """Test FILE_WATCHER_POLLING_INTERVAL environment variable overrides default."""
+        clean_env.setenv("FILE_WATCHER_POLLING_INTERVAL", "5.0")
+        settings = Settings()
+        assert settings.file_watcher_polling_interval == 5.0
+
     def test_override_retention_days(self, clean_env):
         """Test RETENTION_DAYS environment variable overrides default."""
         clean_env.setenv("RETENTION_DAYS", "60")
@@ -210,6 +230,13 @@ class TestTypeCoercion:
         assert isinstance(settings.batch_idle_timeout_seconds, int)
         assert settings.batch_idle_timeout_seconds == 60
 
+    def test_float_coercion_from_string(self, clean_env):
+        """Test that string floats are coerced to float type."""
+        clean_env.setenv("FILE_WATCHER_POLLING_INTERVAL", "2.5")
+        settings = Settings()
+        assert isinstance(settings.file_watcher_polling_interval, float)
+        assert settings.file_watcher_polling_interval == 2.5
+
     def test_boolean_coercion_from_string(self, clean_env):
         """Test that string booleans are coerced to bool type."""
         # Test various truthy values
@@ -249,6 +276,29 @@ class TestTypeCoercion:
         clean_env.setenv("CORS_ORIGINS", "not-valid-json")
         with pytest.raises(ValueError):  # Pydantic will raise validation error
             Settings()
+
+    def test_file_watcher_polling_interval_too_low_raises_error(self, clean_env):
+        """Test that polling interval below 0.1 raises validation error."""
+        clean_env.setenv("FILE_WATCHER_POLLING_INTERVAL", "0.05")
+        with pytest.raises(ValueError):
+            Settings()
+
+    def test_file_watcher_polling_interval_too_high_raises_error(self, clean_env):
+        """Test that polling interval above 30.0 raises validation error."""
+        clean_env.setenv("FILE_WATCHER_POLLING_INTERVAL", "31.0")
+        with pytest.raises(ValueError):
+            Settings()
+
+    def test_file_watcher_polling_interval_at_bounds(self, clean_env):
+        """Test that polling interval at boundary values is accepted."""
+        clean_env.setenv("FILE_WATCHER_POLLING_INTERVAL", "0.1")
+        settings = Settings()
+        assert settings.file_watcher_polling_interval == 0.1
+
+        get_settings.cache_clear()
+        clean_env.setenv("FILE_WATCHER_POLLING_INTERVAL", "30.0")
+        settings = Settings()
+        assert settings.file_watcher_polling_interval == 30.0
 
 
 class TestSettingsSingleton:
