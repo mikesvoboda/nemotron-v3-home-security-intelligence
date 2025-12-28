@@ -80,27 +80,41 @@ async function setupApiMocks(page: import('@playwright/test').Page) {
 
   // Mock the events endpoint - returns { events: [...], total, ... }
   await page.route('**/api/events*', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        events: [
-          {
-            id: 1,
-            camera_id: 'cam-1',
-            camera_name: 'Front Door',
-            timestamp: new Date().toISOString(),
-            risk_score: 25,
-            risk_level: 'low',
-            summary: 'Person detected at front door',
-            reviewed: false,
-          },
-        ],
-        total: 1,
-        limit: 20,
-        offset: 0,
-      }),
-    });
+    // Check if this is the stats endpoint
+    if (route.request().url().includes('/stats')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          total_events: 1,
+          events_by_risk_level: { low: 1, medium: 0, high: 0, critical: 0 },
+          events_by_camera: { 'cam-1': 1 },
+          average_risk_score: 25,
+        }),
+      });
+    } else {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          events: [
+            {
+              id: 1,
+              camera_id: 'cam-1',
+              camera_name: 'Front Door',
+              timestamp: new Date().toISOString(),
+              risk_score: 25,
+              risk_level: 'low',
+              summary: 'Person detected at front door',
+              reviewed: false,
+            },
+          ],
+          total: 1,
+          limit: 20,
+          offset: 0,
+        }),
+      });
+    }
   });
 
   // Mock the system stats endpoint
