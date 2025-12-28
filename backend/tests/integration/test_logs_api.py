@@ -8,11 +8,35 @@ from httpx import AsyncClient
 from backend.models.log import Log
 
 
+@pytest.fixture
+async def clean_logs(integration_db):
+    """Truncate logs table before test runs for proper isolation.
+
+    This ensures tests that expect specific log counts start with empty tables.
+    Uses direct database operations since there's no DELETE endpoint for logs.
+    """
+    from sqlalchemy import text
+
+    from backend.core.database import get_engine
+
+    async with get_engine().begin() as conn:
+        await conn.execute(text("TRUNCATE TABLE logs RESTART IDENTITY CASCADE"))
+
+    yield
+
+    # Cleanup after test too (best effort)
+    try:
+        async with get_engine().begin() as conn:
+            await conn.execute(text("TRUNCATE TABLE logs RESTART IDENTITY CASCADE"))
+    except Exception:  # noqa: S110 - ignore cleanup errors
+        pass
+
+
 @pytest.mark.asyncio
 class TestLogsAPI:
     """Tests for /api/logs endpoints."""
 
-    async def test_list_logs_empty(self, client: AsyncClient, db_session):
+    async def test_list_logs_empty(self, client: AsyncClient, db_session, clean_logs):
         """Test listing logs when database is empty."""
         response = await client.get("/api/logs")
         assert response.status_code == 200
@@ -20,7 +44,7 @@ class TestLogsAPI:
         assert data["logs"] == []
         assert data["count"] == 0
 
-    async def test_list_logs_with_data(self, client: AsyncClient, db_session):
+    async def test_list_logs_with_data(self, client: AsyncClient, db_session, clean_logs):
         """Test listing logs with data."""
         log1 = Log(
             timestamp=datetime.now(UTC),
@@ -45,7 +69,7 @@ class TestLogsAPI:
         assert data["count"] == 2
         assert len(data["logs"]) == 2
 
-    async def test_list_logs_filter_by_level(self, client: AsyncClient, db_session):
+    async def test_list_logs_filter_by_level(self, client: AsyncClient, db_session, clean_logs):
         """Test filtering logs by level."""
         log1 = Log(
             timestamp=datetime.now(UTC),
@@ -70,7 +94,7 @@ class TestLogsAPI:
         assert data["count"] == 1
         assert data["logs"][0]["level"] == "ERROR"
 
-    async def test_list_logs_filter_by_component(self, client: AsyncClient, db_session):
+    async def test_list_logs_filter_by_component(self, client: AsyncClient, db_session, clean_logs):
         """Test filtering logs by component."""
         log1 = Log(
             timestamp=datetime.now(UTC),
@@ -104,7 +128,7 @@ class TestLogsAPI:
         assert "errors_today" in data
         assert "by_component" in data
 
-    async def test_post_frontend_log(self, client: AsyncClient, db_session):
+    async def test_post_frontend_log(self, client: AsyncClient, db_session, clean_logs):
         """Test submitting a frontend log."""
         payload = {
             "level": "ERROR",
@@ -146,7 +170,7 @@ class TestLogsAPI:
         response = await client.get("/api/logs/99999")
         assert response.status_code == 404
 
-    async def test_list_logs_pagination(self, client: AsyncClient, db_session):
+    async def test_list_logs_pagination(self, client: AsyncClient, db_session, clean_logs):
         """Test pagination of logs."""
         for i in range(15):
             log = Log(
