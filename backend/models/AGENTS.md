@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This directory contains SQLAlchemy 2.0 ORM models for the home security intelligence system. These models define the database schema for tracking cameras, object detections, security events, and GPU performance metrics.
+This directory contains SQLAlchemy 2.0 ORM models for the home security intelligence system. These models define the database schema for tracking cameras, object detections, security events, GPU performance metrics, application logs, and API keys.
 
 ## Architecture Overview
 
@@ -65,7 +65,7 @@ Defines the Detection model for RT-DETRv2 object detection results.
 **Fields:**
 
 - `id` (int, PK, autoincrement) - Unique detection ID
-- `camera_id` (str, FK→cameras.id) - Source camera reference
+- `camera_id` (str, FK->cameras.id) - Source camera reference
 - `file_path` (str) - Path to source image file
 - `file_type` (str, nullable) - File extension (e.g., "jpg")
 - `detected_at` (datetime) - Detection timestamp (default: utcnow)
@@ -88,7 +88,7 @@ Defines the Detection model for RT-DETRv2 object detection results.
 **Design Notes:**
 
 - Auto-incrementing integer ID for large-scale detection storage
-- Optional fields support gradual enrichment (detection → analysis → thumbnail)
+- Optional fields support gradual enrichment (detection -> analysis -> thumbnail)
 - Composite index optimizes camera-specific time-range queries
 - Bounding box stored as separate fields for SQL query flexibility
 
@@ -103,11 +103,11 @@ Defines the Event model for aggregated security events.
 
 - `id` (int, PK, autoincrement) - Unique event ID
 - `batch_id` (str) - Batch processing identifier for grouping detections
-- `camera_id` (str, FK→cameras.id) - Source camera reference
+- `camera_id` (str, FK->cameras.id) - Source camera reference
 - `started_at` (datetime) - Event start timestamp
 - `ended_at` (datetime, nullable) - Event end timestamp
 - `risk_score` (int, nullable) - LLM-determined risk score (0-100)
-- `risk_level` (str, nullable) - Risk classification (e.g., "low", "medium", "high")
+- `risk_level` (str, nullable) - Risk classification (e.g., "low", "medium", "high", "critical")
 - `summary` (text, nullable) - LLM-generated event summary
 - `reasoning` (text, nullable) - LLM reasoning for risk assessment
 - `detection_ids` (text, nullable) - Comma-separated detection IDs in this event
@@ -134,6 +134,7 @@ Defines the Event model for aggregated security events.
 - Text fields use SQL `Text` type for large content
 - `reviewed` flag enables user workflow tracking
 - `batch_id` links back to batch processing pipeline
+- `is_fast_path` indicates events processed via fast path (high-priority)
 
 ### `gpu_stats.py`
 
@@ -377,3 +378,4 @@ pytest backend/tests/unit/test_models.py --cov=backend.models
 - `/backend/models/README.md` - Detailed model documentation
 - `/backend/tests/unit/test_models.py` - Model test suite
 - `/backend/core/database.py` - Database connection and session management
+- `/backend/AGENTS.md` - Backend architecture overview

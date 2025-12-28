@@ -6,7 +6,7 @@ Root directory for all React components in the NVIDIA Security Intelligence home
 
 ## Directory Structure
 
-- **common/** - Shared UI components used across the application (RiskBadge, ObjectTypeBadge)
+- **common/** - Shared UI components used across the application (RiskBadge, ObjectTypeBadge, ServiceStatusAlert)
 - **dashboard/** - Main dashboard page and related components (RiskGauge, CameraGrid, ActivityFeed, GpuStats, StatsRow)
 - **detection/** - Object detection visualization components (BoundingBoxOverlay, DetectionImage)
 - **events/** - Event-related components (EventCard, EventTimeline, EventDetailModal, ThumbnailStrip)
@@ -21,7 +21,7 @@ Components are organized by feature domain to maintain clear separation of conce
 - **Layout components** - Application structure, navigation (Header, Sidebar, Layout wrapper)
 - **Detection components** - AI detection visualization (bounding boxes, detection overlays)
 - **Dashboard components** - Main monitoring views (RiskGauge, CameraGrid, ActivityFeed, GpuStats, StatsRow)
-- **Common components** - Reusable UI primitives (RiskBadge, ObjectTypeBadge)
+- **Common components** - Reusable UI primitives (RiskBadge, ObjectTypeBadge, ServiceStatusAlert)
 - **Events components** - Security event displays (EventCard, EventTimeline, EventDetailModal, ThumbnailStrip)
 - **Logs components** - System logging interface (LogsDashboard, LogsTable, LogFilters, LogStatsCards, LogDetailModal)
 - **Settings components** - Configuration pages (SettingsPage, CamerasSettings, AIModelsSettings, ProcessingSettings)
@@ -31,7 +31,8 @@ Components are organized by feature domain to maintain clear separation of conce
 All components use:
 
 - **Tailwind CSS** for utility-first styling
-- **Tremor** library for data visualization components (planned for dashboard metrics)
+- **Tremor** library for data visualization components (dashboard metrics, progress bars, cards)
+- **Headless UI** for accessible interactive components (modals, tabs, dialogs)
 - **Custom dark theme** with NVIDIA brand colors:
   - Background: `#0E0E0E` (darkest) and `#1A1A1A` (panels)
   - Primary: `#76B900` (NVIDIA green)
@@ -49,7 +50,7 @@ Test files are co-located with their components using the `.test.tsx` extension.
 
 | Directory  | Files                                                                                                                 |
 | ---------- | --------------------------------------------------------------------------------------------------------------------- |
-| common/    | RiskBadge.tsx, ObjectTypeBadge.tsx, index.ts                                                                          |
+| common/    | RiskBadge.tsx, ObjectTypeBadge.tsx, ServiceStatusAlert.tsx, index.ts                                                  |
 | dashboard/ | DashboardPage.tsx, RiskGauge.tsx, CameraGrid.tsx, ActivityFeed.tsx, GpuStats.tsx, StatsRow.tsx, RiskGauge.example.tsx |
 | detection/ | DetectionImage.tsx, BoundingBoxOverlay.tsx, Example.tsx, index.ts, README.md                                          |
 | events/    | EventCard.tsx, EventTimeline.tsx, EventDetailModal.tsx, ThumbnailStrip.tsx                                            |

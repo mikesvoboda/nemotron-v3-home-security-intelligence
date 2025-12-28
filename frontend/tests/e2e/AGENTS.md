@@ -26,6 +26,7 @@ frontend/tests/e2e/
 ### smoke.spec.ts
 
 Dashboard smoke tests that verify:
+
 - Dashboard page loads successfully
 - Dashboard displays key components (Risk Level, Camera Status, Live Activity)
 - Dashboard shows real-time monitoring subtitle
@@ -36,6 +37,7 @@ Dashboard smoke tests that verify:
 ### navigation.spec.ts
 
 Navigation tests that verify:
+
 - Can navigate to dashboard from root
 - Can navigate to timeline page
 - Can navigate to logs page
@@ -47,6 +49,7 @@ Navigation tests that verify:
 ### realtime.spec.ts
 
 Real-time feature tests that verify:
+
 - Dashboard shows disconnected state when WebSocket fails
 - Activity feed shows empty state when no events
 - System status indicator is visible
@@ -98,9 +101,7 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
   },
-  projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-  ],
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
     command: 'npm run dev',
     url: 'http://localhost:5173',
@@ -142,6 +143,7 @@ test.beforeEach(async ({ page }) => {
 ```
 
 This approach:
+
 - Makes tests reliable and independent of backend state
 - Allows testing error scenarios (API failures, disconnections)
 - Runs faster without needing a real backend
