@@ -10,27 +10,22 @@ Tests cover:
 
 from __future__ import annotations
 
-import asyncio
 import logging
-from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.websockets import WebSocketState
-
-
-@pytest.fixture(autouse=True)
-def _enable_log_capture(caplog: pytest.LogCaptureFixture) -> None:
-    """Automatically enable INFO-level log capture for all tests."""
-    caplog.set_level(logging.INFO)
 
 from backend.api.routes.websocket import (
     websocket_events_endpoint,
     websocket_system_status,
 )
 
-if TYPE_CHECKING:
-    pass
+
+@pytest.fixture(autouse=True)
+def _enable_log_capture(caplog: pytest.LogCaptureFixture) -> None:
+    """Automatically enable INFO-level log capture for all tests."""
+    caplog.set_level(logging.INFO)
 
 
 # =============================================================================
@@ -143,9 +138,7 @@ class TestWebSocketEventsEndpoint:
         from fastapi import WebSocketDisconnect
 
         # First call returns "ping", second call raises WebSocketDisconnect
-        mock_websocket.receive_text = AsyncMock(
-            side_effect=["ping", WebSocketDisconnect()]
-        )
+        mock_websocket.receive_text = AsyncMock(side_effect=["ping", WebSocketDisconnect()])
 
         with (
             patch(
@@ -217,9 +210,7 @@ class TestWebSocketEventsEndpoint:
         self, mock_websocket, mock_redis_client, mock_event_broadcaster
     ):
         """Test handling of other exceptions when websocket is disconnected."""
-        mock_websocket.receive_text = AsyncMock(
-            side_effect=RuntimeError("Connection error")
-        )
+        mock_websocket.receive_text = AsyncMock(side_effect=RuntimeError("Connection error"))
         mock_websocket.client_state = WebSocketState.DISCONNECTED
 
         with (
@@ -242,9 +233,7 @@ class TestWebSocketEventsEndpoint:
         self, mock_websocket, mock_redis_client, mock_event_broadcaster
     ):
         """Test handling of other exceptions when websocket is still connected."""
-        mock_websocket.receive_text = AsyncMock(
-            side_effect=RuntimeError("Unexpected error")
-        )
+        mock_websocket.receive_text = AsyncMock(side_effect=RuntimeError("Unexpected error"))
         mock_websocket.client_state = WebSocketState.CONNECTED
 
         with (
@@ -291,9 +280,7 @@ class TestWebSocketEventsEndpoint:
         self, mock_websocket, mock_redis_client, mock_event_broadcaster
     ):
         """Test handling of general exception during broadcaster.connect."""
-        mock_event_broadcaster.connect = AsyncMock(
-            side_effect=RuntimeError("Connection failed")
-        )
+        mock_event_broadcaster.connect = AsyncMock(side_effect=RuntimeError("Connection failed"))
 
         with (
             patch(
@@ -361,9 +348,7 @@ class TestWebSocketSystemEndpoint:
         # Connection should not be accepted (broadcaster.connect not called)
 
     @pytest.mark.asyncio
-    async def test_authentication_success_connects(
-        self, mock_websocket, mock_system_broadcaster
-    ):
+    async def test_authentication_success_connects(self, mock_websocket, mock_system_broadcaster):
         """Test that successful authentication connects the client."""
         from fastapi import WebSocketDisconnect
 
@@ -387,15 +372,11 @@ class TestWebSocketSystemEndpoint:
         mock_system_broadcaster.disconnect.assert_awaited_once_with(mock_websocket)
 
     @pytest.mark.asyncio
-    async def test_ping_message_sends_pong_response(
-        self, mock_websocket, mock_system_broadcaster
-    ):
+    async def test_ping_message_sends_pong_response(self, mock_websocket, mock_system_broadcaster):
         """Test that a 'ping' message results in a '{"type":"pong"}' response."""
         from fastapi import WebSocketDisconnect
 
-        mock_websocket.receive_text = AsyncMock(
-            side_effect=["ping", WebSocketDisconnect()]
-        )
+        mock_websocket.receive_text = AsyncMock(side_effect=["ping", WebSocketDisconnect()])
 
         with (
             patch(
@@ -419,9 +400,7 @@ class TestWebSocketSystemEndpoint:
         """Test that non-ping messages do not trigger a pong response."""
         from fastapi import WebSocketDisconnect
 
-        mock_websocket.receive_text = AsyncMock(
-            side_effect=["keepalive", WebSocketDisconnect()]
-        )
+        mock_websocket.receive_text = AsyncMock(side_effect=["keepalive", WebSocketDisconnect()])
 
         with (
             patch(
@@ -467,9 +446,7 @@ class TestWebSocketSystemEndpoint:
         self, mock_websocket, mock_system_broadcaster
     ):
         """Test handling of other exceptions when websocket is disconnected."""
-        mock_websocket.receive_text = AsyncMock(
-            side_effect=RuntimeError("Connection error")
-        )
+        mock_websocket.receive_text = AsyncMock(side_effect=RuntimeError("Connection error"))
         mock_websocket.client_state = WebSocketState.DISCONNECTED
 
         with (
@@ -492,9 +469,7 @@ class TestWebSocketSystemEndpoint:
         self, mock_websocket, mock_system_broadcaster
     ):
         """Test handling of other exceptions when websocket is still connected."""
-        mock_websocket.receive_text = AsyncMock(
-            side_effect=RuntimeError("Unexpected error")
-        )
+        mock_websocket.receive_text = AsyncMock(side_effect=RuntimeError("Unexpected error"))
         mock_websocket.client_state = WebSocketState.CONNECTED
 
         with (
@@ -537,13 +512,9 @@ class TestWebSocketSystemEndpoint:
         mock_system_broadcaster.disconnect.assert_awaited_once_with(mock_websocket)
 
     @pytest.mark.asyncio
-    async def test_general_exception_during_connect(
-        self, mock_websocket, mock_system_broadcaster
-    ):
+    async def test_general_exception_during_connect(self, mock_websocket, mock_system_broadcaster):
         """Test handling of general exception during broadcaster.connect."""
-        mock_system_broadcaster.connect = AsyncMock(
-            side_effect=RuntimeError("Connection failed")
-        )
+        mock_system_broadcaster.connect = AsyncMock(side_effect=RuntimeError("Connection failed"))
 
         with (
             patch(
@@ -605,9 +576,7 @@ class TestWebSocketEdgeCases:
         """Test that empty messages are handled gracefully."""
         from fastapi import WebSocketDisconnect
 
-        mock_websocket.receive_text = AsyncMock(
-            side_effect=["", WebSocketDisconnect()]
-        )
+        mock_websocket.receive_text = AsyncMock(side_effect=["", WebSocketDisconnect()])
 
         with (
             patch(
@@ -633,9 +602,7 @@ class TestWebSocketEdgeCases:
         """Test that empty messages are handled gracefully."""
         from fastapi import WebSocketDisconnect
 
-        mock_websocket.receive_text = AsyncMock(
-            side_effect=["", WebSocketDisconnect()]
-        )
+        mock_websocket.receive_text = AsyncMock(side_effect=["", WebSocketDisconnect()])
 
         with (
             patch(
@@ -661,9 +628,7 @@ class TestWebSocketEdgeCases:
         """Test handling of error during send_text."""
         from fastapi import WebSocketDisconnect
 
-        mock_websocket.receive_text = AsyncMock(
-            side_effect=["ping", WebSocketDisconnect()]
-        )
+        mock_websocket.receive_text = AsyncMock(side_effect=["ping", WebSocketDisconnect()])
         mock_websocket.send_text = AsyncMock(side_effect=RuntimeError("Send failed"))
 
         with (
@@ -683,15 +648,11 @@ class TestWebSocketEdgeCases:
         mock_event_broadcaster.disconnect.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_system_endpoint_send_text_error(
-        self, mock_websocket, mock_system_broadcaster
-    ):
+    async def test_system_endpoint_send_text_error(self, mock_websocket, mock_system_broadcaster):
         """Test handling of error during send_text."""
         from fastapi import WebSocketDisconnect
 
-        mock_websocket.receive_text = AsyncMock(
-            side_effect=["ping", WebSocketDisconnect()]
-        )
+        mock_websocket.receive_text = AsyncMock(side_effect=["ping", WebSocketDisconnect()])
         mock_websocket.send_text = AsyncMock(side_effect=RuntimeError("Send failed"))
 
         with (
@@ -755,9 +716,7 @@ class TestWebSocketConnectionStates:
         mock_event_broadcaster.disconnect.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_system_websocket_state_checking(
-        self, mock_websocket, mock_system_broadcaster
-    ):
+    async def test_system_websocket_state_checking(self, mock_websocket, mock_system_broadcaster):
         """Test that WebSocket state is checked when errors occur."""
         call_count = 0
 
@@ -847,9 +806,7 @@ class TestWebSocketLogging:
         assert "WebSocket connection cleaned up" in caplog.text
 
     @pytest.mark.asyncio
-    async def test_events_logs_auth_failure(
-        self, mock_websocket, mock_redis_client, caplog
-    ):
+    async def test_events_logs_auth_failure(self, mock_websocket, mock_redis_client, caplog):
         """Test that authentication failure is logged."""
         with patch(
             "backend.api.routes.websocket.authenticate_websocket",
@@ -947,9 +904,7 @@ class TestWebSocketConcurrency:
 
         # Simulate many rapid messages followed by disconnect
         messages = ["msg" + str(i) for i in range(100)] + ["ping"]
-        mock_websocket.receive_text = AsyncMock(
-            side_effect=messages + [WebSocketDisconnect()]
-        )
+        mock_websocket.receive_text = AsyncMock(side_effect=[*messages, WebSocketDisconnect()])
 
         with (
             patch(
@@ -968,17 +923,13 @@ class TestWebSocketConcurrency:
         mock_event_broadcaster.disconnect.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_system_rapid_ping_messages(
-        self, mock_websocket, mock_system_broadcaster
-    ):
+    async def test_system_rapid_ping_messages(self, mock_websocket, mock_system_broadcaster):
         """Test handling of rapid ping messages."""
         from fastapi import WebSocketDisconnect
 
         # Simulate multiple ping messages
         messages = ["ping"] * 10
-        mock_websocket.receive_text = AsyncMock(
-            side_effect=messages + [WebSocketDisconnect()]
-        )
+        mock_websocket.receive_text = AsyncMock(side_effect=[*messages, WebSocketDisconnect()])
 
         with (
             patch(

@@ -587,6 +587,7 @@ class NemotronAnalyzer:
             }
 
             from backend.services.event_broadcaster import EventBroadcaster
+
             await self._redis.publish(EventBroadcaster.CHANNEL_NAME, message)
             logger.debug(f"Broadcasted event {event.id} via WebSocket")
         except Exception as e:  # pragma: no cover

@@ -5,8 +5,6 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from backend.core.logging import (
     ContextFilter,
     CustomJsonFormatter,
@@ -293,9 +291,7 @@ class TestSQLiteHandlerGetSession:
             )
 
             with (
-                patch(
-                    "backend.core.logging.SQLiteHandler._get_session"
-                ) as mock_get_session,
+                patch("backend.core.logging.SQLiteHandler._get_session") as mock_get_session,
             ):
                 # Simulate session being returned
                 mock_session = MagicMock()
@@ -632,12 +628,8 @@ class TestSetupLoggingFileHandler:
             )
 
             # Patch RotatingFileHandler to raise an exception
-            with patch(
-                "backend.core.logging.RotatingFileHandler"
-            ) as mock_file_handler:
-                mock_file_handler.side_effect = PermissionError(
-                    "Permission denied"
-                )
+            with patch("backend.core.logging.RotatingFileHandler") as mock_file_handler:
+                mock_file_handler.side_effect = PermissionError("Permission denied")
 
                 root = logging.getLogger()
                 original_handlers = root.handlers.copy()
@@ -704,9 +696,7 @@ class TestSetupLoggingSQLiteHandler:
                 setup_logging()
 
                 # Should have SQLiteHandler among handlers
-                sqlite_handlers = [
-                    h for h in root.handlers if isinstance(h, SQLiteHandler)
-                ]
+                sqlite_handlers = [h for h in root.handlers if isinstance(h, SQLiteHandler)]
                 assert len(sqlite_handlers) == 1
 
                 # Verify min_level was set correctly
@@ -727,12 +717,8 @@ class TestSetupLoggingSQLiteHandler:
                 log_db_min_level="INFO",
             )
 
-            with patch(
-                "backend.core.logging.SQLiteHandler"
-            ) as mock_sqlite_handler:
-                mock_sqlite_handler.side_effect = Exception(
-                    "SQLite initialization failed"
-                )
+            with patch("backend.core.logging.SQLiteHandler") as mock_sqlite_handler:
+                mock_sqlite_handler.side_effect = Exception("SQLite initialization failed")
 
                 root = logging.getLogger()
                 original_handlers = root.handlers.copy()
@@ -767,9 +753,7 @@ class TestSetupLoggingSQLiteHandler:
                 setup_logging()
 
                 # Should NOT have any SQLiteHandler
-                sqlite_handlers = [
-                    h for h in root.handlers if isinstance(h, SQLiteHandler)
-                ]
+                sqlite_handlers = [h for h in root.handlers if isinstance(h, SQLiteHandler)]
                 assert len(sqlite_handlers) == 0
             finally:
                 root.handlers = original_handlers
@@ -801,9 +785,9 @@ class TestSetupLoggingIntegration:
 
                 try:
                     # Count existing filters before setup
-                    existing_filters = len([
-                        f for f in root.filters if isinstance(f, ContextFilter)
-                    ])
+                    existing_filters = len(
+                        [f for f in root.filters if isinstance(f, ContextFilter)]
+                    )
 
                     setup_logging()
 
@@ -811,17 +795,13 @@ class TestSetupLoggingIntegration:
                     assert root.level == logging.DEBUG
 
                     # Should have at least one new context filter added
-                    context_filters = [
-                        f for f in root.filters if isinstance(f, ContextFilter)
-                    ]
+                    context_filters = [f for f in root.filters if isinstance(f, ContextFilter)]
                     assert len(context_filters) >= existing_filters + 1
 
                     # Should have at least console handler
                     from logging import StreamHandler
 
-                    stream_handlers = [
-                        h for h in root.handlers if isinstance(h, StreamHandler)
-                    ]
+                    stream_handlers = [h for h in root.handlers if isinstance(h, StreamHandler)]
                     assert len(stream_handlers) >= 1
                 finally:
                     root.handlers = original_handlers
@@ -897,7 +877,6 @@ class TestSetupLoggingIntegration:
             # Add a dummy handler
             dummy_handler = logging.StreamHandler()
             root.addHandler(dummy_handler)
-            initial_count = len(root.handlers)
 
             try:
                 setup_logging()

@@ -6,7 +6,7 @@ import asyncio
 import contextlib
 import logging
 from typing import TYPE_CHECKING, Any
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator

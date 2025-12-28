@@ -8,8 +8,7 @@ These tests cover all routes in the detections API:
 
 from __future__ import annotations
 
-import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, mock_open, patch
 
 import pytest
@@ -17,7 +16,6 @@ from fastapi import HTTPException
 
 from backend.api.routes import detections as detections_routes
 from backend.models.detection import Detection
-
 
 # =============================================================================
 # Fixtures
@@ -74,7 +72,9 @@ def mock_db_session() -> AsyncMock:
 
 
 @pytest.mark.asyncio
-async def test_list_detections_no_filters(mock_db_session: AsyncMock, mock_detection: MagicMock) -> None:
+async def test_list_detections_no_filters(
+    mock_db_session: AsyncMock, mock_detection: MagicMock
+) -> None:
     """Test listing detections without any filters."""
     # Setup mock
     mock_result = MagicMock()
@@ -108,7 +108,9 @@ async def test_list_detections_no_filters(mock_db_session: AsyncMock, mock_detec
 
 
 @pytest.mark.asyncio
-async def test_list_detections_with_camera_filter(mock_db_session: AsyncMock, mock_detection: MagicMock) -> None:
+async def test_list_detections_with_camera_filter(
+    mock_db_session: AsyncMock, mock_detection: MagicMock
+) -> None:
     """Test listing detections filtered by camera_id."""
     mock_result = MagicMock()
     mock_scalars = MagicMock()
@@ -136,7 +138,9 @@ async def test_list_detections_with_camera_filter(mock_db_session: AsyncMock, mo
 
 
 @pytest.mark.asyncio
-async def test_list_detections_with_object_type_filter(mock_db_session: AsyncMock, mock_detection: MagicMock) -> None:
+async def test_list_detections_with_object_type_filter(
+    mock_db_session: AsyncMock, mock_detection: MagicMock
+) -> None:
     """Test listing detections filtered by object_type."""
     mock_result = MagicMock()
     mock_scalars = MagicMock()
@@ -164,7 +168,9 @@ async def test_list_detections_with_object_type_filter(mock_db_session: AsyncMoc
 
 
 @pytest.mark.asyncio
-async def test_list_detections_with_date_range_filter(mock_db_session: AsyncMock, mock_detection: MagicMock) -> None:
+async def test_list_detections_with_date_range_filter(
+    mock_db_session: AsyncMock, mock_detection: MagicMock
+) -> None:
     """Test listing detections filtered by date range."""
     mock_result = MagicMock()
     mock_scalars = MagicMock()
@@ -194,7 +200,9 @@ async def test_list_detections_with_date_range_filter(mock_db_session: AsyncMock
 
 
 @pytest.mark.asyncio
-async def test_list_detections_with_confidence_filter(mock_db_session: AsyncMock, mock_detection: MagicMock) -> None:
+async def test_list_detections_with_confidence_filter(
+    mock_db_session: AsyncMock, mock_detection: MagicMock
+) -> None:
     """Test listing detections filtered by minimum confidence."""
     mock_result = MagicMock()
     mock_scalars = MagicMock()
@@ -222,7 +230,9 @@ async def test_list_detections_with_confidence_filter(mock_db_session: AsyncMock
 
 
 @pytest.mark.asyncio
-async def test_list_detections_with_all_filters(mock_db_session: AsyncMock, mock_detection: MagicMock) -> None:
+async def test_list_detections_with_all_filters(
+    mock_db_session: AsyncMock, mock_detection: MagicMock
+) -> None:
     """Test listing detections with all filters applied."""
     mock_result = MagicMock()
     mock_scalars = MagicMock()
@@ -249,7 +259,9 @@ async def test_list_detections_with_all_filters(mock_db_session: AsyncMock, mock
 
 
 @pytest.mark.asyncio
-async def test_list_detections_with_pagination(mock_db_session: AsyncMock, mock_detection: MagicMock) -> None:
+async def test_list_detections_with_pagination(
+    mock_db_session: AsyncMock, mock_detection: MagicMock
+) -> None:
     """Test listing detections with pagination."""
     mock_result = MagicMock()
     mock_scalars = MagicMock()
@@ -408,7 +420,9 @@ async def test_get_detection_not_found(mock_db_session: AsyncMock) -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_detection_various_ids(mock_db_session: AsyncMock, mock_detection: MagicMock) -> None:
+async def test_get_detection_various_ids(
+    mock_db_session: AsyncMock, mock_detection: MagicMock
+) -> None:
     """Test getting detections with various ID values."""
     mock_result = MagicMock()
     mock_result.scalar_one_or_none.return_value = mock_detection
@@ -417,7 +431,9 @@ async def test_get_detection_various_ids(mock_db_session: AsyncMock, mock_detect
     # Test with different valid IDs
     for detection_id in [1, 10, 100, 1000]:
         mock_detection.id = detection_id
-        result = await detections_routes.get_detection(detection_id=detection_id, db=mock_db_session)
+        result = await detections_routes.get_detection(
+            detection_id=detection_id, db=mock_db_session
+        )
         assert result.id == detection_id
 
 
@@ -485,9 +501,7 @@ async def test_get_detection_image_generate_thumbnail_on_fly(
             return False
         if path == mock_detection_no_thumbnail.file_path:
             return True
-        if path == generated_thumbnail_path:
-            return True
-        return False
+        return path == generated_thumbnail_path
 
     with (
         patch.object(detections_routes, "thumbnail_generator", mock_thumbnail_gen),
@@ -521,9 +535,8 @@ async def test_get_detection_image_source_not_found(
     mock_db_session.execute = AsyncMock(return_value=mock_result)
 
     # Both thumbnail and source image don't exist
-    with patch("os.path.exists", return_value=False):
-        with pytest.raises(HTTPException) as exc_info:
-            await detections_routes.get_detection_image(detection_id=2, db=mock_db_session)
+    with patch("os.path.exists", return_value=False), pytest.raises(HTTPException) as exc_info:
+        await detections_routes.get_detection_image(detection_id=2, db=mock_db_session)
 
     assert exc_info.value.status_code == 404
     assert "Source image not found" in exc_info.value.detail
@@ -542,23 +555,24 @@ async def test_get_detection_image_thumbnail_generation_fails(
     mock_thumbnail_gen.generate_thumbnail.return_value = None  # Generation failed
 
     def path_exists(path: str) -> bool:
-        if path == mock_detection_no_thumbnail.file_path:
-            return True  # Source exists
-        return False  # Thumbnail doesn't exist
+        # Source exists, thumbnail doesn't exist
+        return path == mock_detection_no_thumbnail.file_path
 
     with (
         patch.object(detections_routes, "thumbnail_generator", mock_thumbnail_gen),
         patch("os.path.exists", side_effect=path_exists),
+        pytest.raises(HTTPException) as exc_info,
     ):
-        with pytest.raises(HTTPException) as exc_info:
-            await detections_routes.get_detection_image(detection_id=2, db=mock_db_session)
+        await detections_routes.get_detection_image(detection_id=2, db=mock_db_session)
 
     assert exc_info.value.status_code == 500
     assert "Failed to generate thumbnail image" in exc_info.value.detail
 
 
 @pytest.mark.asyncio
-async def test_get_detection_image_read_error(mock_db_session: AsyncMock, mock_detection: MagicMock) -> None:
+async def test_get_detection_image_read_error(
+    mock_db_session: AsyncMock, mock_detection: MagicMock
+) -> None:
     """Test error when reading thumbnail file fails."""
     mock_result = MagicMock()
     mock_result.scalar_one_or_none.return_value = mock_detection
@@ -566,10 +580,10 @@ async def test_get_detection_image_read_error(mock_db_session: AsyncMock, mock_d
 
     with (
         patch("os.path.exists", return_value=True),
-        patch("builtins.open", side_effect=IOError("Permission denied")),
+        patch("builtins.open", side_effect=OSError("Permission denied")),
+        pytest.raises(HTTPException) as exc_info,
     ):
-        with pytest.raises(HTTPException) as exc_info:
-            await detections_routes.get_detection_image(detection_id=1, db=mock_db_session)
+        await detections_routes.get_detection_image(detection_id=1, db=mock_db_session)
 
     assert exc_info.value.status_code == 500
     assert "Failed to read thumbnail image" in exc_info.value.detail
@@ -603,9 +617,7 @@ async def test_get_detection_image_thumbnail_path_exists_but_file_missing(
         if path == mock_detection.file_path:
             return True
         # Generated thumbnail exists
-        if path == generated_thumbnail_path:
-            return True
-        return False
+        return path == generated_thumbnail_path
 
     with (
         patch.object(detections_routes, "thumbnail_generator", mock_thumbnail_gen),
@@ -638,9 +650,7 @@ async def test_get_detection_image_verifies_detection_data_for_thumbnail(
     def path_exists(path: str) -> bool:
         if path == mock_detection_no_thumbnail.file_path:
             return True
-        if path == generated_thumbnail_path:
-            return True
-        return False
+        return path == generated_thumbnail_path
 
     with (
         patch.object(detections_routes, "thumbnail_generator", mock_thumbnail_gen),
@@ -662,7 +672,9 @@ async def test_get_detection_image_verifies_detection_data_for_thumbnail(
 
 
 @pytest.mark.asyncio
-async def test_get_detection_image_cache_header(mock_db_session: AsyncMock, mock_detection: MagicMock) -> None:
+async def test_get_detection_image_cache_header(
+    mock_db_session: AsyncMock, mock_detection: MagicMock
+) -> None:
     """Test that cache control header is properly set."""
     mock_result = MagicMock()
     mock_result.scalar_one_or_none.return_value = mock_detection
@@ -730,7 +742,9 @@ async def test_list_detections_with_zero_confidence_filter(mock_db_session: Asyn
 
 
 @pytest.mark.asyncio
-async def test_list_detections_with_start_date_only(mock_db_session: AsyncMock, mock_detection: MagicMock) -> None:
+async def test_list_detections_with_start_date_only(
+    mock_db_session: AsyncMock, mock_detection: MagicMock
+) -> None:
     """Test filtering with only start_date (no end_date)."""
     mock_result = MagicMock()
     mock_scalars = MagicMock()
@@ -757,7 +771,9 @@ async def test_list_detections_with_start_date_only(mock_db_session: AsyncMock, 
 
 
 @pytest.mark.asyncio
-async def test_list_detections_with_end_date_only(mock_db_session: AsyncMock, mock_detection: MagicMock) -> None:
+async def test_list_detections_with_end_date_only(
+    mock_db_session: AsyncMock, mock_detection: MagicMock
+) -> None:
     """Test filtering with only end_date (no start_date)."""
     mock_result = MagicMock()
     mock_scalars = MagicMock()
@@ -811,9 +827,7 @@ async def test_get_detection_image_with_none_thumbnail_path(mock_db_session: Asy
     def path_exists(path: str) -> bool:
         if path == detection.file_path:
             return True
-        if path == generated_path:
-            return True
-        return False
+        return path == generated_path
 
     with (
         patch.object(detections_routes, "thumbnail_generator", mock_thumbnail_gen),
@@ -855,7 +869,9 @@ async def test_list_detections_large_offset(mock_db_session: AsyncMock) -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_detections_max_limit(mock_db_session: AsyncMock, mock_detection: MagicMock) -> None:
+async def test_list_detections_max_limit(
+    mock_db_session: AsyncMock, mock_detection: MagicMock
+) -> None:
     """Test listing detections with maximum limit."""
     mock_result = MagicMock()
     mock_scalars = MagicMock()
@@ -882,7 +898,9 @@ async def test_list_detections_max_limit(mock_db_session: AsyncMock, mock_detect
 
 
 @pytest.mark.asyncio
-async def test_list_detections_min_limit(mock_db_session: AsyncMock, mock_detection: MagicMock) -> None:
+async def test_list_detections_min_limit(
+    mock_db_session: AsyncMock, mock_detection: MagicMock
+) -> None:
     """Test listing detections with minimum limit."""
     mock_result = MagicMock()
     mock_scalars = MagicMock()
