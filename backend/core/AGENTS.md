@@ -407,10 +407,12 @@ await client.connect()
 
 - Returns number of items in queue
 
-**`peek_queue(queue_name: str, start: int = 0, end: int = -1) -> list[Any]`** - LRANGE:
+**`peek_queue(queue_name: str, start: int = 0, end: int = 100, max_items: int = 1000) -> list[Any]`** - LRANGE:
 
 - View queue items without removing
-- `end=-1` returns all items
+- Default `end=100` prevents expensive full-queue fetches
+- `end=-1` returns all items up to `max_items` cap
+- `max_items` provides hard cap on items returned (default 1000)
 - Returns list of deserialized items
 
 **`clear_queue(queue_name: str) -> bool`** - DELETE:

@@ -45,6 +45,7 @@ def mock_redis_client():
     mock_client.close = AsyncMock()
     mock_client.info = AsyncMock(return_value={"redis_version": "7.0.0", "uptime_in_seconds": 3600})
     mock_client.rpush = AsyncMock(return_value=1)
+    mock_client.ltrim = AsyncMock(return_value=True)
     mock_client.blpop = AsyncMock(return_value=None)
     mock_client.llen = AsyncMock(return_value=0)
     mock_client.lrange = AsyncMock(return_value=[])
@@ -177,6 +178,8 @@ async def test_add_to_queue_with_dict(redis_client, mock_redis_client):
     call_args = mock_redis_client.rpush.call_args[0]
     assert call_args[0] == "test_queue"
     assert '"key": "value"' in call_args[1]
+    # Verify ltrim called with default max_size=10000
+    mock_redis_client.ltrim.assert_awaited_once_with("test_queue", -10000, -1)
 
 
 @pytest.mark.asyncio
@@ -188,6 +191,32 @@ async def test_add_to_queue_with_string(redis_client, mock_redis_client):
 
     assert result == 2
     mock_redis_client.rpush.assert_awaited_once_with("test_queue", "simple_string")
+    # Verify ltrim called with default max_size=10000
+    mock_redis_client.ltrim.assert_awaited_once_with("test_queue", -10000, -1)
+
+
+@pytest.mark.asyncio
+async def test_add_to_queue_with_custom_max_size(redis_client, mock_redis_client):
+    """Test adding to a queue with custom max_size."""
+    mock_redis_client.rpush.return_value = 1
+
+    result = await redis_client.add_to_queue("test_queue", "data", max_size=500)
+
+    assert result == 1
+    mock_redis_client.ltrim.assert_awaited_once_with("test_queue", -500, -1)
+
+
+@pytest.mark.asyncio
+async def test_add_to_queue_with_max_size_zero_skips_ltrim(redis_client, mock_redis_client):
+    """Test that max_size=0 disables trimming."""
+    mock_redis_client.rpush.return_value = 1
+
+    result = await redis_client.add_to_queue("test_queue", "data", max_size=0)
+
+    assert result == 1
+    mock_redis_client.rpush.assert_awaited_once()
+    # ltrim should NOT be called when max_size=0
+    mock_redis_client.ltrim.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -248,6 +277,62 @@ async def test_peek_queue(redis_client, mock_redis_client):
     assert items[1] == {"id": 2}
     assert items[2] == "plain_string"
     mock_redis_client.lrange.assert_awaited_once_with("test_queue", 0, 2)
+
+
+@pytest.mark.asyncio
+async def test_peek_queue_default_limit(redis_client, mock_redis_client):
+    """Test peek_queue uses default end=100 instead of full queue."""
+    mock_redis_client.lrange.return_value = []
+
+    await redis_client.peek_queue("test_queue")
+
+    # Default end should be 100, not -1 (which would fetch entire queue)
+    mock_redis_client.lrange.assert_awaited_once_with("test_queue", 0, 100)
+
+
+@pytest.mark.asyncio
+async def test_peek_queue_end_minus_one_uses_max_items(redis_client, mock_redis_client):
+    """Test peek_queue with end=-1 uses max_items cap."""
+    mock_redis_client.lrange.return_value = []
+
+    await redis_client.peek_queue("test_queue", start=0, end=-1)
+
+    # end=-1 should convert to max_items - 1 = 999
+    mock_redis_client.lrange.assert_awaited_once_with("test_queue", 0, 999)
+
+
+@pytest.mark.asyncio
+async def test_peek_queue_custom_max_items(redis_client, mock_redis_client):
+    """Test peek_queue with custom max_items."""
+    mock_redis_client.lrange.return_value = []
+
+    await redis_client.peek_queue("test_queue", start=0, end=-1, max_items=500)
+
+    # end=-1 with max_items=500 should convert to 499
+    mock_redis_client.lrange.assert_awaited_once_with("test_queue", 0, 499)
+
+
+@pytest.mark.asyncio
+async def test_peek_queue_end_capped_by_max_items(redis_client, mock_redis_client):
+    """Test peek_queue caps end at start + max_items - 1."""
+    mock_redis_client.lrange.return_value = []
+
+    # Request more items than max_items allows
+    await redis_client.peek_queue("test_queue", start=0, end=2000, max_items=1000)
+
+    # end should be capped at 999 (start + max_items - 1)
+    mock_redis_client.lrange.assert_awaited_once_with("test_queue", 0, 999)
+
+
+@pytest.mark.asyncio
+async def test_peek_queue_with_offset_and_max_items(redis_client, mock_redis_client):
+    """Test peek_queue handles start offset correctly with max_items."""
+    mock_redis_client.lrange.return_value = []
+
+    await redis_client.peek_queue("test_queue", start=100, end=5000, max_items=1000)
+
+    # end should be capped at 1099 (start=100 + max_items=1000 - 1)
+    mock_redis_client.lrange.assert_awaited_once_with("test_queue", 100, 1099)
 
 
 @pytest.mark.asyncio

@@ -75,10 +75,18 @@ class MockRedisClient:
     async def get_queue_length(self, queue_name: str) -> int:
         return len(self._queues.get(queue_name, []))
 
-    async def peek_queue(self, queue_name: str, start: int = 0, end: int = -1) -> list[Any]:
+    async def peek_queue(
+        self,
+        queue_name: str,
+        start: int = 0,
+        end: int = 100,
+        max_items: int = 1000,
+    ) -> list[Any]:
         queue = self._queues.get(queue_name, [])
         if end == -1:
-            return queue[start:]
+            end = max_items - 1
+        else:
+            end = min(end, start + max_items - 1)
         return queue[start : end + 1]
 
     async def publish(self, channel: str, message: Any) -> int:

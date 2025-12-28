@@ -163,6 +163,14 @@ class Settings(BaseSettings):
         description="Number of days to retain logs",
     )
 
+    # DLQ settings
+    max_requeue_iterations: int = Field(
+        default=10000,
+        ge=1,
+        le=100000,
+        description="Maximum iterations for requeue-all operations",
+    )
+
     @field_validator("log_file_path")
     @classmethod
     def validate_log_file_path(cls, v: str) -> str:
