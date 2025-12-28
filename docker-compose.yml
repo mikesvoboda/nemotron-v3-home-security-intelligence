@@ -1,3 +1,17 @@
+# Development Docker Compose
+#
+# Compatible with Docker and Podman on Linux and macOS.
+#
+# Usage:
+#   Docker:  docker compose up -d
+#   Podman:  podman-compose up -d
+#
+# For Podman on macOS:
+#   export AI_HOST=host.containers.internal
+#
+# For Linux (Docker or Podman), use your host IP:
+#   export AI_HOST=192.168.1.100  # Replace with your host IP
+
 version: "3.8"
 
 services:
@@ -7,12 +21,12 @@ services:
       - "8000:8000"
     volumes:
       - ./backend/data:/app/data
-      - /export/foscam:/cameras:ro
+      - ${CAMERA_PATH:-/export/foscam}:/cameras:ro
     environment:
       - DATABASE_URL=sqlite+aiosqlite:////app/data/security.db
       - REDIS_URL=redis://redis:6379
-      - RTDETR_URL=http://host.docker.internal:8090
-      - NEMOTRON_URL=http://host.docker.internal:8091
+      - RTDETR_URL=http://${AI_HOST:-host.docker.internal}:8090
+      - NEMOTRON_URL=http://${AI_HOST:-host.docker.internal}:8091
       - FOSCAM_BASE_PATH=/cameras
     depends_on:
       redis:

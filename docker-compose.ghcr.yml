@@ -1,25 +1,26 @@
-# Production Docker Compose
+# Docker Compose for pulling pre-built images from GitHub Container Registry
 #
-# This uses optimized builds with multi-stage Dockerfiles.
-# Compatible with Docker and Podman on Linux and macOS.
+# This file pulls images built by CI/CD instead of building locally.
+# Compatible with both Docker and Podman on Linux and macOS.
 #
 # Usage:
-#   Docker:  docker compose -f docker-compose.prod.yml up -d
-#   Podman:  podman-compose -f docker-compose.prod.yml up -d
+#   Docker:  docker compose -f docker-compose.ghcr.yml up -d
+#   Podman:  podman-compose -f docker-compose.ghcr.yml up -d
 #
-# For Podman on macOS:
+# For Podman on macOS, set the AI host:
 #   export AI_HOST=host.containers.internal
 #
 # For Linux (Docker or Podman), use your host IP:
 #   export AI_HOST=192.168.1.100  # Replace with your host IP
+#
+# To use a specific image version instead of latest:
+#   export IMAGE_TAG=abc1234
 
 version: "3.8"
 
 services:
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.prod
+    image: ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:${IMAGE_TAG:-latest}
     ports:
       - "8000:8000"
     volumes:
@@ -31,7 +32,7 @@ services:
       - RTDETR_URL=http://${AI_HOST:-host.docker.internal}:8090
       - NEMOTRON_URL=http://${AI_HOST:-host.docker.internal}:8091
       - FOSCAM_BASE_PATH=/cameras
-      - DEBUG=false
+      - DEBUG=${DEBUG:-false}
     depends_on:
       redis:
         condition: service_healthy
@@ -78,11 +79,9 @@ services:
           memory: 512M
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile.prod
+    image: ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:${IMAGE_TAG:-latest}
     ports:
-      - "80:80"
+      - "${FRONTEND_PORT:-80}:80"
     environment:
       - VITE_API_BASE_URL=http://localhost:8000
       - VITE_WS_BASE_URL=ws://localhost:8000
