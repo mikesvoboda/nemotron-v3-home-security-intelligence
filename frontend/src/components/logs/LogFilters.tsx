@@ -149,7 +149,10 @@ export default function LogFilters({
 
           {/* Component Filter */}
           <div>
-            <label htmlFor="component-filter" className="mb-1 block text-sm font-medium text-gray-300">
+            <label
+              htmlFor="component-filter"
+              className="mb-1 block text-sm font-medium text-gray-300"
+            >
               Component
             </label>
             <select
@@ -189,7 +192,10 @@ export default function LogFilters({
 
           {/* Start Date Filter */}
           <div>
-            <label htmlFor="start-date-filter" className="mb-1 block text-sm font-medium text-gray-300">
+            <label
+              htmlFor="start-date-filter"
+              className="mb-1 block text-sm font-medium text-gray-300"
+            >
               Start Date
             </label>
             <div className="relative">
@@ -206,7 +212,10 @@ export default function LogFilters({
 
           {/* End Date Filter */}
           <div>
-            <label htmlFor="end-date-filter" className="mb-1 block text-sm font-medium text-gray-300">
+            <label
+              htmlFor="end-date-filter"
+              className="mb-1 block text-sm font-medium text-gray-300"
+            >
               End Date
             </label>
             <div className="relative">

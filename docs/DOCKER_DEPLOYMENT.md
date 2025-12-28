@@ -281,6 +281,78 @@ The test script will:
 - Optimized health check intervals
 - Redis persistence enabled (AOF)
 
+---
+
+## Backend Dockerfile Module Import Path Requirement
+
+The backend uses **absolute imports** throughout the codebase (e.g., `from backend.api.middleware import AuthMiddleware`). This requires careful structuring in Docker to ensure Python can resolve these imports correctly.
+
+### The Problem
+
+When building the Docker image, if you copy files directly to the working directory:
+
+```dockerfile
+# INCORRECT - causes ModuleNotFoundError
+WORKDIR /app
+COPY . .
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+This produces a directory structure of `/app/main.py`, `/app/api/`, `/app/core/`, etc. When Python tries to resolve `from backend.api.middleware import AuthMiddleware`, it fails because there is no `backend/` directory in the Python path.
+
+### The Solution
+
+Copy the application code to a subdirectory that matches the import structure:
+
+```dockerfile
+# CORRECT - matches import structure
+WORKDIR /app
+
+# Copy application code to backend subdirectory (for absolute imports)
+COPY . ./backend/
+
+# Use backend.main:app (not main:app)
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+This produces the correct structure: `/app/backend/main.py`, `/app/backend/api/`, `/app/backend/core/`, etc.
+
+### Current Implementation
+
+The `backend/Dockerfile.prod` implements this correctly:
+
+```dockerfile
+WORKDIR /app
+
+# Copy application code to backend subdirectory (for absolute imports)
+COPY . ./backend/
+
+# ...
+
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+```
+
+### Key Points
+
+1. **COPY destination**: Use `COPY . ./backend/` to create the subdirectory structure
+2. **CMD module path**: Use `backend.main:app` instead of `main:app`
+3. **Import consistency**: All imports in the codebase use `backend.*` prefix
+4. **PYTHONPATH**: No PYTHONPATH modification needed when structured correctly
+
+### Verification
+
+After building the image, verify the structure:
+
+```bash
+# Check directory structure
+docker run --rm backend-prod ls -la /app/
+
+# Verify imports work
+docker run --rm backend-prod python -c "from backend.core import get_settings; print('OK')"
+```
+
+---
+
 ## Service Details
 
 ### Backend Service

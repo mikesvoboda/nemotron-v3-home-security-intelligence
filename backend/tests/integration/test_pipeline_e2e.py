@@ -39,9 +39,19 @@ class MockRedisClient:
     def __init__(self) -> None:
         self._store: dict[str, Any] = {}
         self._queues: dict[str, list[Any]] = {}
-        # Create a mock inner client that supports async keys()
+        # Create a mock inner client that supports async scan_iter()
         self._client = AsyncMock()
-        self._client.keys = AsyncMock(return_value=[])
+        # scan_iter returns an async generator - we'll set it up dynamically
+        self._client.scan_iter = self._create_scan_iter_mock([])
+
+    def _create_scan_iter_mock(self, keys: list[str]) -> MagicMock:
+        """Create a mock scan_iter that returns an async generator."""
+
+        async def _generator():
+            for key in keys:
+                yield key
+
+        return MagicMock(return_value=_generator())
 
     async def get(self, key: str) -> Any | None:
         return self._store.get(key)
@@ -247,10 +257,9 @@ async def test_full_pipeline_single_image(
     assert batch_summary["detection_count"] == 1
 
     # Step 3: NemotronAnalyzer analyzes the batch
-    # Set up batch data in mock redis for analyzer
-    await mock_redis.set(f"batch:{batch_id}:camera_id", "test_camera")
-    await mock_redis.set(f"batch:{batch_id}:detections", json.dumps([detection_id]))
-
+    # Pass camera_id and detection_ids directly (as queue worker does after fix)
+    # This tests the fixed handoff where close_batch deletes Redis keys but
+    # the queue payload contains all needed data
     analyzer = NemotronAnalyzer(redis_client=mock_redis)
     mock_llm_response = create_mock_llm_response()
 
@@ -262,7 +271,11 @@ async def test_full_pipeline_single_image(
         mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
         mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
 
-        event = await analyzer.analyze_batch(batch_id)
+        event = await analyzer.analyze_batch(
+            batch_id=batch_id,
+            camera_id="test_camera",
+            detection_ids=[detection_id],
+        )
 
         assert event is not None
         assert event.camera_id == "test_camera"
@@ -357,11 +370,7 @@ async def test_full_pipeline_multiple_images_same_camera(
     assert batch_summary["camera_id"] == "test_camera"
     assert batch_summary["detection_count"] == 3
 
-    # Set up batch data in mock redis for analyzer
-    await mock_redis.set(f"batch:{batch_id}:camera_id", "test_camera")
-    await mock_redis.set(f"batch:{batch_id}:detections", json.dumps(detection_ids))
-
-    # Analyze batch
+    # Analyze batch - pass camera_id and detection_ids directly (as queue worker does after fix)
     analyzer = NemotronAnalyzer(redis_client=mock_redis)
     mock_llm_response = create_mock_llm_response(
         risk_score=65,
@@ -377,7 +386,11 @@ async def test_full_pipeline_multiple_images_same_camera(
         mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
         mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
 
-        event = await analyzer.analyze_batch(batch_id)
+        event = await analyzer.analyze_batch(
+            batch_id=batch_id,
+            camera_id="test_camera",
+            detection_ids=detection_ids,
+        )
 
         assert event is not None
         assert event.camera_id == "test_camera"
@@ -579,12 +592,8 @@ async def test_pipeline_llm_failure_fallback(
             assert len(detections) == 1
             detection_id = detections[0].id
 
-    # Set up batch in mock redis
+    # Analyze batch with LLM failure - pass camera_id and detection_ids directly
     batch_id = "test_batch_llm_failure"
-    await mock_redis.set(f"batch:{batch_id}:camera_id", "test_camera")
-    await mock_redis.set(f"batch:{batch_id}:detections", json.dumps([detection_id]))
-
-    # Analyze batch with LLM failure
     analyzer = NemotronAnalyzer(redis_client=mock_redis)
 
     with patch("backend.services.nemotron_analyzer.httpx.AsyncClient") as mock_client:
@@ -593,7 +602,11 @@ async def test_pipeline_llm_failure_fallback(
         mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
         mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
 
-        event = await analyzer.analyze_batch(batch_id)
+        event = await analyzer.analyze_batch(
+            batch_id=batch_id,
+            camera_id="test_camera",
+            detection_ids=[detection_id],
+        )
 
         # Event should still be created with fallback values
         assert event is not None
@@ -681,9 +694,9 @@ async def test_batch_timeout_closes_batch(
     past_time = time.time() - 1.0  # 1 second ago
     await mock_redis.set(f"batch:{batch_id}:last_activity", str(past_time))
 
-    # Update the mock's _client.keys to return the batch key
+    # Update the mock's _client.scan_iter to return the batch keys
     batch_keys = mock_redis.get_batch_keys()
-    mock_redis._client.keys = AsyncMock(return_value=batch_keys)
+    mock_redis._client.scan_iter = mock_redis._create_scan_iter_mock(batch_keys)
 
     # Check for timeouts
     closed_batches = await aggregator.check_batch_timeouts()
@@ -778,3 +791,141 @@ async def test_fast_path_high_priority_detection(
         fast_path_events = list(result.scalars().all())
         assert len(fast_path_events) == 1
         assert fast_path_events[0].is_fast_path is True
+
+
+@pytest.mark.asyncio
+async def test_batch_close_to_analyze_handoff_without_redis_rehydration(
+    integration_db: str,
+    mock_redis: MockRedisClient,
+    test_camera: Camera,
+    temp_camera_dir: Path,
+) -> None:
+    """Test complete batch close -> dequeue -> analyze_batch -> Event flow.
+
+    This is a critical integration test that verifies the fix for the batch handoff bug:
+    - BatchAggregator.close_batch() deletes Redis keys after enqueuing
+    - AnalysisQueueWorker passes camera_id and detection_ids from queue payload
+    - NemotronAnalyzer.analyze_batch() uses provided values instead of reading Redis
+
+    Verifies that:
+    1. Batch is created and detection is added
+    2. Batch is closed (Redis keys deleted, queue item created)
+    3. Queue item contains camera_id and detection_ids
+    4. analyze_batch() works with queue payload (no Redis lookup needed)
+    5. Event is created successfully
+    """
+    # Create test image
+    image_path = temp_camera_dir / "test_camera" / "handoff_test.jpg"
+    create_test_image(image_path)
+
+    # Step 1: Create detection in database
+    detector = DetectorClient()
+    mock_detector_response = create_mock_detector_response(
+        [
+            {
+                "class": "car",  # Use car to avoid fast path
+                "confidence": 0.85,  # Below fast path threshold
+                "bbox": {"x": 100, "y": 150, "width": 200, "height": 300},
+            }
+        ]
+    )
+
+    detection_id = None
+    async with get_session() as session:
+        with patch("backend.services.detector_client.httpx.AsyncClient") as mock_client:
+            mock_response = create_mock_httpx_response(mock_detector_response)
+
+            mock_instance = AsyncMock()
+            mock_instance.post = AsyncMock(return_value=mock_response)
+            mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
+            mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
+
+            detections = await detector.detect_objects(
+                image_path=str(image_path),
+                camera_id="test_camera",
+                session=session,
+            )
+
+            assert len(detections) == 1
+            detection_id = detections[0].id
+
+    # Step 2: Add detection to batch
+    aggregator = BatchAggregator(redis_client=mock_redis)
+    batch_id = await aggregator.add_detection(
+        camera_id="test_camera",
+        detection_id=str(detection_id),
+        _file_path=str(image_path),
+        confidence=0.85,
+        object_type="car",
+    )
+
+    # Verify batch metadata exists in Redis before close
+    assert await mock_redis.get(f"batch:{batch_id}:camera_id") == "test_camera"
+    batch_detections_before = await mock_redis.get(f"batch:{batch_id}:detections")
+    assert batch_detections_before is not None
+
+    # Step 3: Close batch - this deletes Redis keys and enqueues
+    batch_summary = await aggregator.close_batch(batch_id)
+    assert batch_summary["camera_id"] == "test_camera"
+    assert batch_summary["detection_count"] == 1
+
+    # Verify Redis keys are deleted after close
+    assert await mock_redis.get(f"batch:{batch_id}:camera_id") is None
+    assert await mock_redis.get(f"batch:{batch_id}:detections") is None
+
+    # Step 4: Verify queue item contains all needed data
+    queue_items = await mock_redis.peek_queue("analysis_queue")
+    assert len(queue_items) == 1
+
+    queue_item = queue_items[0]
+    assert queue_item["batch_id"] == batch_id
+    assert queue_item["camera_id"] == "test_camera"
+    assert queue_item["detection_ids"] == [str(detection_id)]
+
+    # Step 5: Simulate AnalysisQueueWorker processing - use queue payload directly
+    # This is exactly what the fixed worker does: pass camera_id and detection_ids
+    # from the queue item instead of reading from Redis
+    analyzer = NemotronAnalyzer(redis_client=mock_redis)
+    mock_llm_response = create_mock_llm_response(
+        risk_score=55,
+        risk_level="medium",
+        summary="Car detected - handoff test",
+    )
+
+    with patch("backend.services.nemotron_analyzer.httpx.AsyncClient") as mock_client:
+        mock_response = create_mock_httpx_response(mock_llm_response)
+
+        mock_instance = AsyncMock()
+        mock_instance.post = AsyncMock(return_value=mock_response)
+        mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
+        mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
+
+        # Call analyze_batch with queue payload data (not from Redis)
+        event = await analyzer.analyze_batch(
+            batch_id=queue_item["batch_id"],
+            camera_id=queue_item["camera_id"],
+            detection_ids=queue_item["detection_ids"],
+        )
+
+        # Step 6: Verify event was created correctly
+        assert event is not None
+        assert event.batch_id == batch_id
+        assert event.camera_id == "test_camera"
+        assert event.risk_score == 55
+        assert event.risk_level == "medium"
+        assert "Car detected" in event.summary
+
+    # Step 7: Verify event is persisted in database
+    async with get_session() as session:
+        result = await session.execute(select(Event).where(Event.batch_id == batch_id))
+        stored_event = result.scalar_one_or_none()
+
+        assert stored_event is not None
+        assert stored_event.id == event.id
+        assert stored_event.camera_id == "test_camera"
+        assert stored_event.risk_score == 55
+
+        # Verify detection_ids in event
+        stored_detection_ids = json.loads(stored_event.detection_ids)
+        assert len(stored_detection_ids) == 1
+        assert str(detection_id) in [str(d) for d in stored_detection_ids]

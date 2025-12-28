@@ -399,6 +399,322 @@ def test_get_worker_statuses_mixed_status() -> None:
         system_routes._file_watcher = None
 
 
+# =============================================================================
+# Pipeline Worker Readiness Tests
+# =============================================================================
+
+
+def test_get_worker_statuses_includes_pipeline_workers() -> None:
+    """Test _get_worker_statuses includes pipeline worker status when registered."""
+    original_pipeline_manager = system_routes._pipeline_manager
+    original_gpu = system_routes._gpu_monitor
+
+    try:
+        # Clear other workers
+        system_routes._gpu_monitor = None
+        system_routes._cleanup_service = None
+        system_routes._system_broadcaster = None
+        system_routes._file_watcher = None
+
+        # Mock pipeline manager with running workers
+        mock_manager = MagicMock()
+        mock_manager.get_status.return_value = {
+            "running": True,
+            "workers": {
+                "detection": {"state": "running", "items_processed": 100, "errors": 0},
+                "analysis": {"state": "running", "items_processed": 50, "errors": 1},
+                "timeout": {"state": "running", "items_processed": 10, "errors": 0},
+                "metrics": {"running": True},
+            },
+        }
+        system_routes._pipeline_manager = mock_manager
+
+        statuses = system_routes._get_worker_statuses()
+
+        # Should have 4 workers from pipeline manager
+        assert len(statuses) == 4
+
+        detection_status = next(s for s in statuses if s.name == "detection_worker")
+        assert detection_status.running is True
+        assert detection_status.message is None
+
+        analysis_status = next(s for s in statuses if s.name == "analysis_worker")
+        assert analysis_status.running is True
+        assert analysis_status.message is None
+
+        timeout_status = next(s for s in statuses if s.name == "batch_timeout_worker")
+        assert timeout_status.running is True
+        assert timeout_status.message is None
+
+        metrics_status = next(s for s in statuses if s.name == "metrics_worker")
+        assert metrics_status.running is True
+        assert metrics_status.message is None
+
+    finally:
+        system_routes._pipeline_manager = original_pipeline_manager
+        system_routes._gpu_monitor = original_gpu
+
+
+def test_get_worker_statuses_pipeline_workers_stopped() -> None:
+    """Test _get_worker_statuses shows stopped pipeline workers."""
+    original_pipeline_manager = system_routes._pipeline_manager
+    original_gpu = system_routes._gpu_monitor
+
+    try:
+        # Clear other workers
+        system_routes._gpu_monitor = None
+        system_routes._cleanup_service = None
+        system_routes._system_broadcaster = None
+        system_routes._file_watcher = None
+
+        # Mock pipeline manager with stopped workers
+        mock_manager = MagicMock()
+        mock_manager.get_status.return_value = {
+            "running": False,
+            "workers": {
+                "detection": {"state": "stopped", "items_processed": 100, "errors": 0},
+                "analysis": {"state": "error", "items_processed": 50, "errors": 5},
+                "timeout": {"state": "stopped", "items_processed": 10, "errors": 0},
+                "metrics": {"running": False},
+            },
+        }
+        system_routes._pipeline_manager = mock_manager
+
+        statuses = system_routes._get_worker_statuses()
+
+        detection_status = next(s for s in statuses if s.name == "detection_worker")
+        assert detection_status.running is False
+        assert "stopped" in detection_status.message.lower()
+
+        analysis_status = next(s for s in statuses if s.name == "analysis_worker")
+        assert analysis_status.running is False
+        assert "error" in analysis_status.message.lower()
+
+    finally:
+        system_routes._pipeline_manager = original_pipeline_manager
+        system_routes._gpu_monitor = original_gpu
+
+
+def test_are_critical_pipeline_workers_healthy_all_running() -> None:
+    """Test _are_critical_pipeline_workers_healthy returns True when workers are running."""
+    original_pipeline_manager = system_routes._pipeline_manager
+
+    try:
+        mock_manager = MagicMock()
+        mock_manager.get_status.return_value = {
+            "running": True,
+            "workers": {
+                "detection": {"state": "running"},
+                "analysis": {"state": "running"},
+            },
+        }
+        system_routes._pipeline_manager = mock_manager
+
+        assert system_routes._are_critical_pipeline_workers_healthy() is True
+
+    finally:
+        system_routes._pipeline_manager = original_pipeline_manager
+
+
+def test_are_critical_pipeline_workers_healthy_detection_stopped() -> None:
+    """Test _are_critical_pipeline_workers_healthy returns False when detection worker stopped."""
+    original_pipeline_manager = system_routes._pipeline_manager
+
+    try:
+        mock_manager = MagicMock()
+        mock_manager.get_status.return_value = {
+            "running": True,
+            "workers": {
+                "detection": {"state": "stopped"},
+                "analysis": {"state": "running"},
+            },
+        }
+        system_routes._pipeline_manager = mock_manager
+
+        assert system_routes._are_critical_pipeline_workers_healthy() is False
+
+    finally:
+        system_routes._pipeline_manager = original_pipeline_manager
+
+
+def test_are_critical_pipeline_workers_healthy_analysis_stopped() -> None:
+    """Test _are_critical_pipeline_workers_healthy returns False when analysis worker stopped."""
+    original_pipeline_manager = system_routes._pipeline_manager
+
+    try:
+        mock_manager = MagicMock()
+        mock_manager.get_status.return_value = {
+            "running": True,
+            "workers": {
+                "detection": {"state": "running"},
+                "analysis": {"state": "stopped"},
+            },
+        }
+        system_routes._pipeline_manager = mock_manager
+
+        assert system_routes._are_critical_pipeline_workers_healthy() is False
+
+    finally:
+        system_routes._pipeline_manager = original_pipeline_manager
+
+
+def test_are_critical_pipeline_workers_healthy_manager_not_running() -> None:
+    """Test _are_critical_pipeline_workers_healthy returns False when manager not running."""
+    original_pipeline_manager = system_routes._pipeline_manager
+
+    try:
+        mock_manager = MagicMock()
+        mock_manager.get_status.return_value = {
+            "running": False,
+            "workers": {
+                "detection": {"state": "running"},
+                "analysis": {"state": "running"},
+            },
+        }
+        system_routes._pipeline_manager = mock_manager
+
+        assert system_routes._are_critical_pipeline_workers_healthy() is False
+
+    finally:
+        system_routes._pipeline_manager = original_pipeline_manager
+
+
+def test_are_critical_pipeline_workers_healthy_no_manager() -> None:
+    """Test _are_critical_pipeline_workers_healthy returns True when no manager registered."""
+    original_pipeline_manager = system_routes._pipeline_manager
+
+    try:
+        system_routes._pipeline_manager = None
+
+        # Should return True for graceful degradation
+        assert system_routes._are_critical_pipeline_workers_healthy() is True
+
+    finally:
+        system_routes._pipeline_manager = original_pipeline_manager
+
+
+@pytest.mark.asyncio
+async def test_get_readiness_not_ready_when_pipeline_workers_down() -> None:
+    """Test readiness returns not_ready when critical pipeline workers are stopped."""
+    original_pipeline_manager = system_routes._pipeline_manager
+
+    try:
+        # Mock pipeline manager with stopped workers
+        mock_manager = MagicMock()
+        mock_manager.get_status.return_value = {
+            "running": True,
+            "workers": {
+                "detection": {"state": "stopped"},
+                "analysis": {"state": "stopped"},
+            },
+        }
+        system_routes._pipeline_manager = mock_manager
+
+        db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one.return_value = 5
+        db.execute = AsyncMock(return_value=mock_result)
+
+        redis = AsyncMock()
+        redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
+
+        response = await system_routes.get_readiness(db, redis)  # type: ignore[arg-type]
+
+        assert isinstance(response, ReadinessResponse)
+        # Database and Redis are healthy but pipeline workers are down
+        assert response.ready is False
+        assert response.status == "not_ready"
+        assert response.services["database"].status == "healthy"
+        assert response.services["redis"].status == "healthy"
+
+    finally:
+        system_routes._pipeline_manager = original_pipeline_manager
+
+
+@pytest.mark.asyncio
+async def test_get_readiness_ready_when_pipeline_workers_running() -> None:
+    """Test readiness returns ready when critical pipeline workers are running."""
+    original_pipeline_manager = system_routes._pipeline_manager
+
+    try:
+        # Mock pipeline manager with running workers
+        mock_manager = MagicMock()
+        mock_manager.get_status.return_value = {
+            "running": True,
+            "workers": {
+                "detection": {"state": "running"},
+                "analysis": {"state": "running"},
+            },
+        }
+        system_routes._pipeline_manager = mock_manager
+
+        db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one.return_value = 5
+        db.execute = AsyncMock(return_value=mock_result)
+
+        redis = AsyncMock()
+        redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
+
+        response = await system_routes.get_readiness(db, redis)  # type: ignore[arg-type]
+
+        assert isinstance(response, ReadinessResponse)
+        assert response.ready is True
+        assert response.status == "ready"
+
+    finally:
+        system_routes._pipeline_manager = original_pipeline_manager
+
+
+@pytest.mark.asyncio
+async def test_get_readiness_includes_pipeline_worker_status() -> None:
+    """Test readiness response includes pipeline worker status in workers list."""
+    original_pipeline_manager = system_routes._pipeline_manager
+    original_gpu = system_routes._gpu_monitor
+
+    try:
+        # Clear other workers
+        system_routes._gpu_monitor = None
+        system_routes._cleanup_service = None
+        system_routes._system_broadcaster = None
+        system_routes._file_watcher = None
+
+        # Mock pipeline manager with running workers
+        mock_manager = MagicMock()
+        mock_manager.get_status.return_value = {
+            "running": True,
+            "workers": {
+                "detection": {"state": "running", "items_processed": 100},
+                "analysis": {"state": "running", "items_processed": 50},
+            },
+        }
+        system_routes._pipeline_manager = mock_manager
+
+        db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one.return_value = 5
+        db.execute = AsyncMock(return_value=mock_result)
+
+        redis = AsyncMock()
+        redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
+
+        response = await system_routes.get_readiness(db, redis)  # type: ignore[arg-type]
+
+        # Should include detection_worker and analysis_worker in workers list
+        detection_worker = next((w for w in response.workers if w.name == "detection_worker"), None)
+        analysis_worker = next((w for w in response.workers if w.name == "analysis_worker"), None)
+
+        assert detection_worker is not None
+        assert detection_worker.running is True
+
+        assert analysis_worker is not None
+        assert analysis_worker.running is True
+
+    finally:
+        system_routes._pipeline_manager = original_pipeline_manager
+        system_routes._gpu_monitor = original_gpu
+
+
 @pytest.mark.asyncio
 async def test_get_readiness_includes_worker_status() -> None:
     """Test that readiness response includes worker status information."""

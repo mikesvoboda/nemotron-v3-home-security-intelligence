@@ -49,7 +49,9 @@ describe('EventCard', () => {
     it('renders component with required props', () => {
       render(<EventCard {...mockProps} />);
       expect(screen.getByText('Front Door')).toBeInTheDocument();
-      expect(screen.getByText('Person detected approaching the front entrance')).toBeInTheDocument();
+      expect(
+        screen.getByText('Person detected approaching the front entrance')
+      ).toBeInTheDocument();
     });
 
     it('renders camera name', () => {
@@ -57,6 +59,13 @@ describe('EventCard', () => {
       const heading = screen.getByRole('heading', { name: 'Front Door' });
       expect(heading).toBeInTheDocument();
       expect(heading.tagName).toBe('H3');
+    });
+
+    it('camera name has truncation class and title attribute for tooltip', () => {
+      render(<EventCard {...mockProps} />);
+      const heading = screen.getByRole('heading', { name: 'Front Door' });
+      expect(heading).toHaveClass('truncate');
+      expect(heading).toHaveAttribute('title', 'Front Door');
     });
 
     it('renders summary text', () => {
@@ -679,14 +688,14 @@ describe('EventCard', () => {
       const children = card ? Array.from(card.children) : [];
 
       // Find indices of badges container and thumbnail container
-      const badgesIndex = children.findIndex((el) =>
-        el.classList.contains('flex') &&
-        el.classList.contains('flex-wrap') &&
-        el.textContent?.includes('Person')
+      const badgesIndex = children.findIndex(
+        (el) =>
+          el.classList.contains('flex') &&
+          el.classList.contains('flex-wrap') &&
+          el.textContent?.includes('Person')
       );
-      const thumbnailIndex = children.findIndex((el) =>
-        el.classList.contains('mb-3') &&
-        el.querySelector('img')
+      const thumbnailIndex = children.findIndex(
+        (el) => el.classList.contains('mb-3') && el.querySelector('img')
       );
 
       // Badges should come before thumbnail
@@ -854,7 +863,13 @@ describe('EventCard', () => {
     it('progress bar container has correct styling', () => {
       render(<EventCard {...mockProps} />);
       const progressBar = screen.getByRole('progressbar');
-      expect(progressBar).toHaveClass('h-2', 'w-full', 'overflow-hidden', 'rounded-full', 'bg-gray-800');
+      expect(progressBar).toHaveClass(
+        'h-2',
+        'w-full',
+        'overflow-hidden',
+        'rounded-full',
+        'bg-gray-800'
+      );
     });
 
     it('progress bar fill has correct styling', () => {
@@ -930,7 +945,22 @@ describe('EventCard', () => {
         camera_name: 'Front Door Main Entrance Camera Position Alpha',
       };
       render(<EventCard {...longCameraNameEvent} />);
-      expect(screen.getByText('Front Door Main Entrance Camera Position Alpha')).toBeInTheDocument();
+      expect(
+        screen.getByText('Front Door Main Entrance Camera Position Alpha')
+      ).toBeInTheDocument();
+    });
+
+    it('applies truncation and title tooltip to camera name', () => {
+      const longCameraNameEvent = {
+        ...mockProps,
+        camera_name: 'Front Door Main Entrance Camera Position Alpha',
+      };
+      render(<EventCard {...longCameraNameEvent} />);
+      const heading = screen.getByRole('heading', {
+        name: 'Front Door Main Entrance Camera Position Alpha',
+      });
+      expect(heading).toHaveClass('truncate');
+      expect(heading).toHaveAttribute('title', 'Front Door Main Entrance Camera Position Alpha');
     });
 
     it('handles risk score at boundary (25)', () => {
@@ -1082,6 +1112,31 @@ describe('EventCard', () => {
     });
   });
 
+  describe('checkbox overlay support', () => {
+    it('does not add left margin to header by default', () => {
+      const { container } = render(<EventCard {...mockProps} />);
+      const headerDiv = container.querySelector('.mb-3.flex.items-start.justify-between');
+      expect(headerDiv).not.toHaveClass('ml-8');
+    });
+
+    it('adds left margin to header when hasCheckboxOverlay is true', () => {
+      const { container } = render(<EventCard {...mockProps} hasCheckboxOverlay />);
+      const headerDiv = container.querySelector('.mb-3.flex.items-start.justify-between');
+      expect(headerDiv).toHaveClass('ml-8');
+    });
+
+    it('still displays camera name correctly with checkbox overlay', () => {
+      render(<EventCard {...mockProps} hasCheckboxOverlay />);
+      expect(screen.getByText('Front Door')).toBeInTheDocument();
+    });
+
+    it('applies ml-8 class only to header, not entire card', () => {
+      const { container } = render(<EventCard {...mockProps} hasCheckboxOverlay />);
+      const card = container.firstChild as HTMLElement;
+      expect(card).not.toHaveClass('ml-8');
+    });
+  });
+
   describe('color-coded left border', () => {
     it('applies NVIDIA green left border for low risk events', () => {
       const lowRiskEvent = { ...mockProps, risk_score: 15 };
@@ -1174,6 +1229,180 @@ describe('EventCard', () => {
     });
   });
 
+  describe('card click behavior', () => {
+    it('calls onClick when card is clicked', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const handleClick = vi.fn();
+      const { container } = render(<EventCard {...mockProps} onClick={handleClick} />);
+
+      const card = container.firstChild as HTMLElement;
+      await user.click(card);
+
+      expect(handleClick).toHaveBeenCalledWith('event-123');
+      expect(handleClick).toHaveBeenCalledTimes(1);
+
+      vi.useFakeTimers();
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('does not call onClick when clicking on interactive elements (buttons)', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const handleClick = vi.fn();
+      const handleViewDetails = vi.fn();
+      render(<EventCard {...mockProps} onClick={handleClick} onViewDetails={handleViewDetails} />);
+
+      // Click on View Details button
+      const viewDetailsButton = screen.getByRole('button', {
+        name: /View details for event event-123/i,
+      });
+      await user.click(viewDetailsButton);
+
+      // onClick should not be called, only onViewDetails
+      expect(handleClick).not.toHaveBeenCalled();
+      expect(handleViewDetails).toHaveBeenCalledWith('event-123');
+
+      vi.useFakeTimers();
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('does not call onClick when clicking AI Reasoning toggle', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const handleClick = vi.fn();
+      render(<EventCard {...mockProps} onClick={handleClick} />);
+
+      const reasoningToggle = screen.getByRole('button', { name: /AI Reasoning/i });
+      await user.click(reasoningToggle);
+
+      expect(handleClick).not.toHaveBeenCalled();
+
+      vi.useFakeTimers();
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('applies cursor-pointer class when onClick is provided', () => {
+      const handleClick = vi.fn();
+      const { container } = render(<EventCard {...mockProps} onClick={handleClick} />);
+
+      const card = container.firstChild as HTMLElement;
+      expect(card).toHaveClass('cursor-pointer');
+    });
+
+    it('applies hover:bg-[#252525] class when onClick is provided', () => {
+      const handleClick = vi.fn();
+      const { container } = render(<EventCard {...mockProps} onClick={handleClick} />);
+
+      const card = container.firstChild as HTMLElement;
+      expect(card).toHaveClass('hover:bg-[#252525]');
+    });
+
+    it('does not apply cursor-pointer class when onClick is not provided', () => {
+      const { container } = render(<EventCard {...mockProps} />);
+
+      const card = container.firstChild as HTMLElement;
+      expect(card).not.toHaveClass('cursor-pointer');
+    });
+
+    it('has role="button" when onClick is provided', () => {
+      const handleClick = vi.fn();
+      const { container } = render(<EventCard {...mockProps} onClick={handleClick} />);
+
+      const card = container.firstChild as HTMLElement;
+      expect(card).toHaveAttribute('role', 'button');
+    });
+
+    it('does not have role="button" when onClick is not provided', () => {
+      const { container } = render(<EventCard {...mockProps} />);
+
+      const card = container.firstChild as HTMLElement;
+      expect(card).not.toHaveAttribute('role', 'button');
+    });
+
+    it('has tabIndex=0 when onClick is provided', () => {
+      const handleClick = vi.fn();
+      const { container } = render(<EventCard {...mockProps} onClick={handleClick} />);
+
+      const card = container.firstChild as HTMLElement;
+      expect(card).toHaveAttribute('tabIndex', '0');
+    });
+
+    it('does not have tabIndex when onClick is not provided', () => {
+      const { container } = render(<EventCard {...mockProps} />);
+
+      const card = container.firstChild as HTMLElement;
+      expect(card).not.toHaveAttribute('tabIndex');
+    });
+
+    it('has aria-label when onClick is provided', () => {
+      const handleClick = vi.fn();
+      const { container } = render(<EventCard {...mockProps} onClick={handleClick} />);
+
+      const card = container.firstChild as HTMLElement;
+      expect(card).toHaveAttribute('aria-label', 'View details for event from Front Door');
+    });
+
+    it('calls onClick when Enter key is pressed', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const handleClick = vi.fn();
+      const { container } = render(<EventCard {...mockProps} onClick={handleClick} />);
+
+      const card = container.firstChild as HTMLElement;
+      card.focus();
+      await user.keyboard('{Enter}');
+
+      expect(handleClick).toHaveBeenCalledWith('event-123');
+
+      vi.useFakeTimers();
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('calls onClick when Space key is pressed', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const handleClick = vi.fn();
+      const { container } = render(<EventCard {...mockProps} onClick={handleClick} />);
+
+      const card = container.firstChild as HTMLElement;
+      card.focus();
+      await user.keyboard(' ');
+
+      expect(handleClick).toHaveBeenCalledWith('event-123');
+
+      vi.useFakeTimers();
+      vi.setSystemTime(BASE_TIME);
+    });
+
+    it('both onClick and onViewDetails can be provided together', async () => {
+      vi.useRealTimers();
+      const user = userEvent.setup();
+      const handleClick = vi.fn();
+      const handleViewDetails = vi.fn();
+      render(<EventCard {...mockProps} onClick={handleClick} onViewDetails={handleViewDetails} />);
+
+      // Click on card (not on button)
+      const summaryText = screen.getByText('Person detected approaching the front entrance');
+      await user.click(summaryText);
+
+      expect(handleClick).toHaveBeenCalledWith('event-123');
+      expect(handleViewDetails).not.toHaveBeenCalled();
+
+      // Now click on View Details button
+      const viewDetailsButton = screen.getByRole('button', {
+        name: /View details for event event-123/i,
+      });
+      await user.click(viewDetailsButton);
+
+      expect(handleClick).toHaveBeenCalledTimes(1); // Still only 1 call
+      expect(handleViewDetails).toHaveBeenCalledWith('event-123');
+
+      vi.useFakeTimers();
+      vi.setSystemTime(BASE_TIME);
+    });
+  });
+
   describe('integration', () => {
     it('renders complete event card with all elements', () => {
       const handleViewDetails = vi.fn();
@@ -1184,7 +1413,9 @@ describe('EventCard', () => {
       expect(screen.getByText(/minutes ago/)).toBeInTheDocument();
       expect(screen.getByText('Medium (45)')).toBeInTheDocument();
       expect(screen.getAllByRole('img').length).toBeGreaterThan(0);
-      expect(screen.getByText('Person detected approaching the front entrance')).toBeInTheDocument();
+      expect(
+        screen.getByText('Person detected approaching the front entrance')
+      ).toBeInTheDocument();
       expect(screen.getByText('Detections (2)')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /AI Reasoning/i })).toBeInTheDocument();
       expect(

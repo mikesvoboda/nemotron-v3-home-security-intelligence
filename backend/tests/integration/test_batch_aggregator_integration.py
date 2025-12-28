@@ -44,20 +44,22 @@ def mock_redis_client():
         queues[queue_name].append(json.dumps(data))
         return len(queues[queue_name])
 
-    async def mock_keys(pattern: str):
-        # Simple pattern matching for batch:*:current
+    async def mock_scan_iter(match: str = "*", count: int = 100):
+        """Async generator for SCAN iteration (replacement for KEYS)."""
         import fnmatch
 
-        return [k for k in storage if fnmatch.fnmatch(k, pattern)]
+        for k in storage:
+            if fnmatch.fnmatch(k, match):
+                yield k
 
     mock_client.get = mock_get
     mock_client.set = mock_set
     mock_client.delete = mock_delete
     mock_client.add_to_queue = mock_add_to_queue
 
-    # Internal client for keys operation
+    # Internal client for scan_iter operation (replacement for keys)
     mock_internal = MagicMock()
-    mock_internal.keys = mock_keys
+    mock_internal.scan_iter = mock_scan_iter
     mock_client._client = mock_internal
 
     # Expose internal storage for assertions

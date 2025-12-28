@@ -174,10 +174,13 @@ class BatchAggregator:
         closed_batches = []
 
         # Find all active batch keys (batch:{camera_id}:current)
+        # Use SCAN instead of KEYS to avoid blocking Redis on large keyspaces
         redis_client = self._redis._client
         if redis_client is None:
             raise RuntimeError("Redis client connection not initialized")
-        batch_keys = await redis_client.keys("batch:*:current")
+        batch_keys: list[str] = []
+        async for key in redis_client.scan_iter(match="batch:*:current", count=100):
+            batch_keys.append(key)
 
         for batch_key in batch_keys:
             try:

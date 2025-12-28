@@ -7,7 +7,6 @@ import * as api from '../../services/api';
 
 import type { Camera } from '../../services/api';
 
-
 // Mock the API module
 vi.mock('../../services/api', () => ({
   fetchCameras: vi.fn(),
@@ -266,9 +265,7 @@ describe('CamerasSettings', () => {
         last_seen_at: null,
       };
 
-      vi.mocked(api.fetchCameras)
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([newCamera]);
+      vi.mocked(api.fetchCameras).mockResolvedValueOnce([]).mockResolvedValueOnce([newCamera]);
       vi.mocked(api.createCamera).mockResolvedValue(newCamera);
 
       render(<CamerasSettings />);

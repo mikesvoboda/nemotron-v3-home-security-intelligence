@@ -1,12 +1,30 @@
-import { Calendar, CheckSquare, ChevronLeft, ChevronRight, Filter, Search, Square, X } from 'lucide-react';
+import {
+  Calendar,
+  CheckSquare,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Filter,
+  Search,
+  Square,
+  X,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import EventCard from './EventCard';
-import { bulkUpdateEvents, fetchCameras, fetchEvents } from '../../services/api';
+import EventDetailModal from './EventDetailModal';
+import {
+  bulkUpdateEvents,
+  exportEventsCSV,
+  fetchCameras,
+  fetchEvents,
+  updateEvent,
+} from '../../services/api';
 import { getRiskLevel } from '../../utils/risk';
 import RiskBadge from '../common/RiskBadge';
 
 import type { Detection } from './EventCard';
+import type { Event as ModalEvent } from './EventDetailModal';
 import type { Camera, Event, EventsQueryParams } from '../../services/api';
 import type { RiskLevel } from '../../utils/risk';
 
@@ -19,10 +37,7 @@ export interface EventTimelineProps {
  * EventTimeline component displays a chronological list of security events
  * with filtering, search, and pagination capabilities
  */
-export default function EventTimeline({
-  onViewEventDetails,
-  className = '',
-}: EventTimelineProps) {
+export default function EventTimeline({ onViewEventDetails, className = '' }: EventTimelineProps) {
   // State for events data
   const [events, setEvents] = useState<Event[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -43,6 +58,12 @@ export default function EventTimeline({
   // State for selection and bulk actions
   const [selectedEventIds, setSelectedEventIds] = useState<Set<number>>(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
+
+  // State for export
+  const [exportLoading, setExportLoading] = useState(false);
+
+  // State for event detail modal
+  const [selectedEventForModal, setSelectedEventForModal] = useState<number | null>(null);
 
   // Load cameras for filter dropdown
   useEffect(() => {
@@ -147,9 +168,7 @@ export default function EventTimeline({
 
       if (result.failed.length > 0) {
         console.error('Some events failed to update:', result.failed);
-        setError(
-          `Updated ${result.successful.length} events, but ${result.failed.length} failed`
-        );
+        setError(`Updated ${result.successful.length} events, but ${result.failed.length} failed`);
       }
 
       // Reload events to reflect changes
@@ -166,11 +185,56 @@ export default function EventTimeline({
     }
   };
 
+  // Handle bulk mark as not reviewed
+  const handleBulkMarkAsNotReviewed = async () => {
+    if (selectedEventIds.size === 0) return;
+
+    setBulkActionLoading(true);
+    try {
+      const result = await bulkUpdateEvents(Array.from(selectedEventIds), { reviewed: false });
+
+      if (result.failed.length > 0) {
+        console.error('Some events failed to update:', result.failed);
+        setError(`Updated ${result.successful.length} events, but ${result.failed.length} failed`);
+      }
+
+      // Reload events to reflect changes
+      const response = await fetchEvents(filters);
+      setEvents(response.events);
+      setTotalCount(response.count);
+
+      // Clear selections
+      setSelectedEventIds(new Set());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update events');
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  // Handle export to CSV
+  const handleExport = async () => {
+    setExportLoading(true);
+    setError(null);
+    try {
+      // Pass current filters to export (excluding pagination and object_type which isn't supported by export)
+      await exportEventsCSV({
+        camera_id: filters.camera_id,
+        risk_level: filters.risk_level,
+        start_date: filters.start_date,
+        end_date: filters.end_date,
+        reviewed: filters.reviewed,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to export events');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   // Filter events by search query (client-side for summary search)
   const filteredEvents = searchQuery
-    ? events.filter((event) =>
-        event.summary?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+    ? events.filter((event) => event.summary?.toLowerCase().includes(searchQuery.toLowerCase()))
     : events;
 
   // Calculate risk level counts for the currently displayed events
@@ -216,9 +280,63 @@ export default function EventTimeline({
       detections,
       started_at: event.started_at,
       ended_at: event.ended_at,
-      onViewDetails: onViewEventDetails
-        ? () => onViewEventDetails(event.id)
-        : undefined,
+      onViewDetails: onViewEventDetails ? () => onViewEventDetails(event.id) : undefined,
+      onClick: (eventId: string) => setSelectedEventForModal(parseInt(eventId, 10)),
+    };
+  };
+
+  // Handle modal close
+  const handleModalClose = () => {
+    setSelectedEventForModal(null);
+  };
+
+  // Handle mark as reviewed from modal
+  const handleMarkReviewed = async (eventId: string) => {
+    try {
+      await updateEvent(parseInt(eventId, 10), { reviewed: true });
+      // Reload events to reflect changes
+      const response = await fetchEvents(filters);
+      setEvents(response.events);
+      setTotalCount(response.count);
+    } catch (err) {
+      console.error('Failed to mark event as reviewed:', err);
+    }
+  };
+
+  // Handle navigation between events in modal
+  const handleNavigate = (direction: 'prev' | 'next') => {
+    if (selectedEventForModal === null) return;
+
+    const currentIndex = filteredEvents.findIndex((e) => e.id === selectedEventForModal);
+    if (currentIndex === -1) return;
+
+    const newIndex = direction === 'prev' ? currentIndex - 1 : currentIndex + 1;
+    if (newIndex >= 0 && newIndex < filteredEvents.length) {
+      setSelectedEventForModal(filteredEvents[newIndex].id);
+    }
+  };
+
+  // Convert API Event to ModalEvent format
+  const getModalEvent = (): ModalEvent | null => {
+    if (selectedEventForModal === null) return null;
+
+    const event = filteredEvents.find((e) => e.id === selectedEventForModal);
+    if (!event) return null;
+
+    const camera = cameras.find((c) => c.id === event.camera_id);
+
+    return {
+      id: String(event.id),
+      timestamp: event.started_at,
+      camera_name: camera?.name || 'Unknown Camera',
+      risk_score: event.risk_score || 0,
+      risk_label: event.risk_level || getRiskLevel(event.risk_score || 0),
+      summary: event.summary || 'No summary available',
+      detections: [], // Detections will be loaded by the modal
+      started_at: event.started_at,
+      ended_at: event.ended_at,
+      reviewed: event.reviewed,
+      notes: event.notes,
     };
   };
 
@@ -227,9 +345,7 @@ export default function EventTimeline({
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-white">Event Timeline</h1>
-        <p className="mt-2 text-gray-400">
-          View and filter all security events from your cameras
-        </p>
+        <p className="mt-2 text-gray-400">View and filter all security events from your cameras</p>
       </div>
 
       {/* Filter Bar */}
@@ -270,6 +386,26 @@ export default function EventTimeline({
               </button>
             )}
           </div>
+
+          {/* Export Button */}
+          <button
+            onClick={() => void handleExport()}
+            disabled={exportLoading || totalCount === 0}
+            className="flex items-center gap-2 rounded-md border border-gray-700 bg-[#1A1A1A] px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:border-gray-600 hover:bg-[#252525] disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="Export events to CSV"
+          >
+            {exportLoading ? (
+              <>
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-transparent" />
+                <span>Exporting...</span>
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4" />
+                <span>Export CSV</span>
+              </>
+            )}
+          </button>
         </div>
 
         {/* Filter Options */}
@@ -277,7 +413,10 @@ export default function EventTimeline({
           <div className="grid grid-cols-1 gap-4 border-t border-gray-800 pt-4 sm:grid-cols-2 lg:grid-cols-3">
             {/* Camera Filter */}
             <div>
-              <label htmlFor="camera-filter" className="mb-1 block text-sm font-medium text-gray-300">
+              <label
+                htmlFor="camera-filter"
+                className="mb-1 block text-sm font-medium text-gray-300"
+              >
                 Camera
               </label>
               <select
@@ -316,14 +455,15 @@ export default function EventTimeline({
 
             {/* Reviewed Status Filter */}
             <div>
-              <label htmlFor="reviewed-filter" className="mb-1 block text-sm font-medium text-gray-300">
+              <label
+                htmlFor="reviewed-filter"
+                className="mb-1 block text-sm font-medium text-gray-300"
+              >
                 Status
               </label>
               <select
                 id="reviewed-filter"
-                value={
-                  filters.reviewed === undefined ? '' : filters.reviewed ? 'true' : 'false'
-                }
+                value={filters.reviewed === undefined ? '' : filters.reviewed ? 'true' : 'false'}
                 onChange={(e) =>
                   handleFilterChange(
                     'reviewed',
@@ -340,7 +480,10 @@ export default function EventTimeline({
 
             {/* Object Type Filter */}
             <div>
-              <label htmlFor="object-type-filter" className="mb-1 block text-sm font-medium text-gray-300">
+              <label
+                htmlFor="object-type-filter"
+                className="mb-1 block text-sm font-medium text-gray-300"
+              >
                 Object Type
               </label>
               <select
@@ -360,7 +503,10 @@ export default function EventTimeline({
 
             {/* Start Date Filter */}
             <div>
-              <label htmlFor="start-date-filter" className="mb-1 block text-sm font-medium text-gray-300">
+              <label
+                htmlFor="start-date-filter"
+                className="mb-1 block text-sm font-medium text-gray-300"
+              >
                 Start Date
               </label>
               <div className="relative">
@@ -377,7 +523,10 @@ export default function EventTimeline({
 
             {/* End Date Filter */}
             <div>
-              <label htmlFor="end-date-filter" className="mb-1 block text-sm font-medium text-gray-300">
+              <label
+                htmlFor="end-date-filter"
+                className="mb-1 block text-sm font-medium text-gray-300"
+              >
                 End Date
               </label>
               <div className="relative">
@@ -410,7 +559,9 @@ export default function EventTimeline({
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-2">
           <p className="text-sm text-gray-400">
-            Showing {offset + 1}-{Math.min(offset + filteredEvents.length, totalCount)} of {totalCount} events
+            {totalCount === 0
+              ? '0 events'
+              : `Showing ${offset + 1}-${Math.min(offset + filteredEvents.length, totalCount)} of ${totalCount} events`}
           </p>
           {/* Risk Summary Badges */}
           {!loading && !error && filteredEvents.length > 0 && (
@@ -441,11 +592,7 @@ export default function EventTimeline({
               )}
             </div>
           )}
-          {hasActiveFilters && (
-            <p className="text-sm text-[#76B900]">
-              Filters active
-            </p>
-          )}
+          {hasActiveFilters && <p className="text-sm text-[#76B900]">Filters active</p>}
         </div>
 
         {/* Bulk Actions Bar */}
@@ -467,9 +614,7 @@ export default function EventTimeline({
                 <Square className="h-4 w-4" />
               )}
               <span>
-                {selectedEventIds.size > 0
-                  ? `${selectedEventIds.size} selected`
-                  : 'Select all'}
+                {selectedEventIds.size > 0 ? `${selectedEventIds.size} selected` : 'Select all'}
               </span>
             </button>
 
@@ -490,6 +635,28 @@ export default function EventTimeline({
                   <>
                     <CheckSquare className="h-4 w-4" />
                     <span>Mark as Reviewed</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            {/* Bulk Mark as Not Reviewed Button */}
+            {selectedEventIds.size > 0 && (
+              <button
+                onClick={() => void handleBulkMarkAsNotReviewed()}
+                disabled={bulkActionLoading}
+                className="flex items-center gap-2 rounded-md border border-gray-600 bg-[#1A1A1A] px-4 py-1.5 text-sm font-semibold text-gray-300 transition-all hover:border-gray-500 hover:bg-[#252525] active:bg-[#1A1A1A] disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label={`Mark ${selectedEventIds.size} selected events as not reviewed`}
+              >
+                {bulkActionLoading ? (
+                  <>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-transparent" />
+                    <span>Updating...</span>
+                  </>
+                ) : (
+                  <>
+                    <Square className="h-4 w-4" />
+                    <span>Mark Not Reviewed</span>
                   </>
                 )}
               </button>
@@ -546,7 +713,7 @@ export default function EventTimeline({
                   )}
                 </button>
               </div>
-              <EventCard {...getEventCardProps(event)} />
+              <EventCard {...getEventCardProps(event)} hasCheckboxOverlay />
             </div>
           ))}
         </div>
@@ -580,6 +747,15 @@ export default function EventTimeline({
           </button>
         </div>
       )}
+
+      {/* Event Detail Modal */}
+      <EventDetailModal
+        event={getModalEvent()}
+        isOpen={selectedEventForModal !== null}
+        onClose={handleModalClose}
+        onMarkReviewed={(eventId) => void handleMarkReviewed(eventId)}
+        onNavigate={handleNavigate}
+      />
     </div>
   );
 }

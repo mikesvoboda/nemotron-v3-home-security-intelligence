@@ -29,18 +29,14 @@ describe('Logger singleton', () => {
   describe('log levels', () => {
     it('logs debug messages', () => {
       logger.debug('Debug message', { key: 'value' });
-      expect(consoleSpy.log).toHaveBeenCalledWith(
-        '[DEBUG] frontend: Debug message',
-        { key: 'value' }
-      );
+      expect(consoleSpy.log).toHaveBeenCalledWith('[DEBUG] frontend: Debug message', {
+        key: 'value',
+      });
     });
 
     it('logs info messages', () => {
       logger.info('Info message');
-      expect(consoleSpy.log).toHaveBeenCalledWith(
-        '[INFO] frontend: Info message',
-        undefined
-      );
+      expect(consoleSpy.log).toHaveBeenCalledWith('[INFO] frontend: Info message', undefined);
     });
 
     it('logs warning messages', () => {
@@ -53,30 +49,29 @@ describe('Logger singleton', () => {
 
     it('logs error messages', () => {
       logger.error('Error message', { error: 'details' });
-      expect(consoleSpy.error).toHaveBeenCalledWith(
-        '[ERROR] frontend: Error message',
-        { error: 'details' }
-      );
+      expect(consoleSpy.error).toHaveBeenCalledWith('[ERROR] frontend: Error message', {
+        error: 'details',
+      });
     });
   });
 
   describe('event logging', () => {
     it('logs user events as INFO level', () => {
       logger.event('button_click', { buttonId: 'submit' });
-      expect(consoleSpy.log).toHaveBeenCalledWith(
-        '[INFO] user_event: button_click',
-        { buttonId: 'submit' }
-      );
+      expect(consoleSpy.log).toHaveBeenCalledWith('[INFO] user_event: button_click', {
+        buttonId: 'submit',
+      });
     });
   });
 
   describe('API error logging', () => {
     it('logs API errors with endpoint details', () => {
       logger.apiError('/api/users', 404, 'Not found');
-      expect(consoleSpy.error).toHaveBeenCalledWith(
-        '[ERROR] api: API error: /api/users',
-        { endpoint: '/api/users', status: 404, message: 'Not found' }
-      );
+      expect(consoleSpy.error).toHaveBeenCalledWith('[ERROR] api: API error: /api/users', {
+        endpoint: '/api/users',
+        status: 404,
+        message: 'Not found',
+      });
     });
   });
 
@@ -102,10 +97,7 @@ describe('Logger singleton', () => {
       fetchMock.mockRejectedValue(new Error('Network error'));
       logger.debug('Test message');
       await logger.flush();
-      expect(consoleSpy.error).toHaveBeenCalledWith(
-        'Failed to flush logs:',
-        expect.any(Error)
-      );
+      expect(consoleSpy.error).toHaveBeenCalledWith('Failed to flush logs:', expect.any(Error));
     });
   });
 
@@ -127,10 +119,9 @@ describe('Logger singleton', () => {
     it('logs info with component name', () => {
       const componentLogger = logger.forComponent('TestComponent');
       componentLogger.info('Info message', { data: 'value' });
-      expect(consoleSpy.log).toHaveBeenCalledWith(
-        '[INFO] TestComponent: Info message',
-        { data: 'value' }
-      );
+      expect(consoleSpy.log).toHaveBeenCalledWith('[INFO] TestComponent: Info message', {
+        data: 'value',
+      });
     });
 
     it('logs warn with component name', () => {
@@ -145,10 +136,9 @@ describe('Logger singleton', () => {
     it('logs error with component name', () => {
       const componentLogger = logger.forComponent('TestComponent');
       componentLogger.error('Error message', { error: 'details' });
-      expect(consoleSpy.error).toHaveBeenCalledWith(
-        '[ERROR] TestComponent: Error message',
-        { error: 'details' }
-      );
+      expect(consoleSpy.error).toHaveBeenCalledWith('[ERROR] TestComponent: Error message', {
+        error: 'details',
+      });
     });
   });
 

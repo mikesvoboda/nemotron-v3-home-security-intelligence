@@ -195,6 +195,7 @@ _gpu_monitor: GPUMonitor | None = None
 _cleanup_service: CleanupService | None = None
 _system_broadcaster: SystemBroadcaster | None = None
 _file_watcher: FileWatcher | None = None
+_pipeline_manager: PipelineWorkerManager | None = None
 
 
 def register_workers(
@@ -202,6 +203,7 @@ def register_workers(
     cleanup_service: CleanupService | None = None,
     system_broadcaster: SystemBroadcaster | None = None,
     file_watcher: FileWatcher | None = None,
+    pipeline_manager: PipelineWorkerManager | None = None,
 ) -> None:
     """Register worker instances for readiness monitoring.
 
@@ -213,12 +215,14 @@ def register_workers(
         cleanup_service: CleanupService instance
         system_broadcaster: SystemBroadcaster instance
         file_watcher: FileWatcher instance
+        pipeline_manager: PipelineWorkerManager instance (critical for readiness)
     """
-    global _gpu_monitor, _cleanup_service, _system_broadcaster, _file_watcher  # noqa: PLW0603
+    global _gpu_monitor, _cleanup_service, _system_broadcaster, _file_watcher, _pipeline_manager  # noqa: PLW0603
     _gpu_monitor = gpu_monitor
     _cleanup_service = cleanup_service
     _system_broadcaster = system_broadcaster
     _file_watcher = file_watcher
+    _pipeline_manager = pipeline_manager
 
 
 def _get_worker_statuses() -> list[WorkerStatus]:
@@ -273,7 +277,93 @@ def _get_worker_statuses() -> list[WorkerStatus]:
             )
         )
 
+    # Check pipeline workers (detection and analysis workers are critical)
+    if _pipeline_manager is not None:
+        manager_status = _pipeline_manager.get_status()
+        workers_dict = manager_status.get("workers", {})
+
+        # Detection worker (critical)
+        if "detection" in workers_dict:
+            detection_state = workers_dict["detection"].get("state", "stopped")
+            is_running = detection_state == "running"
+            statuses.append(
+                WorkerStatus(
+                    name="detection_worker",
+                    running=is_running,
+                    message=None if is_running else f"State: {detection_state}",
+                )
+            )
+
+        # Analysis worker (critical)
+        if "analysis" in workers_dict:
+            analysis_state = workers_dict["analysis"].get("state", "stopped")
+            is_running = analysis_state == "running"
+            statuses.append(
+                WorkerStatus(
+                    name="analysis_worker",
+                    running=is_running,
+                    message=None if is_running else f"State: {analysis_state}",
+                )
+            )
+
+        # Batch timeout worker
+        if "timeout" in workers_dict:
+            timeout_state = workers_dict["timeout"].get("state", "stopped")
+            is_running = timeout_state == "running"
+            statuses.append(
+                WorkerStatus(
+                    name="batch_timeout_worker",
+                    running=is_running,
+                    message=None if is_running else f"State: {timeout_state}",
+                )
+            )
+
+        # Metrics worker
+        if "metrics" in workers_dict:
+            metrics_running = workers_dict["metrics"].get("running", False)
+            statuses.append(
+                WorkerStatus(
+                    name="metrics_worker",
+                    running=metrics_running,
+                    message=None if metrics_running else "Not running",
+                )
+            )
+
     return statuses
+
+
+def _are_critical_pipeline_workers_healthy() -> bool:
+    """Check if critical pipeline workers (detection and analysis) are running.
+
+    Returns:
+        True if both detection and analysis workers are running, False otherwise.
+        Returns True if pipeline_manager is not registered (graceful degradation).
+    """
+    if _pipeline_manager is None:
+        # Pipeline manager not registered - can't check, assume OK for graceful degradation
+        return True
+
+    manager_status = _pipeline_manager.get_status()
+
+    # Manager itself must be running
+    if not manager_status.get("running", False):
+        return False
+
+    workers_dict = manager_status.get("workers", {})
+
+    # Check detection worker (critical)
+    if "detection" in workers_dict:
+        detection_state = workers_dict["detection"].get("state", "stopped")
+        if detection_state != "running":
+            return False
+
+    # Check analysis worker (critical)
+    if "analysis" in workers_dict:
+        analysis_state = workers_dict["analysis"].get("state", "stopped")
+        if analysis_state != "running":
+            return False
+
+    return True
 
 
 # Type hints for worker imports (avoid circular imports)
@@ -281,6 +371,7 @@ if TYPE_CHECKING:
     from backend.services.cleanup_service import CleanupService
     from backend.services.file_watcher import FileWatcher
     from backend.services.gpu_monitor import GPUMonitor
+    from backend.services.pipeline_workers import PipelineWorkerManager
     from backend.services.system_broadcaster import SystemBroadcaster
 
 
@@ -715,19 +806,27 @@ async def get_readiness(
     # Get worker statuses
     workers = _get_worker_statuses()
 
+    # Check critical pipeline workers (detection and analysis workers)
+    pipeline_workers_healthy = _are_critical_pipeline_workers_healthy()
+
     # Determine overall readiness
-    # Ready: All critical services healthy (database is required)
+    # Ready: All critical services healthy (database, redis, and pipeline workers are required)
     # Degraded: Database healthy but some other services unhealthy
-    # Not Ready: Database unhealthy OR Redis unhealthy (can't process uploads)
+    # Not Ready: Database unhealthy OR Redis unhealthy OR critical pipeline workers down
 
     db_healthy = db_status.status == "healthy"
     redis_healthy = redis_status.status == "healthy"
 
     # Both database and redis are required to process camera uploads
-    if db_healthy and redis_healthy:
-        # Workers are optional for readiness - system can process requests even if some are down
+    # Critical pipeline workers (detection, analysis) are also required for full functionality
+    if db_healthy and redis_healthy and pipeline_workers_healthy:
         ready = True
         status = "ready"
+    elif db_healthy and redis_healthy:
+        # Database and Redis healthy but pipeline workers down - not ready
+        # (can't process images even if infrastructure is up)
+        ready = False
+        status = "not_ready"
     elif db_healthy:
         # Database up but Redis down - degraded (can't process queues)
         ready = False

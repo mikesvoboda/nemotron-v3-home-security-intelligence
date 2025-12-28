@@ -114,8 +114,8 @@ function ModelCard({
   const statusText = getStatusText(model.status);
 
   return (
-    <Card className="bg-[#1E1E1E] border-gray-800">
-      <div className="flex items-start justify-between mb-3">
+    <Card className="border-gray-800 bg-[#1E1E1E]">
+      <div className="mb-3 flex items-start justify-between">
         <div className="flex items-center gap-2">
           <Icon className="h-5 w-5 text-[#76B900]" />
           <Title className="text-white">{model.name}</Title>
@@ -125,36 +125,32 @@ function ModelCard({
         </Badge>
       </div>
 
-      <Text className="text-gray-400 text-sm mb-4">{model.description}</Text>
+      <Text className="mb-4 text-sm text-gray-400">{model.description}</Text>
 
       <div className="space-y-3">
         {/* Memory Usage */}
         <div>
-          <div className="flex items-center justify-between mb-1">
-            <Text className="text-gray-300 text-sm flex items-center gap-1.5">
+          <div className="mb-1 flex items-center justify-between">
+            <Text className="flex items-center gap-1.5 text-sm text-gray-300">
               <Zap className="h-4 w-4" />
               Memory Usage
             </Text>
-            <Text className="text-white font-medium text-sm">{memory.text}</Text>
+            <Text className="text-sm font-medium text-white">{memory.text}</Text>
           </div>
           {memory.percentage !== null && (
-            <ProgressBar
-              value={memory.percentage}
-              color={statusColor}
-              className="mt-1"
-            />
+            <ProgressBar value={memory.percentage} color={statusColor} className="mt-1" />
           )}
         </div>
 
         {/* Inference Speed */}
         {model.status === 'loaded' && (
-          <div className="pt-2 border-t border-gray-800">
+          <div className="border-t border-gray-800 pt-2">
             <div className="flex items-center justify-between">
-              <Text className="text-gray-300 text-sm flex items-center gap-1.5">
+              <Text className="flex items-center gap-1.5 text-sm text-gray-300">
                 <Activity className="h-4 w-4" />
                 Inference Speed
               </Text>
-              <Text className="text-[#76B900] font-semibold">
+              <Text className="font-semibold text-[#76B900]">
                 {formatValue(model.inferenceFps, ' FPS')}
               </Text>
             </div>
@@ -189,24 +185,23 @@ export default function AIModelsSettings({
   return (
     <div className={clsx('space-y-6', className)}>
       <div>
-        <Title className="text-white mb-2">AI Models</Title>
+        <Title className="mb-2 text-white">AI Models</Title>
         <Text className="text-gray-400">
-          View the status and performance of AI models used for object detection and risk
-          analysis.
+          View the status and performance of AI models used for object detection and risk analysis.
         </Text>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <ModelCard model={rtdetrModel} totalMemory={totalMemory} icon={Cpu} />
         <ModelCard model={nemotronModel} totalMemory={totalMemory} icon={Brain} />
       </div>
 
       {totalMemory !== null && (
-        <Card className="bg-[#1A1A1A] border-gray-800">
+        <Card className="border-gray-800 bg-[#1A1A1A]">
           <div className="flex items-center justify-between">
             <div>
-              <Text className="text-gray-400 text-sm">Total GPU Memory</Text>
-              <Text className="text-white font-semibold text-lg mt-1">
+              <Text className="text-sm text-gray-400">Total GPU Memory</Text>
+              <Text className="mt-1 text-lg font-semibold text-white">
                 {(totalMemory / 1024).toFixed(1)} GB
               </Text>
             </div>

@@ -149,14 +149,26 @@ async def websocket_events_endpoint(
            "type": "event",
            "data": {
                "id": 1,
-               "camera_id": "...",
-               "camera_name": "...",
+               "event_id": 1,
+               "batch_id": "batch_abc123",
+               "camera_id": "cam-uuid",
                "risk_score": 75,
                "risk_level": "high",
-               "summary": "...",
-               "timestamp": "2025-12-23T12:00:00Z"
+               "summary": "Person detected at front door",
+               "started_at": "2025-12-23T12:00:00"
            }
        }
+
+       Field descriptions:
+       - id: Unique event identifier
+       - event_id: Legacy alias for id (for backward compatibility)
+       - batch_id: Detection batch identifier
+       - camera_id: UUID of the camera that captured the event
+       - risk_score: Risk assessment score (0-100)
+       - risk_level: Risk classification ("low", "medium", "high", "critical")
+       - summary: Human-readable description of the event
+       - started_at: ISO 8601 timestamp when the event started
+
     4. Connection is maintained until client disconnects
 
     Args:

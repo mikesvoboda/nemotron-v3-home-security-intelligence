@@ -143,6 +143,8 @@ High-level hook for receiving system health updates via WebSocket (`/ws/system` 
 - Type guard function `isBackendSystemStatus()` for message validation
 - Auto-constructs WebSocket URL based on `window.location`
 
+**Note:** The `/ws/system` endpoint ONLY provides `system_status` messages. There is no `service_status` message type on this endpoint (see `useServiceStatus.ts` deprecation notice).
+
 **Backend Message Structure (received):**
 
 ```typescript
@@ -254,6 +256,16 @@ All hooks have comprehensive test coverage using Vitest and React Testing Librar
 
 - React hooks: `useState`, `useEffect`, `useRef`, `useCallback`, `useMemo`
 - Testing: `vitest`, `@testing-library/react`, `@testing-library/jest-dom`
+
+## Deprecated Hooks
+
+### `useServiceStatus.ts` (DEPRECATED)
+
+This hook is NOT currently wired up on the backend. The backend's `ServiceHealthMonitor` (health_monitor.py) exists but is not initialized in `main.py`, so no `service_status` messages are broadcast to `/ws/system`. The `SystemBroadcaster` only emits `system_status` messages.
+
+**Use `useSystemStatus` instead** for system health information - it correctly handles `system_status` messages which include an overall health field.
+
+If per-service status monitoring is needed in the future, see bead vq8.11 for implementation guidance.
 
 ## Notes
 

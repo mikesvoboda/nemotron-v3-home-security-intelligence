@@ -340,7 +340,9 @@ describe('EventTimeline', () => {
       // Check all options are present
       const options = within(objectTypeSelect).getAllByRole('option');
       expect(options).toHaveLength(6); // All Object Types + 5 specific types
-      expect(within(objectTypeSelect).getByRole('option', { name: 'All Object Types' })).toBeInTheDocument();
+      expect(
+        within(objectTypeSelect).getByRole('option', { name: 'All Object Types' })
+      ).toBeInTheDocument();
       expect(within(objectTypeSelect).getByRole('option', { name: 'Person' })).toBeInTheDocument();
       expect(within(objectTypeSelect).getByRole('option', { name: 'Vehicle' })).toBeInTheDocument();
       expect(within(objectTypeSelect).getByRole('option', { name: 'Animal' })).toBeInTheDocument();
@@ -400,7 +402,7 @@ describe('EventTimeline', () => {
           expect.objectContaining({
             camera_id: 'camera-1',
             object_type: 'animal',
-            offset: 0
+            offset: 0,
           })
         );
       });
@@ -468,9 +470,7 @@ describe('EventTimeline', () => {
         expect(screen.getByText('No Events Found')).toBeInTheDocument();
       });
 
-      expect(
-        screen.getByText('Try adjusting your filters or search query')
-      ).toBeInTheDocument();
+      expect(screen.getByText('Try adjusting your filters or search query')).toBeInTheDocument();
     });
   });
 
@@ -512,9 +512,7 @@ describe('EventTimeline', () => {
       await user.click(nextButton);
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(
-          expect.objectContaining({ offset: 20 })
-        );
+        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ offset: 20 }));
       });
     });
 
@@ -565,9 +563,7 @@ describe('EventTimeline', () => {
       await user.click(prevButton);
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(
-          expect.objectContaining({ offset: 0 })
-        );
+        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ offset: 0 }));
       });
     });
 
@@ -753,9 +749,7 @@ describe('EventTimeline', () => {
         expect(screen.getByText('No Events Found')).toBeInTheDocument();
       });
 
-      expect(
-        screen.getByText('No security events have been recorded yet')
-      ).toBeInTheDocument();
+      expect(screen.getByText('No security events have been recorded yet')).toBeInTheDocument();
     });
 
     it('shows filtered empty state when filters match no events', async () => {
@@ -784,9 +778,46 @@ describe('EventTimeline', () => {
         expect(screen.getByText('No Events Found')).toBeInTheDocument();
       });
 
-      expect(
-        screen.getByText('Try adjusting your filters or search query')
-      ).toBeInTheDocument();
+      expect(screen.getByText('Try adjusting your filters or search query')).toBeInTheDocument();
+    });
+
+    it('shows "0 events" instead of confusing "1-0 of 0" when empty', async () => {
+      vi.mocked(api.fetchEvents).mockResolvedValue({
+        events: [],
+        count: 0,
+        limit: 20,
+        offset: 0,
+      });
+
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('No Events Found')).toBeInTheDocument();
+      });
+
+      // Should show "0 events" not "1-0 of 0 events"
+      expect(screen.getByText('0 events')).toBeInTheDocument();
+      expect(screen.queryByText(/1-0 of 0/)).not.toBeInTheDocument();
+    });
+
+    it('does not show pagination controls when empty', async () => {
+      vi.mocked(api.fetchEvents).mockResolvedValue({
+        events: [],
+        count: 0,
+        limit: 20,
+        offset: 0,
+      });
+
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('No Events Found')).toBeInTheDocument();
+      });
+
+      // Pagination controls should not be present when there are no events
+      expect(screen.queryByLabelText('Previous page')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Next page')).not.toBeInTheDocument();
+      expect(screen.queryByText(/Page \d+ of \d+/)).not.toBeInTheDocument();
     });
   });
 
@@ -971,9 +1002,7 @@ describe('EventTimeline', () => {
       // Mock the events reload after bulk update
       vi.mocked(api.fetchEvents).mockResolvedValueOnce({
         ...mockEventsResponse,
-        events: mockEvents.map((e) =>
-          e.id === 1 || e.id === 2 ? { ...e, reviewed: true } : e
-        ),
+        events: mockEvents.map((e) => (e.id === 1 || e.id === 2 ? { ...e, reviewed: true } : e)),
       });
 
       // Click mark as reviewed
@@ -1035,14 +1064,20 @@ describe('EventTimeline', () => {
       const markAsReviewedButton = screen.getByText('Mark as Reviewed');
       await user.click(markAsReviewedButton);
 
-      // Should show loading state
+      // Should show loading state - both buttons show "Updating..." when loading
       await waitFor(() => {
-        expect(screen.getByText('Updating...')).toBeInTheDocument();
+        expect(screen.getAllByText('Updating...')).toHaveLength(2);
       });
 
-      // The button containing "Updating..." should be disabled
-      const updatingButton = screen.getByRole('button', { name: /Mark.*selected events as reviewed/ });
-      expect(updatingButton).toBeDisabled();
+      // Both buttons should be disabled during loading
+      const markReviewedButton = screen.getByRole('button', {
+        name: /Mark.*selected events as reviewed/,
+      });
+      const markNotReviewedButton = screen.getByRole('button', {
+        name: /Mark.*selected events as not reviewed/,
+      });
+      expect(markReviewedButton).toBeDisabled();
+      expect(markNotReviewedButton).toBeDisabled();
     });
 
     it('handles bulk update errors gracefully', async () => {
@@ -1122,6 +1157,188 @@ describe('EventTimeline', () => {
       await waitFor(() => {
         expect(screen.getByText('Select all')).toBeInTheDocument();
       });
+    });
+
+    it('shows Mark Not Reviewed button when events are selected', async () => {
+      const user = userEvent.setup();
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Select an event
+      const checkboxButtons = screen.getAllByLabelText(/Select event \d+/);
+      await user.click(checkboxButtons[0]);
+
+      await waitFor(() => {
+        expect(screen.getByText('1 selected')).toBeInTheDocument();
+      });
+
+      // Should show both "Mark as Reviewed" and "Mark Not Reviewed" buttons
+      expect(screen.getByText('Mark as Reviewed')).toBeInTheDocument();
+      expect(screen.getByText('Mark Not Reviewed')).toBeInTheDocument();
+    });
+
+    it('marks selected events as not reviewed', async () => {
+      const user = userEvent.setup();
+      vi.clearAllMocks();
+      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
+      vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
+
+      // Mock bulkUpdateEvents for successful update
+      vi.mocked(api.bulkUpdateEvents).mockResolvedValue({
+        successful: [1, 2],
+        failed: [],
+      });
+
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Select first two events
+      const checkboxButtons = screen.getAllByLabelText(/Select event \d+/);
+      await user.click(checkboxButtons[0]);
+      await user.click(checkboxButtons[1]);
+
+      await waitFor(() => {
+        expect(screen.getByText('2 selected')).toBeInTheDocument();
+      });
+
+      // Mock the events reload after bulk update
+      vi.mocked(api.fetchEvents).mockResolvedValueOnce({
+        ...mockEventsResponse,
+        events: mockEvents.map((e) => (e.id === 1 || e.id === 2 ? { ...e, reviewed: false } : e)),
+      });
+
+      // Click mark as not reviewed
+      const markAsNotReviewedButton = screen.getByText('Mark Not Reviewed');
+      await user.click(markAsNotReviewedButton);
+
+      // Should call bulkUpdateEvents with reviewed: false
+      await waitFor(() => {
+        expect(api.bulkUpdateEvents).toHaveBeenCalledWith([1, 2], { reviewed: false });
+      });
+
+      // Should reload events
+      await waitFor(() => {
+        expect(api.fetchEvents).toHaveBeenCalledTimes(2); // Initial load + reload after update
+      });
+
+      // Should clear selections
+      await waitFor(() => {
+        expect(screen.getByText('Select all')).toBeInTheDocument();
+      });
+    });
+
+    it('shows loading state during bulk mark as not reviewed', async () => {
+      const user = userEvent.setup();
+      vi.clearAllMocks();
+      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
+      vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
+
+      // Mock slow bulkUpdateEvents
+      vi.mocked(api.bulkUpdateEvents).mockImplementation(
+        () =>
+          new Promise((resolve) =>
+            setTimeout(
+              () =>
+                resolve({
+                  successful: [1],
+                  failed: [],
+                }),
+              100
+            )
+          )
+      );
+
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Select an event
+      const checkboxButtons = screen.getAllByLabelText(/Select event \d+/);
+      await user.click(checkboxButtons[0]);
+
+      await waitFor(() => {
+        expect(screen.getByText('1 selected')).toBeInTheDocument();
+      });
+
+      // Click mark as not reviewed
+      const markAsNotReviewedButton = screen.getByText('Mark Not Reviewed');
+      await user.click(markAsNotReviewedButton);
+
+      // Should show loading state - there are two Updating... buttons (both are disabled)
+      await waitFor(() => {
+        expect(screen.getAllByText('Updating...')).toHaveLength(2);
+      });
+
+      // Both buttons should be disabled
+      const markReviewedButton = screen.getByRole('button', {
+        name: /Mark.*selected events as reviewed/,
+      });
+      const markNotReviewedButton = screen.getByRole('button', {
+        name: /Mark.*selected events as not reviewed/,
+      });
+      expect(markReviewedButton).toBeDisabled();
+      expect(markNotReviewedButton).toBeDisabled();
+    });
+
+    it('handles bulk mark as not reviewed errors gracefully', async () => {
+      const user = userEvent.setup();
+      vi.clearAllMocks();
+      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
+      vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
+
+      // Mock bulkUpdateEvents to return partial failure
+      vi.mocked(api.bulkUpdateEvents).mockResolvedValue({
+        successful: [1],
+        failed: [{ id: 2, error: 'Network error' }],
+      });
+
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Select two events
+      const checkboxButtons = screen.getAllByLabelText(/Select event \d+/);
+      await user.click(checkboxButtons[0]);
+      await user.click(checkboxButtons[1]);
+
+      // Mock the events reload after bulk update
+      vi.mocked(api.fetchEvents).mockResolvedValueOnce(mockEventsResponse);
+
+      // Click mark as not reviewed
+      const markAsNotReviewedButton = screen.getByText('Mark Not Reviewed');
+      await user.click(markAsNotReviewedButton);
+
+      // Should call bulkUpdateEvents with reviewed: false
+      await waitFor(() => {
+        expect(api.bulkUpdateEvents).toHaveBeenCalledWith([1, 2], { reviewed: false });
+      });
+
+      // Should show partial success error
+      await waitFor(() => {
+        expect(screen.getByText(/Updated 1 events, but 1 failed/)).toBeInTheDocument();
+      });
+    });
+
+    it('does not show Mark Not Reviewed button when no events selected', async () => {
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Should show select all but not Mark Not Reviewed button
+      expect(screen.getByText('Select all')).toBeInTheDocument();
+      expect(screen.queryByText('Mark Not Reviewed')).not.toBeInTheDocument();
     });
   });
 
@@ -1439,6 +1656,83 @@ describe('EventTimeline', () => {
       await waitFor(() => {
         expect(screen.getByText('2', { selector: '.text-orange-400' })).toBeInTheDocument(); // High
       });
+    });
+  });
+
+  describe('Event Detail Modal', () => {
+    it('opens modal when clicking on event card', async () => {
+      const user = userEvent.setup();
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Click on the event summary text (part of the card, not a button)
+      const summaryText = screen.getByText('Person detected near entrance');
+      await user.click(summaryText);
+
+      // Modal should open - check for modal title (camera name)
+      await waitFor(() => {
+        // The modal should display the camera name as title
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+    });
+
+    it('closes modal when close button is clicked', async () => {
+      const user = userEvent.setup();
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Open modal by clicking on event
+      const summaryText = screen.getByText('Person detected near entrance');
+      await user.click(summaryText);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
+      // Close modal
+      const closeButton = screen.getByLabelText('Close modal');
+      await user.click(closeButton);
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
+    });
+
+    it('event cards are clickable with cursor-pointer', async () => {
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Find event cards by their role (they should have role="button" since onClick is provided)
+      const cardButtons = screen.getAllByRole('button', {
+        name: /View details for event from/,
+      });
+      expect(cardButtons.length).toBeGreaterThan(0);
+    });
+
+    it('View Details button calls onViewEventDetails when provided', async () => {
+      const user = userEvent.setup();
+      const handleViewDetails = vi.fn();
+      render(<EventTimeline onViewEventDetails={handleViewDetails} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Click View Details button
+      const viewDetailsButtons = screen.getAllByText('View Details');
+      await user.click(viewDetailsButtons[0]);
+
+      // onViewEventDetails should be called
+      expect(handleViewDetails).toHaveBeenCalledWith(1);
     });
   });
 });

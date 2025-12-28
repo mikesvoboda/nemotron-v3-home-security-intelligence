@@ -26,6 +26,7 @@ describe('Sidebar', () => {
     expect(screen.getByText('Entities')).toBeInTheDocument();
     expect(screen.getByText('Alerts')).toBeInTheDocument();
     expect(screen.getByText('Logs')).toBeInTheDocument();
+    expect(screen.getByText('System')).toBeInTheDocument();
     expect(screen.getByText('Settings')).toBeInTheDocument();
   });
 
@@ -46,6 +47,7 @@ describe('Sidebar', () => {
     renderWithRouter();
     expect(screen.getByRole('link', { name: /dashboard/i })).toHaveAttribute('href', '/');
     expect(screen.getByRole('link', { name: /timeline/i })).toHaveAttribute('href', '/timeline');
+    expect(screen.getByRole('link', { name: /system/i })).toHaveAttribute('href', '/system');
     expect(screen.getByRole('link', { name: /settings/i })).toHaveAttribute('href', '/settings');
   });
 
@@ -112,10 +114,10 @@ describe('Sidebar', () => {
     expect(settingsLink).toHaveClass('bg-[#76B900]');
   });
 
-  it('renders all 6 navigation items', () => {
+  it('renders all 7 navigation items', () => {
     renderWithRouter();
     const links = screen.getAllByRole('link');
-    expect(links).toHaveLength(6);
+    expect(links).toHaveLength(7);
   });
 
   it('navigation items have transition classes for smooth hover', () => {

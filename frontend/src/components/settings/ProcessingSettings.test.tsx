@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ProcessingSettings from './ProcessingSettings';
 import * as api from '../../services/api';
 
-
 // Mock the API module
 vi.mock('../../services/api');
 
@@ -419,9 +418,7 @@ describe('ProcessingSettings', () => {
 
   describe('error handling', () => {
     it('displays error message when fetch fails', async () => {
-      vi.mocked(api.fetchConfig).mockRejectedValue(
-        new Error('Network error')
-      );
+      vi.mocked(api.fetchConfig).mockRejectedValue(new Error('Network error'));
 
       render(<ProcessingSettings />);
 
@@ -441,9 +438,7 @@ describe('ProcessingSettings', () => {
     });
 
     it('shows error icon when error occurs', async () => {
-      vi.mocked(api.fetchConfig).mockRejectedValue(
-        new Error('Network error')
-      );
+      vi.mocked(api.fetchConfig).mockRejectedValue(new Error('Network error'));
 
       render(<ProcessingSettings />);
 
@@ -457,9 +452,7 @@ describe('ProcessingSettings', () => {
     });
 
     it('does not show config fields when error occurs', async () => {
-      vi.mocked(api.fetchConfig).mockRejectedValue(
-        new Error('Network error')
-      );
+      vi.mocked(api.fetchConfig).mockRejectedValue(new Error('Network error'));
 
       render(<ProcessingSettings />);
 
@@ -514,9 +507,7 @@ describe('ProcessingSettings', () => {
       render(<ProcessingSettings />);
 
       await waitFor(() => {
-        expect(
-          screen.getByText(/Minimum confidence for object detection/i)
-        ).toBeInTheDocument();
+        expect(screen.getByText(/Minimum confidence for object detection/i)).toBeInTheDocument();
       });
     });
   });

@@ -723,14 +723,18 @@ describe('EventDetailModal', () => {
     it('initializes notes textarea with event notes', () => {
       const eventWithNotes = { ...mockEvent, notes: 'Delivery person confirmed' };
       render(<EventDetailModal {...mockProps} event={eventWithNotes} />);
-      const textarea = screen.getByPlaceholderText<HTMLTextAreaElement>('Add notes about this event...');
+      const textarea = screen.getByPlaceholderText<HTMLTextAreaElement>(
+        'Add notes about this event...'
+      );
       expect(textarea.value).toBe('Delivery person confirmed');
     });
 
     it('initializes notes textarea as empty when event has no notes', () => {
       const eventNoNotes = { ...mockEvent, notes: null };
       render(<EventDetailModal {...mockProps} event={eventNoNotes} />);
-      const textarea = screen.getByPlaceholderText<HTMLTextAreaElement>('Add notes about this event...');
+      const textarea = screen.getByPlaceholderText<HTMLTextAreaElement>(
+        'Add notes about this event...'
+      );
       expect(textarea.value).toBe('');
     });
 
@@ -738,7 +742,9 @@ describe('EventDetailModal', () => {
       const user = userEvent.setup();
       render(<EventDetailModal {...mockProps} />);
 
-      const textarea = screen.getByPlaceholderText<HTMLTextAreaElement>('Add notes about this event...');
+      const textarea = screen.getByPlaceholderText<HTMLTextAreaElement>(
+        'Add notes about this event...'
+      );
       await user.clear(textarea);
       await user.type(textarea, 'This is a test note');
 
@@ -755,7 +761,9 @@ describe('EventDetailModal', () => {
       const onSaveNotes = vi.fn().mockResolvedValue(undefined);
       render(<EventDetailModal {...mockProps} onSaveNotes={onSaveNotes} />);
 
-      const textarea = screen.getByPlaceholderText<HTMLTextAreaElement>('Add notes about this event...');
+      const textarea = screen.getByPlaceholderText<HTMLTextAreaElement>(
+        'Add notes about this event...'
+      );
       await user.clear(textarea);
       await user.type(textarea, 'New note');
 
@@ -859,7 +867,9 @@ describe('EventDetailModal', () => {
     it('updates notes text when event changes', () => {
       const { rerender } = render(<EventDetailModal {...mockProps} />);
 
-      const textarea = screen.getByPlaceholderText<HTMLTextAreaElement>('Add notes about this event...');
+      const textarea = screen.getByPlaceholderText<HTMLTextAreaElement>(
+        'Add notes about this event...'
+      );
       expect(textarea.value).toBe('');
 
       const eventWithNotes = { ...mockEvent, id: 'event-456', notes: 'Different notes' };
@@ -900,7 +910,9 @@ describe('EventDetailModal', () => {
       render(<EventDetailModal {...mockProps} event={eventWithNotes} onSaveNotes={onSaveNotes} />);
 
       // Wait for the modal to open
-      const textarea = await screen.findByPlaceholderText<HTMLTextAreaElement>('Add notes about this event...');
+      const textarea = await screen.findByPlaceholderText<HTMLTextAreaElement>(
+        'Add notes about this event...'
+      );
       expect(textarea.value).toBe('Some existing notes');
 
       // Clear the textarea
@@ -945,7 +957,9 @@ describe('EventDetailModal', () => {
       const onFlagEvent = vi.fn();
       render(<EventDetailModal {...mockProps} event={eventFlagged} onFlagEvent={onFlagEvent} />);
 
-      expect(screen.getByRole('button', { name: 'Unflag event' })).toHaveTextContent('Unflag Event');
+      expect(screen.getByRole('button', { name: 'Unflag event' })).toHaveTextContent(
+        'Unflag Event'
+      );
     });
 
     it('calls onFlagEvent with correct parameters when flagging unflagged event', async () => {
@@ -1051,9 +1065,7 @@ describe('EventDetailModal', () => {
     it('has correct aria-label for unflagged state', () => {
       const eventNotFlagged = { ...mockEvent, flagged: false };
       const onFlagEvent = vi.fn();
-      render(
-        <EventDetailModal {...mockProps} event={eventNotFlagged} onFlagEvent={onFlagEvent} />
-      );
+      render(<EventDetailModal {...mockProps} event={eventNotFlagged} onFlagEvent={onFlagEvent} />);
 
       const button = screen.getByRole('button', { name: 'Flag event' });
       expect(button).toHaveAttribute('aria-label', 'Flag event');

@@ -4,6 +4,92 @@
  */
 
 export interface paths {
+    "/api/admin/seed/cameras": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Seed Cameras
+         * @description Seed test cameras into the database.
+         *
+         *     Only available when DEBUG=true.
+         *
+         *     Args:
+         *         request: Seed configuration (count, clear_existing, create_folders)
+         *         db: Database session
+         *
+         *     Returns:
+         *         Summary of seeded cameras
+         */
+        post: operations["seed_cameras_api_admin_seed_cameras_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/seed/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Seed Events
+         * @description Seed mock events and detections into the database.
+         *
+         *     Only available when DEBUG=true. Requires cameras to exist first.
+         *
+         *     Args:
+         *         request: Seed configuration (count, clear_existing)
+         *         db: Database session
+         *
+         *     Returns:
+         *         Summary of seeded events and detections
+         */
+        post: operations["seed_events_api_admin_seed_events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/seed/clear": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Clear Seeded Data
+         * @description Clear all seeded data (cameras, events, detections).
+         *
+         *     Only available when DEBUG=true.
+         *
+         *     Args:
+         *         db: Database session
+         *
+         *     Returns:
+         *         Summary of cleared data counts
+         */
+        delete: operations["clear_seeded_data_api_admin_seed_clear_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/cameras": {
         parameters: {
             query?: never;
@@ -427,6 +513,42 @@ export interface paths {
          *         EventStatsResponse with aggregated statistics
          */
         get: operations["get_event_stats_api_events_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/events/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Events
+         * @description Export events as CSV file for external analysis or record-keeping.
+         *
+         *     Exports events with the following fields:
+         *     - Event ID, camera name, timestamps
+         *     - Risk score, risk level, summary
+         *     - Detection count, reviewed status
+         *
+         *     Args:
+         *         camera_id: Optional camera ID to filter by
+         *         risk_level: Optional risk level to filter by (low, medium, high, critical)
+         *         start_date: Optional start date for date range filter
+         *         end_date: Optional end date for date range filter
+         *         reviewed: Optional filter by reviewed status
+         *         db: Database session
+         *
+         *     Returns:
+         *         StreamingResponse with CSV file containing exported events
+         */
+        get: operations["export_events_api_events_export_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1246,6 +1368,18 @@ export interface components {
             timestamp: string;
         };
         /**
+         * ClearDataResponse
+         * @description Response schema for clear data endpoint.
+         */
+        ClearDataResponse: {
+            /** Cameras Cleared */
+            cameras_cleared: number;
+            /** Events Cleared */
+            events_cleared: number;
+            /** Detections Cleared */
+            detections_cleared: number;
+        };
+        /**
          * ConfigResponse
          * @description Response schema for configuration endpoint.
          *
@@ -1635,8 +1769,16 @@ export interface components {
          *         {
          *           "camera_id": "123e4567-e89b-12d3-a456-426614174000",
          *           "detection_count": 5,
+         *           "detection_ids": [
+         *             1,
+         *             2,
+         *             3,
+         *             4,
+         *             5
+         *           ],
          *           "ended_at": "2025-12-23T12:02:30Z",
          *           "id": 1,
+         *           "reasoning": "Person approaching entrance during daytime, no suspicious behavior",
          *           "reviewed": false,
          *           "risk_level": "medium",
          *           "risk_score": 75,
@@ -1676,8 +1818,16 @@ export interface components {
          * @example {
          *       "camera_id": "123e4567-e89b-12d3-a456-426614174000",
          *       "detection_count": 5,
+         *       "detection_ids": [
+         *         1,
+         *         2,
+         *         3,
+         *         4,
+         *         5
+         *       ],
          *       "ended_at": "2025-12-23T12:02:30Z",
          *       "id": 1,
+         *       "reasoning": "Person approaching entrance during daytime, no suspicious behavior",
          *       "reviewed": false,
          *       "risk_level": "medium",
          *       "risk_score": 75,
@@ -1723,6 +1873,11 @@ export interface components {
              */
             summary?: string | null;
             /**
+             * Reasoning
+             * @description LLM reasoning for risk score
+             */
+            reasoning?: string | null;
+            /**
              * Reviewed
              * @description Whether event has been reviewed
              * @default false
@@ -1739,6 +1894,11 @@ export interface components {
              * @default 0
              */
             detection_count: number;
+            /**
+             * Detection Ids
+             * @description List of detection IDs associated with this event
+             */
+            detection_ids?: number[];
         };
         /**
          * EventStatsResponse
@@ -2368,6 +2528,76 @@ export interface components {
             timestamp: string;
         };
         /**
+         * SeedCamerasRequest
+         * @description Request schema for seeding cameras.
+         */
+        SeedCamerasRequest: {
+            /**
+             * Count
+             * @description Number of cameras to create (1-6)
+             * @default 6
+             */
+            count: number;
+            /**
+             * Clear Existing
+             * @description Remove existing cameras first
+             * @default false
+             */
+            clear_existing: boolean;
+            /**
+             * Create Folders
+             * @description Create camera folders on filesystem
+             * @default false
+             */
+            create_folders: boolean;
+        };
+        /**
+         * SeedCamerasResponse
+         * @description Response schema for seed cameras endpoint.
+         */
+        SeedCamerasResponse: {
+            /** Created */
+            created: number;
+            /** Cleared */
+            cleared: number;
+            /** Cameras */
+            cameras: {
+                [key: string]: unknown;
+            }[];
+        };
+        /**
+         * SeedEventsRequest
+         * @description Request schema for seeding events.
+         */
+        SeedEventsRequest: {
+            /**
+             * Count
+             * @description Number of events to create (1-100)
+             * @default 15
+             */
+            count: number;
+            /**
+             * Clear Existing
+             * @description Remove existing events and detections
+             * @default false
+             */
+            clear_existing: boolean;
+        };
+        /**
+         * SeedEventsResponse
+         * @description Response schema for seed events endpoint.
+         */
+        SeedEventsResponse: {
+            /** Events Created */
+            events_created: number;
+            /** Detections Created */
+            detections_created: number;
+            /** Events Cleared */
+            events_cleared: number;
+            /** Detections Cleared */
+            detections_cleared: number;
+        };
+        /**
          * ServiceStatus
          * @description Status information for a service component.
          */
@@ -2564,6 +2794,92 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    seed_cameras_api_admin_seed_cameras_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SeedCamerasRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeedCamerasResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    seed_events_api_admin_seed_events_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SeedEventsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeedEventsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    clear_seeded_data_api_admin_seed_clear_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClearDataResponse"];
+                };
+            };
+        };
+    };
     list_cameras_api_cameras_get: {
         parameters: {
             query?: {
@@ -3079,6 +3395,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EventStatsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_events_api_events_export_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by camera ID */
+                camera_id?: string | null;
+                /** @description Filter by risk level (low, medium, high, critical) */
+                risk_level?: string | null;
+                /** @description Filter by start date (ISO format) */
+                start_date?: string | null;
+                /** @description Filter by end date (ISO format) */
+                end_date?: string | null;
+                /** @description Filter by reviewed status */
+                reviewed?: boolean | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

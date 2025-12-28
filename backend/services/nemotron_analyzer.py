@@ -58,14 +58,21 @@ class NemotronAnalyzer:
         self._llm_url = settings.nemotron_url
         self._timeout = 60.0  # LLM request timeout in seconds
 
-    async def analyze_batch(self, batch_id: str) -> Event:
+    async def analyze_batch(
+        self,
+        batch_id: str,
+        camera_id: str | None = None,
+        detection_ids: list[int | str] | None = None,
+    ) -> Event:
         """Analyze a batch of detections and create Event.
 
-        Fetches batch metadata from Redis, retrieves detection details from
-        database, calls LLM for risk analysis, and creates an Event record.
+        If camera_id and detection_ids are provided (from queue payload), uses them
+        directly. Otherwise, fetches batch metadata from Redis (legacy behavior).
 
         Args:
             batch_id: Batch identifier to analyze
+            camera_id: Camera identifier (optional, from queue payload)
+            detection_ids: List of detection IDs (optional, from queue payload)
 
         Returns:
             Event object with risk assessment
@@ -77,13 +84,15 @@ class NemotronAnalyzer:
         if not self._redis:
             raise RuntimeError("Redis client not initialized")
 
-        # Get batch metadata from Redis
-        camera_id = await self._redis.get(f"batch:{batch_id}:camera_id")
-        if not camera_id:
-            raise ValueError(f"Batch {batch_id} not found in Redis")
+        # Use provided values or fall back to Redis lookup
+        if camera_id is None:
+            camera_id = await self._redis.get(f"batch:{batch_id}:camera_id")
+            if not camera_id:
+                raise ValueError(f"Batch {batch_id} not found in Redis")
 
-        detections_data = await self._redis.get(f"batch:{batch_id}:detections")
-        detection_ids = json.loads(detections_data) if detections_data else []
+        if detection_ids is None:
+            detections_data = await self._redis.get(f"batch:{batch_id}:detections")
+            detection_ids = json.loads(detections_data) if detections_data else []
 
         if not detection_ids:
             raise ValueError(f"Batch {batch_id} has no detections")

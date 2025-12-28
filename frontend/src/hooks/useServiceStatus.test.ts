@@ -4,7 +4,16 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useServiceStatus, ServiceName, ServiceStatusType } from './useServiceStatus';
 import * as useWebSocketModule from './useWebSocket';
 
-describe('useServiceStatus', () => {
+/**
+ * Tests for useServiceStatus hook.
+ *
+ * NOTE: This hook is currently DEPRECATED because the backend's ServiceHealthMonitor
+ * is not wired into main.py, so no `service_status` messages are broadcast.
+ * These tests are retained for when/if the backend is wired up in the future.
+ *
+ * See bead vq8.11 for context.
+ */
+describe('useServiceStatus (DEPRECATED - backend not wired)', () => {
   const mockWebSocketReturn = {
     isConnected: true,
     lastMessage: null,
@@ -127,7 +136,9 @@ describe('useServiceStatus', () => {
 
     act(() => {
       onMessageCallback?.(createServiceStatusMessage('rtdetr', 'healthy', 'RT-DETRv2 running'));
-      onMessageCallback?.(createServiceStatusMessage('nemotron', 'unhealthy', 'Model loading failed'));
+      onMessageCallback?.(
+        createServiceStatusMessage('nemotron', 'unhealthy', 'Model loading failed')
+      );
       onMessageCallback?.(createServiceStatusMessage('redis', 'restarting', 'Redis reconnecting'));
     });
 
@@ -197,13 +208,17 @@ describe('useServiceStatus', () => {
     const { result } = renderHook(() => useServiceStatus());
 
     act(() => {
-      onMessageCallback?.(createServiceStatusMessage('rtdetr', 'healthy', 'Running', '2025-12-23T10:00:00Z'));
+      onMessageCallback?.(
+        createServiceStatusMessage('rtdetr', 'healthy', 'Running', '2025-12-23T10:00:00Z')
+      );
     });
 
     expect(result.current.services.rtdetr?.status).toBe('healthy');
 
     act(() => {
-      onMessageCallback?.(createServiceStatusMessage('rtdetr', 'unhealthy', 'Crashed', '2025-12-23T10:01:00Z'));
+      onMessageCallback?.(
+        createServiceStatusMessage('rtdetr', 'unhealthy', 'Crashed', '2025-12-23T10:01:00Z')
+      );
     });
 
     expect(result.current.services.rtdetr?.status).toBe('unhealthy');
@@ -214,7 +229,13 @@ describe('useServiceStatus', () => {
   it('should handle all service status states', () => {
     const { result } = renderHook(() => useServiceStatus());
 
-    const statuses: ServiceStatusType[] = ['healthy', 'unhealthy', 'restarting', 'restart_failed', 'failed'];
+    const statuses: ServiceStatusType[] = [
+      'healthy',
+      'unhealthy',
+      'restarting',
+      'restart_failed',
+      'failed',
+    ];
 
     statuses.forEach((status) => {
       act(() => {
@@ -384,7 +405,14 @@ describe('useServiceStatus', () => {
 
     services.forEach((service, index) => {
       act(() => {
-        onMessageCallback?.(createServiceStatusMessage(service, 'healthy', `${service} running`, `2025-12-23T10:0${index}:00Z`));
+        onMessageCallback?.(
+          createServiceStatusMessage(
+            service,
+            'healthy',
+            `${service} running`,
+            `2025-12-23T10:0${index}:00Z`
+          )
+        );
       });
     });
 

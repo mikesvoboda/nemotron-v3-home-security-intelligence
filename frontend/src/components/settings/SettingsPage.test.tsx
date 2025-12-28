@@ -22,9 +22,7 @@ describe('SettingsPage', () => {
     render(<SettingsPage />);
 
     expect(screen.getByText('Settings')).toBeInTheDocument();
-    expect(
-      screen.getByText('Configure your security monitoring system')
-    ).toBeInTheDocument();
+    expect(screen.getByText('Configure your security monitoring system')).toBeInTheDocument();
   });
 
   it('should render all three tabs', () => {

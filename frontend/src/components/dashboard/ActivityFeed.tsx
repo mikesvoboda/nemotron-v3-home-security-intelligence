@@ -47,7 +47,11 @@ export default function ActivityFeed({
 
   // Auto-scroll to bottom when new events arrive
   useEffect(() => {
-    if (autoScroll && scrollContainerRef.current && events.length > previousEventsLengthRef.current) {
+    if (
+      autoScroll &&
+      scrollContainerRef.current &&
+      events.length > previousEventsLengthRef.current
+    ) {
       scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
     previousEventsLengthRef.current = events.length;

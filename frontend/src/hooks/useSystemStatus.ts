@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 
 import { useWebSocket } from './useWebSocket';
+import { buildWebSocketUrl } from '../services/api';
 
 export interface SystemStatus {
   health: 'healthy' | 'degraded' | 'unhealthy';
@@ -78,8 +79,11 @@ export function useSystemStatus(): UseSystemStatusReturn {
     }
   }, []);
 
+  // Build WebSocket URL using helper (respects VITE_WS_BASE_URL and adds api_key if configured)
+  const wsUrl = buildWebSocketUrl('/ws/system');
+
   const { isConnected } = useWebSocket({
-    url: `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/system`,
+    url: wsUrl,
     onMessage: handleMessage,
   });
 
