@@ -70,9 +70,11 @@ describe('useWebSocket', () => {
 
   beforeEach(() => {
     // Replace window WebSocket with our mock
-    window.WebSocket = vi.fn((url: string) => {
+    // Vitest 4 requires function syntax (not arrow functions) for constructor mocks
+    window.WebSocket = vi.fn(function (this: MockWebSocket, url: string) {
       mockWebSocket = new MockWebSocket(url);
-      return mockWebSocket as unknown as WebSocket;
+      Object.assign(this, mockWebSocket);
+      return mockWebSocket;
     }) as unknown as typeof WebSocket;
 
     // Add static properties
@@ -442,9 +444,10 @@ describe('useWebSocket', () => {
     const slowMockWebSocket: MockWebSocket = new MockWebSocket('ws://localhost:8000/ws');
     slowMockWebSocket.readyState = WebSocket.CONNECTING;
 
-    window.WebSocket = vi.fn(() => {
+    window.WebSocket = vi.fn(function (this: MockWebSocket) {
       slowMockWebSocket.readyState = WebSocket.CONNECTING;
-      return slowMockWebSocket as unknown as WebSocket;
+      Object.assign(this, slowMockWebSocket);
+      return slowMockWebSocket;
     }) as unknown as typeof WebSocket;
 
     Object.defineProperty(window.WebSocket, 'CONNECTING', { value: 0 });
@@ -495,7 +498,7 @@ describe('useWebSocket', () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     // Make WebSocket constructor throw an error
-    window.WebSocket = vi.fn(() => {
+    window.WebSocket = vi.fn(function () {
       throw new Error('WebSocket connection failed');
     }) as unknown as typeof WebSocket;
 

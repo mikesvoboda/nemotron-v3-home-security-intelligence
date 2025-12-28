@@ -278,7 +278,7 @@ describe('ServiceStatusAlert', () => {
         nemotron: null,
       };
       const { container } = render(<ServiceStatusAlert services={services} />);
-      const svg = container.querySelector('svg.lucide-alert-triangle');
+      const svg = container.querySelector('svg.lucide-triangle-alert');
       expect(svg).toBeInTheDocument();
     });
 
@@ -291,7 +291,7 @@ describe('ServiceStatusAlert', () => {
       const { container } = render(<ServiceStatusAlert services={services} />);
       const svg = container.querySelector('svg');
       expect(svg).toBeInTheDocument();
-      expect(svg?.classList.toString()).toContain('lucide-xcircle');
+      expect(svg?.classList.toString()).toContain('lucide-circle-x');
     });
 
     it('renders XCircle icon for failed status', () => {
@@ -303,7 +303,7 @@ describe('ServiceStatusAlert', () => {
       const { container } = render(<ServiceStatusAlert services={services} />);
       const svg = container.querySelector('svg');
       expect(svg).toBeInTheDocument();
-      expect(svg?.classList.toString()).toContain('lucide-xcircle');
+      expect(svg?.classList.toString()).toContain('lucide-circle-x');
     });
   });
 

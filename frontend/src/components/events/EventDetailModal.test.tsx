@@ -811,29 +811,28 @@ describe('EventDetailModal', () => {
     });
 
     it('clears saved indicator after 3 seconds', async () => {
-      vi.useFakeTimers();
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      const user = userEvent.setup();
       const onSaveNotes = vi.fn().mockResolvedValue(undefined);
 
       render(<EventDetailModal {...mockProps} onSaveNotes={onSaveNotes} />);
 
-      const saveButton = screen.getByRole('button', { name: 'Save notes' });
+      // Wait for the modal to open and button to be available
+      const saveButton = await screen.findByRole('button', { name: 'Save notes' });
       await user.click(saveButton);
 
       // Wait for the save to complete
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(screen.getByText('Saved')).toBeInTheDocument();
       });
 
-      // Fast-forward past the 3 second timeout
-      await vi.advanceTimersByTimeAsync(3100);
-
-      // Saved indicator should be cleared
-      await vi.waitFor(() => {
-        expect(screen.queryByText('Saved')).not.toBeInTheDocument();
-      });
-
-      vi.useRealTimers();
+      // Wait for the 3 second timeout to clear the indicator
+      // Using a slightly longer timeout to account for timing variations
+      await waitFor(
+        () => {
+          expect(screen.queryByText('Saved')).not.toBeInTheDocument();
+        },
+        { timeout: 4000 }
+      );
     });
 
     it('handles save errors gracefully', async () => {
@@ -843,7 +842,8 @@ describe('EventDetailModal', () => {
 
       render(<EventDetailModal {...mockProps} onSaveNotes={onSaveNotes} />);
 
-      const saveButton = screen.getByRole('button', { name: 'Save notes' });
+      // Wait for the modal to open and button to be available
+      const saveButton = await screen.findByRole('button', { name: 'Save notes' });
       await user.click(saveButton);
 
       await waitFor(() => {
@@ -874,8 +874,8 @@ describe('EventDetailModal', () => {
 
       const { rerender } = render(<EventDetailModal {...mockProps} onSaveNotes={onSaveNotes} />);
 
-      // Save notes to show the saved indicator
-      const saveButton = screen.getByRole('button', { name: 'Save notes' });
+      // Wait for the modal to open and button to be available
+      const saveButton = await screen.findByRole('button', { name: 'Save notes' });
       await user.click(saveButton);
 
       await waitFor(() => {
@@ -899,7 +899,8 @@ describe('EventDetailModal', () => {
 
       render(<EventDetailModal {...mockProps} event={eventWithNotes} onSaveNotes={onSaveNotes} />);
 
-      const textarea = screen.getByPlaceholderText<HTMLTextAreaElement>('Add notes about this event...');
+      // Wait for the modal to open
+      const textarea = await screen.findByPlaceholderText<HTMLTextAreaElement>('Add notes about this event...');
       expect(textarea.value).toBe('Some existing notes');
 
       // Clear the textarea
@@ -907,7 +908,7 @@ describe('EventDetailModal', () => {
       expect(textarea.value).toBe('');
 
       // Save the empty notes
-      const saveButton = screen.getByRole('button', { name: 'Save notes' });
+      const saveButton = await screen.findByRole('button', { name: 'Save notes' });
       await user.click(saveButton);
 
       await waitFor(() => {
@@ -953,7 +954,8 @@ describe('EventDetailModal', () => {
       const onFlagEvent = vi.fn().mockResolvedValue(undefined);
       render(<EventDetailModal {...mockProps} event={eventNotFlagged} onFlagEvent={onFlagEvent} />);
 
-      const flagButton = screen.getByRole('button', { name: 'Flag event' });
+      // Wait for the modal to open and button to be available
+      const flagButton = await screen.findByRole('button', { name: 'Flag event' });
       await user.click(flagButton);
 
       await waitFor(() => {
@@ -967,7 +969,8 @@ describe('EventDetailModal', () => {
       const onFlagEvent = vi.fn().mockResolvedValue(undefined);
       render(<EventDetailModal {...mockProps} event={eventFlagged} onFlagEvent={onFlagEvent} />);
 
-      const unflagButton = screen.getByRole('button', { name: 'Unflag event' });
+      // Wait for the modal to open and button to be available
+      const unflagButton = await screen.findByRole('button', { name: 'Unflag event' });
       await user.click(unflagButton);
 
       await waitFor(() => {
@@ -985,10 +988,13 @@ describe('EventDetailModal', () => {
 
       render(<EventDetailModal {...mockProps} onFlagEvent={onFlagEvent} />);
 
-      const flagButton = screen.getByRole('button', { name: 'Flag event' });
+      // Wait for the modal to open and button to be available
+      const flagButton = await screen.findByRole('button', { name: 'Flag event' });
       await user.click(flagButton);
 
-      expect(screen.getByText('Flagging...')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Flagging...')).toBeInTheDocument();
+      });
       expect(flagButton).toBeDisabled();
 
       resolveFlagging!();
@@ -1004,7 +1010,8 @@ describe('EventDetailModal', () => {
 
       render(<EventDetailModal {...mockProps} onFlagEvent={onFlagEvent} />);
 
-      const flagButton = screen.getByRole('button', { name: 'Flag event' });
+      // Wait for the modal to open and button to be available
+      const flagButton = await screen.findByRole('button', { name: 'Flag event' });
       await user.click(flagButton);
 
       await waitFor(() => {
@@ -1072,7 +1079,8 @@ describe('EventDetailModal', () => {
       const onDownloadMedia = vi.fn().mockResolvedValue(undefined);
       render(<EventDetailModal {...mockProps} onDownloadMedia={onDownloadMedia} />);
 
-      const downloadButton = screen.getByRole('button', { name: 'Download media' });
+      // Wait for the modal to open and button to be available
+      const downloadButton = await screen.findByRole('button', { name: 'Download media' });
       await user.click(downloadButton);
 
       await waitFor(() => {
@@ -1090,10 +1098,13 @@ describe('EventDetailModal', () => {
 
       render(<EventDetailModal {...mockProps} onDownloadMedia={onDownloadMedia} />);
 
-      const downloadButton = screen.getByRole('button', { name: 'Download media' });
+      // Wait for the modal to open and button to be available
+      const downloadButton = await screen.findByRole('button', { name: 'Download media' });
       await user.click(downloadButton);
 
-      expect(screen.getByText('Downloading...')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText('Downloading...')).toBeInTheDocument();
+      });
       expect(downloadButton).toBeDisabled();
 
       resolveDownload!();
@@ -1109,7 +1120,8 @@ describe('EventDetailModal', () => {
 
       render(<EventDetailModal {...mockProps} onDownloadMedia={onDownloadMedia} />);
 
-      const downloadButton = screen.getByRole('button', { name: 'Download media' });
+      // Wait for the modal to open and button to be available
+      const downloadButton = await screen.findByRole('button', { name: 'Download media' });
       await user.click(downloadButton);
 
       await waitFor(() => {
@@ -1132,7 +1144,8 @@ describe('EventDetailModal', () => {
       const onDownloadMedia = vi.fn().mockResolvedValue(undefined);
       render(<EventDetailModal {...mockProps} onDownloadMedia={onDownloadMedia} />);
 
-      const downloadButton = screen.getByRole('button', { name: 'Download media' });
+      // Wait for the modal to open and button to be available
+      const downloadButton = await screen.findByRole('button', { name: 'Download media' });
 
       await user.click(downloadButton);
       await waitFor(() => {
@@ -1221,43 +1234,46 @@ describe('EventDetailModal', () => {
         />
       );
 
+      // Wait for the modal to open
+      await screen.findByRole('dialog');
+
       // Navigate previous
-      const prevButton = screen.getByRole('button', { name: 'Previous event' });
+      const prevButton = await screen.findByRole('button', { name: 'Previous event' });
       await user.click(prevButton);
       expect(onNavigate).toHaveBeenCalledWith('prev');
 
       // Navigate next
-      const nextButton = screen.getByRole('button', { name: 'Next event' });
+      const nextButton = await screen.findByRole('button', { name: 'Next event' });
       await user.click(nextButton);
       expect(onNavigate).toHaveBeenCalledWith('next');
 
       // Flag event
-      const flagButton = screen.getByRole('button', { name: 'Flag event' });
+      const flagButton = await screen.findByRole('button', { name: 'Flag event' });
       await user.click(flagButton);
       await waitFor(() => {
         expect(onFlagEvent).toHaveBeenCalledWith('event-123', true);
       });
 
       // Download media
-      const downloadButton = screen.getByRole('button', { name: 'Download media' });
+      const downloadButton = await screen.findByRole('button', { name: 'Download media' });
       await user.click(downloadButton);
       await waitFor(() => {
         expect(onDownloadMedia).toHaveBeenCalledWith('event-123');
       });
 
       // Type in notes
-      const textarea = screen.getByPlaceholderText('Add notes about this event...');
+      const textarea = await screen.findByPlaceholderText('Add notes about this event...');
       await user.type(textarea, 'Test note');
 
       // Save notes
-      const saveButton = screen.getByRole('button', { name: 'Save notes' });
+      const saveButton = await screen.findByRole('button', { name: 'Save notes' });
       await user.click(saveButton);
       await waitFor(() => {
         expect(onSaveNotes).toHaveBeenCalledWith('event-123', 'Test note');
       });
 
       // Mark as reviewed
-      const reviewButton = screen.getByRole('button', { name: 'Mark event as reviewed' });
+      const reviewButton = await screen.findByRole('button', { name: 'Mark event as reviewed' });
       await user.click(reviewButton);
       expect(onMarkReviewed).toHaveBeenCalledWith('event-123');
 
