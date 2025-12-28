@@ -94,9 +94,7 @@ function CameraCard({
       className={clsx(
         'relative flex flex-col overflow-hidden rounded-lg border transition-all duration-250',
         'bg-card hover:bg-gray-850 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background',
-        isSelected
-          ? 'border-primary shadow-nvidia-glow'
-          : 'border-gray-800 hover:border-gray-700',
+        isSelected ? 'border-primary shadow-nvidia-glow' : 'border-gray-800 hover:border-gray-700',
         onClick && 'cursor-pointer'
       )}
       aria-label={`Camera ${camera.name}, status: ${getStatusLabel(camera.status)}`}

@@ -74,9 +74,7 @@ describe('CameraGrid', () => {
     });
 
     it('should apply custom className when provided', () => {
-      const { container } = render(
-        <CameraGrid cameras={mockCameras} className="custom-class" />
-      );
+      const { container } = render(<CameraGrid cameras={mockCameras} className="custom-class" />);
 
       const grid = container.querySelector('.custom-class');
       expect(grid).toBeInTheDocument();

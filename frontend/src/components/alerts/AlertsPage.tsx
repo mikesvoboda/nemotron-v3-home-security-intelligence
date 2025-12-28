@@ -19,10 +19,7 @@ export interface AlertsPageProps {
  * AlertsPage component displays high and critical risk security events
  * These are events that require immediate attention
  */
-export default function AlertsPage({
-  onViewEventDetails,
-  className = '',
-}: AlertsPageProps) {
+export default function AlertsPage({ onViewEventDetails, className = '' }: AlertsPageProps) {
   // State for events data
   const [events, setEvents] = useState<Event[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -78,7 +75,9 @@ export default function AlertsPage({
 
         // Combine and sort by timestamp (most recent first)
         let allAlerts = [...highResponse.events, ...criticalResponse.events];
-        allAlerts.sort((a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime());
+        allAlerts.sort(
+          (a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime()
+        );
 
         // Apply risk filter if not 'all'
         if (riskFilter !== 'all') {
@@ -157,9 +156,7 @@ export default function AlertsPage({
       detections,
       started_at: event.started_at,
       ended_at: event.ended_at,
-      onViewDetails: onViewEventDetails
-        ? () => onViewEventDetails(event.id)
-        : undefined,
+      onViewDetails: onViewEventDetails ? () => onViewEventDetails(event.id) : undefined,
     };
   };
 
@@ -171,9 +168,7 @@ export default function AlertsPage({
           <AlertTriangle className="h-8 w-8 text-orange-500" />
           <h1 className="text-3xl font-bold text-white">Alerts</h1>
         </div>
-        <p className="mt-2 text-gray-400">
-          High and critical risk events requiring attention
-        </p>
+        <p className="mt-2 text-gray-400">High and critical risk events requiring attention</p>
       </div>
 
       {/* Filter and Refresh Bar */}

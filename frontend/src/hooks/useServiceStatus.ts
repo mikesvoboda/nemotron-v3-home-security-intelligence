@@ -53,11 +53,7 @@ interface BackendServiceStatusMessage {
 
 const SERVICE_NAMES: ServiceName[] = ['redis', 'rtdetr', 'nemotron'];
 
-const UNHEALTHY_STATUSES: ServiceStatusType[] = [
-  'unhealthy',
-  'failed',
-  'restart_failed',
-];
+const UNHEALTHY_STATUSES: ServiceStatusType[] = ['unhealthy', 'failed', 'restart_failed'];
 
 function isServiceName(value: unknown): value is ServiceName {
   return typeof value === 'string' && SERVICE_NAMES.includes(value as ServiceName);
@@ -99,9 +95,8 @@ function createInitialServices(): Record<ServiceName, ServiceStatus | null> {
  * Use `useSystemStatus` for system health information instead.
  */
 export function useServiceStatus(): UseServiceStatusResult {
-  const [services, setServices] = useState<Record<ServiceName, ServiceStatus | null>>(
-    createInitialServices
-  );
+  const [services, setServices] =
+    useState<Record<ServiceName, ServiceStatus | null>>(createInitialServices);
 
   const handleMessage = useCallback((data: unknown) => {
     if (isBackendServiceStatusMessage(data)) {

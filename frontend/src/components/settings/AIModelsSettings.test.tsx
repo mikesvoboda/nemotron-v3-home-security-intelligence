@@ -42,12 +42,7 @@ describe('AIModelsSettings', () => {
 
   describe('model status badges', () => {
     it('displays loaded status badge', () => {
-      render(
-        <AIModelsSettings
-          rtdetrModel={mockRTDETR}
-          nemotronModel={mockNemotron}
-        />
-      );
+      render(<AIModelsSettings rtdetrModel={mockRTDETR} nemotronModel={mockNemotron} />);
 
       const loadedBadges = screen.getAllByText('Loaded');
       expect(loadedBadges).toHaveLength(2);
@@ -83,12 +78,7 @@ describe('AIModelsSettings', () => {
 
   describe('memory usage display', () => {
     it('displays memory usage in GB', () => {
-      render(
-        <AIModelsSettings
-          rtdetrModel={mockRTDETR}
-          nemotronModel={mockNemotron}
-        />
-      );
+      render(<AIModelsSettings rtdetrModel={mockRTDETR} nemotronModel={mockNemotron} />);
 
       expect(screen.getByText('4.0 GB')).toBeInTheDocument();
       expect(screen.getByText('8.0 GB')).toBeInTheDocument();
@@ -107,12 +97,7 @@ describe('AIModelsSettings', () => {
     });
 
     it('displays memory without percentage when total memory not provided', () => {
-      render(
-        <AIModelsSettings
-          rtdetrModel={mockRTDETR}
-          totalMemory={null}
-        />
-      );
+      render(<AIModelsSettings rtdetrModel={mockRTDETR} totalMemory={null} />);
 
       expect(screen.getByText('4.0 GB')).toBeInTheDocument();
     });
@@ -131,12 +116,7 @@ describe('AIModelsSettings', () => {
 
   describe('inference speed display', () => {
     it('displays inference FPS for loaded models', () => {
-      render(
-        <AIModelsSettings
-          rtdetrModel={mockRTDETR}
-          nemotronModel={mockNemotron}
-        />
-      );
+      render(<AIModelsSettings rtdetrModel={mockRTDETR} nemotronModel={mockNemotron} />);
 
       const inferenceTexts = screen.getAllByText('Inference Speed');
       expect(inferenceTexts.length).toBe(2); // Both models should show inference speed
@@ -196,12 +176,7 @@ describe('AIModelsSettings', () => {
     });
 
     it('does not display total GPU memory when null', () => {
-      render(
-        <AIModelsSettings
-          rtdetrModel={mockRTDETR}
-          totalMemory={null}
-        />
-      );
+      render(<AIModelsSettings rtdetrModel={mockRTDETR} totalMemory={null} />);
 
       expect(screen.queryByText('Total GPU Memory')).not.toBeInTheDocument();
     });
@@ -260,12 +235,7 @@ describe('AIModelsSettings', () => {
 
   describe('model names', () => {
     it('displays model names', () => {
-      render(
-        <AIModelsSettings
-          rtdetrModel={mockRTDETR}
-          nemotronModel={mockNemotron}
-        />
-      );
+      render(<AIModelsSettings rtdetrModel={mockRTDETR} nemotronModel={mockNemotron} />);
 
       expect(screen.getByText('RT-DETRv2')).toBeInTheDocument();
       expect(screen.getByText('Nemotron')).toBeInTheDocument();
@@ -337,12 +307,7 @@ describe('AIModelsSettings', () => {
 
   describe('layout and grid', () => {
     it('renders both model cards', () => {
-      render(
-        <AIModelsSettings
-          rtdetrModel={mockRTDETR}
-          nemotronModel={mockNemotron}
-        />
-      );
+      render(<AIModelsSettings rtdetrModel={mockRTDETR} nemotronModel={mockNemotron} />);
 
       expect(screen.getByText('RT-DETRv2')).toBeInTheDocument();
       expect(screen.getByText('Nemotron')).toBeInTheDocument();
@@ -389,11 +354,7 @@ describe('AIModelsSettings', () => {
       };
 
       render(
-        <AIModelsSettings
-          rtdetrModel={nullModel1}
-          nemotronModel={nullModel2}
-          totalMemory={null}
-        />
+        <AIModelsSettings rtdetrModel={nullModel1} nemotronModel={nullModel2} totalMemory={null} />
       );
 
       expect(screen.getByText('Test Model 1')).toBeInTheDocument();
@@ -412,12 +373,7 @@ describe('AIModelsSettings', () => {
         inferenceFps: null,
       };
 
-      render(
-        <AIModelsSettings
-          rtdetrModel={mockRTDETR}
-          nemotronModel={unloadedModel}
-        />
-      );
+      render(<AIModelsSettings rtdetrModel={mockRTDETR} nemotronModel={unloadedModel} />);
 
       const loadedBadges = screen.getAllByText('Loaded');
       const unloadedBadges = screen.getAllByText('Unloaded');
@@ -433,12 +389,7 @@ describe('AIModelsSettings', () => {
         inferenceFps: null,
       };
 
-      render(
-        <AIModelsSettings
-          rtdetrModel={errorModel}
-          nemotronModel={mockNemotron}
-        />
-      );
+      render(<AIModelsSettings rtdetrModel={errorModel} nemotronModel={mockNemotron} />);
 
       expect(screen.getByText('Error')).toBeInTheDocument();
       expect(screen.getByText('Loaded')).toBeInTheDocument();

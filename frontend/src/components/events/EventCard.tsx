@@ -30,6 +30,8 @@ export interface EventCardProps {
   onViewDetails?: (eventId: string) => void;
   onClick?: (eventId: string) => void;
   className?: string;
+  /** When true, adds left margin to header to accommodate an overlaying checkbox */
+  hasCheckboxOverlay?: boolean;
 }
 
 /**
@@ -49,6 +51,7 @@ export default function EventCard({
   onViewDetails,
   onClick,
   className = '',
+  hasCheckboxOverlay = false,
 }: EventCardProps) {
   const [showReasoning, setShowReasoning] = useState(false);
 
@@ -159,12 +162,9 @@ export default function EventCard({
       aria-label={isClickable ? `View details for event from ${camera_name}` : undefined}
     >
       {/* Header: Camera name, timestamp, risk badge */}
-      <div className="mb-3 flex items-start justify-between">
+      <div className={`mb-3 flex items-start justify-between ${hasCheckboxOverlay ? 'ml-8' : ''}`}>
         <div className="min-w-0 flex-1">
-          <h3
-            className="truncate text-base font-semibold text-white"
-            title={camera_name}
-          >
+          <h3 className="truncate text-base font-semibold text-white" title={camera_name}>
             {camera_name}
           </h3>
           <div className="mt-1 flex flex-col gap-1">

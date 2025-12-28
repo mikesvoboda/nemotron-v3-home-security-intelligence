@@ -116,8 +116,24 @@ const mockTelemetry: TelemetryResponse = {
     analysis_queue: 2,
   },
   latencies: {
-    watch: { avg_ms: 20, p50_ms: 10, p95_ms: 50, p99_ms: 100, min_ms: 5, max_ms: 200, sample_count: 100 },
-    detect: { avg_ms: 200, p50_ms: 100, p95_ms: 500, p99_ms: 1000, min_ms: 50, max_ms: 2000, sample_count: 100 },
+    watch: {
+      avg_ms: 20,
+      p50_ms: 10,
+      p95_ms: 50,
+      p99_ms: 100,
+      min_ms: 5,
+      max_ms: 200,
+      sample_count: 100,
+    },
+    detect: {
+      avg_ms: 200,
+      p50_ms: 100,
+      p95_ms: 500,
+      p99_ms: 1000,
+      min_ms: 50,
+      max_ms: 2000,
+      sample_count: 100,
+    },
   },
   timestamp: '2025-01-01T12:00:00Z',
 };
@@ -945,7 +961,15 @@ describe('System API', () => {
           analysis_queue: 12,
         },
         latencies: {
-          watch: { avg_ms: 100, p50_ms: 80, p95_ms: 200, p99_ms: 500, min_ms: 20, max_ms: 800, sample_count: 50 },
+          watch: {
+            avg_ms: 100,
+            p50_ms: 80,
+            p95_ms: 200,
+            p99_ms: 500,
+            min_ms: 20,
+            max_ms: 800,
+            sample_count: 50,
+          },
           detect: {
             avg_ms: 800,
             p50_ms: 600,

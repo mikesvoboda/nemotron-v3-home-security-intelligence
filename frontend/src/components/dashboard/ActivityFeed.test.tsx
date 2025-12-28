@@ -85,7 +85,9 @@ describe('ActivityFeed', () => {
 
     it('renders event summaries', () => {
       render(<ActivityFeed events={mockEvents} />);
-      expect(screen.getByText('Person detected approaching the front entrance')).toBeInTheDocument();
+      expect(
+        screen.getByText('Person detected approaching the front entrance')
+      ).toBeInTheDocument();
       expect(screen.getByText('Motion detected near the back fence')).toBeInTheDocument();
     });
 
@@ -107,7 +109,9 @@ describe('ActivityFeed', () => {
     it('renders empty state when no events', () => {
       render(<ActivityFeed events={[]} />);
       expect(screen.getByText('No Activity Yet')).toBeInTheDocument();
-      expect(screen.getByText('Security events will appear here as they occur.')).toBeInTheDocument();
+      expect(
+        screen.getByText('Security events will appear here as they occur.')
+      ).toBeInTheDocument();
     });
 
     it('renders camera icon in empty state', () => {
@@ -447,7 +451,8 @@ describe('ActivityFeed', () => {
         timestamp: new Date(BASE_TIME).toISOString(),
         camera_name: 'Test Camera',
         risk_score: 10,
-        summary: 'This is a very long summary that should be clamped to two lines maximum to prevent overflow and maintain a clean layout in the activity feed component',
+        summary:
+          'This is a very long summary that should be clamped to two lines maximum to prevent overflow and maintain a clean layout in the activity feed component',
       };
       render(<ActivityFeed events={[longSummaryEvent]} />);
       const summary = screen.getByText(/This is a very long summary/);
@@ -472,7 +477,9 @@ describe('ActivityFeed', () => {
 
   describe('new event handling', () => {
     it('renders new events when they are added', () => {
-      const { rerender } = render(<ActivityFeed events={mockEvents.slice(0, 2)} autoScroll={true} />);
+      const { rerender } = render(
+        <ActivityFeed events={mockEvents.slice(0, 2)} autoScroll={true} />
+      );
 
       expect(screen.getByText('Front Door')).toBeInTheDocument();
       expect(screen.queryByText('Garage')).not.toBeInTheDocument();
@@ -485,7 +492,9 @@ describe('ActivityFeed', () => {
     });
 
     it('renders new events when autoScroll is disabled', () => {
-      const { rerender } = render(<ActivityFeed events={mockEvents.slice(0, 2)} autoScroll={false} />);
+      const { rerender } = render(
+        <ActivityFeed events={mockEvents.slice(0, 2)} autoScroll={false} />
+      );
 
       expect(screen.getByText('Front Door')).toBeInTheDocument();
       expect(screen.queryByText('Garage')).not.toBeInTheDocument();

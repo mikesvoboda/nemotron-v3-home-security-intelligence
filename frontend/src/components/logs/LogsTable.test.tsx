@@ -80,14 +80,7 @@ describe('LogsTable', () => {
 
   describe('Rendering', () => {
     it('renders table with log entries', () => {
-      render(
-        <LogsTable
-          logs={mockLogs}
-          totalCount={5}
-          limit={50}
-          offset={0}
-        />
-      );
+      render(<LogsTable logs={mockLogs} totalCount={5} limit={50} offset={0} />);
 
       expect(screen.getByText('Failed to process request')).toBeInTheDocument();
       expect(screen.getByText('Detection completed successfully')).toBeInTheDocument();
@@ -95,14 +88,7 @@ describe('LogsTable', () => {
     });
 
     it('renders table headers', () => {
-      render(
-        <LogsTable
-          logs={mockLogs}
-          totalCount={5}
-          limit={50}
-          offset={0}
-        />
-      );
+      render(<LogsTable logs={mockLogs} totalCount={5} limit={50} offset={0} />);
 
       expect(screen.getByText('Timestamp')).toBeInTheDocument();
       expect(screen.getByText('Level')).toBeInTheDocument();
@@ -111,27 +97,13 @@ describe('LogsTable', () => {
     });
 
     it('displays result summary', () => {
-      render(
-        <LogsTable
-          logs={mockLogs}
-          totalCount={5}
-          limit={50}
-          offset={0}
-        />
-      );
+      render(<LogsTable logs={mockLogs} totalCount={5} limit={50} offset={0} />);
 
       expect(screen.getByText('Showing 1-5 of 5 logs')).toBeInTheDocument();
     });
 
     it('displays correct result summary for pagination', () => {
-      render(
-        <LogsTable
-          logs={mockLogs}
-          totalCount={100}
-          limit={50}
-          offset={50}
-        />
-      );
+      render(<LogsTable logs={mockLogs} totalCount={100} limit={50} offset={50} />);
 
       expect(screen.getByText('Showing 51-100 of 100 logs')).toBeInTheDocument();
     });
@@ -139,70 +111,35 @@ describe('LogsTable', () => {
 
   describe('Level Badges', () => {
     it('displays ERROR badge with red styling', () => {
-      render(
-        <LogsTable
-          logs={[mockLogs[0]]}
-          totalCount={1}
-          limit={50}
-          offset={0}
-        />
-      );
+      render(<LogsTable logs={[mockLogs[0]]} totalCount={1} limit={50} offset={0} />);
 
       const errorBadge = screen.getByText('ERROR');
       expect(errorBadge).toHaveClass('text-red-400');
     });
 
     it('displays WARNING badge with yellow styling', () => {
-      render(
-        <LogsTable
-          logs={[mockLogs[2]]}
-          totalCount={1}
-          limit={50}
-          offset={0}
-        />
-      );
+      render(<LogsTable logs={[mockLogs[2]]} totalCount={1} limit={50} offset={0} />);
 
       const warningBadge = screen.getByText('WARNING');
       expect(warningBadge).toHaveClass('text-yellow-400');
     });
 
     it('displays INFO badge with blue styling', () => {
-      render(
-        <LogsTable
-          logs={[mockLogs[1]]}
-          totalCount={1}
-          limit={50}
-          offset={0}
-        />
-      );
+      render(<LogsTable logs={[mockLogs[1]]} totalCount={1} limit={50} offset={0} />);
 
       const infoBadge = screen.getByText('INFO');
       expect(infoBadge).toHaveClass('text-blue-400');
     });
 
     it('displays DEBUG badge with gray styling', () => {
-      render(
-        <LogsTable
-          logs={[mockLogs[3]]}
-          totalCount={1}
-          limit={50}
-          offset={0}
-        />
-      );
+      render(<LogsTable logs={[mockLogs[3]]} totalCount={1} limit={50} offset={0} />);
 
       const debugBadge = screen.getByText('DEBUG');
       expect(debugBadge).toHaveClass('text-gray-400');
     });
 
     it('displays CRITICAL badge with red styling', () => {
-      render(
-        <LogsTable
-          logs={[mockLogs[4]]}
-          totalCount={1}
-          limit={50}
-          offset={0}
-        />
-      );
+      render(<LogsTable logs={[mockLogs[4]]} totalCount={1} limit={50} offset={0} />);
 
       const criticalBadge = screen.getByText('CRITICAL');
       expect(criticalBadge).toHaveClass('text-red-400');
@@ -211,14 +148,7 @@ describe('LogsTable', () => {
 
   describe('Component Display', () => {
     it('displays component names with green accent', () => {
-      render(
-        <LogsTable
-          logs={mockLogs}
-          totalCount={5}
-          limit={50}
-          offset={0}
-        />
-      );
+      render(<LogsTable logs={mockLogs} totalCount={5} limit={50} offset={0} />);
 
       const apiComponent = screen.getByText('api');
       expect(apiComponent).toHaveClass('text-[#76B900]');
@@ -226,14 +156,7 @@ describe('LogsTable', () => {
     });
 
     it('displays all unique components', () => {
-      render(
-        <LogsTable
-          logs={mockLogs}
-          totalCount={5}
-          limit={50}
-          offset={0}
-        />
-      );
+      render(<LogsTable logs={mockLogs} totalCount={5} limit={50} offset={0} />);
 
       expect(screen.getByText('api')).toBeInTheDocument();
       expect(screen.getByText('detector')).toBeInTheDocument();
@@ -246,14 +169,7 @@ describe('LogsTable', () => {
   describe('Message Truncation', () => {
     it('does not truncate short messages', () => {
       const shortMessage = mockLogs[0];
-      render(
-        <LogsTable
-          logs={[shortMessage]}
-          totalCount={1}
-          limit={50}
-          offset={0}
-        />
-      );
+      render(<LogsTable logs={[shortMessage]} totalCount={1} limit={50} offset={0} />);
 
       expect(screen.getByText('Failed to process request')).toBeInTheDocument();
       expect(screen.queryByText(/\.\.\./)).not.toBeInTheDocument();
@@ -266,14 +182,7 @@ describe('LogsTable', () => {
           'This is a very long log message that should be truncated because it exceeds the maximum length allowed in the table cell for display purposes',
       };
 
-      render(
-        <LogsTable
-          logs={[longLog]}
-          totalCount={1}
-          limit={50}
-          offset={0}
-        />
-      );
+      render(<LogsTable logs={[longLog]} totalCount={1} limit={50} offset={0} />);
 
       const messageCell = screen.getByText(/This is a very long log message/);
       expect(messageCell.textContent).toContain('...');
@@ -324,14 +233,7 @@ describe('LogsTable', () => {
     });
 
     it('does not add hover effect when onRowClick is not provided', () => {
-      render(
-        <LogsTable
-          logs={mockLogs}
-          totalCount={5}
-          limit={50}
-          offset={0}
-        />
-      );
+      render(<LogsTable logs={mockLogs} totalCount={5} limit={50} offset={0} />);
 
       const row = screen.getByText('Failed to process request').closest('tr');
       expect(row).not.toHaveClass('cursor-pointer');
@@ -340,14 +242,7 @@ describe('LogsTable', () => {
 
   describe('Pagination', () => {
     it('displays pagination controls', () => {
-      render(
-        <LogsTable
-          logs={mockLogs}
-          totalCount={100}
-          limit={50}
-          offset={0}
-        />
-      );
+      render(<LogsTable logs={mockLogs} totalCount={100} limit={50} offset={0} />);
 
       expect(screen.getByLabelText('Previous page')).toBeInTheDocument();
       expect(screen.getByLabelText('Next page')).toBeInTheDocument();
@@ -395,55 +290,27 @@ describe('LogsTable', () => {
     });
 
     it('disables previous button on first page', () => {
-      render(
-        <LogsTable
-          logs={mockLogs}
-          totalCount={100}
-          limit={50}
-          offset={0}
-        />
-      );
+      render(<LogsTable logs={mockLogs} totalCount={100} limit={50} offset={0} />);
 
       const prevButton = screen.getByLabelText('Previous page');
       expect(prevButton).toBeDisabled();
     });
 
     it('disables next button on last page', () => {
-      render(
-        <LogsTable
-          logs={mockLogs}
-          totalCount={100}
-          limit={50}
-          offset={50}
-        />
-      );
+      render(<LogsTable logs={mockLogs} totalCount={100} limit={50} offset={50} />);
 
       const nextButton = screen.getByLabelText('Next page');
       expect(nextButton).toBeDisabled();
     });
 
     it('calculates correct page numbers', () => {
-      render(
-        <LogsTable
-          logs={mockLogs}
-          totalCount={150}
-          limit={50}
-          offset={50}
-        />
-      );
+      render(<LogsTable logs={mockLogs} totalCount={150} limit={50} offset={50} />);
 
       expect(screen.getByText('Page 2 of 3')).toBeInTheDocument();
     });
 
     it('hides pagination when totalCount is zero', () => {
-      render(
-        <LogsTable
-          logs={[]}
-          totalCount={0}
-          limit={50}
-          offset={0}
-        />
-      );
+      render(<LogsTable logs={[]} totalCount={0} limit={50} offset={0} />);
 
       expect(screen.queryByLabelText('Previous page')).not.toBeInTheDocument();
       expect(screen.queryByLabelText('Next page')).not.toBeInTheDocument();
@@ -452,43 +319,19 @@ describe('LogsTable', () => {
 
   describe('Loading State', () => {
     it('displays loading spinner when loading', () => {
-      render(
-        <LogsTable
-          logs={[]}
-          totalCount={0}
-          limit={50}
-          offset={0}
-          loading={true}
-        />
-      );
+      render(<LogsTable logs={[]} totalCount={0} limit={50} offset={0} loading={true} />);
 
       expect(screen.getByText('Loading logs...')).toBeInTheDocument();
     });
 
     it('does not show table when loading', () => {
-      render(
-        <LogsTable
-          logs={mockLogs}
-          totalCount={5}
-          limit={50}
-          offset={0}
-          loading={true}
-        />
-      );
+      render(<LogsTable logs={mockLogs} totalCount={5} limit={50} offset={0} loading={true} />);
 
       expect(screen.queryByText('Failed to process request')).not.toBeInTheDocument();
     });
 
     it('hides pagination when loading', () => {
-      render(
-        <LogsTable
-          logs={mockLogs}
-          totalCount={100}
-          limit={50}
-          offset={0}
-          loading={true}
-        />
-      );
+      render(<LogsTable logs={mockLogs} totalCount={100} limit={50} offset={0} loading={true} />);
 
       expect(screen.queryByLabelText('Previous page')).not.toBeInTheDocument();
     });
@@ -496,15 +339,7 @@ describe('LogsTable', () => {
 
   describe('Error State', () => {
     it('displays error message when error is provided', () => {
-      render(
-        <LogsTable
-          logs={[]}
-          totalCount={0}
-          limit={50}
-          offset={0}
-          error="Network error"
-        />
-      );
+      render(<LogsTable logs={[]} totalCount={0} limit={50} offset={0} error="Network error" />);
 
       expect(screen.getByText('Error Loading Logs')).toBeInTheDocument();
       expect(screen.getByText('Network error')).toBeInTheDocument();
@@ -512,13 +347,7 @@ describe('LogsTable', () => {
 
     it('does not show table when error is provided', () => {
       render(
-        <LogsTable
-          logs={mockLogs}
-          totalCount={5}
-          limit={50}
-          offset={0}
-          error="Network error"
-        />
+        <LogsTable logs={mockLogs} totalCount={5} limit={50} offset={0} error="Network error" />
       );
 
       expect(screen.queryByText('Failed to process request')).not.toBeInTheDocument();
@@ -526,13 +355,7 @@ describe('LogsTable', () => {
 
     it('hides pagination when error is provided', () => {
       render(
-        <LogsTable
-          logs={mockLogs}
-          totalCount={100}
-          limit={50}
-          offset={0}
-          error="Network error"
-        />
+        <LogsTable logs={mockLogs} totalCount={100} limit={50} offset={0} error="Network error" />
       );
 
       expect(screen.queryByLabelText('Previous page')).not.toBeInTheDocument();
@@ -541,28 +364,14 @@ describe('LogsTable', () => {
 
   describe('Empty State', () => {
     it('displays empty state when no logs', () => {
-      render(
-        <LogsTable
-          logs={[]}
-          totalCount={0}
-          limit={50}
-          offset={0}
-        />
-      );
+      render(<LogsTable logs={[]} totalCount={0} limit={50} offset={0} />);
 
       expect(screen.getByText('No Logs Found')).toBeInTheDocument();
       expect(screen.getByText('No logs match the current filters')).toBeInTheDocument();
     });
 
     it('does not show pagination in empty state', () => {
-      render(
-        <LogsTable
-          logs={[]}
-          totalCount={0}
-          limit={50}
-          offset={0}
-        />
-      );
+      render(<LogsTable logs={[]} totalCount={0} limit={50} offset={0} />);
 
       expect(screen.queryByLabelText('Previous page')).not.toBeInTheDocument();
     });
@@ -575,14 +384,7 @@ describe('LogsTable', () => {
         timestamp: new Date().toISOString(),
       };
 
-      render(
-        <LogsTable
-          logs={[recentLog]}
-          totalCount={1}
-          limit={50}
-          offset={0}
-        />
-      );
+      render(<LogsTable logs={[recentLog]} totalCount={1} limit={50} offset={0} />);
 
       // Should show "Just now" or similar relative time
       const table = screen.getByRole('table');
@@ -590,14 +392,7 @@ describe('LogsTable', () => {
     });
 
     it('formats all log timestamps', () => {
-      render(
-        <LogsTable
-          logs={mockLogs}
-          totalCount={5}
-          limit={50}
-          offset={0}
-        />
-      );
+      render(<LogsTable logs={mockLogs} totalCount={5} limit={50} offset={0} />);
 
       const table = screen.getByRole('table');
       const rows = within(table).getAllByRole('row');
@@ -610,13 +405,7 @@ describe('LogsTable', () => {
   describe('Custom Styling', () => {
     it('applies custom className', () => {
       const { container } = render(
-        <LogsTable
-          logs={mockLogs}
-          totalCount={5}
-          limit={50}
-          offset={0}
-          className="custom-class"
-        />
+        <LogsTable logs={mockLogs} totalCount={5} limit={50} offset={0} className="custom-class" />
       );
 
       const wrapper = container.querySelector('.custom-class');
@@ -625,12 +414,7 @@ describe('LogsTable', () => {
 
     it('uses NVIDIA dark theme colors', () => {
       const { container } = render(
-        <LogsTable
-          logs={mockLogs}
-          totalCount={5}
-          limit={50}
-          offset={0}
-        />
+        <LogsTable logs={mockLogs} totalCount={5} limit={50} offset={0} />
       );
 
       const tableContainer = container.querySelector('.bg-\\[\\#1F1F1F\\]');

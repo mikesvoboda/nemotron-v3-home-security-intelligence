@@ -123,7 +123,10 @@ export default function DashboardPage() {
   const currentRiskScore = mergedEvents.length > 0 ? mergedEvents[0].risk_score : 0;
 
   // Calculate risk history from recent merged events (last 10)
-  const riskHistory = mergedEvents.slice(0, 10).reverse().map((event) => event.risk_score);
+  const riskHistory = mergedEvents
+    .slice(0, 10)
+    .reverse()
+    .map((event) => event.risk_score);
 
   // Calculate active cameras count
   const activeCamerasCount = cameras.filter((camera) => camera.status === 'online').length;
@@ -162,16 +165,29 @@ export default function DashboardPage() {
   const cameraStatuses: CameraStatus[] = cameras.map((camera) => ({
     id: camera.id,
     name: camera.name,
-    status: (camera.status === 'online' || camera.status === 'offline' || camera.status === 'error') ? camera.status : 'unknown',
+    status:
+      camera.status === 'online' || camera.status === 'offline' || camera.status === 'error'
+        ? camera.status
+        : 'unknown',
     thumbnail_url: getCameraSnapshotUrl(camera.id),
     last_seen_at: camera.last_seen_at ?? undefined,
   }));
 
+  // Create a map from camera_id to camera name for quick lookups
+  const cameraNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    cameras.forEach((camera) => {
+      map.set(camera.id, camera.name);
+    });
+    return map;
+  }, [cameras]);
+
   // Convert merged events to ActivityEvent[] for ActivityFeed
+  // Resolve camera_name from cameras list or fall back to 'Unknown Camera'
   const activityEvents: ActivityEvent[] = mergedEvents.map((event) => ({
     id: String(event.id),
     timestamp: event.timestamp ?? event.started_at ?? new Date().toISOString(),
-    camera_name: event.camera_name ?? 'Unknown Camera',
+    camera_name: event.camera_name ?? cameraNameMap.get(event.camera_id) ?? 'Unknown Camera',
     risk_score: event.risk_score,
     summary: event.summary,
   }));
@@ -283,9 +299,7 @@ export default function DashboardPage() {
         {/* Camera Grid */}
         <div className="mb-8">
           <h2 className="mb-4 text-2xl font-semibold text-white">Camera Status</h2>
-          <CameraGrid
-            cameras={cameraStatuses}
-          />
+          <CameraGrid cameras={cameraStatuses} />
         </div>
 
         {/* Activity Feed */}

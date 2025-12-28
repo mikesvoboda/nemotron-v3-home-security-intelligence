@@ -49,7 +49,9 @@ describe('EventCard', () => {
     it('renders component with required props', () => {
       render(<EventCard {...mockProps} />);
       expect(screen.getByText('Front Door')).toBeInTheDocument();
-      expect(screen.getByText('Person detected approaching the front entrance')).toBeInTheDocument();
+      expect(
+        screen.getByText('Person detected approaching the front entrance')
+      ).toBeInTheDocument();
     });
 
     it('renders camera name', () => {
@@ -686,14 +688,14 @@ describe('EventCard', () => {
       const children = card ? Array.from(card.children) : [];
 
       // Find indices of badges container and thumbnail container
-      const badgesIndex = children.findIndex((el) =>
-        el.classList.contains('flex') &&
-        el.classList.contains('flex-wrap') &&
-        el.textContent?.includes('Person')
+      const badgesIndex = children.findIndex(
+        (el) =>
+          el.classList.contains('flex') &&
+          el.classList.contains('flex-wrap') &&
+          el.textContent?.includes('Person')
       );
-      const thumbnailIndex = children.findIndex((el) =>
-        el.classList.contains('mb-3') &&
-        el.querySelector('img')
+      const thumbnailIndex = children.findIndex(
+        (el) => el.classList.contains('mb-3') && el.querySelector('img')
       );
 
       // Badges should come before thumbnail
@@ -861,7 +863,13 @@ describe('EventCard', () => {
     it('progress bar container has correct styling', () => {
       render(<EventCard {...mockProps} />);
       const progressBar = screen.getByRole('progressbar');
-      expect(progressBar).toHaveClass('h-2', 'w-full', 'overflow-hidden', 'rounded-full', 'bg-gray-800');
+      expect(progressBar).toHaveClass(
+        'h-2',
+        'w-full',
+        'overflow-hidden',
+        'rounded-full',
+        'bg-gray-800'
+      );
     });
 
     it('progress bar fill has correct styling', () => {
@@ -937,7 +945,9 @@ describe('EventCard', () => {
         camera_name: 'Front Door Main Entrance Camera Position Alpha',
       };
       render(<EventCard {...longCameraNameEvent} />);
-      expect(screen.getByText('Front Door Main Entrance Camera Position Alpha')).toBeInTheDocument();
+      expect(
+        screen.getByText('Front Door Main Entrance Camera Position Alpha')
+      ).toBeInTheDocument();
     });
 
     it('applies truncation and title tooltip to camera name', () => {
@@ -1099,6 +1109,31 @@ describe('EventCard', () => {
       const { container } = render(<EventCard {...mockProps} />);
       const card = container.firstChild as HTMLElement;
       expect(card).toHaveClass('p-4');
+    });
+  });
+
+  describe('checkbox overlay support', () => {
+    it('does not add left margin to header by default', () => {
+      const { container } = render(<EventCard {...mockProps} />);
+      const headerDiv = container.querySelector('.mb-3.flex.items-start.justify-between');
+      expect(headerDiv).not.toHaveClass('ml-8');
+    });
+
+    it('adds left margin to header when hasCheckboxOverlay is true', () => {
+      const { container } = render(<EventCard {...mockProps} hasCheckboxOverlay />);
+      const headerDiv = container.querySelector('.mb-3.flex.items-start.justify-between');
+      expect(headerDiv).toHaveClass('ml-8');
+    });
+
+    it('still displays camera name correctly with checkbox overlay', () => {
+      render(<EventCard {...mockProps} hasCheckboxOverlay />);
+      expect(screen.getByText('Front Door')).toBeInTheDocument();
+    });
+
+    it('applies ml-8 class only to header, not entire card', () => {
+      const { container } = render(<EventCard {...mockProps} hasCheckboxOverlay />);
+      const card = container.firstChild as HTMLElement;
+      expect(card).not.toHaveClass('ml-8');
     });
   });
 
@@ -1345,9 +1380,7 @@ describe('EventCard', () => {
       const user = userEvent.setup();
       const handleClick = vi.fn();
       const handleViewDetails = vi.fn();
-      render(
-        <EventCard {...mockProps} onClick={handleClick} onViewDetails={handleViewDetails} />
-      );
+      render(<EventCard {...mockProps} onClick={handleClick} onViewDetails={handleViewDetails} />);
 
       // Click on card (not on button)
       const summaryText = screen.getByText('Person detected approaching the front entrance');
@@ -1380,7 +1413,9 @@ describe('EventCard', () => {
       expect(screen.getByText(/minutes ago/)).toBeInTheDocument();
       expect(screen.getByText('Medium (45)')).toBeInTheDocument();
       expect(screen.getAllByRole('img').length).toBeGreaterThan(0);
-      expect(screen.getByText('Person detected approaching the front entrance')).toBeInTheDocument();
+      expect(
+        screen.getByText('Person detected approaching the front entrance')
+      ).toBeInTheDocument();
       expect(screen.getByText('Detections (2)')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /AI Reasoning/i })).toBeInTheDocument();
       expect(

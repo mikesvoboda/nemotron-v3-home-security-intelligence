@@ -66,7 +66,9 @@ describe('LogDetailModal', () => {
     it('displays log message', () => {
       render(<LogDetailModal log={mockLog} isOpen={true} onClose={mockOnClose} />);
 
-      expect(screen.getByText('Failed to process request due to database timeout')).toBeInTheDocument();
+      expect(
+        screen.getByText('Failed to process request due to database timeout')
+      ).toBeInTheDocument();
     });
   });
 

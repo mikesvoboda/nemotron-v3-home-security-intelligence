@@ -62,15 +62,15 @@ export default function PipelineQueues({
 
   return (
     <Card
-      className={clsx('bg-[#1A1A1A] border-gray-800 shadow-lg', className)}
+      className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)}
       data-testid="pipeline-queues"
     >
-      <Title className="text-white mb-4 flex items-center gap-2">
+      <Title className="mb-4 flex items-center gap-2 text-white">
         <Layers className="h-5 w-5 text-[#76B900]" />
         Pipeline Queues
         {anyBackingUp && (
           <AlertTriangle
-            className="h-5 w-5 text-red-500 animate-pulse"
+            className="h-5 w-5 animate-pulse text-red-500"
             data-testid="queue-warning-icon"
             aria-label="Queue backup warning"
           />
@@ -81,14 +81,14 @@ export default function PipelineQueues({
         {/* Detection Queue */}
         <div
           className={clsx(
-            'flex items-center justify-between p-3 rounded-lg',
-            detectionBackingUp ? 'bg-red-500/10 border border-red-500/30' : 'bg-gray-800/50'
+            'flex items-center justify-between rounded-lg p-3',
+            detectionBackingUp ? 'border border-red-500/30 bg-red-500/10' : 'bg-gray-800/50'
           )}
           data-testid="detection-queue-row"
         >
           <div className="flex flex-col">
-            <Text className="text-gray-300 text-sm font-medium">Detection Queue</Text>
-            <Text className="text-gray-500 text-xs">RT-DETRv2 processing</Text>
+            <Text className="text-sm font-medium text-gray-300">Detection Queue</Text>
+            <Text className="text-xs text-gray-500">RT-DETRv2 processing</Text>
           </div>
           <div className="flex items-center gap-2">
             {detectionBackingUp && (
@@ -98,11 +98,7 @@ export default function PipelineQueues({
                 aria-label="Detection queue backing up"
               />
             )}
-            <Badge
-              color={detectionColor}
-              size="lg"
-              data-testid="detection-queue-badge"
-            >
+            <Badge color={detectionColor} size="lg" data-testid="detection-queue-badge">
               {detectionQueue}
             </Badge>
           </div>
@@ -111,14 +107,14 @@ export default function PipelineQueues({
         {/* Analysis Queue */}
         <div
           className={clsx(
-            'flex items-center justify-between p-3 rounded-lg',
-            analysisBackingUp ? 'bg-red-500/10 border border-red-500/30' : 'bg-gray-800/50'
+            'flex items-center justify-between rounded-lg p-3',
+            analysisBackingUp ? 'border border-red-500/30 bg-red-500/10' : 'bg-gray-800/50'
           )}
           data-testid="analysis-queue-row"
         >
           <div className="flex flex-col">
-            <Text className="text-gray-300 text-sm font-medium">Analysis Queue</Text>
-            <Text className="text-gray-500 text-xs">Nemotron LLM analysis</Text>
+            <Text className="text-sm font-medium text-gray-300">Analysis Queue</Text>
+            <Text className="text-xs text-gray-500">Nemotron LLM analysis</Text>
           </div>
           <div className="flex items-center gap-2">
             {analysisBackingUp && (
@@ -128,11 +124,7 @@ export default function PipelineQueues({
                 aria-label="Analysis queue backing up"
               />
             )}
-            <Badge
-              color={analysisColor}
-              size="lg"
-              data-testid="analysis-queue-badge"
-            >
+            <Badge color={analysisColor} size="lg" data-testid="analysis-queue-badge">
               {analysisQueue}
             </Badge>
           </div>
@@ -141,12 +133,12 @@ export default function PipelineQueues({
         {/* Warning message when queues are backing up */}
         {anyBackingUp && (
           <div
-            className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30"
+            className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-3"
             role="alert"
             data-testid="queue-backup-warning"
           >
-            <AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0" />
-            <Text className="text-red-400 text-sm">
+            <AlertTriangle className="h-4 w-4 flex-shrink-0 text-red-500" />
+            <Text className="text-sm text-red-400">
               Queue backup detected. Processing may be delayed.
             </Text>
           </div>

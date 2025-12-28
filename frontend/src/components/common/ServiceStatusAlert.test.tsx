@@ -1,11 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import {
-  ServiceStatusAlert,
-  ServiceName,
-  ServiceStatus,
-} from './ServiceStatusAlert';
+import { ServiceStatusAlert, ServiceName, ServiceStatus } from './ServiceStatusAlert';
 
 /**
  * Tests for ServiceStatusAlert component.
@@ -450,7 +446,11 @@ describe('ServiceStatusAlert (DEPRECATED - backend not wired)', () => {
         nemotron: null,
       };
       render(<ServiceStatusAlert services={services} />);
-      expect(screen.getByRole('alert')).toHaveClass('transition-all', 'duration-300', 'ease-in-out');
+      expect(screen.getByRole('alert')).toHaveClass(
+        'transition-all',
+        'duration-300',
+        'ease-in-out'
+      );
     });
   });
 });

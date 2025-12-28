@@ -13,7 +13,12 @@ vi.mock('../../hooks/useSystemStatus');
 
 // Mock child components
 vi.mock('./StatsRow', () => ({
-  default: ({ activeCameras, eventsToday, currentRiskScore, systemStatus }: {
+  default: ({
+    activeCameras,
+    eventsToday,
+    currentRiskScore,
+    systemStatus,
+  }: {
     activeCameras: number;
     eventsToday: number;
     currentRiskScore: number;
@@ -40,7 +45,12 @@ vi.mock('./RiskGauge', () => ({
 }));
 
 vi.mock('./GpuStats', () => ({
-  default: ({ utilization, memoryUsed, temperature, inferenceFps }: {
+  default: ({
+    utilization,
+    memoryUsed,
+    temperature,
+    inferenceFps,
+  }: {
     utilization: number | null;
     memoryUsed: number | null;
     temperature: number | null;
@@ -59,7 +69,11 @@ vi.mock('./GpuStats', () => ({
 }));
 
 vi.mock('./CameraGrid', () => ({
-  default: ({ cameras }: { cameras: Array<{ id: string; name: string; thumbnail_url?: string }> }) => (
+  default: ({
+    cameras,
+  }: {
+    cameras: Array<{ id: string; name: string; thumbnail_url?: string }>;
+  }) => (
     <div data-testid="camera-grid" data-camera-count={cameras.length}>
       {cameras.map((camera) => (
         <div key={camera.id} data-thumbnail-url={camera.thumbnail_url}>
@@ -71,8 +85,19 @@ vi.mock('./CameraGrid', () => ({
 }));
 
 vi.mock('./ActivityFeed', () => ({
-  default: ({ events, maxItems }: { events: Array<{ id: string }>; maxItems: number }) => (
-    <div data-testid="activity-feed" data-event-count={events.length} data-max-items={maxItems}>
+  default: ({
+    events,
+    maxItems,
+  }: {
+    events: Array<{ id: string; camera_name: string }>;
+    maxItems: number;
+  }) => (
+    <div
+      data-testid="activity-feed"
+      data-event-count={events.length}
+      data-max-items={maxItems}
+      data-camera-names={events.map((e) => e.camera_name).join(',')}
+    >
       Activity Feed
     </div>
   ),
@@ -218,26 +243,20 @@ describe('DashboardPage', () => {
   describe('Loading State', () => {
     it('renders loading skeletons while fetching initial data', () => {
       // Make API call hang
-      (api.fetchCameras as Mock).mockImplementation(
-        () => new Promise(() => {})
-      );
-      (api.fetchGPUStats as Mock).mockImplementation(
-        () => new Promise(() => {})
-      );
+      (api.fetchCameras as Mock).mockImplementation(() => new Promise(() => {}));
+      (api.fetchGPUStats as Mock).mockImplementation(() => new Promise(() => {}));
 
       render(<DashboardPage />);
 
       // Check for loading skeletons
-      const skeletons = screen.getAllByRole('generic').filter(
-        (el) => el.className.includes('animate-pulse')
-      );
+      const skeletons = screen
+        .getAllByRole('generic')
+        .filter((el) => el.className.includes('animate-pulse'));
       expect(skeletons.length).toBeGreaterThan(0);
     });
 
     it('loading state has correct background color', () => {
-      (api.fetchCameras as Mock).mockImplementation(
-        () => new Promise(() => {})
-      );
+      (api.fetchCameras as Mock).mockImplementation(() => new Promise(() => {}));
 
       const { container } = render(<DashboardPage />);
       const wrapper = container.firstChild as HTMLElement;
@@ -294,7 +313,9 @@ describe('DashboardPage', () => {
       render(<DashboardPage />);
 
       await waitFor(() => {
-        expect(screen.getByText(/real-time ai-powered home security monitoring/i)).toBeInTheDocument();
+        expect(
+          screen.getByText(/real-time ai-powered home security monitoring/i)
+        ).toBeInTheDocument();
       });
     });
 
@@ -671,6 +692,143 @@ describe('DashboardPage', () => {
         const riskGauge = screen.getByTestId('risk-gauge');
         // Latest WS event has risk_score 75
         expect(riskGauge).toHaveAttribute('data-value', '75');
+      });
+    });
+
+    it('resolves camera names from cameras list for events without camera_name', async () => {
+      // Set WebSocket events WITHOUT camera_name (simulating backend not providing it)
+      const wsEventsWithoutCameraName = [
+        {
+          id: 'event1',
+          camera_id: 'cam1', // Should resolve to 'Front Door'
+          risk_score: 75,
+          risk_level: 'high' as const,
+          summary: 'Person detected at front door',
+          timestamp: `${todayISOString}T12:00:00Z`,
+        },
+        {
+          id: 'event2',
+          camera_id: 'cam2', // Should resolve to 'Back Yard'
+          risk_score: 50,
+          risk_level: 'medium' as const,
+          summary: 'Motion detected',
+          timestamp: `${todayISOString}T11:55:00Z`,
+        },
+      ];
+
+      (useEventStreamHook.useEventStream as Mock).mockReturnValue({
+        events: wsEventsWithoutCameraName,
+        isConnected: true,
+        latestEvent: wsEventsWithoutCameraName[0],
+        clearEvents: vi.fn(),
+      });
+
+      // Also set initial events without camera_name
+      const initialEventsWithoutCameraName = [
+        {
+          id: 3,
+          camera_id: 'cam1', // Should resolve to 'Front Door'
+          started_at: '2025-01-01T11:50:00Z',
+          ended_at: '2025-01-01T11:52:00Z',
+          risk_score: 40,
+          risk_level: 'medium',
+          summary: 'Vehicle detected in driveway',
+          reviewed: false,
+          notes: null,
+          detection_count: 3,
+        },
+      ];
+
+      (api.fetchEvents as Mock).mockResolvedValue({
+        events: initialEventsWithoutCameraName,
+        count: 1,
+        limit: 50,
+        offset: 0,
+      });
+
+      render(<DashboardPage />);
+
+      await waitFor(() => {
+        const activityFeed = screen.getByTestId('activity-feed');
+        // Should have resolved camera names: cam1 -> 'Front Door', cam2 -> 'Back Yard'
+        const cameraNames = activityFeed.getAttribute('data-camera-names');
+        expect(cameraNames).toContain('Front Door');
+        expect(cameraNames).toContain('Back Yard');
+        expect(cameraNames).not.toContain('Unknown Camera');
+      });
+    });
+
+    it('falls back to "Unknown Camera" when camera_id not found in cameras list', async () => {
+      // Set event with unknown camera_id
+      const wsEventsWithUnknownCamera = [
+        {
+          id: 'event1',
+          camera_id: 'unknown-camera-id', // Not in mockCameras
+          risk_score: 75,
+          risk_level: 'high' as const,
+          summary: 'Person detected',
+          timestamp: `${todayISOString}T12:00:00Z`,
+        },
+      ];
+
+      (useEventStreamHook.useEventStream as Mock).mockReturnValue({
+        events: wsEventsWithUnknownCamera,
+        isConnected: true,
+        latestEvent: wsEventsWithUnknownCamera[0],
+        clearEvents: vi.fn(),
+      });
+
+      (api.fetchEvents as Mock).mockResolvedValue({
+        events: [],
+        count: 0,
+        limit: 50,
+        offset: 0,
+      });
+
+      render(<DashboardPage />);
+
+      await waitFor(() => {
+        const activityFeed = screen.getByTestId('activity-feed');
+        const cameraNames = activityFeed.getAttribute('data-camera-names');
+        expect(cameraNames).toBe('Unknown Camera');
+      });
+    });
+
+    it('uses camera_name from event if already provided (WebSocket with camera_name)', async () => {
+      // WS events that already have camera_name (from backend or enriched)
+      const wsEventsWithCameraName = [
+        {
+          id: 'event1',
+          camera_id: 'cam1',
+          camera_name: 'Custom Name From Backend', // Already provided
+          risk_score: 75,
+          risk_level: 'high' as const,
+          summary: 'Person detected',
+          timestamp: `${todayISOString}T12:00:00Z`,
+        },
+      ];
+
+      (useEventStreamHook.useEventStream as Mock).mockReturnValue({
+        events: wsEventsWithCameraName,
+        isConnected: true,
+        latestEvent: wsEventsWithCameraName[0],
+        clearEvents: vi.fn(),
+      });
+
+      (api.fetchEvents as Mock).mockResolvedValue({
+        events: [],
+        count: 0,
+        limit: 50,
+        offset: 0,
+      });
+
+      render(<DashboardPage />);
+
+      await waitFor(() => {
+        const activityFeed = screen.getByTestId('activity-feed');
+        const cameraNames = activityFeed.getAttribute('data-camera-names');
+        // Should use the provided camera_name, not look it up
+        expect(cameraNames).toBe('Custom Name From Backend');
       });
     });
   });

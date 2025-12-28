@@ -106,7 +106,12 @@ export default function SystemMonitoringPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Use the health status hook for service health
-  const { health, services, overallStatus, isLoading: healthLoading } = useHealthStatus({
+  const {
+    health,
+    services,
+    overallStatus,
+    isLoading: healthLoading,
+  } = useHealthStatus({
     pollingInterval: 30000,
   });
 
@@ -214,53 +219,53 @@ export default function SystemMonitoringPage() {
         <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
           {/* System Overview Card */}
           <Card
-            className="bg-[#1A1A1A] border-gray-800 shadow-lg"
+            className="border-gray-800 bg-[#1A1A1A] shadow-lg"
             data-testid="system-overview-card"
           >
-            <Title className="text-white mb-4 flex items-center gap-2">
+            <Title className="mb-4 flex items-center gap-2 text-white">
               <Activity className="h-5 w-5 text-[#76B900]" />
               System Overview
             </Title>
 
             <div className="space-y-4">
               {/* Uptime */}
-              <div className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
+              <div className="flex items-center justify-between rounded-lg bg-gray-800/50 p-3">
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4 text-gray-400" />
                   <Text className="text-gray-300">Uptime</Text>
                 </div>
-                <Metric className="text-[#76B900] text-lg">
+                <Metric className="text-lg text-[#76B900]">
                   {stats ? formatUptime(stats.uptime_seconds) : 'N/A'}
                 </Metric>
               </div>
 
               {/* Total Cameras */}
-              <div className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
+              <div className="flex items-center justify-between rounded-lg bg-gray-800/50 p-3">
                 <div className="flex items-center gap-2">
                   <Camera className="h-4 w-4 text-gray-400" />
                   <Text className="text-gray-300">Total Cameras</Text>
                 </div>
-                <Metric className="text-white text-lg">{stats?.total_cameras ?? 0}</Metric>
+                <Metric className="text-lg text-white">{stats?.total_cameras ?? 0}</Metric>
               </div>
 
               {/* Total Events */}
-              <div className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
+              <div className="flex items-center justify-between rounded-lg bg-gray-800/50 p-3">
                 <div className="flex items-center gap-2">
                   <AlertCircle className="h-4 w-4 text-gray-400" />
                   <Text className="text-gray-300">Total Events</Text>
                 </div>
-                <Metric className="text-white text-lg">
+                <Metric className="text-lg text-white">
                   {stats?.total_events?.toLocaleString() ?? 0}
                 </Metric>
               </div>
 
               {/* Total Detections */}
-              <div className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
+              <div className="flex items-center justify-between rounded-lg bg-gray-800/50 p-3">
                 <div className="flex items-center gap-2">
                   <Activity className="h-4 w-4 text-gray-400" />
                   <Text className="text-gray-300">Total Detections</Text>
                 </div>
-                <Metric className="text-white text-lg">
+                <Metric className="text-lg text-white">
                   {stats?.total_detections?.toLocaleString() ?? 0}
                 </Metric>
               </div>
@@ -269,11 +274,11 @@ export default function SystemMonitoringPage() {
 
           {/* Service Health Card */}
           <Card
-            className="bg-[#1A1A1A] border-gray-800 shadow-lg"
+            className="border-gray-800 bg-[#1A1A1A] shadow-lg"
             data-testid="service-health-card"
           >
-            <div className="flex items-center justify-between mb-4">
-              <Title className="text-white flex items-center gap-2">
+            <div className="mb-4 flex items-center justify-between">
+              <Title className="flex items-center gap-2 text-white">
                 <CheckCircle className="h-5 w-5 text-[#76B900]" />
                 Service Health
               </Title>
@@ -291,11 +296,7 @@ export default function SystemMonitoringPage() {
             <div className="space-y-3">
               {Object.entries(services).length > 0 ? (
                 Object.entries(services).map(([serviceName, serviceStatus]) => (
-                  <ServiceHealthRow
-                    key={serviceName}
-                    name={serviceName}
-                    status={serviceStatus}
-                  />
+                  <ServiceHealthRow key={serviceName} name={serviceName} status={serviceStatus} />
                 ))
               ) : (
                 <Text className="text-gray-500">No service data available</Text>
@@ -303,7 +304,7 @@ export default function SystemMonitoringPage() {
             </div>
 
             {health?.timestamp && (
-              <Text className="text-gray-500 text-xs mt-4">
+              <Text className="mt-4 text-xs text-gray-500">
                 Last checked: {new Date(health.timestamp).toLocaleTimeString()}
               </Text>
             )}
@@ -330,10 +331,10 @@ export default function SystemMonitoringPage() {
           {/* Latency Stats Card */}
           {telemetry?.latencies && (
             <Card
-              className="bg-[#1A1A1A] border-gray-800 shadow-lg"
+              className="border-gray-800 bg-[#1A1A1A] shadow-lg"
               data-testid="latency-stats-card"
             >
-              <Title className="text-white mb-4 flex items-center gap-2">
+              <Title className="mb-4 flex items-center gap-2 text-white">
                 <Clock className="h-5 w-5 text-[#76B900]" />
                 Pipeline Latency
               </Title>
@@ -341,26 +342,26 @@ export default function SystemMonitoringPage() {
               <div className="space-y-4">
                 {/* Detection Latency */}
                 {telemetry.latencies.detect && (
-                  <div className="p-3 bg-gray-800/50 rounded-lg">
-                    <Text className="text-gray-300 text-sm font-medium mb-2">
+                  <div className="rounded-lg bg-gray-800/50 p-3">
+                    <Text className="mb-2 text-sm font-medium text-gray-300">
                       Detection (RT-DETRv2)
                     </Text>
                     <div className="grid grid-cols-3 gap-2 text-center">
                       <div>
-                        <Text className="text-gray-500 text-xs">Avg</Text>
-                        <Text className="text-white font-medium">
+                        <Text className="text-xs text-gray-500">Avg</Text>
+                        <Text className="font-medium text-white">
                           {telemetry.latencies.detect.avg_ms?.toFixed(0) ?? 'N/A'}ms
                         </Text>
                       </div>
                       <div>
-                        <Text className="text-gray-500 text-xs">P95</Text>
-                        <Text className="text-white font-medium">
+                        <Text className="text-xs text-gray-500">P95</Text>
+                        <Text className="font-medium text-white">
                           {telemetry.latencies.detect.p95_ms?.toFixed(0) ?? 'N/A'}ms
                         </Text>
                       </div>
                       <div>
-                        <Text className="text-gray-500 text-xs">P99</Text>
-                        <Text className="text-white font-medium">
+                        <Text className="text-xs text-gray-500">P99</Text>
+                        <Text className="font-medium text-white">
                           {telemetry.latencies.detect.p99_ms?.toFixed(0) ?? 'N/A'}ms
                         </Text>
                       </div>
@@ -370,26 +371,26 @@ export default function SystemMonitoringPage() {
 
                 {/* Analysis Latency */}
                 {telemetry.latencies.analyze && (
-                  <div className="p-3 bg-gray-800/50 rounded-lg">
-                    <Text className="text-gray-300 text-sm font-medium mb-2">
+                  <div className="rounded-lg bg-gray-800/50 p-3">
+                    <Text className="mb-2 text-sm font-medium text-gray-300">
                       Analysis (Nemotron)
                     </Text>
                     <div className="grid grid-cols-3 gap-2 text-center">
                       <div>
-                        <Text className="text-gray-500 text-xs">Avg</Text>
-                        <Text className="text-white font-medium">
+                        <Text className="text-xs text-gray-500">Avg</Text>
+                        <Text className="font-medium text-white">
                           {telemetry.latencies.analyze.avg_ms?.toFixed(0) ?? 'N/A'}ms
                         </Text>
                       </div>
                       <div>
-                        <Text className="text-gray-500 text-xs">P95</Text>
-                        <Text className="text-white font-medium">
+                        <Text className="text-xs text-gray-500">P95</Text>
+                        <Text className="font-medium text-white">
                           {telemetry.latencies.analyze.p95_ms?.toFixed(0) ?? 'N/A'}ms
                         </Text>
                       </div>
                       <div>
-                        <Text className="text-gray-500 text-xs">P99</Text>
-                        <Text className="text-white font-medium">
+                        <Text className="text-xs text-gray-500">P99</Text>
+                        <Text className="font-medium text-white">
                           {telemetry.latencies.analyze.p99_ms?.toFixed(0) ?? 'N/A'}ms
                         </Text>
                       </div>
@@ -399,7 +400,7 @@ export default function SystemMonitoringPage() {
               </div>
 
               {telemetry.timestamp && (
-                <Text className="text-gray-500 text-xs mt-4">
+                <Text className="mt-4 text-xs text-gray-500">
                   Updated: {new Date(telemetry.timestamp).toLocaleTimeString()}
                 </Text>
               )}
@@ -429,9 +430,9 @@ function ServiceHealthRow({ name, status }: ServiceHealthRowProps) {
   return (
     <div
       className={clsx(
-        'flex items-center justify-between p-3 rounded-lg',
-        status.status === 'unhealthy' && 'bg-red-500/10 border border-red-500/30',
-        status.status === 'degraded' && 'bg-yellow-500/10 border border-yellow-500/30',
+        'flex items-center justify-between rounded-lg p-3',
+        status.status === 'unhealthy' && 'border border-red-500/30 bg-red-500/10',
+        status.status === 'degraded' && 'border border-yellow-500/30 bg-yellow-500/10',
         status.status === 'healthy' && 'bg-gray-800/50',
         status.status !== 'healthy' &&
           status.status !== 'degraded' &&
@@ -443,10 +444,8 @@ function ServiceHealthRow({ name, status }: ServiceHealthRowProps) {
       <div className="flex items-center gap-2">
         <ServiceStatusIcon status={status.status} />
         <div>
-          <Text className="text-gray-300 text-sm font-medium">{displayName}</Text>
-          {status.message && (
-            <Text className="text-gray-500 text-xs">{status.message}</Text>
-          )}
+          <Text className="text-sm font-medium text-gray-300">{displayName}</Text>
+          {status.message && <Text className="text-xs text-gray-500">{status.message}</Text>}
         </div>
       </div>
       <Badge color={getServiceStatusColor(status.status)} size="sm">
