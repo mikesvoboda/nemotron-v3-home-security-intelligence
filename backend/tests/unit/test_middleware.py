@@ -8,14 +8,13 @@ This module provides comprehensive tests for:
 
 import hashlib
 import os
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import FastAPI, WebSocket, status
 from fastapi.testclient import TestClient
 from starlette.requests import Request
 from starlette.responses import Response
-from starlette.testclient import TestClient as StarletteTestClient
 
 from backend.api.middleware.auth import (
     AuthMiddleware,
@@ -26,8 +25,7 @@ from backend.api.middleware.auth import (
 )
 from backend.api.middleware.request_id import RequestIDMiddleware
 from backend.core.config import get_settings
-from backend.core.logging import get_request_id, set_request_id
-
+from backend.core.logging import get_request_id
 
 # =============================================================================
 # RequestIDMiddleware Tests

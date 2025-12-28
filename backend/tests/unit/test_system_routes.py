@@ -7,7 +7,7 @@ but are important for correctness (and to satisfy the backend coverage gate).
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -722,9 +722,7 @@ async def test_get_gpu_stats_history_with_since_filter() -> None:
     db.execute = AsyncMock(return_value=mock_result)
 
     since_time = datetime(2025, 12, 27, 9, 0, 0)
-    response = await system_routes.get_gpu_stats_history(
-        since=since_time, db=db
-    )  # type: ignore[arg-type]
+    response = await system_routes.get_gpu_stats_history(since=since_time, db=db)  # type: ignore[arg-type]
 
     assert isinstance(response, GPUStatsHistoryResponse)
     assert response.count == 1
@@ -742,21 +740,15 @@ async def test_get_gpu_stats_history_limit_clamping() -> None:
     db.execute = AsyncMock(return_value=mock_result)
 
     # Test that limit of 0 is clamped to 1
-    response = await system_routes.get_gpu_stats_history(
-        limit=0, db=db
-    )  # type: ignore[arg-type]
+    response = await system_routes.get_gpu_stats_history(limit=0, db=db)  # type: ignore[arg-type]
     assert response.limit == 1
 
     # Test that negative limit is clamped to 1
-    response = await system_routes.get_gpu_stats_history(
-        limit=-5, db=db
-    )  # type: ignore[arg-type]
+    response = await system_routes.get_gpu_stats_history(limit=-5, db=db)  # type: ignore[arg-type]
     assert response.limit == 1
 
     # Test that limit over 5000 is clamped to 5000
-    response = await system_routes.get_gpu_stats_history(
-        limit=10000, db=db
-    )  # type: ignore[arg-type]
+    response = await system_routes.get_gpu_stats_history(limit=10000, db=db)  # type: ignore[arg-type]
     assert response.limit == 5000
 
 
@@ -848,9 +840,7 @@ async def test_get_health_unhealthy_when_all_services_down() -> None:
     db.execute = AsyncMock(side_effect=RuntimeError("db error"))
 
     redis = AsyncMock()
-    redis.health_check = AsyncMock(
-        return_value={"status": "unhealthy", "error": "redis error"}
-    )
+    redis.health_check = AsyncMock(return_value={"status": "unhealthy", "error": "redis error"})
 
     response = await system_routes.get_health(db, redis)  # type: ignore[arg-type]
 
@@ -1150,9 +1140,7 @@ async def test_record_stage_latency_invalid_stage() -> None:
     redis.add_to_queue = AsyncMock()
 
     with patch.object(system_routes.logger, "warning") as mock_warning:
-        await system_routes.record_stage_latency(
-            redis, "invalid_stage", 10.5
-        )  # type: ignore[arg-type]
+        await system_routes.record_stage_latency(redis, "invalid_stage", 10.5)  # type: ignore[arg-type]
 
     mock_warning.assert_called_once()
     assert "invalid_stage" in mock_warning.call_args[0][0]
@@ -1254,16 +1242,18 @@ def test_calculate_stage_latency_unsorted_samples() -> None:
 async def test_get_latency_stats_with_data() -> None:
     """Test get_latency_stats returns latency statistics for all stages."""
     redis = AsyncMock()
-    redis.peek_queue = AsyncMock(side_effect=[
-        # watch stage
-        [10.0, 15.0, 20.0],
-        # detect stage
-        [100.0, 150.0, 200.0],
-        # batch stage
-        [1000.0, 1500.0],
-        # analyze stage
-        [5000.0, 6000.0, 7000.0],
-    ])
+    redis.peek_queue = AsyncMock(
+        side_effect=[
+            # watch stage
+            [10.0, 15.0, 20.0],
+            # detect stage
+            [100.0, 150.0, 200.0],
+            # batch stage
+            [1000.0, 1500.0],
+            # analyze stage
+            [5000.0, 6000.0, 7000.0],
+        ]
+    )
 
     result = await system_routes.get_latency_stats(redis)  # type: ignore[arg-type]
 
@@ -1297,14 +1287,16 @@ async def test_get_latency_stats_empty_queues() -> None:
 async def test_get_latency_stats_invalid_values_filtered() -> None:
     """Test get_latency_stats filters out invalid sample values."""
     redis = AsyncMock()
-    redis.peek_queue = AsyncMock(side_effect=[
-        # watch stage with some invalid values
-        [10.0, "invalid", 20.0, None, 30.0],
-        # Other stages empty
-        [],
-        [],
-        [],
-    ])
+    redis.peek_queue = AsyncMock(
+        side_effect=[
+            # watch stage with some invalid values
+            [10.0, "invalid", 20.0, None, 30.0],
+            # Other stages empty
+            [],
+            [],
+            [],
+        ]
+    )
 
     result = await system_routes.get_latency_stats(redis)  # type: ignore[arg-type]
 
@@ -1333,12 +1325,14 @@ async def test_get_telemetry_returns_queue_depths_and_latencies() -> None:
     """Test get_telemetry returns queue depths and latency statistics."""
     redis = AsyncMock()
     redis.get_queue_length = AsyncMock(side_effect=[5, 2])
-    redis.peek_queue = AsyncMock(side_effect=[
-        [10.0, 15.0],  # watch
-        [100.0, 150.0],  # detect
-        [1000.0],  # batch
-        [5000.0, 6000.0],  # analyze
-    ])
+    redis.peek_queue = AsyncMock(
+        side_effect=[
+            [10.0, 15.0],  # watch
+            [100.0, 150.0],  # detect
+            [1000.0],  # batch
+            [5000.0, 6000.0],  # analyze
+        ]
+    )
 
     response = await system_routes.get_telemetry(redis)  # type: ignore[arg-type]
 
@@ -1388,9 +1382,7 @@ async def test_check_database_health_healthy() -> None:
 async def test_check_redis_health_healthy() -> None:
     """Test check_redis_health returns healthy with version details."""
     redis = AsyncMock()
-    redis.health_check = AsyncMock(
-        return_value={"status": "healthy", "redis_version": "7.2.0"}
-    )
+    redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.2.0"})
 
     status = await system_routes.check_redis_health(redis)  # type: ignore[arg-type]
 
@@ -1463,12 +1455,14 @@ async def test_get_latency_stats_string_conversion() -> None:
     """Test get_latency_stats correctly converts string values to floats."""
     redis = AsyncMock()
     # Return string values that should be converted to floats
-    redis.peek_queue = AsyncMock(side_effect=[
-        ["10.5", "20.0", "30.5"],  # watch - strings
-        [],
-        [],
-        [],
-    ])
+    redis.peek_queue = AsyncMock(
+        side_effect=[
+            ["10.5", "20.0", "30.5"],  # watch - strings
+            [],
+            [],
+            [],
+        ]
+    )
 
     result = await system_routes.get_latency_stats(redis)  # type: ignore[arg-type]
 
@@ -1484,13 +1478,15 @@ async def test_get_latency_stats_string_conversion() -> None:
 async def test_get_latency_stats_mixed_valid_invalid() -> None:
     """Test get_latency_stats handles mix of valid and invalid values."""
     redis = AsyncMock()
-    redis.peek_queue = AsyncMock(side_effect=[
-        # Mix of valid floats, valid strings, and invalid values
-        [10.0, "20.0", {"invalid": True}, [], "not_a_number", 30.0],
-        [],
-        [],
-        [],
-    ])
+    redis.peek_queue = AsyncMock(
+        side_effect=[
+            # Mix of valid floats, valid strings, and invalid values
+            [10.0, "20.0", {"invalid": True}, [], "not_a_number", 30.0],
+            [],
+            [],
+            [],
+        ]
+    )
 
     result = await system_routes.get_latency_stats(redis)  # type: ignore[arg-type]
 

@@ -18,7 +18,6 @@ import pytest
 from backend.api.routes import events as events_routes
 from backend.api.schemas.events import EventUpdate
 
-
 # =============================================================================
 # Helper Functions
 # =============================================================================
@@ -143,8 +142,16 @@ async def test_list_events_returns_events_with_detection_count() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
-        camera_id=None, risk_level=None, start_date=None, end_date=None,
-        reviewed=None, object_type=None, limit=50, offset=0, db=db)
+        camera_id=None,
+        risk_level=None,
+        start_date=None,
+        end_date=None,
+        reviewed=None,
+        object_type=None,
+        limit=50,
+        offset=0,
+        db=db,
+    )
 
     assert len(response["events"]) == 1
     assert response["events"][0]["id"] == 1
@@ -170,8 +177,16 @@ async def test_list_events_with_empty_detection_ids() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
-        camera_id=None, risk_level=None, start_date=None, end_date=None,
-        reviewed=None, object_type=None, limit=50, offset=0, db=db)
+        camera_id=None,
+        risk_level=None,
+        start_date=None,
+        end_date=None,
+        reviewed=None,
+        object_type=None,
+        limit=50,
+        offset=0,
+        db=db,
+    )
 
     assert len(response["events"]) == 1
     assert response["events"][0]["detection_count"] == 0
@@ -195,8 +210,16 @@ async def test_list_events_with_empty_string_detection_ids() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
-        camera_id=None, risk_level=None, start_date=None, end_date=None,
-        reviewed=None, object_type=None, limit=50, offset=0, db=db)
+        camera_id=None,
+        risk_level=None,
+        start_date=None,
+        end_date=None,
+        reviewed=None,
+        object_type=None,
+        limit=50,
+        offset=0,
+        db=db,
+    )
 
     assert len(response["events"]) == 1
     assert response["events"][0]["detection_count"] == 0
@@ -220,8 +243,16 @@ async def test_list_events_with_camera_id_filter() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
-        camera_id="cam-001", risk_level=None, start_date=None, end_date=None,
-        reviewed=None, object_type=None, limit=50, offset=0, db=db)
+        camera_id="cam-001",
+        risk_level=None,
+        start_date=None,
+        end_date=None,
+        reviewed=None,
+        object_type=None,
+        limit=50,
+        offset=0,
+        db=db,
+    )
 
     assert len(response["events"]) == 1
     assert response["events"][0]["camera_id"] == "cam-001"
@@ -245,8 +276,16 @@ async def test_list_events_with_risk_level_filter() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
-        camera_id=None, risk_level="high", start_date=None, end_date=None,
-        reviewed=None, object_type=None, limit=50, offset=0, db=db)
+        camera_id=None,
+        risk_level="high",
+        start_date=None,
+        end_date=None,
+        reviewed=None,
+        object_type=None,
+        limit=50,
+        offset=0,
+        db=db,
+    )
 
     assert len(response["events"]) == 1
     assert response["events"][0]["risk_level"] == "high"
@@ -274,8 +313,16 @@ async def test_list_events_with_date_filters() -> None:
     end = now + timedelta(hours=1)
 
     response = await events_routes.list_events(
-        camera_id=None, risk_level=None, start_date=start, end_date=end,
-        reviewed=None, object_type=None, limit=50, offset=0, db=db)
+        camera_id=None,
+        risk_level=None,
+        start_date=start,
+        end_date=end,
+        reviewed=None,
+        object_type=None,
+        limit=50,
+        offset=0,
+        db=db,
+    )
 
     assert len(response["events"]) == 1
 
@@ -298,8 +345,16 @@ async def test_list_events_with_reviewed_filter_true() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
-        camera_id=None, risk_level=None, start_date=None, end_date=None,
-        reviewed=True, object_type=None, limit=50, offset=0, db=db)
+        camera_id=None,
+        risk_level=None,
+        start_date=None,
+        end_date=None,
+        reviewed=True,
+        object_type=None,
+        limit=50,
+        offset=0,
+        db=db,
+    )
 
     assert len(response["events"]) == 1
     assert response["events"][0]["reviewed"] is True
@@ -323,8 +378,16 @@ async def test_list_events_with_reviewed_filter_false() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
-        camera_id=None, risk_level=None, start_date=None, end_date=None,
-        reviewed=False, object_type=None, limit=50, offset=0, db=db)
+        camera_id=None,
+        risk_level=None,
+        start_date=None,
+        end_date=None,
+        reviewed=False,
+        object_type=None,
+        limit=50,
+        offset=0,
+        db=db,
+    )
 
     assert len(response["events"]) == 1
     assert response["events"][0]["reviewed"] is False
@@ -349,13 +412,19 @@ async def test_list_events_with_object_type_filter_matching() -> None:
     events_result = MagicMock()
     events_result.scalars.return_value.all.return_value = [mock_event]
 
-    db.execute = AsyncMock(
-        side_effect=[detection_ids_result, count_result, events_result]
-    )
+    db.execute = AsyncMock(side_effect=[detection_ids_result, count_result, events_result])
 
     response = await events_routes.list_events(
-        camera_id=None, risk_level=None, start_date=None, end_date=None,
-        reviewed=None, object_type="person", limit=50, offset=0, db=db)
+        camera_id=None,
+        risk_level=None,
+        start_date=None,
+        end_date=None,
+        reviewed=None,
+        object_type="person",
+        limit=50,
+        offset=0,
+        db=db,
+    )
 
     assert len(response["events"]) == 1
 
@@ -377,13 +446,19 @@ async def test_list_events_with_object_type_filter_no_matches() -> None:
     events_result = MagicMock()
     events_result.scalars.return_value.all.return_value = []
 
-    db.execute = AsyncMock(
-        side_effect=[detection_ids_result, count_result, events_result]
-    )
+    db.execute = AsyncMock(side_effect=[detection_ids_result, count_result, events_result])
 
     response = await events_routes.list_events(
-        camera_id=None, risk_level=None, start_date=None, end_date=None,
-        reviewed=None, object_type="vehicle", limit=50, offset=0, db=db)
+        camera_id=None,
+        risk_level=None,
+        start_date=None,
+        end_date=None,
+        reviewed=None,
+        object_type="vehicle",
+        limit=50,
+        offset=0,
+        db=db,
+    )
 
     assert len(response["events"]) == 0
     assert response["count"] == 0
@@ -407,8 +482,16 @@ async def test_list_events_pagination_with_custom_limit() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
-        camera_id=None, risk_level=None, start_date=None, end_date=None,
-        reviewed=None, object_type=None, limit=3, offset=0, db=db)
+        camera_id=None,
+        risk_level=None,
+        start_date=None,
+        end_date=None,
+        reviewed=None,
+        object_type=None,
+        limit=3,
+        offset=0,
+        db=db,
+    )
 
     assert len(response["events"]) == 3
     assert response["limit"] == 3
@@ -432,8 +515,16 @@ async def test_list_events_pagination_with_offset() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
-        camera_id=None, risk_level=None, start_date=None, end_date=None,
-        reviewed=None, object_type=None, limit=50, offset=5, db=db)
+        camera_id=None,
+        risk_level=None,
+        start_date=None,
+        end_date=None,
+        reviewed=None,
+        object_type=None,
+        limit=50,
+        offset=5,
+        db=db,
+    )
 
     assert len(response["events"]) == 5
     assert response["offset"] == 5
@@ -461,8 +552,16 @@ async def test_list_events_multiple_events() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
-        camera_id=None, risk_level=None, start_date=None, end_date=None,
-        reviewed=None, object_type=None, limit=50, offset=0, db=db)
+        camera_id=None,
+        risk_level=None,
+        start_date=None,
+        end_date=None,
+        reviewed=None,
+        object_type=None,
+        limit=50,
+        offset=0,
+        db=db,
+    )
 
     assert len(response["events"]) == 3
     assert response["count"] == 3
@@ -486,8 +585,16 @@ async def test_list_events_detection_ids_with_whitespace() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
-        camera_id=None, risk_level=None, start_date=None, end_date=None,
-        reviewed=None, object_type=None, limit=50, offset=0, db=db)
+        camera_id=None,
+        risk_level=None,
+        start_date=None,
+        end_date=None,
+        reviewed=None,
+        object_type=None,
+        limit=50,
+        offset=0,
+        db=db,
+    )
 
     assert len(response["events"]) == 1
     assert response["events"][0]["detection_count"] == 4
@@ -540,9 +647,7 @@ async def test_get_event_stats_counts_events_by_risk_level() -> None:
 
     # Mock camera query
     camera_result = MagicMock()
-    camera_result.scalars.return_value.all.return_value = [
-        create_mock_camera(camera_id="cam-001")
-    ]
+    camera_result.scalars.return_value.all.return_value = [create_mock_camera(camera_id="cam-001")]
 
     db.execute = AsyncMock(side_effect=[events_result, camera_result])
 
@@ -633,9 +738,7 @@ async def test_get_event_stats_with_date_filters() -> None:
 
     # Mock camera query
     camera_result = MagicMock()
-    camera_result.scalars.return_value.all.return_value = [
-        create_mock_camera(camera_id="cam-001")
-    ]
+    camera_result.scalars.return_value.all.return_value = [create_mock_camera(camera_id="cam-001")]
 
     db.execute = AsyncMock(side_effect=[events_result, camera_result])
 
@@ -664,9 +767,7 @@ async def test_get_event_stats_ignores_invalid_risk_levels() -> None:
 
     # Mock camera query
     camera_result = MagicMock()
-    camera_result.scalars.return_value.all.return_value = [
-        create_mock_camera(camera_id="cam-001")
-    ]
+    camera_result.scalars.return_value.all.return_value = [create_mock_camera(camera_id="cam-001")]
 
     db.execute = AsyncMock(side_effect=[events_result, camera_result])
 
@@ -824,7 +925,7 @@ async def test_update_event_marks_as_reviewed() -> None:
     db.refresh = AsyncMock()
 
     update_data = EventUpdate(reviewed=True)
-    response = await events_routes.update_event(event_id=1, update_data=update_data, db=db)
+    await events_routes.update_event(event_id=1, update_data=update_data, db=db)
 
     assert mock_event.reviewed is True
     db.commit.assert_called_once()
@@ -845,7 +946,7 @@ async def test_update_event_marks_as_not_reviewed() -> None:
     db.refresh = AsyncMock()
 
     update_data = EventUpdate(reviewed=False)
-    response = await events_routes.update_event(event_id=1, update_data=update_data, db=db)
+    await events_routes.update_event(event_id=1, update_data=update_data, db=db)
 
     assert mock_event.reviewed is False
 
@@ -864,7 +965,7 @@ async def test_update_event_updates_notes() -> None:
     db.refresh = AsyncMock()
 
     update_data = EventUpdate(notes="New notes")
-    response = await events_routes.update_event(event_id=1, update_data=update_data, db=db)
+    await events_routes.update_event(event_id=1, update_data=update_data, db=db)
 
     assert mock_event.notes == "New notes"
 
@@ -883,7 +984,7 @@ async def test_update_event_clears_notes() -> None:
     db.refresh = AsyncMock()
 
     update_data = EventUpdate(notes=None)
-    response = await events_routes.update_event(event_id=1, update_data=update_data, db=db)
+    await events_routes.update_event(event_id=1, update_data=update_data, db=db)
 
     assert mock_event.notes is None
 
@@ -902,7 +1003,7 @@ async def test_update_event_updates_both_reviewed_and_notes() -> None:
     db.refresh = AsyncMock()
 
     update_data = EventUpdate(reviewed=True, notes="Verified - delivery person")
-    response = await events_routes.update_event(event_id=1, update_data=update_data, db=db)
+    await events_routes.update_event(event_id=1, update_data=update_data, db=db)
 
     assert mock_event.reviewed is True
     assert mock_event.notes == "Verified - delivery person"
@@ -1014,9 +1115,7 @@ async def test_get_event_detections_returns_detections() -> None:
     detections_result = MagicMock()
     detections_result.scalars.return_value.all.return_value = mock_detections
 
-    db.execute = AsyncMock(
-        side_effect=[event_result, count_result, detections_result]
-    )
+    db.execute = AsyncMock(side_effect=[event_result, count_result, detections_result])
 
     response = await events_routes.get_event_detections(event_id=1, limit=50, offset=0, db=db)
 
@@ -1100,13 +1199,9 @@ async def test_get_event_detections_with_pagination() -> None:
     detections_result = MagicMock()
     detections_result.scalars.return_value.all.return_value = mock_detections
 
-    db.execute = AsyncMock(
-        side_effect=[event_result, count_result, detections_result]
-    )
+    db.execute = AsyncMock(side_effect=[event_result, count_result, detections_result])
 
-    response = await events_routes.get_event_detections(
-        event_id=1, limit=2, offset=2, db=db
-    )
+    response = await events_routes.get_event_detections(event_id=1, limit=2, offset=2, db=db)
 
     assert len(response["detections"]) == 2
     assert response["count"] == 5
@@ -1139,9 +1234,7 @@ async def test_get_event_detections_handles_whitespace_in_detection_ids() -> Non
     detections_result = MagicMock()
     detections_result.scalars.return_value.all.return_value = mock_detections
 
-    db.execute = AsyncMock(
-        side_effect=[event_result, count_result, detections_result]
-    )
+    db.execute = AsyncMock(side_effect=[event_result, count_result, detections_result])
 
     response = await events_routes.get_event_detections(event_id=1, limit=50, offset=0, db=db)
 
@@ -1156,9 +1249,7 @@ async def test_get_event_detections_custom_limit() -> None:
 
     mock_event = create_mock_event(event_id=1, detection_ids="1,2,3,4,5,6,7,8,9,10")
 
-    mock_detections = [
-        create_mock_detection(detection_id=i) for i in range(1, 6)
-    ]
+    mock_detections = [create_mock_detection(detection_id=i) for i in range(1, 6)]
 
     # Mock event query
     event_result = MagicMock()
@@ -1172,9 +1263,7 @@ async def test_get_event_detections_custom_limit() -> None:
     detections_result = MagicMock()
     detections_result.scalars.return_value.all.return_value = mock_detections
 
-    db.execute = AsyncMock(
-        side_effect=[event_result, count_result, detections_result]
-    )
+    db.execute = AsyncMock(side_effect=[event_result, count_result, detections_result])
 
     response = await events_routes.get_event_detections(event_id=1, limit=5, offset=0, db=db)
 
@@ -1213,9 +1302,7 @@ async def test_list_events_with_all_filters_combined() -> None:
     events_result = MagicMock()
     events_result.scalars.return_value.all.return_value = [mock_event]
 
-    db.execute = AsyncMock(
-        side_effect=[detection_ids_result, count_result, events_result]
-    )
+    db.execute = AsyncMock(side_effect=[detection_ids_result, count_result, events_result])
 
     response = await events_routes.list_events(
         camera_id="cam-001",
@@ -1273,8 +1360,16 @@ async def test_list_events_count_returns_zero_on_none() -> None:
     db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
-        camera_id=None, risk_level=None, start_date=None, end_date=None,
-        reviewed=None, object_type=None, limit=50, offset=0, db=db)
+        camera_id=None,
+        risk_level=None,
+        start_date=None,
+        end_date=None,
+        reviewed=None,
+        object_type=None,
+        limit=50,
+        offset=0,
+        db=db,
+    )
 
     assert response["count"] == 0
 
@@ -1298,9 +1393,7 @@ async def test_get_event_detections_count_returns_zero_on_none() -> None:
     detections_result = MagicMock()
     detections_result.scalars.return_value.all.return_value = []
 
-    db.execute = AsyncMock(
-        side_effect=[event_result, count_result, detections_result]
-    )
+    db.execute = AsyncMock(side_effect=[event_result, count_result, detections_result])
 
     response = await events_routes.get_event_detections(event_id=1, limit=50, offset=0, db=db)
 

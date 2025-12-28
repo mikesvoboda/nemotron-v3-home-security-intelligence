@@ -7,7 +7,7 @@ to achieve high coverage of the logs API endpoints.
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import HTTPException
@@ -15,7 +15,6 @@ from fastapi import HTTPException
 from backend.api.routes import logs as logs_routes
 from backend.api.schemas.logs import FrontendLogCreate, LogEntry, LogsResponse, LogStats
 from backend.models.log import Log
-
 
 # =============================================================================
 # List Logs Endpoint Tests
@@ -503,10 +502,10 @@ async def test_get_log_stats_empty_database() -> None:
     warnings_result.scalar.return_value = 0
 
     component_result = MagicMock()
-    component_result.__iter__ = lambda self: iter([])
+    component_result.__iter__ = lambda _: iter([])
 
     level_result = MagicMock()
-    level_result.__iter__ = lambda self: iter([])
+    level_result.__iter__ = lambda _: iter([])
 
     db.execute = AsyncMock(
         side_effect=[
@@ -559,7 +558,7 @@ async def test_get_log_stats_with_data() -> None:
     component_row3.count = 20
 
     component_result = MagicMock()
-    component_result.__iter__ = lambda self: iter([component_row1, component_row2, component_row3])
+    component_result.__iter__ = lambda _: iter([component_row1, component_row2, component_row3])
 
     # By level - create mock rows
     level_row1 = MagicMock()
@@ -575,7 +574,7 @@ async def test_get_log_stats_with_data() -> None:
     level_row3.count = 10
 
     level_result = MagicMock()
-    level_result.__iter__ = lambda self: iter([level_row1, level_row2, level_row3])
+    level_result.__iter__ = lambda _: iter([level_row1, level_row2, level_row3])
 
     db.execute = AsyncMock(
         side_effect=[
@@ -616,10 +615,10 @@ async def test_get_log_stats_null_values() -> None:
     warnings_result.scalar.return_value = None
 
     component_result = MagicMock()
-    component_result.__iter__ = lambda self: iter([])
+    component_result.__iter__ = lambda _: iter([])
 
     level_result = MagicMock()
-    level_result.__iter__ = lambda self: iter([])
+    level_result.__iter__ = lambda _: iter([])
 
     db.execute = AsyncMock(
         side_effect=[
@@ -658,14 +657,14 @@ async def test_get_log_stats_single_component() -> None:
     component_row.count = 50
 
     component_result = MagicMock()
-    component_result.__iter__ = lambda self: iter([component_row])
+    component_result.__iter__ = lambda _: iter([component_row])
 
     level_row = MagicMock()
     level_row.level = "INFO"
     level_row.count = 35
 
     level_result = MagicMock()
-    level_result.__iter__ = lambda self: iter([level_row])
+    level_result.__iter__ = lambda _: iter([level_row])
 
     db.execute = AsyncMock(
         side_effect=[
@@ -790,9 +789,7 @@ async def test_create_frontend_log_basic() -> None:
         user_agent=None,
     )
 
-    result = await logs_routes.create_frontend_log(
-        log_data=log_data, request=request, db=db
-    )
+    result = await logs_routes.create_frontend_log(log_data=log_data, request=request, db=db)
 
     assert result == {"status": "created"}
     db.add.assert_called_once()
@@ -825,9 +822,7 @@ async def test_create_frontend_log_with_user_agent_in_payload() -> None:
         user_agent="Custom User Agent",
     )
 
-    result = await logs_routes.create_frontend_log(
-        log_data=log_data, request=request, db=db
-    )
+    result = await logs_routes.create_frontend_log(log_data=log_data, request=request, db=db)
 
     assert result == {"status": "created"}
 
@@ -858,9 +853,7 @@ async def test_create_frontend_log_with_extra_data() -> None:
         user_agent=None,
     )
 
-    result = await logs_routes.create_frontend_log(
-        log_data=log_data, request=request, db=db
-    )
+    result = await logs_routes.create_frontend_log(log_data=log_data, request=request, db=db)
 
     assert result == {"status": "created"}
 
@@ -911,9 +904,7 @@ async def test_create_frontend_log_no_user_agent() -> None:
         user_agent=None,  # No user_agent in payload
     )
 
-    result = await logs_routes.create_frontend_log(
-        log_data=log_data, request=request, db=db
-    )
+    result = await logs_routes.create_frontend_log(log_data=log_data, request=request, db=db)
 
     assert result == {"status": "created"}
 
@@ -940,9 +931,7 @@ async def test_create_frontend_log_all_log_levels() -> None:
             user_agent=None,
         )
 
-        result = await logs_routes.create_frontend_log(
-            log_data=log_data, request=request, db=db
-        )
+        result = await logs_routes.create_frontend_log(log_data=log_data, request=request, db=db)
 
         assert result == {"status": "created"}
         added_log = db.add.call_args[0][0]

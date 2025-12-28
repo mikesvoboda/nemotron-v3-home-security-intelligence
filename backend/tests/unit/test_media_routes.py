@@ -26,7 +26,6 @@ from backend.api.routes.media import (
     serve_thumbnail,
 )
 
-
 # =============================================================================
 # ALLOWED_TYPES Constants Tests
 # =============================================================================
@@ -296,9 +295,7 @@ class TestServeCameraFile:
         mock_settings.foscam_base_path = str(tmp_path)
 
         with patch.object(media_routes, "get_settings", return_value=mock_settings):
-            response = await serve_camera_file(
-                camera_id="front_door", filename="image.jpg"
-            )
+            response = await serve_camera_file(camera_id="front_door", filename="image.jpg")
 
         assert response.path == str(test_file)
         assert response.media_type == "image/jpeg"
@@ -317,18 +314,14 @@ class TestServeCameraFile:
         mock_settings.foscam_base_path = str(tmp_path)
 
         with patch.object(media_routes, "get_settings", return_value=mock_settings):
-            response = await serve_camera_file(
-                camera_id="garage", filename="2024-01/capture.png"
-            )
+            response = await serve_camera_file(camera_id="garage", filename="2024-01/capture.png")
 
         assert response.path == str(test_file)
         assert response.media_type == "image/png"
         assert response.filename == "capture.png"
 
     @pytest.mark.asyncio
-    async def test_returns_404_for_nonexistent_camera_file(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_returns_404_for_nonexistent_camera_file(self, tmp_path: Path) -> None:
         """Test that 404 is returned for nonexistent files."""
         camera_dir = tmp_path / "backyard"
         camera_dir.mkdir()
@@ -346,9 +339,7 @@ class TestServeCameraFile:
         assert "File not found" in exc_info.value.detail["error"]
 
     @pytest.mark.asyncio
-    async def test_serves_video_file_with_correct_content_type(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_serves_video_file_with_correct_content_type(self, tmp_path: Path) -> None:
         """Test that video files are served with correct content type."""
         camera_dir = tmp_path / "driveway"
         camera_dir.mkdir()
@@ -359,9 +350,7 @@ class TestServeCameraFile:
         mock_settings.foscam_base_path = str(tmp_path)
 
         with patch.object(media_routes, "get_settings", return_value=mock_settings):
-            response = await serve_camera_file(
-                camera_id="driveway", filename="recording.mp4"
-            )
+            response = await serve_camera_file(camera_id="driveway", filename="recording.mp4")
 
         assert response.media_type == "video/mp4"
 
@@ -400,10 +389,9 @@ class TestServeThumbnail:
         test_file.write_bytes(b"fake thumbnail content")
 
         # Mock the thumbnail base path
-        with patch.object(
-            media_routes, "_validate_and_resolve_path"
-        ) as mock_validate, patch.object(
-            media_routes.Path, "__truediv__", return_value=tmp_path
+        with (
+            patch.object(media_routes, "_validate_and_resolve_path") as mock_validate,
+            patch.object(media_routes.Path, "__truediv__", return_value=tmp_path),
         ):
             mock_validate.return_value = test_file
 
@@ -418,9 +406,10 @@ class TestServeThumbnail:
         """Test that 404 is returned for nonexistent thumbnails."""
         # The actual thumbnail directory is determined by the module path
         # We'll test by mocking _validate_and_resolve_path to raise 404
-        with patch.object(
-            media_routes, "_validate_and_resolve_path"
-        ) as mock_validate, pytest.raises(HTTPException) as exc_info:
+        with (
+            patch.object(media_routes, "_validate_and_resolve_path") as mock_validate,
+            pytest.raises(HTTPException) as exc_info,
+        ):
             mock_validate.side_effect = HTTPException(
                 status_code=404,
                 detail={
@@ -439,9 +428,7 @@ class TestServeThumbnail:
         test_file = tmp_path / "thumb_456.png"
         test_file.write_bytes(b"fake png thumbnail")
 
-        with patch.object(
-            media_routes, "_validate_and_resolve_path"
-        ) as mock_validate:
+        with patch.object(media_routes, "_validate_and_resolve_path") as mock_validate:
             mock_validate.return_value = test_file
 
             response = await serve_thumbnail(filename="thumb_456.png")
@@ -458,9 +445,7 @@ class TestServeMediaCompat:
     """Tests for the serve_media_compat compatibility endpoint."""
 
     @pytest.mark.asyncio
-    async def test_routes_cameras_path_to_serve_camera_file(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_routes_cameras_path_to_serve_camera_file(self, tmp_path: Path) -> None:
         """Test that cameras/ paths are routed to serve_camera_file."""
         camera_dir = tmp_path / "front_door"
         camera_dir.mkdir()
@@ -477,16 +462,12 @@ class TestServeMediaCompat:
         assert response.media_type == "image/jpeg"
 
     @pytest.mark.asyncio
-    async def test_routes_thumbnails_path_to_serve_thumbnail(
-        self, tmp_path: Path
-    ) -> None:
+    async def test_routes_thumbnails_path_to_serve_thumbnail(self, tmp_path: Path) -> None:
         """Test that thumbnails/ paths are routed to serve_thumbnail."""
         test_file = tmp_path / "thumb.jpg"
         test_file.write_bytes(b"fake thumbnail")
 
-        with patch.object(
-            media_routes, "_validate_and_resolve_path"
-        ) as mock_validate:
+        with patch.object(media_routes, "_validate_and_resolve_path") as mock_validate:
             mock_validate.return_value = test_file
 
             response = await serve_media_compat(path="thumbnails/thumb.jpg")
@@ -549,9 +530,7 @@ class TestServeMediaCompat:
         mock_settings.foscam_base_path = str(tmp_path)
 
         with patch.object(media_routes, "get_settings", return_value=mock_settings):
-            response = await serve_media_compat(
-                path="cameras/backyard/2024/01/15/motion.mp4"
-            )
+            response = await serve_media_compat(path="cameras/backyard/2024/01/15/motion.mp4")
 
         assert response.path == str(test_file)
         assert response.media_type == "video/mp4"
@@ -579,9 +558,7 @@ class TestServeMediaCompat:
         test_file = tmp_path / "detection_abc.png"
         test_file.write_bytes(b"fake detection thumbnail")
 
-        with patch.object(
-            media_routes, "_validate_and_resolve_path"
-        ) as mock_validate:
+        with patch.object(media_routes, "_validate_and_resolve_path") as mock_validate:
             mock_validate.return_value = test_file
 
             response = await serve_media_compat(path="thumbnails/detection_abc.png")
@@ -683,9 +660,7 @@ class TestEdgeCasesAndSecurity:
         test_file = tmp_path / "image_2024-01-15_12-30-45.jpg"
         test_file.write_bytes(b"dated file")
 
-        result = _validate_and_resolve_path(
-            tmp_path, "image_2024-01-15_12-30-45.jpg"
-        )
+        result = _validate_and_resolve_path(tmp_path, "image_2024-01-15_12-30-45.jpg")
 
         assert result == test_file.resolve()
 
@@ -702,9 +677,7 @@ class TestEdgeCasesAndSecurity:
         mock_settings.foscam_base_path = str(tmp_path)
 
         with patch.object(media_routes, "get_settings", return_value=mock_settings):
-            response = await serve_camera_file(
-                camera_id="front-door_1", filename="capture.jpg"
-            )
+            response = await serve_camera_file(camera_id="front-door_1", filename="capture.jpg")
 
         assert response.path == str(test_file)
 

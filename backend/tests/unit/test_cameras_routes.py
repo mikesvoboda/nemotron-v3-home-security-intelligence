@@ -113,9 +113,7 @@ def sample_camera_list() -> list[Camera]:
 class TestListCameras:
     """Tests for GET /api/cameras endpoint."""
 
-    def test_list_cameras_empty(
-        self, client: TestClient, mock_db_session: AsyncMock
-    ) -> None:
+    def test_list_cameras_empty(self, client: TestClient, mock_db_session: AsyncMock) -> None:
         """Test listing cameras when none exist."""
         mock_result = MagicMock()
         mock_result.scalars.return_value.all.return_value = []
@@ -248,9 +246,7 @@ class TestGetCamera:
         assert data["folder_path"] == sample_camera.folder_path
         assert data["status"] == sample_camera.status
 
-    def test_get_camera_not_found(
-        self, client: TestClient, mock_db_session: AsyncMock
-    ) -> None:
+    def test_get_camera_not_found(self, client: TestClient, mock_db_session: AsyncMock) -> None:
         """Test getting a non-existent camera returns 404."""
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = None
@@ -289,9 +285,7 @@ class TestGetCamera:
 class TestCreateCamera:
     """Tests for POST /api/cameras endpoint."""
 
-    def test_create_camera_success(
-        self, client: TestClient, mock_db_session: AsyncMock
-    ) -> None:
+    def test_create_camera_success(self, client: TestClient, mock_db_session: AsyncMock) -> None:
         """Test successful camera creation."""
 
         async def mock_refresh(camera):
@@ -364,9 +358,7 @@ class TestCreateCamera:
 
         assert response.status_code == 422  # Validation error
 
-    def test_create_camera_empty_name(
-        self, client: TestClient, mock_db_session: AsyncMock
-    ) -> None:
+    def test_create_camera_empty_name(self, client: TestClient, mock_db_session: AsyncMock) -> None:
         """Test camera creation fails with empty name."""
         camera_data = {
             "name": "",
@@ -524,9 +516,7 @@ class TestUpdateCamera:
         assert data["status"] == "offline"
         assert data["folder_path"] == "/export/foscam/new_path"
 
-    def test_update_camera_not_found(
-        self, client: TestClient, mock_db_session: AsyncMock
-    ) -> None:
+    def test_update_camera_not_found(self, client: TestClient, mock_db_session: AsyncMock) -> None:
         """Test updating a non-existent camera returns 404."""
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = None
@@ -615,9 +605,7 @@ class TestDeleteCamera:
         mock_db_session.delete.assert_called_once_with(sample_camera)
         mock_db_session.commit.assert_called_once()
 
-    def test_delete_camera_not_found(
-        self, client: TestClient, mock_db_session: AsyncMock
-    ) -> None:
+    def test_delete_camera_not_found(self, client: TestClient, mock_db_session: AsyncMock) -> None:
         """Test deleting a non-existent camera returns 404."""
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = None
