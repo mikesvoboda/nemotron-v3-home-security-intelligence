@@ -24,6 +24,8 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
     css: true,
+    // Exclude Playwright E2E tests - they should only be run via `npm run test:e2e`
+    exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**'],
     // Memory optimization: use forks pool with single fork to prevent heap out of memory
     pool: 'forks',
     poolOptions: {
