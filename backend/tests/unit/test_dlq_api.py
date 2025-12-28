@@ -260,8 +260,11 @@ class TestRequeueAllEndpoint:
     def test_requeue_all_respects_max_iterations(
         self, client: TestClient, mock_redis: MagicMock
     ) -> None:
-        """Test that requeue-all stops at MAX_REQUEUE_ITERATIONS."""
-        from backend.api.routes.dlq import MAX_REQUEUE_ITERATIONS
+        """Test that requeue-all stops at max_requeue_iterations from settings."""
+        from backend.core.config import get_settings
+
+        settings = get_settings()
+        max_iterations = settings.max_requeue_iterations
 
         # Simulate a queue that always returns a job (never depletes)
         job_data = {
@@ -273,7 +276,7 @@ class TestRequeueAllEndpoint:
             "queue_name": "detection_queue",
         }
         # Queue reports a large size
-        mock_redis.get_queue_length = AsyncMock(return_value=MAX_REQUEUE_ITERATIONS + 1000)
+        mock_redis.get_queue_length = AsyncMock(return_value=max_iterations + 1000)
         # Always return a job (simulating infinite queue)
         mock_redis.get_from_queue = AsyncMock(return_value=job_data)
         mock_redis.add_to_queue = AsyncMock(return_value=1)
@@ -283,12 +286,12 @@ class TestRequeueAllEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
-        # Should mention the count equals MAX_REQUEUE_ITERATIONS
-        assert str(MAX_REQUEUE_ITERATIONS) in data["message"]
+        # Should mention the count equals max_iterations
+        assert str(max_iterations) in data["message"]
         # Should indicate we hit the limit
         assert "hit limit" in data["message"].lower()
-        # Verify get_from_queue was called exactly MAX_REQUEUE_ITERATIONS times
-        assert mock_redis.get_from_queue.call_count == MAX_REQUEUE_ITERATIONS
+        # Verify get_from_queue was called exactly max_iterations times
+        assert mock_redis.get_from_queue.call_count == max_iterations
 
 
 class TestClearDLQEndpoint:
