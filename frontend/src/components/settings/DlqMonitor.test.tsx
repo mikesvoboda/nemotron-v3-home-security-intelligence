@@ -1,0 +1,541 @@
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest';
+
+import DlqMonitor from './DlqMonitor';
+import * as api from '../../services/api';
+
+// Mock the API module
+vi.mock('../../services/api');
+
+describe('DlqMonitor', () => {
+  const mockStats: api.DLQStatsResponse = {
+    detection_queue_count: 2,
+    analysis_queue_count: 1,
+    total_count: 3,
+  };
+
+  const mockEmptyStats: api.DLQStatsResponse = {
+    detection_queue_count: 0,
+    analysis_queue_count: 0,
+    total_count: 0,
+  };
+
+  const mockDetectionJobs: api.DLQJobsResponse = {
+    queue_name: 'dlq:detection_queue',
+    jobs: [
+      {
+        original_job: {
+          camera_id: 'front_door',
+          file_path: '/export/foscam/front_door/image_001.jpg',
+          timestamp: '2025-12-23T10:30:00.000000',
+        },
+        error: 'Connection refused: detector service unavailable',
+        attempt_count: 3,
+        first_failed_at: '2025-12-23T10:30:05.000000',
+        last_failed_at: '2025-12-23T10:30:15.000000',
+        queue_name: 'detection_queue',
+      },
+      {
+        original_job: {
+          camera_id: 'back_yard',
+          file_path: '/export/foscam/back_yard/image_002.jpg',
+          timestamp: '2025-12-23T10:31:00.000000',
+        },
+        error: 'Timeout waiting for response',
+        attempt_count: 2,
+        first_failed_at: '2025-12-23T10:31:05.000000',
+        last_failed_at: '2025-12-23T10:31:10.000000',
+        queue_name: 'detection_queue',
+      },
+    ],
+    count: 2,
+  };
+
+  const mockAnalysisJobs: api.DLQJobsResponse = {
+    queue_name: 'dlq:analysis_queue',
+    jobs: [
+      {
+        original_job: {
+          event_id: 123,
+          detections: [],
+        },
+        error: 'LLM service unavailable',
+        attempt_count: 5,
+        first_failed_at: '2025-12-23T11:00:00.000000',
+        last_failed_at: '2025-12-23T11:00:30.000000',
+        queue_name: 'analysis_queue',
+      },
+    ],
+    count: 1,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Default mocks
+    vi.mocked(api.fetchDlqStats).mockResolvedValue(mockStats);
+    vi.mocked(api.fetchDlqJobs).mockImplementation((queueName) => {
+      if (queueName === 'dlq:detection_queue') {
+        return Promise.resolve(mockDetectionJobs);
+      }
+      return Promise.resolve(mockAnalysisJobs);
+    });
+    vi.mocked(api.requeueAllDlqJobs).mockResolvedValue({
+      success: true,
+      message: 'Requeued 2 jobs',
+      job: null,
+    });
+    vi.mocked(api.clearDlq).mockResolvedValue({
+      success: true,
+      message: 'Cleared 2 jobs from dlq:detection_queue',
+      queue_name: 'dlq:detection_queue',
+    });
+  });
+
+  afterEach(() => {
+    vi.clearAllTimers();
+  });
+
+  it('renders component with title', async () => {
+    render(<DlqMonitor refreshInterval={0} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Dead Letter Queue')).toBeInTheDocument();
+    });
+  });
+
+  it('shows loading skeleton while fetching stats', () => {
+    vi.mocked(api.fetchDlqStats).mockImplementation(() => new Promise(() => {}));
+
+    render(<DlqMonitor refreshInterval={0} />);
+
+    const skeletons = document.querySelectorAll('.skeleton');
+    expect(skeletons.length).toBeGreaterThan(0);
+  });
+
+  it('displays total failed job count badge', async () => {
+    render(<DlqMonitor refreshInterval={0} />);
+
+    await waitFor(() => {
+      const badge = screen.getByTestId('dlq-total-badge');
+      expect(badge).toHaveTextContent('3 failed');
+    });
+  });
+
+  it('displays empty state when no failed jobs', async () => {
+    vi.mocked(api.fetchDlqStats).mockResolvedValue(mockEmptyStats);
+
+    render(<DlqMonitor refreshInterval={0} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('No failed jobs in queue')).toBeInTheDocument();
+    });
+  });
+
+  it('displays error message when fetch fails', async () => {
+    vi.mocked(api.fetchDlqStats).mockRejectedValue(new Error('Network error'));
+
+    render(<DlqMonitor refreshInterval={0} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Network error')).toBeInTheDocument();
+    });
+  });
+
+  it('displays generic error for non-Error objects', async () => {
+    vi.mocked(api.fetchDlqStats).mockRejectedValue('Unknown error');
+
+    render(<DlqMonitor refreshInterval={0} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to load DLQ stats')).toBeInTheDocument();
+    });
+  });
+
+  it('shows queue cards for queues with failed jobs', async () => {
+    render(<DlqMonitor refreshInterval={0} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Detection Queue')).toBeInTheDocument();
+      expect(screen.getByText('Analysis Queue')).toBeInTheDocument();
+    });
+  });
+
+  it('does not show badge when no failed jobs exist', async () => {
+    vi.mocked(api.fetchDlqStats).mockResolvedValue(mockEmptyStats);
+
+    render(<DlqMonitor refreshInterval={0} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('No failed jobs in queue')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByTestId('dlq-total-badge')).not.toBeInTheDocument();
+  });
+
+  describe('queue expansion', () => {
+    it('expands queue when clicked', async () => {
+      render(<DlqMonitor refreshInterval={0} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Detection Queue')).toBeInTheDocument();
+      });
+
+      const detectionQueueButton = screen.getByLabelText('Toggle Detection Queue details');
+      fireEvent.click(detectionQueueButton);
+
+      await waitFor(() => {
+        expect(api.fetchDlqJobs).toHaveBeenCalledWith('dlq:detection_queue');
+      });
+    });
+
+    it('displays job details when expanded', async () => {
+      render(<DlqMonitor refreshInterval={0} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Detection Queue')).toBeInTheDocument();
+      });
+
+      const detectionQueueButton = screen.getByLabelText('Toggle Detection Queue details');
+      fireEvent.click(detectionQueueButton);
+
+      await waitFor(() => {
+        expect(
+          screen.getByText('Connection refused: detector service unavailable')
+        ).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Timeout waiting for response')).toBeInTheDocument();
+    });
+
+    it('shows attempt count for jobs', async () => {
+      render(<DlqMonitor refreshInterval={0} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Detection Queue')).toBeInTheDocument();
+      });
+
+      const detectionQueueButton = screen.getByLabelText('Toggle Detection Queue details');
+      fireEvent.click(detectionQueueButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Attempts: 3')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Attempts: 2')).toBeInTheDocument();
+    });
+
+    it('shows error when fetching jobs fails', async () => {
+      vi.mocked(api.fetchDlqJobs).mockRejectedValue(new Error('Failed to fetch jobs'));
+
+      render(<DlqMonitor refreshInterval={0} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Detection Queue')).toBeInTheDocument();
+      });
+
+      const detectionQueueButton = screen.getByLabelText('Toggle Detection Queue details');
+      fireEvent.click(detectionQueueButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Failed to fetch jobs')).toBeInTheDocument();
+      });
+    });
+
+    it('collapses queue when clicked again', async () => {
+      render(<DlqMonitor refreshInterval={0} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Detection Queue')).toBeInTheDocument();
+      });
+
+      const detectionQueueButton = screen.getByLabelText('Toggle Detection Queue details');
+      fireEvent.click(detectionQueueButton);
+
+      await waitFor(() => {
+        expect(
+          screen.getByText('Connection refused: detector service unavailable')
+        ).toBeInTheDocument();
+      });
+
+      // Click again to collapse
+      fireEvent.click(detectionQueueButton);
+
+      // Jobs should no longer be visible
+      expect(
+        screen.queryByText('Connection refused: detector service unavailable')
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  describe('requeue functionality', () => {
+    it('shows confirmation dialog when clicking Requeue All', async () => {
+      render(<DlqMonitor refreshInterval={0} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Detection Queue')).toBeInTheDocument();
+      });
+
+      const detectionQueueButton = screen.getByLabelText('Toggle Detection Queue details');
+      fireEvent.click(detectionQueueButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Requeue All')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Requeue All'));
+
+      expect(screen.getByText(/Requeue all 2 jobs\?/)).toBeInTheDocument();
+      expect(screen.getByText('Confirm')).toBeInTheDocument();
+      expect(screen.getByText('Cancel')).toBeInTheDocument();
+    });
+
+    it('cancels requeue when clicking Cancel', async () => {
+      render(<DlqMonitor refreshInterval={0} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Detection Queue')).toBeInTheDocument();
+      });
+
+      const detectionQueueButton = screen.getByLabelText('Toggle Detection Queue details');
+      fireEvent.click(detectionQueueButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Requeue All')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Requeue All'));
+      fireEvent.click(screen.getByText('Cancel'));
+
+      expect(screen.queryByText(/Requeue all 2 jobs\?/)).not.toBeInTheDocument();
+    });
+
+    it('calls requeue API when confirming', async () => {
+      render(<DlqMonitor refreshInterval={0} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Detection Queue')).toBeInTheDocument();
+      });
+
+      const detectionQueueButton = screen.getByLabelText('Toggle Detection Queue details');
+      fireEvent.click(detectionQueueButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Requeue All')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Requeue All'));
+      fireEvent.click(screen.getByText('Confirm'));
+
+      await waitFor(() => {
+        expect(api.requeueAllDlqJobs).toHaveBeenCalledWith('dlq:detection_queue');
+      });
+    });
+
+    it('shows success message after requeue', async () => {
+      render(<DlqMonitor refreshInterval={0} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Detection Queue')).toBeInTheDocument();
+      });
+
+      const detectionQueueButton = screen.getByLabelText('Toggle Detection Queue details');
+      fireEvent.click(detectionQueueButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Requeue All')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Requeue All'));
+      fireEvent.click(screen.getByText('Confirm'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Requeued 2 jobs')).toBeInTheDocument();
+      });
+    });
+
+    it('shows error message when requeue fails', async () => {
+      vi.mocked(api.requeueAllDlqJobs).mockRejectedValue(new Error('Requeue failed'));
+
+      render(<DlqMonitor refreshInterval={0} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Detection Queue')).toBeInTheDocument();
+      });
+
+      const detectionQueueButton = screen.getByLabelText('Toggle Detection Queue details');
+      fireEvent.click(detectionQueueButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Requeue All')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Requeue All'));
+      fireEvent.click(screen.getByText('Confirm'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Requeue failed')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('clear functionality', () => {
+    it('shows confirmation dialog when clicking Clear All', async () => {
+      render(<DlqMonitor refreshInterval={0} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Detection Queue')).toBeInTheDocument();
+      });
+
+      const detectionQueueButton = screen.getByLabelText('Toggle Detection Queue details');
+      fireEvent.click(detectionQueueButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Clear All')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Clear All'));
+
+      expect(screen.getByText(/Permanently delete all 2 jobs\?/)).toBeInTheDocument();
+    });
+
+    it('calls clear API when confirming', async () => {
+      render(<DlqMonitor refreshInterval={0} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Detection Queue')).toBeInTheDocument();
+      });
+
+      const detectionQueueButton = screen.getByLabelText('Toggle Detection Queue details');
+      fireEvent.click(detectionQueueButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Clear All')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Clear All'));
+      fireEvent.click(screen.getByText('Confirm'));
+
+      await waitFor(() => {
+        expect(api.clearDlq).toHaveBeenCalledWith('dlq:detection_queue');
+      });
+    });
+
+    it('shows success message after clear', async () => {
+      render(<DlqMonitor refreshInterval={0} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Detection Queue')).toBeInTheDocument();
+      });
+
+      const detectionQueueButton = screen.getByLabelText('Toggle Detection Queue details');
+      fireEvent.click(detectionQueueButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Clear All')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Clear All'));
+      fireEvent.click(screen.getByText('Confirm'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Cleared 2 jobs from dlq:detection_queue')).toBeInTheDocument();
+      });
+    });
+
+    it('shows error message when clear fails', async () => {
+      vi.mocked(api.clearDlq).mockRejectedValue(new Error('Clear failed'));
+
+      render(<DlqMonitor refreshInterval={0} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Detection Queue')).toBeInTheDocument();
+      });
+
+      const detectionQueueButton = screen.getByLabelText('Toggle Detection Queue details');
+      fireEvent.click(detectionQueueButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Clear All')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByText('Clear All'));
+      fireEvent.click(screen.getByText('Confirm'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Clear failed')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('refresh functionality', () => {
+    it('refresh button triggers stats reload', async () => {
+      render(<DlqMonitor refreshInterval={0} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Dead Letter Queue')).toBeInTheDocument();
+      });
+
+      // Initial call
+      expect(api.fetchDlqStats).toHaveBeenCalledTimes(1);
+
+      // Click refresh button
+      const refreshButton = document.querySelector('button[class*="hover:text-white"]');
+      expect(refreshButton).toBeInTheDocument();
+      fireEvent.click(refreshButton!);
+
+      await waitFor(() => {
+        expect(api.fetchDlqStats).toHaveBeenCalledTimes(2);
+      });
+    });
+  });
+
+  describe('footer', () => {
+    it('displays explanatory text', async () => {
+      render(<DlqMonitor refreshInterval={0} />);
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Dead Letter Queue stores failed processing jobs/i)
+        ).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('accessibility', () => {
+    it('queue buttons have proper aria-labels', async () => {
+      render(<DlqMonitor refreshInterval={0} />);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Toggle Detection Queue details')).toBeInTheDocument();
+      });
+    });
+
+    it('queue buttons have aria-expanded state', async () => {
+      render(<DlqMonitor refreshInterval={0} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Detection Queue')).toBeInTheDocument();
+      });
+
+      const detectionQueueButton = screen.getByLabelText('Toggle Detection Queue details');
+      expect(detectionQueueButton).toHaveAttribute('aria-expanded', 'false');
+
+      fireEvent.click(detectionQueueButton);
+
+      expect(detectionQueueButton).toHaveAttribute('aria-expanded', 'true');
+    });
+  });
+
+  describe('custom className', () => {
+    it('applies custom className to component', async () => {
+      render(<DlqMonitor className="custom-test-class" refreshInterval={0} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Dead Letter Queue')).toBeInTheDocument();
+      });
+
+      const card = screen.getByText('Dead Letter Queue').closest('.custom-test-class');
+      expect(card).toBeInTheDocument();
+    });
+  });
+});

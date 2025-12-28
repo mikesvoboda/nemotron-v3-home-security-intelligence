@@ -13,9 +13,11 @@ import {
   getCameraSnapshotUrl,
   fetchHealth,
   fetchGPUStats,
+  fetchGpuHistory,
   fetchConfig,
   updateConfig,
   fetchStats,
+  fetchTelemetry,
   fetchEvents,
   fetchEvent,
   fetchEventStats,
@@ -27,14 +29,17 @@ import {
   getMediaUrl,
   getThumbnailUrl,
   getDetectionImageUrl,
+  exportEventsCSV,
   type Camera,
   type CameraCreate,
   type CameraUpdate,
   type HealthResponse,
   type GPUStats,
+  type GPUStatsHistoryResponse,
   type SystemConfig,
   type SystemConfigUpdate,
   type SystemStats,
+  type TelemetryResponse,
   type Event,
   type EventListResponse,
   type EventStatsResponse,
@@ -46,6 +51,7 @@ import {
   type LogStats,
   type LogsResponse,
   type LogsQueryParams,
+  type ExportQueryParams,
 } from './api';
 
 // Mock data
@@ -102,6 +108,18 @@ const mockStats: SystemStats = {
   total_events: 150,
   total_detections: 500,
   uptime_seconds: 86400,
+};
+
+const mockTelemetry: TelemetryResponse = {
+  queues: {
+    detection_queue: 5,
+    analysis_queue: 2,
+  },
+  latencies: {
+    watch: { avg_ms: 20, p50_ms: 10, p95_ms: 50, p99_ms: 100, min_ms: 5, max_ms: 200, sample_count: 100 },
+    detect: { avg_ms: 200, p50_ms: 100, p95_ms: 500, p99_ms: 1000, min_ms: 50, max_ms: 2000, sample_count: 100 },
+  },
+  timestamp: '2025-01-01T12:00:00Z',
 };
 
 const mockEvent: Event = {
@@ -249,32 +267,26 @@ describe('buildWebSocketUrlInternal', () => {
 
   describe('with VITE_WS_BASE_URL', () => {
     it('uses configured WS base URL', () => {
-      const url = buildWebSocketUrlInternal(
-        '/ws/events',
-        'ws://backend:8000',
-        undefined,
-        { protocol: 'http:', host: 'localhost:5173' }
-      );
+      const url = buildWebSocketUrlInternal('/ws/events', 'ws://backend:8000', undefined, {
+        protocol: 'http:',
+        host: 'localhost:5173',
+      });
       expect(url).toBe('ws://backend:8000/ws/events');
     });
 
     it('strips trailing slash from WS base URL', () => {
-      const url = buildWebSocketUrlInternal(
-        '/ws/events',
-        'wss://api.example.com/',
-        undefined,
-        { protocol: 'http:', host: 'localhost:5173' }
-      );
+      const url = buildWebSocketUrlInternal('/ws/events', 'wss://api.example.com/', undefined, {
+        protocol: 'http:',
+        host: 'localhost:5173',
+      });
       expect(url).toBe('wss://api.example.com/ws/events');
     });
 
     it('ignores window.location when WS base URL is set', () => {
-      const url = buildWebSocketUrlInternal(
-        '/ws/system',
-        'wss://production.api.com',
-        undefined,
-        { protocol: 'http:', host: 'localhost:3000' }
-      );
+      const url = buildWebSocketUrlInternal('/ws/system', 'wss://production.api.com', undefined, {
+        protocol: 'http:',
+        host: 'localhost:3000',
+      });
       expect(url).toBe('wss://production.api.com/ws/system');
     });
   });
@@ -289,30 +301,31 @@ describe('buildWebSocketUrlInternal', () => {
     });
 
     it('appends api_key to URL with existing query params using &', () => {
-      const url = buildWebSocketUrlInternal(
-        '/ws/events?filter=active',
-        undefined,
-        'my-api-key',
-        { protocol: 'http:', host: 'localhost:5173' }
-      );
+      const url = buildWebSocketUrlInternal('/ws/events?filter=active', undefined, 'my-api-key', {
+        protocol: 'http:',
+        host: 'localhost:5173',
+      });
       expect(url).toBe('ws://localhost:5173/ws/events?filter=active&api_key=my-api-key');
     });
 
     it('URL-encodes special characters in API key', () => {
-      const url = buildWebSocketUrlInternal('/ws/events', undefined, 'key with spaces&special=chars', {
-        protocol: 'http:',
-        host: 'localhost:5173',
-      });
+      const url = buildWebSocketUrlInternal(
+        '/ws/events',
+        undefined,
+        'key with spaces&special=chars',
+        {
+          protocol: 'http:',
+          host: 'localhost:5173',
+        }
+      );
       expect(url).toContain('api_key=key%20with%20spaces%26special%3Dchars');
     });
 
     it('works with both WS base URL and API key', () => {
-      const url = buildWebSocketUrlInternal(
-        '/ws/events',
-        'wss://api.example.com',
-        'secure-token',
-        { protocol: 'http:', host: 'localhost:5173' }
-      );
+      const url = buildWebSocketUrlInternal('/ws/events', 'wss://api.example.com', 'secure-token', {
+        protocol: 'http:',
+        host: 'localhost:5173',
+      });
       expect(url).toBe('wss://api.example.com/ws/events?api_key=secure-token');
     });
 
@@ -680,6 +693,121 @@ describe('System API', () => {
     });
   });
 
+  describe('fetchGpuHistory', () => {
+    it('fetches GPU history successfully with default limit', async () => {
+      const mockHistoryResponse: GPUStatsHistoryResponse = {
+        samples: [
+          {
+            recorded_at: '2025-01-01T10:00:00Z',
+            utilization: 45.5,
+            memory_used: 8192,
+            memory_total: 24576,
+            temperature: 65,
+            inference_fps: 30.2,
+          },
+          {
+            recorded_at: '2025-01-01T10:01:00Z',
+            utilization: 50.0,
+            memory_used: 8500,
+            memory_total: 24576,
+            temperature: 66,
+            inference_fps: 28.5,
+          },
+        ],
+        count: 2,
+        limit: 100,
+      };
+
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockHistoryResponse));
+
+      const result = await fetchGpuHistory();
+
+      expect(fetch).toHaveBeenCalledWith('/api/system/gpu/history?limit=100', {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      expect(result.samples).toHaveLength(2);
+      expect(result.count).toBe(2);
+      expect(result.samples[0].utilization).toBe(45.5);
+    });
+
+    it('fetches GPU history with custom limit', async () => {
+      const mockHistoryResponse: GPUStatsHistoryResponse = {
+        samples: [
+          {
+            recorded_at: '2025-01-01T10:00:00Z',
+            utilization: 45.5,
+            memory_used: 8192,
+            memory_total: 24576,
+            temperature: 65,
+            inference_fps: 30.2,
+          },
+        ],
+        count: 1,
+        limit: 50,
+      };
+
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockHistoryResponse));
+
+      const result = await fetchGpuHistory(50);
+
+      expect(fetch).toHaveBeenCalledWith('/api/system/gpu/history?limit=50', {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      expect(result.samples).toHaveLength(1);
+    });
+
+    it('handles empty GPU history', async () => {
+      const emptyHistoryResponse: GPUStatsHistoryResponse = {
+        samples: [],
+        count: 0,
+        limit: 100,
+      };
+
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(emptyHistoryResponse));
+
+      const result = await fetchGpuHistory();
+
+      expect(result.samples).toEqual([]);
+      expect(result.count).toBe(0);
+    });
+
+    it('handles samples with null values', async () => {
+      const mockHistoryResponse: GPUStatsHistoryResponse = {
+        samples: [
+          {
+            recorded_at: '2025-01-01T10:00:00Z',
+            utilization: null,
+            memory_used: null,
+            memory_total: null,
+            temperature: null,
+            inference_fps: null,
+          },
+        ],
+        count: 1,
+        limit: 100,
+      };
+
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockHistoryResponse));
+
+      const result = await fetchGpuHistory();
+
+      expect(result.samples[0].utilization).toBeNull();
+      expect(result.samples[0].memory_used).toBeNull();
+    });
+
+    it('throws ApiError on 500 error', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        createMockErrorResponse(500, 'Internal Server Error', 'GPU monitoring service unavailable')
+      );
+
+      await expect(fetchGpuHistory()).rejects.toThrow(ApiError);
+    });
+  });
+
   describe('fetchConfig', () => {
     it('fetches system config successfully', async () => {
       vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockConfig));
@@ -772,6 +900,87 @@ describe('System API', () => {
 
       expect(result.total_cameras).toBe(0);
       expect(result.uptime_seconds).toBe(0);
+    });
+  });
+
+  describe('fetchTelemetry', () => {
+    it('fetches telemetry data successfully', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockTelemetry));
+
+      const result = await fetchTelemetry();
+
+      expect(fetch).toHaveBeenCalledWith('/api/system/telemetry', {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      expect(result).toEqual(mockTelemetry);
+      expect(result.queues.detection_queue).toBe(5);
+      expect(result.queues.analysis_queue).toBe(2);
+    });
+
+    it('handles empty queues', async () => {
+      const emptyTelemetry: TelemetryResponse = {
+        queues: {
+          detection_queue: 0,
+          analysis_queue: 0,
+        },
+        latencies: null,
+        timestamp: '2025-01-01T12:00:00Z',
+      };
+
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(emptyTelemetry));
+
+      const result = await fetchTelemetry();
+
+      expect(result.queues.detection_queue).toBe(0);
+      expect(result.queues.analysis_queue).toBe(0);
+      expect(result.latencies).toBeNull();
+    });
+
+    it('handles high queue depths indicating backup', async () => {
+      const backupTelemetry: TelemetryResponse = {
+        queues: {
+          detection_queue: 15,
+          analysis_queue: 12,
+        },
+        latencies: {
+          watch: { avg_ms: 100, p50_ms: 80, p95_ms: 200, p99_ms: 500, min_ms: 20, max_ms: 800, sample_count: 50 },
+          detect: {
+            avg_ms: 800,
+            p50_ms: 600,
+            p95_ms: 1500,
+            p99_ms: 3000,
+            min_ms: 200,
+            max_ms: 5000,
+            sample_count: 50,
+          },
+        },
+        timestamp: '2025-01-01T12:00:00Z',
+      };
+
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(backupTelemetry));
+
+      const result = await fetchTelemetry();
+
+      expect(result.queues.detection_queue).toBe(15);
+      expect(result.queues.analysis_queue).toBe(12);
+    });
+
+    it('throws ApiError on server error', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        createMockErrorResponse(500, 'Internal Server Error', 'Redis unavailable')
+      );
+
+      await expect(fetchTelemetry()).rejects.toThrow(ApiError);
+
+      vi.mocked(fetch).mockResolvedValueOnce(
+        createMockErrorResponse(500, 'Internal Server Error', 'Redis unavailable')
+      );
+      await expect(fetchTelemetry()).rejects.toMatchObject({
+        status: 500,
+        message: 'Redis unavailable',
+      });
     });
   });
 });
@@ -1354,5 +1563,221 @@ describe('Error Handling', () => {
       status: 503,
       message: 'Service temporarily unavailable',
     });
+  });
+});
+
+// =============================================================================
+// Export Endpoints Tests
+// =============================================================================
+
+describe('exportEventsCSV', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+    // Mock URL.createObjectURL and URL.revokeObjectURL
+    vi.stubGlobal('URL', {
+      createObjectURL: vi.fn().mockReturnValue('blob:http://test/mock-blob-url'),
+      revokeObjectURL: vi.fn(),
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const createMockBlobResponse = (csvContent: string, filename?: string): Response => {
+    const headers = new Headers({
+      'Content-Type': 'text/csv',
+    });
+    if (filename) {
+      headers.set('Content-Disposition', `attachment; filename="${filename}"`);
+    }
+    return {
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      headers,
+      blob: () => Promise.resolve(new Blob([csvContent], { type: 'text/csv' })),
+      json: () => Promise.reject(new Error('Not JSON')),
+    } as unknown as Response;
+  };
+
+  it('triggers download with CSV content', async () => {
+    const mockCsv = 'event_id,camera_name,started_at\n1,Front Door,2024-01-01T12:00:00';
+    vi.mocked(fetch).mockResolvedValue(
+      createMockBlobResponse(mockCsv, 'events_export_20240101_120000.csv')
+    );
+
+    // Mock document methods
+    const mockLink = {
+      href: '',
+      download: '',
+      click: vi.fn(),
+    };
+    const createElementSpy = vi
+      .spyOn(document, 'createElement')
+      .mockReturnValue(mockLink as unknown as HTMLAnchorElement);
+    const appendChildSpy = vi
+      .spyOn(document.body, 'appendChild')
+      .mockImplementation((node) => node);
+    const removeChildSpy = vi
+      .spyOn(document.body, 'removeChild')
+      .mockImplementation((node) => node);
+
+    await exportEventsCSV();
+
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/events/export'),
+      expect.any(Object)
+    );
+    expect(createElementSpy).toHaveBeenCalledWith('a');
+    expect(mockLink.download).toBe('events_export_20240101_120000.csv');
+    expect(mockLink.click).toHaveBeenCalled();
+
+    createElementSpy.mockRestore();
+    appendChildSpy.mockRestore();
+    removeChildSpy.mockRestore();
+  });
+
+  it('sends filter parameters as query string', async () => {
+    const mockCsv = 'event_id,camera_name\n1,Front Door';
+    vi.mocked(fetch).mockResolvedValue(createMockBlobResponse(mockCsv));
+
+    const mockLink = {
+      href: '',
+      download: '',
+      click: vi.fn(),
+    };
+    vi.spyOn(document, 'createElement').mockReturnValue(mockLink as unknown as HTMLAnchorElement);
+    vi.spyOn(document.body, 'appendChild').mockImplementation((node) => node);
+    vi.spyOn(document.body, 'removeChild').mockImplementation((node) => node);
+
+    const params: ExportQueryParams = {
+      camera_id: 'cam-001',
+      risk_level: 'high',
+      start_date: '2024-01-01',
+      end_date: '2024-01-31',
+      reviewed: true,
+    };
+
+    await exportEventsCSV(params);
+
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/events/export?'),
+      expect.any(Object)
+    );
+    const calledUrl = (fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    expect(calledUrl).toContain('camera_id=cam-001');
+    expect(calledUrl).toContain('risk_level=high');
+    expect(calledUrl).toContain('start_date=2024-01-01');
+    expect(calledUrl).toContain('end_date=2024-01-31');
+    expect(calledUrl).toContain('reviewed=true');
+  });
+
+  it('generates default filename when Content-Disposition is missing', async () => {
+    const mockCsv = 'event_id,camera_name\n1,Front Door';
+    // Create response without Content-Disposition header
+    const response = {
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      headers: new Headers({ 'Content-Type': 'text/csv' }),
+      blob: () => Promise.resolve(new Blob([mockCsv], { type: 'text/csv' })),
+    } as unknown as Response;
+    vi.mocked(fetch).mockResolvedValue(response);
+
+    const mockLink = {
+      href: '',
+      download: '',
+      click: vi.fn(),
+    };
+    vi.spyOn(document, 'createElement').mockReturnValue(mockLink as unknown as HTMLAnchorElement);
+    vi.spyOn(document.body, 'appendChild').mockImplementation((node) => node);
+    vi.spyOn(document.body, 'removeChild').mockImplementation((node) => node);
+
+    await exportEventsCSV();
+
+    // Filename should match pattern events_export_YYYYMMDDTHHMMSS.csv
+    expect(mockLink.download).toMatch(/^events_export_\d{8}T\d{6}\.csv$/);
+  });
+
+  it('throws ApiError on HTTP error response', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: false,
+      status: 500,
+      statusText: 'Internal Server Error',
+      headers: new Headers(),
+      json: () => Promise.resolve({ detail: 'Database error' }),
+    } as unknown as Response);
+
+    await expect(exportEventsCSV()).rejects.toThrow(ApiError);
+    await expect(exportEventsCSV()).rejects.toMatchObject({
+      status: 500,
+      message: 'Database error',
+    });
+  });
+
+  it('handles non-JSON error response', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: false,
+      status: 502,
+      statusText: 'Bad Gateway',
+      headers: new Headers(),
+      json: () => Promise.reject(new Error('Not JSON')),
+    } as unknown as Response);
+
+    await expect(exportEventsCSV()).rejects.toThrow(ApiError);
+    await expect(exportEventsCSV()).rejects.toMatchObject({
+      status: 502,
+      message: 'HTTP 502: Bad Gateway',
+    });
+  });
+
+  it('throws ApiError on network failure', async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error('Network error'));
+
+    await expect(exportEventsCSV()).rejects.toThrow(ApiError);
+    await expect(exportEventsCSV()).rejects.toMatchObject({
+      status: 0,
+      message: 'Network error',
+    });
+  });
+
+  it('handles reviewed=false parameter correctly', async () => {
+    const mockCsv = 'event_id,camera_name\n1,Front Door';
+    vi.mocked(fetch).mockResolvedValue(createMockBlobResponse(mockCsv));
+
+    const mockLink = {
+      href: '',
+      download: '',
+      click: vi.fn(),
+    };
+    vi.spyOn(document, 'createElement').mockReturnValue(mockLink as unknown as HTMLAnchorElement);
+    vi.spyOn(document.body, 'appendChild').mockImplementation((node) => node);
+    vi.spyOn(document.body, 'removeChild').mockImplementation((node) => node);
+
+    await exportEventsCSV({ reviewed: false });
+
+    const calledUrl = (fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    expect(calledUrl).toContain('reviewed=false');
+  });
+
+  it('calls export with no query string when no params provided', async () => {
+    const mockCsv = 'event_id,camera_name\n1,Front Door';
+    vi.mocked(fetch).mockResolvedValue(createMockBlobResponse(mockCsv));
+
+    const mockLink = {
+      href: '',
+      download: '',
+      click: vi.fn(),
+    };
+    vi.spyOn(document, 'createElement').mockReturnValue(mockLink as unknown as HTMLAnchorElement);
+    vi.spyOn(document.body, 'appendChild').mockImplementation((node) => node);
+    vi.spyOn(document.body, 'removeChild').mockImplementation((node) => node);
+
+    await exportEventsCSV();
+
+    // The URL should end with /api/events/export (no query string)
+    const calledUrl = (fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    expect(calledUrl).toMatch(/\/api\/events\/export$/);
   });
 });

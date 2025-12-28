@@ -1,9 +1,12 @@
 """API routes for events management."""
 
+import csv
+import io
 from datetime import datetime
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,6 +23,21 @@ from backend.models.detection import Detection
 from backend.models.event import Event
 
 router = APIRouter(prefix="/api/events", tags=["events"])
+
+
+def parse_detection_ids(detection_ids_str: str | None) -> list[int]:
+    """Parse comma-separated detection IDs string to list of integers.
+
+    Args:
+        detection_ids_str: Comma-separated string of detection IDs (e.g., "1,2,3")
+                          or None/empty string
+
+    Returns:
+        List of integer detection IDs. Empty list if input is None or empty.
+    """
+    if not detection_ids_str:
+        return []
+    return [int(d.strip()) for d in detection_ids_str.split(",") if d.strip()]
 
 
 @router.get("", response_model=EventListResponse)
@@ -107,15 +125,14 @@ async def list_events(
     result = await db.execute(query)
     events = result.scalars().all()
 
-    # Calculate detection count for each event
+    # Calculate detection count and parse detection_ids for each event
     events_with_counts = []
     for event in events:
-        # Parse detection_ids (comma-separated string) to count detections
-        detection_count = 0
-        if event.detection_ids:
-            detection_count = len([d for d in event.detection_ids.split(",") if d.strip()])
+        # Parse detection_ids (comma-separated string) to list of integers
+        parsed_detection_ids = parse_detection_ids(event.detection_ids)
+        detection_count = len(parsed_detection_ids)
 
-        # Create response with detection count
+        # Create response with detection count and detection_ids
         event_dict = {
             "id": event.id,
             "camera_id": event.camera_id,
@@ -127,6 +144,7 @@ async def list_events(
             "reasoning": event.reasoning,
             "reviewed": event.reviewed,
             "detection_count": detection_count,
+            "detection_ids": parsed_detection_ids,
         }
         events_with_counts.append(event_dict)
 
@@ -215,6 +233,118 @@ async def get_event_stats(
     }
 
 
+@router.get("/export")
+async def export_events(
+    camera_id: str | None = Query(None, description="Filter by camera ID"),
+    risk_level: str | None = Query(
+        None, description="Filter by risk level (low, medium, high, critical)"
+    ),
+    start_date: datetime | None = Query(None, description="Filter by start date (ISO format)"),
+    end_date: datetime | None = Query(None, description="Filter by end date (ISO format)"),
+    reviewed: bool | None = Query(None, description="Filter by reviewed status"),
+    db: AsyncSession = Depends(get_db),
+) -> StreamingResponse:
+    """Export events as CSV file for external analysis or record-keeping.
+
+    Exports events with the following fields:
+    - Event ID, camera name, timestamps
+    - Risk score, risk level, summary
+    - Detection count, reviewed status
+
+    Args:
+        camera_id: Optional camera ID to filter by
+        risk_level: Optional risk level to filter by (low, medium, high, critical)
+        start_date: Optional start date for date range filter
+        end_date: Optional end date for date range filter
+        reviewed: Optional filter by reviewed status
+        db: Database session
+
+    Returns:
+        StreamingResponse with CSV file containing exported events
+    """
+    # Build base query
+    query = select(Event)
+
+    # Apply filters
+    if camera_id:
+        query = query.where(Event.camera_id == camera_id)
+    if risk_level:
+        query = query.where(Event.risk_level == risk_level)
+    if start_date:
+        query = query.where(Event.started_at >= start_date)
+    if end_date:
+        query = query.where(Event.started_at <= end_date)
+    if reviewed is not None:
+        query = query.where(Event.reviewed == reviewed)
+
+    # Sort by started_at descending (newest first)
+    query = query.order_by(Event.started_at.desc())
+
+    # Execute query
+    result = await db.execute(query)
+    events = result.scalars().all()
+
+    # Get all camera IDs to fetch camera names
+    camera_ids = {event.camera_id for event in events}
+    camera_query = select(Camera).where(Camera.id.in_(camera_ids))
+    camera_result = await db.execute(camera_query)
+    cameras = {camera.id: camera.name for camera in camera_result.scalars().all()}
+
+    # Create CSV in memory
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Write header
+    writer.writerow(
+        [
+            "event_id",
+            "camera_name",
+            "started_at",
+            "ended_at",
+            "risk_score",
+            "risk_level",
+            "summary",
+            "detection_count",
+            "reviewed",
+        ]
+    )
+
+    # Write event rows
+    for event in events:
+        camera_name = cameras.get(event.camera_id, "Unknown")
+        detection_count = len(parse_detection_ids(event.detection_ids))
+
+        # Format timestamps as ISO strings
+        started_at_str = event.started_at.isoformat() if event.started_at else ""
+        ended_at_str = event.ended_at.isoformat() if event.ended_at else ""
+
+        writer.writerow(
+            [
+                event.id,
+                camera_name,
+                started_at_str,
+                ended_at_str,
+                event.risk_score if event.risk_score is not None else "",
+                event.risk_level or "",
+                event.summary or "",
+                detection_count,
+                "Yes" if event.reviewed else "No",
+            ]
+        )
+
+    # Generate filename with timestamp
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    filename = f"events_export_{timestamp}.csv"
+
+    # Return as streaming response with CSV content type
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @router.get("/{event_id}", response_model=EventResponse)
 async def get_event(
     event_id: int,
@@ -241,10 +371,9 @@ async def get_event(
             detail=f"Event with id {event_id} not found",
         )
 
-    # Calculate detection count
-    detection_count = 0
-    if event.detection_ids:
-        detection_count = len([d for d in event.detection_ids.split(",") if d.strip()])
+    # Parse detection_ids and calculate count
+    parsed_detection_ids = parse_detection_ids(event.detection_ids)
+    detection_count = len(parsed_detection_ids)
 
     return {
         "id": event.id,
@@ -258,6 +387,7 @@ async def get_event(
         "reviewed": event.reviewed,
         "notes": event.notes,
         "detection_count": detection_count,
+        "detection_ids": parsed_detection_ids,
     }
 
 
@@ -298,10 +428,9 @@ async def update_event(
     await db.commit()
     await db.refresh(event)
 
-    # Calculate detection count
-    detection_count = 0
-    if event.detection_ids:
-        detection_count = len([d for d in event.detection_ids.split(",") if d.strip()])
+    # Parse detection_ids and calculate count
+    parsed_detection_ids = parse_detection_ids(event.detection_ids)
+    detection_count = len(parsed_detection_ids)
 
     return {
         "id": event.id,
@@ -315,6 +444,7 @@ async def update_event(
         "reviewed": event.reviewed,
         "notes": event.notes,
         "detection_count": detection_count,
+        "detection_ids": parsed_detection_ids,
     }
 
 
@@ -349,10 +479,8 @@ async def get_event_detections(
             detail=f"Event with id {event_id} not found",
         )
 
-    # Parse detection_ids (comma-separated string)
-    detection_ids = []
-    if event.detection_ids:
-        detection_ids = [int(d.strip()) for d in event.detection_ids.split(",") if d.strip()]
+    # Parse detection_ids using helper function
+    detection_ids = parse_detection_ids(event.detection_ids)
 
     # If no detections, return empty list
     if not detection_ids:

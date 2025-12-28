@@ -1,4 +1,4 @@
-import { Home, Clock, Users, Bell, Settings, ScrollText } from 'lucide-react';
+import { Home, Clock, Users, Bell, Settings, ScrollText, Server } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 interface NavItem {
@@ -15,6 +15,7 @@ const navItems: NavItem[] = [
   { id: 'entities', label: 'Entities', icon: Users, badge: 'WIP', path: '/entities' },
   { id: 'alerts', label: 'Alerts', icon: Bell, path: '/alerts' },
   { id: 'logs', label: 'Logs', icon: ScrollText, path: '/logs' },
+  { id: 'system', label: 'System', icon: Server, path: '/system' },
   { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
 ];
 

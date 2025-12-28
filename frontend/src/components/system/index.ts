@@ -5,3 +5,5 @@ export type {
   QueueStats,
   HealthStatus,
 } from './ObservabilityPanel';
+
+export { default as SystemMonitoringPage } from './SystemMonitoringPage';
