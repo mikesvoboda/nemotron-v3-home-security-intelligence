@@ -25,7 +25,7 @@ from sqlalchemy import select
 from backend.core.database import get_session
 from backend.models import Camera, Detection, Event
 from backend.services.batch_aggregator import BatchAggregator
-from backend.services.detector_client import DetectorClient, DetectorServiceError
+from backend.services.detector_client import DetectorClient, DetectorUnavailableError
 from backend.services.file_watcher import FileWatcher
 from backend.services.nemotron_analyzer import NemotronAnalyzer
 
@@ -411,10 +411,10 @@ async def test_pipeline_detector_failure_graceful(
     test_camera: Camera,
     temp_camera_dir: Path,
 ) -> None:
-    """Test pipeline raises DetectorServiceError for retry handling on failures.
+    """Test pipeline raises DetectorUnavailableError for retry handling on failures.
 
     Verifies that:
-    1. DetectorClient raises DetectorServiceError on connection error
+    1. DetectorClient raises DetectorUnavailableError on connection error
     2. No detection is stored in database
     3. Exception allows pipeline to retry or move to DLQ
     4. System remains stable after handling the error
@@ -423,7 +423,7 @@ async def test_pipeline_detector_failure_graceful(
     image_path = temp_camera_dir / "test_camera" / "test_image.jpg"
     create_test_image(image_path)
 
-    # Test connection error raises DetectorServiceError
+    # Test connection error raises DetectorUnavailableError
     detector = DetectorClient()
 
     async with get_session() as session:
@@ -433,8 +433,8 @@ async def test_pipeline_detector_failure_graceful(
             mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
             mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
 
-            # Should raise DetectorServiceError to allow retry
-            with pytest.raises(DetectorServiceError) as exc_info:
+            # Should raise DetectorUnavailableError to allow retry
+            with pytest.raises(DetectorUnavailableError) as exc_info:
                 await detector.detect_objects(
                     image_path=str(image_path),
                     camera_id="test_camera",
@@ -451,7 +451,7 @@ async def test_pipeline_detector_failure_graceful(
         stored_detections = list(result.scalars().all())
         assert len(stored_detections) == 0
 
-    # Test timeout error raises DetectorServiceError
+    # Test timeout error raises DetectorUnavailableError
     async with get_session() as session:
         with patch("backend.services.detector_client.httpx.AsyncClient") as mock_client:
             mock_instance = AsyncMock()
@@ -459,8 +459,8 @@ async def test_pipeline_detector_failure_graceful(
             mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
             mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
 
-            # Should raise DetectorServiceError to allow retry
-            with pytest.raises(DetectorServiceError) as exc_info:
+            # Should raise DetectorUnavailableError to allow retry
+            with pytest.raises(DetectorUnavailableError) as exc_info:
                 await detector.detect_objects(
                     image_path=str(image_path),
                     camera_id="test_camera",
@@ -469,7 +469,7 @@ async def test_pipeline_detector_failure_graceful(
 
             assert "timed out" in str(exc_info.value)
 
-    # Test HTTP 5xx error raises DetectorServiceError
+    # Test HTTP 5xx error raises DetectorUnavailableError
     async with get_session() as session:
         with patch("backend.services.detector_client.httpx.AsyncClient") as mock_client:
             mock_response = MagicMock()
@@ -485,8 +485,8 @@ async def test_pipeline_detector_failure_graceful(
             mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
             mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
 
-            # Should raise DetectorServiceError to allow retry
-            with pytest.raises(DetectorServiceError) as exc_info:
+            # Should raise DetectorUnavailableError to allow retry
+            with pytest.raises(DetectorUnavailableError) as exc_info:
                 await detector.detect_objects(
                     image_path=str(image_path),
                     camera_id="test_camera",
