@@ -4,3774 +4,4130 @@
  */
 
 export interface paths {
-  '/api/cameras': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/admin/seed/cameras": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Seed Cameras
+         * @description Seed test cameras into the database.
+         *
+         *     Only available when DEBUG=true.
+         *
+         *     Args:
+         *         request: Seed configuration (count, clear_existing, create_folders)
+         *         db: Database session
+         *
+         *     Returns:
+         *         Summary of seeded cameras
+         */
+        post: operations["seed_cameras_api_admin_seed_cameras_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * List Cameras
-     * @description List all cameras with optional status filter.
-     *
-     *     Args:
-     *         status_filter: Optional status to filter cameras by (online, offline, error)
-     *         db: Database session
-     *
-     *     Returns:
-     *         CameraListResponse containing list of cameras and total count
-     */
-    get: operations['list_cameras_api_cameras_get'];
-    put?: never;
-    /**
-     * Create Camera
-     * @description Create a new camera.
-     *
-     *     Args:
-     *         camera_data: Camera creation data
-     *         db: Database session
-     *
-     *     Returns:
-     *         Created camera object with generated ID
-     */
-    post: operations['create_camera_api_cameras_post'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/cameras/{camera_id}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/admin/seed/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Seed Events
+         * @description Seed mock events and detections into the database.
+         *
+         *     Only available when DEBUG=true. Requires cameras to exist first.
+         *
+         *     Args:
+         *         request: Seed configuration (count, clear_existing)
+         *         db: Database session
+         *
+         *     Returns:
+         *         Summary of seeded events and detections
+         */
+        post: operations["seed_events_api_admin_seed_events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Get Camera
-     * @description Get a specific camera by ID.
-     *
-     *     Args:
-     *         camera_id: UUID of the camera
-     *         db: Database session
-     *
-     *     Returns:
-     *         Camera object
-     *
-     *     Raises:
-     *         HTTPException: 404 if camera not found
-     */
-    get: operations['get_camera_api_cameras__camera_id__get'];
-    put?: never;
-    post?: never;
-    /**
-     * Delete Camera
-     * @description Delete a camera.
-     *
-     *     This operation cascades to all related detections and events.
-     *
-     *     Args:
-     *         camera_id: UUID of the camera to delete
-     *         db: Database session
-     *
-     *     Raises:
-     *         HTTPException: 404 if camera not found
-     */
-    delete: operations['delete_camera_api_cameras__camera_id__delete'];
-    options?: never;
-    head?: never;
-    /**
-     * Update Camera
-     * @description Update an existing camera.
-     *
-     *     Args:
-     *         camera_id: UUID of the camera to update
-     *         camera_data: Camera update data (all fields optional)
-     *         db: Database session
-     *
-     *     Returns:
-     *         Updated camera object
-     *
-     *     Raises:
-     *         HTTPException: 404 if camera not found
-     */
-    patch: operations['update_camera_api_cameras__camera_id__patch'];
-    trace?: never;
-  };
-  '/api/cameras/{camera_id}/snapshot': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/admin/seed/clear": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Clear Seeded Data
+         * @description Clear all seeded data (cameras, events, detections).
+         *
+         *     Only available when DEBUG=true.
+         *
+         *     Args:
+         *         db: Database session
+         *
+         *     Returns:
+         *         Summary of cleared data counts
+         */
+        delete: operations["clear_seeded_data_api_admin_seed_clear_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Get Camera Snapshot
-     * @description Return the latest image for a camera (best-effort snapshot).
-     *
-     *     This endpoint uses the camera's configured `folder_path` and returns the most recently
-     *     modified image file under that directory.
-     */
-    get: operations['get_camera_snapshot_api_cameras__camera_id__snapshot_get'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/detections': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/cameras": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Cameras
+         * @description List all cameras with optional status filter.
+         *
+         *     Args:
+         *         status_filter: Optional status to filter cameras by (online, offline, error)
+         *         db: Database session
+         *
+         *     Returns:
+         *         CameraListResponse containing list of cameras and total count
+         */
+        get: operations["list_cameras_api_cameras_get"];
+        put?: never;
+        /**
+         * Create Camera
+         * @description Create a new camera.
+         *
+         *     Args:
+         *         camera_data: Camera creation data
+         *         db: Database session
+         *
+         *     Returns:
+         *         Created camera object with generated ID
+         */
+        post: operations["create_camera_api_cameras_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * List Detections
-     * @description List detections with optional filtering and pagination.
-     *
-     *     Args:
-     *         camera_id: Optional camera ID to filter by
-     *         object_type: Optional object type to filter by (person, car, etc.)
-     *         start_date: Optional start date for date range filter
-     *         end_date: Optional end date for date range filter
-     *         min_confidence: Optional minimum confidence score (0-1)
-     *         limit: Maximum number of results to return (1-1000, default 50)
-     *         offset: Number of results to skip for pagination (default 0)
-     *         db: Database session
-     *
-     *     Returns:
-     *         DetectionListResponse containing filtered detections and pagination info
-     */
-    get: operations['list_detections_api_detections_get'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/detections/{detection_id}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/cameras/{camera_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Camera
+         * @description Get a specific camera by ID.
+         *
+         *     Args:
+         *         camera_id: UUID of the camera
+         *         db: Database session
+         *
+         *     Returns:
+         *         Camera object
+         *
+         *     Raises:
+         *         HTTPException: 404 if camera not found
+         */
+        get: operations["get_camera_api_cameras__camera_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Camera
+         * @description Delete a camera.
+         *
+         *     This operation cascades to all related detections and events.
+         *
+         *     Args:
+         *         camera_id: UUID of the camera to delete
+         *         db: Database session
+         *
+         *     Raises:
+         *         HTTPException: 404 if camera not found
+         */
+        delete: operations["delete_camera_api_cameras__camera_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Camera
+         * @description Update an existing camera.
+         *
+         *     Args:
+         *         camera_id: UUID of the camera to update
+         *         camera_data: Camera update data (all fields optional)
+         *         db: Database session
+         *
+         *     Returns:
+         *         Updated camera object
+         *
+         *     Raises:
+         *         HTTPException: 404 if camera not found
+         */
+        patch: operations["update_camera_api_cameras__camera_id__patch"];
+        trace?: never;
     };
-    /**
-     * Get Detection
-     * @description Get a specific detection by ID.
-     *
-     *     Args:
-     *         detection_id: Detection ID
-     *         db: Database session
-     *
-     *     Returns:
-     *         Detection object
-     *
-     *     Raises:
-     *         HTTPException: 404 if detection not found
-     */
-    get: operations['get_detection_api_detections__detection_id__get'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/detections/{detection_id}/image': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/cameras/{camera_id}/snapshot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Camera Snapshot
+         * @description Return the latest image for a camera (best-effort snapshot).
+         *
+         *     This endpoint uses the camera's configured `folder_path` and returns the most recently
+         *     modified image file under that directory.
+         */
+        get: operations["get_camera_snapshot_api_cameras__camera_id__snapshot_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Get Detection Image
-     * @description Get detection image with bounding box overlay.
-     *
-     *     Returns the thumbnail image with bounding box drawn around the detected object.
-     *     If thumbnail doesn't exist, generates it on the fly from the source image.
-     *
-     *     Args:
-     *         detection_id: Detection ID
-     *         db: Database session
-     *
-     *     Returns:
-     *         JPEG image with bounding box overlay
-     *
-     *     Raises:
-     *         HTTPException: 404 if detection not found or image file doesn't exist
-     *         HTTPException: 500 if image generation fails
-     */
-    get: operations['get_detection_image_api_detections__detection_id__image_get'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/dlq/stats': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/detections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Detections
+         * @description List detections with optional filtering and pagination.
+         *
+         *     Args:
+         *         camera_id: Optional camera ID to filter by
+         *         object_type: Optional object type to filter by (person, car, etc.)
+         *         start_date: Optional start date for date range filter
+         *         end_date: Optional end date for date range filter
+         *         min_confidence: Optional minimum confidence score (0-1)
+         *         limit: Maximum number of results to return (1-1000, default 50)
+         *         offset: Number of results to skip for pagination (default 0)
+         *         db: Database session
+         *
+         *     Returns:
+         *         DetectionListResponse containing filtered detections and pagination info
+         */
+        get: operations["list_detections_api_detections_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Get Dlq Stats
-     * @description Get dead-letter queue statistics.
-     *
-     *     Returns the number of jobs in each DLQ and the total count.
-     *
-     *     Returns:
-     *         DLQStatsResponse with queue counts
-     */
-    get: operations['get_dlq_stats_api_dlq_stats_get'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/dlq/jobs/{queue_name}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/detections/{detection_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Detection
+         * @description Get a specific detection by ID.
+         *
+         *     Args:
+         *         detection_id: Detection ID
+         *         db: Database session
+         *
+         *     Returns:
+         *         Detection object
+         *
+         *     Raises:
+         *         HTTPException: 404 if detection not found
+         */
+        get: operations["get_detection_api_detections__detection_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Get Dlq Jobs
-     * @description List jobs in a specific dead-letter queue.
-     *
-     *     Returns jobs in the specified DLQ without removing them.
-     *     Use pagination parameters to control the result set.
-     *
-     *     Args:
-     *         queue_name: Name of the DLQ (detection or analysis)
-     *         start: Start index for pagination
-     *         limit: Maximum number of jobs to return
-     *         redis: Redis client
-     *
-     *     Returns:
-     *         DLQJobsResponse with list of jobs
-     */
-    get: operations['get_dlq_jobs_api_dlq_jobs__queue_name__get'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/dlq/requeue/{queue_name}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/detections/{detection_id}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Detection Image
+         * @description Get detection image with bounding box overlay.
+         *
+         *     Returns the thumbnail image with bounding box drawn around the detected object.
+         *     If thumbnail doesn't exist, generates it on the fly from the source image.
+         *
+         *     Args:
+         *         detection_id: Detection ID
+         *         db: Database session
+         *
+         *     Returns:
+         *         JPEG image with bounding box overlay
+         *
+         *     Raises:
+         *         HTTPException: 404 if detection not found or image file doesn't exist
+         *         HTTPException: 500 if image generation fails
+         */
+        get: operations["get_detection_image_api_detections__detection_id__image_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Requeue Dlq Job
-     * @description Requeue the oldest job from a DLQ back to its original processing queue.
-     *
-     *     Removes the oldest job from the specified DLQ and adds it back to the
-     *     original processing queue for retry.
-     *
-     *     Args:
-     *         queue_name: Name of the DLQ (detection or analysis)
-     *         redis: Redis client
-     *
-     *     Returns:
-     *         DLQRequeueResponse with operation result
-     */
-    post: operations['requeue_dlq_job_api_dlq_requeue__queue_name__post'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/dlq/requeue-all/{queue_name}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/dlq/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Dlq Stats
+         * @description Get dead-letter queue statistics.
+         *
+         *     Returns the number of jobs in each DLQ and the total count.
+         *
+         *     Returns:
+         *         DLQStatsResponse with queue counts
+         */
+        get: operations["get_dlq_stats_api_dlq_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Requeue All Dlq Jobs
-     * @description Requeue all jobs from a DLQ back to their original processing queue.
-     *
-     *     Removes all jobs from the specified DLQ and adds them back to the
-     *     original processing queue for retry. Limited to settings.max_requeue_iterations
-     *     to prevent resource exhaustion.
-     *
-     *     Args:
-     *         queue_name: Name of the DLQ (detection or analysis)
-     *         redis: Redis client
-     *
-     *     Returns:
-     *         DLQRequeueResponse with operation result and count
-     */
-    post: operations['requeue_all_dlq_jobs_api_dlq_requeue_all__queue_name__post'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/dlq/{queue_name}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/dlq/jobs/{queue_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Dlq Jobs
+         * @description List jobs in a specific dead-letter queue.
+         *
+         *     Returns jobs in the specified DLQ without removing them.
+         *     Use pagination parameters to control the result set.
+         *
+         *     Args:
+         *         queue_name: Name of the DLQ (detection or analysis)
+         *         start: Start index for pagination
+         *         limit: Maximum number of jobs to return
+         *         redis: Redis client
+         *
+         *     Returns:
+         *         DLQJobsResponse with list of jobs
+         */
+        get: operations["get_dlq_jobs_api_dlq_jobs__queue_name__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    /**
-     * Clear Dlq
-     * @description Clear all jobs from a dead-letter queue.
-     *
-     *     WARNING: This permanently removes all jobs from the specified DLQ.
-     *     Use with caution.
-     *
-     *     Args:
-     *         queue_name: Name of the DLQ to clear
-     *         redis: Redis client
-     *
-     *     Returns:
-     *         DLQClearResponse with operation result
-     */
-    delete: operations['clear_dlq_api_dlq__queue_name__delete'];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/events': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/dlq/requeue/{queue_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Requeue Dlq Job
+         * @description Requeue the oldest job from a DLQ back to its original processing queue.
+         *
+         *     Removes the oldest job from the specified DLQ and adds it back to the
+         *     original processing queue for retry.
+         *
+         *     Args:
+         *         queue_name: Name of the DLQ (detection or analysis)
+         *         redis: Redis client
+         *
+         *     Returns:
+         *         DLQRequeueResponse with operation result
+         */
+        post: operations["requeue_dlq_job_api_dlq_requeue__queue_name__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * List Events
-     * @description List events with optional filtering and pagination.
-     *
-     *     Args:
-     *         camera_id: Optional camera ID to filter by
-     *         risk_level: Optional risk level to filter by (low, medium, high, critical)
-     *         start_date: Optional start date for date range filter
-     *         end_date: Optional end date for date range filter
-     *         reviewed: Optional filter by reviewed status
-     *         object_type: Optional object type to filter by (person, vehicle, animal, etc.)
-     *         limit: Maximum number of results to return (1-1000, default 50)
-     *         offset: Number of results to skip for pagination (default 0)
-     *         db: Database session
-     *
-     *     Returns:
-     *         EventListResponse containing filtered events and pagination info
-     */
-    get: operations['list_events_api_events_get'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/events/stats': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/dlq/requeue-all/{queue_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Requeue All Dlq Jobs
+         * @description Requeue all jobs from a DLQ back to their original processing queue.
+         *
+         *     Removes all jobs from the specified DLQ and adds them back to the
+         *     original processing queue for retry. Limited to settings.max_requeue_iterations
+         *     to prevent resource exhaustion.
+         *
+         *     Args:
+         *         queue_name: Name of the DLQ (detection or analysis)
+         *         redis: Redis client
+         *
+         *     Returns:
+         *         DLQRequeueResponse with operation result and count
+         */
+        post: operations["requeue_all_dlq_jobs_api_dlq_requeue_all__queue_name__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Get Event Stats
-     * @description Get aggregated event statistics.
-     *
-     *     Returns statistics about events including:
-     *     - Total event count
-     *     - Events grouped by risk level (critical, high, medium, low)
-     *     - Events grouped by camera with camera names
-     *
-     *     Args:
-     *         start_date: Optional start date for date range filter
-     *         end_date: Optional end date for date range filter
-     *         db: Database session
-     *
-     *     Returns:
-     *         EventStatsResponse with aggregated statistics
-     */
-    get: operations['get_event_stats_api_events_stats_get'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/events/{event_id}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/dlq/{queue_name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Clear Dlq
+         * @description Clear all jobs from a dead-letter queue.
+         *
+         *     WARNING: This permanently removes all jobs from the specified DLQ.
+         *     Use with caution.
+         *
+         *     Args:
+         *         queue_name: Name of the DLQ to clear
+         *         redis: Redis client
+         *
+         *     Returns:
+         *         DLQClearResponse with operation result
+         */
+        delete: operations["clear_dlq_api_dlq__queue_name__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Get Event
-     * @description Get a specific event by ID.
-     *
-     *     Args:
-     *         event_id: Event ID
-     *         db: Database session
-     *
-     *     Returns:
-     *         Event object with detection count
-     *
-     *     Raises:
-     *         HTTPException: 404 if event not found
-     */
-    get: operations['get_event_api_events__event_id__get'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    /**
-     * Update Event
-     * @description Update an event (mark as reviewed).
-     *
-     *     Args:
-     *         event_id: Event ID
-     *         update_data: Update data (reviewed field)
-     *         db: Database session
-     *
-     *     Returns:
-     *         Updated event object
-     *
-     *     Raises:
-     *         HTTPException: 404 if event not found
-     */
-    patch: operations['update_event_api_events__event_id__patch'];
-    trace?: never;
-  };
-  '/api/events/{event_id}/detections': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Events
+         * @description List events with optional filtering and pagination.
+         *
+         *     Args:
+         *         camera_id: Optional camera ID to filter by
+         *         risk_level: Optional risk level to filter by (low, medium, high, critical)
+         *         start_date: Optional start date for date range filter
+         *         end_date: Optional end date for date range filter
+         *         reviewed: Optional filter by reviewed status
+         *         object_type: Optional object type to filter by (person, vehicle, animal, etc.)
+         *         limit: Maximum number of results to return (1-1000, default 50)
+         *         offset: Number of results to skip for pagination (default 0)
+         *         db: Database session
+         *
+         *     Returns:
+         *         EventListResponse containing filtered events and pagination info
+         */
+        get: operations["list_events_api_events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Get Event Detections
-     * @description Get detections for a specific event.
-     *
-     *     Args:
-     *         event_id: Event ID
-     *         limit: Maximum number of results to return (1-1000, default 50)
-     *         offset: Number of results to skip for pagination (default 0)
-     *         db: Database session
-     *
-     *     Returns:
-     *         DetectionListResponse containing detections for the event
-     *
-     *     Raises:
-     *         HTTPException: 404 if event not found
-     */
-    get: operations['get_event_detections_api_events__event_id__detections_get'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/logs': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/events/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Event Stats
+         * @description Get aggregated event statistics.
+         *
+         *     Returns statistics about events including:
+         *     - Total event count
+         *     - Events grouped by risk level (critical, high, medium, low)
+         *     - Events grouped by camera with camera names
+         *
+         *     Args:
+         *         start_date: Optional start date for date range filter
+         *         end_date: Optional end date for date range filter
+         *         db: Database session
+         *
+         *     Returns:
+         *         EventStatsResponse with aggregated statistics
+         */
+        get: operations["get_event_stats_api_events_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * List Logs
-     * @description List logs with optional filtering and pagination.
-     */
-    get: operations['list_logs_api_logs_get'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/logs/stats': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/events/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Events
+         * @description Export events as CSV file for external analysis or record-keeping.
+         *
+         *     Exports events with the following fields:
+         *     - Event ID, camera name, timestamps
+         *     - Risk score, risk level, summary
+         *     - Detection count, reviewed status
+         *
+         *     Args:
+         *         camera_id: Optional camera ID to filter by
+         *         risk_level: Optional risk level to filter by (low, medium, high, critical)
+         *         start_date: Optional start date for date range filter
+         *         end_date: Optional end date for date range filter
+         *         reviewed: Optional filter by reviewed status
+         *         db: Database session
+         *
+         *     Returns:
+         *         StreamingResponse with CSV file containing exported events
+         */
+        get: operations["export_events_api_events_export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Get Log Stats
-     * @description Get log statistics for dashboard.
-     */
-    get: operations['get_log_stats_api_logs_stats_get'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/logs/{log_id}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/events/{event_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Event
+         * @description Get a specific event by ID.
+         *
+         *     Args:
+         *         event_id: Event ID
+         *         db: Database session
+         *
+         *     Returns:
+         *         Event object with detection count
+         *
+         *     Raises:
+         *         HTTPException: 404 if event not found
+         */
+        get: operations["get_event_api_events__event_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Event
+         * @description Update an event (mark as reviewed).
+         *
+         *     Args:
+         *         event_id: Event ID
+         *         update_data: Update data (reviewed field)
+         *         db: Database session
+         *
+         *     Returns:
+         *         Updated event object
+         *
+         *     Raises:
+         *         HTTPException: 404 if event not found
+         */
+        patch: operations["update_event_api_events__event_id__patch"];
+        trace?: never;
     };
-    /**
-     * Get Log
-     * @description Get a single log entry by ID.
-     */
-    get: operations['get_log_api_logs__log_id__get'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/logs/frontend': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/events/{event_id}/detections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Event Detections
+         * @description Get detections for a specific event.
+         *
+         *     Args:
+         *         event_id: Event ID
+         *         limit: Maximum number of results to return (1-1000, default 50)
+         *         offset: Number of results to skip for pagination (default 0)
+         *         db: Database session
+         *
+         *     Returns:
+         *         DetectionListResponse containing detections for the event
+         *
+         *     Raises:
+         *         HTTPException: 404 if event not found
+         */
+        get: operations["get_event_detections_api_events__event_id__detections_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Create Frontend Log
-     * @description Receive and store a log from the frontend.
-     */
-    post: operations['create_frontend_log_api_logs_frontend_post'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/media/{path}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Logs
+         * @description List logs with optional filtering and pagination.
+         */
+        get: operations["list_logs_api_logs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Serve Media Compat
-     * @description Compatibility route: serve media via design-spec-style /api/media/{path}.
-     *
-     *     This preserves the stricter behavior of the new routes:
-     *     - Path traversal protection
-     *     - Allowed file type allowlist
-     *     - Must remain under configured base directories
-     *
-     *     Mapping rules:
-     *     - `cameras/<camera_id>/<filename...>` → camera media
-     *     - `thumbnails/<filename>` → thumbnails
-     */
-    get: operations['serve_media_compat_api_media__path__get'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/media/cameras/{camera_id}/{filename}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/logs/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Log Stats
+         * @description Get log statistics for dashboard.
+         */
+        get: operations["get_log_stats_api_logs_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Serve Camera File
-     * @description Serve camera images or videos from Foscam storage.
-     *
-     *     Args:
-     *         camera_id: The camera identifier (directory name)
-     *         filename: The file to serve (can include subdirectories)
-     *
-     *     Returns:
-     *         FileResponse with appropriate content-type header
-     *
-     *     Raises:
-     *         HTTPException: 403 for invalid paths, 404 for missing files
-     */
-    get: operations['serve_camera_file_api_media_cameras__camera_id___filename__get'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/media/thumbnails/{filename}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/logs/{log_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Log
+         * @description Get a single log entry by ID.
+         */
+        get: operations["get_log_api_logs__log_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Serve Thumbnail
-     * @description Serve detection thumbnail images.
-     *
-     *     Args:
-     *         filename: The thumbnail filename
-     *
-     *     Returns:
-     *         FileResponse with appropriate content-type header
-     *
-     *     Raises:
-     *         HTTPException: 403 for invalid paths, 404 for missing files
-     */
-    get: operations['serve_thumbnail_api_media_thumbnails__filename__get'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/metrics': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/logs/frontend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Frontend Log
+         * @description Receive and store a log from the frontend.
+         */
+        post: operations["create_frontend_log_api_logs_frontend_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Metrics
-     * @description Return Prometheus metrics in exposition format.
-     *
-     *     This endpoint returns all registered metrics in the standard
-     *     Prometheus exposition format for scraping.
-     *
-     *     Returns:
-     *         Response with text/plain content type containing metrics
-     */
-    get: operations['metrics_api_metrics_get'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/system/health': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/media/{path}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Serve Media Compat
+         * @description Compatibility route: serve media via design-spec-style /api/media/{path}.
+         *
+         *     This preserves the stricter behavior of the new routes:
+         *     - Path traversal protection
+         *     - Allowed file type allowlist
+         *     - Must remain under configured base directories
+         *
+         *     Mapping rules:
+         *     - `cameras/<camera_id>/<filename...>` → camera media
+         *     - `thumbnails/<filename>` → thumbnails
+         */
+        get: operations["serve_media_compat_api_media__path__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Get Health
-     * @description Get detailed system health check.
-     *
-     *     Checks the health of all system components:
-     *     - Database connectivity
-     *     - Redis connectivity
-     *     - AI services status
-     *
-     *     Health checks have a timeout of HEALTH_CHECK_TIMEOUT_SECONDS (default 5 seconds).
-     *     If a health check times out, the service is marked as unhealthy.
-     *
-     *     Returns:
-     *         HealthResponse with overall status and individual service statuses
-     */
-    get: operations['get_health_api_system_health_get'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/system/health/live': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/media/cameras/{camera_id}/{filename}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Serve Camera File
+         * @description Serve camera images or videos from Foscam storage.
+         *
+         *     Args:
+         *         camera_id: The camera identifier (directory name)
+         *         filename: The file to serve (can include subdirectories)
+         *
+         *     Returns:
+         *         FileResponse with appropriate content-type header
+         *
+         *     Raises:
+         *         HTTPException: 403 for invalid paths, 404 for missing files
+         */
+        get: operations["serve_camera_file_api_media_cameras__camera_id___filename__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Get Liveness
-     * @description Liveness probe endpoint.
-     *
-     *     This endpoint indicates whether the process is running and able to
-     *     respond to HTTP requests. It always returns 200 with status "alive"
-     *     if the process is up. This is a minimal check with no dependencies.
-     *
-     *     Used by Kubernetes/Docker to determine if the container should be restarted.
-     *     If this endpoint fails, the process is considered dead and should be restarted.
-     *
-     *     Returns:
-     *         LivenessResponse with status "alive"
-     */
-    get: operations['get_liveness_api_system_health_live_get'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/system/health/ready': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/media/thumbnails/{filename}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Serve Thumbnail
+         * @description Serve detection thumbnail images.
+         *
+         *     Args:
+         *         filename: The thumbnail filename
+         *
+         *     Returns:
+         *         FileResponse with appropriate content-type header
+         *
+         *     Raises:
+         *         HTTPException: 403 for invalid paths, 404 for missing files
+         */
+        get: operations["serve_thumbnail_api_media_thumbnails__filename__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Get Readiness
-     * @description Readiness probe endpoint.
-     *
-     *     This endpoint indicates whether the application is ready to receive
-     *     traffic and process uploads. It checks all critical dependencies:
-     *     - Database connectivity (critical)
-     *     - Redis connectivity (required for queue processing)
-     *     - AI services availability
-     *     - Background worker status
-     *
-     *     Used by Kubernetes/Docker to determine if traffic should be routed to this instance.
-     *     If this endpoint returns not_ready, the instance should not receive new requests.
-     *
-     *     Health checks have a timeout of HEALTH_CHECK_TIMEOUT_SECONDS (default 5 seconds).
-     *     If a health check times out, the service is marked as unhealthy.
-     *
-     *     Returns:
-     *         ReadinessResponse with overall readiness status and detailed checks
-     */
-    get: operations['get_readiness_api_system_health_ready_get'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/system/gpu': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Metrics
+         * @description Return Prometheus metrics in exposition format.
+         *
+         *     This endpoint returns all registered metrics in the standard
+         *     Prometheus exposition format for scraping.
+         *
+         *     Returns:
+         *         Response with text/plain content type containing metrics
+         */
+        get: operations["metrics_api_metrics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Get Gpu Stats
-     * @description Get current GPU statistics.
-     *
-     *     Returns the most recent GPU statistics including:
-     *     - GPU utilization percentage
-     *     - Memory usage (used/total)
-     *     - Temperature
-     *     - Inference FPS
-     *
-     *     Returns:
-     *         GPUStatsResponse with GPU statistics (null values if unavailable)
-     */
-    get: operations['get_gpu_stats_api_system_gpu_get'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/system/gpu/history': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/system/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Health
+         * @description Get detailed system health check.
+         *
+         *     Checks the health of all system components:
+         *     - Database connectivity
+         *     - Redis connectivity
+         *     - AI services status
+         *
+         *     Health checks have a timeout of HEALTH_CHECK_TIMEOUT_SECONDS (default 5 seconds).
+         *     If a health check times out, the service is marked as unhealthy.
+         *
+         *     Returns:
+         *         HealthResponse with overall status and individual service statuses
+         */
+        get: operations["get_health_api_system_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Get Gpu Stats History
-     * @description Get recent GPU stats samples as a time-series.
-     *
-     *     Args:
-     *         since: Optional lower bound for recorded_at (ISO datetime)
-     *         limit: Maximum number of samples to return (default 300)
-     *         db: Database session
-     */
-    get: operations['get_gpu_stats_history_api_system_gpu_history_get'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/system/config': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/system/health/live": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Liveness
+         * @description Liveness probe endpoint.
+         *
+         *     This endpoint indicates whether the process is running and able to
+         *     respond to HTTP requests. It always returns 200 with status "alive"
+         *     if the process is up. This is a minimal check with no dependencies.
+         *
+         *     Used by Kubernetes/Docker to determine if the container should be restarted.
+         *     If this endpoint fails, the process is considered dead and should be restarted.
+         *
+         *     Returns:
+         *         LivenessResponse with status "alive"
+         */
+        get: operations["get_liveness_api_system_health_live_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Get Config
-     * @description Get public configuration settings.
-     *
-     *     Returns non-sensitive application configuration values.
-     *     Does NOT expose database URLs, API keys, or other secrets.
-     *
-     *     Returns:
-     *         ConfigResponse with public configuration settings
-     */
-    get: operations['get_config_api_system_config_get'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    /**
-     * Patch Config
-     * @description Patch processing-related configuration and persist runtime overrides.
-     *
-     *     Requires API key authentication when api_key_enabled is True in settings.
-     *     Provide the API key via X-API-Key header.
-     *
-     *     Notes:
-     *     - This updates a runtime override env file (see `HSI_RUNTIME_ENV_PATH`) and clears the
-     *       settings cache so subsequent `get_settings()` calls observe the new values.
-     */
-    patch: operations['patch_config_api_system_config_patch'];
-    trace?: never;
-  };
-  '/api/system/stats': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/system/health/ready": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Readiness
+         * @description Readiness probe endpoint.
+         *
+         *     This endpoint indicates whether the application is ready to receive
+         *     traffic and process uploads. It checks all critical dependencies:
+         *     - Database connectivity (critical)
+         *     - Redis connectivity (required for queue processing)
+         *     - AI services availability
+         *     - Background worker status
+         *
+         *     Used by Kubernetes/Docker to determine if traffic should be routed to this instance.
+         *     If this endpoint returns not_ready, the instance should not receive new requests.
+         *
+         *     Health checks have a timeout of HEALTH_CHECK_TIMEOUT_SECONDS (default 5 seconds).
+         *     If a health check times out, the service is marked as unhealthy.
+         *
+         *     Returns:
+         *         ReadinessResponse with overall readiness status and detailed checks
+         */
+        get: operations["get_readiness_api_system_health_ready_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Get Stats
-     * @description Get system statistics.
-     *
-     *     Returns aggregate statistics about the system:
-     *     - Total number of cameras
-     *     - Total number of events
-     *     - Total number of detections
-     *     - Application uptime
-     *
-     *     Returns:
-     *         SystemStatsResponse with system statistics
-     */
-    get: operations['get_stats_api_system_stats_get'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/system/telemetry': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/system/gpu": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Gpu Stats
+         * @description Get current GPU statistics.
+         *
+         *     Returns the most recent GPU statistics including:
+         *     - GPU utilization percentage
+         *     - Memory usage (used/total)
+         *     - Temperature
+         *     - Inference FPS
+         *
+         *     Returns:
+         *         GPUStatsResponse with GPU statistics (null values if unavailable)
+         */
+        get: operations["get_gpu_stats_api_system_gpu_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Get Telemetry
-     * @description Get pipeline telemetry data.
-     *
-     *     Returns real-time metrics about the AI processing pipeline:
-     *     - Queue depths: Items waiting in detection and analysis queues
-     *     - Stage latencies: Processing time statistics for each pipeline stage
-     *
-     *     This endpoint helps operators:
-     *     - Monitor pipeline health and throughput
-     *     - Identify bottlenecks and backlogs
-     *     - Debug pipeline stalls
-     *     - Track performance trends
-     *
-     *     Returns:
-     *         TelemetryResponse with queue depths and latency statistics
-     */
-    get: operations['get_telemetry_api_system_telemetry_get'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/api/system/cleanup': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/system/gpu/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Gpu Stats History
+         * @description Get recent GPU stats samples as a time-series.
+         *
+         *     Args:
+         *         since: Optional lower bound for recorded_at (ISO datetime)
+         *         limit: Maximum number of samples to return (default 300)
+         *         db: Database session
+         */
+        get: operations["get_gpu_stats_history_api_system_gpu_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /**
-     * Trigger Cleanup
-     * @description Trigger manual data cleanup based on retention settings.
-     *
-     *     Requires API key authentication when api_key_enabled is True in settings.
-     *     Provide the API key via X-API-Key header.
-     *
-     *     This endpoint runs the CleanupService to delete old data according to
-     *     the configured retention period. It deletes:
-     *     - Events older than retention period
-     *     - Detections older than retention period
-     *     - GPU stats older than retention period
-     *     - Logs older than log retention period
-     *     - Associated thumbnail files
-     *     - Optionally original image files (if delete_images is enabled)
-     *
-     *     The cleanup respects the current retention_days setting from the system
-     *     configuration. To change the retention period before running cleanup,
-     *     use PATCH /api/system/config first.
-     *
-     *     Args:
-     *         dry_run: If True, calculate and return what would be deleted without
-     *                  actually performing the deletion. Useful for verification
-     *                  before destructive operations.
-     *
-     *     Returns:
-     *         CleanupResponse with statistics about the cleanup operation.
-     *         When dry_run=True, the counts represent what would be deleted.
-     */
-    post: operations['trigger_cleanup_api_system_cleanup_post'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/system/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Config
+         * @description Get public configuration settings.
+         *
+         *     Returns non-sensitive application configuration values.
+         *     Does NOT expose database URLs, API keys, or other secrets.
+         *
+         *     Returns:
+         *         ConfigResponse with public configuration settings
+         */
+        get: operations["get_config_api_system_config_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Patch Config
+         * @description Patch processing-related configuration and persist runtime overrides.
+         *
+         *     Requires API key authentication when api_key_enabled is True in settings.
+         *     Provide the API key via X-API-Key header.
+         *
+         *     Notes:
+         *     - This updates a runtime override env file (see `HSI_RUNTIME_ENV_PATH`) and clears the
+         *       settings cache so subsequent `get_settings()` calls observe the new values.
+         */
+        patch: operations["patch_config_api_system_config_patch"];
+        trace?: never;
     };
-    /**
-     * Root
-     * @description Health check endpoint.
-     */
-    get: operations['root__get'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/health': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/api/system/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Stats
+         * @description Get system statistics.
+         *
+         *     Returns aggregate statistics about the system:
+         *     - Total number of cameras
+         *     - Total number of events
+         *     - Total number of detections
+         *     - Application uptime
+         *
+         *     Returns:
+         *         SystemStatsResponse with system statistics
+         */
+        get: operations["get_stats_api_system_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /**
-     * Health
-     * @description Detailed health check endpoint.
-     */
-    get: operations['health_health_get'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
+    "/api/system/telemetry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Telemetry
+         * @description Get pipeline telemetry data.
+         *
+         *     Returns real-time metrics about the AI processing pipeline:
+         *     - Queue depths: Items waiting in detection and analysis queues
+         *     - Stage latencies: Processing time statistics for each pipeline stage
+         *
+         *     This endpoint helps operators:
+         *     - Monitor pipeline health and throughput
+         *     - Identify bottlenecks and backlogs
+         *     - Debug pipeline stalls
+         *     - Track performance trends
+         *
+         *     Returns:
+         *         TelemetryResponse with queue depths and latency statistics
+         */
+        get: operations["get_telemetry_api_system_telemetry_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/cleanup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Trigger Cleanup
+         * @description Trigger manual data cleanup based on retention settings.
+         *
+         *     Requires API key authentication when api_key_enabled is True in settings.
+         *     Provide the API key via X-API-Key header.
+         *
+         *     This endpoint runs the CleanupService to delete old data according to
+         *     the configured retention period. It deletes:
+         *     - Events older than retention period
+         *     - Detections older than retention period
+         *     - GPU stats older than retention period
+         *     - Logs older than log retention period
+         *     - Associated thumbnail files
+         *     - Optionally original image files (if delete_images is enabled)
+         *
+         *     The cleanup respects the current retention_days setting from the system
+         *     configuration. To change the retention period before running cleanup,
+         *     use PATCH /api/system/config first.
+         *
+         *     Args:
+         *         dry_run: If True, calculate and return what would be deleted without
+         *                  actually performing the deletion. Useful for verification
+         *                  before destructive operations.
+         *
+         *     Returns:
+         *         CleanupResponse with statistics about the cleanup operation.
+         *         When dry_run=True, the counts represent what would be deleted.
+         */
+        post: operations["trigger_cleanup_api_system_cleanup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Root
+         * @description Health check endpoint.
+         */
+        get: operations["root__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Health
+         * @description Detailed health check endpoint.
+         */
+        get: operations["health_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    /**
-     * CameraCreate
-     * @description Schema for creating a new camera.
-     * @example {
-     *       "folder_path": "/export/foscam/front_door",
-     *       "name": "Front Door Camera",
-     *       "status": "online"
-     *     }
-     */
-    CameraCreate: {
-      /**
-       * Name
-       * @description Camera name
-       */
-      name: string;
-      /**
-       * Folder Path
-       * @description File system path for camera uploads
-       */
-      folder_path: string;
-      /**
-       * Status
-       * @description Camera status (online, offline, error)
-       * @default online
-       */
-      status: string;
+    schemas: {
+        /**
+         * CameraCreate
+         * @description Schema for creating a new camera.
+         * @example {
+         *       "folder_path": "/export/foscam/front_door",
+         *       "name": "Front Door Camera",
+         *       "status": "online"
+         *     }
+         */
+        CameraCreate: {
+            /**
+             * Name
+             * @description Camera name
+             */
+            name: string;
+            /**
+             * Folder Path
+             * @description File system path for camera uploads
+             */
+            folder_path: string;
+            /**
+             * Status
+             * @description Camera status (online, offline, error)
+             * @default online
+             */
+            status: string;
+        };
+        /**
+         * CameraListResponse
+         * @description Schema for camera list response.
+         * @example {
+         *       "cameras": [
+         *         {
+         *           "created_at": "2025-12-23T10:00:00Z",
+         *           "folder_path": "/export/foscam/front_door",
+         *           "id": "123e4567-e89b-12d3-a456-426614174000",
+         *           "last_seen_at": "2025-12-23T12:00:00Z",
+         *           "name": "Front Door Camera",
+         *           "status": "online"
+         *         }
+         *       ],
+         *       "count": 1
+         *     }
+         */
+        CameraListResponse: {
+            /**
+             * Cameras
+             * @description List of cameras
+             */
+            cameras: components["schemas"]["CameraResponse"][];
+            /**
+             * Count
+             * @description Total number of cameras
+             */
+            count: number;
+        };
+        /**
+         * CameraResponse
+         * @description Schema for camera response.
+         * @example {
+         *       "created_at": "2025-12-23T10:00:00Z",
+         *       "folder_path": "/export/foscam/front_door",
+         *       "id": "123e4567-e89b-12d3-a456-426614174000",
+         *       "last_seen_at": "2025-12-23T12:00:00Z",
+         *       "name": "Front Door Camera",
+         *       "status": "online"
+         *     }
+         */
+        CameraResponse: {
+            /**
+             * Id
+             * @description Camera UUID
+             */
+            id: string;
+            /**
+             * Name
+             * @description Camera name
+             */
+            name: string;
+            /**
+             * Folder Path
+             * @description File system path for camera uploads
+             */
+            folder_path: string;
+            /**
+             * Status
+             * @description Camera status
+             */
+            status: string;
+            /**
+             * Created At
+             * Format: date-time
+             * @description Timestamp when camera was created
+             */
+            created_at: string;
+            /**
+             * Last Seen At
+             * @description Last time camera was active
+             */
+            last_seen_at?: string | null;
+        };
+        /**
+         * CameraUpdate
+         * @description Schema for updating an existing camera.
+         * @example {
+         *       "name": "Front Door Camera - Updated",
+         *       "status": "offline"
+         *     }
+         */
+        CameraUpdate: {
+            /**
+             * Name
+             * @description Camera name
+             */
+            name?: string | null;
+            /**
+             * Folder Path
+             * @description File system path for camera uploads
+             */
+            folder_path?: string | null;
+            /**
+             * Status
+             * @description Camera status (online, offline, error)
+             */
+            status?: string | null;
+        };
+        /**
+         * CleanupResponse
+         * @description Response schema for data cleanup endpoint.
+         *
+         *     Returns statistics about the cleanup operation including counts of
+         *     deleted records and files. When dry_run is True, the counts represent
+         *     what would be deleted without actually deleting.
+         * @example {
+         *       "detections_deleted": 89,
+         *       "dry_run": false,
+         *       "events_deleted": 15,
+         *       "gpu_stats_deleted": 2880,
+         *       "images_deleted": 0,
+         *       "logs_deleted": 150,
+         *       "retention_days": 30,
+         *       "space_reclaimed": 524288000,
+         *       "thumbnails_deleted": 89,
+         *       "timestamp": "2025-12-27T10:30:00Z"
+         *     }
+         */
+        CleanupResponse: {
+            /**
+             * Events Deleted
+             * @description Number of events deleted (or would be deleted in dry run)
+             */
+            events_deleted: number;
+            /**
+             * Detections Deleted
+             * @description Number of detections deleted (or would be deleted in dry run)
+             */
+            detections_deleted: number;
+            /**
+             * Gpu Stats Deleted
+             * @description Number of GPU stat records deleted (or would be deleted in dry run)
+             */
+            gpu_stats_deleted: number;
+            /**
+             * Logs Deleted
+             * @description Number of log records deleted (or would be deleted in dry run)
+             */
+            logs_deleted: number;
+            /**
+             * Thumbnails Deleted
+             * @description Number of thumbnail files deleted (or would be deleted in dry run)
+             */
+            thumbnails_deleted: number;
+            /**
+             * Images Deleted
+             * @description Number of original image files deleted (or would be deleted in dry run)
+             */
+            images_deleted: number;
+            /**
+             * Space Reclaimed
+             * @description Estimated disk space freed in bytes (or would be freed in dry run)
+             */
+            space_reclaimed: number;
+            /**
+             * Retention Days
+             * @description Retention period used for cleanup
+             */
+            retention_days: number;
+            /**
+             * Dry Run
+             * @description Whether this was a dry run (no actual deletion performed)
+             * @default false
+             */
+            dry_run: boolean;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Timestamp of cleanup operation
+             */
+            timestamp: string;
+        };
+        /**
+         * ClearDataResponse
+         * @description Response schema for clear data endpoint.
+         */
+        ClearDataResponse: {
+            /** Cameras Cleared */
+            cameras_cleared: number;
+            /** Events Cleared */
+            events_cleared: number;
+            /** Detections Cleared */
+            detections_cleared: number;
+        };
+        /**
+         * ConfigResponse
+         * @description Response schema for configuration endpoint.
+         *
+         *     Only includes public, non-sensitive configuration values.
+         * @example {
+         *       "app_name": "Home Security Intelligence",
+         *       "batch_idle_timeout_seconds": 30,
+         *       "batch_window_seconds": 90,
+         *       "detection_confidence_threshold": 0.5,
+         *       "retention_days": 30,
+         *       "version": "0.1.0"
+         *     }
+         */
+        ConfigResponse: {
+            /**
+             * App Name
+             * @description Application name
+             */
+            app_name: string;
+            /**
+             * Version
+             * @description Application version
+             */
+            version: string;
+            /**
+             * Retention Days
+             * @description Number of days to retain events and detections
+             */
+            retention_days: number;
+            /**
+             * Batch Window Seconds
+             * @description Time window for batch processing detections
+             */
+            batch_window_seconds: number;
+            /**
+             * Batch Idle Timeout Seconds
+             * @description Idle timeout before processing incomplete batch
+             */
+            batch_idle_timeout_seconds: number;
+            /**
+             * Detection Confidence Threshold
+             * @description Minimum confidence threshold for detections (0.0-1.0)
+             */
+            detection_confidence_threshold: number;
+        };
+        /**
+         * ConfigUpdateRequest
+         * @description Request schema for PATCH /api/system/config.
+         *
+         *     Only supports a subset of processing-related settings.
+         */
+        ConfigUpdateRequest: {
+            /**
+             * Retention Days
+             * @description Number of days to retain events and detections
+             */
+            retention_days?: number | null;
+            /**
+             * Batch Window Seconds
+             * @description Time window for batch processing detections
+             */
+            batch_window_seconds?: number | null;
+            /**
+             * Batch Idle Timeout Seconds
+             * @description Idle timeout before processing incomplete batch
+             */
+            batch_idle_timeout_seconds?: number | null;
+            /**
+             * Detection Confidence Threshold
+             * @description Minimum confidence threshold for detections (0.0-1.0)
+             */
+            detection_confidence_threshold?: number | null;
+        };
+        /**
+         * DLQClearResponse
+         * @description Response schema for clearing a DLQ.
+         * @example {
+         *       "message": "Cleared 5 jobs from dlq:detection_queue",
+         *       "queue_name": "dlq:detection_queue",
+         *       "success": true
+         *     }
+         */
+        DLQClearResponse: {
+            /**
+             * Success
+             * @description Whether the clear operation succeeded
+             */
+            success: boolean;
+            /**
+             * Message
+             * @description Status message
+             */
+            message: string;
+            /**
+             * Queue Name
+             * @description Name of the cleared queue
+             */
+            queue_name: string;
+        };
+        /**
+         * DLQJobResponse
+         * @description Response schema for a single job in the dead-letter queue.
+         * @example {
+         *       "attempt_count": 3,
+         *       "error": "Connection refused: detector service unavailable",
+         *       "first_failed_at": "2025-12-23T10:30:05.000000",
+         *       "last_failed_at": "2025-12-23T10:30:15.000000",
+         *       "original_job": {
+         *         "camera_id": "front_door",
+         *         "file_path": "/export/foscam/front_door/image_001.jpg",
+         *         "timestamp": "2025-12-23T10:30:00.000000"
+         *       },
+         *       "queue_name": "detection_queue"
+         *     }
+         */
+        DLQJobResponse: {
+            /**
+             * Original Job
+             * @description Original job payload that failed
+             */
+            original_job: {
+                [key: string]: unknown;
+            };
+            /**
+             * Error
+             * @description Error message from the last failure attempt
+             */
+            error: string;
+            /**
+             * Attempt Count
+             * @description Number of processing attempts made
+             */
+            attempt_count: number;
+            /**
+             * First Failed At
+             * @description ISO timestamp of the first failure
+             */
+            first_failed_at: string;
+            /**
+             * Last Failed At
+             * @description ISO timestamp of the last failure
+             */
+            last_failed_at: string;
+            /**
+             * Queue Name
+             * @description Name of the original queue where the job came from
+             */
+            queue_name: string;
+        };
+        /**
+         * DLQJobsResponse
+         * @description Response schema for listing jobs in a DLQ.
+         * @example {
+         *       "count": 1,
+         *       "jobs": [
+         *         {
+         *           "attempt_count": 3,
+         *           "error": "Connection refused",
+         *           "first_failed_at": "2025-12-23T10:30:05.000000",
+         *           "last_failed_at": "2025-12-23T10:30:15.000000",
+         *           "original_job": {
+         *             "camera_id": "front_door",
+         *             "file_path": "/export/foscam/front_door/image_001.jpg",
+         *             "timestamp": "2025-12-23T10:30:00.000000"
+         *           },
+         *           "queue_name": "detection_queue"
+         *         }
+         *       ],
+         *       "queue_name": "dlq:detection_queue"
+         *     }
+         */
+        DLQJobsResponse: {
+            /**
+             * Queue Name
+             * @description Name of the dead-letter queue
+             */
+            queue_name: string;
+            /**
+             * Jobs
+             * @description List of jobs in the queue
+             */
+            jobs: components["schemas"]["DLQJobResponse"][];
+            /**
+             * Count
+             * @description Number of jobs returned
+             */
+            count: number;
+        };
+        /**
+         * DLQName
+         * @description Available dead-letter queue names.
+         * @enum {string}
+         */
+        DLQName: "dlq:detection_queue" | "dlq:analysis_queue";
+        /**
+         * DLQRequeueResponse
+         * @description Response schema for requeuing a job from DLQ.
+         * @example {
+         *       "job": {
+         *         "camera_id": "front_door",
+         *         "file_path": "/export/foscam/front_door/image_001.jpg",
+         *         "timestamp": "2025-12-23T10:30:00.000000"
+         *       },
+         *       "message": "Job requeued from dlq:detection_queue to detection_queue",
+         *       "success": true
+         *     }
+         */
+        DLQRequeueResponse: {
+            /**
+             * Success
+             * @description Whether the requeue operation succeeded
+             */
+            success: boolean;
+            /**
+             * Message
+             * @description Status message
+             */
+            message: string;
+            /**
+             * Job
+             * @description The requeued job data (if successful)
+             */
+            job?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * DLQStatsResponse
+         * @description Response schema for DLQ statistics.
+         * @example {
+         *       "analysis_queue_count": 1,
+         *       "detection_queue_count": 2,
+         *       "total_count": 3
+         *     }
+         */
+        DLQStatsResponse: {
+            /**
+             * Detection Queue Count
+             * @description Number of jobs in the detection DLQ
+             */
+            detection_queue_count: number;
+            /**
+             * Analysis Queue Count
+             * @description Number of jobs in the analysis DLQ
+             */
+            analysis_queue_count: number;
+            /**
+             * Total Count
+             * @description Total number of jobs across all DLQs
+             */
+            total_count: number;
+        };
+        /**
+         * DetectionListResponse
+         * @description Schema for detection list response with pagination.
+         * @example {
+         *       "count": 1,
+         *       "detections": [
+         *         {
+         *           "bbox_height": 400,
+         *           "bbox_width": 200,
+         *           "bbox_x": 100,
+         *           "bbox_y": 150,
+         *           "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+         *           "confidence": 0.95,
+         *           "detected_at": "2025-12-23T12:00:00Z",
+         *           "file_path": "/export/foscam/front_door/20251223_120000.jpg",
+         *           "file_type": "image/jpeg",
+         *           "id": 1,
+         *           "object_type": "person",
+         *           "thumbnail_path": "/data/thumbnails/1_thumb.jpg"
+         *         }
+         *       ],
+         *       "limit": 50,
+         *       "offset": 0
+         *     }
+         */
+        DetectionListResponse: {
+            /**
+             * Detections
+             * @description List of detections
+             */
+            detections: components["schemas"]["DetectionResponse"][];
+            /**
+             * Count
+             * @description Total number of detections matching filters
+             */
+            count: number;
+            /**
+             * Limit
+             * @description Maximum number of results returned
+             */
+            limit: number;
+            /**
+             * Offset
+             * @description Number of results skipped
+             */
+            offset: number;
+        };
+        /**
+         * DetectionResponse
+         * @description Schema for detection response.
+         * @example {
+         *       "bbox_height": 400,
+         *       "bbox_width": 200,
+         *       "bbox_x": 100,
+         *       "bbox_y": 150,
+         *       "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+         *       "confidence": 0.95,
+         *       "detected_at": "2025-12-23T12:00:00Z",
+         *       "file_path": "/export/foscam/front_door/20251223_120000.jpg",
+         *       "file_type": "image/jpeg",
+         *       "id": 1,
+         *       "object_type": "person",
+         *       "thumbnail_path": "/data/thumbnails/1_thumb.jpg"
+         *     }
+         */
+        DetectionResponse: {
+            /**
+             * Id
+             * @description Detection ID
+             */
+            id: number;
+            /**
+             * Camera Id
+             * @description Camera UUID
+             */
+            camera_id: string;
+            /**
+             * File Path
+             * @description Path to source image file
+             */
+            file_path: string;
+            /**
+             * File Type
+             * @description MIME type of source file
+             */
+            file_type?: string | null;
+            /**
+             * Detected At
+             * Format: date-time
+             * @description Timestamp when detection was made
+             */
+            detected_at: string;
+            /**
+             * Object Type
+             * @description Type of detected object (person, car, etc.)
+             */
+            object_type?: string | null;
+            /**
+             * Confidence
+             * @description Detection confidence score (0-1)
+             */
+            confidence?: number | null;
+            /**
+             * Bbox X
+             * @description Bounding box X coordinate
+             */
+            bbox_x?: number | null;
+            /**
+             * Bbox Y
+             * @description Bounding box Y coordinate
+             */
+            bbox_y?: number | null;
+            /**
+             * Bbox Width
+             * @description Bounding box width
+             */
+            bbox_width?: number | null;
+            /**
+             * Bbox Height
+             * @description Bounding box height
+             */
+            bbox_height?: number | null;
+            /**
+             * Thumbnail Path
+             * @description Path to thumbnail image with bbox overlay
+             */
+            thumbnail_path?: string | null;
+        };
+        /**
+         * EventListResponse
+         * @description Schema for event list response with pagination.
+         * @example {
+         *       "count": 1,
+         *       "events": [
+         *         {
+         *           "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+         *           "detection_count": 5,
+         *           "detection_ids": [
+         *             1,
+         *             2,
+         *             3,
+         *             4,
+         *             5
+         *           ],
+         *           "ended_at": "2025-12-23T12:02:30Z",
+         *           "id": 1,
+         *           "reasoning": "Person approaching entrance during daytime, no suspicious behavior",
+         *           "reviewed": false,
+         *           "risk_level": "medium",
+         *           "risk_score": 75,
+         *           "started_at": "2025-12-23T12:00:00Z",
+         *           "summary": "Person detected near front entrance"
+         *         }
+         *       ],
+         *       "limit": 50,
+         *       "offset": 0
+         *     }
+         */
+        EventListResponse: {
+            /**
+             * Events
+             * @description List of events
+             */
+            events: components["schemas"]["EventResponse"][];
+            /**
+             * Count
+             * @description Total number of events matching filters
+             */
+            count: number;
+            /**
+             * Limit
+             * @description Maximum number of results returned
+             */
+            limit: number;
+            /**
+             * Offset
+             * @description Number of results skipped
+             */
+            offset: number;
+        };
+        /**
+         * EventResponse
+         * @description Schema for event response.
+         * @example {
+         *       "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+         *       "detection_count": 5,
+         *       "detection_ids": [
+         *         1,
+         *         2,
+         *         3,
+         *         4,
+         *         5
+         *       ],
+         *       "ended_at": "2025-12-23T12:02:30Z",
+         *       "id": 1,
+         *       "reasoning": "Person approaching entrance during daytime, no suspicious behavior",
+         *       "reviewed": false,
+         *       "risk_level": "medium",
+         *       "risk_score": 75,
+         *       "started_at": "2025-12-23T12:00:00Z",
+         *       "summary": "Person detected near front entrance"
+         *     }
+         */
+        EventResponse: {
+            /**
+             * Id
+             * @description Event ID
+             */
+            id: number;
+            /**
+             * Camera Id
+             * @description Camera UUID
+             */
+            camera_id: string;
+            /**
+             * Started At
+             * Format: date-time
+             * @description Event start timestamp
+             */
+            started_at: string;
+            /**
+             * Ended At
+             * @description Event end timestamp
+             */
+            ended_at?: string | null;
+            /**
+             * Risk Score
+             * @description Risk score (0-100)
+             */
+            risk_score?: number | null;
+            /**
+             * Risk Level
+             * @description Risk level (low, medium, high, critical)
+             */
+            risk_level?: string | null;
+            /**
+             * Summary
+             * @description LLM-generated event summary
+             */
+            summary?: string | null;
+            /**
+             * Reasoning
+             * @description LLM reasoning for risk score
+             */
+            reasoning?: string | null;
+            /**
+             * Reviewed
+             * @description Whether event has been reviewed
+             * @default false
+             */
+            reviewed: boolean;
+            /**
+             * Notes
+             * @description User notes for the event
+             */
+            notes?: string | null;
+            /**
+             * Detection Count
+             * @description Number of detections in this event
+             * @default 0
+             */
+            detection_count: number;
+            /**
+             * Detection Ids
+             * @description List of detection IDs associated with this event
+             */
+            detection_ids?: number[];
+        };
+        /**
+         * EventStatsResponse
+         * @description Schema for aggregated event statistics.
+         * @example {
+         *       "events_by_camera": [
+         *         {
+         *           "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+         *           "camera_name": "Front Door",
+         *           "event_count": 30
+         *         },
+         *         {
+         *           "camera_id": "456e7890-e89b-12d3-a456-426614174001",
+         *           "camera_name": "Back Door",
+         *           "event_count": 14
+         *         }
+         *       ],
+         *       "events_by_risk_level": {
+         *         "critical": 2,
+         *         "high": 5,
+         *         "low": 25,
+         *         "medium": 12
+         *       },
+         *       "total_events": 44
+         *     }
+         */
+        EventStatsResponse: {
+            /**
+             * Total Events
+             * @description Total number of events
+             */
+            total_events: number;
+            /** @description Events grouped by risk level */
+            events_by_risk_level: components["schemas"]["EventsByRiskLevel"];
+            /**
+             * Events By Camera
+             * @description Events grouped by camera
+             */
+            events_by_camera: components["schemas"]["EventsByCamera"][];
+        };
+        /**
+         * EventUpdate
+         * @description Schema for updating an event (PATCH).
+         * @example {
+         *       "notes": "Verified - delivery person",
+         *       "reviewed": true
+         *     }
+         */
+        EventUpdate: {
+            /**
+             * Reviewed
+             * @description Mark event as reviewed or not reviewed
+             */
+            reviewed?: boolean | null;
+            /**
+             * Notes
+             * @description User notes for the event
+             */
+            notes?: string | null;
+        };
+        /**
+         * EventsByCamera
+         * @description Schema for events count by camera.
+         * @example {
+         *       "camera_id": "123e4567-e89b-12d3-a456-426614174000",
+         *       "camera_name": "Front Door",
+         *       "event_count": 15
+         *     }
+         */
+        EventsByCamera: {
+            /**
+             * Camera Id
+             * @description Camera UUID
+             */
+            camera_id: string;
+            /**
+             * Camera Name
+             * @description Camera name
+             */
+            camera_name: string;
+            /**
+             * Event Count
+             * @description Number of events for this camera
+             */
+            event_count: number;
+        };
+        /**
+         * EventsByRiskLevel
+         * @description Schema for events count by risk level.
+         * @example {
+         *       "critical": 2,
+         *       "high": 5,
+         *       "low": 25,
+         *       "medium": 12
+         *     }
+         */
+        EventsByRiskLevel: {
+            /**
+             * Critical
+             * @description Number of critical risk events
+             * @default 0
+             */
+            critical: number;
+            /**
+             * High
+             * @description Number of high risk events
+             * @default 0
+             */
+            high: number;
+            /**
+             * Medium
+             * @description Number of medium risk events
+             * @default 0
+             */
+            medium: number;
+            /**
+             * Low
+             * @description Number of low risk events
+             * @default 0
+             */
+            low: number;
+        };
+        /**
+         * FrontendLogCreate
+         * @description Schema for frontend log submission.
+         */
+        FrontendLogCreate: {
+            /**
+             * Level
+             * @description Log level
+             */
+            level: string;
+            /**
+             * Component
+             * @description Frontend component name
+             */
+            component: string;
+            /**
+             * Message
+             * @description Log message
+             */
+            message: string;
+            /**
+             * Extra
+             * @description Additional context
+             */
+            extra?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * User Agent
+             * @description Browser user agent
+             */
+            user_agent?: string | null;
+            /**
+             * Url
+             * @description Page URL where log occurred
+             */
+            url?: string | null;
+        };
+        /**
+         * GPUStatsHistoryResponse
+         * @description Response schema for GPU stats history endpoint.
+         */
+        GPUStatsHistoryResponse: {
+            /**
+             * Samples
+             * @description GPU stats samples (chronological order)
+             */
+            samples: components["schemas"]["GPUStatsSample"][];
+            /**
+             * Count
+             * @description Number of samples returned
+             */
+            count: number;
+            /**
+             * Limit
+             * @description Applied limit
+             */
+            limit: number;
+        };
+        /**
+         * GPUStatsResponse
+         * @description Response schema for GPU statistics endpoint.
+         * @example {
+         *       "inference_fps": 30.5,
+         *       "memory_total": 24000,
+         *       "memory_used": 12000,
+         *       "temperature": 65,
+         *       "utilization": 75.5
+         *     }
+         */
+        GPUStatsResponse: {
+            /**
+             * Utilization
+             * @description GPU utilization percentage (0-100)
+             */
+            utilization?: number | null;
+            /**
+             * Memory Used
+             * @description GPU memory used in MB
+             */
+            memory_used?: number | null;
+            /**
+             * Memory Total
+             * @description Total GPU memory in MB
+             */
+            memory_total?: number | null;
+            /**
+             * Temperature
+             * @description GPU temperature in Celsius
+             */
+            temperature?: number | null;
+            /**
+             * Inference Fps
+             * @description Inference frames per second
+             */
+            inference_fps?: number | null;
+        };
+        /**
+         * GPUStatsSample
+         * @description Single time-series sample of GPU statistics.
+         */
+        GPUStatsSample: {
+            /**
+             * Recorded At
+             * Format: date-time
+             * @description When the GPU sample was recorded (UTC)
+             */
+            recorded_at: string;
+            /**
+             * Utilization
+             * @description GPU utilization percentage (0-100)
+             */
+            utilization?: number | null;
+            /**
+             * Memory Used
+             * @description GPU memory used in MB
+             */
+            memory_used?: number | null;
+            /**
+             * Memory Total
+             * @description Total GPU memory in MB
+             */
+            memory_total?: number | null;
+            /**
+             * Temperature
+             * @description GPU temperature in Celsius
+             */
+            temperature?: number | null;
+            /**
+             * Inference Fps
+             * @description Inference frames per second
+             */
+            inference_fps?: number | null;
+        };
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * HealthResponse
+         * @description Response schema for health check endpoint.
+         * @example {
+         *       "services": {
+         *         "ai": {
+         *           "message": "AI services operational",
+         *           "status": "healthy"
+         *         },
+         *         "database": {
+         *           "message": "Database operational",
+         *           "status": "healthy"
+         *         },
+         *         "redis": {
+         *           "details": {
+         *             "redis_version": "7.0.0"
+         *           },
+         *           "message": "Redis connected",
+         *           "status": "healthy"
+         *         }
+         *       },
+         *       "status": "healthy",
+         *       "timestamp": "2025-12-23T10:30:00"
+         *     }
+         */
+        HealthResponse: {
+            /**
+             * Status
+             * @description Overall system status: healthy, degraded, or unhealthy
+             */
+            status: string;
+            /**
+             * Services
+             * @description Status of individual services (database, redis, ai)
+             */
+            services: {
+                [key: string]: components["schemas"]["ServiceStatus"];
+            };
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Timestamp of health check
+             */
+            timestamp: string;
+        };
+        /**
+         * LivenessResponse
+         * @description Response schema for liveness probe endpoint.
+         *
+         *     Liveness probes indicate whether the process is running and able to
+         *     respond to HTTP requests. This is a minimal check that always returns
+         *     200 if the process is up.
+         * @example {
+         *       "status": "alive"
+         *     }
+         */
+        LivenessResponse: {
+            /**
+             * Status
+             * @description Liveness status: always 'alive' if process is responding
+             * @default alive
+             */
+            status: string;
+        };
+        /**
+         * LogEntry
+         * @description Schema for a single log entry.
+         */
+        LogEntry: {
+            /**
+             * Id
+             * @description Log entry ID
+             */
+            id: number;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Log timestamp
+             */
+            timestamp: string;
+            /**
+             * Level
+             * @description Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+             */
+            level: string;
+            /**
+             * Component
+             * @description Component/module name
+             */
+            component: string;
+            /**
+             * Message
+             * @description Log message
+             */
+            message: string;
+            /**
+             * Camera Id
+             * @description Associated camera ID
+             */
+            camera_id?: string | null;
+            /**
+             * Event Id
+             * @description Associated event ID
+             */
+            event_id?: number | null;
+            /**
+             * Request Id
+             * @description Request correlation ID
+             */
+            request_id?: string | null;
+            /**
+             * Detection Id
+             * @description Associated detection ID
+             */
+            detection_id?: number | null;
+            /**
+             * Duration Ms
+             * @description Operation duration in milliseconds
+             */
+            duration_ms?: number | null;
+            /**
+             * Extra
+             * @description Additional structured data
+             */
+            extra?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Source
+             * @description Log source (backend, frontend)
+             * @default backend
+             */
+            source: string;
+        };
+        /**
+         * LogStats
+         * @description Schema for log statistics (dashboard).
+         */
+        LogStats: {
+            /**
+             * Total Today
+             * @description Total logs today
+             */
+            total_today: number;
+            /**
+             * Errors Today
+             * @description Error count today
+             */
+            errors_today: number;
+            /**
+             * Warnings Today
+             * @description Warning count today
+             */
+            warnings_today: number;
+            /**
+             * By Component
+             * @description Counts by component
+             */
+            by_component: {
+                [key: string]: number;
+            };
+            /**
+             * By Level
+             * @description Counts by level
+             */
+            by_level: {
+                [key: string]: number;
+            };
+            /**
+             * Top Component
+             * @description Most active component
+             */
+            top_component?: string | null;
+        };
+        /**
+         * LogsResponse
+         * @description Schema for paginated logs response.
+         */
+        LogsResponse: {
+            /**
+             * Logs
+             * @description List of log entries
+             */
+            logs: components["schemas"]["LogEntry"][];
+            /**
+             * Count
+             * @description Total count matching filters
+             */
+            count: number;
+            /**
+             * Limit
+             * @description Page size
+             */
+            limit: number;
+            /**
+             * Offset
+             * @description Page offset
+             */
+            offset: number;
+        };
+        /**
+         * MediaErrorResponse
+         * @description Error response for media access failures.
+         */
+        MediaErrorResponse: {
+            /**
+             * Error
+             * @description Error message describing what went wrong
+             */
+            error: string;
+            /**
+             * Path
+             * @description The path that was attempted to be accessed
+             */
+            path: string;
+        };
+        /**
+         * PipelineLatencies
+         * @description Latency statistics for all pipeline stages.
+         *
+         *     Pipeline stages:
+         *     - watch: File watcher detecting new images (file event -> queue)
+         *     - detect: RT-DETRv2 object detection (image -> detections)
+         *     - batch: Batch aggregation window (detections -> batch)
+         *     - analyze: Nemotron LLM risk analysis (batch -> event)
+         * @example {
+         *       "analyze": {
+         *         "avg_ms": 5000,
+         *         "max_ms": 15000,
+         *         "min_ms": 2000,
+         *         "p50_ms": 4500,
+         *         "p95_ms": 12000,
+         *         "p99_ms": 14000,
+         *         "sample_count": 100
+         *       },
+         *       "batch": {
+         *         "avg_ms": 30000,
+         *         "max_ms": 90000,
+         *         "min_ms": 5000,
+         *         "p50_ms": 25000,
+         *         "p95_ms": 80000,
+         *         "p99_ms": 88000,
+         *         "sample_count": 100
+         *       },
+         *       "detect": {
+         *         "avg_ms": 200,
+         *         "max_ms": 800,
+         *         "min_ms": 100,
+         *         "p50_ms": 180,
+         *         "p95_ms": 600,
+         *         "p99_ms": 750,
+         *         "sample_count": 500
+         *       },
+         *       "watch": {
+         *         "avg_ms": 10,
+         *         "max_ms": 50,
+         *         "min_ms": 5,
+         *         "p50_ms": 8,
+         *         "p95_ms": 40,
+         *         "p99_ms": 48,
+         *         "sample_count": 500
+         *       }
+         *     }
+         */
+        PipelineLatencies: {
+            /** @description File watcher stage latency (file event to queue) */
+            watch?: components["schemas"]["StageLatency"] | null;
+            /** @description Object detection stage latency (RT-DETRv2 inference) */
+            detect?: components["schemas"]["StageLatency"] | null;
+            /** @description Batch aggregation window time */
+            batch?: components["schemas"]["StageLatency"] | null;
+            /** @description LLM analysis stage latency (Nemotron inference) */
+            analyze?: components["schemas"]["StageLatency"] | null;
+        };
+        /**
+         * QueueDepths
+         * @description Queue depth information for pipeline queues.
+         * @example {
+         *       "analysis_queue": 2,
+         *       "detection_queue": 5
+         *     }
+         */
+        QueueDepths: {
+            /**
+             * Detection Queue
+             * @description Number of items in detection queue waiting for RT-DETRv2 processing
+             */
+            detection_queue: number;
+            /**
+             * Analysis Queue
+             * @description Number of batches in analysis queue waiting for Nemotron LLM analysis
+             */
+            analysis_queue: number;
+        };
+        /**
+         * ReadinessResponse
+         * @description Response schema for readiness probe endpoint.
+         *
+         *     Readiness probes indicate whether the application is ready to receive
+         *     traffic and process requests. This checks all dependencies:
+         *     - Database connectivity
+         *     - Redis connectivity
+         *     - AI services availability
+         *     - Background worker status
+         * @example {
+         *       "ready": true,
+         *       "services": {
+         *         "ai": {
+         *           "message": "AI services operational",
+         *           "status": "healthy"
+         *         },
+         *         "database": {
+         *           "message": "Database operational",
+         *           "status": "healthy"
+         *         },
+         *         "redis": {
+         *           "details": {
+         *             "redis_version": "7.0.0"
+         *           },
+         *           "message": "Redis connected",
+         *           "status": "healthy"
+         *         }
+         *       },
+         *       "status": "ready",
+         *       "timestamp": "2025-12-23T10:30:00",
+         *       "workers": [
+         *         {
+         *           "name": "gpu_monitor",
+         *           "running": true
+         *         },
+         *         {
+         *           "name": "cleanup_service",
+         *           "running": true
+         *         }
+         *       ]
+         *     }
+         */
+        ReadinessResponse: {
+            /**
+             * Ready
+             * @description Overall readiness status: True if system can process requests
+             */
+            ready: boolean;
+            /**
+             * Status
+             * @description Status string: 'ready', 'degraded', or 'not_ready'
+             */
+            status: string;
+            /**
+             * Services
+             * @description Status of infrastructure services (database, redis, ai)
+             */
+            services: {
+                [key: string]: components["schemas"]["ServiceStatus"];
+            };
+            /**
+             * Workers
+             * @description Status of background workers
+             */
+            workers?: components["schemas"]["WorkerStatus"][];
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Timestamp of readiness check
+             */
+            timestamp: string;
+        };
+        /**
+         * SeedCamerasRequest
+         * @description Request schema for seeding cameras.
+         */
+        SeedCamerasRequest: {
+            /**
+             * Count
+             * @description Number of cameras to create (1-6)
+             * @default 6
+             */
+            count: number;
+            /**
+             * Clear Existing
+             * @description Remove existing cameras first
+             * @default false
+             */
+            clear_existing: boolean;
+            /**
+             * Create Folders
+             * @description Create camera folders on filesystem
+             * @default false
+             */
+            create_folders: boolean;
+        };
+        /**
+         * SeedCamerasResponse
+         * @description Response schema for seed cameras endpoint.
+         */
+        SeedCamerasResponse: {
+            /** Created */
+            created: number;
+            /** Cleared */
+            cleared: number;
+            /** Cameras */
+            cameras: {
+                [key: string]: unknown;
+            }[];
+        };
+        /**
+         * SeedEventsRequest
+         * @description Request schema for seeding events.
+         */
+        SeedEventsRequest: {
+            /**
+             * Count
+             * @description Number of events to create (1-100)
+             * @default 15
+             */
+            count: number;
+            /**
+             * Clear Existing
+             * @description Remove existing events and detections
+             * @default false
+             */
+            clear_existing: boolean;
+        };
+        /**
+         * SeedEventsResponse
+         * @description Response schema for seed events endpoint.
+         */
+        SeedEventsResponse: {
+            /** Events Created */
+            events_created: number;
+            /** Detections Created */
+            detections_created: number;
+            /** Events Cleared */
+            events_cleared: number;
+            /** Detections Cleared */
+            detections_cleared: number;
+        };
+        /**
+         * ServiceStatus
+         * @description Status information for a service component.
+         */
+        ServiceStatus: {
+            /**
+             * Status
+             * @description Service status: healthy, unhealthy, or not_initialized
+             */
+            status: string;
+            /**
+             * Message
+             * @description Optional status message or error details
+             */
+            message?: string | null;
+            /**
+             * Details
+             * @description Additional service-specific details
+             */
+            details?: {
+                [key: string]: string;
+            } | null;
+        };
+        /**
+         * StageLatency
+         * @description Latency statistics for a single pipeline stage.
+         * @example {
+         *       "avg_ms": 150.5,
+         *       "max_ms": 500,
+         *       "min_ms": 50,
+         *       "p50_ms": 120,
+         *       "p95_ms": 400,
+         *       "p99_ms": 480,
+         *       "sample_count": 100
+         *     }
+         */
+        StageLatency: {
+            /**
+             * Avg Ms
+             * @description Average latency in milliseconds
+             */
+            avg_ms?: number | null;
+            /**
+             * Min Ms
+             * @description Minimum latency in milliseconds
+             */
+            min_ms?: number | null;
+            /**
+             * Max Ms
+             * @description Maximum latency in milliseconds
+             */
+            max_ms?: number | null;
+            /**
+             * P50 Ms
+             * @description 50th percentile (median) latency in milliseconds
+             */
+            p50_ms?: number | null;
+            /**
+             * P95 Ms
+             * @description 95th percentile latency in milliseconds
+             */
+            p95_ms?: number | null;
+            /**
+             * P99 Ms
+             * @description 99th percentile latency in milliseconds
+             */
+            p99_ms?: number | null;
+            /**
+             * Sample Count
+             * @description Number of samples used to calculate statistics
+             */
+            sample_count: number;
+        };
+        /**
+         * SystemStatsResponse
+         * @description Response schema for system statistics endpoint.
+         * @example {
+         *       "total_cameras": 4,
+         *       "total_detections": 892,
+         *       "total_events": 156,
+         *       "uptime_seconds": 86400.5
+         *     }
+         */
+        SystemStatsResponse: {
+            /**
+             * Total Cameras
+             * @description Total number of cameras in the system
+             */
+            total_cameras: number;
+            /**
+             * Total Events
+             * @description Total number of events recorded
+             */
+            total_events: number;
+            /**
+             * Total Detections
+             * @description Total number of detections recorded
+             */
+            total_detections: number;
+            /**
+             * Uptime Seconds
+             * @description Application uptime in seconds
+             */
+            uptime_seconds: number;
+        };
+        /**
+         * TelemetryResponse
+         * @description Response schema for pipeline telemetry endpoint.
+         *
+         *     Provides real-time visibility into:
+         *     - Queue depths: How many items are waiting in detection/analysis queues
+         *     - Stage latencies: How long each pipeline stage is taking
+         *
+         *     This helps operators:
+         *     - Identify pipeline bottlenecks
+         *     - Detect backlog situations
+         *     - Monitor processing performance
+         *     - Debug pipeline stalls
+         * @example {
+         *       "latencies": {
+         *         "detect": {
+         *           "avg_ms": 200,
+         *           "max_ms": 800,
+         *           "min_ms": 100,
+         *           "p50_ms": 180,
+         *           "p95_ms": 600,
+         *           "p99_ms": 750,
+         *           "sample_count": 500
+         *         },
+         *         "watch": {
+         *           "avg_ms": 10,
+         *           "max_ms": 50,
+         *           "min_ms": 5,
+         *           "p50_ms": 8,
+         *           "p95_ms": 40,
+         *           "p99_ms": 48,
+         *           "sample_count": 500
+         *         }
+         *       },
+         *       "queues": {
+         *         "analysis_queue": 2,
+         *         "detection_queue": 5
+         *       },
+         *       "timestamp": "2025-12-27T10:30:00Z"
+         *     }
+         */
+        TelemetryResponse: {
+            /** @description Current queue depths for detection and analysis queues */
+            queues: components["schemas"]["QueueDepths"];
+            /** @description Latency statistics for each pipeline stage */
+            latencies?: components["schemas"]["PipelineLatencies"] | null;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Timestamp of telemetry snapshot
+             */
+            timestamp: string;
+        };
+        /** ValidationError */
+        ValidationError: {
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
+        };
+        /**
+         * WorkerStatus
+         * @description Status information for a background worker/service.
+         */
+        WorkerStatus: {
+            /**
+             * Name
+             * @description Worker/service name
+             */
+            name: string;
+            /**
+             * Running
+             * @description Whether the worker is currently running
+             */
+            running: boolean;
+            /**
+             * Message
+             * @description Optional status message or error details
+             */
+            message?: string | null;
+        };
     };
-    /**
-     * CameraListResponse
-     * @description Schema for camera list response.
-     * @example {
-     *       "cameras": [
-     *         {
-     *           "created_at": "2025-12-23T10:00:00Z",
-     *           "folder_path": "/export/foscam/front_door",
-     *           "id": "123e4567-e89b-12d3-a456-426614174000",
-     *           "last_seen_at": "2025-12-23T12:00:00Z",
-     *           "name": "Front Door Camera",
-     *           "status": "online"
-     *         }
-     *       ],
-     *       "count": 1
-     *     }
-     */
-    CameraListResponse: {
-      /**
-       * Cameras
-       * @description List of cameras
-       */
-      cameras: components['schemas']['CameraResponse'][];
-      /**
-       * Count
-       * @description Total number of cameras
-       */
-      count: number;
-    };
-    /**
-     * CameraResponse
-     * @description Schema for camera response.
-     * @example {
-     *       "created_at": "2025-12-23T10:00:00Z",
-     *       "folder_path": "/export/foscam/front_door",
-     *       "id": "123e4567-e89b-12d3-a456-426614174000",
-     *       "last_seen_at": "2025-12-23T12:00:00Z",
-     *       "name": "Front Door Camera",
-     *       "status": "online"
-     *     }
-     */
-    CameraResponse: {
-      /**
-       * Id
-       * @description Camera UUID
-       */
-      id: string;
-      /**
-       * Name
-       * @description Camera name
-       */
-      name: string;
-      /**
-       * Folder Path
-       * @description File system path for camera uploads
-       */
-      folder_path: string;
-      /**
-       * Status
-       * @description Camera status
-       */
-      status: string;
-      /**
-       * Created At
-       * Format: date-time
-       * @description Timestamp when camera was created
-       */
-      created_at: string;
-      /**
-       * Last Seen At
-       * @description Last time camera was active
-       */
-      last_seen_at?: string | null;
-    };
-    /**
-     * CameraUpdate
-     * @description Schema for updating an existing camera.
-     * @example {
-     *       "name": "Front Door Camera - Updated",
-     *       "status": "offline"
-     *     }
-     */
-    CameraUpdate: {
-      /**
-       * Name
-       * @description Camera name
-       */
-      name?: string | null;
-      /**
-       * Folder Path
-       * @description File system path for camera uploads
-       */
-      folder_path?: string | null;
-      /**
-       * Status
-       * @description Camera status (online, offline, error)
-       */
-      status?: string | null;
-    };
-    /**
-     * CleanupResponse
-     * @description Response schema for data cleanup endpoint.
-     *
-     *     Returns statistics about the cleanup operation including counts of
-     *     deleted records and files. When dry_run is True, the counts represent
-     *     what would be deleted without actually deleting.
-     * @example {
-     *       "detections_deleted": 89,
-     *       "dry_run": false,
-     *       "events_deleted": 15,
-     *       "gpu_stats_deleted": 2880,
-     *       "images_deleted": 0,
-     *       "logs_deleted": 150,
-     *       "retention_days": 30,
-     *       "space_reclaimed": 524288000,
-     *       "thumbnails_deleted": 89,
-     *       "timestamp": "2025-12-27T10:30:00Z"
-     *     }
-     */
-    CleanupResponse: {
-      /**
-       * Events Deleted
-       * @description Number of events deleted (or would be deleted in dry run)
-       */
-      events_deleted: number;
-      /**
-       * Detections Deleted
-       * @description Number of detections deleted (or would be deleted in dry run)
-       */
-      detections_deleted: number;
-      /**
-       * Gpu Stats Deleted
-       * @description Number of GPU stat records deleted (or would be deleted in dry run)
-       */
-      gpu_stats_deleted: number;
-      /**
-       * Logs Deleted
-       * @description Number of log records deleted (or would be deleted in dry run)
-       */
-      logs_deleted: number;
-      /**
-       * Thumbnails Deleted
-       * @description Number of thumbnail files deleted (or would be deleted in dry run)
-       */
-      thumbnails_deleted: number;
-      /**
-       * Images Deleted
-       * @description Number of original image files deleted (or would be deleted in dry run)
-       */
-      images_deleted: number;
-      /**
-       * Space Reclaimed
-       * @description Estimated disk space freed in bytes (or would be freed in dry run)
-       */
-      space_reclaimed: number;
-      /**
-       * Retention Days
-       * @description Retention period used for cleanup
-       */
-      retention_days: number;
-      /**
-       * Dry Run
-       * @description Whether this was a dry run (no actual deletion performed)
-       * @default false
-       */
-      dry_run: boolean;
-      /**
-       * Timestamp
-       * Format: date-time
-       * @description Timestamp of cleanup operation
-       */
-      timestamp: string;
-    };
-    /**
-     * ConfigResponse
-     * @description Response schema for configuration endpoint.
-     *
-     *     Only includes public, non-sensitive configuration values.
-     * @example {
-     *       "app_name": "Home Security Intelligence",
-     *       "batch_idle_timeout_seconds": 30,
-     *       "batch_window_seconds": 90,
-     *       "detection_confidence_threshold": 0.5,
-     *       "retention_days": 30,
-     *       "version": "0.1.0"
-     *     }
-     */
-    ConfigResponse: {
-      /**
-       * App Name
-       * @description Application name
-       */
-      app_name: string;
-      /**
-       * Version
-       * @description Application version
-       */
-      version: string;
-      /**
-       * Retention Days
-       * @description Number of days to retain events and detections
-       */
-      retention_days: number;
-      /**
-       * Batch Window Seconds
-       * @description Time window for batch processing detections
-       */
-      batch_window_seconds: number;
-      /**
-       * Batch Idle Timeout Seconds
-       * @description Idle timeout before processing incomplete batch
-       */
-      batch_idle_timeout_seconds: number;
-      /**
-       * Detection Confidence Threshold
-       * @description Minimum confidence threshold for detections (0.0-1.0)
-       */
-      detection_confidence_threshold: number;
-    };
-    /**
-     * ConfigUpdateRequest
-     * @description Request schema for PATCH /api/system/config.
-     *
-     *     Only supports a subset of processing-related settings.
-     */
-    ConfigUpdateRequest: {
-      /**
-       * Retention Days
-       * @description Number of days to retain events and detections
-       */
-      retention_days?: number | null;
-      /**
-       * Batch Window Seconds
-       * @description Time window for batch processing detections
-       */
-      batch_window_seconds?: number | null;
-      /**
-       * Batch Idle Timeout Seconds
-       * @description Idle timeout before processing incomplete batch
-       */
-      batch_idle_timeout_seconds?: number | null;
-      /**
-       * Detection Confidence Threshold
-       * @description Minimum confidence threshold for detections (0.0-1.0)
-       */
-      detection_confidence_threshold?: number | null;
-    };
-    /**
-     * DLQClearResponse
-     * @description Response schema for clearing a DLQ.
-     * @example {
-     *       "message": "Cleared 5 jobs from dlq:detection_queue",
-     *       "queue_name": "dlq:detection_queue",
-     *       "success": true
-     *     }
-     */
-    DLQClearResponse: {
-      /**
-       * Success
-       * @description Whether the clear operation succeeded
-       */
-      success: boolean;
-      /**
-       * Message
-       * @description Status message
-       */
-      message: string;
-      /**
-       * Queue Name
-       * @description Name of the cleared queue
-       */
-      queue_name: string;
-    };
-    /**
-     * DLQJobResponse
-     * @description Response schema for a single job in the dead-letter queue.
-     * @example {
-     *       "attempt_count": 3,
-     *       "error": "Connection refused: detector service unavailable",
-     *       "first_failed_at": "2025-12-23T10:30:05.000000",
-     *       "last_failed_at": "2025-12-23T10:30:15.000000",
-     *       "original_job": {
-     *         "camera_id": "front_door",
-     *         "file_path": "/export/foscam/front_door/image_001.jpg",
-     *         "timestamp": "2025-12-23T10:30:00.000000"
-     *       },
-     *       "queue_name": "detection_queue"
-     *     }
-     */
-    DLQJobResponse: {
-      /**
-       * Original Job
-       * @description Original job payload that failed
-       */
-      original_job: {
-        [key: string]: unknown;
-      };
-      /**
-       * Error
-       * @description Error message from the last failure attempt
-       */
-      error: string;
-      /**
-       * Attempt Count
-       * @description Number of processing attempts made
-       */
-      attempt_count: number;
-      /**
-       * First Failed At
-       * @description ISO timestamp of the first failure
-       */
-      first_failed_at: string;
-      /**
-       * Last Failed At
-       * @description ISO timestamp of the last failure
-       */
-      last_failed_at: string;
-      /**
-       * Queue Name
-       * @description Name of the original queue where the job came from
-       */
-      queue_name: string;
-    };
-    /**
-     * DLQJobsResponse
-     * @description Response schema for listing jobs in a DLQ.
-     * @example {
-     *       "count": 1,
-     *       "jobs": [
-     *         {
-     *           "attempt_count": 3,
-     *           "error": "Connection refused",
-     *           "first_failed_at": "2025-12-23T10:30:05.000000",
-     *           "last_failed_at": "2025-12-23T10:30:15.000000",
-     *           "original_job": {
-     *             "camera_id": "front_door",
-     *             "file_path": "/export/foscam/front_door/image_001.jpg",
-     *             "timestamp": "2025-12-23T10:30:00.000000"
-     *           },
-     *           "queue_name": "detection_queue"
-     *         }
-     *       ],
-     *       "queue_name": "dlq:detection_queue"
-     *     }
-     */
-    DLQJobsResponse: {
-      /**
-       * Queue Name
-       * @description Name of the dead-letter queue
-       */
-      queue_name: string;
-      /**
-       * Jobs
-       * @description List of jobs in the queue
-       */
-      jobs: components['schemas']['DLQJobResponse'][];
-      /**
-       * Count
-       * @description Number of jobs returned
-       */
-      count: number;
-    };
-    /**
-     * DLQName
-     * @description Available dead-letter queue names.
-     * @enum {string}
-     */
-    DLQName: 'dlq:detection_queue' | 'dlq:analysis_queue';
-    /**
-     * DLQRequeueResponse
-     * @description Response schema for requeuing a job from DLQ.
-     * @example {
-     *       "job": {
-     *         "camera_id": "front_door",
-     *         "file_path": "/export/foscam/front_door/image_001.jpg",
-     *         "timestamp": "2025-12-23T10:30:00.000000"
-     *       },
-     *       "message": "Job requeued from dlq:detection_queue to detection_queue",
-     *       "success": true
-     *     }
-     */
-    DLQRequeueResponse: {
-      /**
-       * Success
-       * @description Whether the requeue operation succeeded
-       */
-      success: boolean;
-      /**
-       * Message
-       * @description Status message
-       */
-      message: string;
-      /**
-       * Job
-       * @description The requeued job data (if successful)
-       */
-      job?: {
-        [key: string]: unknown;
-      } | null;
-    };
-    /**
-     * DLQStatsResponse
-     * @description Response schema for DLQ statistics.
-     * @example {
-     *       "analysis_queue_count": 1,
-     *       "detection_queue_count": 2,
-     *       "total_count": 3
-     *     }
-     */
-    DLQStatsResponse: {
-      /**
-       * Detection Queue Count
-       * @description Number of jobs in the detection DLQ
-       */
-      detection_queue_count: number;
-      /**
-       * Analysis Queue Count
-       * @description Number of jobs in the analysis DLQ
-       */
-      analysis_queue_count: number;
-      /**
-       * Total Count
-       * @description Total number of jobs across all DLQs
-       */
-      total_count: number;
-    };
-    /**
-     * DetectionListResponse
-     * @description Schema for detection list response with pagination.
-     * @example {
-     *       "count": 1,
-     *       "detections": [
-     *         {
-     *           "bbox_height": 400,
-     *           "bbox_width": 200,
-     *           "bbox_x": 100,
-     *           "bbox_y": 150,
-     *           "camera_id": "123e4567-e89b-12d3-a456-426614174000",
-     *           "confidence": 0.95,
-     *           "detected_at": "2025-12-23T12:00:00Z",
-     *           "file_path": "/export/foscam/front_door/20251223_120000.jpg",
-     *           "file_type": "image/jpeg",
-     *           "id": 1,
-     *           "object_type": "person",
-     *           "thumbnail_path": "/data/thumbnails/1_thumb.jpg"
-     *         }
-     *       ],
-     *       "limit": 50,
-     *       "offset": 0
-     *     }
-     */
-    DetectionListResponse: {
-      /**
-       * Detections
-       * @description List of detections
-       */
-      detections: components['schemas']['DetectionResponse'][];
-      /**
-       * Count
-       * @description Total number of detections matching filters
-       */
-      count: number;
-      /**
-       * Limit
-       * @description Maximum number of results returned
-       */
-      limit: number;
-      /**
-       * Offset
-       * @description Number of results skipped
-       */
-      offset: number;
-    };
-    /**
-     * DetectionResponse
-     * @description Schema for detection response.
-     * @example {
-     *       "bbox_height": 400,
-     *       "bbox_width": 200,
-     *       "bbox_x": 100,
-     *       "bbox_y": 150,
-     *       "camera_id": "123e4567-e89b-12d3-a456-426614174000",
-     *       "confidence": 0.95,
-     *       "detected_at": "2025-12-23T12:00:00Z",
-     *       "file_path": "/export/foscam/front_door/20251223_120000.jpg",
-     *       "file_type": "image/jpeg",
-     *       "id": 1,
-     *       "object_type": "person",
-     *       "thumbnail_path": "/data/thumbnails/1_thumb.jpg"
-     *     }
-     */
-    DetectionResponse: {
-      /**
-       * Id
-       * @description Detection ID
-       */
-      id: number;
-      /**
-       * Camera Id
-       * @description Camera UUID
-       */
-      camera_id: string;
-      /**
-       * File Path
-       * @description Path to source image file
-       */
-      file_path: string;
-      /**
-       * File Type
-       * @description MIME type of source file
-       */
-      file_type?: string | null;
-      /**
-       * Detected At
-       * Format: date-time
-       * @description Timestamp when detection was made
-       */
-      detected_at: string;
-      /**
-       * Object Type
-       * @description Type of detected object (person, car, etc.)
-       */
-      object_type?: string | null;
-      /**
-       * Confidence
-       * @description Detection confidence score (0-1)
-       */
-      confidence?: number | null;
-      /**
-       * Bbox X
-       * @description Bounding box X coordinate
-       */
-      bbox_x?: number | null;
-      /**
-       * Bbox Y
-       * @description Bounding box Y coordinate
-       */
-      bbox_y?: number | null;
-      /**
-       * Bbox Width
-       * @description Bounding box width
-       */
-      bbox_width?: number | null;
-      /**
-       * Bbox Height
-       * @description Bounding box height
-       */
-      bbox_height?: number | null;
-      /**
-       * Thumbnail Path
-       * @description Path to thumbnail image with bbox overlay
-       */
-      thumbnail_path?: string | null;
-    };
-    /**
-     * EventListResponse
-     * @description Schema for event list response with pagination.
-     * @example {
-     *       "count": 1,
-     *       "events": [
-     *         {
-     *           "camera_id": "123e4567-e89b-12d3-a456-426614174000",
-     *           "detection_count": 5,
-     *           "ended_at": "2025-12-23T12:02:30Z",
-     *           "id": 1,
-     *           "reviewed": false,
-     *           "risk_level": "medium",
-     *           "risk_score": 75,
-     *           "started_at": "2025-12-23T12:00:00Z",
-     *           "summary": "Person detected near front entrance"
-     *         }
-     *       ],
-     *       "limit": 50,
-     *       "offset": 0
-     *     }
-     */
-    EventListResponse: {
-      /**
-       * Events
-       * @description List of events
-       */
-      events: components['schemas']['EventResponse'][];
-      /**
-       * Count
-       * @description Total number of events matching filters
-       */
-      count: number;
-      /**
-       * Limit
-       * @description Maximum number of results returned
-       */
-      limit: number;
-      /**
-       * Offset
-       * @description Number of results skipped
-       */
-      offset: number;
-    };
-    /**
-     * EventResponse
-     * @description Schema for event response.
-     * @example {
-     *       "camera_id": "123e4567-e89b-12d3-a456-426614174000",
-     *       "detection_count": 5,
-     *       "ended_at": "2025-12-23T12:02:30Z",
-     *       "id": 1,
-     *       "reviewed": false,
-     *       "risk_level": "medium",
-     *       "risk_score": 75,
-     *       "started_at": "2025-12-23T12:00:00Z",
-     *       "summary": "Person detected near front entrance"
-     *     }
-     */
-    EventResponse: {
-      /**
-       * Id
-       * @description Event ID
-       */
-      id: number;
-      /**
-       * Camera Id
-       * @description Camera UUID
-       */
-      camera_id: string;
-      /**
-       * Started At
-       * Format: date-time
-       * @description Event start timestamp
-       */
-      started_at: string;
-      /**
-       * Ended At
-       * @description Event end timestamp
-       */
-      ended_at?: string | null;
-      /**
-       * Risk Score
-       * @description Risk score (0-100)
-       */
-      risk_score?: number | null;
-      /**
-       * Risk Level
-       * @description Risk level (low, medium, high, critical)
-       */
-      risk_level?: string | null;
-      /**
-       * Summary
-       * @description LLM-generated event summary
-       */
-      summary?: string | null;
-      /**
-       * Reviewed
-       * @description Whether event has been reviewed
-       * @default false
-       */
-      reviewed: boolean;
-      /**
-       * Notes
-       * @description User notes for the event
-       */
-      notes?: string | null;
-      /**
-       * Detection Count
-       * @description Number of detections in this event
-       * @default 0
-       */
-      detection_count: number;
-    };
-    /**
-     * EventStatsResponse
-     * @description Schema for aggregated event statistics.
-     * @example {
-     *       "events_by_camera": [
-     *         {
-     *           "camera_id": "123e4567-e89b-12d3-a456-426614174000",
-     *           "camera_name": "Front Door",
-     *           "event_count": 30
-     *         },
-     *         {
-     *           "camera_id": "456e7890-e89b-12d3-a456-426614174001",
-     *           "camera_name": "Back Door",
-     *           "event_count": 14
-     *         }
-     *       ],
-     *       "events_by_risk_level": {
-     *         "critical": 2,
-     *         "high": 5,
-     *         "low": 25,
-     *         "medium": 12
-     *       },
-     *       "total_events": 44
-     *     }
-     */
-    EventStatsResponse: {
-      /**
-       * Total Events
-       * @description Total number of events
-       */
-      total_events: number;
-      /** @description Events grouped by risk level */
-      events_by_risk_level: components['schemas']['EventsByRiskLevel'];
-      /**
-       * Events By Camera
-       * @description Events grouped by camera
-       */
-      events_by_camera: components['schemas']['EventsByCamera'][];
-    };
-    /**
-     * EventUpdate
-     * @description Schema for updating an event (PATCH).
-     * @example {
-     *       "notes": "Verified - delivery person",
-     *       "reviewed": true
-     *     }
-     */
-    EventUpdate: {
-      /**
-       * Reviewed
-       * @description Mark event as reviewed or not reviewed
-       */
-      reviewed?: boolean | null;
-      /**
-       * Notes
-       * @description User notes for the event
-       */
-      notes?: string | null;
-    };
-    /**
-     * EventsByCamera
-     * @description Schema for events count by camera.
-     * @example {
-     *       "camera_id": "123e4567-e89b-12d3-a456-426614174000",
-     *       "camera_name": "Front Door",
-     *       "event_count": 15
-     *     }
-     */
-    EventsByCamera: {
-      /**
-       * Camera Id
-       * @description Camera UUID
-       */
-      camera_id: string;
-      /**
-       * Camera Name
-       * @description Camera name
-       */
-      camera_name: string;
-      /**
-       * Event Count
-       * @description Number of events for this camera
-       */
-      event_count: number;
-    };
-    /**
-     * EventsByRiskLevel
-     * @description Schema for events count by risk level.
-     * @example {
-     *       "critical": 2,
-     *       "high": 5,
-     *       "low": 25,
-     *       "medium": 12
-     *     }
-     */
-    EventsByRiskLevel: {
-      /**
-       * Critical
-       * @description Number of critical risk events
-       * @default 0
-       */
-      critical: number;
-      /**
-       * High
-       * @description Number of high risk events
-       * @default 0
-       */
-      high: number;
-      /**
-       * Medium
-       * @description Number of medium risk events
-       * @default 0
-       */
-      medium: number;
-      /**
-       * Low
-       * @description Number of low risk events
-       * @default 0
-       */
-      low: number;
-    };
-    /**
-     * FrontendLogCreate
-     * @description Schema for frontend log submission.
-     */
-    FrontendLogCreate: {
-      /**
-       * Level
-       * @description Log level
-       */
-      level: string;
-      /**
-       * Component
-       * @description Frontend component name
-       */
-      component: string;
-      /**
-       * Message
-       * @description Log message
-       */
-      message: string;
-      /**
-       * Extra
-       * @description Additional context
-       */
-      extra?: {
-        [key: string]: unknown;
-      } | null;
-      /**
-       * User Agent
-       * @description Browser user agent
-       */
-      user_agent?: string | null;
-      /**
-       * Url
-       * @description Page URL where log occurred
-       */
-      url?: string | null;
-    };
-    /**
-     * GPUStatsHistoryResponse
-     * @description Response schema for GPU stats history endpoint.
-     */
-    GPUStatsHistoryResponse: {
-      /**
-       * Samples
-       * @description GPU stats samples (chronological order)
-       */
-      samples: components['schemas']['GPUStatsSample'][];
-      /**
-       * Count
-       * @description Number of samples returned
-       */
-      count: number;
-      /**
-       * Limit
-       * @description Applied limit
-       */
-      limit: number;
-    };
-    /**
-     * GPUStatsResponse
-     * @description Response schema for GPU statistics endpoint.
-     * @example {
-     *       "inference_fps": 30.5,
-     *       "memory_total": 24000,
-     *       "memory_used": 12000,
-     *       "temperature": 65,
-     *       "utilization": 75.5
-     *     }
-     */
-    GPUStatsResponse: {
-      /**
-       * Utilization
-       * @description GPU utilization percentage (0-100)
-       */
-      utilization?: number | null;
-      /**
-       * Memory Used
-       * @description GPU memory used in MB
-       */
-      memory_used?: number | null;
-      /**
-       * Memory Total
-       * @description Total GPU memory in MB
-       */
-      memory_total?: number | null;
-      /**
-       * Temperature
-       * @description GPU temperature in Celsius
-       */
-      temperature?: number | null;
-      /**
-       * Inference Fps
-       * @description Inference frames per second
-       */
-      inference_fps?: number | null;
-    };
-    /**
-     * GPUStatsSample
-     * @description Single time-series sample of GPU statistics.
-     */
-    GPUStatsSample: {
-      /**
-       * Recorded At
-       * Format: date-time
-       * @description When the GPU sample was recorded (UTC)
-       */
-      recorded_at: string;
-      /**
-       * Utilization
-       * @description GPU utilization percentage (0-100)
-       */
-      utilization?: number | null;
-      /**
-       * Memory Used
-       * @description GPU memory used in MB
-       */
-      memory_used?: number | null;
-      /**
-       * Memory Total
-       * @description Total GPU memory in MB
-       */
-      memory_total?: number | null;
-      /**
-       * Temperature
-       * @description GPU temperature in Celsius
-       */
-      temperature?: number | null;
-      /**
-       * Inference Fps
-       * @description Inference frames per second
-       */
-      inference_fps?: number | null;
-    };
-    /** HTTPValidationError */
-    HTTPValidationError: {
-      /** Detail */
-      detail?: components['schemas']['ValidationError'][];
-    };
-    /**
-     * HealthResponse
-     * @description Response schema for health check endpoint.
-     * @example {
-     *       "services": {
-     *         "ai": {
-     *           "message": "AI services operational",
-     *           "status": "healthy"
-     *         },
-     *         "database": {
-     *           "message": "Database operational",
-     *           "status": "healthy"
-     *         },
-     *         "redis": {
-     *           "details": {
-     *             "redis_version": "7.0.0"
-     *           },
-     *           "message": "Redis connected",
-     *           "status": "healthy"
-     *         }
-     *       },
-     *       "status": "healthy",
-     *       "timestamp": "2025-12-23T10:30:00"
-     *     }
-     */
-    HealthResponse: {
-      /**
-       * Status
-       * @description Overall system status: healthy, degraded, or unhealthy
-       */
-      status: string;
-      /**
-       * Services
-       * @description Status of individual services (database, redis, ai)
-       */
-      services: {
-        [key: string]: components['schemas']['ServiceStatus'];
-      };
-      /**
-       * Timestamp
-       * Format: date-time
-       * @description Timestamp of health check
-       */
-      timestamp: string;
-    };
-    /**
-     * LivenessResponse
-     * @description Response schema for liveness probe endpoint.
-     *
-     *     Liveness probes indicate whether the process is running and able to
-     *     respond to HTTP requests. This is a minimal check that always returns
-     *     200 if the process is up.
-     * @example {
-     *       "status": "alive"
-     *     }
-     */
-    LivenessResponse: {
-      /**
-       * Status
-       * @description Liveness status: always 'alive' if process is responding
-       * @default alive
-       */
-      status: string;
-    };
-    /**
-     * LogEntry
-     * @description Schema for a single log entry.
-     */
-    LogEntry: {
-      /**
-       * Id
-       * @description Log entry ID
-       */
-      id: number;
-      /**
-       * Timestamp
-       * Format: date-time
-       * @description Log timestamp
-       */
-      timestamp: string;
-      /**
-       * Level
-       * @description Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-       */
-      level: string;
-      /**
-       * Component
-       * @description Component/module name
-       */
-      component: string;
-      /**
-       * Message
-       * @description Log message
-       */
-      message: string;
-      /**
-       * Camera Id
-       * @description Associated camera ID
-       */
-      camera_id?: string | null;
-      /**
-       * Event Id
-       * @description Associated event ID
-       */
-      event_id?: number | null;
-      /**
-       * Request Id
-       * @description Request correlation ID
-       */
-      request_id?: string | null;
-      /**
-       * Detection Id
-       * @description Associated detection ID
-       */
-      detection_id?: number | null;
-      /**
-       * Duration Ms
-       * @description Operation duration in milliseconds
-       */
-      duration_ms?: number | null;
-      /**
-       * Extra
-       * @description Additional structured data
-       */
-      extra?: {
-        [key: string]: unknown;
-      } | null;
-      /**
-       * Source
-       * @description Log source (backend, frontend)
-       * @default backend
-       */
-      source: string;
-    };
-    /**
-     * LogStats
-     * @description Schema for log statistics (dashboard).
-     */
-    LogStats: {
-      /**
-       * Total Today
-       * @description Total logs today
-       */
-      total_today: number;
-      /**
-       * Errors Today
-       * @description Error count today
-       */
-      errors_today: number;
-      /**
-       * Warnings Today
-       * @description Warning count today
-       */
-      warnings_today: number;
-      /**
-       * By Component
-       * @description Counts by component
-       */
-      by_component: {
-        [key: string]: number;
-      };
-      /**
-       * By Level
-       * @description Counts by level
-       */
-      by_level: {
-        [key: string]: number;
-      };
-      /**
-       * Top Component
-       * @description Most active component
-       */
-      top_component?: string | null;
-    };
-    /**
-     * LogsResponse
-     * @description Schema for paginated logs response.
-     */
-    LogsResponse: {
-      /**
-       * Logs
-       * @description List of log entries
-       */
-      logs: components['schemas']['LogEntry'][];
-      /**
-       * Count
-       * @description Total count matching filters
-       */
-      count: number;
-      /**
-       * Limit
-       * @description Page size
-       */
-      limit: number;
-      /**
-       * Offset
-       * @description Page offset
-       */
-      offset: number;
-    };
-    /**
-     * MediaErrorResponse
-     * @description Error response for media access failures.
-     */
-    MediaErrorResponse: {
-      /**
-       * Error
-       * @description Error message describing what went wrong
-       */
-      error: string;
-      /**
-       * Path
-       * @description The path that was attempted to be accessed
-       */
-      path: string;
-    };
-    /**
-     * PipelineLatencies
-     * @description Latency statistics for all pipeline stages.
-     *
-     *     Pipeline stages:
-     *     - watch: File watcher detecting new images (file event -> queue)
-     *     - detect: RT-DETRv2 object detection (image -> detections)
-     *     - batch: Batch aggregation window (detections -> batch)
-     *     - analyze: Nemotron LLM risk analysis (batch -> event)
-     * @example {
-     *       "analyze": {
-     *         "avg_ms": 5000,
-     *         "max_ms": 15000,
-     *         "min_ms": 2000,
-     *         "p50_ms": 4500,
-     *         "p95_ms": 12000,
-     *         "p99_ms": 14000,
-     *         "sample_count": 100
-     *       },
-     *       "batch": {
-     *         "avg_ms": 30000,
-     *         "max_ms": 90000,
-     *         "min_ms": 5000,
-     *         "p50_ms": 25000,
-     *         "p95_ms": 80000,
-     *         "p99_ms": 88000,
-     *         "sample_count": 100
-     *       },
-     *       "detect": {
-     *         "avg_ms": 200,
-     *         "max_ms": 800,
-     *         "min_ms": 100,
-     *         "p50_ms": 180,
-     *         "p95_ms": 600,
-     *         "p99_ms": 750,
-     *         "sample_count": 500
-     *       },
-     *       "watch": {
-     *         "avg_ms": 10,
-     *         "max_ms": 50,
-     *         "min_ms": 5,
-     *         "p50_ms": 8,
-     *         "p95_ms": 40,
-     *         "p99_ms": 48,
-     *         "sample_count": 500
-     *       }
-     *     }
-     */
-    PipelineLatencies: {
-      /** @description File watcher stage latency (file event to queue) */
-      watch?: components['schemas']['StageLatency'] | null;
-      /** @description Object detection stage latency (RT-DETRv2 inference) */
-      detect?: components['schemas']['StageLatency'] | null;
-      /** @description Batch aggregation window time */
-      batch?: components['schemas']['StageLatency'] | null;
-      /** @description LLM analysis stage latency (Nemotron inference) */
-      analyze?: components['schemas']['StageLatency'] | null;
-    };
-    /**
-     * QueueDepths
-     * @description Queue depth information for pipeline queues.
-     * @example {
-     *       "analysis_queue": 2,
-     *       "detection_queue": 5
-     *     }
-     */
-    QueueDepths: {
-      /**
-       * Detection Queue
-       * @description Number of items in detection queue waiting for RT-DETRv2 processing
-       */
-      detection_queue: number;
-      /**
-       * Analysis Queue
-       * @description Number of batches in analysis queue waiting for Nemotron LLM analysis
-       */
-      analysis_queue: number;
-    };
-    /**
-     * ReadinessResponse
-     * @description Response schema for readiness probe endpoint.
-     *
-     *     Readiness probes indicate whether the application is ready to receive
-     *     traffic and process requests. This checks all dependencies:
-     *     - Database connectivity
-     *     - Redis connectivity
-     *     - AI services availability
-     *     - Background worker status
-     * @example {
-     *       "ready": true,
-     *       "services": {
-     *         "ai": {
-     *           "message": "AI services operational",
-     *           "status": "healthy"
-     *         },
-     *         "database": {
-     *           "message": "Database operational",
-     *           "status": "healthy"
-     *         },
-     *         "redis": {
-     *           "details": {
-     *             "redis_version": "7.0.0"
-     *           },
-     *           "message": "Redis connected",
-     *           "status": "healthy"
-     *         }
-     *       },
-     *       "status": "ready",
-     *       "timestamp": "2025-12-23T10:30:00",
-     *       "workers": [
-     *         {
-     *           "name": "gpu_monitor",
-     *           "running": true
-     *         },
-     *         {
-     *           "name": "cleanup_service",
-     *           "running": true
-     *         }
-     *       ]
-     *     }
-     */
-    ReadinessResponse: {
-      /**
-       * Ready
-       * @description Overall readiness status: True if system can process requests
-       */
-      ready: boolean;
-      /**
-       * Status
-       * @description Status string: 'ready', 'degraded', or 'not_ready'
-       */
-      status: string;
-      /**
-       * Services
-       * @description Status of infrastructure services (database, redis, ai)
-       */
-      services: {
-        [key: string]: components['schemas']['ServiceStatus'];
-      };
-      /**
-       * Workers
-       * @description Status of background workers
-       */
-      workers?: components['schemas']['WorkerStatus'][];
-      /**
-       * Timestamp
-       * Format: date-time
-       * @description Timestamp of readiness check
-       */
-      timestamp: string;
-    };
-    /**
-     * ServiceStatus
-     * @description Status information for a service component.
-     */
-    ServiceStatus: {
-      /**
-       * Status
-       * @description Service status: healthy, unhealthy, or not_initialized
-       */
-      status: string;
-      /**
-       * Message
-       * @description Optional status message or error details
-       */
-      message?: string | null;
-      /**
-       * Details
-       * @description Additional service-specific details
-       */
-      details?: {
-        [key: string]: string;
-      } | null;
-    };
-    /**
-     * StageLatency
-     * @description Latency statistics for a single pipeline stage.
-     * @example {
-     *       "avg_ms": 150.5,
-     *       "max_ms": 500,
-     *       "min_ms": 50,
-     *       "p50_ms": 120,
-     *       "p95_ms": 400,
-     *       "p99_ms": 480,
-     *       "sample_count": 100
-     *     }
-     */
-    StageLatency: {
-      /**
-       * Avg Ms
-       * @description Average latency in milliseconds
-       */
-      avg_ms?: number | null;
-      /**
-       * Min Ms
-       * @description Minimum latency in milliseconds
-       */
-      min_ms?: number | null;
-      /**
-       * Max Ms
-       * @description Maximum latency in milliseconds
-       */
-      max_ms?: number | null;
-      /**
-       * P50 Ms
-       * @description 50th percentile (median) latency in milliseconds
-       */
-      p50_ms?: number | null;
-      /**
-       * P95 Ms
-       * @description 95th percentile latency in milliseconds
-       */
-      p95_ms?: number | null;
-      /**
-       * P99 Ms
-       * @description 99th percentile latency in milliseconds
-       */
-      p99_ms?: number | null;
-      /**
-       * Sample Count
-       * @description Number of samples used to calculate statistics
-       */
-      sample_count: number;
-    };
-    /**
-     * SystemStatsResponse
-     * @description Response schema for system statistics endpoint.
-     * @example {
-     *       "total_cameras": 4,
-     *       "total_detections": 892,
-     *       "total_events": 156,
-     *       "uptime_seconds": 86400.5
-     *     }
-     */
-    SystemStatsResponse: {
-      /**
-       * Total Cameras
-       * @description Total number of cameras in the system
-       */
-      total_cameras: number;
-      /**
-       * Total Events
-       * @description Total number of events recorded
-       */
-      total_events: number;
-      /**
-       * Total Detections
-       * @description Total number of detections recorded
-       */
-      total_detections: number;
-      /**
-       * Uptime Seconds
-       * @description Application uptime in seconds
-       */
-      uptime_seconds: number;
-    };
-    /**
-     * TelemetryResponse
-     * @description Response schema for pipeline telemetry endpoint.
-     *
-     *     Provides real-time visibility into:
-     *     - Queue depths: How many items are waiting in detection/analysis queues
-     *     - Stage latencies: How long each pipeline stage is taking
-     *
-     *     This helps operators:
-     *     - Identify pipeline bottlenecks
-     *     - Detect backlog situations
-     *     - Monitor processing performance
-     *     - Debug pipeline stalls
-     * @example {
-     *       "latencies": {
-     *         "detect": {
-     *           "avg_ms": 200,
-     *           "max_ms": 800,
-     *           "min_ms": 100,
-     *           "p50_ms": 180,
-     *           "p95_ms": 600,
-     *           "p99_ms": 750,
-     *           "sample_count": 500
-     *         },
-     *         "watch": {
-     *           "avg_ms": 10,
-     *           "max_ms": 50,
-     *           "min_ms": 5,
-     *           "p50_ms": 8,
-     *           "p95_ms": 40,
-     *           "p99_ms": 48,
-     *           "sample_count": 500
-     *         }
-     *       },
-     *       "queues": {
-     *         "analysis_queue": 2,
-     *         "detection_queue": 5
-     *       },
-     *       "timestamp": "2025-12-27T10:30:00Z"
-     *     }
-     */
-    TelemetryResponse: {
-      /** @description Current queue depths for detection and analysis queues */
-      queues: components['schemas']['QueueDepths'];
-      /** @description Latency statistics for each pipeline stage */
-      latencies?: components['schemas']['PipelineLatencies'] | null;
-      /**
-       * Timestamp
-       * Format: date-time
-       * @description Timestamp of telemetry snapshot
-       */
-      timestamp: string;
-    };
-    /** ValidationError */
-    ValidationError: {
-      /** Location */
-      loc: (string | number)[];
-      /** Message */
-      msg: string;
-      /** Error Type */
-      type: string;
-    };
-    /**
-     * WorkerStatus
-     * @description Status information for a background worker/service.
-     */
-    WorkerStatus: {
-      /**
-       * Name
-       * @description Worker/service name
-       */
-      name: string;
-      /**
-       * Running
-       * @description Whether the worker is currently running
-       */
-      running: boolean;
-      /**
-       * Message
-       * @description Optional status message or error details
-       */
-      message?: string | null;
-    };
-  };
-  responses: never;
-  parameters: never;
-  requestBodies: never;
-  headers: never;
-  pathItems: never;
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-  list_cameras_api_cameras_get: {
-    parameters: {
-      query?: {
-        /** @description Filter by camera status */
-        status?: string | null;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['CameraListResponse'];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
-  create_camera_api_cameras_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['CameraCreate'];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['CameraResponse'];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
-  get_camera_api_cameras__camera_id__get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        camera_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['CameraResponse'];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
-  delete_camera_api_cameras__camera_id__delete: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        camera_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      204: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
-  update_camera_api_cameras__camera_id__patch: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        camera_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['CameraUpdate'];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['CameraResponse'];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
-  get_camera_snapshot_api_cameras__camera_id__snapshot_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        camera_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
-  list_detections_api_detections_get: {
-    parameters: {
-      query?: {
-        /** @description Filter by camera ID */
-        camera_id?: string | null;
-        /** @description Filter by object type */
-        object_type?: string | null;
-        /** @description Filter by start date (ISO format) */
-        start_date?: string | null;
-        /** @description Filter by end date (ISO format) */
-        end_date?: string | null;
-        /** @description Minimum confidence score */
-        min_confidence?: number | null;
-        /** @description Maximum number of results */
-        limit?: number;
-        /** @description Number of results to skip */
-        offset?: number;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['DetectionListResponse'];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
-  get_detection_api_detections__detection_id__get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        detection_id: number;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['DetectionResponse'];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
-  get_detection_image_api_detections__detection_id__image_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        detection_id: number;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
-  get_dlq_stats_api_dlq_stats_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['DLQStatsResponse'];
-        };
-      };
-    };
-  };
-  get_dlq_jobs_api_dlq_jobs__queue_name__get: {
-    parameters: {
-      query?: {
-        /** @description Start index (0-based) */
-        start?: number;
-        /** @description Maximum number of jobs to return */
-        limit?: number;
-      };
-      header?: never;
-      path: {
-        queue_name: components['schemas']['DLQName'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['DLQJobsResponse'];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
-  requeue_dlq_job_api_dlq_requeue__queue_name__post: {
-    parameters: {
-      query?: never;
-      header?: {
-        'x-api-key'?: string | null;
-      };
-      path: {
-        queue_name: components['schemas']['DLQName'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['DLQRequeueResponse'];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
-  requeue_all_dlq_jobs_api_dlq_requeue_all__queue_name__post: {
-    parameters: {
-      query?: never;
-      header?: {
-        'x-api-key'?: string | null;
-      };
-      path: {
-        queue_name: components['schemas']['DLQName'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['DLQRequeueResponse'];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
-  clear_dlq_api_dlq__queue_name__delete: {
-    parameters: {
-      query?: never;
-      header?: {
-        'x-api-key'?: string | null;
-      };
-      path: {
-        queue_name: components['schemas']['DLQName'];
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['DLQClearResponse'];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
-  list_events_api_events_get: {
-    parameters: {
-      query?: {
-        /** @description Filter by camera ID */
-        camera_id?: string | null;
-        /** @description Filter by risk level (low, medium, high, critical) */
-        risk_level?: string | null;
-        /** @description Filter by start date (ISO format) */
-        start_date?: string | null;
-        /** @description Filter by end date (ISO format) */
-        end_date?: string | null;
-        /** @description Filter by reviewed status */
-        reviewed?: boolean | null;
-        /** @description Filter by detected object type */
-        object_type?: string | null;
-        /** @description Maximum number of results */
-        limit?: number;
-        /** @description Number of results to skip */
-        offset?: number;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['EventListResponse'];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
-  get_event_stats_api_events_stats_get: {
-    parameters: {
-      query?: {
-        /** @description Filter by start date (ISO format) */
-        start_date?: string | null;
-        /** @description Filter by end date (ISO format) */
-        end_date?: string | null;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['EventStatsResponse'];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
-  get_event_api_events__event_id__get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        event_id: number;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['EventResponse'];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
-  update_event_api_events__event_id__patch: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        event_id: number;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['EventUpdate'];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['EventResponse'];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
-  get_event_detections_api_events__event_id__detections_get: {
-    parameters: {
-      query?: {
-        /** @description Maximum number of results */
-        limit?: number;
-        /** @description Number of results to skip */
-        offset?: number;
-      };
-      header?: never;
-      path: {
-        event_id: number;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['DetectionListResponse'];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
-  list_logs_api_logs_get: {
-    parameters: {
-      query?: {
-        /** @description Filter by log level */
-        level?: string | null;
-        /** @description Filter by component name */
-        component?: string | null;
-        /** @description Filter by camera ID */
-        camera_id?: string | null;
-        /** @description Filter by source (backend, frontend) */
-        source?: string | null;
-        /** @description Search in message text */
-        search?: string | null;
-        /** @description Filter from date (ISO format) */
-        start_date?: string | null;
-        /** @description Filter to date (ISO format) */
-        end_date?: string | null;
-        /** @description Page size */
-        limit?: number;
-        /** @description Page offset */
-        offset?: number;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['LogsResponse'];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
-  get_log_stats_api_logs_stats_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['LogStats'];
-        };
-      };
-    };
-  };
-  get_log_api_logs__log_id__get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        log_id: number;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['LogEntry'];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
-  create_frontend_log_api_logs_frontend_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['FrontendLogCreate'];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': {
-            [key: string]: string;
-          };
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
-  serve_media_compat_api_media__path__get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        path: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description File served successfully */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Access denied */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['MediaErrorResponse'];
-        };
-      };
-      /** @description File not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['MediaErrorResponse'];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
-  serve_camera_file_api_media_cameras__camera_id___filename__get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        camera_id: string;
-        filename: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description File served successfully */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Access denied */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['MediaErrorResponse'];
-        };
-      };
-      /** @description File not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['MediaErrorResponse'];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
-  serve_thumbnail_api_media_thumbnails__filename__get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        filename: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Thumbnail served successfully */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Access denied */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['MediaErrorResponse'];
-        };
-      };
-      /** @description File not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['MediaErrorResponse'];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
-  metrics_api_metrics_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': unknown;
-        };
-      };
-    };
-  };
-  get_health_api_system_health_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HealthResponse'];
-        };
-      };
-    };
-  };
-  get_liveness_api_system_health_live_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['LivenessResponse'];
-        };
-      };
-    };
-  };
-  get_readiness_api_system_health_ready_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ReadinessResponse'];
-        };
-      };
-    };
-  };
-  get_gpu_stats_api_system_gpu_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['GPUStatsResponse'];
-        };
-      };
-    };
-  };
-  get_gpu_stats_history_api_system_gpu_history_get: {
-    parameters: {
-      query?: {
-        since?: string | null;
-        limit?: number;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['GPUStatsHistoryResponse'];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
-  get_config_api_system_config_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ConfigResponse'];
-        };
-      };
-    };
-  };
-  patch_config_api_system_config_patch: {
-    parameters: {
-      query?: never;
-      header?: {
-        'x-api-key'?: string | null;
-      };
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['ConfigUpdateRequest'];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ConfigResponse'];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
-  get_stats_api_system_stats_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['SystemStatsResponse'];
-        };
-      };
-    };
-  };
-  get_telemetry_api_system_telemetry_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['TelemetryResponse'];
-        };
-      };
-    };
-  };
-  trigger_cleanup_api_system_cleanup_post: {
-    parameters: {
-      query?: {
-        dry_run?: boolean;
-      };
-      header?: {
-        'x-api-key'?: string | null;
-      };
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['CleanupResponse'];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['HTTPValidationError'];
-        };
-      };
-    };
-  };
-  root__get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': {
-            [key: string]: string;
-          };
-        };
-      };
-    };
-  };
-  health_health_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': {
-            [key: string]: unknown;
-          };
-        };
-      };
-    };
-  };
+    seed_cameras_api_admin_seed_cameras_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SeedCamerasRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeedCamerasResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    seed_events_api_admin_seed_events_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SeedEventsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeedEventsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    clear_seeded_data_api_admin_seed_clear_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClearDataResponse"];
+                };
+            };
+        };
+    };
+    list_cameras_api_cameras_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by camera status */
+                status?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CameraListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_camera_api_cameras_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CameraCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CameraResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_camera_api_cameras__camera_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CameraResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_camera_api_cameras__camera_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_camera_api_cameras__camera_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CameraUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CameraResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_camera_snapshot_api_cameras__camera_id__snapshot_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_detections_api_detections_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by camera ID */
+                camera_id?: string | null;
+                /** @description Filter by object type */
+                object_type?: string | null;
+                /** @description Filter by start date (ISO format) */
+                start_date?: string | null;
+                /** @description Filter by end date (ISO format) */
+                end_date?: string | null;
+                /** @description Minimum confidence score */
+                min_confidence?: number | null;
+                /** @description Maximum number of results */
+                limit?: number;
+                /** @description Number of results to skip */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetectionListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_detection_api_detections__detection_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                detection_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetectionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_detection_image_api_detections__detection_id__image_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                detection_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_dlq_stats_api_dlq_stats_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DLQStatsResponse"];
+                };
+            };
+        };
+    };
+    get_dlq_jobs_api_dlq_jobs__queue_name__get: {
+        parameters: {
+            query?: {
+                /** @description Start index (0-based) */
+                start?: number;
+                /** @description Maximum number of jobs to return */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                queue_name: components["schemas"]["DLQName"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DLQJobsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    requeue_dlq_job_api_dlq_requeue__queue_name__post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                queue_name: components["schemas"]["DLQName"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DLQRequeueResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    requeue_all_dlq_jobs_api_dlq_requeue_all__queue_name__post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                queue_name: components["schemas"]["DLQName"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DLQRequeueResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    clear_dlq_api_dlq__queue_name__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                queue_name: components["schemas"]["DLQName"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DLQClearResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_events_api_events_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by camera ID */
+                camera_id?: string | null;
+                /** @description Filter by risk level (low, medium, high, critical) */
+                risk_level?: string | null;
+                /** @description Filter by start date (ISO format) */
+                start_date?: string | null;
+                /** @description Filter by end date (ISO format) */
+                end_date?: string | null;
+                /** @description Filter by reviewed status */
+                reviewed?: boolean | null;
+                /** @description Filter by detected object type */
+                object_type?: string | null;
+                /** @description Maximum number of results */
+                limit?: number;
+                /** @description Number of results to skip */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_event_stats_api_events_stats_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by start date (ISO format) */
+                start_date?: string | null;
+                /** @description Filter by end date (ISO format) */
+                end_date?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventStatsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_events_api_events_export_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by camera ID */
+                camera_id?: string | null;
+                /** @description Filter by risk level (low, medium, high, critical) */
+                risk_level?: string | null;
+                /** @description Filter by start date (ISO format) */
+                start_date?: string | null;
+                /** @description Filter by end date (ISO format) */
+                end_date?: string | null;
+                /** @description Filter by reviewed status */
+                reviewed?: boolean | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_event_api_events__event_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_event_api_events__event_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_event_detections_api_events__event_id__detections_get: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of results */
+                limit?: number;
+                /** @description Number of results to skip */
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetectionListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_logs_api_logs_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by log level */
+                level?: string | null;
+                /** @description Filter by component name */
+                component?: string | null;
+                /** @description Filter by camera ID */
+                camera_id?: string | null;
+                /** @description Filter by source (backend, frontend) */
+                source?: string | null;
+                /** @description Search in message text */
+                search?: string | null;
+                /** @description Filter from date (ISO format) */
+                start_date?: string | null;
+                /** @description Filter to date (ISO format) */
+                end_date?: string | null;
+                /** @description Page size */
+                limit?: number;
+                /** @description Page offset */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_log_stats_api_logs_stats_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogStats"];
+                };
+            };
+        };
+    };
+    get_log_api_logs__log_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                log_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogEntry"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_frontend_log_api_logs_frontend_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FrontendLogCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    serve_media_compat_api_media__path__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                path: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description File served successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaErrorResponse"];
+                };
+            };
+            /** @description File not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    serve_camera_file_api_media_cameras__camera_id___filename__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+                filename: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description File served successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaErrorResponse"];
+                };
+            };
+            /** @description File not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    serve_thumbnail_api_media_thumbnails__filename__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                filename: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Thumbnail served successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaErrorResponse"];
+                };
+            };
+            /** @description File not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    metrics_api_metrics_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    get_health_api_system_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
+    };
+    get_liveness_api_system_health_live_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LivenessResponse"];
+                };
+            };
+        };
+    };
+    get_readiness_api_system_health_ready_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReadinessResponse"];
+                };
+            };
+        };
+    };
+    get_gpu_stats_api_system_gpu_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GPUStatsResponse"];
+                };
+            };
+        };
+    };
+    get_gpu_stats_history_api_system_gpu_history_get: {
+        parameters: {
+            query?: {
+                since?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GPUStatsHistoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_config_api_system_config_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfigResponse"];
+                };
+            };
+        };
+    };
+    patch_config_api_system_config_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfigUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfigResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_stats_api_system_stats_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemStatsResponse"];
+                };
+            };
+        };
+    };
+    get_telemetry_api_system_telemetry_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelemetryResponse"];
+                };
+            };
+        };
+    };
+    trigger_cleanup_api_system_cleanup_post: {
+        parameters: {
+            query?: {
+                dry_run?: boolean;
+            };
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CleanupResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    root__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+        };
+    };
+    health_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
 }
