@@ -12,11 +12,21 @@ This directory contains SQLAlchemy 2.0 ORM models for the home security intellig
 - **Cascade Behavior**: Camera deletion automatically removes dependent records
 - **Testing**: Comprehensive unit tests in `/backend/tests/unit/test_models.py`
 
-## Key Files
+## Files Overview
 
-### `__init__.py`
+```
+backend/models/
+├── __init__.py     # Module exports (Base, Camera, Detection, Event, GPUStats, Log, APIKey)
+├── camera.py       # Camera model and Base class definition
+├── detection.py    # Object detection results model (with video metadata support)
+├── event.py        # Security event model with LLM analysis
+├── gpu_stats.py    # GPU performance metrics model
+├── log.py          # Structured application log model
+├── api_key.py      # API key authentication model
+└── README.md       # Detailed model documentation
+```
 
-Module initialization file that exports all models and the declarative base class.
+## `__init__.py` - Module Exports
 
 **Exports:**
 
@@ -25,55 +35,65 @@ Module initialization file that exports all models and the declarative base clas
 - `Detection` - Object detection results model
 - `Event` - Security event model
 - `GPUStats` - GPU performance metrics model
-- `APIKey` - API key authentication model
 - `Log` - Structured application log model
+- `APIKey` - API key authentication model
 
-### `camera.py`
-
-Defines the Camera model and declarative Base class used by all models.
+## `camera.py` - Camera Model
 
 **Model:** `Camera`
+**Table:** `cameras`
 **Purpose:** Represents physical security cameras in the system
 
 **Fields:**
 
-- `id` (str, PK) - Unique camera identifier (e.g., "front_door")
-- `name` (str) - Human-readable name (e.g., "Front Door Camera")
-- `folder_path` (str) - File system path for FTP image uploads (e.g., "/export/foscam/front_door")
-- `status` (str) - Camera operational status (default: "online")
-- `created_at` (datetime) - Camera registration timestamp
-- `last_seen_at` (datetime, nullable) - Last activity timestamp
+| Field          | Type                | Description                                     |
+| -------------- | ------------------- | ----------------------------------------------- |
+| `id`           | str (PK)            | Unique camera identifier (e.g., "front_door")   |
+| `name`         | str                 | Human-readable name (e.g., "Front Door Camera") |
+| `folder_path`  | str                 | File system path for FTP image uploads          |
+| `status`       | str                 | Camera operational status (default: "online")   |
+| `created_at`   | datetime            | Camera registration timestamp                   |
+| `last_seen_at` | datetime (nullable) | Last activity timestamp                         |
 
 **Relationships:**
 
 - `detections` - One-to-many with Detection (cascade="all, delete-orphan")
 - `events` - One-to-many with Event (cascade="all, delete-orphan")
 
-**Design Notes:**
+**Note:** This file also defines the `Base` class used by all models.
 
-- Uses string IDs for human-readable camera identifiers
-- Cascade deletes ensure orphaned records are cleaned up
-- `folder_path` links cameras to FTP upload directories
-
-### `detection.py`
-
-Defines the Detection model for RT-DETRv2 object detection results.
+## `detection.py` - Detection Model
 
 **Model:** `Detection`
-**Purpose:** Stores individual object detection results from AI inference
+**Table:** `detections`
+**Purpose:** Stores individual object detection results from RT-DETRv2 AI inference
 
 **Fields:**
 
-- `id` (int, PK, autoincrement) - Unique detection ID
-- `camera_id` (str, FK->cameras.id) - Source camera reference
-- `file_path` (str) - Path to source image file
-- `file_type` (str, nullable) - File extension (e.g., "jpg")
-- `detected_at` (datetime) - Detection timestamp (default: utcnow)
-- `object_type` (str, nullable) - Detected object class (e.g., "person", "car")
-- `confidence` (float, nullable) - Detection confidence score (0.0-1.0)
-- `bbox_x`, `bbox_y` (int, nullable) - Bounding box top-left coordinates
-- `bbox_width`, `bbox_height` (int, nullable) - Bounding box dimensions
-- `thumbnail_path` (str, nullable) - Path to cropped detection thumbnail
+| Field            | Type                    | Description                                   |
+| ---------------- | ----------------------- | --------------------------------------------- |
+| `id`             | int (PK, autoincrement) | Unique detection ID                           |
+| `camera_id`      | str (FK->cameras.id)    | Source camera reference                       |
+| `file_path`      | str                     | Path to source image/video file               |
+| `file_type`      | str (nullable)          | File extension (e.g., "jpg", "mp4")           |
+| `detected_at`    | datetime                | Detection timestamp (default: utcnow)         |
+| `object_type`    | str (nullable)          | Detected object class (e.g., "person", "car") |
+| `confidence`     | float (nullable)        | Detection confidence score (0.0-1.0)          |
+| `bbox_x`         | int (nullable)          | Bounding box top-left X coordinate            |
+| `bbox_y`         | int (nullable)          | Bounding box top-left Y coordinate            |
+| `bbox_width`     | int (nullable)          | Bounding box width                            |
+| `bbox_height`    | int (nullable)          | Bounding box height                           |
+| `thumbnail_path` | str (nullable)          | Path to cropped detection thumbnail           |
+
+**Video-Specific Metadata:**
+
+| Field          | Type             | Description                           |
+| -------------- | ---------------- | ------------------------------------- |
+| `media_type`   | str (nullable)   | "image" or "video" (default: "image") |
+| `duration`     | float (nullable) | Video duration in seconds             |
+| `video_codec`  | str (nullable)   | Video codec (e.g., "h264", "hevc")    |
+| `video_width`  | int (nullable)   | Video resolution width                |
+| `video_height` | int (nullable)   | Video resolution height               |
 
 **Relationships:**
 
@@ -85,35 +105,29 @@ Defines the Detection model for RT-DETRv2 object detection results.
 - `idx_detections_detected_at` - Single-column index on detected_at
 - `idx_detections_camera_time` - Composite index on (camera_id, detected_at)
 
-**Design Notes:**
-
-- Auto-incrementing integer ID for large-scale detection storage
-- Optional fields support gradual enrichment (detection -> analysis -> thumbnail)
-- Composite index optimizes camera-specific time-range queries
-- Bounding box stored as separate fields for SQL query flexibility
-
-### `event.py`
-
-Defines the Event model for aggregated security events.
+## `event.py` - Event Model
 
 **Model:** `Event`
+**Table:** `events`
 **Purpose:** Represents security events analyzed by Nemotron LLM from batched detections
 
 **Fields:**
 
-- `id` (int, PK, autoincrement) - Unique event ID
-- `batch_id` (str) - Batch processing identifier for grouping detections
-- `camera_id` (str, FK->cameras.id) - Source camera reference
-- `started_at` (datetime) - Event start timestamp
-- `ended_at` (datetime, nullable) - Event end timestamp
-- `risk_score` (int, nullable) - LLM-determined risk score (0-100)
-- `risk_level` (str, nullable) - Risk classification (e.g., "low", "medium", "high", "critical")
-- `summary` (text, nullable) - LLM-generated event summary
-- `reasoning` (text, nullable) - LLM reasoning for risk assessment
-- `detection_ids` (text, nullable) - JSON array of detection IDs in this event (e.g., "[1, 2, 3]")
-- `reviewed` (bool) - User review flag (default: False)
-- `notes` (text, nullable) - User-added notes
-- `is_fast_path` (bool) - Fast path flag for high-priority analysis (default: False)
+| Field           | Type                    | Description                                                |
+| --------------- | ----------------------- | ---------------------------------------------------------- |
+| `id`            | int (PK, autoincrement) | Unique event ID                                            |
+| `batch_id`      | str                     | Batch processing identifier for grouping detections        |
+| `camera_id`     | str (FK->cameras.id)    | Source camera reference                                    |
+| `started_at`    | datetime                | Event start timestamp                                      |
+| `ended_at`      | datetime (nullable)     | Event end timestamp                                        |
+| `risk_score`    | int (nullable)          | LLM-determined risk score (0-100)                          |
+| `risk_level`    | str (nullable)          | Risk classification ("low", "medium", "high", "critical")  |
+| `summary`       | text (nullable)         | LLM-generated event summary                                |
+| `reasoning`     | text (nullable)         | LLM reasoning for risk assessment                          |
+| `detection_ids` | text (nullable)         | JSON array of detection IDs in this event                  |
+| `reviewed`      | bool                    | User review flag (default: False)                          |
+| `notes`         | text (nullable)         | User-added notes                                           |
+| `is_fast_path`  | bool                    | Fast path flag for high-priority analysis (default: False) |
 
 **Relationships:**
 
@@ -127,107 +141,80 @@ Defines the Event model for aggregated security events.
 - `idx_events_reviewed` - Single-column index on reviewed
 - `idx_events_batch_id` - Single-column index on batch_id
 
-**Design Notes:**
-
-- Risk scoring is LLM-determined, not rule-based
-- Events aggregate multiple detections within 90-second windows
-- Text fields use SQL `Text` type for large content
-- `reviewed` flag enables user workflow tracking
-- `batch_id` links back to batch processing pipeline
-- `is_fast_path` indicates events processed via fast path (high-priority)
-
-### `gpu_stats.py`
-
-Defines the GPUStats model for monitoring NVIDIA RTX A5500 performance.
+## `gpu_stats.py` - GPU Statistics Model
 
 **Model:** `GPUStats`
-**Purpose:** Time-series tracking of GPU metrics during AI inference
+**Table:** `gpu_stats`
+**Purpose:** Time-series tracking of NVIDIA RTX A5500 GPU performance during AI inference
 
 **Fields:**
 
-- `id` (int, PK, autoincrement) - Unique stats record ID
-- `recorded_at` (datetime) - Recording timestamp (default: utcnow)
-- `gpu_utilization` (float, nullable) - GPU utilization percentage (0-100)
-- `memory_used` (int, nullable) - GPU memory used in MB
-- `memory_total` (int, nullable) - Total GPU memory in MB (typically 24576 for RTX A5500)
-- `temperature` (float, nullable) - GPU temperature in Celsius
-- `inference_fps` (float, nullable) - Inference throughput in frames per second
+| Field             | Type                    | Description                           |
+| ----------------- | ----------------------- | ------------------------------------- |
+| `id`              | int (PK, autoincrement) | Unique stats record ID                |
+| `recorded_at`     | datetime                | Recording timestamp (default: utcnow) |
+| `gpu_name`        | str (nullable)          | GPU name (e.g., "NVIDIA RTX A5500")   |
+| `gpu_utilization` | float (nullable)        | GPU utilization percentage (0-100)    |
+| `memory_used`     | int (nullable)          | GPU memory used in MB                 |
+| `memory_total`    | int (nullable)          | Total GPU memory in MB                |
+| `temperature`     | float (nullable)        | GPU temperature in Celsius            |
+| `power_usage`     | float (nullable)        | Power usage in Watts                  |
+| `inference_fps`   | float (nullable)        | Inference throughput in FPS           |
 
 **Indexes:**
 
 - `idx_gpu_stats_recorded_at` - Single-column index on recorded_at for time-series queries
 
-**Design Notes:**
+**Note:** Standalone table with no foreign key relationships.
 
-- All metric fields are nullable for partial data collection
-- Time-series optimized with indexed timestamp
-- Supports real-time dashboard GPU monitoring
-- No foreign keys - standalone performance tracking
-
-### `api_key.py`
-
-Defines the APIKey model for optional API authentication.
-
-**Model:** `APIKey`
-**Purpose:** Manages API key authentication when enabled in settings
-
-**Fields:**
-
-- `id` (int, PK, autoincrement) - Unique API key record ID
-- `key_hash` (str, unique, indexed) - SHA-256 hash of the API key (64 characters)
-- `name` (str) - Human-readable name for the API key (e.g., "Mobile App Key")
-- `created_at` (datetime) - Key creation timestamp with UTC timezone
-- `is_active` (bool) - Active status flag (default: True)
-
-**Design Notes:**
-
-- Stores hashed keys only, never plain text
-- Unique constraint on key_hash prevents duplicate keys
-- Index on key_hash for fast authentication lookups
-- `is_active` enables key revocation without deletion
-- Used by authentication middleware when `api_key_enabled=True` in settings
-
-### `log.py`
-
-Defines the Log model for structured application logging.
+## `log.py` - Log Model
 
 **Model:** `Log`
+**Table:** `logs`
 **Purpose:** Stores structured application logs for admin UI queries and debugging
 
 **Fields:**
 
-- `id` (int, PK, autoincrement) - Unique log record ID
-- `timestamp` (datetime) - Log entry timestamp (default: server_default=func.now())
-- `level` (str, 10 chars) - Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-- `component` (str, 50 chars) - Logger name (typically module `__name__`)
-- `message` (text) - Formatted log message
+| Field       | Type                    | Description                                       |
+| ----------- | ----------------------- | ------------------------------------------------- |
+| `id`        | int (PK, autoincrement) | Unique log record ID                              |
+| `timestamp` | datetime                | Log entry timestamp (server_default=func.now())   |
+| `level`     | str (10 chars)          | Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL) |
+| `component` | str (50 chars)          | Logger name (typically module `__name__`)         |
+| `message`   | text                    | Formatted log message                             |
 
 **Structured Metadata (nullable, for filtering):**
 
-- `camera_id` (str, 100 chars, nullable) - Camera reference for camera-specific operations
-- `event_id` (int, nullable) - Event reference for event-related logs
-- `request_id` (str, 36 chars, nullable) - Request correlation ID (UUID format)
-- `detection_id` (int, nullable) - Detection reference for detection-related logs
+| Field          | Type                      | Description            |
+| -------------- | ------------------------- | ---------------------- |
+| `camera_id`    | str (100 chars, nullable) | Camera reference       |
+| `event_id`     | int (nullable)            | Event reference        |
+| `request_id`   | str (36 chars, nullable)  | Request correlation ID |
+| `detection_id` | int (nullable)            | Detection reference    |
 
 **Performance/Debug Fields:**
 
-- `duration_ms` (int, nullable) - Operation duration in milliseconds
-- `extra` (JSON, nullable) - Additional structured context as JSON object
+| Field         | Type            | Description                        |
+| ------------- | --------------- | ---------------------------------- |
+| `duration_ms` | int (nullable)  | Operation duration in milliseconds |
+| `extra`       | JSON (nullable) | Additional structured context      |
 
 **Source Tracking:**
 
-- `source` (str, 10 chars) - Log source: "backend" or "frontend" (default: "backend")
-- `user_agent` (text, nullable) - Browser user agent for frontend logs
+| Field        | Type            | Description                                              |
+| ------------ | --------------- | -------------------------------------------------------- |
+| `source`     | str (10 chars)  | Log source: "backend" or "frontend" (default: "backend") |
+| `user_agent` | text (nullable) | Browser user agent for frontend logs                     |
 
 **Indexes:**
 
 - `idx_logs_timestamp` - Index on timestamp for time-range queries
 - `idx_logs_level` - Index on level for filtering by severity
 - `idx_logs_component` - Index on component for filtering by module
-- `idx_logs_camera_id` - Index on camera_id for camera-specific log queries
+- `idx_logs_camera_id` - Index on camera_id for camera-specific queries
 - `idx_logs_source` - Index on source for backend/frontend filtering
 
-**Design Notes:**
+**Note:** Standalone table with no foreign key relationships for reliability.
 
 - Stores both backend and frontend logs in unified table
 - JSON extra field allows arbitrary structured context
@@ -236,6 +223,24 @@ Defines the Log model for structured application logging.
 - No foreign keys - standalone logging table for reliability
 - Written by `DatabaseHandler` in `backend/core/logging.py`
 - Frontend logs submitted via `POST /api/logs/frontend` endpoint
+
+## `api_key.py` - API Key Model
+
+**Model:** `APIKey`
+**Table:** `api_keys`
+**Purpose:** Manages API key authentication when enabled in settings
+
+**Fields:**
+
+| Field        | Type                            | Description                         |
+| ------------ | ------------------------------- | ----------------------------------- |
+| `id`         | int (PK, autoincrement)         | Unique API key record ID            |
+| `key_hash`   | str (64 chars, unique, indexed) | SHA-256 hash of the API key         |
+| `name`       | str (100 chars)                 | Human-readable name for the API key |
+| `created_at` | datetime (with timezone)        | Key creation timestamp (UTC)        |
+| `is_active`  | bool                            | Active status flag (default: True)  |
+
+**Note:** Standalone table with no foreign key relationships. Used by authentication middleware when `api_key_enabled=True`.
 
 ## SQLAlchemy Patterns Used
 
@@ -285,8 +290,8 @@ __table_args__ = (
 ## Database Relationships
 
 ```
-Camera (1) ──< (many) Detection
-Camera (1) ──< (many) Event
+Camera (1) ----< (many) Detection
+Camera (1) ----< (many) Event
 
 GPUStats (standalone, no relationships)
 APIKey (standalone, no relationships)
@@ -298,19 +303,13 @@ Log (standalone, no relationships)
 - Deleting a Camera cascades to delete all its Detections and Events
 - `cascade="all, delete-orphan"` ensures orphaned records are removed
 
-**Standalone Tables:**
-
-- `GPUStats` - Time-series GPU metrics, no foreign keys
-- `APIKey` - Authentication keys, no foreign keys
-- `Log` - Application logs, no foreign keys (for reliability)
-
 ## Indexing Strategy
 
 ### Detection Table
 
 1. **Camera queries**: `idx_detections_camera_id` - List detections by camera
 2. **Time queries**: `idx_detections_detected_at` - Time-range filtering
-3. **Combined queries**: `idx_detections_camera_time` - Camera-specific time ranges (most common query pattern)
+3. **Combined queries**: `idx_detections_camera_time` - Camera-specific time ranges
 
 ### Event Table
 
@@ -320,17 +319,13 @@ Log (standalone, no relationships)
 4. **Workflow**: `idx_events_reviewed` - Unreviewed event queries
 5. **Batch tracking**: `idx_events_batch_id` - Batch processing audit
 
-### GPUStats Table
-
-1. **Time-series**: `idx_gpu_stats_recorded_at` - Performance metrics over time
-
 ### Log Table
 
-1. **Time queries**: `idx_logs_timestamp` - Log timeline and time-range filtering
-2. **Severity filtering**: `idx_logs_level` - Filter by log level (ERROR, WARNING, etc.)
-3. **Component filtering**: `idx_logs_component` - Filter by source module
-4. **Camera filtering**: `idx_logs_camera_id` - Camera-specific log queries
-5. **Source filtering**: `idx_logs_source` - Backend vs frontend log separation
+1. **Time queries**: `idx_logs_timestamp` - Log timeline
+2. **Severity filtering**: `idx_logs_level` - Filter by log level
+3. **Component filtering**: `idx_logs_component` - Filter by module
+4. **Camera filtering**: `idx_logs_camera_id` - Camera-specific logs
+5. **Source filtering**: `idx_logs_source` - Backend vs frontend separation
 
 ## Usage Example
 
@@ -375,7 +370,6 @@ pytest backend/tests/unit/test_models.py --cov=backend.models
 
 ## Related Documentation
 
-- `/backend/models/README.md` - Detailed model documentation
-- `/backend/tests/unit/test_models.py` - Model test suite
-- `/backend/core/database.py` - Database connection and session management
 - `/backend/AGENTS.md` - Backend architecture overview
+- `/backend/core/AGENTS.md` - Core infrastructure documentation
+- `/backend/core/database.py` - Database connection and session management
