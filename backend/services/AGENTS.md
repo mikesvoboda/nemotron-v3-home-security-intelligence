@@ -371,6 +371,35 @@ dlq:analysis_queue   - Failed LLM analysis jobs
 
 **Purpose:** Real-time event distribution via WebSocket using Redis pub/sub backbone.
 
+**Key Features:**
+
+- Publishes events to Redis pub/sub channel `security_events`
+- WebSocket clients subscribe to receive real-time updates
+- Message envelope format for type discrimination
+
+**Message Format:**
+
+```json
+{
+  "type": "event",
+  "data": {
+    "event_id": 123,
+    "camera_id": "front_door",
+    "risk_score": 65,
+    "risk_level": "high",
+    "summary": "Person detected near entrance",
+    "started_at": "2024-01-15T10:30:00.000000",
+    "ended_at": "2024-01-15T10:31:00.000000"
+  }
+}
+```
+
+**Public API:**
+
+- `EventBroadcaster(redis_client)` - Initialize with Redis client
+- `async broadcast_event(event)` - Publish event to security_events channel
+- `CHANNEL_NAME = "security_events"` - Canonical channel name constant
+
 ### gpu_monitor.py
 
 **Purpose:** NVIDIA GPU statistics monitoring using pynvml.
