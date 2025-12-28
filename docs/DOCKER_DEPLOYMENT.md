@@ -1,6 +1,6 @@
 # Docker Deployment Guide
 
-This guide covers deploying the Home Security Intelligence system using Docker Compose.
+This guide covers deploying the Home Security Intelligence system using Docker Compose or Podman Compose.
 
 ## Overview
 
@@ -10,11 +10,21 @@ The system consists of three main services:
 2. **Frontend** - React/Vite application (port 5173 dev, port 80 prod)
 3. **Redis** - Cache and message broker (port 6379)
 
-**Note:** AI services (RT-DETRv2 and Nemotron) run natively on the host for GPU access and are accessed via `host.docker.internal`.
+**Note:** AI services (RT-DETRv2 and Nemotron) run natively on the host for GPU access.
+
+## Container Runtime Options
+
+| Runtime        | Platform              | License                          | Install                                       |
+| -------------- | --------------------- | -------------------------------- | --------------------------------------------- |
+| Docker Desktop | macOS, Windows, Linux | Paid (commercial >250 employees) | [docker.com](https://docker.com)              |
+| Podman         | macOS, Linux          | Free (Apache 2.0)                | `brew install podman` or `dnf install podman` |
+| Docker Engine  | Linux                 | Free                             | `apt install docker.io`                       |
+
+This project supports all three. Podman is recommended for free, open-source deployment.
 
 ## Quick Start
 
-### Development Mode
+### Docker (Development Mode)
 
 ```bash
 # Start all services
@@ -27,7 +37,7 @@ docker compose logs -f
 docker compose down
 ```
 
-### Production Mode
+### Docker (Production Mode)
 
 ```bash
 # Start all services with production configuration
@@ -39,6 +49,192 @@ docker compose -f docker-compose.prod.yml logs -f
 # Stop services
 docker compose -f docker-compose.prod.yml down
 ```
+
+---
+
+## Podman Setup (Free Alternative to Docker Desktop)
+
+Podman is a free, daemonless container engine that runs the same OCI images as Docker.
+
+### Install Podman
+
+**macOS:**
+
+```bash
+# Install Podman and podman-compose
+brew install podman podman-compose
+
+# Initialize the Podman VM (required for macOS)
+podman machine init
+
+# Start the VM
+podman machine start
+
+# Verify installation
+podman info
+```
+
+**Linux (Fedora/RHEL/CentOS):**
+
+```bash
+sudo dnf install podman podman-compose
+```
+
+**Linux (Ubuntu/Debian):**
+
+```bash
+sudo apt update
+sudo apt install podman podman-compose
+```
+
+### Run with Podman
+
+**Development:**
+
+```bash
+# macOS: Set host for AI services
+export AI_HOST=host.containers.internal
+
+# Linux: Use your host IP
+export AI_HOST=$(hostname -I | awk '{print $1}')
+
+# Start services
+podman-compose up -d
+
+# View logs
+podman-compose logs -f
+
+# Stop services
+podman-compose down
+```
+
+**Production:**
+
+```bash
+export AI_HOST=host.containers.internal  # or host IP on Linux
+podman-compose -f docker-compose.prod.yml up -d
+```
+
+### Podman vs Docker Command Equivalents
+
+| Docker                 | Podman                 |
+| ---------------------- | ---------------------- |
+| `docker compose up -d` | `podman-compose up -d` |
+| `docker compose down`  | `podman-compose down`  |
+| `docker compose logs`  | `podman-compose logs`  |
+| `docker ps`            | `podman ps`            |
+| `docker images`        | `podman images`        |
+| `docker build`         | `podman build`         |
+
+---
+
+## Using Pre-built Images from GHCR
+
+CI/CD automatically builds and pushes images to GitHub Container Registry (GHCR). Use these instead of building locally for faster deployment.
+
+### Authenticate with GHCR
+
+```bash
+# Create a GitHub Personal Access Token with `read:packages` scope
+# https://github.com/settings/tokens
+
+# Docker login
+echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_USERNAME --password-stdin
+
+# Podman login
+echo $GITHUB_TOKEN | podman login ghcr.io -u YOUR_USERNAME --password-stdin
+```
+
+### Deploy from GHCR
+
+**Docker:**
+
+```bash
+# macOS with Docker Desktop
+docker compose -f docker-compose.ghcr.yml up -d
+```
+
+**Podman on macOS:**
+
+```bash
+export AI_HOST=host.containers.internal
+podman-compose -f docker-compose.ghcr.yml up -d
+```
+
+**Podman on Linux:**
+
+```bash
+export AI_HOST=$(hostname -I | awk '{print $1}')
+export CAMERA_PATH=/path/to/your/cameras  # Adjust as needed
+podman-compose -f docker-compose.ghcr.yml up -d
+```
+
+### Use a Specific Image Version
+
+```bash
+# Deploy a specific commit SHA instead of latest
+export IMAGE_TAG=abc1234
+docker compose -f docker-compose.ghcr.yml up -d
+```
+
+### Available Images
+
+| Image                                                                        | Description            |
+| ---------------------------------------------------------------------------- | ---------------------- |
+| `ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:latest`  | FastAPI backend        |
+| `ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:latest` | React frontend (nginx) |
+
+---
+
+## Cross-Platform Host Resolution
+
+The AI services (RT-DETRv2, Nemotron) run natively on the host. Containers need to reach them via special hostnames.
+
+| Platform | Container Runtime | Host Resolution                  |
+| -------- | ----------------- | -------------------------------- |
+| macOS    | Docker Desktop    | `host.docker.internal` (default) |
+| macOS    | Podman            | `host.containers.internal`       |
+| Linux    | Docker Engine     | Host IP address                  |
+| Linux    | Podman            | Host IP address                  |
+
+### Configuration
+
+All compose files support the `AI_HOST` environment variable:
+
+```bash
+# macOS with Docker Desktop (default, no action needed)
+docker compose up -d
+
+# macOS with Podman
+export AI_HOST=host.containers.internal
+podman-compose up -d
+
+# Linux (Docker or Podman)
+export AI_HOST=192.168.1.100  # Replace with your host IP
+docker compose up -d
+```
+
+### Finding Your Host IP (Linux)
+
+```bash
+# Get primary IP
+hostname -I | awk '{print $1}'
+
+# Or use ip command
+ip route get 1 | awk '{print $7}'
+```
+
+---
+
+## Compose Files Reference
+
+| File                      | Purpose                  | Builds Images?       |
+| ------------------------- | ------------------------ | -------------------- |
+| `docker-compose.yml`      | Development (hot reload) | Yes (local)          |
+| `docker-compose.prod.yml` | Production (optimized)   | Yes (local)          |
+| `docker-compose.ghcr.yml` | Production (pre-built)   | No (pulls from GHCR) |
+
+---
 
 ## Testing Deployment
 
@@ -286,8 +482,21 @@ Both backend and frontend have `.dockerignore` files to exclude unnecessary file
 AI services (RT-DETRv2 and Nemotron) run natively on the host. Ensure they are:
 
 1. Running on the correct ports (8090 and 8091)
-2. Accessible from containers via `host.docker.internal`
+2. Using the correct host resolution for your platform:
+   - **Docker Desktop (macOS/Windows):** `host.docker.internal` (default)
+   - **Podman (macOS):** Set `export AI_HOST=host.containers.internal`
+   - **Linux (Docker or Podman):** Set `export AI_HOST=<your-host-ip>`
 3. Check backend logs for connection errors: `docker compose logs backend | grep -i detector`
+
+**Test connectivity from inside a container:**
+
+```bash
+# Docker
+docker compose exec backend curl http://${AI_HOST:-host.docker.internal}:8090/health
+
+# Podman
+podman exec <backend-container-id> curl http://host.containers.internal:8090/health
+```
 
 ### Insufficient resources
 
@@ -307,6 +516,54 @@ sudo chown -R $USER:$USER ./backend/data
 
 # Verify camera directory exists and is readable
 ls -la /export/foscam
+```
+
+### Podman-specific issues
+
+**Podman machine not running (macOS):**
+
+```bash
+# Check machine status
+podman machine list
+
+# Start the machine
+podman machine start
+
+# If corrupted, recreate
+podman machine rm
+podman machine init
+podman machine start
+```
+
+**podman-compose not found:**
+
+```bash
+# macOS
+brew install podman-compose
+
+# Linux (pip)
+pip install podman-compose
+
+# Or use podman compose (v4.1+)
+podman compose up -d
+```
+
+**Volume mount permissions (Linux with SELinux):**
+
+```bash
+# Add :Z suffix for SELinux relabeling
+# Edit compose file or use:
+podman-compose up -d --userns=keep-id
+```
+
+**Container can't reach host services:**
+
+```bash
+# Verify host.containers.internal resolves
+podman exec <container> getent hosts host.containers.internal
+
+# If not, use host IP directly
+export AI_HOST=$(hostname -I | awk '{print $1}')
 ```
 
 ## Manual Commands
@@ -507,5 +764,8 @@ jobs:
 
 - [Docker Compose Documentation](https://docs.docker.com/compose/)
 - [Docker Best Practices](https://docs.docker.com/develop/dev-best-practices/)
+- [Podman Documentation](https://podman.io/docs)
+- [Podman Compose](https://github.com/containers/podman-compose)
+- [GHCR Documentation](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
 - [FastAPI Deployment](https://fastapi.tiangolo.com/deployment/)
 - [Nginx Configuration](https://nginx.org/en/docs/)
