@@ -441,7 +441,7 @@ async def test_pipeline_detector_failure_graceful(
                     session=session,
                 )
 
-            assert "Cannot connect to RT-DETR service" in str(exc_info.value)
+            assert "Failed to connect to detector service" in str(exc_info.value)
 
     # Verify no detection was stored
     async with get_session() as session:
@@ -493,7 +493,7 @@ async def test_pipeline_detector_failure_graceful(
                     session=session,
                 )
 
-            assert "HTTP 500" in str(exc_info.value)
+            assert "server error: 500" in str(exc_info.value)
 
 
 @pytest.mark.asyncio

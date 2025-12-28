@@ -270,8 +270,9 @@ class TestListEvents:
         assert data["count"] >= 2  # Should get events at 14:00 and 22:00
         for event in data["events"]:
             event_start = datetime.fromisoformat(event["started_at"].replace("Z", "+00:00"))
-            assert event_start >= datetime.fromisoformat(start_date)
-            assert event_start <= datetime.fromisoformat(end_date)
+            # Add timezone for comparison (both must be tz-aware)
+            assert event_start >= datetime.fromisoformat(start_date + "+00:00")
+            assert event_start <= datetime.fromisoformat(end_date + "+00:00")
 
     async def test_list_events_pagination(self, async_client, multiple_events):
         """Test pagination parameters."""
