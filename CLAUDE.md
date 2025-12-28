@@ -158,9 +158,15 @@ Validation agents should run the full test suite and report any failures. Fix al
 - `ruff check` - Python linting
 - `ruff format` - Python formatting
 - `mypy` - Python type checking
-- `pytest` - Python tests with 95% coverage
 - `eslint` - TypeScript/JavaScript linting
-- `vitest` - Frontend tests with 95% coverage
+- `prettier` - Code formatting
+
+**Test Strategy (optimized for performance):**
+
+- **Pre-commit:** Fast lint/format/type checks only (~10-30 seconds)
+- **Pre-push:** Unit tests run on push (install with: `pre-commit install --hook-type pre-push`)
+- **CI:** Full test suite with 95% coverage enforcement
+- **Manual:** Run `./scripts/validate.sh` before PRs for full validation
 
 **Do NOT use:**
 
@@ -177,7 +183,10 @@ source .venv/bin/activate && python -m pytest backend/tests/ -v
 # Frontend
 cd frontend && npm test
 
-# Pre-commit (runs all checks)
+# Full validation (recommended before PRs)
+./scripts/validate.sh
+
+# Pre-commit (runs lint/format checks)
 pre-commit run --all-files
 ```
 

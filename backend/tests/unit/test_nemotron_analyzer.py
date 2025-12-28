@@ -649,7 +649,7 @@ async def test_broadcast_event(analyzer, mock_redis_client):
     Verifies that events are published to the canonical 'security_events' channel
     with the standard message envelope format: {"type": "event", "data": {...}}.
     """
-    from backend.services.event_broadcaster import EventBroadcaster
+    from backend.services.event_broadcaster import get_event_channel
 
     event = Event(
         id=1,
@@ -668,7 +668,7 @@ async def test_broadcast_event(analyzer, mock_redis_client):
     # Verify publish was called with correct channel
     mock_redis_client.publish.assert_called_once()
     call_args = mock_redis_client.publish.call_args
-    assert call_args[0][0] == EventBroadcaster.CHANNEL_NAME  # canonical: "security_events"
+    assert call_args[0][0] == get_event_channel()  # canonical: "security_events"
 
     # Verify message envelope format: {"type": "event", "data": {...}}
     message = call_args[0][1]
@@ -968,11 +968,11 @@ async def test_analyze_detection_fast_path_broadcast_called(
         event = await analyzer.analyze_detection_fast_path(camera_id, detection_id)
 
     # Verify publish was called to canonical 'security_events' channel
-    from backend.services.event_broadcaster import EventBroadcaster
+    from backend.services.event_broadcaster import get_event_channel
 
     mock_redis_client.publish.assert_called_once()
     call_args = mock_redis_client.publish.call_args
-    assert call_args[0][0] == EventBroadcaster.CHANNEL_NAME  # canonical: "security_events"
+    assert call_args[0][0] == get_event_channel()  # canonical: "security_events"
 
     # Verify message envelope format: {"type": "event", "data": {...}}
     message = call_args[0][1]

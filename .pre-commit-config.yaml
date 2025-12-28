@@ -1,6 +1,26 @@
 # Pre-commit hooks configuration
 # Install: pip install pre-commit && pre-commit install
 # Run all: pre-commit run --all-files
+#
+# Performance Notes:
+# -----------------
+# Pre-commit runs fast linting/formatting checks (ruff, eslint, prettier, mypy).
+# Full test suites are intentionally NOT run on pre-commit due to ~2min execution time.
+#
+# Test Strategy:
+#   - pre-commit: Linting, formatting, type-checking only (~10-30 seconds)
+#   - pre-push: Run fast tests for critical paths (optional, see below)
+#   - CI: Full test suite with coverage enforcement
+#   - Local dev: Use ./scripts/validate.sh for full validation before PRs
+#
+# Skipping Hooks (emergencies only):
+#   SKIP=fast-test git commit -m "message"  # Skip specific hook
+#   git commit --no-verify -m "message"      # Skip ALL hooks (use sparingly!)
+#
+# To run full tests manually before committing:
+#   ./scripts/validate.sh              # Full backend + frontend validation
+#   ./scripts/validate.sh --backend    # Backend only
+#
 
 repos:
   # General hooks
@@ -76,16 +96,19 @@ repos:
         files: ^frontend/.*\.(ts|tsx)$
         pass_filenames: false
 
-  # Quick Tests (Unit only, no coverage enforcement)
-  # Full coverage check moved to scripts/validate.sh
+  # Test validation hooks
+  # NOTE: Full test suite runs in CI. Pre-commit focuses on fast lint/format checks.
   - repo: local
     hooks:
+      # Fast test hook - DISABLED by default for pre-commit performance (~2 min)
+      # To run tests on pre-push instead, use: pre-commit install --hook-type pre-push
+      # Or run manually: pytest backend/tests/unit/ -m "not slow" -q --fail-fast
       - id: fast-test
         name: Quick Backend Tests (Unit Only)
-        entry: bash -c 'redis-cli -n 15 FLUSHDB > /dev/null 2>&1; source .venv/bin/activate && pytest backend/tests/unit/ -m "not slow" -q --tb=no'
+        entry: bash -c 'redis-cli -n 15 FLUSHDB > /dev/null 2>&1; source .venv/bin/activate && pytest backend/tests/unit/ -m "not slow" -q --tb=no --fail-fast -x'
         language: system
         pass_filenames: false
-        stages: [pre-commit]
+        stages: [pre-push]  # Changed from pre-commit to pre-push for faster commits
 
       - id: check-test-mocks
         name: Check integration tests mock slow services

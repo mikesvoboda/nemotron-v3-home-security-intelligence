@@ -99,8 +99,9 @@ async def mock_redis_client():
     async def mock_get(key):
         return batch_data.get(key)
 
-    async def mock_set(key, value):
+    async def mock_set(key, value, expire=None):
         batch_data[key] = value
+        # expire is accepted but not simulated in tests
 
     async def mock_delete(*keys):
         for key in keys:
