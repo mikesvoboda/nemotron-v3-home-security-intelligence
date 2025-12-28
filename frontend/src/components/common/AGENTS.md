@@ -110,6 +110,70 @@ Uses utility functions from `../../utils/risk`:
 <ObjectTypeBadge type="drone" />
 ```
 
+### ServiceStatusAlert.tsx
+
+**Purpose:** Dismissible banner for displaying service status notifications (Redis, RT-DETRv2, Nemotron)
+
+**Key Features:**
+
+- Hidden when all services are healthy or null
+- Yellow/Warning banner when any service is "restarting" (with spinning icon)
+- Red/Error banner when any service is "unhealthy", "restart_failed", or "failed"
+- Shows worst status when multiple services are unhealthy
+- Animates in/out smoothly with Tailwind transitions
+- Dismissible via onDismiss callback
+- Full accessibility with ARIA role="alert" and aria-live="polite"
+
+**Props:**
+
+```typescript
+interface ServiceStatusAlertProps {
+  services: Record<ServiceName, ServiceStatus | null>;
+  onDismiss?: () => void;
+}
+```
+
+**Types:**
+
+```typescript
+type ServiceName = 'redis' | 'rtdetr' | 'nemotron';
+type ServiceStatusValue = 'healthy' | 'unhealthy' | 'restarting' | 'restart_failed' | 'failed';
+
+interface ServiceStatus {
+  service: ServiceName;
+  status: ServiceStatusValue;
+  message?: string;
+  timestamp: string;
+}
+```
+
+**Status Severity (lowest to highest):**
+
+1. healthy (0) - No alert shown
+2. restarting (1) - Yellow banner with spinning RefreshCw icon
+3. unhealthy (2) - Red banner with AlertTriangle icon
+4. restart_failed (3) - Red banner with XCircle icon
+5. failed (4) - Dark red banner with XCircle icon
+
+**Service Name Display:**
+
+- redis -> "Redis"
+- rtdetr -> "RT-DETRv2"
+- nemotron -> "Nemotron"
+
+**Usage Example:**
+
+```tsx
+<ServiceStatusAlert
+  services={{
+    redis: { service: 'redis', status: 'healthy', timestamp: '...' },
+    rtdetr: { service: 'rtdetr', status: 'restarting', message: 'Loading model...', timestamp: '...' },
+    nemotron: null,
+  }}
+  onDismiss={() => setDismissed(true)}
+/>
+```
+
 ### index.ts
 
 **Purpose:** Barrel export file for easy imports
@@ -121,10 +185,11 @@ export { default as RiskBadge } from './RiskBadge';
 export type { RiskBadgeProps } from './RiskBadge';
 ```
 
-**Note:** ObjectTypeBadge is not yet exported from index.ts. Import directly:
+**Note:** ObjectTypeBadge and ServiceStatusAlert are not yet exported from index.ts. Import directly:
 
 ```tsx
 import ObjectTypeBadge from '../common/ObjectTypeBadge';
+import { ServiceStatusAlert } from '../common/ServiceStatusAlert';
 ```
 
 ## Important Patterns
@@ -139,7 +204,7 @@ RiskBadge provides a single source of truth for risk level visualization:
 
 ### Size Variants
 
-Component follows a consistent sizing pattern:
+Components follow a consistent sizing pattern:
 
 - Small: Compact display for dense lists
 - Medium (default): Standard display for most use cases
@@ -150,6 +215,7 @@ Component follows a consistent sizing pattern:
 - Proper ARIA roles and labels
 - Screen reader friendly (reads "Risk level: Critical, score 87")
 - Visual and semantic information combined
+- ServiceStatusAlert uses role="alert" and aria-live="polite" for screen reader announcements
 
 ### Composability
 
@@ -176,9 +242,10 @@ Component follows a consistent sizing pattern:
 
 ### Animation
 
-- Only critical level animates by default
+- Only critical level animates by default in RiskBadge
 - Uses Tailwind's `animate-pulse` class
 - Can be disabled with `animated={false}`
+- ServiceStatusAlert uses `animate-spin` for restarting status
 
 ## Testing
 
@@ -204,14 +271,26 @@ Comprehensive test coverage includes:
 - Applies correct size classes
 - ARIA attributes for accessibility
 
+### ServiceStatusAlert.test.tsx
+
+Comprehensive test coverage includes:
+
+- Returns null when all services healthy
+- Shows yellow banner for restarting status
+- Shows red banner for unhealthy/failed statuses
+- Displays worst status when multiple services affected
+- Dismiss button functionality
+- Accessible alert role and aria-live
+
 ## Entry Points
 
 **Start here:** `RiskBadge.tsx` - Risk level badge with score display
 **Also see:** `ObjectTypeBadge.tsx` - Detection object type badge
+**Service alerts:** `ServiceStatusAlert.tsx` - Service health notification banner
 
 ## Dependencies
 
-- `lucide-react` - Icon components (CheckCircle, AlertTriangle, AlertOctagon, User, Car, PawPrint, Package)
+- `lucide-react` - Icon components (CheckCircle, AlertTriangle, AlertOctagon, User, Car, PawPrint, Package, RefreshCw, X, XCircle)
 - `clsx` - Conditional class name composition
 - `../../utils/risk` - getRiskLabel, RiskLevel type (RiskBadge only)
 
@@ -235,6 +314,12 @@ Comprehensive test coverage includes:
 - But in some contexts (static screenshots, PDFs) animation is undesirable
 - Opt-out via `animated={false}`
 
+### Why Severity Ranking for ServiceStatusAlert?
+
+- Multiple services can have issues simultaneously
+- User needs to see the most critical issue first
+- Severity ranking ensures the worst problem is highlighted
+
 ## Future Enhancements
 
 As the common components directory grows, consider adding:
@@ -256,7 +341,10 @@ Once common components grow beyond 5-10 files, consider subdirectories:
 common/
   badges/
     RiskBadge.tsx
+    ObjectTypeBadge.tsx
     Badge.tsx
+  alerts/
+    ServiceStatusAlert.tsx
   inputs/
     Input.tsx
     Select.tsx

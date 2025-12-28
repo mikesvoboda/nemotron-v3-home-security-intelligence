@@ -6,7 +6,7 @@ FastAPI-based HTTP server that wraps RT-DETRv2 object detection model for real-t
 
 ## Key Files
 
-### `model.py` (~435 lines)
+### `model.py` (~430 lines)
 
 Main inference server implementation using HuggingFace Transformers:
 
@@ -23,9 +23,9 @@ Main inference server implementation using HuggingFace Transformers:
 - **Security filtering**: Only returns security-relevant object classes
 
 **Port**: 8090 (configurable via PORT env var)
-**Expected VRAM**: ~3GB
+**Expected VRAM**: ~4GB
 
-### `example_client.py` (186 lines)
+### `example_client.py` (~186 lines)
 
 Example HTTP client demonstrating API usage:
 
@@ -35,7 +35,7 @@ Example HTTP client demonstrating API usage:
 - `detect_batch()`: Batch detection for multiple images
 - `print_detections()`: Pretty-print detection results
 
-### `test_model.py` (336 lines)
+### `test_model.py` (~336 lines)
 
 Comprehensive unit tests with pytest:
 
@@ -43,7 +43,7 @@ Comprehensive unit tests with pytest:
 - **RTDETRv2Model tests**:
   - Model initialization
   - Image preprocessing (RGB conversion, normalization)
-  - Postprocessing (ONNX output format parsing)
+  - Postprocessing (output format parsing)
   - Confidence filtering
   - Security class filtering
 - **API endpoint tests**:
@@ -70,6 +70,17 @@ Comprehensive documentation for RT-DETRv2 server (see file for full details)
 ### `__init__.py`
 
 Package initialization with version: "1.0.0"
+
+## How RT-DETRv2 is Used for Object Detection
+
+RT-DETRv2 (Real-Time Detection Transformer v2) is a state-of-the-art object detection model that combines the accuracy of transformer-based detectors with real-time inference speed:
+
+1. **Image Input**: Camera images arrive via HTTP POST to `/detect` endpoint
+2. **Preprocessing**: Images are converted to RGB and processed by `AutoImageProcessor`
+3. **Inference**: PyTorch model runs on CUDA GPU with `torch.no_grad()` for efficiency
+4. **Postprocessing**: `post_process_object_detection()` extracts bounding boxes and labels
+5. **Filtering**: Only security-relevant classes (person, car, truck, etc.) are returned
+6. **Output**: JSON response with detections, confidence scores, and bounding boxes
 
 ## Model Information
 
@@ -113,6 +124,7 @@ Health check with GPU status.
   "model_loaded": true,
   "device": "cuda:0",
   "cuda_available": true,
+  "model_name": "/export/ai_models/rt-detrv2/rtdetr_v2_r101vd",
   "vram_used_gb": 4.2
 }
 ```
@@ -192,7 +204,7 @@ files: <image file 2>
 ### Using startup script:
 
 ```bash
-cd /home/msvoboda/github/nemotron-v3-home-security-intelligence
+cd /path/to/home_security_intelligence
 ./ai/start_detector.sh
 ```
 
@@ -214,7 +226,7 @@ Environment variables or defaults:
 - `HOST`: Server host (default: `0.0.0.0`)
 - `PORT`: Server port (default: 8090)
 
-## Implementation Patterns
+## Important Patterns and Conventions
 
 ### Preprocessing Pipeline
 
@@ -281,7 +293,7 @@ python example_client.py
 ## Performance Characteristics
 
 - **Inference time**: 30-50ms per image (RTX A5500)
-- **VRAM usage**: ~3GB
+- **VRAM usage**: ~4GB
 - **Throughput**: ~20-30 images/second
 - **Batch processing**: Currently sequential (room for optimization)
 - **Warmup overhead**: ~1-2 seconds on startup
@@ -294,3 +306,11 @@ python example_client.py
 - **CUDA unavailable**: Falls back to CPU inference (slower)
 - **Low confidence**: Detections filtered out (not returned)
 - **Non-security classes**: Filtered out (not returned)
+
+## Entry Points for Understanding the Code
+
+1. **Start here**: Read this file and `README.md`
+2. **Main server**: `model.py` - FastAPI app with detection endpoints
+3. **API testing**: `example_client.py` - Example client usage
+4. **Unit tests**: `test_model.py` - Comprehensive test coverage
+5. **Dependencies**: `requirements.txt` - Required packages

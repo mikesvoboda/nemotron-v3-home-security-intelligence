@@ -6,13 +6,13 @@ Integration tests verify that multiple components work together correctly. Unlik
 
 ## Test Files Overview
 
-### `conftest.py` (140 lines)
+### `conftest.py`
 
 Shared fixtures for all integration tests to eliminate duplication.
 
 **Fixtures:**
 
-- `integration_env`: Sets up isolated test environment (DATABASE_URL, REDIS_URL)
+- `integration_env`: Sets up isolated test environment (DATABASE_URL, REDIS_URL, HSI_RUNTIME_ENV_PATH)
 - `integration_db`: Initializes temporary database with schema
 - `mock_redis`: Mocked Redis client to avoid external dependency
 - `db_session`: Direct database session access for test setup/verification
@@ -27,7 +27,7 @@ async def test_endpoint(client):
     assert response.status_code == 200
 ```
 
-### `test_api.py` (243 lines, 13 tests)
+### `test_api.py`
 
 Tests for FastAPI application endpoints and middleware.
 
@@ -49,18 +49,7 @@ Tests for FastAPI application endpoints and middleware.
 - Real temporary SQLite database
 - Async HTTP client with httpx
 
-**Example:**
-
-```python
-@pytest.mark.asyncio
-async def test_health_endpoint(client):
-    response = await client.get("/health")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] in ["healthy", "degraded"]
-```
-
-### `test_cameras_api.py` (647 lines, 35+ tests)
+### `test_cameras_api.py`
 
 Tests for camera CRUD API endpoints (`/api/cameras/*`).
 
@@ -81,23 +70,7 @@ Tests for camera CRUD API endpoints (`/api/cameras/*`).
 - Response schema validation
 - Temporary database with real operations
 
-**Example:**
-
-```python
-@pytest.mark.asyncio
-async def test_create_camera(client):
-    response = await client.post("/api/cameras", json={
-        "id": "test_cam",
-        "name": "Test Camera",
-        "folder_path": "/tmp/test"
-    })
-    assert response.status_code == 201
-    data = response.json()
-    assert data["id"] == "test_cam"
-    assert data["status"] == "online"  # Default
-```
-
-### `test_system_api.py` (344 lines, 15 tests)
+### `test_system_api.py`
 
 Tests for system information and monitoring endpoints (`/api/system/*`).
 
@@ -110,26 +83,7 @@ Tests for system information and monitoring endpoints (`/api/system/*`).
 - Concurrent request handling
 - JSON content type validation
 
-**Key patterns:**
-
-- Health check with degraded services
-- GPU data mocking for testing
-- Security validation (no sensitive data exposed)
-- Statistics aggregation testing
-
-**Example:**
-
-```python
-@pytest.mark.asyncio
-async def test_system_stats(client):
-    response = await client.get("/api/system/stats")
-    assert response.status_code == 200
-    data = response.json()
-    assert "camera_count" in data
-    assert "detection_count" in data
-```
-
-### `test_media_api.py` (251 lines, 20+ tests)
+### `test_media_api.py`
 
 Tests for media file serving endpoints (`/api/media/*`).
 
@@ -157,20 +111,7 @@ Tests for media file serving endpoints (`/api/media/*`).
 - File type validation
 - Security-focused edge cases
 
-**Example:**
-
-```python
-def test_serve_camera_file(client, temp_foscam_dir):
-    response = client.get("/api/media/cameras/test_cam/test.jpg")
-    assert response.status_code == 200
-    assert response.headers["content-type"] == "image/jpeg"
-
-def test_path_traversal_blocked(client):
-    response = client.get("/api/media/cameras/test/../../../etc/passwd")
-    assert response.status_code == 403
-```
-
-### `test_detections_api.py` (227 lines, 15+ tests)
+### `test_detections_api.py`
 
 Tests for detections API endpoints (`/api/detections/*`).
 
@@ -189,29 +130,7 @@ Tests for detections API endpoints (`/api/detections/*`).
 - Get detection image (`GET /api/detections/{id}/image`)
   - Not found cases
 
-**Key patterns:**
-
-- Shared fixtures (`test_db_setup`, `mock_redis`, `async_client`)
-- Sample data fixtures (`sample_camera`, `sample_detection`)
-- Query parameter testing
-- Validation error testing (422)
-
-**Example:**
-
-```python
-@pytest.mark.asyncio
-async def test_list_detections_with_filters(async_client, sample_detection):
-    response = await async_client.get(
-        f"/api/detections?camera_id={sample_detection.camera_id}&min_confidence=0.9"
-    )
-    assert response.status_code == 200
-    data = response.json()
-    for detection in data["detections"]:
-        assert detection["camera_id"] == sample_detection.camera_id
-        assert detection["confidence"] >= 0.9
-```
-
-### `test_events_api.py` (900+ lines, 41 tests)
+### `test_events_api.py`
 
 Tests for events API endpoints (`/api/events/*`).
 
@@ -242,7 +161,7 @@ Tests for events API endpoints (`/api/events/*`).
   - Multiple detections
   - Not found (404)
 
-### `test_logs_api.py` (173 lines, 9 tests)
+### `test_logs_api.py`
 
 Tests for logs API endpoints (`/api/logs/*`).
 
@@ -265,58 +184,7 @@ Tests for logs API endpoints (`/api/logs/*`).
   - Valid payload
   - Source tagging as "frontend"
 
-**Key patterns:**
-
-- Uses shared `client` and `db_session` fixtures
-- Tests for filtering and pagination
-- Verifies database persistence
-
-**Example:**
-
-```python
-@pytest.mark.asyncio
-async def test_list_logs_filter_by_level(client, db_session):
-    # Create logs with different levels
-    log1 = Log(level="INFO", component="test", message="Info", source="backend")
-    log2 = Log(level="ERROR", component="test", message="Error", source="backend")
-    db_session.add_all([log1, log2])
-    await db_session.commit()
-
-    response = await client.get("/api/logs?level=ERROR")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["count"] == 1
-    assert data["logs"][0]["level"] == "ERROR"
-```
-
-**Key patterns:**
-
-- Multiple test fixtures for different scenarios
-- Comprehensive filter testing
-- Validation error testing
-- Date/time handling and ISO format
-- Relationship testing (events to detections)
-
-**Example:**
-
-```python
-@pytest.mark.asyncio
-async def test_update_event_reviewed(async_client, sample_event):
-    response = await async_client.patch(
-        f"/api/events/{sample_event.id}",
-        json={"reviewed": True}
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert data["reviewed"] is True
-
-    # Verify persistence
-    response = await async_client.get(f"/api/events/{sample_event.id}")
-    data = response.json()
-    assert data["reviewed"] is True
-```
-
-### `test_websocket.py` (536 lines, 30+ tests)
+### `test_websocket.py`
 
 Tests for WebSocket endpoints (`/ws/events`, `/ws/system`).
 
@@ -345,7 +213,7 @@ Tests for WebSocket endpoints (`/ws/events`, `/ws/system`).
 - **Error handling**
   - Invalid paths
   - Connection errors
-- **Broadcast functionality** (TDD - defines expected behavior)
+- **Broadcast functionality**
   - Events broadcast to multiple clients
   - System updates broadcast to multiple clients
   - Channel isolation (events vs system)
@@ -356,25 +224,8 @@ Tests for WebSocket endpoints (`/ws/events`, `/ws/system`).
 - Context managers for connection lifecycle
 - Message format validation
 - Concurrent connection testing
-- TDD approach for broadcast functionality
 
-**Example:**
-
-```python
-def test_websocket_events_connection(sync_client):
-    with sync_client.websocket_connect("/ws/events") as websocket:
-        assert websocket is not None
-
-def test_multiple_connections(sync_client):
-    with (
-        sync_client.websocket_connect("/ws/events") as ws1,
-        sync_client.websocket_connect("/ws/events") as ws2
-    ):
-        assert ws1 is not None
-        assert ws2 is not None
-```
-
-### `test_full_stack.py` (556 lines, 14 tests)
+### `test_full_stack.py`
 
 Tests for complete workflows across database, models, and business logic.
 
@@ -383,8 +234,8 @@ Tests for complete workflows across database, models, and business logic.
 - Camera operations: Create, query, relationships
 - Detection operations: Create, link to camera, bounding boxes
 - Event operations: Create, risk scoring, LLM data
-- Relationships: Camera → Detection, Camera → Event
-- Complete workflows: Camera → Detection → Event
+- Relationships: Camera -> Detection, Camera -> Event
+- Complete workflows: Camera -> Detection -> Event
 - Time-based queries: Filter detections by time range
 - Risk-based queries: Filter events by risk level
 - Cascade deletes: Verify foreign key constraints
@@ -400,38 +251,76 @@ Tests for complete workflows across database, models, and business logic.
 - Time-based and filtered queries
 - Complete end-to-end scenarios
 
-**Example:**
+### `test_batch_aggregator_integration.py`
 
-```python
-@pytest.mark.asyncio
-async def test_complete_workflow(test_db):
-    # Step 1: Create camera
-    async with get_session() as session:
-        camera = Camera(id="cam1", name="Test")
-        session.add(camera)
-        await session.commit()
+Tests for batch aggregation service integration.
 
-    # Step 2: Add detections (separate session)
-    async with get_session() as session:
-        detection = Detection(camera_id="cam1", object_type="person")
-        session.add(detection)
-        await session.commit()
+**Coverage:**
 
-    # Step 3: Create event from detections
-    async with get_session() as session:
-        event = Event(camera_id="cam1", detection_ids="[1]", risk_score=75)
-        session.add(event)
-        await session.commit()
+- Batch creation and management
+- Detection aggregation into batches
+- Timeout handling
+- Queue integration
 
-    # Step 4: Verify complete chain
-    async with get_session() as session:
-        result = await session.execute(select(Camera).where(Camera.id == "cam1"))
-        camera = result.scalar_one()
-        await session.refresh(camera, ["detections", "events"])
+### `test_detector_client_integration.py`
 
-        assert len(camera.detections) == 1
-        assert len(camera.events) == 1
-```
+Tests for detector client integration with the pipeline.
+
+**Coverage:**
+
+- Detection processing
+- Database persistence
+- Error handling
+
+### `test_file_watcher_integration.py`
+
+Tests for file watcher integration with the system.
+
+**Coverage:**
+
+- File detection and processing
+- Queue integration
+- Multiple camera handling
+
+### `test_health_monitor_integration.py`
+
+Tests for health monitoring integration.
+
+**Coverage:**
+
+- Service health checks
+- Status reporting
+- Degraded state handling
+
+### `test_nemotron_analyzer_integration.py`
+
+Tests for Nemotron LLM analyzer integration.
+
+**Coverage:**
+
+- Batch analysis
+- Risk scoring
+- Event creation
+
+### `test_pipeline_e2e.py`
+
+End-to-end pipeline tests in integration context.
+
+**Coverage:**
+
+- Complete pipeline flow
+- Component interaction
+- Error propagation
+
+### `test_github_workflows.py`
+
+Tests for CI/CD workflow validation.
+
+**Coverage:**
+
+- Workflow syntax validation
+- Job dependencies
+- Environment configuration
 
 ## Running Integration Tests
 
@@ -669,31 +558,18 @@ async def test_concurrent_requests(client):
 
 ## Test Statistics
 
-- **Total test files**: 10
-- **Total test cases**: 177
-- **API tests**: 12 (test_api.py)
-- **Camera API tests**: 30 (test_cameras_api.py)
-- **System API tests**: 16 (test_system_api.py)
-- **Media API tests**: 21 (test_media_api.py)
-- **Detections API tests**: 12 (test_detections_api.py)
-- **Events API tests**: 41 (test_events_api.py)
-- **Logs API tests**: 9 (test_logs_api.py)
-- **WebSocket tests**: 25 (test_websocket.py)
-- **Full stack tests**: 11 (test_full_stack.py)
-
-### Test Files Summary
-
-| File                   | Tests | Description                          |
-| ---------------------- | ----- | ------------------------------------ |
-| test_api.py            | 12    | FastAPI app endpoints and middleware |
-| test_cameras_api.py    | 30    | Camera CRUD operations               |
-| test_detections_api.py | 12    | Detection endpoints                  |
-| test_events_api.py     | 41    | Event endpoints with filtering       |
-| test_full_stack.py     | 11    | Complete database workflows          |
-| test_logs_api.py       | 9     | Log endpoints and statistics         |
-| test_media_api.py      | 21    | Media file serving and security      |
-| test_system_api.py     | 16    | System health and stats              |
-| test_websocket.py      | 25    | WebSocket channels                   |
+- **Total test files**: 15+
+- **Key test categories**:
+  - API tests: test_api.py
+  - Camera API tests: test_cameras_api.py
+  - System API tests: test_system_api.py
+  - Media API tests: test_media_api.py
+  - Detections API tests: test_detections_api.py
+  - Events API tests: test_events_api.py
+  - Logs API tests: test_logs_api.py
+  - WebSocket tests: test_websocket.py
+  - Full stack tests: test_full_stack.py
+  - Service integration tests: Multiple files
 
 ## Dependencies
 
@@ -746,5 +622,6 @@ All dependencies in `backend/requirements.txt`:
 - `/backend/tests/AGENTS.md` - Test infrastructure overview
 - `/backend/tests/unit/AGENTS.md` - Unit test patterns
 - `/backend/tests/e2e/AGENTS.md` - End-to-end pipeline testing
+- `/backend/tests/benchmarks/AGENTS.md` - Performance benchmarks
 - `/backend/AGENTS.md` - Backend architecture overview
 - `/CLAUDE.md` - Project instructions and testing requirements
