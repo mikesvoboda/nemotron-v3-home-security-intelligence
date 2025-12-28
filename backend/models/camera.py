@@ -16,33 +16,35 @@ if TYPE_CHECKING:
 
 
 def normalize_camera_id(folder_name: str) -> str:
-    """Normalize a folder name to a consistent camera ID.
+    """Normalize a folder name to a valid camera ID.
 
-    Converts folder names like "Front Door", "front-door", "Front_Door" to
-    a consistent lowercase underscore format: "front_door".
+    Converts folder names like "Front Door" to "front_door" for use as camera IDs.
+    This ensures consistent mapping between upload directory names and camera IDs.
+
+    Contract:
+        - camera_id == normalize_camera_id(folder_name)
+        - folder_path should end with folder_name (the directory being watched)
 
     Args:
-        folder_name: The folder name to normalize
+        folder_name: The upload directory name (e.g., "Front Door", "back-yard", "Garage")
 
     Returns:
-        Normalized camera ID string
+        Normalized camera ID (lowercase, spaces/hyphens replaced with underscores)
     """
     if not folder_name:
         return ""
 
+    # Strip whitespace
+    normalized = folder_name.strip()
     # Convert to lowercase
-    normalized = folder_name.lower().strip()
-
+    normalized = normalized.lower()
     # Replace spaces and hyphens with underscores
     normalized = re.sub(r"[\s\-]+", "_", normalized)
-
-    # Remove any non-alphanumeric characters except underscores
-    normalized = re.sub(r"[^a-z0-9_]", "", normalized)
-
+    # Remove any characters that aren't alphanumeric or underscore
+    normalized = re.sub(r"[^\w]", "", normalized)
     # Collapse multiple underscores
     normalized = re.sub(r"_+", "_", normalized)
-
-    # Strip leading/trailing underscores
+    # Remove leading/trailing underscores
     normalized = normalized.strip("_")
 
     return normalized
@@ -58,6 +60,19 @@ class Camera(Base):
     """Camera model representing a security camera.
 
     Tracks camera metadata, status, and file system path for image uploads.
+
+    Camera ID Contract:
+        The camera.id MUST match the normalized form of the upload directory name.
+        Use normalize_camera_id(folder_name) to generate consistent IDs.
+
+        Example:
+            Upload path: /export/foscam/Front Door/image.jpg
+            folder_name: "Front Door"
+            camera.id: "front_door" (via normalize_camera_id)
+            camera.folder_path: "/export/foscam/Front Door"
+
+        This ensures the file_watcher can correctly map uploaded files to cameras
+        without requiring database lookups for every file.
     """
 
     __tablename__ = "cameras"
@@ -82,27 +97,28 @@ class Camera(Base):
         "Zone", back_populates="camera", cascade="all, delete-orphan"
     )
 
-    def __repr__(self) -> str:
-        return f"<Camera(id={self.id!r}, name={self.name!r}, status={self.status!r})>"
-
     @classmethod
     def from_folder_name(cls, folder_name: str, folder_path: str) -> Camera:
-        """Create a Camera instance from a folder name.
+        """Create a Camera instance from an upload folder name.
 
-        Factory method that normalizes the folder name to create a consistent
-        camera ID and uses the folder name as the display name.
+        This factory method ensures the camera ID matches the normalized folder name,
+        maintaining the contract between upload directories and camera records.
 
         Args:
-            folder_name: The folder name (e.g., "Front Door")
-            folder_path: The full path to the folder
+            folder_name: The upload directory name (e.g., "Front Door")
+            folder_path: Full path to the upload directory
 
         Returns:
-            A new Camera instance
+            Camera instance with correctly normalized ID
         """
         camera_id = normalize_camera_id(folder_name)
+        # Use folder name as display name (preserves original casing/spacing)
         return cls(
             id=camera_id,
             name=folder_name,
             folder_path=folder_path,
             status="online",
         )
+
+    def __repr__(self) -> str:
+        return f"<Camera(id={self.id!r}, name={self.name!r}, status={self.status!r})>"
