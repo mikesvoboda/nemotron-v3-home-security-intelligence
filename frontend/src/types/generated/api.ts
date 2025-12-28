@@ -321,7 +321,7 @@ export interface paths {
          * @description Requeue all jobs from a DLQ back to their original processing queue.
          *
          *     Removes all jobs from the specified DLQ and adds them back to the
-         *     original processing queue for retry. Limited to MAX_REQUEUE_ITERATIONS
+         *     original processing queue for retry. Limited to settings.max_requeue_iterations
          *     to prevent resource exhaustion.
          *
          *     Args:
@@ -722,6 +722,9 @@ export interface paths {
          *     - Redis connectivity
          *     - AI services status
          *
+         *     Health checks have a timeout of HEALTH_CHECK_TIMEOUT_SECONDS (default 5 seconds).
+         *     If a health check times out, the service is marked as unhealthy.
+         *
          *     Returns:
          *         HealthResponse with overall status and individual service statuses
          */
@@ -881,6 +884,9 @@ export interface paths {
          * Patch Config
          * @description Patch processing-related configuration and persist runtime overrides.
          *
+         *     Requires API key authentication when api_key_enabled is True in settings.
+         *     Provide the API key via X-API-Key header.
+         *
          *     Notes:
          *     - This updates a runtime override env file (see `HSI_RUNTIME_ENV_PATH`) and clears the
          *       settings cache so subsequent `get_settings()` calls observe the new values.
@@ -963,6 +969,9 @@ export interface paths {
          * Trigger Cleanup
          * @description Trigger manual data cleanup based on retention settings.
          *
+         *     Requires API key authentication when api_key_enabled is True in settings.
+         *     Provide the API key via X-API-Key header.
+         *
          *     This endpoint runs the CleanupService to delete old data according to
          *     the configured retention period. It deletes:
          *     - Events older than retention period
@@ -976,8 +985,14 @@ export interface paths {
          *     configuration. To change the retention period before running cleanup,
          *     use PATCH /api/system/config first.
          *
+         *     Args:
+         *         dry_run: If True, calculate and return what would be deleted without
+         *                  actually performing the deletion. Useful for verification
+         *                  before destructive operations.
+         *
          *     Returns:
-         *         CleanupResponse with statistics about the cleanup operation
+         *         CleanupResponse with statistics about the cleanup operation.
+         *         When dry_run=True, the counts represent what would be deleted.
          */
         post: operations["trigger_cleanup_api_system_cleanup_post"];
         delete?: never;
@@ -1161,9 +1176,11 @@ export interface components {
          * @description Response schema for data cleanup endpoint.
          *
          *     Returns statistics about the cleanup operation including counts of
-         *     deleted records and files.
+         *     deleted records and files. When dry_run is True, the counts represent
+         *     what would be deleted without actually deleting.
          * @example {
          *       "detections_deleted": 89,
+         *       "dry_run": false,
          *       "events_deleted": 15,
          *       "gpu_stats_deleted": 2880,
          *       "images_deleted": 0,
@@ -1177,37 +1194,37 @@ export interface components {
         CleanupResponse: {
             /**
              * Events Deleted
-             * @description Number of events deleted
+             * @description Number of events deleted (or would be deleted in dry run)
              */
             events_deleted: number;
             /**
              * Detections Deleted
-             * @description Number of detections deleted
+             * @description Number of detections deleted (or would be deleted in dry run)
              */
             detections_deleted: number;
             /**
              * Gpu Stats Deleted
-             * @description Number of GPU stat records deleted
+             * @description Number of GPU stat records deleted (or would be deleted in dry run)
              */
             gpu_stats_deleted: number;
             /**
              * Logs Deleted
-             * @description Number of log records deleted
+             * @description Number of log records deleted (or would be deleted in dry run)
              */
             logs_deleted: number;
             /**
              * Thumbnails Deleted
-             * @description Number of thumbnail files deleted
+             * @description Number of thumbnail files deleted (or would be deleted in dry run)
              */
             thumbnails_deleted: number;
             /**
              * Images Deleted
-             * @description Number of original image files deleted
+             * @description Number of original image files deleted (or would be deleted in dry run)
              */
             images_deleted: number;
             /**
              * Space Reclaimed
-             * @description Estimated disk space freed in bytes
+             * @description Estimated disk space freed in bytes (or would be freed in dry run)
              */
             space_reclaimed: number;
             /**
@@ -1215,6 +1232,12 @@ export interface components {
              * @description Retention period used for cleanup
              */
             retention_days: number;
+            /**
+             * Dry Run
+             * @description Whether this was a dry run (no actual deletion performed)
+             * @default false
+             */
+            dry_run: boolean;
             /**
              * Timestamp
              * Format: date-time
@@ -2893,7 +2916,9 @@ export interface operations {
     requeue_dlq_job_api_dlq_requeue__queue_name__post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
             path: {
                 queue_name: components["schemas"]["DLQName"];
             };
@@ -2924,7 +2949,9 @@ export interface operations {
     requeue_all_dlq_jobs_api_dlq_requeue_all__queue_name__post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
             path: {
                 queue_name: components["schemas"]["DLQName"];
             };
@@ -2955,7 +2982,9 @@ export interface operations {
     clear_dlq_api_dlq__queue_name__delete: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
             path: {
                 queue_name: components["schemas"]["DLQName"];
             };
@@ -3596,7 +3625,9 @@ export interface operations {
     patch_config_api_system_config_patch: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -3668,8 +3699,12 @@ export interface operations {
     };
     trigger_cleanup_api_system_cleanup_post: {
         parameters: {
-            query?: never;
-            header?: never;
+            query?: {
+                dry_run?: boolean;
+            };
+            header?: {
+                "x-api-key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -3682,6 +3717,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CleanupResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
