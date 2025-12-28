@@ -16,9 +16,7 @@ export function RiskGaugeExamples() {
 
       {/* Medium risk without label */}
       <div className="rounded-lg bg-gray-900 p-6">
-        <h3 className="mb-4 text-lg font-semibold text-white">
-          Medium Risk - No Label (40/100)
-        </h3>
+        <h3 className="mb-4 text-lg font-semibold text-white">Medium Risk - No Label (40/100)</h3>
         <RiskGauge value={40} showLabel={false} />
       </div>
 

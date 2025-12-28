@@ -3,7 +3,7 @@
  * batches them, and sends to the backend for storage.
  */
 
-type LogLevel = "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
+type LogLevel = 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL';
 
 interface LogEntry {
   level: LogLevel;
@@ -23,7 +23,7 @@ interface LoggerConfig {
 const defaultConfig: LoggerConfig = {
   batchSize: 10,
   flushIntervalMs: 5000,
-  endpoint: "/api/logs/frontend",
+  endpoint: '/api/logs/frontend',
   enabled: true,
 };
 
@@ -50,7 +50,7 @@ class Logger {
   private setupGlobalHandlers(): void {
     // Capture unhandled errors
     window.onerror = (message, source, lineno, colno, error) => {
-      this.error("Unhandled error", {
+      this.error('Unhandled error', {
         message: String(message),
         source,
         lineno,
@@ -63,7 +63,7 @@ class Logger {
     // Capture unhandled promise rejections
     window.onunhandledrejection = (event) => {
       const reason = event.reason as Error | undefined;
-      this.error("Unhandled promise rejection", {
+      this.error('Unhandled promise rejection', {
         reason: String(event.reason),
         stack: reason?.stack,
       });
@@ -89,11 +89,7 @@ class Logger {
 
     // Always log to console in development
     const consoleMethod =
-      level === "ERROR" || level === "CRITICAL"
-        ? "error"
-        : level === "WARNING"
-          ? "warn"
-          : "log";
+      level === 'ERROR' || level === 'CRITICAL' ? 'error' : level === 'WARNING' ? 'warn' : 'log';
     // eslint-disable-next-line no-console
     console[consoleMethod](`[${level}] ${component}: ${message}`, extra);
 
@@ -116,8 +112,8 @@ class Logger {
       await Promise.all(
         entries.map((entry) =>
           fetch(this.config.endpoint, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               level: entry.level,
               component: entry.component,
@@ -132,32 +128,32 @@ class Logger {
         this.queue.unshift(...entries);
       }
       // eslint-disable-next-line no-console
-      console.error("Failed to flush logs:", err);
+      console.error('Failed to flush logs:', err);
     }
   }
 
   debug(message: string, extra?: Record<string, unknown>): void {
-    this.log("DEBUG", "frontend", message, extra);
+    this.log('DEBUG', 'frontend', message, extra);
   }
 
   info(message: string, extra?: Record<string, unknown>): void {
-    this.log("INFO", "frontend", message, extra);
+    this.log('INFO', 'frontend', message, extra);
   }
 
   warn(message: string, extra?: Record<string, unknown>): void {
-    this.log("WARNING", "frontend", message, extra);
+    this.log('WARNING', 'frontend', message, extra);
   }
 
   error(message: string, extra?: Record<string, unknown>): void {
-    this.log("ERROR", "frontend", message, extra);
+    this.log('ERROR', 'frontend', message, extra);
   }
 
   event(eventName: string, extra?: Record<string, unknown>): void {
-    this.log("INFO", "user_event", eventName, extra);
+    this.log('INFO', 'user_event', eventName, extra);
   }
 
   apiError(endpoint: string, status: number, message: string): void {
-    this.log("ERROR", "api", `API error: ${endpoint}`, {
+    this.log('ERROR', 'api', `API error: ${endpoint}`, {
       endpoint,
       status,
       message,
@@ -182,12 +178,8 @@ class ComponentLogger {
     private component: string
   ) {}
 
-  private log(
-    level: LogLevel,
-    message: string,
-    extra?: Record<string, unknown>
-  ): void {
-    (this.parentLogger as unknown as { log: Logger["log"] }).log(
+  private log(level: LogLevel, message: string, extra?: Record<string, unknown>): void {
+    (this.parentLogger as unknown as { log: Logger['log'] }).log(
       level,
       this.component,
       message,
@@ -196,19 +188,19 @@ class ComponentLogger {
   }
 
   debug(message: string, extra?: Record<string, unknown>): void {
-    this.log("DEBUG", message, extra);
+    this.log('DEBUG', message, extra);
   }
 
   info(message: string, extra?: Record<string, unknown>): void {
-    this.log("INFO", message, extra);
+    this.log('INFO', message, extra);
   }
 
   warn(message: string, extra?: Record<string, unknown>): void {
-    this.log("WARNING", message, extra);
+    this.log('WARNING', message, extra);
   }
 
   error(message: string, extra?: Record<string, unknown>): void {
-    this.log("ERROR", message, extra);
+    this.log('ERROR', message, extra);
   }
 }
 

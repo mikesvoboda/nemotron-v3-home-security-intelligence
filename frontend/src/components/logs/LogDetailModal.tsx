@@ -66,7 +66,8 @@ export default function LogDetailModal({ log, isOpen, onClose }: LogDetailModalP
 
   // Get log level styling
   const getLevelBadge = (level: LogLevel) => {
-    const baseClasses = 'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold';
+    const baseClasses =
+      'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold';
 
     switch (level) {
       case 'DEBUG':

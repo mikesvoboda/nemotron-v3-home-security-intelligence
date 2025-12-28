@@ -1,5 +1,15 @@
 import { Dialog, Transition } from '@headlessui/react';
-import { ArrowLeft, ArrowRight, CheckCircle2, Clock, Download, Flag, Save, Timer, X } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  Clock,
+  Download,
+  Flag,
+  Save,
+  Timer,
+  X,
+} from 'lucide-react';
 import { Fragment, useEffect, useState } from 'react';
 
 import ThumbnailStrip from './ThumbnailStrip';
@@ -315,13 +325,24 @@ export default function EventDetailModal({
                       {(event.started_at || event.ended_at !== undefined) && (
                         <div className="flex items-center gap-2 text-sm text-gray-400">
                           <Timer className="h-4 w-4" />
-                          <span>Duration: {formatDuration(event.started_at || event.timestamp, event.ended_at ?? null)}</span>
+                          <span>
+                            Duration:{' '}
+                            {formatDuration(
+                              event.started_at || event.timestamp,
+                              event.ended_at ?? null
+                            )}
+                          </span>
                         </div>
                       )}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <RiskBadge level={riskLevel} score={event.risk_score} showScore={true} size="lg" />
+                    <RiskBadge
+                      level={riskLevel}
+                      score={event.risk_score}
+                      showScore={true}
+                      size="lg"
+                    />
                     <button
                       onClick={onClose}
                       className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
@@ -398,7 +419,9 @@ export default function EventDetailModal({
                             key={`${detection.label}-${index}`}
                             className="flex items-center justify-between rounded-lg bg-black/30 px-4 py-3"
                           >
-                            <span className="text-sm font-medium text-white">{detection.label}</span>
+                            <span className="text-sm font-medium text-white">
+                              {detection.label}
+                            </span>
                             <span className="rounded-full bg-gray-800 px-3 py-1 text-xs font-semibold text-gray-300">
                               {formatConfidence(detection.confidence)}
                             </span>
@@ -462,7 +485,12 @@ export default function EventDetailModal({
                       {(event.started_at || event.ended_at !== undefined) && (
                         <div className="flex justify-between">
                           <dt className="text-gray-400">Duration</dt>
-                          <dd className="text-gray-300">{formatDuration(event.started_at || event.timestamp, event.ended_at ?? null)}</dd>
+                          <dd className="text-gray-300">
+                            {formatDuration(
+                              event.started_at || event.timestamp,
+                              event.ended_at ?? null
+                            )}
+                          </dd>
                         </div>
                       )}
                       <div className="flex justify-between">

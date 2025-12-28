@@ -606,9 +606,7 @@ describe('SystemMonitoringPage', () => {
       const { container } = render(<SystemMonitoringPage />);
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('heading', { name: /system monitoring/i })
-        ).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /system monitoring/i })).toBeInTheDocument();
       });
 
       // Check for dark theme background

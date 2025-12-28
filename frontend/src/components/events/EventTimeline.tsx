@@ -713,7 +713,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
                   )}
                 </button>
               </div>
-              <EventCard {...getEventCardProps(event)} />
+              <EventCard {...getEventCardProps(event)} hasCheckboxOverlay />
             </div>
           ))}
         </div>

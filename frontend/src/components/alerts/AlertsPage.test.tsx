@@ -174,7 +174,9 @@ describe('AlertsPage', () => {
       });
 
       expect(
-        screen.getByText('There are no high or critical risk events to review. Keep up the good work!')
+        screen.getByText(
+          'There are no high or critical risk events to review. Keep up the good work!'
+        )
       ).toBeInTheDocument();
     });
 

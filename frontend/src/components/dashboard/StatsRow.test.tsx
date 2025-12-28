@@ -246,12 +246,7 @@ describe('StatsRow', () => {
 
     it('handles all zero values', () => {
       render(
-        <StatsRow
-          activeCameras={0}
-          eventsToday={0}
-          currentRiskScore={0}
-          systemStatus="unhealthy"
-        />
+        <StatsRow activeCameras={0} eventsToday={0} currentRiskScore={0} systemStatus="unhealthy" />
       );
 
       expect(screen.getByTestId('active-cameras-count')).toHaveTextContent('0');
@@ -319,7 +314,9 @@ describe('StatsRow', () => {
 
     it('all stat values have consistent font styling', () => {
       const { container } = render(<StatsRow {...defaultProps} />);
-      const statValues = container.querySelectorAll('[data-testid$="-count"], [data-testid="risk-score"]');
+      const statValues = container.querySelectorAll(
+        '[data-testid$="-count"], [data-testid="risk-score"]'
+      );
 
       // Should have camera count, events count, and risk score
       expect(statValues.length).toBeGreaterThanOrEqual(3);

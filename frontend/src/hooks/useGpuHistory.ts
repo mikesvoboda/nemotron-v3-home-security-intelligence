@@ -72,11 +72,7 @@ export function useGpuHistory(options: UseGpuHistoryOptions = {}): UseGpuHistory
       setCurrent(stats);
 
       // Add to history if we have valid data
-      if (
-        stats.utilization !== null ||
-        stats.memory_used !== null ||
-        stats.temperature !== null
-      ) {
+      if (stats.utilization !== null || stats.memory_used !== null || stats.temperature !== null) {
         const dataPoint: GpuMetricDataPoint = {
           timestamp: new Date().toISOString(),
           utilization: stats.utilization ?? 0,

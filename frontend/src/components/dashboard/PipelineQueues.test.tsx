@@ -75,9 +75,7 @@ describe('PipelineQueues', () => {
 
     it('uses custom warning threshold', () => {
       // With threshold of 5, a queue of 6 should trigger warning
-      render(
-        <PipelineQueues detectionQueue={6} analysisQueue={0} warningThreshold={5} />
-      );
+      render(<PipelineQueues detectionQueue={6} analysisQueue={0} warningThreshold={5} />);
 
       expect(screen.getByTestId('detection-queue-warning')).toBeInTheDocument();
       expect(screen.getByTestId('queue-backup-warning')).toBeInTheDocument();
@@ -127,13 +125,7 @@ describe('PipelineQueues', () => {
     });
 
     it('applies custom className', () => {
-      render(
-        <PipelineQueues
-          detectionQueue={0}
-          analysisQueue={0}
-          className="custom-class"
-        />
-      );
+      render(<PipelineQueues detectionQueue={0} analysisQueue={0} className="custom-class" />);
 
       expect(screen.getByTestId('pipeline-queues')).toBeInTheDocument();
     });

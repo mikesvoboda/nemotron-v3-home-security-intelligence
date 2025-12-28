@@ -461,7 +461,8 @@ describe('useWebSocket', () => {
 
     const { result } = renderHook(() => useWebSocket(options));
 
-    const callCountAfterInitial = (window.WebSocket as unknown as ReturnType<typeof vi.fn>).mock.calls.length;
+    const callCountAfterInitial = (window.WebSocket as unknown as ReturnType<typeof vi.fn>).mock
+      .calls.length;
 
     // Try to connect again while still connecting
     act(() => {
@@ -469,7 +470,9 @@ describe('useWebSocket', () => {
     });
 
     // Should not have created additional WebSocket connections
-    expect((window.WebSocket as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBe(callCountAfterInitial);
+    expect((window.WebSocket as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBe(
+      callCountAfterInitial
+    );
   });
 
   it('should not create new connection when already open', async () => {
@@ -483,7 +486,8 @@ describe('useWebSocket', () => {
       expect(result.current.isConnected).toBe(true);
     });
 
-    const callCountAfterOpen = (window.WebSocket as unknown as ReturnType<typeof vi.fn>).mock.calls.length;
+    const callCountAfterOpen = (window.WebSocket as unknown as ReturnType<typeof vi.fn>).mock.calls
+      .length;
 
     // Try to connect again while already open
     act(() => {
@@ -491,7 +495,9 @@ describe('useWebSocket', () => {
     });
 
     // Should not have created additional WebSocket connections
-    expect((window.WebSocket as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBe(callCountAfterOpen);
+    expect((window.WebSocket as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBe(
+      callCountAfterOpen
+    );
   });
 
   it('should handle WebSocket constructor error', () => {

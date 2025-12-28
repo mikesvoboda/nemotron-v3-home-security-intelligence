@@ -340,7 +340,9 @@ describe('EventTimeline', () => {
       // Check all options are present
       const options = within(objectTypeSelect).getAllByRole('option');
       expect(options).toHaveLength(6); // All Object Types + 5 specific types
-      expect(within(objectTypeSelect).getByRole('option', { name: 'All Object Types' })).toBeInTheDocument();
+      expect(
+        within(objectTypeSelect).getByRole('option', { name: 'All Object Types' })
+      ).toBeInTheDocument();
       expect(within(objectTypeSelect).getByRole('option', { name: 'Person' })).toBeInTheDocument();
       expect(within(objectTypeSelect).getByRole('option', { name: 'Vehicle' })).toBeInTheDocument();
       expect(within(objectTypeSelect).getByRole('option', { name: 'Animal' })).toBeInTheDocument();
@@ -400,7 +402,7 @@ describe('EventTimeline', () => {
           expect.objectContaining({
             camera_id: 'camera-1',
             object_type: 'animal',
-            offset: 0
+            offset: 0,
           })
         );
       });
@@ -468,9 +470,7 @@ describe('EventTimeline', () => {
         expect(screen.getByText('No Events Found')).toBeInTheDocument();
       });
 
-      expect(
-        screen.getByText('Try adjusting your filters or search query')
-      ).toBeInTheDocument();
+      expect(screen.getByText('Try adjusting your filters or search query')).toBeInTheDocument();
     });
   });
 
@@ -512,9 +512,7 @@ describe('EventTimeline', () => {
       await user.click(nextButton);
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(
-          expect.objectContaining({ offset: 20 })
-        );
+        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ offset: 20 }));
       });
     });
 
@@ -565,9 +563,7 @@ describe('EventTimeline', () => {
       await user.click(prevButton);
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(
-          expect.objectContaining({ offset: 0 })
-        );
+        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ offset: 0 }));
       });
     });
 
@@ -753,9 +749,7 @@ describe('EventTimeline', () => {
         expect(screen.getByText('No Events Found')).toBeInTheDocument();
       });
 
-      expect(
-        screen.getByText('No security events have been recorded yet')
-      ).toBeInTheDocument();
+      expect(screen.getByText('No security events have been recorded yet')).toBeInTheDocument();
     });
 
     it('shows filtered empty state when filters match no events', async () => {
@@ -784,9 +778,7 @@ describe('EventTimeline', () => {
         expect(screen.getByText('No Events Found')).toBeInTheDocument();
       });
 
-      expect(
-        screen.getByText('Try adjusting your filters or search query')
-      ).toBeInTheDocument();
+      expect(screen.getByText('Try adjusting your filters or search query')).toBeInTheDocument();
     });
 
     it('shows "0 events" instead of confusing "1-0 of 0" when empty', async () => {
@@ -1010,9 +1002,7 @@ describe('EventTimeline', () => {
       // Mock the events reload after bulk update
       vi.mocked(api.fetchEvents).mockResolvedValueOnce({
         ...mockEventsResponse,
-        events: mockEvents.map((e) =>
-          e.id === 1 || e.id === 2 ? { ...e, reviewed: true } : e
-        ),
+        events: mockEvents.map((e) => (e.id === 1 || e.id === 2 ? { ...e, reviewed: true } : e)),
       });
 
       // Click mark as reviewed
@@ -1080,8 +1070,12 @@ describe('EventTimeline', () => {
       });
 
       // Both buttons should be disabled during loading
-      const markReviewedButton = screen.getByRole('button', { name: /Mark.*selected events as reviewed/ });
-      const markNotReviewedButton = screen.getByRole('button', { name: /Mark.*selected events as not reviewed/ });
+      const markReviewedButton = screen.getByRole('button', {
+        name: /Mark.*selected events as reviewed/,
+      });
+      const markNotReviewedButton = screen.getByRole('button', {
+        name: /Mark.*selected events as not reviewed/,
+      });
       expect(markReviewedButton).toBeDisabled();
       expect(markNotReviewedButton).toBeDisabled();
     });
@@ -1216,9 +1210,7 @@ describe('EventTimeline', () => {
       // Mock the events reload after bulk update
       vi.mocked(api.fetchEvents).mockResolvedValueOnce({
         ...mockEventsResponse,
-        events: mockEvents.map((e) =>
-          e.id === 1 || e.id === 2 ? { ...e, reviewed: false } : e
-        ),
+        events: mockEvents.map((e) => (e.id === 1 || e.id === 2 ? { ...e, reviewed: false } : e)),
       });
 
       // Click mark as not reviewed
@@ -1286,8 +1278,12 @@ describe('EventTimeline', () => {
       });
 
       // Both buttons should be disabled
-      const markReviewedButton = screen.getByRole('button', { name: /Mark.*selected events as reviewed/ });
-      const markNotReviewedButton = screen.getByRole('button', { name: /Mark.*selected events as not reviewed/ });
+      const markReviewedButton = screen.getByRole('button', {
+        name: /Mark.*selected events as reviewed/,
+      });
+      const markNotReviewedButton = screen.getByRole('button', {
+        name: /Mark.*selected events as not reviewed/,
+      });
       expect(markReviewedButton).toBeDisabled();
       expect(markNotReviewedButton).toBeDisabled();
     });

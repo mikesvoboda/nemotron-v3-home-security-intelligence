@@ -13,8 +13,6 @@
 # For Linux (Docker or Podman), use your host IP:
 #   export AI_HOST=192.168.1.100  # Replace with your host IP
 
-version: "3.8"
-
 services:
   backend:
     build:
@@ -41,12 +39,12 @@ services:
           "CMD",
           "python",
           "-c",
-          "import httpx; r = httpx.get('http://localhost:8000/api/system/health/ready'); exit(0 if r.status_code == 200 and r.json().get('ready', False) else 1)",
+          "import httpx; r = httpx.get('http://localhost:8000/api/system/health/live'); exit(0 if r.status_code == 200 else 1)",
         ]
-      interval: 30s
-      timeout: 10s
+      interval: 10s
+      timeout: 5s
       retries: 3
-      start_period: 40s
+      start_period: 30s
     restart: unless-stopped
     networks:
       - security-net

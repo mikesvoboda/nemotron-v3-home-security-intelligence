@@ -246,7 +246,7 @@ describe('GpuStats', () => {
       );
 
       const naElements = screen.getAllByText('N/A');
-      const tempNa = naElements.find(el => el.closest('[class*="text-gray"]'));
+      const tempNa = naElements.find((el) => el.closest('[class*="text-gray"]'));
       expect(tempNa).toBeDefined();
     });
   });

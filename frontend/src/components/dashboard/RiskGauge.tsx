@@ -1,7 +1,6 @@
 import { clsx } from 'clsx';
 import { useEffect, useState } from 'react';
 
-
 import { getRiskColor, getRiskLabel, getRiskLevel } from '../../utils/risk';
 
 /**
@@ -172,11 +171,7 @@ export default function RiskGauge({
 
   return (
     <div
-      className={clsx(
-        'flex flex-col items-center justify-center',
-        containerPadding,
-        className
-      )}
+      className={clsx('flex flex-col items-center justify-center', containerPadding, className)}
       role="meter"
       aria-valuenow={clampedValue}
       aria-valuemin={0}
@@ -185,12 +180,7 @@ export default function RiskGauge({
     >
       {/* SVG Circular Gauge */}
       <div className="relative">
-        <svg
-          width={svgSize}
-          height={svgSize}
-          className="transform -rotate-90"
-          aria-hidden="true"
-        >
+        <svg width={svgSize} height={svgSize} className="-rotate-90 transform" aria-hidden="true">
           {/* Define gradient for gauge colors */}
           <defs>
             <linearGradient id="riskGradient" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -244,10 +234,7 @@ export default function RiskGauge({
             {Math.round(animatedValue)}
           </div>
           {showLabel && (
-            <div
-              className={clsx('font-medium mt-1', labelSize)}
-              style={{ color }}
-            >
+            <div className={clsx('mt-1 font-medium', labelSize)} style={{ color }}>
               {label}
             </div>
           )}
@@ -257,15 +244,8 @@ export default function RiskGauge({
       {/* Optional sparkline for risk history */}
       {history && history.length > 0 && (
         <div className="mt-4 w-full max-w-xs">
-          <div className="text-xs text-text-secondary mb-1 text-center">
-            Risk History
-          </div>
-          <svg
-            width="100%"
-            height="40"
-            className="w-full"
-            aria-hidden="true"
-          >
+          <div className="mb-1 text-center text-xs text-text-secondary">Risk History</div>
+          <svg width="100%" height="40" className="w-full" aria-hidden="true">
             {/* Simple line sparkline */}
             {history.length > 1 && (
               <>

@@ -31,7 +31,8 @@ export default function EntitiesPage() {
           </div>
           <h2 className="mb-3 text-xl font-semibold text-white">Coming Soon</h2>
           <p className="mb-6 text-gray-400">
-            The Entities feature is currently under development. Once available, you will be able to:
+            The Entities feature is currently under development. Once available, you will be able
+            to:
           </p>
           <ul className="mb-6 space-y-2 text-left text-sm text-gray-400">
             <li className="flex items-start gap-2">
