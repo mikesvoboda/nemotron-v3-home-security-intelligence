@@ -1,8 +1,16 @@
-"""Shared fixtures for E2E pipeline integration tests.
+"""E2E test fixtures.
 
-These fixtures provide the necessary setup for end-to-end testing of the
-complete AI pipeline, including database, Redis, and external services.
+This module provides E2E-specific fixtures. The shared fixtures (integration_db,
+mock_redis, client, etc.) are inherited from backend/tests/conftest.py.
+
+No duplicate fixture definitions - all common fixtures are centralized in the
+root conftest.py file.
 """
+
+# E2E tests use the shared fixtures from backend/tests/conftest.py:
+# - integration_db: Isolated temporary SQLite database
+# - mock_redis: Mock Redis client
+# - client: httpx AsyncClient for API testing
 
 import os
 import tempfile
@@ -16,7 +24,7 @@ from backend.core.database import close_db, init_db
 
 
 @pytest.fixture
-async def integration_db() -> AsyncGenerator[str]:
+async def integration_db() -> AsyncGenerator[str, None]:
     """Initialize a temporary SQLite DB for E2E tests.
 
     This fixture:

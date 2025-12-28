@@ -21,14 +21,14 @@ Comprehensive guide for setting up and running the AI inference services for the
 
 The AI pipeline consists of two independent native services running outside Docker for optimal GPU performance:
 
-1. **RT-DETRv2 Detection Server** (Port 8001)
+1. **RT-DETRv2 Detection Server** (Port 8090)
 
    - Real-time object detection from camera images
    - ONNX Runtime with CUDA acceleration
    - ~4GB VRAM usage
    - 30-50ms inference per image
 
-2. **Nemotron LLM Server** (Port 8002)
+2. **Nemotron LLM Server** (Port 8091)
    - Risk reasoning and natural language generation
    - llama.cpp with quantized GGUF model
    - ~3GB VRAM usage
@@ -47,7 +47,7 @@ The AI pipeline consists of two independent native services running outside Dock
 │  │  RT-DETRv2       │         │  Nemotron LLM    │         │
 │  │  Detection       │         │  Risk Analysis   │         │
 │  │                  │         │                  │         │
-│  │  Port: 8001      │         │  Port: 8002      │         │
+│  │  Port: 8090      │         │  Port: 8091      │         │
 │  │  VRAM: ~4GB      │         │  VRAM: ~3GB      │         │
 │  │  Latency: 30-50ms│         │  Latency: 2-5s   │         │
 │  └──────────────────┘         └──────────────────┘         │
@@ -303,14 +303,14 @@ Use the unified startup script to manage both services:
 #
 # [INFO] Starting RT-DETRv2 detection server...
 # [OK] RT-DETRv2 detection server started successfully
-#   Port: 8001
+#   Port: 8090
 #   PID: 12345
 #   Log: /tmp/rtdetr-detector.log
 #   Expected VRAM: ~4GB
 #
 # [INFO] Starting Nemotron LLM server...
 # [OK] Nemotron LLM server started successfully
-#   Port: 8002
+#   Port: 8091
 #   PID: 12346
 #   Log: /tmp/nemotron-llm.log
 #   Expected VRAM: ~3GB
@@ -394,7 +394,7 @@ Output shows:
 
 ```bash
 # Health check
-curl http://localhost:8001/health
+curl http://localhost:8090/health
 
 # Expected response:
 # {
@@ -414,10 +414,10 @@ python example_client.py path/to/test/image.jpg
 
 ```bash
 # Health check
-curl http://localhost:8002/health
+curl http://localhost:8091/health
 
 # Test completion
-curl -X POST http://localhost:8002/completion \
+curl -X POST http://localhost:8091/completion \
   -H "Content-Type: application/json" \
   -d '{
     "prompt": "Analyze this security event: A person was detected at the front door at 14:30.",
@@ -536,7 +536,7 @@ tail -f /tmp/nemotron-llm.log
    ```
    - **Solution**: Stop existing service
    ```bash
-   lsof -ti:8002 | xargs kill -9
+   lsof -ti:8091 | xargs kill -9
    ./scripts/start-ai.sh restart
    ```
 
@@ -548,8 +548,8 @@ tail -f /tmp/nemotron-llm.log
 
 ```bash
 # Check if service is responding
-curl -v http://localhost:8001/health
-curl -v http://localhost:8002/health
+curl -v http://localhost:8090/health
+curl -v http://localhost:8091/health
 
 # Check process status
 ./scripts/start-ai.sh status
@@ -639,7 +639,7 @@ detection_confidence_threshold: float = 0.5  # Default
 
 ```bash
 # Use batch endpoint for better throughput
-POST http://localhost:8001/detect/batch
+POST http://localhost:8090/detect/batch
 ```
 
 ### Nemotron LLM Optimization
@@ -731,7 +731,7 @@ Track key metrics:
 
 ```bash
 # Average inference time (RT-DETRv2)
-curl http://localhost:8001/metrics  # If implemented
+curl http://localhost:8090/metrics  # If implemented
 
 # GPU utilization over time
 nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader -l 1 >> gpu_util.log
@@ -773,7 +773,7 @@ Type=simple
 User=msvoboda
 ExecStart=/usr/bin/llama-server \
   --model /home/msvoboda/github/nemotron-v3-home-security-intelligence/ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf \
-  --port 8002 \
+  --port 8091 \
   --ctx-size 4096 \
   --n-gpu-layers 99 \
   --host 0.0.0.0 \
@@ -870,13 +870,13 @@ nvidia-smi
 
 ### Service Endpoints
 
-- **RT-DETRv2**: http://localhost:8001
+- **RT-DETRv2**: http://localhost:8090
 
   - Health: `GET /health`
   - Detect: `POST /detect`
   - Batch: `POST /detect/batch`
 
-- **Nemotron LLM**: http://localhost:8002
+- **Nemotron LLM**: http://localhost:8091
   - Health: `GET /health`
   - Completion: `POST /completion`
   - Chat: `POST /v1/chat/completions`
@@ -890,7 +890,7 @@ nvidia-smi
 
 ### Ports
 
-- `8001` - RT-DETRv2 detection server
-- `8002` - Nemotron LLM server
+- `8090` - RT-DETRv2 detection server
+- `8091` - Nemotron LLM server
 - `8000` - Backend FastAPI (communicates with AI services)
 - `5173` - Frontend Vite dev server (development)

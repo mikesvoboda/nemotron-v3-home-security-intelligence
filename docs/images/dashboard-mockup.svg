@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" width="1200" height="700">
+  <!-- Background -->
+  <rect width="1200" height="700" fill="#1a1a2e"/>
+
+  <!-- Header Bar -->
+  <rect x="0" y="0" width="1200" height="60" fill="#16213e"/>
+  <text x="20" y="38" font-family="system-ui, sans-serif" font-size="22" font-weight="bold" fill="#ffffff">Home Security Intelligence</text>
+  <circle cx="1150" cy="30" r="8" fill="#4ade80"/>
+  <text x="1090" y="35" font-family="system-ui, sans-serif" font-size="12" fill="#9ca3af">System OK</text>
+
+  <!-- Left Column - Risk Gauge Section -->
+  <rect x="20" y="80" width="300" height="280" rx="8" fill="#0f3460"/>
+  <text x="40" y="110" font-family="system-ui, sans-serif" font-size="16" font-weight="bold" fill="#ffffff">Current Risk Level</text>
+
+  <!-- Risk Gauge Arc (mockup) -->
+  <path d="M 170 230 A 80 80 0 0 1 90 230" stroke="#4ade80" stroke-width="12" fill="none" stroke-linecap="round"/>
+  <path d="M 170 230 A 80 80 0 0 0 250 230" stroke="#374151" stroke-width="12" fill="none" stroke-linecap="round"/>
+  <text x="170" y="200" font-family="system-ui, sans-serif" font-size="42" font-weight="bold" fill="#4ade80" text-anchor="middle">23</text>
+  <text x="170" y="250" font-family="system-ui, sans-serif" font-size="14" fill="#9ca3af" text-anchor="middle">LOW RISK</text>
+
+  <!-- Risk breakdown -->
+  <rect x="40" y="280" width="260" height="60" rx="4" fill="#1a1a2e"/>
+  <text x="55" y="305" font-family="system-ui, sans-serif" font-size="11" fill="#9ca3af">Last 24h: 12 events</text>
+  <text x="55" y="325" font-family="system-ui, sans-serif" font-size="11" fill="#9ca3af">High risk: 0 | Medium: 2 | Low: 10</text>
+
+  <!-- Left Column - GPU Stats Section -->
+  <rect x="20" y="380" width="300" height="140" rx="8" fill="#0f3460"/>
+  <text x="40" y="410" font-family="system-ui, sans-serif" font-size="16" font-weight="bold" fill="#ffffff">GPU Status</text>
+
+  <!-- GPU bars -->
+  <text x="40" y="445" font-family="system-ui, sans-serif" font-size="12" fill="#9ca3af">Utilization</text>
+  <rect x="120" y="432" width="180" height="16" rx="4" fill="#374151"/>
+  <rect x="120" y="432" width="72" height="16" rx="4" fill="#3b82f6"/>
+  <text x="130" y="445" font-family="system-ui, sans-serif" font-size="11" fill="#ffffff">40%</text>
+
+  <text x="40" y="475" font-family="system-ui, sans-serif" font-size="12" fill="#9ca3af">Memory</text>
+  <rect x="120" y="462" width="180" height="16" rx="4" fill="#374151"/>
+  <rect x="120" y="462" width="90" height="16" rx="4" fill="#8b5cf6"/>
+  <text x="130" y="475" font-family="system-ui, sans-serif" font-size="11" fill="#ffffff">6.2GB / 24GB</text>
+
+  <text x="40" y="505" font-family="system-ui, sans-serif" font-size="12" fill="#9ca3af">Temp</text>
+  <text x="120" y="505" font-family="system-ui, sans-serif" font-size="12" fill="#4ade80">52C</text>
+  <text x="160" y="505" font-family="system-ui, sans-serif" font-size="12" fill="#9ca3af">| FPS:</text>
+  <text x="200" y="505" font-family="system-ui, sans-serif" font-size="12" fill="#4ade80">28.4</text>
+
+  <!-- Center Column - Camera Grid -->
+  <rect x="340" y="80" width="520" height="440" rx="8" fill="#0f3460"/>
+  <text x="360" y="110" font-family="system-ui, sans-serif" font-size="16" font-weight="bold" fill="#ffffff">Camera Grid</text>
+
+  <!-- Camera tiles (2x2 grid) -->
+  <rect x="360" y="130" width="240" height="175" rx="4" fill="#1a1a2e"/>
+  <rect x="360" y="130" width="240" height="25" rx="4" fill="#16213e"/>
+  <text x="375" y="148" font-family="system-ui, sans-serif" font-size="12" fill="#ffffff">Front Door</text>
+  <circle cx="580" cy="142" r="5" fill="#4ade80"/>
+  <text x="380" y="225" font-family="system-ui, sans-serif" font-size="48" fill="#374151">CAM 1</text>
+
+  <rect x="610" y="130" width="240" height="175" rx="4" fill="#1a1a2e"/>
+  <rect x="610" y="130" width="240" height="25" rx="4" fill="#16213e"/>
+  <text x="625" y="148" font-family="system-ui, sans-serif" font-size="12" fill="#ffffff">Back Entrance</text>
+  <circle cx="830" cy="142" r="5" fill="#4ade80"/>
+  <text x="630" y="225" font-family="system-ui, sans-serif" font-size="48" fill="#374151">CAM 2</text>
+
+  <rect x="360" y="315" width="240" height="175" rx="4" fill="#1a1a2e"/>
+  <rect x="360" y="315" width="240" height="25" rx="4" fill="#16213e"/>
+  <text x="375" y="333" font-family="system-ui, sans-serif" font-size="12" fill="#ffffff">Driveway</text>
+  <circle cx="580" cy="327" r="5" fill="#fbbf24"/>
+  <text x="380" y="410" font-family="system-ui, sans-serif" font-size="48" fill="#374151">CAM 3</text>
+
+  <rect x="610" y="315" width="240" height="175" rx="4" fill="#1a1a2e"/>
+  <rect x="610" y="315" width="240" height="25" rx="4" fill="#16213e"/>
+  <text x="625" y="333" font-family="system-ui, sans-serif" font-size="12" fill="#ffffff">Garage</text>
+  <circle cx="830" cy="327" r="5" fill="#4ade80"/>
+  <text x="630" y="410" font-family="system-ui, sans-serif" font-size="48" fill="#374151">CAM 4</text>
+
+  <!-- Right Column - Live Activity Feed -->
+  <rect x="880" y="80" width="300" height="440" rx="8" fill="#0f3460"/>
+  <text x="900" y="110" font-family="system-ui, sans-serif" font-size="16" font-weight="bold" fill="#ffffff">Live Activity</text>
+
+  <!-- Event cards -->
+  <rect x="895" y="130" width="270" height="80" rx="4" fill="#1a1a2e"/>
+  <circle cx="915" cy="150" r="6" fill="#4ade80"/>
+  <text x="930" y="155" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#ffffff">Driveway - 2 min ago</text>
+  <text x="930" y="175" font-family="system-ui, sans-serif" font-size="11" fill="#9ca3af">Person detected, known pattern</text>
+  <text x="930" y="195" font-family="system-ui, sans-serif" font-size="11" fill="#4ade80">Risk: 15 (Low)</text>
+
+  <rect x="895" y="220" width="270" height="80" rx="4" fill="#1a1a2e"/>
+  <circle cx="915" cy="240" r="6" fill="#fbbf24"/>
+  <text x="930" y="245" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#ffffff">Back Entrance - 8 min ago</text>
+  <text x="930" y="265" font-family="system-ui, sans-serif" font-size="11" fill="#9ca3af">Unknown person, unusual time</text>
+  <text x="930" y="285" font-family="system-ui, sans-serif" font-size="11" fill="#fbbf24">Risk: 55 (Medium)</text>
+
+  <rect x="895" y="310" width="270" height="80" rx="4" fill="#1a1a2e"/>
+  <circle cx="915" cy="330" r="6" fill="#4ade80"/>
+  <text x="930" y="335" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#ffffff">Front Door - 23 min ago</text>
+  <text x="930" y="355" font-family="system-ui, sans-serif" font-size="11" fill="#9ca3af">Vehicle detected, delivery</text>
+  <text x="930" y="375" font-family="system-ui, sans-serif" font-size="11" fill="#4ade80">Risk: 8 (Low)</text>
+
+  <rect x="895" y="400" width="270" height="80" rx="4" fill="#1a1a2e"/>
+  <circle cx="915" cy="420" r="6" fill="#4ade80"/>
+  <text x="930" y="425" font-family="system-ui, sans-serif" font-size="13" font-weight="bold" fill="#ffffff">Garage - 1 hr ago</text>
+  <text x="930" y="445" font-family="system-ui, sans-serif" font-size="11" fill="#9ca3af">Motion detected, cat</text>
+  <text x="930" y="465" font-family="system-ui, sans-serif" font-size="11" fill="#4ade80">Risk: 2 (Low)</text>
+
+  <!-- Bottom Status Bar -->
+  <rect x="20" y="540" width="1160" height="140" rx="8" fill="#0f3460"/>
+  <text x="40" y="570" font-family="system-ui, sans-serif" font-size="16" font-weight="bold" fill="#ffffff">System Overview</text>
+
+  <!-- Status items -->
+  <rect x="40" y="590" width="180" height="70" rx="4" fill="#1a1a2e"/>
+  <text x="55" y="615" font-family="system-ui, sans-serif" font-size="11" fill="#9ca3af">RT-DETRv2</text>
+  <text x="55" y="640" font-family="system-ui, sans-serif" font-size="18" font-weight="bold" fill="#4ade80">Online</text>
+
+  <rect x="240" y="590" width="180" height="70" rx="4" fill="#1a1a2e"/>
+  <text x="255" y="615" font-family="system-ui, sans-serif" font-size="11" fill="#9ca3af">Nemotron LLM</text>
+  <text x="255" y="640" font-family="system-ui, sans-serif" font-size="18" font-weight="bold" fill="#4ade80">Online</text>
+
+  <rect x="440" y="590" width="180" height="70" rx="4" fill="#1a1a2e"/>
+  <text x="455" y="615" font-family="system-ui, sans-serif" font-size="11" fill="#9ca3af">Active Cameras</text>
+  <text x="455" y="640" font-family="system-ui, sans-serif" font-size="18" font-weight="bold" fill="#3b82f6">4 / 4</text>
+
+  <rect x="640" y="590" width="180" height="70" rx="4" fill="#1a1a2e"/>
+  <text x="655" y="615" font-family="system-ui, sans-serif" font-size="11" fill="#9ca3af">Events Today</text>
+  <text x="655" y="640" font-family="system-ui, sans-serif" font-size="18" font-weight="bold" fill="#8b5cf6">47</text>
+
+  <rect x="840" y="590" width="180" height="70" rx="4" fill="#1a1a2e"/>
+  <text x="855" y="615" font-family="system-ui, sans-serif" font-size="11" fill="#9ca3af">Inference Rate</text>
+  <text x="855" y="640" font-family="system-ui, sans-serif" font-size="18" font-weight="bold" fill="#4ade80">28.4 fps</text>
+
+  <rect x="1040" y="590" width="120" height="70" rx="4" fill="#1a1a2e"/>
+  <text x="1055" y="615" font-family="system-ui, sans-serif" font-size="11" fill="#9ca3af">Uptime</text>
+  <text x="1055" y="640" font-family="system-ui, sans-serif" font-size="18" font-weight="bold" fill="#9ca3af">3d 14h</text>
+
+  <!-- Mockup Notice -->
+  <rect x="440" y="10" width="320" height="40" rx="8" fill="#374151" opacity="0.9"/>
+  <text x="600" y="35" font-family="system-ui, sans-serif" font-size="14" fill="#fbbf24" text-anchor="middle">DASHBOARD MOCKUP</text>
+</svg>

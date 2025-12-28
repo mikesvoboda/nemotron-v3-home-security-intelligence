@@ -51,22 +51,21 @@ def module_thumbnail_dir():
 
     This fixture is module-scoped to avoid recreating test files for each test.
     All tests in this module only read from this directory.
+
+    Uses tempfile.TemporaryDirectory for proper cleanup without leaking
+    filesystem artifacts into the actual backend/data directory.
     """
-    # Create the directory structure relative to the actual backend location
-    thumb_dir = Path(__file__).parent.parent.parent / "data" / "thumbnails"
-    thumb_dir.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        thumb_dir = Path(tmpdir) / "thumbnails"
+        thumb_dir.mkdir(parents=True, exist_ok=True)
 
-    # Create test thumbnails
-    (thumb_dir / "thumb1.jpg").write_bytes(b"fake thumbnail 1")
-    (thumb_dir / "thumb2.png").write_bytes(b"fake thumbnail 2")
-    (thumb_dir / "malware.exe").write_bytes(b"fake exe")
+        # Create test thumbnails
+        (thumb_dir / "thumb1.jpg").write_bytes(b"fake thumbnail 1")
+        (thumb_dir / "thumb2.png").write_bytes(b"fake thumbnail 2")
+        (thumb_dir / "malware.exe").write_bytes(b"fake exe")
 
-    yield thumb_dir
-
-    # Cleanup - remove test files
-    for file in thumb_dir.glob("*"):
-        if file.name in ["thumb1.jpg", "thumb2.png", "malware.exe"]:
-            file.unlink()
+        yield thumb_dir
+        # Cleanup happens automatically via TemporaryDirectory context manager
 
 
 @pytest.fixture(scope="module")
@@ -75,6 +74,8 @@ def client(module_temp_foscam_dir, module_thumbnail_dir):
 
     Using module scope significantly reduces test time by avoiding
     21 separate TestClient setup/teardown cycles.
+
+    Patches both foscam_base_path and thumbnail directory to use temp directories.
     """
     # Mock background services that have 5-second intervals to avoid slow teardown
     mock_system_broadcaster = MagicMock()
@@ -97,12 +98,33 @@ def client(module_temp_foscam_dir, module_thumbnail_dir):
         settings.foscam_base_path = str(module_temp_foscam_dir)
         return settings
 
-    # Patch background services and settings to avoid slow teardown
+    # Store original serve_thumbnail to create patched version
+    from backend.api.routes import media as media_module
+
+    original_serve_thumbnail = media_module.serve_thumbnail
+
+    async def patched_serve_thumbnail(filename: str):
+        """Patched version that uses temp thumbnail directory."""
+        from fastapi import HTTPException
+        from fastapi.responses import FileResponse
+
+        from backend.api.routes.media import ALLOWED_TYPES, _validate_and_resolve_path
+
+        full_path = _validate_and_resolve_path(module_thumbnail_dir, filename)
+        content_type = ALLOWED_TYPES[full_path.suffix.lower()]
+        return FileResponse(
+            path=str(full_path),
+            media_type=content_type,
+            filename=full_path.name,
+        )
+
+    # Patch background services, settings, and thumbnail endpoint to avoid slow teardown
     with (
         patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
         patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor),
         patch("backend.main.CleanupService", return_value=mock_cleanup_service),
         patch("backend.api.routes.media.get_settings", mock_get_settings),
+        patch.object(media_module, "serve_thumbnail", patched_serve_thumbnail),
         TestClient(app) as test_client,
     ):
         yield test_client

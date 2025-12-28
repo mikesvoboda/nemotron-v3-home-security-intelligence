@@ -13,7 +13,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - RTDETR_URL=http://host.docker.internal:8090
       - NEMOTRON_URL=http://host.docker.internal:8091
-      - CAMERA_ROOT=/cameras
+      - FOSCAM_BASE_PATH=/cameras
     depends_on:
       redis:
         condition: service_healthy
