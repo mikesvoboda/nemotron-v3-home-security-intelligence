@@ -305,7 +305,7 @@ class TestConnectionErrorHandling:
                         session=session,
                     )
 
-                assert "Cannot connect to RT-DETR service" in str(exc_info.value)
+                assert "Failed to connect to detector service" in str(exc_info.value)
 
         # Verify nothing was stored
         async with get_session() as session:
@@ -473,7 +473,7 @@ class TestBadResponseHandling:
                         session=session,
                     )
 
-                assert "HTTP 500" in str(exc_info.value)
+                assert "server error: 500" in str(exc_info.value)
 
     async def test_detect_objects_handles_missing_detections_key(
         self, integration_db, sample_camera, temp_image_file, detector_client
