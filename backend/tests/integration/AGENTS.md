@@ -6,9 +6,31 @@ Integration tests verify that multiple components work together correctly. Unlik
 
 ## Test Files Overview
 
+| File                                    | Description                   | Tests For                        |
+| --------------------------------------- | ----------------------------- | -------------------------------- |
+| `test_api.py`                           | FastAPI application endpoints | Root, health, CORS, lifecycle    |
+| `test_cameras_api.py`                   | Camera CRUD API               | `/api/cameras/*` endpoints       |
+| `test_system_api.py`                    | System information            | `/api/system/*` endpoints        |
+| `test_media_api.py`                     | Media file serving            | `/api/media/*` endpoints         |
+| `test_detections_api.py`                | Detections API                | `/api/detections/*` endpoints    |
+| `test_events_api.py`                    | Events API                    | `/api/events/*` endpoints        |
+| `test_logs_api.py`                      | Logs API                      | `/api/logs/*` endpoints          |
+| `test_websocket.py`                     | WebSocket endpoints           | `/ws/events`, `/ws/system`       |
+| `test_full_stack.py`                    | Complete workflows            | Database, models, business logic |
+| `test_batch_aggregator_integration.py`  | Batch aggregation             | BatchAggregator service          |
+| `test_detector_client_integration.py`   | Detector client               | DetectorClient service           |
+| `test_file_watcher_integration.py`      | File watcher                  | FileWatcher service              |
+| `test_health_monitor_integration.py`    | Health monitoring             | HealthMonitor service            |
+| `test_nemotron_analyzer_integration.py` | Nemotron analyzer             | NemotronAnalyzer service         |
+| `test_pipeline_e2e.py`                  | Pipeline end-to-end           | Complete pipeline flow           |
+| `test_github_workflows.py`              | CI/CD validation              | GitHub workflow files            |
+| `conftest.py`                           | Shared fixtures               | Test setup and teardown          |
+
+## Fixture Configuration
+
 ### `conftest.py`
 
-Shared fixtures for all integration tests to eliminate duplication.
+The integration tests have their own `conftest.py` that provides fixtures specific to integration testing:
 
 **Fixtures:**
 
@@ -27,6 +49,8 @@ async def test_endpoint(client):
     assert response.status_code == 200
 ```
 
+## Key Test File Details
+
 ### `test_api.py`
 
 Tests for FastAPI application endpoints and middleware.
@@ -42,13 +66,6 @@ Tests for FastAPI application endpoints and middleware.
 - Content type validation
 - 404 handling for non-existent endpoints
 
-**Key patterns:**
-
-- Uses `ASGITransport` to test app without running server
-- Mocks Redis to avoid external dependencies
-- Real temporary SQLite database
-- Async HTTP client with httpx
-
 ### `test_cameras_api.py`
 
 Tests for camera CRUD API endpoints (`/api/cameras/*`).
@@ -62,74 +79,6 @@ Tests for camera CRUD API endpoints (`/api/cameras/*`).
 - **Validation**: Empty fields, long strings, missing required fields
 - **Edge cases**: Concurrent creation, update after delete, pagination
 
-**Key patterns:**
-
-- Full CRUD test coverage
-- Database cascade delete verification
-- Concurrent operation testing
-- Response schema validation
-- Temporary database with real operations
-
-### `test_system_api.py`
-
-Tests for system information and monitoring endpoints (`/api/system/*`).
-
-**Coverage:**
-
-- Health check (`/api/system/health`) - Service status reporting
-- GPU stats (`/api/system/gpu`) - GPU utilization and memory
-- Config (`/api/system/config`) - Public configuration exposure
-- Stats (`/api/system/stats`) - System statistics and counts
-- Concurrent request handling
-- JSON content type validation
-
-### `test_media_api.py`
-
-Tests for media file serving endpoints (`/api/media/*`).
-
-**Coverage:**
-
-- Camera files (`/api/media/cameras/{camera_id}/{filename}`)
-  - Valid image files (JPG, PNG)
-  - Valid video files (MP4)
-  - Nested subdirectories
-  - Non-existent files (404)
-  - Security: Path traversal prevention (`../../../etc/passwd`)
-  - Security: Disallowed file types (.exe, .sh, .bat)
-- Thumbnails (`/api/media/thumbnails/{filename}`)
-  - Valid thumbnails (JPG, PNG)
-  - Non-existent files (404)
-  - Security: Path traversal prevention
-  - Security: Disallowed file types
-- Content-Type headers for different formats
-
-**Key patterns:**
-
-- TestClient (synchronous) for file serving
-- Temporary directory fixtures with test files
-- Path traversal attack testing
-- File type validation
-- Security-focused edge cases
-
-### `test_detections_api.py`
-
-Tests for detections API endpoints (`/api/detections/*`).
-
-**Coverage:**
-
-- List detections (`GET /api/detections`)
-  - Empty results
-  - With data
-  - Filter by camera_id
-  - Filter by object_type
-  - Filter by min_confidence
-  - Pagination (limit, offset)
-- Get detection by ID (`GET /api/detections/{id}`)
-  - Success case
-  - Not found (404)
-- Get detection image (`GET /api/detections/{id}/image`)
-  - Not found cases
-
 ### `test_events_api.py`
 
 Tests for events API endpoints (`/api/events/*`).
@@ -137,52 +86,14 @@ Tests for events API endpoints (`/api/events/*`).
 **Coverage:**
 
 - List events (`GET /api/events`)
-  - Empty results
-  - With data
-  - Filter by camera_id
-  - Filter by risk_level
-  - Filter by reviewed status
+  - Empty results, with data
+  - Filter by camera_id, risk_level, reviewed status
   - Filter by date range (start_date, end_date)
   - Pagination (limit, offset)
-  - Combined filters
-  - Ordering (newest first)
+  - Combined filters, ordering (newest first)
 - Get event by ID (`GET /api/events/{id}`)
-  - Success case
-  - Not found (404)
-  - Invalid ID format (422)
 - Update event (`PATCH /api/events/{id}`)
-  - Mark as reviewed
-  - Mark as unreviewed
-  - Not found (404)
-  - Invalid payload (422)
 - Get event detections (`GET /api/events/{id}/detections`)
-  - With detections
-  - Empty detections
-  - Multiple detections
-  - Not found (404)
-
-### `test_logs_api.py`
-
-Tests for logs API endpoints (`/api/logs/*`).
-
-**Coverage:**
-
-- List logs (`GET /api/logs`)
-  - Empty results
-  - With data
-  - Filter by level (ERROR, INFO, etc.)
-  - Filter by component
-  - Pagination (limit, offset)
-- Get single log (`GET /api/logs/{id}`)
-  - Success case
-  - Not found (404)
-- Log statistics (`GET /api/logs/stats`)
-  - Total counts
-  - Error counts
-  - By-component breakdown
-- Frontend log submission (`POST /api/logs/frontend`)
-  - Valid payload
-  - Source tagging as "frontend"
 
 ### `test_websocket.py`
 
@@ -191,39 +102,17 @@ Tests for WebSocket endpoints (`/ws/events`, `/ws/system`).
 **Coverage:**
 
 - **Events channel** (`/ws/events`)
-  - Connection establishment
-  - Graceful disconnect
-  - Receive new_event broadcasts
-  - Receive detection broadcasts
-  - Multiple concurrent connections
-  - Reconnection
+  - Connection establishment, graceful disconnect
+  - Receive new_event broadcasts, detection broadcasts
+  - Multiple concurrent connections, reconnection
   - Message format validation
 - **System channel** (`/ws/system`)
-  - Connection establishment
-  - Graceful disconnect
-  - Receive gpu_stats broadcasts
-  - Receive camera_status broadcasts
-  - Multiple concurrent connections
-  - Reconnection
-  - Message format validation
-- **Connection cleanup**
-  - Events channel cleanup on disconnect
-  - System channel cleanup on disconnect
-  - Mixed channel cleanup
-- **Error handling**
-  - Invalid paths
-  - Connection errors
-- **Broadcast functionality**
-  - Events broadcast to multiple clients
-  - System updates broadcast to multiple clients
-  - Channel isolation (events vs system)
-
-**Key patterns:**
-
-- TestClient (synchronous) for WebSocket testing
-- Context managers for connection lifecycle
-- Message format validation
-- Concurrent connection testing
+  - Connection establishment, graceful disconnect
+  - Receive gpu_stats broadcasts, camera_status broadcasts
+  - Multiple concurrent connections, reconnection
+- **Connection cleanup**: Events and system channel cleanup
+- **Error handling**: Invalid paths, connection errors
+- **Broadcast functionality**: Channel isolation
 
 ### `test_full_stack.py`
 
@@ -241,86 +130,22 @@ Tests for complete workflows across database, models, and business logic.
 - Cascade deletes: Verify foreign key constraints
 - Data isolation: Multi-camera operation independence
 - Transaction boundaries: Session isolation
-- Event review status updates
 
-**Key patterns:**
+### `test_media_api.py`
 
-- Real database operations (not mocked)
-- Multi-step workflows across sessions
-- Relationship loading with `refresh()`
-- Time-based and filtered queries
-- Complete end-to-end scenarios
-
-### `test_batch_aggregator_integration.py`
-
-Tests for batch aggregation service integration.
+Tests for media file serving endpoints (`/api/media/*`).
 
 **Coverage:**
 
-- Batch creation and management
-- Detection aggregation into batches
-- Timeout handling
-- Queue integration
-
-### `test_detector_client_integration.py`
-
-Tests for detector client integration with the pipeline.
-
-**Coverage:**
-
-- Detection processing
-- Database persistence
-- Error handling
-
-### `test_file_watcher_integration.py`
-
-Tests for file watcher integration with the system.
-
-**Coverage:**
-
-- File detection and processing
-- Queue integration
-- Multiple camera handling
-
-### `test_health_monitor_integration.py`
-
-Tests for health monitoring integration.
-
-**Coverage:**
-
-- Service health checks
-- Status reporting
-- Degraded state handling
-
-### `test_nemotron_analyzer_integration.py`
-
-Tests for Nemotron LLM analyzer integration.
-
-**Coverage:**
-
-- Batch analysis
-- Risk scoring
-- Event creation
-
-### `test_pipeline_e2e.py`
-
-End-to-end pipeline tests in integration context.
-
-**Coverage:**
-
-- Complete pipeline flow
-- Component interaction
-- Error propagation
-
-### `test_github_workflows.py`
-
-Tests for CI/CD workflow validation.
-
-**Coverage:**
-
-- Workflow syntax validation
-- Job dependencies
-- Environment configuration
+- Camera files (`/api/media/cameras/{camera_id}/{filename}`)
+  - Valid image files (JPG, PNG)
+  - Valid video files (MP4)
+  - Nested subdirectories
+  - Non-existent files (404)
+  - Security: Path traversal prevention (`../../../etc/passwd`)
+  - Security: Disallowed file types (.exe, .sh, .bat)
+- Thumbnails (`/api/media/thumbnails/{filename}`)
+- Content-Type headers for different formats
 
 ## Running Integration Tests
 
@@ -450,24 +275,7 @@ async def test_camera_crud(client):
     response = await client.delete(f"/api/cameras/{camera_id}")
 ```
 
-### Scenario 3: Cascade Delete Verification
-
-```python
-async def test_cascade_delete(test_db):
-    # Create camera with children
-    camera = Camera(...)
-    detection = Detection(camera_id=camera.id, ...)
-    event = Event(camera_id=camera.id, ...)
-
-    # Delete camera
-    await session.delete(camera)
-
-    # Verify children deleted
-    assert no detections exist
-    assert no events exist
-```
-
-### Scenario 4: Security Testing
+### Scenario 3: Security Testing
 
 ```python
 def test_path_traversal_blocked(client, temp_foscam_dir):
@@ -558,7 +366,7 @@ async def test_concurrent_requests(client):
 
 ## Test Statistics
 
-- **Total test files**: 15+
+- **Total test files**: 18
 - **Key test categories**:
   - API tests: test_api.py
   - Camera API tests: test_cameras_api.py

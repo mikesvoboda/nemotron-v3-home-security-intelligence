@@ -13,7 +13,7 @@ File Upload -> Detection -> Batching -> Analysis -> Event Creation -> WebSocket 
    (1)          (2)          (3)         (4)           (5)              (6)
 ```
 
-1. **File Detection**: Image file appears in camera folder
+1. **File Detection**: Image/video file appears in camera folder
 2. **RT-DETRv2 Detection**: Object detection service processes image
 3. **Batch Aggregation**: Detections are grouped into time-based batches
 4. **Nemotron Analysis**: LLM analyzes batch and generates risk assessment
@@ -22,9 +22,16 @@ File Upload -> Detection -> Batching -> Analysis -> Event Creation -> WebSocket 
 
 ## Test Files
 
+| File                           | Description                            |
+| ------------------------------ | -------------------------------------- |
+| `conftest.py`                  | E2E-specific fixtures (integration_db) |
+| `test_pipeline_integration.py` | Comprehensive E2E pipeline tests       |
+| `README.md`                    | Additional E2E documentation           |
+| `TEST_SUMMARY.md`              | Test execution summary                 |
+
 ### `conftest.py`
 
-Shared fixtures for E2E pipeline tests.
+E2E-specific fixtures for pipeline tests.
 
 **Fixtures:**
 
@@ -58,106 +65,16 @@ Comprehensive end-to-end pipeline tests covering the complete AI flow.
 
 **Tests:**
 
-#### 1. `test_complete_pipeline_flow_with_mocked_services`
-
-Complete end-to-end flow testing all components working together.
-
-**Steps:**
-
-1. Mock RT-DETRv2 detector response
-2. Process image through detector (creates Detection records)
-3. Add detections to batch aggregator
-4. Verify batch metadata in Redis
-5. Close batch and queue for analysis
-6. Mock Nemotron LLM response
-7. Run analyzer to create Event
-8. Verify event in database
-9. Verify WebSocket broadcast
-
-**Validates:**
-
-- Detection creation and database persistence
-- Batch aggregation logic
-- Redis metadata management
-- LLM analysis and risk scoring
-- Event creation with relationships
-- WebSocket broadcasting
-
-#### 2. `test_pipeline_with_multiple_detections_in_batch`
-
-Tests batch aggregation with multiple detections.
-
-**Validates:**
-
-- Multiple detections aggregated into single batch
-- Batch window logic works correctly
-- All detections included in final event
-- Detection count accuracy
-
-#### 3. `test_pipeline_batch_timeout_logic`
-
-Tests batch timeout behavior.
-
-**Validates:**
-
-- Batch window timeout (90 seconds)
-- Idle timeout (30 seconds)
-- Proper batch closure and queuing
-- Timeout detection mechanism
-
-#### 4. `test_pipeline_with_low_confidence_filtering`
-
-Tests confidence threshold filtering.
-
-**Validates:**
-
-- Low confidence detections filtered (< 0.5 threshold)
-- Only high-confidence detections stored
-- Filtering happens at detection stage
-
-#### 5. `test_pipeline_handles_detector_failure_gracefully`
-
-Tests detector service failure handling.
-
-**Validates:**
-
-- Connection errors handled gracefully
-- Empty detection list returned on failure
-- Pipeline continues without crashing
-- No database corruption on failure
-
-#### 6. `test_pipeline_handles_nemotron_failure_gracefully`
-
-Tests LLM service failure handling.
-
-**Validates:**
-
-- LLM connection errors handled
-- Fallback risk data used (risk_score=50, level="medium")
-- Event still created with default values
-- Summary indicates analysis unavailable
-
-#### 7. `test_pipeline_event_relationships`
-
-Tests database relationships.
-
-**Validates:**
-
-- Events properly linked to cameras
-- Detection IDs stored in events
-- Relationships can be queried
-- Foreign key integrity maintained
-
-#### 8. `test_pipeline_cleanup_after_processing`
-
-Tests cleanup behavior.
-
-**Validates:**
-
-- Batch metadata removed from Redis after close
-- Detection data persists in database
-- Event data persists in database
-- No memory leaks or stale data
+| Test                                                | Description                                   |
+| --------------------------------------------------- | --------------------------------------------- |
+| `test_complete_pipeline_flow_with_mocked_services`  | Complete E2E flow testing all components      |
+| `test_pipeline_with_multiple_detections_in_batch`   | Batch aggregation with multiple detections    |
+| `test_pipeline_batch_timeout_logic`                 | Batch timeout behavior (90s window, 30s idle) |
+| `test_pipeline_with_low_confidence_filtering`       | Confidence threshold filtering                |
+| `test_pipeline_handles_detector_failure_gracefully` | Detector service failure handling             |
+| `test_pipeline_handles_nemotron_failure_gracefully` | LLM service failure handling                  |
+| `test_pipeline_event_relationships`                 | Database relationships                        |
+| `test_pipeline_cleanup_after_processing`            | Cleanup behavior verification                 |
 
 ## Running E2E Tests
 
@@ -220,7 +137,7 @@ The E2E tests use **targeted mocking** to isolate external dependencies while te
   - Returns realistic risk analysis responses
 - **Redis**: In-memory mock for queue and cache operations
   - Tracks batch data in Python dict
-  - Supports all required methods
+  - Supports all required methods (get, set, delete, add_to_queue, publish, scan_iter)
 
 #### Real Components
 
@@ -229,13 +146,6 @@ The E2E tests use **targeted mocking** to isolate external dependencies while te
 - **Batch Aggregator**: Real business logic (batch_aggregator.py)
 - **Nemotron Analyzer**: Real analysis orchestration (nemotron_analyzer.py)
 - **Detector Client**: Real HTTP client logic (detector_client.py)
-
-This approach provides:
-
-- **Realistic testing**: Tests use actual database and business logic
-- **Isolation**: External services don't need to be running
-- **Speed**: Tests run fast without network calls
-- **Reliability**: Tests don't fail due to external service issues
 
 ### Mock Redis Implementation
 
@@ -252,7 +162,7 @@ async def mock_redis_client():
     async def mock_get(key):
         return batch_data.get(key)
 
-    async def mock_set(key, value):
+    async def mock_set(key, value, expire=None):
         batch_data[key] = value
 
     async def mock_delete(*keys):
@@ -265,27 +175,12 @@ async def mock_redis_client():
             batch_data[queue_key] = []
         batch_data[queue_key].append(item)
 
-    mock_redis.get = AsyncMock(side_effect=mock_get)
-    mock_redis.set = AsyncMock(side_effect=mock_set)
-    # ...
+    # ... more methods
 
     # Store batch_data for test verification
     mock_redis._test_data = batch_data
 
     return mock_redis
-```
-
-### Mock HTTP Responses
-
-HTTP responses are mocked using `unittest.mock`:
-
-```python
-with patch("httpx.AsyncClient") as mock_http_client:
-    mock_response = MagicMock()
-    mock_response.json = MagicMock(return_value=expected_data)
-    mock_client = AsyncMock()
-    mock_client.post = AsyncMock(return_value=mock_response)
-    mock_http_client.return_value.__aenter__.return_value = mock_client
 ```
 
 ## Test Coverage
@@ -438,43 +333,6 @@ print("Publish calls:", mock_redis_client.publish.call_args_list)
 - Verify batch timeout logic uses correct Redis keys
 - Check that `started_at` and `last_activity` are set properly
 - Ensure time.time() is mocked if testing specific timeouts
-
-## Integration with Project Phases
-
-These E2E tests fulfill **Phase 8, Task 8.3** of the project roadmap:
-
-- Created comprehensive E2E pipeline integration tests
-- Tests cover full flow from detection to event creation
-- Mocks external services (RT-DETRv2, Nemotron)
-- Verifies batch aggregation logic
-- Validates error handling and fallbacks
-- Tests WebSocket broadcasting
-- Verifies data cleanup
-
-## Next Steps
-
-After E2E tests are passing, proceed to:
-
-1. **Integration testing** with real services (if available)
-   - Run RT-DETRv2 server locally
-   - Run Nemotron LLM server locally
-   - Test with actual AI inference
-2. **Load testing** with multiple concurrent detections
-   - Multiple cameras detecting simultaneously
-   - Batch aggregation under load
-   - Database performance validation
-3. **Performance profiling** of batch aggregation
-   - Identify bottlenecks
-   - Optimize Redis operations
-   - Tune batch timeout values
-4. **End-to-end manual testing** with actual cameras
-   - Connect real Foscam cameras
-   - Upload real images via FTP
-   - Verify entire pipeline in production-like environment
-5. **Deployment verification** in staging environment
-   - Docker deployment
-   - Service orchestration
-   - Health monitoring
 
 ## Test Statistics
 
