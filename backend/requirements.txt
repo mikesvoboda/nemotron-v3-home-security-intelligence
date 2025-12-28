@@ -63,6 +63,3 @@ wily>=1.25.0  # Includes radon as dependency
 
 # CI/CD - Big-O analysis
 big-o>=0.11.0
-
-# TLS/SSL certificate generation
-cryptography>=41.0.0

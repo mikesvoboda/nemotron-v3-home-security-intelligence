@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     # Example: postgresql+asyncpg://security:password@localhost:5432/security
     database_url: str = Field(
         default="postgresql+asyncpg://security:security_dev_password@localhost:5432/security",
-        description="SQLAlchemy database URL (PostgreSQL with asyncpg driver)",
+        description="PostgreSQL database URL (format: postgresql+asyncpg://user:pass@host:port/db)",
     )
 
     # Redis configuration
@@ -204,6 +204,14 @@ class Settings(BaseSettings):
         description="Queue fill ratio (0.0-1.0) at which to start backpressure warnings",
     )
 
+    # Video processing settings
+    video_frame_interval_seconds: float = Field(
+        default=2.0,
+        ge=0.1,
+        le=60.0,
+        description="Interval between extracted video frames in seconds",
+    )
+
     # Rate limiting settings
     rate_limit_enabled: bool = Field(
         default=True,
@@ -339,12 +347,6 @@ class Settings(BaseSettings):
         default="data/thumbnails",
         description="Directory for storing video thumbnails and extracted frames",
     )
-    video_frame_interval_seconds: float = Field(
-        default=1.0,
-        ge=0.1,
-        le=60.0,
-        description="Interval between extracted video frames in seconds",
-    )
     video_max_frames: int = Field(
         default=30,
         ge=1,
@@ -391,7 +393,8 @@ class Settings(BaseSettings):
         """Validate PostgreSQL database URL format."""
         if not v.startswith(("postgresql://", "postgresql+asyncpg://")):
             raise ValueError(
-                f"Invalid database URL. Expected postgresql:// or postgresql+asyncpg:// format, got: {v}"
+                "Only PostgreSQL is supported. "
+                "URL must start with 'postgresql+asyncpg://' or 'postgresql://'"
             )
         return v
 
