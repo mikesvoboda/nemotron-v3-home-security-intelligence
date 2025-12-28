@@ -1074,14 +1074,16 @@ describe('EventTimeline', () => {
       const markAsReviewedButton = screen.getByText('Mark as Reviewed');
       await user.click(markAsReviewedButton);
 
-      // Should show loading state
+      // Should show loading state - both buttons show "Updating..." when loading
       await waitFor(() => {
-        expect(screen.getByText('Updating...')).toBeInTheDocument();
+        expect(screen.getAllByText('Updating...')).toHaveLength(2);
       });
 
-      // The button containing "Updating..." should be disabled
-      const updatingButton = screen.getByRole('button', { name: /Mark.*selected events as reviewed/ });
-      expect(updatingButton).toBeDisabled();
+      // Both buttons should be disabled during loading
+      const markReviewedButton = screen.getByRole('button', { name: /Mark.*selected events as reviewed/ });
+      const markNotReviewedButton = screen.getByRole('button', { name: /Mark.*selected events as not reviewed/ });
+      expect(markReviewedButton).toBeDisabled();
+      expect(markNotReviewedButton).toBeDisabled();
     });
 
     it('handles bulk update errors gracefully', async () => {
@@ -1161,6 +1163,186 @@ describe('EventTimeline', () => {
       await waitFor(() => {
         expect(screen.getByText('Select all')).toBeInTheDocument();
       });
+    });
+
+    it('shows Mark Not Reviewed button when events are selected', async () => {
+      const user = userEvent.setup();
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Select an event
+      const checkboxButtons = screen.getAllByLabelText(/Select event \d+/);
+      await user.click(checkboxButtons[0]);
+
+      await waitFor(() => {
+        expect(screen.getByText('1 selected')).toBeInTheDocument();
+      });
+
+      // Should show both "Mark as Reviewed" and "Mark Not Reviewed" buttons
+      expect(screen.getByText('Mark as Reviewed')).toBeInTheDocument();
+      expect(screen.getByText('Mark Not Reviewed')).toBeInTheDocument();
+    });
+
+    it('marks selected events as not reviewed', async () => {
+      const user = userEvent.setup();
+      vi.clearAllMocks();
+      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
+      vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
+
+      // Mock bulkUpdateEvents for successful update
+      vi.mocked(api.bulkUpdateEvents).mockResolvedValue({
+        successful: [1, 2],
+        failed: [],
+      });
+
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Select first two events
+      const checkboxButtons = screen.getAllByLabelText(/Select event \d+/);
+      await user.click(checkboxButtons[0]);
+      await user.click(checkboxButtons[1]);
+
+      await waitFor(() => {
+        expect(screen.getByText('2 selected')).toBeInTheDocument();
+      });
+
+      // Mock the events reload after bulk update
+      vi.mocked(api.fetchEvents).mockResolvedValueOnce({
+        ...mockEventsResponse,
+        events: mockEvents.map((e) =>
+          e.id === 1 || e.id === 2 ? { ...e, reviewed: false } : e
+        ),
+      });
+
+      // Click mark as not reviewed
+      const markAsNotReviewedButton = screen.getByText('Mark Not Reviewed');
+      await user.click(markAsNotReviewedButton);
+
+      // Should call bulkUpdateEvents with reviewed: false
+      await waitFor(() => {
+        expect(api.bulkUpdateEvents).toHaveBeenCalledWith([1, 2], { reviewed: false });
+      });
+
+      // Should reload events
+      await waitFor(() => {
+        expect(api.fetchEvents).toHaveBeenCalledTimes(2); // Initial load + reload after update
+      });
+
+      // Should clear selections
+      await waitFor(() => {
+        expect(screen.getByText('Select all')).toBeInTheDocument();
+      });
+    });
+
+    it('shows loading state during bulk mark as not reviewed', async () => {
+      const user = userEvent.setup();
+      vi.clearAllMocks();
+      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
+      vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
+
+      // Mock slow bulkUpdateEvents
+      vi.mocked(api.bulkUpdateEvents).mockImplementation(
+        () =>
+          new Promise((resolve) =>
+            setTimeout(
+              () =>
+                resolve({
+                  successful: [1],
+                  failed: [],
+                }),
+              100
+            )
+          )
+      );
+
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Select an event
+      const checkboxButtons = screen.getAllByLabelText(/Select event \d+/);
+      await user.click(checkboxButtons[0]);
+
+      await waitFor(() => {
+        expect(screen.getByText('1 selected')).toBeInTheDocument();
+      });
+
+      // Click mark as not reviewed
+      const markAsNotReviewedButton = screen.getByText('Mark Not Reviewed');
+      await user.click(markAsNotReviewedButton);
+
+      // Should show loading state - there are two Updating... buttons (both are disabled)
+      await waitFor(() => {
+        expect(screen.getAllByText('Updating...')).toHaveLength(2);
+      });
+
+      // Both buttons should be disabled
+      const markReviewedButton = screen.getByRole('button', { name: /Mark.*selected events as reviewed/ });
+      const markNotReviewedButton = screen.getByRole('button', { name: /Mark.*selected events as not reviewed/ });
+      expect(markReviewedButton).toBeDisabled();
+      expect(markNotReviewedButton).toBeDisabled();
+    });
+
+    it('handles bulk mark as not reviewed errors gracefully', async () => {
+      const user = userEvent.setup();
+      vi.clearAllMocks();
+      vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
+      vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
+
+      // Mock bulkUpdateEvents to return partial failure
+      vi.mocked(api.bulkUpdateEvents).mockResolvedValue({
+        successful: [1],
+        failed: [{ id: 2, error: 'Network error' }],
+      });
+
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Select two events
+      const checkboxButtons = screen.getAllByLabelText(/Select event \d+/);
+      await user.click(checkboxButtons[0]);
+      await user.click(checkboxButtons[1]);
+
+      // Mock the events reload after bulk update
+      vi.mocked(api.fetchEvents).mockResolvedValueOnce(mockEventsResponse);
+
+      // Click mark as not reviewed
+      const markAsNotReviewedButton = screen.getByText('Mark Not Reviewed');
+      await user.click(markAsNotReviewedButton);
+
+      // Should call bulkUpdateEvents with reviewed: false
+      await waitFor(() => {
+        expect(api.bulkUpdateEvents).toHaveBeenCalledWith([1, 2], { reviewed: false });
+      });
+
+      // Should show partial success error
+      await waitFor(() => {
+        expect(screen.getByText(/Updated 1 events, but 1 failed/)).toBeInTheDocument();
+      });
+    });
+
+    it('does not show Mark Not Reviewed button when no events selected', async () => {
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Should show select all but not Mark Not Reviewed button
+      expect(screen.getByText('Select all')).toBeInTheDocument();
+      expect(screen.queryByText('Mark Not Reviewed')).not.toBeInTheDocument();
     });
   });
 

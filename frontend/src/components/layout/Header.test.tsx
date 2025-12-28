@@ -1,7 +1,8 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 import Header from './Header';
+import * as useHealthStatusModule from '../../hooks/useHealthStatus';
 import * as useSystemStatusModule from '../../hooks/useSystemStatus';
 
 describe('Header', () => {
@@ -10,6 +11,16 @@ describe('Header', () => {
     vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
       status: null,
       isConnected: false,
+    });
+
+    // Mock useHealthStatus to return loading state
+    vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
+      health: null,
+      isLoading: true,
+      error: null,
+      overallStatus: null,
+      services: {},
+      refresh: vi.fn(),
     });
   });
 
@@ -44,6 +55,33 @@ describe('Header', () => {
     expect(screen.getByText('Connecting...')).toBeInTheDocument();
   });
 
+  it('displays Checking status when health is loading', () => {
+    vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
+      status: {
+        health: 'healthy',
+        gpu_utilization: 45,
+        gpu_temperature: 65,
+        gpu_memory_used: 8192,
+        gpu_memory_total: 24576,
+        active_cameras: 3,
+        last_update: '2025-12-23T10:00:00Z',
+      },
+      isConnected: true,
+    });
+
+    vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
+      health: null,
+      isLoading: true,
+      error: null,
+      overallStatus: null,
+      services: {},
+      refresh: vi.fn(),
+    });
+
+    render(<Header />);
+    expect(screen.getByText('Checking...')).toBeInTheDocument();
+  });
+
   it('displays LIVE MONITORING status when connected and healthy', () => {
     vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
       status: {
@@ -56,6 +94,23 @@ describe('Header', () => {
         last_update: '2025-12-23T10:00:00Z',
       },
       isConnected: true,
+    });
+
+    vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
+      health: {
+        status: 'healthy',
+        services: {
+          database: { status: 'healthy', message: 'OK' },
+        },
+        timestamp: '2025-12-23T10:00:00Z',
+      },
+      isLoading: false,
+      error: null,
+      overallStatus: 'healthy',
+      services: {
+        database: { status: 'healthy', message: 'OK' },
+      },
+      refresh: vi.fn(),
     });
 
     render(<Header />);
@@ -124,6 +179,15 @@ describe('Header', () => {
       isConnected: true,
     });
 
+    vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
+      health: null,
+      isLoading: false,
+      error: null,
+      overallStatus: 'healthy',
+      services: {},
+      refresh: vi.fn(),
+    });
+
     render(<Header />);
     expect(screen.getByText('76%')).toBeInTheDocument();
   });
@@ -140,6 +204,15 @@ describe('Header', () => {
         last_update: '2025-12-23T10:00:00Z',
       },
       isConnected: true,
+    });
+
+    vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
+      health: null,
+      isLoading: false,
+      error: null,
+      overallStatus: 'healthy',
+      services: {},
+      refresh: vi.fn(),
     });
 
     render(<Header />);
@@ -160,6 +233,15 @@ describe('Header', () => {
       isConnected: true,
     });
 
+    vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
+      health: null,
+      isLoading: false,
+      error: null,
+      overallStatus: 'healthy',
+      services: {},
+      refresh: vi.fn(),
+    });
+
     render(<Header />);
     expect(screen.getByText('45% | 63°C')).toBeInTheDocument();
   });
@@ -176,6 +258,15 @@ describe('Header', () => {
         last_update: '2025-12-23T10:00:00Z',
       },
       isConnected: true,
+    });
+
+    vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
+      health: null,
+      isLoading: false,
+      error: null,
+      overallStatus: 'degraded',
+      services: {},
+      refresh: vi.fn(),
     });
 
     render(<Header />);
@@ -196,6 +287,15 @@ describe('Header', () => {
       isConnected: true,
     });
 
+    vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
+      health: null,
+      isLoading: false,
+      error: null,
+      overallStatus: 'unhealthy',
+      services: {},
+      refresh: vi.fn(),
+    });
+
     render(<Header />);
     expect(screen.getByText('System Offline')).toBeInTheDocument();
   });
@@ -214,9 +314,18 @@ describe('Header', () => {
       isConnected: true,
     });
 
-    const { container } = render(<Header />);
-    const statusDot = container.querySelector('.bg-yellow-500');
-    expect(statusDot).toBeInTheDocument();
+    vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
+      health: null,
+      isLoading: false,
+      error: null,
+      overallStatus: 'degraded',
+      services: {},
+      refresh: vi.fn(),
+    });
+
+    render(<Header />);
+    const statusDot = screen.getByTestId('health-dot');
+    expect(statusDot).toHaveClass('bg-yellow-500');
   });
 
   it('shows red status dot for unhealthy system', () => {
@@ -233,8 +342,344 @@ describe('Header', () => {
       isConnected: true,
     });
 
-    const { container } = render(<Header />);
-    const statusDot = container.querySelector('.bg-red-500');
-    expect(statusDot).toBeInTheDocument();
+    vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
+      health: null,
+      isLoading: false,
+      error: null,
+      overallStatus: 'unhealthy',
+      services: {},
+      refresh: vi.fn(),
+    });
+
+    render(<Header />);
+    const statusDot = screen.getByTestId('health-dot');
+    expect(statusDot).toHaveClass('bg-red-500');
+  });
+
+  it('shows green status dot for healthy system', () => {
+    vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
+      status: {
+        health: 'healthy',
+        gpu_utilization: 45,
+        gpu_temperature: 65,
+        gpu_memory_used: 8192,
+        gpu_memory_total: 24576,
+        active_cameras: 3,
+        last_update: '2025-12-23T10:00:00Z',
+      },
+      isConnected: true,
+    });
+
+    vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
+      health: null,
+      isLoading: false,
+      error: null,
+      overallStatus: 'healthy',
+      services: {},
+      refresh: vi.fn(),
+    });
+
+    render(<Header />);
+    const statusDot = screen.getByTestId('health-dot');
+    expect(statusDot).toHaveClass('bg-green-500');
+  });
+
+  describe('Health Tooltip', () => {
+    it('shows tooltip on hover with service details', () => {
+      vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
+        status: {
+          health: 'healthy',
+          gpu_utilization: 45,
+          gpu_temperature: 65,
+          gpu_memory_used: 8192,
+          gpu_memory_total: 24576,
+          active_cameras: 3,
+          last_update: '2025-12-23T10:00:00Z',
+        },
+        isConnected: true,
+      });
+
+      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
+        health: {
+          status: 'healthy',
+          services: {
+            database: { status: 'healthy', message: 'OK' },
+            redis: { status: 'healthy', message: 'Connected' },
+            ai: { status: 'healthy', message: 'Running' },
+          },
+          timestamp: '2025-12-23T10:00:00Z',
+        },
+        isLoading: false,
+        error: null,
+        overallStatus: 'healthy',
+        services: {
+          database: { status: 'healthy', message: 'OK' },
+          redis: { status: 'healthy', message: 'Connected' },
+          ai: { status: 'healthy', message: 'Running' },
+        },
+        refresh: vi.fn(),
+      });
+
+      render(<Header />);
+
+      // Tooltip should not be visible initially
+      expect(screen.queryByTestId('health-tooltip')).not.toBeInTheDocument();
+
+      // Hover over the health indicator
+      const healthIndicator = screen.getByTestId('health-indicator');
+      fireEvent.mouseEnter(healthIndicator);
+
+      // Tooltip should now be visible
+      expect(screen.getByTestId('health-tooltip')).toBeInTheDocument();
+
+      // Check service details are displayed
+      expect(screen.getByText('Service Status')).toBeInTheDocument();
+      expect(screen.getByText('database')).toBeInTheDocument();
+      expect(screen.getByText('redis')).toBeInTheDocument();
+      expect(screen.getByText('ai')).toBeInTheDocument();
+    });
+
+    it('hides tooltip on mouse leave after delay', async () => {
+      vi.useFakeTimers();
+
+      vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
+        status: {
+          health: 'healthy',
+          gpu_utilization: 45,
+          gpu_temperature: 65,
+          gpu_memory_used: 8192,
+          gpu_memory_total: 24576,
+          active_cameras: 3,
+          last_update: '2025-12-23T10:00:00Z',
+        },
+        isConnected: true,
+      });
+
+      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
+        health: {
+          status: 'healthy',
+          services: {
+            database: { status: 'healthy', message: 'OK' },
+          },
+          timestamp: '2025-12-23T10:00:00Z',
+        },
+        isLoading: false,
+        error: null,
+        overallStatus: 'healthy',
+        services: {
+          database: { status: 'healthy', message: 'OK' },
+        },
+        refresh: vi.fn(),
+      });
+
+      render(<Header />);
+
+      const healthIndicator = screen.getByTestId('health-indicator');
+
+      // Hover to show tooltip
+      fireEvent.mouseEnter(healthIndicator);
+      expect(screen.getByTestId('health-tooltip')).toBeInTheDocument();
+
+      // Mouse leave
+      fireEvent.mouseLeave(healthIndicator);
+
+      // Tooltip should still be visible (150ms delay)
+      expect(screen.getByTestId('health-tooltip')).toBeInTheDocument();
+
+      // Advance timers past the delay
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(200);
+      });
+
+      // Tooltip should be hidden
+      expect(screen.queryByTestId('health-tooltip')).not.toBeInTheDocument();
+
+      vi.useRealTimers();
+    });
+
+    it('does not show tooltip when no services available', () => {
+      vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
+        status: {
+          health: 'healthy',
+          gpu_utilization: 45,
+          gpu_temperature: 65,
+          gpu_memory_used: 8192,
+          gpu_memory_total: 24576,
+          active_cameras: 3,
+          last_update: '2025-12-23T10:00:00Z',
+        },
+        isConnected: true,
+      });
+
+      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
+        health: null,
+        isLoading: false,
+        error: null,
+        overallStatus: 'healthy',
+        services: {},
+        refresh: vi.fn(),
+      });
+
+      render(<Header />);
+
+      const healthIndicator = screen.getByTestId('health-indicator');
+      fireEvent.mouseEnter(healthIndicator);
+
+      // Even on hover, tooltip should not appear if no services
+      expect(screen.queryByTestId('health-tooltip')).not.toBeInTheDocument();
+    });
+
+    it('shows correct service status colors in tooltip', () => {
+      vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
+        status: {
+          health: 'degraded',
+          gpu_utilization: 45,
+          gpu_temperature: 65,
+          gpu_memory_used: 8192,
+          gpu_memory_total: 24576,
+          active_cameras: 3,
+          last_update: '2025-12-23T10:00:00Z',
+        },
+        isConnected: true,
+      });
+
+      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
+        health: {
+          status: 'degraded',
+          services: {
+            database: { status: 'healthy', message: 'OK' },
+            redis: { status: 'unhealthy', message: 'Connection failed' },
+            ai: { status: 'degraded', message: 'High latency' },
+          },
+          timestamp: '2025-12-23T10:00:00Z',
+        },
+        isLoading: false,
+        error: null,
+        overallStatus: 'degraded',
+        services: {
+          database: { status: 'healthy', message: 'OK' },
+          redis: { status: 'unhealthy', message: 'Connection failed' },
+          ai: { status: 'degraded', message: 'High latency' },
+        },
+        refresh: vi.fn(),
+      });
+
+      render(<Header />);
+
+      const healthIndicator = screen.getByTestId('health-indicator');
+      fireEvent.mouseEnter(healthIndicator);
+
+      expect(screen.getByTestId('health-tooltip')).toBeInTheDocument();
+
+      // Check service dots have correct colors
+      const databaseDot = screen.getByTestId('service-dot-database');
+      const redisDot = screen.getByTestId('service-dot-redis');
+      const aiDot = screen.getByTestId('service-dot-ai');
+
+      expect(databaseDot).toHaveClass('bg-green-500');
+      expect(redisDot).toHaveClass('bg-red-500');
+      expect(aiDot).toHaveClass('bg-yellow-500');
+    });
+
+    it('has cursor-pointer on health indicator', () => {
+      vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
+        status: {
+          health: 'healthy',
+          gpu_utilization: 45,
+          gpu_temperature: 65,
+          gpu_memory_used: 8192,
+          gpu_memory_total: 24576,
+          active_cameras: 3,
+          last_update: '2025-12-23T10:00:00Z',
+        },
+        isConnected: true,
+      });
+
+      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
+        health: null,
+        isLoading: false,
+        error: null,
+        overallStatus: 'healthy',
+        services: {},
+        refresh: vi.fn(),
+      });
+
+      render(<Header />);
+
+      const healthIndicator = screen.getByTestId('health-indicator');
+      expect(healthIndicator).toHaveClass('cursor-pointer');
+    });
+  });
+
+  describe('API health takes precedence over WebSocket health', () => {
+    it('uses API health when both are available', () => {
+      vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
+        status: {
+          health: 'healthy', // WebSocket says healthy
+          gpu_utilization: 45,
+          gpu_temperature: 65,
+          gpu_memory_used: 8192,
+          gpu_memory_total: 24576,
+          active_cameras: 3,
+          last_update: '2025-12-23T10:00:00Z',
+        },
+        isConnected: true,
+      });
+
+      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
+        health: {
+          status: 'degraded',
+          services: {
+            database: { status: 'unhealthy', message: 'Error' },
+          },
+          timestamp: '2025-12-23T10:00:00Z',
+        },
+        isLoading: false,
+        error: null,
+        overallStatus: 'degraded', // API says degraded
+        services: {
+          database: { status: 'unhealthy', message: 'Error' },
+        },
+        refresh: vi.fn(),
+      });
+
+      render(<Header />);
+
+      // Should show degraded status (from API) not healthy (from WebSocket)
+      expect(screen.getByText('System Degraded')).toBeInTheDocument();
+      const statusDot = screen.getByTestId('health-dot');
+      expect(statusDot).toHaveClass('bg-yellow-500');
+    });
+
+    it('falls back to WebSocket health when API health is null', () => {
+      vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
+        status: {
+          health: 'healthy',
+          gpu_utilization: 45,
+          gpu_temperature: 65,
+          gpu_memory_used: 8192,
+          gpu_memory_total: 24576,
+          active_cameras: 3,
+          last_update: '2025-12-23T10:00:00Z',
+        },
+        isConnected: true,
+      });
+
+      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
+        health: null,
+        isLoading: false,
+        error: 'Failed to fetch',
+        overallStatus: null, // API failed
+        services: {},
+        refresh: vi.fn(),
+      });
+
+      render(<Header />);
+
+      // Should fall back to WebSocket healthy status
+      expect(screen.getByText('LIVE MONITORING')).toBeInTheDocument();
+      const statusDot = screen.getByTestId('health-dot');
+      expect(statusDot).toHaveClass('bg-green-500');
+    });
   });
 });

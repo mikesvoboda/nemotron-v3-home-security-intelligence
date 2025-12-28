@@ -7,6 +7,7 @@ import EventTimeline from './components/events/EventTimeline';
 import Layout from './components/layout/Layout';
 import LogsDashboard from './components/logs/LogsDashboard';
 import SettingsPage from './components/settings/SettingsPage';
+import { SystemMonitoringPage } from './components/system';
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
           <Route path="/alerts" element={<AlertsPage />} />
           <Route path="/entities" element={<EntitiesPage />} />
           <Route path="/logs" element={<LogsDashboard />} />
+          <Route path="/system" element={<SystemMonitoringPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </Layout>

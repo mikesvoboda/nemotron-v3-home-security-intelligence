@@ -1,6 +1,9 @@
-import { Card, ProgressBar, Title, Text } from '@tremor/react';
+import { Card, ProgressBar, Title, Text, AreaChart } from '@tremor/react';
 import { clsx } from 'clsx';
-import { Cpu, Thermometer, Activity, Zap } from 'lucide-react';
+import { Cpu, Thermometer, Activity, Zap, TrendingUp } from 'lucide-react';
+import { useEffect, useState } from 'react';
+
+import { fetchGpuHistory, type GPUStatsHistoryResponse } from '../../services/api';
 
 export interface GpuStatsProps {
   utilization: number | null; // 0-100%
@@ -9,6 +12,14 @@ export interface GpuStatsProps {
   temperature: number | null; // Celsius
   inferenceFps: number | null;
   className?: string;
+}
+
+/**
+ * Chart data point for GPU utilization history
+ */
+interface ChartDataPoint {
+  time: string;
+  'GPU Utilization': number;
 }
 
 /**
@@ -42,10 +53,28 @@ function formatMemory(used: number | null, total: number | null): { text: string
 }
 
 /**
+ * Transform GPU history response to chart data format
+ */
+function transformHistoryToChartData(history: GPUStatsHistoryResponse | null): ChartDataPoint[] {
+  if (!history || !history.samples || history.samples.length === 0) {
+    return [];
+  }
+
+  return history.samples.map((sample) => ({
+    time: new Date(sample.recorded_at).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+    }),
+    'GPU Utilization': sample.utilization ?? 0,
+  }));
+}
+
+/**
  * GpuStats component displays GPU metrics in a compact dashboard card
  * - Shows utilization, memory usage, temperature, and inference FPS
+ * - Displays GPU utilization history chart
  * - Uses NVIDIA branding color (#76B900) for healthy metrics
- * - Temperature color coding: green (<70°C), yellow (70-80°C), red (>80°C)
+ * - Temperature color coding: green (<70C), yellow (70-80C), red (>80C)
  * - Handles null values gracefully with "N/A" display
  */
 export default function GpuStats({
@@ -56,8 +85,43 @@ export default function GpuStats({
   inferenceFps,
   className,
 }: GpuStatsProps) {
+  const [history, setHistory] = useState<GPUStatsHistoryResponse | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+
   const memory = formatMemory(memoryUsed, memoryTotal);
   const tempColor = getTemperatureColor(temperature);
+  const chartData = transformHistoryToChartData(history);
+
+  // Fetch GPU history on mount
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadHistory() {
+      try {
+        setHistoryLoading(true);
+        setHistoryError(null);
+        const data = await fetchGpuHistory(100);
+        if (isMounted) {
+          setHistory(data);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setHistoryError(error instanceof Error ? error.message : 'Failed to load GPU history');
+        }
+      } finally {
+        if (isMounted) {
+          setHistoryLoading(false);
+        }
+      }
+    }
+
+    void loadHistory();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <Card
@@ -124,7 +188,7 @@ export default function GpuStats({
                 tempColor === 'gray' && 'text-gray-400'
               )}
             >
-              {formatValue(temperature, '°C')}
+              {formatValue(temperature, '\u00B0C')}
             </Text>
           </div>
           <ProgressBar
@@ -142,6 +206,49 @@ export default function GpuStats({
               {formatValue(inferenceFps)}
             </Text>
           </div>
+        </div>
+
+        {/* GPU Utilization History Chart */}
+        <div className="pt-4 border-t border-gray-800">
+          <div className="flex items-center gap-2 mb-3">
+            <TrendingUp className="h-4 w-4 text-[#76B900]" />
+            <Text className="text-gray-300 text-sm font-medium">Utilization History</Text>
+          </div>
+          {historyLoading ? (
+            <div
+              className="h-32 flex items-center justify-center text-gray-500"
+              data-testid="gpu-history-loading"
+            >
+              <Text>Loading history...</Text>
+            </div>
+          ) : historyError ? (
+            <div
+              className="h-32 flex items-center justify-center text-red-400"
+              data-testid="gpu-history-error"
+            >
+              <Text>{historyError}</Text>
+            </div>
+          ) : chartData.length > 0 ? (
+            <AreaChart
+              className="h-32"
+              data={chartData}
+              index="time"
+              categories={['GPU Utilization']}
+              colors={['emerald']}
+              valueFormatter={(value) => `${value}%`}
+              showLegend={false}
+              showGridLines={false}
+              curveType="monotone"
+              data-testid="gpu-history-chart"
+            />
+          ) : (
+            <div
+              className="h-32 flex items-center justify-center text-gray-500"
+              data-testid="gpu-history-empty"
+            >
+              <Text>No history data available</Text>
+            </div>
+          )}
         </div>
       </div>
     </Card>

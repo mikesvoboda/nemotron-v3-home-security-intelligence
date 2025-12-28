@@ -16,7 +16,73 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from backend.api.routes import events as events_routes
+from backend.api.routes.events import parse_detection_ids
 from backend.api.schemas.events import EventUpdate
+
+# =============================================================================
+# parse_detection_ids Function Tests
+# =============================================================================
+
+
+def test_parse_detection_ids_normal_string() -> None:
+    """Test parsing a normal comma-separated detection IDs string."""
+    result = parse_detection_ids("1,2,3,4")
+    assert result == [1, 2, 3, 4]
+
+
+def test_parse_detection_ids_with_whitespace() -> None:
+    """Test parsing detection IDs with whitespace around values."""
+    result = parse_detection_ids("1, 2 , 3 ,4")
+    assert result == [1, 2, 3, 4]
+
+
+def test_parse_detection_ids_single_id() -> None:
+    """Test parsing a single detection ID."""
+    result = parse_detection_ids("42")
+    assert result == [42]
+
+
+def test_parse_detection_ids_none() -> None:
+    """Test parsing None returns empty list."""
+    result = parse_detection_ids(None)
+    assert result == []
+
+
+def test_parse_detection_ids_empty_string() -> None:
+    """Test parsing empty string returns empty list."""
+    result = parse_detection_ids("")
+    assert result == []
+
+
+def test_parse_detection_ids_whitespace_only() -> None:
+    """Test parsing whitespace-only string returns empty list."""
+    result = parse_detection_ids("   ")
+    assert result == []
+
+
+def test_parse_detection_ids_trailing_comma() -> None:
+    """Test parsing string with trailing comma."""
+    result = parse_detection_ids("1,2,3,")
+    assert result == [1, 2, 3]
+
+
+def test_parse_detection_ids_leading_comma() -> None:
+    """Test parsing string with leading comma."""
+    result = parse_detection_ids(",1,2,3")
+    assert result == [1, 2, 3]
+
+
+def test_parse_detection_ids_multiple_commas() -> None:
+    """Test parsing string with multiple consecutive commas."""
+    result = parse_detection_ids("1,,2,,,3")
+    assert result == [1, 2, 3]
+
+
+def test_parse_detection_ids_large_numbers() -> None:
+    """Test parsing large detection IDs."""
+    result = parse_detection_ids("1000000,2000000,3000000")
+    assert result == [1000000, 2000000, 3000000]
+
 
 # =============================================================================
 # Helper Functions
@@ -159,6 +225,40 @@ async def test_list_events_returns_events_with_detection_count() -> None:
     assert response["events"][0]["id"] == 1
     assert response["events"][0]["detection_count"] == 3
     assert response["count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_list_events_returns_detection_ids_array() -> None:
+    """Test that list_events returns detection_ids as integer array."""
+    db = AsyncMock()
+
+    mock_event = create_mock_event(detection_ids="10,20,30")
+
+    # Mock count query
+    count_result = MagicMock()
+    count_result.scalar.return_value = 1
+
+    # Mock events query
+    events_result = MagicMock()
+    events_result.scalars.return_value.all.return_value = [mock_event]
+
+    db.execute = AsyncMock(side_effect=[count_result, events_result])
+
+    response = await events_routes.list_events(
+        camera_id=None,
+        risk_level=None,
+        start_date=None,
+        end_date=None,
+        reviewed=None,
+        object_type=None,
+        limit=50,
+        offset=0,
+        db=db,
+    )
+
+    assert len(response["events"]) == 1
+    assert response["events"][0]["detection_ids"] == [10, 20, 30]
+    assert response["events"][0]["detection_count"] == 3
 
 
 @pytest.mark.asyncio
@@ -890,6 +990,7 @@ async def test_get_event_returns_event_by_id() -> None:
     assert response["reviewed"] is True
     assert response["notes"] == "Verified"
     assert response["detection_count"] == 3
+    assert response["detection_ids"] == [1, 2, 3]
 
 
 @pytest.mark.asyncio
@@ -923,6 +1024,7 @@ async def test_get_event_with_no_detection_ids() -> None:
     response = await events_routes.get_event(event_id=1, db=db)
 
     assert response["detection_count"] == 0
+    assert response["detection_ids"] == []
 
 
 @pytest.mark.asyncio
@@ -939,6 +1041,7 @@ async def test_get_event_with_empty_detection_ids() -> None:
     response = await events_routes.get_event(event_id=1, db=db)
 
     assert response["detection_count"] == 0
+    assert response["detection_ids"] == []
 
 
 @pytest.mark.asyncio
@@ -979,6 +1082,8 @@ async def test_get_event_includes_all_fields() -> None:
     assert "reviewed" in response
     assert "notes" in response
     assert "detection_count" in response
+    assert "detection_ids" in response
+    assert response["detection_ids"] == [1, 2]
 
 
 @pytest.mark.asyncio
@@ -1170,6 +1275,7 @@ async def test_update_event_returns_correct_response() -> None:
     assert response["id"] == 1
     assert response["camera_id"] == "cam-001"
     assert response["detection_count"] == 3
+    assert response["detection_ids"] == [1, 2, 3]
     assert "started_at" in response
     assert "ended_at" in response
     assert "risk_score" in response
@@ -1537,3 +1643,347 @@ async def test_get_event_detections_count_returns_zero_on_none() -> None:
     response = await events_routes.get_event_detections(event_id=1, limit=50, offset=0, db=db)
 
     assert response["count"] == 0
+
+
+# =============================================================================
+# export_events Endpoint Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_export_events_returns_csv_streaming_response() -> None:
+    """Test that export_events returns a StreamingResponse with CSV content."""
+    db = AsyncMock()
+
+    now = datetime.utcnow()
+    mock_events = [
+        create_mock_event(
+            event_id=1,
+            camera_id="cam-001",
+            started_at=now,
+            ended_at=now,
+            risk_score=75,
+            risk_level="medium",
+            summary="Person detected",
+            reviewed=True,
+            detection_ids="1,2,3",
+        ),
+    ]
+
+    # Mock events query
+    events_result = MagicMock()
+    events_result.scalars.return_value.all.return_value = mock_events
+
+    # Mock camera query
+    camera_result = MagicMock()
+    camera_result.scalars.return_value.all.return_value = [create_mock_camera(camera_id="cam-001")]
+
+    db.execute = AsyncMock(side_effect=[events_result, camera_result])
+
+    response = await events_routes.export_events(
+        camera_id=None,
+        risk_level=None,
+        start_date=None,
+        end_date=None,
+        reviewed=None,
+        db=db,
+    )
+
+    # Check response type
+    from fastapi.responses import StreamingResponse
+
+    assert isinstance(response, StreamingResponse)
+    assert response.media_type == "text/csv"
+    assert "Content-Disposition" in response.headers
+    assert "attachment" in response.headers["Content-Disposition"]
+    assert "events_export_" in response.headers["Content-Disposition"]
+    assert ".csv" in response.headers["Content-Disposition"]
+
+
+@pytest.mark.asyncio
+async def test_export_events_returns_empty_csv_when_no_events() -> None:
+    """Test that export_events returns CSV with only headers when no events."""
+    db = AsyncMock()
+
+    # Mock empty events query
+    events_result = MagicMock()
+    events_result.scalars.return_value.all.return_value = []
+
+    # Mock camera query (won't be used since no events)
+    camera_result = MagicMock()
+    camera_result.scalars.return_value.all.return_value = []
+
+    db.execute = AsyncMock(side_effect=[events_result, camera_result])
+
+    response = await events_routes.export_events(
+        camera_id=None,
+        risk_level=None,
+        start_date=None,
+        end_date=None,
+        reviewed=None,
+        db=db,
+    )
+
+    # Check it's a valid response
+    from fastapi.responses import StreamingResponse
+
+    assert isinstance(response, StreamingResponse)
+    assert response.media_type == "text/csv"
+
+
+@pytest.mark.asyncio
+async def test_export_events_with_camera_filter() -> None:
+    """Test that export_events filters by camera_id."""
+    db = AsyncMock()
+
+    mock_event = create_mock_event(event_id=1, camera_id="cam-001")
+
+    # Mock events query
+    events_result = MagicMock()
+    events_result.scalars.return_value.all.return_value = [mock_event]
+
+    # Mock camera query
+    camera_result = MagicMock()
+    camera_result.scalars.return_value.all.return_value = [create_mock_camera(camera_id="cam-001")]
+
+    db.execute = AsyncMock(side_effect=[events_result, camera_result])
+
+    response = await events_routes.export_events(
+        camera_id="cam-001",
+        risk_level=None,
+        start_date=None,
+        end_date=None,
+        reviewed=None,
+        db=db,
+    )
+
+    from fastapi.responses import StreamingResponse
+
+    assert isinstance(response, StreamingResponse)
+
+
+@pytest.mark.asyncio
+async def test_export_events_with_risk_level_filter() -> None:
+    """Test that export_events filters by risk_level."""
+    db = AsyncMock()
+
+    mock_event = create_mock_event(event_id=1, risk_level="high")
+
+    # Mock events query
+    events_result = MagicMock()
+    events_result.scalars.return_value.all.return_value = [mock_event]
+
+    # Mock camera query
+    camera_result = MagicMock()
+    camera_result.scalars.return_value.all.return_value = [create_mock_camera(camera_id="cam-001")]
+
+    db.execute = AsyncMock(side_effect=[events_result, camera_result])
+
+    response = await events_routes.export_events(
+        camera_id=None,
+        risk_level="high",
+        start_date=None,
+        end_date=None,
+        reviewed=None,
+        db=db,
+    )
+
+    from fastapi.responses import StreamingResponse
+
+    assert isinstance(response, StreamingResponse)
+
+
+@pytest.mark.asyncio
+async def test_export_events_with_date_filters() -> None:
+    """Test that export_events filters by date range."""
+    db = AsyncMock()
+
+    now = datetime.utcnow()
+    mock_event = create_mock_event(event_id=1, started_at=now)
+
+    # Mock events query
+    events_result = MagicMock()
+    events_result.scalars.return_value.all.return_value = [mock_event]
+
+    # Mock camera query
+    camera_result = MagicMock()
+    camera_result.scalars.return_value.all.return_value = [create_mock_camera(camera_id="cam-001")]
+
+    db.execute = AsyncMock(side_effect=[events_result, camera_result])
+
+    start = now - timedelta(hours=1)
+    end = now + timedelta(hours=1)
+
+    response = await events_routes.export_events(
+        camera_id=None,
+        risk_level=None,
+        start_date=start,
+        end_date=end,
+        reviewed=None,
+        db=db,
+    )
+
+    from fastapi.responses import StreamingResponse
+
+    assert isinstance(response, StreamingResponse)
+
+
+@pytest.mark.asyncio
+async def test_export_events_with_reviewed_filter() -> None:
+    """Test that export_events filters by reviewed status."""
+    db = AsyncMock()
+
+    mock_event = create_mock_event(event_id=1, reviewed=True)
+
+    # Mock events query
+    events_result = MagicMock()
+    events_result.scalars.return_value.all.return_value = [mock_event]
+
+    # Mock camera query
+    camera_result = MagicMock()
+    camera_result.scalars.return_value.all.return_value = [create_mock_camera(camera_id="cam-001")]
+
+    db.execute = AsyncMock(side_effect=[events_result, camera_result])
+
+    response = await events_routes.export_events(
+        camera_id=None,
+        risk_level=None,
+        start_date=None,
+        end_date=None,
+        reviewed=True,
+        db=db,
+    )
+
+    from fastapi.responses import StreamingResponse
+
+    assert isinstance(response, StreamingResponse)
+
+
+@pytest.mark.asyncio
+async def test_export_events_handles_unknown_camera() -> None:
+    """Test that export_events shows 'Unknown' for missing camera."""
+    db = AsyncMock()
+
+    mock_event = create_mock_event(event_id=1, camera_id="unknown-cam")
+
+    # Mock events query
+    events_result = MagicMock()
+    events_result.scalars.return_value.all.return_value = [mock_event]
+
+    # Mock camera query - no matching cameras
+    camera_result = MagicMock()
+    camera_result.scalars.return_value.all.return_value = []
+
+    db.execute = AsyncMock(side_effect=[events_result, camera_result])
+
+    response = await events_routes.export_events(
+        camera_id=None,
+        risk_level=None,
+        start_date=None,
+        end_date=None,
+        reviewed=None,
+        db=db,
+    )
+
+    from fastapi.responses import StreamingResponse
+
+    assert isinstance(response, StreamingResponse)
+
+
+@pytest.mark.asyncio
+async def test_export_events_handles_none_values() -> None:
+    """Test that export_events handles events with None values gracefully."""
+    db = AsyncMock()
+
+    # Event with many None values
+    mock_event = create_mock_event(
+        event_id=1,
+        camera_id="cam-001",
+        started_at=datetime.utcnow(),
+        ended_at=None,
+        risk_score=None,
+        risk_level=None,
+        summary=None,
+        reviewed=False,
+        detection_ids=None,
+    )
+
+    # Mock events query
+    events_result = MagicMock()
+    events_result.scalars.return_value.all.return_value = [mock_event]
+
+    # Mock camera query
+    camera_result = MagicMock()
+    camera_result.scalars.return_value.all.return_value = [create_mock_camera(camera_id="cam-001")]
+
+    db.execute = AsyncMock(side_effect=[events_result, camera_result])
+
+    response = await events_routes.export_events(
+        camera_id=None,
+        risk_level=None,
+        start_date=None,
+        end_date=None,
+        reviewed=None,
+        db=db,
+    )
+
+    from fastapi.responses import StreamingResponse
+
+    assert isinstance(response, StreamingResponse)
+
+
+@pytest.mark.asyncio
+async def test_export_events_multiple_events() -> None:
+    """Test that export_events handles multiple events correctly."""
+    db = AsyncMock()
+
+    now = datetime.utcnow()
+    mock_events = [
+        create_mock_event(
+            event_id=1,
+            camera_id="cam-001",
+            started_at=now,
+            risk_level="high",
+            reviewed=True,
+        ),
+        create_mock_event(
+            event_id=2,
+            camera_id="cam-002",
+            started_at=now - timedelta(hours=1),
+            risk_level="medium",
+            reviewed=False,
+        ),
+        create_mock_event(
+            event_id=3,
+            camera_id="cam-001",
+            started_at=now - timedelta(hours=2),
+            risk_level="low",
+            reviewed=True,
+        ),
+    ]
+
+    # Mock events query
+    events_result = MagicMock()
+    events_result.scalars.return_value.all.return_value = mock_events
+
+    # Mock camera query
+    camera_result = MagicMock()
+    camera_result.scalars.return_value.all.return_value = [
+        create_mock_camera(camera_id="cam-001", name="Front Door"),
+        create_mock_camera(camera_id="cam-002", name="Back Door"),
+    ]
+
+    db.execute = AsyncMock(side_effect=[events_result, camera_result])
+
+    response = await events_routes.export_events(
+        camera_id=None,
+        risk_level=None,
+        start_date=None,
+        end_date=None,
+        reviewed=None,
+        db=db,
+    )
+
+    from fastapi.responses import StreamingResponse
+
+    assert isinstance(response, StreamingResponse)
