@@ -1439,3 +1439,229 @@ async def test_manager_get_status_with_no_workers(mock_redis_client):
 
     assert status["running"] is False
     assert status["workers"] == {}
+
+
+# =============================================================================
+# Video Processing Tests
+# =============================================================================
+
+
+@pytest.fixture
+def mock_video_processor():
+    """Create a mock video processor."""
+    processor = MagicMock()
+    processor.extract_frames_for_detection = AsyncMock(return_value=[])
+    processor.cleanup_extracted_frames = MagicMock(return_value=True)
+    processor.get_video_metadata = AsyncMock(
+        return_value={
+            "duration": 10.0,
+            "video_codec": "h264",
+            "video_width": 1920,
+            "video_height": 1080,
+            "file_type": "video/mp4",
+        }
+    )
+    return processor
+
+
+@pytest.mark.asyncio
+async def test_detection_worker_processes_video_item(
+    mock_redis_client, mock_detector_client, mock_batch_aggregator, mock_video_processor
+):
+    """Test DetectionQueueWorker processes video queue items correctly."""
+    call_count = 0
+
+    async def mock_get_from_queue(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        await asyncio.sleep(0.01)
+        if call_count == 1:
+            return {
+                "camera_id": "front_door",
+                "file_path": "/path/to/video.mp4",
+                "timestamp": datetime.now().isoformat(),
+                "media_type": "video",
+            }
+        return None
+
+    mock_redis_client.get_from_queue = mock_get_from_queue
+
+    # Setup video processor to return frames
+    mock_video_processor.extract_frames_for_detection = AsyncMock(
+        return_value=["/data/thumbnails/frame_0.jpg", "/data/thumbnails/frame_1.jpg"]
+    )
+
+    # Setup detector to return detections for each frame
+    detection = MagicMock()
+    detection.id = 1
+    detection.confidence = 0.95
+    detection.object_type = "person"
+    mock_detector_client.detect_objects = AsyncMock(return_value=[detection])
+
+    worker = DetectionQueueWorker(
+        redis_client=mock_redis_client,
+        detector_client=mock_detector_client,
+        batch_aggregator=mock_batch_aggregator,
+        video_processor=mock_video_processor,
+        poll_timeout=1,
+    )
+
+    with patch("backend.services.pipeline_workers.get_session") as mock_get_session:
+        mock_session = AsyncMock()
+        mock_get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
+
+        await worker.start()
+        await asyncio.sleep(0.2)
+        await worker.stop()
+
+    # Verify video was processed
+    assert worker.stats.items_processed == 1
+    mock_video_processor.extract_frames_for_detection.assert_called_once()
+    # Should have called detect_objects for each frame
+    assert mock_detector_client.detect_objects.call_count == 2
+    # Cleanup should have been called
+    mock_video_processor.cleanup_extracted_frames.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_detection_worker_handles_video_with_no_frames(
+    mock_redis_client, mock_detector_client, mock_batch_aggregator, mock_video_processor
+):
+    """Test DetectionQueueWorker handles videos that fail frame extraction."""
+    call_count = 0
+
+    async def mock_get_from_queue(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        await asyncio.sleep(0.01)
+        if call_count == 1:
+            return {
+                "camera_id": "front_door",
+                "file_path": "/path/to/corrupted_video.mp4",
+                "timestamp": datetime.now().isoformat(),
+                "media_type": "video",
+            }
+        return None
+
+    mock_redis_client.get_from_queue = mock_get_from_queue
+
+    # Setup video processor to return empty frames (extraction failed)
+    mock_video_processor.extract_frames_for_detection = AsyncMock(return_value=[])
+
+    worker = DetectionQueueWorker(
+        redis_client=mock_redis_client,
+        detector_client=mock_detector_client,
+        batch_aggregator=mock_batch_aggregator,
+        video_processor=mock_video_processor,
+        poll_timeout=1,
+    )
+
+    await worker.start()
+    await asyncio.sleep(0.2)
+    await worker.stop()
+
+    # Item should still be marked as processed (even though no frames)
+    assert worker.stats.items_processed == 1
+    # Detector should not have been called (no frames)
+    mock_detector_client.detect_objects.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_detection_worker_processes_image_item(
+    mock_redis_client, mock_detector_client, mock_batch_aggregator, mock_video_processor
+):
+    """Test DetectionQueueWorker processes image items without video processing."""
+    call_count = 0
+
+    async def mock_get_from_queue(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        await asyncio.sleep(0.01)
+        if call_count == 1:
+            return {
+                "camera_id": "front_door",
+                "file_path": "/path/to/image.jpg",
+                "timestamp": datetime.now().isoformat(),
+                "media_type": "image",
+            }
+        return None
+
+    mock_redis_client.get_from_queue = mock_get_from_queue
+
+    detection = MagicMock()
+    detection.id = 1
+    detection.confidence = 0.95
+    detection.object_type = "person"
+    mock_detector_client.detect_objects = AsyncMock(return_value=[detection])
+
+    worker = DetectionQueueWorker(
+        redis_client=mock_redis_client,
+        detector_client=mock_detector_client,
+        batch_aggregator=mock_batch_aggregator,
+        video_processor=mock_video_processor,
+        poll_timeout=1,
+    )
+
+    with patch("backend.services.pipeline_workers.get_session") as mock_get_session:
+        mock_session = AsyncMock()
+        mock_get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
+
+        await worker.start()
+        await asyncio.sleep(0.2)
+        await worker.stop()
+
+    # Verify image was processed
+    assert worker.stats.items_processed == 1
+    # Video processor should NOT have been called for image
+    mock_video_processor.extract_frames_for_detection.assert_not_called()
+    mock_video_processor.cleanup_extracted_frames.assert_not_called()
+    # Detector should have been called once for the image
+    mock_detector_client.detect_objects.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_detection_worker_defaults_to_image_media_type(
+    mock_redis_client, mock_detector_client, mock_batch_aggregator, mock_video_processor
+):
+    """Test DetectionQueueWorker defaults to image when media_type is missing."""
+    call_count = 0
+
+    async def mock_get_from_queue(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        await asyncio.sleep(0.01)
+        if call_count == 1:
+            return {
+                "camera_id": "front_door",
+                "file_path": "/path/to/image.jpg",
+                "timestamp": datetime.now().isoformat(),
+                # media_type is intentionally missing
+            }
+        return None
+
+    mock_redis_client.get_from_queue = mock_get_from_queue
+
+    mock_detector_client.detect_objects = AsyncMock(return_value=[])
+
+    worker = DetectionQueueWorker(
+        redis_client=mock_redis_client,
+        detector_client=mock_detector_client,
+        batch_aggregator=mock_batch_aggregator,
+        video_processor=mock_video_processor,
+        poll_timeout=1,
+    )
+
+    with patch("backend.services.pipeline_workers.get_session") as mock_get_session:
+        mock_session = AsyncMock()
+        mock_get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
+
+        await worker.start()
+        await asyncio.sleep(0.2)
+        await worker.stop()
+
+    # Should process as image (default)
+    assert worker.stats.items_processed == 1
+    mock_video_processor.extract_frames_for_detection.assert_not_called()

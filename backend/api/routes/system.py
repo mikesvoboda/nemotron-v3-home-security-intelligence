@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import httpx
-from fastapi import APIRouter, Body, Depends, Header, HTTPException
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -35,7 +35,7 @@ from backend.api.schemas.system import (
     WorkerStatus,
 )
 from backend.core import get_db, get_settings
-from backend.core.redis import RedisClient, get_redis
+from backend.core.redis import RedisClient, get_redis, get_redis_optional
 from backend.models import Camera, Detection, Event, GPUStats
 
 logger = logging.getLogger(__name__)
@@ -427,15 +427,23 @@ async def check_database_health(db: AsyncSession) -> ServiceStatus:
         )
 
 
-async def check_redis_health(redis: RedisClient) -> ServiceStatus:
+async def check_redis_health(redis: RedisClient | None) -> ServiceStatus:
     """Check Redis connectivity and health.
 
     Args:
-        redis: Redis client
+        redis: Redis client (may be None if connection failed during dependency injection)
 
     Returns:
         ServiceStatus with Redis health information
     """
+    # Handle case where Redis client is None (connection failed during DI)
+    if redis is None:
+        return ServiceStatus(
+            status="unhealthy",
+            message="Redis unavailable: connection failed",
+            details=None,
+        )
+
     try:
         health = await redis.health_check()
         if health.get("status") == "healthy":
@@ -641,8 +649,9 @@ async def check_ai_services_health() -> ServiceStatus:
 
 @router.get("/health", response_model=HealthResponse)
 async def get_health(
+    response: Response,
     db: AsyncSession = Depends(get_db),
-    redis: RedisClient = Depends(get_redis),
+    redis: RedisClient | None = Depends(get_redis_optional),
 ) -> HealthResponse:
     """Get detailed system health check.
 
@@ -655,7 +664,8 @@ async def get_health(
     If a health check times out, the service is marked as unhealthy.
 
     Returns:
-        HealthResponse with overall status and individual service statuses
+        HealthResponse with overall status and individual service statuses.
+        HTTP 200 if healthy, 503 if degraded or unhealthy.
     """
     # Check all services with timeout protection
     try:
@@ -713,6 +723,11 @@ async def get_health(
     else:
         overall_status = "degraded"
 
+    # Set appropriate HTTP status code
+    # 200 for healthy, 503 for degraded or unhealthy
+    if overall_status != "healthy":
+        response.status_code = 503
+
     return HealthResponse(
         status=overall_status,
         services=services,
@@ -739,8 +754,9 @@ async def get_liveness() -> LivenessResponse:
 
 @router.get("/health/ready", response_model=ReadinessResponse)
 async def get_readiness(
+    response: Response,
     db: AsyncSession = Depends(get_db),
-    redis: RedisClient = Depends(get_redis),
+    redis: RedisClient | None = Depends(get_redis_optional),
 ) -> ReadinessResponse:
     """Readiness probe endpoint.
 
@@ -758,7 +774,8 @@ async def get_readiness(
     If a health check times out, the service is marked as unhealthy.
 
     Returns:
-        ReadinessResponse with overall readiness status and detailed checks
+        ReadinessResponse with overall readiness status and detailed checks.
+        HTTP 200 if ready, 503 if degraded or not ready.
     """
     # Check all infrastructure services with timeout protection
     try:
@@ -835,6 +852,11 @@ async def get_readiness(
         # Database down - not ready
         ready = False
         status = "not_ready"
+
+    # Set appropriate HTTP status code
+    # 200 if ready, 503 if not ready or degraded
+    if not ready:
+        response.status_code = 503
 
     return ReadinessResponse(
         ready=ready,

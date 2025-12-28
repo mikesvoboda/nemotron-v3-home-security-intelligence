@@ -46,6 +46,14 @@ def app_with_auth(test_api_key):
     async def system_health():
         return {"status": "healthy"}
 
+    @app.get("/api/system/health/live")
+    async def liveness():
+        return {"status": "alive"}
+
+    @app.get("/api/system/health/ready")
+    async def readiness():
+        return {"ready": True, "status": "ready"}
+
     @app.get("/api/protected")
     async def protected():
         return {"message": "protected"}
@@ -135,6 +143,25 @@ def test_health_endpoint_bypasses_auth(app_with_auth):
     assert response.json() == {"message": "ok"}
 
 
+def test_health_probe_endpoints_bypass_auth(app_with_auth):
+    """Test that liveness and readiness probe endpoints bypass authentication.
+
+    This is critical for Docker healthchecks which call these endpoints without
+    API keys. If authentication is enabled, healthchecks should still work.
+    """
+    client = TestClient(app_with_auth)
+
+    # Test liveness probe endpoint (used by Docker healthchecks)
+    response = client.get("/api/system/health/live")
+    assert response.status_code == 200
+    assert response.json() == {"status": "alive"}
+
+    # Test readiness probe endpoint
+    response = client.get("/api/system/health/ready")
+    assert response.status_code == 200
+    assert response.json() == {"ready": True, "status": "ready"}
+
+
 def test_disabled_auth_allows_all_requests(app_without_auth):
     """Test that disabled authentication allows all requests."""
     client = TestClient(app_without_auth)
@@ -208,6 +235,8 @@ def test_is_exempt_path():
     assert middleware._is_exempt_path("/") is True
     assert middleware._is_exempt_path("/health") is True
     assert middleware._is_exempt_path("/api/system/health") is True
+    assert middleware._is_exempt_path("/api/system/health/live") is True
+    assert middleware._is_exempt_path("/api/system/health/ready") is True
     assert middleware._is_exempt_path("/docs") is True
     assert middleware._is_exempt_path("/redoc") is True
     assert middleware._is_exempt_path("/openapi.json") is True

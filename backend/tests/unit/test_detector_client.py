@@ -350,7 +350,7 @@ async def test_detector_client_uses_config():
 
 @pytest.mark.asyncio
 async def test_detect_objects_sets_file_type(detector_client, mock_session):
-    """Test that file type is correctly extracted from path."""
+    """Test that file type is correctly set as MIME type."""
     image_path = "/export/foscam/front_door/snapshot.jpeg"
     camera_id = "front_door"
 
@@ -380,7 +380,7 @@ async def test_detect_objects_sets_file_type(detector_client, mock_session):
         detections = await detector_client.detect_objects(image_path, camera_id, mock_session)
 
         assert len(detections) == 1
-        assert detections[0].file_type == ".jpeg"
+        assert detections[0].file_type == "image/jpeg"
 
 
 @pytest.mark.asyncio

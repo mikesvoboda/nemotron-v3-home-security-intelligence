@@ -135,6 +135,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "/",
             "/health",
             "/api/system/health",
+            "/api/system/health/live",  # Liveness probe for Docker healthchecks
+            "/api/system/health/ready",  # Readiness probe for Docker healthchecks
             "/docs",
             "/redoc",
             "/openapi.json",

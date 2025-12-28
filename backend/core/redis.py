@@ -375,6 +375,32 @@ async def get_redis() -> AsyncGenerator[RedisClient]:
     yield _redis_client
 
 
+async def get_redis_optional() -> AsyncGenerator[RedisClient | None]:
+    """FastAPI dependency for optional Redis client.
+
+    This dependency is fail-soft: it returns None instead of raising an exception
+    when Redis is unavailable. Use this for health check endpoints where you want
+    to report Redis status rather than fail the request.
+
+    Yields:
+        RedisClient instance if connected, None if Redis is unavailable
+    """
+    global _redis_client  # noqa: PLW0603
+
+    try:
+        if _redis_client is None:
+            _redis_client = RedisClient()
+            await _redis_client.connect()
+        yield _redis_client
+    except (ConnectionError, TimeoutError) as e:
+        logger.warning(f"Redis unavailable (will report degraded status): {e}")
+        yield None
+    except Exception as e:
+        # Catch any other Redis connection errors
+        logger.warning(f"Redis connection error (will report degraded status): {e}")
+        yield None
+
+
 async def init_redis() -> RedisClient:
     """Initialize Redis client for application startup.
 

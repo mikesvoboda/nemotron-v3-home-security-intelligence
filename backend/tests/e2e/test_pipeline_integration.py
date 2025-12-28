@@ -352,7 +352,7 @@ async def test_pipeline_with_multiple_detections_in_batch(
             detection = Detection(
                 camera_id=camera_id,
                 file_path=f"{test_image_path}_{i}",
-                file_type=".jpg",
+                file_type="image/jpeg",
                 detected_at=datetime.now(UTC),
                 object_type=["person", "car", "dog"][i % 3],
                 confidence=0.85 + (i * 0.02),
@@ -417,7 +417,7 @@ async def test_pipeline_batch_timeout_logic(
         detection = Detection(
             camera_id=camera_id,
             file_path=test_image_path,
-            file_type=".jpg",
+            file_type="image/jpeg",
             detected_at=datetime.now(UTC),
             object_type="person",
             confidence=0.95,
@@ -559,7 +559,7 @@ async def test_pipeline_handles_nemotron_failure_gracefully(
         detection = Detection(
             camera_id=camera_id,
             file_path=test_image_path,
-            file_type=".jpg",
+            file_type="image/jpeg",
             detected_at=datetime.now(UTC),
             object_type="person",
             confidence=0.95,
@@ -624,7 +624,7 @@ async def test_pipeline_event_relationships(
             detection = Detection(
                 camera_id=camera_id,
                 file_path=f"{test_image_path}_{i}",
-                file_type=".jpg",
+                file_type="image/jpeg",
                 detected_at=datetime.now(UTC),
                 object_type="person",
                 confidence=0.90,
@@ -692,7 +692,7 @@ async def test_pipeline_cleanup_after_processing(
         detection = Detection(
             camera_id=camera_id,
             file_path=test_image_path,
-            file_type=".jpg",
+            file_type="image/jpeg",
             detected_at=datetime.now(UTC),
             object_type="person",
             confidence=0.95,

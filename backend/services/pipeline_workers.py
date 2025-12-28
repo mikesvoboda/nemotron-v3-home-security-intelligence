@@ -44,6 +44,7 @@ from backend.core.redis import RedisClient
 from backend.services.batch_aggregator import BatchAggregator
 from backend.services.detector_client import DetectorClient
 from backend.services.nemotron_analyzer import NemotronAnalyzer
+from backend.services.video_processor import VideoProcessor
 
 logger = get_logger(__name__)
 
@@ -94,6 +95,7 @@ class DetectionQueueWorker:
         redis_client: RedisClient,
         detector_client: DetectorClient | None = None,
         batch_aggregator: BatchAggregator | None = None,
+        video_processor: VideoProcessor | None = None,
         queue_name: str = "detection_queue",
         poll_timeout: int = 5,
         stop_timeout: float = 10.0,
@@ -104,16 +106,25 @@ class DetectionQueueWorker:
             redis_client: Redis client for queue operations
             detector_client: Client for RT-DETRv2. If None, will be created.
             batch_aggregator: Aggregator for batching detections. If None, will be created.
+            video_processor: Processor for video frame extraction. If None, will be created.
             queue_name: Name of the Redis queue to consume from
             poll_timeout: Timeout in seconds for BLPOP (allows checking shutdown signal)
             stop_timeout: Timeout in seconds for graceful stop before force cancel
         """
+        settings = get_settings()
         self._redis = redis_client
         self._detector = detector_client or DetectorClient()
         self._aggregator = batch_aggregator or BatchAggregator(redis_client=redis_client)
+        self._video_processor = video_processor or VideoProcessor(
+            output_dir=settings.video_thumbnails_dir
+        )
         self._queue_name = queue_name
         self._poll_timeout = poll_timeout
         self._stop_timeout = stop_timeout
+
+        # Video processing settings
+        self._video_frame_interval = settings.video_frame_interval_seconds
+        self._video_max_frames = settings.video_max_frames
 
         self._running = False
         self._task: asyncio.Task | None = None
@@ -216,14 +227,18 @@ class DetectionQueueWorker:
     async def _process_detection_item(self, item: dict[str, Any]) -> None:
         """Process a single detection queue item.
 
+        Handles both image and video files. For videos, extracts frames
+        and runs detection on each frame.
+
         Args:
-            item: Queue item with camera_id, file_path, timestamp
+            item: Queue item with camera_id, file_path, timestamp, media_type
         """
         import time
 
         start_time = time.time()
         camera_id = item.get("camera_id")
         file_path = item.get("file_path")
+        media_type = item.get("media_type", "image")
 
         if not camera_id or not file_path:
             logger.warning(f"Invalid detection queue item: {item}")
@@ -231,27 +246,14 @@ class DetectionQueueWorker:
 
         logger.debug(
             f"Processing detection item: {file_path}",
-            extra={"camera_id": camera_id, "file_path": file_path},
+            extra={"camera_id": camera_id, "file_path": file_path, "media_type": media_type},
         )
 
         try:
-            # Run object detection
-            async with get_session() as session:
-                detections = await self._detector.detect_objects(
-                    image_path=file_path,
-                    camera_id=camera_id,
-                    session=session,
-                )
-
-            # Add detections to batch
-            for detection in detections:
-                await self._aggregator.add_detection(
-                    camera_id=camera_id,
-                    detection_id=str(detection.id),
-                    _file_path=file_path,
-                    confidence=detection.confidence,
-                    object_type=detection.object_type,
-                )
+            if media_type == "video":
+                await self._process_video_detection(camera_id, file_path)
+            else:
+                await self._process_image_detection(camera_id, file_path)
 
             self._stats.items_processed += 1
             self._stats.last_processed_at = time.time()
@@ -260,23 +262,129 @@ class DetectionQueueWorker:
             duration = time.time() - start_time
             observe_stage_duration("detect", duration)
 
-            logger.debug(
-                f"Processed {len(detections)} detections from {file_path}",
-                extra={
-                    "camera_id": camera_id,
-                    "detection_count": len(detections),
-                    "items_processed": self._stats.items_processed,
-                },
-            )
-
         except Exception as e:
             self._stats.errors += 1
             record_pipeline_error("detection_processing_error")
             logger.error(
                 f"Failed to process detection item: {e}",
-                extra={"camera_id": camera_id, "file_path": file_path},
+                extra={"camera_id": camera_id, "file_path": file_path, "media_type": media_type},
                 exc_info=True,
             )
+
+    async def _process_image_detection(self, camera_id: str, file_path: str) -> None:
+        """Process a single image file for object detection.
+
+        Args:
+            camera_id: Camera identifier
+            file_path: Path to the image file
+        """
+        async with get_session() as session:
+            detections = await self._detector.detect_objects(
+                image_path=file_path,
+                camera_id=camera_id,
+                session=session,
+            )
+
+        # Add detections to batch
+        for detection in detections:
+            await self._aggregator.add_detection(
+                camera_id=camera_id,
+                detection_id=str(detection.id),
+                _file_path=file_path,
+                confidence=detection.confidence,
+                object_type=detection.object_type,
+            )
+
+        logger.debug(
+            f"Processed {len(detections)} detections from image {file_path}",
+            extra={
+                "camera_id": camera_id,
+                "detection_count": len(detections),
+                "items_processed": self._stats.items_processed,
+            },
+        )
+
+    async def _process_video_detection(self, camera_id: str, video_path: str) -> None:
+        """Process a video file by extracting frames and running detection on each.
+
+        Extracts frames at configured intervals, runs object detection on each frame,
+        then cleans up the extracted frames.
+
+        Args:
+            camera_id: Camera identifier
+            video_path: Path to the video file
+        """
+        logger.info(
+            f"Processing video for detection: {video_path}",
+            extra={"camera_id": camera_id, "video_path": video_path},
+        )
+
+        # Extract frames from video
+        frame_paths = await self._video_processor.extract_frames_for_detection(
+            video_path=video_path,
+            interval_seconds=self._video_frame_interval,
+            max_frames=self._video_max_frames,
+        )
+
+        if not frame_paths:
+            logger.warning(
+                f"No frames extracted from video: {video_path}",
+                extra={"camera_id": camera_id, "video_path": video_path},
+            )
+            return
+
+        total_detections = 0
+
+        try:
+            # Get video metadata for storing with detections
+            video_metadata = await self._video_processor.get_video_metadata(video_path)
+
+            # Process each extracted frame
+            async with get_session() as session:
+                for frame_path in frame_paths:
+                    try:
+                        detections = await self._detector.detect_objects(
+                            image_path=frame_path,
+                            camera_id=camera_id,
+                            session=session,
+                            # Pass video metadata to associate detections with the video
+                            video_path=video_path,
+                            video_metadata=video_metadata,
+                        )
+
+                        # Add detections to batch
+                        for detection in detections:
+                            await self._aggregator.add_detection(
+                                camera_id=camera_id,
+                                detection_id=str(detection.id),
+                                _file_path=video_path,  # Use video path, not frame
+                                confidence=detection.confidence,
+                                object_type=detection.object_type,
+                            )
+
+                        total_detections += len(detections)
+
+                    except Exception as e:
+                        logger.warning(
+                            f"Failed to process frame {frame_path}: {e}",
+                            extra={"camera_id": camera_id, "frame_path": frame_path},
+                        )
+                        continue
+
+        finally:
+            # Clean up extracted frames
+            self._video_processor.cleanup_extracted_frames(video_path)
+
+        logger.info(
+            f"Processed video {video_path}: {total_detections} detections "
+            f"from {len(frame_paths)} frames",
+            extra={
+                "camera_id": camera_id,
+                "video_path": video_path,
+                "frame_count": len(frame_paths),
+                "detection_count": total_detections,
+            },
+        )
 
 
 class AnalysisQueueWorker:

@@ -15,6 +15,8 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from backend.core.mime_types import DEFAULT_VIDEO_MIME, get_mime_type_with_default
+
 logger = logging.getLogger(__name__)
 
 # Default thumbnail extraction settings
@@ -182,14 +184,7 @@ class VideoProcessor:
         Returns:
             MIME type string
         """
-        suffix = Path(video_path).suffix.lower()
-        mime_types = {
-            ".mp4": "video/mp4",
-            ".mkv": "video/x-matroska",
-            ".avi": "video/x-msvideo",
-            ".mov": "video/quicktime",
-        }
-        return mime_types.get(suffix, "video/mp4")
+        return get_mime_type_with_default(video_path, DEFAULT_VIDEO_MIME)
 
     async def extract_thumbnail(
         self,
@@ -277,6 +272,148 @@ class VideoProcessor:
         except Exception as e:
             logger.error(f"Failed to extract thumbnail from {video_path}: {e}")
             return None
+
+    async def extract_frames_for_detection(
+        self,
+        video_path: str,
+        interval_seconds: float = 2.0,
+        max_frames: int = 30,
+        size: tuple[int, int] | None = None,
+    ) -> list[str]:
+        """Extract multiple frames from a video at regular intervals for object detection.
+
+        This method extracts frames at specified intervals throughout the video
+        for use in object detection. Frames are saved as temporary JPEG files.
+
+        Args:
+            video_path: Path to the video file
+            interval_seconds: Time between frame extractions (default: 2.0 seconds)
+            max_frames: Maximum number of frames to extract (default: 30)
+            size: Optional frame dimensions. If None, uses original resolution.
+
+        Returns:
+            List of paths to extracted frame images
+        """
+        video_path_obj = Path(video_path)
+        if not video_path_obj.exists():
+            logger.error(f"Video file not found: {video_path}")
+            return []
+
+        try:
+            # Get video duration
+            metadata = await self.get_video_metadata(video_path)
+            duration = metadata.get("duration", 0)
+
+            if duration <= 0:
+                logger.warning(f"Video has no duration or invalid duration: {video_path}")
+                return []
+
+            # Calculate frame timestamps
+            timestamps: list[float] = []
+            current_time = 0.5  # Start at 0.5 seconds to avoid black frames
+            while current_time < duration and len(timestamps) < max_frames:
+                timestamps.append(current_time)
+                current_time += interval_seconds
+
+            if not timestamps:
+                # Video too short, extract at least one frame at 10% into video
+                timestamps = [min(0.5, duration * 0.1)]
+
+            logger.info(
+                f"Extracting {len(timestamps)} frames from {video_path} "
+                f"(duration: {duration:.1f}s, interval: {interval_seconds}s)"
+            )
+
+            # Create output directory for frames
+            video_stem = video_path_obj.stem
+            frames_dir = self.output_dir / f"{video_stem}_frames"
+            frames_dir.mkdir(parents=True, exist_ok=True)
+
+            extracted_frames: list[str] = []
+
+            # Build scale filter if size is specified
+            scale_filter = ""
+            if size:
+                scale_filter = f"-vf scale={size[0]}:{size[1]}:force_original_aspect_ratio=decrease"
+
+            # Extract frames in parallel using ffmpeg
+            # Use a single ffmpeg command to extract all frames efficiently
+            for idx, timestamp in enumerate(timestamps):
+                output_path = frames_dir / f"frame_{idx:04d}.jpg"
+
+                cmd = [
+                    "ffmpeg",
+                    "-y",  # Overwrite output file
+                    "-ss",
+                    str(timestamp),  # Seek to timestamp
+                    "-i",
+                    video_path,  # Input file
+                    "-vframes",
+                    "1",  # Extract only 1 frame
+                ]
+
+                if scale_filter:
+                    cmd.extend(["-vf", scale_filter[4:]])  # Remove "-vf " prefix
+
+                cmd.extend(
+                    [
+                        "-q:v",
+                        "2",  # High quality JPEG
+                        str(output_path),
+                    ]
+                )
+
+                result = await asyncio.to_thread(
+                    subprocess.run,
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
+
+                if result.returncode == 0 and output_path.exists():
+                    extracted_frames.append(str(output_path))
+                else:
+                    logger.warning(
+                        f"Failed to extract frame at {timestamp}s from {video_path}: "
+                        f"{result.stderr}"
+                    )
+
+            logger.info(f"Successfully extracted {len(extracted_frames)} frames from {video_path}")
+            return extracted_frames
+
+        except VideoProcessingError as e:
+            logger.error(f"Video processing error for {video_path}: {e}")
+            return []
+        except subprocess.TimeoutExpired:
+            logger.error(f"Timeout extracting frames from {video_path}")
+            return []
+        except Exception as e:
+            logger.error(f"Failed to extract frames from {video_path}: {e}")
+            return []
+
+    def cleanup_extracted_frames(self, video_path: str) -> bool:
+        """Clean up extracted frames directory for a video.
+
+        Args:
+            video_path: Path to the original video file
+
+        Returns:
+            True if cleanup was successful, False otherwise
+        """
+        try:
+            video_stem = Path(video_path).stem
+            frames_dir = self.output_dir / f"{video_stem}_frames"
+            if frames_dir.exists():
+                import shutil
+
+                shutil.rmtree(frames_dir)
+                logger.debug(f"Cleaned up frames directory: {frames_dir}")
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"Failed to cleanup frames for {video_path}: {e}")
+            return False
 
     async def extract_thumbnail_for_detection(
         self,
