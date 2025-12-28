@@ -257,19 +257,30 @@ async def integration_db(integration_env: str) -> AsyncGenerator[str]:
     - Depends on integration_env for environment setup
     - Closes any existing database connections
     - Initializes a fresh database with all tables
+    - Truncates all tables for clean state
     - Yields the database URL
     - Cleans up after the test
 
     Use this fixture for any test that needs database access.
     """
+    from sqlalchemy import text
+
     from backend.core.config import get_settings
-    from backend.core.database import close_db, init_db
+    from backend.core.database import close_db, get_session, init_db
 
     # Ensure clean state
     get_settings.cache_clear()
     await close_db()
 
     await init_db()
+
+    # Clean up any existing data before the test (for test isolation)
+    async with get_session() as session:
+        # Truncate all tables in correct order to respect FK constraints
+        await session.execute(text("TRUNCATE TABLE logs, gpu_stats, api_keys CASCADE"))
+        await session.execute(text("TRUNCATE TABLE detections, events CASCADE"))
+        await session.execute(text("TRUNCATE TABLE cameras CASCADE"))
+        await session.commit()
 
     try:
         yield integration_env
