@@ -45,7 +45,7 @@ workflows/
 
 **Environment:**
 
-- Python 3.14
+- Python 3.12
 - Node.js 20
 - Coverage uploaded to Codecov
 
@@ -207,7 +207,7 @@ workflows/
 ```yaml
 - uses: actions/setup-python@v5
   with:
-    python-version: "3.14"
+    python-version: "3.12"
     cache: "pip"
     cache-dependency-path: backend/requirements*.txt
 ```
