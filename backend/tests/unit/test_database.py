@@ -3,7 +3,7 @@
 import contextlib
 
 import pytest
-from sqlalchemy import Column, Integer, String, select
+from sqlalchemy import Column, Integer, String, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.database import (
