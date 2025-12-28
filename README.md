@@ -2,9 +2,8 @@
 
 > Turn dumb security cameras into an intelligent threat detection system.
 
-<!-- TODO: Add dashboard screenshot showing risk gauge, camera grid, and event card -->
-
-![Dashboard Screenshot](docs/images/dashboard-screenshot.png)
+![Dashboard Mockup](docs/images/dashboard-mockup.svg)
+*Dashboard mockup showing the main interface layout*
 
 **What it does:** Your Foscam cameras upload images via FTP. This system watches those uploads, runs object detection (RT-DETRv2), and uses an LLM (Nemotron) to generate contextual risk assessments—not just "person detected" but _"unfamiliar person approaching back entrance at 2am, risk: high."_
 

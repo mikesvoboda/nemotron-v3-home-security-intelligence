@@ -1699,3 +1699,294 @@ async def test_trigger_cleanup_logs_operation() -> None:
     log_messages = [call[0][0] for call in mock_logger.call_args_list]
     assert any("Manual cleanup triggered" in msg for msg in log_messages)
     assert any("Manual cleanup completed" in msg for msg in log_messages)
+
+
+# =============================================================================
+# AI Services Health Check Tests
+# =============================================================================
+
+
+import httpx
+
+
+@pytest.mark.asyncio
+async def test_check_rtdetr_health_success() -> None:
+    """Test RT-DETR health check returns healthy when service responds."""
+    with patch("httpx.AsyncClient.get") as mock_get:
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.raise_for_status = MagicMock()
+        mock_get.return_value = mock_response
+
+        is_healthy, error = await system_routes._check_rtdetr_health(
+            "http://localhost:8090", 3.0
+        )
+
+        assert is_healthy is True
+        assert error is None
+
+
+@pytest.mark.asyncio
+async def test_check_rtdetr_health_connection_refused() -> None:
+    """Test RT-DETR health check handles connection refused error."""
+    with patch("httpx.AsyncClient.get", side_effect=httpx.ConnectError("Connection refused")):
+        is_healthy, error = await system_routes._check_rtdetr_health(
+            "http://localhost:8090", 3.0
+        )
+
+        assert is_healthy is False
+        assert error is not None
+        assert "connection refused" in error.lower()
+
+
+@pytest.mark.asyncio
+async def test_check_rtdetr_health_timeout() -> None:
+    """Test RT-DETR health check handles timeout error."""
+    with patch("httpx.AsyncClient.get", side_effect=httpx.TimeoutException("Timeout")):
+        is_healthy, error = await system_routes._check_rtdetr_health(
+            "http://localhost:8090", 3.0
+        )
+
+        assert is_healthy is False
+        assert error is not None
+        assert "timed out" in error.lower()
+
+
+@pytest.mark.asyncio
+async def test_check_rtdetr_health_http_error() -> None:
+    """Test RT-DETR health check handles HTTP error status."""
+    with patch("httpx.AsyncClient.get") as mock_get:
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Internal Server Error", request=MagicMock(), response=mock_response
+        )
+        mock_get.return_value = mock_response
+
+        is_healthy, error = await system_routes._check_rtdetr_health(
+            "http://localhost:8090", 3.0
+        )
+
+        assert is_healthy is False
+        assert error is not None
+        assert "500" in error
+
+
+@pytest.mark.asyncio
+async def test_check_rtdetr_health_unexpected_error() -> None:
+    """Test RT-DETR health check handles unexpected error."""
+    with patch("httpx.AsyncClient.get", side_effect=ValueError("Unexpected")):
+        is_healthy, error = await system_routes._check_rtdetr_health(
+            "http://localhost:8090", 3.0
+        )
+
+        assert is_healthy is False
+        assert error is not None
+        assert "error" in error.lower()
+
+
+@pytest.mark.asyncio
+async def test_check_nemotron_health_success() -> None:
+    """Test Nemotron health check returns healthy when service responds."""
+    with patch("httpx.AsyncClient.get") as mock_get:
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.raise_for_status = MagicMock()
+        mock_get.return_value = mock_response
+
+        is_healthy, error = await system_routes._check_nemotron_health(
+            "http://localhost:8091", 3.0
+        )
+
+        assert is_healthy is True
+        assert error is None
+
+
+@pytest.mark.asyncio
+async def test_check_nemotron_health_connection_refused() -> None:
+    """Test Nemotron health check handles connection refused error."""
+    with patch("httpx.AsyncClient.get", side_effect=httpx.ConnectError("Connection refused")):
+        is_healthy, error = await system_routes._check_nemotron_health(
+            "http://localhost:8091", 3.0
+        )
+
+        assert is_healthy is False
+        assert error is not None
+        assert "connection refused" in error.lower()
+
+
+@pytest.mark.asyncio
+async def test_check_nemotron_health_timeout() -> None:
+    """Test Nemotron health check handles timeout error."""
+    with patch("httpx.AsyncClient.get", side_effect=httpx.TimeoutException("Timeout")):
+        is_healthy, error = await system_routes._check_nemotron_health(
+            "http://localhost:8091", 3.0
+        )
+
+        assert is_healthy is False
+        assert error is not None
+        assert "timed out" in error.lower()
+
+
+@pytest.mark.asyncio
+async def test_check_nemotron_health_http_error() -> None:
+    """Test Nemotron health check handles HTTP error status."""
+    with patch("httpx.AsyncClient.get") as mock_get:
+        mock_response = MagicMock()
+        mock_response.status_code = 503
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Service Unavailable", request=MagicMock(), response=mock_response
+        )
+        mock_get.return_value = mock_response
+
+        is_healthy, error = await system_routes._check_nemotron_health(
+            "http://localhost:8091", 3.0
+        )
+
+        assert is_healthy is False
+        assert error is not None
+        assert "503" in error
+
+
+@pytest.mark.asyncio
+async def test_check_nemotron_health_unexpected_error() -> None:
+    """Test Nemotron health check handles unexpected error."""
+    with patch("httpx.AsyncClient.get", side_effect=RuntimeError("Unexpected")):
+        is_healthy, error = await system_routes._check_nemotron_health(
+            "http://localhost:8091", 3.0
+        )
+
+        assert is_healthy is False
+        assert error is not None
+        assert "error" in error.lower()
+
+
+@pytest.mark.asyncio
+async def test_check_ai_services_health_both_healthy() -> None:
+    """Test AI services health check when both services are healthy."""
+    with patch.object(
+        system_routes, "_check_rtdetr_health", return_value=(True, None)
+    ), patch.object(
+        system_routes, "_check_nemotron_health", return_value=(True, None)
+    ):
+        status = await system_routes.check_ai_services_health()
+
+        assert status.status == "healthy"
+        assert status.message == "AI services operational"
+        assert status.details is not None
+        assert status.details["rtdetr"] == "healthy"
+        assert status.details["nemotron"] == "healthy"
+
+
+@pytest.mark.asyncio
+async def test_check_ai_services_health_rtdetr_down() -> None:
+    """Test AI services health check when RT-DETR is down but Nemotron is up."""
+    with patch.object(
+        system_routes,
+        "_check_rtdetr_health",
+        return_value=(False, "RT-DETR service returned HTTP 500"),
+    ), patch.object(
+        system_routes, "_check_nemotron_health", return_value=(True, None)
+    ):
+        status = await system_routes.check_ai_services_health()
+
+        assert status.status == "degraded"
+        assert "RT-DETR" in status.message
+        assert "unavailable" in status.message
+        assert "Nemotron" in status.message
+        assert "operational" in status.message
+        assert status.details is not None
+        assert "500" in status.details["rtdetr"]
+        assert status.details["nemotron"] == "healthy"
+
+
+@pytest.mark.asyncio
+async def test_check_ai_services_health_nemotron_down() -> None:
+    """Test AI services health check when Nemotron is down but RT-DETR is up."""
+    with patch.object(
+        system_routes, "_check_rtdetr_health", return_value=(True, None)
+    ), patch.object(
+        system_routes,
+        "_check_nemotron_health",
+        return_value=(False, "Nemotron service returned HTTP 500"),
+    ):
+        status = await system_routes.check_ai_services_health()
+
+        assert status.status == "degraded"
+        assert "Nemotron" in status.message
+        assert "unavailable" in status.message
+        assert "RT-DETR" in status.message
+        assert "operational" in status.message
+        assert status.details is not None
+        assert status.details["rtdetr"] == "healthy"
+        assert "500" in status.details["nemotron"]
+
+
+@pytest.mark.asyncio
+async def test_check_ai_services_health_both_down() -> None:
+    """Test AI services health check when both services are down."""
+    with patch.object(
+        system_routes,
+        "_check_rtdetr_health",
+        return_value=(False, "RT-DETR service returned HTTP 500"),
+    ), patch.object(
+        system_routes,
+        "_check_nemotron_health",
+        return_value=(False, "Nemotron service returned HTTP 503"),
+    ):
+        status = await system_routes.check_ai_services_health()
+
+        assert status.status == "unhealthy"
+        assert status.message == "All AI services unavailable"
+        assert status.details is not None
+        assert "500" in status.details["rtdetr"]
+        assert "503" in status.details["nemotron"]
+
+
+@pytest.mark.asyncio
+async def test_ai_health_check_timeout_constant_is_reasonable() -> None:
+    """Test that the AI health check timeout constant has a reasonable value."""
+    # The timeout should be at least 1 second to allow for slow responses
+    assert system_routes.AI_HEALTH_CHECK_TIMEOUT_SECONDS >= 1.0
+    # The timeout should not be more than 10 seconds to avoid blocking
+    assert system_routes.AI_HEALTH_CHECK_TIMEOUT_SECONDS <= 10.0
+
+
+@pytest.mark.asyncio
+async def test_check_ai_services_health_returns_details() -> None:
+    """Test that AI services health check always returns details dict."""
+    # Both services down should still populate details
+    with patch.object(
+        system_routes,
+        "_check_rtdetr_health",
+        return_value=(False, "RT-DETR connection refused"),
+    ), patch.object(
+        system_routes,
+        "_check_nemotron_health",
+        return_value=(False, "Nemotron connection refused"),
+    ):
+        status = await system_routes.check_ai_services_health()
+
+        assert status.details is not None
+        assert "rtdetr" in status.details
+        assert "nemotron" in status.details
+
+
+@pytest.mark.asyncio
+async def test_check_ai_services_health_uses_config_urls() -> None:
+    """Test that AI services health check uses config URLs."""
+    with patch.object(system_routes, "get_settings") as mock_settings, patch.object(
+        system_routes, "_check_rtdetr_health", return_value=(True, None)
+    ) as mock_rtdetr, patch.object(
+        system_routes, "_check_nemotron_health", return_value=(True, None)
+    ) as mock_nemotron:
+        mock_settings.return_value.rtdetr_url = "http://custom-rtdetr:9000"
+        mock_settings.return_value.nemotron_url = "http://custom-nemotron:9001"
+
+        await system_routes.check_ai_services_health()
+
+        # Verify the config URLs were passed to the health check functions
+        mock_rtdetr.assert_called_once()
+        mock_nemotron.assert_called_once()
+        assert mock_rtdetr.call_args[0][0] == "http://custom-rtdetr:9000"
+        assert mock_nemotron.call_args[0][0] == "http://custom-nemotron:9001"

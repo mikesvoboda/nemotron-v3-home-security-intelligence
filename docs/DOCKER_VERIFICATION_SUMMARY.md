@@ -184,9 +184,9 @@ Verified the Docker Compose deployment configuration and enhanced it with health
 
 - DATABASE_URL: sqlite+aiosqlite:///data/security.db
 - REDIS_URL: redis://redis:6379
-- DETECTOR_URL: http://host.docker.internal:8001
-- LLM_URL: http://host.docker.internal:8002
-- CAMERA_ROOT: /cameras
+- RTDETR_URL: http://host.docker.internal:8090
+- NEMOTRON_URL: http://host.docker.internal:8091
+- FOSCAM_BASE_PATH: /cameras
 
 **Frontend:**
 
@@ -427,8 +427,8 @@ All services are running and healthy:
 
 3. **Verify AI services integration:**
 
-   - Ensure RT-DETRv2 runs on port 8001
-   - Ensure Nemotron runs on port 8002
+   - Ensure RT-DETRv2 runs on port 8090
+   - Ensure Nemotron runs on port 8091
    - Test Backend → AI service communication
 
 4. **Close Phase 8 task `.4`:**

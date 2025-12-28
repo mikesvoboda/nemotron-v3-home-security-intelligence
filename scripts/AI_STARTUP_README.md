@@ -30,8 +30,8 @@ Downloads:
 
 This starts:
 
-- **RT-DETRv2 Detection Server** on port 8001 (~4GB VRAM)
-- **Nemotron LLM Server** on port 8002 (~3GB VRAM)
+- **RT-DETRv2 Detection Server** on port 8090 (~4GB VRAM)
+- **Nemotron LLM Server** on port 8091 (~3GB VRAM)
 
 First startup takes 2-3 minutes for model loading and GPU warmup.
 
@@ -50,8 +50,8 @@ Shows running services, PIDs, health status, and GPU usage.
 ./scripts/start-ai.sh health
 
 # Manual health checks
-curl http://localhost:8001/health  # RT-DETRv2
-curl http://localhost:8002/health  # Nemotron
+curl http://localhost:8090/health  # RT-DETRv2
+curl http://localhost:8091/health  # Nemotron
 ```
 
 ## Service Management
@@ -75,31 +75,31 @@ curl http://localhost:8002/health  # Nemotron
 
 ## Service Endpoints
 
-### RT-DETRv2 Detection Server (Port 8001)
+### RT-DETRv2 Detection Server (Port 8090)
 
 ```bash
 # Health check
-GET http://localhost:8001/health
+GET http://localhost:8090/health
 
 # Single image detection
-POST http://localhost:8001/detect
+POST http://localhost:8090/detect
 Content-Type: multipart/form-data
 Body: file=<image>
 
 # Batch detection
-POST http://localhost:8001/detect/batch
+POST http://localhost:8090/detect/batch
 Content-Type: multipart/form-data
 Body: files=<image1>, files=<image2>, ...
 ```
 
-### Nemotron LLM Server (Port 8002)
+### Nemotron LLM Server (Port 8091)
 
 ```bash
 # Health check
-GET http://localhost:8002/health
+GET http://localhost:8091/health
 
 # Text completion
-POST http://localhost:8002/completion
+POST http://localhost:8091/completion
 Content-Type: application/json
 Body: {
   "prompt": "Your prompt here",
@@ -108,7 +108,7 @@ Body: {
 }
 
 # OpenAI-compatible chat
-POST http://localhost:8002/v1/chat/completions
+POST http://localhost:8091/v1/chat/completions
 ```
 
 ## Log Files
@@ -129,8 +129,8 @@ tail -f /tmp/nemotron-llm.log
 
 | Service   | VRAM     | CPU        | Latency | Port |
 | --------- | -------- | ---------- | ------- | ---- |
-| RT-DETRv2 | ~4GB     | 10-20%     | 30-50ms | 8001 |
-| Nemotron  | ~3GB     | 5-10%      | 2-5s    | 8002 |
+| RT-DETRv2 | ~4GB     | 10-20%     | 30-50ms | 8090 |
+| Nemotron  | ~3GB     | 5-10%      | 2-5s    | 8091 |
 | **Total** | **~7GB** | **15-30%** | -       | -    |
 
 ## Troubleshooting
@@ -174,8 +174,8 @@ ps aux | grep -E "python.*model.py|llama-server"
 
 ```bash
 # Find and kill process using port
-lsof -ti:8001 | xargs kill -9  # RT-DETRv2
-lsof -ti:8002 | xargs kill -9  # Nemotron
+lsof -ti:8090 | xargs kill -9  # RT-DETRv2
+lsof -ti:8091 | xargs kill -9  # Nemotron
 
 # Restart services
 ./scripts/start-ai.sh start
@@ -199,8 +199,8 @@ The FastAPI backend automatically connects to these services:
 
 ```python
 # Backend configuration (backend/core/config.py)
-rtdetr_url: str = "http://localhost:8001"      # RT-DETRv2
-nemotron_url: str = "http://localhost:8002"    # Nemotron
+rtdetr_url: str = "http://localhost:8090"      # RT-DETRv2
+nemotron_url: str = "http://localhost:8091"    # Nemotron
 ```
 
 Backend services that use AI:
@@ -259,8 +259,8 @@ See `docs/AI_SETUP.md` section "Production Deployment" for details.
 tail -f /tmp/rtdetr-detector.log
 tail -f /tmp/nemotron-llm.log
 nvidia-smi
-curl http://localhost:8001/health
-curl http://localhost:8002/health
+curl http://localhost:8090/health
+curl http://localhost:8091/health
 
 # Cleanup
 ./scripts/start-ai.sh stop

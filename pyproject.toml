@@ -95,7 +95,8 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-addopts = "-v --strict-markers --tb=short"
+addopts = "-v --strict-markers --tb=short --timeout=30"
+timeout_method = "signal"
 markers = [
     "asyncio: mark test as an async test",
     "unit: mark test as a unit test",

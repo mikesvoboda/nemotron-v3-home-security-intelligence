@@ -1,17 +1,18 @@
-"""Shared fixtures for backend integration tests.
+"""Integration test fixtures.
 
-Why this exists:
-- Integration tests previously duplicated DB environment setup, Redis mocking, and httpx client setup
-  in each test module.
-- Centralizing reduces copy/paste while keeping behavior identical.
+This module provides integration-specific fixtures. The shared fixtures
+(integration_db, mock_redis, client, etc.) are inherited from backend/tests/conftest.py.
 
-Scope:
-- Only affects tests under backend/tests/integration/.
-- No autouse fixtures (to avoid unintended side effects on media tests that intentionally use
-  TestClient and custom filesystem patching).
+No duplicate fixture definitions - all common fixtures are centralized in the
+root conftest.py file.
 """
 
-from __future__ import annotations
+# Integration tests use the shared fixtures from backend/tests/conftest.py:
+# - integration_env: Environment setup only (no DB init)
+# - integration_db: Isolated temporary SQLite database
+# - mock_redis: Mock Redis client
+# - db_session: Database session for direct DB access
+# - client: httpx AsyncClient for API testing
 
 import os
 import tempfile
@@ -27,7 +28,7 @@ from httpx import ASGITransport, AsyncClient
 
 
 @pytest.fixture
-def integration_env() -> Generator[str]:
+def integration_env() -> "Generator[str, None, None]":
     """Set DATABASE_URL/REDIS_URL to a temporary per-test database.
 
     This fixture ONLY sets environment variables and clears cached settings.
@@ -73,7 +74,7 @@ def integration_env() -> Generator[str]:
 
 
 @pytest.fixture
-async def integration_db(integration_env: str) -> AsyncGenerator[str]:
+async def integration_db(integration_env: str) -> "AsyncGenerator[str, None]":
     """Initialize a temporary SQLite DB for integration tests and cleanly tear it down."""
     from backend.core.config import get_settings
     from backend.core.database import close_db, init_db
@@ -92,7 +93,7 @@ async def integration_db(integration_env: str) -> AsyncGenerator[str]:
 
 
 @pytest.fixture
-async def mock_redis() -> AsyncGenerator[AsyncMock]:
+async def mock_redis() -> "AsyncGenerator[AsyncMock, None]":
     """Mock Redis operations so integration tests don't require an actual Redis server."""
     mock_redis_client = AsyncMock()
     mock_redis_client.health_check.return_value = {
@@ -119,7 +120,7 @@ async def db_session(integration_db: str):
 
 
 @pytest.fixture
-async def client(integration_db: str, mock_redis: AsyncMock) -> AsyncGenerator[AsyncClient]:
+async def client(integration_db: str, mock_redis: AsyncMock) -> "AsyncGenerator[AsyncClient, None]":
     """Async HTTP client bound to the FastAPI app (no network, no server startup).
 
     Notes:

@@ -42,7 +42,7 @@ Implement automatic health monitoring and recovery for dependent services (Redis
 @dataclass
 class ServiceConfig:
     name: str                    # "rtdetr", "nemotron", "redis"
-    health_url: str              # "http://localhost:8001/health"
+    health_url: str              # "http://localhost:8090/health"
     restart_cmd: str             # "./ai/start_detector.sh"
     health_timeout: float = 5.0  # seconds
     max_retries: int = 3
