@@ -8,8 +8,9 @@ WORKDIR /app
 RUN apk add --no-cache wget
 
 # Install dependencies
+# Use --legacy-peer-deps for React 19 + Tremor (requires React 18) compatibility
 COPY package*.json ./
-RUN npm install
+RUN npm install --legacy-peer-deps
 
 # Copy application code
 COPY . .
