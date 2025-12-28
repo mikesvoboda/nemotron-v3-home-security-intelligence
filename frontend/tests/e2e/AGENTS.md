@@ -88,6 +88,7 @@ async function setupApiMocks(page: Page) {
 
 - `GET /api/cameras` - Camera list
 - `GET /api/system/gpu` - GPU statistics
+- `GET /api/health` - Health check
 - `GET /api/system/health` - System health
 - `GET /api/events*` - Events with pagination
 - `GET /api/system/stats` - System statistics

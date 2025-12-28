@@ -108,7 +108,7 @@ This directory contains GitHub-specific configuration files for the Home Securit
 
 **Environment:**
 
-- Python 3.12
+- Python 3.14
 - Node.js 20
 - Coverage uploaded to Codecov
 

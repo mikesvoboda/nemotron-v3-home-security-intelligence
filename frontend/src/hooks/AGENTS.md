@@ -238,15 +238,6 @@ The backend's `ServiceHealthMonitor` (health_monitor.py) exists but is not initi
 
 See bead vq8.11 for context on this decision.
 
-## Service Status Hook
-
-This hook tracks individual service health status (RT-DETRv2, Nemotron) via WebSocket. The backend's `ServiceHealthMonitor` (health_monitor.py) monitors these services and broadcasts `service_status` messages when health changes.
-
-**Use `useSystemStatus`** for overall system health (healthy/degraded/unhealthy).
-**Use `useServiceStatus`** for detailed per-service status or when you need to react to specific service failures.
-
-Note: Redis health is not monitored by ServiceHealthMonitor since the backend handles Redis failures gracefully through other mechanisms.
-
 ## Custom Hooks Patterns
 
 ### URL Construction Pattern
@@ -299,7 +290,7 @@ The base `useWebSocket` hook handles reconnection with counter tracking:
 const { events, isConnected, latestEvent, clearEvents } = useEventStream();
 
 if (latestEvent) {
-  console.log(`New event: ${latestEvent.summary} (Risk: ${latestEvent.risk_level})`);
+  console.log(\`New event: \${latestEvent.summary} (Risk: \${latestEvent.risk_level})\`);
 }
 ```
 
@@ -309,7 +300,7 @@ if (latestEvent) {
 const { status, isConnected } = useSystemStatus();
 
 if (status) {
-  console.log(`Health: ${status.health}, GPU: ${status.gpu_utilization}%`);
+  console.log(\`Health: \${status.health}, GPU: \${status.gpu_utilization}%\`);
 }
 ```
 
