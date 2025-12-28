@@ -15,8 +15,8 @@ RUN apk add --no-cache \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY . .
+# Copy application code to backend subdirectory (for absolute imports)
+COPY . ./backend/
 
 # Create data directory for SQLite database
 RUN mkdir -p /app/data
@@ -35,4 +35,4 @@ EXPOSE 8000
 USER appuser
 
 # Run FastAPI with uvicorn
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
