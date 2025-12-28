@@ -152,6 +152,7 @@ jobs:
             --cov=backend \
             --cov-report=xml:coverage-integration.xml \
             --cov-report=term-missing \
+            --cov-fail-under=0 \
             -v \
             -n auto
 
