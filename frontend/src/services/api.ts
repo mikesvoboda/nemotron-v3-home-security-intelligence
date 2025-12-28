@@ -282,12 +282,17 @@ export async function deleteCamera(id: string): Promise<void> {
 /**
  * Get the URL for a camera's latest snapshot.
  * This URL can be used directly in an img src attribute.
+ * When API key authentication is enabled, the key is appended as a query parameter.
  *
  * @param cameraId - The camera UUID
  * @returns The full URL to the camera's snapshot endpoint
  */
 export function getCameraSnapshotUrl(cameraId: string): string {
-  return `${BASE_URL}/api/cameras/${encodeURIComponent(cameraId)}/snapshot`;
+  const baseUrl = `${BASE_URL}/api/cameras/${encodeURIComponent(cameraId)}/snapshot`;
+  if (API_KEY) {
+    return `${baseUrl}?api_key=${encodeURIComponent(API_KEY)}`;
+  }
+  return baseUrl;
 }
 
 // ============================================================================
@@ -452,12 +457,26 @@ export async function fetchEventDetections(
 // Media URLs
 // ============================================================================
 
+/**
+ * Helper function to append API key to a URL if configured.
+ * Used by URL functions that return URLs for direct use in img/video src attributes.
+ */
+function appendApiKeyIfConfigured(url: string): string {
+  if (API_KEY) {
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}api_key=${encodeURIComponent(API_KEY)}`;
+  }
+  return url;
+}
+
 export function getMediaUrl(cameraId: string, filename: string): string {
-  return `${BASE_URL}/api/media/cameras/${cameraId}/${filename}`;
+  const baseUrl = `${BASE_URL}/api/media/cameras/${cameraId}/${filename}`;
+  return appendApiKeyIfConfigured(baseUrl);
 }
 
 export function getThumbnailUrl(filename: string): string {
-  return `${BASE_URL}/api/media/thumbnails/${filename}`;
+  const baseUrl = `${BASE_URL}/api/media/thumbnails/${filename}`;
+  return appendApiKeyIfConfigured(baseUrl);
 }
 
 // ============================================================================
@@ -502,30 +521,35 @@ export async function fetchLogs(params?: LogsQueryParams): Promise<GeneratedLogs
 }
 
 export function getDetectionImageUrl(detectionId: number): string {
-  return `${BASE_URL}/api/detections/${detectionId}/image`;
+  const baseUrl = `${BASE_URL}/api/detections/${detectionId}/image`;
+  return appendApiKeyIfConfigured(baseUrl);
 }
 
 /**
  * Get the URL for streaming a detection video.
  * This URL can be used directly in a video src attribute.
  * The backend supports HTTP Range requests for efficient video streaming.
+ * When API key authentication is enabled, the key is appended as a query parameter.
  *
  * @param detectionId - The detection ID
  * @returns The full URL to the detection's video stream endpoint
  */
 export function getDetectionVideoUrl(detectionId: number): string {
-  return `${BASE_URL}/api/detections/${detectionId}/video`;
+  const baseUrl = `${BASE_URL}/api/detections/${detectionId}/video`;
+  return appendApiKeyIfConfigured(baseUrl);
 }
 
 /**
  * Get the URL for a detection video's thumbnail.
  * Returns a poster image for the video player.
+ * When API key authentication is enabled, the key is appended as a query parameter.
  *
  * @param detectionId - The detection ID
  * @returns The full URL to the detection's video thumbnail endpoint
  */
 export function getDetectionVideoThumbnailUrl(detectionId: number): string {
-  return `${BASE_URL}/api/detections/${detectionId}/video/thumbnail`;
+  const baseUrl = `${BASE_URL}/api/detections/${detectionId}/video/thumbnail`;
+  return appendApiKeyIfConfigured(baseUrl);
 }
 
 // ============================================================================

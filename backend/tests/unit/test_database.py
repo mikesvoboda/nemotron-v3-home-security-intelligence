@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from sqlalchemy import Column, Integer, String, select
+from sqlalchemy import Column, Integer, String, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.config import get_settings
@@ -260,3 +260,35 @@ async def test_close_db():
             else:
                 os.environ.pop("DATABASE_URL", None)
             get_settings.cache_clear()
+
+
+@pytest.mark.asyncio
+async def test_sqlite_pragmas_configured(isolated_db):
+    """Test that SQLite PRAGMAs are properly configured for concurrency.
+
+    Verifies:
+    - busy_timeout is set to 30000ms (30 seconds) to prevent lock errors
+    - journal_mode is WAL for better concurrent access
+    - foreign_keys is enabled for referential integrity
+    - synchronous is NORMAL for balance of safety and speed
+    """
+    async with get_session() as session:
+        # Check busy_timeout (should be 30000ms = 30 seconds)
+        result = await session.execute(text("PRAGMA busy_timeout"))
+        busy_timeout = result.scalar()
+        assert busy_timeout == 30000, f"Expected busy_timeout=30000, got {busy_timeout}"
+
+        # Check journal_mode (should be WAL)
+        result = await session.execute(text("PRAGMA journal_mode"))
+        journal_mode = result.scalar()
+        assert journal_mode.lower() == "wal", f"Expected journal_mode=wal, got {journal_mode}"
+
+        # Check foreign_keys (should be enabled)
+        result = await session.execute(text("PRAGMA foreign_keys"))
+        foreign_keys = result.scalar()
+        assert foreign_keys == 1, f"Expected foreign_keys=1, got {foreign_keys}"
+
+        # Check synchronous (should be NORMAL = 1)
+        result = await session.execute(text("PRAGMA synchronous"))
+        synchronous = result.scalar()
+        assert synchronous == 1, f"Expected synchronous=1 (NORMAL), got {synchronous}"
