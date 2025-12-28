@@ -117,15 +117,46 @@ services:
 
 ### File Watching (Camera Integration)
 
-| Variable           | Default          | Description                           |
-| ------------------ | ---------------- | ------------------------------------- |
-| `FOSCAM_BASE_PATH` | `/export/foscam` | Base directory for Foscam FTP uploads |
+| Variable                        | Default          | Range    | Description                           |
+| ------------------------------- | ---------------- | -------- | ------------------------------------- |
+| `FOSCAM_BASE_PATH`              | `/export/foscam` | -        | Base directory for Foscam FTP uploads |
+| `FILE_WATCHER_POLLING`          | `false`          | -        | Use polling instead of native events  |
+| `FILE_WATCHER_POLLING_INTERVAL` | `1.0`            | 0.1-30.0 | Polling interval in seconds           |
 
 **Notes:**
 
 - Cameras upload via FTP to `{FOSCAM_BASE_PATH}/{camera_name}/`
 - Inside Docker, this maps to `/cameras` via volume mount
 - Directory must exist and be readable by the backend process
+
+**Native vs Polling Observer:**
+
+By default, the file watcher uses native filesystem event APIs:
+
+- Linux: inotify (kernel-level notifications)
+- macOS: FSEvents (native filesystem event API)
+- Windows: ReadDirectoryChangesW (native API)
+
+Native observers are more efficient (near-instant detection, no CPU polling), but they **do not work reliably on Docker Desktop volume mounts** on macOS and Windows. The Docker Desktop file sharing layer does not propagate inotify/FSEvents events from the host to the container.
+
+**When to Enable Polling:**
+
+Set `FILE_WATCHER_POLLING=true` if:
+
+- Running the backend in Docker Desktop on macOS or Windows
+- Monitoring network-mounted filesystems (NFS, SMB, CIFS)
+- Native events are not triggering file processing
+
+**Polling Interval Considerations:**
+
+| Interval | Detection Latency | CPU Usage | Use Case                   |
+| -------- | ----------------- | --------- | -------------------------- |
+| 0.5s     | ~500ms            | Higher    | Near real-time, small dirs |
+| 1.0s     | ~1s               | Moderate  | Default, good balance      |
+| 5.0s     | ~5s               | Low       | Large dirs, many cameras   |
+| 10-30s   | Higher            | Minimal   | Non-critical monitoring    |
+
+Lower intervals mean faster detection but increased CPU usage from directory scanning.
 
 ### AI Service Endpoints
 

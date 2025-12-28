@@ -29,6 +29,8 @@ if [ ! -f "$MODEL_PATH" ]; then
 fi
 
 # Start the inference server
+# Note: Host binding defaults to 0.0.0.0 in model.py to allow connections from
+# Docker/Podman containers. Override with HOST environment variable if needed.
 cd "$RTDETR_DIR"
 export MODEL_PATH
 export PORT="${PORT:-$MODEL_PORT}"

@@ -29,7 +29,9 @@ from backend.services.cleanup_service import CleanupService
 from backend.services.event_broadcaster import get_broadcaster, stop_broadcaster
 from backend.services.file_watcher import FileWatcher
 from backend.services.gpu_monitor import GPUMonitor
+from backend.services.health_monitor import ServiceHealthMonitor
 from backend.services.pipeline_workers import get_pipeline_manager, stop_pipeline_manager
+from backend.services.service_managers import ServiceConfig, ShellServiceManager
 from backend.services.system_broadcaster import get_system_broadcaster
 
 
@@ -89,6 +91,41 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     await cleanup_service.start()
     print("Cleanup service initialized")
 
+    # Initialize service health monitor for auto-recovery of AI services
+    # Note: This monitors RT-DETRv2 and Nemotron services for health and can trigger restarts
+    # Redis is excluded since the application handles Redis failures gracefully already
+    service_health_monitor: ServiceHealthMonitor | None = None
+    if redis_client is not None:
+        service_configs = [
+            ServiceConfig(
+                name="rtdetr",
+                health_url=f"{settings.rtdetr_url}/health",
+                restart_cmd="scripts/start_rtdetr.sh",
+                health_timeout=5.0,
+                max_retries=3,
+                backoff_base=5.0,
+            ),
+            ServiceConfig(
+                name="nemotron",
+                health_url=f"{settings.nemotron_url}/health",
+                restart_cmd="scripts/start_nemotron.sh",
+                health_timeout=5.0,
+                max_retries=3,
+                backoff_base=5.0,
+            ),
+        ]
+        service_manager = ShellServiceManager(subprocess_timeout=60.0)
+        # Get event broadcaster for WebSocket status updates
+        event_broadcaster = await get_broadcaster(redis_client)
+        service_health_monitor = ServiceHealthMonitor(
+            manager=service_manager,
+            services=service_configs,
+            broadcaster=event_broadcaster,
+            check_interval=15.0,
+        )
+        await service_health_monitor.start()
+        print("Service health monitor initialized (RT-DETRv2, Nemotron)")
+
     # Register workers with system routes for readiness checks
     register_workers(
         gpu_monitor=gpu_monitor,
@@ -102,6 +139,11 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     yield
 
     # Shutdown
+    # Stop service health monitor first (before stopping services it monitors)
+    if service_health_monitor is not None:
+        await service_health_monitor.stop()
+        print("Service health monitor stopped")
+
     await cleanup_service.stop()
     print("Cleanup service stopped")
     await gpu_monitor.stop()
