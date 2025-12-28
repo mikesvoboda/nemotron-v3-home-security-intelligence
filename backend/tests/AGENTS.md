@@ -168,7 +168,7 @@ async def test_with_redis(integration_db, mock_redis):
 ```python
 @pytest.mark.asyncio
 async def test_api_endpoint(client):
-    response = await client.get("/api/health")
+    response = await client.get("/api/system/health")
     assert response.status_code == 200
 ```
 

@@ -270,8 +270,8 @@ print_status "info" "Testing inter-service communication..."
 
 # Test backend -> redis communication
 print_status "info" "Testing Backend -> Redis communication..."
-backend_redis_test=$(curl -s "http://localhost:${BACKEND_PORT}/api/system/health/ready" | jq -r '.redis // .components.redis // "unknown"' 2>/dev/null)
-if [ "$backend_redis_test" = "healthy" ] || [ "$backend_redis_test" = "ok" ] || [ "$backend_redis_test" = "true" ]; then
+backend_redis_test=$(curl -s "http://localhost:${BACKEND_PORT}/api/system/health/ready" | jq -r '.services.redis.status // "unknown"' 2>/dev/null)
+if [ "$backend_redis_test" = "healthy" ]; then
     print_status "success" "Backend can communicate with Redis"
 else
     print_status "warning" "Backend -> Redis communication issue (status: $backend_redis_test)"

@@ -1,7 +1,9 @@
 #!/bin/bash
 #
 # Unified Test Runner
-# Runs all tests with 95% code coverage enforcement
+# Runs all tests with code coverage enforcement:
+#   - Backend: 95% coverage (via pytest --cov-fail-under)
+#   - Frontend: 92-93% thresholds (via vitest coverage thresholds in vite.config.ts)
 #
 
 set -e
@@ -121,22 +123,27 @@ if [ ! -d "node_modules" ]; then
 fi
 
 # Run frontend tests with coverage
+# Note: Frontend coverage thresholds are configured in vite.config.ts (thresholds block).
+# The vitest coverage tool will fail the tests if coverage drops below thresholds:
+#   - statements: 92%, branches: 88%, functions: 90%, lines: 93%
+# These are lower than backend's 95% because some UI animation code paths are
+# intentionally untestable (e.g., import.meta.env.MODE checks).
 echo ""
 echo "Running frontend tests with coverage..."
 echo ""
 
 if npm run test:coverage -- --run; then
     FRONTEND_RESULT=0
-    print_success "Frontend tests passed"
+    print_success "Frontend tests passed (coverage thresholds enforced by vitest)"
 else
     FRONTEND_RESULT=$?
-    print_failure "Frontend tests failed"
+    print_failure "Frontend tests failed (may be coverage below thresholds - see vite.config.ts)"
 fi
 
-# Extract frontend coverage percentage
+# Extract frontend coverage percentage for display
 if [ -f "coverage/coverage-summary.json" ]; then
     FRONTEND_COVERAGE=$(node -e "console.log(require('./coverage/coverage-summary.json').total.lines.pct)")
-    echo -e "Frontend coverage: ${BLUE}${FRONTEND_COVERAGE}%${NC}"
+    echo -e "Frontend coverage: ${BLUE}${FRONTEND_COVERAGE}%${NC} (threshold: 93%)"
 fi
 
 cd "$PROJECT_ROOT"

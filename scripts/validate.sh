@@ -86,7 +86,7 @@ Examples:
     ./scripts/validate.sh --frontend    # Frontend only
 
 Requirements:
-    Backend:  Python 3.11+, .venv with ruff/mypy/pytest installed
+    Backend:  Python 3.14+, .venv with ruff/mypy/pytest installed
     Frontend: Node.js 18+, npm, node_modules installed
 
 Setup:

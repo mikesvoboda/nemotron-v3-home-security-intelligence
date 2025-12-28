@@ -478,9 +478,11 @@ tail -f /tmp/rtdetr-detector.log
    ```
 
 3. **Model file not found**
+
    ```
    FileNotFoundError: rtdetrv2_r50vd.onnx
    ```
+
    - **Solution**: Model will auto-download on first use
    - Wait for download to complete (check logs)
 
@@ -531,10 +533,13 @@ tail -f /tmp/nemotron-llm.log
    ```
 
 4. **Port already in use**
+
    ```
    error: bind: Address already in use
    ```
+
    - **Solution**: Stop existing service
+
    ```bash
    lsof -ti:8091 | xargs kill -9
    ./scripts/start-ai.sh restart
