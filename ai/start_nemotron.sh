@@ -12,8 +12,13 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PORT="${NEMOTRON_PORT:-8091}"
-HOST="${NEMOTRON_HOST:-127.0.0.1}"
-HEALTH_URL="http://${HOST}:$PORT/health"
+# Default to 0.0.0.0 to allow connections from Docker/Podman containers.
+# When running natively on host while backend runs in containers, binding to
+# 127.0.0.1 would prevent container-to-host connectivity. Use 0.0.0.0 to bind
+# to all interfaces, enabling both local and container access.
+HOST="${NEMOTRON_HOST:-0.0.0.0}"
+# Health check should use localhost since we're checking from the same host
+HEALTH_URL="http://127.0.0.1:$PORT/health"
 LOG_FILE="/tmp/nemotron.log"
 STARTUP_TIMEOUT=90  # Model loading takes time for large models
 

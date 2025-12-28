@@ -257,15 +257,16 @@ All hooks have comprehensive test coverage using Vitest and React Testing Librar
 - React hooks: `useState`, `useEffect`, `useRef`, `useCallback`, `useMemo`
 - Testing: `vitest`, `@testing-library/react`, `@testing-library/jest-dom`
 
-## Deprecated Hooks
+## Service Status Hook
 
-### `useServiceStatus.ts` (DEPRECATED)
+### `useServiceStatus.ts`
 
-This hook is NOT currently wired up on the backend. The backend's `ServiceHealthMonitor` (health_monitor.py) exists but is not initialized in `main.py`, so no `service_status` messages are broadcast to `/ws/system`. The `SystemBroadcaster` only emits `system_status` messages.
+This hook tracks individual service health status (RT-DETRv2, Nemotron) via WebSocket. The backend's `ServiceHealthMonitor` (health_monitor.py) monitors these services and broadcasts `service_status` messages when health changes.
 
-**Use `useSystemStatus` instead** for system health information - it correctly handles `system_status` messages which include an overall health field.
+**Use `useSystemStatus`** for overall system health (healthy/degraded/unhealthy).
+**Use `useServiceStatus`** for detailed per-service status or when you need to react to specific service failures.
 
-If per-service status monitoring is needed in the future, see bead vq8.11 for implementation guidance.
+Note: Redis health is not monitored by ServiceHealthMonitor since the backend handles Redis failures gracefully through other mechanisms.
 
 ## Notes
 

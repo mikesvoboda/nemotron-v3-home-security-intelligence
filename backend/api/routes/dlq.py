@@ -31,14 +31,22 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/api/dlq", tags=["dlq"])
 
 
-async def verify_api_key(x_api_key: str | None = Header(None)) -> None:
+async def verify_api_key(
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
+    api_key: str | None = None,
+) -> None:
     """Verify API key for destructive DLQ operations.
 
     This dependency validates the API key when api_key_enabled is True.
     When authentication is disabled, all requests are allowed.
 
+    Accepts API key via:
+    - X-API-Key header (preferred)
+    - api_key query parameter (fallback)
+
     Args:
         x_api_key: API key provided via X-API-Key header
+        api_key: API key from query parameter
 
     Raises:
         HTTPException: 401 if API key is missing or invalid when auth is enabled
@@ -49,16 +57,19 @@ async def verify_api_key(x_api_key: str | None = Header(None)) -> None:
     if not settings.api_key_enabled:
         return
 
+    # Use header first, fall back to query param
+    key = x_api_key or api_key
+
     # Require API key when authentication is enabled
-    if not x_api_key:
+    if not key:
         raise HTTPException(
             status_code=401,
-            detail="API key required. Provide via X-API-Key header.",
+            detail="API key required. Provide via X-API-Key header or api_key query parameter.",
         )
 
     # Hash the provided key and compare against valid keys
-    key_hash = hashlib.sha256(x_api_key.encode()).hexdigest()
-    valid_hashes = {hashlib.sha256(key.encode()).hexdigest() for key in settings.api_keys}
+    key_hash = hashlib.sha256(key.encode()).hexdigest()
+    valid_hashes = {hashlib.sha256(k.encode()).hexdigest() for k in settings.api_keys}
 
     if key_hash not in valid_hashes:
         raise HTTPException(

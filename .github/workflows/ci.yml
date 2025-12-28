@@ -346,3 +346,24 @@ jobs:
           tags: frontend:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # Production Dockerfiles - catch deployment-only breakage early
+      - name: Build backend production image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile.prod
+          push: false
+          tags: backend:${{ github.sha }}-prod
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build frontend production image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile.prod
+          push: false
+          tags: frontend:${{ github.sha }}-prod
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

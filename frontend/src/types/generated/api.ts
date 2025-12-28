@@ -1007,7 +1007,7 @@ export interface paths {
          * @description Patch processing-related configuration and persist runtime overrides.
          *
          *     Requires API key authentication when api_key_enabled is True in settings.
-         *     Provide the API key via X-API-Key header.
+         *     Provide the API key via X-API-Key header or api_key query parameter.
          *
          *     Notes:
          *     - This updates a runtime override env file (see `HSI_RUNTIME_ENV_PATH`) and clears the
@@ -1092,7 +1092,7 @@ export interface paths {
          * @description Trigger manual data cleanup based on retention settings.
          *
          *     Requires API key authentication when api_key_enabled is True in settings.
-         *     Provide the API key via X-API-Key header.
+         *     Provide the API key via X-API-Key header or api_key query parameter.
          *
          *     This endpoint runs the CleanupService to delete old data according to
          *     the configured retention period. It deletes:
@@ -3231,9 +3231,11 @@ export interface operations {
     };
     requeue_dlq_job_api_dlq_requeue__queue_name__post: {
         parameters: {
-            query?: never;
+            query?: {
+                api_key?: string | null;
+            };
             header?: {
-                "x-api-key"?: string | null;
+                "X-API-Key"?: string | null;
             };
             path: {
                 queue_name: components["schemas"]["DLQName"];
@@ -3264,9 +3266,11 @@ export interface operations {
     };
     requeue_all_dlq_jobs_api_dlq_requeue_all__queue_name__post: {
         parameters: {
-            query?: never;
+            query?: {
+                api_key?: string | null;
+            };
             header?: {
-                "x-api-key"?: string | null;
+                "X-API-Key"?: string | null;
             };
             path: {
                 queue_name: components["schemas"]["DLQName"];
@@ -3297,9 +3301,11 @@ export interface operations {
     };
     clear_dlq_api_dlq__queue_name__delete: {
         parameters: {
-            query?: never;
+            query?: {
+                api_key?: string | null;
+            };
             header?: {
-                "x-api-key"?: string | null;
+                "X-API-Key"?: string | null;
             };
             path: {
                 queue_name: components["schemas"]["DLQName"];
@@ -3980,9 +3986,11 @@ export interface operations {
     };
     patch_config_api_system_config_patch: {
         parameters: {
-            query?: never;
+            query?: {
+                api_key?: string | null;
+            };
             header?: {
-                "x-api-key"?: string | null;
+                "X-API-Key"?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -4057,9 +4065,10 @@ export interface operations {
         parameters: {
             query?: {
                 dry_run?: boolean;
+                api_key?: string | null;
             };
             header?: {
-                "x-api-key"?: string | null;
+                "X-API-Key"?: string | null;
             };
             path?: never;
             cookie?: never;
