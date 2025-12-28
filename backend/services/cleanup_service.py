@@ -188,8 +188,8 @@ class CleanupService:
         logger.info(f"Starting cleanup (retention: {self.retention_days} days)")
         stats = CleanupStats()
 
-        # Calculate cutoff date
-        cutoff_date = datetime.now() - timedelta(days=self.retention_days)
+        # Calculate cutoff date (use UTC for consistency with timezone-aware columns)
+        cutoff_date = datetime.now(UTC) - timedelta(days=self.retention_days)
         logger.info(f"Deleting records older than {cutoff_date}")
 
         try:
@@ -278,8 +278,8 @@ class CleanupService:
         logger.info(f"Starting cleanup dry run (retention: {self.retention_days} days)")
         stats = CleanupStats()
 
-        # Calculate cutoff date
-        cutoff_date = datetime.now() - timedelta(days=self.retention_days)
+        # Calculate cutoff date (use UTC for consistency with timezone-aware columns)
+        cutoff_date = datetime.now(UTC) - timedelta(days=self.retention_days)
         logger.info(f"Dry run: would delete records older than {cutoff_date}")
 
         try:

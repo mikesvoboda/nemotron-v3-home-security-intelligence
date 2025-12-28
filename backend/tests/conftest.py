@@ -122,13 +122,15 @@ async def test_db():
     """Create test database session factory for unit tests.
 
     This fixture provides a callable that returns a context manager for database sessions.
-    It sets up a PostgreSQL test database and ensures cleanup.
+    It sets up a PostgreSQL test database and ensures cleanup after the test.
 
     Usage:
         async with test_db() as session:
             # Use session for database operations
             ...
     """
+    from sqlalchemy import text
+
     from backend.core.config import get_settings
     from backend.core.database import close_db, get_session, init_db
 
@@ -153,8 +155,26 @@ async def test_db():
     # Initialize database
     await init_db()
 
+    # Clean up any existing data before the test (for parallel test isolation)
+    async with get_session() as session:
+        # Truncate all tables in correct order to respect FK constraints
+        await session.execute(text("TRUNCATE TABLE logs, gpu_stats, api_keys CASCADE"))
+        await session.execute(text("TRUNCATE TABLE detections, events CASCADE"))
+        await session.execute(text("TRUNCATE TABLE cameras CASCADE"))
+        await session.commit()
+
     # Return the get_session function as a callable
     yield get_session
+
+    # Cleanup data after the test (best effort - ignore errors during cleanup)
+    try:
+        async with get_session() as session:
+            await session.execute(text("TRUNCATE TABLE logs, gpu_stats, api_keys CASCADE"))
+            await session.execute(text("TRUNCATE TABLE detections, events CASCADE"))
+            await session.execute(text("TRUNCATE TABLE cameras CASCADE"))
+            await session.commit()
+    except Exception:  # noqa: S110 - intentionally ignoring cleanup errors
+        pass
 
     # Cleanup
     await close_db()
