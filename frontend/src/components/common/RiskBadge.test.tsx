@@ -110,28 +110,28 @@ describe('RiskBadge', () => {
       const { container } = render(<RiskBadge level="low" />);
       const svg = container.querySelector('svg');
       expect(svg).toBeInTheDocument();
-      expect(svg?.classList.toString()).toContain('lucide-check-circle');
+      expect(svg?.classList.toString()).toContain('lucide-circle-check-big');
     });
 
     it('renders AlertTriangle icon for medium risk', () => {
       const { container } = render(<RiskBadge level="medium" />);
       const svg = container.querySelector('svg');
       expect(svg).toBeInTheDocument();
-      expect(svg?.classList.toString()).toContain('lucide-alert-triangle');
+      expect(svg?.classList.toString()).toContain('lucide-triangle-alert');
     });
 
     it('renders AlertTriangle icon for high risk', () => {
       const { container } = render(<RiskBadge level="high" />);
       const svg = container.querySelector('svg');
       expect(svg).toBeInTheDocument();
-      expect(svg?.classList.toString()).toContain('lucide-alert-triangle');
+      expect(svg?.classList.toString()).toContain('lucide-triangle-alert');
     });
 
     it('renders AlertOctagon icon for critical risk', () => {
       const { container } = render(<RiskBadge level="critical" />);
       const svg = container.querySelector('svg');
       expect(svg).toBeInTheDocument();
-      expect(svg?.classList.toString()).toContain('lucide-alert-octagon');
+      expect(svg?.classList.toString()).toContain('lucide-octagon-alert');
     });
 
     it('renders icon with correct size for small badge', () => {

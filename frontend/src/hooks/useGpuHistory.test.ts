@@ -124,6 +124,7 @@ describe('useGpuHistory', () => {
       ];
 
       let callIndex = 0;
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       (api.fetchGPUStats as ReturnType<typeof vi.fn>).mockImplementation(() => {
         const data = mockData[Math.min(callIndex, mockData.length - 1)];
         callIndex++;
@@ -225,7 +226,7 @@ describe('useGpuHistory', () => {
 
   describe('cleanup', () => {
     it('clears interval on unmount', async () => {
-      const clearIntervalSpy = vi.spyOn(global, 'clearInterval');
+      const clearIntervalSpy = vi.spyOn(globalThis, 'clearInterval');
 
       const { unmount } = renderHook(() => useGpuHistory({ pollingInterval: 60000 }));
 
