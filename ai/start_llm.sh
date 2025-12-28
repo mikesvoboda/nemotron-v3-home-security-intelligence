@@ -30,6 +30,9 @@ echo "GPU layers: 99 (all layers)"
 echo "Parallelism: 2 concurrent requests"
 echo "Expected VRAM usage: ~3GB"
 
+# Host 0.0.0.0 allows connections from Docker/Podman containers.
+# When AI servers run natively on host while backend runs in containers,
+# binding to 127.0.0.1 would prevent container-to-host connectivity.
 llama-server \
   --model "$MODEL_FILE" \
   --port $MODEL_PORT \

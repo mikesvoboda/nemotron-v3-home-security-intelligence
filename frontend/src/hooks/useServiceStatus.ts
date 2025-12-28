@@ -1,20 +1,18 @@
 /**
- * @deprecated This hook is NOT currently wired up on the backend.
+ * Hook for tracking individual service health status.
  *
- * The backend's ServiceHealthMonitor (health_monitor.py) exists but is not
- * initialized in main.py, so no `service_status` messages are ever broadcast
- * to /ws/system. The SystemBroadcaster only emits `system_status` messages.
+ * The backend's ServiceHealthMonitor (health_monitor.py) monitors RT-DETRv2 and
+ * Nemotron services, broadcasting `service_status` messages when their health
+ * changes. This hook listens for those messages and tracks the status of each
+ * monitored service.
  *
- * For system health information, use `useSystemStatus` instead, which correctly
- * handles the `system_status` messages from /ws/system. The system_status
- * payload includes an overall health field ('healthy', 'degraded', 'unhealthy').
+ * For overall system health, use `useSystemStatus` which provides an aggregated
+ * health field ('healthy', 'degraded', 'unhealthy'). This hook is useful when
+ * you need to show detailed per-service status or react to specific service
+ * failures.
  *
- * If per-service status monitoring is needed in the future:
- * 1. Wire ServiceHealthMonitor in backend/main.py
- * 2. Have it broadcast to /ws/system (currently it would broadcast to event channel)
- * 3. Then this hook can be un-deprecated
- *
- * See bead vq8.11 for context on this decision.
+ * Note: Redis health is not monitored by ServiceHealthMonitor since the backend
+ * handles Redis failures gracefully through other mechanisms.
  */
 import { useState, useCallback, useMemo } from 'react';
 
@@ -91,8 +89,12 @@ function createInitialServices(): Record<ServiceName, ServiceStatus | null> {
 }
 
 /**
- * @deprecated See file-level deprecation notice.
- * Use `useSystemStatus` for system health information instead.
+ * Subscribe to per-service health status updates from the backend.
+ *
+ * Returns current status for each monitored service (rtdetr, nemotron),
+ * along with derived flags for checking if any service is unhealthy or restarting.
+ *
+ * @returns UseServiceStatusResult with services map and utility getters
  */
 export function useServiceStatus(): UseServiceStatusResult {
   const [services, setServices] =

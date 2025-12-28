@@ -151,14 +151,22 @@ class CircuitBreaker:
 _health_circuit_breaker = CircuitBreaker()
 
 
-async def verify_api_key(x_api_key: str | None = Header(None)) -> None:
+async def verify_api_key(
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
+    api_key: str | None = None,
+) -> None:
     """Verify API key for protected endpoints.
 
     This dependency checks if API key authentication is enabled in settings,
     and if so, validates the provided API key against the configured keys.
 
+    Accepts API key via:
+    - X-API-Key header (preferred)
+    - api_key query parameter (fallback)
+
     Args:
         x_api_key: API key from X-API-Key header
+        api_key: API key from query parameter
 
     Raises:
         HTTPException: 401 if API key is required but missing or invalid
@@ -169,15 +177,18 @@ async def verify_api_key(x_api_key: str | None = Header(None)) -> None:
     if not settings.api_key_enabled:
         return
 
+    # Use header first, fall back to query param
+    key = x_api_key or api_key
+
     # Require API key if authentication is enabled
-    if not x_api_key:
+    if not key:
         raise HTTPException(
             status_code=401,
-            detail="API key required. Provide via X-API-Key header.",
+            detail="API key required. Provide via X-API-Key header or api_key query parameter.",
         )
 
     # Hash and validate the API key
-    key_hash = hashlib.sha256(x_api_key.encode()).hexdigest()
+    key_hash = hashlib.sha256(key.encode()).hexdigest()
     valid_hashes = {hashlib.sha256(k.encode()).hexdigest() for k in settings.api_keys}
 
     if key_hash not in valid_hashes:
@@ -972,7 +983,7 @@ async def patch_config(update: ConfigUpdateRequest = Body(...)) -> ConfigRespons
     """Patch processing-related configuration and persist runtime overrides.
 
     Requires API key authentication when api_key_enabled is True in settings.
-    Provide the API key via X-API-Key header.
+    Provide the API key via X-API-Key header or api_key query parameter.
 
     Notes:
     - This updates a runtime override env file (see `HSI_RUNTIME_ENV_PATH`) and clears the
@@ -1227,7 +1238,7 @@ async def trigger_cleanup(dry_run: bool = False) -> CleanupResponse:
     """Trigger manual data cleanup based on retention settings.
 
     Requires API key authentication when api_key_enabled is True in settings.
-    Provide the API key via X-API-Key header.
+    Provide the API key via X-API-Key header or api_key query parameter.
 
     This endpoint runs the CleanupService to delete old data according to
     the configured retention period. It deletes:
