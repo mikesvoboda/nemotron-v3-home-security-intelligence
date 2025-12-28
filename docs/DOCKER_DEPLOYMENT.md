@@ -362,9 +362,10 @@ docker run --rm backend-prod python -c "from backend.core import get_settings; p
 - Image: Built from `backend/Dockerfile`
 - Port: 8000
 - Volumes:
-  - `./backend/data:/app/data` - SQLite database persistence
+  - `./backend/data:/app/data` - Application data (logs, runtime configs)
   - `/export/foscam:/cameras:ro` - Read-only camera uploads
 - Health check: HTTP GET to `/health` endpoint
+- Depends on: PostgreSQL and Redis services
 
 **Production:**
 
@@ -407,7 +408,7 @@ Create a `.env` file in the project root (use `.env.example` as template).
 FOSCAM_BASE_PATH=/export/foscam
 
 # Database
-DATABASE_URL=sqlite+aiosqlite:///data/security.db
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/home_security
 
 # Redis
 REDIS_URL=redis://redis:6379
@@ -479,7 +480,8 @@ All services are connected via a custom bridge network `security-net`:
 
 ### Data Persistence
 
-- **Backend data**: `./backend/data` - SQLite database, logs
+- **Backend data**: `./backend/data` - Application logs and runtime configs
+- **PostgreSQL data**: `postgres_data` volume - Database persistence
 - **Redis data**: `redis_data` volume - Cache and queue data
 - **Camera uploads**: `/export/foscam` - Read-only mount (must exist on host)
 
@@ -769,10 +771,13 @@ Add monitoring stack (Prometheus + Grafana):
 ### Database Backup
 
 ```bash
-# Create backup
-docker compose exec backend sqlite3 /app/data/security.db ".backup /app/data/backup.db"
+# Create PostgreSQL backup
+docker compose exec postgres pg_dump -U postgres home_security > backup.sql
 
-# Copy to host
+# Or use compressed format
+docker compose exec postgres pg_dump -U postgres -F c home_security > backup.dump
+
+# Copy backup to host (if needed)
 docker compose cp backend:/app/data/backup.db ./backup.db
 ```
 

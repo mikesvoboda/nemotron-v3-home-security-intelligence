@@ -4,6 +4,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from backend.core.config import Settings, get_settings
 
@@ -52,9 +53,12 @@ class TestSettingsDefaults:
     """Test that Settings class has correct default values."""
 
     def test_default_database_url(self, clean_env):
-        """Test default database URL is SQLite with correct path."""
+        """Test default database URL is PostgreSQL with asyncpg driver."""
         settings = Settings()
-        assert settings.database_url == "sqlite+aiosqlite:///./data/security.db"
+        assert (
+            settings.database_url
+            == "postgresql+asyncpg://security:security_dev_password@localhost:5432/security"
+        )
 
     def test_default_redis_url(self, clean_env):
         """Test default Redis URL points to localhost."""
@@ -360,58 +364,43 @@ class TestSettingsSingleton:
 
 
 class TestDatabaseUrlValidation:
-    """Test the database URL validator that creates directories."""
+    """Test the database URL validator for PostgreSQL."""
 
-    def test_validator_creates_directory_for_sqlite(self, clean_env, temp_db_path):
-        """Test that SQLite database directory is created if it doesn't exist."""
-        # Use a path that doesn't exist yet
-        db_url = f"sqlite+aiosqlite:///{temp_db_path}"
-        assert not temp_db_path.parent.exists()
+    def test_validator_accepts_postgresql_urls(self, clean_env):
+        """Test that PostgreSQL URLs are accepted."""
+        valid_urls = [
+            "postgresql://user:pass@localhost:5432/db",
+            "postgresql+asyncpg://user:pass@localhost:5432/db",
+        ]
 
-        clean_env.setenv("DATABASE_URL", db_url)
-        _settings = Settings()
-
-        # Validator should have created the parent directory
-        assert temp_db_path.parent.exists()
-        assert temp_db_path.parent.is_dir()
-
-    def test_validator_handles_existing_directory(self, clean_env, temp_db_path):
-        """Test that validator works when directory already exists."""
-        # Create the directory first
-        temp_db_path.parent.mkdir(parents=True, exist_ok=True)
-        assert temp_db_path.parent.exists()
-
-        db_url = f"sqlite+aiosqlite:///{temp_db_path}"
-        clean_env.setenv("DATABASE_URL", db_url)
-
-        # Should not raise an error
-        settings = Settings()
-        assert settings.database_url == db_url
-
-    def test_validator_handles_memory_database(self, clean_env):
-        """Test that in-memory SQLite database doesn't create directories."""
-        clean_env.setenv("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
-        _ = Settings()
-
-    def test_validator_handles_non_sqlite_urls(self, clean_env):
-        """Test that non-SQLite database URLs are not modified."""
-        postgres_url = "postgresql+asyncpg://user:pass@localhost:5432/dbname"
-        clean_env.setenv("DATABASE_URL", postgres_url)
-        settings = Settings()
-        assert settings.database_url == postgres_url
-
-    def test_validator_handles_nested_directory_creation(self, clean_env):
-        """Test that validator creates nested directories."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            nested_path = Path(tmpdir) / "level1" / "level2" / "level3" / "db.sqlite"
-            db_url = f"sqlite+aiosqlite:///{nested_path}"
-
+        for db_url in valid_urls:
             clean_env.setenv("DATABASE_URL", db_url)
-            _settings = Settings()
+            settings = Settings()
+            assert settings.database_url == db_url
 
-            # All nested directories should be created
-            assert nested_path.parent.exists()
-            assert (Path(tmpdir) / "level1" / "level2" / "level3").is_dir()
+    def test_validator_rejects_sqlite_urls(self, clean_env, temp_db_path):
+        """Test that SQLite URLs are rejected (PostgreSQL-only)."""
+        db_url = f"sqlite+aiosqlite:///{temp_db_path}"
+        clean_env.setenv("DATABASE_URL", db_url)
+
+        with pytest.raises(ValidationError) as exc_info:
+            Settings()
+
+        # Verify the error message mentions PostgreSQL requirement
+        assert "postgresql" in str(exc_info.value).lower()
+
+    def test_validator_rejects_invalid_urls(self, clean_env):
+        """Test that invalid database URLs are rejected."""
+        invalid_urls = [
+            "mysql://user:pass@localhost:3306/db",
+            "mongodb://localhost:27017/db",
+            "invalid-url",
+        ]
+
+        for db_url in invalid_urls:
+            clean_env.setenv("DATABASE_URL", db_url)
+            with pytest.raises(ValidationError):
+                Settings()
 
 
 class TestSettingsConfiguration:

@@ -5,7 +5,7 @@ This project is an AI-powered home security monitoring dashboard.
 ## Project Overview
 
 - **Frontend:** React + TypeScript + Tailwind + Tremor
-- **Backend:** Python FastAPI + SQLite + Redis
+- **Backend:** Python FastAPI + PostgreSQL + Redis
 - **AI:** RT-DETRv2 (object detection) + Nemotron via llama.cpp (risk reasoning)
 - **GPU:** NVIDIA RTX A5500 (24GB)
 - **Cameras:** Foscam FTP uploads to `/export/foscam/{camera_name}/`
@@ -58,7 +58,7 @@ bd list --label phase-1
 
 ### Phase 2: Database & Layout Foundation (P1) - 6 tasks
 
-SQLite models, Redis connection, Tailwind theme, app layout.
+PostgreSQL models, Redis connection, Tailwind theme, app layout.
 
 ```bash
 bd list --label phase-2
