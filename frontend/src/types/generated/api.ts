@@ -348,6 +348,7 @@ export interface paths {
          *
          *     Args:
          *         camera_data: Camera creation data
+         *         request: FastAPI request for audit logging
          *         db: Database session
          *
          *     Returns:
@@ -392,6 +393,7 @@ export interface paths {
          *
          *     Args:
          *         camera_id: UUID of the camera to delete
+         *         request: FastAPI request for audit logging
          *         db: Database session
          *
          *     Raises:
@@ -407,6 +409,7 @@ export interface paths {
          *     Args:
          *         camera_id: UUID of the camera to update
          *         camera_data: Camera update data (all fields optional)
+         *         request: FastAPI request for audit logging
          *         db: Database session
          *
          *     Returns:
@@ -822,6 +825,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/events/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Events Endpoint
+         * @description Search events using full-text search.
+         *
+         *     This endpoint provides PostgreSQL full-text search across event summaries,
+         *     reasoning, object types, and camera names.
+         *
+         *     Search Query Syntax:
+         *     - Basic words: "person vehicle" (implicit AND)
+         *     - Phrase search: '"suspicious person"' (exact phrase)
+         *     - Boolean OR: "person OR animal"
+         *     - Boolean NOT: "person NOT cat"
+         *     - Boolean AND: "person AND vehicle" (explicit)
+         *
+         *     Args:
+         *         q: Search query string (required)
+         *         camera_id: Optional comma-separated camera IDs to filter by
+         *         start_date: Optional start date for date range filter
+         *         end_date: Optional end date for date range filter
+         *         severity: Optional comma-separated risk levels (low, medium, high, critical)
+         *         object_type: Optional comma-separated object types (person, vehicle, animal)
+         *         reviewed: Optional filter by reviewed status
+         *         limit: Maximum number of results to return (1-1000, default 50)
+         *         offset: Number of results to skip for pagination (default 0)
+         *         db: Database session
+         *
+         *     Returns:
+         *         SearchResponse with ranked results and pagination info
+         */
+        get: operations["search_events_endpoint_api_events_search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/events/export": {
         parameters: {
             query?: never;
@@ -892,6 +940,7 @@ export interface paths {
          *     Args:
          *         event_id: Event ID
          *         update_data: Update data (reviewed field)
+         *         request: FastAPI request for audit logging
          *         db: Database session
          *
          *     Returns:
@@ -1461,6 +1510,41 @@ export interface paths {
          *         When dry_run=True, the counts represent what would be deleted.
          */
         post: operations["trigger_cleanup_api_system_cleanup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/severity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Severity Metadata
+         * @description Get severity level definitions and thresholds.
+         *
+         *     Returns complete information about the severity taxonomy including:
+         *     - All severity level definitions (LOW, MEDIUM, HIGH, CRITICAL)
+         *     - Risk score thresholds for each level
+         *     - Color codes for UI display
+         *     - Human-readable labels and descriptions
+         *
+         *     This endpoint is useful for frontends to:
+         *     - Display severity information consistently
+         *     - Show severity legends in the UI
+         *     - Validate severity-related user inputs
+         *     - Map risk scores to severity levels client-side
+         *
+         *     Returns:
+         *         SeverityMetadataResponse with all severity definitions and current thresholds
+         */
+        get: operations["get_severity_metadata_api_system_severity_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3854,6 +3938,163 @@ export interface components {
             results: components["schemas"]["RuleTestEventResult"][];
         };
         /**
+         * SearchResponse
+         * @description Schema for search response with pagination.
+         * @example {
+         *       "limit": 50,
+         *       "offset": 0,
+         *       "results": [
+         *         {
+         *           "camera_id": "front_door",
+         *           "camera_name": "Front Door",
+         *           "detection_count": 5,
+         *           "detection_ids": [
+         *             1,
+         *             2,
+         *             3,
+         *             4,
+         *             5
+         *           ],
+         *           "ended_at": "2025-12-23T12:02:30Z",
+         *           "id": 1,
+         *           "object_types": "person, vehicle",
+         *           "reasoning": "Unknown individual approaching entrance during nighttime",
+         *           "relevance_score": 0.85,
+         *           "reviewed": false,
+         *           "risk_level": "medium",
+         *           "risk_score": 75,
+         *           "started_at": "2025-12-23T12:00:00Z",
+         *           "summary": "Suspicious person detected near front entrance"
+         *         }
+         *       ],
+         *       "total_count": 42
+         *     }
+         */
+        SearchResponse: {
+            /**
+             * Results
+             * @description List of search results
+             */
+            results: components["schemas"]["SearchResult"][];
+            /**
+             * Total Count
+             * @description Total number of matching events
+             */
+            total_count: number;
+            /**
+             * Limit
+             * @description Maximum number of results returned
+             */
+            limit: number;
+            /**
+             * Offset
+             * @description Number of results skipped
+             */
+            offset: number;
+        };
+        /**
+         * SearchResult
+         * @description Schema for a single search result.
+         * @example {
+         *       "camera_id": "front_door",
+         *       "camera_name": "Front Door",
+         *       "detection_count": 5,
+         *       "detection_ids": [
+         *         1,
+         *         2,
+         *         3,
+         *         4,
+         *         5
+         *       ],
+         *       "ended_at": "2025-12-23T12:02:30Z",
+         *       "id": 1,
+         *       "object_types": "person, vehicle",
+         *       "reasoning": "Unknown individual approaching entrance during nighttime hours",
+         *       "relevance_score": 0.85,
+         *       "reviewed": false,
+         *       "risk_level": "medium",
+         *       "risk_score": 75,
+         *       "started_at": "2025-12-23T12:00:00Z",
+         *       "summary": "Suspicious person detected near front entrance"
+         *     }
+         */
+        SearchResult: {
+            /**
+             * Id
+             * @description Event ID
+             */
+            id: number;
+            /**
+             * Camera Id
+             * @description Camera ID
+             */
+            camera_id: string;
+            /**
+             * Camera Name
+             * @description Camera display name
+             */
+            camera_name?: string | null;
+            /**
+             * Started At
+             * Format: date-time
+             * @description Event start timestamp
+             */
+            started_at: string;
+            /**
+             * Ended At
+             * @description Event end timestamp
+             */
+            ended_at?: string | null;
+            /**
+             * Risk Score
+             * @description Risk score (0-100)
+             */
+            risk_score?: number | null;
+            /**
+             * Risk Level
+             * @description Risk level (low, medium, high, critical)
+             */
+            risk_level?: string | null;
+            /**
+             * Summary
+             * @description LLM-generated event summary
+             */
+            summary?: string | null;
+            /**
+             * Reasoning
+             * @description LLM reasoning for risk score
+             */
+            reasoning?: string | null;
+            /**
+             * Reviewed
+             * @description Whether event has been reviewed
+             * @default false
+             */
+            reviewed: boolean;
+            /**
+             * Detection Count
+             * @description Number of detections in this event
+             * @default 0
+             */
+            detection_count: number;
+            /**
+             * Detection Ids
+             * @description List of detection IDs associated with this event
+             */
+            detection_ids?: number[];
+            /**
+             * Object Types
+             * @description Comma-separated detected object types
+             */
+            object_types?: string | null;
+            /**
+             * Relevance Score
+             * @description Full-text search relevance score (higher is more relevant)
+             * @default 0
+             */
+            relevance_score: number;
+        };
+        /**
          * SeedCamerasRequest
          * @description Request schema for seeding cameras.
          */
@@ -3945,6 +4186,148 @@ export interface components {
             details?: {
                 [key: string]: string;
             } | null;
+        };
+        /**
+         * SeverityDefinitionResponse
+         * @description Definition of a single severity level.
+         * @example {
+         *       "color": "#f97316",
+         *       "description": "Concerning activity, review soon",
+         *       "label": "High",
+         *       "max_score": 84,
+         *       "min_score": 60,
+         *       "priority": 1,
+         *       "severity": "high"
+         *     }
+         */
+        SeverityDefinitionResponse: {
+            /** @description The severity level identifier */
+            severity: components["schemas"]["SeverityEnum"];
+            /**
+             * Label
+             * @description Human-readable label for the severity level
+             */
+            label: string;
+            /**
+             * Description
+             * @description Description of when this severity applies
+             */
+            description: string;
+            /**
+             * Color
+             * @description Hex color code for UI display (e.g., '#22c55e')
+             */
+            color: string;
+            /**
+             * Priority
+             * @description Sort priority (0 = highest priority, 3 = lowest)
+             */
+            priority: number;
+            /**
+             * Min Score
+             * @description Minimum risk score for this severity (inclusive)
+             */
+            min_score: number;
+            /**
+             * Max Score
+             * @description Maximum risk score for this severity (inclusive)
+             */
+            max_score: number;
+        };
+        /**
+         * SeverityEnum
+         * @description Severity levels for API responses.
+         * @enum {string}
+         */
+        SeverityEnum: "low" | "medium" | "high" | "critical";
+        /**
+         * SeverityMetadataResponse
+         * @description Response schema for severity metadata endpoint.
+         *
+         *     Provides complete information about severity levels including:
+         *     - All severity definitions with thresholds and colors
+         *     - Current threshold configuration
+         *     - Useful for frontend to display severity information consistently
+         * @example {
+         *       "definitions": [
+         *         {
+         *           "color": "#22c55e",
+         *           "description": "Routine activity, no concern",
+         *           "label": "Low",
+         *           "max_score": 29,
+         *           "min_score": 0,
+         *           "priority": 3,
+         *           "severity": "low"
+         *         },
+         *         {
+         *           "color": "#eab308",
+         *           "description": "Notable activity, worth reviewing",
+         *           "label": "Medium",
+         *           "max_score": 59,
+         *           "min_score": 30,
+         *           "priority": 2,
+         *           "severity": "medium"
+         *         },
+         *         {
+         *           "color": "#f97316",
+         *           "description": "Concerning activity, review soon",
+         *           "label": "High",
+         *           "max_score": 84,
+         *           "min_score": 60,
+         *           "priority": 1,
+         *           "severity": "high"
+         *         },
+         *         {
+         *           "color": "#ef4444",
+         *           "description": "Immediate attention required",
+         *           "label": "Critical",
+         *           "max_score": 100,
+         *           "min_score": 85,
+         *           "priority": 0,
+         *           "severity": "critical"
+         *         }
+         *       ],
+         *       "thresholds": {
+         *         "high_max": 84,
+         *         "low_max": 29,
+         *         "medium_max": 59
+         *       }
+         *     }
+         */
+        SeverityMetadataResponse: {
+            /**
+             * Definitions
+             * @description List of all severity level definitions
+             */
+            definitions: components["schemas"]["SeverityDefinitionResponse"][];
+            /** @description Current severity threshold configuration */
+            thresholds: components["schemas"]["SeverityThresholds"];
+        };
+        /**
+         * SeverityThresholds
+         * @description Current severity threshold configuration.
+         * @example {
+         *       "high_max": 84,
+         *       "low_max": 29,
+         *       "medium_max": 59
+         *     }
+         */
+        SeverityThresholds: {
+            /**
+             * Low Max
+             * @description Maximum risk score for LOW severity (0 to this value = LOW)
+             */
+            low_max: number;
+            /**
+             * Medium Max
+             * @description Maximum risk score for MEDIUM severity (low_max+1 to this value = MEDIUM)
+             */
+            medium_max: number;
+            /**
+             * High Max
+             * @description Maximum risk score for HIGH severity (medium_max+1 to this value = HIGH)
+             */
+            high_max: number;
         };
         /**
          * StageLatency
@@ -5359,6 +5742,54 @@ export interface operations {
             };
         };
     };
+    search_events_endpoint_api_events_search_get: {
+        parameters: {
+            query: {
+                /** @description Search query string */
+                q: string;
+                /** @description Filter by camera ID (comma-separated for multiple) */
+                camera_id?: string | null;
+                /** @description Filter by start date (ISO format) */
+                start_date?: string | null;
+                /** @description Filter by end date (ISO format) */
+                end_date?: string | null;
+                /** @description Filter by risk levels (comma-separated: low,medium,high,critical) */
+                severity?: string | null;
+                /** @description Filter by object types (comma-separated: person,vehicle,animal) */
+                object_type?: string | null;
+                /** @description Filter by reviewed status */
+                reviewed?: boolean | null;
+                /** @description Maximum number of results */
+                limit?: number;
+                /** @description Number of results to skip */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     export_events_api_events_export_get: {
         parameters: {
             query?: {
@@ -6085,6 +6516,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_severity_metadata_api_system_severity_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeverityMetadataResponse"];
                 };
             };
         };
