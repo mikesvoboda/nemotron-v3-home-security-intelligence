@@ -12,24 +12,29 @@ import pytest
 
 from backend.models.camera import Camera
 from backend.models.event import Event
+from backend.tests.conftest import unique_id
 
 
 @pytest.fixture
 async def setup_searchable_events(db_session):
     """Create test data for search tests."""
+    # Use unique IDs to avoid parallel test conflicts
+    front_door_id = unique_id("front_door")
+    back_yard_id = unique_id("back_yard")
+
     # Create a camera
     camera = Camera(
-        id="front_door",
+        id=front_door_id,
         name="Front Door",
-        folder_path="/export/foscam/front_door",
+        folder_path=f"/export/foscam/{front_door_id}",
         status="online",
     )
     db_session.add(camera)
 
     camera2 = Camera(
-        id="back_yard",
+        id=back_yard_id,
         name="Back Yard",
-        folder_path="/export/foscam/back_yard",
+        folder_path=f"/export/foscam/{back_yard_id}",
         status="online",
     )
     db_session.add(camera2)
@@ -39,8 +44,8 @@ async def setup_searchable_events(db_session):
     # Create events with various content for search testing
     events = [
         Event(
-            batch_id="batch1",
-            camera_id="front_door",
+            batch_id=unique_id("batch1"),
+            camera_id=front_door_id,
             started_at=datetime.utcnow() - timedelta(hours=1),
             risk_score=75,
             risk_level="high",
@@ -51,8 +56,8 @@ async def setup_searchable_events(db_session):
             object_types="person",
         ),
         Event(
-            batch_id="batch2",
-            camera_id="front_door",
+            batch_id=unique_id("batch2"),
+            camera_id=front_door_id,
             started_at=datetime.utcnow() - timedelta(hours=2),
             risk_score=30,
             risk_level="low",
@@ -63,8 +68,8 @@ async def setup_searchable_events(db_session):
             object_types="person, vehicle",
         ),
         Event(
-            batch_id="batch3",
-            camera_id="back_yard",
+            batch_id=unique_id("batch3"),
+            camera_id=back_yard_id,
             started_at=datetime.utcnow() - timedelta(hours=3),
             risk_score=50,
             risk_level="medium",
@@ -75,8 +80,8 @@ async def setup_searchable_events(db_session):
             object_types="animal",
         ),
         Event(
-            batch_id="batch4",
-            camera_id="back_yard",
+            batch_id=unique_id("batch4"),
+            camera_id=back_yard_id,
             started_at=datetime.utcnow() - timedelta(days=2),
             risk_score=90,
             risk_level="critical",
@@ -93,7 +98,8 @@ async def setup_searchable_events(db_session):
 
     await db_session.commit()
 
-    return events
+    # Return events and camera IDs for tests that need them
+    return {"events": events, "front_door_id": front_door_id, "back_yard_id": back_yard_id}
 
 
 @pytest.mark.asyncio
@@ -138,14 +144,15 @@ async def test_search_boolean_or(client, setup_searchable_events):
 @pytest.mark.asyncio
 async def test_search_with_camera_filter(client, setup_searchable_events):
     """Test search with camera filter."""
-    response = await client.get("/api/events/search?q=detected&camera_id=front_door")
+    front_door_id = setup_searchable_events["front_door_id"]
+    response = await client.get(f"/api/events/search?q=detected&camera_id={front_door_id}")
 
     assert response.status_code == 200
     data = response.json()
 
     # All results should be from front_door camera
     for result in data["results"]:
-        assert result["camera_id"] == "front_door"
+        assert result["camera_id"] == front_door_id
 
 
 @pytest.mark.asyncio
