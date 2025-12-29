@@ -70,20 +70,20 @@ jobs:
     services:
       postgres:
         image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: security_test
         ports:
           - 5432:5432
-        env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: test
         options: >-
-          --health-cmd "pg_isready -U test"
+          --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test
-      TEST_DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -98,14 +98,28 @@ jobs:
       - name: Install dependencies
         run: pip install -r backend/requirements.txt
 
+      - name: Wait for PostgreSQL
+        run: |
+          echo "Waiting for PostgreSQL..."
+          for i in {1..30}; do
+            if pg_isready -h localhost -p 5432 -U postgres; then
+              echo "PostgreSQL is ready"
+              exit 0
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 1
+          done
+          echo "PostgreSQL failed to start"
+          exit 1
+
       - name: Run unit tests with coverage
         run: |
           pytest backend/tests/unit/ \
             --cov=backend \
             --cov-report=xml:coverage-unit.xml \
             --cov-report=term-missing \
-            -v \
-            -n auto
+            --cov-fail-under=93 \
+            -v
 
       - name: Upload unit test coverage
         uses: codecov/codecov-action@v4
@@ -120,14 +134,14 @@ jobs:
     services:
       postgres:
         image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: security_test
         ports:
           - 5432:5432
-        env:
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: test
         options: >-
-          --health-cmd "pg_isready -U test"
+          --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -141,8 +155,8 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test
-      TEST_DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
       REDIS_URL: redis://localhost:6379
       REDIS_HOST: localhost
       REDIS_PORT: 6379
@@ -162,6 +176,20 @@ jobs:
 
       - name: Install Redis CLI
         run: sudo apt-get update && sudo apt-get install -y redis-tools
+
+      - name: Wait for PostgreSQL
+        run: |
+          echo "Waiting for PostgreSQL..."
+          for i in {1..30}; do
+            if pg_isready -h localhost -p 5432 -U postgres; then
+              echo "PostgreSQL is ready"
+              exit 0
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 1
+          done
+          echo "PostgreSQL failed to start"
+          exit 1
 
       - name: Wait for Redis
         run: |
@@ -185,8 +213,7 @@ jobs:
             --cov-report=xml:coverage-integration.xml \
             --cov-report=term-missing \
             --cov-fail-under=0 \
-            -v \
-            -n auto
+            -v
 
       - name: Upload integration test coverage
         uses: codecov/codecov-action@v4
