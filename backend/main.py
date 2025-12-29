@@ -12,6 +12,8 @@ from backend.api.middleware import AuthMiddleware
 from backend.api.middleware.request_id import RequestIDMiddleware
 from backend.api.routes import (
     admin,
+    alerts,
+    audit,
     cameras,
     detections,
     dlq,
@@ -20,6 +22,7 @@ from backend.api.routes import (
     metrics,
     system,
     websocket,
+    zones,
 )
 from backend.api.routes.logs import router as logs_router
 from backend.api.routes.system import register_workers
@@ -192,6 +195,8 @@ app.add_middleware(
 
 # Register routers
 app.include_router(admin.router)
+app.include_router(alerts.router)
+app.include_router(audit.router)
 app.include_router(cameras.router)
 app.include_router(detections.router)
 app.include_router(dlq.router)
@@ -201,6 +206,7 @@ app.include_router(media.router)
 app.include_router(metrics.router)
 app.include_router(system.router)
 app.include_router(websocket.router)
+app.include_router(zones.router)
 
 
 @app.get("/")
