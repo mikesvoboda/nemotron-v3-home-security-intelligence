@@ -44,6 +44,14 @@ from backend.core.redis import (
     get_redis_optional,
     init_redis,
 )
+from backend.core.tls import (
+    TLSConfig,
+    TLSMode,
+    create_ssl_context,
+    generate_self_signed_certificate,
+    get_tls_config,
+    validate_certificate_files,
+)
 
 __all__ = [
     "DEFAULT_IMAGE_MIME",
@@ -52,8 +60,12 @@ __all__ = [
     "Base",
     "RedisClient",
     "Settings",
+    "TLSConfig",
+    "TLSMode",
     "close_db",
     "close_redis",
+    "create_ssl_context",
+    "generate_self_signed_certificate",
     "get_db",
     "get_engine",
     "get_logger",
@@ -66,6 +78,7 @@ __all__ = [
     "get_session",
     "get_session_factory",
     "get_settings",
+    "get_tls_config",
     "init_db",
     "init_redis",
     "is_image_mime_type",
@@ -81,4 +94,5 @@ __all__ = [
     "set_queue_depth",
     "set_request_id",
     "setup_logging",
+    "validate_certificate_files",
 ]
