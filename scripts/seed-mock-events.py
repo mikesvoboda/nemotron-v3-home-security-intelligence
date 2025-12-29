@@ -5,7 +5,7 @@ import asyncio
 import random
 import sys
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 # Add backend to Python path
@@ -108,7 +108,7 @@ async def seed_mock_data(num_events: int = 15) -> tuple[int, int]:
 
             # Generate timestamps (spread over last 24 hours)
             hours_ago = random.uniform(0, 24)  # noqa: S311
-            started_at = datetime.utcnow() - timedelta(hours=hours_ago)
+            started_at = datetime.now(UTC) - timedelta(hours=hours_ago)
             duration_seconds = random.randint(10, 180)  # noqa: S311
             ended_at = started_at + timedelta(seconds=duration_seconds)
 

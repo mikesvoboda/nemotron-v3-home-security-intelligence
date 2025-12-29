@@ -2,7 +2,7 @@
 
 import asyncio
 import sys
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -258,8 +258,8 @@ def test_stats_history_filtered_by_time(mock_pynvml):
     """Test getting stats history filtered by time."""
     monitor = GPUMonitor()
 
-    # Add stats with different timestamps
-    now = datetime.utcnow()
+    # Add stats with different timestamps (must be timezone-aware to match implementation)
+    now = datetime.now(UTC)
     for i in range(5):
         stats = monitor.get_current_stats()
         stats["recorded_at"] = now - timedelta(minutes=i * 10)
