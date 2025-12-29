@@ -404,6 +404,7 @@ class TestMigrationWithEnvironmentVariable:
         else:
             os.environ.pop("DATABASE_URL", None)
 
+    @pytest.mark.skip(reason="SQLite not supported - PostgreSQL-only project")
     def test_migration_uses_env_url_when_set(self, tmp_path: Path) -> None:
         """Test that migrations use DATABASE_URL when set."""
         db_path = tmp_path / "env_test.db"
@@ -419,6 +420,7 @@ class TestMigrationWithEnvironmentVariable:
         # Verify the database was created at the env var path
         assert db_path.exists(), "Database not created at DATABASE_URL path"
 
+    @pytest.mark.skip(reason="SQLite not supported - PostgreSQL-only project")
     def test_migration_with_async_url_in_env(self, tmp_path: Path) -> None:
         """Test that async URLs in DATABASE_URL are converted.
 
