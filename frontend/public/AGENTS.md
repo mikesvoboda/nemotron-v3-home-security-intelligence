@@ -2,12 +2,25 @@
 
 ## Purpose
 
-This directory contains static assets that are served directly at the root URL path without processing by Vite. Files placed here are copied as-is to the build output (`dist/`) and accessible via root-relative URLs (e.g., `/favicon.ico`).
+This directory contains static assets that are served directly at the root URL path without processing by Vite. Files placed here are copied as-is to the build output (`dist/`) and accessible via root-relative URLs (e.g., `/favicon.svg`).
 
 ## Current Contents
 
-- **`.gitkeep`** - Empty placeholder file to ensure directory exists in git
-- **`AGENTS.md`** - This documentation file
+| File          | Purpose                                                   |
+| ------------- | --------------------------------------------------------- |
+| `.gitkeep`    | Empty placeholder to ensure directory exists in git       |
+| `favicon.svg` | Application favicon (security shield icon with checkmark) |
+| `AGENTS.md`   | This documentation file                                   |
+
+## favicon.svg
+
+The current favicon is an SVG security shield icon:
+
+- Green shield shape with gradient
+- White checkmark overlay
+- Uses emerald/teal colors (`#10B981`, `#059669`)
+
+This is a custom security-themed icon appropriate for the application.
 
 ## Usage
 
@@ -17,10 +30,10 @@ Place these types of files in `/public/`:
 
 1. **Favicon files**
 
-   - `favicon.ico` - Browser tab icon
-   - `favicon.svg` - SVG favicon for modern browsers
-   - `apple-touch-icon.png` - iOS home screen icon
-   - `favicon-16x16.png`, `favicon-32x32.png` - Sized favicons
+   - `favicon.ico` - Traditional favicon for older browsers
+   - `favicon.svg` - SVG favicon for modern browsers (current)
+   - `apple-touch-icon.png` - iOS home screen icon (180x180)
+   - `favicon-16x16.png`, `favicon-32x32.png` - Sized PNG favicons
 
 2. **Manifest files**
 
@@ -35,7 +48,7 @@ Place these types of files in `/public/`:
    - Background images used in CSS
 
 4. **Other static files**
-   - `_redirects` or `_headers` for hosting platforms (Netlify, etc.)
+   - `_redirects` or `_headers` for hosting platforms
    - Static JSON data files
    - PDF documents, downloadable files
 
@@ -53,8 +66,7 @@ Do NOT place these in `/public/`:
 ### In HTML (`index.html`)
 
 ```html
-<!-- Correct: relative to root -->
-<link rel="icon" type="image/svg+xml" href="/vite.svg" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 ```
 
 ### In Components
@@ -76,36 +88,31 @@ background-image: url(/background.jpg);
 
 ## Build Behavior
 
-When running:
-
-- **`npm run dev`**: Files served from `/public/` at `http://localhost:5173/`
+- **`npm run dev`**: Files served directly from `/public/`
 - **`npm run build`**: Files copied to `dist/` at build time
 
 ## File Access
 
 All files in this directory are publicly accessible:
 
-- `/public/logo.png` → `http://localhost:5173/logo.png`
-- `/public/images/icon.svg` → `http://localhost:5173/images/icon.svg`
+- `/public/favicon.svg` -> `http://localhost:5173/favicon.svg`
+- `/public/images/icon.png` -> `http://localhost:5173/images/icon.png`
 
 ## Best Practices
 
 1. **Keep it minimal**: Only place files here that truly need to be at the root
 2. **Use descriptive names**: Avoid generic names like `image1.png`
-3. **Optimize files**: Compress images before adding (use ImageOptim, TinyPNG, etc.)
+3. **Optimize files**: Compress images before adding
 4. **Version with filename**: For cache busting, rename files (e.g., `logo-v2.png`)
-5. **Document purpose**: Add comments to this file when adding new assets
+5. **Document purpose**: Add comments when adding new assets
 
-## Expected Future Files
+## Potential Future Additions
 
-Based on the project structure, you may want to add:
+Based on project needs, consider adding:
 
-- **`favicon.ico`** - Replace default Vite favicon
-- **`nvidia-logo.svg`** - NVIDIA branding for PWA manifest
-- **`logo-192x192.png`** - Icon for Android PWA (192x192)
-- **`logo-512x512.png`** - Icon for Android PWA (512x512)
-- **`robots.txt`** - SEO crawler configuration
+- **`apple-touch-icon.png`** - iOS home screen icon (180x180)
 - **`site.webmanifest`** - PWA manifest with app metadata
+- **`robots.txt`** - SEO crawler configuration
 
 Example `site.webmanifest`:
 
@@ -113,20 +120,15 @@ Example `site.webmanifest`:
 {
   "name": "Home Security Intelligence Dashboard",
   "short_name": "Security Dashboard",
-  "description": "AI-powered home security monitoring with NVIDIA RTX acceleration",
+  "description": "AI-powered home security monitoring",
   "theme_color": "#76B900",
   "background_color": "#0E0E0E",
   "display": "standalone",
   "icons": [
     {
-      "src": "/logo-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "/logo-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png"
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
     }
   ]
 }
@@ -134,36 +136,9 @@ Example `site.webmanifest`:
 
 ## Notes for AI Agents
 
-- **Do not remove `.gitkeep`** until you add real files
-- **Public files bypass Vite processing** - they are not optimized, minified, or bundled
+- **Public files bypass Vite processing** - they are not optimized or bundled
 - **Use absolute paths** starting with `/` to reference these files
 - **Cache considerations**: Browsers may cache these files aggressively
-- **Security**: Do not place sensitive files here (API keys, credentials, etc.)
-- **Size matters**: Large files here increase build size and deployment time
-
-## Vite Configuration
-
-The public directory is configured in the Vite build:
-
-- **Dev mode**: Files served from `/public/` at `http://localhost:5173/`
-- **Build mode**: Files copied to `dist/` root during `npm run build`
-- **No processing**: Unlike `src/assets/`, these files bypass Vite's bundler
-
-The current `index.html` references:
-
-```html
-<link rel="icon" type="image/svg+xml" href="/vite.svg" />
-```
-
-This should be updated to use a custom favicon once branding is finalized.
-
-## Directory Status
-
-**Current status**: Empty (only placeholder `.gitkeep` and this AGENTS.md)
-
-**Action needed**: Add favicon and PWA icons when branding is finalized. Recommended files:
-
-1. `favicon.ico` - Traditional favicon
-2. `favicon.svg` - SVG favicon for modern browsers
-3. `apple-touch-icon.png` - iOS home screen icon (180x180)
-4. `site.webmanifest` - PWA manifest
+- **Security**: Do not place sensitive files here (API keys, credentials)
+- **Size matters**: Large files increase build size and deployment time
+- The current `index.html` references `/favicon.svg` which exists in this directory

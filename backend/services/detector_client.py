@@ -12,21 +12,18 @@ Detection Flow:
     6. Return Detection model instances
 
 Error Handling:
-    - Connection errors: Raise DetectorServiceError (allows retry)
-    - Timeouts: Raise DetectorServiceError (allows retry)
-    - HTTP 5xx errors: Raise DetectorServiceError (allows retry)
+    - Connection errors: Raise DetectorUnavailableError (allows retry)
+    - Timeouts: Raise DetectorUnavailableError (allows retry)
+    - HTTP 5xx errors: Raise DetectorUnavailableError (allows retry)
     - HTTP 4xx errors: Log and return empty list (client error, no retry)
     - Invalid JSON: Log and return empty list (malformed response)
-    - Missing files: Log and return empty list (permanent error)
-
-The distinction between DetectorServiceError and empty list is critical:
-    - DetectorServiceError: Transient failure, should be retried
-    - Empty list: Successful detection with no objects found OR permanent error
+    - Missing files: Log and return empty list (local file issue)
 """
 
 import time
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,34 +35,33 @@ from backend.core.metrics import (
     record_detection_processed,
     record_pipeline_error,
 )
+from backend.core.mime_types import get_mime_type_with_default
 from backend.models.detection import Detection
 
 logger = get_logger(__name__)
 
 
-class DetectorServiceError(Exception):
-    """Exception raised when RT-DETR service is unavailable or returns a server error.
+class DetectorUnavailableError(Exception):
+    """Raised when the RT-DETR detector service is unavailable.
 
-    This exception indicates a transient failure that should trigger a retry.
-    It is raised when:
-    - Cannot connect to the detector service
-    - Request times out
-    - Detector returns HTTP 5xx error
+    This exception is raised when the detector cannot be reached due to:
+    - Connection errors (service down, network issues)
+    - Timeout errors (service overloaded, slow response)
+    - HTTP 5xx errors (server-side failures)
 
-    Callers should catch this exception and either:
-    - Retry the request with exponential backoff
-    - Move the job to a dead-letter queue after max retries
+    This exception signals that the operation should be retried later,
+    as the failure is transient and not due to invalid input.
     """
 
-    def __init__(self, message: str, cause: Exception | None = None) -> None:
-        """Initialize the exception.
+    def __init__(self, message: str, original_error: Exception | None = None):
+        """Initialize the error.
 
         Args:
-            message: Description of the error
-            cause: Original exception that caused this error
+            message: Human-readable error description
+            original_error: The underlying exception that caused this error
         """
         super().__init__(message)
-        self.cause = cause
+        self.original_error = original_error
 
 
 class DetectorClient:
@@ -108,6 +104,8 @@ class DetectorClient:
         image_path: str,
         camera_id: str,
         session: AsyncSession,
+        video_path: str | None = None,
+        video_metadata: dict[str, Any] | None = None,
     ) -> list[Detection]:
         """Send image to detector service and store detections.
 
@@ -115,10 +113,16 @@ class DetectorClient:
         the response, filters by confidence threshold, and stores detections
         in the database.
 
+        For video frame detection, the video_path and video_metadata parameters
+        allow associating the detection with the source video file instead of
+        the extracted frame.
+
         Args:
-            image_path: Path to the image file
+            image_path: Path to the image file (or extracted video frame)
             camera_id: Camera identifier for the image
             session: Database session for storing detections
+            video_path: Optional path to the source video (if detecting from video frame)
+            video_metadata: Optional video metadata dict with duration, codec, etc.
 
         Returns:
             List of Detection model instances that were stored
@@ -170,8 +174,19 @@ class DetectorClient:
 
             # Process detections
             detections = []
-            file_type = image_file.suffix
             detected_at = datetime.now(UTC)
+
+            # Use video path and file type if this is a video frame detection
+            if video_path is not None and video_metadata is not None:
+                detection_file_path = video_path
+                file_type = video_metadata.get("file_type", "video/mp4")
+                media_type = "video"
+                is_video = True
+            else:
+                detection_file_path = image_path
+                file_type = get_mime_type_with_default(image_file)
+                media_type = "image"
+                is_video = False
 
             for detection_data in result["detections"]:
                 try:
@@ -205,10 +220,10 @@ class DetectorClient:
                         logger.warning(f"Invalid bbox format: {bbox}")
                         continue
 
-                    # Create Detection model
+                    # Create Detection model with video metadata if applicable
                     detection = Detection(
                         camera_id=camera_id,
-                        file_path=image_path,
+                        file_path=detection_file_path,
                         file_type=file_type,
                         detected_at=detected_at,
                         object_type=detection_data.get("class"),
@@ -217,7 +232,15 @@ class DetectorClient:
                         bbox_y=bbox_y,
                         bbox_width=bbox_width,
                         bbox_height=bbox_height,
+                        media_type=media_type,
                     )
+
+                    # Add video-specific metadata if this is a video detection
+                    if is_video and video_metadata:
+                        detection.duration = video_metadata.get("duration")
+                        detection.video_codec = video_metadata.get("video_codec")
+                        detection.video_width = video_metadata.get("video_width")
+                        detection.video_height = video_metadata.get("video_height")
 
                     session.add(detection)
                     detections.append(detection)
@@ -267,10 +290,10 @@ class DetectorClient:
                 f"Failed to connect to detector service: {e}",
                 extra={"camera_id": camera_id, "file_path": image_path, "duration_ms": duration_ms},
             )
-            # Raise exception to signal retry-able failure
-            raise DetectorServiceError(
-                f"Cannot connect to RT-DETR service at {self._detector_url}: {e}",
-                cause=e,
+            # Raise exception to signal retry is needed
+            raise DetectorUnavailableError(
+                f"Failed to connect to detector service: {e}",
+                original_error=e,
             ) from e
 
         except httpx.TimeoutException as e:
@@ -280,26 +303,44 @@ class DetectorClient:
                 f"Detector request timed out: {e}",
                 extra={"camera_id": camera_id, "file_path": image_path, "duration_ms": duration_ms},
             )
-            # Raise exception to signal retry-able failure
-            raise DetectorServiceError(
-                f"RT-DETR request timed out after {self._timeout}s: {e}",
-                cause=e,
+            # Raise exception to signal retry is needed
+            raise DetectorUnavailableError(
+                f"Detector request timed out: {e}",
+                original_error=e,
             ) from e
 
         except httpx.HTTPStatusError as e:
             duration_ms = int((time.time() - start_time) * 1000)
-            record_pipeline_error("rtdetr_http_error")
-            logger.error(
-                f"Detector returned HTTP error: {e.response.status_code} - {e}",
-                extra={"camera_id": camera_id, "file_path": image_path, "duration_ms": duration_ms},
-            )
-            # Server errors (5xx) are retry-able, client errors (4xx) are not
-            if e.response.status_code >= 500:
-                raise DetectorServiceError(
-                    f"RT-DETR service returned HTTP {e.response.status_code}: {e}",
-                    cause=e,
+            status_code = e.response.status_code
+
+            # 5xx errors are server-side failures that should be retried
+            if status_code >= 500:
+                record_pipeline_error("rtdetr_server_error")
+                logger.error(
+                    f"Detector returned server error: {status_code} - {e}",
+                    extra={
+                        "camera_id": camera_id,
+                        "file_path": image_path,
+                        "duration_ms": duration_ms,
+                        "status_code": status_code,
+                    },
+                )
+                raise DetectorUnavailableError(
+                    f"Detector returned server error: {status_code}",
+                    original_error=e,
                 ) from e
-            # 4xx errors are client errors - return empty list (no retry)
+
+            # 4xx errors are client errors (bad request, etc.) - don't retry
+            record_pipeline_error("rtdetr_client_error")
+            logger.error(
+                f"Detector returned client error: {status_code} - {e}",
+                extra={
+                    "camera_id": camera_id,
+                    "file_path": image_path,
+                    "duration_ms": duration_ms,
+                    "status_code": status_code,
+                },
+            )
             return []
 
         except Exception as e:
@@ -309,8 +350,9 @@ class DetectorClient:
                 f"Unexpected error during object detection: {sanitize_error(e)}",
                 extra={"camera_id": camera_id, "duration_ms": duration_ms},
             )
-            # For unexpected errors, treat as transient and allow retry
-            raise DetectorServiceError(
+            # For unexpected errors, also raise to allow retry
+            # This could be network issues, DNS failures, etc.
+            raise DetectorUnavailableError(
                 f"Unexpected error during object detection: {sanitize_error(e)}",
-                cause=e,
+                original_error=e,
             ) from e

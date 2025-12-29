@@ -6,7 +6,7 @@ The backend is a FastAPI-based REST API server for an AI-powered home security m
 
 - **Camera management** - Track cameras and their upload directories
 - **AI detection pipeline** - File watching, RT-DETRv2 object detection, batch aggregation, Nemotron risk analysis
-- **Data persistence** - SQLite database for structured data (cameras, detections, events, GPU stats)
+- **Data persistence** - PostgreSQL database for structured data (cameras, detections, events, GPU stats)
 - **Real-time capabilities** - Redis for queues, pub/sub, and caching
 - **Media serving** - Secure file serving with path traversal protection
 - **System monitoring** - Health checks, GPU stats, and system statistics
@@ -45,7 +45,7 @@ backend/
 **`config.py`** - Pydantic Settings for configuration:
 
 - Environment variable loading from `.env`
-- Database URL with SQLite support
+- Database URL with PostgreSQL support
 - Redis connection URL
 - API settings (host, port, CORS)
 - File watching settings (Foscam base path)

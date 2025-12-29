@@ -7,7 +7,7 @@ This directory contains SQLAlchemy 2.0 ORM models for the home security intellig
 ## Architecture Overview
 
 - **ORM Framework**: SQLAlchemy 2.0 with modern `Mapped` type hints
-- **Database**: SQLite (local deployment)
+- **Database**: PostgreSQL (for concurrent access and reliability)
 - **Type Safety**: Full type annotations for IDE support and mypy checking
 - **Cascade Behavior**: Camera deletion automatically removes dependent records
 - **Testing**: Comprehensive unit tests in `/backend/tests/unit/test_models.py`
@@ -234,7 +234,7 @@ Defines the Log model for structured application logging.
 - Source field enables log separation in admin UI
 - Indexes optimized for common dashboard filter patterns
 - No foreign keys - standalone logging table for reliability
-- Written by `SQLiteHandler` in `backend/core/logging.py`
+- Written by `DatabaseHandler` in `backend/core/logging.py`
 - Frontend logs submitted via `POST /api/logs/frontend` endpoint
 
 ## SQLAlchemy Patterns Used
@@ -339,9 +339,9 @@ from backend.models import Base, Camera, Detection, Event, GPUStats, Log
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-# Initialize database
-engine = create_engine("sqlite:///security.db")
-Base.metadata.create_all(engine)
+# Initialize database (async)
+from backend.core.database import init_db
+await init_db()  # Creates all tables in PostgreSQL
 
 # Create camera
 with Session(engine) as session:

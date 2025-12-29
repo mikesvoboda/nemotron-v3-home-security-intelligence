@@ -307,7 +307,7 @@ The design specification documents these critical decisions:
 1. **Batch Processing:** 90s window + 30s idle timeout (vs real-time per-frame analysis)
 2. **Risk Scoring:** LLM-determined via Nemotron
 3. **Deployment:** Hybrid (Docker for services, native for GPU models)
-4. **Database:** SQLite (single-user) vs PostgreSQL
+4. **Database:** PostgreSQL for concurrent access and reliability
 5. **Authentication:** None for MVP (single-user local deployment)
 6. **Retention:** 30 days (configurable)
 7. **UI Theme:** NVIDIA green (#76B900) with dark background

@@ -1,7 +1,7 @@
 """Centralized logging configuration for the application.
 
 This module provides:
-- Unified logger setup with console, file, and SQLite handlers
+- Unified logger setup with console, file, and database handlers
 - Structured JSON logging with contextual fields
 - Request ID context propagation via contextvars
 - Helper functions for getting configured loggers
@@ -77,8 +77,8 @@ class CustomJsonFormatter(JsonFormatter):
             log_record["request_id"] = record.request_id
 
 
-class SQLiteHandler(logging.Handler):
-    """Custom handler that writes logs to SQLite database.
+class DatabaseHandler(logging.Handler):
+    """Custom handler that writes logs to PostgreSQL database.
 
     Uses synchronous database sessions to avoid blocking async context.
     Falls back gracefully if database is unavailable.
@@ -99,13 +99,10 @@ class SQLiteHandler(logging.Handler):
                 from sqlalchemy.orm import sessionmaker
 
                 settings = get_settings()
-                # Convert async URL to sync URL for SQLite
-                sync_url = settings.database_url.replace("sqlite+aiosqlite", "sqlite")
+                # Convert async URL to sync URL for PostgreSQL
+                sync_url = settings.database_url.replace("postgresql+asyncpg", "postgresql")
 
-                self._engine = create_engine(
-                    sync_url,
-                    connect_args={"check_same_thread": False},
-                )
+                self._engine = create_engine(sync_url)
                 self._session_factory = sessionmaker(bind=self._engine)
             except Exception:
                 self._db_available = False
@@ -167,13 +164,17 @@ class SQLiteHandler(logging.Handler):
             self._db_available = False
 
 
+# Backwards compatibility alias
+SQLiteHandler = DatabaseHandler
+
+
 def setup_logging() -> None:
     """Configure application-wide logging.
 
     Sets up:
     - Console handler (StreamHandler) with plain text for development
     - File handler (RotatingFileHandler) with plain text for grep/tail
-    - SQLite handler (custom) for admin UI queries
+    - Database handler (PostgreSQL) for admin UI queries
     """
     settings = get_settings()
 
@@ -216,13 +217,13 @@ def setup_logging() -> None:
     except Exception as e:
         root_logger.warning(f"Could not set up file logging: {e}")
 
-    # SQLite handler (if enabled)
+    # Database handler (if enabled)
     if settings.log_db_enabled:
         try:
-            sqlite_handler = SQLiteHandler(min_level=settings.log_db_min_level)
-            sqlite_handler.setLevel(log_level)
-            sqlite_handler.setFormatter(logging.Formatter("%(message)s"))
-            root_logger.addHandler(sqlite_handler)
+            db_handler = DatabaseHandler(min_level=settings.log_db_min_level)
+            db_handler.setLevel(log_level)
+            db_handler.setFormatter(logging.Formatter("%(message)s"))
+            root_logger.addHandler(db_handler)
         except Exception as e:
             root_logger.warning(f"Could not set up database logging: {e}")
 

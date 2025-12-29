@@ -6,9 +6,10 @@ fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
 python-multipart>=0.0.6
 
-# Database
+# Database (PostgreSQL)
 sqlalchemy>=2.0.0
-aiosqlite>=0.19.0
+asyncpg>=0.29.0  # PostgreSQL async driver
+psycopg2-binary>=2.9.0  # PostgreSQL sync driver (for migrations)
 greenlet>=3.0.0  # Required for SQLAlchemy async support
 
 # Redis
@@ -33,6 +34,9 @@ pydantic-settings>=2.0.0
 
 # Logging
 python-json-logger>=2.0.0
+
+# TLS/Cryptography
+cryptography>=42.0.0
 
 # Metrics
 prometheus-client>=0.19.0

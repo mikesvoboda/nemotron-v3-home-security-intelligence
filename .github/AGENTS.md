@@ -8,22 +8,25 @@ This directory contains GitHub-specific configuration files for the Home Securit
 
 ```
 .github/
-  workflows/              # GitHub Actions workflow definitions
-    ci.yml                # Main CI pipeline (lint, test, build)
-    deploy.yml            # Docker image build and push to GHCR
-    ai-code-review.yml    # GPT-powered automated code review
-    nightly.yml           # Nightly benchmarks and analysis
-    gpu-tests.yml         # GPU integration tests on self-hosted runner
-    sast.yml              # Static Application Security Testing
-    codeql.yml            # CodeQL security analysis
-    gitleaks.yml          # Secret detection scanning
-    trivy.yml             # Container vulnerability scanning
-  codeql/                 # CodeQL configuration
-    codeql-config.yml     # Query configuration and path exclusions
-  prompts/                # AI prompt templates
-    code-review.prompt.md # System prompt for AI code review
-  copilot-instructions.md # GitHub Copilot context
-  dependabot.yml          # Automated dependency updates
+  AGENTS.md                   # This file
+  dependabot.yml              # Automated dependency updates
+  copilot-instructions.md     # GitHub Copilot context
+  codeql/                     # CodeQL configuration
+    codeql-config.yml         # Query configuration and path exclusions
+  prompts/                    # AI prompt templates
+    AGENTS.md                 # Prompts directory guide
+    code-review.prompt.md     # System prompt for AI code review
+  workflows/                  # GitHub Actions workflow definitions
+    AGENTS.md                 # Workflows directory guide
+    ci.yml                    # Main CI pipeline
+    deploy.yml                # Docker image build and push
+    ai-code-review.yml        # GPT-powered code review
+    nightly.yml               # Nightly benchmarks and analysis
+    gpu-tests.yml             # GPU integration tests
+    sast.yml                  # Static Application Security Testing
+    codeql.yml                # CodeQL security analysis
+    gitleaks.yml              # Secret detection scanning
+    trivy.yml                 # Container vulnerability scanning
 ```
 
 ## Key Files
@@ -90,18 +93,24 @@ This directory contains GitHub-specific configuration files for the Home Securit
 
 **Jobs:**
 
-| Job                | Runner        | Purpose                               |
-| ------------------ | ------------- | ------------------------------------- |
-| lint               | ubuntu-latest | Ruff linting and formatting           |
-| typecheck          | ubuntu-latest | Mypy type checking                    |
-| unit-tests         | ubuntu-latest | pytest unit tests with coverage       |
-| integration-tests  | ubuntu-latest | pytest integration tests with Redis   |
-| frontend-lint      | ubuntu-latest | ESLint                                |
-| frontend-typecheck | ubuntu-latest | TypeScript checking                   |
-| frontend-tests     | ubuntu-latest | Vitest with coverage                  |
-| build              | ubuntu-latest | Docker image builds (after all tests) |
+| Job                | Runner        | Description                         |
+| ------------------ | ------------- | ----------------------------------- |
+| lint               | ubuntu-latest | Ruff linting and formatting         |
+| typecheck          | ubuntu-latest | Mypy type checking                  |
+| unit-tests         | ubuntu-latest | pytest unit tests with coverage     |
+| integration-tests  | ubuntu-latest | pytest with Redis service container |
+| api-types-check    | ubuntu-latest | API types contract verification     |
+| frontend-lint      | ubuntu-latest | ESLint                              |
+| frontend-typecheck | ubuntu-latest | TypeScript checking                 |
+| frontend-tests     | ubuntu-latest | Vitest with coverage                |
+| frontend-e2e       | ubuntu-latest | Playwright E2E tests                |
+| build              | ubuntu-latest | Docker image builds (after tests)   |
 
-**Concurrency:** Cancels in-progress runs on same branch.
+**Environment:**
+
+- Python 3.12
+- Node.js 20
+- Coverage uploaded to Codecov
 
 ### Deploy Pipeline (deploy.yml)
 
@@ -110,9 +119,9 @@ This directory contains GitHub-specific configuration files for the Home Securit
 **Process:**
 
 1. Login to GitHub Container Registry (GHCR)
-2. Build Docker images (backend, frontend)
-3. Scan with Trivy for vulnerabilities
-4. Push to GHCR with tags: `sha-xxx`, `latest`
+2. Build images with Buildx (multi-arch: amd64, arm64)
+3. Scan with Trivy for vulnerabilities (fail on CRITICAL/HIGH)
+4. Push with tags: `sha-{commit}`, `latest`
 
 **Image Names:**
 
@@ -121,12 +130,12 @@ This directory contains GitHub-specific configuration files for the Home Securit
 
 ### Security Workflows
 
-| Workflow     | Tool            | Trigger                      | Purpose                   |
-| ------------ | --------------- | ---------------------------- | ------------------------- |
-| sast.yml     | Bandit, Semgrep | Push/PR                      | Python security + OWASP   |
-| codeql.yml   | CodeQL          | Push/PR/Weekly               | Deep code analysis        |
-| gitleaks.yml | Gitleaks        | Push/PR                      | Secret detection          |
-| trivy.yml    | Trivy           | Push/PR (Dockerfile changes) | Container vulnerabilities |
+| Workflow     | Tool            | Trigger              | Purpose                   |
+| ------------ | --------------- | -------------------- | ------------------------- |
+| sast.yml     | Bandit, Semgrep | Push/PR              | Python security + OWASP   |
+| codeql.yml   | CodeQL          | Push/PR/Weekly       | Deep code analysis        |
+| gitleaks.yml | Gitleaks        | Push/PR              | Secret detection          |
+| trivy.yml    | Trivy           | Push/PR (Dockerfile) | Container vulnerabilities |
 
 ### GPU Tests (gpu-tests.yml)
 
@@ -137,6 +146,7 @@ This directory contains GitHub-specific configuration files for the Home Securit
 - NVIDIA GPU available
 - CUDA drivers installed
 - Trusted source (fork protection enabled)
+- 30-minute timeout
 
 **Tests Run:**
 
@@ -149,20 +159,9 @@ This directory contains GitHub-specific configuration files for the Home Securit
 
 **Jobs:**
 
-1. **Extended Benchmarks** (GPU runner)
-
-   - Big-O complexity tests
-   - Memory profiling with memray
-
-2. **Complexity Trends** (ubuntu)
-
-   - Wily code complexity analysis
-   - Historical trend reports
-
-3. **Security Audit** (ubuntu)
-   - pip-audit for Python dependencies
-   - npm audit for Node dependencies
-   - Full Bandit scan
+1. **Extended Benchmarks** (GPU runner) - Big-O tests, memory profiling
+2. **Complexity Trends** (ubuntu) - Wily code complexity reports
+3. **Security Audit** (ubuntu) - pip-audit, npm audit, Bandit
 
 ### AI Code Review (ai-code-review.yml)
 
@@ -170,15 +169,13 @@ This directory contains GitHub-specific configuration files for the Home Securit
 
 **Process:**
 
-1. Get PR diff (truncated to 20KB for token limits)
+1. Get PR diff (truncated to 20KB)
 2. Run through GPT-4o via GitHub Models
-3. Post review comment on PR
+3. Post review as PR comment
 
 ## Usage
 
 ### Running Workflows Manually
-
-Some workflows support manual dispatch:
 
 ```bash
 # Nightly analysis
@@ -236,18 +233,6 @@ services:
     cache-dependency-path: backend/requirements*.txt
 ```
 
-### Matrix Builds
-
-```yaml
-strategy:
-  matrix:
-    include:
-      - context: ./backend
-        image: backend
-      - context: ./frontend
-        image: frontend
-```
-
 ### Self-Hosted Runner Labels
 
 ```yaml
@@ -267,7 +252,7 @@ runs-on: [self-hosted, gpu, rtx-a5500]
 
 1. Check branch protection rules
 2. Verify trigger conditions match
-3. Check concurrency settings (may be cancelled)
+3. Check concurrency settings
 
 ### GPU Tests Failing
 
@@ -279,7 +264,7 @@ runs-on: [self-hosted, gpu, rtx-a5500]
 
 1. Check Dockerfile syntax
 2. Verify base images are available
-3. Review Trivy scan results for vulnerabilities
+3. Review Trivy scan results
 
 ## Related Files
 

@@ -1,8 +1,18 @@
 """Pydantic schemas for system API endpoints."""
 
 from datetime import datetime
+from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
+
+
+class SeverityEnum(str, Enum):
+    """Severity levels for API responses."""
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
 
 
 class ServiceStatus(BaseModel):
@@ -576,6 +586,154 @@ class TelemetryResponse(BaseModel):
 # =============================================================================
 
 
+# =============================================================================
+# Pipeline Latency Schemas
+# =============================================================================
+
+
+class PipelineStageLatency(BaseModel):
+    """Latency statistics for a single pipeline transition stage.
+
+    Tracks time between pipeline stages:
+    - watch_to_detect: File detection to RT-DETR processing
+    - detect_to_batch: Detection to batch aggregation
+    - batch_to_analyze: Batch to Nemotron analysis
+    - total_pipeline: End-to-end latency
+    """
+
+    avg_ms: float | None = Field(
+        None,
+        description="Average latency in milliseconds",
+        ge=0,
+    )
+    min_ms: float | None = Field(
+        None,
+        description="Minimum latency in milliseconds",
+        ge=0,
+    )
+    max_ms: float | None = Field(
+        None,
+        description="Maximum latency in milliseconds",
+        ge=0,
+    )
+    p50_ms: float | None = Field(
+        None,
+        description="50th percentile (median) latency in milliseconds",
+        ge=0,
+    )
+    p95_ms: float | None = Field(
+        None,
+        description="95th percentile latency in milliseconds",
+        ge=0,
+    )
+    p99_ms: float | None = Field(
+        None,
+        description="99th percentile latency in milliseconds",
+        ge=0,
+    )
+    sample_count: int = Field(
+        ...,
+        description="Number of samples used to calculate statistics",
+        ge=0,
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "avg_ms": 150.5,
+                "min_ms": 50.0,
+                "max_ms": 500.0,
+                "p50_ms": 120.0,
+                "p95_ms": 400.0,
+                "p99_ms": 480.0,
+                "sample_count": 100,
+            }
+        }
+    )
+
+
+class PipelineLatencyResponse(BaseModel):
+    """Response schema for pipeline latency endpoint.
+
+    Provides latency metrics for each stage transition in the AI pipeline:
+    - watch_to_detect: Time from file watcher detecting image to RT-DETR processing start
+    - detect_to_batch: Time from detection completion to batch aggregation
+    - batch_to_analyze: Time from batch completion to Nemotron analysis start
+    - total_pipeline: Total end-to-end processing time
+    """
+
+    watch_to_detect: PipelineStageLatency | None = Field(
+        None,
+        description="Latency from file detection to RT-DETR processing",
+    )
+    detect_to_batch: PipelineStageLatency | None = Field(
+        None,
+        description="Latency from detection to batch aggregation",
+    )
+    batch_to_analyze: PipelineStageLatency | None = Field(
+        None,
+        description="Latency from batch to Nemotron analysis",
+    )
+    total_pipeline: PipelineStageLatency | None = Field(
+        None,
+        description="Total end-to-end pipeline latency",
+    )
+    window_minutes: int = Field(
+        ...,
+        description="Time window used for calculating statistics",
+        ge=1,
+    )
+    timestamp: datetime = Field(
+        ...,
+        description="Timestamp of latency snapshot",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "watch_to_detect": {
+                    "avg_ms": 50.0,
+                    "min_ms": 10.0,
+                    "max_ms": 200.0,
+                    "p50_ms": 40.0,
+                    "p95_ms": 150.0,
+                    "p99_ms": 180.0,
+                    "sample_count": 500,
+                },
+                "detect_to_batch": {
+                    "avg_ms": 100.0,
+                    "min_ms": 20.0,
+                    "max_ms": 500.0,
+                    "p50_ms": 80.0,
+                    "p95_ms": 400.0,
+                    "p99_ms": 480.0,
+                    "sample_count": 500,
+                },
+                "batch_to_analyze": {
+                    "avg_ms": 5000.0,
+                    "min_ms": 2000.0,
+                    "max_ms": 15000.0,
+                    "p50_ms": 4500.0,
+                    "p95_ms": 12000.0,
+                    "p99_ms": 14000.0,
+                    "sample_count": 100,
+                },
+                "total_pipeline": {
+                    "avg_ms": 35000.0,
+                    "min_ms": 10000.0,
+                    "max_ms": 120000.0,
+                    "p50_ms": 30000.0,
+                    "p95_ms": 100000.0,
+                    "p99_ms": 110000.0,
+                    "sample_count": 100,
+                },
+                "window_minutes": 60,
+                "timestamp": "2025-12-28T10:30:00Z",
+            }
+        }
+    )
+
+
 class CleanupResponse(BaseModel):
     """Response schema for data cleanup endpoint.
 
@@ -647,6 +805,167 @@ class CleanupResponse(BaseModel):
                 "retention_days": 30,
                 "dry_run": False,
                 "timestamp": "2025-12-27T10:30:00Z",
+            }
+        }
+    )
+
+
+# =============================================================================
+# Severity Schemas
+# =============================================================================
+
+
+class SeverityDefinitionResponse(BaseModel):
+    """Definition of a single severity level."""
+
+    severity: SeverityEnum = Field(
+        ...,
+        description="The severity level identifier",
+    )
+    label: str = Field(
+        ...,
+        description="Human-readable label for the severity level",
+    )
+    description: str = Field(
+        ...,
+        description="Description of when this severity applies",
+    )
+    color: str = Field(
+        ...,
+        description="Hex color code for UI display (e.g., '#22c55e')",
+        pattern=r"^#[0-9a-fA-F]{6}$",
+    )
+    priority: int = Field(
+        ...,
+        description="Sort priority (0 = highest priority, 3 = lowest)",
+        ge=0,
+        le=3,
+    )
+    min_score: int = Field(
+        ...,
+        description="Minimum risk score for this severity (inclusive)",
+        ge=0,
+        le=100,
+    )
+    max_score: int = Field(
+        ...,
+        description="Maximum risk score for this severity (inclusive)",
+        ge=0,
+        le=100,
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "severity": "high",
+                "label": "High",
+                "description": "Concerning activity, review soon",
+                "color": "#f97316",
+                "priority": 1,
+                "min_score": 60,
+                "max_score": 84,
+            }
+        }
+    )
+
+
+class SeverityThresholds(BaseModel):
+    """Current severity threshold configuration."""
+
+    low_max: int = Field(
+        ...,
+        description="Maximum risk score for LOW severity (0 to this value = LOW)",
+        ge=0,
+        le=100,
+    )
+    medium_max: int = Field(
+        ...,
+        description="Maximum risk score for MEDIUM severity (low_max+1 to this value = MEDIUM)",
+        ge=0,
+        le=100,
+    )
+    high_max: int = Field(
+        ...,
+        description="Maximum risk score for HIGH severity (medium_max+1 to this value = HIGH)",
+        ge=0,
+        le=100,
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "low_max": 29,
+                "medium_max": 59,
+                "high_max": 84,
+            }
+        }
+    )
+
+
+class SeverityMetadataResponse(BaseModel):
+    """Response schema for severity metadata endpoint.
+
+    Provides complete information about severity levels including:
+    - All severity definitions with thresholds and colors
+    - Current threshold configuration
+    - Useful for frontend to display severity information consistently
+    """
+
+    definitions: list[SeverityDefinitionResponse] = Field(
+        ...,
+        description="List of all severity level definitions",
+    )
+    thresholds: SeverityThresholds = Field(
+        ...,
+        description="Current severity threshold configuration",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "definitions": [
+                    {
+                        "severity": "low",
+                        "label": "Low",
+                        "description": "Routine activity, no concern",
+                        "color": "#22c55e",
+                        "priority": 3,
+                        "min_score": 0,
+                        "max_score": 29,
+                    },
+                    {
+                        "severity": "medium",
+                        "label": "Medium",
+                        "description": "Notable activity, worth reviewing",
+                        "color": "#eab308",
+                        "priority": 2,
+                        "min_score": 30,
+                        "max_score": 59,
+                    },
+                    {
+                        "severity": "high",
+                        "label": "High",
+                        "description": "Concerning activity, review soon",
+                        "color": "#f97316",
+                        "priority": 1,
+                        "min_score": 60,
+                        "max_score": 84,
+                    },
+                    {
+                        "severity": "critical",
+                        "label": "Critical",
+                        "description": "Immediate attention required",
+                        "color": "#ef4444",
+                        "priority": 0,
+                        "min_score": 85,
+                        "max_score": 100,
+                    },
+                ],
+                "thresholds": {
+                    "low_max": 29,
+                    "medium_max": 59,
+                    "high_max": 84,
+                },
             }
         }
     )

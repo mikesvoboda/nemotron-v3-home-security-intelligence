@@ -2,11 +2,15 @@
 
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 
+from backend.api.middleware import RateLimiter, RateLimitTier
 from backend.api.schemas.media import MediaErrorResponse
 from backend.core.config import get_settings
+
+# Rate limiter for media endpoints
+media_rate_limiter = RateLimiter(tier=RateLimitTier.MEDIA)
 
 router = APIRouter(prefix="/api/media", tags=["media"])
 
@@ -92,9 +96,12 @@ def _validate_and_resolve_path(base_path: Path, requested_path: str) -> Path:
         200: {"description": "File served successfully"},
         403: {"model": MediaErrorResponse, "description": "Access denied"},
         404: {"model": MediaErrorResponse, "description": "File not found"},
+        429: {"description": "Too many requests"},
     },
 )
-async def serve_media_compat(path: str) -> FileResponse:
+async def serve_media_compat(
+    path: str, _rate_limit: None = Depends(media_rate_limiter)
+) -> FileResponse:
     """Compatibility route: serve media via design-spec-style /api/media/{path}.
 
     This preserves the stricter behavior of the new routes:
@@ -143,9 +150,12 @@ async def serve_media_compat(path: str) -> FileResponse:
         200: {"description": "File served successfully"},
         403: {"model": MediaErrorResponse, "description": "Access denied"},
         404: {"model": MediaErrorResponse, "description": "File not found"},
+        429: {"description": "Too many requests"},
     },
 )
-async def serve_camera_file(camera_id: str, filename: str) -> FileResponse:
+async def serve_camera_file(
+    camera_id: str, filename: str, _rate_limit: None = Depends(media_rate_limiter)
+) -> FileResponse:
     """
     Serve camera images or videos from Foscam storage.
 
@@ -192,9 +202,12 @@ async def serve_camera_file(camera_id: str, filename: str) -> FileResponse:
         200: {"description": "Thumbnail served successfully"},
         403: {"model": MediaErrorResponse, "description": "Access denied"},
         404: {"model": MediaErrorResponse, "description": "File not found"},
+        429: {"description": "Too many requests"},
     },
 )
-async def serve_thumbnail(filename: str) -> FileResponse:
+async def serve_thumbnail(
+    filename: str, _rate_limit: None = Depends(media_rate_limiter)
+) -> FileResponse:
     """
     Serve detection thumbnail images.
 

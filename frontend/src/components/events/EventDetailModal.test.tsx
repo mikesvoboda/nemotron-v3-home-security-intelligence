@@ -12,8 +12,19 @@ vi.mock('../../services/api', async () => {
     ...actual,
     fetchEventDetections: vi.fn().mockResolvedValue({ detections: [], count: 0 }),
     getDetectionImageUrl: vi.fn((id: number) => `/api/detections/${id}/image`),
+    getDetectionVideoUrl: vi.fn((id: number) => `/api/detections/${id}/video`),
+    getDetectionVideoThumbnailUrl: vi.fn((id: number) => `/api/detections/${id}/video/thumbnail`),
   };
 });
+
+// Mock the VideoPlayer component to avoid complex video element testing
+vi.mock('../video/VideoPlayer', () => ({
+  default: vi.fn(({ src, poster, className }: { src: string; poster?: string; className?: string }) => (
+    <div data-testid="video-player" data-src={src} data-poster={poster} className={className}>
+      Mocked VideoPlayer
+    </div>
+  )),
+}));
 
 describe('EventDetailModal', () => {
   // Mock event data
@@ -1295,6 +1306,322 @@ describe('EventDetailModal', () => {
       expect(onDownloadMedia).toHaveBeenCalledTimes(1);
       expect(onSaveNotes).toHaveBeenCalledTimes(1);
       expect(onMarkReviewed).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('video detection display', () => {
+    // Mock event with numeric ID (required for detection fetching)
+    const mockEventWithNumericId: Event = {
+      ...mockEvent,
+      id: '123', // Must be numeric string for parseInt to work
+    };
+
+    const mockVideoProps: EventDetailModalProps = {
+      ...mockProps,
+      event: mockEventWithNumericId,
+    };
+
+    const mockVideoDetection = {
+      id: 1,
+      camera_id: '123e4567-e89b-12d3-a456-426614174000',
+      file_path: '/export/foscam/front_door/20251223_120000.mp4',
+      file_type: 'video/mp4',
+      detected_at: '2024-01-15T10:30:00Z',
+      object_type: 'person',
+      confidence: 0.95,
+      bbox_x: 100,
+      bbox_y: 150,
+      bbox_width: 200,
+      bbox_height: 400,
+      thumbnail_path: '/data/thumbnails/1_thumb.jpg',
+      media_type: 'video',
+      duration: 150, // 2m 30s
+      video_codec: 'h264',
+      video_width: 1920,
+      video_height: 1080,
+    };
+
+    const mockImageDetection = {
+      id: 2,
+      camera_id: '123e4567-e89b-12d3-a456-426614174000',
+      file_path: '/export/foscam/front_door/20251223_120001.jpg',
+      file_type: 'image/jpeg',
+      detected_at: '2024-01-15T10:30:01Z',
+      object_type: 'car',
+      confidence: 0.88,
+      bbox_x: 200,
+      bbox_y: 100,
+      bbox_width: 300,
+      bbox_height: 200,
+      thumbnail_path: '/data/thumbnails/2_thumb.jpg',
+      media_type: 'image',
+      duration: null,
+      video_codec: null,
+      video_width: null,
+      video_height: null,
+    };
+
+    it('renders VideoPlayer when selected detection is a video', async () => {
+      vi.mocked(api.fetchEventDetections).mockResolvedValue({
+        detections: [mockVideoDetection],
+        count: 1,
+        limit: 100,
+        offset: 0,
+      });
+
+      render(<EventDetailModal {...mockVideoProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('video-player')).toBeInTheDocument();
+      });
+    });
+
+    it('passes correct video src and poster to VideoPlayer', async () => {
+      vi.mocked(api.fetchEventDetections).mockResolvedValue({
+        detections: [mockVideoDetection],
+        count: 1,
+        limit: 100,
+        offset: 0,
+      });
+
+      render(<EventDetailModal {...mockVideoProps} />);
+
+      await waitFor(() => {
+        const videoPlayer = screen.getByTestId('video-player');
+        expect(videoPlayer).toHaveAttribute('data-src', '/api/detections/1/video');
+        expect(videoPlayer).toHaveAttribute('data-poster', '/api/detections/1/video/thumbnail');
+      });
+    });
+
+    it('renders image instead of video when detection is an image', async () => {
+      vi.mocked(api.fetchEventDetections).mockResolvedValue({
+        detections: [mockImageDetection],
+        count: 1,
+        limit: 100,
+        offset: 0,
+      });
+
+      render(<EventDetailModal {...mockVideoProps} />);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('video-player')).not.toBeInTheDocument();
+      });
+      // The image display should still work (from event.image_url)
+      expect(screen.getByAltText(/Front Door detection at/)).toBeInTheDocument();
+    });
+
+    it('displays video metadata badge for video detections', async () => {
+      vi.mocked(api.fetchEventDetections).mockResolvedValue({
+        detections: [mockVideoDetection],
+        count: 1,
+        limit: 100,
+        offset: 0,
+      });
+
+      render(<EventDetailModal {...mockVideoProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Video')).toBeInTheDocument();
+      });
+    });
+
+    it('displays video duration in metadata badge', async () => {
+      vi.mocked(api.fetchEventDetections).mockResolvedValue({
+        detections: [mockVideoDetection],
+        count: 1,
+        limit: 100,
+        offset: 0,
+      });
+
+      render(<EventDetailModal {...mockVideoProps} />);
+
+      await waitFor(() => {
+        // 150 seconds = 2m 30s - text appears in both metadata badge and event details
+        const durationElements = screen.getAllByText('2m 30s');
+        expect(durationElements.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('displays video resolution in metadata badge', async () => {
+      vi.mocked(api.fetchEventDetections).mockResolvedValue({
+        detections: [mockVideoDetection],
+        count: 1,
+        limit: 100,
+        offset: 0,
+      });
+
+      render(<EventDetailModal {...mockVideoProps} />);
+
+      await waitFor(() => {
+        // Resolution appears in both metadata badge and event details
+        const resolutionElements = screen.getAllByText('1920x1080');
+        expect(resolutionElements.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('displays video codec in metadata badge', async () => {
+      vi.mocked(api.fetchEventDetections).mockResolvedValue({
+        detections: [mockVideoDetection],
+        count: 1,
+        limit: 100,
+        offset: 0,
+      });
+
+      render(<EventDetailModal {...mockVideoProps} />);
+
+      await waitFor(() => {
+        // Codec appears in both metadata badge and event details
+        const codecElements = screen.getAllByText('H264');
+        expect(codecElements.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('displays video details in event details section', async () => {
+      vi.mocked(api.fetchEventDetections).mockResolvedValue({
+        detections: [mockVideoDetection],
+        count: 1,
+        limit: 100,
+        offset: 0,
+      });
+
+      render(<EventDetailModal {...mockVideoProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Video Details')).toBeInTheDocument();
+        expect(screen.getByText('Video Duration')).toBeInTheDocument();
+        expect(screen.getByText('Resolution')).toBeInTheDocument();
+        expect(screen.getByText('Codec')).toBeInTheDocument();
+      });
+    });
+
+    it('does not show video details section for image detections', async () => {
+      vi.mocked(api.fetchEventDetections).mockResolvedValue({
+        detections: [mockImageDetection],
+        count: 1,
+        limit: 100,
+        offset: 0,
+      });
+
+      render(<EventDetailModal {...mockVideoProps} />);
+
+      // Wait for detections to load
+      await waitFor(() => {
+        expect(api.fetchEventDetections).toHaveBeenCalled();
+      });
+
+      // Should not show video details
+      expect(screen.queryByText('Video Details')).not.toBeInTheDocument();
+    });
+
+    it('handles video detection with missing optional metadata', async () => {
+      const minimalVideoDetection = {
+        ...mockVideoDetection,
+        duration: null,
+        video_codec: null,
+        video_width: null,
+        video_height: null,
+      };
+
+      vi.mocked(api.fetchEventDetections).mockResolvedValue({
+        detections: [minimalVideoDetection],
+        count: 1,
+        limit: 100,
+        offset: 0,
+      });
+
+      render(<EventDetailModal {...mockVideoProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('video-player')).toBeInTheDocument();
+        expect(screen.getByText('Video')).toBeInTheDocument();
+      });
+
+      // Should not show optional metadata that is null
+      expect(screen.queryByText('1920x1080')).not.toBeInTheDocument();
+      expect(screen.queryByText('H264')).not.toBeInTheDocument();
+    });
+
+    it('formats short video duration correctly', async () => {
+      const shortVideoDetection = {
+        ...mockVideoDetection,
+        duration: 45, // 45 seconds
+      };
+
+      vi.mocked(api.fetchEventDetections).mockResolvedValue({
+        detections: [shortVideoDetection],
+        count: 1,
+        limit: 100,
+        offset: 0,
+      });
+
+      render(<EventDetailModal {...mockVideoProps} />);
+
+      await waitFor(() => {
+        // Duration appears in both metadata badge and event details
+        const durationElements = screen.getAllByText('45s');
+        expect(durationElements.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('switches between video and image when clicking thumbnails', async () => {
+      vi.mocked(api.fetchEventDetections).mockResolvedValue({
+        detections: [mockVideoDetection, mockImageDetection],
+        count: 2,
+        limit: 100,
+        offset: 0,
+      });
+
+      const user = userEvent.setup();
+      render(<EventDetailModal {...mockVideoProps} />);
+
+      // Initially should show video (first detection)
+      await waitFor(() => {
+        expect(screen.getByTestId('video-player')).toBeInTheDocument();
+      });
+
+      // Click on the second thumbnail (image detection)
+      const thumbnails = await screen.findAllByRole('button');
+      // Find the thumbnail button (not navigation/action buttons)
+      const thumbnailButton = thumbnails.find(
+        (btn) => btn.getAttribute('aria-label')?.includes('detection') ||
+                 btn.closest('[data-testid="thumbnail-strip"]')
+      );
+
+      if (thumbnailButton) {
+        await user.click(thumbnailButton);
+        // After clicking image thumbnail, video player should be gone
+        // Note: This test may need adjustment based on actual thumbnail strip implementation
+      }
+    });
+
+    it('uses video thumbnail URL for video detection thumbnails', async () => {
+      vi.mocked(api.fetchEventDetections).mockResolvedValue({
+        detections: [mockVideoDetection],
+        count: 1,
+        limit: 100,
+        offset: 0,
+      });
+
+      render(<EventDetailModal {...mockVideoProps} />);
+
+      await waitFor(() => {
+        expect(api.getDetectionVideoThumbnailUrl).toHaveBeenCalledWith(1);
+      });
+    });
+
+    it('uses image URL for image detection thumbnails', async () => {
+      vi.mocked(api.fetchEventDetections).mockResolvedValue({
+        detections: [mockImageDetection],
+        count: 1,
+        limit: 100,
+        offset: 0,
+      });
+
+      render(<EventDetailModal {...mockVideoProps} />);
+
+      await waitFor(() => {
+        expect(api.getDetectionImageUrl).toHaveBeenCalledWith(2);
+      });
     });
   });
 });

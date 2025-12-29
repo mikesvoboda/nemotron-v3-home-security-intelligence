@@ -1,6 +1,33 @@
 """API schemas for request/response validation."""
 
+from .alerts import (
+    AlertCreate,
+    AlertListResponse,
+    AlertResponse,
+    AlertRuleConditions,
+    AlertRuleCreate,
+    AlertRuleListResponse,
+    AlertRuleResponse,
+    AlertRuleUpdate,
+    AlertSeverity,
+    AlertStatus,
+    AlertUpdate,
+    DedupCheckRequest,
+    DedupCheckResponse,
+)
 from .camera import CameraCreate, CameraListResponse, CameraResponse, CameraUpdate
+from .notification import (
+    DeliveryResultResponse,
+    NotificationChannel,
+    NotificationConfigResponse,
+    NotificationDeliveryResponse,
+    NotificationHistoryEntry,
+    NotificationHistoryResponse,
+    SendNotificationRequest,
+    TestNotificationRequest,
+    TestNotificationResponse,
+)
+from .search import SearchRequest, SearchResponse, SearchResult
 from .websocket import (
     WebSocketErrorCode,
     WebSocketErrorResponse,
@@ -11,13 +38,38 @@ from .websocket import (
     WebSocketSubscribeMessage,
     WebSocketUnsubscribeMessage,
 )
+from .zone import ZoneCreate, ZoneListResponse, ZoneResponse, ZoneUpdate
 
 __all__ = [
+    "AlertCreate",
+    "AlertListResponse",
+    "AlertResponse",
+    "AlertRuleConditions",
+    "AlertRuleCreate",
+    "AlertRuleListResponse",
+    "AlertRuleResponse",
+    "AlertRuleUpdate",
+    "AlertSeverity",
+    "AlertStatus",
+    "AlertUpdate",
     "CameraCreate",
     "CameraListResponse",
     "CameraResponse",
     "CameraUpdate",
-    # WebSocket schemas
+    "DedupCheckRequest",
+    "DedupCheckResponse",
+    "DeliveryResultResponse",
+    "NotificationChannel",
+    "NotificationConfigResponse",
+    "NotificationDeliveryResponse",
+    "NotificationHistoryEntry",
+    "NotificationHistoryResponse",
+    "SearchRequest",
+    "SearchResponse",
+    "SearchResult",
+    "SendNotificationRequest",
+    "TestNotificationRequest",
+    "TestNotificationResponse",
     "WebSocketErrorCode",
     "WebSocketErrorResponse",
     "WebSocketMessage",
@@ -26,4 +78,8 @@ __all__ = [
     "WebSocketPongResponse",
     "WebSocketSubscribeMessage",
     "WebSocketUnsubscribeMessage",
+    "ZoneCreate",
+    "ZoneListResponse",
+    "ZoneResponse",
+    "ZoneUpdate",
 ]

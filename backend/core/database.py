@@ -1,10 +1,9 @@
-"""Database connection and session management using SQLAlchemy 2.0 async patterns."""
+"""Database connection and session management using SQLAlchemy 2.0 async patterns with PostgreSQL."""
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
 
-from sqlalchemy import event, pool
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -55,16 +54,6 @@ def get_session_factory() -> async_sessionmaker[AsyncSession]:
     return _async_session_factory
 
 
-def _is_postgresql(url: str) -> bool:
-    """Check if the database URL is for PostgreSQL."""
-    return "postgresql" in url or "postgres" in url
-
-
-def _is_sqlite(url: str) -> bool:
-    """Check if the database URL is for SQLite."""
-    return "sqlite" in url
-
-
 async def init_db() -> None:
     """Initialize the database engine and create all tables.
 
@@ -72,72 +61,32 @@ async def init_db() -> None:
     It creates the async engine, configures connection pooling,
     and creates all tables defined in the Base metadata.
 
-    Supports both SQLite (development) and PostgreSQL (production).
+    Requires PostgreSQL with asyncpg driver (postgresql+asyncpg://).
     """
     global _engine, _async_session_factory  # noqa: PLW0603
 
     settings = get_settings()
     db_url = settings.database_url
 
-    # Configure engine based on database type
-    connect_args: dict[str, Any] = {}
-    poolclass: type[pool.Pool] | None = None
-    pool_size: int | None = None
-    max_overflow: int | None = None
-    pool_timeout: int | None = None
-    pool_recycle: int | None = None
+    # Validate PostgreSQL URL format
+    if not db_url.startswith("postgresql+asyncpg://"):
+        raise ValueError(
+            f"Invalid database URL. Expected postgresql+asyncpg:// format, got: {db_url}"
+        )
 
-    if _is_sqlite(db_url):
-        # SQLite-specific configuration
-        connect_args = {
-            "check_same_thread": False,  # Required for async SQLite
-            "timeout": 30,  # Wait up to 30 seconds for database lock
-        }
-        # Use NullPool for SQLite to avoid connection reuse issues
-        poolclass = pool.NullPool
-
-    elif _is_postgresql(db_url):
-        # PostgreSQL-specific configuration with connection pooling
-        # These settings optimize for concurrent access
-        pool_size = 10  # Base pool size
-        max_overflow = 20  # Additional connections beyond pool_size
-        pool_timeout = 30  # Seconds to wait for available connection
-        pool_recycle = 1800  # Recycle connections after 30 minutes
-
-    # Build engine kwargs
+    # PostgreSQL connection pooling configuration
+    # These settings optimize for concurrent access
     engine_kwargs: dict[str, Any] = {
         "echo": settings.debug,
         "future": True,
+        "pool_size": 10,  # Base pool size
+        "max_overflow": 20,  # Additional connections beyond pool_size
+        "pool_timeout": 30,  # Seconds to wait for available connection
+        "pool_recycle": 1800,  # Recycle connections after 30 minutes
     }
-
-    if connect_args:
-        engine_kwargs["connect_args"] = connect_args
-    if poolclass is not None:
-        engine_kwargs["poolclass"] = poolclass
-    if pool_size is not None:
-        engine_kwargs["pool_size"] = pool_size
-    if max_overflow is not None:
-        engine_kwargs["max_overflow"] = max_overflow
-    if pool_timeout is not None:
-        engine_kwargs["pool_timeout"] = pool_timeout
-    if pool_recycle is not None:
-        engine_kwargs["pool_recycle"] = pool_recycle
 
     # Create async engine
     _engine = create_async_engine(db_url, **engine_kwargs)
-
-    # Enable SQLite foreign keys if using SQLite
-    if _is_sqlite(db_url):
-
-        @event.listens_for(_engine.sync_engine, "connect")
-        def configure_sqlite(dbapi_conn: Any, _connection_record: Any) -> None:
-            """Configure SQLite pragmas for better concurrency and reliability."""
-            cursor = dbapi_conn.cursor()
-            cursor.execute("PRAGMA foreign_keys=ON")
-            cursor.execute("PRAGMA journal_mode=WAL")  # Better concurrent access
-            cursor.execute("PRAGMA busy_timeout=30000")  # 30 second timeout
-            cursor.execute("PRAGMA synchronous=NORMAL")  # Balance safety/speed
-            cursor.close()
 
     # Create session factory
     _async_session_factory = async_sessionmaker(
@@ -149,7 +98,7 @@ async def init_db() -> None:
     )
 
     # Import all models to ensure they're registered with Base.metadata
-    from backend.models import Camera, Detection, Event, GPUStats  # noqa: F401
+    from backend.models import Camera, Detection, Event, GPUStats, Zone  # noqa: F401
 
     # Create all tables
     # Use the Base from models, not the one defined in this module

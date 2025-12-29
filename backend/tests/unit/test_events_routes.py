@@ -24,22 +24,34 @@ from backend.api.schemas.events import EventUpdate
 # =============================================================================
 
 
-def test_parse_detection_ids_normal_string() -> None:
-    """Test parsing a normal comma-separated detection IDs string."""
-    result = parse_detection_ids("1,2,3,4")
+def test_parse_detection_ids_json_array() -> None:
+    """Test parsing a JSON array detection IDs string."""
+    result = parse_detection_ids("[1, 2, 3, 4]")
     assert result == [1, 2, 3, 4]
 
 
-def test_parse_detection_ids_with_whitespace() -> None:
-    """Test parsing detection IDs with whitespace around values."""
-    result = parse_detection_ids("1, 2 , 3 ,4")
+def test_parse_detection_ids_json_array_no_spaces() -> None:
+    """Test parsing JSON array without spaces."""
+    result = parse_detection_ids("[1,2,3,4]")
     assert result == [1, 2, 3, 4]
 
 
 def test_parse_detection_ids_single_id() -> None:
-    """Test parsing a single detection ID."""
-    result = parse_detection_ids("42")
+    """Test parsing a single detection ID JSON array."""
+    result = parse_detection_ids("[42]")
     assert result == [42]
+
+
+def test_parse_detection_ids_legacy_comma_separated() -> None:
+    """Test legacy fallback for comma-separated detection IDs string."""
+    result = parse_detection_ids("1,2,3,4")
+    assert result == [1, 2, 3, 4]
+
+
+def test_parse_detection_ids_legacy_with_whitespace() -> None:
+    """Test legacy fallback for comma-separated IDs with whitespace."""
+    result = parse_detection_ids("1, 2 , 3 ,4")
+    assert result == [1, 2, 3, 4]
 
 
 def test_parse_detection_ids_none() -> None:
@@ -1145,7 +1157,10 @@ async def test_update_event_marks_as_reviewed() -> None:
     db.refresh = AsyncMock()
 
     update_data = EventUpdate(reviewed=True)
-    await events_routes.update_event(event_id=1, update_data=update_data, db=db)
+    mock_request = MagicMock()
+    await events_routes.update_event(
+        event_id=1, update_data=update_data, request=mock_request, db=db
+    )
 
     assert mock_event.reviewed is True
     db.commit.assert_called_once()
@@ -1166,7 +1181,10 @@ async def test_update_event_marks_as_not_reviewed() -> None:
     db.refresh = AsyncMock()
 
     update_data = EventUpdate(reviewed=False)
-    await events_routes.update_event(event_id=1, update_data=update_data, db=db)
+    mock_request = MagicMock()
+    await events_routes.update_event(
+        event_id=1, update_data=update_data, request=mock_request, db=db
+    )
 
     assert mock_event.reviewed is False
 
@@ -1185,7 +1203,10 @@ async def test_update_event_updates_notes() -> None:
     db.refresh = AsyncMock()
 
     update_data = EventUpdate(notes="New notes")
-    await events_routes.update_event(event_id=1, update_data=update_data, db=db)
+    mock_request = MagicMock()
+    await events_routes.update_event(
+        event_id=1, update_data=update_data, request=mock_request, db=db
+    )
 
     assert mock_event.notes == "New notes"
 
@@ -1204,7 +1225,10 @@ async def test_update_event_clears_notes() -> None:
     db.refresh = AsyncMock()
 
     update_data = EventUpdate(notes=None)
-    await events_routes.update_event(event_id=1, update_data=update_data, db=db)
+    mock_request = MagicMock()
+    await events_routes.update_event(
+        event_id=1, update_data=update_data, request=mock_request, db=db
+    )
 
     assert mock_event.notes is None
 
@@ -1223,7 +1247,10 @@ async def test_update_event_updates_both_reviewed_and_notes() -> None:
     db.refresh = AsyncMock()
 
     update_data = EventUpdate(reviewed=True, notes="Verified - delivery person")
-    await events_routes.update_event(event_id=1, update_data=update_data, db=db)
+    mock_request = MagicMock()
+    await events_routes.update_event(
+        event_id=1, update_data=update_data, request=mock_request, db=db
+    )
 
     assert mock_event.reviewed is True
     assert mock_event.notes == "Verified - delivery person"
@@ -1239,9 +1266,12 @@ async def test_update_event_returns_404_when_not_found() -> None:
     db.execute = AsyncMock(return_value=result)
 
     update_data = EventUpdate(reviewed=True)
+    mock_request = MagicMock()
 
     with pytest.raises(Exception) as exc_info:
-        await events_routes.update_event(event_id=999, update_data=update_data, db=db)
+        await events_routes.update_event(
+            event_id=999, update_data=update_data, request=mock_request, db=db
+        )
 
     assert exc_info.value.status_code == 404
     assert "999" in str(exc_info.value.detail)
@@ -1270,7 +1300,10 @@ async def test_update_event_returns_correct_response() -> None:
     db.refresh = AsyncMock()
 
     update_data = EventUpdate(reviewed=True)
-    response = await events_routes.update_event(event_id=1, update_data=update_data, db=db)
+    mock_request = MagicMock()
+    response = await events_routes.update_event(
+        event_id=1, update_data=update_data, request=mock_request, db=db
+    )
 
     assert response["id"] == 1
     assert response["camera_id"] == "cam-001"
@@ -1304,7 +1337,10 @@ async def test_update_event_preserves_reasoning_field() -> None:
     db.refresh = AsyncMock()
 
     update_data = EventUpdate(reviewed=True)
-    response = await events_routes.update_event(event_id=1, update_data=update_data, db=db)
+    mock_request = MagicMock()
+    response = await events_routes.update_event(
+        event_id=1, update_data=update_data, request=mock_request, db=db
+    )
 
     assert response["reasoning"] == "Original reasoning for risk score"
 
@@ -1324,7 +1360,10 @@ async def test_update_event_with_no_changes() -> None:
 
     # Empty update - no fields set
     update_data = EventUpdate()
-    response = await events_routes.update_event(event_id=1, update_data=update_data, db=db)
+    mock_request = MagicMock()
+    response = await events_routes.update_event(
+        event_id=1, update_data=update_data, request=mock_request, db=db
+    )
 
     # Should still return a valid response
     assert response["id"] == 1
@@ -1680,7 +1719,9 @@ async def test_export_events_returns_csv_streaming_response() -> None:
 
     db.execute = AsyncMock(side_effect=[events_result, camera_result])
 
+    mock_request = MagicMock()
     response = await events_routes.export_events(
+        request=mock_request,
         camera_id=None,
         risk_level=None,
         start_date=None,
@@ -1715,7 +1756,9 @@ async def test_export_events_returns_empty_csv_when_no_events() -> None:
 
     db.execute = AsyncMock(side_effect=[events_result, camera_result])
 
+    mock_request = MagicMock()
     response = await events_routes.export_events(
+        request=mock_request,
         camera_id=None,
         risk_level=None,
         start_date=None,
@@ -1748,7 +1791,9 @@ async def test_export_events_with_camera_filter() -> None:
 
     db.execute = AsyncMock(side_effect=[events_result, camera_result])
 
+    mock_request = MagicMock()
     response = await events_routes.export_events(
+        request=mock_request,
         camera_id="cam-001",
         risk_level=None,
         start_date=None,
@@ -1779,7 +1824,9 @@ async def test_export_events_with_risk_level_filter() -> None:
 
     db.execute = AsyncMock(side_effect=[events_result, camera_result])
 
+    mock_request = MagicMock()
     response = await events_routes.export_events(
+        request=mock_request,
         camera_id=None,
         risk_level="high",
         start_date=None,
@@ -1814,7 +1861,9 @@ async def test_export_events_with_date_filters() -> None:
     start = now - timedelta(hours=1)
     end = now + timedelta(hours=1)
 
+    mock_request = MagicMock()
     response = await events_routes.export_events(
+        request=mock_request,
         camera_id=None,
         risk_level=None,
         start_date=start,
@@ -1845,7 +1894,9 @@ async def test_export_events_with_reviewed_filter() -> None:
 
     db.execute = AsyncMock(side_effect=[events_result, camera_result])
 
+    mock_request = MagicMock()
     response = await events_routes.export_events(
+        request=mock_request,
         camera_id=None,
         risk_level=None,
         start_date=None,
@@ -1876,7 +1927,9 @@ async def test_export_events_handles_unknown_camera() -> None:
 
     db.execute = AsyncMock(side_effect=[events_result, camera_result])
 
+    mock_request = MagicMock()
     response = await events_routes.export_events(
+        request=mock_request,
         camera_id=None,
         risk_level=None,
         start_date=None,
@@ -1918,7 +1971,9 @@ async def test_export_events_handles_none_values() -> None:
 
     db.execute = AsyncMock(side_effect=[events_result, camera_result])
 
+    mock_request = MagicMock()
     response = await events_routes.export_events(
+        request=mock_request,
         camera_id=None,
         risk_level=None,
         start_date=None,
@@ -1975,7 +2030,9 @@ async def test_export_events_multiple_events() -> None:
 
     db.execute = AsyncMock(side_effect=[events_result, camera_result])
 
+    mock_request = MagicMock()
     response = await events_routes.export_events(
+        request=mock_request,
         camera_id=None,
         risk_level=None,
         start_date=None,

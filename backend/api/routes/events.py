@@ -2,10 +2,11 @@
 
 import csv
 import io
+import json
 from datetime import datetime
 from typing import Any, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,19 +18,23 @@ from backend.api.schemas.events import (
     EventStatsResponse,
     EventUpdate,
 )
+from backend.api.schemas.search import SearchResponse as SearchResponseSchema
 from backend.core.database import get_db
+from backend.models.audit import AuditAction
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
+from backend.services.audit import AuditService
+from backend.services.search import SearchFilters, search_events
 
 router = APIRouter(prefix="/api/events", tags=["events"])
 
 
 def parse_detection_ids(detection_ids_str: str | None) -> list[int]:
-    """Parse comma-separated detection IDs string to list of integers.
+    """Parse detection IDs stored as JSON array to list of integers.
 
     Args:
-        detection_ids_str: Comma-separated string of detection IDs (e.g., "1,2,3")
+        detection_ids_str: JSON array string of detection IDs (e.g., "[1, 2, 3]")
                           or None/empty string
 
     Returns:
@@ -37,7 +42,14 @@ def parse_detection_ids(detection_ids_str: str | None) -> list[int]:
     """
     if not detection_ids_str:
         return []
-    return [int(d.strip()) for d in detection_ids_str.split(",") if d.strip()]
+    try:
+        ids = json.loads(detection_ids_str)
+        if isinstance(ids, list):
+            return [int(d) for d in ids]
+        return []
+    except (json.JSONDecodeError, ValueError):
+        # Fallback for legacy comma-separated format
+        return [int(d.strip()) for d in detection_ids_str.split(",") if d.strip()]
 
 
 @router.get("", response_model=EventListResponse)
@@ -93,16 +105,21 @@ async def list_events(
         matching_detection_ids = {str(d) for d in detection_ids_result.scalars().all()}
 
         if matching_detection_ids:
-            # Filter events where detection_ids contains at least one matching ID
+            # Filter events where detection_ids (JSON array) contains at least one matching ID
+            # JSON arrays look like: [1, 2, 3] or [1,2,3]
             conditions = []
             for det_id in matching_detection_ids:
-                # Match: "id,", ",id,", ",id" or just "id"
+                # Match patterns in JSON array format: [id, or ,id, or ,id] or [id]
                 conditions.extend(
                     [
-                        Event.detection_ids.like(f"{det_id},%"),
-                        Event.detection_ids.like(f"%,{det_id},%"),
-                        Event.detection_ids.like(f"%,{det_id}"),
-                        Event.detection_ids == det_id,
+                        Event.detection_ids.like(f"[{det_id},%"),  # First element: [1, ...
+                        Event.detection_ids.like(f"%, {det_id},%"),  # Middle element: , 2, ...
+                        Event.detection_ids.like(
+                            f"%,{det_id},%"
+                        ),  # Middle element no space: ,2,...
+                        Event.detection_ids.like(f"%, {det_id}]"),  # Last element: , 3]
+                        Event.detection_ids.like(f"%,{det_id}]"),  # Last element no space: ,3]
+                        Event.detection_ids == f"[{det_id}]",  # Single element: [1]
                     ]
                 )
             query = query.where(or_(*conditions))
@@ -128,7 +145,7 @@ async def list_events(
     # Calculate detection count and parse detection_ids for each event
     events_with_counts = []
     for event in events:
-        # Parse detection_ids (comma-separated string) to list of integers
+        # Parse detection_ids (JSON array string) to list of integers
         parsed_detection_ids = parse_detection_ids(event.detection_ids)
         detection_count = len(parsed_detection_ids)
 
@@ -233,8 +250,106 @@ async def get_event_stats(
     }
 
 
+@router.get("/search", response_model=SearchResponseSchema)
+async def search_events_endpoint(
+    q: str = Query(..., min_length=1, description="Search query string"),
+    camera_id: str | None = Query(
+        None, description="Filter by camera ID (comma-separated for multiple)"
+    ),
+    start_date: datetime | None = Query(None, description="Filter by start date (ISO format)"),
+    end_date: datetime | None = Query(None, description="Filter by end date (ISO format)"),
+    severity: str | None = Query(
+        None, description="Filter by risk levels (comma-separated: low,medium,high,critical)"
+    ),
+    object_type: str | None = Query(
+        None, description="Filter by object types (comma-separated: person,vehicle,animal)"
+    ),
+    reviewed: bool | None = Query(None, description="Filter by reviewed status"),
+    limit: int = Query(50, ge=1, le=1000, description="Maximum number of results"),
+    offset: int = Query(0, ge=0, description="Number of results to skip"),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Search events using full-text search.
+
+    This endpoint provides PostgreSQL full-text search across event summaries,
+    reasoning, object types, and camera names.
+
+    Search Query Syntax:
+    - Basic words: "person vehicle" (implicit AND)
+    - Phrase search: '"suspicious person"' (exact phrase)
+    - Boolean OR: "person OR animal"
+    - Boolean NOT: "person NOT cat"
+    - Boolean AND: "person AND vehicle" (explicit)
+
+    Args:
+        q: Search query string (required)
+        camera_id: Optional comma-separated camera IDs to filter by
+        start_date: Optional start date for date range filter
+        end_date: Optional end date for date range filter
+        severity: Optional comma-separated risk levels (low, medium, high, critical)
+        object_type: Optional comma-separated object types (person, vehicle, animal)
+        reviewed: Optional filter by reviewed status
+        limit: Maximum number of results to return (1-1000, default 50)
+        offset: Number of results to skip for pagination (default 0)
+        db: Database session
+
+    Returns:
+        SearchResponse with ranked results and pagination info
+    """
+    # Parse comma-separated filter values
+    camera_ids = [c.strip() for c in camera_id.split(",")] if camera_id else []
+    severity_levels = [s.strip() for s in severity.split(",")] if severity else []
+    object_types = [o.strip() for o in object_type.split(",")] if object_type else []
+
+    # Build filters
+    filters = SearchFilters(
+        start_date=start_date,
+        end_date=end_date,
+        camera_ids=camera_ids,
+        severity=severity_levels,
+        object_types=object_types,
+        reviewed=reviewed,
+    )
+
+    # Execute search
+    search_response = await search_events(
+        db=db,
+        query=q,
+        filters=filters,
+        limit=limit,
+        offset=offset,
+    )
+
+    # Convert to dict for response
+    return {
+        "results": [
+            {
+                "id": r.id,
+                "camera_id": r.camera_id,
+                "camera_name": r.camera_name,
+                "started_at": r.started_at,
+                "ended_at": r.ended_at,
+                "risk_score": r.risk_score,
+                "risk_level": r.risk_level,
+                "summary": r.summary,
+                "reasoning": r.reasoning,
+                "reviewed": r.reviewed,
+                "detection_count": r.detection_count,
+                "detection_ids": r.detection_ids,
+                "object_types": r.object_types,
+                "relevance_score": r.relevance_score,
+            }
+            for r in search_response.results
+        ],
+        "total_count": search_response.total_count,
+        "limit": search_response.limit,
+        "offset": search_response.offset,
+    }
+
+
 @router.get("/export")
 async def export_events(
+    request: Request,
     camera_id: str | None = Query(None, description="Filter by camera ID"),
     risk_level: str | None = Query(
         None, description="Filter by risk level (low, medium, high, critical)"
@@ -336,6 +451,28 @@ async def export_events(
     timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     filename = f"events_export_{timestamp}.csv"
 
+    # Log the export action
+    await AuditService.log_action(
+        db=db,
+        action=AuditAction.MEDIA_EXPORTED,
+        resource_type="event",
+        actor="anonymous",
+        details={
+            "export_type": "csv",
+            "filters": {
+                "camera_id": camera_id,
+                "risk_level": risk_level,
+                "start_date": start_date.isoformat() if start_date else None,
+                "end_date": end_date.isoformat() if end_date else None,
+                "reviewed": reviewed,
+            },
+            "event_count": len(events),
+            "filename": filename,
+        },
+        request=request,
+    )
+    await db.commit()
+
     # Return as streaming response with CSV content type
     output.seek(0)
     return StreamingResponse(
@@ -395,6 +532,7 @@ async def get_event(
 async def update_event(
     event_id: int,
     update_data: EventUpdate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Update an event (mark as reviewed).
@@ -402,6 +540,7 @@ async def update_event(
     Args:
         event_id: Event ID
         update_data: Update data (reviewed field)
+        request: FastAPI request for audit logging
         db: Database session
 
     Returns:
@@ -419,12 +558,45 @@ async def update_event(
             detail=f"Event with id {event_id} not found",
         )
 
+    # Track changes for audit log
+    changes: dict[str, Any] = {}
+    old_reviewed = event.reviewed
+    old_notes = event.notes
+
     # Update fields if provided (use exclude_unset to differentiate between None and not provided)
     update_dict = update_data.model_dump(exclude_unset=True)
     if "reviewed" in update_dict and update_data.reviewed is not None:
         event.reviewed = update_data.reviewed
+        if old_reviewed != event.reviewed:
+            changes["reviewed"] = {"old": old_reviewed, "new": event.reviewed}
     if "notes" in update_dict:
         event.notes = update_data.notes
+        if old_notes != event.notes:
+            changes["notes"] = {"old": old_notes, "new": event.notes}
+
+    # Determine audit action based on changes
+    if changes.get("reviewed", {}).get("new") is True:
+        action = AuditAction.EVENT_REVIEWED
+    elif changes.get("reviewed", {}).get("new") is False:
+        action = AuditAction.EVENT_DISMISSED
+    else:
+        action = AuditAction.EVENT_REVIEWED  # Default for notes-only updates
+
+    # Log the audit entry
+    await AuditService.log_action(
+        db=db,
+        action=action,
+        resource_type="event",
+        resource_id=str(event_id),
+        actor="anonymous",  # No auth in this system
+        details={
+            "changes": changes,
+            "risk_level": event.risk_level,
+            "camera_id": event.camera_id,
+        },
+        request=request,
+    )
+
     await db.commit()
     await db.refresh(event)
 
