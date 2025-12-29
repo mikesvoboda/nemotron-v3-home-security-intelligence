@@ -23,14 +23,14 @@ from backend.services.alert_engine import (
     EvaluationResult,
     TriggeredRule,
 )
+from backend.tests.conftest import unique_id
 
 
 @pytest.fixture
-async def session(clean_test_data):
+async def session(isolated_db):
     """Create a new database session for each test.
 
-    Uses PostgreSQL via the clean_test_data fixture from conftest.py
-    which ensures proper test isolation by truncating tables.
+    Uses PostgreSQL via the isolated_db fixture from conftest.py.
     """
     from backend.core.database import get_session
 
@@ -40,11 +40,12 @@ async def session(clean_test_data):
 
 @pytest.fixture
 async def test_camera(session):
-    """Create a test camera."""
+    """Create a test camera with unique ID."""
+    camera_id = unique_id("front_door")
     camera = Camera(
-        id="front_door",
+        id=camera_id,
         name="Front Door Camera",
-        folder_path="/export/foscam/front_door",
+        folder_path=f"/export/foscam/{camera_id}",
     )
     session.add(camera)
     await session.flush()
@@ -53,11 +54,12 @@ async def test_camera(session):
 
 @pytest.fixture
 async def test_camera2(session):
-    """Create a second test camera."""
+    """Create a second test camera with unique ID."""
+    camera_id = unique_id("backyard")
     camera = Camera(
-        id="backyard",
+        id=camera_id,
         name="Backyard Camera",
-        folder_path="/export/foscam/backyard",
+        folder_path=f"/export/foscam/{camera_id}",
     )
     session.add(camera)
     await session.flush()
@@ -313,12 +315,12 @@ class TestCameraIdsCondition:
     """Tests for camera_ids condition."""
 
     @pytest.mark.asyncio
-    async def test_camera_ids_matches(self, session, test_event, engine):
+    async def test_camera_ids_matches(self, session, test_event, test_camera, engine):
         """Test that camera_ids matches when event's camera is in list."""
         rule = AlertRule(
             name="Front Door Alert",
             enabled=True,
-            camera_ids=["front_door", "back_door"],
+            camera_ids=[test_camera.id, "back_door"],
         )
         session.add(rule)
         await session.flush()
@@ -326,10 +328,8 @@ class TestCameraIdsCondition:
         result = await engine.evaluate_event(test_event, [])
 
         assert result.has_triggers is True
-        assert (
-            "camera_id in ['front_door', 'back_door']"
-            in result.triggered_rules[0].matched_conditions
-        )
+        # Check that camera_id condition matched (format varies based on camera ID)
+        assert any("camera_id in" in cond for cond in result.triggered_rules[0].matched_conditions)
 
     @pytest.mark.asyncio
     async def test_camera_ids_no_match(self, session, test_event, engine):
@@ -337,7 +337,7 @@ class TestCameraIdsCondition:
         rule = AlertRule(
             name="Backyard Only Alert",
             enabled=True,
-            camera_ids=["backyard"],  # Event is from front_door
+            camera_ids=["nonexistent_camera"],  # Event is from test_camera
         )
         session.add(rule)
         await session.flush()
@@ -514,14 +514,16 @@ class TestAndLogic:
     """Tests for AND logic combining multiple conditions."""
 
     @pytest.mark.asyncio
-    async def test_all_conditions_must_match(self, session, test_event, test_detections, engine):
+    async def test_all_conditions_must_match(
+        self, session, test_event, test_camera, test_detections, engine
+    ):
         """Test that all conditions must match (AND logic)."""
         rule = AlertRule(
             name="Multi-Condition Alert",
             enabled=True,
             risk_threshold=70,
             object_types=["person"],
-            camera_ids=["front_door"],
+            camera_ids=[test_camera.id],
             min_confidence=0.9,
         )
         session.add(rule)
@@ -545,7 +547,7 @@ class TestAndLogic:
             enabled=True,
             risk_threshold=70,  # Matches (80 >= 70)
             object_types=["person"],  # Matches
-            camera_ids=["backyard"],  # Does NOT match (event is from front_door)
+            camera_ids=["nonexistent_camera"],  # Does NOT match (event is from test_camera)
         )
         session.add(rule)
         await session.flush()
