@@ -1,5 +1,6 @@
 """FastAPI application entry point for home security intelligence system."""
 
+import ssl
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
@@ -249,7 +250,77 @@ async def health() -> dict[str, Any]:
     }
 
 
+def get_ssl_context() -> ssl.SSLContext | None:
+    """Get SSL context for HTTPS if TLS is enabled.
+
+    Returns:
+        ssl.SSLContext if TLS is enabled, None otherwise.
+    """
+    from backend.core.tls import (
+        TLSMode,
+        create_ssl_context,
+        generate_self_signed_certificate,
+        get_tls_config,
+    )
+
+    config = get_tls_config()
+
+    if not config.is_enabled:
+        return None
+
+    # Auto-generate self-signed certificate if needed
+    if config.mode == TLSMode.SELF_SIGNED:
+        import os
+        from pathlib import Path
+
+        # Use default paths if not specified
+        cert_path = config.cert_path or "data/certs/cert.pem"
+        key_path = config.key_path or "data/certs/key.pem"
+
+        # Generate certificate if it doesn't exist
+        if not Path(cert_path).exists() or not Path(key_path).exists():
+            print(f"Generating self-signed certificate: {cert_path}")
+            hostname = os.environ.get("TLS_HOSTNAME", "localhost")
+            san_hosts_str = os.environ.get("TLS_SAN_HOSTS", "127.0.0.1,::1")
+            san_hosts = [h.strip() for h in san_hosts_str.split(",") if h.strip()]
+
+            generate_self_signed_certificate(
+                cert_path=cert_path,
+                key_path=key_path,
+                hostname=hostname,
+                san_hosts=san_hosts,
+            )
+
+        # Update config paths for self-signed mode
+        from backend.core.tls import TLSConfig
+
+        config = TLSConfig(
+            mode=config.mode,
+            cert_path=cert_path,
+            key_path=key_path,
+            ca_path=config.ca_path,
+            verify_client=config.verify_client,
+            min_version=config.min_version,
+        )
+
+    return create_ssl_context(config)
+
+
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)  # noqa: S104
+    settings = get_settings()
+    ssl_context = get_ssl_context()
+
+    if ssl_context:
+        print(f"Starting HTTPS server on {settings.api_host}:{settings.api_port}")
+        uvicorn.run(
+            app,
+            host=settings.api_host,
+            port=settings.api_port,
+            ssl_keyfile=settings.tls_key_path,
+            ssl_certfile=settings.tls_cert_path,
+        )
+    else:
+        print(f"Starting HTTP server on {settings.api_host}:{settings.api_port}")
+        uvicorn.run(app, host=settings.api_host, port=settings.api_port)
