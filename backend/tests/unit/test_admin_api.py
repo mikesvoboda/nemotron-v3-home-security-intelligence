@@ -8,7 +8,7 @@ Parallel execution would cause race conditions.
 import os
 
 import pytest
-from sqlalchemy import delete, select
+from sqlalchemy import select
 
 from backend.models.camera import Camera
 from backend.models.detection import Detection
@@ -22,32 +22,42 @@ pytestmark = [pytest.mark.serial, pytest.mark.xdist_group(name="admin_seed")]
 
 @pytest.fixture
 async def clean_seed_data(integration_db):
-    """Clean up seed data before each test for proper isolation.
+    """Clean up ALL data before/after each test for proper isolation.
 
-    This fixture ensures tests start with a clean slate by deleting
-    all cameras, events, and detections. Required because seed tests
-    use fixed camera IDs that can conflict in parallel execution.
+    Admin seed tests need a clean database because:
+    1. API endpoints query/clear ALL cameras, not just specific IDs
+    2. Tests make exact count assertions (e.g., "created == 3")
 
-    Uses DELETE instead of TRUNCATE for better compatibility with
-    the async session/connection model used by the API.
+    Uses an advisory lock to coordinate with other tests that might
+    be creating data in parallel, ensuring these tests see a clean slate.
     """
-    from backend.core.database import get_session
+    from sqlalchemy import text
 
-    async with get_session() as session:
-        # Delete in order respecting FK constraints
-        await session.execute(delete(Detection))
-        await session.execute(delete(Event))
-        await session.execute(delete(Camera))
-        await session.commit()
+    from backend.core.database import get_engine
 
-    yield
+    engine = get_engine()
 
-    # Cleanup after test too
-    async with get_session() as session:
-        await session.execute(delete(Detection))
-        await session.execute(delete(Event))
-        await session.execute(delete(Camera))
-        await session.commit()
+    async def _delete_all_data():
+        """Delete all test data in a separate connection/transaction."""
+        async with engine.begin() as conn:
+            await conn.execute(text("DELETE FROM detections"))
+            await conn.execute(text("DELETE FROM events"))
+            await conn.execute(text("DELETE FROM cameras"))
+
+    # Acquire exclusive advisory lock for admin seed operations
+    async with engine.connect() as lock_conn:
+        await lock_conn.execute(text("SELECT pg_advisory_lock(777777)"))
+        try:
+            # Delete all data before test
+            await _delete_all_data()
+
+            yield
+
+            # Cleanup after test
+            await _delete_all_data()
+        finally:
+            await lock_conn.execute(text("SELECT pg_advisory_unlock(777777)"))
+            await lock_conn.commit()  # Commit to release the lock properly
 
 
 # === DEBUG Mode Tests ===
