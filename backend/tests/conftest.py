@@ -59,11 +59,27 @@ _postgres_container: PostgresContainer | None = None
 def pytest_configure(config):
     """Start PostgreSQL container once for the entire test session.
 
+    Also configures pytest-xdist to use loadgroup scheduling when
+    running tests in parallel, which respects xdist_group markers.
+    This ensures tests marked with @pytest.mark.xdist_group run
+    sequentially on the same worker.
+
     Skipped when:
     - TEST_DATABASE_URL environment variable is set (explicit override)
     - Local PostgreSQL is already running on port 5432 (Podman/Docker)
     """
     global _postgres_container  # noqa: PLW0603
+
+    # Configure xdist to use loadgroup scheduling if xdist is active
+    # This ensures tests with xdist_group markers run on the same worker
+    # Must be done after command line parsing but before test collection
+    if hasattr(config, "workerinput"):
+        # We're a worker, don't reconfigure
+        pass
+    elif hasattr(config.option, "dist"):
+        # Override to loadgroup to respect xdist_group markers
+        # This is necessary because -n X implicitly sets --dist=load
+        config.option.dist = "loadgroup"
 
     # Skip if explicit database URL is provided
     if os.environ.get("TEST_DATABASE_URL"):
@@ -140,52 +156,25 @@ def get_test_db_url() -> str:
 
 # Track if schema has been reset this worker process to avoid redundant operations
 _schema_reset_done: bool = False
-# Track if data has been cleared this worker process
-_data_cleared: bool = False
 
 
 async def _ensure_clean_db(use_lock: bool = True) -> None:
     """Ensure database has tables and is ready for tests.
 
-    This function:
-    1. Creates tables if they don't exist (under advisory lock for coordination)
-    2. Truncates all tables to ensure clean state (once per worker)
+    This function creates tables if they don't exist (under advisory lock for
+    coordination across parallel pytest-xdist workers).
 
-    Unlike dropping/recreating schema, truncation doesn't require AccessExclusiveLock
-    and can coexist with concurrent reads/writes from other workers.
+    Test isolation is achieved through:
+    1. Savepoint/rollback in the session fixture (transaction isolation)
+    2. Using unique_id() for test data (prevents cross-test conflicts)
+
+    We intentionally do NOT truncate tables here because:
+    - TRUNCATE requires AccessExclusiveLock which conflicts with concurrent operations
+    - Savepoint rollback provides proper isolation within each test
+    - unique_id() prevents primary key conflicts between parallel tests
     """
-    global _data_cleared  # noqa: PLW0603
-
-    if _data_cleared:
-        return
-
-    from sqlalchemy import text
-
-    from backend.core.database import get_engine
-
-    engine = get_engine()
-    if engine is None:
-        return
-
-    # Mark as done FIRST to prevent re-entry
-    _data_cleared = True
-
-    # First ensure schema exists
+    # Just ensure schema exists
     await _reset_db_schema(use_lock=use_lock)
-
-    # Then truncate tables to clear any stale data
-    # Note: We don't use advisory lock here because TRUNCATE with CASCADE
-    # is fast and doesn't conflict badly with INSERT operations
-    async with engine.begin() as conn:
-        # Truncate all tables in one statement to avoid FK issues
-        # RESTART IDENTITY resets sequences, CASCADE handles FK dependencies
-        await conn.execute(
-            text(
-                "TRUNCATE TABLE events, detections, cameras, gpu_stats, "
-                "api_keys, users, zones, cases, pipeline_metrics "
-                "RESTART IDENTITY CASCADE"
-            )
-        )
 
 
 async def _reset_db_schema(use_lock: bool = True) -> None:

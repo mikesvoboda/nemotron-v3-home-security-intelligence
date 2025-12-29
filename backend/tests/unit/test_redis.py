@@ -16,6 +16,7 @@ from backend.core.redis import (
     get_redis,
     init_redis,
 )
+from backend.tests.conftest import unique_id
 
 # Check if fakeredis is available for integration-style tests
 try:
@@ -771,12 +772,17 @@ async def test_expire_with_short_ttl(redis_client, mock_redis_client):
 
 
 # Dependency Injection Tests
+# These tests manipulate global state (_redis_client), so we patch it to ensure isolation
 
 
 @pytest.mark.asyncio
 async def test_get_redis_dependency(mock_redis_pool, mock_redis_client):
     """Test get_redis FastAPI dependency."""
-    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+    # Patch global state to ensure test isolation in parallel execution
+    with (
+        patch("backend.core.redis._redis_client", None),
+        patch("backend.core.redis.Redis", return_value=mock_redis_client),
+    ):
         # Simulate FastAPI dependency injection
         redis_generator = get_redis()
         client = await anext(redis_generator)
@@ -788,28 +794,30 @@ async def test_get_redis_dependency(mock_redis_pool, mock_redis_client):
         with contextlib.suppress(StopAsyncIteration):
             await redis_generator.asend(None)
 
-        # Cleanup global state
-        await close_redis()
-
 
 @pytest.mark.asyncio
 async def test_init_redis_creates_global_client(mock_redis_pool, mock_redis_client):
     """Test init_redis creates and returns global client."""
-    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+    # Patch global state to ensure test isolation in parallel execution
+    with (
+        patch("backend.core.redis._redis_client", None),
+        patch("backend.core.redis.Redis", return_value=mock_redis_client),
+    ):
         client = await init_redis()
 
         assert isinstance(client, RedisClient)
         assert client._client is not None
         mock_redis_client.ping.assert_awaited()
 
-        # Cleanup
-        await close_redis()
-
 
 @pytest.mark.asyncio
 async def test_close_redis_cleans_up_global_client(mock_redis_pool, mock_redis_client):
     """Test close_redis properly cleans up global client."""
-    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+    # Patch global state to ensure test isolation in parallel execution
+    with (
+        patch("backend.core.redis._redis_client", None),
+        patch("backend.core.redis.Redis", return_value=mock_redis_client),
+    ):
         await init_redis()
         await close_redis()
 
@@ -839,8 +847,8 @@ async def test_redis_integration_queue_operations():
     client._client = fake_server
     client._pool = MagicMock()  # Mock pool to avoid None checks
 
-    # Test queue operations
-    queue_name = "test_integration_queue"
+    # Test queue operations - use unique key to prevent parallel test conflicts
+    queue_name = unique_id("test_integration_queue")
 
     # Clear any existing data
     await client.clear_queue(queue_name)
@@ -890,8 +898,8 @@ async def test_redis_integration_cache_operations():
     client._client = fake_server
     client._pool = MagicMock()  # Mock pool to avoid None checks
 
-    # Test cache operations
-    key = "test_integration_cache_key"
+    # Test cache operations - use unique key to prevent parallel test conflicts
+    key = unique_id("test_integration_cache_key")
 
     # Set value
     await client.set(key, {"data": "test_value"}, expire=60)
@@ -1037,7 +1045,7 @@ async def test_add_to_queue_safe_normal_add(redis_client, mock_redis_client):
 @pytest.mark.asyncio
 async def test_add_to_queue_safe_pressure_warning(redis_client, mock_redis_client, caplog):
     """Test add_to_queue_safe logs warning when approaching threshold."""
-    # 91% full (above default 90% threshold)
+    # 91% full (above default 80% threshold)
     mock_redis_client.llen.return_value = 91
     mock_redis_client.rpush.return_value = 92
 
@@ -1097,7 +1105,8 @@ async def test_add_to_queue_safe_invalid_policy_defaults_to_reject(redis_client,
 @pytest.mark.asyncio
 async def test_get_queue_pressure(redis_client, mock_redis_client):
     """Test get_queue_pressure returns correct metrics."""
-    mock_redis_client.llen.return_value = 85
+    # Use 75% fill to be below the default 80% threshold
+    mock_redis_client.llen.return_value = 75
 
     from backend.core.redis import QueuePressureMetrics
 
@@ -1105,10 +1114,10 @@ async def test_get_queue_pressure(redis_client, mock_redis_client):
 
     assert isinstance(metrics, QueuePressureMetrics)
     assert metrics.queue_name == "test_queue"
-    assert metrics.current_length == 85
+    assert metrics.current_length == 75
     assert metrics.max_size == 100
-    assert metrics.fill_ratio == 0.85
-    assert metrics.is_at_pressure_threshold is False  # 85% < 90% threshold
+    assert metrics.fill_ratio == 0.75
+    assert metrics.is_at_pressure_threshold is False  # 75% < 80% threshold
     assert metrics.is_full is False
 
 
@@ -1123,7 +1132,7 @@ async def test_get_queue_pressure_at_threshold(redis_client, mock_redis_client):
 
     assert isinstance(metrics, QueuePressureMetrics)
     assert metrics.fill_ratio == 0.95
-    assert metrics.is_at_pressure_threshold is True  # 95% >= 90% threshold
+    assert metrics.is_at_pressure_threshold is True  # 95% >= 80% threshold
     assert metrics.is_full is False
 
 
@@ -1174,7 +1183,8 @@ async def test_backpressure_integration_reject_policy():
     client._client = fake_server
     client._pool = MagicMock()
 
-    queue_name = "test_backpressure_reject"
+    # Use unique key to prevent parallel test conflicts
+    queue_name = unique_id("test_backpressure_reject")
     max_size = 5
 
     # Clear any existing data
@@ -1225,7 +1235,8 @@ async def test_backpressure_integration_dlq_policy():
     client._client = fake_server
     client._pool = MagicMock()
 
-    queue_name = "test_backpressure_dlq"
+    # Use unique key to prevent parallel test conflicts
+    queue_name = unique_id("test_backpressure_dlq")
     dlq_name = f"dlq:overflow:{queue_name}"
     max_size = 5
 
@@ -1279,7 +1290,8 @@ async def test_backpressure_integration_drop_oldest_policy():
     client._client = fake_server
     client._pool = MagicMock()
 
-    queue_name = "test_backpressure_drop"
+    # Use unique key to prevent parallel test conflicts
+    queue_name = unique_id("test_backpressure_drop")
     max_size = 5
 
     # Clear any existing data
