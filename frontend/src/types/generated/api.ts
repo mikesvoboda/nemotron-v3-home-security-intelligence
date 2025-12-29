@@ -90,6 +90,238 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/alerts/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Rules
+         * @description List all alert rules with optional filtering and pagination.
+         *
+         *     Args:
+         *         enabled: Filter by enabled status
+         *         severity: Filter by severity level (low, medium, high, critical)
+         *         limit: Maximum number of results to return
+         *         offset: Number of results to skip for pagination
+         *         db: Database session
+         *
+         *     Returns:
+         *         AlertRuleListResponse with rules and pagination info
+         */
+        get: operations["list_rules_api_alerts_rules_get"];
+        put?: never;
+        /**
+         * Create Rule
+         * @description Create a new alert rule.
+         *
+         *     Args:
+         *         rule_data: Rule creation data
+         *         db: Database session
+         *
+         *     Returns:
+         *         Created AlertRule
+         */
+        post: operations["create_rule_api_alerts_rules_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/alerts/rules/{rule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Rule
+         * @description Get a specific alert rule by ID.
+         *
+         *     Args:
+         *         rule_id: Rule UUID
+         *         db: Database session
+         *
+         *     Returns:
+         *         AlertRule
+         *
+         *     Raises:
+         *         HTTPException: 404 if rule not found
+         */
+        get: operations["get_rule_api_alerts_rules__rule_id__get"];
+        /**
+         * Update Rule
+         * @description Update an existing alert rule.
+         *
+         *     Args:
+         *         rule_id: Rule UUID
+         *         rule_data: Rule update data
+         *         db: Database session
+         *
+         *     Returns:
+         *         Updated AlertRule
+         *
+         *     Raises:
+         *         HTTPException: 404 if rule not found
+         */
+        put: operations["update_rule_api_alerts_rules__rule_id__put"];
+        post?: never;
+        /**
+         * Delete Rule
+         * @description Delete an alert rule.
+         *
+         *     Args:
+         *         rule_id: Rule UUID
+         *         db: Database session
+         *
+         *     Raises:
+         *         HTTPException: 404 if rule not found
+         */
+        delete: operations["delete_rule_api_alerts_rules__rule_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/alerts/rules/{rule_id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Rule
+         * @description Test a rule against historical events.
+         *
+         *     This endpoint allows testing rule configuration without actually
+         *     creating alerts. Useful for validating rules before enabling them.
+         *
+         *     Args:
+         *         rule_id: Rule UUID
+         *         test_data: Test configuration (event IDs, time override)
+         *         db: Database session
+         *
+         *     Returns:
+         *         RuleTestResponse with per-event match results
+         *
+         *     Raises:
+         *         HTTPException: 404 if rule not found
+         */
+        post: operations["test_rule_api_alerts_rules__rule_id__test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Audit Logs
+         * @description List audit logs with optional filtering and pagination.
+         *
+         *     This endpoint is intended for admin use to review security-sensitive operations.
+         *
+         *     Args:
+         *         action: Optional action type to filter by
+         *         resource_type: Optional resource type to filter by
+         *         resource_id: Optional specific resource ID to filter by
+         *         actor: Optional actor to filter by
+         *         status_filter: Optional status to filter by (success/failure)
+         *         start_date: Optional start date for date range filter
+         *         end_date: Optional end date for date range filter
+         *         limit: Maximum number of results to return (1-1000, default 100)
+         *         offset: Number of results to skip for pagination (default 0)
+         *         db: Database session
+         *
+         *     Returns:
+         *         AuditLogListResponse containing filtered logs and pagination info
+         */
+        get: operations["list_audit_logs_api_audit_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/audit/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Audit Stats
+         * @description Get audit log statistics for dashboard.
+         *
+         *     Returns aggregated statistics about audit logs including:
+         *     - Total log count
+         *     - Logs today
+         *     - Breakdown by action type
+         *     - Breakdown by resource type
+         *     - Breakdown by status
+         *     - Recently active actors
+         *
+         *     Args:
+         *         db: Database session
+         *
+         *     Returns:
+         *         AuditLogStats with aggregated statistics
+         */
+        get: operations["get_audit_stats_api_audit_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/audit/{audit_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Audit Log
+         * @description Get a specific audit log entry by ID.
+         *
+         *     Args:
+         *         audit_id: Audit log ID
+         *         db: Database session
+         *
+         *     Returns:
+         *         AuditLog record
+         *
+         *     Raises:
+         *         HTTPException: 404 if audit log not found
+         */
+        get: operations["get_audit_log_api_audit__audit_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/cameras": {
         parameters: {
             query?: never;
@@ -1319,6 +1551,105 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cameras/{camera_id}/zones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Zones
+         * @description List all zones for a camera with optional filtering.
+         *
+         *     Args:
+         *         camera_id: ID of the camera
+         *         enabled: Optional filter for enabled/disabled zones
+         *         db: Database session
+         *
+         *     Returns:
+         *         ZoneListResponse containing list of zones and total count
+         */
+        get: operations["list_zones_api_cameras__camera_id__zones_get"];
+        put?: never;
+        /**
+         * Create Zone
+         * @description Create a new zone for a camera.
+         *
+         *     Args:
+         *         camera_id: ID of the camera
+         *         zone_data: Zone creation data
+         *         db: Database session
+         *
+         *     Returns:
+         *         Created zone object with generated ID
+         */
+        post: operations["create_zone_api_cameras__camera_id__zones_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cameras/{camera_id}/zones/{zone_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Zone
+         * @description Get a specific zone by ID.
+         *
+         *     Args:
+         *         camera_id: ID of the camera
+         *         zone_id: ID of the zone
+         *         db: Database session
+         *
+         *     Returns:
+         *         Zone object
+         *
+         *     Raises:
+         *         HTTPException: 404 if zone not found
+         */
+        get: operations["get_zone_api_cameras__camera_id__zones__zone_id__get"];
+        /**
+         * Update Zone
+         * @description Update an existing zone.
+         *
+         *     Args:
+         *         camera_id: ID of the camera
+         *         zone_id: ID of the zone to update
+         *         zone_data: Zone update data (all fields optional)
+         *         db: Database session
+         *
+         *     Returns:
+         *         Updated zone object
+         *
+         *     Raises:
+         *         HTTPException: 404 if zone not found
+         */
+        put: operations["update_zone_api_cameras__camera_id__zones__zone_id__put"];
+        post?: never;
+        /**
+         * Delete Zone
+         * @description Delete a zone.
+         *
+         *     Args:
+         *         camera_id: ID of the camera
+         *         zone_id: ID of the zone to delete
+         *         db: Database session
+         *
+         *     Raises:
+         *         HTTPException: 404 if zone not found
+         */
+        delete: operations["delete_zone_api_cameras__camera_id__zones__zone_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/": {
         parameters: {
             query?: never;
@@ -1363,6 +1694,589 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AlertRuleConditions
+         * @description Schema for legacy alert rule conditions (backward compatibility).
+         *
+         *     New rules should use explicit fields on AlertRuleCreate/AlertRuleUpdate.
+         *     This schema is kept for backward compatibility with existing rules.
+         * @example {
+         *       "camera_ids": [
+         *         "front_door",
+         *         "backyard"
+         *       ],
+         *       "object_types": [
+         *         "person",
+         *         "vehicle"
+         *       ],
+         *       "risk_threshold": 70,
+         *       "time_ranges": [
+         *         {
+         *           "end": "06:00",
+         *           "start": "22:00"
+         *         }
+         *       ]
+         *     }
+         */
+        AlertRuleConditions: {
+            /**
+             * Risk Threshold
+             * @description Minimum risk score to trigger alert
+             */
+            risk_threshold?: number | null;
+            /**
+             * Object Types
+             * @description Object types that trigger alerts (e.g., person, vehicle)
+             */
+            object_types?: string[] | null;
+            /**
+             * Camera Ids
+             * @description Specific camera IDs that trigger alerts
+             */
+            camera_ids?: string[] | null;
+            /**
+             * Time Ranges
+             * @description Time ranges when alerts are active (start/end in HH:MM format)
+             */
+            time_ranges?: {
+                [key: string]: unknown;
+            }[] | null;
+        };
+        /**
+         * AlertRuleCreate
+         * @description Schema for creating an alert rule.
+         *
+         *     All conditions use AND logic - all specified conditions must match for the rule to trigger.
+         *     Leave a condition as null/empty to not filter on that criterion.
+         * @example {
+         *       "camera_ids": [
+         *         "front_door",
+         *         "backyard"
+         *       ],
+         *       "channels": [
+         *         "pushover",
+         *         "webhook"
+         *       ],
+         *       "cooldown_seconds": 300,
+         *       "dedup_key_template": "{camera_id}:{rule_id}",
+         *       "description": "High-priority alert for person detection at night",
+         *       "enabled": true,
+         *       "min_confidence": 0.8,
+         *       "name": "Night Intruder Alert",
+         *       "object_types": [
+         *         "person"
+         *       ],
+         *       "risk_threshold": 70,
+         *       "schedule": {
+         *         "days": [
+         *           "monday",
+         *           "tuesday",
+         *           "wednesday",
+         *           "thursday",
+         *           "friday"
+         *         ],
+         *         "end_time": "06:00",
+         *         "start_time": "22:00",
+         *         "timezone": "America/New_York"
+         *       },
+         *       "severity": "critical"
+         *     }
+         */
+        AlertRuleCreate: {
+            /**
+             * Name
+             * @description Rule name
+             */
+            name: string;
+            /**
+             * Description
+             * @description Rule description
+             */
+            description?: string | null;
+            /**
+             * Enabled
+             * @description Whether the rule is active
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * @description Severity level for triggered alerts
+             * @default medium
+             */
+            severity: components["schemas"]["AlertSeverity"];
+            /**
+             * Risk Threshold
+             * @description Alert when risk_score >= threshold
+             */
+            risk_threshold?: number | null;
+            /**
+             * Object Types
+             * @description Object types to match (e.g., ['person', 'vehicle'])
+             */
+            object_types?: string[] | null;
+            /**
+             * Camera Ids
+             * @description Camera IDs to apply rule to (empty = all cameras)
+             */
+            camera_ids?: string[] | null;
+            /**
+             * Zone Ids
+             * @description Zone IDs to match (empty = any zone)
+             */
+            zone_ids?: string[] | null;
+            /**
+             * Min Confidence
+             * @description Minimum detection confidence (0.0-1.0)
+             */
+            min_confidence?: number | null;
+            /** @description Time-based conditions (null = always active) */
+            schedule?: components["schemas"]["AlertRuleSchedule"] | null;
+            /** @description Legacy conditions (use explicit fields instead) */
+            conditions?: components["schemas"]["AlertRuleConditions"] | null;
+            /**
+             * Dedup Key Template
+             * @description Template for dedup key. Variables: {camera_id}, {rule_id}, {object_type}
+             * @default {camera_id}:{rule_id}
+             */
+            dedup_key_template: string;
+            /**
+             * Cooldown Seconds
+             * @description Minimum seconds between duplicate alerts
+             * @default 300
+             */
+            cooldown_seconds: number;
+            /**
+             * Channels
+             * @description Notification channels for this rule
+             */
+            channels?: string[];
+        };
+        /**
+         * AlertRuleListResponse
+         * @description Schema for alert rule list response with pagination.
+         * @example {
+         *       "count": 1,
+         *       "limit": 50,
+         *       "offset": 0,
+         *       "rules": [
+         *         {
+         *           "channels": [
+         *             "pushover"
+         *           ],
+         *           "conditions": {
+         *             "risk_threshold": 70
+         *           },
+         *           "cooldown_seconds": 300,
+         *           "created_at": "2025-12-28T12:00:00Z",
+         *           "enabled": true,
+         *           "id": "550e8400-e29b-41d4-a716-446655440000",
+         *           "name": "High Risk Alert",
+         *           "updated_at": "2025-12-28T12:00:00Z"
+         *         }
+         *       ]
+         *     }
+         */
+        AlertRuleListResponse: {
+            /**
+             * Rules
+             * @description List of alert rules
+             */
+            rules: components["schemas"]["AlertRuleResponse"][];
+            /**
+             * Count
+             * @description Total number of rules
+             */
+            count: number;
+            /**
+             * Limit
+             * @description Maximum number of results returned
+             */
+            limit: number;
+            /**
+             * Offset
+             * @description Number of results skipped
+             */
+            offset: number;
+        };
+        /**
+         * AlertRuleResponse
+         * @description Schema for alert rule response.
+         * @example {
+         *       "camera_ids": [
+         *         "front_door",
+         *         "backyard"
+         *       ],
+         *       "channels": [
+         *         "pushover",
+         *         "webhook"
+         *       ],
+         *       "cooldown_seconds": 300,
+         *       "created_at": "2025-12-28T12:00:00Z",
+         *       "dedup_key_template": "{camera_id}:{rule_id}",
+         *       "description": "High-priority alert for person detection at night",
+         *       "enabled": true,
+         *       "id": "550e8400-e29b-41d4-a716-446655440000",
+         *       "min_confidence": 0.8,
+         *       "name": "Night Intruder Alert",
+         *       "object_types": [
+         *         "person"
+         *       ],
+         *       "risk_threshold": 70,
+         *       "schedule": {
+         *         "days": [
+         *           "monday",
+         *           "tuesday",
+         *           "wednesday",
+         *           "thursday",
+         *           "friday"
+         *         ],
+         *         "end_time": "06:00",
+         *         "start_time": "22:00",
+         *         "timezone": "America/New_York"
+         *       },
+         *       "severity": "critical",
+         *       "updated_at": "2025-12-28T12:00:00Z"
+         *     }
+         */
+        AlertRuleResponse: {
+            /**
+             * Id
+             * @description Alert rule UUID
+             */
+            id: string;
+            /**
+             * Name
+             * @description Rule name
+             */
+            name: string;
+            /**
+             * Description
+             * @description Rule description
+             */
+            description?: string | null;
+            /**
+             * Enabled
+             * @description Whether the rule is active
+             */
+            enabled: boolean;
+            /** @description Severity level */
+            severity: components["schemas"]["AlertSeverity"];
+            /**
+             * Risk Threshold
+             * @description Risk score threshold
+             */
+            risk_threshold?: number | null;
+            /**
+             * Object Types
+             * @description Object types to match
+             */
+            object_types?: string[] | null;
+            /**
+             * Camera Ids
+             * @description Camera IDs to apply to
+             */
+            camera_ids?: string[] | null;
+            /**
+             * Zone Ids
+             * @description Zone IDs to match
+             */
+            zone_ids?: string[] | null;
+            /**
+             * Min Confidence
+             * @description Minimum confidence
+             */
+            min_confidence?: number | null;
+            /**
+             * Schedule
+             * @description Time-based conditions
+             */
+            schedule?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Conditions
+             * @description Legacy conditions
+             */
+            conditions?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Dedup Key Template
+             * @description Template for dedup key
+             */
+            dedup_key_template: string;
+            /**
+             * Cooldown Seconds
+             * @description Minimum seconds between duplicate alerts
+             */
+            cooldown_seconds: number;
+            /**
+             * Channels
+             * @description Notification channels
+             */
+            channels?: string[];
+            /**
+             * Created At
+             * Format: date-time
+             * @description Creation timestamp
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description Last update timestamp
+             */
+            updated_at: string;
+        };
+        /**
+         * AlertRuleSchedule
+         * @description Schema for alert rule schedule (time-based conditions).
+         *
+         *     If start_time > end_time, the schedule spans midnight (e.g., 22:00-06:00).
+         *     Empty days array means all days. No schedule = always active (vacation mode).
+         * @example {
+         *       "days": [
+         *         "monday",
+         *         "tuesday",
+         *         "wednesday",
+         *         "thursday",
+         *         "friday"
+         *       ],
+         *       "end_time": "06:00",
+         *       "start_time": "22:00",
+         *       "timezone": "America/New_York"
+         *     }
+         */
+        AlertRuleSchedule: {
+            /**
+             * Days
+             * @description Days of week when rule is active (empty = all days). Values: monday, tuesday, wednesday, thursday, friday, saturday, sunday
+             */
+            days?: string[] | null;
+            /**
+             * Start Time
+             * @description Start time in HH:MM format
+             */
+            start_time?: string | null;
+            /**
+             * End Time
+             * @description End time in HH:MM format
+             */
+            end_time?: string | null;
+            /**
+             * Timezone
+             * @description Timezone for time evaluation
+             * @default UTC
+             */
+            timezone: string;
+        };
+        /**
+         * AlertRuleUpdate
+         * @description Schema for updating an alert rule (PATCH).
+         *
+         *     Only provided fields will be updated. Null values clear the field.
+         * @example {
+         *       "cooldown_seconds": 600,
+         *       "enabled": false,
+         *       "risk_threshold": 80
+         *     }
+         */
+        AlertRuleUpdate: {
+            /**
+             * Name
+             * @description Rule name
+             */
+            name?: string | null;
+            /**
+             * Description
+             * @description Rule description
+             */
+            description?: string | null;
+            /**
+             * Enabled
+             * @description Whether the rule is active
+             */
+            enabled?: boolean | null;
+            /** @description Severity level */
+            severity?: components["schemas"]["AlertSeverity"] | null;
+            /**
+             * Risk Threshold
+             * @description Alert when risk_score >= threshold
+             */
+            risk_threshold?: number | null;
+            /**
+             * Object Types
+             * @description Object types to match
+             */
+            object_types?: string[] | null;
+            /**
+             * Camera Ids
+             * @description Camera IDs to apply rule to
+             */
+            camera_ids?: string[] | null;
+            /**
+             * Zone Ids
+             * @description Zone IDs to match
+             */
+            zone_ids?: string[] | null;
+            /**
+             * Min Confidence
+             * @description Minimum detection confidence
+             */
+            min_confidence?: number | null;
+            /** @description Time-based conditions */
+            schedule?: components["schemas"]["AlertRuleSchedule"] | null;
+            /** @description Legacy conditions */
+            conditions?: components["schemas"]["AlertRuleConditions"] | null;
+            /**
+             * Dedup Key Template
+             * @description Template for dedup key
+             */
+            dedup_key_template?: string | null;
+            /**
+             * Cooldown Seconds
+             * @description Minimum seconds between duplicate alerts
+             */
+            cooldown_seconds?: number | null;
+            /**
+             * Channels
+             * @description Notification channels for this rule
+             */
+            channels?: string[] | null;
+        };
+        /**
+         * AlertSeverity
+         * @description Alert severity levels.
+         * @enum {string}
+         */
+        AlertSeverity: "low" | "medium" | "high" | "critical";
+        /**
+         * AuditLogListResponse
+         * @description Schema for paginated audit log response.
+         */
+        AuditLogListResponse: {
+            /**
+             * Logs
+             * @description List of audit log entries
+             */
+            logs: components["schemas"]["AuditLogResponse"][];
+            /**
+             * Count
+             * @description Total count matching filters
+             */
+            count: number;
+            /**
+             * Limit
+             * @description Page size
+             */
+            limit: number;
+            /**
+             * Offset
+             * @description Page offset
+             */
+            offset: number;
+        };
+        /**
+         * AuditLogResponse
+         * @description Schema for a single audit log entry.
+         */
+        AuditLogResponse: {
+            /**
+             * Id
+             * @description Audit log entry ID
+             */
+            id: number;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description When the action occurred
+             */
+            timestamp: string;
+            /**
+             * Action
+             * @description The action performed
+             */
+            action: string;
+            /**
+             * Resource Type
+             * @description Type of resource (event, alert, rule, camera, settings)
+             */
+            resource_type: string;
+            /**
+             * Resource Id
+             * @description ID of the specific resource
+             */
+            resource_id?: string | null;
+            /**
+             * Actor
+             * @description User or system that performed the action
+             */
+            actor: string;
+            /**
+             * Ip Address
+             * @description IP address of the client
+             */
+            ip_address?: string | null;
+            /**
+             * User Agent
+             * @description User agent string of the client
+             */
+            user_agent?: string | null;
+            /**
+             * Details
+             * @description Action-specific details
+             */
+            details?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Status
+             * @description Status of the action (success/failure)
+             */
+            status: string;
+        };
+        /**
+         * AuditLogStats
+         * @description Schema for audit log statistics.
+         */
+        AuditLogStats: {
+            /**
+             * Total Logs
+             * @description Total number of audit logs
+             */
+            total_logs: number;
+            /**
+             * Logs Today
+             * @description Number of logs today
+             */
+            logs_today: number;
+            /**
+             * By Action
+             * @description Counts by action type
+             */
+            by_action: {
+                [key: string]: number;
+            };
+            /**
+             * By Resource Type
+             * @description Counts by resource type
+             */
+            by_resource_type: {
+                [key: string]: number;
+            };
+            /**
+             * By Status
+             * @description Counts by status
+             */
+            by_status: {
+                [key: string]: number;
+            };
+            /**
+             * Recent Actors
+             * @description Recently active actors
+             */
+            recent_actors: string[];
+        };
         /**
          * CameraCreate
          * @description Schema for creating a new camera.
@@ -2878,6 +3792,152 @@ export interface components {
             timestamp: string;
         };
         /**
+         * RuleTestEventResult
+         * @description Schema for a single event's test result.
+         * @example {
+         *       "camera_id": "front_door",
+         *       "event_id": 123,
+         *       "matched_conditions": [
+         *         "risk_score >= 70",
+         *         "object_type in ['person']"
+         *       ],
+         *       "matches": true,
+         *       "object_types": [
+         *         "person"
+         *       ],
+         *       "risk_score": 75,
+         *       "started_at": "2025-12-28T22:15:00Z"
+         *     }
+         */
+        RuleTestEventResult: {
+            /**
+             * Event Id
+             * @description Event ID
+             */
+            event_id: number;
+            /**
+             * Camera Id
+             * @description Camera ID
+             */
+            camera_id: string;
+            /**
+             * Risk Score
+             * @description Event risk score
+             */
+            risk_score?: number | null;
+            /**
+             * Object Types
+             * @description Detected object types
+             */
+            object_types?: string[];
+            /**
+             * Matches
+             * @description Whether the rule matched this event
+             */
+            matches: boolean;
+            /**
+             * Matched Conditions
+             * @description List of conditions that matched
+             */
+            matched_conditions?: string[];
+            /**
+             * Started At
+             * @description Event start timestamp
+             */
+            started_at?: string | null;
+        };
+        /**
+         * RuleTestRequest
+         * @description Schema for testing a rule against historical events.
+         * @example {
+         *       "event_ids": [
+         *         1,
+         *         2,
+         *         3,
+         *         4,
+         *         5
+         *       ],
+         *       "test_time": "2025-12-28T22:30:00Z"
+         *     }
+         */
+        RuleTestRequest: {
+            /**
+             * Event Ids
+             * @description Specific event IDs to test against. If not provided, tests against recent events.
+             */
+            event_ids?: number[] | null;
+            /**
+             * Limit
+             * @description Maximum number of recent events to test (if event_ids not provided)
+             * @default 10
+             */
+            limit: number;
+            /**
+             * Test Time
+             * @description Override current time for schedule testing (ISO format)
+             */
+            test_time?: string | null;
+        };
+        /**
+         * RuleTestResponse
+         * @description Schema for rule test response.
+         * @example {
+         *       "events_matched": 3,
+         *       "events_tested": 10,
+         *       "match_rate": 0.3,
+         *       "results": [
+         *         {
+         *           "camera_id": "front_door",
+         *           "event_id": 123,
+         *           "matched_conditions": [
+         *             "risk_score >= 70",
+         *             "object_type in ['person']"
+         *           ],
+         *           "matches": true,
+         *           "object_types": [
+         *             "person"
+         *           ],
+         *           "risk_score": 75,
+         *           "started_at": "2025-12-28T22:15:00Z"
+         *         }
+         *       ],
+         *       "rule_id": "550e8400-e29b-41d4-a716-446655440000",
+         *       "rule_name": "Night Intruder Alert"
+         *     }
+         */
+        RuleTestResponse: {
+            /**
+             * Rule Id
+             * @description Rule ID that was tested
+             */
+            rule_id: string;
+            /**
+             * Rule Name
+             * @description Rule name
+             */
+            rule_name: string;
+            /**
+             * Events Tested
+             * @description Number of events tested
+             */
+            events_tested: number;
+            /**
+             * Events Matched
+             * @description Number of events that matched the rule
+             */
+            events_matched: number;
+            /**
+             * Match Rate
+             * @description Proportion of events that matched (0.0-1.0)
+             */
+            match_rate: number;
+            /**
+             * Results
+             * @description Per-event test results
+             */
+            results: components["schemas"]["RuleTestEventResult"][];
+        };
+        /**
          * SearchResponse
          * @description Schema for search response with pagination.
          * @example {
@@ -3434,6 +4494,265 @@ export interface components {
              */
             message?: string | null;
         };
+        /**
+         * ZoneCreate
+         * @description Schema for creating a new zone.
+         * @example {
+         *       "color": "#3B82F6",
+         *       "coordinates": [
+         *         [
+         *           0.1,
+         *           0.2
+         *         ],
+         *         [
+         *           0.3,
+         *           0.2
+         *         ],
+         *         [
+         *           0.3,
+         *           0.8
+         *         ],
+         *         [
+         *           0.1,
+         *           0.8
+         *         ]
+         *       ],
+         *       "enabled": true,
+         *       "name": "Front Door",
+         *       "priority": 1,
+         *       "shape": "rectangle",
+         *       "zone_type": "entry_point"
+         *     }
+         */
+        ZoneCreate: {
+            /**
+             * Name
+             * @description Zone name
+             */
+            name: string;
+            /**
+             * @description Type of zone
+             * @default other
+             */
+            zone_type: components["schemas"]["ZoneType"];
+            /**
+             * Coordinates
+             * @description Array of normalized [x, y] points (0-1 range)
+             */
+            coordinates: number[][];
+            /**
+             * @description Shape of the zone
+             * @default rectangle
+             */
+            shape: components["schemas"]["ZoneShape"];
+            /**
+             * Color
+             * @description Hex color for UI display
+             * @default #3B82F6
+             */
+            color: string;
+            /**
+             * Enabled
+             * @description Whether zone is active
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * Priority
+             * @description Priority for overlapping zones (higher = more important)
+             * @default 0
+             */
+            priority: number;
+        };
+        /**
+         * ZoneListResponse
+         * @description Schema for zone list response.
+         * @example {
+         *       "count": 1,
+         *       "zones": [
+         *         {
+         *           "camera_id": "front_door",
+         *           "color": "#3B82F6",
+         *           "coordinates": [
+         *             [
+         *               0.1,
+         *               0.2
+         *             ],
+         *             [
+         *               0.3,
+         *               0.2
+         *             ],
+         *             [
+         *               0.3,
+         *               0.8
+         *             ],
+         *             [
+         *               0.1,
+         *               0.8
+         *             ]
+         *           ],
+         *           "created_at": "2025-12-23T10:00:00Z",
+         *           "enabled": true,
+         *           "id": "123e4567-e89b-12d3-a456-426614174000",
+         *           "name": "Front Door",
+         *           "priority": 1,
+         *           "shape": "rectangle",
+         *           "updated_at": "2025-12-23T12:00:00Z",
+         *           "zone_type": "entry_point"
+         *         }
+         *       ]
+         *     }
+         */
+        ZoneListResponse: {
+            /**
+             * Zones
+             * @description List of zones
+             */
+            zones: components["schemas"]["ZoneResponse"][];
+            /**
+             * Count
+             * @description Total number of zones
+             */
+            count: number;
+        };
+        /**
+         * ZoneResponse
+         * @description Schema for zone response.
+         * @example {
+         *       "camera_id": "front_door",
+         *       "color": "#3B82F6",
+         *       "coordinates": [
+         *         [
+         *           0.1,
+         *           0.2
+         *         ],
+         *         [
+         *           0.3,
+         *           0.2
+         *         ],
+         *         [
+         *           0.3,
+         *           0.8
+         *         ],
+         *         [
+         *           0.1,
+         *           0.8
+         *         ]
+         *       ],
+         *       "created_at": "2025-12-23T10:00:00Z",
+         *       "enabled": true,
+         *       "id": "123e4567-e89b-12d3-a456-426614174000",
+         *       "name": "Front Door",
+         *       "priority": 1,
+         *       "shape": "rectangle",
+         *       "updated_at": "2025-12-23T12:00:00Z",
+         *       "zone_type": "entry_point"
+         *     }
+         */
+        ZoneResponse: {
+            /**
+             * Id
+             * @description Zone UUID
+             */
+            id: string;
+            /**
+             * Camera Id
+             * @description Camera ID this zone belongs to
+             */
+            camera_id: string;
+            /**
+             * Name
+             * @description Zone name
+             */
+            name: string;
+            /** @description Type of zone */
+            zone_type: components["schemas"]["ZoneType"];
+            /**
+             * Coordinates
+             * @description Array of normalized [x, y] points (0-1 range)
+             */
+            coordinates: number[][];
+            /** @description Shape of the zone */
+            shape: components["schemas"]["ZoneShape"];
+            /**
+             * Color
+             * @description Hex color for UI display
+             */
+            color: string;
+            /**
+             * Enabled
+             * @description Whether zone is active
+             */
+            enabled: boolean;
+            /**
+             * Priority
+             * @description Priority for overlapping zones
+             */
+            priority: number;
+            /**
+             * Created At
+             * Format: date-time
+             * @description Timestamp when zone was created
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description Timestamp when zone was last updated
+             */
+            updated_at: string;
+        };
+        /**
+         * ZoneShape
+         * @description Shape of the zone polygon.
+         * @enum {string}
+         */
+        ZoneShape: "rectangle" | "polygon";
+        /**
+         * ZoneType
+         * @description Type of zone for semantic categorization.
+         * @enum {string}
+         */
+        ZoneType: "entry_point" | "driveway" | "sidewalk" | "yard" | "other";
+        /**
+         * ZoneUpdate
+         * @description Schema for updating an existing zone.
+         * @example {
+         *       "enabled": false,
+         *       "name": "Front Door - Updated"
+         *     }
+         */
+        ZoneUpdate: {
+            /**
+             * Name
+             * @description Zone name
+             */
+            name?: string | null;
+            /** @description Type of zone */
+            zone_type?: components["schemas"]["ZoneType"] | null;
+            /**
+             * Coordinates
+             * @description Array of normalized [x, y] points (0-1 range)
+             */
+            coordinates?: number[][] | null;
+            /** @description Shape of the zone */
+            shape?: components["schemas"]["ZoneShape"] | null;
+            /**
+             * Color
+             * @description Hex color for UI display
+             */
+            color?: string | null;
+            /**
+             * Enabled
+             * @description Whether zone is active
+             */
+            enabled?: boolean | null;
+            /**
+             * Priority
+             * @description Priority for overlapping zones (higher = more important)
+             */
+            priority?: number | null;
+        };
     };
     responses: never;
     parameters: never;
@@ -3525,6 +4844,306 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClearDataResponse"];
+                };
+            };
+        };
+    };
+    list_rules_api_alerts_rules_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by enabled status */
+                enabled?: boolean | null;
+                /** @description Filter by severity level */
+                severity?: string | null;
+                /** @description Maximum number of results */
+                limit?: number;
+                /** @description Number of results to skip */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertRuleListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_rule_api_alerts_rules_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AlertRuleCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertRuleResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_rule_api_alerts_rules__rule_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertRuleResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_rule_api_alerts_rules__rule_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AlertRuleUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertRuleResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_rule_api_alerts_rules__rule_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_rule_api_alerts_rules__rule_id__test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuleTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleTestResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_audit_logs_api_audit_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by action type */
+                action?: string | null;
+                /** @description Filter by resource type */
+                resource_type?: string | null;
+                /** @description Filter by resource ID */
+                resource_id?: string | null;
+                /** @description Filter by actor */
+                actor?: string | null;
+                /** @description Filter by status (success/failure) */
+                status?: string | null;
+                /** @description Filter from date (ISO format) */
+                start_date?: string | null;
+                /** @description Filter to date (ISO format) */
+                end_date?: string | null;
+                /** @description Page size */
+                limit?: number;
+                /** @description Page offset */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLogListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_audit_stats_api_audit_stats_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLogStats"];
+                };
+            };
+        };
+    };
+    get_audit_log_api_audit__audit_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                audit_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLogResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -4917,6 +6536,173 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SeverityMetadataResponse"];
+                };
+            };
+        };
+    };
+    list_zones_api_cameras__camera_id__zones_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by enabled status */
+                enabled?: boolean | null;
+            };
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZoneListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_zone_api_cameras__camera_id__zones_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ZoneCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZoneResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_zone_api_cameras__camera_id__zones__zone_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+                zone_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZoneResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_zone_api_cameras__camera_id__zones__zone_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+                zone_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ZoneUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ZoneResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_zone_api_cameras__camera_id__zones__zone_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+                zone_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
