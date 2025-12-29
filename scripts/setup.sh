@@ -40,7 +40,7 @@ SKIP_TESTS=false
 
 # Required versions
 REQUIRED_PYTHON_MAJOR=3
-REQUIRED_PYTHON_MINOR=11
+REQUIRED_PYTHON_MINOR=14
 REQUIRED_NODE_MAJOR=18
 
 # ─────────────────────────────────────────────────────────────────────────────

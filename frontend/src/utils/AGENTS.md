@@ -6,13 +6,12 @@ Utility functions for common operations across the frontend application, includi
 
 ## Key Files
 
-### `risk.ts`
-
-Risk scoring utilities for security events.
-
-### `time.ts`
-
-Time and duration formatting utilities for event timestamps.
+| File           | Purpose                                    |
+| -------------- | ------------------------------------------ |
+| `risk.ts`      | Risk scoring utilities for security events |
+| `risk.test.ts` | Tests for risk utilities                   |
+| `time.ts`      | Time and duration formatting utilities     |
+| `time.test.ts` | Tests for time utilities                   |
 
 ## Risk Utilities (`risk.ts`)
 
@@ -37,44 +36,35 @@ Converts numeric risk score (0-100) to categorical risk level.
 
 **Throws:** Error if score is outside 0-100 range
 
-**Usage:**
-
 ```typescript
-const level = getRiskLevel(45); // 'medium'
+getRiskLevel(25); // 'low'
+getRiskLevel(26); // 'medium'
+getRiskLevel(75); // 'high'
+getRiskLevel(76); // 'critical'
 ```
 
 #### `getRiskColor(level: RiskLevel): string`
 
 Returns hex color code for a risk level, using NVIDIA brand colors.
 
-**Color Mapping:**
-
-- `low`: `#76B900` (NVIDIA Green)
-- `medium`: `#FFB800` (NVIDIA Yellow)
-- `high`: `#E74856` (NVIDIA Red)
-- `critical`: `#ef4444` (red-500)
-
-**Usage:**
+| Level      | Color    | Hex       |
+| ---------- | -------- | --------- |
+| `low`      | Green    | `#76B900` |
+| `medium`   | Yellow   | `#FFB800` |
+| `high`     | Red      | `#E74856` |
+| `critical` | Dark Red | `#ef4444` |
 
 ```typescript
-const color = getRiskColor('high'); // '#E74856'
+getRiskColor('high'); // '#E74856'
 ```
 
 #### `getRiskLabel(level: RiskLevel): string`
 
 Returns capitalized human-readable label for a risk level.
 
-**Label Mapping:**
-
-- `low` -> `"Low"`
-- `medium` -> `"Medium"`
-- `high` -> `"High"`
-- `critical` -> `"Critical"`
-
-**Usage:**
-
 ```typescript
-const label = getRiskLabel('medium'); // 'Medium'
+getRiskLabel('medium'); // 'Medium'
+getRiskLabel('critical'); // 'Critical'
 ```
 
 ## Time Utilities (`time.ts`)
@@ -90,15 +80,13 @@ Format duration between two timestamps in human-readable format.
 - `startedAt` - ISO timestamp string when event started
 - `endedAt` - ISO timestamp string when event ended (null if ongoing)
 
-**Returns:** Formatted duration string
-
 **Behavior:**
 
-- For ongoing events (started within last 5 minutes): returns `"ongoing"`
-- For ongoing events (older than 5 minutes): returns `"2h 30m (ongoing)"`
-- For completed events: returns duration like `"2m 30s"`, `"1h 15m"`, `"2d 5h"`
-- For invalid dates: returns `"unknown"`
-- For negative durations: returns `"0s"`
+- Ongoing events (started within last 5 minutes): returns `"ongoing"`
+- Ongoing events (older than 5 minutes): returns `"2h 30m (ongoing)"`
+- Completed events: returns duration like `"2m 30s"`, `"1h 15m"`, `"2d 5h"`
+- Invalid dates: returns `"unknown"`
+- Negative durations: returns `"0s"`
 
 **Duration Formatting Rules:**
 
@@ -107,17 +95,9 @@ Format duration between two timestamps in human-readable format.
 - Minutes + seconds for durations over a minute: `"2m 30s"`
 - Seconds only for durations under a minute: `"45s"`
 
-**Usage:**
-
 ```typescript
-// Completed event
 formatDuration('2024-01-01T10:00:00Z', '2024-01-01T10:02:30Z'); // "2m 30s"
-
-// Ongoing event (recent)
-formatDuration('2024-01-01T10:00:00Z', null); // "ongoing"
-
-// Ongoing event (older)
-formatDuration('2024-01-01T08:00:00Z', null); // "2h 30m (ongoing)"
+formatDuration('2024-01-01T10:00:00Z', null); // "ongoing" (if recent)
 ```
 
 #### `getDurationLabel(startedAt: string, endedAt: string | null): string`
@@ -128,8 +108,6 @@ Alias for `formatDuration()` - provides consistent API for duration display.
 
 Check if an event is currently ongoing.
 
-**Usage:**
-
 ```typescript
 isEventOngoing(null); // true
 isEventOngoing('2024-01-01T10:00:00Z'); // false
@@ -139,25 +117,23 @@ isEventOngoing('2024-01-01T10:00:00Z'); // false
 
 ### `risk.test.ts`
 
-Comprehensive test coverage including:
+Covers:
 
 - Score to level conversion for all thresholds
 - Boundary conditions (0, 25, 50, 75, 100)
 - Error handling for invalid scores (-1, 101)
-- Color mapping for all levels
+- Color mapping for all levels including critical
 - Label generation for all levels
 
 ### `time.test.ts`
 
-Comprehensive test coverage including:
+Covers:
 
-- Duration formatting for various time ranges (seconds, minutes, hours, days)
+- Duration formatting for various time ranges
 - Ongoing event handling (recent vs older)
 - Invalid date handling
 - Negative duration handling
 - Edge cases (exactly 1 minute, exactly 1 hour, etc.)
-
-**Test Framework:** Vitest
 
 ## Usage Examples
 
@@ -172,7 +148,7 @@ function RiskBadge({ score }: { score: number }) {
   const label = getRiskLabel(level);
 
   return (
-    <span className={`risk-badge-${level}`} style={{ borderColor: color }}>
+    <span className={\`risk-badge-\${level}\`} style={{ borderColor: color }}>
       {label}: {score}
     </span>
   );
@@ -190,20 +166,6 @@ function EventDuration({ event }: { event: Event }) {
 
   return <span className={ongoing ? 'text-primary-500' : 'text-text-secondary'}>{duration}</span>;
 }
-```
-
-### Sort Events by Risk
-
-```typescript
-import { getRiskLevel } from '@/utils/risk';
-
-const events = [...];
-const sortedEvents = events.sort((a, b) => {
-  const levelOrder = { low: 0, medium: 1, high: 2, critical: 3 };
-  const aLevel = getRiskLevel(a.risk_score);
-  const bLevel = getRiskLevel(b.risk_score);
-  return levelOrder[bLevel] - levelOrder[aLevel];
-});
 ```
 
 ### Filter High-Risk Events
@@ -230,7 +192,7 @@ All utility functions are pure with no side effects:
 
 ### Error Handling
 
-Risk functions throw on invalid input for fail-fast behavior:
+**Risk functions** throw on invalid input for fail-fast behavior:
 
 ```typescript
 try {
@@ -240,7 +202,7 @@ try {
 }
 ```
 
-Time functions return safe defaults for invalid input:
+**Time functions** return safe defaults for invalid input:
 
 ```typescript
 formatDuration('invalid', null); // Returns "unknown"
@@ -249,10 +211,9 @@ formatDuration('2024-01-01T10:00:00Z', '2024-01-01T09:00:00Z'); // Returns "0s" 
 
 ## Notes
 
-- Risk levels align with Tailwind CSS risk badge classes (`.risk-badge-low`, etc.)
+- Risk levels align with Tailwind CSS risk badge classes (`.risk-badge-low`, `.risk-badge-critical`, etc.)
 - Risk colors use NVIDIA brand palette for consistency with the theme
 - Score validation ensures type safety at runtime
-- Pure functions with no side effects (easily testable)
 - Thresholds are inclusive: 25 is `low`, 26 is `medium`
 - Time utilities handle ISO 8601 timestamp strings
 - Ongoing event detection uses 5-minute threshold for "ongoing" vs duration display

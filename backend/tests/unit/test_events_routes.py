@@ -24,22 +24,34 @@ from backend.api.schemas.events import EventUpdate
 # =============================================================================
 
 
-def test_parse_detection_ids_normal_string() -> None:
-    """Test parsing a normal comma-separated detection IDs string."""
-    result = parse_detection_ids("1,2,3,4")
+def test_parse_detection_ids_json_array() -> None:
+    """Test parsing a JSON array detection IDs string."""
+    result = parse_detection_ids("[1, 2, 3, 4]")
     assert result == [1, 2, 3, 4]
 
 
-def test_parse_detection_ids_with_whitespace() -> None:
-    """Test parsing detection IDs with whitespace around values."""
-    result = parse_detection_ids("1, 2 , 3 ,4")
+def test_parse_detection_ids_json_array_no_spaces() -> None:
+    """Test parsing JSON array without spaces."""
+    result = parse_detection_ids("[1,2,3,4]")
     assert result == [1, 2, 3, 4]
 
 
 def test_parse_detection_ids_single_id() -> None:
-    """Test parsing a single detection ID."""
-    result = parse_detection_ids("42")
+    """Test parsing a single detection ID JSON array."""
+    result = parse_detection_ids("[42]")
     assert result == [42]
+
+
+def test_parse_detection_ids_legacy_comma_separated() -> None:
+    """Test legacy fallback for comma-separated detection IDs string."""
+    result = parse_detection_ids("1,2,3,4")
+    assert result == [1, 2, 3, 4]
+
+
+def test_parse_detection_ids_legacy_with_whitespace() -> None:
+    """Test legacy fallback for comma-separated IDs with whitespace."""
+    result = parse_detection_ids("1, 2 , 3 ,4")
+    assert result == [1, 2, 3, 4]
 
 
 def test_parse_detection_ids_none() -> None:

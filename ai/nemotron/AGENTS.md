@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This directory contains the Nemotron Mini 4B Instruct language model used for AI-powered risk reasoning and natural language generation in the home security system. The model runs via llama.cpp server and analyzes batches of object detections to generate risk scores and summaries.
+This directory contains the Nemotron language model configuration used for AI-powered risk reasoning and natural language generation in the home security system. The model runs via llama.cpp server and analyzes batches of object detections to generate risk scores and summaries.
 
 ## Directory Contents
 
@@ -12,6 +12,22 @@ ai/nemotron/
 ├── config.json                                  # llama.cpp server runtime config reference
 ├── .gitkeep                                     # Placeholder for git
 └── nemotron-mini-4b-instruct-q4_k_m.gguf       # Downloaded model file (not in git)
+```
+
+### `config.json`
+
+Reference configuration for llama.cpp server (informational):
+
+```json
+{
+  "model": "ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf",
+  "host": "0.0.0.0",
+  "port": 8091,
+  "ctx_size": 4096,
+  "n_gpu_layers": 99,
+  "parallel": 2,
+  "cont_batching": true
+}
 ```
 
 ### Model File (Downloaded)
@@ -36,10 +52,20 @@ ai/nemotron/
 - **Quantization**: Q4_K_M reduces memory from ~8GB to ~2.5GB with minimal quality loss
 - **Inference speed**: ~2-5 seconds per risk analysis
 
+### Alternative: Nemotron-3-Nano-30B-A3B
+
+The `start_nemotron.sh` script also supports a larger model:
+
+- **Model**: `Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf`
+- **VRAM**: ~16GB
+- **Context**: 12288 tokens
+- **GPU layers**: 45 (configurable)
+
 ### VRAM Usage
 
-- **Q4_K_M quantization**: ~3GB VRAM
-- **GPU layers**: 99 (all layers offloaded to GPU)
+- **Q4_K_M quantization (4B)**: ~3GB VRAM
+- **Q4_K_M quantization (30B)**: ~16GB VRAM
+- **GPU layers**: 99 (all layers offloaded to GPU for 4B model)
 - **CPU fallback**: Available but much slower
 
 ## Starting the Service
@@ -47,14 +73,14 @@ ai/nemotron/
 ### Download model (first time only):
 
 ```bash
-cd /home/msvoboda/github/nemotron-v3-home-security-intelligence
+cd /path/to/home_security_intelligence
 ./ai/download_models.sh
 
 # Or provide custom model path:
 NEMOTRON_GGUF_PATH=/path/to/model.gguf ./ai/download_models.sh
 ```
 
-### Start LLM server:
+### Start LLM server (simple):
 
 ```bash
 ./ai/start_llm.sh
@@ -63,15 +89,34 @@ NEMOTRON_GGUF_PATH=/path/to/model.gguf ./ai/download_models.sh
 NEMOTRON_MODEL_PATH=/path/to/model.gguf ./ai/start_llm.sh
 ```
 
-This starts `llama-server` with configuration (also mirrored in `ai/nemotron/config.json`):
+Configuration for `start_llm.sh`:
 
-- **Port**: 8091
-- **Model**: `ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf`
-- **Context size**: 4096 tokens
-- **GPU layers**: 99 (all on GPU)
-- **Host**: 0.0.0.0 (accessible from network)
-- **Parallelism**: 2 concurrent requests
-- **Continuous batching**: Enabled for better throughput
+| Parameter           | Value                                               |
+| ------------------- | --------------------------------------------------- |
+| Port                | 8091                                                |
+| Model               | `ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf` |
+| Context size        | 4096 tokens                                         |
+| GPU layers          | 99 (all on GPU)                                     |
+| Host                | 0.0.0.0 (accessible from network)                   |
+| Parallelism         | 2 concurrent requests                               |
+| Continuous batching | Enabled                                             |
+
+### Start LLM server (advanced with auto-recovery):
+
+```bash
+./ai/start_nemotron.sh
+```
+
+Configuration for `start_nemotron.sh`:
+
+| Parameter       | Value                                            |
+| --------------- | ------------------------------------------------ |
+| Port            | 8091 (configurable via `NEMOTRON_PORT`)          |
+| Host            | 127.0.0.1 (configurable via `NEMOTRON_HOST`)     |
+| Context size    | 12288 (configurable via `NEMOTRON_CONTEXT_SIZE`) |
+| GPU layers      | 45 (configurable via `NEMOTRON_GPU_LAYERS`)      |
+| Startup timeout | 90 seconds                                       |
+| Log file        | `/tmp/nemotron.log`                              |
 
 Server runs at: `http://localhost:8091`
 
@@ -140,28 +185,6 @@ event = await analyzer.analyze_batch(batch_id)
 6. **Create Event**: Store risk assessment in database
 7. **Broadcast**: Send event notification via WebSocket
 
-### Prompt Template
-
-Located in `backend/services/prompts.py`:
-
-```python
-RISK_ANALYSIS_PROMPT = """
-You are a security AI analyzing activity from camera {camera_name}.
-
-Time window: {start_time} to {end_time}
-Detections:
-{detections_list}
-
-Provide a risk assessment as JSON:
-{
-  "risk_score": 0-100,
-  "risk_level": "low|medium|high|critical",
-  "summary": "Brief description of activity",
-  "reasoning": "Detailed analysis and context"
-}
-"""
-```
-
 ### Risk Scoring Guidelines
 
 - **0-25 (low)**: Normal activity, no concern
@@ -180,8 +203,8 @@ Provide a risk assessment as JSON:
 
 ### Memory Usage
 
-- **Model weights**: ~2.5GB disk, ~3GB VRAM
-- **Context buffer**: ~1GB (4096 tokens × 4 bytes × batch)
+- **Model weights**: ~2.5GB disk, ~3GB VRAM (4B model)
+- **Context buffer**: ~1GB (4096 tokens x 4 bytes x batch)
 - **KV cache**: Dynamic, scales with active requests
 
 ### Quality
@@ -226,7 +249,7 @@ Falls back to default risk assessment:
 
 - **llama.cpp**: Must be installed with `llama-server` command available
 - **CUDA**: Required for GPU acceleration (NVIDIA GPU only)
-- **VRAM**: Minimum 3GB free for model
+- **VRAM**: Minimum 3GB free for 4B model, 16GB for 30B model
 
 ### Installation
 
@@ -261,7 +284,7 @@ curl -X POST http://localhost:8091/completion \
 ### Monitoring
 
 - Check GPU usage: `nvidia-smi`
-- View logs: Check stdout/stderr from `start_llm.sh`
+- View logs: Check stdout/stderr from `start_llm.sh` or `/tmp/nemotron.log` for `start_nemotron.sh`
 - Health checks: Backend performs periodic health checks
 
 ## Model Characteristics
@@ -269,14 +292,14 @@ curl -X POST http://localhost:8091/completion \
 ### Strengths
 
 - Fast inference on GPU (~2-5 seconds)
-- Low VRAM usage (~3GB)
+- Low VRAM usage (~3GB for 4B model)
 - Good at structured output (JSON)
 - Effective for risk reasoning tasks
 - Stable and reliable responses
 
 ### Limitations
 
-- Small context window (4096 tokens)
+- Small context window (4096 tokens for 4B model)
 - Limited to analyzing ~50-100 detections per batch
 - May struggle with very complex scenarios
 - Quantization causes minor quality degradation
@@ -290,12 +313,11 @@ curl -X POST http://localhost:8091/completion \
 - Validate and normalize responses
 - Handle edge cases with fallback logic
 
-## Future Enhancements
+## Entry Points for Understanding the Code
 
-Potential improvements (not yet implemented):
-
-- Larger model variants (7B, 13B) for better reasoning
-- Fine-tuning on security-specific data
-- Multi-turn conversations for event clarification
-- Integration with vector database for historical context
-- Streaming responses for real-time updates
+1. **Start here**: Read this file for Nemotron overview
+2. **Configuration**: `config.json` for llama.cpp server parameters
+3. **Simple startup**: `../start_llm.sh` for basic server launch
+4. **Advanced startup**: `../start_nemotron.sh` for auto-recovery and large model support
+5. **Backend integration**: `backend/services/nemotron_analyzer.py` for risk analysis service
+6. **Model download**: `../download_models.sh` for model acquisition

@@ -4,30 +4,48 @@
 
 This directory contains GitHub Actions workflow definitions for the Home Security Intelligence project. Workflows automate CI/CD, testing, security scanning, and code quality checks.
 
+## Directory Contents
+
+```
+workflows/
+  AGENTS.md              # This file
+  ci.yml                 # Main CI pipeline
+  deploy.yml             # Docker image build and push to GHCR
+  ai-code-review.yml     # GPT-powered automated code review
+  nightly.yml            # Nightly benchmarks and analysis
+  gpu-tests.yml          # GPU integration tests
+  sast.yml               # Static Application Security Testing
+  codeql.yml             # CodeQL security analysis
+  gitleaks.yml           # Secret detection scanning
+  trivy.yml              # Container vulnerability scanning
+```
+
 ## Workflow Files
 
 ### ci.yml - Main CI Pipeline
 
 **Trigger:** Push/PR to main branch
 
-**Purpose:** Primary continuous integration - linting, type checking, testing, and building.
+**Purpose:** Primary continuous integration - linting, type checking, testing, building.
 
 **Jobs:**
 
-| Job                | Duration | Description                                |
-| ------------------ | -------- | ------------------------------------------ |
-| lint               | ~1m      | Ruff check and format verification         |
-| typecheck          | ~2m      | Mypy static type analysis                  |
-| unit-tests         | ~3m      | pytest unit tests with coverage            |
-| integration-tests  | ~4m      | pytest with Redis service container        |
-| frontend-lint      | ~1m      | ESLint checking                            |
-| frontend-typecheck | ~1m      | TypeScript compilation check               |
-| frontend-tests     | ~2m      | Vitest with coverage                       |
-| build              | ~5m      | Docker image builds (depends on all tests) |
+| Job                | Duration | Description                         |
+| ------------------ | -------- | ----------------------------------- |
+| lint               | ~1m      | Ruff check and format verification  |
+| typecheck          | ~2m      | Mypy static type analysis           |
+| unit-tests         | ~3m      | pytest unit tests with coverage     |
+| integration-tests  | ~4m      | pytest with Redis service container |
+| api-types-check    | ~2m      | API types contract verification     |
+| frontend-lint      | ~1m      | ESLint checking                     |
+| frontend-typecheck | ~1m      | TypeScript compilation check        |
+| frontend-tests     | ~2m      | Vitest with coverage                |
+| frontend-e2e       | ~5m      | Playwright E2E tests                |
+| build              | ~5m      | Docker image builds (after tests)   |
 
 **Environment:**
 
-- Python 3.14
+- Python 3.12
 - Node.js 20
 - Coverage uploaded to Codecov
 
@@ -42,11 +60,16 @@ This directory contains GitHub Actions workflow definitions for the Home Securit
 **Process:**
 
 1. Authenticate to GHCR
-2. Build images with Buildx (caching enabled)
+2. Build images with Buildx (multi-arch: amd64, arm64)
 3. Scan with Trivy (fail on CRITICAL/HIGH)
 4. Push with tags: `sha-{commit}`, `latest`
 
-**Permissions Required:**
+**Matrix Build:**
+
+- Backend: `./backend/Dockerfile.prod`
+- Frontend: `./frontend/Dockerfile.prod`
+
+**Permissions:**
 
 - `contents: read`
 - `packages: write`
@@ -59,9 +82,9 @@ This directory contains GitHub Actions workflow definitions for the Home Securit
 
 **Process:**
 
-1. Extract PR diff (limited to 20KB)
+1. Extract PR diff (limited to 20KB for token limits)
 2. Install `gh-models` extension
-3. Run diff through GPT-4o
+3. Run diff through GPT-4o (falls back to gpt-4o-mini)
 4. Post review as PR comment
 
 **Review Focus:**
@@ -73,7 +96,7 @@ This directory contains GitHub Actions workflow definitions for the Home Securit
 
 ### nightly.yml - Nightly Analysis
 
-**Trigger:** 2am EST daily (cron) + manual dispatch
+**Trigger:** 2am EST daily (cron: `0 7 * * *`) + manual dispatch
 
 **Purpose:** Extended analysis that takes too long for CI.
 
@@ -116,7 +139,7 @@ This directory contains GitHub Actions workflow definitions for the Home Securit
 
 **Purpose:** Security-focused static analysis.
 
-**Tools Used:**
+**Tools:**
 
 | Tool    | Language        | Focus                    |
 | ------- | --------------- | ------------------------ |
@@ -158,13 +181,18 @@ This directory contains GitHub Actions workflow definitions for the Home Securit
 - Passwords
 - Private keys
 - AWS credentials
-- Generic secrets
 
 ### trivy.yml - Container Scanning
 
 **Trigger:** Push/PR to main when Dockerfiles or dependencies change
 
 **Purpose:** Scan Docker images for vulnerabilities.
+
+**Path Filters:**
+
+- `**/Dockerfile*`
+- `backend/requirements.txt`
+- `frontend/package.json`
 
 **Severity Filter:** CRITICAL, HIGH (fails build)
 
@@ -179,7 +207,7 @@ This directory contains GitHub Actions workflow definitions for the Home Securit
 ```yaml
 - uses: actions/setup-python@v5
   with:
-    python-version: "3.14"
+    python-version: "3.12"
     cache: "pip"
     cache-dependency-path: backend/requirements*.txt
 ```
@@ -205,8 +233,6 @@ services:
     options: >-
       --health-cmd "redis-cli ping"
       --health-interval 10s
-      --health-timeout 5s
-      --health-retries 5
 ```
 
 ### Job Dependencies
@@ -270,21 +296,19 @@ See `scripts/setup-gpu-runner.sh` for runner configuration.
 
 ### CI Takes Too Long
 
-1. Check for unnecessary dependency installation
-2. Use caching for pip/npm
-3. Parallelize independent jobs
-4. Consider splitting slow tests
+1. Use caching for pip/npm
+2. Parallelize independent jobs
+3. Consider splitting slow tests
 
 ### Tests Pass Locally But Fail in CI
 
 1. Check environment differences (Python version, OS)
 2. Verify Redis service is healthy
 3. Check for hardcoded paths
-4. Review timing-sensitive tests
 
 ### GPU Tests Not Running
 
-1. Verify self-hosted runner is online: `gh runner list`
+1. Verify runner is online: `gh runner list`
 2. Check runner labels match workflow
 3. Ensure fork protection allows the PR source
 
@@ -292,14 +316,13 @@ See `scripts/setup-gpu-runner.sh` for runner configuration.
 
 1. Add to `.gitleaks.toml` allowlist
 2. Use `# nosec` comments for Bandit
-3. Configure Semgrep exclusions in `.semgrep.yml`
+3. Configure Semgrep exclusions
 
 ### Docker Build Failures
 
 1. Check base image availability
 2. Review multi-stage build order
 3. Verify COPY paths are correct
-4. Check for missing dependencies
 
 ## Best Practices
 
@@ -320,7 +343,7 @@ See `scripts/setup-gpu-runner.sh` for runner configuration.
 
 - Use GitHub Secrets for sensitive values
 - Prefer GITHUB_TOKEN when possible
-- Document required secrets in AGENTS.md
+- Document required secrets
 
 ## Related Files
 

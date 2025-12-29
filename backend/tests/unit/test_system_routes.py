@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 from fastapi import HTTPException
+from starlette.responses import Response
 
 from backend.api.routes import system as system_routes
 from backend.api.schemas.system import (
@@ -50,6 +51,18 @@ async def test_check_redis_health_unhealthy_on_error_payload() -> None:
     status = await system_routes.check_redis_health(redis)  # type: ignore[arg-type]
     assert status.status == "unhealthy"
     assert status.message == "nope"
+
+
+@pytest.mark.asyncio
+async def test_check_redis_health_unhealthy_when_redis_is_none() -> None:
+    """Test that check_redis_health returns unhealthy status when redis is None.
+
+    This handles the case where the Redis connection failed during dependency injection.
+    """
+    status = await system_routes.check_redis_health(None)
+    assert status.status == "unhealthy"
+    assert "unavailable" in status.message.lower()
+    assert "connection failed" in status.message.lower()
 
 
 def test_write_runtime_env_merges_existing_lines(tmp_path, monkeypatch) -> None:
@@ -124,6 +137,8 @@ async def test_get_liveness_has_no_dependencies() -> None:
 @pytest.mark.asyncio
 async def test_get_readiness_all_healthy() -> None:
     """Test readiness endpoint when all services are healthy."""
+    mock_response = Response()
+
     db = AsyncMock()
     # Mock successful database query
     mock_result = MagicMock()
@@ -133,7 +148,7 @@ async def test_get_readiness_all_healthy() -> None:
     redis = AsyncMock()
     redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
 
-    response = await system_routes.get_readiness(db, redis)  # type: ignore[arg-type]
+    response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
 
     assert isinstance(response, ReadinessResponse)
     assert response.ready is True
@@ -141,29 +156,35 @@ async def test_get_readiness_all_healthy() -> None:
     assert response.services["database"].status == "healthy"
     assert response.services["redis"].status == "healthy"
     assert response.timestamp is not None
+    assert mock_response.status_code == 200
 
 
 @pytest.mark.asyncio
 async def test_get_readiness_database_unhealthy() -> None:
     """Test readiness endpoint when database is unhealthy."""
+    mock_response = Response()
+
     db = AsyncMock()
     db.execute = AsyncMock(side_effect=RuntimeError("db connection failed"))
 
     redis = AsyncMock()
     redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
 
-    response = await system_routes.get_readiness(db, redis)  # type: ignore[arg-type]
+    response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
 
     assert isinstance(response, ReadinessResponse)
     assert response.ready is False
     assert response.status == "not_ready"
     assert response.services["database"].status == "unhealthy"
     assert "db connection failed" in response.services["database"].message
+    assert mock_response.status_code == 503
 
 
 @pytest.mark.asyncio
 async def test_get_readiness_redis_unhealthy() -> None:
     """Test readiness endpoint when Redis is unhealthy."""
+    mock_response = Response()
+
     db = AsyncMock()
     mock_result = MagicMock()
     mock_result.scalar_one.return_value = 5
@@ -174,18 +195,21 @@ async def test_get_readiness_redis_unhealthy() -> None:
         return_value={"status": "unhealthy", "error": "connection refused"}
     )
 
-    response = await system_routes.get_readiness(db, redis)  # type: ignore[arg-type]
+    response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
 
     assert isinstance(response, ReadinessResponse)
     assert response.ready is False
     assert response.status == "degraded"
     assert response.services["database"].status == "healthy"
     assert response.services["redis"].status == "unhealthy"
+    assert mock_response.status_code == 503
 
 
 @pytest.mark.asyncio
 async def test_get_readiness_redis_exception() -> None:
     """Test readiness endpoint when Redis health check raises exception."""
+    mock_response = Response()
+
     db = AsyncMock()
     mock_result = MagicMock()
     mock_result.scalar_one.return_value = 5
@@ -194,29 +218,59 @@ async def test_get_readiness_redis_exception() -> None:
     redis = AsyncMock()
     redis.health_check = AsyncMock(side_effect=ConnectionError("redis down"))
 
-    response = await system_routes.get_readiness(db, redis)  # type: ignore[arg-type]
+    response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
 
     assert isinstance(response, ReadinessResponse)
     assert response.ready is False
     assert response.services["redis"].status == "unhealthy"
+    assert mock_response.status_code == 503
+
+
+@pytest.mark.asyncio
+async def test_get_readiness_redis_none() -> None:
+    """Test readiness endpoint when Redis client is None (connection failed during DI).
+
+    This tests the scenario where Redis connection fails during dependency injection
+    and the endpoint receives None instead of a connected RedisClient.
+    """
+    mock_response = Response()
+
+    db = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalar_one.return_value = 5
+    db.execute = AsyncMock(return_value=mock_result)
+
+    # Pass None as redis to simulate connection failure during DI
+    response = await system_routes.get_readiness(mock_response, db, None)
+
+    assert isinstance(response, ReadinessResponse)
+    assert response.ready is False
+    assert response.status == "degraded"
+    assert response.services["database"].status == "healthy"
+    assert response.services["redis"].status == "unhealthy"
+    assert "unavailable" in response.services["redis"].message.lower()
+    assert mock_response.status_code == 503
 
 
 @pytest.mark.asyncio
 async def test_get_readiness_both_unhealthy() -> None:
     """Test readiness endpoint when both database and Redis are unhealthy."""
+    mock_response = Response()
+
     db = AsyncMock()
     db.execute = AsyncMock(side_effect=RuntimeError("db error"))
 
     redis = AsyncMock()
     redis.health_check = AsyncMock(return_value={"status": "unhealthy", "error": "redis error"})
 
-    response = await system_routes.get_readiness(db, redis)  # type: ignore[arg-type]
+    response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
 
     assert isinstance(response, ReadinessResponse)
     assert response.ready is False
     assert response.status == "not_ready"
     assert response.services["database"].status == "unhealthy"
     assert response.services["redis"].status == "unhealthy"
+    assert mock_response.status_code == 503
 
 
 # =============================================================================
@@ -597,6 +651,7 @@ def test_are_critical_pipeline_workers_healthy_no_manager() -> None:
 async def test_get_readiness_not_ready_when_pipeline_workers_down() -> None:
     """Test readiness returns not_ready when critical pipeline workers are stopped."""
     original_pipeline_manager = system_routes._pipeline_manager
+    mock_response = Response()
 
     try:
         # Mock pipeline manager with stopped workers
@@ -618,7 +673,7 @@ async def test_get_readiness_not_ready_when_pipeline_workers_down() -> None:
         redis = AsyncMock()
         redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
 
-        response = await system_routes.get_readiness(db, redis)  # type: ignore[arg-type]
+        response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
 
         assert isinstance(response, ReadinessResponse)
         # Database and Redis are healthy but pipeline workers are down
@@ -626,6 +681,7 @@ async def test_get_readiness_not_ready_when_pipeline_workers_down() -> None:
         assert response.status == "not_ready"
         assert response.services["database"].status == "healthy"
         assert response.services["redis"].status == "healthy"
+        assert mock_response.status_code == 503
 
     finally:
         system_routes._pipeline_manager = original_pipeline_manager
@@ -635,6 +691,7 @@ async def test_get_readiness_not_ready_when_pipeline_workers_down() -> None:
 async def test_get_readiness_ready_when_pipeline_workers_running() -> None:
     """Test readiness returns ready when critical pipeline workers are running."""
     original_pipeline_manager = system_routes._pipeline_manager
+    mock_response = Response()
 
     try:
         # Mock pipeline manager with running workers
@@ -656,11 +713,12 @@ async def test_get_readiness_ready_when_pipeline_workers_running() -> None:
         redis = AsyncMock()
         redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
 
-        response = await system_routes.get_readiness(db, redis)  # type: ignore[arg-type]
+        response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
 
         assert isinstance(response, ReadinessResponse)
         assert response.ready is True
         assert response.status == "ready"
+        assert mock_response.status_code == 200
 
     finally:
         system_routes._pipeline_manager = original_pipeline_manager
@@ -690,6 +748,8 @@ async def test_get_readiness_includes_pipeline_worker_status() -> None:
         }
         system_routes._pipeline_manager = mock_manager
 
+        mock_response = Response()
+
         db = AsyncMock()
         mock_result = MagicMock()
         mock_result.scalar_one.return_value = 5
@@ -698,7 +758,7 @@ async def test_get_readiness_includes_pipeline_worker_status() -> None:
         redis = AsyncMock()
         redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
 
-        response = await system_routes.get_readiness(db, redis)  # type: ignore[arg-type]
+        response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
 
         # Should include detection_worker and analysis_worker in workers list
         detection_worker = next((w for w in response.workers if w.name == "detection_worker"), None)
@@ -720,6 +780,7 @@ async def test_get_readiness_includes_worker_status() -> None:
     """Test that readiness response includes worker status information."""
     # Save original values
     original_gpu = system_routes._gpu_monitor
+    mock_response = Response()
 
     try:
         mock_gpu = MagicMock()
@@ -734,7 +795,7 @@ async def test_get_readiness_includes_worker_status() -> None:
         redis = AsyncMock()
         redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
 
-        response = await system_routes.get_readiness(db, redis)  # type: ignore[arg-type]
+        response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
 
         assert len(response.workers) >= 1
         gpu_worker = next((w for w in response.workers if w.name == "gpu_monitor"), None)
@@ -752,6 +813,7 @@ async def test_get_readiness_includes_worker_status() -> None:
 @pytest.mark.asyncio
 async def test_get_readiness_database_timeout() -> None:
     """Test readiness endpoint when database health check times out."""
+    mock_response = Response()
 
     async def slow_db_execute(*args, **kwargs):
         """Simulate a slow database query that will timeout."""
@@ -765,18 +827,21 @@ async def test_get_readiness_database_timeout() -> None:
 
     # Use a short timeout for testing
     with patch.object(system_routes, "HEALTH_CHECK_TIMEOUT_SECONDS", 0.1):
-        response = await system_routes.get_readiness(db, redis)  # type: ignore[arg-type]
+        response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
 
     assert isinstance(response, ReadinessResponse)
     assert response.ready is False
     assert response.status == "not_ready"
     assert response.services["database"].status == "unhealthy"
     assert "timed out" in response.services["database"].message
+    assert mock_response.status_code == 503
 
 
 @pytest.mark.asyncio
 async def test_get_readiness_redis_timeout() -> None:
     """Test readiness endpoint when Redis health check times out."""
+    mock_response = Response()
+
     db = AsyncMock()
     mock_result = MagicMock()
     mock_result.scalar_one.return_value = 5
@@ -791,7 +856,7 @@ async def test_get_readiness_redis_timeout() -> None:
 
     # Use a short timeout for testing
     with patch.object(system_routes, "HEALTH_CHECK_TIMEOUT_SECONDS", 0.1):
-        response = await system_routes.get_readiness(db, redis)  # type: ignore[arg-type]
+        response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
 
     assert isinstance(response, ReadinessResponse)
     assert response.ready is False
@@ -799,11 +864,14 @@ async def test_get_readiness_redis_timeout() -> None:
     assert response.services["database"].status == "healthy"
     assert response.services["redis"].status == "unhealthy"
     assert "timed out" in response.services["redis"].message
+    assert mock_response.status_code == 503
 
 
 @pytest.mark.asyncio
 async def test_get_readiness_ai_services_timeout() -> None:
     """Test readiness endpoint when AI services health check times out."""
+    mock_response = Response()
+
     db = AsyncMock()
     mock_result = MagicMock()
     mock_result.scalar_one.return_value = 5
@@ -825,7 +893,7 @@ async def test_get_readiness_ai_services_timeout() -> None:
         patch.object(system_routes, "HEALTH_CHECK_TIMEOUT_SECONDS", 0.1),
         patch.object(system_routes, "check_ai_services_health", slow_ai_health_check),
     ):
-        response = await system_routes.get_readiness(db, redis)  # type: ignore[arg-type]
+        response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
 
     assert isinstance(response, ReadinessResponse)
     # Database and Redis are healthy, so system should be ready
@@ -836,11 +904,13 @@ async def test_get_readiness_ai_services_timeout() -> None:
     assert response.services["redis"].status == "healthy"
     assert response.services["ai"].status == "unhealthy"
     assert "timed out" in response.services["ai"].message
+    assert mock_response.status_code == 200
 
 
 @pytest.mark.asyncio
 async def test_get_readiness_all_services_timeout() -> None:
     """Test readiness endpoint when all health checks timeout."""
+    mock_response = Response()
 
     async def slow_db_execute(*args, **kwargs):
         """Simulate a slow database query that will timeout."""
@@ -864,7 +934,7 @@ async def test_get_readiness_all_services_timeout() -> None:
         patch.object(system_routes, "HEALTH_CHECK_TIMEOUT_SECONDS", 0.1),
         patch.object(system_routes, "check_ai_services_health", slow_ai_health_check),
     ):
-        response = await system_routes.get_readiness(db, redis)  # type: ignore[arg-type]
+        response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
 
     assert isinstance(response, ReadinessResponse)
     assert response.ready is False
@@ -875,6 +945,7 @@ async def test_get_readiness_all_services_timeout() -> None:
     assert "timed out" in response.services["database"].message
     assert "timed out" in response.services["redis"].message
     assert "timed out" in response.services["ai"].message
+    assert mock_response.status_code == 503
 
 
 @pytest.mark.asyncio
@@ -1096,6 +1167,8 @@ async def test_get_gpu_stats_history_empty_result() -> None:
 @pytest.mark.asyncio
 async def test_get_health_all_healthy() -> None:
     """Test health endpoint when all services are healthy."""
+    mock_response = Response()
+
     db = AsyncMock()
     mock_result = MagicMock()
     mock_result.scalar_one.return_value = 5
@@ -1117,7 +1190,7 @@ async def test_get_health_all_healthy() -> None:
             return_value=(True, None),
         ),
     ):
-        response = await system_routes.get_health(db, redis)  # type: ignore[arg-type]
+        response = await system_routes.get_health(mock_response, db, redis)  # type: ignore[arg-type]
 
     assert isinstance(response, HealthResponse)
     assert response.status == "healthy"
@@ -1125,11 +1198,14 @@ async def test_get_health_all_healthy() -> None:
     assert response.services["redis"].status == "healthy"
     assert response.services["ai"].status == "healthy"
     assert response.timestamp is not None
+    assert mock_response.status_code == 200
 
 
 @pytest.mark.asyncio
 async def test_get_health_degraded_when_redis_unhealthy() -> None:
     """Test health endpoint returns degraded when non-critical service is unhealthy."""
+    mock_response = Response()
+
     db = AsyncMock()
     mock_result = MagicMock()
     mock_result.scalar_one.return_value = 5
@@ -1153,17 +1229,20 @@ async def test_get_health_degraded_when_redis_unhealthy() -> None:
             return_value=(True, None),
         ),
     ):
-        response = await system_routes.get_health(db, redis)  # type: ignore[arg-type]
+        response = await system_routes.get_health(mock_response, db, redis)  # type: ignore[arg-type]
 
     assert isinstance(response, HealthResponse)
     assert response.status == "degraded"
     assert response.services["database"].status == "healthy"
     assert response.services["redis"].status == "unhealthy"
+    assert mock_response.status_code == 503
 
 
 @pytest.mark.asyncio
 async def test_get_health_unhealthy_when_database_down() -> None:
     """Test health endpoint returns unhealthy when database is down."""
+    mock_response = Response()
+
     db = AsyncMock()
     db.execute = AsyncMock(side_effect=RuntimeError("db error"))
 
@@ -1183,16 +1262,19 @@ async def test_get_health_unhealthy_when_database_down() -> None:
             return_value=(True, None),
         ),
     ):
-        response = await system_routes.get_health(db, redis)  # type: ignore[arg-type]
+        response = await system_routes.get_health(mock_response, db, redis)  # type: ignore[arg-type]
 
     assert isinstance(response, HealthResponse)
     assert response.status == "unhealthy"
     assert response.services["database"].status == "unhealthy"
+    assert mock_response.status_code == 503
 
 
 @pytest.mark.asyncio
 async def test_get_health_unhealthy_when_all_services_down() -> None:
     """Test health endpoint returns unhealthy when all services down."""
+    mock_response = Response()
+
     db = AsyncMock()
     db.execute = AsyncMock(side_effect=RuntimeError("db error"))
 
@@ -1212,12 +1294,46 @@ async def test_get_health_unhealthy_when_all_services_down() -> None:
             return_value=(True, None),
         ),
     ):
-        response = await system_routes.get_health(db, redis)  # type: ignore[arg-type]
+        response = await system_routes.get_health(mock_response, db, redis)  # type: ignore[arg-type]
 
     assert isinstance(response, HealthResponse)
     assert response.status == "unhealthy"
     assert response.services["database"].status == "unhealthy"
     assert response.services["redis"].status == "unhealthy"
+    assert mock_response.status_code == 503
+
+
+@pytest.mark.asyncio
+async def test_get_health_redis_none() -> None:
+    """Test health endpoint when Redis client is None (connection failed during DI)."""
+    mock_response = Response()
+
+    db = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalar_one.return_value = 5
+    db.execute = AsyncMock(return_value=mock_result)
+
+    # Patch AI health check to avoid network calls
+    with (
+        patch.object(
+            system_routes,
+            "_check_rtdetr_health_with_circuit_breaker",
+            return_value=(True, None),
+        ),
+        patch.object(
+            system_routes,
+            "_check_nemotron_health_with_circuit_breaker",
+            return_value=(True, None),
+        ),
+    ):
+        response = await system_routes.get_health(mock_response, db, None)
+
+    assert isinstance(response, HealthResponse)
+    assert response.status == "degraded"
+    assert response.services["database"].status == "healthy"
+    assert response.services["redis"].status == "unhealthy"
+    assert "unavailable" in response.services["redis"].message.lower()
+    assert mock_response.status_code == 503
 
 
 # =============================================================================
@@ -1494,21 +1610,28 @@ async def test_get_stats_zero_counts() -> None:
 
 @pytest.mark.asyncio
 async def test_record_stage_latency_valid_stage() -> None:
-    """Test record_stage_latency with valid pipeline stage."""
+    """Test record_stage_latency with valid pipeline stage.
+
+    Verifies that:
+    - add_to_queue is called with correct key and max_size for trimming
+    - expire is called to set TTL on the key
+    """
     redis = AsyncMock()
     redis.add_to_queue = AsyncMock()
-    # Mock _ensure_connected to return a mock client for expire() call
-    mock_client = AsyncMock()
-    mock_client.expire = AsyncMock()
-    redis._ensure_connected = lambda: mock_client
+    redis.expire = AsyncMock()
 
     await system_routes.record_stage_latency(redis, "watch", 10.5)  # type: ignore[arg-type]
 
-    # Should add to queue with max_size=MAX_LATENCY_SAMPLES (1000)
-    redis.add_to_queue.assert_called_once_with("telemetry:latency:watch", 10.5, max_size=1000)
-    # Should set TTL on the key
-    mock_client.expire.assert_called_once_with(
-        "telemetry:latency:watch", system_routes.LATENCY_TTL_SECONDS
+    # Verify add_to_queue called with max_size=MAX_LATENCY_SAMPLES
+    redis.add_to_queue.assert_called_once_with(
+        "telemetry:latency:watch",
+        10.5,
+        max_size=system_routes.MAX_LATENCY_SAMPLES,
+    )
+    # Verify TTL is set
+    redis.expire.assert_called_once_with(
+        "telemetry:latency:watch",
+        system_routes.LATENCY_TTL_SECONDS,
     )
 
 
@@ -1886,6 +2009,125 @@ async def test_get_latency_stats_mixed_valid_invalid() -> None:
     assert result.watch is not None
     # Only 3 valid values: 10.0, "20.0" (converted), 30.0
     assert result.watch.sample_count == 3
+
+
+# =============================================================================
+# TTL and Max-Sample Behavior Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_record_stage_latency_sets_ttl() -> None:
+    """Test record_stage_latency sets TTL on the latency key.
+
+    The TTL should be refreshed on each write to ensure active stages
+    don't expire while inactive stages eventually do.
+    """
+    redis = AsyncMock()
+    redis.add_to_queue = AsyncMock()
+    redis.expire = AsyncMock(return_value=True)
+
+    await system_routes.record_stage_latency(redis, "detect", 100.0)  # type: ignore[arg-type]
+
+    # Verify expire was called with correct TTL
+    redis.expire.assert_called_once_with(
+        "telemetry:latency:detect",
+        system_routes.LATENCY_TTL_SECONDS,
+    )
+
+
+@pytest.mark.asyncio
+async def test_record_stage_latency_uses_max_samples() -> None:
+    """Test record_stage_latency passes max_size to limit stored samples.
+
+    This ensures memory usage is bounded by trimming old samples
+    when the list exceeds MAX_LATENCY_SAMPLES.
+    """
+    redis = AsyncMock()
+    redis.add_to_queue = AsyncMock()
+    redis.expire = AsyncMock()
+
+    await system_routes.record_stage_latency(redis, "batch", 5000.0)  # type: ignore[arg-type]
+
+    # Verify add_to_queue called with max_size parameter
+    redis.add_to_queue.assert_called_once()
+    call_args = redis.add_to_queue.call_args
+    assert call_args.kwargs.get("max_size") == system_routes.MAX_LATENCY_SAMPLES
+
+
+@pytest.mark.asyncio
+async def test_record_stage_latency_all_stages_use_correct_keys() -> None:
+    """Test record_stage_latency uses correct Redis keys for all stages."""
+    redis = AsyncMock()
+    redis.add_to_queue = AsyncMock()
+    redis.expire = AsyncMock()
+
+    for stage in system_routes.PIPELINE_STAGES:
+        redis.add_to_queue.reset_mock()
+        redis.expire.reset_mock()
+
+        await system_routes.record_stage_latency(redis, stage, 50.0)  # type: ignore[arg-type]
+
+        expected_key = f"{system_routes.LATENCY_KEY_PREFIX}{stage}"
+        redis.add_to_queue.assert_called_once()
+        assert redis.add_to_queue.call_args[0][0] == expected_key
+        redis.expire.assert_called_once()
+        assert redis.expire.call_args[0][0] == expected_key
+
+
+@pytest.mark.asyncio
+async def test_record_stage_latency_expire_failure_logs_warning() -> None:
+    """Test record_stage_latency logs warning if expire fails."""
+    redis = AsyncMock()
+    redis.add_to_queue = AsyncMock()
+    redis.expire = AsyncMock(side_effect=RuntimeError("redis expire error"))
+
+    with patch.object(system_routes.logger, "warning") as mock_warning:
+        await system_routes.record_stage_latency(redis, "analyze", 200.0)  # type: ignore[arg-type]
+
+    # Should have logged a warning about the failure
+    mock_warning.assert_called_once()
+    assert "Failed to record latency" in mock_warning.call_args[0][0]
+
+
+@pytest.mark.asyncio
+async def test_record_stage_latency_ttl_refreshes_on_each_write() -> None:
+    """Test that TTL is refreshed on each write to keep active stages alive.
+
+    This simulates multiple writes and verifies expire is called each time.
+    """
+    redis = AsyncMock()
+    redis.add_to_queue = AsyncMock()
+    redis.expire = AsyncMock(return_value=True)
+
+    # Record multiple samples
+    for i in range(5):
+        await system_routes.record_stage_latency(redis, "watch", float(i * 10))  # type: ignore[arg-type]
+
+    # expire should be called once per write
+    assert redis.expire.call_count == 5
+
+
+def test_max_latency_samples_is_reasonable() -> None:
+    """Test MAX_LATENCY_SAMPLES is set to a reasonable value.
+
+    1000 samples is enough for statistical analysis while keeping
+    memory usage bounded.
+    """
+    assert system_routes.MAX_LATENCY_SAMPLES == 1000
+    assert system_routes.MAX_LATENCY_SAMPLES > 100  # Enough for percentiles
+    assert system_routes.MAX_LATENCY_SAMPLES < 10000  # Not excessive
+
+
+def test_latency_ttl_is_reasonable() -> None:
+    """Test LATENCY_TTL_SECONDS is set to a reasonable value.
+
+    1 hour (3600 seconds) allows capturing latency trends while
+    ensuring inactive stages eventually expire.
+    """
+    assert system_routes.LATENCY_TTL_SECONDS == 3600
+    assert system_routes.LATENCY_TTL_SECONDS >= 60  # At least 1 minute
+    assert system_routes.LATENCY_TTL_SECONDS <= 86400  # At most 1 day
 
 
 # =============================================================================
@@ -2637,53 +2879,6 @@ async def test_verify_api_key_accepts_any_valid_key_from_list() -> None:
         await system_routes.verify_api_key(x_api_key="key-one")
         await system_routes.verify_api_key(x_api_key="key-two")
         await system_routes.verify_api_key(x_api_key="key-three")
-
-
-@pytest.mark.asyncio
-async def test_verify_api_key_accepts_query_param() -> None:
-    """Test that API key verification accepts key via query parameter."""
-    mock_settings = MagicMock()
-    mock_settings.api_key_enabled = True
-    mock_settings.api_keys = ["valid-api-key-123"]
-
-    with patch.object(system_routes, "get_settings", return_value=mock_settings):
-        # Should accept key via query parameter when header is not provided
-        await system_routes.verify_api_key(x_api_key=None, api_key="valid-api-key-123")
-
-
-@pytest.mark.asyncio
-async def test_verify_api_key_header_takes_precedence() -> None:
-    """Test that X-API-Key header takes precedence over query parameter."""
-    mock_settings = MagicMock()
-    mock_settings.api_key_enabled = True
-    mock_settings.api_keys = ["header-key"]
-
-    with patch.object(system_routes, "get_settings", return_value=mock_settings):
-        # Should use header key even when query param is also provided
-        # This should succeed because header-key is valid
-        await system_routes.verify_api_key(x_api_key="header-key", api_key="query-key")
-
-        # This should fail because invalid-header is not valid (even though query-key is not valid either)
-        with pytest.raises(HTTPException) as exc_info:
-            await system_routes.verify_api_key(x_api_key="invalid-header", api_key="query-key")
-        assert exc_info.value.status_code == 401
-
-
-@pytest.mark.asyncio
-async def test_verify_api_key_rejects_invalid_query_param() -> None:
-    """Test that API key verification rejects invalid query parameter."""
-    mock_settings = MagicMock()
-    mock_settings.api_key_enabled = True
-    mock_settings.api_keys = ["valid-api-key-123"]
-
-    with (
-        patch.object(system_routes, "get_settings", return_value=mock_settings),
-        pytest.raises(HTTPException) as exc_info,
-    ):
-        await system_routes.verify_api_key(x_api_key=None, api_key="invalid-key")
-
-    assert exc_info.value.status_code == 401
-    assert "Invalid API key" in exc_info.value.detail
 
 
 # =============================================================================

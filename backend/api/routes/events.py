@@ -2,6 +2,7 @@
 
 import csv
 import io
+import json
 from datetime import datetime
 from typing import Any, cast
 
@@ -26,10 +27,10 @@ router = APIRouter(prefix="/api/events", tags=["events"])
 
 
 def parse_detection_ids(detection_ids_str: str | None) -> list[int]:
-    """Parse comma-separated detection IDs string to list of integers.
+    """Parse detection IDs stored as JSON array to list of integers.
 
     Args:
-        detection_ids_str: Comma-separated string of detection IDs (e.g., "1,2,3")
+        detection_ids_str: JSON array string of detection IDs (e.g., "[1, 2, 3]")
                           or None/empty string
 
     Returns:
@@ -37,7 +38,14 @@ def parse_detection_ids(detection_ids_str: str | None) -> list[int]:
     """
     if not detection_ids_str:
         return []
-    return [int(d.strip()) for d in detection_ids_str.split(",") if d.strip()]
+    try:
+        ids = json.loads(detection_ids_str)
+        if isinstance(ids, list):
+            return [int(d) for d in ids]
+        return []
+    except (json.JSONDecodeError, ValueError):
+        # Fallback for legacy comma-separated format
+        return [int(d.strip()) for d in detection_ids_str.split(",") if d.strip()]
 
 
 @router.get("", response_model=EventListResponse)
@@ -93,16 +101,21 @@ async def list_events(
         matching_detection_ids = {str(d) for d in detection_ids_result.scalars().all()}
 
         if matching_detection_ids:
-            # Filter events where detection_ids contains at least one matching ID
+            # Filter events where detection_ids (JSON array) contains at least one matching ID
+            # JSON arrays look like: [1, 2, 3] or [1,2,3]
             conditions = []
             for det_id in matching_detection_ids:
-                # Match: "id,", ",id,", ",id" or just "id"
+                # Match patterns in JSON array format: [id, or ,id, or ,id] or [id]
                 conditions.extend(
                     [
-                        Event.detection_ids.like(f"{det_id},%"),
-                        Event.detection_ids.like(f"%,{det_id},%"),
-                        Event.detection_ids.like(f"%,{det_id}"),
-                        Event.detection_ids == det_id,
+                        Event.detection_ids.like(f"[{det_id},%"),  # First element: [1, ...
+                        Event.detection_ids.like(f"%, {det_id},%"),  # Middle element: , 2, ...
+                        Event.detection_ids.like(
+                            f"%,{det_id},%"
+                        ),  # Middle element no space: ,2,...
+                        Event.detection_ids.like(f"%, {det_id}]"),  # Last element: , 3]
+                        Event.detection_ids.like(f"%,{det_id}]"),  # Last element no space: ,3]
+                        Event.detection_ids == f"[{det_id}]",  # Single element: [1]
                     ]
                 )
             query = query.where(or_(*conditions))
@@ -128,7 +141,7 @@ async def list_events(
     # Calculate detection count and parse detection_ids for each event
     events_with_counts = []
     for event in events:
-        # Parse detection_ids (comma-separated string) to list of integers
+        # Parse detection_ids (JSON array string) to list of integers
         parsed_detection_ids = parse_detection_ids(event.detection_ids)
         detection_count = len(parsed_detection_ids)
 

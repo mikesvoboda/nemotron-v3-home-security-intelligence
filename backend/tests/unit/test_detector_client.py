@@ -7,7 +7,7 @@ import httpx
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.services.detector_client import DetectorClient, DetectorServiceError
+from backend.services.detector_client import DetectorClient, DetectorUnavailableError
 
 # Fixtures
 
@@ -223,8 +223,8 @@ async def test_detect_objects_file_not_found(detector_client, mock_session):
 
 
 @pytest.mark.asyncio
-async def test_detect_objects_connection_error(detector_client, mock_session):
-    """Test that connection errors raise DetectorServiceError for retry handling."""
+async def test_detect_objects_connection_error_raises_exception(detector_client, mock_session):
+    """Test that connection errors raise DetectorUnavailableError for retry."""
     image_path = "/export/foscam/front_door/image_004.jpg"
     camera_id = "front_door"
 
@@ -235,18 +235,17 @@ async def test_detect_objects_connection_error(detector_client, mock_session):
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post", side_effect=httpx.ConnectError("Connection refused")),
     ):
-        # Connection errors should raise DetectorServiceError to allow retry
-        with pytest.raises(DetectorServiceError) as exc_info:
+        with pytest.raises(DetectorUnavailableError) as exc_info:
             await detector_client.detect_objects(image_path, camera_id, mock_session)
 
-        assert "Cannot connect to RT-DETR service" in str(exc_info.value)
-        assert exc_info.value.cause is not None
+        assert "Connection refused" in str(exc_info.value)
+        assert exc_info.value.original_error is not None
         assert not mock_session.add.called
 
 
 @pytest.mark.asyncio
-async def test_detect_objects_timeout(detector_client, mock_session):
-    """Test that timeouts raise DetectorServiceError for retry handling."""
+async def test_detect_objects_timeout_raises_exception(detector_client, mock_session):
+    """Test that timeout errors raise DetectorUnavailableError for retry."""
     image_path = "/export/foscam/front_door/image_005.jpg"
     camera_id = "front_door"
 
@@ -257,18 +256,16 @@ async def test_detect_objects_timeout(detector_client, mock_session):
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post", side_effect=httpx.TimeoutException("Request timeout")),
     ):
-        # Timeouts should raise DetectorServiceError to allow retry
-        with pytest.raises(DetectorServiceError) as exc_info:
+        with pytest.raises(DetectorUnavailableError) as exc_info:
             await detector_client.detect_objects(image_path, camera_id, mock_session)
 
         assert "timed out" in str(exc_info.value)
-        assert exc_info.value.cause is not None
         assert not mock_session.add.called
 
 
 @pytest.mark.asyncio
-async def test_detect_objects_http_error_5xx(detector_client, mock_session):
-    """Test that HTTP 5xx errors raise DetectorServiceError for retry handling."""
+async def test_detect_objects_server_error_raises_exception(detector_client, mock_session):
+    """Test that HTTP 5xx errors raise DetectorUnavailableError for retry."""
     image_path = "/export/foscam/front_door/image_006.jpg"
     camera_id = "front_door"
 
@@ -286,17 +283,16 @@ async def test_detect_objects_http_error_5xx(detector_client, mock_session):
         )
         mock_post.return_value = mock_response
 
-        # 5xx errors should raise DetectorServiceError to allow retry
-        with pytest.raises(DetectorServiceError) as exc_info:
+        with pytest.raises(DetectorUnavailableError) as exc_info:
             await detector_client.detect_objects(image_path, camera_id, mock_session)
 
-        assert "HTTP 500" in str(exc_info.value)
+        assert "server error: 500" in str(exc_info.value)
         assert not mock_session.add.called
 
 
 @pytest.mark.asyncio
-async def test_detect_objects_http_error_4xx(detector_client, mock_session):
-    """Test that HTTP 4xx errors return empty list (no retry - client error)."""
+async def test_detect_objects_client_error_returns_empty(detector_client, mock_session):
+    """Test that HTTP 4xx errors return empty list (no retry for client errors)."""
     image_path = "/export/foscam/front_door/image_006b.jpg"
     camera_id = "front_door"
 
@@ -314,16 +310,20 @@ async def test_detect_objects_http_error_4xx(detector_client, mock_session):
         )
         mock_post.return_value = mock_response
 
-        # 4xx errors return empty list - no retry (client error)
         detections = await detector_client.detect_objects(image_path, camera_id, mock_session)
 
+        # 4xx errors should return empty (client error, not retryable)
         assert len(detections) == 0
         assert not mock_session.add.called
 
 
 @pytest.mark.asyncio
-async def test_detect_objects_invalid_json(detector_client, mock_session):
-    """Test that invalid JSON raises DetectorServiceError for retry handling."""
+async def test_detect_objects_invalid_json_raises_exception(detector_client, mock_session):
+    """Test that invalid JSON raises DetectorUnavailableError for retry.
+
+    Invalid JSON could indicate a server-side issue (corrupt response,
+    partial response, etc.) so it should be retried.
+    """
     image_path = "/export/foscam/front_door/image_007.jpg"
     camera_id = "front_door"
 
@@ -339,11 +339,10 @@ async def test_detect_objects_invalid_json(detector_client, mock_session):
         mock_response.json.side_effect = json.JSONDecodeError("Invalid JSON", "", 0)
         mock_post.return_value = mock_response
 
-        # JSON decode errors are treated as transient and should be retried
-        with pytest.raises(DetectorServiceError) as exc_info:
+        with pytest.raises(DetectorUnavailableError) as exc_info:
             await detector_client.detect_objects(image_path, camera_id, mock_session)
 
-        assert "Unexpected error" in str(exc_info.value)
+        assert "Invalid JSON" in str(exc_info.value)
         assert not mock_session.add.called
 
 
@@ -387,7 +386,7 @@ async def test_detector_client_uses_config():
 
 @pytest.mark.asyncio
 async def test_detect_objects_sets_file_type(detector_client, mock_session):
-    """Test that file type is correctly extracted from path."""
+    """Test that file type is correctly set as MIME type."""
     image_path = "/export/foscam/front_door/snapshot.jpeg"
     camera_id = "front_door"
 
@@ -417,7 +416,7 @@ async def test_detect_objects_sets_file_type(detector_client, mock_session):
         detections = await detector_client.detect_objects(image_path, camera_id, mock_session)
 
         assert len(detections) == 1
-        assert detections[0].file_type == ".jpeg"
+        assert detections[0].file_type == "image/jpeg"
 
 
 @pytest.mark.asyncio
@@ -574,3 +573,117 @@ async def test_detect_objects_detection_processing_exception(detector_client, mo
 
         # Should handle exception and return empty list
         assert len(detections) == 0
+
+
+# Test: DetectorUnavailableError Exception
+
+
+def test_detector_unavailable_error_stores_original_error():
+    """Test that DetectorUnavailableError stores the original exception."""
+    original = ValueError("Original error")
+    error = DetectorUnavailableError("Detector unavailable", original_error=original)
+
+    assert str(error) == "Detector unavailable"
+    assert error.original_error is original
+
+
+def test_detector_unavailable_error_without_original():
+    """Test DetectorUnavailableError works without original error."""
+    error = DetectorUnavailableError("Detector unavailable")
+
+    assert str(error) == "Detector unavailable"
+    assert error.original_error is None
+
+
+# Test: HTTP 5xx vs 4xx Error Handling
+
+
+@pytest.mark.asyncio
+async def test_detect_objects_http_502_raises_exception(detector_client, mock_session):
+    """Test that HTTP 502 Bad Gateway raises DetectorUnavailableError."""
+    image_path = "/export/foscam/front_door/image_502.jpg"
+    camera_id = "front_door"
+    mock_image_data = b"fake_image_data"
+
+    with (
+        patch("pathlib.Path.exists", return_value=True),
+        patch("pathlib.Path.read_bytes", return_value=mock_image_data),
+        patch("httpx.AsyncClient.post") as mock_post,
+    ):
+        mock_response = MagicMock()
+        mock_response.status_code = 502
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Bad Gateway", request=MagicMock(), response=mock_response
+        )
+        mock_post.return_value = mock_response
+
+        with pytest.raises(DetectorUnavailableError) as exc_info:
+            await detector_client.detect_objects(image_path, camera_id, mock_session)
+
+        assert "502" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_detect_objects_http_503_raises_exception(detector_client, mock_session):
+    """Test that HTTP 503 Service Unavailable raises DetectorUnavailableError."""
+    image_path = "/export/foscam/front_door/image_503.jpg"
+    camera_id = "front_door"
+    mock_image_data = b"fake_image_data"
+
+    with (
+        patch("pathlib.Path.exists", return_value=True),
+        patch("pathlib.Path.read_bytes", return_value=mock_image_data),
+        patch("httpx.AsyncClient.post") as mock_post,
+    ):
+        mock_response = MagicMock()
+        mock_response.status_code = 503
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Service Unavailable", request=MagicMock(), response=mock_response
+        )
+        mock_post.return_value = mock_response
+
+        with pytest.raises(DetectorUnavailableError):
+            await detector_client.detect_objects(image_path, camera_id, mock_session)
+
+
+@pytest.mark.asyncio
+async def test_detect_objects_http_404_returns_empty(detector_client, mock_session):
+    """Test that HTTP 404 returns empty list (client error)."""
+    image_path = "/export/foscam/front_door/image_404.jpg"
+    camera_id = "front_door"
+    mock_image_data = b"fake_image_data"
+
+    with (
+        patch("pathlib.Path.exists", return_value=True),
+        patch("pathlib.Path.read_bytes", return_value=mock_image_data),
+        patch("httpx.AsyncClient.post") as mock_post,
+    ):
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Not Found", request=MagicMock(), response=mock_response
+        )
+        mock_post.return_value = mock_response
+
+        detections = await detector_client.detect_objects(image_path, camera_id, mock_session)
+
+        # 4xx should return empty, not raise
+        assert len(detections) == 0
+
+
+@pytest.mark.asyncio
+async def test_detect_objects_unexpected_error_raises_exception(detector_client, mock_session):
+    """Test that unexpected errors raise DetectorUnavailableError."""
+    image_path = "/export/foscam/front_door/image_unexpected.jpg"
+    camera_id = "front_door"
+    mock_image_data = b"fake_image_data"
+
+    with (
+        patch("pathlib.Path.exists", return_value=True),
+        patch("pathlib.Path.read_bytes", return_value=mock_image_data),
+        patch("httpx.AsyncClient.post", side_effect=RuntimeError("Unexpected error")),
+    ):
+        with pytest.raises(DetectorUnavailableError) as exc_info:
+            await detector_client.detect_objects(image_path, camera_id, mock_session)
+
+        assert "Unexpected" in str(exc_info.value)

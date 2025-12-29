@@ -186,6 +186,24 @@ class Settings(BaseSettings):
         description="Maximum iterations for requeue-all operations",
     )
 
+    # Queue settings
+    queue_max_size: int = Field(
+        default=10000,
+        ge=100,
+        le=100000,
+        description="Maximum size of Redis queues",
+    )
+    queue_overflow_policy: str = Field(
+        default="drop_oldest",
+        description="Policy when queue is full: 'drop_oldest', 'reject', or 'dlq'",
+    )
+    queue_backpressure_threshold: float = Field(
+        default=0.8,
+        ge=0.5,
+        le=1.0,
+        description="Queue fill ratio (0.0-1.0) at which to start backpressure warnings",
+    )
+
     # Rate limiting settings
     rate_limit_enabled: bool = Field(
         default=True,

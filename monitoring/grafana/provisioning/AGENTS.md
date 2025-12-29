@@ -8,10 +8,11 @@ This directory contains Grafana provisioning configuration files that automatica
 
 ```
 provisioning/
-  dashboards/              # Dashboard provider configuration
-    dashboard.yml          # Defines where dashboards are loaded from
-  datasources/             # Datasource configuration
-    prometheus.yml         # Configures Prometheus and Backend-API sources
+  AGENTS.md                  # This file
+  dashboards/                # Dashboard provider configuration
+    dashboard.yml            # Defines where dashboards are loaded from
+  datasources/               # Datasource configuration
+    prometheus.yml           # Configures Prometheus and Backend-API sources
 ```
 
 ## Key Files
@@ -35,14 +36,18 @@ providers:
     allowUiUpdates: true
     options:
       path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false
 ```
 
 **Key Settings:**
 
-- `folder`: Dashboard folder name in Grafana UI
-- `updateIntervalSeconds`: How often to check for dashboard changes (30s)
-- `allowUiUpdates`: Permits editing dashboards in Grafana UI (true)
-- `path`: Container path where dashboards are mounted
+| Setting                 | Value                       | Description                         |
+| ----------------------- | --------------------------- | ----------------------------------- |
+| `folder`                | Home Security Intelligence  | Dashboard folder name in Grafana UI |
+| `folderUid`             | hsi-dashboards              | Unique folder identifier            |
+| `updateIntervalSeconds` | 30                          | How often to check for changes      |
+| `allowUiUpdates`        | true                        | Permits editing dashboards in UI    |
+| `path`                  | /var/lib/grafana/dashboards | Container path for dashboard files  |
 
 ### datasources/prometheus.yml
 
@@ -57,14 +62,11 @@ providers:
    type: prometheus
    url: http://prometheus:9090
    isDefault: true
+   editable: false
    jsonData:
      timeInterval: "15s"
      httpMethod: POST
    ```
-
-   - Used for time-series metrics
-   - Scrape interval: 15s
-   - Default datasource for new panels
 
 2. **Backend-API**
    ```yaml
@@ -72,10 +74,10 @@ providers:
    type: marcusolsson-json-datasource
    url: http://backend:8000
    isDefault: false
+   editable: false
+   jsonData:
+     tlsSkipVerify: true
    ```
-   - Used for direct JSON API queries
-   - Requires JSON datasource plugin
-   - Used for real-time status panels
 
 ## How Provisioning Works
 
@@ -109,20 +111,17 @@ grafana:
 
 ### Adding a New Datasource
 
-1. Create new YAML file in `datasources/` or add to existing file:
+Add to `datasources/prometheus.yml`:
 
-   ```yaml
-   - name: MySource
-     type: datasource-type
-     url: http://service:port
-     isDefault: false
-     editable: false
-   ```
+```yaml
+- name: MySource
+  type: datasource-type
+  url: http://service:port
+  isDefault: false
+  editable: false
+```
 
-2. Restart Grafana:
-   ```bash
-   docker compose restart grafana
-   ```
+Then restart Grafana: `docker compose restart grafana`
 
 ### Adding a Dashboard Provider
 
@@ -173,18 +172,14 @@ The UID defaults to the datasource name if not specified.
 
 ### Folder Organization
 
-Dashboards can be organized into folders:
-
 ```yaml
 folder: "Home Security Intelligence"
 folderUid: "hsi-dashboards"
 ```
 
-This creates a folder in Grafana's dashboard browser.
-
 ### Immutable vs Editable
 
-- `editable: false` - Datasource can't be modified in UI
+- `editable: false` - Datasource cannot be modified in UI
 - `allowUiUpdates: true` - Dashboard changes in UI are allowed
 
 ## Troubleshooting

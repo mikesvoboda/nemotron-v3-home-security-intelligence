@@ -1,0 +1,122 @@
+# Backend Data Directory - Agent Guide
+
+## Purpose
+
+The `backend/data/` directory stores runtime data for the home security intelligence system, including:
+
+- Sample camera images for testing and development
+- SQLite database files (when using default database URL)
+- Log files (when using default log path)
+- Generated thumbnails and other transient data
+
+## Directory Structure
+
+```
+backend/data/
+├── .gitkeep              # Ensures directory exists in git
+├── cameras/              # Sample camera image directories
+│   ├── front_door/       # Front door camera sample images
+│   ├── driveway/         # Driveway camera sample images
+│   └── backyard/         # Backyard camera sample images
+├── security.db           # SQLite database (runtime, not in git)
+├── security.db-wal       # SQLite WAL file (runtime, not in git)
+├── security.db-shm       # SQLite shared memory file (runtime, not in git)
+└── logs/                 # Log files (runtime, not in git)
+    └── security.log      # Rotating application log
+```
+
+## Sample Camera Directories
+
+The `cameras/` subdirectory contains sample images for development and testing:
+
+### `cameras/front_door/`
+
+Sample images simulating front door camera uploads:
+
+- `capture_001.jpg` through `capture_005.jpg` - Sequential captures
+- `new_capture_*.jpg` - Additional captures with timestamp naming
+
+### `cameras/driveway/`
+
+Sample images simulating driveway camera uploads:
+
+- `capture_001.jpg` through `capture_005.jpg` - Sequential captures
+- `motion_*.jpg` - Motion-triggered captures with timestamp naming
+
+### `cameras/backyard/`
+
+Sample images simulating backyard camera uploads:
+
+- `capture_001.jpg` through `capture_005.jpg` - Sequential captures
+- `alert_*.jpg` - Alert-triggered captures with timestamp naming
+
+## Runtime Files (Not in Git)
+
+These files are created at runtime and are not tracked in version control:
+
+### SQLite Database Files
+
+**`security.db`** - Main SQLite database containing:
+
+- Cameras table
+- Detections table
+- Events table
+- GPU stats table
+- Logs table
+- API keys table
+
+**`security.db-wal`** - Write-ahead log for SQLite (WAL mode)
+**`security.db-shm`** - Shared memory file for SQLite
+
+### Log Files
+
+**`logs/security.log`** - Rotating application log file
+
+- Configured via `LOG_FILE_PATH` setting
+- Default max size: 10MB
+- Default backup count: 7
+
+## Configuration References
+
+The data directory is referenced in configuration settings:
+
+```python
+# Default database URL (creates security.db in this directory)
+DATABASE_URL=sqlite+aiosqlite:///./data/security.db
+
+# Default log file path
+LOG_FILE_PATH=data/logs/security.log
+```
+
+## Usage Notes
+
+### Development Testing
+
+The sample images in `cameras/` can be used with the file watcher to simulate camera uploads:
+
+```python
+# File watcher monitors directories matching camera folder_path
+# When new files appear, they are queued for detection
+```
+
+### Database Location
+
+For production deployments, consider using a different database location:
+
+```bash
+# Example: Store database in persistent volume
+DATABASE_URL=sqlite+aiosqlite:///var/data/security.db
+```
+
+### Disk Space Considerations
+
+- SQLite WAL files can grow during heavy write activity
+- Log files rotate but can accumulate if not cleaned
+- Thumbnails and detection images are stored based on service configuration
+
+## Related Documentation
+
+- `/backend/AGENTS.md` - Backend architecture overview
+- `/backend/core/config.py` - Configuration settings
+- `/backend/core/database.py` - Database initialization
+- `/backend/services/file_watcher.py` - File watcher service

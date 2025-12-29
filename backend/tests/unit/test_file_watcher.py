@@ -5,9 +5,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from PIL import Image
-from watchdog.observers import Observer
-from watchdog.observers.polling import PollingObserver
 
+from backend.models.camera import Camera, normalize_camera_id
 from backend.services.dedupe import DedupeService
 from backend.services.file_watcher import (
     FileWatcher,
@@ -136,31 +135,123 @@ def test_file_watcher_initialization_custom_settings():
     assert watcher.queue_name == "custom_queue"
 
 
+# Camera ID normalization tests
+
+
+def test_normalize_camera_id_simple():
+    """Test normalize_camera_id with simple lowercase name."""
+    assert normalize_camera_id("camera1") == "camera1"
+    assert normalize_camera_id("frontdoor") == "frontdoor"
+
+
+def test_normalize_camera_id_spaces():
+    """Test normalize_camera_id converts spaces to underscores."""
+    assert normalize_camera_id("Front Door") == "front_door"
+    assert normalize_camera_id("back yard") == "back_yard"
+    assert normalize_camera_id("  trimmed  ") == "trimmed"
+
+
+def test_normalize_camera_id_hyphens():
+    """Test normalize_camera_id converts hyphens to underscores."""
+    assert normalize_camera_id("front-door") == "front_door"
+    assert normalize_camera_id("back-yard-camera") == "back_yard_camera"
+
+
+def test_normalize_camera_id_mixed():
+    """Test normalize_camera_id with mixed cases and separators."""
+    assert normalize_camera_id("Front-Door Camera") == "front_door_camera"
+    assert normalize_camera_id("GARAGE") == "garage"
+    assert normalize_camera_id("Pool Area 2") == "pool_area_2"
+
+
+def test_normalize_camera_id_special_chars():
+    """Test normalize_camera_id removes special characters."""
+    assert normalize_camera_id("camera#1") == "camera1"
+    assert normalize_camera_id("front.door") == "frontdoor"
+    assert normalize_camera_id("back@yard!") == "backyard"
+
+
+def test_normalize_camera_id_multiple_underscores():
+    """Test normalize_camera_id collapses multiple underscores."""
+    assert normalize_camera_id("front___door") == "front_door"
+    assert normalize_camera_id("back - - yard") == "back_yard"
+
+
+def test_camera_from_folder_name():
+    """Test Camera.from_folder_name factory method."""
+    camera = Camera.from_folder_name("Front Door", "/export/foscam/Front Door")
+    assert camera.id == "front_door"
+    assert camera.name == "Front Door"
+    assert camera.folder_path == "/export/foscam/Front Door"
+
+
 # Camera detection tests
 
 
 def test_get_camera_id_from_path(file_watcher, temp_camera_root):
     """Test extracting camera ID from file path."""
     camera1_path = temp_camera_root / "camera1" / "image.jpg"
-    camera_id = file_watcher._get_camera_id_from_path(str(camera1_path))
+    camera_id, folder_name = file_watcher._get_camera_id_from_path(str(camera1_path))
 
     assert camera_id == "camera1"
+    assert folder_name == "camera1"
 
 
 def test_get_camera_id_from_path_nested(file_watcher, temp_camera_root):
     """Test extracting camera ID from nested path."""
     nested_path = temp_camera_root / "camera2" / "subdir" / "image.jpg"
-    camera_id = file_watcher._get_camera_id_from_path(str(nested_path))
+    camera_id, folder_name = file_watcher._get_camera_id_from_path(str(nested_path))
 
     assert camera_id == "camera2"
+    assert folder_name == "camera2"
 
 
 def test_get_camera_id_from_path_invalid(file_watcher):
     """Test extracting camera ID from invalid path."""
     invalid_path = "/some/random/path/image.jpg"
-    camera_id = file_watcher._get_camera_id_from_path(invalid_path)
+    camera_id, folder_name = file_watcher._get_camera_id_from_path(invalid_path)
 
     assert camera_id is None
+    assert folder_name is None
+
+
+def test_get_camera_id_from_path_normalizes(temp_camera_root, mock_redis_client):
+    """Test that camera ID is normalized from folder name."""
+    # Create a folder with spaces
+    camera_root = temp_camera_root
+    front_door_dir = camera_root / "Front Door"
+    front_door_dir.mkdir()
+
+    watcher = FileWatcher(
+        camera_root=str(camera_root),
+        redis_client=mock_redis_client,
+        debounce_delay=0.1,
+    )
+
+    file_path = front_door_dir / "image.jpg"
+    camera_id, folder_name = watcher._get_camera_id_from_path(str(file_path))
+
+    assert camera_id == "front_door"  # Normalized
+    assert folder_name == "Front Door"  # Original
+
+
+def test_get_camera_id_from_path_hyphenated(temp_camera_root, mock_redis_client):
+    """Test that hyphenated folder names are normalized."""
+    camera_root = temp_camera_root
+    back_yard_dir = camera_root / "back-yard"
+    back_yard_dir.mkdir()
+
+    watcher = FileWatcher(
+        camera_root=str(camera_root),
+        redis_client=mock_redis_client,
+        debounce_delay=0.1,
+    )
+
+    file_path = back_yard_dir / "video.mp4"
+    camera_id, folder_name = watcher._get_camera_id_from_path(str(file_path))
+
+    assert camera_id == "back_yard"  # Hyphens become underscores
+    assert folder_name == "back-yard"
 
 
 # File processing tests
@@ -740,99 +831,205 @@ async def test_duplicate_file_not_processed_twice(temp_camera_root, mock_redis_c
     assert mock_redis_client.add_to_queue.await_count == 1
 
 
-# Polling observer configuration tests
+# Camera auto-creation tests
 
 
-def test_file_watcher_uses_native_observer_by_default(temp_camera_root, mock_redis_client):
-    """Test FileWatcher uses native Observer by default."""
+@pytest.fixture
+def mock_camera_creator():
+    """Create mock camera creator callback."""
+    return AsyncMock()
+
+
+@pytest.fixture
+def file_watcher_with_auto_create(temp_camera_root, mock_redis_client, mock_camera_creator):
+    """Create FileWatcher with auto-create enabled."""
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        debounce_delay=0.1,
+        auto_create_cameras=True,
+        camera_creator=mock_camera_creator,
+    )
+    return watcher
+
+
+def test_file_watcher_auto_create_disabled_by_default(temp_camera_root, mock_redis_client):
+    """Test that auto_create is enabled by default but needs creator callback."""
     watcher = FileWatcher(
         camera_root=str(temp_camera_root),
         redis_client=mock_redis_client,
         debounce_delay=0.1,
     )
-    assert isinstance(watcher.observer, Observer)
-    assert not isinstance(watcher.observer, PollingObserver)
+    # auto_create_cameras is True by default
+    assert watcher.auto_create_cameras is True
+    # But camera_creator is None, so auto-create won't happen
+    assert watcher._camera_creator is None
 
 
-def test_file_watcher_uses_polling_observer_when_configured(temp_camera_root, mock_redis_client):
-    """Test FileWatcher uses PollingObserver when use_polling=True."""
+def test_file_watcher_auto_create_with_callback(
+    temp_camera_root, mock_redis_client, mock_camera_creator
+):
+    """Test FileWatcher initializes with auto-create callback."""
     watcher = FileWatcher(
         camera_root=str(temp_camera_root),
         redis_client=mock_redis_client,
         debounce_delay=0.1,
-        use_polling=True,
+        auto_create_cameras=True,
+        camera_creator=mock_camera_creator,
     )
-    assert isinstance(watcher.observer, PollingObserver)
+    assert watcher.auto_create_cameras is True
+    assert watcher._camera_creator is mock_camera_creator
 
 
-def test_file_watcher_polling_interval_configuration(temp_camera_root, mock_redis_client):
-    """Test FileWatcher respects custom polling interval."""
-    custom_interval = 5.0
+@pytest.mark.asyncio
+async def test_ensure_camera_exists_creates_camera(
+    file_watcher_with_auto_create, mock_camera_creator
+):
+    """Test _ensure_camera_exists creates camera via callback."""
+    await file_watcher_with_auto_create._ensure_camera_exists(
+        camera_id="front_door",
+        folder_name="Front Door",
+    )
+
+    # Camera creator should be called once
+    mock_camera_creator.assert_awaited_once()
+
+    # Verify Camera object passed to creator
+    call_args = mock_camera_creator.call_args[0]
+    camera = call_args[0]
+    assert isinstance(camera, Camera)
+    assert camera.id == "front_door"
+    assert camera.name == "Front Door"
+
+
+@pytest.mark.asyncio
+async def test_ensure_camera_exists_only_once(file_watcher_with_auto_create, mock_camera_creator):
+    """Test _ensure_camera_exists only creates camera once."""
+    # Call twice for same camera
+    await file_watcher_with_auto_create._ensure_camera_exists(
+        camera_id="front_door",
+        folder_name="Front Door",
+    )
+    await file_watcher_with_auto_create._ensure_camera_exists(
+        camera_id="front_door",
+        folder_name="Front Door",
+    )
+
+    # Camera creator should only be called once
+    assert mock_camera_creator.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_ensure_camera_exists_different_cameras(
+    file_watcher_with_auto_create, mock_camera_creator
+):
+    """Test _ensure_camera_exists creates different cameras."""
+    await file_watcher_with_auto_create._ensure_camera_exists(
+        camera_id="front_door",
+        folder_name="Front Door",
+    )
+    await file_watcher_with_auto_create._ensure_camera_exists(
+        camera_id="back_yard",
+        folder_name="Back Yard",
+    )
+
+    # Camera creator should be called twice for different cameras
+    assert mock_camera_creator.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_ensure_camera_exists_handles_exception(
+    file_watcher_with_auto_create, mock_camera_creator
+):
+    """Test _ensure_camera_exists handles creator exceptions gracefully."""
+    mock_camera_creator.side_effect = Exception("Database error")
+
+    # Should not raise, just log warning
+    await file_watcher_with_auto_create._ensure_camera_exists(
+        camera_id="front_door",
+        folder_name="Front Door",
+    )
+
+    # Creator was called
+    mock_camera_creator.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_ensure_camera_exists_no_callback(temp_camera_root, mock_redis_client):
+    """Test _ensure_camera_exists does nothing without callback."""
     watcher = FileWatcher(
         camera_root=str(temp_camera_root),
         redis_client=mock_redis_client,
         debounce_delay=0.1,
-        use_polling=True,
-        polling_interval=custom_interval,
+        auto_create_cameras=True,
+        camera_creator=None,  # No callback
     )
-    assert isinstance(watcher.observer, PollingObserver)
-    # PollingObserver stores timeout as the polling interval
-    assert watcher._polling_interval == custom_interval
+
+    # Should not raise
+    await watcher._ensure_camera_exists(
+        camera_id="front_door",
+        folder_name="Front Door",
+    )
 
 
-def test_file_watcher_uses_settings_for_polling(temp_camera_root, mock_redis_client):
-    """Test FileWatcher uses settings when use_polling is not explicitly set."""
-    with patch("backend.services.file_watcher.get_settings") as mock_settings:
-        mock_settings.return_value.foscam_base_path = str(temp_camera_root)
-        mock_settings.return_value.file_watcher_polling = True
-        mock_settings.return_value.file_watcher_polling_interval = 2.5
+@pytest.mark.asyncio
+async def test_process_file_triggers_auto_create(
+    temp_camera_root, mock_redis_client, mock_camera_creator
+):
+    """Test that processing a file triggers camera auto-creation."""
+    # Create folder with spaces
+    front_door_dir = temp_camera_root / "Front Door"
+    front_door_dir.mkdir()
 
-        watcher = FileWatcher(
-            camera_root=str(temp_camera_root),
-            redis_client=mock_redis_client,
-            debounce_delay=0.1,
-        )
-
-        assert isinstance(watcher.observer, PollingObserver)
-        assert watcher._polling_interval == 2.5
-
-
-def test_file_watcher_explicit_use_polling_overrides_settings(temp_camera_root, mock_redis_client):
-    """Test explicit use_polling parameter overrides settings."""
-    with patch("backend.services.file_watcher.get_settings") as mock_settings:
-        mock_settings.return_value.foscam_base_path = str(temp_camera_root)
-        mock_settings.return_value.file_watcher_polling = True  # Settings say use polling
-        mock_settings.return_value.file_watcher_polling_interval = 2.5
-
-        # Explicitly disable polling
-        watcher = FileWatcher(
-            camera_root=str(temp_camera_root),
-            redis_client=mock_redis_client,
-            debounce_delay=0.1,
-            use_polling=False,
-        )
-
-        # Should use native observer despite settings
-        assert isinstance(watcher.observer, Observer)
-        assert not isinstance(watcher.observer, PollingObserver)
-
-
-def test_file_watcher_stores_polling_config(temp_camera_root, mock_redis_client):
-    """Test FileWatcher stores polling configuration for inspection."""
-    watcher_native = FileWatcher(
+    watcher = FileWatcher(
         camera_root=str(temp_camera_root),
         redis_client=mock_redis_client,
         debounce_delay=0.1,
-        use_polling=False,
+        auto_create_cameras=True,
+        camera_creator=mock_camera_creator,
     )
-    assert watcher_native._use_polling is False
 
-    watcher_polling = FileWatcher(
+    # Create valid image
+    image_path = front_door_dir / "test.jpg"
+    img = Image.new("RGB", (100, 100), color="blue")
+    img.save(image_path)
+
+    await watcher._process_file(str(image_path))
+
+    # Camera should be auto-created
+    mock_camera_creator.assert_awaited_once()
+    camera = mock_camera_creator.call_args[0][0]
+    assert camera.id == "front_door"
+    assert camera.name == "Front Door"
+
+    # File should be queued with normalized camera_id
+    mock_redis_client.add_to_queue.assert_awaited_once()
+    queue_data = mock_redis_client.add_to_queue.call_args[0][1]
+    assert queue_data["camera_id"] == "front_door"
+
+
+@pytest.mark.asyncio
+async def test_process_file_queues_with_normalized_id(temp_camera_root, mock_redis_client):
+    """Test that processed files are queued with normalized camera ID."""
+    # Create folder with mixed case and spaces
+    camera_dir = temp_camera_root / "Back-Yard Camera"
+    camera_dir.mkdir()
+
+    watcher = FileWatcher(
         camera_root=str(temp_camera_root),
         redis_client=mock_redis_client,
         debounce_delay=0.1,
-        use_polling=True,
-        polling_interval=3.0,
+        auto_create_cameras=False,  # Disabled
     )
-    assert watcher_polling._use_polling is True
-    assert watcher_polling._polling_interval == 3.0
+
+    # Create valid image
+    image_path = camera_dir / "test.jpg"
+    img = Image.new("RGB", (100, 100), color="green")
+    img.save(image_path)
+
+    await watcher._process_file(str(image_path))
+
+    # File should be queued with normalized camera_id
+    mock_redis_client.add_to_queue.assert_awaited_once()
+    queue_data = mock_redis_client.add_to_queue.call_args[0][1]
+    assert queue_data["camera_id"] == "back_yard_camera"

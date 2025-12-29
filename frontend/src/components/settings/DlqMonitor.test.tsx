@@ -471,17 +471,16 @@ describe('DlqMonitor', () => {
     it('refresh button triggers stats reload', async () => {
       render(<DlqMonitor refreshInterval={0} />);
 
+      // Wait for initial load to complete
       await waitFor(() => {
         expect(screen.getByText('Dead Letter Queue')).toBeInTheDocument();
+        expect(api.fetchDlqStats).toHaveBeenCalledTimes(1);
       });
 
-      // Initial call
-      expect(api.fetchDlqStats).toHaveBeenCalledTimes(1);
-
-      // Click refresh button
-      const refreshButton = document.querySelector('button[class*="hover:text-white"]');
+      // Click refresh button using aria-label for reliable selection
+      const refreshButton = screen.getByLabelText('Refresh DLQ stats');
       expect(refreshButton).toBeInTheDocument();
-      fireEvent.click(refreshButton!);
+      fireEvent.click(refreshButton);
 
       await waitFor(() => {
         expect(api.fetchDlqStats).toHaveBeenCalledTimes(2);

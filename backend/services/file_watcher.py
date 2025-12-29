@@ -1,7 +1,11 @@
 """File watcher service for monitoring Foscam camera uploads.
 
-This service watches camera directories for new image uploads, validates them,
+This service watches camera directories for new image and video uploads, validates them,
 and queues them for AI processing with debounce logic to prevent duplicate processing.
+
+Supported file types:
+- Images: .jpg, .jpeg, .png
+- Videos: .mp4, .mkv, .avi, .mov
 
 Idempotency:
 -----------
@@ -13,10 +17,23 @@ This prevents duplicate processing caused by:
 
 The dedupe check happens before enqueueing to Redis, ensuring the same file
 content is never processed twice within the TTL window (default 5 minutes).
+
+Camera ID Contract:
+------------------
+Camera IDs are derived from upload directory names using normalize_camera_id().
+This ensures a consistent mapping between filesystem paths and database records:
+
+    Upload path: /export/foscam/Front Door/image.jpg
+    -> folder_name: "Front Door"
+    -> camera_id: "front_door" (normalized)
+
+When a new upload directory is detected, a Camera record is auto-created if
+auto_create_cameras is enabled (default: True).
 """
 
 import asyncio
 import time
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -24,25 +41,26 @@ from typing import Any
 from PIL import Image
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
-from watchdog.observers.api import BaseObserver
-from watchdog.observers.polling import PollingObserver
 
-# NOTE: By default we use watchdog's native Observer for efficiency.
+# NOTE: We use watchdog's default Observer (not PollingObserver) for efficiency.
 # Observer auto-selects the best native backend for each platform:
 #   - Linux: inotify (kernel-level filesystem notifications)
 #   - macOS: FSEvents (native filesystem event API)
 #   - Windows: ReadDirectoryChangesW (native API)
 # This provides near-instant event detection without CPU-intensive polling.
-#
-# However, native filesystem events don't propagate through Docker Desktop
-# volume mounts on macOS/Windows. For these environments, set
-# FILE_WATCHER_POLLING=true to use PollingObserver instead.
-# See also: FILE_WATCHER_POLLING_INTERVAL for configuring poll frequency.
+# Only use PollingObserver if monitoring network filesystems (NFS/SMB) where
+# inotify events may not propagate.
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
+from backend.models.camera import Camera, normalize_camera_id
 from backend.services.dedupe import DedupeService
 
 logger = get_logger(__name__)
+
+# Supported file extensions
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
+VIDEO_EXTENSIONS = {".mp4", ".mkv", ".avi", ".mov"}
+SUPPORTED_EXTENSIONS = IMAGE_EXTENSIONS | VIDEO_EXTENSIONS
 
 
 def is_image_file(file_path: str) -> bool:
@@ -54,8 +72,48 @@ def is_image_file(file_path: str) -> bool:
     Returns:
         True if file has image extension (.jpg, .jpeg, .png)
     """
-    valid_extensions = {".jpg", ".jpeg", ".png"}
-    return Path(file_path).suffix.lower() in valid_extensions
+    return Path(file_path).suffix.lower() in IMAGE_EXTENSIONS
+
+
+def is_video_file(file_path: str) -> bool:
+    """Check if file has a valid video extension.
+
+    Args:
+        file_path: Path to the file to check
+
+    Returns:
+        True if file has video extension (.mp4, .mkv, .avi, .mov)
+    """
+    return Path(file_path).suffix.lower() in VIDEO_EXTENSIONS
+
+
+def is_supported_media_file(file_path: str) -> bool:
+    """Check if file has a supported media extension (image or video).
+
+    Args:
+        file_path: Path to the file to check
+
+    Returns:
+        True if file has a supported image or video extension
+    """
+    return Path(file_path).suffix.lower() in SUPPORTED_EXTENSIONS
+
+
+def get_media_type(file_path: str) -> str | None:
+    """Get the media type (image or video) for a file.
+
+    Args:
+        file_path: Path to the file to check
+
+    Returns:
+        "image" for image files, "video" for video files, None for unsupported
+    """
+    suffix = Path(file_path).suffix.lower()
+    if suffix in IMAGE_EXTENSIONS:
+        return "image"
+    elif suffix in VIDEO_EXTENSIONS:
+        return "video"
+    return None
 
 
 def is_valid_image(file_path: str) -> bool:
@@ -87,14 +145,75 @@ def is_valid_image(file_path: str) -> bool:
         return False
 
 
+def is_valid_video(file_path: str) -> bool:
+    """Validate that file is a valid video with content.
+
+    Note: This performs a basic validation (file exists and has content).
+    Full video validation (codec, corruption) is done during processing.
+
+    Args:
+        file_path: Path to the video file
+
+    Returns:
+        True if file exists and has content
+    """
+    try:
+        file_path_obj = Path(file_path)
+        if not file_path_obj.exists():
+            return False
+
+        # Check file has content (videos should be at least a few KB)
+        file_size = file_path_obj.stat().st_size
+        if file_size == 0:
+            logger.warning(f"Empty video file detected: {file_path}")
+            return False
+
+        # Minimum video file size check (1KB minimum)
+        if file_size < 1024:
+            logger.warning(f"Video file too small ({file_size} bytes): {file_path}")
+            return False
+
+        return True
+    except Exception as e:
+        logger.warning(f"Invalid video file {file_path}: {e}")
+        return False
+
+
+def is_valid_media_file(file_path: str) -> bool:
+    """Validate that file is a valid image or video.
+
+    Args:
+        file_path: Path to the media file
+
+    Returns:
+        True if file is valid
+    """
+    if is_image_file(file_path):
+        return is_valid_image(file_path)
+    elif is_video_file(file_path):
+        return is_valid_video(file_path)
+    return False
+
+
 class FileWatcher:
-    """Watches camera directories for new image uploads and queues for processing.
+    """Watches camera directories for new media (image/video) uploads and queues for processing.
 
     Features:
+    - Support for both image and video files
     - Debounce logic to wait for file writes to complete
-    - Image integrity validation before queuing
+    - Media file integrity validation before queuing
     - Async-compatible design
     - Graceful shutdown handling
+    - Auto-creation of cameras for new upload directories
+
+    Supported formats:
+    - Images: .jpg, .jpeg, .png
+    - Videos: .mp4, .mkv, .avi, .mov
+
+    Camera ID Contract:
+    - Camera IDs are normalized from folder names (e.g., "Front Door" -> "front_door")
+    - This ensures consistent mapping between filesystem paths and database records
+    - When auto_create_cameras=True, new cameras are created automatically
     """
 
     def __init__(
@@ -104,8 +223,8 @@ class FileWatcher:
         debounce_delay: float = 0.5,
         queue_name: str = "detection_queue",
         dedupe_service: DedupeService | None = None,
-        use_polling: bool | None = None,
-        polling_interval: float | None = None,
+        auto_create_cameras: bool = True,
+        camera_creator: Callable[[Camera], Any] | None = None,
     ):
         """Initialize file watcher.
 
@@ -115,27 +234,21 @@ class FileWatcher:
             debounce_delay: Delay in seconds to wait after last file modification
             queue_name: Name of Redis queue for detection jobs
             dedupe_service: Optional DedupeService for file deduplication
-            use_polling: Use PollingObserver instead of native Observer. If None,
-                         uses FILE_WATCHER_POLLING from settings. Enable for Docker
-                         Desktop/macOS volume mounts.
-            polling_interval: Polling interval in seconds when using PollingObserver.
-                              If None, uses FILE_WATCHER_POLLING_INTERVAL from settings.
+            auto_create_cameras: If True, auto-create camera records for new directories
+            camera_creator: Async callback to create camera in database.
+                            Signature: async def creator(camera: Camera) -> None
+                            If None, auto-creation is disabled even if auto_create_cameras=True
         """
         settings = get_settings()
         self.camera_root = camera_root or settings.foscam_base_path
         self.redis_client = redis_client
         self.debounce_delay = debounce_delay
         self.queue_name = queue_name
+        self.auto_create_cameras = auto_create_cameras
+        self._camera_creator = camera_creator
 
-        # Determine whether to use polling observer
-        self._use_polling = (
-            use_polling if use_polling is not None else settings.file_watcher_polling
-        )
-        self._polling_interval = (
-            polling_interval
-            if polling_interval is not None
-            else settings.file_watcher_polling_interval
-        )
+        # Track which cameras we've already tried to create (avoid repeated attempts)
+        self._known_cameras: set[str] = set()
 
         # Initialize dedupe service (creates one if not provided and redis is available)
         self._dedupe_service: DedupeService | None = None
@@ -145,20 +258,13 @@ class FileWatcher:
             self._dedupe_service = DedupeService(redis_client=redis_client)
 
         # Watchdog observer for filesystem monitoring
-        # Use PollingObserver for Docker Desktop/macOS mounts where native events don't work
-        self.observer: BaseObserver
-        if self._use_polling:
-            self.observer = PollingObserver(timeout=self._polling_interval)
-            observer_type = f"PollingObserver (interval={self._polling_interval}s)"
-        else:
-            self.observer = Observer()
-            observer_type = "native Observer"
+        self.observer = Observer()
 
         # Track running state
         self.running = False
 
         # Debounce tracking: maps file_path -> asyncio.Task
-        self._pending_tasks: dict[str, asyncio.Task] = {}
+        self._pending_tasks: dict[str, asyncio.Task[None]] = {}
 
         # Event loop reference (set during start())
         self._loop: asyncio.AbstractEventLoop | None = None
@@ -169,7 +275,7 @@ class FileWatcher:
         logger.info(
             f"FileWatcher initialized for camera root: {self.camera_root} "
             f"(dedupe={'enabled' if self._dedupe_service else 'disabled'}, "
-            f"observer={observer_type})"
+            f"auto_create={'enabled' if auto_create_cameras and camera_creator else 'disabled'})"
         )
 
     def _create_event_handler(self) -> FileSystemEventHandler:
@@ -179,8 +285,8 @@ class FileWatcher:
             FileSystemEventHandler instance
         """
 
-        class ImageEventHandler(FileSystemEventHandler):
-            """Handle file system events for image files."""
+        class MediaEventHandler(FileSystemEventHandler):
+            """Handle file system events for media files (images and videos)."""
 
             def __init__(self, watcher: FileWatcher):
                 self.watcher = watcher
@@ -192,7 +298,7 @@ class FileWatcher:
                 src_path = (
                     event.src_path if isinstance(event.src_path, str) else event.src_path.decode()
                 )
-                if not event.is_directory and is_image_file(src_path):
+                if not event.is_directory and is_supported_media_file(src_path):
                     self._schedule_async_task(src_path)
 
             def on_modified(self, event: FileSystemEvent) -> None:
@@ -201,7 +307,7 @@ class FileWatcher:
                 src_path = (
                     event.src_path if isinstance(event.src_path, str) else event.src_path.decode()
                 )
-                if not event.is_directory and is_image_file(src_path):
+                if not event.is_directory and is_supported_media_file(src_path):
                     self._schedule_async_task(src_path)
 
             def _schedule_async_task(self, file_path: str) -> None:
@@ -220,16 +326,21 @@ class FileWatcher:
                 else:
                     logger.warning(f"Event loop not available for processing {file_path}")
 
-        return ImageEventHandler(self)
+        return MediaEventHandler(self)
 
-    def _get_camera_id_from_path(self, file_path: str) -> str | None:
-        """Extract camera ID from file path.
+    def _get_camera_id_from_path(self, file_path: str) -> tuple[str | None, str | None]:
+        """Extract normalized camera ID and folder name from file path.
+
+        Uses normalize_camera_id() to convert directory names to consistent IDs.
+        This ensures that "Front Door", "front-door", and "front_door" all map
+        to the same camera_id: "front_door".
 
         Args:
             file_path: Full path to image file
 
         Returns:
-            Camera ID (directory name under camera_root) or None if not found
+            Tuple of (camera_id, folder_name) or (None, None) if not found.
+            folder_name is the original directory name (for auto-creation).
         """
         try:
             path = Path(file_path)
@@ -238,12 +349,64 @@ class FileWatcher:
             # Get relative path from camera root
             relative_path = path.relative_to(camera_root_path)
 
-            # First component is camera ID
-            camera_id = relative_path.parts[0]
-            return camera_id
+            # First component is the folder name (original directory name)
+            folder_name = relative_path.parts[0]
+
+            # Normalize to camera ID
+            camera_id = normalize_camera_id(folder_name)
+
+            if not camera_id:
+                logger.warning(f"Empty camera ID after normalization for folder: {folder_name}")
+                return None, None
+
+            return camera_id, folder_name
         except (ValueError, IndexError):
             logger.warning(f"Could not extract camera ID from path: {file_path}")
-            return None
+            return None, None
+
+    async def _ensure_camera_exists(self, camera_id: str, folder_name: str) -> None:
+        """Ensure camera record exists in database, creating if necessary.
+
+        This method is called when auto_create_cameras is enabled. It uses
+        a local set to track cameras we've already processed, avoiding
+        repeated database operations for known cameras.
+
+        Args:
+            camera_id: Normalized camera ID
+            folder_name: Original folder name (for display name)
+        """
+        # Skip if we've already processed this camera
+        if camera_id in self._known_cameras:
+            return
+
+        # Mark as known to avoid repeated attempts
+        self._known_cameras.add(camera_id)
+
+        if not self._camera_creator:
+            return
+
+        try:
+            # Construct full folder path
+            folder_path = str(Path(self.camera_root) / folder_name)
+
+            # Create camera instance using the factory method
+            camera = Camera.from_folder_name(folder_name, folder_path)
+
+            logger.info(
+                f"Auto-creating camera '{camera_id}' for folder '{folder_name}'",
+                extra={"camera_id": camera_id, "folder_path": folder_path},
+            )
+
+            # Call the creator callback (handles database operations)
+            await self._camera_creator(camera)
+
+        except Exception as e:
+            # Don't fail file processing if camera creation fails
+            # The detection will still be queued; FK constraint will catch missing cameras
+            logger.warning(
+                f"Failed to auto-create camera '{camera_id}': {e}",
+                extra={"camera_id": camera_id, "folder_name": folder_name},
+            )
 
     async def _schedule_file_processing(self, file_path: str) -> None:
         """Schedule file processing with debounce logic.
@@ -285,30 +448,32 @@ class FileWatcher:
         """Process a file by validating and queuing for detection.
 
         Args:
-            file_path: Path to the image file
+            file_path: Path to the image or video file
         """
         start_time = time.time()
 
-        # Extract camera ID early for context
-        camera_id = self._get_camera_id_from_path(file_path)
+        # Extract camera ID and folder name for context
+        camera_id, folder_name = self._get_camera_id_from_path(file_path)
+        media_type = get_media_type(file_path)
 
         logger.debug(
-            f"Processing file: {file_path}", extra={"camera_id": camera_id, "file_path": file_path}
+            f"Processing file: {file_path}",
+            extra={"camera_id": camera_id, "file_path": file_path, "media_type": media_type},
         )
 
         # Validate file type
-        if not is_image_file(file_path):
+        if not is_supported_media_file(file_path):
             logger.debug(
-                f"Skipping non-image file: {file_path}",
+                f"Skipping unsupported file: {file_path}",
                 extra={"camera_id": camera_id, "file_path": file_path},
             )
             return
 
-        # Validate image integrity
-        if not is_valid_image(file_path):
+        # Validate media file integrity
+        if not is_valid_media_file(file_path):
             logger.warning(
-                f"Skipping invalid/corrupted image: {file_path}",
-                extra={"camera_id": camera_id, "file_path": file_path},
+                f"Skipping invalid/corrupted {media_type} file: {file_path}",
+                extra={"camera_id": camera_id, "file_path": file_path, "media_type": media_type},
             )
             return
 
@@ -318,23 +483,39 @@ class FileWatcher:
             )
             return
 
+        # Auto-create camera if enabled and callback is set
+        if self.auto_create_cameras and self._camera_creator and folder_name:
+            await self._ensure_camera_exists(camera_id, folder_name)
+
         # Queue for detection
         try:
-            await self._queue_for_detection(camera_id, file_path)
+            await self._queue_for_detection(camera_id, file_path, media_type)
             duration_ms = int((time.time() - start_time) * 1000)
             logger.info(
-                f"Queued image for detection: {file_path} (camera: {camera_id})",
-                extra={"camera_id": camera_id, "file_path": file_path, "duration_ms": duration_ms},
+                f"Queued {media_type} for detection: {file_path} (camera: {camera_id})",
+                extra={
+                    "camera_id": camera_id,
+                    "file_path": file_path,
+                    "media_type": media_type,
+                    "duration_ms": duration_ms,
+                },
             )
         except Exception as e:
             duration_ms = int((time.time() - start_time) * 1000)
             logger.error(
-                f"Failed to queue image {file_path}: {e}",
-                extra={"camera_id": camera_id, "file_path": file_path, "duration_ms": duration_ms},
+                f"Failed to queue {media_type} {file_path}: {e}",
+                extra={
+                    "camera_id": camera_id,
+                    "file_path": file_path,
+                    "media_type": media_type,
+                    "duration_ms": duration_ms,
+                },
             )
 
-    async def _queue_for_detection(self, camera_id: str, file_path: str) -> None:
-        """Add image to detection queue in Redis with deduplication.
+    async def _queue_for_detection(
+        self, camera_id: str, file_path: str, media_type: str | None = None
+    ) -> None:
+        """Add media file to detection queue in Redis with deduplication.
 
         Checks if file has already been processed using content hash before
         enqueueing. This prevents duplicate detections from watchdog event
@@ -342,7 +523,8 @@ class FileWatcher:
 
         Args:
             camera_id: Camera identifier
-            file_path: Path to the image file
+            file_path: Path to the image or video file
+            media_type: Type of media ("image" or "video")
         """
         if not self.redis_client:
             logger.warning("Redis client not configured, skipping queue")
@@ -363,6 +545,7 @@ class FileWatcher:
             "camera_id": camera_id,
             "file_path": file_path,
             "timestamp": datetime.now().isoformat(),
+            "media_type": media_type or get_media_type(file_path) or "image",
         }
 
         # Include hash in queue data for downstream deduplication if needed
