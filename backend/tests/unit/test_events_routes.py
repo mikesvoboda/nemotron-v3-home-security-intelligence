@@ -1157,7 +1157,10 @@ async def test_update_event_marks_as_reviewed() -> None:
     db.refresh = AsyncMock()
 
     update_data = EventUpdate(reviewed=True)
-    await events_routes.update_event(event_id=1, update_data=update_data, db=db)
+    mock_request = MagicMock()
+    await events_routes.update_event(
+        event_id=1, update_data=update_data, request=mock_request, db=db
+    )
 
     assert mock_event.reviewed is True
     db.commit.assert_called_once()
@@ -1178,7 +1181,10 @@ async def test_update_event_marks_as_not_reviewed() -> None:
     db.refresh = AsyncMock()
 
     update_data = EventUpdate(reviewed=False)
-    await events_routes.update_event(event_id=1, update_data=update_data, db=db)
+    mock_request = MagicMock()
+    await events_routes.update_event(
+        event_id=1, update_data=update_data, request=mock_request, db=db
+    )
 
     assert mock_event.reviewed is False
 
@@ -1197,7 +1203,10 @@ async def test_update_event_updates_notes() -> None:
     db.refresh = AsyncMock()
 
     update_data = EventUpdate(notes="New notes")
-    await events_routes.update_event(event_id=1, update_data=update_data, db=db)
+    mock_request = MagicMock()
+    await events_routes.update_event(
+        event_id=1, update_data=update_data, request=mock_request, db=db
+    )
 
     assert mock_event.notes == "New notes"
 
@@ -1216,7 +1225,10 @@ async def test_update_event_clears_notes() -> None:
     db.refresh = AsyncMock()
 
     update_data = EventUpdate(notes=None)
-    await events_routes.update_event(event_id=1, update_data=update_data, db=db)
+    mock_request = MagicMock()
+    await events_routes.update_event(
+        event_id=1, update_data=update_data, request=mock_request, db=db
+    )
 
     assert mock_event.notes is None
 
@@ -1235,7 +1247,10 @@ async def test_update_event_updates_both_reviewed_and_notes() -> None:
     db.refresh = AsyncMock()
 
     update_data = EventUpdate(reviewed=True, notes="Verified - delivery person")
-    await events_routes.update_event(event_id=1, update_data=update_data, db=db)
+    mock_request = MagicMock()
+    await events_routes.update_event(
+        event_id=1, update_data=update_data, request=mock_request, db=db
+    )
 
     assert mock_event.reviewed is True
     assert mock_event.notes == "Verified - delivery person"
@@ -1251,9 +1266,12 @@ async def test_update_event_returns_404_when_not_found() -> None:
     db.execute = AsyncMock(return_value=result)
 
     update_data = EventUpdate(reviewed=True)
+    mock_request = MagicMock()
 
     with pytest.raises(Exception) as exc_info:
-        await events_routes.update_event(event_id=999, update_data=update_data, db=db)
+        await events_routes.update_event(
+            event_id=999, update_data=update_data, request=mock_request, db=db
+        )
 
     assert exc_info.value.status_code == 404
     assert "999" in str(exc_info.value.detail)
@@ -1282,7 +1300,10 @@ async def test_update_event_returns_correct_response() -> None:
     db.refresh = AsyncMock()
 
     update_data = EventUpdate(reviewed=True)
-    response = await events_routes.update_event(event_id=1, update_data=update_data, db=db)
+    mock_request = MagicMock()
+    response = await events_routes.update_event(
+        event_id=1, update_data=update_data, request=mock_request, db=db
+    )
 
     assert response["id"] == 1
     assert response["camera_id"] == "cam-001"
@@ -1316,7 +1337,10 @@ async def test_update_event_preserves_reasoning_field() -> None:
     db.refresh = AsyncMock()
 
     update_data = EventUpdate(reviewed=True)
-    response = await events_routes.update_event(event_id=1, update_data=update_data, db=db)
+    mock_request = MagicMock()
+    response = await events_routes.update_event(
+        event_id=1, update_data=update_data, request=mock_request, db=db
+    )
 
     assert response["reasoning"] == "Original reasoning for risk score"
 
@@ -1336,7 +1360,10 @@ async def test_update_event_with_no_changes() -> None:
 
     # Empty update - no fields set
     update_data = EventUpdate()
-    response = await events_routes.update_event(event_id=1, update_data=update_data, db=db)
+    mock_request = MagicMock()
+    response = await events_routes.update_event(
+        event_id=1, update_data=update_data, request=mock_request, db=db
+    )
 
     # Should still return a valid response
     assert response["id"] == 1
