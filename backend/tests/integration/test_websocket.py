@@ -16,6 +16,8 @@ from httpx import ASGITransport, AsyncClient
 from starlette.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
+from backend.tests.conftest import unique_id
+
 
 @pytest.fixture
 async def async_client(integration_db, mock_redis):
@@ -980,10 +982,11 @@ class TestEventBroadcastPipeline:
 
         from backend.models.event import Event
 
+        camera_id = unique_id("test_camera")
         test_event = Event(
             id=1,
             batch_id="test_batch",
-            camera_id="test_camera",
+            camera_id=camera_id,
             started_at=datetime(2025, 12, 23, 12, 0, 0),
             risk_score=50,
             risk_level="medium",
@@ -1016,10 +1019,11 @@ class TestEventBroadcastPipeline:
         analyzer = NemotronAnalyzer(mock_redis)
 
         # Create test event
+        camera_id = unique_id("envelope_test_camera")
         test_event = Event(
             id=42,
             batch_id="envelope_test_batch",
-            camera_id="envelope_test_camera",
+            camera_id=camera_id,
             started_at=datetime(2025, 12, 23, 14, 30, 0),
             risk_score=75,
             risk_level="high",
@@ -1043,7 +1047,7 @@ class TestEventBroadcastPipeline:
         assert data["id"] == 42
         assert data["event_id"] == 42  # Legacy field
         assert data["batch_id"] == "envelope_test_batch"
-        assert data["camera_id"] == "envelope_test_camera"
+        assert data["camera_id"] == camera_id
         assert data["risk_score"] == 75
         assert data["risk_level"] == "high"
         assert data["summary"] == "Test envelope format"
@@ -1137,10 +1141,11 @@ class TestEventBroadcastPipeline:
         broadcaster._connections.add(mock_ws)
 
         # Create and broadcast test event via NemotronAnalyzer
+        camera_id = unique_id("e2e_test_camera")
         test_event = Event(
             id=99,
             batch_id="e2e_test_batch",
-            camera_id="e2e_test_camera",
+            camera_id=camera_id,
             started_at=datetime(2025, 12, 23, 16, 0, 0),
             risk_score=85,
             risk_level="critical",
@@ -1232,10 +1237,11 @@ class TestWebSocketEventMessageContract:
 
         # Create analyzer and test event
         analyzer = NemotronAnalyzer(mock_redis)
+        camera_id = unique_id("contract_test_camera")
         test_event = Event(
             id=42,
             batch_id="contract_test_batch",
-            camera_id="contract_test_camera",
+            camera_id=camera_id,
             started_at=datetime(2025, 12, 23, 14, 30, 0),
             risk_score=75,
             risk_level="high",
@@ -1263,7 +1269,7 @@ class TestWebSocketEventMessageContract:
         assert validated_message.data.id == 42
         assert validated_message.data.event_id == 42  # Legacy field
         assert validated_message.data.batch_id == "contract_test_batch"
-        assert validated_message.data.camera_id == "contract_test_camera"
+        assert validated_message.data.camera_id == camera_id
         assert validated_message.data.risk_score == 75
         assert validated_message.data.risk_level == "high"
         assert validated_message.data.summary == "Contract test event"
@@ -1331,10 +1337,11 @@ class TestWebSocketEventMessageContract:
         mock_redis.publish = AsyncMock(side_effect=capture_publish)
 
         analyzer = NemotronAnalyzer(mock_redis)
+        camera_id = unique_id("test_camera")
         test_event = Event(
             id=99,
             batch_id="none_started_at_batch",
-            camera_id="test_camera",
+            camera_id=camera_id,
             started_at=None,  # Explicitly None
             risk_score=50,
             risk_level="medium",

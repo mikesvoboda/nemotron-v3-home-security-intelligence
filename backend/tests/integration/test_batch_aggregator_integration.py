@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from backend.services.batch_aggregator import BatchAggregator
+from backend.tests.conftest import unique_id
 
 # Fixtures
 
@@ -93,8 +94,8 @@ async def test_batch_window_timeout_with_mocked_time(batch_aggregator, mock_redi
     Tests that window timeout (90s) fires even with continuous activity
     (which keeps idle timeout from triggering first).
     """
-    camera_id = "front_door"
-    file_path = "/export/foscam/front_door/image_001.jpg"
+    camera_id = unique_id("front_door")
+    file_path = f"/export/foscam/{camera_id}/image_001.jpg"
 
     # Start at time 1000.0
     start_time = 1000.0
@@ -137,9 +138,9 @@ async def test_batch_idle_timeout_with_mocked_time(batch_aggregator, mock_redis_
 
     Uses mocked time to avoid real waits while verifying timeout logic.
     """
-    camera_id = "back_door"
+    camera_id = unique_id("back_door")
     detection_id = "det_002"
-    file_path = "/export/foscam/back_door/image_002.jpg"
+    file_path = f"/export/foscam/{camera_id}/image_002.jpg"
 
     # Start at time 1000.0
     current_time = 1000.0
@@ -168,8 +169,8 @@ async def test_batch_activity_resets_idle_timeout(batch_aggregator, mock_redis_c
 
     Uses mocked time to verify that activity keeps batch alive.
     """
-    camera_id = "garage"
-    file_path = "/export/foscam/garage/image.jpg"
+    camera_id = unique_id("garage")
+    file_path = f"/export/foscam/{camera_id}/image.jpg"
 
     # Start at time 1000.0
     current_time = 1000.0
@@ -203,14 +204,20 @@ async def test_multiple_cameras_independent_timeouts(batch_aggregator, mock_redi
     Uses mocked time to verify cameras don't affect each other's timeouts.
     """
     current_time = 1000.0
+    camera1 = unique_id("camera1")
+    camera2 = unique_id("camera2")
 
     # Create batch for camera 1
     with patch("backend.services.batch_aggregator.time.time", return_value=current_time):
-        batch_id_1 = await batch_aggregator.add_detection("camera1", "det_001", "/path/1.jpg")
+        batch_id_1 = await batch_aggregator.add_detection(
+            camera1, "det_001", f"/path/{camera1}/1.jpg"
+        )
 
     # Create batch for camera 2 at +20s
     with patch("backend.services.batch_aggregator.time.time", return_value=current_time + 20):
-        batch_id_2 = await batch_aggregator.add_detection("camera2", "det_002", "/path/2.jpg")
+        batch_id_2 = await batch_aggregator.add_detection(
+            camera2, "det_002", f"/path/{camera2}/2.jpg"
+        )
 
     # Check at +35s - camera1 should timeout (35s idle), camera2 should NOT (15s idle)
     with patch("backend.services.batch_aggregator.time.time", return_value=current_time + 35):
@@ -226,8 +233,8 @@ async def test_batch_window_takes_precedence_over_idle(batch_aggregator, mock_re
 
     Uses mocked time to verify window timeout behavior.
     """
-    camera_id = "front_door"
-    file_path = "/export/foscam/front_door/image.jpg"
+    camera_id = unique_id("front_door")
+    file_path = f"/export/foscam/{camera_id}/image.jpg"
     current_time = 1000.0
 
     # Create batch
@@ -252,8 +259,8 @@ async def test_batch_close_creates_analysis_queue_item(batch_aggregator, mock_re
 
     Verifies the analysis queue item structure.
     """
-    camera_id = "front_door"
-    file_path = "/export/foscam/front_door/image.jpg"
+    camera_id = unique_id("front_door")
+    file_path = f"/export/foscam/{camera_id}/image.jpg"
     current_time = 1000.0
 
     # Create batch with multiple detections
@@ -284,7 +291,7 @@ async def test_empty_batch_not_queued(batch_aggregator, mock_redis_client):
 
     Creates edge case where batch exists but has no detections.
     """
-    camera_id = "test_camera"
+    camera_id = unique_id("test_camera")
     current_time = 1000.0
 
     # Manually create an empty batch (edge case)
@@ -311,8 +318,8 @@ async def test_empty_batch_not_queued(batch_aggregator, mock_redis_client):
 @pytest.mark.asyncio
 async def test_batch_close_cleans_up_redis_keys(batch_aggregator, mock_redis_client):
     """Test that closing a batch removes all associated Redis keys."""
-    camera_id = "cleanup_test"
-    file_path = "/export/foscam/cleanup_test/image.jpg"
+    camera_id = unique_id("cleanup_test")
+    file_path = f"/export/foscam/{camera_id}/image.jpg"
     current_time = 1000.0
 
     with patch("backend.services.batch_aggregator.time.time", return_value=current_time):
@@ -341,8 +348,8 @@ async def test_batch_close_cleans_up_redis_keys(batch_aggregator, mock_redis_cli
 @pytest.mark.asyncio
 async def test_rapid_detections_same_batch(batch_aggregator, mock_redis_client):
     """Test that rapid detections all go to the same batch."""
-    camera_id = "rapid_test"
-    file_path = "/export/foscam/rapid_test/image.jpg"
+    camera_id = unique_id("rapid_test")
+    file_path = f"/export/foscam/{camera_id}/image.jpg"
     current_time = 1000.0
 
     batch_ids = []
@@ -367,7 +374,7 @@ async def test_rapid_detections_same_batch(batch_aggregator, mock_redis_client):
 @pytest.mark.asyncio
 async def test_timeout_check_handles_missing_metadata(batch_aggregator, mock_redis_client):
     """Test that timeout check handles batches with missing metadata gracefully."""
-    camera_id = "malformed_test"
+    camera_id = unique_id("malformed_test")
     current_time = 1000.0
 
     # Create batch key but without started_at (malformed)
@@ -389,8 +396,8 @@ async def test_batch_aggregator_exact_boundary_conditions(batch_aggregator, mock
 
     Tests that exactly 90s window and exactly 30s idle are handled correctly.
     """
-    camera_id = "boundary_test"
-    file_path = "/export/foscam/boundary_test/image.jpg"
+    camera_id = unique_id("boundary_test")
+    file_path = f"/export/foscam/{camera_id}/image.jpg"
     current_time = 1000.0
 
     with patch("backend.services.batch_aggregator.time.time", return_value=current_time):
@@ -408,7 +415,10 @@ async def test_batch_aggregator_exact_boundary_conditions(batch_aggregator, mock
 async def test_concurrent_camera_batch_isolation(batch_aggregator, mock_redis_client):
     """Test that batches from different cameras are properly isolated."""
     current_time = 1000.0
-    cameras = ["camera_a", "camera_b", "camera_c"]
+    camera_a = unique_id("camera_a")
+    camera_b = unique_id("camera_b")
+    camera_c = unique_id("camera_c")
+    cameras = [camera_a, camera_b, camera_c]
 
     batch_ids = {}
 
@@ -425,12 +435,12 @@ async def test_concurrent_camera_batch_isolation(batch_aggregator, mock_redis_cl
 
     # Add more detections to camera_b only
     with patch("backend.services.batch_aggregator.time.time", return_value=current_time + 10):
-        await batch_aggregator.add_detection("camera_b", "det_002", "/path/camera_b/image.jpg")
+        await batch_aggregator.add_detection(camera_b, "det_002", f"/path/{camera_b}/image.jpg")
 
     # Timeout camera_a and camera_c (35s idle), but camera_b should remain (25s idle)
     with patch("backend.services.batch_aggregator.time.time", return_value=current_time + 35):
         closed_batches = await batch_aggregator.check_batch_timeouts()
 
-    assert batch_ids["camera_a"] in closed_batches
-    assert batch_ids["camera_b"] not in closed_batches
-    assert batch_ids["camera_c"] in closed_batches
+    assert batch_ids[camera_a] in closed_batches
+    assert batch_ids[camera_b] not in closed_batches
+    assert batch_ids[camera_c] in closed_batches
