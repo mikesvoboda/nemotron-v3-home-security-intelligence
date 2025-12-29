@@ -13,10 +13,11 @@ from backend.models import Camera, Detection, Event, GPUStats
 
 
 @pytest.fixture
-async def session(isolated_db):
+async def session(clean_test_data):
     """Create a new database session for each test.
 
-    Uses PostgreSQL via the isolated_db fixture from conftest.py.
+    Uses PostgreSQL via the clean_test_data fixture from conftest.py
+    which ensures proper test isolation by truncating tables.
     """
     from backend.core.database import get_session
 
