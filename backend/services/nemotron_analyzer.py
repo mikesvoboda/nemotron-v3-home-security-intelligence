@@ -123,8 +123,10 @@ class NemotronAnalyzer:
                 camera_name = camera.name
 
             # Get detection details
+            # Convert detection_ids to integers (may come as strings from queue payload)
+            int_detection_ids = [int(d) for d in detection_ids]
             detections_result = await session.execute(
-                select(Detection).where(Detection.id.in_(detection_ids))
+                select(Detection).where(Detection.id.in_(int_detection_ids))
             )
             detections = list(detections_result.scalars().all())
 
@@ -197,7 +199,7 @@ class NemotronAnalyzer:
                 risk_level=risk_data.get("risk_level", "medium"),
                 summary=risk_data.get("summary", "No summary available"),
                 reasoning=risk_data.get("reasoning", "No reasoning available"),
-                detection_ids=json.dumps(detection_ids),
+                detection_ids=json.dumps(int_detection_ids),
                 reviewed=False,
             )
 

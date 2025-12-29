@@ -6,13 +6,11 @@ This directory contains performance and complexity benchmarks for detecting regr
 
 ## Test Files Overview
 
-### `__init__.py`
-
-Package initialization with module docstring describing the benchmark suite:
-
-- API endpoint response time benchmarks
-- Memory profiling tests
-- Big-O algorithmic complexity benchmarks
+| File                     | Description                  | Library                    |
+| ------------------------ | ---------------------------- | -------------------------- |
+| `test_api_benchmarks.py` | API response time benchmarks | pytest-benchmark           |
+| `test_bigo.py`           | Algorithmic complexity tests | big-o (optional)           |
+| `test_memory.py`         | Memory profiling tests       | pytest-memray (Linux only) |
 
 ### `test_api_benchmarks.py`
 

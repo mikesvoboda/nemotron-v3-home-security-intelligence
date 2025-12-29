@@ -82,7 +82,7 @@ Comprehensive demonstration of Redis client usage patterns in the home security 
 
 **Real-World Usage:**
 
-- Backend publishes new events to "events" channel
+- Backend publishes new events to "security_events" channel
 - WebSocket server subscribes and forwards to connected clients
 - Frontend updates dashboard in real-time
 
@@ -154,7 +154,7 @@ pip install redis asyncio
 python -m backend.examples.redis_example
 
 # Or with full path
-python /home/msvoboda/github/nemotron-v3-home-security-intelligence/backend/examples/redis_example.py
+python backend/examples/redis_example.py
 ```
 
 ### Expected Output
@@ -197,18 +197,18 @@ All examples completed successfully!
 
 The Redis queue operations directly support the Phase 4 AI pipeline:
 
-1. **File Watcher** → Pushes new image paths to `detections_queue`
-2. **RT-DETRv2 Detector** → Pops images, runs inference, stores results
-3. **Batch Aggregator** → Groups detections by camera and time window
-4. **Nemotron Analyzer** → Analyzes batches and generates risk scores
+1. **File Watcher** - Pushes new image/video paths to `detection_queue`
+2. **RT-DETRv2 Detector** - Pops images, runs inference, stores results
+3. **Batch Aggregator** - Groups detections by camera and time window
+4. **Nemotron Analyzer** - Analyzes batches and generates risk scores
 
 ### Phase 5: Real-time Updates
 
 The pub/sub operations enable Phase 5 real-time features:
 
-1. **Events API** → Publishes new events to `events` channel
-2. **WebSocket Server** → Subscribes to Redis channels
-3. **Frontend Dashboard** → Receives live updates via WebSocket
+1. **Events API** - Publishes new events to `security_events` channel
+2. **WebSocket Server** - Subscribes to Redis channels
+3. **Frontend Dashboard** - Receives live updates via WebSocket
 
 ## Testing and Validation
 
@@ -217,18 +217,19 @@ These examples can be used as integration test templates:
 ```python
 # Test queue operations
 async def test_detection_queue_integration():
-    """Validate file watcher → detector queue flow."""
+    """Validate file watcher -> detector queue flow."""
     client = RedisClient()
     await client.connect()
 
     # Simulate file watcher
-    await client.add_to_queue("detections_queue", {
+    await client.add_to_queue("detection_queue", {
         "file_path": "/export/foscam/test/image.jpg",
-        "camera_id": "test_camera"
+        "camera_id": "test_camera",
+        "media_type": "image"
     })
 
     # Simulate detector
-    item = await client.get_from_queue("detections_queue", timeout=1)
+    item = await client.get_from_queue("detection_queue", timeout=1)
     assert item["camera_id"] == "test_camera"
 ```
 

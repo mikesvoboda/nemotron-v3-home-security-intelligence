@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
@@ -12,6 +13,39 @@ if TYPE_CHECKING:
     from .detection import Detection
     from .event import Event
     from .zone import Zone
+
+
+def normalize_camera_id(folder_name: str) -> str:
+    """Normalize a folder name to a consistent camera ID.
+
+    Converts folder names like "Front Door", "front-door", "Front_Door" to
+    a consistent lowercase underscore format: "front_door".
+
+    Args:
+        folder_name: The folder name to normalize
+
+    Returns:
+        Normalized camera ID string
+    """
+    if not folder_name:
+        return ""
+
+    # Convert to lowercase
+    normalized = folder_name.lower().strip()
+
+    # Replace spaces and hyphens with underscores
+    normalized = re.sub(r"[\s\-]+", "_", normalized)
+
+    # Remove any non-alphanumeric characters except underscores
+    normalized = re.sub(r"[^a-z0-9_]", "", normalized)
+
+    # Collapse multiple underscores
+    normalized = re.sub(r"_+", "_", normalized)
+
+    # Strip leading/trailing underscores
+    normalized = normalized.strip("_")
+
+    return normalized
 
 
 class Base(DeclarativeBase):
@@ -50,3 +84,25 @@ class Camera(Base):
 
     def __repr__(self) -> str:
         return f"<Camera(id={self.id!r}, name={self.name!r}, status={self.status!r})>"
+
+    @classmethod
+    def from_folder_name(cls, folder_name: str, folder_path: str) -> Camera:
+        """Create a Camera instance from a folder name.
+
+        Factory method that normalizes the folder name to create a consistent
+        camera ID and uses the folder name as the display name.
+
+        Args:
+            folder_name: The folder name (e.g., "Front Door")
+            folder_path: The full path to the folder
+
+        Returns:
+            A new Camera instance
+        """
+        camera_id = normalize_camera_id(folder_name)
+        return cls(
+            id=camera_id,
+            name=folder_name,
+            folder_path=folder_path,
+            status="online",
+        )

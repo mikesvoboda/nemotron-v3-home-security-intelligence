@@ -27,7 +27,6 @@ from backend.core.metrics import (
     set_queue_depth,
 )
 from backend.core.redis import (
-    BackpressureStrategy,
     QueueAddResult,
     RedisClient,
     close_redis,
@@ -49,7 +48,6 @@ from backend.core.tls import (
 )
 
 __all__ = [
-    "BackpressureStrategy",
     "Base",
     "CertificateNotFoundError",
     "CertificateValidationError",

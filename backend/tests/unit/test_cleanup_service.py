@@ -1,7 +1,7 @@
 """Unit tests for cleanup service."""
 
 import asyncio
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -274,7 +274,7 @@ def test_get_cleanup_stats_running():
 async def test_run_cleanup_deletes_old_events(test_db):
     """Test cleanup deletes old events."""
     # Create old event (40 days ago)
-    old_date = datetime.now() - timedelta(days=40)
+    old_date = datetime.now(UTC) - timedelta(days=40)
     from backend.models.camera import Camera
 
     async with test_db() as session:
@@ -293,7 +293,7 @@ async def test_run_cleanup_deletes_old_events(test_db):
         session.add(old_event)
 
         # Create recent event (10 days ago)
-        recent_date = datetime.now() - timedelta(days=10)
+        recent_date = datetime.now(UTC) - timedelta(days=10)
         recent_event = Event(
             batch_id="recent_batch",
             camera_id="test_camera",
@@ -322,7 +322,7 @@ async def test_run_cleanup_deletes_old_events(test_db):
 async def test_run_cleanup_deletes_old_detections(test_db):
     """Test cleanup deletes old detections."""
     # Create old detection (40 days ago)
-    old_date = datetime.now() - timedelta(days=40)
+    old_date = datetime.now(UTC) - timedelta(days=40)
     from backend.models.camera import Camera
 
     async with test_db() as session:
@@ -340,7 +340,7 @@ async def test_run_cleanup_deletes_old_detections(test_db):
         session.add(old_detection)
 
         # Create recent detection (10 days ago)
-        recent_date = datetime.now() - timedelta(days=10)
+        recent_date = datetime.now(UTC) - timedelta(days=10)
         recent_detection = Detection(
             camera_id="test_camera",
             file_path="/path/to/recent.jpg",
@@ -368,7 +368,7 @@ async def test_run_cleanup_deletes_old_detections(test_db):
 async def test_run_cleanup_deletes_old_gpu_stats(test_db):
     """Test cleanup deletes old GPU stats."""
     # Create old GPU stats (40 days ago)
-    old_date = datetime.now() - timedelta(days=40)
+    old_date = datetime.now(UTC) - timedelta(days=40)
 
     async with test_db() as session:
         # Create old GPU stat
@@ -380,7 +380,7 @@ async def test_run_cleanup_deletes_old_gpu_stats(test_db):
         session.add(old_stat)
 
         # Create recent GPU stat (10 days ago)
-        recent_date = datetime.now() - timedelta(days=10)
+        recent_date = datetime.now(UTC) - timedelta(days=10)
         recent_stat = GPUStats(
             recorded_at=recent_date,
             gpu_utilization=60.0,
@@ -418,7 +418,7 @@ async def test_run_cleanup_deletes_thumbnail_files(test_db, tmp_path):
     thumbnail_path.write_text("thumbnail data")
 
     # Create old detection with thumbnail
-    old_date = datetime.now() - timedelta(days=40)
+    old_date = datetime.now(UTC) - timedelta(days=40)
 
     async with test_db() as session:
         camera = Camera(id="test_camera", name="Test Camera", folder_path="/export/foscam/test")
@@ -456,7 +456,7 @@ async def test_run_cleanup_deletes_images_when_enabled(test_db, tmp_path):
     image_path.write_text("image data")
 
     # Create old detection
-    old_date = datetime.now() - timedelta(days=40)
+    old_date = datetime.now(UTC) - timedelta(days=40)
 
     async with test_db() as session:
         camera = Camera(id="test_camera", name="Test Camera", folder_path="/export/foscam/test")
@@ -491,7 +491,7 @@ async def test_run_cleanup_keeps_images_when_disabled(test_db, tmp_path):
     image_path.write_text("image data")
 
     # Create old detection
-    old_date = datetime.now() - timedelta(days=40)
+    old_date = datetime.now(UTC) - timedelta(days=40)
 
     async with test_db() as session:
         camera = Camera(id="test_camera", name="Test Camera", folder_path="/export/foscam/test")
@@ -522,7 +522,7 @@ async def test_run_cleanup_no_old_data(test_db):
     from backend.models.camera import Camera
 
     # Create only recent data (10 days ago)
-    recent_date = datetime.now() - timedelta(days=10)
+    recent_date = datetime.now(UTC) - timedelta(days=10)
 
     async with test_db() as session:
         camera = Camera(id="test_camera", name="Test Camera", folder_path="/export/foscam/test")
@@ -553,7 +553,7 @@ async def test_run_cleanup_handles_missing_files(test_db):
     from backend.models.camera import Camera
 
     # Create old detection with nonexistent thumbnail
-    old_date = datetime.now() - timedelta(days=40)
+    old_date = datetime.now(UTC) - timedelta(days=40)
 
     async with test_db() as session:
         camera = Camera(id="test_camera", name="Test Camera", folder_path="/export/foscam/test")

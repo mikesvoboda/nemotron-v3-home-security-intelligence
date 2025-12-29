@@ -3,7 +3,7 @@ fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
 python-multipart>=0.0.6
 
-# Database
+# Database (PostgreSQL)
 sqlalchemy>=2.0.0
 asyncpg>=0.29.0  # PostgreSQL async driver (production)
 psycopg2-binary>=2.9.0  # PostgreSQL sync driver (for Alembic migrations)
@@ -19,6 +19,9 @@ watchdog>=3.0.0
 # Image processing
 pillow>=10.0.0
 
+# Video processing
+ffmpeg-python>=0.2.0
+
 # GPU monitoring
 pynvml>=11.5.0
 
@@ -32,6 +35,9 @@ pydantic-settings>=2.0.0
 
 # Logging
 python-json-logger>=2.0.0
+
+# TLS/Cryptography
+cryptography>=42.0.0
 
 # Metrics
 prometheus-client>=0.19.0

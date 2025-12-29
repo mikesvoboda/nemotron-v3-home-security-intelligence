@@ -310,10 +310,8 @@ async def test_record_stage_latency() -> None:
 
     redis = AsyncMock()
     redis.add_to_queue = AsyncMock()
-    # Mock _ensure_connected to return a mock client for expire() call
-    mock_client = AsyncMock()
-    mock_client.expire = AsyncMock()
-    redis._ensure_connected = lambda: mock_client
+    # Mock expire directly on the redis client (it's called as redis.expire())
+    redis.expire = AsyncMock()
 
     await system_routes.record_stage_latency(redis, stage="detect", latency_ms=150.0)
 
@@ -323,7 +321,7 @@ async def test_record_stage_latency() -> None:
     call_args = redis.add_to_queue.call_args
     assert call_args[1].get("max_size") == 1000
     # Should set TTL on the key
-    mock_client.expire.assert_called_once()
+    redis.expire.assert_called_once()
 
 
 @pytest.mark.asyncio

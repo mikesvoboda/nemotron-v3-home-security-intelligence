@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import httpx
-from fastapi import APIRouter, Body, Depends, Header, HTTPException
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -37,7 +37,7 @@ from backend.api.schemas.system import (
     WorkerStatus,
 )
 from backend.core import get_db, get_settings
-from backend.core.redis import RedisClient, get_redis
+from backend.core.redis import RedisClient, get_redis, get_redis_optional
 from backend.models import Camera, Detection, Event, GPUStats
 
 logger = logging.getLogger(__name__)
@@ -153,22 +153,14 @@ class CircuitBreaker:
 _health_circuit_breaker = CircuitBreaker()
 
 
-async def verify_api_key(
-    x_api_key: str | None = Header(None, alias="X-API-Key"),
-    api_key: str | None = None,
-) -> None:
+async def verify_api_key(x_api_key: str | None = Header(None)) -> None:
     """Verify API key for protected endpoints.
 
     This dependency checks if API key authentication is enabled in settings,
     and if so, validates the provided API key against the configured keys.
 
-    Accepts API key via:
-    - X-API-Key header (preferred)
-    - api_key query parameter (fallback)
-
     Args:
         x_api_key: API key from X-API-Key header
-        api_key: API key from query parameter
 
     Raises:
         HTTPException: 401 if API key is required but missing or invalid
@@ -179,18 +171,15 @@ async def verify_api_key(
     if not settings.api_key_enabled:
         return
 
-    # Use header first, fall back to query param
-    key = x_api_key or api_key
-
     # Require API key if authentication is enabled
-    if not key:
+    if not x_api_key:
         raise HTTPException(
             status_code=401,
-            detail="API key required. Provide via X-API-Key header or api_key query parameter.",
+            detail="API key required. Provide via X-API-Key header.",
         )
 
     # Hash and validate the API key
-    key_hash = hashlib.sha256(key.encode()).hexdigest()
+    key_hash = hashlib.sha256(x_api_key.encode()).hexdigest()
     valid_hashes = {hashlib.sha256(k.encode()).hexdigest() for k in settings.api_keys}
 
     if key_hash not in valid_hashes:
@@ -440,15 +429,23 @@ async def check_database_health(db: AsyncSession) -> ServiceStatus:
         )
 
 
-async def check_redis_health(redis: RedisClient) -> ServiceStatus:
+async def check_redis_health(redis: RedisClient | None) -> ServiceStatus:
     """Check Redis connectivity and health.
 
     Args:
-        redis: Redis client
+        redis: Redis client (may be None if connection failed during dependency injection)
 
     Returns:
         ServiceStatus with Redis health information
     """
+    # Handle case where Redis client is None (connection failed during DI)
+    if redis is None:
+        return ServiceStatus(
+            status="unhealthy",
+            message="Redis unavailable: connection failed",
+            details=None,
+        )
+
     try:
         health = await redis.health_check()
         if health.get("status") == "healthy":
@@ -654,8 +651,9 @@ async def check_ai_services_health() -> ServiceStatus:
 
 @router.get("/health", response_model=HealthResponse)
 async def get_health(
+    response: Response,
     db: AsyncSession = Depends(get_db),
-    redis: RedisClient = Depends(get_redis),
+    redis: RedisClient | None = Depends(get_redis_optional),
 ) -> HealthResponse:
     """Get detailed system health check.
 
@@ -668,7 +666,8 @@ async def get_health(
     If a health check times out, the service is marked as unhealthy.
 
     Returns:
-        HealthResponse with overall status and individual service statuses
+        HealthResponse with overall status and individual service statuses.
+        HTTP 200 if healthy, 503 if degraded or unhealthy.
     """
     # Check all services with timeout protection
     try:
@@ -726,6 +725,11 @@ async def get_health(
     else:
         overall_status = "degraded"
 
+    # Set appropriate HTTP status code
+    # 200 for healthy, 503 for degraded or unhealthy
+    if overall_status != "healthy":
+        response.status_code = 503
+
     return HealthResponse(
         status=overall_status,
         services=services,
@@ -752,8 +756,9 @@ async def get_liveness() -> LivenessResponse:
 
 @router.get("/health/ready", response_model=ReadinessResponse)
 async def get_readiness(
+    response: Response,
     db: AsyncSession = Depends(get_db),
-    redis: RedisClient = Depends(get_redis),
+    redis: RedisClient | None = Depends(get_redis_optional),
 ) -> ReadinessResponse:
     """Readiness probe endpoint.
 
@@ -771,7 +776,8 @@ async def get_readiness(
     If a health check times out, the service is marked as unhealthy.
 
     Returns:
-        ReadinessResponse with overall readiness status and detailed checks
+        ReadinessResponse with overall readiness status and detailed checks.
+        HTTP 200 if ready, 503 if degraded or not ready.
     """
     # Check all infrastructure services with timeout protection
     try:
@@ -848,6 +854,11 @@ async def get_readiness(
         # Database down - not ready
         ready = False
         status = "not_ready"
+
+    # Set appropriate HTTP status code
+    # 200 if ready, 503 if not ready or degraded
+    if not ready:
+        response.status_code = 503
 
     return ReadinessResponse(
         ready=ready,
@@ -985,7 +996,7 @@ async def patch_config(update: ConfigUpdateRequest = Body(...)) -> ConfigRespons
     """Patch processing-related configuration and persist runtime overrides.
 
     Requires API key authentication when api_key_enabled is True in settings.
-    Provide the API key via X-API-Key header or api_key query parameter.
+    Provide the API key via X-API-Key header.
 
     Notes:
     - This updates a runtime override env file (see `HSI_RUNTIME_ENV_PATH`) and clears the
@@ -1079,7 +1090,11 @@ async def record_stage_latency(
     """Record a latency sample for a pipeline stage.
 
     Stores latency samples in Redis lists for later statistical analysis.
-    Samples are automatically trimmed to MAX_LATENCY_SAMPLES and expire after TTL.
+    Samples are automatically trimmed to MAX_LATENCY_SAMPLES (keeping newest)
+    and the key TTL is refreshed to LATENCY_TTL_SECONDS on each write.
+
+    The list uses RPUSH (append to end), so newer samples are at the end.
+    When trimmed, we keep the last MAX_LATENCY_SAMPLES items (newest).
 
     Args:
         redis: Redis client
@@ -1092,12 +1107,11 @@ async def record_stage_latency(
 
     key = f"{LATENCY_KEY_PREFIX}{stage}"
     try:
-        # Add to list (oldest at index 0, newest at end via RPUSH)
-        # Trimming is handled by add_to_queue's max_size parameter
+        # Add to list (appends to end, so newest samples are last)
+        # max_size trims to keep only the last MAX_LATENCY_SAMPLES items
         await redis.add_to_queue(key, latency_ms, max_size=MAX_LATENCY_SAMPLES)
-        # Set TTL to ensure stale data expires even if no new samples arrive
-        client = redis._ensure_connected()
-        await client.expire(key, LATENCY_TTL_SECONDS)
+        # Refresh TTL so inactive stages eventually expire
+        await redis.expire(key, LATENCY_TTL_SECONDS)
     except Exception as e:
         logger.warning(f"Failed to record latency for stage {stage}: {e}")
 
@@ -1312,7 +1326,7 @@ async def trigger_cleanup(dry_run: bool = False) -> CleanupResponse:
     """Trigger manual data cleanup based on retention settings.
 
     Requires API key authentication when api_key_enabled is True in settings.
-    Provide the API key via X-API-Key header or api_key query parameter.
+    Provide the API key via X-API-Key header.
 
     This endpoint runs the CleanupService to delete old data according to
     the configured retention period. It deletes:

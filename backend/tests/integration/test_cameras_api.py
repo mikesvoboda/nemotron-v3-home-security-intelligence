@@ -8,6 +8,25 @@ from pathlib import Path
 import pytest
 from sqlalchemy import select
 
+
+@pytest.fixture
+async def clean_cameras(client):
+    """Delete all cameras before test runs for proper isolation."""
+    # Get all cameras and delete them
+    response = await client.get("/api/cameras")
+    if response.status_code == 200:
+        data = response.json()
+        for camera in data.get("cameras", []):
+            await client.delete(f"/api/cameras/{camera['id']}")
+    yield
+    # Cleanup after test too (best effort)
+    response = await client.get("/api/cameras")
+    if response.status_code == 200:
+        data = response.json()
+        for camera in data.get("cameras", []):
+            await client.delete(f"/api/cameras/{camera['id']}")
+
+
 # === CREATE Tests ===
 
 
@@ -102,7 +121,7 @@ async def test_create_camera_empty_folder_path(client):
 
 
 @pytest.mark.asyncio
-async def test_list_cameras_empty(client):
+async def test_list_cameras_empty(client, clean_cameras):
     """Test listing cameras when none exist."""
     response = await client.get("/api/cameras")
 
@@ -113,7 +132,7 @@ async def test_list_cameras_empty(client):
 
 
 @pytest.mark.asyncio
-async def test_list_cameras_with_data(client):
+async def test_list_cameras_with_data(client, clean_cameras):
     """Test listing cameras with existing data."""
     # Create test cameras
     cameras = [
@@ -134,7 +153,7 @@ async def test_list_cameras_with_data(client):
 
 
 @pytest.mark.asyncio
-async def test_list_cameras_filter_by_status(client):
+async def test_list_cameras_filter_by_status(client, clean_cameras):
     """Test listing cameras filtered by status."""
     # Create cameras with different statuses
     await client.post(
@@ -560,7 +579,7 @@ async def test_camera_response_includes_all_fields(client):
 
 
 @pytest.mark.asyncio
-async def test_concurrent_camera_creation(client):
+async def test_concurrent_camera_creation(client, clean_cameras):
     """Test creating multiple cameras concurrently."""
     import asyncio
 

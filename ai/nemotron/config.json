@@ -2,7 +2,7 @@
   "//": "Runtime config for the Nemotron llama.cpp server. This file is informational unless your wrapper script loads it.",
   "model": "ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf",
   "host": "0.0.0.0",
-  "port": 8090,
+  "port": 8091,
   "ctx_size": 4096,
   "n_gpu_layers": 99,
   "parallel": 2,

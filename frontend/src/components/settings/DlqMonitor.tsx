@@ -223,6 +223,7 @@ export default function DlqMonitor({ className, refreshInterval = 30000 }: DlqMo
           onClick={() => void loadStats()}
           disabled={loading}
           className="text-gray-400 hover:text-white"
+          aria-label="Refresh DLQ stats"
         >
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
         </Button>

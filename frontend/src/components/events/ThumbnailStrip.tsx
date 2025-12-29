@@ -12,6 +12,8 @@ export interface ThumbnailStripProps {
   detections: DetectionThumbnail[];
   selectedDetectionId?: number;
   onThumbnailClick?: (detectionId: number) => void;
+  /** Callback when a thumbnail is double-clicked (for lightbox) */
+  onThumbnailDoubleClick?: (detectionId: number) => void;
   loading?: boolean;
 }
 
@@ -23,6 +25,7 @@ export default function ThumbnailStrip({
   detections,
   selectedDetectionId,
   onThumbnailClick,
+  onThumbnailDoubleClick,
   loading = false,
 }: ThumbnailStripProps) {
   if (loading) {
@@ -94,13 +97,14 @@ export default function ThumbnailStrip({
             <button
               key={detection.id}
               onClick={() => onThumbnailClick?.(detection.id)}
+              onDoubleClick={() => onThumbnailDoubleClick?.(detection.id)}
               className={`group relative flex flex-shrink-0 flex-col items-center gap-2 rounded-lg p-2 transition-all ${
                 isSelected
                   ? 'bg-[#76B900]/20 ring-2 ring-[#76B900]'
                   : 'hover:bg-gray-800/50 focus:bg-gray-800/50'
               }`}
               style={{ minWidth: '120px' }}
-              aria-label={`View detection ${index + 1} at ${timestamp}`}
+              aria-label={`View detection ${index + 1} at ${timestamp}. Double-click to enlarge.`}
               type="button"
             >
               {/* Thumbnail image */}

@@ -35,7 +35,7 @@ from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.services.batch_aggregator import BatchAggregator
-from backend.services.detector_client import DetectorClient, DetectorServiceError
+from backend.services.detector_client import DetectorClient, DetectorUnavailableError
 from backend.services.nemotron_analyzer import NemotronAnalyzer
 
 
@@ -352,7 +352,7 @@ async def test_pipeline_with_multiple_detections_in_batch(
             detection = Detection(
                 camera_id=camera_id,
                 file_path=f"{test_image_path}_{i}",
-                file_type=".jpg",
+                file_type="image/jpeg",
                 detected_at=datetime.now(UTC),
                 object_type=["person", "car", "dog"][i % 3],
                 confidence=0.85 + (i * 0.02),
@@ -417,7 +417,7 @@ async def test_pipeline_batch_timeout_logic(
         detection = Detection(
             camera_id=camera_id,
             file_path=test_image_path,
-            file_type=".jpg",
+            file_type="image/jpeg",
             detected_at=datetime.now(UTC),
             object_type="person",
             confidence=0.95,
@@ -509,10 +509,10 @@ async def test_pipeline_handles_detector_failure_gracefully(
     test_image_path,
     mock_redis_client,
 ):
-    """Test that pipeline handles detector service failures with DetectorServiceError.
+    """Test that pipeline handles detector service failures with DetectorUnavailableError.
 
     This test validates:
-    - Detector connection errors raise DetectorServiceError
+    - Detector connection errors raise DetectorUnavailableError
     - This allows the pipeline to retry or move to DLQ
     - The exception carries enough information for retry decisions
     """
@@ -524,10 +524,10 @@ async def test_pipeline_handles_detector_failure_gracefully(
         mock_client.post.side_effect = Exception("Connection refused")
         mock_http_client.return_value.__aenter__.return_value = mock_client
 
-        # Process image - should raise DetectorServiceError for retry handling
+        # Process image - should raise DetectorUnavailableError for retry handling
         detector = DetectorClient()
         async with get_session() as session:
-            with pytest.raises(DetectorServiceError) as exc_info:
+            with pytest.raises(DetectorUnavailableError) as exc_info:
                 await detector.detect_objects(
                     image_path=test_image_path,
                     camera_id=camera_id,
@@ -561,7 +561,7 @@ async def test_pipeline_handles_nemotron_failure_gracefully(
         detection = Detection(
             camera_id=camera_id,
             file_path=test_image_path,
-            file_type=".jpg",
+            file_type="image/jpeg",
             detected_at=datetime.now(UTC),
             object_type="person",
             confidence=0.95,
@@ -626,7 +626,7 @@ async def test_pipeline_event_relationships(
             detection = Detection(
                 camera_id=camera_id,
                 file_path=f"{test_image_path}_{i}",
-                file_type=".jpg",
+                file_type="image/jpeg",
                 detected_at=datetime.now(UTC),
                 object_type="person",
                 confidence=0.90,
@@ -694,7 +694,7 @@ async def test_pipeline_cleanup_after_processing(
         detection = Detection(
             camera_id=camera_id,
             file_path=test_image_path,
-            file_type=".jpg",
+            file_type="image/jpeg",
             detected_at=datetime.now(UTC),
             object_type="person",
             confidence=0.95,

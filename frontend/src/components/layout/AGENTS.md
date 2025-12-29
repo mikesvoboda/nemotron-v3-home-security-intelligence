@@ -4,65 +4,104 @@
 
 Contains the core application layout components that provide consistent structure, navigation, and branding across all pages. These components form the shell of the application and integrate with React Router for navigation.
 
+## Files
+
+| File          | Purpose                                        |
+| ------------- | ---------------------------------------------- |
+| `Layout.tsx`  | Main layout wrapper composing Header + Sidebar |
+| `Header.tsx`  | Top navigation with branding and status        |
+| `Sidebar.tsx` | Left navigation menu with route links          |
+
 ## Key Components
 
 ### Layout.tsx
 
 **Purpose:** Main layout wrapper that composes Header and Sidebar with page content
 
-**Key Features:**
+**Props Interface:**
 
-- Flex-based layout with fixed header and flexible content area
-- Dark background (#0E0E0E) with proper overflow handling
-- Sidebar on left, main content area takes remaining space
-- Props: `children` (ReactNode)
-
-**Pattern:**
-
-```tsx
-<Layout>
-  <YourPage />
-</Layout>
+```typescript
+interface LayoutProps {
+  children: ReactNode;
+}
 ```
 
 **Structure:**
 
 ```
 +----------------------------------+
-|            Header                |
+|            Header (h-16)         |
 +--------+-------------------------+
 |        |                         |
 |Sidebar |      Main Content       |
-|        |                         |
+| (w-64) |       (flex-1)          |
 |        |                         |
 +--------+-------------------------+
 ```
 
+**Implementation:**
+
+```tsx
+<div className="flex min-h-screen flex-col bg-[#0E0E0E]">
+  <Header />
+  <div className="flex flex-1 overflow-hidden">
+    <Sidebar />
+    <main className="flex-1 overflow-auto">{children}</main>
+  </div>
+</div>
+```
+
+**Usage:**
+
+```tsx
+<Layout>
+  <DashboardPage />
+</Layout>
+```
+
+---
+
 ### Header.tsx
 
-**Purpose:** Top navigation bar with branding, system status indicators, and GPU stats
+**Purpose:** Top navigation bar with branding, system health status, and GPU quick stats
 
 **Key Features:**
 
-- NVIDIA Security branding with Activity icon in green box
-- "POWERED BY NEMOTRON" tagline in NVIDIA green (#76B900)
-- Real-time system status indicator with animated pulse dot
-- Health states: "System Online" (green), "System Degraded" (yellow), "System Offline" (red), "Connecting..." (gray)
-- GPU quick stats display showing utilization percentage and temperature
-- Fixed height (h-16) with dark panel background (#1A1A1A)
-- Border bottom for visual separation
+- NVIDIA Security branding with Activity icon in green (#76B900) box
+- "POWERED BY NEMOTRON" tagline
+- Real-time system health indicator with tooltip showing per-service status
+- GPU quick stats display (utilization % and temperature)
+- Fixed height: h-16 (64px)
+- Dark panel background: #1A1A1A
 
-**Hooks Used:**
+**Health Status Indicator:**
 
-- `useSystemStatus()` - WebSocket-based real-time system status
+| Status     | Dot Color | Label           | Animation     |
+| ---------- | --------- | --------------- | ------------- |
+| healthy    | green     | LIVE MONITORING | animate-pulse |
+| degraded   | yellow    | System Degraded | none          |
+| unhealthy  | red       | System Offline  | none          |
+| connecting | gray      | Connecting...   | none          |
+| checking   | gray      | Checking...     | none          |
+
+**Health Tooltip:**
+
+On hover, displays per-service status breakdown (redis, rtdetr, nemotron, etc.) with colored status dots.
 
 **GPU Stats Display:**
 
-- Shows GPU utilization as percentage
-- Shows GPU temperature in Celsius
+- Shows: `{utilization}% | {temperature}C`
 - Displays "--" when not connected or data unavailable
+- Styled in NVIDIA green (#76B900)
 
-**No props** - Uses hooks for data, fully self-contained component
+**Hooks Used:**
+
+- `useSystemStatus()` - WebSocket-based real-time system status (health, gpu_utilization, gpu_temperature)
+- `useHealthStatus()` - REST API health check with per-service breakdown
+
+**No props** - Self-contained component using hooks for all data
+
+---
 
 ### Sidebar.tsx
 
@@ -70,12 +109,11 @@ Contains the core application layout components that provide consistent structur
 
 **Key Features:**
 
-- Navigation items defined in `navItems` array with id, label, icon, path, and optional badge
-- Active state highlighting with NVIDIA green background (#76B900)
+- Navigation items with icon, label, and optional badge
+- Active state highlighting with NVIDIA green background
 - Uses React Router's `NavLink` for client-side navigation
-- Icons from lucide-react: Home, Clock, Users, Bell, ScrollText, Settings
-- "WIP" badge on Entities route (yellow badge)
-- Width: 256px (w-64) with dark panel background (#1A1A1A)
+- Width: w-64 (256px)
+- Dark panel background: #1A1A1A
 
 **Navigation Routes:**
 
@@ -86,6 +124,7 @@ Contains the core application layout components that provide consistent structur
 | entities  | Entities  | Users      | `/entities` | WIP   |
 | alerts    | Alerts    | Bell       | `/alerts`   | -     |
 | logs      | Logs      | ScrollText | `/logs`     | -     |
+| system    | System    | Server     | `/system`   | -     |
 | settings  | Settings  | Settings   | `/settings` | -     |
 
 **NavItem Interface:**
@@ -100,39 +139,42 @@ interface NavItem {
 }
 ```
 
-**No props** - Uses React Router's NavLink which handles active state internally
+**Active State Styling:**
 
-## Important Patterns
+- Active: `bg-[#76B900] font-semibold text-black`
+- Inactive: `text-gray-300 hover:bg-gray-800 hover:text-white`
 
-### Routing Integration
-
-The Sidebar uses React Router's `NavLink` component:
-
-- `to` prop specifies the route path
-- `end` prop on root route (`/`) for exact matching
-- `isActive` render prop provides active state for styling
-- Client-side navigation with no page reload
+**Routing Integration:**
 
 ```tsx
 <NavLink
   to={item.path}
-  end={item.path === '/'}
-  className={({ isActive }) =>
-    isActive ? 'bg-[#76B900] text-black' : 'text-gray-300'
-  }
+  end={item.path === '/'}  // Exact match for root route
+  className={({ isActive }) => isActive ? activeStyles : inactiveStyles}
 >
 ```
 
+**No props** - Uses React Router's NavLink which handles active state internally
+
+## Important Patterns
+
 ### Real-time System Status
 
-Header displays real-time system status via WebSocket:
+Header displays real-time system status via two sources:
 
-- `useSystemStatus()` hook provides `status` and `isConnected` state
-- Status object includes: `health`, `gpu_utilization`, `gpu_temperature`
-- Animated pulse dot indicates live connection
-- Graceful fallback to "--" when data unavailable
+1. **WebSocket** (`useSystemStatus`) - Live updates for health, GPU metrics
+2. **REST API** (`useHealthStatus`) - Periodic health checks with service breakdown
 
-### Styling
+API health takes precedence when available, with WebSocket as fallback.
+
+### Tooltip Pattern
+
+The health indicator uses a hover tooltip with delay:
+
+- Show on mouseEnter (immediate)
+- Hide on mouseLeave (150ms delay to allow mouse to move to tooltip)
+
+### Styling Conventions
 
 - All components use Tailwind CSS with NVIDIA dark theme
 - Primary brand color: #76B900 (NVIDIA green)
@@ -143,47 +185,58 @@ Header displays real-time system status via WebSocket:
 ### Accessibility
 
 - Semantic HTML elements (header, aside, main, nav)
-- Proper button roles and labels
-- Keyboard-accessible navigation (via React Router)
-- Transition animations for state changes
+- Health tooltip has `role="tooltip"` and `data-testid` for testing
+- Keyboard-accessible navigation via React Router
+- Status indicators have appropriate aria-labels
 
 ## Testing
 
-Tests are co-located with components:
+### Layout.test.tsx
 
-- `Header.test.tsx` - Verifies branding, status indicators, GPU stats display, connection states
-- `Layout.test.tsx` - Tests composition of Header, Sidebar, and children rendering
-- `Sidebar.test.tsx` - Tests navigation items, active state, badges, route paths
+- Renders Header and Sidebar
+- Renders children in main content area
+- Proper structure and classes
 
-## Entry Points
+### Header.test.tsx
 
-**Start here:** `Layout.tsx` - Understand how the shell is composed
-**Then explore:** `Sidebar.tsx` - See navigation structure and route definitions
-**Finally:** `Header.tsx` - Review branding, status displays, and real-time data
+- Branding elements present
+- Health status indicator with correct colors
+- GPU stats display with formatting
+- Tooltip visibility on hover
+- Connection state handling
 
-## Dependencies
+### Sidebar.test.tsx
 
-- `lucide-react` - Icon components (Activity, Home, Clock, Users, Bell, ScrollText, Settings)
-- `react` - ReactNode types
-- `react-router-dom` - NavLink for client-side routing
-- `../../hooks/useSystemStatus` - Real-time system status hook
+- All navigation items rendered
+- Correct route paths
+- Active state styling
+- Badge rendering (WIP on Entities)
+- Icon rendering
 
 ## Component Hierarchy
 
 ```
 Layout
 ├── Header
-│   └── uses useSystemStatus hook
+│   ├── Branding (logo + text)
+│   ├── HealthIndicator (with HealthTooltip)
+│   │   └── uses useSystemStatus, useHealthStatus hooks
+│   └── GPU Stats display
 └── Sidebar
     └── NavLink (per navigation item)
+        └── Icon + Label + Badge
 ```
 
-## Future Enhancements
+## Dependencies
 
-- Collapsible sidebar for more content space
-- Breadcrumb navigation in Header for deep pages
-- User profile/avatar in Header
-- Notification bell with unread count
-- Quick search in Header
-- Theme toggle (dark/light mode)
-- Mobile-responsive hamburger menu
+- `lucide-react` - Activity, Home, Clock, Users, Bell, ScrollText, Server, Settings icons
+- `react` - useState, useRef, useEffect, ReactNode
+- `react-router-dom` - NavLink for client-side routing
+- `../../hooks/useSystemStatus` - WebSocket system status
+- `../../hooks/useHealthStatus` - REST API health status
+
+## Entry Points
+
+**Start here:** `Layout.tsx` - Understand how the shell is composed
+**Then explore:** `Sidebar.tsx` - See navigation structure and routes
+**Finally:** `Header.tsx` - Review branding and real-time status display
