@@ -1,8 +1,18 @@
 """Pydantic schemas for system API endpoints."""
 
 from datetime import datetime
+from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
+
+
+class SeverityEnum(str, Enum):
+    """Severity levels for API responses."""
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
 
 
 class ServiceStatus(BaseModel):
@@ -795,6 +805,167 @@ class CleanupResponse(BaseModel):
                 "retention_days": 30,
                 "dry_run": False,
                 "timestamp": "2025-12-27T10:30:00Z",
+            }
+        }
+    )
+
+
+# =============================================================================
+# Severity Schemas
+# =============================================================================
+
+
+class SeverityDefinitionResponse(BaseModel):
+    """Definition of a single severity level."""
+
+    severity: SeverityEnum = Field(
+        ...,
+        description="The severity level identifier",
+    )
+    label: str = Field(
+        ...,
+        description="Human-readable label for the severity level",
+    )
+    description: str = Field(
+        ...,
+        description="Description of when this severity applies",
+    )
+    color: str = Field(
+        ...,
+        description="Hex color code for UI display (e.g., '#22c55e')",
+        pattern=r"^#[0-9a-fA-F]{6}$",
+    )
+    priority: int = Field(
+        ...,
+        description="Sort priority (0 = highest priority, 3 = lowest)",
+        ge=0,
+        le=3,
+    )
+    min_score: int = Field(
+        ...,
+        description="Minimum risk score for this severity (inclusive)",
+        ge=0,
+        le=100,
+    )
+    max_score: int = Field(
+        ...,
+        description="Maximum risk score for this severity (inclusive)",
+        ge=0,
+        le=100,
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "severity": "high",
+                "label": "High",
+                "description": "Concerning activity, review soon",
+                "color": "#f97316",
+                "priority": 1,
+                "min_score": 60,
+                "max_score": 84,
+            }
+        }
+    )
+
+
+class SeverityThresholds(BaseModel):
+    """Current severity threshold configuration."""
+
+    low_max: int = Field(
+        ...,
+        description="Maximum risk score for LOW severity (0 to this value = LOW)",
+        ge=0,
+        le=100,
+    )
+    medium_max: int = Field(
+        ...,
+        description="Maximum risk score for MEDIUM severity (low_max+1 to this value = MEDIUM)",
+        ge=0,
+        le=100,
+    )
+    high_max: int = Field(
+        ...,
+        description="Maximum risk score for HIGH severity (medium_max+1 to this value = HIGH)",
+        ge=0,
+        le=100,
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "low_max": 29,
+                "medium_max": 59,
+                "high_max": 84,
+            }
+        }
+    )
+
+
+class SeverityMetadataResponse(BaseModel):
+    """Response schema for severity metadata endpoint.
+
+    Provides complete information about severity levels including:
+    - All severity definitions with thresholds and colors
+    - Current threshold configuration
+    - Useful for frontend to display severity information consistently
+    """
+
+    definitions: list[SeverityDefinitionResponse] = Field(
+        ...,
+        description="List of all severity level definitions",
+    )
+    thresholds: SeverityThresholds = Field(
+        ...,
+        description="Current severity threshold configuration",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "definitions": [
+                    {
+                        "severity": "low",
+                        "label": "Low",
+                        "description": "Routine activity, no concern",
+                        "color": "#22c55e",
+                        "priority": 3,
+                        "min_score": 0,
+                        "max_score": 29,
+                    },
+                    {
+                        "severity": "medium",
+                        "label": "Medium",
+                        "description": "Notable activity, worth reviewing",
+                        "color": "#eab308",
+                        "priority": 2,
+                        "min_score": 30,
+                        "max_score": 59,
+                    },
+                    {
+                        "severity": "high",
+                        "label": "High",
+                        "description": "Concerning activity, review soon",
+                        "color": "#f97316",
+                        "priority": 1,
+                        "min_score": 60,
+                        "max_score": 84,
+                    },
+                    {
+                        "severity": "critical",
+                        "label": "Critical",
+                        "description": "Immediate attention required",
+                        "color": "#ef4444",
+                        "priority": 0,
+                        "min_score": 85,
+                        "max_score": 100,
+                    },
+                ],
+                "thresholds": {
+                    "low_max": 29,
+                    "medium_max": 59,
+                    "high_max": 84,
+                },
             }
         }
     )

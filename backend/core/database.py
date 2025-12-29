@@ -98,7 +98,7 @@ async def init_db() -> None:
     )
 
     # Import all models to ensure they're registered with Base.metadata
-    from backend.models import Camera, Detection, Event, GPUStats  # noqa: F401
+    from backend.models import Camera, Detection, Event, GPUStats, Zone  # noqa: F401
 
     # Create all tables
     # Use the Base from models, not the one defined in this module
