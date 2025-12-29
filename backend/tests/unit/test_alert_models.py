@@ -17,14 +17,14 @@ from backend.models import (
     Camera,
     Event,
 )
+from backend.tests.conftest import unique_id
 
 
 @pytest.fixture
-async def session(clean_test_data):
+async def session(isolated_db):
     """Create a new database session for each test.
 
-    Uses PostgreSQL via the clean_test_data fixture from conftest.py
-    which ensures proper test isolation by truncating tables.
+    Uses PostgreSQL via the isolated_db fixture from conftest.py.
     """
     from backend.core.database import get_session
 
@@ -35,10 +35,11 @@ async def session(clean_test_data):
 @pytest.fixture
 async def test_camera(session):
     """Create a test camera for use in alert tests."""
+    camera_id = unique_id("test_camera")
     camera = Camera(
-        id="test_camera",
+        id=camera_id,
         name="Test Camera",
-        folder_path="/export/foscam/test_camera",
+        folder_path=f"/export/foscam/{camera_id}",
     )
     session.add(camera)
     await session.flush()

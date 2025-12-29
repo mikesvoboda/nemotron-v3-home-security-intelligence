@@ -380,36 +380,15 @@ async def client(integration_db: str, mock_redis: AsyncMock) -> AsyncGenerator:
             yield ac
 
 
-@pytest.fixture
-async def clean_test_data(isolated_db):
-    """Clean up test data tables before each test for proper isolation.
+def unique_id(prefix: str = "test") -> str:
+    """Generate a unique ID for test objects to prevent conflicts in parallel execution.
 
-    This fixture ensures tests start with a clean slate by truncating
-    all data tables that use fixed IDs. Required because tests with
-    fixed camera IDs can conflict in parallel execution.
+    Args:
+        prefix: Optional prefix for the ID (default: "test")
 
-    Tables truncated: alerts, alert_rules, detections, events, cameras
+    Returns:
+        A unique string ID like "test_abc12345"
     """
-    from sqlalchemy import text
+    import uuid
 
-    from backend.core.database import get_engine
-
-    async with get_engine().begin() as conn:
-        # Truncate in order respecting FK constraints
-        await conn.execute(
-            text(
-                "TRUNCATE TABLE alerts, alert_rules, detections, events, cameras "
-                "RESTART IDENTITY CASCADE"
-            )
-        )
-
-    yield
-
-    # Cleanup after test too
-    async with get_engine().begin() as conn:
-        await conn.execute(
-            text(
-                "TRUNCATE TABLE alerts, alert_rules, detections, events, cameras "
-                "RESTART IDENTITY CASCADE"
-            )
-        )
+    return f"{prefix}_{uuid.uuid4().hex[:8]}"
