@@ -1,7 +1,7 @@
 """Add baseline tables for anomaly detection
 
 Revision ID: add_baselines
-Revises: 968b0dff6a9b
+Revises: add_audit_logs
 Create Date: 2025-12-28 15:45:00.000000
 
 This migration adds tables for tracking baseline activity patterns:
@@ -20,7 +20,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "add_baselines"
-down_revision: str | Sequence[str] | None = "968b0dff6a9b"
+down_revision: str | Sequence[str] | None = "add_audit_logs"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -36,7 +36,7 @@ def upgrade() -> None:
         sa.Column("day_of_week", sa.Integer(), nullable=False),
         sa.Column("avg_count", sa.Float(), nullable=False, server_default="0.0"),
         sa.Column("sample_count", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("last_updated", sa.DateTime(), nullable=False),
+        sa.Column("last_updated", sa.DateTime(timezone=True), nullable=False),
         sa.ForeignKeyConstraint(
             ["camera_id"],
             ["cameras.id"],
@@ -74,7 +74,7 @@ def upgrade() -> None:
         sa.Column("hour", sa.Integer(), nullable=False),
         sa.Column("frequency", sa.Float(), nullable=False, server_default="0.0"),
         sa.Column("sample_count", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("last_updated", sa.DateTime(), nullable=False),
+        sa.Column("last_updated", sa.DateTime(timezone=True), nullable=False),
         sa.ForeignKeyConstraint(
             ["camera_id"],
             ["cameras.id"],

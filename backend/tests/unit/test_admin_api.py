@@ -3,11 +3,37 @@
 import os
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
+
+
+@pytest.fixture
+async def clean_seed_data(integration_db):
+    """Clean up seed data before each test for proper isolation.
+
+    This fixture ensures tests start with a clean slate by truncating
+    all cameras, events, and detections. Required because seed tests
+    use fixed camera IDs that can conflict in parallel execution.
+    """
+    from backend.core.database import get_engine
+
+    async with get_engine().begin() as conn:
+        # Truncate in order respecting FK constraints
+        await conn.execute(
+            text("TRUNCATE TABLE detections, events, cameras RESTART IDENTITY CASCADE")
+        )
+
+    yield
+
+    # Cleanup after test too
+    async with get_engine().begin() as conn:
+        await conn.execute(
+            text("TRUNCATE TABLE detections, events, cameras RESTART IDENTITY CASCADE")
+        )
+
 
 # === DEBUG Mode Tests ===
 
@@ -44,7 +70,7 @@ async def test_clear_data_requires_debug_mode(client):
 
 
 @pytest.mark.asyncio
-async def test_seed_cameras_success(client):
+async def test_seed_cameras_success(client, clean_seed_data):
     """Test successful camera seeding with DEBUG=true."""
     from backend.core.config import get_settings
 
@@ -71,7 +97,7 @@ async def test_seed_cameras_success(client):
 
 
 @pytest.mark.asyncio
-async def test_seed_cameras_clear_existing(client):
+async def test_seed_cameras_clear_existing(client, clean_seed_data):
     """Test seeding cameras with clear_existing=true."""
     from backend.core.config import get_settings
 
@@ -103,7 +129,7 @@ async def test_seed_cameras_clear_existing(client):
 
 
 @pytest.mark.asyncio
-async def test_seed_cameras_skips_existing(client):
+async def test_seed_cameras_skips_existing(client, clean_seed_data):
     """Test that seeding skips cameras that already exist."""
     from backend.core.config import get_settings
 
@@ -132,7 +158,7 @@ async def test_seed_cameras_skips_existing(client):
 
 
 @pytest.mark.asyncio
-async def test_seed_cameras_max_count(client):
+async def test_seed_cameras_max_count(client, clean_seed_data):
     """Test seeding the maximum number of cameras."""
     from backend.core.config import get_settings
 

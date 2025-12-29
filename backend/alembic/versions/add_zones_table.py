@@ -1,7 +1,7 @@
 """Add zones table for camera zone definitions
 
 Revision ID: add_zones_001
-Revises: 968b0dff6a9b
+Revises: add_alerts_rules
 Create Date: 2025-12-28 12:00:00.000000
 
 """
@@ -15,7 +15,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "add_zones_001"
-down_revision: str | Sequence[str] | None = "968b0dff6a9b"
+down_revision: str | Sequence[str] | None = "add_alerts_rules"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
