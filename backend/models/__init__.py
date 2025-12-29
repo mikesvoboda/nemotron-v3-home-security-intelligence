@@ -3,6 +3,7 @@
 from .alert import Alert, AlertRule, AlertSeverity, AlertStatus
 from .api_key import APIKey
 from .audit import AuditAction, AuditLog, AuditStatus
+from .baseline import ActivityBaseline, ClassBaseline
 from .camera import Base, Camera
 from .detection import Detection
 from .enums import Severity
@@ -13,6 +14,7 @@ from .zone import Zone, ZoneShape, ZoneType
 
 __all__ = [
     "APIKey",
+    "ActivityBaseline",
     "Alert",
     "AlertRule",
     "AlertSeverity",
@@ -22,6 +24,7 @@ __all__ = [
     "AuditStatus",
     "Base",
     "Camera",
+    "ClassBaseline",
     "Detection",
     "Event",
     "GPUStats",

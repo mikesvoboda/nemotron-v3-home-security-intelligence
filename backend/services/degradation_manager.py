@@ -1,54 +1,64 @@
-"""Graceful degradation manager for handling partial outages.
+"""Graceful degradation manager for system resilience.
 
-This module orchestrates graceful degradation when external services experience
-outages. It provides:
-- Service health tracking with automatic mode transitions
-- Job queueing for later processing when services are unavailable
-- Redis fallback to in-memory queue when Redis is down
-- Recovery handling to reprocess queued jobs
+This module provides graceful degradation capabilities for the home security
+system. When dependent services become unavailable, the system continues
+operating in a degraded mode rather than failing completely.
+
+Features:
+    - Track service health states (Redis, RT-DETRv2, Nemotron)
+    - Fallback to disk-based queues when Redis is down
+    - Automatic recovery detection
+    - Integration with circuit breakers
+    - Exponential backoff for reconnection attempts
 
 Degradation Modes:
     - NORMAL: All services healthy, full functionality
-    - DEGRADED: Some services down, limited functionality
-    - MINIMAL: Critical services down, basic functionality only
-    - OFFLINE: All services down, queueing only
+    - DEGRADED: Some services unavailable, using fallbacks
+    - MAINTENANCE: Planned downtime, minimal operations
 
-Features:
-    - Automatic mode transitions based on service health
-    - Configurable failure and recovery thresholds
-    - In-memory queue fallback when Redis unavailable
-    - Job reprocessing on service recovery
+Usage:
+    manager = get_degradation_manager()
+
+    # Queue with automatic fallback
+    await manager.queue_with_fallback("detection_queue", item)
+
+    # Check if service is available
+    if manager.is_service_healthy("rtdetr"):
+        # Proceed with AI analysis
+        pass
+
+    # Drain fallback queue when recovered
+    await manager.drain_fallback_queue("detection_queue")
 """
 
 from __future__ import annotations
 
 import asyncio
-import time
-from collections import deque
-from collections.abc import Callable
-from dataclasses import dataclass, field
+import json
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, TypeVar
+from pathlib import Path
+from typing import Any
+
+import httpx
 
 from backend.core.logging import get_logger
+from backend.services.circuit_breaker import CircuitBreaker
 
 logger = get_logger(__name__)
 
-T = TypeVar("T")
-
 
 class DegradationMode(Enum):
-    """System degradation modes."""
+    """System degradation mode."""
 
     NORMAL = "normal"
     DEGRADED = "degraded"
-    MINIMAL = "minimal"
-    OFFLINE = "offline"
+    MAINTENANCE = "maintenance"
 
 
 class ServiceStatus(Enum):
-    """Service health status."""
+    """Health status of a service."""
 
     HEALTHY = "healthy"
     UNHEALTHY = "unhealthy"
@@ -56,157 +66,255 @@ class ServiceStatus(Enum):
 
 
 @dataclass
-class ServiceHealth:
-    """Health information for a monitored service.
+class ServiceState:
+    """Current state of a monitored service.
 
     Attributes:
-        name: Service name
+        name: Service identifier
         status: Current health status
         last_check: Timestamp of last health check
-        last_success: Timestamp of last successful check
-        consecutive_failures: Count of consecutive failed checks
-        error_message: Last error message if unhealthy
+        consecutive_failures: Number of consecutive failed checks
+        last_error: Most recent error message
     """
 
     name: str
-    status: ServiceStatus = ServiceStatus.UNKNOWN
-    last_check: float | None = None
-    last_success: float | None = None
+    status: ServiceStatus
+    last_check: datetime | None = None
     consecutive_failures: int = 0
-    error_message: str | None = None
-
-    @property
-    def is_healthy(self) -> bool:
-        """Check if service is healthy."""
-        return self.status == ServiceStatus.HEALTHY
+    last_error: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary."""
+        """Convert to dictionary for serialization."""
         return {
             "name": self.name,
             "status": self.status.value,
-            "last_check": self.last_check,
-            "last_success": self.last_success,
+            "last_check": self.last_check.isoformat() if self.last_check else None,
             "consecutive_failures": self.consecutive_failures,
-            "error_message": self.error_message,
+            "last_error": self.last_error,
         }
 
 
 @dataclass
-class QueuedJob:
-    """A job queued for later processing.
+class ServiceDependency:
+    """Configuration for a service dependency.
 
     Attributes:
-        job_type: Type of job (e.g., "detection", "analysis")
-        data: Job data payload
-        queued_at: ISO timestamp when queued
-        retry_count: Number of retry attempts
-    """
-
-    job_type: str
-    data: dict[str, Any]
-    queued_at: str
-    retry_count: int = 0
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for storage."""
-        return {
-            "job_type": self.job_type,
-            "data": self.data,
-            "queued_at": self.queued_at,
-            "retry_count": self.retry_count,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> QueuedJob:
-        """Create from dictionary."""
-        return cls(
-            job_type=data["job_type"],
-            data=data["data"],
-            queued_at=data["queued_at"],
-            retry_count=data.get("retry_count", 0),
-        )
-
-
-@dataclass
-class RegisteredService:
-    """A registered service for health monitoring.
-
-    Attributes:
-        name: Service name
-        health_check: Async callable returning bool for health
-        critical: Whether service is critical for operation
-        health: Current health state
+        name: Service identifier
+        health_check_url: URL for health check endpoint
+        required: Whether service is required for normal operation
+        timeout: Health check timeout in seconds
     """
 
     name: str
-    health_check: Callable[[], Any]
-    critical: bool = False
-    health: ServiceHealth = field(default_factory=lambda: ServiceHealth(name=""))
-
-    def __post_init__(self) -> None:
-        """Initialize health with correct name."""
-        if self.health.name == "":
-            self.health = ServiceHealth(name=self.name)
+    health_check_url: str
+    required: bool = True
+    timeout: float = 5.0
 
 
-class DegradationManager:
-    """Manages graceful degradation during partial outages.
+class FallbackQueue:
+    """Disk-based fallback queue for when Redis is unavailable.
 
-    This class monitors service health and orchestrates graceful degradation
-    when services become unavailable. It provides job queueing for later
-    processing and automatic recovery handling.
-
-    Usage:
-        manager = DegradationManager(redis_client=redis)
-
-        # Register services for monitoring
-        manager.register_service(
-            name="ai_detector",
-            health_check=detector.health_check,
-            critical=True,
-        )
-
-        # Check if we should queue instead of process
-        if manager.should_queue_job("detection"):
-            await manager.queue_job_for_later("detection", job_data)
-        else:
-            await process_job(job_data)
+    Stores queue items as JSON files on disk to prevent data loss
+    during Redis outages.
     """
-
-    # Default queue name for degraded jobs
-    DEGRADED_QUEUE = "degraded:jobs"
 
     def __init__(
         self,
-        redis_client: Any | None = None,
-        failure_threshold: int = 3,
-        recovery_threshold: int = 2,
-        max_memory_queue_size: int = 1000,
-    ) -> None:
+        queue_name: str,
+        fallback_dir: str,
+        max_size: int = 10000,
+    ):
+        """Initialize fallback queue.
+
+        Args:
+            queue_name: Name of the queue (used for directory)
+            fallback_dir: Base directory for fallback storage
+            max_size: Maximum items to store (oldest dropped when exceeded)
+        """
+        self._queue_name = queue_name
+        self._fallback_dir = Path(fallback_dir) / queue_name
+        self._max_size = max_size
+        self._counter = 0
+        self._lock = asyncio.Lock()
+
+        # Ensure directory exists
+        self._fallback_dir.mkdir(parents=True, exist_ok=True)
+
+        logger.info(
+            f"FallbackQueue '{queue_name}' initialized",
+            extra={
+                "queue_name": queue_name,
+                "fallback_dir": str(self._fallback_dir),
+                "max_size": max_size,
+            },
+        )
+
+    @property
+    def queue_name(self) -> str:
+        """Get queue name."""
+        return self._queue_name
+
+    @property
+    def fallback_dir(self) -> Path:
+        """Get fallback directory path."""
+        return self._fallback_dir
+
+    def count(self) -> int:
+        """Count items in the fallback queue."""
+        return len(list(self._fallback_dir.glob("*.json")))
+
+    async def add(self, item: dict[str, Any]) -> bool:
+        """Add an item to the fallback queue.
+
+        Args:
+            item: Dictionary to store
+
+        Returns:
+            True if item was stored successfully
+        """
+        async with self._lock:
+            try:
+                # Check size limit
+                current_count = self.count()
+                if current_count >= self._max_size:
+                    # Remove oldest files to make room
+                    files = sorted(self._fallback_dir.glob("*.json"))
+                    for f in files[: current_count - self._max_size + 1]:
+                        f.unlink()
+                        logger.warning(
+                            f"FallbackQueue '{self._queue_name}' dropped oldest item due to size limit"
+                        )
+
+                # Generate unique filename
+                timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S_%f")
+                self._counter += 1
+                filename = f"{timestamp}_{self._counter:06d}.json"
+                filepath = self._fallback_dir / filename
+
+                # Write item to disk
+                with open(filepath, "w") as outfile:
+                    json.dump(
+                        {
+                            "item": item,
+                            "queued_at": datetime.now(UTC).isoformat(),
+                        },
+                        outfile,
+                    )
+
+                logger.debug(
+                    f"FallbackQueue '{self._queue_name}' added item",
+                    extra={"file": filename},
+                )
+                return True
+
+            except Exception as e:
+                logger.error(
+                    f"FallbackQueue '{self._queue_name}' failed to add item: {e}",
+                    extra={"error": str(e)},
+                )
+                return False
+
+    async def get(self) -> dict[str, Any] | None:
+        """Get the oldest item from the fallback queue.
+
+        Returns:
+            The item dictionary, or None if queue is empty
+        """
+        async with self._lock:
+            try:
+                # Get oldest file
+                files = sorted(self._fallback_dir.glob("*.json"))
+                if not files:
+                    return None
+
+                oldest = files[0]
+
+                # Read and delete
+                with open(oldest) as infile:
+                    data = json.load(infile)
+
+                oldest.unlink()
+
+                logger.debug(
+                    f"FallbackQueue '{self._queue_name}' retrieved item",
+                    extra={"file": oldest.name},
+                )
+                result: dict[str, Any] | None = data.get("item")
+                return result
+
+            except Exception as e:
+                logger.error(
+                    f"FallbackQueue '{self._queue_name}' failed to get item: {e}",
+                    extra={"error": str(e)},
+                )
+                return None
+
+    async def peek(self, limit: int = 10) -> list[dict[str, Any]]:
+        """Peek at items without removing them.
+
+        Args:
+            limit: Maximum items to return
+
+        Returns:
+            List of items (oldest first)
+        """
+        items = []
+        files = sorted(self._fallback_dir.glob("*.json"))[:limit]
+
+        for f in files:
+            try:
+                with open(f) as fp:
+                    data = json.load(fp)
+                    items.append(data.get("item", {}))
+            except Exception:  # noqa: S110
+                pass
+
+        return items
+
+
+class DegradationManager:
+    """Manages graceful degradation for the security system.
+
+    Tracks service health, provides fallback behaviors, and manages
+    recovery when services become available again.
+    """
+
+    def __init__(
+        self,
+        fallback_dir: str | None = None,
+        redis_client: Any = None,
+        check_interval: float = 15.0,
+    ):
         """Initialize degradation manager.
 
         Args:
-            redis_client: Redis client for job queueing
-            failure_threshold: Failures before marking unhealthy
-            recovery_threshold: Successes needed to confirm recovery
-            max_memory_queue_size: Max jobs to hold in memory queue
+            fallback_dir: Directory for fallback queues
+            redis_client: Redis client instance
+            check_interval: Interval between health checks in seconds
         """
-        self._redis = redis_client
         self._mode = DegradationMode.NORMAL
-        self._services: dict[str, RegisteredService] = {}
-        self._memory_queue: deque[QueuedJob] = deque(maxlen=max_memory_queue_size)
-        self._lock = asyncio.Lock()
-        self._redis_healthy = True
+        self._fallback_dir = Path(fallback_dir or Path.home() / ".cache" / "hsi_fallback")
+        self._redis_client = redis_client
+        self._check_interval = check_interval
 
-        self.failure_threshold = failure_threshold
-        self.recovery_threshold = recovery_threshold
-        self.max_memory_queue_size = max_memory_queue_size
+        self._service_states: dict[str, ServiceState] = {}
+        self._dependencies: dict[str, ServiceDependency] = {}
+        self._circuit_breakers: dict[str, CircuitBreaker] = {}
+        self._fallback_queues: dict[str, FallbackQueue] = {}
+        self._degradation_reason: str | None = None
+        self._running = False
+        self._task: asyncio.Task[None] | None = None
+        self._lock = asyncio.Lock()
+
+        # Ensure fallback directory exists
+        self._fallback_dir.mkdir(parents=True, exist_ok=True)
 
         logger.info(
-            f"DegradationManager initialized: "
-            f"failure_threshold={failure_threshold}, "
-            f"recovery_threshold={recovery_threshold}"
+            "DegradationManager initialized",
+            extra={
+                "fallback_dir": str(self._fallback_dir),
+                "check_interval": check_interval,
+            },
         )
 
     @property
@@ -215,421 +323,477 @@ class DegradationManager:
         return self._mode
 
     @property
-    def is_degraded(self) -> bool:
-        """Check if system is in any degraded state."""
-        return self._mode != DegradationMode.NORMAL
+    def service_states(self) -> dict[str, ServiceState]:
+        """Get all service states."""
+        return self._service_states.copy()
 
-    def register_service(
-        self,
-        name: str,
-        health_check: Callable[[], Any],
-        critical: bool = False,
-    ) -> None:
-        """Register a service for health monitoring.
+    def register_dependency(self, dependency: ServiceDependency) -> None:
+        """Register a service dependency.
 
         Args:
-            name: Unique service name
-            health_check: Async callable that returns True if healthy
-            critical: Whether this service is critical for operation
+            dependency: Service dependency configuration
         """
-        self._services[name] = RegisteredService(
-            name=name,
-            health_check=health_check,
-            critical=critical,
+        self._dependencies[dependency.name] = dependency
+        self._service_states[dependency.name] = ServiceState(
+            name=dependency.name,
+            status=ServiceStatus.UNKNOWN,
         )
-        logger.info(f"Registered service '{name}' (critical={critical})")
+        logger.info(
+            f"Registered dependency: {dependency.name}",
+            extra={
+                "service": dependency.name,
+                "required": dependency.required,
+            },
+        )
 
-    def get_service_health(self, name: str) -> ServiceHealth:
-        """Get health information for a service.
+    def register_circuit_breaker(self, circuit_breaker: CircuitBreaker) -> None:
+        """Register a circuit breaker for monitoring.
 
         Args:
-            name: Service name
+            circuit_breaker: CircuitBreaker instance
+        """
+        self._circuit_breakers[circuit_breaker.name] = circuit_breaker
+        logger.info(
+            f"Registered circuit breaker: {circuit_breaker.name}",
+            extra={"circuit_breaker": circuit_breaker.name},
+        )
+
+    def _get_fallback_queue(self, queue_name: str) -> FallbackQueue:
+        """Get or create a fallback queue.
+
+        Args:
+            queue_name: Name of the queue
 
         Returns:
-            ServiceHealth object
+            FallbackQueue instance
         """
-        if name in self._services:
-            return self._services[name].health
-        return ServiceHealth(name=name, status=ServiceStatus.UNKNOWN)
+        if queue_name not in self._fallback_queues:
+            self._fallback_queues[queue_name] = FallbackQueue(
+                queue_name=queue_name,
+                fallback_dir=str(self._fallback_dir),
+            )
+        return self._fallback_queues[queue_name]
 
-    async def update_service_health(
-        self,
-        name: str,
-        is_healthy: bool,
-        error_message: str | None = None,
-    ) -> None:
-        """Update health status for a service.
+    async def enter_degraded_mode(self, reason: str) -> None:
+        """Enter degraded mode.
 
         Args:
-            name: Service name
-            is_healthy: Whether service is healthy
-            error_message: Error message if unhealthy
+            reason: Description of why degraded mode is needed
         """
         async with self._lock:
-            if name not in self._services:
-                logger.warning(f"Service '{name}' not registered")
+            if self._mode == DegradationMode.MAINTENANCE:
+                logger.info("Cannot enter degraded mode during maintenance")
                 return
 
-            service = self._services[name]
-            health = service.health
-            health.last_check = time.monotonic()
-
-            if is_healthy:
-                health.status = ServiceStatus.HEALTHY
-                health.last_success = time.monotonic()
-                health.consecutive_failures = 0
-                health.error_message = None
-                logger.debug(f"Service '{name}' is healthy")
-            else:
-                health.status = ServiceStatus.UNHEALTHY
-                health.consecutive_failures += 1
-                health.error_message = error_message
-                logger.warning(
-                    f"Service '{name}' unhealthy: "
-                    f"failures={health.consecutive_failures}, "
-                    f"error={error_message}"
-                )
-
-            # Check if we need to transition modes
-            await self._evaluate_mode_transition()
-
-    async def _evaluate_mode_transition(self) -> None:
-        """Evaluate and perform mode transitions based on service health."""
-        critical_unhealthy = 0
-        total_unhealthy = 0
-
-        for service in self._services.values():
-            if service.health.consecutive_failures >= self.failure_threshold:
-                total_unhealthy += 1
-                if service.critical:
-                    critical_unhealthy += 1
-
-        old_mode = self._mode
-
-        # Determine new mode based on health
-        if critical_unhealthy == 0 and total_unhealthy == 0:
-            self._mode = DegradationMode.NORMAL
-        elif critical_unhealthy == 0:
+            old_mode = self._mode
             self._mode = DegradationMode.DEGRADED
-        elif critical_unhealthy < len([s for s in self._services.values() if s.critical]):
-            self._mode = DegradationMode.MINIMAL
-        else:
-            self._mode = DegradationMode.OFFLINE
+            self._degradation_reason = reason
 
-        if self._mode != old_mode:
-            logger.warning(f"Degradation mode changed: {old_mode.value} -> {self._mode.value}")
+            logger.warning(
+                f"Entering degraded mode: {reason}",
+                extra={
+                    "old_mode": old_mode.value,
+                    "new_mode": self._mode.value,
+                    "reason": reason,
+                },
+            )
 
-    async def run_health_checks(self) -> None:
-        """Run health checks for all registered services."""
-        for service in self._services.values():
-            try:
-                is_healthy = await service.health_check()
-                await self.update_service_health(service.name, is_healthy=is_healthy)
-            except Exception as e:
-                logger.error(f"Health check failed for '{service.name}': {e}")
-                await self.update_service_health(
-                    service.name,
-                    is_healthy=False,
-                    error_message=str(e),
+    async def enter_normal_mode(self) -> None:
+        """Return to normal mode."""
+        async with self._lock:
+            if self._mode == DegradationMode.MAINTENANCE:
+                logger.info("Cannot enter normal mode during maintenance")
+                return
+
+            old_mode = self._mode
+            self._mode = DegradationMode.NORMAL
+            self._degradation_reason = None
+
+            logger.info(
+                "Returning to normal mode",
+                extra={
+                    "old_mode": old_mode.value,
+                    "new_mode": self._mode.value,
+                },
+            )
+
+    async def enter_maintenance_mode(self, reason: str) -> None:
+        """Enter maintenance mode.
+
+        Args:
+            reason: Description of maintenance activity
+        """
+        async with self._lock:
+            old_mode = self._mode
+            self._mode = DegradationMode.MAINTENANCE
+            self._degradation_reason = reason
+
+            logger.warning(
+                f"Entering maintenance mode: {reason}",
+                extra={
+                    "old_mode": old_mode.value,
+                    "new_mode": self._mode.value,
+                    "reason": reason,
+                },
+            )
+
+    async def exit_maintenance_mode(self) -> None:
+        """Exit maintenance mode and return to normal."""
+        async with self._lock:
+            old_mode = self._mode
+            self._mode = DegradationMode.NORMAL
+            self._degradation_reason = None
+
+            logger.info(
+                "Exiting maintenance mode",
+                extra={
+                    "old_mode": old_mode.value,
+                    "new_mode": self._mode.value,
+                },
+            )
+
+    async def update_service_state(
+        self,
+        name: str,
+        status: ServiceStatus,
+        error: str | None = None,
+    ) -> None:
+        """Update the state of a service.
+
+        Args:
+            name: Service name
+            status: New health status
+            error: Error message if unhealthy
+        """
+        async with self._lock:
+            if name not in self._service_states:
+                self._service_states[name] = ServiceState(
+                    name=name,
+                    status=status,
                 )
 
-    def should_queue_job(self, job_type: str) -> bool:
-        """Determine if a job should be queued instead of processed.
+            state = self._service_states[name]
+            old_status = state.status
+            state.status = status
+            state.last_check = datetime.now(UTC)
+
+            if status == ServiceStatus.HEALTHY:
+                state.consecutive_failures = 0
+                state.last_error = None
+            else:
+                state.consecutive_failures += 1
+                state.last_error = error
+
+            if old_status != status:
+                logger.info(
+                    f"Service '{name}' status changed: {old_status.value} -> {status.value}",
+                    extra={
+                        "service": name,
+                        "old_status": old_status.value,
+                        "new_status": status.value,
+                        "error": error,
+                    },
+                )
+
+    def get_service_state(self, name: str) -> ServiceState | None:
+        """Get the state of a service.
 
         Args:
-            job_type: Type of job (e.g., "detection", "analysis")
+            name: Service name
 
         Returns:
-            True if job should be queued for later
+            ServiceState or None if not found
         """
-        # job_type can be used for fine-grained control in future
-        _ = job_type  # Reserved for future per-job-type degradation rules
-        if self._mode == DegradationMode.NORMAL:
-            return False
-        if self._mode == DegradationMode.OFFLINE:
-            return True
-        if self._mode == DegradationMode.MINIMAL:
-            return True
-        # In DEGRADED mode, queue based on job type and service availability
-        return self._mode == DegradationMode.DEGRADED
+        return self._service_states.get(name)
 
-    async def queue_job_for_later(
+    def is_service_healthy(self, name: str) -> bool:
+        """Check if a service is healthy.
+
+        Args:
+            name: Service name
+
+        Returns:
+            True if service is healthy
+        """
+        state = self._service_states.get(name)
+        return state is not None and state.status == ServiceStatus.HEALTHY
+
+    async def queue_with_fallback(
         self,
-        job_type: str,
-        data: dict[str, Any],
+        queue_name: str,
+        item: dict[str, Any],
     ) -> bool:
-        """Queue a job for later processing.
+        """Queue an item with automatic fallback to disk.
+
+        Attempts to queue to Redis first. If Redis is unavailable,
+        falls back to disk-based queue.
 
         Args:
-            job_type: Type of job
-            data: Job data payload
+            queue_name: Name of the queue
+            item: Item to queue
 
         Returns:
-            True if job was queued successfully
+            True if item was queued (to either Redis or fallback)
         """
-        job = QueuedJob(
-            job_type=job_type,
-            data=data,
-            queued_at=datetime.now(UTC).isoformat(),
-            retry_count=0,
-        )
+        # Check if Redis is healthy
+        redis_state = self._service_states.get("redis")
+        redis_healthy = redis_state is not None and redis_state.status == ServiceStatus.HEALTHY
 
-        # Try Redis first
-        if self._redis and self._redis_healthy:
+        # Try Redis first if available
+        if redis_healthy and self._redis_client is not None:
             try:
-                await self._redis.add_to_queue(self.DEGRADED_QUEUE, job.to_dict())
-                logger.debug(f"Queued {job_type} job to Redis")
+                await self._redis_client.add_to_queue(queue_name, item)
                 return True
             except Exception as e:
-                logger.warning(f"Failed to queue to Redis, using memory: {e}")
-                self._redis_healthy = False
+                logger.warning(
+                    f"Redis queue failed, falling back to disk: {e}",
+                    extra={"queue_name": queue_name, "error": str(e)},
+                )
+                # Update Redis state
+                await self.update_service_state(
+                    "redis",
+                    ServiceStatus.UNHEALTHY,
+                    str(e),
+                )
 
-        # Fall back to in-memory queue
-        return self._queue_to_memory(job)
+        # Fallback to disk
+        fallback = self._get_fallback_queue(queue_name)
+        return await fallback.add(item)
 
-    def _queue_to_memory(self, job: QueuedJob) -> bool:
-        """Queue job to in-memory fallback queue.
-
-        Args:
-            job: Job to queue
-
-        Returns:
-            True if queued successfully
-        """
-        try:
-            self._memory_queue.append(job)
-            logger.debug(f"Queued {job.job_type} job to memory (size={len(self._memory_queue)})")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to queue to memory: {e}")
-            return False
-
-    def _use_memory_queue(self) -> bool:
-        """Check if we should use in-memory queue."""
-        return self._redis is None or not self._redis_healthy
-
-    def get_queued_job_count(self) -> int:
-        """Get count of jobs in memory queue.
-
-        Returns:
-            Number of jobs in memory queue
-        """
-        return len(self._memory_queue)
-
-    async def get_pending_job_count(self) -> int:
-        """Get total count of pending jobs.
-
-        Returns:
-            Total pending jobs (Redis + memory)
-        """
-        memory_count = len(self._memory_queue)
-
-        if self._redis and self._redis_healthy:
-            try:
-                redis_count: int = await self._redis.get_queue_length(self.DEGRADED_QUEUE)
-                return redis_count + memory_count
-            except Exception as e:
-                logger.warning(f"Failed to get Redis queue length: {e}")
-
-        return memory_count
-
-    async def process_queued_jobs(
-        self,
-        job_type: str,
-        processor: Callable[[dict[str, Any]], Any],
-        max_jobs: int = 100,
-    ) -> int:
-        """Process queued jobs of a specific type.
+    async def drain_fallback_queue(self, queue_name: str) -> int:
+        """Drain items from fallback queue to Redis.
 
         Args:
-            job_type: Type of jobs to process
-            processor: Async callable to process each job
-            max_jobs: Maximum jobs to process in one batch
+            queue_name: Name of the queue to drain
 
         Returns:
-            Number of jobs processed
+            Number of items drained
         """
-        processed = 0
-
-        # Process from Redis queue
-        if self._redis and self._redis_healthy:
-            while processed < max_jobs:
-                try:
-                    job_data = await self._redis.get_from_queue(
-                        self.DEGRADED_QUEUE,
-                        timeout=0,
-                    )
-                    if job_data is None:
-                        break
-
-                    job = QueuedJob.from_dict(job_data)
-                    if job.job_type == job_type:
-                        try:
-                            await processor(job.data)
-                            processed += 1
-                            logger.debug(f"Processed queued {job_type} job")
-                        except Exception as e:
-                            logger.error(f"Failed to process queued job: {e}")
-                            # Re-queue with incremented retry count
-                            job.retry_count += 1
-                            await self._redis.add_to_queue(
-                                self.DEGRADED_QUEUE,
-                                job.to_dict(),
-                            )
-                except Exception as e:
-                    logger.error(f"Error processing Redis queue: {e}")
-                    break
-
-        # Process from memory queue
-        memory_jobs = list(self._memory_queue)
-        self._memory_queue.clear()
-
-        for job in memory_jobs:
-            if job.job_type == job_type and processed < max_jobs:
-                try:
-                    await processor(job.data)
-                    processed += 1
-                except Exception as e:
-                    logger.error(f"Failed to process memory queued job: {e}")
-                    job.retry_count += 1
-                    self._memory_queue.append(job)
-            else:
-                # Keep jobs that don't match type
-                self._memory_queue.append(job)
-
-        return processed
-
-    async def check_redis_health(self) -> bool:
-        """Check if Redis is healthy.
-
-        Returns:
-            True if Redis is healthy
-        """
-        if self._redis is None:
-            return False
-
-        try:
-            await self._redis.ping()
-            if not self._redis_healthy:
-                logger.info("Redis connection restored")
-                self._redis_healthy = True
-            return True
-        except Exception as e:
-            if self._redis_healthy:
-                logger.warning(f"Redis health check failed: {e}")
-                self._redis_healthy = False
-            return False
-
-    async def handle_redis_unavailable(self) -> None:
-        """Handle Redis becoming unavailable."""
-        self._redis_healthy = False
-        logger.warning(
-            "Redis unavailable, falling back to in-memory queue "
-            f"(max_size={self.max_memory_queue_size})"
-        )
-
-    async def drain_memory_queue_to_redis(self) -> int:
-        """Drain in-memory queue to Redis when available.
-
-        Returns:
-            Number of jobs drained
-        """
-        if not self._redis or not self._redis_healthy:
+        if self._redis_client is None:
+            logger.warning("Cannot drain fallback queue: Redis client not configured")
             return 0
 
+        fallback = self._get_fallback_queue(queue_name)
         drained = 0
-        while self._memory_queue:
-            job = self._memory_queue.popleft()
-            try:
-                await self._redis.add_to_queue(self.DEGRADED_QUEUE, job.to_dict())
-                drained += 1
-            except Exception as e:
-                logger.error(f"Failed to drain job to Redis: {e}")
-                self._memory_queue.appendleft(job)
+
+        while True:
+            item = await fallback.get()
+            if item is None:
                 break
 
-        if drained > 0:
-            logger.info(f"Drained {drained} jobs from memory to Redis")
+            try:
+                await self._redis_client.add_to_queue(queue_name, item)
+                drained += 1
+            except Exception as e:
+                logger.error(
+                    f"Failed to drain item to Redis, stopping: {e}",
+                    extra={"queue_name": queue_name, "error": str(e)},
+                )
+                # Put item back
+                await fallback.add(item)
+                break
 
+        logger.info(
+            f"Drained {drained} items from fallback queue '{queue_name}'",
+            extra={"queue_name": queue_name, "drained": drained},
+        )
         return drained
 
-    def is_accepting_jobs(self) -> bool:
-        """Check if manager is accepting new jobs.
+    async def check_recovery(self) -> None:
+        """Check if system can recover to normal mode.
 
-        Returns:
-            True if jobs can be accepted (even for queueing)
+        Examines all required dependencies and transitions to normal
+        mode if all are healthy.
         """
-        return self._mode != DegradationMode.OFFLINE
+        if self._mode == DegradationMode.MAINTENANCE:
+            return
 
-    def get_available_features(self) -> list[str]:
-        """Get list of available features based on current mode.
+        # Check all required dependencies
+        all_healthy = True
+        for name, dep in self._dependencies.items():
+            if dep.required:
+                state = self._service_states.get(name)
+                if state is None or state.status != ServiceStatus.HEALTHY:
+                    all_healthy = False
+                    break
 
-        Returns:
-            List of available feature names
+        if all_healthy and self._mode == DegradationMode.DEGRADED:
+            await self.enter_normal_mode()
+
+            # Drain fallback queues
+            for queue_name in self._fallback_queues:
+                await self.drain_fallback_queue(queue_name)
+
+    async def on_circuit_opened(self, name: str) -> None:
+        """Handle circuit breaker opening.
+
+        Args:
+            name: Name of the circuit breaker that opened
         """
-        all_features = ["detection", "analysis", "events", "media"]
+        logger.warning(
+            f"Circuit breaker '{name}' opened",
+            extra={"circuit_breaker": name},
+        )
 
-        if self._mode == DegradationMode.NORMAL:
-            return all_features
-        elif self._mode == DegradationMode.DEGRADED:
-            return ["events", "media"]  # Read-only features
-        elif self._mode == DegradationMode.MINIMAL:
-            return ["media"]  # Basic media serving only
-        else:
-            return []
+        # Mark service as unhealthy
+        await self.update_service_state(name, ServiceStatus.UNHEALTHY)
 
-    def list_services(self) -> list[str]:
-        """List all registered service names.
+        # Enter degraded mode if this is a required service
+        dep = self._dependencies.get(name)
+        if dep is not None and dep.required:
+            await self.enter_degraded_mode(f"Circuit breaker '{name}' opened")
 
-        Returns:
-            List of service names
+    async def on_circuit_closed(self, name: str) -> None:
+        """Handle circuit breaker closing.
+
+        Args:
+            name: Name of the circuit breaker that closed
         """
-        return list(self._services.keys())
+        logger.info(
+            f"Circuit breaker '{name}' closed",
+            extra={"circuit_breaker": name},
+        )
+
+        # Mark service as healthy
+        await self.update_service_state(name, ServiceStatus.HEALTHY)
+
+        # Check if we can recover
+        await self.check_recovery()
+
+    async def _check_dependency(self, dep: ServiceDependency) -> None:
+        """Check health of a single dependency.
+
+        Args:
+            dep: Service dependency to check
+        """
+        try:
+            async with httpx.AsyncClient(timeout=dep.timeout) as client:
+                response = await client.get(dep.health_check_url)
+                response.raise_for_status()
+
+            await self.update_service_state(dep.name, ServiceStatus.HEALTHY)
+
+        except Exception as e:
+            await self.update_service_state(
+                dep.name,
+                ServiceStatus.UNHEALTHY,
+                str(e),
+            )
+
+    async def start(self) -> None:
+        """Start the health check loop."""
+        if self._running:
+            logger.warning("DegradationManager already running")
+            return
+
+        self._running = True
+        self._task = asyncio.create_task(self._health_check_loop())
+        logger.info("DegradationManager started")
+
+    async def stop(self) -> None:
+        """Stop the health check loop."""
+        if not self._running:
+            return
+
+        self._running = False
+        if self._task:
+            self._task.cancel()
+            try:
+                await self._task
+            except asyncio.CancelledError:
+                pass
+            self._task = None
+
+        logger.info("DegradationManager stopped")
+
+    async def _health_check_loop(self) -> None:
+        """Main health check loop."""
+        while self._running:
+            try:
+                # Check all dependencies
+                for dep in self._dependencies.values():
+                    await self._check_dependency(dep)
+
+                # Check Redis if configured
+                if self._redis_client is not None:
+                    try:
+                        health = await self._redis_client.health_check()
+                        if health.get("status") == "healthy":
+                            await self.update_service_state("redis", ServiceStatus.HEALTHY)
+                        else:
+                            await self.update_service_state(
+                                "redis",
+                                ServiceStatus.UNHEALTHY,
+                                health.get("error"),
+                            )
+                    except Exception as e:
+                        await self.update_service_state(
+                            "redis",
+                            ServiceStatus.UNHEALTHY,
+                            str(e),
+                        )
+
+                # Check for recovery
+                await self.check_recovery()
+
+                await asyncio.sleep(self._check_interval)
+
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(
+                    f"Health check loop error: {e}",
+                    extra={"error": str(e)},
+                )
+                await asyncio.sleep(self._check_interval)
 
     def get_status(self) -> dict[str, Any]:
-        """Get overall degradation status.
+        """Get current system status.
 
         Returns:
-            Status dictionary
+            Dictionary with mode and service states
         """
         return {
             "mode": self._mode.value,
-            "is_degraded": self.is_degraded,
-            "redis_healthy": self._redis_healthy,
-            "memory_queue_size": len(self._memory_queue),
-            "services": {
-                name: service.health.to_dict() for name, service in self._services.items()
+            "degradation_reason": self._degradation_reason,
+            "services": {name: state.to_dict() for name, state in self._service_states.items()},
+            "fallback_queues": {
+                name: queue.count() for name, queue in self._fallback_queues.items()
             },
-            "available_features": self.get_available_features(),
         }
 
 
-# Global manager instance
-_manager: DegradationManager | None = None
+# Global degradation manager instance
+_degradation_manager: DegradationManager | None = None
 
 
 def get_degradation_manager(
-    redis_client: Any | None = None,
+    fallback_dir: str | None = None,
+    redis_client: Any = None,
 ) -> DegradationManager:
     """Get or create the global degradation manager.
 
     Args:
-        redis_client: Redis client (used on first call)
+        fallback_dir: Directory for fallback queues
+        redis_client: Redis client instance
 
     Returns:
         DegradationManager instance
     """
-    global _manager  # noqa: PLW0603
+    global _degradation_manager  # noqa: PLW0603
 
-    if _manager is None:
-        _manager = DegradationManager(redis_client=redis_client)
-    elif redis_client is not None and _manager._redis is None:
-        _manager._redis = redis_client
+    if _degradation_manager is None:
+        _degradation_manager = DegradationManager(
+            fallback_dir=fallback_dir,
+            redis_client=redis_client,
+        )
+    elif redis_client is not None and _degradation_manager._redis_client is None:
+        _degradation_manager._redis_client = redis_client
 
-    return _manager
+    return _degradation_manager
 
 
 def reset_degradation_manager() -> None:
     """Reset the global degradation manager (for testing)."""
-    global _manager  # noqa: PLW0603
-    _manager = None
+    global _degradation_manager  # noqa: PLW0603
+    _degradation_manager = None

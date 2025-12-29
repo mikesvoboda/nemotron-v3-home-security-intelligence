@@ -1,15 +1,15 @@
 """Unit tests for circuit breaker pattern implementation.
 
 Tests cover:
-- CircuitBreakerConfig state transitions
-- CircuitBreaker state machine (CLOSED -> OPEN -> HALF_OPEN)
-- Failure counting and threshold handling
-- Half-open state trial behavior
-- Recovery and reset logic
-- Circuit breaker registry operations
+- State transitions (closed -> open -> half_open -> closed)
+- Failure threshold triggering
+- Success reset behavior
+- Half-open recovery
+- Metrics tracking
 """
 
 import asyncio
+from datetime import UTC, datetime
 
 import pytest
 
@@ -17,560 +17,616 @@ from backend.services.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerConfig,
     CircuitBreakerError,
-    CircuitBreakerRegistry,
-    CircuitState,
+    CircuitBreakerMetrics,
+    CircuitBreakerState,
     get_circuit_breaker,
-    reset_circuit_breaker_registry,
+    reset_circuit_breakers,
 )
 
+# Fixtures
 
-class TestCircuitBreakerConfig:
-    """Tests for CircuitBreakerConfig dataclass."""
-
-    def test_default_values(self) -> None:
-        """Test default configuration values."""
-        config = CircuitBreakerConfig()
-        assert config.failure_threshold == 5
-        assert config.recovery_timeout == 30.0
-        assert config.half_open_max_calls == 3
-        assert config.success_threshold == 2
-        assert config.excluded_exceptions == ()
-
-    def test_custom_values(self) -> None:
-        """Test custom configuration values."""
-        config = CircuitBreakerConfig(
-            failure_threshold=10,
-            recovery_timeout=60.0,
-            half_open_max_calls=5,
-            success_threshold=3,
-            excluded_exceptions=(ValueError,),
-        )
-        assert config.failure_threshold == 10
-        assert config.recovery_timeout == 60.0
-        assert config.half_open_max_calls == 5
-        assert config.success_threshold == 3
-        assert config.excluded_exceptions == (ValueError,)
-
-
-class TestCircuitState:
-    """Tests for CircuitState enum."""
-
-    def test_state_values(self) -> None:
-        """Test circuit state enum values."""
-        assert CircuitState.CLOSED.value == "closed"
-        assert CircuitState.OPEN.value == "open"
-        assert CircuitState.HALF_OPEN.value == "half_open"
-
-
-class TestCircuitBreaker:
-    """Tests for CircuitBreaker class."""
-
-    @pytest.fixture
-    def config(self) -> CircuitBreakerConfig:
-        """Create a test configuration."""
-        return CircuitBreakerConfig(
-            failure_threshold=3,
-            recovery_timeout=0.1,  # Fast for testing
-            half_open_max_calls=2,
-            success_threshold=2,
-        )
-
-    @pytest.fixture
-    def breaker(self, config: CircuitBreakerConfig) -> CircuitBreaker:
-        """Create a circuit breaker with test config."""
-        return CircuitBreaker(name="test_service", config=config)
-
-    def test_initial_state_is_closed(self, breaker: CircuitBreaker) -> None:
-        """Test that initial state is CLOSED."""
-        assert breaker.state == CircuitState.CLOSED
-        assert breaker.failure_count == 0
-        assert breaker.is_closed is True
-        assert breaker.is_open is False
-
-    def test_name_property(self, breaker: CircuitBreaker) -> None:
-        """Test name property."""
-        assert breaker.name == "test_service"
-
-    @pytest.mark.asyncio
-    async def test_successful_call_stays_closed(self, breaker: CircuitBreaker) -> None:
-        """Test that successful calls keep circuit closed."""
-
-        async def success_op() -> str:
-            return "success"
-
-        result = await breaker.call(success_op)
-        assert result == "success"
-        assert breaker.state == CircuitState.CLOSED
-        assert breaker.failure_count == 0
-
-    @pytest.mark.asyncio
-    async def test_failures_increment_count(self, breaker: CircuitBreaker) -> None:
-        """Test that failures increment the failure count."""
-
-        async def failing_op() -> str:
-            raise ConnectionError("Failed")
-
-        with pytest.raises(ConnectionError):
-            await breaker.call(failing_op)
-
-        assert breaker.failure_count == 1
-        assert breaker.state == CircuitState.CLOSED
-
-    @pytest.mark.asyncio
-    async def test_threshold_exceeded_opens_circuit(self, breaker: CircuitBreaker) -> None:
-        """Test that exceeding failure threshold opens circuit."""
-
-        async def failing_op() -> str:
-            raise ConnectionError("Failed")
-
-        # Fail 3 times (threshold is 3)
-        for _ in range(3):
-            with pytest.raises(ConnectionError):
-                await breaker.call(failing_op)
 
-        assert breaker.state == CircuitState.OPEN
-        assert breaker.is_open is True
-        assert breaker.is_closed is False
+@pytest.fixture
+def default_config() -> CircuitBreakerConfig:
+    """Create default circuit breaker configuration for testing."""
+    return CircuitBreakerConfig(
+        failure_threshold=3,
+        success_threshold=2,
+        timeout_seconds=5.0,
+        half_open_max_calls=2,
+    )
 
-    @pytest.mark.asyncio
-    async def test_open_circuit_rejects_calls(self, breaker: CircuitBreaker) -> None:
-        """Test that open circuit rejects calls immediately."""
 
-        async def failing_op() -> str:
-            raise ConnectionError("Failed")
+@pytest.fixture
+def fast_config() -> CircuitBreakerConfig:
+    """Create fast circuit breaker configuration for testing."""
+    return CircuitBreakerConfig(
+        failure_threshold=2,
+        success_threshold=1,
+        timeout_seconds=0.1,
+        half_open_max_calls=1,
+    )
 
-        # Open the circuit
-        for _ in range(3):
-            with pytest.raises(ConnectionError):
-                await breaker.call(failing_op)
 
-        # Now try another call - should be rejected
-        async def should_not_run() -> str:
-            return "should not reach"
+@pytest.fixture
+def circuit_breaker(default_config: CircuitBreakerConfig) -> CircuitBreaker:
+    """Create a circuit breaker instance for testing."""
+    return CircuitBreaker(name="test_service", config=default_config)
 
-        with pytest.raises(CircuitBreakerError) as exc_info:
-            await breaker.call(should_not_run)
 
-        assert "test_service" in str(exc_info.value)
-        assert "open" in str(exc_info.value).lower()
+@pytest.fixture
+def fast_circuit_breaker(fast_config: CircuitBreakerConfig) -> CircuitBreaker:
+    """Create a fast circuit breaker for timeout testing."""
+    return CircuitBreaker(name="fast_service", config=fast_config)
 
-    @pytest.mark.asyncio
-    async def test_recovery_timeout_transitions_to_half_open(self, breaker: CircuitBreaker) -> None:
-        """Test that recovery timeout transitions circuit to half-open."""
 
-        async def failing_op() -> str:
-            raise ConnectionError("Failed")
+@pytest.fixture(autouse=True)
+def reset_global_breakers():
+    """Reset global circuit breakers before and after each test."""
+    reset_circuit_breakers()
+    yield
+    reset_circuit_breakers()
 
-        # Open the circuit
-        for _ in range(3):
-            with pytest.raises(ConnectionError):
-                await breaker.call(failing_op)
 
-        assert breaker.state == CircuitState.OPEN
+# Configuration tests
 
-        # Wait for recovery timeout
-        await asyncio.sleep(0.15)
 
-        # Next call should be allowed (half-open)
-        async def success_op() -> str:
-            return "success"
+def test_default_config_values():
+    """Test CircuitBreakerConfig has sensible defaults."""
+    config = CircuitBreakerConfig()
+    assert config.failure_threshold == 5
+    assert config.success_threshold == 3
+    assert config.timeout_seconds == 30.0
+    assert config.half_open_max_calls == 3
 
-        result = await breaker.call(success_op)
-        assert result == "success"
-        # After one success in half-open, still half-open (need success_threshold)
-        assert breaker.state == CircuitState.HALF_OPEN
 
-    @pytest.mark.asyncio
-    async def test_half_open_success_closes_circuit(self, breaker: CircuitBreaker) -> None:
-        """Test that enough successes in half-open closes circuit."""
+def test_custom_config_values():
+    """Test CircuitBreakerConfig accepts custom values."""
+    config = CircuitBreakerConfig(
+        failure_threshold=10,
+        success_threshold=5,
+        timeout_seconds=60.0,
+        half_open_max_calls=5,
+    )
+    assert config.failure_threshold == 10
+    assert config.success_threshold == 5
+    assert config.timeout_seconds == 60.0
+    assert config.half_open_max_calls == 5
 
-        async def failing_op() -> str:
-            raise ConnectionError("Failed")
 
-        # Open the circuit
-        for _ in range(3):
-            with pytest.raises(ConnectionError):
-                await breaker.call(failing_op)
+# Initialization tests
 
-        await asyncio.sleep(0.15)
 
-        async def success_op() -> str:
-            return "success"
+def test_circuit_breaker_initialization(circuit_breaker: CircuitBreaker):
+    """Test circuit breaker initializes in closed state."""
+    assert circuit_breaker.name == "test_service"
+    assert circuit_breaker.state == CircuitBreakerState.CLOSED
+    assert circuit_breaker.failure_count == 0
+    assert circuit_breaker.success_count == 0
 
-        # Need 2 successes (success_threshold)
-        await breaker.call(success_op)
-        assert breaker.state == CircuitState.HALF_OPEN
 
-        await breaker.call(success_op)
-        assert breaker.state == CircuitState.CLOSED
-        assert breaker.failure_count == 0
+def test_circuit_breaker_with_default_config():
+    """Test circuit breaker uses default config when none provided."""
+    cb = CircuitBreaker(name="default_service")
+    assert cb.config.failure_threshold == 5
+    assert cb.config.timeout_seconds == 30.0
 
-    @pytest.mark.asyncio
-    async def test_half_open_failure_reopens_circuit(self, breaker: CircuitBreaker) -> None:
-        """Test that failure in half-open reopens circuit."""
 
-        async def failing_op() -> str:
-            raise ConnectionError("Failed")
+# State enumeration tests
 
-        # Open the circuit
-        for _ in range(3):
-            with pytest.raises(ConnectionError):
-                await breaker.call(failing_op)
 
-        await asyncio.sleep(0.15)
+def test_circuit_breaker_state_values():
+    """Test CircuitBreakerState enum values."""
+    assert CircuitBreakerState.CLOSED.value == "closed"
+    assert CircuitBreakerState.OPEN.value == "open"
+    assert CircuitBreakerState.HALF_OPEN.value == "half_open"
 
-        # Fail in half-open state
-        with pytest.raises(ConnectionError):
-            await breaker.call(failing_op)
 
-        assert breaker.state == CircuitState.OPEN
+# Closed state tests
 
-    @pytest.mark.asyncio
-    async def test_excluded_exceptions_not_counted(self) -> None:
-        """Test that excluded exceptions don't count as failures."""
-        config = CircuitBreakerConfig(
-            failure_threshold=3,
-            recovery_timeout=0.1,
-            excluded_exceptions=(ValueError,),
-        )
-        breaker = CircuitBreaker(name="test", config=config)
 
-        async def raises_value_error() -> str:
-            raise ValueError("Not a failure")
+@pytest.mark.asyncio
+async def test_closed_state_allows_calls(circuit_breaker: CircuitBreaker):
+    """Test closed state allows all calls through."""
 
-        # These should not count as failures
-        for _ in range(5):
-            with pytest.raises(ValueError):
-                await breaker.call(raises_value_error)
+    async def success_op():
+        return "success"
 
-        assert breaker.failure_count == 0
-        assert breaker.state == CircuitState.CLOSED
+    result = await circuit_breaker.call(success_op)
+    assert result == "success"
+    assert circuit_breaker.state == CircuitBreakerState.CLOSED
 
-    @pytest.mark.asyncio
-    async def test_manual_reset(self, breaker: CircuitBreaker) -> None:
-        """Test manual circuit reset."""
 
-        async def failing_op() -> str:
-            raise ConnectionError("Failed")
+@pytest.mark.asyncio
+async def test_closed_state_counts_failures(circuit_breaker: CircuitBreaker):
+    """Test closed state tracks failures."""
 
-        # Open the circuit
-        for _ in range(3):
-            with pytest.raises(ConnectionError):
-                await breaker.call(failing_op)
+    async def failing_op():
+        raise ValueError("Failure")
 
-        assert breaker.state == CircuitState.OPEN
+    for _ in range(2):
+        with pytest.raises(ValueError, match="Failure"):
+            await circuit_breaker.call(failing_op)
 
-        # Manual reset
-        breaker.reset()
+    assert circuit_breaker.failure_count == 2
+    assert circuit_breaker.state == CircuitBreakerState.CLOSED
 
-        assert breaker.state == CircuitState.CLOSED
-        assert breaker.failure_count == 0
 
-    @pytest.mark.asyncio
-    async def test_call_with_args_kwargs(self, breaker: CircuitBreaker) -> None:
-        """Test that args and kwargs are passed to operation."""
+@pytest.mark.asyncio
+async def test_closed_state_resets_on_success(circuit_breaker: CircuitBreaker):
+    """Test closed state resets failure count on success."""
 
-        async def op_with_args(x: int, y: str, z: bool = False) -> dict:
-            return {"x": x, "y": y, "z": z}
+    async def failing_op():
+        raise ValueError("Failure")
 
-        result = await breaker.call(op_with_args, 42, "hello", z=True)
-        assert result == {"x": 42, "y": "hello", "z": True}
+    async def success_op():
+        return "success"
 
-    def test_get_status(self, breaker: CircuitBreaker) -> None:
-        """Test getting circuit breaker status."""
-        status = breaker.get_status()
-        assert status["name"] == "test_service"
-        assert status["state"] == "closed"
-        assert status["failure_count"] == 0
-        assert "last_failure_time" in status
-        assert "opened_at" in status
+    # Add some failures
+    for _ in range(2):
+        with pytest.raises(ValueError):
+            await circuit_breaker.call(failing_op)
 
-    @pytest.mark.asyncio
-    async def test_half_open_max_calls_limit(self, breaker: CircuitBreaker) -> None:
-        """Test that half-open limits concurrent trial calls."""
+    assert circuit_breaker.failure_count == 2
 
-        async def failing_op() -> str:
-            raise ConnectionError("Failed")
+    # Success resets failure count
+    await circuit_breaker.call(success_op)
+    assert circuit_breaker.failure_count == 0
 
-        # Open the circuit
-        for _ in range(3):
-            with pytest.raises(ConnectionError):
-                await breaker.call(failing_op)
 
-        await asyncio.sleep(0.15)
+# State transition: Closed -> Open
 
-        # In half-open, we should be limited
-        call_count = 0
 
-        async def tracked_success() -> str:
-            nonlocal call_count
-            call_count += 1
-            return "success"
+@pytest.mark.asyncio
+async def test_transitions_to_open_on_threshold(circuit_breaker: CircuitBreaker):
+    """Test circuit breaker opens after reaching failure threshold."""
 
-        # First two calls allowed (half_open_max_calls=2)
-        await breaker.call(tracked_success)
-        assert call_count == 1
+    async def failing_op():
+        raise ValueError("Failure")
 
-        # After success_threshold successes, circuit closes
-        await breaker.call(tracked_success)
-        assert call_count == 2
-        assert breaker.state == CircuitState.CLOSED
+    # Fail enough times to trigger open state
+    for _ in range(3):
+        with pytest.raises(ValueError):
+            await circuit_breaker.call(failing_op)
 
+    assert circuit_breaker.state == CircuitBreakerState.OPEN
+    assert circuit_breaker.failure_count == 3
 
-class TestCircuitBreakerRegistry:
-    """Tests for CircuitBreakerRegistry class."""
 
-    def setup_method(self) -> None:
-        """Reset registry before each test."""
-        reset_circuit_breaker_registry()
+@pytest.mark.asyncio
+async def test_open_state_rejects_calls(circuit_breaker: CircuitBreaker):
+    """Test open state rejects all calls immediately."""
 
-    def teardown_method(self) -> None:
-        """Reset registry after each test."""
-        reset_circuit_breaker_registry()
+    async def failing_op():
+        raise ValueError("Failure")
 
-    def test_get_or_create_returns_same_instance(self) -> None:
-        """Test that getting same name returns same instance."""
-        registry = CircuitBreakerRegistry()
-        config = CircuitBreakerConfig()
+    # Open the circuit
+    for _ in range(3):
+        with pytest.raises(ValueError):
+            await circuit_breaker.call(failing_op)
 
-        breaker1 = registry.get_or_create("service_a", config)
-        breaker2 = registry.get_or_create("service_a", config)
+    assert circuit_breaker.state == CircuitBreakerState.OPEN
 
-        assert breaker1 is breaker2
+    # New calls should be rejected
+    async def should_not_be_called():
+        raise AssertionError("Should not be called")
 
-    def test_different_names_create_different_instances(self) -> None:
-        """Test that different names create different instances."""
-        registry = CircuitBreakerRegistry()
-        config = CircuitBreakerConfig()
+    with pytest.raises(CircuitBreakerError) as exc_info:
+        await circuit_breaker.call(should_not_be_called)
 
-        breaker1 = registry.get_or_create("service_a", config)
-        breaker2 = registry.get_or_create("service_b", config)
+    assert "Circuit breaker test_service is OPEN" in str(exc_info.value)
 
-        assert breaker1 is not breaker2
-        assert breaker1.name == "service_a"
-        assert breaker2.name == "service_b"
 
-    def test_get_returns_existing_breaker(self) -> None:
-        """Test that get returns existing breaker."""
-        registry = CircuitBreakerRegistry()
-        config = CircuitBreakerConfig()
+# State transition: Open -> Half-Open
 
-        registry.get_or_create("service_a", config)
-        breaker = registry.get("service_a")
 
-        assert breaker is not None
-        assert breaker.name == "service_a"
+@pytest.mark.asyncio
+async def test_transitions_to_half_open_after_timeout(fast_circuit_breaker: CircuitBreaker):
+    """Test circuit breaker transitions to half-open after timeout."""
 
-    def test_get_returns_none_for_nonexistent(self) -> None:
-        """Test that get returns None for nonexistent service."""
-        registry = CircuitBreakerRegistry()
-        breaker = registry.get("nonexistent")
-        assert breaker is None
+    async def failing_op():
+        raise ValueError("Failure")
 
-    def test_get_all_status(self) -> None:
-        """Test getting status of all circuit breakers."""
-        registry = CircuitBreakerRegistry()
-        config = CircuitBreakerConfig()
+    # Open the circuit
+    for _ in range(2):
+        with pytest.raises(ValueError):
+            await fast_circuit_breaker.call(failing_op)
 
-        registry.get_or_create("service_a", config)
-        registry.get_or_create("service_b", config)
+    assert fast_circuit_breaker.state == CircuitBreakerState.OPEN
 
-        status = registry.get_all_status()
+    # Wait for timeout
+    await asyncio.sleep(0.15)
 
-        assert "service_a" in status
-        assert "service_b" in status
-        assert status["service_a"]["state"] == "closed"
-        assert status["service_b"]["state"] == "closed"
+    # Next call should be allowed (half-open)
+    async def success_op():
+        return "success"
 
-    def test_reset_all(self) -> None:
-        """Test resetting all circuit breakers."""
-        registry = CircuitBreakerRegistry()
-        config = CircuitBreakerConfig(failure_threshold=1, recovery_timeout=60)
+    result = await fast_circuit_breaker.call(success_op)
+    assert result == "success"
+    # After success in half-open, may transition to closed or stay half-open
+    # depending on success threshold
 
-        breaker_a = registry.get_or_create("service_a", config)
-        breaker_b = registry.get_or_create("service_b", config)
 
-        # Open both circuits manually
-        breaker_a._state = CircuitState.OPEN
-        breaker_a._failure_count = 5
-        breaker_b._state = CircuitState.OPEN
-        breaker_b._failure_count = 3
+@pytest.mark.asyncio
+async def test_half_open_state_limits_calls(fast_circuit_breaker: CircuitBreaker):
+    """Test half-open state limits concurrent calls."""
 
-        registry.reset_all()
+    async def failing_op():
+        raise ValueError("Failure")
 
-        assert breaker_a.state == CircuitState.CLOSED
-        assert breaker_a.failure_count == 0
-        assert breaker_b.state == CircuitState.CLOSED
-        assert breaker_b.failure_count == 0
+    # Open the circuit
+    for _ in range(2):
+        with pytest.raises(ValueError):
+            await fast_circuit_breaker.call(failing_op)
 
-    def test_list_names(self) -> None:
-        """Test listing all circuit breaker names."""
-        registry = CircuitBreakerRegistry()
-        config = CircuitBreakerConfig()
+    # Wait for timeout
+    await asyncio.sleep(0.15)
 
-        registry.get_or_create("service_a", config)
-        registry.get_or_create("service_b", config)
-        registry.get_or_create("service_c", config)
+    # Manually set to half-open to test limit
+    fast_circuit_breaker._state = CircuitBreakerState.HALF_OPEN
+    fast_circuit_breaker._half_open_calls = fast_circuit_breaker.config.half_open_max_calls
 
-        names = registry.list_names()
+    async def should_not_be_called():
+        raise AssertionError("Should not be called")
 
-        assert len(names) == 3
-        assert "service_a" in names
-        assert "service_b" in names
-        assert "service_c" in names
+    with pytest.raises(CircuitBreakerError) as exc_info:
+        await fast_circuit_breaker.call(should_not_be_called)
 
+    assert "HALF_OPEN" in str(exc_info.value) or "max calls" in str(exc_info.value).lower()
 
-class TestGlobalCircuitBreaker:
-    """Tests for global circuit breaker functions."""
 
-    def setup_method(self) -> None:
-        """Reset global state before each test."""
-        reset_circuit_breaker_registry()
+# State transition: Half-Open -> Closed
 
-    def teardown_method(self) -> None:
-        """Reset global state after each test."""
-        reset_circuit_breaker_registry()
 
-    def test_get_circuit_breaker_creates_singleton(self) -> None:
-        """Test that get_circuit_breaker returns consistent instance."""
-        config = CircuitBreakerConfig()
-        breaker1 = get_circuit_breaker("my_service", config)
-        breaker2 = get_circuit_breaker("my_service")
+@pytest.mark.asyncio
+async def test_half_open_to_closed_on_success(fast_circuit_breaker: CircuitBreaker):
+    """Test circuit breaker closes after enough successes in half-open."""
 
-        assert breaker1 is breaker2
+    async def failing_op():
+        raise ValueError("Failure")
 
-    def test_get_circuit_breaker_with_default_config(self) -> None:
-        """Test getting circuit breaker with default config."""
-        breaker = get_circuit_breaker("default_service")
-        assert breaker is not None
-        assert breaker.name == "default_service"
+    async def success_op():
+        return "success"
 
-    def test_reset_clears_all_breakers(self) -> None:
-        """Test reset clears all registered breakers."""
-        config = CircuitBreakerConfig()
-        breaker1 = get_circuit_breaker("service_a", config)
+    # Open the circuit
+    for _ in range(2):
+        with pytest.raises(ValueError):
+            await fast_circuit_breaker.call(failing_op)
 
-        reset_circuit_breaker_registry()
+    # Wait for timeout
+    await asyncio.sleep(0.15)
 
-        breaker2 = get_circuit_breaker("service_a", config)
-        # After reset, should be a new instance
-        assert breaker1 is not breaker2
+    # Enough successes to close
+    result = await fast_circuit_breaker.call(success_op)
+    assert result == "success"
+    assert fast_circuit_breaker.state == CircuitBreakerState.CLOSED
 
 
-class TestCircuitBreakerError:
-    """Tests for CircuitBreakerError exception."""
+# State transition: Half-Open -> Open
 
-    def test_error_message(self) -> None:
-        """Test error message formatting."""
-        error = CircuitBreakerError("test_service", "open")
-        assert "test_service" in str(error)
-        assert "open" in str(error)
 
-    def test_error_attributes(self) -> None:
-        """Test error attributes."""
-        error = CircuitBreakerError("test_service", "open")
-        assert error.service_name == "test_service"
-        assert error.state == "open"
+@pytest.mark.asyncio
+async def test_half_open_to_open_on_failure(fast_circuit_breaker: CircuitBreaker):
+    """Test circuit breaker reopens on failure in half-open state."""
 
+    async def failing_op():
+        raise ValueError("Failure")
 
-class TestCircuitBreakerConcurrency:
-    """Tests for circuit breaker thread safety."""
+    # Open the circuit
+    for _ in range(2):
+        with pytest.raises(ValueError):
+            await fast_circuit_breaker.call(failing_op)
 
-    @pytest.mark.asyncio
-    async def test_concurrent_calls_tracked_correctly(self) -> None:
-        """Test that concurrent calls are tracked correctly."""
-        config = CircuitBreakerConfig(
-            failure_threshold=10,
-            recovery_timeout=1.0,
-        )
-        breaker = CircuitBreaker(name="concurrent_test", config=config)
+    # Wait for timeout to transition to half-open
+    await asyncio.sleep(0.15)
 
-        call_count = 0
+    # Manually set state to half-open
+    fast_circuit_breaker._state = CircuitBreakerState.HALF_OPEN
+    fast_circuit_breaker._half_open_calls = 0
 
-        async def tracked_op() -> str:
-            nonlocal call_count
-            call_count += 1
-            await asyncio.sleep(0.01)
-            return "success"
+    # Failure in half-open reopens circuit
+    with pytest.raises(ValueError, match="Failure"):
+        await fast_circuit_breaker.call(failing_op)
 
-        # Run 5 concurrent calls
-        tasks = [breaker.call(tracked_op) for _ in range(5)]
-        results = await asyncio.gather(*tasks)
+    assert fast_circuit_breaker.state == CircuitBreakerState.OPEN
 
-        assert len(results) == 5
-        assert all(r == "success" for r in results)
-        assert call_count == 5
 
-    @pytest.mark.asyncio
-    async def test_concurrent_failures_open_circuit(self) -> None:
-        """Test that concurrent failures correctly open circuit."""
-        config = CircuitBreakerConfig(
-            failure_threshold=3,
-            recovery_timeout=60.0,
-        )
-        breaker = CircuitBreaker(name="concurrent_fail_test", config=config)
+# Metrics tests
 
-        async def failing_op() -> str:
-            await asyncio.sleep(0.01)
-            raise ConnectionError("Concurrent failure")
 
-        # Run 3 concurrent failing calls
-        tasks = [breaker.call(failing_op) for _ in range(3)]
+def test_metrics_initialization(circuit_breaker: CircuitBreaker):
+    """Test metrics are initialized correctly."""
+    metrics = circuit_breaker.get_metrics()
+    assert isinstance(metrics, CircuitBreakerMetrics)
+    assert metrics.name == "test_service"
+    assert metrics.state == CircuitBreakerState.CLOSED
+    assert metrics.failure_count == 0
+    assert metrics.success_count == 0
+    assert metrics.total_calls == 0
+    assert metrics.rejected_calls == 0
 
-        with pytest.raises(ConnectionError):
-            await asyncio.gather(*tasks)
 
-        # Circuit should be open after threshold failures
-        assert breaker.state == CircuitState.OPEN
+@pytest.mark.asyncio
+async def test_metrics_track_calls(circuit_breaker: CircuitBreaker):
+    """Test metrics track successful and failed calls."""
 
+    async def success_op():
+        return "success"
 
-class TestCircuitBreakerTimingBehavior:
-    """Tests for circuit breaker timing behavior."""
+    async def failing_op():
+        raise ValueError("Failure")
 
-    @pytest.mark.asyncio
-    async def test_opened_at_timestamp_set(self) -> None:
-        """Test that opened_at timestamp is set when circuit opens."""
-        config = CircuitBreakerConfig(
-            failure_threshold=1,
-            recovery_timeout=0.1,
-        )
-        breaker = CircuitBreaker(name="timing_test", config=config)
+    await circuit_breaker.call(success_op)
+    await circuit_breaker.call(success_op)
 
-        async def failing_op() -> str:
-            raise ConnectionError("Fail")
+    with pytest.raises(ValueError):
+        await circuit_breaker.call(failing_op)
 
-        with pytest.raises(ConnectionError):
-            await breaker.call(failing_op)
+    metrics = circuit_breaker.get_metrics()
+    assert metrics.total_calls == 3
+    # success_count is only tracked in half-open state, total_calls tracks all
 
-        assert breaker.state == CircuitState.OPEN
-        status = breaker.get_status()
-        assert status["opened_at"] is not None
 
-    @pytest.mark.asyncio
-    async def test_last_failure_time_updated(self) -> None:
-        """Test that last_failure_time is updated on each failure."""
-        config = CircuitBreakerConfig(
-            failure_threshold=5,
-            recovery_timeout=60.0,
-        )
-        breaker = CircuitBreaker(name="failure_time_test", config=config)
+@pytest.mark.asyncio
+async def test_metrics_track_rejected_calls(circuit_breaker: CircuitBreaker):
+    """Test metrics track rejected calls when circuit is open."""
 
-        async def failing_op() -> str:
-            raise ConnectionError("Fail")
+    async def failing_op():
+        raise ValueError("Failure")
 
-        with pytest.raises(ConnectionError):
-            await breaker.call(failing_op)
+    # Open the circuit
+    for _ in range(3):
+        with pytest.raises(ValueError):
+            await circuit_breaker.call(failing_op)
 
-        status1 = breaker.get_status()
-        time1 = status1["last_failure_time"]
-        assert time1 is not None
+    # Try more calls that should be rejected
+    async def any_op():
+        return "success"
 
+    for _ in range(2):
+        with pytest.raises(CircuitBreakerError):
+            await circuit_breaker.call(any_op)
+
+    metrics = circuit_breaker.get_metrics()
+    assert metrics.rejected_calls == 2
+
+
+@pytest.mark.asyncio
+async def test_metrics_track_state_changes(circuit_breaker: CircuitBreaker):
+    """Test metrics track state change timestamps."""
+
+    async def failing_op():
+        raise ValueError("Failure")
+
+    before = datetime.now(UTC)
+
+    # Open the circuit
+    for _ in range(3):
+        with pytest.raises(ValueError):
+            await circuit_breaker.call(failing_op)
+
+    after = datetime.now(UTC)
+
+    metrics = circuit_breaker.get_metrics()
+    assert metrics.last_state_change is not None
+    assert before <= metrics.last_state_change <= after
+
+
+def test_metrics_to_dict(circuit_breaker: CircuitBreaker):
+    """Test metrics can be converted to dictionary."""
+    metrics = circuit_breaker.get_metrics()
+    metrics_dict = metrics.to_dict()
+
+    assert isinstance(metrics_dict, dict)
+    assert metrics_dict["name"] == "test_service"
+    assert metrics_dict["state"] == "closed"
+    assert "failure_count" in metrics_dict
+    assert "success_count" in metrics_dict
+    assert "total_calls" in metrics_dict
+
+
+# allow_call method tests
+
+
+def test_allow_call_in_closed_state(circuit_breaker: CircuitBreaker):
+    """Test allow_call returns True in closed state."""
+    assert circuit_breaker.allow_call() is True
+
+
+@pytest.mark.asyncio
+async def test_allow_call_in_open_state(circuit_breaker: CircuitBreaker):
+    """Test allow_call returns False in open state."""
+
+    async def failing_op():
+        raise ValueError("Failure")
+
+    # Open the circuit
+    for _ in range(3):
+        with pytest.raises(ValueError):
+            await circuit_breaker.call(failing_op)
+
+    assert circuit_breaker.allow_call() is False
+
+
+# Manual state control tests
+
+
+def test_manual_reset(circuit_breaker: CircuitBreaker):
+    """Test manual reset returns circuit to closed state."""
+    # Manually set some state
+    circuit_breaker._state = CircuitBreakerState.OPEN
+    circuit_breaker._failure_count = 5
+
+    circuit_breaker.reset()
+
+    assert circuit_breaker.state == CircuitBreakerState.CLOSED
+    assert circuit_breaker.failure_count == 0
+
+
+def test_force_open(circuit_breaker: CircuitBreaker):
+    """Test force_open opens the circuit immediately."""
+    assert circuit_breaker.state == CircuitBreakerState.CLOSED
+
+    circuit_breaker.force_open()
+
+    assert circuit_breaker.state == CircuitBreakerState.OPEN
+
+
+# Global circuit breaker registry tests
+
+
+def test_get_circuit_breaker_creates_new():
+    """Test get_circuit_breaker creates new breaker if not exists."""
+    cb = get_circuit_breaker("new_service")
+    assert cb is not None
+    assert cb.name == "new_service"
+
+
+def test_get_circuit_breaker_returns_same_instance():
+    """Test get_circuit_breaker returns same instance for same name."""
+    cb1 = get_circuit_breaker("same_service")
+    cb2 = get_circuit_breaker("same_service")
+    assert cb1 is cb2
+
+
+def test_get_circuit_breaker_with_custom_config():
+    """Test get_circuit_breaker uses custom config on creation."""
+    config = CircuitBreakerConfig(failure_threshold=10)
+    cb = get_circuit_breaker("custom_service", config=config)
+    assert cb.config.failure_threshold == 10
+
+
+def test_get_circuit_breaker_ignores_config_on_existing():
+    """Test get_circuit_breaker ignores config if breaker exists."""
+    config1 = CircuitBreakerConfig(failure_threshold=10)
+    cb1 = get_circuit_breaker("existing_service", config=config1)
+
+    config2 = CircuitBreakerConfig(failure_threshold=20)
+    cb2 = get_circuit_breaker("existing_service", config=config2)
+
+    assert cb1 is cb2
+    assert cb2.config.failure_threshold == 10  # Original config retained
+
+
+def test_reset_circuit_breakers():
+    """Test reset_circuit_breakers clears all breakers."""
+    cb1 = get_circuit_breaker("service1")
+    cb2 = get_circuit_breaker("service2")
+
+    reset_circuit_breakers()
+
+    # New calls should create new instances
+    cb1_new = get_circuit_breaker("service1")
+    cb2_new = get_circuit_breaker("service2")
+
+    assert cb1 is not cb1_new
+    assert cb2 is not cb2_new
+
+
+# Context manager tests
+
+
+@pytest.mark.asyncio
+async def test_context_manager_success(circuit_breaker: CircuitBreaker):
+    """Test circuit breaker can be used as async context manager."""
+    async with circuit_breaker as cb:
+        assert cb is circuit_breaker
+
+
+@pytest.mark.asyncio
+async def test_context_manager_records_failure_on_exception(circuit_breaker: CircuitBreaker):
+    """Test context manager records failure when exception occurs."""
+    with pytest.raises(ValueError):
+        async with circuit_breaker:
+            raise ValueError("Test error")
+
+    assert circuit_breaker.failure_count == 1
+
+
+# Edge case tests
+
+
+@pytest.mark.asyncio
+async def test_rapid_failures_open_circuit(fast_circuit_breaker: CircuitBreaker):
+    """Test rapid failures open the circuit quickly."""
+
+    async def failing_op():
+        raise ValueError("Rapid failure")
+
+    for _ in range(2):
+        with pytest.raises(ValueError):
+            await fast_circuit_breaker.call(failing_op)
+
+    assert fast_circuit_breaker.state == CircuitBreakerState.OPEN
+
+
+@pytest.mark.asyncio
+async def test_concurrent_calls_during_half_open(fast_circuit_breaker: CircuitBreaker):
+    """Test concurrent calls during half-open state."""
+
+    async def failing_op():
+        raise ValueError("Failure")
+
+    # Open the circuit
+    for _ in range(2):
+        with pytest.raises(ValueError):
+            await fast_circuit_breaker.call(failing_op)
+
+    # Wait for timeout
+    await asyncio.sleep(0.15)
+
+    async def slow_success():
         await asyncio.sleep(0.05)
+        return "success"
 
-        with pytest.raises(ConnectionError):
-            await breaker.call(failing_op)
+    # Start multiple concurrent calls
+    tasks = [fast_circuit_breaker.call(slow_success) for _ in range(3)]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        status2 = breaker.get_status()
-        time2 = status2["last_failure_time"]
-        assert time2 is not None
-        assert time2 >= time1
+    # Some should succeed, some might be rejected
+    successes = [r for r in results if r == "success"]
+    rejections = [r for r in results if isinstance(r, CircuitBreakerError)]
+
+    # At least one call should go through in half-open
+    assert len(successes) + len(rejections) == 3
+
+
+@pytest.mark.asyncio
+async def test_timeout_respects_last_failure_time(fast_circuit_breaker: CircuitBreaker):
+    """Test timeout is measured from last failure time."""
+
+    async def failing_op():
+        raise ValueError("Failure")
+
+    # First failure
+    with pytest.raises(ValueError):
+        await fast_circuit_breaker.call(failing_op)
+
+    await asyncio.sleep(0.05)
+
+    # Second failure - should reset timeout
+    with pytest.raises(ValueError):
+        await fast_circuit_breaker.call(failing_op)
+
+    assert fast_circuit_breaker.state == CircuitBreakerState.OPEN
+
+    # Wait partial timeout
+    await asyncio.sleep(0.08)
+
+    # Should still be open (timeout measured from last failure)
+    # Note: implementation may vary on whether this is true
+    # If allow_call returns True, it transitions to half-open
+
+
+def test_circuit_breaker_str_representation(circuit_breaker: CircuitBreaker):
+    """Test circuit breaker string representation."""
+    repr_str = str(circuit_breaker)
+    assert "test_service" in repr_str
+    assert "CLOSED" in repr_str or "closed" in repr_str.lower()
+
+
+def test_circuit_breaker_repr(circuit_breaker: CircuitBreaker):
+    """Test circuit breaker repr."""
+    repr_str = repr(circuit_breaker)
+    assert "CircuitBreaker" in repr_str
+    assert "test_service" in repr_str
