@@ -4,7 +4,11 @@ Tests cover:
 - /metrics endpoint returning valid Prometheus format
 - Core metrics registration and exposure
 - Metric value updates via helper functions
+- Pipeline latency tracking with percentiles
 """
+
+import time
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi import FastAPI
@@ -18,12 +22,15 @@ from backend.core.metrics import (
     EVENTS_CREATED_TOTAL,
     PIPELINE_ERRORS_TOTAL,
     STAGE_DURATION_SECONDS,
+    PipelineLatencyTracker,
     get_metrics_response,
+    get_pipeline_latency_tracker,
     observe_ai_request_duration,
     observe_stage_duration,
     record_detection_processed,
     record_event_created,
     record_pipeline_error,
+    record_pipeline_stage_latency,
     set_queue_depth,
 )
 
@@ -184,3 +191,266 @@ class TestMetricsAPIEndpoint:
 
         assert "hsi_detection_queue_depth" in content
         assert "hsi_events_created_total" in content
+
+
+class TestPipelineLatencyTracker:
+    """Test PipelineLatencyTracker class for pipeline observability."""
+
+    def test_valid_stages(self) -> None:
+        """Tracker should define expected pipeline stages."""
+        tracker = PipelineLatencyTracker()
+        assert "watch_to_detect" in tracker.STAGES
+        assert "detect_to_batch" in tracker.STAGES
+        assert "batch_to_analyze" in tracker.STAGES
+        assert "total_pipeline" in tracker.STAGES
+        assert len(tracker.STAGES) == 4
+
+    def test_record_stage_latency_valid_stage(self) -> None:
+        """Recording latency for valid stage should succeed."""
+        tracker = PipelineLatencyTracker()
+        tracker.record_stage_latency("watch_to_detect", 100.5)
+        # Should not raise, sample should be recorded
+        stats = tracker.get_stage_stats("watch_to_detect")
+        assert stats["sample_count"] == 1
+        assert stats["avg_ms"] == 100.5
+
+    def test_record_stage_latency_invalid_stage(self) -> None:
+        """Recording latency for invalid stage should be ignored."""
+        tracker = PipelineLatencyTracker()
+        tracker.record_stage_latency("invalid_stage", 100.5)
+        # Invalid stage returns empty stats
+        stats = tracker.get_stage_stats("invalid_stage")
+        assert stats["sample_count"] == 0
+
+    def test_get_stage_stats_empty(self) -> None:
+        """Getting stats for empty stage should return None values."""
+        tracker = PipelineLatencyTracker()
+        stats = tracker.get_stage_stats("watch_to_detect")
+        assert stats["avg_ms"] is None
+        assert stats["min_ms"] is None
+        assert stats["max_ms"] is None
+        assert stats["p50_ms"] is None
+        assert stats["p95_ms"] is None
+        assert stats["p99_ms"] is None
+        assert stats["sample_count"] == 0
+
+    def test_get_stage_stats_single_sample(self) -> None:
+        """Getting stats with single sample should work."""
+        tracker = PipelineLatencyTracker()
+        tracker.record_stage_latency("detect_to_batch", 150.0)
+        stats = tracker.get_stage_stats("detect_to_batch")
+        assert stats["avg_ms"] == 150.0
+        assert stats["min_ms"] == 150.0
+        assert stats["max_ms"] == 150.0
+        assert stats["p50_ms"] == 150.0
+        assert stats["p95_ms"] == 150.0
+        assert stats["p99_ms"] == 150.0
+        assert stats["sample_count"] == 1
+
+    def test_get_stage_stats_multiple_samples(self) -> None:
+        """Getting stats with multiple samples should calculate correctly."""
+        tracker = PipelineLatencyTracker()
+        # Add samples: 100, 200, 300, 400, 500
+        for latency in [100, 200, 300, 400, 500]:
+            tracker.record_stage_latency("batch_to_analyze", float(latency))
+
+        stats = tracker.get_stage_stats("batch_to_analyze")
+        assert stats["avg_ms"] == 300.0
+        assert stats["min_ms"] == 100.0
+        assert stats["max_ms"] == 500.0
+        assert stats["sample_count"] == 5
+
+    def test_percentile_calculation(self) -> None:
+        """Percentile calculations should be accurate."""
+        tracker = PipelineLatencyTracker()
+        # Add 100 samples: 1, 2, 3, ..., 100
+        for i in range(1, 101):
+            tracker.record_stage_latency("total_pipeline", float(i))
+
+        stats = tracker.get_stage_stats("total_pipeline")
+        # p50 should be around 50
+        assert 49 <= stats["p50_ms"] <= 51
+        # p95 should be around 95
+        assert 94 <= stats["p95_ms"] <= 96
+        # p99 should be around 99
+        assert 98 <= stats["p99_ms"] <= 100
+        assert stats["sample_count"] == 100
+
+    def test_circular_buffer_max_samples(self) -> None:
+        """Tracker should respect max_samples limit."""
+        max_samples = 10
+        tracker = PipelineLatencyTracker(max_samples=max_samples)
+
+        # Add 20 samples, should only keep last 10
+        for i in range(20):
+            tracker.record_stage_latency("watch_to_detect", float(i))
+
+        stats = tracker.get_stage_stats("watch_to_detect")
+        assert stats["sample_count"] == max_samples
+        # Last 10 samples are 10-19, min should be 10, max should be 19
+        assert stats["min_ms"] == 10.0
+        assert stats["max_ms"] == 19.0
+
+    def test_window_minutes_filter(self) -> None:
+        """Samples should be filtered by time window."""
+        tracker = PipelineLatencyTracker()
+
+        # Mock time to control timestamps
+        mock_time = MagicMock()
+        current_time = time.time()
+        tracker._time = mock_time
+
+        # Add old sample (70 minutes ago)
+        mock_time.time.return_value = current_time - (70 * 60)
+        tracker.record_stage_latency("detect_to_batch", 1000.0)
+
+        # Add recent sample (5 minutes ago)
+        mock_time.time.return_value = current_time - (5 * 60)
+        tracker.record_stage_latency("detect_to_batch", 500.0)
+
+        # Query with current time
+        mock_time.time.return_value = current_time
+
+        # Default 60-minute window should only include recent sample
+        stats = tracker.get_stage_stats("detect_to_batch", window_minutes=60)
+        assert stats["sample_count"] == 1
+        assert stats["avg_ms"] == 500.0
+
+        # 120-minute window should include both samples
+        stats_long = tracker.get_stage_stats("detect_to_batch", window_minutes=120)
+        assert stats_long["sample_count"] == 2
+        assert stats_long["avg_ms"] == 750.0
+
+    def test_get_pipeline_summary(self) -> None:
+        """get_pipeline_summary should return stats for all stages."""
+        tracker = PipelineLatencyTracker()
+        tracker.record_stage_latency("watch_to_detect", 50.0)
+        tracker.record_stage_latency("detect_to_batch", 100.0)
+        tracker.record_stage_latency("batch_to_analyze", 5000.0)
+        tracker.record_stage_latency("total_pipeline", 10000.0)
+
+        summary = tracker.get_pipeline_summary()
+
+        assert "watch_to_detect" in summary
+        assert "detect_to_batch" in summary
+        assert "batch_to_analyze" in summary
+        assert "total_pipeline" in summary
+
+        assert summary["watch_to_detect"]["avg_ms"] == 50.0
+        assert summary["detect_to_batch"]["avg_ms"] == 100.0
+        assert summary["batch_to_analyze"]["avg_ms"] == 5000.0
+        assert summary["total_pipeline"]["avg_ms"] == 10000.0
+
+    def test_thread_safety(self) -> None:
+        """Tracker should be thread-safe for concurrent access."""
+        import threading
+
+        tracker = PipelineLatencyTracker()
+        results: list[Exception | None] = []
+
+        def record_samples() -> None:
+            try:
+                for _ in range(100):
+                    tracker.record_stage_latency("watch_to_detect", 100.0)
+            except Exception as e:
+                results.append(e)
+            else:
+                results.append(None)
+
+        threads = [threading.Thread(target=record_samples) for _ in range(5)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        # All threads should complete without exception
+        assert all(r is None for r in results)
+        # Should have 500 samples (5 threads * 100 samples)
+        stats = tracker.get_stage_stats("watch_to_detect")
+        assert stats["sample_count"] == 500
+
+
+class TestPipelineLatencyGlobalFunctions:
+    """Test global helper functions for pipeline latency tracking."""
+
+    def test_get_pipeline_latency_tracker_returns_singleton(self) -> None:
+        """get_pipeline_latency_tracker should return the same instance."""
+        tracker1 = get_pipeline_latency_tracker()
+        tracker2 = get_pipeline_latency_tracker()
+        assert tracker1 is tracker2
+
+    def test_record_pipeline_stage_latency(self) -> None:
+        """record_pipeline_stage_latency should record to global tracker."""
+        # Record a unique value to verify
+        unique_value = float(int(time.time() * 1000) % 100000)
+        record_pipeline_stage_latency("total_pipeline", unique_value)
+
+        tracker = get_pipeline_latency_tracker()
+        stats = tracker.get_stage_stats("total_pipeline", window_minutes=1)
+        # Should find our value in recent samples
+        assert stats["sample_count"] >= 1
+
+
+class TestPipelineLatencyAPIEndpoint:
+    """Test the /api/system/pipeline-latency HTTP endpoint."""
+
+    @pytest.fixture
+    def client(self) -> TestClient:
+        """Create test client with system router."""
+        from backend.api.routes.system import router
+
+        app = FastAPI()
+        app.include_router(router)
+        return TestClient(app)
+
+    def test_pipeline_latency_endpoint_returns_200(self, client: TestClient) -> None:
+        """GET /api/system/pipeline-latency should return 200 status."""
+        response = client.get("/api/system/pipeline-latency")
+        assert response.status_code == 200
+
+    def test_pipeline_latency_endpoint_structure(self, client: TestClient) -> None:
+        """Response should have expected structure."""
+        response = client.get("/api/system/pipeline-latency")
+        data = response.json()
+
+        # Check top-level fields
+        assert "watch_to_detect" in data
+        assert "detect_to_batch" in data
+        assert "batch_to_analyze" in data
+        assert "total_pipeline" in data
+        assert "window_minutes" in data
+        assert "timestamp" in data
+
+    def test_pipeline_latency_endpoint_default_window(self, client: TestClient) -> None:
+        """Default window should be 60 minutes."""
+        response = client.get("/api/system/pipeline-latency")
+        data = response.json()
+        assert data["window_minutes"] == 60
+
+    def test_pipeline_latency_endpoint_custom_window(self, client: TestClient) -> None:
+        """Custom window_minutes parameter should be honored."""
+        response = client.get("/api/system/pipeline-latency?window_minutes=30")
+        data = response.json()
+        assert data["window_minutes"] == 30
+
+    def test_pipeline_latency_endpoint_with_samples(self, client: TestClient) -> None:
+        """Endpoint should return stats when samples are present."""
+        # Record some samples
+        tracker = get_pipeline_latency_tracker()
+        tracker.record_stage_latency("watch_to_detect", 50.0)
+        tracker.record_stage_latency("watch_to_detect", 100.0)
+        tracker.record_stage_latency("watch_to_detect", 150.0)
+
+        response = client.get("/api/system/pipeline-latency")
+        data = response.json()
+
+        # watch_to_detect should have stats
+        stage_stats = data["watch_to_detect"]
+        assert stage_stats is not None
+        assert stage_stats["sample_count"] >= 3
+        assert stage_stats["avg_ms"] is not None
+        assert stage_stats["min_ms"] is not None
+        assert stage_stats["max_ms"] is not None
+        assert stage_stats["p50_ms"] is not None
+        assert stage_stats["p95_ms"] is not None
+        assert stage_stats["p99_ms"] is not None

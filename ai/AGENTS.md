@@ -11,14 +11,17 @@ ai/
 ├── AGENTS.md              # This file - AI pipeline overview
 ├── rtdetr/                # RT-DETRv2 object detection server
 │   ├── AGENTS.md          # RT-DETRv2 documentation
-│   ├── model.py           # FastAPI inference server
+│   ├── __init__.py        # Package init (version 1.0.0)
+│   ├── model.py           # FastAPI inference server (HuggingFace Transformers)
 │   ├── example_client.py  # Python client example
-│   ├── test_model.py      # Unit tests
+│   ├── test_model.py      # Unit tests (pytest)
 │   ├── requirements.txt   # Python dependencies
-│   └── README.md          # Usage documentation
+│   ├── README.md          # Usage documentation
+│   └── .gitkeep           # Git placeholder
 ├── nemotron/              # Nemotron LLM model files and config
 │   ├── AGENTS.md          # Nemotron documentation
 │   ├── config.json        # llama.cpp server config reference
+│   ├── .gitkeep           # Git placeholder
 │   └── *.gguf             # Model file (downloaded, not in git)
 ├── download_models.sh     # Download AI models script
 ├── start_detector.sh      # Start RT-DETRv2 server
@@ -46,10 +49,12 @@ Downloads or locates required AI models:
 Starts the RT-DETRv2 object detection server:
 
 - **Port**: 8090 (configurable via `RTDETR_PORT`)
-- **VRAM**: ~4GB (uses HuggingFace Transformers)
+- **VRAM**: ~3GB (uses HuggingFace Transformers)
 - **Purpose**: Detects security-relevant objects in camera images
-- Runs `python ai/rtdetr/model.py`
-- **Environment**: `MODEL_PATH` for ONNX model path (legacy), `RTDETR_MODEL_PATH` for HuggingFace model
+- Runs `python model.py` from `ai/rtdetr/`
+- **Environment Variables**:
+  - `MODEL_PATH`: ONNX model path (legacy)
+  - `RTDETR_MODEL_PATH`: HuggingFace model path (default: `/export/ai_models/rt-detrv2/rtdetr_v2_r101vd`)
 
 ### `start_llm.sh`
 
@@ -61,6 +66,7 @@ Simple startup script for Nemotron LLM server via llama.cpp:
 - **Parallelism**: 2 concurrent requests
 - **GPU layers**: 99 (all layers on GPU)
 - Uses `llama-server` command from llama.cpp
+- **Model**: `ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf`
 
 ### `start_nemotron.sh`
 
@@ -73,7 +79,7 @@ Advanced startup script with auto-recovery support:
 - **GPU layers**: 45 (configurable via `NEMOTRON_GPU_LAYERS`)
 - **Startup timeout**: 90 seconds (for large model loading)
 - **Log file**: `/tmp/nemotron.log`
-- Features:
+- **Features**:
   - Multiple model path search locations
   - Multiple llama-server binary search locations
   - Health check before starting (skips if already running)
@@ -91,7 +97,7 @@ Advanced startup script with auto-recovery support:
 │  │  RT-DETRv2       │         │  Nemotron LLM    │         │
 │  │  Detection       │         │  Reasoning       │         │
 │  │  Port: 8090      │         │  Port: 8091      │         │
-│  │  VRAM: ~4GB      │         │  VRAM: ~3-16GB   │         │
+│  │  VRAM: ~3GB      │         │  VRAM: ~3-16GB   │         │
 │  │  HuggingFace     │         │  llama.cpp       │         │
 │  └──────────────────┘         └──────────────────┘         │
 │         ▲                             ▲                     │
@@ -179,10 +185,10 @@ Server runs at: `http://localhost:8090`
 ### 3. Start LLM Server
 
 ```bash
-# Simple startup
+# Simple startup (Nemotron Mini 4B)
 ./ai/start_llm.sh
 
-# Or advanced startup with auto-recovery
+# Or advanced startup with auto-recovery (Nemotron 30B)
 ./ai/start_nemotron.sh
 ```
 
@@ -194,8 +200,8 @@ Server runs at: `http://localhost:8091`
 
 - **GPU**: NVIDIA RTX A5500 (24GB VRAM) or similar
 - **CUDA**: Required for GPU acceleration
-- **Total VRAM Usage**: ~7-20GB depending on model configuration
-  - RT-DETRv2: ~4GB
+- **Total VRAM Usage**: ~6-19GB depending on model configuration
+  - RT-DETRv2: ~3GB
   - Nemotron Mini 4B: ~3GB
   - Nemotron 30B A3B: ~16GB
 - **Inference Performance**:

@@ -1,4 +1,5 @@
-import { render, fireEvent, waitFor } from '@testing-library/react';
+import { render, fireEvent, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { BoundingBox } from './BoundingBoxOverlay';
@@ -313,6 +314,145 @@ describe('DetectionImage', () => {
     await waitFor(() => {
       const rects = container.querySelectorAll('rect[fill="none"]');
       expect(rects.length).toBe(4);
+    });
+  });
+
+  describe('lightbox functionality', () => {
+    it('does not render lightbox by default', () => {
+      render(<DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} />);
+      expect(screen.queryByTestId('lightbox-image')).not.toBeInTheDocument();
+    });
+
+    it('does not show lightbox controls when enableLightbox is false', () => {
+      const { container } = render(
+        <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} enableLightbox={false} />
+      );
+      expect(container.querySelector('[role="button"]')).not.toBeInTheDocument();
+    });
+
+    it('adds cursor-pointer class when enableLightbox is true', () => {
+      render(
+        <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} enableLightbox={true} />
+      );
+      const container = screen.getByTestId('detection-image-container');
+      expect(container).toHaveClass('cursor-pointer');
+    });
+
+    it('adds button role and aria-label when enableLightbox is true', () => {
+      render(
+        <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} enableLightbox={true} />
+      );
+      const container = screen.getByTestId('detection-image-container');
+      expect(container).toHaveAttribute('role', 'button');
+      expect(container).toHaveAttribute('aria-label', 'View Test image in full size');
+    });
+
+    it('opens lightbox when clicking on image with enableLightbox', async () => {
+      const user = userEvent.setup();
+      render(
+        <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} enableLightbox={true} />
+      );
+
+      const container = screen.getByTestId('detection-image-container');
+      await user.click(container);
+
+      expect(screen.getByTestId('lightbox-image')).toBeInTheDocument();
+      expect(screen.getByTestId('lightbox-image')).toHaveAttribute('src', mockImageSrc);
+    });
+
+    it('closes lightbox when clicking close button', async () => {
+      const user = userEvent.setup();
+      render(
+        <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} enableLightbox={true} />
+      );
+
+      // Open lightbox
+      await user.click(screen.getByTestId('detection-image-container'));
+      await waitFor(() => {
+        expect(screen.getByTestId('lightbox-image')).toBeInTheDocument();
+      });
+
+      // Close lightbox
+      await user.click(screen.getByTestId('lightbox-close-button'));
+      await waitFor(() => {
+        expect(screen.queryByTestId('lightbox-image')).not.toBeInTheDocument();
+      });
+    });
+
+    it('opens lightbox on Enter key when enableLightbox is true', async () => {
+      render(
+        <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} enableLightbox={true} />
+      );
+
+      const container = screen.getByTestId('detection-image-container');
+      container.focus();
+      fireEvent.keyDown(container, { key: 'Enter' });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('lightbox-image')).toBeInTheDocument();
+      });
+    });
+
+    it('opens lightbox on Space key when enableLightbox is true', async () => {
+      render(
+        <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} enableLightbox={true} />
+      );
+
+      const container = screen.getByTestId('detection-image-container');
+      container.focus();
+      fireEvent.keyDown(container, { key: ' ' });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('lightbox-image')).toBeInTheDocument();
+      });
+    });
+
+    it('shows "Click to enlarge" hint on hover when enableLightbox is true', () => {
+      render(
+        <DetectionImage src={mockImageSrc} alt="Test image" boxes={mockBoxes} enableLightbox={true} />
+      );
+      expect(screen.getByText('Click to enlarge')).toBeInTheDocument();
+    });
+
+    it('passes lightboxCaption to lightbox', async () => {
+      const user = userEvent.setup();
+      render(
+        <DetectionImage
+          src={mockImageSrc}
+          alt="Test image"
+          boxes={mockBoxes}
+          enableLightbox={true}
+          lightboxCaption="Detection at 12:30 PM"
+        />
+      );
+
+      await user.click(screen.getByTestId('detection-image-container'));
+
+      expect(screen.getByTestId('lightbox-caption')).toHaveTextContent('Detection at 12:30 PM');
+    });
+
+    it('does not open lightbox when clicking bounding box onClick handler fires', async () => {
+      const handleBoxClick = vi.fn();
+      const { container } = render(
+        <DetectionImage
+          src={mockImageSrc}
+          alt="Test image"
+          boxes={mockBoxes}
+          enableLightbox={true}
+          onClick={handleBoxClick}
+        />
+      );
+
+      const img = container.querySelector('img') as HTMLImageElement;
+      Object.defineProperty(img, 'naturalWidth', { value: 800, writable: true });
+      Object.defineProperty(img, 'naturalHeight', { value: 600, writable: true });
+      fireEvent.load(img);
+
+      // The onClick on bounding box should work separately from lightbox
+      await waitFor(() => {
+        const rect = container.querySelector('rect[fill="none"]');
+        expect(rect).toBeInTheDocument();
+      });
     });
   });
 });

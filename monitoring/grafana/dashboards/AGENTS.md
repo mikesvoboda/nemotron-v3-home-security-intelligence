@@ -4,6 +4,14 @@
 
 This directory contains Grafana dashboard JSON definitions that are automatically provisioned when Grafana starts. Dashboards visualize the Home Security Intelligence system's health, performance, and AI pipeline metrics.
 
+## Directory Contents
+
+```
+dashboards/
+  AGENTS.md       # This file
+  pipeline.json   # Main AI pipeline monitoring dashboard
+```
+
 ## Key Files
 
 ### pipeline.json
@@ -12,7 +20,7 @@ This directory contains Grafana dashboard JSON definitions that are automaticall
 
 **Dashboard UID:** `hsi-pipeline`
 
-**Sections and Panels:**
+**Panels by Section:**
 
 | Row                | Panel            | Type       | Data Source | Endpoint                 |
 | ------------------ | ---------------- | ---------- | ----------- | ------------------------ |
@@ -38,13 +46,11 @@ This directory contains Grafana dashboard JSON definitions that are automaticall
 | Service Health     | AI Services      | stat       | Backend-API | /api/system/health       |
 | Service Health     | Readiness        | stat       | Backend-API | /api/system/health/ready |
 
-**Key Metrics Visualized:**
+**Dashboard Settings:**
 
-- **System Health:** Overall status (healthy/degraded/unhealthy)
-- **Queue Depths:** Detection queue (images waiting), Analysis queue (batches waiting)
-- **Latencies:** P50, P95, P99 for Watch, Detect, Batch, Analyze stages
-- **GPU:** Utilization %, temperature, VRAM usage, inference FPS
-- **Service Status:** Database, Redis, AI services health
+- Auto-refresh: 10 seconds
+- Default time range: Last 1 hour
+- Timezone: Browser
 
 ## Dashboard Structure
 
@@ -109,14 +115,6 @@ Grafana uses a 24-column grid:
 4. Copy JSON content
 5. Save to file in this directory
 
-### Best Practices
-
-- Use unique `uid` for each dashboard
-- Keep panel `id` values unique within dashboard
-- Use descriptive titles
-- Set appropriate refresh intervals (10s-60s for live data)
-- Include threshold colors for status indicators
-
 ## Modifying Existing Dashboards
 
 ### Adding a Panel
@@ -128,8 +126,6 @@ Grafana uses a 24-column grid:
 5. Adjust `fieldConfig` for display
 
 ### Changing Thresholds
-
-Locate and modify the `thresholds` section:
 
 ```json
 "thresholds": {
@@ -143,8 +139,6 @@ Locate and modify the `thresholds` section:
 ```
 
 ### Updating JSONPath Queries
-
-For Backend-API datasource panels:
 
 ```json
 "fields": [
@@ -161,19 +155,19 @@ For Backend-API datasource panels:
 
 1. Validate JSON syntax: `jq . pipeline.json`
 2. Check for duplicate UIDs
-3. Verify provisioning config in `../provisioning/dashboards/dashboard.yml`
+3. Verify provisioning config: `../provisioning/dashboards/dashboard.yml`
 4. Check Grafana logs: `docker compose logs grafana`
 
 ### Panel Shows Error
 
 1. Check datasource UID matches `Backend-API` or `Prometheus`
 2. Verify JSONPath matches API response structure
-3. Test endpoint directly: `curl http://localhost:8000/api/system/health`
+3. Test endpoint: `curl http://localhost:8000/api/system/health`
 
 ### No Data Displayed
 
 1. Verify backend API is running
-2. Check network connectivity between Grafana and backend containers
+2. Check network connectivity between containers
 3. Ensure API returns non-null values
 
 ## Related Files

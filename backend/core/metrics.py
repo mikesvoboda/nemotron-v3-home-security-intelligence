@@ -210,3 +210,185 @@ def get_metrics_response() -> bytes:
         Bytes containing the metrics in Prometheus exposition format
     """
     return generate_latest(_registry)  # type: ignore[no-any-return]
+
+
+# =============================================================================
+# Pipeline Latency Tracker
+# =============================================================================
+
+
+class PipelineLatencyTracker:
+    """Track and analyze latency for AI pipeline stages.
+
+    This class provides in-memory circular buffer storage for pipeline
+    latency measurements with statistical analysis capabilities.
+
+    Pipeline stages tracked:
+    - watch_to_detect: Time from file detection to RT-DETR processing
+    - detect_to_batch: Time from detection to batch aggregation
+    - batch_to_analyze: Time from batch to Nemotron analysis
+    - total_pipeline: End-to-end latency
+
+    Usage:
+        tracker = PipelineLatencyTracker(max_samples=1000)
+        tracker.record_stage_latency("watch_to_detect", 150.5)
+        stats = tracker.get_stage_stats("watch_to_detect", window_minutes=5)
+        summary = tracker.get_pipeline_summary()
+    """
+
+    # Valid pipeline stage names
+    STAGES = ("watch_to_detect", "detect_to_batch", "batch_to_analyze", "total_pipeline")
+
+    def __init__(self, max_samples: int = 1000) -> None:
+        """Initialize the latency tracker.
+
+        Args:
+            max_samples: Maximum samples to keep per stage (circular buffer size)
+        """
+        import time
+        from collections import deque
+        from threading import Lock
+
+        self._max_samples = max_samples
+        self._lock = Lock()
+        # Each stage has a deque of (timestamp, latency_ms) tuples
+        self._samples: dict[str, deque[tuple[float, float]]] = {
+            stage: deque(maxlen=max_samples) for stage in self.STAGES
+        }
+        self._time = time  # Store reference for testing
+
+    def record_stage_latency(self, stage: str, latency_ms: float) -> None:
+        """Record a latency sample for a pipeline stage.
+
+        Args:
+            stage: Pipeline stage name (one of STAGES)
+            latency_ms: Latency in milliseconds
+
+        Raises:
+            ValueError: If stage name is invalid
+        """
+        if stage not in self.STAGES:
+            logger.warning(f"Invalid pipeline stage for latency tracking: {stage}")
+            return
+
+        timestamp = self._time.time()
+        with self._lock:
+            self._samples[stage].append((timestamp, latency_ms))
+
+    def get_stage_stats(
+        self, stage: str, window_minutes: int = 60
+    ) -> dict[str, float | int | None]:
+        """Get latency statistics for a single stage.
+
+        Args:
+            stage: Pipeline stage name
+            window_minutes: Only include samples from the last N minutes
+
+        Returns:
+            Dictionary with statistics:
+            - avg_ms: Average latency
+            - min_ms: Minimum latency
+            - max_ms: Maximum latency
+            - p50_ms: 50th percentile (median)
+            - p95_ms: 95th percentile
+            - p99_ms: 99th percentile
+            - sample_count: Number of samples used
+        """
+        if stage not in self.STAGES:
+            return {
+                "avg_ms": None,
+                "min_ms": None,
+                "max_ms": None,
+                "p50_ms": None,
+                "p95_ms": None,
+                "p99_ms": None,
+                "sample_count": 0,
+            }
+
+        cutoff = self._time.time() - (window_minutes * 60)
+
+        with self._lock:
+            samples = [latency for ts, latency in self._samples[stage] if ts >= cutoff]
+
+        if not samples:
+            return {
+                "avg_ms": None,
+                "min_ms": None,
+                "max_ms": None,
+                "p50_ms": None,
+                "p95_ms": None,
+                "p99_ms": None,
+                "sample_count": 0,
+            }
+
+        sorted_samples = sorted(samples)
+        count = len(sorted_samples)
+
+        return {
+            "avg_ms": sum(sorted_samples) / count,
+            "min_ms": sorted_samples[0],
+            "max_ms": sorted_samples[-1],
+            "p50_ms": self._percentile(sorted_samples, 50),
+            "p95_ms": self._percentile(sorted_samples, 95),
+            "p99_ms": self._percentile(sorted_samples, 99),
+            "sample_count": count,
+        }
+
+    def get_pipeline_summary(
+        self, window_minutes: int = 60
+    ) -> dict[str, dict[str, float | int | None]]:
+        """Get latency statistics for all pipeline stages.
+
+        Args:
+            window_minutes: Only include samples from the last N minutes
+
+        Returns:
+            Dictionary mapping stage names to their statistics
+        """
+        return {stage: self.get_stage_stats(stage, window_minutes) for stage in self.STAGES}
+
+    @staticmethod
+    def _percentile(sorted_samples: list[float], percentile: float) -> float:
+        """Calculate a percentile from a sorted list.
+
+        Args:
+            sorted_samples: Sorted list of values
+            percentile: Percentile to calculate (0-100)
+
+        Returns:
+            Value at the given percentile
+        """
+        if not sorted_samples:
+            return 0.0
+        index = int(len(sorted_samples) * percentile / 100)
+        index = min(index, len(sorted_samples) - 1)
+        return sorted_samples[index]
+
+
+# Global singleton instance for application-wide latency tracking
+_pipeline_latency_tracker: PipelineLatencyTracker | None = None
+
+
+def get_pipeline_latency_tracker() -> PipelineLatencyTracker:
+    """Get the global pipeline latency tracker instance.
+
+    Returns:
+        The singleton PipelineLatencyTracker instance
+    """
+    global _pipeline_latency_tracker  # noqa: PLW0603
+    if _pipeline_latency_tracker is None:
+        _pipeline_latency_tracker = PipelineLatencyTracker()
+    return _pipeline_latency_tracker
+
+
+def record_pipeline_stage_latency(stage: str, latency_ms: float) -> None:
+    """Record a pipeline stage latency measurement.
+
+    Convenience function that uses the global tracker instance.
+
+    Args:
+        stage: Pipeline stage name (watch_to_detect, detect_to_batch,
+               batch_to_analyze, or total_pipeline)
+        latency_ms: Latency in milliseconds
+    """
+    get_pipeline_latency_tracker().record_stage_latency(stage, latency_ms)

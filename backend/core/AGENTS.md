@@ -7,7 +7,7 @@ The `backend/core/` directory contains the foundational infrastructure component
 - **Configuration management** - Environment-based settings with validation
 - **Database layer** - SQLAlchemy 2.0 async engine and session management
 - **Redis client** - Async Redis wrapper for queues, pub/sub, and caching
-- **Logging infrastructure** - Centralized structured logging with console, file, and SQLite handlers
+- **Logging infrastructure** - Centralized structured logging with console, file, and database handlers
 
 These components are designed as singletons and provide dependency injection patterns for FastAPI routes and services.
 
@@ -73,8 +73,8 @@ Manages all application configuration using Pydantic Settings with environment v
 
 **Database Configuration:**
 
-- `database_url: str` - SQLAlchemy URL (default: `sqlite+aiosqlite:///./data/security.db`)
-- Auto-creates data directory for SQLite files
+- `database_url: str` - SQLAlchemy URL (default: `postgresql+asyncpg://user:pass@localhost:5432/home_security`)
+- Must point to a running PostgreSQL instance
 
 **Redis Configuration:**
 
@@ -135,7 +135,7 @@ Manages all application configuration using Pydantic Settings with environment v
 - `log_file_path: str` - Path for rotating log file (default: `data/logs/security.log`)
 - `log_file_max_bytes: int` - Maximum size of each log file (default: 10MB)
 - `log_file_backup_count: int` - Number of backup log files to keep (default: 7)
-- `log_db_enabled: bool` - Enable writing logs to SQLite database (default: True)
+- `log_db_enabled: bool` - Enable writing logs to PostgreSQL database (default: True)
 - `log_db_min_level: str` - Minimum log level to write to database (default: DEBUG)
 - `log_retention_days: int` - Number of days to retain logs (default: 7)
 
@@ -160,12 +160,11 @@ model_config = SettingsConfigDict(
 
 ### Field Validators
 
-**`validate_database_url`** - Ensures SQLite data directory exists:
+**`validate_database_url`** - Validates database URL format:
 
-- Extracts path from SQLite URL
-- Creates parent directory if it doesn't exist
-- Handles both `sqlite:///` and `sqlite://` formats
-- Skips validation for in-memory databases (`:memory:`)
+- Ensures PostgreSQL URL is properly formatted
+- Validates connection string components (user, host, port, database)
+- No directory creation needed (PostgreSQL is external service)
 
 **`validate_log_file_path`** - Ensures log directory exists:
 
@@ -202,7 +201,7 @@ Provides async database connectivity using SQLAlchemy 2.0 with:
 - Session factory for creating async sessions
 - FastAPI dependency injection
 - Context manager patterns
-- SQLite-specific optimizations
+- PostgreSQL connection pooling
 
 ### Key Components
 
@@ -231,10 +230,10 @@ Singleton pattern for engine and session factory.
 
 1. Gets settings via `get_settings()`
 2. Creates async engine with appropriate configuration:
-   - SQLite: Uses `NullPool` to avoid connection reuse issues
-   - Sets `check_same_thread=False` for async SQLite
+   - PostgreSQL: Uses standard connection pool with asyncpg driver
    - Enables debug logging if `settings.debug=True`
-3. Enables SQLite foreign keys via event listener
+   - Configures connection pool settings (pool size, timeout)
+3. Enables foreign key constraints (native PostgreSQL support)
 4. Creates async session factory with:
    - `expire_on_commit=False` - Keep objects usable after commit
    - `autocommit=False` - Manual transaction control
@@ -626,7 +625,7 @@ Provides unified logging infrastructure with multiple outputs:
 
 - Console handler with plain text format for development
 - File handler with rotating logs for production grep/tail
-- SQLite handler for admin UI queries and structured log storage
+- Database handler for admin UI queries and structured log storage
 
 ### Key Components
 
@@ -650,7 +649,7 @@ Provides unified logging infrastructure with multiple outputs:
 - Request ID when available
 - Inherits from `python-json-logger.JsonFormatter`
 
-**`SQLiteHandler`** - Custom handler writing logs to database:
+**`DatabaseHandler`** - Custom handler writing logs to database:
 
 - Uses synchronous database sessions (avoids blocking async context)
 - Extracts structured metadata (camera_id, event_id, detection_id, duration_ms)
@@ -667,7 +666,7 @@ Provides unified logging infrastructure with multiple outputs:
 3. Adds ContextFilter for request ID propagation
 4. Creates console handler with plain text format
 5. Creates rotating file handler (if path is accessible)
-6. Creates SQLite handler (if `log_db_enabled=True`)
+6. Creates database handler (if `log_db_enabled=True`)
 7. Reduces noise from third-party libraries (uvicorn, sqlalchemy, watchdog)
 
 **Called during:** Application startup in lifespan context manager (before database init)
@@ -683,7 +682,7 @@ logger.info("Operation completed", extra={"camera_id": "front_door"})
 
 ### Log Record Structure
 
-When writing to SQLite, logs include:
+When writing to the database, logs include:
 
 - `timestamp` - UTC datetime
 - `level` - Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String
@@ -18,7 +18,14 @@ class Detection(Base):
     """Detection model representing an object detection result.
 
     Stores detection metadata including bounding box coordinates,
-    confidence scores, and references to the source image file.
+    confidence scores, and references to the source image or video file.
+
+    For video files, additional metadata is stored:
+    - media_type: "image" or "video"
+    - duration: Video duration in seconds
+    - video_codec: Video codec (e.g., "h264", "hevc")
+    - video_width: Video resolution width
+    - video_height: Video resolution height
     """
 
     __tablename__ = "detections"
@@ -29,7 +36,9 @@ class Detection(Base):
     )
     file_path: Mapped[str] = mapped_column(String, nullable=False)
     file_type: Mapped[str | None] = mapped_column(String, nullable=True)
-    detected_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    detected_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
+    )
     object_type: Mapped[str | None] = mapped_column(String, nullable=True)
     confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     bbox_x: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -37,6 +46,13 @@ class Detection(Base):
     bbox_width: Mapped[int | None] = mapped_column(Integer, nullable=True)
     bbox_height: Mapped[int | None] = mapped_column(Integer, nullable=True)
     thumbnail_path: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    # Video-specific metadata
+    media_type: Mapped[str | None] = mapped_column(String, nullable=True, default="image")
+    duration: Mapped[float | None] = mapped_column(Float, nullable=True)
+    video_codec: Mapped[str | None] = mapped_column(String, nullable=True)
+    video_width: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    video_height: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Relationships
     camera: Mapped[Camera] = relationship("Camera", back_populates="detections")

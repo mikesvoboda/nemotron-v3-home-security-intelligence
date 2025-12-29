@@ -1,6 +1,6 @@
 """GPU statistics model for monitoring AI inference performance."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import DateTime, Float, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -18,7 +18,9 @@ class GPUStats(Base):
     __tablename__ = "gpu_stats"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    recorded_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
+    )
     gpu_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     gpu_utilization: Mapped[float | None] = mapped_column(Float, nullable=True)
     memory_used: Mapped[int | None] = mapped_column(Integer, nullable=True)

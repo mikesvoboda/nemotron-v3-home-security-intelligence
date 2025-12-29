@@ -9,12 +9,15 @@ This directory contains all automated tests for the backend Python application. 
 ```
 backend/tests/
 ├── conftest.py              # Shared pytest fixtures and configuration
-├── unit/                    # Unit tests for isolated components
-├── integration/             # Integration tests for API and multi-component workflows
-├── e2e/                     # End-to-end pipeline integration tests
-├── benchmarks/              # Performance and complexity benchmarks
+├── unit/                    # Unit tests for isolated components (42 test files)
+├── integration/             # Integration tests for API and multi-component workflows (18 test files)
+├── e2e/                     # End-to-end pipeline integration tests (1 test file)
+├── benchmarks/              # Performance and complexity benchmarks (3 test files)
 ├── check_syntax.py          # Syntax validation script
-└── verify_database.py       # Database verification script
+├── verify_database.py       # Database verification script
+├── run_db_tests.sh          # Database test runner script
+├── DATABASE_TEST_FIXES.md   # Documentation for database test fixes
+└── WEBSOCKET_TEST_SUMMARY.md # WebSocket testing documentation
 ```
 
 ## Test Organization
@@ -23,13 +26,15 @@ backend/tests/
 
 Tests for individual components in isolation:
 
-- **Core**: Configuration, database connections, Redis client, logging
+- **Core**: Configuration, database connections, Redis client, logging, metrics
 - **Models**: Database model definitions and relationships
-- **Services**: Business logic (file watcher, detectors, analyzers, aggregators, broadcasters)
-- **API Routes**: Individual endpoint handlers
+- **Services**: Business logic (file watcher, detectors, analyzers, aggregators, broadcasters, video processor)
+- **API Routes**: Individual endpoint handlers (cameras, events, detections, system, logs, media, websocket)
+- **Middleware**: Authentication, request handling
+- **Video Support**: Video file detection, validation, streaming, thumbnails
 - **Mocking**: All external dependencies (HTTP, Redis, file system) are mocked
 
-**Total**: 40+ test files covering core functionality
+**Total**: 42 test files covering core functionality
 
 ### Integration Tests (`integration/`)
 
@@ -39,10 +44,11 @@ Tests for complete workflows across multiple components:
 - **Full stack**: Database workflows from camera creation to event generation
 - **Media serving**: File serving and security validation
 - **WebSocket**: Real-time communication channels
+- **Service integration**: Batch aggregator, detector client, file watcher, health monitor, Nemotron analyzer
 - **GitHub Workflows**: CI/CD pipeline validation
-- **Mocking**: Redis mocked, database uses temporary SQLite
+- **Mocking**: Redis mocked, database uses test PostgreSQL instance
 
-**Total**: 15+ test files covering API and workflow integration
+**Total**: 18 test files covering API and workflow integration
 
 ### End-to-End Tests (`e2e/`)
 
@@ -62,7 +68,7 @@ Performance and complexity tests:
 
 - **API Benchmarks**: Response time measurements for critical endpoints
 - **Big-O Complexity**: Algorithmic complexity verification (O(n) vs O(n^2))
-- **Memory Profiling**: Memory usage limits for repeated operations
+- **Memory Profiling**: Memory usage limits for repeated operations (Linux only)
 - **Regression Detection**: Baseline comparison for performance degradation
 
 **Total**: 3 test files with performance validation
@@ -117,7 +123,7 @@ These fixtures are shared across ALL integration and E2E tests. They are defined
 #### `integration_db`
 
 - **Scope**: Function
-- **Purpose**: Initializes temporary SQLite database with all tables
+- **Purpose**: Initializes temporary test database with all tables
 - **Depends on**: `integration_env`
 - **Usage**: Use for any test that needs database access
 
@@ -283,7 +289,7 @@ pytest backend/tests/ -vv -s --log-cli-level=DEBUG
 ### Database Testing
 
 - Use `isolated_db` fixture for clean database state
-- Tests run against temporary SQLite databases
+- Tests run against temporary test databases
 - Each test gets fresh database instance
 - Automatic cleanup after test completion
 
@@ -349,9 +355,9 @@ Optional dependencies:
 
 ## Test Database Isolation
 
-### SQLite
+### Test Database
 
-Tests use temporary SQLite databases created in temporary directories. Each test function gets a fresh database instance that is automatically cleaned up after the test completes.
+Tests use temporary test databases. Each test function gets a fresh database instance that is automatically cleaned up after the test completes. The test suite can use either in-memory SQLite for speed or PostgreSQL for production parity.
 
 ### Redis
 
@@ -431,8 +437,8 @@ with patch("httpx.AsyncClient") as mock_http:
 
 ### Overall Test Count
 
-- **Unit tests**: 40+ test files covering core, models, services, API routes
-- **Integration tests**: 15+ test files covering API endpoints and workflows
+- **Unit tests**: 42 test files covering core, models, services, API routes
+- **Integration tests**: 18 test files covering API endpoints and workflows
 - **E2E tests**: 8+ comprehensive scenarios in 1 file
 - **Benchmarks**: 3 test files for performance validation
 - **Total**: Comprehensive coverage of 95%+ of backend code
@@ -441,8 +447,8 @@ with patch("httpx.AsyncClient") as mock_http:
 
 - **Core** (config, database, redis, logging): 98%+
 - **Models** (Camera, Detection, Event, GPUStats, Log): 98%+
-- **Services** (AI pipeline, broadcasters, cleanup): 95%+
-- **API Routes** (REST endpoints, logs): 95%+
+- **Services** (AI pipeline, broadcasters, cleanup, video processor): 95%+
+- **API Routes** (REST endpoints, logs, media): 95%+
 - **WebSocket** (real-time channels): 90%+
 
 ## Troubleshooting

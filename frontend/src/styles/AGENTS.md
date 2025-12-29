@@ -6,18 +6,20 @@ Global CSS styles and Tailwind CSS configuration for the NVIDIA-themed dark mode
 
 ## Key Files
 
-### `index.css`
+| File        | Purpose                                                     |
+| ----------- | ----------------------------------------------------------- |
+| `index.css` | Main stylesheet with Tailwind directives and custom classes |
 
-Main stylesheet with Tailwind directives and custom utility classes. Contains three Tailwind layers: base, components, and utilities.
+## Style Structure (`index.css`)
 
-## Style Structure
+Uses three Tailwind CSS layers: `@layer base`, `@layer components`, and `@layer utilities`.
 
 ### Base Layer (`@layer base`)
 
 **Body Styles:**
 
-- Background: Uses `bg-background` from theme (#0E0E0E)
-- Text color: Uses `text-text-primary` (white)
+- Background: `bg-background` (#0E0E0E)
+- Text color: `text-text-primary` (white)
 - Font feature settings: ligatures (`liga`) and contextual alternates (`calt`)
 - Anti-aliased text rendering
 
@@ -55,11 +57,11 @@ All buttons: `rounded-lg`, `px-4 py-2`, `font-medium`, `duration-250` transition
 
 #### Risk Badges
 
-| Class                | Color  | Risk Range |
-| -------------------- | ------ | ---------- |
-| `.risk-badge-low`    | Green  | 0-25       |
-| `.risk-badge-medium` | Yellow | 26-50      |
-| `.risk-badge-high`   | Red    | 51-75      |
+| Class                | Color  | Risk Score Range |
+| -------------------- | ------ | ---------------- |
+| `.risk-badge-low`    | Green  | 0-25             |
+| `.risk-badge-medium` | Yellow | 26-50            |
+| `.risk-badge-high`   | Red    | 51-75            |
 
 Badge styling:
 
@@ -67,6 +69,8 @@ Badge styling:
 - Colored text (`text-risk-{level}`)
 - 30% opacity border (`border-risk-{level}/30`)
 - `rounded-full`, `px-3 py-1`, `text-sm font-medium`
+
+**Note:** Critical risk level (76-100) should use `.risk-badge-high` or a custom class as `.risk-badge-critical` is not defined in the current CSS.
 
 #### Input Styles
 
@@ -84,7 +88,7 @@ Focus state: `ring-2 ring-primary-500`, transparent border
 | `.text-body`    | `text-text-secondary` (#A0A0A0)   |
 | `.text-muted`   | `text-text-muted` (#707070)       |
 
-#### Loading & Divider
+#### Loading and Divider
 
 | Class             | Description                         |
 | ----------------- | ----------------------------------- |
@@ -142,7 +146,7 @@ Focus state: `ring-2 ring-primary-500`, transparent border
 
 Works on Firefox (`scrollbar-width: none`) and WebKit (`display: none`)
 
-## Tailwind Configuration
+## Tailwind Theme Configuration
 
 See `frontend/tailwind.config.js` for extended theme configuration.
 
@@ -224,7 +228,7 @@ See `frontend/tailwind.config.js` for extended theme configuration.
 
 ## Usage Examples
 
-### Using Card Styles
+### Card Styles
 
 ```tsx
 <div className="nvidia-card">
@@ -232,13 +236,12 @@ See `frontend/tailwind.config.js` for extended theme configuration.
   <p className="text-body">Card content</p>
 </div>
 
-// With hover effects
 <div className="nvidia-card-hover cursor-pointer">
   <h2 className="text-heading">Clickable Card</h2>
 </div>
 ```
 
-### Risk Badge
+### Risk Badges
 
 ```tsx
 <span className="risk-badge-low">Low Risk</span>
@@ -246,7 +249,7 @@ See `frontend/tailwind.config.js` for extended theme configuration.
 <span className="risk-badge-high">High Risk</span>
 ```
 
-### Status Indicator
+### Status Indicators
 
 ```tsx
 <div className="flex items-center gap-2">
@@ -281,31 +284,13 @@ See `frontend/tailwind.config.js` for extended theme configuration.
 </div>
 ```
 
-## Testing Styles
-
-When testing components that use these styles:
-
-1. **Use `css: true` in Vitest config** - Already configured in `vite.config.ts`
-2. **Test class presence** - Use `toHaveClass()` matcher
-3. **Test style effects** - Use `toHaveStyle()` for computed styles
-4. **Visual regression** - Consider Playwright screenshots for E2E
-
-```typescript
-import { render, screen } from '@testing-library/react';
-
-it('applies correct risk badge class', () => {
-  render(<RiskBadge level="high" />);
-  expect(screen.getByText(/high/i)).toHaveClass('risk-badge-high');
-});
-```
-
 ## Related Files
 
 - `/frontend/tailwind.config.js` - Tailwind theme configuration
 - `/frontend/postcss.config.js` - PostCSS configuration
 - `/frontend/src/main.tsx` - Imports this stylesheet
 
-## Notes for AI Agents
+## Notes
 
 - All colors follow NVIDIA brand guidelines
 - Dark theme optimized for low-light environments (security monitoring)

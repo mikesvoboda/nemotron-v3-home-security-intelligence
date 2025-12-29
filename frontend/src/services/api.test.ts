@@ -193,6 +193,7 @@ const mockDetection: Detection = {
   bbox_width: 200,
   bbox_height: 300,
   thumbnail_path: '/path/to/thumb.jpg',
+  media_type: 'image',
 };
 
 const mockDetectionListResponse: DetectionListResponse = {
