@@ -26,7 +26,7 @@ from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from fastapi.websockets import WebSocketState
 from pydantic import ValidationError
 
-from backend.api.middleware import authenticate_websocket
+from backend.api.middleware import authenticate_websocket, check_websocket_rate_limit
 from backend.api.schemas.websocket import (
     WebSocketErrorCode,
     WebSocketErrorResponse,
@@ -184,6 +184,12 @@ async def websocket_events_endpoint(
         };
         ```
     """
+    # Check rate limit before accepting connection
+    if not await check_websocket_rate_limit(websocket, redis):
+        logger.warning("WebSocket connection rejected: rate limit exceeded for /ws/events")
+        await websocket.close(code=1008)  # Policy Violation
+        return
+
     # Authenticate WebSocket connection before accepting
     if not await authenticate_websocket(websocket):
         logger.warning("WebSocket connection rejected: authentication failed for /ws/events")
@@ -236,7 +242,10 @@ async def websocket_events_endpoint(
 
 
 @router.websocket("/ws/system")
-async def websocket_system_status(websocket: WebSocket) -> None:
+async def websocket_system_status(
+    websocket: WebSocket,
+    redis: RedisClient = Depends(get_redis),
+) -> None:
     """WebSocket endpoint for real-time system status updates.
 
     Authentication:
@@ -278,6 +287,7 @@ async def websocket_system_status(websocket: WebSocket) -> None:
 
     Args:
         websocket: WebSocket connection
+        redis: Redis client for rate limiting
 
     Notes:
         - Status updates are sent every 5 seconds
@@ -293,6 +303,12 @@ async def websocket_system_status(websocket: WebSocket) -> None:
         };
         ```
     """
+    # Check rate limit before accepting connection
+    if not await check_websocket_rate_limit(websocket, redis):
+        logger.warning("WebSocket connection rejected: rate limit exceeded for /ws/system")
+        await websocket.close(code=1008)  # Policy Violation
+        return
+
     # Authenticate WebSocket connection before accepting
     if not await authenticate_websocket(websocket):
         logger.warning("WebSocket connection rejected: authentication failed for /ws/system")
