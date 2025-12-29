@@ -116,6 +116,7 @@ jobs:
         run: |
           pytest backend/tests/unit/ \
             --cov=backend \
+            --cov-config=pyproject.toml \
             --cov-report=xml:coverage-unit.xml \
             --cov-report=term-missing \
             --cov-fail-under=93 \
