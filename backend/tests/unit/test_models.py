@@ -14,17 +14,8 @@ from backend.models import Camera, Detection, Event, GPUStats
 # Import unique_id helper from conftest for test isolation
 from backend.tests.conftest import unique_id
 
-
-@pytest.fixture
-async def session(isolated_db):
-    """Create a new database session for each test.
-
-    Uses PostgreSQL via the isolated_db fixture from conftest.py.
-    """
-    from backend.core.database import get_session
-
-    async with get_session() as session:
-        yield session
+# Note: The 'session' fixture is provided by conftest.py with transaction
+# rollback isolation for parallel test execution.
 
 
 class TestCameraModel:
