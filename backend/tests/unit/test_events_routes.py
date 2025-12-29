@@ -1719,7 +1719,9 @@ async def test_export_events_returns_csv_streaming_response() -> None:
 
     db.execute = AsyncMock(side_effect=[events_result, camera_result])
 
+    mock_request = MagicMock()
     response = await events_routes.export_events(
+        request=mock_request,
         camera_id=None,
         risk_level=None,
         start_date=None,
@@ -1754,7 +1756,9 @@ async def test_export_events_returns_empty_csv_when_no_events() -> None:
 
     db.execute = AsyncMock(side_effect=[events_result, camera_result])
 
+    mock_request = MagicMock()
     response = await events_routes.export_events(
+        request=mock_request,
         camera_id=None,
         risk_level=None,
         start_date=None,
@@ -1787,7 +1791,9 @@ async def test_export_events_with_camera_filter() -> None:
 
     db.execute = AsyncMock(side_effect=[events_result, camera_result])
 
+    mock_request = MagicMock()
     response = await events_routes.export_events(
+        request=mock_request,
         camera_id="cam-001",
         risk_level=None,
         start_date=None,
@@ -1818,7 +1824,9 @@ async def test_export_events_with_risk_level_filter() -> None:
 
     db.execute = AsyncMock(side_effect=[events_result, camera_result])
 
+    mock_request = MagicMock()
     response = await events_routes.export_events(
+        request=mock_request,
         camera_id=None,
         risk_level="high",
         start_date=None,
@@ -1853,7 +1861,9 @@ async def test_export_events_with_date_filters() -> None:
     start = now - timedelta(hours=1)
     end = now + timedelta(hours=1)
 
+    mock_request = MagicMock()
     response = await events_routes.export_events(
+        request=mock_request,
         camera_id=None,
         risk_level=None,
         start_date=start,
@@ -1884,7 +1894,9 @@ async def test_export_events_with_reviewed_filter() -> None:
 
     db.execute = AsyncMock(side_effect=[events_result, camera_result])
 
+    mock_request = MagicMock()
     response = await events_routes.export_events(
+        request=mock_request,
         camera_id=None,
         risk_level=None,
         start_date=None,
@@ -1915,7 +1927,9 @@ async def test_export_events_handles_unknown_camera() -> None:
 
     db.execute = AsyncMock(side_effect=[events_result, camera_result])
 
+    mock_request = MagicMock()
     response = await events_routes.export_events(
+        request=mock_request,
         camera_id=None,
         risk_level=None,
         start_date=None,
@@ -1957,7 +1971,9 @@ async def test_export_events_handles_none_values() -> None:
 
     db.execute = AsyncMock(side_effect=[events_result, camera_result])
 
+    mock_request = MagicMock()
     response = await events_routes.export_events(
+        request=mock_request,
         camera_id=None,
         risk_level=None,
         start_date=None,
@@ -2014,7 +2030,9 @@ async def test_export_events_multiple_events() -> None:
 
     db.execute = AsyncMock(side_effect=[events_result, camera_result])
 
+    mock_request = MagicMock()
     response = await events_routes.export_events(
+        request=mock_request,
         camera_id=None,
         risk_level=None,
         start_date=None,
