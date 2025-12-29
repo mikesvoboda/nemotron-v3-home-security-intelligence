@@ -10,10 +10,10 @@ import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import httpx
-from fastapi import APIRouter, Body, Depends, Header, HTTPException, Response
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,6 +31,9 @@ from backend.api.schemas.system import (
     QueueDepths,
     ReadinessResponse,
     ServiceStatus,
+    SeverityDefinitionResponse,
+    SeverityMetadataResponse,
+    SeverityThresholds,
     StageLatency,
     SystemStatsResponse,
     TelemetryResponse,
@@ -39,6 +42,8 @@ from backend.api.schemas.system import (
 from backend.core import get_db, get_settings
 from backend.core.redis import RedisClient, get_redis, get_redis_optional
 from backend.models import Camera, Detection, Event, GPUStats
+from backend.models.audit import AuditAction
+from backend.services.audit import AuditService
 
 logger = logging.getLogger(__name__)
 
@@ -992,7 +997,11 @@ def _write_runtime_env(overrides: dict[str, str]) -> None:
 
 
 @router.patch("/config", response_model=ConfigResponse, dependencies=[Depends(verify_api_key)])
-async def patch_config(update: ConfigUpdateRequest = Body(...)) -> ConfigResponse:
+async def patch_config(
+    request: Request,
+    update: ConfigUpdateRequest = Body(...),
+    db: AsyncSession = Depends(get_db),
+) -> ConfigResponse:
     """Patch processing-related configuration and persist runtime overrides.
 
     Requires API key authentication when api_key_enabled is True in settings.
@@ -1002,6 +1011,15 @@ async def patch_config(update: ConfigUpdateRequest = Body(...)) -> ConfigRespons
     - This updates a runtime override env file (see `HSI_RUNTIME_ENV_PATH`) and clears the
       settings cache so subsequent `get_settings()` calls observe the new values.
     """
+    # Capture old settings for audit log
+    old_settings = get_settings()
+    old_values = {
+        "retention_days": old_settings.retention_days,
+        "batch_window_seconds": old_settings.batch_window_seconds,
+        "batch_idle_timeout_seconds": old_settings.batch_idle_timeout_seconds,
+        "detection_confidence_threshold": old_settings.detection_confidence_threshold,
+    }
+
     overrides: dict[str, str] = {}
 
     if update.retention_days is not None:
@@ -1019,6 +1037,31 @@ async def patch_config(update: ConfigUpdateRequest = Body(...)) -> ConfigRespons
     # Make new values visible to the app immediately.
     get_settings.cache_clear()
     settings = get_settings()
+
+    # Build changes for audit log
+    new_values = {
+        "retention_days": settings.retention_days,
+        "batch_window_seconds": settings.batch_window_seconds,
+        "batch_idle_timeout_seconds": settings.batch_idle_timeout_seconds,
+        "detection_confidence_threshold": settings.detection_confidence_threshold,
+    }
+    changes: dict[str, dict[str, Any]] = {}
+    for key, old_value in old_values.items():
+        new_value = new_values[key]
+        if old_value != new_value:
+            changes[key] = {"old": old_value, "new": new_value}
+
+    # Log the audit entry
+    if changes:
+        await AuditService.log_action(
+            db=db,
+            action=AuditAction.SETTINGS_CHANGED,
+            resource_type="settings",
+            actor="anonymous",
+            details={"changes": changes},
+            request=request,
+        )
+        await db.commit()
 
     return ConfigResponse(
         app_name=settings.app_name,
@@ -1418,3 +1461,60 @@ async def trigger_cleanup(dry_run: bool = False) -> CleanupResponse:
         except Exception as e:
             logger.error(f"Manual cleanup failed: {e}", exc_info=True)
             raise
+
+
+# =============================================================================
+# Severity Endpoint
+# =============================================================================
+
+
+@router.get("/severity", response_model=SeverityMetadataResponse)
+async def get_severity_metadata() -> SeverityMetadataResponse:
+    """Get severity level definitions and thresholds.
+
+    Returns complete information about the severity taxonomy including:
+    - All severity level definitions (LOW, MEDIUM, HIGH, CRITICAL)
+    - Risk score thresholds for each level
+    - Color codes for UI display
+    - Human-readable labels and descriptions
+
+    This endpoint is useful for frontends to:
+    - Display severity information consistently
+    - Show severity legends in the UI
+    - Validate severity-related user inputs
+    - Map risk scores to severity levels client-side
+
+    Returns:
+        SeverityMetadataResponse with all severity definitions and current thresholds
+    """
+    from backend.services.severity import get_severity_service
+
+    service = get_severity_service()
+
+    # Get severity definitions
+    definitions = service.get_severity_definitions()
+
+    # Convert to response format
+    definition_responses = [
+        SeverityDefinitionResponse(
+            severity=defn.severity.value,
+            label=defn.label,
+            description=defn.description,
+            color=defn.color,
+            priority=defn.priority,
+            min_score=defn.min_score,
+            max_score=defn.max_score,
+        )
+        for defn in definitions
+    ]
+
+    thresholds = service.get_thresholds()
+
+    return SeverityMetadataResponse(
+        definitions=definition_responses,
+        thresholds=SeverityThresholds(
+            low_max=thresholds["low_max"],
+            medium_max=thresholds["medium_max"],
+            high_max=thresholds["high_max"],
+        ),
+    )
