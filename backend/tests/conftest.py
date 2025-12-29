@@ -385,3 +385,38 @@ async def client(integration_db: str, mock_redis: AsyncMock) -> AsyncGenerator:
     ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             yield ac
+
+
+@pytest.fixture
+async def clean_test_data(isolated_db):
+    """Clean up test data tables before each test for proper isolation.
+
+    This fixture ensures tests start with a clean slate by truncating
+    all data tables that use fixed IDs. Required because tests with
+    fixed camera IDs can conflict in parallel execution.
+
+    Tables truncated: alerts, alert_rules, detections, events, cameras
+    """
+    from sqlalchemy import text
+
+    from backend.core.database import get_engine
+
+    async with get_engine().begin() as conn:
+        # Truncate in order respecting FK constraints
+        await conn.execute(
+            text(
+                "TRUNCATE TABLE alerts, alert_rules, detections, events, cameras "
+                "RESTART IDENTITY CASCADE"
+            )
+        )
+
+    yield
+
+    # Cleanup after test too
+    async with get_engine().begin() as conn:
+        await conn.execute(
+            text(
+                "TRUNCATE TABLE alerts, alert_rules, detections, events, cameras "
+                "RESTART IDENTITY CASCADE"
+            )
+        )
