@@ -14,8 +14,8 @@ from backend.models.camera import Camera
 from backend.models.event import Event
 from backend.tests.conftest import unique_id
 
-# Skip all tests in this module - search API endpoint not yet implemented
-pytestmark = pytest.mark.skip(reason="Search API endpoint not yet implemented")
+# Skip all tests - search API route not yet implemented
+pytestmark = pytest.mark.skip(reason="Search API route not yet implemented")
 
 
 @pytest.fixture
