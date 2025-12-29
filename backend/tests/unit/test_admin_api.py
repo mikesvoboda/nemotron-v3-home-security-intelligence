@@ -1,63 +1,38 @@
-"""Integration tests for admin API endpoints (development seed data).
-
-NOTE: These tests use serial execution because admin seed operations
-manipulate global database state with fixed sample camera IDs.
-Parallel execution would cause race conditions.
-"""
+"""Integration tests for admin API endpoints (development seed data)."""
 
 import os
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
 
-# Mark all tests in this module for serial execution to avoid parallel conflicts
-# Admin seed tests use fixed camera IDs and DELETE operations that affect global state
-# Using xdist_group ensures all tests in this module run on the same worker sequentially
-pytestmark = [pytest.mark.serial, pytest.mark.xdist_group(name="admin_seed")]
-
 
 @pytest.fixture
 async def clean_seed_data(integration_db):
-    """Clean up ALL data before/after each test for proper isolation.
+    """Clean up seed data before each test for proper isolation.
 
-    Admin seed tests need a clean database because:
-    1. API endpoints query/clear ALL cameras, not just specific IDs
-    2. Tests make exact count assertions (e.g., "created == 3")
-
-    Uses an advisory lock to coordinate with other tests that might
-    be creating data in parallel, ensuring these tests see a clean slate.
+    This fixture ensures tests start with a clean slate by truncating
+    all cameras, events, and detections. Required because seed tests
+    use fixed camera IDs that can conflict in parallel execution.
     """
-    from sqlalchemy import text
-
     from backend.core.database import get_engine
 
-    engine = get_engine()
+    async with get_engine().begin() as conn:
+        # Truncate in order respecting FK constraints
+        await conn.execute(
+            text("TRUNCATE TABLE detections, events, cameras RESTART IDENTITY CASCADE")
+        )
 
-    async def _delete_all_data():
-        """Delete all test data in a separate connection/transaction."""
-        async with engine.begin() as conn:
-            await conn.execute(text("DELETE FROM detections"))
-            await conn.execute(text("DELETE FROM events"))
-            await conn.execute(text("DELETE FROM cameras"))
+    yield
 
-    # Acquire exclusive advisory lock for admin seed operations
-    async with engine.connect() as lock_conn:
-        await lock_conn.execute(text("SELECT pg_advisory_lock(777777)"))
-        try:
-            # Delete all data before test
-            await _delete_all_data()
-
-            yield
-
-            # Cleanup after test
-            await _delete_all_data()
-        finally:
-            await lock_conn.execute(text("SELECT pg_advisory_unlock(777777)"))
-            await lock_conn.commit()  # Commit to release the lock properly
+    # Cleanup after test too
+    async with get_engine().begin() as conn:
+        await conn.execute(
+            text("TRUNCATE TABLE detections, events, cameras RESTART IDENTITY CASCADE")
+        )
 
 
 # === DEBUG Mode Tests ===
@@ -227,7 +202,7 @@ async def test_seed_cameras_count_validation(client):
 
 
 @pytest.mark.asyncio
-async def test_seed_events_success(client, clean_seed_data):
+async def test_seed_events_success(client):
     """Test successful event seeding."""
     from backend.core.config import get_settings
 
@@ -253,7 +228,7 @@ async def test_seed_events_success(client, clean_seed_data):
 
 
 @pytest.mark.asyncio
-async def test_seed_events_requires_cameras(client, clean_seed_data):
+async def test_seed_events_requires_cameras(client):
     """Test that seeding events requires cameras to exist."""
     from backend.core.config import get_settings
 
@@ -261,7 +236,7 @@ async def test_seed_events_requires_cameras(client, clean_seed_data):
     get_settings.cache_clear()
 
     try:
-        # Try to seed events without cameras (clean_seed_data ensures no cameras exist)
+        # Try to seed events without cameras
         response = await client.post("/api/admin/seed/events", json={"count": 5})
 
         assert response.status_code == 400
@@ -272,7 +247,7 @@ async def test_seed_events_requires_cameras(client, clean_seed_data):
 
 
 @pytest.mark.asyncio
-async def test_seed_events_clear_existing(client, clean_seed_data):
+async def test_seed_events_clear_existing(client):
     """Test seeding events with clear_existing=true."""
     from backend.core.config import get_settings
 
@@ -280,7 +255,7 @@ async def test_seed_events_clear_existing(client, clean_seed_data):
     get_settings.cache_clear()
 
     try:
-        # Seed cameras and events (clean_seed_data ensures we start fresh)
+        # Seed cameras and events
         await client.post("/api/admin/seed/cameras", json={"count": 2})
         await client.post("/api/admin/seed/events", json={"count": 5})
 
@@ -301,7 +276,7 @@ async def test_seed_events_clear_existing(client, clean_seed_data):
 
 
 @pytest.mark.asyncio
-async def test_seed_events_creates_detections(client, clean_seed_data):
+async def test_seed_events_creates_detections(client):
     """Test that seeding events also creates associated detections."""
     from backend.core.config import get_settings
     from backend.core.database import get_session
@@ -310,7 +285,7 @@ async def test_seed_events_creates_detections(client, clean_seed_data):
     get_settings.cache_clear()
 
     try:
-        # Seed cameras and events (clean_seed_data ensures we start fresh)
+        # Seed cameras and events
         await client.post("/api/admin/seed/cameras", json={"count": 2})
         response = await client.post("/api/admin/seed/events", json={"count": 5})
 
@@ -322,7 +297,7 @@ async def test_seed_events_creates_detections(client, clean_seed_data):
         assert detections_created >= events_created
         assert detections_created <= events_created * 5
 
-        # Verify in database - count should match what we just created
+        # Verify in database
         async with get_session() as session:
             events_result = await session.execute(select(Event))
             events = events_result.scalars().all()
@@ -342,7 +317,7 @@ async def test_seed_events_creates_detections(client, clean_seed_data):
 
 
 @pytest.mark.asyncio
-async def test_seed_events_risk_levels(client, clean_seed_data):
+async def test_seed_events_risk_levels(client):
     """Test that seeded events have varied risk levels."""
     from backend.core.config import get_settings
     from backend.core.database import get_session
@@ -351,7 +326,7 @@ async def test_seed_events_risk_levels(client, clean_seed_data):
     get_settings.cache_clear()
 
     try:
-        # Seed cameras and a decent number of events (clean_seed_data ensures fresh start)
+        # Seed cameras and a decent number of events
         await client.post("/api/admin/seed/cameras", json={"count": 3})
         await client.post("/api/admin/seed/events", json={"count": 50})
 
@@ -393,7 +368,7 @@ async def test_seed_events_count_validation(client):
 
 
 @pytest.mark.asyncio
-async def test_clear_data_success(client, clean_seed_data):
+async def test_clear_data_success(client):
     """Test clearing all seeded data."""
     from backend.core.config import get_settings
 
@@ -401,7 +376,7 @@ async def test_clear_data_success(client, clean_seed_data):
     get_settings.cache_clear()
 
     try:
-        # Seed cameras and events (clean_seed_data ensures we start fresh)
+        # Seed cameras and events
         await client.post("/api/admin/seed/cameras", json={"count": 4})
         await client.post("/api/admin/seed/events", json={"count": 10})
 
@@ -423,7 +398,7 @@ async def test_clear_data_success(client, clean_seed_data):
 
 
 @pytest.mark.asyncio
-async def test_clear_data_empty_database(client, clean_seed_data):
+async def test_clear_data_empty_database(client):
     """Test clearing when database is already empty."""
     from backend.core.config import get_settings
 
@@ -431,7 +406,6 @@ async def test_clear_data_empty_database(client, clean_seed_data):
     get_settings.cache_clear()
 
     try:
-        # clean_seed_data ensures we start with an empty database
         response = await client.delete("/api/admin/seed/clear")
 
         assert response.status_code == 200
@@ -448,7 +422,7 @@ async def test_clear_data_empty_database(client, clean_seed_data):
 
 
 @pytest.mark.asyncio
-async def test_seed_cameras_default_values(client, clean_seed_data):
+async def test_seed_cameras_default_values(client):
     """Test seeding cameras with default values."""
     from backend.core.config import get_settings
 
@@ -456,7 +430,7 @@ async def test_seed_cameras_default_values(client, clean_seed_data):
     get_settings.cache_clear()
 
     try:
-        # POST with empty body uses defaults (clean_seed_data ensures no existing cameras)
+        # POST with empty body uses defaults
         response = await client.post("/api/admin/seed/cameras", json={})
 
         assert response.status_code == 200
@@ -469,7 +443,7 @@ async def test_seed_cameras_default_values(client, clean_seed_data):
 
 
 @pytest.mark.asyncio
-async def test_seed_events_default_values(client, clean_seed_data):
+async def test_seed_events_default_values(client):
     """Test seeding events with default values."""
     from backend.core.config import get_settings
 
@@ -477,7 +451,7 @@ async def test_seed_events_default_values(client, clean_seed_data):
     get_settings.cache_clear()
 
     try:
-        # First seed cameras (clean_seed_data ensures fresh start)
+        # First seed cameras
         await client.post("/api/admin/seed/cameras", json={"count": 2})
 
         # POST with empty body uses defaults
@@ -493,7 +467,7 @@ async def test_seed_events_default_values(client, clean_seed_data):
 
 
 @pytest.mark.asyncio
-async def test_full_seed_workflow(client, clean_seed_data):
+async def test_full_seed_workflow(client):
     """Test complete seeding workflow: cameras -> events -> clear."""
     from backend.core.config import get_settings
     from backend.core.database import get_session
@@ -502,7 +476,7 @@ async def test_full_seed_workflow(client, clean_seed_data):
     get_settings.cache_clear()
 
     try:
-        # Step 1: Seed cameras (clean_seed_data ensures fresh start)
+        # Step 1: Seed cameras
         cameras_response = await client.post(
             "/api/admin/seed/cameras",
             json={"count": 3},

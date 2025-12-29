@@ -17,7 +17,7 @@ Models:
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String, UniqueConstraint
@@ -57,7 +57,7 @@ class ActivityBaseline(Base):
     avg_count: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     sample_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     last_updated: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )
 
     # Relationships
@@ -105,7 +105,7 @@ class ClassBaseline(Base):
     frequency: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     sample_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     last_updated: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )
 
     # Relationships
