@@ -1384,9 +1384,15 @@ async def test_patch_config_updates_retention_days(tmp_path, monkeypatch) -> Non
     from backend.api.schemas.system import ConfigUpdateRequest
 
     update = ConfigUpdateRequest(retention_days=7)
+    mock_request = MagicMock()
+    mock_db = AsyncMock()
 
-    with patch.object(system_routes, "get_settings", mock_get_settings):
-        response = await system_routes.patch_config(update)
+    with (
+        patch.object(system_routes, "get_settings", mock_get_settings),
+        patch.object(system_routes, "AuditService") as mock_audit,
+    ):
+        mock_audit.log_action = AsyncMock()
+        response = await system_routes.patch_config(request=mock_request, update=update, db=mock_db)
 
     assert isinstance(response, ConfigResponse)
     assert response.retention_days == 7
@@ -1413,9 +1419,15 @@ async def test_patch_config_updates_batch_window_seconds(tmp_path, monkeypatch) 
     from backend.api.schemas.system import ConfigUpdateRequest
 
     update = ConfigUpdateRequest(batch_window_seconds=120)
+    mock_request = MagicMock()
+    mock_db = AsyncMock()
 
-    with patch.object(system_routes, "get_settings", mock_get_settings):
-        response = await system_routes.patch_config(update)
+    with (
+        patch.object(system_routes, "get_settings", mock_get_settings),
+        patch.object(system_routes, "AuditService") as mock_audit,
+    ):
+        mock_audit.log_action = AsyncMock()
+        response = await system_routes.patch_config(request=mock_request, update=update, db=mock_db)
 
     assert isinstance(response, ConfigResponse)
     assert response.batch_window_seconds == 120
@@ -1441,9 +1453,15 @@ async def test_patch_config_updates_batch_idle_timeout(tmp_path, monkeypatch) ->
     from backend.api.schemas.system import ConfigUpdateRequest
 
     update = ConfigUpdateRequest(batch_idle_timeout_seconds=45)
+    mock_request = MagicMock()
+    mock_db = AsyncMock()
 
-    with patch.object(system_routes, "get_settings", mock_get_settings):
-        response = await system_routes.patch_config(update)
+    with (
+        patch.object(system_routes, "get_settings", mock_get_settings),
+        patch.object(system_routes, "AuditService") as mock_audit,
+    ):
+        mock_audit.log_action = AsyncMock()
+        response = await system_routes.patch_config(request=mock_request, update=update, db=mock_db)
 
     assert isinstance(response, ConfigResponse)
     assert response.batch_idle_timeout_seconds == 45
@@ -1469,9 +1487,15 @@ async def test_patch_config_updates_detection_threshold(tmp_path, monkeypatch) -
     from backend.api.schemas.system import ConfigUpdateRequest
 
     update = ConfigUpdateRequest(detection_confidence_threshold=0.75)
+    mock_request = MagicMock()
+    mock_db = AsyncMock()
 
-    with patch.object(system_routes, "get_settings", mock_get_settings):
-        response = await system_routes.patch_config(update)
+    with (
+        patch.object(system_routes, "get_settings", mock_get_settings),
+        patch.object(system_routes, "AuditService") as mock_audit,
+    ):
+        mock_audit.log_action = AsyncMock()
+        response = await system_routes.patch_config(request=mock_request, update=update, db=mock_db)
 
     assert isinstance(response, ConfigResponse)
     assert response.detection_confidence_threshold == 0.75
@@ -1498,9 +1522,15 @@ async def test_patch_config_no_changes(tmp_path, monkeypatch) -> None:
 
     # Empty update - no fields set
     update = ConfigUpdateRequest()
+    mock_request = MagicMock()
+    mock_db = AsyncMock()
 
-    with patch.object(system_routes, "get_settings", mock_get_settings):
-        response = await system_routes.patch_config(update)
+    with (
+        patch.object(system_routes, "get_settings", mock_get_settings),
+        patch.object(system_routes, "AuditService") as mock_audit,
+    ):
+        mock_audit.log_action = AsyncMock()
+        response = await system_routes.patch_config(request=mock_request, update=update, db=mock_db)
 
     assert isinstance(response, ConfigResponse)
     # Cache clear is always called
@@ -1532,9 +1562,15 @@ async def test_patch_config_multiple_fields(tmp_path, monkeypatch) -> None:
         batch_idle_timeout_seconds=20,
         detection_confidence_threshold=0.8,
     )
+    mock_request = MagicMock()
+    mock_db = AsyncMock()
 
-    with patch.object(system_routes, "get_settings", mock_get_settings):
-        response = await system_routes.patch_config(update)
+    with (
+        patch.object(system_routes, "get_settings", mock_get_settings),
+        patch.object(system_routes, "AuditService") as mock_audit,
+    ):
+        mock_audit.log_action = AsyncMock()
+        response = await system_routes.patch_config(request=mock_request, update=update, db=mock_db)
 
     assert isinstance(response, ConfigResponse)
     assert response.retention_days == 14
