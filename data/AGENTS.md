@@ -2,15 +2,18 @@
 
 ## Purpose
 
-This directory stores runtime data for the Home Security Intelligence application, including the SQLite database, image thumbnails, and temporary processing files.
+This directory stores runtime data for the Home Security Intelligence application, including image thumbnails and temporary processing files. **Note:** The database has been migrated from SQLite to PostgreSQL and is no longer stored in this directory.
 
 ## Key Files and Directories
 
 ### Database
 
-**security.db** (SQLite database, typically 1-5 MB)
+**MIGRATED TO POSTGRESQL** - This directory no longer stores the database.
 
-- **Purpose:** Primary data store for all application data
+The application now uses PostgreSQL instead of SQLite:
+
+- **Database:** PostgreSQL (runs as Docker service or natively)
+- **Connection:** Configured via `DATABASE_URL` in `.env` (e.g., `postgresql+asyncpg://user:pass@localhost:5432/home_security`)
 - **What it contains:**
   - Camera configurations and metadata
   - Detection events and object bounding boxes
@@ -24,10 +27,9 @@ This directory stores runtime data for the Home Security Intelligence applicatio
   - `detections` - Object detection results (bbox, confidence, class)
   - `gpu_stats` - GPU utilization and VRAM usage over time
   - Other system tables (migrations, indexes)
-- **Initialization:** Automatically created on first backend startup via `backend/core/database.py`
-- **Location:** `data/security.db` (configurable via DATABASE_URL in .env)
+- **Initialization:** Tables automatically created on first backend startup via `backend/core/database.py`
 - **Retention:** Events older than 30 days are cleaned up by `backend/services/cleanup_service.py`
-- **Backup:** Recommend periodic backups for production use
+- **Backup:** Use PostgreSQL native backup tools (`pg_dump`, `pg_basebackup`)
 
 ### Thumbnails
 
@@ -149,16 +151,18 @@ Use the seed-cameras.py script to populate test cameras:
 ### Manual Database Inspection
 
 ```bash
-# Open database with sqlite3
-sqlite3 data/security.db
+# Connect to PostgreSQL database
+psql -h localhost -U username -d home_security
 
 # Common queries
-sqlite> .tables                           # List all tables
-sqlite> .schema cameras                   # Show table schema
-sqlite> SELECT * FROM cameras;            # List all cameras
-sqlite> SELECT COUNT(*) FROM events;      # Count events
-sqlite> SELECT * FROM events ORDER BY timestamp DESC LIMIT 10;
-sqlite> .quit                             # Exit
+\dt                                              # List all tables
+\d cameras                                       # Show table schema
+SELECT * FROM cameras;                           # List all cameras
+SELECT COUNT(*) FROM events;                     # Count events
+SELECT * FROM events ORDER BY timestamp DESC LIMIT 10;
+\q                                               # Exit
+
+# Or use a GUI tool like pgAdmin, DBeaver, or DataGrip
 ```
 
 ### Database Reset
@@ -208,7 +212,6 @@ await cleanup.cleanup_old_events()
 ```
 data/
 ├── AGENTS.md           # This file
-├── security.db         # SQLite database (runtime)
 ├── thumbnails/         # Cached image thumbnails (runtime)
 │   ├── {event_id}.jpg
 │   └── ...
@@ -310,48 +313,53 @@ When database schema changes:
 - **Query limits:** Use pagination for large result sets
 - **Date ranges:** Always filter events by timestamp range
 
-### SQLite Limitations
+### Database Performance Considerations
 
-- **Concurrent writes:** Limited (use Redis for high-throughput writes)
-- **Database size:** Practical limit ~10 GB (consider PostgreSQL for larger deployments)
-- **Connection pooling:** Handled by SQLAlchemy
+- **Concurrent access:** PostgreSQL handles multiple concurrent reads and writes efficiently
+- **Connection pooling:** Managed by SQLAlchemy and asyncpg
+- **Database size:** PostgreSQL scales to terabytes without performance degradation
+- **Query optimization:** Use indexes and EXPLAIN ANALYZE for performance tuning
 
 ## Troubleshooting
 
-### Database Locked Errors
+### Database Connection Issues
 
 ```bash
-# Check for stale connections
-lsof data/security.db
+# Check if PostgreSQL is running
+docker ps | grep postgres
+# or for native: systemctl status postgresql
 
-# Kill processes holding the database
-kill -9 <pid>
+# Test database connection
+psql -h localhost -U username -d home_security -c "SELECT 1;"
 
-# Remove lock files
-rm -f data/security.db-journal data/security.db-shm data/security.db-wal
+# Check active connections
+psql -h localhost -U username -d home_security -c "SELECT count(*) FROM pg_stat_activity;"
+
+# Kill stuck connections (if needed)
+psql -h localhost -U username -d home_security -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='home_security' AND pid != pg_backend_pid();"
 ```
 
-### Corrupted Database
+### Database Backup and Restore
 
 ```bash
-# Check database integrity
-sqlite3 data/security.db "PRAGMA integrity_check;"
+# Create backup
+pg_dump -h localhost -U username -F c home_security > backup.dump
 
-# Attempt to repair
-sqlite3 data/security.db ".recover" > recovered.sql
-sqlite3 data/security_new.db < recovered.sql
+# Restore from backup
+pg_restore -h localhost -U username -d home_security -c backup.dump
 
-# Restore from backup if repair fails
-cp data/security.db.backup data/security.db
+# For Docker deployments
+docker exec postgres pg_dump -U postgres -F c home_security > backup.dump
+docker exec -i postgres pg_restore -U postgres -d home_security -c < backup.dump
 ```
 
 ### Disk Space Issues
 
 ```bash
-# Check database size
-du -h data/security.db
+# Check PostgreSQL database size
+psql -h localhost -U username -d home_security -c "SELECT pg_size_pretty(pg_database_size('home_security'));"
 
-# Check total data directory size
+# Check total data directory size (for thumbnails)
 du -sh data/
 
 # Run cleanup service manually
@@ -411,13 +419,13 @@ chmod 755 data/
 3. **Query database:**
 
    ```bash
-   sqlite3 data/security.db
+   psql -h localhost -U username -d home_security
    # Then run SQL queries
    ```
 
 4. **View recent events:**
    ```bash
-   sqlite3 data/security.db "SELECT id, camera_id, timestamp, risk_score FROM events ORDER BY timestamp DESC LIMIT 10;"
+   psql -h localhost -U username -d home_security -c "SELECT id, camera_id, timestamp, risk_score FROM events ORDER BY timestamp DESC LIMIT 10;"
    ```
 
 ### Resetting Database for Testing

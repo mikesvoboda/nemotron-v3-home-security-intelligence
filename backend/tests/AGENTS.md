@@ -40,7 +40,7 @@ Tests for complete workflows across multiple components:
 - **Media serving**: File serving and security validation
 - **WebSocket**: Real-time communication channels
 - **GitHub Workflows**: CI/CD pipeline validation
-- **Mocking**: Redis mocked, database uses temporary SQLite
+- **Mocking**: Redis mocked, database uses test PostgreSQL instance
 
 **Total**: 15+ test files covering API and workflow integration
 
@@ -117,7 +117,7 @@ These fixtures are shared across ALL integration and E2E tests. They are defined
 #### `integration_db`
 
 - **Scope**: Function
-- **Purpose**: Initializes temporary SQLite database with all tables
+- **Purpose**: Initializes temporary test database with all tables
 - **Depends on**: `integration_env`
 - **Usage**: Use for any test that needs database access
 
@@ -283,7 +283,7 @@ pytest backend/tests/ -vv -s --log-cli-level=DEBUG
 ### Database Testing
 
 - Use `isolated_db` fixture for clean database state
-- Tests run against temporary SQLite databases
+- Tests run against temporary test databases
 - Each test gets fresh database instance
 - Automatic cleanup after test completion
 
@@ -349,9 +349,9 @@ Optional dependencies:
 
 ## Test Database Isolation
 
-### SQLite
+### Test Database
 
-Tests use temporary SQLite databases created in temporary directories. Each test function gets a fresh database instance that is automatically cleaned up after the test completes.
+Tests use temporary test databases. Each test function gets a fresh database instance that is automatically cleaned up after the test completes. The test suite can use either in-memory SQLite for speed or PostgreSQL for production parity.
 
 ### Redis
 

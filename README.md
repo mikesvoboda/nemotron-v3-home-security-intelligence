@@ -1,17 +1,23 @@
 # Home Security Intelligence
 
-> Turn dumb security cameras into an intelligent threat detection system.
+> Turn dumb security cameras into an intelligent threat detection system—**100% local, no cloud APIs required.**
 
-![Dashboard Mockup](docs/images/dashboard-mockup.svg)
-_Dashboard mockup showing the main interface layout_
+![Dashboard](docs/images/dashboard.png)
 
-**What it does:** Your Foscam cameras upload images via FTP. This system watches those uploads, runs object detection (RT-DETRv2), and uses an LLM (Nemotron) to generate contextual risk assessments—not just "person detected" but _"unfamiliar person approaching back entrance at 2am, risk: high."_
+**What it does:** Your security cameras upload images via FTP. This system watches those uploads, runs object detection (RT-DETRv2), and uses a **locally-running LLM** (Nemotron Mini 4B) to generate contextual risk assessments—not just "person detected" but _"unfamiliar person approaching back entrance at 2am, risk: high."_
+
+### Why Local AI?
+
+- **Privacy:** Your security footage never leaves your network
+- **No subscriptions:** No monthly API fees or cloud dependencies
+- **Works offline:** Full functionality without internet
+- **Fast:** Sub-second inference on consumer GPUs (even older ones!)
 
 |                |                                        |
 | -------------- | -------------------------------------- |
 | **Detection**  | RT-DETRv2 (30-50ms/image)              |
-| **Analysis**   | Nemotron 4B via llama.cpp              |
-| **Storage**    | SQLite + 30-day retention              |
+| **Analysis**   | Nemotron Mini 4B via llama.cpp         |
+| **Storage**    | PostgreSQL + 30-day retention          |
 | **Interface**  | React dashboard + REST API + WebSocket |
 | **Target GPU** | NVIDIA RTX (8GB+ VRAM)                 |
 
@@ -133,6 +139,17 @@ A single "person walks to door" might generate 15 images over 30 seconds. Batchi
 | **GPU Monitoring**      | Utilization, memory, temperature tracking |
 | **Thumbnail Previews**  | Auto-generated with bounding box overlays |
 | **30-day Retention**    | Automatic cleanup, configurable           |
+
+<details>
+<summary>📸 More Screenshots</summary>
+
+**Event Timeline** — Browse and filter all security events
+![Timeline](docs/images/timeline.png)
+
+**Alerts** — High-risk events requiring attention
+![Alerts](docs/images/alerts.png)
+
+</details>
 
 <details>
 <summary>REST API endpoints</summary>
@@ -326,12 +343,15 @@ On Linux, ensure Docker can reach host services (see Quick Start note).
 
 </details>
 
-<details>
-<summary>Database locked</summary>
+---
 
-SQLite allows one writer. Ensure only one backend instance is running.
+## Documentation
 
-</details>
+📚 **[Full Documentation](docs/README.md)** — Comprehensive guides for all audiences:
+
+- **[User Guide](docs/user-guide/)** — How to use the dashboard (non-technical)
+- **[Architecture](docs/architecture/)** — System design and decisions
+- **[Development](docs/AI_SETUP.md)** — Setup and contributing
 
 ---
 

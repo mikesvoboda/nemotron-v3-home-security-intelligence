@@ -8,7 +8,7 @@ import asyncio
 import contextlib
 import logging
 from collections import deque
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import select
@@ -155,7 +155,7 @@ class GPUMonitor:
                 "memory_total": memory_total,
                 "temperature": temperature,
                 "power_usage": power_usage,
-                "recorded_at": datetime.utcnow(),
+                "recorded_at": datetime.now(UTC),
             }
 
         except Exception as e:
@@ -175,7 +175,7 @@ class GPUMonitor:
             "memory_total": None,
             "temperature": None,
             "power_usage": None,
-            "recorded_at": datetime.utcnow(),
+            "recorded_at": datetime.now(UTC),
         }
 
     def get_current_stats(self) -> dict[str, Any]:
@@ -207,7 +207,7 @@ class GPUMonitor:
             return list(reversed(self._stats_history))
 
         # Filter by time
-        cutoff_time = datetime.utcnow() - timedelta(minutes=minutes)
+        cutoff_time = datetime.now(UTC) - timedelta(minutes=minutes)
         filtered = [stats for stats in self._stats_history if stats["recorded_at"] >= cutoff_time]
         return list(reversed(filtered))
 
@@ -351,7 +351,7 @@ class GPUMonitor:
 
                 # Filter by time if specified
                 if minutes is not None:
-                    cutoff_time = datetime.utcnow() - timedelta(minutes=minutes)
+                    cutoff_time = datetime.now(UTC) - timedelta(minutes=minutes)
                     query = query.where(GPUStats.recorded_at >= cutoff_time)
 
                 # Limit results if specified

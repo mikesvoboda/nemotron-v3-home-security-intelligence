@@ -843,7 +843,7 @@ Activated when:
    | Consumes from: detection_queue
    | Calls: DedupeService.is_duplicate_and_mark()
    | Calls: DetectorClient.detect_objects()
-   | Stores: Detection records in SQLite
+   | Stores: Detection records in PostgreSQL
 
 3. [DetectionQueueWorker]
    | Calls: BatchAggregator.add_detection(confidence, object_type)
@@ -862,7 +862,7 @@ Activated when:
 5. [AnalysisQueueWorker]
    | Consumes from: analysis_queue
    | Calls: NemotronAnalyzer.analyze_batch()
-   | Stores: Event records in SQLite
+   | Stores: Event records in PostgreSQL
 
 6. [NemotronAnalyzer]
    | Calls: EventBroadcaster.broadcast_event()
@@ -880,7 +880,7 @@ Activated when:
 GPUMonitor (Continuous Polling)
    | Every poll_interval seconds (default from settings)
    | Reads: pynvml GPU metrics
-   | Stores: GPUStats records in SQLite
+   | Stores: GPUStats records in PostgreSQL
    | Appends: In-memory circular buffer (max 1000)
    | Broadcasts: WebSocket to SystemBroadcaster (optional)
 
@@ -1028,7 +1028,7 @@ All services use `backend.core.config.get_settings()` for configuration:
 - **RT-DETRv2 HTTP server** (port 8090) - Object detection
 - **llama.cpp server** (port 8080) - LLM inference
 - **Redis** - Queue and cache storage
-- **SQLite** - Persistent storage (via SQLAlchemy async)
+- **PostgreSQL** - Persistent storage (via SQLAlchemy async)
 
 ### Python Packages
 

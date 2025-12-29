@@ -19,11 +19,11 @@ class Settings(BaseSettings):
     )
 
     # Database configuration
-    # SQLite (dev): sqlite+aiosqlite:///./data/security.db
-    # PostgreSQL (prod): postgresql+asyncpg://user:pass@host:5432/dbname
+    # PostgreSQL only - required for production and development
+    # Example: postgresql+asyncpg://security:password@localhost:5432/security
     database_url: str = Field(
-        default="sqlite+aiosqlite:///./data/security.db",
-        description="SQLAlchemy database URL (SQLite for dev, PostgreSQL for prod)",
+        default="postgresql+asyncpg://security:security_dev_password@localhost:5432/security",
+        description="SQLAlchemy database URL (PostgreSQL with asyncpg driver)",
     )
 
     # Redis configuration
@@ -352,13 +352,11 @@ class Settings(BaseSettings):
     @field_validator("database_url")
     @classmethod
     def validate_database_url(cls, v: str) -> str:
-        """Ensure database directory exists for SQLite."""
-        if v.startswith("sqlite"):
-            # Extract path from SQLite URL
-            db_path = v.split("///")[-1] if "///" in v else v.split("//")[-1]
-            if db_path and db_path != ":memory:":
-                # Create data directory if it doesn't exist
-                Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+        """Validate PostgreSQL database URL format."""
+        if not v.startswith(("postgresql://", "postgresql+asyncpg://")):
+            raise ValueError(
+                f"Invalid database URL. Expected postgresql:// or postgresql+asyncpg:// format, got: {v}"
+            )
         return v
 
 
