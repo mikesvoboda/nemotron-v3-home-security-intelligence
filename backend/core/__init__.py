@@ -38,7 +38,6 @@ from backend.core.mime_types import (
     normalize_file_type,
 )
 from backend.core.redis import (
-    QueueAddResult,
     RedisClient,
     close_redis,
     get_redis,
@@ -46,17 +45,12 @@ from backend.core.redis import (
     init_redis,
 )
 from backend.core.tls import (
-    CertificateNotFoundError,
-    CertificateValidationError,
-    TLSConfigurationError,
-    TLSError,
+    TLSConfig,
+    TLSMode,
     create_ssl_context,
-    generate_self_signed_cert,
-    get_cert_info,
+    generate_self_signed_certificate,
     get_tls_config,
-    is_tls_enabled,
-    load_certificate_paths,
-    validate_certificate,
+    validate_certificate_files,
 )
 
 __all__ = [
@@ -64,18 +58,14 @@ __all__ = [
     "DEFAULT_VIDEO_MIME",
     "EXTENSION_TO_MIME",
     "Base",
-    "CertificateNotFoundError",
-    "CertificateValidationError",
-    "QueueAddResult",
     "RedisClient",
     "Settings",
-    "TLSConfigurationError",
-    "TLSError",
+    "TLSConfig",
+    "TLSMode",
     "close_db",
     "close_redis",
     "create_ssl_context",
-    "generate_self_signed_cert",
-    "get_cert_info",
+    "generate_self_signed_certificate",
     "get_db",
     "get_engine",
     "get_logger",
@@ -93,9 +83,7 @@ __all__ = [
     "init_redis",
     "is_image_mime_type",
     "is_supported_mime_type",
-    "is_tls_enabled",
     "is_video_mime_type",
-    "load_certificate_paths",
     "normalize_file_type",
     "observe_ai_request_duration",
     "observe_stage_duration",
@@ -106,5 +94,5 @@ __all__ = [
     "set_queue_depth",
     "set_request_id",
     "setup_logging",
-    "validate_certificate",
+    "validate_certificate_files",
 ]
