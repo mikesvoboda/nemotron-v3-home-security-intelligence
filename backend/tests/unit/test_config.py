@@ -1,8 +1,5 @@
 """Unit tests for application configuration settings."""
 
-import tempfile
-from pathlib import Path
-
 import pytest
 from pydantic import ValidationError
 
@@ -39,14 +36,6 @@ def clean_env(monkeypatch):
     get_settings.cache_clear()
 
     yield monkeypatch
-
-
-@pytest.fixture
-def temp_db_path():
-    """Provide a temporary database path for testing."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "data" / "test.db"
-        yield db_path
 
 
 class TestSettingsDefaults:
@@ -121,9 +110,9 @@ class TestEnvironmentOverrides:
 
     def test_override_database_url(self, clean_env):
         """Test DATABASE_URL environment variable overrides default."""
-        clean_env.setenv("DATABASE_URL", "postgresql://user:pass@localhost/testdb")
+        clean_env.setenv("DATABASE_URL", "postgresql+asyncpg://user:pass@localhost:5432/testdb")
         settings = Settings()
-        assert settings.database_url == "postgresql://user:pass@localhost/testdb"
+        assert settings.database_url == "postgresql+asyncpg://user:pass@localhost:5432/testdb"
 
     def test_override_redis_url(self, clean_env):
         """Test REDIS_URL environment variable overrides default."""
@@ -378,21 +367,29 @@ class TestDatabaseUrlValidation:
             settings = Settings()
             assert settings.database_url == db_url
 
-    def test_validator_rejects_sqlite_urls(self, clean_env, temp_db_path):
-        """Test that SQLite URLs are rejected (PostgreSQL-only)."""
-        db_url = f"sqlite+aiosqlite:///{temp_db_path}"
-        clean_env.setenv("DATABASE_URL", db_url)
-
-        with pytest.raises(ValidationError) as exc_info:
+    def test_validator_rejects_sqlite_url(self, clean_env):
+        """Test that SQLite URLs are rejected."""
+        sqlite_url = "sqlite+aiosqlite:///./data/test.db"
+        clean_env.setenv("DATABASE_URL", sqlite_url)
+        with pytest.raises(ValueError, match="Only PostgreSQL is supported"):
             Settings()
 
-        # Verify the error message mentions PostgreSQL requirement
-        assert "postgresql" in str(exc_info.value).lower()
+    def test_validator_rejects_mysql_url(self, clean_env):
+        """Test that MySQL URLs are rejected."""
+        mysql_url = "mysql+aiomysql://user:pass@localhost:3306/dbname"
+        clean_env.setenv("DATABASE_URL", mysql_url)
+        with pytest.raises(ValueError, match="Only PostgreSQL is supported"):
+            Settings()
+
+    def test_validator_rejects_memory_database(self, clean_env):
+        """Test that in-memory SQLite database is rejected."""
+        clean_env.setenv("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+        with pytest.raises(ValueError, match="Only PostgreSQL is supported"):
+            Settings()
 
     def test_validator_rejects_invalid_urls(self, clean_env):
         """Test that invalid database URLs are rejected."""
         invalid_urls = [
-            "mysql://user:pass@localhost:3306/db",
             "mongodb://localhost:27017/db",
             "invalid-url",
         ]

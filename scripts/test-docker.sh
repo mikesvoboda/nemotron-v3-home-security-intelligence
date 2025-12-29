@@ -269,8 +269,8 @@ fi
 print_status "info" "Testing inter-service communication..."
 
 # Test backend -> redis communication
-print_status "info" "Testing Backend -> Redis communication..."
 # ReadinessResponse schema: { ready: bool, status: str, services: { redis: { status: "healthy"|"unhealthy", ... } }, ... }
+print_status "info" "Testing Backend -> Redis communication..."
 backend_redis_test=$(curl -s "http://localhost:${BACKEND_PORT}/api/system/health/ready" | jq -r '.services.redis.status // "unknown"' 2>/dev/null)
 if [ "$backend_redis_test" = "healthy" ]; then
     print_status "success" "Backend can communicate with Redis"

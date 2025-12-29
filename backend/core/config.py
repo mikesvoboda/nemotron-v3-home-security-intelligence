@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     # Example: postgresql+asyncpg://security:password@localhost:5432/security
     database_url: str = Field(
         default="postgresql+asyncpg://security:security_dev_password@localhost:5432/security",
-        description="SQLAlchemy database URL (PostgreSQL with asyncpg driver)",
+        description="PostgreSQL database URL (format: postgresql+asyncpg://user:pass@host:port/db)",
     )
 
     # Redis configuration
@@ -204,6 +204,14 @@ class Settings(BaseSettings):
         description="Queue fill ratio (0.0-1.0) at which to start backpressure warnings",
     )
 
+    # Video processing settings
+    video_frame_interval_seconds: float = Field(
+        default=2.0,
+        ge=0.1,
+        le=60.0,
+        description="Interval between extracted video frames in seconds",
+    )
+
     # Rate limiting settings
     rate_limit_enabled: bool = Field(
         default=True,
@@ -337,13 +345,7 @@ class Settings(BaseSettings):
     # Video processing settings
     video_thumbnails_dir: str = Field(
         default="data/thumbnails",
-        description="Directory to store video thumbnails",
-    )
-    video_frame_interval_seconds: float = Field(
-        default=1.0,
-        ge=0.1,
-        le=60.0,
-        description="Interval between extracted video frames in seconds",
+        description="Directory for storing video thumbnails and extracted frames",
     )
     video_max_frames: int = Field(
         default=30,
@@ -378,6 +380,50 @@ class Settings(BaseSettings):
         description="Directory for auto-generated certificates",
     )
 
+    # TLS/HTTPS settings
+    tls_mode: str = Field(
+        default="disabled",
+        description="TLS mode: 'disabled' (HTTP only), 'self_signed' (auto-generate certs), 'provided' (use existing certs)",
+    )
+    tls_cert_path: str | None = Field(
+        default=None,
+        description="Path to TLS certificate file (PEM format)",
+    )
+    tls_key_path: str | None = Field(
+        default=None,
+        description="Path to TLS private key file (PEM format)",
+    )
+    tls_ca_path: str | None = Field(
+        default=None,
+        description="Path to CA certificate for client verification (optional)",
+    )
+    tls_verify_client: bool = Field(
+        default=False,
+        description="Require and verify client certificates (mTLS)",
+    )
+    tls_min_version: str = Field(
+        default="TLSv1.2",
+        description="Minimum TLS version: 'TLSv1.2' or 'TLSv1.3'",
+    )
+
+    @field_validator("tls_mode")
+    @classmethod
+    def validate_tls_mode(cls, v: str) -> str:
+        """Validate TLS mode is a valid option."""
+        valid_modes = {"disabled", "self_signed", "provided"}
+        if v not in valid_modes:
+            raise ValueError(f"tls_mode must be one of: {', '.join(valid_modes)}")
+        return v
+
+    @field_validator("tls_min_version")
+    @classmethod
+    def validate_tls_min_version(cls, v: str) -> str:
+        """Validate TLS minimum version."""
+        valid_versions = {"TLSv1.2", "TLSv1.3", "1.2", "1.3"}
+        if v not in valid_versions:
+            raise ValueError(f"tls_min_version must be one of: {', '.join(valid_versions)}")
+        return v
+
     @field_validator("log_file_path")
     @classmethod
     def validate_log_file_path(cls, v: str) -> str:
@@ -391,7 +437,8 @@ class Settings(BaseSettings):
         """Validate PostgreSQL database URL format."""
         if not v.startswith(("postgresql://", "postgresql+asyncpg://")):
             raise ValueError(
-                f"Invalid database URL. Expected postgresql:// or postgresql+asyncpg:// format, got: {v}"
+                "Only PostgreSQL is supported. "
+                "URL must start with 'postgresql+asyncpg://' or 'postgresql://'"
             )
         return v
 
