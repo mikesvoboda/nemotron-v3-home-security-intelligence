@@ -229,12 +229,10 @@ class TestAuditAPI:
 class TestAuditIntegration:
     """Test that audit logging is integrated with other endpoints.
 
-    NOTE: These tests are expected to fail until audit logging is integrated
-    with the camera routes. They document the expected behavior.
+    These tests verify that camera CRUD operations properly create audit logs.
     """
 
     @pytest.mark.asyncio
-    @pytest.mark.xfail(reason="Audit logging not yet integrated with camera routes")
     async def test_camera_create_logs_audit(self, client: AsyncClient, db_session: AsyncSession):
         """Test that creating a camera creates an audit log."""
         response = await client.post(
@@ -260,7 +258,6 @@ class TestAuditIntegration:
         assert len(camera_logs) >= 1
 
     @pytest.mark.asyncio
-    @pytest.mark.xfail(reason="Audit logging not yet integrated with camera routes")
     async def test_camera_delete_logs_audit(self, client: AsyncClient, db_session: AsyncSession):
         """Test that deleting a camera creates an audit log."""
         # First create a camera
