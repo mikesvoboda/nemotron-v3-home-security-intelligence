@@ -73,8 +73,8 @@ services:
 
 ### Database Configuration
 
-| Variable       | Default                                                                | Description                   |
-| -------------- | ---------------------------------------------------------------------- | ----------------------------- |
+| Variable       | Default                                                                       | Description                   |
+| -------------- | ----------------------------------------------------------------------------- | ----------------------------- |
 | `DATABASE_URL` | `postgresql+asyncpg://security:security_dev_password@localhost:5432/security` | SQLAlchemy async database URL |
 
 **Notes:**
