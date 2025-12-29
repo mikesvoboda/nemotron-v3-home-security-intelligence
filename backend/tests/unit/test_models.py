@@ -238,15 +238,17 @@ class TestDetectionModel:
     @pytest.mark.asyncio
     async def test_query_detections_by_camera(self, session):
         """Test querying all detections for a specific camera."""
+        cam1_id = unique_id("cam1")
+        cam2_id = unique_id("cam2")
         camera1 = Camera(
-            id="cam1",
+            id=cam1_id,
             name="Camera 1",
-            folder_path="/export/foscam/cam1",
+            folder_path=f"/export/foscam/{cam1_id}",
         )
         camera2 = Camera(
-            id="cam2",
+            id=cam2_id,
             name="Camera 2",
-            folder_path="/export/foscam/cam2",
+            folder_path=f"/export/foscam/{cam2_id}",
         )
         session.add_all([camera1, camera2])
         await session.flush()
@@ -254,26 +256,26 @@ class TestDetectionModel:
         # Add detections to camera1
         for i in range(3):
             detection = Detection(
-                camera_id="cam1",
-                file_path=f"/export/foscam/cam1/image_{i:03d}.jpg",
+                camera_id=cam1_id,
+                file_path=f"/export/foscam/{cam1_id}/image_{i:03d}.jpg",
             )
             session.add(detection)
 
         # Add detection to camera2
         detection = Detection(
-            camera_id="cam2",
-            file_path="/export/foscam/cam2/image_001.jpg",
+            camera_id=cam2_id,
+            file_path=f"/export/foscam/{cam2_id}/image_001.jpg",
         )
         session.add(detection)
         await session.flush()
 
         # Query detections for camera1
-        stmt = select(Detection).where(Detection.camera_id == "cam1")
+        stmt = select(Detection).where(Detection.camera_id == cam1_id)
         result = await session.execute(stmt)
         results = result.scalars().all()
 
         assert len(results) == 3
-        assert all(d.camera_id == "cam1" for d in results)
+        assert all(d.camera_id == cam1_id for d in results)
 
 
 class TestEventModel:
@@ -445,8 +447,11 @@ class TestEventModel:
             session.add(event)
         await session.flush()
 
-        # Query high risk events (score >= 70)
-        stmt = select(Event).where(Event.risk_score >= 70)
+        # Query high risk events (score >= 70) for this specific camera
+        stmt = select(Event).where(
+            Event.camera_id == camera_id,
+            Event.risk_score >= 70,
+        )
         result = await session.execute(stmt)
         results = result.scalars().all()
 
@@ -514,18 +519,25 @@ class TestGPUStatsModel:
         """Test querying GPU stats by time range."""
         now = datetime.utcnow()
 
-        # Create stats at different times
+        # Create stats at different times with unique utilization values
+        # Use a unique base value to identify our records
+        base_util = 50.0
+        created_ids = []
         for i in range(5):
             stats = GPUStats(
                 recorded_at=now - timedelta(minutes=i),
-                gpu_utilization=50.0 + i * 10,
+                gpu_utilization=base_util + i * 10,
             )
             session.add(stats)
-        await session.flush()
+            await session.flush()
+            created_ids.append(stats.id)
 
-        # Query stats from last 3 minutes
+        # Query stats from last 3 minutes, filtering by IDs we created
         cutoff = now - timedelta(minutes=3)
-        stmt = select(GPUStats).where(GPUStats.recorded_at >= cutoff)
+        stmt = select(GPUStats).where(
+            GPUStats.id.in_(created_ids),
+            GPUStats.recorded_at >= cutoff,
+        )
         result = await session.execute(stmt)
         results = result.scalars().all()
 
@@ -540,6 +552,7 @@ class TestGPUStatsModel:
         base_time = datetime.now(UTC)
 
         # Record stats every 10 seconds for 1 minute
+        created_ids = []
         for i in range(6):
             stats = GPUStats(
                 recorded_at=base_time + timedelta(seconds=i * 10),
@@ -548,10 +561,11 @@ class TestGPUStatsModel:
                 temperature=70.0 + i * 0.5,
             )
             session.add(stats)
-        await session.flush()
+            await session.flush()
+            created_ids.append(stats.id)
 
-        # Query all stats ordered by time
-        stmt = select(GPUStats).order_by(GPUStats.recorded_at)
+        # Query stats we created, ordered by time
+        stmt = select(GPUStats).where(GPUStats.id.in_(created_ids)).order_by(GPUStats.recorded_at)
         result = await session.execute(stmt)
         results = result.scalars().all()
 
@@ -612,51 +626,53 @@ class TestModelIntegration:
     @pytest.mark.asyncio
     async def test_multiple_cameras_isolation(self, session):
         """Test that data is properly isolated between cameras."""
-        # Create two cameras
+        # Create two cameras with unique IDs
+        cam1_id = unique_id("cam1")
+        cam2_id = unique_id("cam2")
         camera1 = Camera(
-            id="cam1",
+            id=cam1_id,
             name="Camera 1",
-            folder_path="/export/foscam/cam1",
+            folder_path=f"/export/foscam/{cam1_id}",
         )
         camera2 = Camera(
-            id="cam2",
+            id=cam2_id,
             name="Camera 2",
-            folder_path="/export/foscam/cam2",
+            folder_path=f"/export/foscam/{cam2_id}",
         )
         session.add_all([camera1, camera2])
         await session.flush()
 
         # Add data to each camera
         detection1 = Detection(
-            camera_id="cam1",
-            file_path="/export/foscam/cam1/image_001.jpg",
+            camera_id=cam1_id,
+            file_path=f"/export/foscam/{cam1_id}/image_001.jpg",
         )
         detection2 = Detection(
-            camera_id="cam2",
-            file_path="/export/foscam/cam2/image_001.jpg",
+            camera_id=cam2_id,
+            file_path=f"/export/foscam/{cam2_id}/image_001.jpg",
         )
         session.add_all([detection1, detection2])
         await session.flush()
 
         event1 = Event(
-            batch_id="batch_cam1",
-            camera_id="cam1",
+            batch_id=f"batch_{cam1_id}",
+            camera_id=cam1_id,
             started_at=datetime.utcnow(),
         )
         event2 = Event(
-            batch_id="batch_cam2",
-            camera_id="cam2",
+            batch_id=f"batch_{cam2_id}",
+            camera_id=cam2_id,
             started_at=datetime.utcnow(),
         )
         session.add_all([event1, event2])
         await session.flush()
 
         # Query to verify isolation
-        stmt1 = select(Detection).where(Detection.camera_id == "cam1")
+        stmt1 = select(Detection).where(Detection.camera_id == cam1_id)
         result1 = await session.execute(stmt1)
         cam1_detections = result1.scalars().all()
 
-        stmt2 = select(Detection).where(Detection.camera_id == "cam2")
+        stmt2 = select(Detection).where(Detection.camera_id == cam2_id)
         result2 = await session.execute(stmt2)
         cam2_detections = result2.scalars().all()
 

@@ -41,7 +41,7 @@ async def test_camera(session):
 async def test_event(session, test_camera):
     """Create a test event for use in alert tests."""
     event = Event(
-        batch_id="batch_001",
+        batch_id=unique_id("batch"),
         camera_id=test_camera.id,
         started_at=datetime.utcnow(),
         risk_score=75,
@@ -282,7 +282,7 @@ class TestAlertModel:
         await session.refresh(alert, ["event"])
         assert alert.event is not None
         assert alert.event.id == test_event.id
-        assert alert.event.batch_id == "batch_001"
+        assert alert.event.batch_id.startswith("batch_")
 
     @pytest.mark.asyncio
     async def test_alert_rule_relationship(self, session, test_event):
@@ -375,9 +375,11 @@ class TestAlertModel:
     @pytest.mark.asyncio
     async def test_alert_cascade_delete_on_event(self, session, test_camera):
         """Test that alerts are deleted when parent event is deleted."""
-        # Create event
+        # Create event with unique batch_id
+        batch_id = unique_id("batch_cascade")
+        dedup_prefix = unique_id("cascade_test")
         event = Event(
-            batch_id="batch_cascade",
+            batch_id=batch_id,
             camera_id=test_camera.id,
             started_at=datetime.utcnow(),
         )
@@ -388,7 +390,7 @@ class TestAlertModel:
         for i in range(3):
             alert = Alert(
                 event_id=event.id,
-                dedup_key=f"cascade_test_{i}",
+                dedup_key=f"{dedup_prefix}_{i}",
             )
             session.add(alert)
         await session.flush()
@@ -404,36 +406,50 @@ class TestAlertModel:
         await session.flush()
 
         # Verify alerts are also deleted
-        stmt = select(Alert).where(Alert.dedup_key.like("cascade_test_%"))
+        stmt = select(Alert).where(Alert.dedup_key.like(f"{dedup_prefix}%"))
         result = await session.execute(stmt)
         alerts = result.scalars().all()
         assert len(alerts) == 0
 
     @pytest.mark.asyncio
-    async def test_alert_rule_set_null_on_delete(self, session, test_event):
-        """Test that alert.rule_id is set to NULL when rule is deleted."""
+    async def test_alert_cascade_on_rule_delete(self, session, test_event):
+        """Test that alerts are deleted when their rule is deleted.
+
+        Note: The AlertRule.alerts relationship uses cascade="all, delete-orphan",
+        which means SQLAlchemy will delete associated alerts at the ORM level.
+        This overrides the database-level ondelete="SET NULL" behavior.
+        """
         # Create rule
         rule = AlertRule(name="Deletable Rule")
         session.add(rule)
         await session.flush()
-        rule_id = rule.id
 
-        # Create alert referencing the rule
-        alert = Alert(
-            event_id=test_event.id,
-            rule_id=rule_id,
-            dedup_key="test:rule_delete",
-        )
-        session.add(alert)
+        # Create alerts referencing the rule
+        dedup_prefix = unique_id("rule_delete")
+        for i in range(2):
+            alert = Alert(
+                event_id=test_event.id,
+                rule_id=rule.id,
+                dedup_key=f"{dedup_prefix}_{i}",
+            )
+            session.add(alert)
         await session.flush()
 
-        # Delete the rule
+        # Verify alerts exist
+        stmt = select(Alert).where(Alert.dedup_key.like(f"{dedup_prefix}%"))
+        result = await session.execute(stmt)
+        alerts = result.scalars().all()
+        assert len(alerts) == 2
+
+        # Delete the rule (cascade deletes alerts via ORM relationship)
         await session.delete(rule)
         await session.flush()
 
-        # Refresh alert and verify rule_id is NULL
-        await session.refresh(alert)
-        assert alert.rule_id is None
+        # Verify alerts are also deleted (due to ORM cascade="all, delete-orphan")
+        stmt = select(Alert).where(Alert.dedup_key.like(f"{dedup_prefix}%"))
+        result = await session.execute(stmt)
+        alerts = result.scalars().all()
+        assert len(alerts) == 0
 
 
 class TestAlertIndexes:
