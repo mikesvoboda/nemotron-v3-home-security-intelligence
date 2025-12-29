@@ -83,6 +83,7 @@ jobs:
           --health-retries 5
     env:
       DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test
+      TEST_DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -141,6 +142,7 @@ jobs:
           --health-retries 5
     env:
       DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test
+      TEST_DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test
       REDIS_URL: redis://localhost:6379
       REDIS_HOST: localhost
       REDIS_PORT: 6379
