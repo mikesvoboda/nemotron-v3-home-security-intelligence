@@ -34,6 +34,9 @@ pydantic-settings>=2.0.0
 # Logging
 python-json-logger>=2.0.0
 
+# TLS/Cryptography
+cryptography>=42.0.0
+
 # Metrics
 prometheus-client>=0.19.0
 
