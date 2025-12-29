@@ -28,6 +28,7 @@ from backend.services.batch_aggregator import BatchAggregator
 from backend.services.detector_client import DetectorClient, DetectorUnavailableError
 from backend.services.file_watcher import FileWatcher
 from backend.services.nemotron_analyzer import NemotronAnalyzer
+from backend.tests.conftest import unique_id
 
 
 class MockRedisClient:
@@ -120,61 +121,30 @@ async def mock_redis() -> MockRedisClient:
 
 
 @pytest.fixture
-async def clean_pipeline(integration_db):
-    """Truncate all tables before test runs for proper isolation.
+async def test_camera(integration_db: str, tmp_path: Path) -> tuple[Camera, Path]:
+    """Create a test camera with unique ID in the database and return with its temp dir.
 
-    These tests use hardcoded camera IDs, so they need clean state.
+    Returns a tuple of (Camera, camera_root_path) where camera_root_path contains
+    the camera's folder.
     """
-    from sqlalchemy import text
+    camera_id = unique_id("test_camera")
+    camera_root = tmp_path / "foscam"
+    camera_root.mkdir(parents=True)
+    camera_dir = camera_root / camera_id
+    camera_dir.mkdir()
 
-    from backend.core.database import get_engine
-
-    async with get_engine().begin() as conn:
-        await conn.execute(
-            text(
-                "TRUNCATE TABLE logs, gpu_stats, api_keys, detections, events, cameras RESTART IDENTITY CASCADE"
-            )
-        )
-
-    yield
-
-    # Cleanup after test too (best effort)
-    try:
-        async with get_engine().begin() as conn:
-            await conn.execute(
-                text(
-                    "TRUNCATE TABLE logs, gpu_stats, api_keys, detections, events, cameras RESTART IDENTITY CASCADE"
-                )
-            )
-    except Exception:  # noqa: S110 - ignore cleanup errors
-        pass
-
-
-@pytest.fixture
-async def test_camera(integration_db: str, clean_pipeline) -> Camera:
-    """Create a test camera in the database."""
     async with get_session() as session:
         camera = Camera(
-            id="test_camera",
+            id=camera_id,
             name="Test Camera",
-            folder_path="/export/foscam/test_camera",
+            folder_path=f"/export/foscam/{camera_id}",
             status="online",
             created_at=datetime.now(UTC),
         )
         session.add(camera)
         await session.commit()
         await session.refresh(camera)
-        return camera
-
-
-@pytest.fixture
-def temp_camera_dir(tmp_path: Path) -> Path:
-    """Create a temporary camera directory structure."""
-    camera_root = tmp_path / "foscam"
-    camera_root.mkdir(parents=True)
-    test_camera_dir = camera_root / "test_camera"
-    test_camera_dir.mkdir()
-    return camera_root
+        return camera, camera_root
 
 
 def create_mock_detector_response(detections: list[dict[str, Any]] | None = None) -> dict[str, Any]:
@@ -219,8 +189,7 @@ def create_mock_httpx_response(json_data: dict[str, Any], status_code: int = 200
 async def test_full_pipeline_single_image(
     integration_db: str,
     mock_redis: MockRedisClient,
-    test_camera: Camera,
-    temp_camera_dir: Path,
+    test_camera: tuple[Camera, Path],
 ) -> None:
     """Test full pipeline with a single image: file -> detection -> batch -> event.
 
@@ -230,8 +199,11 @@ async def test_full_pipeline_single_image(
     3. Batch is closed and analyzed
     4. Event is created with risk assessment
     """
+    camera, temp_camera_dir = test_camera
+    camera_id = camera.id
+
     # Create test image
-    image_path = temp_camera_dir / "test_camera" / "test_image.jpg"
+    image_path = temp_camera_dir / camera_id / "test_image.jpg"
     create_test_image(image_path)
 
     # Step 1: DetectorClient processes image
@@ -250,7 +222,7 @@ async def test_full_pipeline_single_image(
 
             detections = await detector.detect_objects(
                 image_path=str(image_path),
-                camera_id="test_camera",
+                camera_id=camera_id,
                 session=session,
             )
 
@@ -265,14 +237,14 @@ async def test_full_pipeline_single_image(
         result = await session.execute(select(Detection).where(Detection.id == detection_id))
         stored_detection = result.scalar_one_or_none()
         assert stored_detection is not None
-        assert stored_detection.camera_id == "test_camera"
+        assert stored_detection.camera_id == camera_id
         assert stored_detection.object_type == "person"
 
     # Step 2: BatchAggregator adds detection to batch
     # Use lower confidence to avoid fast path for this test
     aggregator = BatchAggregator(redis_client=mock_redis)
     batch_id = await aggregator.add_detection(
-        camera_id="test_camera",
+        camera_id=camera_id,
         detection_id=str(detection_id),
         _file_path=str(image_path),
         confidence=0.85,  # Below fast path threshold (0.90)
@@ -284,7 +256,7 @@ async def test_full_pipeline_single_image(
 
     # Close the batch
     batch_summary = await aggregator.close_batch(batch_id)
-    assert batch_summary["camera_id"] == "test_camera"
+    assert batch_summary["camera_id"] == camera_id
     assert batch_summary["detection_count"] == 1
 
     # Step 3: NemotronAnalyzer analyzes the batch
@@ -304,12 +276,12 @@ async def test_full_pipeline_single_image(
 
         event = await analyzer.analyze_batch(
             batch_id=batch_id,
-            camera_id="test_camera",
+            camera_id=camera_id,
             detection_ids=[detection_id],
         )
 
         assert event is not None
-        assert event.camera_id == "test_camera"
+        assert event.camera_id == camera_id
         assert event.risk_score == 75
         assert event.risk_level == "high"
         assert event.batch_id == batch_id
@@ -326,8 +298,7 @@ async def test_full_pipeline_single_image(
 async def test_full_pipeline_multiple_images_same_camera(
     integration_db: str,
     mock_redis: MockRedisClient,
-    test_camera: Camera,
-    temp_camera_dir: Path,
+    test_camera: tuple[Camera, Path],
 ) -> None:
     """Test pipeline with multiple images: verifies batch aggregation works.
 
@@ -337,12 +308,15 @@ async def test_full_pipeline_multiple_images_same_camera(
     3. Batch contains all detection IDs
     4. Event is created with correct detection count
     """
+    camera, temp_camera_dir = test_camera
+    camera_id = camera.id
+
     detection_ids = []
     image_paths = []
 
     # Create multiple test images and process them
     for i in range(3):
-        image_path = temp_camera_dir / "test_camera" / f"test_image_{i}.jpg"
+        image_path = temp_camera_dir / camera_id / f"test_image_{i}.jpg"
         create_test_image(image_path)
         image_paths.append(image_path)
 
@@ -369,7 +343,7 @@ async def test_full_pipeline_multiple_images_same_camera(
 
                 detections = await detector.detect_objects(
                     image_path=str(image_path),
-                    camera_id="test_camera",
+                    camera_id=camera_id,
                     session=session,
                 )
 
@@ -384,7 +358,7 @@ async def test_full_pipeline_multiple_images_same_camera(
 
     for i, detection_id in enumerate(detection_ids):
         new_batch_id = await aggregator.add_detection(
-            camera_id="test_camera",
+            camera_id=camera_id,
             detection_id=str(detection_id),
             _file_path=str(image_paths[i]),
             confidence=0.70 + (i * 0.05),
@@ -398,7 +372,7 @@ async def test_full_pipeline_multiple_images_same_camera(
 
     # Close batch and verify
     batch_summary = await aggregator.close_batch(batch_id)
-    assert batch_summary["camera_id"] == "test_camera"
+    assert batch_summary["camera_id"] == camera_id
     assert batch_summary["detection_count"] == 3
 
     # Analyze batch - pass camera_id and detection_ids directly (as queue worker does after fix)
@@ -419,12 +393,12 @@ async def test_full_pipeline_multiple_images_same_camera(
 
         event = await analyzer.analyze_batch(
             batch_id=batch_id,
-            camera_id="test_camera",
+            camera_id=camera_id,
             detection_ids=detection_ids,
         )
 
         assert event is not None
-        assert event.camera_id == "test_camera"
+        assert event.camera_id == camera_id
         assert event.risk_score == 65
         assert event.risk_level == "medium"
 
@@ -439,8 +413,7 @@ async def test_full_pipeline_multiple_images_same_camera(
 async def test_pipeline_detector_failure_graceful(
     integration_db: str,
     mock_redis: MockRedisClient,
-    test_camera: Camera,
-    temp_camera_dir: Path,
+    test_camera: tuple[Camera, Path],
 ) -> None:
     """Test pipeline raises DetectorUnavailableError for retry handling on failures.
 
@@ -450,8 +423,11 @@ async def test_pipeline_detector_failure_graceful(
     3. Exception allows pipeline to retry or move to DLQ
     4. System remains stable after handling the error
     """
+    camera, temp_camera_dir = test_camera
+    camera_id = camera.id
+
     # Create test image
-    image_path = temp_camera_dir / "test_camera" / "test_image.jpg"
+    image_path = temp_camera_dir / camera_id / "test_image.jpg"
     create_test_image(image_path)
 
     # Test connection error raises DetectorUnavailableError
@@ -468,7 +444,7 @@ async def test_pipeline_detector_failure_graceful(
             with pytest.raises(DetectorUnavailableError) as exc_info:
                 await detector.detect_objects(
                     image_path=str(image_path),
-                    camera_id="test_camera",
+                    camera_id=camera_id,
                     session=session,
                 )
 
@@ -476,9 +452,7 @@ async def test_pipeline_detector_failure_graceful(
 
     # Verify no detection was stored
     async with get_session() as session:
-        result = await session.execute(
-            select(Detection).where(Detection.camera_id == "test_camera")
-        )
+        result = await session.execute(select(Detection).where(Detection.camera_id == camera_id))
         stored_detections = list(result.scalars().all())
         assert len(stored_detections) == 0
 
@@ -494,7 +468,7 @@ async def test_pipeline_detector_failure_graceful(
             with pytest.raises(DetectorUnavailableError) as exc_info:
                 await detector.detect_objects(
                     image_path=str(image_path),
-                    camera_id="test_camera",
+                    camera_id=camera_id,
                     session=session,
                 )
 
@@ -520,7 +494,7 @@ async def test_pipeline_detector_failure_graceful(
             with pytest.raises(DetectorUnavailableError) as exc_info:
                 await detector.detect_objects(
                     image_path=str(image_path),
-                    camera_id="test_camera",
+                    camera_id=camera_id,
                     session=session,
                 )
 
@@ -530,15 +504,18 @@ async def test_pipeline_detector_failure_graceful(
 @pytest.mark.asyncio
 async def test_pipeline_missing_image_file(
     integration_db: str,
-    test_camera: Camera,
+    test_camera: tuple[Camera, Path],
 ) -> None:
     """Test pipeline handles missing image files gracefully."""
+    camera, _ = test_camera
+    camera_id = camera.id
+
     detector = DetectorClient()
 
     async with get_session() as session:
         detections = await detector.detect_objects(
             image_path="/nonexistent/path/image.jpg",
-            camera_id="test_camera",
+            camera_id=camera_id,
             session=session,
         )
 
@@ -549,14 +526,16 @@ async def test_pipeline_missing_image_file(
 async def test_pipeline_low_confidence_filtering(
     integration_db: str,
     mock_redis: MockRedisClient,
-    test_camera: Camera,
-    temp_camera_dir: Path,
+    test_camera: tuple[Camera, Path],
 ) -> None:
     """Test that low confidence detections are filtered out.
 
     Verifies that detections below the confidence threshold are not stored.
     """
-    image_path = temp_camera_dir / "test_camera" / "test_image.jpg"
+    camera, temp_camera_dir = test_camera
+    camera_id = camera.id
+
+    image_path = temp_camera_dir / camera_id / "test_image.jpg"
     create_test_image(image_path)
 
     detector = DetectorClient()
@@ -583,7 +562,7 @@ async def test_pipeline_low_confidence_filtering(
 
             detections = await detector.detect_objects(
                 image_path=str(image_path),
-                camera_id="test_camera",
+                camera_id=camera_id,
                 session=session,
             )
 
@@ -595,8 +574,7 @@ async def test_pipeline_low_confidence_filtering(
 async def test_pipeline_llm_failure_fallback(
     integration_db: str,
     mock_redis: MockRedisClient,
-    test_camera: Camera,
-    temp_camera_dir: Path,
+    test_camera: tuple[Camera, Path],
 ) -> None:
     """Test that LLM failures result in fallback risk assessment.
 
@@ -604,8 +582,11 @@ async def test_pipeline_llm_failure_fallback(
     1. Event is still created when LLM fails
     2. Fallback risk values are used (score=50, level=medium)
     """
+    camera, temp_camera_dir = test_camera
+    camera_id = camera.id
+
     # Create detection first
-    image_path = temp_camera_dir / "test_camera" / "test_image.jpg"
+    image_path = temp_camera_dir / camera_id / "test_image.jpg"
     create_test_image(image_path)
 
     detector = DetectorClient()
@@ -622,14 +603,14 @@ async def test_pipeline_llm_failure_fallback(
 
             detections = await detector.detect_objects(
                 image_path=str(image_path),
-                camera_id="test_camera",
+                camera_id=camera_id,
                 session=session,
             )
             assert len(detections) == 1
             detection_id = detections[0].id
 
     # Analyze batch with LLM failure - pass camera_id and detection_ids directly
-    batch_id = "test_batch_llm_failure"
+    batch_id = unique_id("test_batch_llm_failure")
     analyzer = NemotronAnalyzer(redis_client=mock_redis)
 
     with patch("backend.services.nemotron_analyzer.httpx.AsyncClient") as mock_client:
@@ -640,7 +621,7 @@ async def test_pipeline_llm_failure_fallback(
 
         event = await analyzer.analyze_batch(
             batch_id=batch_id,
-            camera_id="test_camera",
+            camera_id=camera_id,
             detection_ids=[detection_id],
         )
 
@@ -655,8 +636,7 @@ async def test_pipeline_llm_failure_fallback(
 async def test_file_watcher_queues_detection(
     integration_db: str,
     mock_redis: MockRedisClient,
-    test_camera: Camera,
-    temp_camera_dir: Path,
+    test_camera: tuple[Camera, Path],
 ) -> None:
     """Test that FileWatcher properly queues images for detection.
 
@@ -664,6 +644,9 @@ async def test_file_watcher_queues_detection(
     1. FileWatcher detects new image files
     2. Valid images are queued in Redis
     """
+    camera, temp_camera_dir = test_camera
+    camera_id = camera.id
+
     # Patch the settings to use our temp directory
     with patch("backend.services.file_watcher.get_settings") as mock_settings:
         settings_mock = MagicMock()
@@ -681,7 +664,7 @@ async def test_file_watcher_queues_detection(
 
         try:
             # Create a test image (simulating FTP upload)
-            image_path = temp_camera_dir / "test_camera" / "new_image.jpg"
+            image_path = temp_camera_dir / camera_id / "new_image.jpg"
             create_test_image(image_path)
 
             # Give filesystem watcher time to detect
@@ -703,7 +686,7 @@ async def test_file_watcher_queues_detection(
 async def test_batch_timeout_closes_batch(
     integration_db: str,
     mock_redis: MockRedisClient,
-    test_camera: Camera,
+    test_camera: tuple[Camera, Path],
 ) -> None:
     """Test that batch aggregator closes batches on timeout.
 
@@ -712,6 +695,9 @@ async def test_batch_timeout_closes_batch(
     2. Batches exceeding idle timeout are closed
     3. Closed batches are pushed to analysis queue
     """
+    camera, _ = test_camera
+    camera_id = camera.id
+
     aggregator = BatchAggregator(redis_client=mock_redis)
 
     # Override timeout for testing (use smaller values)
@@ -719,7 +705,7 @@ async def test_batch_timeout_closes_batch(
 
     # Add a detection to create a batch
     batch_id = await aggregator.add_detection(
-        camera_id="test_camera",
+        camera_id=camera_id,
         detection_id="1",
         _file_path="/path/to/image.jpg",
         confidence=0.7,
@@ -744,15 +730,14 @@ async def test_batch_timeout_closes_batch(
     queue_items = await mock_redis.peek_queue("analysis_queue")
     assert len(queue_items) == 1
     assert queue_items[0]["batch_id"] == batch_id
-    assert queue_items[0]["camera_id"] == "test_camera"
+    assert queue_items[0]["camera_id"] == camera_id
 
 
 @pytest.mark.asyncio
 async def test_fast_path_high_priority_detection(
     integration_db: str,
     mock_redis: MockRedisClient,
-    test_camera: Camera,
-    temp_camera_dir: Path,
+    test_camera: tuple[Camera, Path],
 ) -> None:
     """Test that high-confidence person detections trigger fast path analysis.
 
@@ -761,8 +746,11 @@ async def test_fast_path_high_priority_detection(
     2. Event is created immediately without batching
     3. Event is marked as is_fast_path=True
     """
+    camera, temp_camera_dir = test_camera
+    camera_id = camera.id
+
     # Create detection first
-    image_path = temp_camera_dir / "test_camera" / "test_image.jpg"
+    image_path = temp_camera_dir / camera_id / "test_image.jpg"
     create_test_image(image_path)
 
     detector = DetectorClient()
@@ -788,7 +776,7 @@ async def test_fast_path_high_priority_detection(
 
             detections = await detector.detect_objects(
                 image_path=str(image_path),
-                camera_id="test_camera",
+                camera_id=camera_id,
                 session=session,
             )
             assert len(detections) == 1
@@ -809,7 +797,7 @@ async def test_fast_path_high_priority_detection(
 
         aggregator = BatchAggregator(redis_client=mock_redis)
         batch_id = await aggregator.add_detection(
-            camera_id="test_camera",
+            camera_id=camera_id,
             detection_id=str(detection_id),
             _file_path=str(image_path),
             confidence=0.95,
@@ -822,7 +810,7 @@ async def test_fast_path_high_priority_detection(
     # Verify fast path event was created
     async with get_session() as session:
         result = await session.execute(
-            select(Event).where(Event.camera_id == "test_camera").where(Event.is_fast_path == True)  # noqa: E712
+            select(Event).where(Event.camera_id == camera_id).where(Event.is_fast_path == True)  # noqa: E712
         )
         fast_path_events = list(result.scalars().all())
         assert len(fast_path_events) == 1
@@ -833,8 +821,7 @@ async def test_fast_path_high_priority_detection(
 async def test_batch_close_to_analyze_handoff_without_redis_rehydration(
     integration_db: str,
     mock_redis: MockRedisClient,
-    test_camera: Camera,
-    temp_camera_dir: Path,
+    test_camera: tuple[Camera, Path],
 ) -> None:
     """Test complete batch close -> dequeue -> analyze_batch -> Event flow.
 
@@ -850,8 +837,11 @@ async def test_batch_close_to_analyze_handoff_without_redis_rehydration(
     4. analyze_batch() works with queue payload (no Redis lookup needed)
     5. Event is created successfully
     """
+    camera, temp_camera_dir = test_camera
+    camera_id = camera.id
+
     # Create test image
-    image_path = temp_camera_dir / "test_camera" / "handoff_test.jpg"
+    image_path = temp_camera_dir / camera_id / "handoff_test.jpg"
     create_test_image(image_path)
 
     # Step 1: Create detection in database
@@ -878,7 +868,7 @@ async def test_batch_close_to_analyze_handoff_without_redis_rehydration(
 
             detections = await detector.detect_objects(
                 image_path=str(image_path),
-                camera_id="test_camera",
+                camera_id=camera_id,
                 session=session,
             )
 
@@ -888,7 +878,7 @@ async def test_batch_close_to_analyze_handoff_without_redis_rehydration(
     # Step 2: Add detection to batch
     aggregator = BatchAggregator(redis_client=mock_redis)
     batch_id = await aggregator.add_detection(
-        camera_id="test_camera",
+        camera_id=camera_id,
         detection_id=str(detection_id),
         _file_path=str(image_path),
         confidence=0.85,
@@ -896,13 +886,13 @@ async def test_batch_close_to_analyze_handoff_without_redis_rehydration(
     )
 
     # Verify batch metadata exists in Redis before close
-    assert await mock_redis.get(f"batch:{batch_id}:camera_id") == "test_camera"
+    assert await mock_redis.get(f"batch:{batch_id}:camera_id") == camera_id
     batch_detections_before = await mock_redis.get(f"batch:{batch_id}:detections")
     assert batch_detections_before is not None
 
     # Step 3: Close batch - this deletes Redis keys and enqueues
     batch_summary = await aggregator.close_batch(batch_id)
-    assert batch_summary["camera_id"] == "test_camera"
+    assert batch_summary["camera_id"] == camera_id
     assert batch_summary["detection_count"] == 1
 
     # Verify Redis keys are deleted after close
@@ -915,7 +905,7 @@ async def test_batch_close_to_analyze_handoff_without_redis_rehydration(
 
     queue_item = queue_items[0]
     assert queue_item["batch_id"] == batch_id
-    assert queue_item["camera_id"] == "test_camera"
+    assert queue_item["camera_id"] == camera_id
     assert queue_item["detection_ids"] == [str(detection_id)]
 
     # Step 5: Simulate AnalysisQueueWorker processing - use queue payload directly
@@ -946,7 +936,7 @@ async def test_batch_close_to_analyze_handoff_without_redis_rehydration(
         # Step 6: Verify event was created correctly
         assert event is not None
         assert event.batch_id == batch_id
-        assert event.camera_id == "test_camera"
+        assert event.camera_id == camera_id
         assert event.risk_score == 55
         assert event.risk_level == "medium"
         assert "Car detected" in event.summary
@@ -958,7 +948,7 @@ async def test_batch_close_to_analyze_handoff_without_redis_rehydration(
 
         assert stored_event is not None
         assert stored_event.id == event.id
-        assert stored_event.camera_id == "test_camera"
+        assert stored_event.camera_id == camera_id
         assert stored_event.risk_score == 55
 
         # Verify detection_ids in event
