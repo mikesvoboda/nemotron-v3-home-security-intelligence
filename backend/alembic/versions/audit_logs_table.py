@@ -1,7 +1,7 @@
 """Add audit_logs table
 
 Revision ID: add_audit_logs
-Revises: 968b0dff6a9b
+Revises: add_zones_001
 Create Date: 2025-12-28 12:00:00.000000
 
 """
@@ -14,7 +14,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "add_audit_logs"
-down_revision: str | Sequence[str] | None = "968b0dff6a9b"
+down_revision: str | Sequence[str] | None = "add_zones_001"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
