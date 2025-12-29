@@ -105,7 +105,7 @@ repos:
       # Or run manually: pytest backend/tests/unit/ -m "not slow" -q --fail-fast
       - id: fast-test
         name: Quick Backend Tests (Unit Only)
-        entry: bash -c 'redis-cli -n 15 FLUSHDB > /dev/null 2>&1; source .venv/bin/activate && pytest backend/tests/unit/ -m "not slow" -q --tb=no --fail-fast -x'
+        entry: bash -c 'redis-cli -n 15 FLUSHDB > /dev/null 2>&1; source .venv/bin/activate && pytest backend/tests/unit/ -m "not slow" -q --tb=no -x'
         language: system
         pass_filenames: false
         stages: [pre-push] # Changed from pre-commit to pre-push for faster commits
