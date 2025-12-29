@@ -37,15 +37,6 @@ def upgrade() -> None:
         sa.Column("search_vector", postgresql.TSVECTOR(), nullable=True),
     )
 
-    # Create GIN index for efficient full-text search
-    op.create_index(
-        "idx_events_search_vector",
-        "events",
-        ["search_vector"],
-        unique=False,
-        postgresql_using="gin",
-    )
-
     # Create trigger function to auto-update search_vector on INSERT/UPDATE
     # The trigger combines: summary, reasoning, object_types, and camera name (via subquery)
     op.execute(
@@ -81,18 +72,31 @@ def upgrade() -> None:
         """
     )
 
-    # Backfill existing events with search vectors
-    # This updates all existing rows, triggering the search vector update
+    # Backfill existing events with search vectors using JOIN (optimized)
+    # Uses UPDATE...FROM pattern instead of correlated subquery for better performance
     op.execute(
         """
-        UPDATE events SET
+        UPDATE events e SET
             search_vector = to_tsvector('english',
-                COALESCE(summary, '') || ' ' ||
-                COALESCE(reasoning, '') || ' ' ||
-                COALESCE(object_types, '') || ' ' ||
-                COALESCE((SELECT name FROM cameras WHERE id = events.camera_id), '')
-            );
+                COALESCE(e.summary, '') || ' ' ||
+                COALESCE(e.reasoning, '') || ' ' ||
+                COALESCE(e.object_types, '') || ' ' ||
+                COALESCE(c.name, '')
+            )
+        FROM cameras c
+        WHERE e.camera_id = c.id;
         """
+    )
+
+    # Create GIN index AFTER backfill completes for better performance
+    # Building the index in one pass over finalized data is more efficient
+    # than maintaining the index during bulk updates
+    op.create_index(
+        "idx_events_search_vector",
+        "events",
+        ["search_vector"],
+        unique=False,
+        postgresql_using="gin",
     )
 
 
