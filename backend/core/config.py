@@ -209,6 +209,50 @@ class Settings(BaseSettings):
         description="Directory for storing video thumbnails and extracted frames",
     )
 
+    # TLS/HTTPS settings
+    tls_mode: str = Field(
+        default="disabled",
+        description="TLS mode: 'disabled' (HTTP only), 'self_signed' (auto-generate certs), 'provided' (use existing certs)",
+    )
+    tls_cert_path: str | None = Field(
+        default=None,
+        description="Path to TLS certificate file (PEM format)",
+    )
+    tls_key_path: str | None = Field(
+        default=None,
+        description="Path to TLS private key file (PEM format)",
+    )
+    tls_ca_path: str | None = Field(
+        default=None,
+        description="Path to CA certificate for client verification (optional)",
+    )
+    tls_verify_client: bool = Field(
+        default=False,
+        description="Require and verify client certificates (mTLS)",
+    )
+    tls_min_version: str = Field(
+        default="TLSv1.2",
+        description="Minimum TLS version: 'TLSv1.2' or 'TLSv1.3'",
+    )
+
+    @field_validator("tls_mode")
+    @classmethod
+    def validate_tls_mode(cls, v: str) -> str:
+        """Validate TLS mode is a valid option."""
+        valid_modes = {"disabled", "self_signed", "provided"}
+        if v not in valid_modes:
+            raise ValueError(f"tls_mode must be one of: {', '.join(valid_modes)}")
+        return v
+
+    @field_validator("tls_min_version")
+    @classmethod
+    def validate_tls_min_version(cls, v: str) -> str:
+        """Validate TLS minimum version."""
+        valid_versions = {"TLSv1.2", "TLSv1.3", "1.2", "1.3"}
+        if v not in valid_versions:
+            raise ValueError(f"tls_min_version must be one of: {', '.join(valid_versions)}")
+        return v
+
     @field_validator("log_file_path")
     @classmethod
     def validate_log_file_path(cls, v: str) -> str:

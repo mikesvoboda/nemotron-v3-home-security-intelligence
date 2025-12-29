@@ -1,263 +1,175 @@
 #!/usr/bin/env python3
-"""Generate self-signed TLS certificates for LAN deployment.
+"""Generate TLS certificates for Home Security Intelligence.
 
-This script generates self-signed certificates suitable for securing the
-Home Security Intelligence API on a local network. These certificates
-should NOT be used for production deployments exposed to the internet.
+This script generates self-signed certificates for HTTPS deployment.
+Supports both development (localhost) and LAN deployment scenarios.
 
 Usage:
-    python scripts/generate_certs.py                    # Use defaults
-    python scripts/generate_certs.py --hostname myserver
-    python scripts/generate_certs.py --output /path/to/certs
-    python scripts/generate_certs.py --san-ip 192.168.1.100 --san-ip 10.0.0.5
-    python scripts/generate_certs.py --days 730        # 2-year validity
+    # Generate development certificates (localhost only)
+    python scripts/generate_certs.py
+
+    # Generate LAN certificates with custom hostnames/IPs
+    python scripts/generate_certs.py --hostname security.home --san 192.168.1.100
+
+    # Generate with custom output directory
+    python scripts/generate_certs.py --output-dir /etc/ssl/hsi
+
+    # Generate with longer validity
+    python scripts/generate_certs.py --validity-days 730
 
 Examples:
-    # Generate certs for local development
-    python scripts/generate_certs.py --hostname localhost
+    # Development setup
+    python scripts/generate_certs.py
+    # Creates: data/certs/cert.pem, data/certs/key.pem
 
-    # Generate certs for LAN server with multiple IPs
+    # Production LAN setup
     python scripts/generate_certs.py \\
-        --hostname security-server \\
-        --san-ip 192.168.1.100 \\
-        --san-ip 10.0.0.1 \\
-        --san-dns security.local \\
-        --output data/certs
+        --hostname security.local \\
+        --san 192.168.1.100 \\
+        --san 192.168.1.101 \\
+        --san localhost \\
+        --validity-days 730 \\
+        --output-dir /opt/hsi/certs
 
-    # Generate certs with custom validity period
-    python scripts/generate_certs.py --days 365 --hostname myserver
-
-Note:
-    For production deployments accessible from the internet, use proper
-    CA-signed certificates from Let's Encrypt or another trusted CA.
+Environment Variables:
+    TLS_CERT_PATH: Override default certificate output path
+    TLS_KEY_PATH: Override default private key output path
 """
 
-from __future__ import annotations
-
 import argparse
-import socket
+import os
 import sys
 from pathlib import Path
 
-# Add parent directory to path for imports
+# Add backend to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from backend.core.tls import generate_self_signed_cert, validate_certificate
+from backend.core.tls import generate_self_signed_certificate
 
 
-def get_local_ips() -> list[str]:
-    """Discover local IP addresses.
+def _get_output_dir(args_output_dir: str | None) -> Path:
+    """Determine the output directory for certificates."""
+    if args_output_dir:
+        return Path(args_output_dir)
+    env_cert_path = os.environ.get("TLS_CERT_PATH")
+    return Path(env_cert_path).parent if env_cert_path else Path("data/certs")
 
-    Returns:
-        List of local IPv4 addresses.
-    """
-    local_ips: list[str] = ["127.0.0.1"]
 
-    try:
-        hostname = socket.gethostname()
-        host_ip = socket.gethostbyname(hostname)
-        if host_ip not in local_ips:
-            local_ips.append(host_ip)
+def _build_san_list(san_hosts: list[str] | None, hostname: str) -> list[str]:
+    """Build the Subject Alternative Names list."""
+    result = list(san_hosts) if san_hosts else []
+    # Always include localhost and 127.0.0.1 for development convenience
+    if hostname == "localhost":
+        for san in ["127.0.0.1", "::1"]:
+            if san not in result:
+                result.append(san)
+    return result
 
-        # Try to get additional addresses
-        try:
-            addrs = socket.getaddrinfo(hostname, None, socket.AF_INET)
-            for addr in addrs:
-                ip = addr[4][0]
-                if ip not in local_ips and not ip.startswith("127."):
-                    local_ips.append(ip)
-        except Exception:  # noqa: S110
-            pass
 
-    except Exception as e:
-        print(f"Warning: Could not discover local IPs: {e}")
+def _print_info(
+    args: argparse.Namespace, cert_path: Path, key_path: Path, san_hosts: list[str]
+) -> None:
+    """Print certificate generation info."""
+    print("Generating TLS certificate...")
+    print(f"  Hostname (CN): {args.hostname}")
+    print(f"  Organization: {args.organization}")
+    print(f"  Validity: {args.validity_days} days")
+    if san_hosts:
+        print(f"  SANs: {', '.join(san_hosts)}")
+    print(f"  Certificate: {cert_path}")
+    print(f"  Private Key: {key_path}")
+    print()
 
-    return local_ips
+
+def _print_success(cert_path: Path, key_path: Path) -> None:
+    """Print success message with instructions."""
+    print("Certificate generated successfully!")
+    print()
+    print("To enable HTTPS, add to your .env file:")
+    print()
+    print("  TLS_MODE=self_signed")
+    print(f"  TLS_CERT_PATH={cert_path.absolute()}")
+    print(f"  TLS_KEY_PATH={key_path.absolute()}")
+    print()
+    print("Or start the server with:")
+    print()
+    print(f"  uvicorn backend.main:app --ssl-certfile={cert_path} --ssl-keyfile={key_path}")
 
 
 def main() -> int:
-    """Main entry point for certificate generation.
-
-    Returns:
-        Exit code (0 for success, non-zero for failure).
-    """
+    """Generate TLS certificates based on command-line arguments."""
     parser = argparse.ArgumentParser(
-        description="Generate self-signed TLS certificates for LAN deployment.",
+        description="Generate TLS certificates for Home Security Intelligence",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  %(prog)s --hostname localhost
-  %(prog)s --hostname myserver --san-ip 192.168.1.100
-  %(prog)s --output /etc/ssl/certs --days 730
+  # Development (localhost only)
+  %(prog)s
+
+  # LAN deployment with specific IP
+  %(prog)s --hostname security.home --san 192.168.1.100
+
+  # Multiple SANs for load balancing
+  %(prog)s --san 192.168.1.100 --san 192.168.1.101 --san lb.local
         """,
     )
 
+    parser.add_argument("--hostname", default="localhost", help="Primary hostname (CN)")
     parser.add_argument(
-        "--hostname",
-        default=None,
-        help="Hostname for the certificate (default: system hostname)",
+        "--san", action="append", dest="san_hosts", metavar="HOST", help="Additional SAN"
     )
-
+    parser.add_argument("--output-dir", default=None, help="Output directory")
+    parser.add_argument("--cert-name", default="cert.pem", help="Certificate filename")
+    parser.add_argument("--key-name", default="key.pem", help="Private key filename")
+    parser.add_argument("--validity-days", type=int, default=365, help="Validity in days")
     parser.add_argument(
-        "--output",
-        "-o",
-        default="data/certs",
-        help="Output directory for certificates (default: data/certs)",
+        "--organization", default="Home Security Intelligence", help="Organization name"
     )
-
-    parser.add_argument(
-        "--cert-name",
-        default="server.crt",
-        help="Certificate filename (default: server.crt)",
-    )
-
-    parser.add_argument(
-        "--key-name",
-        default="server.key",
-        help="Private key filename (default: server.key)",
-    )
-
-    parser.add_argument(
-        "--san-ip",
-        action="append",
-        default=[],
-        help="IP address for Subject Alternative Name (can be repeated)",
-    )
-
-    parser.add_argument(
-        "--san-dns",
-        action="append",
-        default=[],
-        help="DNS name for Subject Alternative Name (can be repeated)",
-    )
-
-    parser.add_argument(
-        "--days",
-        type=int,
-        default=365,
-        help="Certificate validity in days (default: 365)",
-    )
-
-    parser.add_argument(
-        "--key-size",
-        type=int,
-        default=2048,
-        choices=[2048, 4096],
-        help="RSA key size in bits (default: 2048)",
-    )
-
-    parser.add_argument(
-        "--auto-discover-ips",
-        action="store_true",
-        help="Automatically add discovered local IPs to SANs",
-    )
-
-    parser.add_argument(
-        "--force",
-        "-f",
-        action="store_true",
-        help="Overwrite existing certificates",
-    )
-
-    parser.add_argument(
-        "--quiet",
-        "-q",
-        action="store_true",
-        help="Suppress non-error output",
-    )
+    parser.add_argument("--force", action="store_true", help="Overwrite without prompting")
+    parser.add_argument("-q", "--quiet", action="store_true", help="Suppress output")
 
     args = parser.parse_args()
 
-    # Determine hostname
-    hostname = args.hostname or socket.gethostname()
+    output_dir = _get_output_dir(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Build output paths
-    output_dir = Path(args.output)
     cert_path = output_dir / args.cert_name
     key_path = output_dir / args.key_name
 
     # Check for existing certificates
-    if not args.force:
-        if cert_path.exists():
-            print(f"Error: Certificate already exists: {cert_path}")
-            print("Use --force to overwrite.")
-            return 1
-        if key_path.exists():
-            print(f"Error: Key already exists: {key_path}")
-            print("Use --force to overwrite.")
+    if not args.force and (cert_path.exists() or key_path.exists()) and not args.quiet:
+        print(f"Certificate files already exist in {output_dir}")
+        if input("Overwrite? [y/N]: ").strip().lower() != "y":
+            print("Aborted.")
             return 1
 
-    # Build SAN lists
-    san_ips = list(args.san_ip)
-    san_dns = list(args.san_dns)
-
-    # Auto-discover local IPs if requested
-    if args.auto_discover_ips:
-        discovered = get_local_ips()
-        for ip in discovered:
-            if ip not in san_ips:
-                san_ips.append(ip)
-        if not args.quiet:
-            print(f"Discovered local IPs: {discovered}")
-
-    # Always include localhost
-    if "localhost" not in san_dns:
-        san_dns.append("localhost")
-    if "127.0.0.1" not in san_ips:
-        san_ips.append("127.0.0.1")
+    san_hosts = _build_san_list(args.san_hosts, args.hostname)
 
     if not args.quiet:
-        print(f"Generating certificate for: {hostname}")
-        print(f"Output directory: {output_dir}")
-        print(f"Certificate file: {cert_path}")
-        print(f"Key file: {key_path}")
-        print(f"Validity: {args.days} days")
-        print(f"Key size: {args.key_size} bits")
-        print(f"SAN IPs: {san_ips}")
-        print(f"SAN DNS: {san_dns}")
-        print()
+        _print_info(args, cert_path, key_path, san_hosts)
 
     try:
-        # Generate certificates
-        generate_self_signed_cert(
-            cert_path=cert_path,
-            key_path=key_path,
-            hostname=hostname,
-            san_ips=san_ips,
-            san_dns=san_dns,
-            days_valid=args.days,
-            key_size=args.key_size,
+        success = generate_self_signed_certificate(
+            cert_path=str(cert_path),
+            key_path=str(key_path),
+            hostname=args.hostname,
+            san_hosts=san_hosts if san_hosts else None,
+            organization=args.organization,
+            validity_days=args.validity_days,
         )
 
+        if not success:
+            if not args.quiet:
+                print("Certificate generation failed.", file=sys.stderr)
+            return 1
+
         if not args.quiet:
-            print("Certificate generated successfully!")
-            print()
-
-            # Validate and show certificate info
-            cert_info = validate_certificate(cert_path)
-            print("Certificate Details:")
-            print(f"  Subject: {cert_info['subject']}")
-            print(f"  Issuer: {cert_info['issuer']}")
-            print(f"  Valid from: {cert_info['not_before']}")
-            print(f"  Valid until: {cert_info['not_after']}")
-            print(f"  Days remaining: {cert_info['days_remaining']}")
-            print()
-
-            # Show usage instructions
-            print("To use with the API server:")
-            print("  export TLS_ENABLED=true")
-            print(f"  export TLS_CERT_FILE={cert_path.absolute()}")
-            print(f"  export TLS_KEY_FILE={key_path.absolute()}")
-            print()
-            print("Or add to .env file:")
-            print("  TLS_ENABLED=true")
-            print(f"  TLS_CERT_FILE={cert_path.absolute()}")
-            print(f"  TLS_KEY_FILE={key_path.absolute()}")
-
+            _print_success(cert_path, key_path)
         return 0
 
     except Exception as e:
-        print(f"Error generating certificates: {e}", file=sys.stderr)
+        if not args.quiet:
+            print(f"Error generating certificate: {e}", file=sys.stderr)
         return 1
 
 
