@@ -209,6 +209,24 @@ class Settings(BaseSettings):
         description="Directory for storing video thumbnails and extracted frames",
     )
 
+    # Video processing settings
+    video_thumbnails_dir: str = Field(
+        default="data/thumbnails",
+        description="Directory to store video thumbnails",
+    )
+    video_frame_interval_seconds: float = Field(
+        default=1.0,
+        ge=0.1,
+        le=60.0,
+        description="Interval between extracted video frames in seconds",
+    )
+    video_max_frames: int = Field(
+        default=30,
+        ge=1,
+        le=300,
+        description="Maximum number of frames to extract from a video",
+    )
+
     # TLS/HTTPS settings
     tls_mode: str = Field(
         default="disabled",
