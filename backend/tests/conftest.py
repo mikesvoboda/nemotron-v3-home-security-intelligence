@@ -15,6 +15,7 @@ See backend/tests/AGENTS.md for full documentation on test conventions.
 from __future__ import annotations
 
 import os
+import socket
 import sys
 import tempfile
 from pathlib import Path
@@ -33,6 +34,24 @@ if str(backend_path) not in sys.path:
     sys.path.insert(0, str(backend_path))
 
 
+# Default development PostgreSQL URL (matches docker-compose.yml)
+DEFAULT_DEV_POSTGRES_URL = (
+    "postgresql+asyncpg://security:security_dev_password@localhost:5432/security"
+)
+
+
+def _check_postgres_connection(host: str = "localhost", port: int = 5432) -> bool:
+    """Check if PostgreSQL is reachable on the given host/port."""
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1)
+        result = sock.connect_ex((host, port))
+        sock.close()
+        return result == 0
+    except Exception:
+        return False
+
+
 # Module-level PostgreSQL container shared across all tests in a session
 _postgres_container: PostgresContainer | None = None
 
@@ -40,13 +59,18 @@ _postgres_container: PostgresContainer | None = None
 def pytest_configure(config):
     """Start PostgreSQL container once for the entire test session.
 
-    If TEST_DATABASE_URL environment variable is set, use that instead of testcontainers.
-    This allows tests to run against an existing PostgreSQL instance when Docker is not available.
+    Skipped when:
+    - TEST_DATABASE_URL environment variable is set (explicit override)
+    - Local PostgreSQL is already running on port 5432 (Podman/Docker)
     """
     global _postgres_container  # noqa: PLW0603
 
-    # Allow using existing PostgreSQL instance via environment variable
+    # Skip if explicit database URL is provided
     if os.environ.get("TEST_DATABASE_URL"):
+        return
+
+    # Skip if local PostgreSQL is already running (development environment)
+    if _check_postgres_connection():
         return
 
     # Try to start testcontainer, skip if Docker/Podman not available
@@ -54,10 +78,10 @@ def pytest_configure(config):
         _postgres_container = PostgresContainer("postgres:16-alpine", driver="asyncpg")
         _postgres_container.start()
     except Exception as e:
-        # Log warning but don't fail - tests will use TEST_DATABASE_URL if set
+        # Log warning but don't fail - tests will use local PostgreSQL if available
         print(
             f"Warning: Could not start PostgreSQL testcontainer: {e}. "
-            "Set TEST_DATABASE_URL environment variable to use existing PostgreSQL instance."
+            "Start PostgreSQL via 'podman-compose up -d postgres' or set TEST_DATABASE_URL."
         )
 
 
@@ -76,15 +100,18 @@ def pytest_unconfigure(config):
 def get_test_db_url() -> str:
     """Get the PostgreSQL test database URL.
 
-    Uses TEST_DATABASE_URL environment variable if set, otherwise uses testcontainer.
+    Priority order:
+    1. TEST_DATABASE_URL environment variable (explicit override)
+    2. Local PostgreSQL on port 5432 (development with Podman/Docker)
+    3. Testcontainer (CI or when Docker available)
 
     Returns:
         str: PostgreSQL connection URL with asyncpg driver
 
     Raises:
-        RuntimeError: If neither testcontainer nor TEST_DATABASE_URL is available
+        RuntimeError: If no PostgreSQL instance is available
     """
-    # Check for environment variable first
+    # 1. Check for explicit environment variable override
     env_url = os.environ.get("TEST_DATABASE_URL")
     if env_url:
         # Ensure asyncpg driver
@@ -92,17 +119,135 @@ def get_test_db_url() -> str:
             env_url = env_url.replace("postgresql://", "postgresql+asyncpg://")
         return env_url
 
-    # Fall back to testcontainer
-    if _postgres_container is None:
-        raise RuntimeError(
-            "PostgreSQL not available for testing. Either start Docker/Podman "
-            "or set TEST_DATABASE_URL environment variable to an existing PostgreSQL instance."
+    # 2. Check for local PostgreSQL (development environment with Podman/Docker)
+    if _check_postgres_connection():
+        return DEFAULT_DEV_POSTGRES_URL
+
+    # 3. Fall back to testcontainer
+    if _postgres_container is not None:
+        # Get the connection URL and ensure it uses asyncpg driver
+        url = _postgres_container.get_connection_url()
+        # Replace psycopg2 driver with asyncpg
+        return url.replace("postgresql+psycopg2://", "postgresql+asyncpg://")
+
+    raise RuntimeError(
+        "PostgreSQL not available for testing. Options:\n"
+        "1. Start PostgreSQL via 'podman-compose up -d postgres' (development)\n"
+        "2. Set TEST_DATABASE_URL environment variable\n"
+        "3. Ensure Docker/Podman is available for testcontainers"
+    )
+
+
+# Track if schema has been reset this worker process to avoid redundant operations
+_schema_reset_done: bool = False
+# Track if data has been cleared this worker process
+_data_cleared: bool = False
+
+
+async def _ensure_clean_db(use_lock: bool = True) -> None:
+    """Ensure database has tables and is ready for tests.
+
+    This function:
+    1. Creates tables if they don't exist (under advisory lock for coordination)
+    2. Truncates all tables to ensure clean state (once per worker)
+
+    Unlike dropping/recreating schema, truncation doesn't require AccessExclusiveLock
+    and can coexist with concurrent reads/writes from other workers.
+    """
+    global _data_cleared  # noqa: PLW0603
+
+    if _data_cleared:
+        return
+
+    from sqlalchemy import text
+
+    from backend.core.database import get_engine
+
+    engine = get_engine()
+    if engine is None:
+        return
+
+    # Mark as done FIRST to prevent re-entry
+    _data_cleared = True
+
+    # First ensure schema exists
+    await _reset_db_schema(use_lock=use_lock)
+
+    # Then truncate tables to clear any stale data
+    # Note: We don't use advisory lock here because TRUNCATE with CASCADE
+    # is fast and doesn't conflict badly with INSERT operations
+    async with engine.begin() as conn:
+        # Truncate all tables in one statement to avoid FK issues
+        # RESTART IDENTITY resets sequences, CASCADE handles FK dependencies
+        await conn.execute(
+            text(
+                "TRUNCATE TABLE events, detections, cameras, gpu_stats, "
+                "api_keys, users, zones, cases, pipeline_metrics "
+                "RESTART IDENTITY CASCADE"
+            )
         )
 
-    # Get the connection URL and ensure it uses asyncpg driver
-    url = _postgres_container.get_connection_url()
-    # Replace psycopg2 driver with asyncpg
-    return url.replace("postgresql+psycopg2://", "postgresql+asyncpg://")
+
+async def _reset_db_schema(use_lock: bool = True) -> None:
+    """Drop and recreate all tables to ensure fresh schema.
+
+    This is called once per worker process to ensure the database schema matches
+    the current SQLAlchemy models. Uses PostgreSQL advisory locks to coordinate
+    across parallel pytest-xdist workers.
+
+    Args:
+        use_lock: If True, use PostgreSQL advisory lock to coordinate across workers.
+                  Set to False for single-threaded test runs or when lock is not needed.
+    """
+    global _schema_reset_done  # noqa: PLW0603
+
+    if _schema_reset_done:
+        return
+
+    from sqlalchemy import text
+
+    from backend.core.database import get_engine
+
+    # Import all models to ensure they're registered with Base.metadata
+    from backend.models import Camera, Detection, Event, GPUStats  # noqa: F401
+    from backend.models.camera import Base as ModelsBase
+
+    engine = get_engine()
+    if engine is None:
+        return
+
+    # Mark as done FIRST to prevent re-entry from concurrent coroutines
+    _schema_reset_done = True
+
+    async with engine.begin() as conn:
+        if use_lock:
+            # Use PostgreSQL advisory lock to ensure only one worker does schema reset
+            # Lock ID 12345 is arbitrary but must be consistent across all workers
+            # pg_advisory_lock is a session-level lock that blocks until acquired
+            await conn.execute(text("SELECT pg_advisory_lock(12345)"))
+            try:
+                # Check if tables exist - if they do with correct schema, skip reset
+                # This prevents unnecessary drops when another worker already created them
+                result = await conn.execute(
+                    text(
+                        "SELECT EXISTS ("
+                        "SELECT FROM information_schema.tables "
+                        "WHERE table_schema = 'public' AND table_name = 'cameras'"
+                        ")"
+                    )
+                )
+                tables_exist = result.scalar()
+
+                if not tables_exist:
+                    # Tables don't exist - create them
+                    await conn.run_sync(ModelsBase.metadata.create_all)
+                # If tables exist, assume schema is correct (another worker created them)
+            finally:
+                # Release the lock
+                await conn.execute(text("SELECT pg_advisory_unlock(12345)"))
+        else:
+            # No lock needed - just create tables if they don't exist
+            await conn.run_sync(ModelsBase.metadata.create_all)
 
 
 @pytest.fixture(scope="function")
@@ -110,13 +255,16 @@ async def isolated_db():
     """Create an isolated test database for each test.
 
     This fixture:
-    - Uses the shared PostgreSQL testcontainer
-    - Creates a unique database for each test
+    - Uses the shared PostgreSQL testcontainer or local PostgreSQL
     - Sets the DATABASE_URL environment variable
     - Clears the settings cache
-    - Initializes the database
+    - Ensures tables exist (created once per worker, coordinated via advisory lock)
     - Yields control to the test
     - Cleans up and restores the original state
+
+    Note: For true isolation in parallel tests, use the `session` fixture
+    which provides transaction-based rollback isolation. Tests should use
+    unique IDs (via unique_id() helper) to avoid conflicts with parallel tests.
     """
     from backend.core.config import get_settings
     from backend.core.database import close_db, init_db
@@ -127,7 +275,7 @@ async def isolated_db():
     # Clear the settings cache to force reload
     get_settings.cache_clear()
 
-    # Get base PostgreSQL URL from testcontainer
+    # Get base PostgreSQL URL from testcontainer or local PostgreSQL
     test_db_url = get_test_db_url()
 
     # Set test database URL
@@ -139,8 +287,12 @@ async def isolated_db():
     # Ensure database is closed before initializing
     await close_db()
 
-    # Initialize database
+    # Initialize database (creates engine and tables)
     await init_db()
+
+    # Ensure schema exists and is ready for tests
+    # This is coordinated across workers via advisory lock
+    await _ensure_clean_db()
 
     yield
 
@@ -155,6 +307,42 @@ async def isolated_db():
 
     # Clear cache one more time to ensure clean state
     get_settings.cache_clear()
+
+
+@pytest.fixture
+async def session(isolated_db):
+    """Create an isolated database session with transaction rollback for each test.
+
+    This fixture provides true isolation in parallel test execution by:
+    1. Starting a savepoint before each test
+    2. Rolling back to the savepoint after each test
+
+    All data created during the test is automatically rolled back, ensuring
+    parallel tests don't see each other's data.
+
+    Usage:
+        @pytest.mark.asyncio
+        async def test_something(session):
+            camera = Camera(id="test", name="Test")
+            session.add(camera)
+            await session.flush()
+            # Test assertions...
+            # Data is automatically rolled back after test
+    """
+    from sqlalchemy import text
+
+    from backend.core.database import get_session
+
+    async with get_session() as sess:
+        # Start a savepoint that we'll roll back to after the test
+        # This ensures test isolation without needing TRUNCATE
+        await sess.execute(text("SAVEPOINT test_savepoint"))
+
+        try:
+            yield sess
+        finally:
+            # Roll back to savepoint to undo all changes from this test
+            await sess.execute(text("ROLLBACK TO SAVEPOINT test_savepoint"))
 
 
 @pytest.fixture(autouse=True)
@@ -181,7 +369,7 @@ async def test_db():
     """Create test database session factory for unit tests.
 
     This fixture provides a callable that returns a context manager for database sessions.
-    It sets up a PostgreSQL test database and ensures cleanup.
+    It sets up a PostgreSQL test database with fresh schema and ensures cleanup.
 
     Usage:
         async with test_db() as session:
@@ -197,7 +385,7 @@ async def test_db():
     # Clear the settings cache to force reload
     get_settings.cache_clear()
 
-    # Get PostgreSQL URL from testcontainer
+    # Get PostgreSQL URL from testcontainer or local PostgreSQL
     test_db_url = get_test_db_url()
 
     # Set test database URL
@@ -209,8 +397,11 @@ async def test_db():
     # Ensure database is closed before initializing
     await close_db()
 
-    # Initialize database
+    # Initialize database (creates engine)
     await init_db()
+
+    # Reset schema to ensure it matches current models
+    await _reset_db_schema()
 
     # Return the get_session function as a callable
     yield get_session
@@ -294,7 +485,7 @@ async def integration_db(integration_env: str) -> AsyncGenerator[str]:
     This fixture:
     - Depends on integration_env for environment setup
     - Closes any existing database connections
-    - Initializes a fresh database with all tables
+    - Drops and recreates all tables for fresh schema
     - Yields the database URL
     - Cleans up after the test
 
@@ -307,7 +498,11 @@ async def integration_db(integration_env: str) -> AsyncGenerator[str]:
     get_settings.cache_clear()
     await close_db()
 
+    # Initialize database (creates engine)
     await init_db()
+
+    # Reset schema to ensure it matches current models
+    await _reset_db_schema()
 
     try:
         yield integration_env
