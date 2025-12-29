@@ -26,6 +26,8 @@ from backend.api.schemas.system import (
     HealthResponse,
     LivenessResponse,
     PipelineLatencies,
+    PipelineLatencyResponse,
+    PipelineStageLatency,
     QueueDepths,
     ReadinessResponse,
     ServiceStatus,
@@ -1226,6 +1228,76 @@ async def get_telemetry(
     return TelemetryResponse(
         queues=queues,
         latencies=latencies,
+        timestamp=datetime.now(UTC),
+    )
+
+
+# =============================================================================
+# Pipeline Latency Endpoint
+# =============================================================================
+
+
+def _stats_to_schema(stats: dict[str, float | int | None]) -> PipelineStageLatency | None:
+    """Convert latency stats dict to PipelineStageLatency schema.
+
+    Args:
+        stats: Dictionary with latency statistics from PipelineLatencyTracker
+
+    Returns:
+        PipelineStageLatency schema or None if no samples
+    """
+    if stats.get("sample_count", 0) == 0:
+        return None
+
+    return PipelineStageLatency(
+        avg_ms=stats.get("avg_ms"),
+        min_ms=stats.get("min_ms"),
+        max_ms=stats.get("max_ms"),
+        p50_ms=stats.get("p50_ms"),
+        p95_ms=stats.get("p95_ms"),
+        p99_ms=stats.get("p99_ms"),
+        sample_count=stats.get("sample_count", 0),
+    )
+
+
+@router.get("/pipeline-latency", response_model=PipelineLatencyResponse)
+async def get_pipeline_latency(
+    window_minutes: int = 60,
+) -> PipelineLatencyResponse:
+    """Get pipeline latency metrics with percentiles.
+
+    Returns latency statistics for each stage transition in the AI pipeline:
+    - watch_to_detect: Time from file watcher detecting image to RT-DETR processing start
+    - detect_to_batch: Time from detection completion to batch aggregation
+    - batch_to_analyze: Time from batch completion to Nemotron analysis start
+    - total_pipeline: Total end-to-end processing time
+
+    Each stage includes:
+    - avg_ms: Average latency in milliseconds
+    - min_ms: Minimum latency
+    - max_ms: Maximum latency
+    - p50_ms: 50th percentile (median)
+    - p95_ms: 95th percentile
+    - p99_ms: 99th percentile
+    - sample_count: Number of samples used
+
+    Args:
+        window_minutes: Time window for statistics calculation (default 60 minutes)
+
+    Returns:
+        PipelineLatencyResponse with latency statistics for each stage
+    """
+    from backend.core.metrics import get_pipeline_latency_tracker
+
+    tracker = get_pipeline_latency_tracker()
+    summary = tracker.get_pipeline_summary(window_minutes=window_minutes)
+
+    return PipelineLatencyResponse(
+        watch_to_detect=_stats_to_schema(summary.get("watch_to_detect", {})),
+        detect_to_batch=_stats_to_schema(summary.get("detect_to_batch", {})),
+        batch_to_analyze=_stats_to_schema(summary.get("batch_to_analyze", {})),
+        total_pipeline=_stats_to_schema(summary.get("total_pipeline", {})),
+        window_minutes=window_minutes,
         timestamp=datetime.now(UTC),
     )
 

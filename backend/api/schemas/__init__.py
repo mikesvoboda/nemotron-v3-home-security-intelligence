@@ -16,6 +16,17 @@ from .alerts import (
     DedupCheckResponse,
 )
 from .camera import CameraCreate, CameraListResponse, CameraResponse, CameraUpdate
+from .notification import (
+    DeliveryResultResponse,
+    NotificationChannel,
+    NotificationConfigResponse,
+    NotificationDeliveryResponse,
+    NotificationHistoryEntry,
+    NotificationHistoryResponse,
+    SendNotificationRequest,
+    TestNotificationRequest,
+    TestNotificationResponse,
+)
 from .search import SearchRequest, SearchResponse, SearchResult
 from .websocket import (
     WebSocketErrorCode,
@@ -47,9 +58,18 @@ __all__ = [
     "CameraUpdate",
     "DedupCheckRequest",
     "DedupCheckResponse",
+    "DeliveryResultResponse",
+    "NotificationChannel",
+    "NotificationConfigResponse",
+    "NotificationDeliveryResponse",
+    "NotificationHistoryEntry",
+    "NotificationHistoryResponse",
     "SearchRequest",
     "SearchResponse",
     "SearchResult",
+    "SendNotificationRequest",
+    "TestNotificationRequest",
+    "TestNotificationResponse",
     "WebSocketErrorCode",
     "WebSocketErrorResponse",
     "WebSocketMessage",
