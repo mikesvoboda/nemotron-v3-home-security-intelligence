@@ -208,6 +208,7 @@ async def test_clear_data_requires_debug_mode(client):
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_seed_cameras_requires_admin_enabled(debug_only_client):
     """Test that seed cameras endpoint requires ADMIN_ENABLED=true even with DEBUG=true."""
     response = await debug_only_client.post("/api/admin/seed/cameras", json={"count": 2})
@@ -217,6 +218,7 @@ async def test_seed_cameras_requires_admin_enabled(debug_only_client):
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_seed_events_requires_admin_enabled(debug_only_client):
     """Test that seed events endpoint requires ADMIN_ENABLED=true even with DEBUG=true."""
     response = await debug_only_client.post("/api/admin/seed/events", json={"count": 5})
@@ -226,6 +228,7 @@ async def test_seed_events_requires_admin_enabled(debug_only_client):
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_clear_data_requires_admin_enabled(debug_only_client):
     """Test that clear data endpoint requires ADMIN_ENABLED=true even with DEBUG=true."""
     response = await debug_only_client.delete("/api/admin/seed/clear")
@@ -235,6 +238,7 @@ async def test_clear_data_requires_admin_enabled(debug_only_client):
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_admin_api_key_required_when_configured(admin_api_key_client):
     """Test that admin API key is required when ADMIN_API_KEY is configured."""
     # Request without API key should fail
@@ -245,6 +249,7 @@ async def test_admin_api_key_required_when_configured(admin_api_key_client):
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_admin_api_key_invalid(admin_api_key_client):
     """Test that invalid admin API key is rejected."""
     # Request with wrong API key should fail
@@ -259,6 +264,7 @@ async def test_admin_api_key_invalid(admin_api_key_client):
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_admin_api_key_valid(admin_api_key_client, clean_seed_data):
     """Test that valid admin API key is accepted."""
     # Request with correct API key should succeed
@@ -276,6 +282,7 @@ async def test_admin_api_key_valid(admin_api_key_client, clean_seed_data):
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_seed_cameras_success(debug_client, clean_seed_data):
     """Test successful camera seeding with full admin access."""
     response = await debug_client.post("/api/admin/seed/cameras", json={"count": 3})
@@ -294,6 +301,7 @@ async def test_seed_cameras_success(debug_client, clean_seed_data):
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_seed_cameras_clear_existing(debug_client, clean_seed_data):
     """Test seeding cameras with clear_existing=true."""
     # First seed some cameras
@@ -317,6 +325,7 @@ async def test_seed_cameras_clear_existing(debug_client, clean_seed_data):
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_seed_cameras_skips_existing(debug_client, clean_seed_data):
     """Test that seeding skips cameras that already exist."""
     # First seed 3 cameras
@@ -337,6 +346,7 @@ async def test_seed_cameras_skips_existing(debug_client, clean_seed_data):
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_seed_cameras_max_count(debug_client, clean_seed_data):
     """Test seeding the maximum number of cameras."""
     response = await debug_client.post("/api/admin/seed/cameras", json={"count": 6})
@@ -348,6 +358,7 @@ async def test_seed_cameras_max_count(debug_client, clean_seed_data):
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_seed_cameras_count_validation(debug_client):
     """Test camera count validation."""
     # Count too low
@@ -363,6 +374,7 @@ async def test_seed_cameras_count_validation(debug_client):
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_seed_events_success(debug_client, clean_seed_data):
     """Test successful event seeding."""
     # First seed cameras (required for events)
@@ -380,6 +392,7 @@ async def test_seed_events_success(debug_client, clean_seed_data):
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_seed_events_requires_cameras(debug_client, clean_seed_data):
     """Test that seeding events requires cameras to exist."""
     # Try to seed events without cameras (clean_seed_data ensures no cameras exist)
@@ -390,6 +403,7 @@ async def test_seed_events_requires_cameras(debug_client, clean_seed_data):
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_seed_events_clear_existing(debug_client, clean_seed_data):
     """Test seeding events with clear_existing=true."""
     # Seed cameras and events (clean_seed_data ensures we start fresh)
@@ -410,6 +424,7 @@ async def test_seed_events_clear_existing(debug_client, clean_seed_data):
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_seed_events_creates_detections(debug_client, clean_seed_data):
     """Test that seeding events also creates associated detections."""
     from backend.core.database import get_session
@@ -443,6 +458,7 @@ async def test_seed_events_creates_detections(debug_client, clean_seed_data):
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_seed_events_risk_levels(debug_client, clean_seed_data):
     """Test that seeded events have varied risk levels."""
     from backend.core.database import get_session
@@ -462,6 +478,7 @@ async def test_seed_events_risk_levels(debug_client, clean_seed_data):
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_seed_events_count_validation(debug_client):
     """Test event count validation."""
     # Count too low
@@ -477,6 +494,7 @@ async def test_seed_events_count_validation(debug_client):
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_clear_data_success(debug_client, clean_seed_data):
     """Test clearing all seeded data with confirmation."""
     # Seed cameras and events (clean_seed_data ensures we start fresh)
@@ -498,6 +516,7 @@ async def test_clear_data_success(debug_client, clean_seed_data):
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_clear_data_empty_database(debug_client, clean_seed_data):
     """Test clearing when database is already empty with confirmation."""
     # clean_seed_data ensures we start with an empty database
@@ -511,6 +530,7 @@ async def test_clear_data_empty_database(debug_client, clean_seed_data):
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_clear_data_requires_confirmation(debug_client, clean_seed_data):
     """Test that clear data endpoint requires explicit confirmation."""
     # Seed some data first
@@ -528,6 +548,7 @@ async def test_clear_data_requires_confirmation(debug_client, clean_seed_data):
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_clear_data_missing_confirmation(debug_client, clean_seed_data):
     """Test that clear data returns 400 when confirm parameter is not provided."""
     # Seed some data first
@@ -549,6 +570,7 @@ async def test_clear_data_missing_confirmation(debug_client, clean_seed_data):
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_seed_cameras_default_values(debug_client, clean_seed_data):
     """Test seeding cameras with default values."""
     # POST with empty body uses defaults (clean_seed_data ensures no existing cameras)
@@ -561,6 +583,7 @@ async def test_seed_cameras_default_values(debug_client, clean_seed_data):
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_seed_events_default_values(debug_client, clean_seed_data):
     """Test seeding events with default values."""
     # First seed cameras (clean_seed_data ensures fresh start)
@@ -576,6 +599,7 @@ async def test_seed_events_default_values(debug_client, clean_seed_data):
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_full_seed_workflow(debug_client, clean_seed_data):
     """Test complete seeding workflow: cameras -> events -> clear."""
     from backend.core.database import get_session

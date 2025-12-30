@@ -1156,6 +1156,7 @@ async def test_log_cleanup_does_not_break_queries(test_db):
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_dry_run_cleanup_counts_without_deleting(test_db):
     """Test dry_run_cleanup counts what would be deleted without actually deleting."""
     from datetime import UTC
