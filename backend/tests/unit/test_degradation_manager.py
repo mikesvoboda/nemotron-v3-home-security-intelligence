@@ -1008,8 +1008,12 @@ class TestDrainFallbackQueue:
     @pytest.mark.asyncio
     async def test_drain_fallback_queue_success(self, temp_fallback_dir: Path) -> None:
         """Test draining fallback queue to Redis."""
+        from backend.core.redis import QueueAddResult
+
         mock_redis = MagicMock()
-        mock_redis.add_to_queue = AsyncMock(return_value=1)
+        mock_redis.add_to_queue_safe = AsyncMock(
+            return_value=QueueAddResult(success=True, queue_length=1)
+        )
 
         manager = DegradationManager(
             redis_client=mock_redis,
@@ -1028,7 +1032,7 @@ class TestDrainFallbackQueue:
         drained = await manager.drain_fallback_queue("test_queue")
 
         assert drained == 2
-        assert mock_redis.add_to_queue.call_count == 2
+        assert mock_redis.add_to_queue_safe.call_count == 2
 
     @pytest.mark.asyncio
     async def test_drain_fallback_queue_no_redis(self, temp_fallback_dir: Path) -> None:
@@ -1044,9 +1048,14 @@ class TestDrainFallbackQueue:
     @pytest.mark.asyncio
     async def test_drain_fallback_queue_redis_error(self, temp_fallback_dir: Path) -> None:
         """Test drain stops and re-queues item on Redis error."""
+        from backend.core.redis import QueueAddResult
+
         mock_redis = MagicMock()
-        mock_redis.add_to_queue = AsyncMock(
-            side_effect=[1, Exception("Redis error")]  # First succeeds, second fails
+        mock_redis.add_to_queue_safe = AsyncMock(
+            side_effect=[
+                QueueAddResult(success=True, queue_length=1),  # First succeeds
+                Exception("Redis error"),  # Second fails
+            ]
         )
 
         manager = DegradationManager(
@@ -1108,6 +1117,8 @@ class TestProcessQueuedJobs:
     @pytest.mark.asyncio
     async def test_process_queued_jobs_processor_failure(self, mock_redis: MagicMock) -> None:
         """Test that jobs are re-queued on processor failure."""
+        from backend.core.redis import QueueAddResult
+
         job_data = {
             "job_type": "detection",
             "data": {"file": "test.jpg"},
@@ -1115,6 +1126,9 @@ class TestProcessQueuedJobs:
             "retry_count": 0,
         }
         mock_redis.get_from_queue = AsyncMock(side_effect=[job_data, None])
+        mock_redis.add_to_queue_safe = AsyncMock(
+            return_value=QueueAddResult(success=True, queue_length=1)
+        )
 
         manager = DegradationManager(redis_client=mock_redis)
 
@@ -1125,8 +1139,8 @@ class TestProcessQueuedJobs:
 
         assert processed == 0
         # Job should be re-queued with incremented retry count
-        mock_redis.add_to_queue.assert_called()
-        call_args = mock_redis.add_to_queue.call_args[0]
+        mock_redis.add_to_queue_safe.assert_called()
+        call_args = mock_redis.add_to_queue_safe.call_args[0]
         assert call_args[1]["retry_count"] == 1
 
     @pytest.mark.asyncio
@@ -1336,9 +1350,13 @@ class TestHealthCheckLoop:
     @pytest.mark.asyncio
     async def test_health_check_loop_drains_memory_queue(self) -> None:
         """Test that health check loop drains memory queue when Redis available."""
+        from backend.core.redis import QueueAddResult
+
         mock_redis = MagicMock()
         mock_redis.ping = AsyncMock(return_value=True)
-        mock_redis.add_to_queue = AsyncMock(return_value=1)
+        mock_redis.add_to_queue_safe = AsyncMock(
+            return_value=QueueAddResult(success=True, queue_length=1)
+        )
 
         manager = DegradationManager(redis_client=mock_redis, check_interval=0.05)
 
@@ -1358,10 +1376,14 @@ class TestHealthCheckLoop:
     @pytest.mark.asyncio
     async def test_health_check_loop_error_handling(self) -> None:
         """Test that health check loop handles errors gracefully."""
+        from backend.core.redis import QueueAddResult
+
         mock_redis = MagicMock()
         # Ping fails intermittently
         mock_redis.ping = AsyncMock(side_effect=[Exception("Error"), True, True])
-        mock_redis.add_to_queue = AsyncMock(return_value=1)
+        mock_redis.add_to_queue_safe = AsyncMock(
+            return_value=QueueAddResult(success=True, queue_length=1)
+        )
 
         manager = DegradationManager(redis_client=mock_redis, check_interval=0.05)
 
