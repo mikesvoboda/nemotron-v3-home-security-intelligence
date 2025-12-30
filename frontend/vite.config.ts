@@ -57,14 +57,11 @@ export default defineConfig({
         'tailwind.config.js',
       ],
       thresholds: {
-        // Coverage thresholds lowered temporarily due to SearchBar tests being skipped
-        // (SearchBar.test.tsx skipped due to test isolation issue with mousedown listener)
-        // TODO: Re-raise thresholds after fixing SearchBar test isolation
-        // Original thresholds: statements: 92, branches: 88, functions: 90, lines: 93
-        statements: 89,
-        branches: 86,
-        functions: 85,
-        lines: 90,
+        // Standard coverage thresholds per CLAUDE.md (95% enforcement in CI)
+        statements: 95,
+        branches: 95,
+        functions: 95,
+        lines: 95,
       },
     },
   },

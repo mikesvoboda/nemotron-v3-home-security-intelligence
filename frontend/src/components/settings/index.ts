@@ -1,5 +1,11 @@
+export { default as AdvancedSettings } from './AdvancedSettings';
+export type { AdvancedSettingsProps } from './AdvancedSettings';
 export { default as AIModelsSettings } from './AIModelsSettings';
 export type { AIModelsSettingsProps, ModelInfo } from './AIModelsSettings';
 export { default as CamerasSettings } from './CamerasSettings';
 export { default as ProcessingSettings } from './ProcessingSettings';
 export { default as SettingsPage } from './SettingsPage';
+export { default as ZoneEditor } from './ZoneEditor';
+export type { ZoneEditorProps, Point } from './ZoneEditor';
+export { default as ZoneManagement } from './ZoneManagement';
+export type { ZoneManagementProps } from './ZoneManagement';

@@ -690,8 +690,13 @@ async def real_redis() -> AsyncGenerator[RedisClient]:
 
     The fixture:
     - Connects to Redis (testcontainer or local)
-    - Flushes the test database before yielding (isolation)
+    - Uses database 15 for test isolation from production data
+    - Does NOT flush the database (to allow parallel test execution with unique keys)
     - Disconnects after the test
+
+    IMPORTANT: Tests using this fixture MUST use unique keys (via unique_id()) to avoid
+    conflicts when running in parallel with pytest-xdist. Each test should clean up its
+    own keys if needed, not rely on database flushing.
 
     Use this fixture when you need to test real Redis behavior.
     For tests that just need Redis to not fail, use `mock_redis` instead.
@@ -706,18 +711,10 @@ async def real_redis() -> AsyncGenerator[RedisClient]:
     await client.connect()
 
     try:
-        # Flush the test database for isolation
-        redis_client = client._ensure_connected()
-        await redis_client.flushdb()
-
+        # NOTE: We do NOT flush the database here to allow parallel test execution.
+        # Tests must use unique keys (via unique_id()) for isolation.
         yield client
     finally:
-        # Ensure clean state before disconnecting
-        try:
-            redis_client = client._ensure_connected()
-            await redis_client.flushdb()
-        except Exception:  # noqa: S110
-            pass  # Ignore errors during cleanup
         await client.disconnect()
 
 

@@ -10,6 +10,16 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RTDETR_DIR="$SCRIPT_DIR/rtdetr"
 MODEL_PORT="${RTDETR_PORT:-8090}"
+
+# Validate port is numeric (defense-in-depth against malformed input)
+if ! [[ "$MODEL_PORT" =~ ^[0-9]+$ ]]; then
+    echo "Error: Invalid port '$MODEL_PORT' - must be numeric"
+    exit 1
+fi
+if [ "$MODEL_PORT" -lt 1 ] || [ "$MODEL_PORT" -gt 65535 ]; then
+    echo "Error: Port '$MODEL_PORT' out of valid range (1-65535)"
+    exit 1
+fi
 MODEL_PATH_DEFAULT="$RTDETR_DIR/rtdetrv2_r50vd.onnx"
 
 echo "Starting RT-DETRv2 Detection Server..."

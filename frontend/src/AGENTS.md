@@ -244,10 +244,12 @@ All test files use naming convention: `*.test.ts` or `*.test.tsx`
 
 ### Test Coverage Thresholds
 
-- Statements: 92%
-- Branches: 88%
-- Functions: 90%
-- Lines: 93%
+Standard 95% threshold per CLAUDE.md:
+
+- Statements: 95%
+- Branches: 95%
+- Functions: 95%
+- Lines: 95%
 
 ### Test Setup
 

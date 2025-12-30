@@ -4,16 +4,18 @@ import asyncio
 import contextlib
 import json
 import random
-from collections.abc import AsyncGenerator
+import warnings
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, cast
+from typing import Any, TypeVar, cast
 
 from redis.asyncio import ConnectionPool, Redis
 from redis.asyncio.client import PubSub
-from redis.exceptions import ConnectionError, TimeoutError
+from redis.exceptions import ConnectionError, RedisError, TimeoutError
 
 from backend.core.config import get_settings
+from backend.core.constants import get_dlq_overflow_name
 from backend.core.logging import get_logger
 from backend.core.metrics import (
     record_queue_items_dropped,
@@ -23,6 +25,8 @@ from backend.core.metrics import (
 )
 
 logger = get_logger(__name__)
+
+T = TypeVar("T")
 
 
 class QueueOverflowPolicy(str, Enum):
@@ -98,6 +102,229 @@ class RedisClient:
         jitter: float = delay * random.uniform(0, self._jitter_factor)  # noqa: S311
         return delay + jitter
 
+    async def with_retry(
+        self,
+        operation: Callable[[], Awaitable[T]],
+        operation_name: str = "redis_operation",
+        max_retries: int | None = None,
+    ) -> T:
+        """Execute a Redis operation with exponential backoff retry logic.
+
+        This method handles transient Redis failures (connection errors, timeouts)
+        by retrying with exponential backoff. It should be used for critical Redis
+        operations in pipeline workers to handle connection failures gracefully.
+
+        Args:
+            operation: Async callable that performs the Redis operation
+            operation_name: Name of the operation for logging
+            max_retries: Maximum retry attempts (default: self._max_retries)
+
+        Returns:
+            The result of the operation
+
+        Raises:
+            ConnectionError: If all retries are exhausted due to connection failure
+            TimeoutError: If all retries are exhausted due to timeout
+            RedisError: If all retries are exhausted due to Redis error
+        """
+        retries = max_retries if max_retries is not None else self._max_retries
+        last_error: Exception | None = None
+
+        for attempt in range(1, retries + 1):
+            try:
+                return await operation()
+            except (ConnectionError, TimeoutError, RedisError) as e:
+                last_error = e
+                logger.warning(
+                    f"Redis {operation_name} attempt {attempt}/{retries} failed: {e}",
+                    extra={
+                        "operation": operation_name,
+                        "attempt": attempt,
+                        "max_retries": retries,
+                        "error_type": type(e).__name__,
+                    },
+                )
+                if attempt < retries:
+                    backoff_delay = self._calculate_backoff_delay(attempt)
+                    logger.debug(
+                        f"Retrying {operation_name} in {backoff_delay:.2f} seconds...",
+                        extra={
+                            "operation": operation_name,
+                            "delay_seconds": backoff_delay,
+                            "next_attempt": attempt + 1,
+                        },
+                    )
+                    await asyncio.sleep(backoff_delay)
+
+        # All retries exhausted
+        logger.error(
+            f"Redis {operation_name} failed after {retries} retries",
+            extra={
+                "operation": operation_name,
+                "max_retries": retries,
+                "error": str(last_error),
+            },
+        )
+        if last_error:
+            raise last_error
+        raise RuntimeError(f"Redis {operation_name} failed without error (should not happen)")
+
+    async def get_from_queue_with_retry(
+        self,
+        queue_name: str,
+        timeout: int = 0,
+        max_retries: int | None = None,
+    ) -> Any | None:
+        """Get item from queue with retry logic for Redis failures.
+
+        This is a retry-enabled version of get_from_queue() that handles
+        transient Redis connection failures with exponential backoff.
+
+        Args:
+            queue_name: Name of the queue (Redis list key)
+            timeout: Timeout in seconds for BLPOP (0 = no timeout)
+            max_retries: Maximum retry attempts (default: self._max_retries)
+
+        Returns:
+            Deserialized item from the queue, or None if timeout
+
+        Raises:
+            ConnectionError: If all retries are exhausted due to connection failure
+            TimeoutError: If all retries are exhausted due to timeout
+            RedisError: If all retries are exhausted due to Redis error
+        """
+        return await self.with_retry(
+            operation=lambda: self.get_from_queue(queue_name, timeout),
+            operation_name=f"get_from_queue({queue_name})",
+            max_retries=max_retries,
+        )
+
+    async def get_queue_length_with_retry(
+        self,
+        queue_name: str,
+        max_retries: int | None = None,
+    ) -> int:
+        """Get queue length with retry logic for Redis failures.
+
+        This is a retry-enabled version of get_queue_length() that handles
+        transient Redis connection failures with exponential backoff.
+
+        Args:
+            queue_name: Name of the queue (Redis list key)
+            max_retries: Maximum retry attempts (default: self._max_retries)
+
+        Returns:
+            Number of items in the queue
+
+        Raises:
+            ConnectionError: If all retries are exhausted due to connection failure
+            TimeoutError: If all retries are exhausted due to timeout
+            RedisError: If all retries are exhausted due to Redis error
+        """
+        return await self.with_retry(
+            operation=lambda: self.get_queue_length(queue_name),
+            operation_name=f"get_queue_length({queue_name})",
+            max_retries=max_retries,
+        )
+
+    async def get_with_retry(
+        self,
+        key: str,
+        max_retries: int | None = None,
+    ) -> Any | None:
+        """Get value from Redis with retry logic for failures.
+
+        This is a retry-enabled version of get() that handles
+        transient Redis connection failures with exponential backoff.
+
+        Args:
+            key: Cache key
+            max_retries: Maximum retry attempts (default: self._max_retries)
+
+        Returns:
+            Deserialized value or None if key doesn't exist
+
+        Raises:
+            ConnectionError: If all retries are exhausted due to connection failure
+            TimeoutError: If all retries are exhausted due to timeout
+            RedisError: If all retries are exhausted due to Redis error
+        """
+        return await self.with_retry(
+            operation=lambda: self.get(key),
+            operation_name=f"get({key})",
+            max_retries=max_retries,
+        )
+
+    async def set_with_retry(
+        self,
+        key: str,
+        value: Any,
+        expire: int | None = None,
+        max_retries: int | None = None,
+    ) -> bool:
+        """Set value in Redis with retry logic for failures.
+
+        This is a retry-enabled version of set() that handles
+        transient Redis connection failures with exponential backoff.
+
+        Args:
+            key: Cache key
+            value: Value to store
+            expire: Expiration time in seconds (optional)
+            max_retries: Maximum retry attempts (default: self._max_retries)
+
+        Returns:
+            True if successful
+
+        Raises:
+            ConnectionError: If all retries are exhausted due to connection failure
+            TimeoutError: If all retries are exhausted due to timeout
+            RedisError: If all retries are exhausted due to Redis error
+        """
+        return await self.with_retry(
+            operation=lambda: self.set(key, value, expire),
+            operation_name=f"set({key})",
+            max_retries=max_retries,
+        )
+
+    async def add_to_queue_safe_with_retry(
+        self,
+        queue_name: str,
+        data: Any,
+        max_size: int | None = None,
+        overflow_policy: QueueOverflowPolicy | str | None = None,
+        dlq_name: str | None = None,
+        max_retries: int | None = None,
+    ) -> QueueAddResult:
+        """Add item to queue with retry logic for Redis failures.
+
+        This is a retry-enabled version of add_to_queue_safe() that handles
+        transient Redis connection failures with exponential backoff.
+
+        Args:
+            queue_name: Name of the queue (Redis list key)
+            data: Data to add
+            max_size: Maximum queue size
+            overflow_policy: Policy for handling overflow
+            dlq_name: DLQ name for 'dlq' policy
+            max_retries: Maximum retry attempts (default: self._max_retries)
+
+        Returns:
+            QueueAddResult with success status and metrics
+
+        Raises:
+            ConnectionError: If all retries are exhausted due to connection failure
+            TimeoutError: If all retries are exhausted due to timeout
+            RedisError: If all retries are exhausted due to Redis error
+        """
+        return await self.with_retry(
+            operation=lambda: self.add_to_queue_safe(
+                queue_name, data, max_size, overflow_policy, dlq_name
+            ),
+            operation_name=f"add_to_queue_safe({queue_name})",
+            max_retries=max_retries,
+        )
+
     async def connect(self) -> None:
         """Establish Redis connection with exponential backoff retry logic."""
         for attempt in range(1, self._max_retries + 1):
@@ -132,11 +359,11 @@ class RedisClient:
         """Close Redis connection and cleanup resources."""
         with contextlib.suppress(Exception):
             if self._pubsub:
-                await self._pubsub.close()
+                await self._pubsub.aclose()
                 self._pubsub = None
 
             if self._client:
-                await self._client.close()
+                await self._client.aclose()
                 self._client = None
 
             if self._pool:
@@ -185,9 +412,9 @@ class RedisClient:
     async def add_to_queue(self, queue_name: str, data: Any, max_size: int = 10000) -> int:
         """Add item to the end of a queue (RPUSH) with optional size limit.
 
-        DEPRECATED: This method uses legacy behavior that can silently drop items.
-        For production use, prefer add_to_queue_safe() which provides proper
-        backpressure handling and never silently drops data.
+        .. deprecated:: 1.0.0
+            This method uses legacy behavior that can silently drop items.
+            Use :meth:`add_to_queue_safe` instead for proper backpressure handling.
 
         Args:
             queue_name: Name of the queue (Redis list key)
@@ -198,7 +425,17 @@ class RedisClient:
 
         Returns:
             Length of the queue after adding the item
+
+        Note:
+            This method is deprecated and will be removed in a future version.
+            Migrate to add_to_queue_safe() for production use.
         """
+        warnings.warn(
+            "add_to_queue() is deprecated and can silently drop data. "
+            "Use add_to_queue_safe() with an explicit overflow_policy instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         client = self._ensure_connected()
         serialized = json.dumps(data) if not isinstance(data, str) else data
         result = cast("int", await client.rpush(queue_name, serialized))  # type: ignore[misc]
@@ -264,7 +501,7 @@ class RedisClient:
 
         # Default DLQ name
         if dlq_name is None:
-            dlq_name = f"dlq:overflow:{queue_name}"
+            dlq_name = get_dlq_overflow_name(queue_name)
 
         serialized = json.dumps(data) if not isinstance(data, str) else data
 

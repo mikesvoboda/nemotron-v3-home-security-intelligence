@@ -1,8 +1,9 @@
 import { Tab } from '@headlessui/react';
 import { clsx } from 'clsx';
-import { Bell, Camera, Cpu, Settings as SettingsIcon } from 'lucide-react';
+import { Bell, Camera, Cpu, Settings as SettingsIcon, Sliders } from 'lucide-react';
 import { Fragment } from 'react';
 
+import AdvancedSettings from './AdvancedSettings';
 import AIModelsSettings from './AIModelsSettings';
 import CamerasSettings from './CamerasSettings';
 import NotificationSettings from './NotificationSettings';
@@ -11,9 +12,10 @@ import ProcessingSettings from './ProcessingSettings';
 /**
  * SettingsPage component with tabbed interface
  *
- * Contains four settings tabs:
+ * Contains five settings tabs:
  * - CAMERAS: Camera configuration and management
- * - PROCESSING: Event processing settings
+ * - PROCESSING: Event processing settings (batch window, retention, confidence)
+ * - ADVANCED: Severity thresholds, fast path detection, video processing settings
  * - AI MODELS: AI model status and information
  * - NOTIFICATIONS: Email and webhook notification settings
  *
@@ -36,6 +38,12 @@ export default function SettingsPage() {
       name: 'PROCESSING',
       icon: SettingsIcon,
       component: ProcessingSettings,
+    },
+    {
+      id: 'advanced',
+      name: 'ADVANCED',
+      icon: Sliders,
+      component: AdvancedSettings,
     },
     {
       id: 'ai-models',

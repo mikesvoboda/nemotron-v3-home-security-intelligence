@@ -47,12 +47,12 @@ Coverage thresholds are configured in `vite.config.ts`:
 
 | Metric     | Threshold |
 | ---------- | --------- |
-| Statements | 89%       |
-| Branches   | 86%       |
-| Functions  | 85%       |
-| Lines      | 90%       |
+| Statements | 95%       |
+| Branches   | 95%       |
+| Functions  | 95%       |
+| Lines      | 95%       |
 
-Note: Thresholds temporarily lowered due to SearchBar test isolation issue. See `vite.config.ts` for details.
+Standard 95% threshold per CLAUDE.md. See pyproject.toml for full coverage policy documentation.
 
 ## Related Documentation
 

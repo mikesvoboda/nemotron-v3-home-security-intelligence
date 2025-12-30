@@ -183,9 +183,8 @@ System monitoring, health checks, GPU stats, configuration, and telemetry.
 
 | Method | Path                           | Purpose                                          |
 | ------ | ------------------------------ | ------------------------------------------------ |
-| GET    | `/api/system/health`           | Detailed system health check                     |
-| GET    | `/api/system/health/live`      | Liveness probe (always returns "alive")          |
-| GET    | `/api/system/health/ready`     | Readiness probe (checks all dependencies)        |
+| GET    | `/api/system/health`           | Detailed system health check (DB, Redis, AI)     |
+| GET    | `/api/system/health/ready`     | Detailed readiness probe (checks all deps)       |
 | GET    | `/api/system/gpu`              | Current GPU statistics                           |
 | GET    | `/api/system/gpu/history`      | GPU stats time series                            |
 | GET    | `/api/system/stats`            | System statistics (counts, uptime)               |
@@ -226,7 +225,7 @@ System monitoring, health checks, GPU stats, configuration, and telemetry.
 - Circuit breaker pattern for AI service health checks
 - Runtime configuration updates persisted to env file
 - Application uptime tracking
-- Kubernetes-style liveness/readiness probes
+- Kubernetes-style readiness probes (liveness is at root `/health`)
 - Pipeline latency tracking with percentiles (p50, p95, p99)
 - Manual cleanup with dry_run mode for verification
 - Severity taxonomy and thresholds for frontend consistency

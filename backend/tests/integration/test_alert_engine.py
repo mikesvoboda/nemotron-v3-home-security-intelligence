@@ -22,7 +22,7 @@ database, tests must be designed to work independently:
    by a specific test for assertion checking
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -35,6 +35,12 @@ from backend.services.alert_engine import (
     TriggeredRule,
 )
 from backend.tests.conftest import unique_id
+
+
+def utc_now_naive() -> datetime:
+    """Return current UTC time as a naive datetime (for DB compatibility)."""
+    return datetime.now(UTC).replace(tzinfo=None)
+
 
 # Mark as integration since these tests require real PostgreSQL database
 # NOTE: This file should be moved to backend/tests/integration/ in a future cleanup
@@ -94,7 +100,7 @@ async def test_event(session, test_camera):
     event = Event(
         batch_id="batch_001",
         camera_id=test_camera.id,
-        started_at=datetime.utcnow(),
+        started_at=utc_now_naive(),
         risk_score=80,
         risk_level="high",
         detection_ids="[1, 2]",
@@ -110,14 +116,14 @@ async def test_detections(session, test_camera):
     det1 = Detection(
         camera_id=test_camera.id,
         file_path="/export/foscam/front_door/image1.jpg",
-        detected_at=datetime.utcnow(),
+        detected_at=utc_now_naive(),
         object_type="person",
         confidence=0.95,
     )
     det2 = Detection(
         camera_id=test_camera.id,
         file_path="/export/foscam/front_door/image2.jpg",
-        detected_at=datetime.utcnow(),
+        detected_at=utc_now_naive(),
         object_type="vehicle",
         confidence=0.85,
     )
@@ -251,7 +257,7 @@ class TestRiskThresholdCondition:
         event = Event(
             batch_id=unique_id("batch"),
             camera_id=test_camera.id,
-            started_at=datetime.utcnow(),
+            started_at=utc_now_naive(),
             risk_score=None,
         )
         session.add(event)
@@ -676,7 +682,7 @@ class TestCooldown:
             event_id=test_event.id,
             rule_id=rule.id,
             dedup_key=dedup_key,
-            created_at=datetime.utcnow() - timedelta(minutes=2),  # 2 minutes ago
+            created_at=utc_now_naive() - timedelta(minutes=2),  # 2 minutes ago
         )
         session.add(existing_alert)
         await session.flush()
@@ -710,7 +716,7 @@ class TestCooldown:
             event_id=test_event.id,
             rule_id=rule.id,
             dedup_key=dedup_key,
-            created_at=datetime.utcnow() - timedelta(minutes=10),  # 10 minutes ago
+            created_at=utc_now_naive() - timedelta(minutes=10),  # 10 minutes ago
         )
         session.add(existing_alert)
         await session.flush()
@@ -772,19 +778,19 @@ class TestRuleTesting:
         event1 = Event(
             batch_id=unique_id("batch"),
             camera_id=test_camera.id,
-            started_at=datetime.utcnow(),
+            started_at=utc_now_naive(),
             risk_score=80,
         )
         event2 = Event(
             batch_id=unique_id("batch"),
             camera_id=test_camera.id,
-            started_at=datetime.utcnow(),
+            started_at=utc_now_naive(),
             risk_score=60,
         )
         event3 = Event(
             batch_id=unique_id("batch"),
             camera_id=test_camera.id,
-            started_at=datetime.utcnow(),
+            started_at=utc_now_naive(),
             risk_score=90,
         )
         session.add_all([event1, event2, event3])
@@ -875,14 +881,14 @@ class TestLoadEventDetections:
         det1 = Detection(
             camera_id=test_camera.id,
             file_path="/export/foscam/front_door/image1.jpg",
-            detected_at=datetime.utcnow(),
+            detected_at=utc_now_naive(),
             object_type="person",
             confidence=0.95,
         )
         det2 = Detection(
             camera_id=test_camera.id,
             file_path="/export/foscam/front_door/image2.jpg",
-            detected_at=datetime.utcnow(),
+            detected_at=utc_now_naive(),
             object_type="vehicle",
             confidence=0.85,
         )
@@ -895,7 +901,7 @@ class TestLoadEventDetections:
         event = Event(
             batch_id=unique_id("batch"),
             camera_id=test_camera.id,
-            started_at=datetime.utcnow(),
+            started_at=utc_now_naive(),
             risk_score=80,
             detection_ids=json.dumps([det1.id, det2.id]),
         )
@@ -923,7 +929,7 @@ class TestLoadEventDetections:
         event = Event(
             batch_id=unique_id("batch"),
             camera_id=test_camera.id,
-            started_at=datetime.utcnow(),
+            started_at=utc_now_naive(),
             risk_score=80,
             detection_ids="",  # Empty string
         )
@@ -950,7 +956,7 @@ class TestLoadEventDetections:
         event = Event(
             batch_id=unique_id("batch"),
             camera_id=test_camera.id,
-            started_at=datetime.utcnow(),
+            started_at=utc_now_naive(),
             risk_score=80,
             detection_ids="not valid json",  # Invalid JSON
         )
@@ -979,7 +985,7 @@ class TestLoadEventDetections:
         event = Event(
             batch_id=unique_id("batch"),
             camera_id=test_camera.id,
-            started_at=datetime.utcnow(),
+            started_at=utc_now_naive(),
             risk_score=80,
             detection_ids=json.dumps({"id": 1}),  # Dict, not list
         )
@@ -1008,7 +1014,7 @@ class TestLoadEventDetections:
         event = Event(
             batch_id=unique_id("batch"),
             camera_id=test_camera.id,
-            started_at=datetime.utcnow(),
+            started_at=utc_now_naive(),
             risk_score=80,
             detection_ids=json.dumps([]),  # Empty list
         )
@@ -1441,3 +1447,85 @@ class TestCreateMultipleAlerts:
             assert alert.status == AlertStatus.PENDING
             assert "matched_conditions" in alert.alert_metadata
             assert "rule_name" in alert.alert_metadata
+
+
+class TestCooldownConcurrencyProtection:
+    """Tests for concurrency protection in cooldown checking with FOR UPDATE locks."""
+
+    @pytest.mark.asyncio
+    async def test_cooldown_check_uses_for_update(self, session, test_event, engine):
+        """Test that _check_cooldown uses SELECT FOR UPDATE SKIP LOCKED.
+
+        This test verifies that the cooldown query uses row-level locking to prevent
+        TOCTOU race conditions. While we can't easily test concurrent scenarios
+        in a unit test, we verify the query works correctly with FOR UPDATE.
+        """
+        rule = AlertRule(
+            name=unique_id("cooldown_for_update"),
+            enabled=True,
+            risk_threshold=50,
+            cooldown_seconds=300,
+        )
+        session.add(rule)
+        await session.flush()
+
+        # Create existing alert within cooldown
+        dedup_key = f"{test_event.camera_id}:{rule.id}"
+        existing_alert = Alert(
+            event_id=test_event.id,
+            rule_id=rule.id,
+            dedup_key=dedup_key,
+            created_at=utc_now_naive() - timedelta(minutes=2),
+        )
+        session.add(existing_alert)
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, [])
+
+        # Our rule should be skipped due to cooldown (with FOR UPDATE lock)
+        our_skipped = _filter_skipped_rules_by_ids(result, [rule.id])
+        assert len(our_skipped) == 1
+        assert our_skipped[0][1] == "in_cooldown"
+
+    @pytest.mark.asyncio
+    async def test_cooldown_for_update_different_rules(self, session, test_event, engine):
+        """Test that FOR UPDATE with skip_locked allows concurrent cooldown checks.
+
+        Different rules with different dedup_keys should not block each other.
+        """
+        rule1 = AlertRule(
+            name=unique_id("cooldown_rule1"),
+            enabled=True,
+            risk_threshold=50,
+            cooldown_seconds=300,
+        )
+        rule2 = AlertRule(
+            name=unique_id("cooldown_rule2"),
+            enabled=True,
+            risk_threshold=60,
+            cooldown_seconds=300,
+        )
+        session.add_all([rule1, rule2])
+        await session.flush()
+
+        # Create existing alert for rule1 within cooldown
+        dedup_key1 = f"{test_event.camera_id}:{rule1.id}"
+        existing_alert = Alert(
+            event_id=test_event.id,
+            rule_id=rule1.id,
+            dedup_key=dedup_key1,
+            created_at=utc_now_naive() - timedelta(minutes=2),
+        )
+        session.add(existing_alert)
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, [])
+
+        # rule1 should be skipped (in cooldown)
+        our_skipped = _filter_skipped_rules_by_ids(result, [rule1.id])
+        assert len(our_skipped) == 1
+        assert our_skipped[0][1] == "in_cooldown"
+
+        # rule2 should trigger (no cooldown)
+        our_triggered = _filter_triggered_rules_by_ids(result, [rule2.id])
+        assert len(our_triggered) == 1

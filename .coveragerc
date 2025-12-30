@@ -1,3 +1,6 @@
+# Coverage configuration (see pyproject.toml for full coverage policy documentation)
+# Standard coverage threshold: 95% per CLAUDE.md
+
 [run]
 source = backend
 omit =
@@ -16,7 +19,8 @@ exclude_lines =
     if __name__ == .__main__.:
     if TYPE_CHECKING:
     @abstractmethod
-fail_under = 93
+# Standard 95% threshold - do not lower without documented reason
+fail_under = 95
 show_missing = true
 precision = 2
 

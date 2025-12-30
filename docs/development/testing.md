@@ -37,9 +37,9 @@ flowchart TB
     end
 
     subgraph "Coverage Targets"
-        UNIT_COV["Unit: 92%+"]
-        INT_COV["Integration: 50%+"]
-        TOTAL_COV["Combined: 90%+"]
+        UNIT_COV["Unit: 95%+"]
+        INT_COV["Integration: 95%+"]
+        TOTAL_COV["Combined: 95%+"]
     end
 
     UNIT --> UNIT_COV
@@ -55,12 +55,12 @@ flowchart TB
 
 | Category        | Location                     | Count | Timeout | Coverage Target |
 | --------------- | ---------------------------- | ----- | ------- | --------------- |
-| **Unit Tests**  | `backend/tests/unit/`        | 59    | 1s      | 92%+            |
-| **Integration** | `backend/tests/integration/` | 19    | 5s      | 50%+            |
+| **Unit Tests**  | `backend/tests/unit/`        | 59    | 1s      | 95%+            |
+| **Integration** | `backend/tests/integration/` | 19    | 5s      | 95%+            |
 | **E2E Tests**   | `backend/tests/e2e/`         | 2     | 30s     | -               |
 | **GPU Tests**   | `backend/tests/gpu/`         | 1     | -       | -               |
 | **Benchmarks**  | `backend/tests/benchmarks/`  | 3     | -       | -               |
-| **Frontend**    | `frontend/src/**/*.test.ts`  | -     | -       | 93%+            |
+| **Frontend**    | `frontend/src/**/*.test.ts`  | -     | -       | 95%+            |
 
 ## Running Tests
 
@@ -334,11 +334,13 @@ show_missing = true
 
 From [.github/workflows/ci.yml](../../.github/workflows/ci.yml:67):
 
-| Test Type   | Threshold | Rationale                                |
-| ----------- | --------- | ---------------------------------------- |
-| Unit        | 92%       | Strict for isolated component testing    |
-| Integration | 50%       | Lower due to mocked deps, endpoint focus |
-| Combined    | 90%       | Local validation threshold               |
+| Test Type   | Threshold | Rationale                  |
+| ----------- | --------- | -------------------------- |
+| Unit        | 95%       | Standard per CLAUDE.md     |
+| Integration | 95%       | Standard per CLAUDE.md     |
+| Combined    | 95%       | Local validation threshold |
+
+See pyproject.toml for the full coverage policy documentation.
 
 ### Generating Coverage Reports
 
@@ -370,11 +372,11 @@ The CI workflow ([.github/workflows/ci.yml](../../.github/workflows/ci.yml:1)) r
 
 1. **Backend Lint** - Ruff check and format
 2. **Backend Type Check** - MyPy
-3. **Backend Unit Tests** - 92% coverage threshold
-4. **Backend Integration Tests** - 50% coverage threshold
+3. **Backend Unit Tests** - 95% coverage threshold
+4. **Backend Integration Tests** - 95% coverage threshold
 5. **Frontend Lint** - ESLint
 6. **Frontend Type Check** - TypeScript
-7. **Frontend Tests** - Vitest
+7. **Frontend Tests** - Vitest (95% coverage threshold)
 8. **Frontend E2E** - Playwright
 
 All jobs must pass before a PR can be merged.

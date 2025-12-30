@@ -3,7 +3,7 @@
 import asyncio
 from datetime import datetime
 
-from backend.core.redis import RedisClient
+from backend.core.redis import QueueOverflowPolicy, RedisClient
 
 
 async def example_queue_operations():
@@ -20,6 +20,7 @@ async def example_queue_operations():
         await client.clear_queue(queue_name)
 
         # Simulate adding detection events to queue
+        # Using add_to_queue_safe() with DROP_OLDEST policy for proper backpressure
         print("\n1. Adding detections to queue...")
         for i in range(5):
             detection = {
@@ -28,8 +29,13 @@ async def example_queue_operations():
                 "timestamp": datetime.now().isoformat(),
                 "objects": ["person", "car"],
             }
-            length = await client.add_to_queue(queue_name, detection)
-            print(f"   Added detection {i + 1}, queue length: {length}")
+            result = await client.add_to_queue_safe(
+                queue_name,
+                detection,
+                max_size=10000,  # Default max size
+                overflow_policy=QueueOverflowPolicy.DROP_OLDEST,
+            )
+            print(f"   Added detection {i + 1}, queue length: {result.queue_length}")
 
         # Check queue length
         length = await client.get_queue_length(queue_name)

@@ -194,9 +194,8 @@ The `/api/media/*` endpoints implement strict security controls:
 
 ### System (`/api/system`)
 
-- `GET /api/system/health` - Detailed system health check
-- `GET /api/system/health/live` - Liveness probe (always returns "alive")
-- `GET /api/system/health/ready` - Readiness probe (checks all dependencies)
+- `GET /api/system/health` - Detailed system health check (DB, Redis, AI services)
+- `GET /api/system/health/ready` - Detailed readiness probe (checks all dependencies)
 - `GET /api/system/gpu` - Current GPU stats
 - `GET /api/system/gpu/history` - GPU stats time series
 - `GET /api/system/stats` - System statistics (counts, uptime)

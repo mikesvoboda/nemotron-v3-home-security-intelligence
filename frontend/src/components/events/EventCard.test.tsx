@@ -1593,4 +1593,91 @@ describe('EventCard', () => {
       expect(greenBgElements.length).toBeGreaterThan(0);
     });
   });
+
+  describe('detection metadata display', () => {
+    it('shows Box icon for detections with bounding box', () => {
+      const detectionsWithBbox: Detection[] = [
+        { label: 'person', confidence: 0.95, bbox: { x: 100, y: 150, width: 200, height: 300 } },
+      ];
+      const { container } = render(<EventCard {...mockProps} detections={detectionsWithBbox} />);
+      const boxIcon = container.querySelector('svg.lucide-box');
+      expect(boxIcon).toBeInTheDocument();
+    });
+
+    it('does not show Box icon for detections without bounding box', () => {
+      const detectionsNoBbox: Detection[] = [{ label: 'person', confidence: 0.95 }];
+      const { container } = render(<EventCard {...mockProps} detections={detectionsNoBbox} />);
+      const boxIcon = container.querySelector('svg.lucide-box');
+      expect(boxIcon).not.toBeInTheDocument();
+    });
+
+    it('includes bbox coordinates in tooltip for detections with bounding box', () => {
+      const detectionsWithBbox: Detection[] = [
+        { label: 'person', confidence: 0.95, bbox: { x: 100, y: 150, width: 200, height: 300 } },
+      ];
+      render(<EventCard {...mockProps} detections={detectionsWithBbox} />);
+      const badge = screen.getByTitle(/BBox:.*100.*150.*200x300/);
+      expect(badge).toBeInTheDocument();
+    });
+
+    it('includes detection timestamp in tooltip when provided', () => {
+      const detectionsWithTimestamp: Detection[] = [
+        {
+          label: 'person',
+          confidence: 0.95,
+          detected_at: '2024-01-15T10:30:45Z',
+        },
+      ];
+      render(<EventCard {...mockProps} detections={detectionsWithTimestamp} />);
+      const badge = screen.getByTitle(/Detected:/);
+      expect(badge).toBeInTheDocument();
+    });
+
+    it('shows comprehensive tooltip with all metadata', () => {
+      const fullDetection: Detection[] = [
+        {
+          label: 'person',
+          confidence: 0.95,
+          bbox: { x: 100, y: 150, width: 200, height: 300 },
+          detected_at: '2024-01-15T10:30:45Z',
+        },
+      ];
+      render(<EventCard {...mockProps} detections={fullDetection} />);
+      // Badge should have tooltip with label, confidence, bbox, and timestamp
+      const badge = screen.getByTitle(/person.*95%.*BBox:.*Detected:/);
+      expect(badge).toBeInTheDocument();
+    });
+
+    it('handles detection without bbox in tooltip', () => {
+      const detectionNoBbox: Detection[] = [
+        { label: 'car', confidence: 0.85, detected_at: '2024-01-15T10:30:45Z' },
+      ];
+      render(<EventCard {...mockProps} detections={detectionNoBbox} />);
+      // Should show detection time but not bbox
+      const badge = screen.getByTitle(/car.*85%.*Detected:/);
+      expect(badge).toBeInTheDocument();
+      expect(badge).not.toHaveAttribute('title', expect.stringContaining('BBox:'));
+    });
+
+    it('handles detection without timestamp in tooltip', () => {
+      const detectionNoTimestamp: Detection[] = [
+        { label: 'car', confidence: 0.85, bbox: { x: 50, y: 75, width: 150, height: 100 } },
+      ];
+      render(<EventCard {...mockProps} detections={detectionNoTimestamp} />);
+      // Should show bbox but not detection time
+      const badge = screen.getByTitle(/car.*85%.*BBox:/);
+      expect(badge).toBeInTheDocument();
+      expect(badge).not.toHaveAttribute('title', expect.stringContaining('Detected:'));
+    });
+
+    it('handles invalid detection timestamp gracefully', () => {
+      const detectionInvalidTime: Detection[] = [
+        { label: 'person', confidence: 0.95, detected_at: 'invalid-date' },
+      ];
+      render(<EventCard {...mockProps} detections={detectionInvalidTime} />);
+      // Should render without error - badge should exist with basic info
+      const badge = screen.getByTitle(/person.*95%/);
+      expect(badge).toBeInTheDocument();
+    });
+  });
 });

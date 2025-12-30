@@ -1,8 +1,17 @@
 import { Dialog, Transition } from '@headlessui/react';
 import { clsx } from 'clsx';
-import { AlertCircle, Camera as CameraIcon, Edit2, Plus, Trash2, X } from 'lucide-react';
+import {
+  AlertCircle,
+  Camera as CameraIcon,
+  Edit2,
+  MapPin,
+  Plus,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { Fragment, useEffect, useState } from 'react';
 
+import ZoneManagement from './ZoneManagement';
 import {
   createCamera,
   deleteCamera,
@@ -38,8 +47,10 @@ export default function CamerasSettings() {
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isZoneModalOpen, setIsZoneModalOpen] = useState(false);
   const [editingCamera, setEditingCamera] = useState<Camera | null>(null);
   const [deletingCamera, setDeletingCamera] = useState<Camera | null>(null);
+  const [zoneManagingCamera, setZoneManagingCamera] = useState<Camera | null>(null);
   const [formData, setFormData] = useState<CameraFormData>({
     name: '',
     folder_path: '',
@@ -120,6 +131,16 @@ export default function CamerasSettings() {
   const handleCloseDeleteModal = () => {
     setIsDeleteModalOpen(false);
     setDeletingCamera(null);
+  };
+
+  const handleOpenZoneModal = (camera: Camera) => {
+    setZoneManagingCamera(camera);
+    setIsZoneModalOpen(true);
+  };
+
+  const handleCloseZoneModal = () => {
+    setIsZoneModalOpen(false);
+    setZoneManagingCamera(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -277,6 +298,9 @@ export default function CamerasSettings() {
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary">
                   Last Seen
                 </th>
+                <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-text-secondary">
+                  Zones
+                </th>
                 <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-text-secondary">
                   Actions
                 </th>
@@ -303,6 +327,16 @@ export default function CamerasSettings() {
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 text-sm text-text-secondary">
                     {camera.last_seen_at ? new Date(camera.last_seen_at).toLocaleString() : 'Never'}
+                  </td>
+                  <td className="whitespace-nowrap px-6 py-4 text-center">
+                    <button
+                      onClick={() => handleOpenZoneModal(camera)}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-gray-800 px-3 py-1.5 text-xs font-medium text-text-primary transition-colors hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary"
+                      aria-label={`Manage zones for ${camera.name}`}
+                    >
+                      <MapPin className="h-3.5 w-3.5" />
+                      Manage
+                    </button>
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
@@ -535,6 +569,43 @@ export default function CamerasSettings() {
                       {submitting ? 'Deleting...' : 'Delete Camera'}
                     </button>
                   </div>
+                </Dialog.Panel>
+              </Transition.Child>
+            </div>
+          </div>
+        </Dialog>
+      </Transition>
+
+      {/* Zone Management Modal */}
+      <Transition appear show={isZoneModalOpen} as={Fragment}>
+        <Dialog as="div" className="relative z-50" onClose={handleCloseZoneModal}>
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
+          </Transition.Child>
+
+          <div className="fixed inset-0 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+                leave="ease-in duration-200"
+                leaveFrom="opacity-100 scale-100"
+                leaveTo="opacity-0 scale-95"
+              >
+                <Dialog.Panel className="w-full max-w-6xl transform overflow-hidden rounded-lg border border-gray-800 bg-panel shadow-dark-xl transition-all">
+                  {zoneManagingCamera && (
+                    <ZoneManagement camera={zoneManagingCamera} onClose={handleCloseZoneModal} />
+                  )}
                 </Dialog.Panel>
               </Transition.Child>
             </div>

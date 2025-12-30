@@ -1,5 +1,34 @@
 name: CI
 
+# ============================================================================
+# CI Workflow Architecture
+# ============================================================================
+# This workflow has two validation approaches that must stay in sync:
+#
+# 1. Individual Jobs (lint, typecheck, unit-tests, etc.)
+#    - Run in parallel for fast feedback
+#    - Each job tests one aspect of the codebase
+#    - Granular failure information for debugging
+#
+# 2. Unified Validation Job (unified-validation)
+#    - Runs scripts/validate.sh (the same script developers run locally)
+#    - Ensures no drift between CI and local validation
+#    - If this fails but individual jobs pass, it indicates drift
+#
+# Coverage Thresholds (per CLAUDE.md):
+#    - All tests: 95% coverage enforcement
+#    - This threshold is used in:
+#      - scripts/validate.sh
+#      - scripts/test-runner.sh
+#      - unit-tests job (--cov-fail-under=95)
+#      - integration-tests job (--cov-fail-under=95)
+#
+# If you modify coverage thresholds in individual jobs, also update:
+#    - scripts/validate.sh
+#    - scripts/test-runner.sh
+#    - CLAUDE.md (if threshold policy changes)
+# ============================================================================
+
 on:
   push:
     branches: [main]
@@ -113,8 +142,7 @@ jobs:
           exit 1
 
       - name: Run unit tests with coverage
-        # Unit tests have 80% coverage threshold (lowered from 92% after moving
-        # DB-dependent tests to integration/ directory for proper separation)
+        # Unit tests have 95% coverage threshold (standard per CLAUDE.md)
         # -n0 disables xdist parallelization (CI already parallelizes via separate jobs)
         # --timeout=0 disables timeout (fixture import takes >1s in CI)
         run: |
@@ -125,7 +153,7 @@ jobs:
             --cov-config=pyproject.toml \
             --cov-report=xml:coverage-unit.xml \
             --cov-report=term-missing \
-            --cov-fail-under=80 \
+            --cov-fail-under=95 \
             --junit-xml=test-results-unit.xml \
             --durations=20 \
             -v
@@ -224,12 +252,7 @@ jobs:
           exit 1
 
       - name: Run integration tests with coverage
-        # Integration tests have 50% coverage threshold (vs 93% for unit tests)
-        # Integration tests cover cross-component interactions and have lower
-        # coverage due to:
-        # - Mocked external dependencies (DB, Redis, AI services)
-        # - Testing specific API endpoints rather than all code paths
-        # - Focus on end-to-end behavior verification
+        # Integration tests have 95% coverage threshold (standard per CLAUDE.md)
         # -n0 disables xdist parallelization (CI already parallelizes via separate jobs)
         # --timeout=0 disables timeout (fixture import takes >1s in CI)
         run: |
@@ -239,7 +262,7 @@ jobs:
             --cov=backend \
             --cov-report=xml:coverage-integration.xml \
             --cov-report=term-missing \
-            --cov-fail-under=50 \
+            --cov-fail-under=95 \
             --junit-xml=test-results-integration.xml \
             --durations=20 \
             -v
@@ -590,6 +613,108 @@ jobs:
           assert settings.debug == False, f'DEBUG should be False but is {settings.debug}'
           print('SUCCESS: DEBUG mode is correctly set to False')
           "
+
+  # ============================================================================
+  # Unified Validation Job
+  # ============================================================================
+  # This job runs scripts/validate.sh to ensure the unified validation script
+  # stays in sync with CI. If this job fails but individual jobs pass, it
+  # indicates drift between CI and the validation scripts.
+
+  unified-validation:
+    name: Unified Validation (scripts/validate.sh)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: security_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+      REDIS_URL: redis://localhost:6379
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+          cache-dependency-path: backend/requirements*.txt
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Create Python virtual environment
+        run: python -m venv .venv
+
+      - name: Install backend dependencies
+        run: |
+          source .venv/bin/activate
+          pip install -r backend/requirements.txt
+
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+
+      - name: Install Redis CLI
+        run: sudo apt-get update && sudo apt-get install -y redis-tools
+
+      - name: Wait for PostgreSQL
+        run: |
+          echo "Waiting for PostgreSQL..."
+          for i in {1..30}; do
+            if pg_isready -h localhost -p 5432 -U postgres; then
+              echo "PostgreSQL is ready"
+              exit 0
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 1
+          done
+          echo "PostgreSQL failed to start"
+          exit 1
+
+      - name: Wait for Redis
+        run: |
+          echo "Checking Redis service container..."
+          for i in {1..30}; do
+            if redis-cli -h localhost -p 6379 ping 2>&1 | grep -q PONG; then
+              echo "Redis is ready"
+              exit 0
+            fi
+            echo "Waiting for Redis... ($i/30)"
+            sleep 1
+          done
+          echo "Redis failed to start"
+          exit 1
+
+      - name: Run unified validation script
+        run: ./scripts/validate.sh
 
   # ============================================================================
   # Test Performance Audit Job

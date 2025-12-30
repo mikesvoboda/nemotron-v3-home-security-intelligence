@@ -23,7 +23,6 @@ from backend.api.schemas.system import (
     GPUStatsHistoryResponse,
     GPUStatsResponse,
     HealthResponse,
-    LivenessResponse,
     PipelineLatencies,
     ReadinessResponse,
     StageLatency,
@@ -106,27 +105,9 @@ def test_runtime_env_path_default_is_under_data() -> None:
 # =============================================================================
 # Liveness Endpoint Tests
 # =============================================================================
-
-
-@pytest.mark.asyncio
-async def test_get_liveness_always_returns_alive() -> None:
-    """Test that liveness endpoint always returns alive status."""
-    response = await system_routes.get_liveness()
-
-    assert isinstance(response, LivenessResponse)
-    assert response.status == "alive"
-
-
-@pytest.mark.asyncio
-async def test_get_liveness_has_no_dependencies() -> None:
-    """Test that liveness endpoint has no external dependencies.
-
-    The liveness probe should never fail if the process is running.
-    """
-    # Call multiple times to ensure it's stateless and consistent
-    for _ in range(3):
-        response = await system_routes.get_liveness()
-        assert response.status == "alive"
+# NOTE: The liveness endpoint (/api/system/health/live) was removed to consolidate
+# duplicate endpoints. Liveness probes should use GET /health at the root level.
+# See main.py::health() for the canonical liveness probe implementation.
 
 
 # =============================================================================
@@ -1767,20 +1748,23 @@ async def test_record_stage_latency_valid_stage() -> None:
     """Test record_stage_latency with valid pipeline stage.
 
     Verifies that:
-    - add_to_queue is called with correct key and max_size for trimming
+    - add_to_queue_safe is called with correct key and overflow policy
     - expire is called to set TTL on the key
     """
+    from backend.core.redis import QueueAddResult, QueueOverflowPolicy
+
     redis = AsyncMock()
-    redis.add_to_queue = AsyncMock()
+    redis.add_to_queue_safe = AsyncMock(return_value=QueueAddResult(success=True, queue_length=1))
     redis.expire = AsyncMock()
 
     await system_routes.record_stage_latency(redis, "watch", 10.5)  # type: ignore[arg-type]
 
-    # Verify add_to_queue called with max_size=MAX_LATENCY_SAMPLES
-    redis.add_to_queue.assert_called_once_with(
+    # Verify add_to_queue_safe called with correct parameters
+    redis.add_to_queue_safe.assert_called_once_with(
         "telemetry:latency:watch",
         10.5,
         max_size=system_routes.MAX_LATENCY_SAMPLES,
+        overflow_policy=QueueOverflowPolicy.DROP_OLDEST,
     )
     # Verify TTL is set
     redis.expire.assert_called_once_with(
@@ -1793,21 +1777,21 @@ async def test_record_stage_latency_valid_stage() -> None:
 async def test_record_stage_latency_invalid_stage() -> None:
     """Test record_stage_latency with invalid pipeline stage logs warning."""
     redis = AsyncMock()
-    redis.add_to_queue = AsyncMock()
+    redis.add_to_queue_safe = AsyncMock()
 
     with patch.object(system_routes.logger, "warning") as mock_warning:
         await system_routes.record_stage_latency(redis, "invalid_stage", 10.5)  # type: ignore[arg-type]
 
     mock_warning.assert_called_once()
     assert "invalid_stage" in mock_warning.call_args[0][0]
-    redis.add_to_queue.assert_not_called()
+    redis.add_to_queue_safe.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_record_stage_latency_exception_handling() -> None:
     """Test record_stage_latency handles Redis exceptions gracefully."""
     redis = AsyncMock()
-    redis.add_to_queue = AsyncMock(side_effect=RuntimeError("redis error"))
+    redis.add_to_queue_safe = AsyncMock(side_effect=RuntimeError("redis error"))
 
     with patch.object(system_routes.logger, "warning") as mock_warning:
         await system_routes.record_stage_latency(redis, "detect", 15.0)  # type: ignore[arg-type]
@@ -2197,34 +2181,38 @@ async def test_record_stage_latency_uses_max_samples() -> None:
     This ensures memory usage is bounded by trimming old samples
     when the list exceeds MAX_LATENCY_SAMPLES.
     """
+    from backend.core.redis import QueueAddResult
+
     redis = AsyncMock()
-    redis.add_to_queue = AsyncMock()
+    redis.add_to_queue_safe = AsyncMock(return_value=QueueAddResult(success=True, queue_length=1))
     redis.expire = AsyncMock()
 
     await system_routes.record_stage_latency(redis, "batch", 5000.0)  # type: ignore[arg-type]
 
-    # Verify add_to_queue called with max_size parameter
-    redis.add_to_queue.assert_called_once()
-    call_args = redis.add_to_queue.call_args
+    # Verify add_to_queue_safe called with max_size parameter
+    redis.add_to_queue_safe.assert_called_once()
+    call_args = redis.add_to_queue_safe.call_args
     assert call_args.kwargs.get("max_size") == system_routes.MAX_LATENCY_SAMPLES
 
 
 @pytest.mark.asyncio
 async def test_record_stage_latency_all_stages_use_correct_keys() -> None:
     """Test record_stage_latency uses correct Redis keys for all stages."""
+    from backend.core.redis import QueueAddResult
+
     redis = AsyncMock()
-    redis.add_to_queue = AsyncMock()
+    redis.add_to_queue_safe = AsyncMock(return_value=QueueAddResult(success=True, queue_length=1))
     redis.expire = AsyncMock()
 
     for stage in system_routes.PIPELINE_STAGES:
-        redis.add_to_queue.reset_mock()
+        redis.add_to_queue_safe.reset_mock()
         redis.expire.reset_mock()
 
         await system_routes.record_stage_latency(redis, stage, 50.0)  # type: ignore[arg-type]
 
         expected_key = f"{system_routes.LATENCY_KEY_PREFIX}{stage}"
-        redis.add_to_queue.assert_called_once()
-        assert redis.add_to_queue.call_args[0][0] == expected_key
+        redis.add_to_queue_safe.assert_called_once()
+        assert redis.add_to_queue_safe.call_args[0][0] == expected_key
         redis.expire.assert_called_once()
         assert redis.expire.call_args[0][0] == expected_key
 
@@ -2232,8 +2220,10 @@ async def test_record_stage_latency_all_stages_use_correct_keys() -> None:
 @pytest.mark.asyncio
 async def test_record_stage_latency_expire_failure_logs_warning() -> None:
     """Test record_stage_latency logs warning if expire fails."""
+    from backend.core.redis import QueueAddResult
+
     redis = AsyncMock()
-    redis.add_to_queue = AsyncMock()
+    redis.add_to_queue_safe = AsyncMock(return_value=QueueAddResult(success=True, queue_length=1))
     redis.expire = AsyncMock(side_effect=RuntimeError("redis expire error"))
 
     with patch.object(system_routes.logger, "warning") as mock_warning:
@@ -2250,8 +2240,10 @@ async def test_record_stage_latency_ttl_refreshes_on_each_write() -> None:
 
     This simulates multiple writes and verifies expire is called each time.
     """
+    from backend.core.redis import QueueAddResult
+
     redis = AsyncMock()
-    redis.add_to_queue = AsyncMock()
+    redis.add_to_queue_safe = AsyncMock(return_value=QueueAddResult(success=True, queue_length=1))
     redis.expire = AsyncMock(return_value=True)
 
     # Record multiple samples
@@ -3369,3 +3361,260 @@ async def test_trigger_cleanup_dry_run_zero_counts() -> None:
     assert response.images_deleted == 0
     assert response.space_reclaimed == 0
     assert response.dry_run is True
+
+
+# =============================================================================
+# Circuit Breaker Endpoint Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_circuit_breakers_empty_registry() -> None:
+    """Test get_circuit_breakers when no circuit breakers are registered."""
+    mock_registry = MagicMock()
+    mock_registry.get_all_status.return_value = {}
+
+    with patch("backend.services.circuit_breaker._get_registry", return_value=mock_registry):
+        response = await system_routes.get_circuit_breakers()
+
+    assert response.total_count == 0
+    assert response.open_count == 0
+    assert len(response.circuit_breakers) == 0
+    assert response.timestamp is not None
+
+
+@pytest.mark.asyncio
+async def test_get_circuit_breakers_with_closed_breakers() -> None:
+    """Test get_circuit_breakers with circuit breakers in closed state."""
+    mock_registry = MagicMock()
+    mock_registry.get_all_status.return_value = {
+        "rtdetr": {
+            "state": "closed",
+            "failure_count": 0,
+            "success_count": 0,
+            "total_calls": 100,
+            "rejected_calls": 0,
+            "last_failure_time": None,
+            "opened_at": None,
+            "config": {
+                "failure_threshold": 5,
+                "recovery_timeout": 30.0,
+                "half_open_max_calls": 3,
+                "success_threshold": 2,
+            },
+        },
+        "nemotron": {
+            "state": "closed",
+            "failure_count": 1,
+            "success_count": 0,
+            "total_calls": 50,
+            "rejected_calls": 0,
+            "last_failure_time": 12345.0,
+            "opened_at": None,
+            "config": {
+                "failure_threshold": 5,
+                "recovery_timeout": 30.0,
+                "half_open_max_calls": 3,
+                "success_threshold": 2,
+            },
+        },
+    }
+
+    with patch("backend.services.circuit_breaker._get_registry", return_value=mock_registry):
+        response = await system_routes.get_circuit_breakers()
+
+    assert response.total_count == 2
+    assert response.open_count == 0
+    assert "rtdetr" in response.circuit_breakers
+    assert "nemotron" in response.circuit_breakers
+    assert response.circuit_breakers["rtdetr"].state.value == "closed"
+    assert response.circuit_breakers["nemotron"].failure_count == 1
+
+
+@pytest.mark.asyncio
+async def test_get_circuit_breakers_with_open_breaker() -> None:
+    """Test get_circuit_breakers when a circuit breaker is open."""
+    mock_registry = MagicMock()
+    mock_registry.get_all_status.return_value = {
+        "rtdetr": {
+            "state": "open",
+            "failure_count": 5,
+            "success_count": 0,
+            "total_calls": 100,
+            "rejected_calls": 25,
+            "last_failure_time": 12345.0,
+            "opened_at": 12340.0,
+            "config": {
+                "failure_threshold": 5,
+                "recovery_timeout": 30.0,
+                "half_open_max_calls": 3,
+                "success_threshold": 2,
+            },
+        },
+    }
+
+    with patch("backend.services.circuit_breaker._get_registry", return_value=mock_registry):
+        response = await system_routes.get_circuit_breakers()
+
+    assert response.total_count == 1
+    assert response.open_count == 1
+    assert response.circuit_breakers["rtdetr"].state.value == "open"
+    assert response.circuit_breakers["rtdetr"].rejected_calls == 25
+
+
+@pytest.mark.asyncio
+async def test_get_circuit_breakers_with_half_open_breaker() -> None:
+    """Test get_circuit_breakers when a circuit breaker is in half-open state."""
+    mock_registry = MagicMock()
+    mock_registry.get_all_status.return_value = {
+        "rtdetr": {
+            "state": "half_open",
+            "failure_count": 0,
+            "success_count": 1,
+            "total_calls": 101,
+            "rejected_calls": 25,
+            "last_failure_time": 12345.0,
+            "opened_at": 12340.0,
+            "config": {
+                "failure_threshold": 5,
+                "recovery_timeout": 30.0,
+                "half_open_max_calls": 3,
+                "success_threshold": 2,
+            },
+        },
+    }
+
+    with patch("backend.services.circuit_breaker._get_registry", return_value=mock_registry):
+        response = await system_routes.get_circuit_breakers()
+
+    assert response.total_count == 1
+    assert response.open_count == 0  # half_open is not counted as open
+    assert response.circuit_breakers["rtdetr"].state.value == "half_open"
+    assert response.circuit_breakers["rtdetr"].success_count == 1
+
+
+@pytest.mark.asyncio
+async def test_reset_circuit_breaker_success() -> None:
+    """Test resetting a circuit breaker successfully."""
+    mock_breaker = MagicMock()
+    mock_breaker.state.value = "open"
+
+    mock_registry = MagicMock()
+    mock_registry.get.return_value = mock_breaker
+
+    # After reset, state should be closed
+    def reset_side_effect():
+        mock_breaker.state.value = "closed"
+
+    mock_breaker.reset.side_effect = reset_side_effect
+
+    with patch("backend.services.circuit_breaker._get_registry", return_value=mock_registry):
+        response = await system_routes.reset_circuit_breaker("rtdetr")
+
+    assert response.name == "rtdetr"
+    assert response.previous_state.value == "open"
+    assert response.new_state.value == "closed"
+    assert "reset successfully" in response.message
+    mock_breaker.reset.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_reset_circuit_breaker_not_found() -> None:
+    """Test resetting a circuit breaker that doesn't exist."""
+    mock_registry = MagicMock()
+    mock_registry.get.return_value = None
+
+    with (
+        patch("backend.services.circuit_breaker._get_registry", return_value=mock_registry),
+        pytest.raises(HTTPException) as exc_info,
+    ):
+        await system_routes.reset_circuit_breaker("nonexistent")
+
+    assert exc_info.value.status_code == 404
+    assert "not found" in str(exc_info.value.detail)
+
+
+# =============================================================================
+# Cleanup Status Endpoint Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_cleanup_status_with_running_service() -> None:
+    """Test get_cleanup_status when cleanup service is running."""
+    original_cleanup_service = system_routes._cleanup_service
+
+    try:
+        mock_cleanup_service = MagicMock()
+        mock_cleanup_service.get_cleanup_stats.return_value = {
+            "running": True,
+            "retention_days": 30,
+            "cleanup_time": "03:00",
+            "delete_images": False,
+            "next_cleanup": "2025-12-31T03:00:00Z",
+        }
+        system_routes._cleanup_service = mock_cleanup_service
+
+        response = await system_routes.get_cleanup_status()
+
+        assert response.running is True
+        assert response.retention_days == 30
+        assert response.cleanup_time == "03:00"
+        assert response.delete_images is False
+        assert response.next_cleanup == "2025-12-31T03:00:00Z"
+        assert response.timestamp is not None
+
+    finally:
+        system_routes._cleanup_service = original_cleanup_service
+
+
+@pytest.mark.asyncio
+async def test_get_cleanup_status_with_stopped_service() -> None:
+    """Test get_cleanup_status when cleanup service is stopped."""
+    original_cleanup_service = system_routes._cleanup_service
+
+    try:
+        mock_cleanup_service = MagicMock()
+        mock_cleanup_service.get_cleanup_stats.return_value = {
+            "running": False,
+            "retention_days": 14,
+            "cleanup_time": "02:00",
+            "delete_images": True,
+            "next_cleanup": None,
+        }
+        system_routes._cleanup_service = mock_cleanup_service
+
+        response = await system_routes.get_cleanup_status()
+
+        assert response.running is False
+        assert response.retention_days == 14
+        assert response.cleanup_time == "02:00"
+        assert response.delete_images is True
+        assert response.next_cleanup is None
+
+    finally:
+        system_routes._cleanup_service = original_cleanup_service
+
+
+@pytest.mark.asyncio
+async def test_get_cleanup_status_without_service() -> None:
+    """Test get_cleanup_status when cleanup service is not registered."""
+    original_cleanup_service = system_routes._cleanup_service
+
+    try:
+        system_routes._cleanup_service = None
+
+        mock_settings = MagicMock()
+        mock_settings.retention_days = 30
+
+        with patch.object(system_routes, "get_settings", return_value=mock_settings):
+            response = await system_routes.get_cleanup_status()
+
+        assert response.running is False
+        assert response.retention_days == 30
+        assert response.cleanup_time == "03:00"
+        assert response.delete_images is False
+        assert response.next_cleanup is None
+
+    finally:
+        system_routes._cleanup_service = original_cleanup_service

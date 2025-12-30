@@ -33,6 +33,7 @@ from enum import Enum
 from typing import Any
 
 from backend.core.config import get_settings
+from backend.core.constants import ANALYSIS_QUEUE, DETECTION_QUEUE
 from backend.core.database import get_session
 from backend.core.logging import get_logger
 from backend.core.metrics import (
@@ -98,7 +99,7 @@ class DetectionQueueWorker:
         batch_aggregator: BatchAggregator | None = None,
         video_processor: VideoProcessor | None = None,
         retry_handler: RetryHandler | None = None,
-        queue_name: str = "detection_queue",
+        queue_name: str = DETECTION_QUEUE,
         poll_timeout: int = 5,
         stop_timeout: float = 10.0,
     ) -> None:
@@ -208,7 +209,8 @@ class DetectionQueueWorker:
         while self._running:
             try:
                 # Pop item from queue with timeout (allows checking shutdown signal)
-                item = await self._redis.get_from_queue(
+                # Uses retry with exponential backoff for Redis connection failures
+                item = await self._redis.get_from_queue_with_retry(
                     self._queue_name,
                     timeout=self._poll_timeout,
                 )
@@ -521,7 +523,7 @@ class AnalysisQueueWorker:
         self,
         redis_client: RedisClient,
         analyzer: NemotronAnalyzer | None = None,
-        queue_name: str = "analysis_queue",
+        queue_name: str = ANALYSIS_QUEUE,
         poll_timeout: int = 5,
         stop_timeout: float = 30.0,
     ) -> None:
@@ -598,7 +600,8 @@ class AnalysisQueueWorker:
         while self._running:
             try:
                 # Pop item from queue with timeout
-                item = await self._redis.get_from_queue(
+                # Uses retry with exponential backoff for Redis connection failures
+                item = await self._redis.get_from_queue_with_retry(
                     self._queue_name,
                     timeout=self._poll_timeout,
                 )
@@ -898,9 +901,9 @@ class QueueMetricsWorker:
 
         while self._running:
             try:
-                # Get queue depths from Redis
-                detection_depth = await self._redis.get_queue_length("detection_queue")
-                analysis_depth = await self._redis.get_queue_length("analysis_queue")
+                # Get queue depths from Redis with retry for connection failures
+                detection_depth = await self._redis.get_queue_length_with_retry(DETECTION_QUEUE)
+                analysis_depth = await self._redis.get_queue_length_with_retry(ANALYSIS_QUEUE)
 
                 # Update Prometheus metrics
                 set_queue_depth("detection", detection_depth)

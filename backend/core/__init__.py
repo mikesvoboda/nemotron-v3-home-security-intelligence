@@ -1,6 +1,16 @@
 """Core infrastructure components."""
 
 from backend.core.config import Settings, get_settings
+from backend.core.constants import (
+    ANALYSIS_QUEUE,
+    DETECTION_QUEUE,
+    DLQ_ANALYSIS_QUEUE,
+    DLQ_DETECTION_QUEUE,
+    DLQ_OVERFLOW_PREFIX,
+    DLQ_PREFIX,
+    get_dlq_name,
+    get_dlq_overflow_name,
+)
 from backend.core.database import (
     Base,
     close_db,
@@ -64,8 +74,14 @@ from backend.core.tls import (
 )
 
 __all__ = [
+    "ANALYSIS_QUEUE",
     "DEFAULT_IMAGE_MIME",
     "DEFAULT_VIDEO_MIME",
+    "DETECTION_QUEUE",
+    "DLQ_ANALYSIS_QUEUE",
+    "DLQ_DETECTION_QUEUE",
+    "DLQ_OVERFLOW_PREFIX",
+    "DLQ_PREFIX",
     "EXTENSION_TO_MIME",
     "Base",
     "CertificateNotFoundError",
@@ -84,6 +100,8 @@ __all__ = [
     "generate_self_signed_certificate",
     "get_cert_info",
     "get_db",
+    "get_dlq_name",
+    "get_dlq_overflow_name",
     "get_engine",
     "get_logger",
     "get_metrics_response",

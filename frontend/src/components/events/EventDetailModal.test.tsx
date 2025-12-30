@@ -1625,4 +1625,57 @@ describe('EventDetailModal', () => {
       });
     });
   });
+
+  describe('detection metadata display', () => {
+    it('displays bbox coordinates for detections with bounding box', async () => {
+      const eventWithBbox: Event = {
+        ...mockEvent,
+        detections: [
+          {
+            label: 'person',
+            confidence: 0.95,
+            bbox: { x: 100, y: 150, width: 200, height: 300 },
+          },
+        ],
+      };
+      render(<EventDetailModal {...mockProps} event={eventWithBbox} />);
+      // Check for bbox text display - BBox label and coordinates
+      await waitFor(() => {
+        expect(screen.getByText('BBox:')).toBeInTheDocument();
+      });
+      expect(screen.getByText(/\(100, 150\) 200x300/)).toBeInTheDocument();
+    });
+
+    it('does not display bbox label when detection has no bounding box', async () => {
+      const eventNoBbox: Event = {
+        ...mockEvent,
+        detections: [{ label: 'person', confidence: 0.95 }],
+      };
+      render(<EventDetailModal {...mockProps} event={eventNoBbox} />);
+      // Wait for detections to render
+      await waitFor(() => {
+        expect(screen.getByText('person')).toBeInTheDocument();
+      });
+      // Should not have the BBox label
+      expect(screen.queryByText('BBox:')).not.toBeInTheDocument();
+    });
+
+    it('handles invalid detection timestamp gracefully', async () => {
+      const eventInvalidTime: Event = {
+        ...mockEvent,
+        detections: [
+          {
+            label: 'person',
+            confidence: 0.95,
+            detected_at: 'invalid-date',
+          },
+        ],
+      };
+      render(<EventDetailModal {...mockProps} event={eventInvalidTime} />);
+      // Should render without error - detection label should exist
+      await waitFor(() => {
+        expect(screen.getByText('person')).toBeInTheDocument();
+      });
+    });
+  });
 });

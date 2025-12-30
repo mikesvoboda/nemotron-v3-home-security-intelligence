@@ -32,6 +32,7 @@ from collections import defaultdict
 from typing import Any
 
 from backend.core.config import get_settings
+from backend.core.constants import ANALYSIS_QUEUE
 from backend.core.logging import get_logger
 from backend.core.redis import QueueOverflowPolicy, RedisClient
 
@@ -63,7 +64,7 @@ class BatchAggregator:
         settings = get_settings()
         self._batch_window = settings.batch_window_seconds
         self._idle_timeout = settings.batch_idle_timeout_seconds
-        self._analysis_queue = "analysis_queue"
+        self._analysis_queue = ANALYSIS_QUEUE
         self._fast_path_threshold = settings.fast_path_confidence_threshold
         self._fast_path_types = settings.fast_path_object_types
 
@@ -158,8 +159,9 @@ class BatchAggregator:
             current_time = time.time()
 
             # Check for existing active batch for this camera
+            # Uses retry with exponential backoff for Redis connection failures
             batch_key = f"batch:{camera_id}:current"
-            batch_id = await self._redis.get(batch_key)
+            batch_id = await self._redis.get_with_retry(batch_key)
 
             if not batch_id:
                 # Create new batch
@@ -170,18 +172,25 @@ class BatchAggregator:
                 )
 
                 # Set batch metadata with TTL for orphan cleanup
+                # Uses retry with exponential backoff for Redis connection failures
                 ttl = self.BATCH_KEY_TTL_SECONDS
-                await self._redis.set(batch_key, batch_id, expire=ttl)
-                await self._redis.set(f"batch:{batch_id}:camera_id", camera_id, expire=ttl)
-                await self._redis.set(f"batch:{batch_id}:started_at", str(current_time), expire=ttl)
-                await self._redis.set(
+                await self._redis.set_with_retry(batch_key, batch_id, expire=ttl)
+                await self._redis.set_with_retry(
+                    f"batch:{batch_id}:camera_id", camera_id, expire=ttl
+                )
+                await self._redis.set_with_retry(
+                    f"batch:{batch_id}:started_at", str(current_time), expire=ttl
+                )
+                await self._redis.set_with_retry(
                     f"batch:{batch_id}:last_activity", str(current_time), expire=ttl
                 )
-                await self._redis.set(f"batch:{batch_id}:detections", json.dumps([]), expire=ttl)
+                await self._redis.set_with_retry(
+                    f"batch:{batch_id}:detections", json.dumps([]), expire=ttl
+                )
 
             # Add detection to batch
             detections_key = f"batch:{batch_id}:detections"
-            detections_data = await self._redis.get(detections_key)
+            detections_data = await self._redis.get_with_retry(detections_key)
 
             if detections_data:
                 detections = (
@@ -195,9 +204,12 @@ class BatchAggregator:
             detections.append(detection_id_int)
 
             # Update batch with new detection and activity timestamp (refresh TTL)
+            # Uses retry with exponential backoff for Redis connection failures
             ttl = self.BATCH_KEY_TTL_SECONDS
-            await self._redis.set(detections_key, json.dumps(detections), expire=ttl)
-            await self._redis.set(f"batch:{batch_id}:last_activity", str(current_time), expire=ttl)
+            await self._redis.set_with_retry(detections_key, json.dumps(detections), expire=ttl)
+            await self._redis.set_with_retry(
+                f"batch:{batch_id}:last_activity", str(current_time), expire=ttl
+            )
 
             logger.debug(
                 f"Added detection {detection_id_int} to batch {batch_id} "
@@ -239,13 +251,15 @@ class BatchAggregator:
 
         for batch_key in batch_keys:
             try:
-                # Get batch ID and metadata
-                batch_id = await self._redis.get(batch_key)
+                # Get batch ID and metadata with retry for Redis connection failures
+                batch_id = await self._redis.get_with_retry(batch_key)
                 if not batch_id:
                     continue
 
-                started_at_str = await self._redis.get(f"batch:{batch_id}:started_at")
-                last_activity_str = await self._redis.get(f"batch:{batch_id}:last_activity")
+                started_at_str = await self._redis.get_with_retry(f"batch:{batch_id}:started_at")
+                last_activity_str = await self._redis.get_with_retry(
+                    f"batch:{batch_id}:last_activity"
+                )
 
                 if not started_at_str:
                     logger.warning(f"Batch {batch_id} missing started_at timestamp, skipping")
@@ -273,7 +287,9 @@ class BatchAggregator:
                     )
 
                 if should_close:
-                    camera_id_for_log = await self._redis.get(f"batch:{batch_id}:camera_id")
+                    camera_id_for_log = await self._redis.get_with_retry(
+                        f"batch:{batch_id}:camera_id"
+                    )
                     logger.info(
                         f"Closing batch {batch_id}: {close_reason}",
                         extra={
@@ -324,7 +340,8 @@ class BatchAggregator:
         # Acquire global batch close lock to prevent concurrent close operations
         async with self._batch_close_lock:
             # Get batch metadata (camera_id first to acquire camera lock)
-            camera_id = await self._redis.get(f"batch:{batch_id}:camera_id")
+            # Uses retry with exponential backoff for Redis connection failures
+            camera_id = await self._redis.get_with_retry(f"batch:{batch_id}:camera_id")
             if not camera_id:
                 raise ValueError(f"Batch {batch_id} not found")
 
@@ -332,7 +349,7 @@ class BatchAggregator:
             camera_lock = await self._get_camera_lock(camera_id)
             async with camera_lock:
                 # Re-check batch exists after acquiring lock (may have been closed already)
-                camera_id_check = await self._redis.get(f"batch:{batch_id}:camera_id")
+                camera_id_check = await self._redis.get_with_retry(f"batch:{batch_id}:camera_id")
                 if not camera_id_check:
                     # Batch was already closed by another coroutine
                     logger.debug(
@@ -349,7 +366,7 @@ class BatchAggregator:
                         "already_closed": True,
                     }
 
-                detections_data = await self._redis.get(f"batch:{batch_id}:detections")
+                detections_data = await self._redis.get_with_retry(f"batch:{batch_id}:detections")
                 # Handle both pre-deserialized (from redis.get) and string formats
                 if detections_data:
                     detections = (
@@ -360,7 +377,7 @@ class BatchAggregator:
                 else:
                     detections = []
 
-                started_at_str = await self._redis.get(f"batch:{batch_id}:started_at")
+                started_at_str = await self._redis.get_with_retry(f"batch:{batch_id}:started_at")
                 started_at = float(started_at_str) if started_at_str else time.time()
 
                 # Create summary
@@ -384,7 +401,8 @@ class BatchAggregator:
 
                     # Use add_to_queue_safe() with DLQ policy to prevent silent data loss
                     # If the queue is full, items are moved to a dead-letter queue
-                    result = await self._redis.add_to_queue_safe(
+                    # Uses retry with exponential backoff for Redis connection failures
+                    result = await self._redis.add_to_queue_safe_with_retry(
                         self._analysis_queue,
                         queue_item,
                         overflow_policy=QueueOverflowPolicy.DLQ,

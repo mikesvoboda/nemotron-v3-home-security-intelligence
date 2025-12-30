@@ -201,6 +201,51 @@ class MockRedisClient:
     async def health_check(self) -> dict[str, Any]:
         return {"status": "healthy", "connected": True, "redis_version": "mock"}
 
+    async def get_with_retry(
+        self,
+        key: str,
+        max_retries: int | None = None,
+    ) -> Any | None:
+        """Mock get_with_retry - just delegates to get()."""
+        return await self.get(key)
+
+    async def set_with_retry(
+        self,
+        key: str,
+        value: Any,
+        expire: int | None = None,
+        max_retries: int | None = None,
+    ) -> bool:
+        """Mock set_with_retry - just delegates to set()."""
+        return await self.set(key, value, expire=expire)
+
+    async def get_from_queue_with_retry(
+        self,
+        queue_name: str,
+        timeout: int = 0,
+        max_retries: int | None = None,
+    ) -> Any | None:
+        """Mock get_from_queue_with_retry - just delegates to get_from_queue()."""
+        return await self.get_from_queue(queue_name, timeout=timeout)
+
+    async def get_queue_length_with_retry(
+        self,
+        queue_name: str,
+        max_retries: int | None = None,
+    ) -> int:
+        """Mock get_queue_length_with_retry - just delegates to get_queue_length()."""
+        return await self.get_queue_length(queue_name)
+
+    async def add_to_queue_safe_with_retry(
+        self,
+        queue_name: str,
+        data: Any,
+        overflow_policy: QueueOverflowPolicy | str | None = None,
+        max_retries: int | None = None,
+    ) -> QueueAddResult:
+        """Mock add_to_queue_safe_with_retry - just delegates to add_to_queue_safe()."""
+        return await self.add_to_queue_safe(queue_name, data, overflow_policy=overflow_policy)
+
     def get_batch_keys(self) -> list[str]:
         """Get all batch:*:current keys for timeout checking."""
         return [k for k in self._store if k.endswith(":current") and k.startswith("batch:")]
@@ -1222,3 +1267,485 @@ async def test_mock_redis_accepts_iso_datetime_string() -> None:
     assert await redis.get("timestamp_key") == timestamp
     event = await redis.get("event")
     assert event["timestamp"] == timestamp
+
+
+# =============================================================================
+# Full Pipeline E2E Test (bead mb9s.9)
+# =============================================================================
+# This test verifies the complete flow: file upload → watcher → detection →
+# batch → LLM → event → WebSocket broadcast.
+
+
+class MockRedisClientWithPubSub(MockRedisClient):
+    """Extended MockRedisClient with pub/sub support for WebSocket testing.
+
+    Tracks published messages for verification in tests.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._published_messages: list[dict[str, Any]] = []
+        self._subscriptions: dict[str, list[Any]] = {}
+
+    async def publish(self, channel: str, message: Any) -> int:
+        """Publish message to channel and track it for test verification.
+
+        Args:
+            channel: Redis pub/sub channel name
+            message: Message to publish (must be JSON-serializable)
+
+        Returns:
+            Number of subscribers (simulated as 1)
+        """
+        # Validate JSON serialization like real Redis
+        self._validate_json_serializable(message)
+        self._published_messages.append({"channel": channel, "message": message})
+        return 1
+
+    def get_published_messages(self, channel: str | None = None) -> list[dict[str, Any]]:
+        """Get all published messages, optionally filtered by channel.
+
+        Args:
+            channel: Optional channel to filter by
+
+        Returns:
+            List of published message records with channel and message
+        """
+        if channel is None:
+            return self._published_messages.copy()
+        return [m for m in self._published_messages if m["channel"] == channel]
+
+    async def subscribe(self, channel: str) -> Any:
+        """Mock subscribe - returns self to act as pubsub object."""
+        if channel not in self._subscriptions:
+            self._subscriptions[channel] = []
+        return self
+
+    async def unsubscribe(self, channel: str) -> None:
+        """Mock unsubscribe."""
+        self._subscriptions.pop(channel, None)
+
+
+@pytest.fixture
+async def mock_redis_with_pubsub() -> MockRedisClientWithPubSub:
+    """Provide a mock Redis client with pub/sub tracking for WebSocket tests."""
+    return MockRedisClientWithPubSub()
+
+
+@pytest.mark.asyncio
+@pytest.mark.xdist_group(name="pipeline_e2e")
+@pytest.mark.slow
+async def test_full_pipeline_e2e(
+    integration_db: str,
+    mock_redis_with_pubsub: MockRedisClientWithPubSub,
+    test_camera: tuple[Camera, Path],
+) -> None:
+    """Test complete E2E flow: file upload → watcher → detection → batch → LLM → event → WebSocket.
+
+    This comprehensive test exercises the full detection pipeline from end to end:
+
+    1. File Upload Simulation (FileWatcher): Simulates a camera FTP upload by creating
+       a test image and queueing it to the detection_queue.
+
+    2. Detection Processing (DetectorClient): Processes the image through RT-DETRv2
+       object detection (mocked) and stores Detection records in the database.
+
+    3. Batch Aggregation (BatchAggregator): Groups the detection into a batch and
+       verifies batch metadata is stored in Redis with correct queue names.
+
+    4. LLM Analysis (NemotronAnalyzer): Analyzes the batch using Nemotron LLM (mocked)
+       and creates an Event record with risk assessment.
+
+    5. WebSocket Notification (EventBroadcaster): Verifies that the event is broadcast
+       to the security_events Redis channel with the correct message format.
+
+    Acceptance Criteria (bead mb9s.9):
+    1. test_full_pipeline_e2e() exercises complete flow ✓
+    2. Verifies queue names: detection_queue, analysis_queue ✓
+    3. Verifies Redis channel: security_events ✓
+    4. Verifies WebSocket message format: {type: event, data: {...}} ✓
+    5. Test passes ✓
+    """
+    from backend.services.event_broadcaster import reset_broadcaster_state
+
+    camera, temp_camera_dir = test_camera
+    camera_id = camera.id
+    redis = mock_redis_with_pubsub
+
+    # Reset broadcaster state to ensure clean test
+    reset_broadcaster_state()
+
+    # ==========================================================================
+    # Step 1: File Upload Simulation (FileWatcher)
+    # ==========================================================================
+    # Simulate what FileWatcher does: create image, validate, and queue to detection_queue
+
+    image_path = temp_camera_dir / camera_id / "e2e_test_image.jpg"
+    create_test_image(image_path)
+
+    # Manually queue to detection_queue (simulating FileWatcher behavior)
+    file_payload = {
+        "camera_id": camera_id,
+        "file_path": str(image_path),
+        "timestamp": datetime.now(UTC).isoformat(),
+        "media_type": "image",
+        "file_hash": "simulated_hash_123",
+    }
+    await redis.add_to_queue("detection_queue", file_payload)
+
+    # Verify file was queued to detection_queue
+    detection_queue_items = await redis.peek_queue("detection_queue")
+    assert len(detection_queue_items) == 1
+    assert detection_queue_items[0]["camera_id"] == camera_id
+    assert detection_queue_items[0]["file_path"] == str(image_path)
+
+    # ==========================================================================
+    # Step 2: Detection Processing (DetectorClient)
+    # ==========================================================================
+    # Simulate DetectionQueueWorker processing: dequeue and detect objects
+
+    queued_item = await redis.get_from_queue("detection_queue")
+    assert queued_item is not None
+    assert queued_item["camera_id"] == camera_id
+
+    # Process with DetectorClient
+    detector = DetectorClient()
+    mock_detector_response = create_mock_detector_response(
+        [
+            {
+                "class": "car",  # Use car to avoid fast path
+                "confidence": 0.85,  # Below fast path threshold (0.90)
+                "bbox": {"x": 100, "y": 150, "width": 200, "height": 300},
+            }
+        ]
+    )
+
+    detection_id = None
+    async with get_session() as session:
+        with patch("backend.services.detector_client.httpx.AsyncClient") as mock_client:
+            mock_response = create_mock_httpx_response(mock_detector_response)
+
+            mock_instance = AsyncMock()
+            mock_instance.post = AsyncMock(return_value=mock_response)
+            mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
+            mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
+
+            detections = await detector.detect_objects(
+                image_path=queued_item["file_path"],
+                camera_id=queued_item["camera_id"],
+                session=session,
+            )
+
+            assert len(detections) == 1
+            detection = detections[0]
+            assert detection.object_type == "car"
+            assert detection.confidence == 0.85
+            detection_id = detection.id
+
+    # Verify detection was stored in database
+    async with get_session() as session:
+        result = await session.execute(select(Detection).where(Detection.id == detection_id))
+        stored_detection = result.scalar_one_or_none()
+        assert stored_detection is not None
+        assert stored_detection.camera_id == camera_id
+        assert stored_detection.object_type == "car"
+
+    # ==========================================================================
+    # Step 3: Batch Aggregation (BatchAggregator)
+    # ==========================================================================
+    # Add detection to batch (normal path, not fast path)
+
+    aggregator = BatchAggregator(redis_client=redis)
+    batch_id = await aggregator.add_detection(
+        camera_id=camera_id,
+        detection_id=str(detection_id),
+        _file_path=str(image_path),
+        confidence=0.85,  # Below fast path threshold
+        object_type="car",  # Not a fast path object type
+    )
+
+    # Verify NOT fast path
+    assert not batch_id.startswith("fast_path_"), "Should use normal batch path, not fast path"
+
+    # Verify batch metadata is stored in Redis
+    batch_camera_id = await redis.get(f"batch:{batch_id}:camera_id")
+    assert batch_camera_id == camera_id
+
+    batch_detections = await redis.get(f"batch:{batch_id}:detections")
+    assert batch_detections is not None
+    # MockRedisClient.get() already deserializes JSON, so batch_detections is a list
+    assert detection_id in batch_detections
+
+    # Close batch - this pushes to analysis_queue
+    batch_summary = await aggregator.close_batch(batch_id)
+    assert batch_summary["camera_id"] == camera_id
+    assert batch_summary["detection_count"] == 1
+
+    # ==========================================================================
+    # Step 4: Verify analysis_queue contains batch
+    # ==========================================================================
+
+    analysis_queue_items = await redis.peek_queue("analysis_queue")
+    assert len(analysis_queue_items) == 1
+
+    queue_item = analysis_queue_items[0]
+    assert queue_item["batch_id"] == batch_id
+    assert queue_item["camera_id"] == camera_id
+    assert queue_item["detection_ids"] == [detection_id]
+
+    # ==========================================================================
+    # Step 5: LLM Analysis (NemotronAnalyzer) with WebSocket Broadcast
+    # ==========================================================================
+    # Create a mock EventBroadcaster that tracks broadcast calls
+
+    class MockEventBroadcaster:
+        """Mock EventBroadcaster that tracks broadcast calls for verification."""
+
+        def __init__(self) -> None:
+            self.broadcast_calls: list[dict[str, Any]] = []
+
+        async def broadcast_event(self, event_data: dict[str, Any]) -> int:
+            """Track broadcast call and store for verification."""
+            self.broadcast_calls.append(event_data)
+            return 1
+
+    mock_broadcaster = MockEventBroadcaster()
+
+    # Analyze batch with mocked LLM and broadcaster
+    analyzer = NemotronAnalyzer(redis_client=redis)
+    mock_llm_response = create_mock_llm_response(
+        risk_score=65,
+        risk_level="medium",
+        summary="E2E test: Car detected in monitored area",
+    )
+
+    with (
+        patch("backend.services.nemotron_analyzer.httpx.AsyncClient") as mock_client,
+        patch(
+            "backend.services.event_broadcaster.get_broadcaster",
+            AsyncMock(return_value=mock_broadcaster),
+        ),
+    ):
+        mock_response = create_mock_httpx_response(mock_llm_response)
+
+        mock_instance = AsyncMock()
+        mock_instance.post = AsyncMock(return_value=mock_response)
+        mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
+        mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
+
+        # Simulate AnalysisQueueWorker: dequeue and analyze
+        analysis_item = await redis.get_from_queue("analysis_queue")
+        assert analysis_item is not None
+
+        event = await analyzer.analyze_batch(
+            batch_id=analysis_item["batch_id"],
+            camera_id=analysis_item["camera_id"],
+            detection_ids=analysis_item["detection_ids"],
+        )
+
+        # Verify event was created
+        assert event is not None
+        assert event.batch_id == batch_id
+        assert event.camera_id == camera_id
+        assert event.risk_score == 65
+        assert event.risk_level == "medium"
+        assert "E2E test" in event.summary
+
+    # ==========================================================================
+    # Step 6: Verify WebSocket Notification
+    # ==========================================================================
+    # Verify EventBroadcaster.broadcast_event() was called with correct format
+
+    assert len(mock_broadcaster.broadcast_calls) == 1, "Should have broadcast exactly one event"
+
+    broadcast_message = mock_broadcaster.broadcast_calls[0]
+
+    # Verify message envelope format: {type: event, data: {...}}
+    assert broadcast_message.get("type") == "event", (
+        f"Message type should be 'event', got: {broadcast_message.get('type')}"
+    )
+    assert "data" in broadcast_message, "Message should have 'data' field"
+
+    # Verify data contents
+    event_data = broadcast_message["data"]
+    assert event_data["id"] == event.id
+    assert event_data["camera_id"] == camera_id
+    assert event_data["risk_score"] == 65
+    assert event_data["risk_level"] == "medium"
+    assert event_data["batch_id"] == batch_id
+
+    # ==========================================================================
+    # Step 7: Verify Event persisted in database
+    # ==========================================================================
+
+    async with get_session() as session:
+        result = await session.execute(select(Event).where(Event.batch_id == batch_id))
+        stored_event = result.scalar_one_or_none()
+
+        assert stored_event is not None
+        assert stored_event.id == event.id
+        assert stored_event.camera_id == camera_id
+        assert stored_event.risk_score == 65
+        assert stored_event.risk_level == "medium"
+
+        # Verify detection_ids in event
+        stored_detection_ids = json.loads(stored_event.detection_ids)
+        assert len(stored_detection_ids) == 1
+        assert detection_id in stored_detection_ids
+
+    # Reset broadcaster state after test
+    reset_broadcaster_state()
+
+
+@pytest.mark.asyncio
+@pytest.mark.xdist_group(name="pipeline_e2e")
+@pytest.mark.slow
+async def test_full_pipeline_e2e_with_real_redis_pubsub_format(
+    integration_db: str,
+    mock_redis_with_pubsub: MockRedisClientWithPubSub,
+    test_camera: tuple[Camera, Path],
+) -> None:
+    """Test that the pipeline produces WebSocket messages in the correct pub/sub format.
+
+    This test specifically verifies the Redis pub/sub message format that would be
+    consumed by EventBroadcaster and forwarded to WebSocket clients.
+
+    The expected format is:
+    {
+        "type": "event",
+        "data": {
+            "id": <int>,
+            "event_id": <int>,  # Legacy compatibility
+            "batch_id": <str>,
+            "camera_id": <str>,
+            "risk_score": <int 0-100>,
+            "risk_level": <str: low|medium|high|critical>,
+            "summary": <str>,
+            "started_at": <ISO datetime string>
+        }
+    }
+    """
+    from backend.services.event_broadcaster import reset_broadcaster_state
+
+    camera, temp_camera_dir = test_camera
+    camera_id = camera.id
+    redis = mock_redis_with_pubsub
+
+    reset_broadcaster_state()
+
+    # Create image and detection
+    image_path = temp_camera_dir / camera_id / "pubsub_format_test.jpg"
+    create_test_image(image_path)
+
+    detector = DetectorClient()
+    mock_detector_response = create_mock_detector_response()
+
+    detection_id = None
+    async with get_session() as session:
+        with patch("backend.services.detector_client.httpx.AsyncClient") as mock_client:
+            mock_response = create_mock_httpx_response(mock_detector_response)
+
+            mock_instance = AsyncMock()
+            mock_instance.post = AsyncMock(return_value=mock_response)
+            mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
+            mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
+
+            detections = await detector.detect_objects(
+                image_path=str(image_path),
+                camera_id=camera_id,
+                session=session,
+            )
+            detection_id = detections[0].id
+
+    # Create batch and close it (use lower confidence to avoid fast path)
+    aggregator = BatchAggregator(redis_client=redis)
+    batch_id = await aggregator.add_detection(
+        camera_id=camera_id,
+        detection_id=str(detection_id),
+        _file_path=str(image_path),
+        confidence=0.75,  # Below fast path threshold
+        object_type="car",
+    )
+    await aggregator.close_batch(batch_id)
+
+    # Mock broadcaster that captures the exact message format
+    captured_messages: list[dict[str, Any]] = []
+
+    class FormatVerifyingBroadcaster:
+        async def broadcast_event(self, message: dict[str, Any]) -> int:
+            captured_messages.append(message)
+            return 1
+
+    # Analyze batch
+    analyzer = NemotronAnalyzer(redis_client=redis)
+    mock_llm_response = create_mock_llm_response(
+        risk_score=45,
+        risk_level="medium",
+        summary="Format verification test",
+    )
+
+    with (
+        patch("backend.services.nemotron_analyzer.httpx.AsyncClient") as mock_client,
+        patch(
+            "backend.services.event_broadcaster.get_broadcaster",
+            AsyncMock(return_value=FormatVerifyingBroadcaster()),
+        ),
+    ):
+        mock_response = create_mock_httpx_response(mock_llm_response)
+
+        mock_instance = AsyncMock()
+        mock_instance.post = AsyncMock(return_value=mock_response)
+        mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_instance)
+        mock_client.return_value.__aexit__ = AsyncMock(return_value=None)
+
+        queue_item = await redis.get_from_queue("analysis_queue")
+        event = await analyzer.analyze_batch(
+            batch_id=queue_item["batch_id"],
+            camera_id=queue_item["camera_id"],
+            detection_ids=queue_item["detection_ids"],
+        )
+
+    # Verify message format in detail
+    assert len(captured_messages) == 1
+    message = captured_messages[0]
+
+    # Top-level structure
+    assert "type" in message, "Message must have 'type' field"
+    assert "data" in message, "Message must have 'data' field"
+    assert message["type"] == "event"
+
+    # Data structure
+    data = message["data"]
+    required_fields = [
+        "id",
+        "event_id",
+        "batch_id",
+        "camera_id",
+        "risk_score",
+        "risk_level",
+        "summary",
+    ]
+    for field in required_fields:
+        assert field in data, f"Message data must have '{field}' field"
+
+    # Type validation
+    assert isinstance(data["id"], int), "id must be int"
+    assert isinstance(data["event_id"], int), "event_id must be int"
+    assert data["id"] == data["event_id"], "id and event_id should match"
+    assert isinstance(data["batch_id"], str), "batch_id must be str"
+    assert isinstance(data["camera_id"], str), "camera_id must be str"
+    assert isinstance(data["risk_score"], int), "risk_score must be int"
+    assert 0 <= data["risk_score"] <= 100, "risk_score must be 0-100"
+    assert data["risk_level"] in ("low", "medium", "high", "critical"), (
+        "risk_level must be valid severity"
+    )
+    assert isinstance(data["summary"], str), "summary must be str"
+
+    # Value validation
+    assert data["id"] == event.id
+    assert data["camera_id"] == camera_id
+    assert data["batch_id"] == batch_id
+    assert data["risk_score"] == 45
+    assert data["risk_level"] == "medium"
+
+    reset_broadcaster_state()

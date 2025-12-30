@@ -3,7 +3,10 @@
 These tests do not require database access and test pure functions/dataclasses.
 """
 
+import pytest
+
 from backend.services.alert_dedup import (
+    AlertDeduplicationService,
     DedupResult,
     build_dedup_key,
 )
@@ -65,3 +68,51 @@ class TestDedupResult:
         assert result.is_duplicate is True
         assert result.existing_alert_id == "test-alert-123"
         assert result.seconds_until_cooldown_expires == 180
+
+
+class TestDedupKeyValidation:
+    """Tests for dedup_key validation in AlertDeduplicationService."""
+
+    def test_validate_dedup_key_empty_string(self):
+        """Test that empty string raises ValueError."""
+        with pytest.raises(ValueError, match="dedup_key cannot be empty or None"):
+            AlertDeduplicationService._validate_dedup_key("")
+
+    def test_validate_dedup_key_whitespace_only(self):
+        """Test that whitespace-only string raises ValueError."""
+        with pytest.raises(ValueError, match="dedup_key cannot be whitespace-only"):
+            AlertDeduplicationService._validate_dedup_key("   ")
+
+    def test_validate_dedup_key_whitespace_only_tabs(self):
+        """Test that tab whitespace raises ValueError."""
+        with pytest.raises(ValueError, match="dedup_key cannot be whitespace-only"):
+            AlertDeduplicationService._validate_dedup_key("\t\t")
+
+    def test_validate_dedup_key_leading_whitespace(self):
+        """Test that leading whitespace raises ValueError."""
+        with pytest.raises(
+            ValueError, match="dedup_key cannot have leading or trailing whitespace"
+        ):
+            AlertDeduplicationService._validate_dedup_key(" front_door:person")
+
+    def test_validate_dedup_key_trailing_whitespace(self):
+        """Test that trailing whitespace raises ValueError."""
+        with pytest.raises(
+            ValueError, match="dedup_key cannot have leading or trailing whitespace"
+        ):
+            AlertDeduplicationService._validate_dedup_key("front_door:person ")
+
+    def test_validate_dedup_key_valid(self):
+        """Test that valid dedup_key passes validation."""
+        # Should not raise any exception
+        AlertDeduplicationService._validate_dedup_key("front_door:person:entry_zone")
+
+    def test_validate_dedup_key_valid_simple(self):
+        """Test that simple valid dedup_key passes validation."""
+        # Should not raise any exception
+        AlertDeduplicationService._validate_dedup_key("camera1")
+
+    def test_validate_dedup_key_valid_with_internal_spaces(self):
+        """Test that dedup_key with internal spaces is valid (though unusual)."""
+        # Internal spaces are allowed, only leading/trailing are rejected
+        AlertDeduplicationService._validate_dedup_key("front door:person")

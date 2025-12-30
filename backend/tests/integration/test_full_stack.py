@@ -10,6 +10,11 @@ from backend.models import Camera, Detection, Event
 from backend.tests.conftest import unique_id
 
 
+def utc_now_naive() -> datetime:
+    """Return current UTC time as a naive datetime (for DB compatibility)."""
+    return utc_now_naive().replace(tzinfo=None)
+
+
 @pytest.fixture
 async def clean_full_stack(integration_db):
     """Truncate all tables before test runs for proper isolation.
@@ -47,7 +52,7 @@ async def test_create_camera(integration_db, clean_full_stack):
             name="Front Door Camera",
             folder_path=f"/export/foscam/{camera_id}",
             status="online",
-            created_at=datetime.utcnow(),
+            created_at=utc_now_naive(),
         )
         session.add(camera)
         await session.flush()
@@ -83,7 +88,7 @@ async def test_create_detection(integration_db, clean_full_stack):
             camera_id=camera_id,
             file_path=f"/export/foscam/{camera_id}/image001.jpg",
             file_type="image/jpeg",
-            detected_at=datetime.utcnow(),
+            detected_at=utc_now_naive(),
             object_type="person",
             confidence=0.95,
             bbox_x=100,
@@ -124,8 +129,8 @@ async def test_create_event(integration_db, clean_full_stack):
         event = Event(
             batch_id=batch_id,
             camera_id=camera_id,
-            started_at=datetime.utcnow(),
-            ended_at=datetime.utcnow() + timedelta(minutes=2),
+            started_at=utc_now_naive(),
+            ended_at=utc_now_naive() + timedelta(minutes=2),
             risk_score=75,
             risk_level="medium",
             summary="Person detected near vehicle",
@@ -165,14 +170,14 @@ async def test_camera_detection_relationship(integration_db, clean_full_stack):
         detection1 = Detection(
             camera_id=camera_id,
             file_path=f"/export/foscam/{camera_id}/img1.jpg",
-            detected_at=datetime.utcnow(),
+            detected_at=utc_now_naive(),
             object_type="car",
             confidence=0.92,
         )
         detection2 = Detection(
             camera_id=camera_id,
             file_path=f"/export/foscam/{camera_id}/img2.jpg",
-            detected_at=datetime.utcnow(),
+            detected_at=utc_now_naive(),
             object_type="person",
             confidence=0.88,
         )
@@ -209,14 +214,14 @@ async def test_camera_event_relationship(integration_db, clean_full_stack):
         event1 = Event(
             batch_id=batch_id_100,
             camera_id=camera_id,
-            started_at=datetime.utcnow(),
+            started_at=utc_now_naive(),
             risk_score=30,
             risk_level="low",
         )
         event2 = Event(
             batch_id=batch_id_101,
             camera_id=camera_id,
-            started_at=datetime.utcnow(),
+            started_at=utc_now_naive(),
             risk_score=85,
             risk_level="high",
         )
@@ -244,8 +249,8 @@ async def test_complete_workflow_camera_to_event(integration_db, clean_full_stac
             name="Workflow Test Camera",
             folder_path=f"/export/foscam/{camera_id}",
             status="online",
-            created_at=datetime.utcnow(),
-            last_seen_at=datetime.utcnow(),
+            created_at=utc_now_naive(),
+            last_seen_at=utc_now_naive(),
         )
         session.add(camera)
         await session.flush()
@@ -258,7 +263,7 @@ async def test_complete_workflow_camera_to_event(integration_db, clean_full_stac
                 camera_id=camera_id,
                 file_path=f"/export/foscam/{camera_id}/img{i:03d}.jpg",
                 file_type="image/jpeg",
-                detected_at=datetime.utcnow(),
+                detected_at=utc_now_naive(),
                 object_type="person" if i % 2 == 0 else "car",
                 confidence=0.90 + (i * 0.02),
                 bbox_x=100 + (i * 10),
@@ -275,8 +280,8 @@ async def test_complete_workflow_camera_to_event(integration_db, clean_full_stac
         event = Event(
             batch_id=batch_id,
             camera_id=camera_id,
-            started_at=datetime.utcnow() - timedelta(minutes=5),
-            ended_at=datetime.utcnow(),
+            started_at=utc_now_naive() - timedelta(minutes=5),
+            ended_at=utc_now_naive(),
             risk_score=65,
             risk_level="medium",
             summary="Multiple objects detected in sequence",
@@ -326,7 +331,7 @@ async def test_query_detections_by_time_range(integration_db, clean_full_stack):
         await session.flush()
 
         # Create detections at different times
-        base_time = datetime.utcnow()
+        base_time = utc_now_naive()
         for i in range(5):
             detection = Detection(
                 camera_id=camera_id,
@@ -378,7 +383,7 @@ async def test_query_events_by_risk_level(integration_db, clean_full_stack):
             event = Event(
                 batch_id=batch_id,
                 camera_id=camera_id,
-                started_at=datetime.utcnow(),
+                started_at=utc_now_naive(),
                 risk_score=risk_score,
                 risk_level=risk_level,
             )
@@ -414,7 +419,7 @@ async def test_cascade_delete_camera(integration_db, clean_full_stack):
         detection = Detection(
             camera_id=camera_id,
             file_path=f"/export/foscam/{camera_id}/img.jpg",
-            detected_at=datetime.utcnow(),
+            detected_at=utc_now_naive(),
         )
         session.add(detection)
 
@@ -422,7 +427,7 @@ async def test_cascade_delete_camera(integration_db, clean_full_stack):
         event = Event(
             batch_id=batch_id,
             camera_id=camera_id,
-            started_at=datetime.utcnow(),
+            started_at=utc_now_naive(),
         )
         session.add(event)
         await session.flush()
@@ -490,12 +495,12 @@ async def test_multiple_cameras_isolation(integration_db, clean_full_stack):
         det1 = Detection(
             camera_id=camera_id_1,
             file_path=f"/export/foscam/{camera_id_1}/img.jpg",
-            detected_at=datetime.utcnow(),
+            detected_at=utc_now_naive(),
         )
         det2 = Detection(
             camera_id=camera_id_2,
             file_path=f"/export/foscam/{camera_id_2}/img.jpg",
-            detected_at=datetime.utcnow(),
+            detected_at=utc_now_naive(),
         )
         session.add_all([det1, det2])
         await session.flush()
@@ -532,7 +537,7 @@ async def test_event_reviewed_status_update(integration_db, clean_full_stack):
         event = Event(
             batch_id=batch_id,
             camera_id=camera_id,
-            started_at=datetime.utcnow(),
+            started_at=utc_now_naive(),
             risk_score=60,
             reviewed=False,
         )

@@ -33,7 +33,7 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -103,6 +103,23 @@ class AlertDeduplicationService:
         """
         self.session = session
 
+    @staticmethod
+    def _validate_dedup_key(dedup_key: str) -> None:
+        """Validate that dedup_key is non-empty and well-formed.
+
+        Args:
+            dedup_key: The deduplication key to validate
+
+        Raises:
+            ValueError: If dedup_key is empty, whitespace-only, or malformed
+        """
+        if not dedup_key:
+            raise ValueError("dedup_key cannot be empty or None")
+        if not dedup_key.strip():
+            raise ValueError("dedup_key cannot be whitespace-only")
+        if dedup_key != dedup_key.strip():
+            raise ValueError("dedup_key cannot have leading or trailing whitespace")
+
     async def check_duplicate(
         self,
         dedup_key: str,
@@ -116,24 +133,36 @@ class AlertDeduplicationService:
 
         Returns:
             DedupResult indicating whether a duplicate exists and details
+
+        Raises:
+            ValueError: If dedup_key is empty or malformed
         """
-        cutoff_time = datetime.utcnow() - timedelta(seconds=cooldown_seconds)
+        self._validate_dedup_key(dedup_key)
+        # Use timezone-aware UTC, then strip timezone for naive DB column comparison
+        cutoff_time = (datetime.now(UTC) - timedelta(seconds=cooldown_seconds)).replace(tzinfo=None)
 
         # Find the most recent alert with this dedup_key within the cooldown window
+        # Use with_for_update() to lock the rows during check-then-insert operation
+        # This prevents TOCTOU race conditions where concurrent requests could both
+        # pass the duplicate check before either inserts.
+        # skip_locked=True allows non-blocking behavior for concurrent queries on
+        # different dedup_keys.
         stmt = (
             select(Alert)
             .where(Alert.dedup_key == dedup_key)
             .where(Alert.created_at >= cutoff_time)
             .order_by(Alert.created_at.desc())
             .limit(1)
+            .with_for_update(skip_locked=True)
         )
 
         result = await self.session.execute(stmt)
         existing_alert = result.scalar_one_or_none()
 
         if existing_alert:
-            # Calculate seconds until cooldown expires
-            alert_age = (datetime.utcnow() - existing_alert.created_at).total_seconds()
+            # Calculate seconds until cooldown expires (use naive UTC for comparison)
+            now_naive = datetime.now(UTC).replace(tzinfo=None)
+            alert_age = (now_naive - existing_alert.created_at).total_seconds()
             seconds_remaining = max(0, int(cooldown_seconds - alert_age))
 
             return DedupResult(
@@ -236,8 +265,13 @@ class AlertDeduplicationService:
 
         Returns:
             List of alerts matching the dedup_key, ordered by most recent first
+
+        Raises:
+            ValueError: If dedup_key is empty or malformed
         """
-        cutoff_time = datetime.utcnow() - timedelta(hours=hours)
+        self._validate_dedup_key(dedup_key)
+        # Use timezone-aware UTC, then strip timezone for naive DB column comparison
+        cutoff_time = (datetime.now(UTC) - timedelta(hours=hours)).replace(tzinfo=None)
 
         stmt = (
             select(Alert)
@@ -265,7 +299,8 @@ class AlertDeduplicationService:
             - unique_dedup_keys: Number of unique dedup keys
             - potential_duplicates: Alerts that were likely suppressed
         """
-        cutoff_time = datetime.utcnow() - timedelta(hours=hours)
+        # Use timezone-aware UTC, then strip timezone for naive DB column comparison
+        cutoff_time = (datetime.now(UTC) - timedelta(hours=hours)).replace(tzinfo=None)
 
         # Get total alerts
         total_stmt = select(Alert).where(Alert.created_at >= cutoff_time)

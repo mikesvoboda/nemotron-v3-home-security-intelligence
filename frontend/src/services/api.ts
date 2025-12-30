@@ -31,13 +31,14 @@ export type {
   SystemConfig,
   SystemConfigUpdate,
   SystemStats,
-  LivenessResponse,
   ReadinessResponse,
   WorkerStatus,
   TelemetryResponse,
   QueueDepths,
   PipelineLatencies,
   StageLatency,
+  PipelineLatencyResponse,
+  PipelineStageLatency,
   LogEntry,
   LogsResponse,
   LogStats,
@@ -54,6 +55,12 @@ export type {
   ValidationError,
   SearchResult,
   SearchResponse,
+  Zone,
+  ZoneCreate,
+  ZoneUpdate,
+  ZoneListResponse,
+  ZoneType,
+  ZoneShape,
 } from '../types/generated';
 
 // Import concrete types for use in this module
@@ -77,11 +84,16 @@ import type {
   CleanupResponse,
   TelemetryResponse,
   ReadinessResponse,
+  PipelineLatencyResponse,
   DLQStatsResponse as GeneratedDLQStatsResponse,
   DLQJobsResponse as GeneratedDLQJobsResponse,
   DLQRequeueResponse as GeneratedDLQRequeueResponse,
   DLQClearResponse as GeneratedDLQClearResponse,
   SearchResponse as GeneratedSearchResponse,
+  Zone,
+  ZoneCreate,
+  ZoneUpdate,
+  ZoneListResponse as GeneratedZoneListResponse,
 } from '../types/generated';
 
 // ============================================================================
@@ -340,6 +352,30 @@ export async function triggerCleanup(): Promise<CleanupResponse> {
 
 export async function fetchTelemetry(): Promise<TelemetryResponse> {
   return fetchApi<TelemetryResponse>('/api/system/telemetry');
+}
+
+/**
+ * Fetch pipeline latency metrics with percentiles.
+ *
+ * Returns latency statistics for each stage transition in the AI pipeline:
+ * - watch_to_detect: Time from file watcher detecting image to RT-DETR processing start
+ * - detect_to_batch: Time from detection completion to batch aggregation
+ * - batch_to_analyze: Time from batch completion to Nemotron analysis start
+ * - total_pipeline: Total end-to-end processing time
+ *
+ * Each stage includes avg, min, max, p50, p95, p99 percentiles.
+ *
+ * @param windowMinutes - Time window for statistics calculation (default 60 minutes)
+ * @returns PipelineLatencyResponse with latency statistics for each stage
+ */
+export async function fetchPipelineLatency(
+  windowMinutes: number = 60
+): Promise<PipelineLatencyResponse> {
+  const queryParams = new URLSearchParams();
+  queryParams.append('window_minutes', String(windowMinutes));
+  return fetchApi<PipelineLatencyResponse>(
+    `/api/system/pipeline-latency?${queryParams.toString()}`
+  );
 }
 
 /**
@@ -864,6 +900,72 @@ export async function previewCleanup(): Promise<CleanupResponse> {
 }
 
 // ============================================================================
+// Severity Types & Endpoints
+// ============================================================================
+
+/**
+ * Severity levels for risk classification.
+ */
+export type SeverityLevel = 'low' | 'medium' | 'high' | 'critical';
+
+/**
+ * Current severity threshold configuration.
+ */
+export interface SeverityThresholds {
+  /** Maximum risk score for LOW severity (0 to this value = LOW) */
+  low_max: number;
+  /** Maximum risk score for MEDIUM severity (low_max+1 to this value = MEDIUM) */
+  medium_max: number;
+  /** Maximum risk score for HIGH severity (medium_max+1 to this value = HIGH) */
+  high_max: number;
+}
+
+/**
+ * Definition of a single severity level.
+ */
+export interface SeverityDefinitionResponse {
+  /** The severity level identifier */
+  severity: SeverityLevel;
+  /** Human-readable label for the severity level */
+  label: string;
+  /** Description of when this severity applies */
+  description: string;
+  /** Hex color code for UI display (e.g., '#22c55e') */
+  color: string;
+  /** Sort priority (0 = highest priority, 3 = lowest) */
+  priority: number;
+  /** Minimum risk score for this severity (inclusive) */
+  min_score: number;
+  /** Maximum risk score for this severity (inclusive) */
+  max_score: number;
+}
+
+/**
+ * Response schema for severity metadata endpoint.
+ */
+export interface SeverityMetadataResponse {
+  /** List of all severity level definitions */
+  definitions: SeverityDefinitionResponse[];
+  /** Current severity threshold configuration */
+  thresholds: SeverityThresholds;
+}
+
+/**
+ * Fetch severity metadata including definitions and thresholds.
+ *
+ * Returns complete information about the severity taxonomy including:
+ * - All severity level definitions (LOW, MEDIUM, HIGH, CRITICAL)
+ * - Risk score thresholds for each level
+ * - Color codes for UI display
+ * - Human-readable labels and descriptions
+ *
+ * @returns SeverityMetadataResponse with all severity definitions and current thresholds
+ */
+export async function fetchSeverityMetadata(): Promise<SeverityMetadataResponse> {
+  return fetchApi<SeverityMetadataResponse>('/api/system/severity');
+}
+
+// ============================================================================
 // Notification Endpoints
 // ============================================================================
 
@@ -939,4 +1041,533 @@ export async function testNotification(
     method: 'POST',
     body: JSON.stringify(body),
   });
+}
+
+// ============================================================================
+// Circuit Breaker Types
+// ============================================================================
+
+/**
+ * Circuit breaker states
+ */
+export type CircuitBreakerState = 'closed' | 'open' | 'half_open';
+
+/**
+ * Configuration for a circuit breaker.
+ */
+export interface CircuitBreakerConfig {
+  /** Number of failures before opening circuit */
+  failure_threshold: number;
+  /** Seconds to wait before transitioning to half-open */
+  recovery_timeout: number;
+  /** Maximum calls allowed in half-open state */
+  half_open_max_calls: number;
+  /** Successes needed in half-open to close circuit */
+  success_threshold: number;
+}
+
+/**
+ * Status of a single circuit breaker.
+ */
+export interface CircuitBreakerStatus {
+  /** Circuit breaker name */
+  name: string;
+  /** Current circuit state */
+  state: CircuitBreakerState;
+  /** Current consecutive failure count */
+  failure_count: number;
+  /** Current consecutive success count (relevant in half-open) */
+  success_count: number;
+  /** Total calls attempted through this circuit */
+  total_calls: number;
+  /** Calls rejected due to open circuit */
+  rejected_calls: number;
+  /** Monotonic time of last failure (seconds) */
+  last_failure_time: number | null;
+  /** Monotonic time when circuit opened (seconds) */
+  opened_at: number | null;
+  /** Circuit breaker configuration */
+  config: CircuitBreakerConfig;
+}
+
+/**
+ * Response for circuit breakers status endpoint.
+ */
+export interface CircuitBreakersResponse {
+  /** Status of all circuit breakers keyed by name */
+  circuit_breakers: Record<string, CircuitBreakerStatus>;
+  /** Total number of circuit breakers */
+  total_count: number;
+  /** Number of circuit breakers currently open */
+  open_count: number;
+  /** Timestamp of status snapshot */
+  timestamp: string;
+}
+
+/**
+ * Response for circuit breaker reset operation.
+ */
+export interface CircuitBreakerResetResponse {
+  /** Name of the circuit breaker that was reset */
+  name: string;
+  /** State before reset */
+  previous_state: CircuitBreakerState;
+  /** State after reset (should be closed) */
+  new_state: CircuitBreakerState;
+  /** Human-readable result message */
+  message: string;
+}
+
+// ============================================================================
+// Cleanup Status Types
+// ============================================================================
+
+/**
+ * Response for cleanup service status endpoint.
+ */
+export interface CleanupStatusResponse {
+  /** Whether the cleanup service is currently running */
+  running: boolean;
+  /** Current retention period in days */
+  retention_days: number;
+  /** Scheduled daily cleanup time in HH:MM format */
+  cleanup_time: string;
+  /** Whether original images are deleted during cleanup */
+  delete_images: boolean;
+  /** ISO timestamp of next scheduled cleanup (null if not running) */
+  next_cleanup: string | null;
+  /** Timestamp of status snapshot */
+  timestamp: string;
+}
+
+// ============================================================================
+// Circuit Breaker Endpoints
+// ============================================================================
+
+/**
+ * Fetch status of all circuit breakers.
+ *
+ * @returns CircuitBreakersResponse with status of all circuit breakers
+ */
+export async function fetchCircuitBreakers(): Promise<CircuitBreakersResponse> {
+  return fetchApi<CircuitBreakersResponse>('/api/system/circuit-breakers');
+}
+
+/**
+ * Reset a specific circuit breaker to CLOSED state.
+ * Requires API key authentication.
+ *
+ * @param name - Name of the circuit breaker to reset
+ * @returns CircuitBreakerResetResponse with reset confirmation
+ */
+export async function resetCircuitBreaker(name: string): Promise<CircuitBreakerResetResponse> {
+  return fetchApi<CircuitBreakerResetResponse>(
+    `/api/system/circuit-breakers/${encodeURIComponent(name)}/reset`,
+    { method: 'POST' }
+  );
+}
+
+// ============================================================================
+// Cleanup Status Endpoints
+// ============================================================================
+
+/**
+ * Fetch current status of the cleanup service.
+ *
+ * @returns CleanupStatusResponse with cleanup service status
+ */
+export async function fetchCleanupStatus(): Promise<CleanupStatusResponse> {
+  return fetchApi<CleanupStatusResponse>('/api/system/cleanup/status');
+}
+
+// ============================================================================
+// Alert Rules Types
+// ============================================================================
+
+/**
+ * Alert severity levels
+ */
+export type AlertSeverity = 'low' | 'medium' | 'high' | 'critical';
+
+/**
+ * Alert rule schedule for time-based conditions
+ */
+export interface AlertRuleSchedule {
+  /** Days of week when rule is active (empty = all days) */
+  days?: string[] | null;
+  /** Start time in HH:MM format */
+  start_time?: string | null;
+  /** End time in HH:MM format */
+  end_time?: string | null;
+  /** Timezone for time evaluation */
+  timezone?: string;
+}
+
+/**
+ * Alert rule response from API
+ */
+export interface AlertRule {
+  id: string;
+  name: string;
+  description: string | null;
+  enabled: boolean;
+  severity: AlertSeverity;
+  risk_threshold: number | null;
+  object_types: string[] | null;
+  camera_ids: string[] | null;
+  zone_ids: string[] | null;
+  min_confidence: number | null;
+  schedule: AlertRuleSchedule | null;
+  conditions: Record<string, unknown> | null;
+  dedup_key_template: string;
+  cooldown_seconds: number;
+  channels: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Create alert rule request
+ */
+export interface AlertRuleCreate {
+  name: string;
+  description?: string | null;
+  enabled?: boolean;
+  severity?: AlertSeverity;
+  risk_threshold?: number | null;
+  object_types?: string[] | null;
+  camera_ids?: string[] | null;
+  zone_ids?: string[] | null;
+  min_confidence?: number | null;
+  schedule?: AlertRuleSchedule | null;
+  dedup_key_template?: string;
+  cooldown_seconds?: number;
+  channels?: string[];
+}
+
+/**
+ * Update alert rule request (partial)
+ */
+export interface AlertRuleUpdate {
+  name?: string;
+  description?: string | null;
+  enabled?: boolean;
+  severity?: AlertSeverity;
+  risk_threshold?: number | null;
+  object_types?: string[] | null;
+  camera_ids?: string[] | null;
+  zone_ids?: string[] | null;
+  min_confidence?: number | null;
+  schedule?: AlertRuleSchedule | null;
+  dedup_key_template?: string;
+  cooldown_seconds?: number;
+  channels?: string[];
+}
+
+/**
+ * Alert rules list response
+ */
+export interface AlertRuleListResponse {
+  rules: AlertRule[];
+  count: number;
+  limit: number;
+  offset: number;
+}
+
+/**
+ * Query parameters for listing alert rules
+ */
+export interface AlertRulesQueryParams {
+  enabled?: boolean;
+  severity?: AlertSeverity;
+  limit?: number;
+  offset?: number;
+}
+
+// ============================================================================
+// Alert Rules Endpoints
+// ============================================================================
+
+/**
+ * Fetch all alert rules with optional filtering.
+ *
+ * @param params - Optional query parameters for filtering
+ * @returns AlertRuleListResponse with rules and pagination info
+ */
+export async function fetchAlertRules(
+  params?: AlertRulesQueryParams
+): Promise<AlertRuleListResponse> {
+  const queryParams = new URLSearchParams();
+
+  if (params) {
+    if (params.enabled !== undefined) queryParams.append('enabled', String(params.enabled));
+    if (params.severity) queryParams.append('severity', params.severity);
+    if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
+    if (params.offset !== undefined) queryParams.append('offset', String(params.offset));
+  }
+
+  const queryString = queryParams.toString();
+  const endpoint = queryString ? `/api/alerts/rules?${queryString}` : '/api/alerts/rules';
+
+  return fetchApi<AlertRuleListResponse>(endpoint);
+}
+
+/**
+ * Fetch a single alert rule by ID.
+ *
+ * @param ruleId - The rule UUID
+ * @returns AlertRule
+ */
+export async function fetchAlertRule(ruleId: string): Promise<AlertRule> {
+  return fetchApi<AlertRule>(`/api/alerts/rules/${encodeURIComponent(ruleId)}`);
+}
+
+/**
+ * Create a new alert rule.
+ *
+ * @param data - Rule creation data
+ * @returns Created AlertRule
+ */
+export async function createAlertRule(data: AlertRuleCreate): Promise<AlertRule> {
+  return fetchApi<AlertRule>('/api/alerts/rules', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Update an existing alert rule.
+ *
+ * @param ruleId - The rule UUID to update
+ * @param data - Partial update data
+ * @returns Updated AlertRule
+ */
+export async function updateAlertRule(ruleId: string, data: AlertRuleUpdate): Promise<AlertRule> {
+  return fetchApi<AlertRule>(`/api/alerts/rules/${encodeURIComponent(ruleId)}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Delete an alert rule.
+ *
+ * @param ruleId - The rule UUID to delete
+ */
+export async function deleteAlertRule(ruleId: string): Promise<void> {
+  return fetchApi<void>(`/api/alerts/rules/${encodeURIComponent(ruleId)}`, {
+    method: 'DELETE',
+  });
+}
+
+// ============================================================================
+// Zone Endpoints
+// ============================================================================
+
+/**
+ * Fetch all zones for a camera.
+ *
+ * @param cameraId - The camera UUID
+ * @param enabled - Optional filter by enabled status
+ * @returns Array of zones for the camera
+ */
+export async function fetchZones(cameraId: string, enabled?: boolean): Promise<Zone[]> {
+  const queryParams = new URLSearchParams();
+  if (enabled !== undefined) {
+    queryParams.append('enabled', String(enabled));
+  }
+  const queryString = queryParams.toString();
+  const endpoint = queryString
+    ? `/api/cameras/${encodeURIComponent(cameraId)}/zones?${queryString}`
+    : `/api/cameras/${encodeURIComponent(cameraId)}/zones`;
+
+  const response = await fetchApi<GeneratedZoneListResponse>(endpoint);
+  return response.zones;
+}
+
+/**
+ * Fetch a single zone by ID.
+ *
+ * @param cameraId - The camera UUID
+ * @param zoneId - The zone UUID
+ * @returns Zone object
+ */
+export async function fetchZone(cameraId: string, zoneId: string): Promise<Zone> {
+  return fetchApi<Zone>(
+    `/api/cameras/${encodeURIComponent(cameraId)}/zones/${encodeURIComponent(zoneId)}`
+  );
+}
+
+/**
+ * Create a new zone for a camera.
+ *
+ * @param cameraId - The camera UUID
+ * @param data - Zone creation data
+ * @returns Created zone object
+ */
+export async function createZone(cameraId: string, data: ZoneCreate): Promise<Zone> {
+  return fetchApi<Zone>(`/api/cameras/${encodeURIComponent(cameraId)}/zones`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Update an existing zone.
+ *
+ * @param cameraId - The camera UUID
+ * @param zoneId - The zone UUID to update
+ * @param data - Zone update data (partial)
+ * @returns Updated zone object
+ */
+export async function updateZone(
+  cameraId: string,
+  zoneId: string,
+  data: ZoneUpdate
+): Promise<Zone> {
+  return fetchApi<Zone>(
+    `/api/cameras/${encodeURIComponent(cameraId)}/zones/${encodeURIComponent(zoneId)}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }
+  );
+}
+
+/**
+ * Delete a zone.
+ *
+ * @param cameraId - The camera UUID
+ * @param zoneId - The zone UUID to delete
+ */
+export async function deleteZone(cameraId: string, zoneId: string): Promise<void> {
+  return fetchApi<void>(
+    `/api/cameras/${encodeURIComponent(cameraId)}/zones/${encodeURIComponent(zoneId)}`,
+    {
+      method: 'DELETE',
+    }
+  );
+}
+
+// ============================================================================
+// Pipeline Status Types
+// ============================================================================
+
+/**
+ * Degradation modes for system operation.
+ */
+export type DegradationMode = 'normal' | 'degraded' | 'minimal' | 'offline';
+
+/**
+ * Status information for the FileWatcher service.
+ */
+export interface FileWatcherStatus {
+  /** Whether the file watcher is currently running */
+  running: boolean;
+  /** Root directory being watched for camera uploads */
+  camera_root: string;
+  /** Number of files pending processing (debouncing) */
+  pending_tasks: number;
+  /** Type of filesystem observer (native or polling) */
+  observer_type: string;
+}
+
+/**
+ * Information about an active batch.
+ */
+export interface BatchInfo {
+  /** Unique batch identifier */
+  batch_id: string;
+  /** Camera ID this batch belongs to */
+  camera_id: string;
+  /** Number of detections in this batch */
+  detection_count: number;
+  /** Batch start time (Unix timestamp) */
+  started_at: number;
+  /** Time since batch started in seconds */
+  age_seconds: number;
+  /** Time since last activity in seconds */
+  last_activity_seconds: number;
+}
+
+/**
+ * Status information for the BatchAggregator service.
+ */
+export interface BatchAggregatorStatus {
+  /** Number of active batches being aggregated */
+  active_batches: number;
+  /** Details of active batches */
+  batches: BatchInfo[];
+  /** Configured batch window timeout in seconds */
+  batch_window_seconds: number;
+  /** Configured idle timeout in seconds */
+  idle_timeout_seconds: number;
+}
+
+/**
+ * Health status of a registered service.
+ */
+export interface ServiceHealthStatus {
+  /** Service name */
+  name: string;
+  /** Health status (healthy, unhealthy, unknown) */
+  status: string;
+  /** Monotonic time of last health check */
+  last_check: number | null;
+  /** Count of consecutive health check failures */
+  consecutive_failures: number;
+  /** Last error message if unhealthy */
+  error_message: string | null;
+}
+
+/**
+ * Status information for the DegradationManager service.
+ */
+export interface DegradationStatus {
+  /** Current degradation mode */
+  mode: DegradationMode;
+  /** Whether system is in any degraded state */
+  is_degraded: boolean;
+  /** Whether Redis is healthy */
+  redis_healthy: boolean;
+  /** Number of jobs in in-memory fallback queue */
+  memory_queue_size: number;
+  /** Count of items in disk-based fallback queues by name */
+  fallback_queues: Record<string, number>;
+  /** Health status of registered services */
+  services: ServiceHealthStatus[];
+  /** Features available in current degradation mode */
+  available_features: string[];
+}
+
+/**
+ * Combined status of all pipeline operations.
+ */
+export interface PipelineStatusResponse {
+  /** FileWatcher service status (null if not running) */
+  file_watcher: FileWatcherStatus | null;
+  /** BatchAggregator service status (null if not running) */
+  batch_aggregator: BatchAggregatorStatus | null;
+  /** DegradationManager service status (null if not initialized) */
+  degradation: DegradationStatus | null;
+  /** Timestamp of status snapshot */
+  timestamp: string;
+}
+
+// ============================================================================
+// Pipeline Status Endpoints
+// ============================================================================
+
+/**
+ * Fetch pipeline operations status.
+ *
+ * Returns combined status of:
+ * - FileWatcher: Monitoring camera directories for uploads
+ * - BatchAggregator: Grouping detections into time-based batches
+ * - DegradationManager: Graceful degradation and service health
+ *
+ * @returns PipelineStatusResponse with status of all pipeline services
+ */
+export async function fetchPipelineStatus(): Promise<PipelineStatusResponse> {
+  return fetchApi<PipelineStatusResponse>('/api/system/pipeline');
 }

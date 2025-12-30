@@ -47,9 +47,8 @@ def app_with_auth(test_api_key):
     async def system_health():
         return {"status": "healthy"}
 
-    @app.get("/api/system/health/live")
-    async def liveness():
-        return {"status": "alive"}
+    # NOTE: /api/system/health/live was removed to consolidate duplicate endpoints.
+    # Use GET /health for liveness probes instead.
 
     @app.get("/api/system/health/ready")
     async def readiness():
@@ -161,12 +160,13 @@ def test_health_probe_endpoints_bypass_auth(app_with_auth):
     """
     client = TestClient(app_with_auth)
 
-    # Test liveness probe endpoint (used by Docker healthchecks)
-    response = client.get("/api/system/health/live")
+    # Test canonical liveness probe endpoint (used by Docker healthchecks)
+    # NOTE: /api/system/health/live was removed. Use /health instead.
+    response = client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "alive"}
+    assert response.json() == {"status": "healthy"}
 
-    # Test readiness probe endpoint (Kubernetes-style)
+    # Test detailed readiness probe endpoint (Kubernetes-style)
     response = client.get("/api/system/health/ready")
     assert response.status_code == 200
     assert response.json() == {"ready": True, "status": "ready"}
@@ -266,7 +266,7 @@ def test_is_exempt_path():
     assert middleware._is_exempt_path("/health") is True
     assert middleware._is_exempt_path("/ready") is True  # Canonical readiness probe
     assert middleware._is_exempt_path("/api/system/health") is True
-    assert middleware._is_exempt_path("/api/system/health/live") is True
+    # NOTE: /api/system/health/live was removed (use /health instead)
     assert middleware._is_exempt_path("/api/system/health/ready") is True
     assert middleware._is_exempt_path("/api/metrics") is True
     assert middleware._is_exempt_path("/docs") is True

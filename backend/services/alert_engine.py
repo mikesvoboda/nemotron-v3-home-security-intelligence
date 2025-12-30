@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, time, timedelta
+from datetime import UTC, datetime, time, timedelta
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
@@ -117,7 +117,7 @@ class AlertRuleEngine:
             EvaluationResult with list of triggered rules and evaluation metadata
         """
         if current_time is None:
-            current_time = datetime.utcnow()
+            current_time = datetime.now(UTC)
 
         # Load detections if not provided
         if detections is None:
@@ -378,15 +378,22 @@ class AlertRuleEngine:
         Returns True if in cooldown (should skip), False if not in cooldown.
         """
         cooldown_seconds = rule.cooldown_seconds or 300
-        cutoff_time = current_time - timedelta(seconds=cooldown_seconds)
+        # Strip timezone for naive DB column comparison
+        cutoff_time = (current_time - timedelta(seconds=cooldown_seconds)).replace(tzinfo=None)
 
         # Check database for recent alerts with this dedup_key and rule
+        # Use with_for_update() to lock the rows during check-then-insert operation
+        # This prevents TOCTOU race conditions where concurrent requests could both
+        # pass the cooldown check before either inserts.
+        # skip_locked=True allows non-blocking behavior for concurrent queries on
+        # different dedup_keys.
         stmt = (
             select(Alert)
             .where(Alert.dedup_key == dedup_key)
             .where(Alert.rule_id == rule.id)
             .where(Alert.created_at >= cutoff_time)
             .limit(1)
+            .with_for_update(skip_locked=True)
         )
 
         result = await self.session.execute(stmt)
@@ -448,7 +455,7 @@ class AlertRuleEngine:
             List of test results with match status and details
         """
         if current_time is None:
-            current_time = datetime.utcnow()
+            current_time = datetime.now(UTC)
 
         results = []
 

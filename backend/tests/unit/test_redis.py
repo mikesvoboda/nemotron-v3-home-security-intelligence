@@ -46,6 +46,7 @@ def mock_redis_client():
     mock_client = AsyncMock(spec=Redis)
     mock_client.ping = AsyncMock(return_value=True)
     mock_client.close = AsyncMock()
+    mock_client.aclose = AsyncMock()  # Modern async close method
     mock_client.info = AsyncMock(return_value={"redis_version": "7.0.0", "uptime_in_seconds": 3600})
     mock_client.rpush = AsyncMock(return_value=1)
     mock_client.ltrim = AsyncMock(return_value=True)
@@ -870,7 +871,7 @@ async def test_close_redis_cleans_up_global_client(mock_redis_pool, mock_redis_c
         await init_redis()
         await close_redis()
 
-        mock_redis_client.close.assert_awaited()
+        mock_redis_client.aclose.assert_awaited()
 
 
 # Integration-style tests using fakeredis (no real Redis required)
@@ -1381,3 +1382,112 @@ async def test_backpressure_integration_drop_oldest_policy():
     # Cleanup
     await client.clear_queue(queue_name)
     await fake_server.aclose()
+
+
+# =============================================================================
+# Code Audit Tests - Verify deprecated methods aren't used in production code
+# =============================================================================
+
+
+def test_no_production_code_uses_deprecated_add_to_queue():
+    """Verify that no production code calls the deprecated add_to_queue() method.
+
+    This test uses grep to search through the backend source code to ensure
+    that all production code has been migrated from the deprecated add_to_queue()
+    method to the recommended add_to_queue_safe() method.
+
+    Exceptions (allowed to use add_to_queue):
+    - backend/core/redis.py (where the method is defined)
+    - backend/core/constants.py (docstring examples only)
+    - backend/tests/ (test files may test the deprecated method)
+    - backend/examples/ (example files for documentation)
+    - *.md files (documentation)
+    """
+    import subprocess
+    from pathlib import Path
+
+    backend_dir = Path(__file__).parent.parent.parent
+    assert backend_dir.name == "backend", f"Expected backend dir, got {backend_dir}"
+
+    # Search for .add_to_queue( calls (note: NOT .add_to_queue_safe)
+    # We use grep to find all occurrences
+    # Note: This intentionally runs grep on the codebase itself (not external input)
+    # to audit code quality - the path is derived from __file__, not user input
+    result = subprocess.run(  # noqa: S603 - # real subprocess to audit codebase
+        ["/usr/bin/grep", "-r", "-n", r"\.add_to_queue(", str(backend_dir), "--include=*.py"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    # Parse grep output and filter out allowed exceptions
+    violations = []
+    if result.stdout:
+        for line in result.stdout.strip().split("\n"):
+            if not line:
+                continue
+
+            # Extract file path from grep output (format: "path:line:content")
+            parts = line.split(":", 2)
+            if len(parts) < 3:
+                continue
+
+            file_path = parts[0]
+            line_num = parts[1]
+            content = parts[2]
+
+            # Skip allowed exceptions
+            if any(
+                pattern in file_path
+                for pattern in [
+                    "backend/core/redis.py",  # Method definition
+                    "backend/core/constants.py",  # Docstring examples only
+                    "backend/tests/",  # Test files
+                    "backend/examples/",  # Example files
+                ]
+            ):
+                continue
+
+            # Skip add_to_queue_safe (we want that!)
+            if "add_to_queue_safe" in content:
+                continue
+
+            # Skip comments
+            stripped = content.strip()
+            if stripped.startswith("#"):
+                continue
+
+            violations.append(f"{file_path}:{line_num}: {content.strip()}")
+
+    # Report violations
+    if violations:
+        violation_msg = "\n".join(violations)
+        pytest.fail(
+            f"Found {len(violations)} production files still using deprecated add_to_queue():\n"
+            f"{violation_msg}\n\n"
+            "Please migrate these to add_to_queue_safe() with an explicit overflow_policy."
+        )
+
+
+@pytest.mark.asyncio
+async def test_add_to_queue_emits_deprecation_warning(redis_client, mock_redis_client):
+    """Test that add_to_queue() emits a DeprecationWarning."""
+    import warnings
+
+    # Ensure the warning is raised
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+
+        await redis_client.add_to_queue("test_queue", {"data": "test"})
+
+        # Check that a DeprecationWarning was issued
+        deprecation_warnings = [
+            warning for warning in w if issubclass(warning.category, DeprecationWarning)
+        ]
+        assert len(deprecation_warnings) >= 1, "Expected DeprecationWarning to be raised"
+
+        # Check the warning message mentions add_to_queue_safe
+        warning_messages = [str(warning.message) for warning in deprecation_warnings]
+        assert any("add_to_queue_safe" in msg for msg in warning_messages), (
+            f"Expected warning to mention add_to_queue_safe, got: {warning_messages}"
+        )

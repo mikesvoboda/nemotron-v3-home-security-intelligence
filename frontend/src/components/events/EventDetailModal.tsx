@@ -2,6 +2,7 @@ import { Dialog, Transition } from '@headlessui/react';
 import {
   ArrowLeft,
   ArrowRight,
+  Box,
   CheckCircle2,
   Clock,
   Download,
@@ -48,6 +49,7 @@ export interface Detection {
   label: string;
   confidence: number;
   bbox?: { x: number; y: number; width: number; height: number };
+  detected_at?: string;
 }
 
 export interface Event {
@@ -611,38 +613,85 @@ export default function EventDetailModal({
                         {sortDetectionsByConfidence(event.detections).map((detection, index) => {
                           const level = getConfidenceLevel(detection.confidence);
                           const confidenceLabel = getConfidenceLabel(level);
+                          // Format detection timestamp if available
+                          const formattedDetectionTime = detection.detected_at
+                            ? (() => {
+                                try {
+                                  const detectedDate = new Date(detection.detected_at);
+                                  return detectedDate.toLocaleTimeString('en-US', {
+                                    hour: 'numeric',
+                                    minute: '2-digit',
+                                    second: '2-digit',
+                                    hour12: true,
+                                  });
+                                } catch {
+                                  return null;
+                                }
+                              })()
+                            : null;
                           return (
                             <div
                               key={`${detection.label}-${index}`}
-                              className={`flex items-center justify-between rounded-lg border px-4 py-3 ${getConfidenceBgColorClass(level)} ${getConfidenceBorderColorClass(level)}`}
+                              className={`rounded-lg border px-4 py-3 ${getConfidenceBgColorClass(level)} ${getConfidenceBorderColorClass(level)}`}
                               title={`${confidenceLabel}`}
                             >
-                              <span className="text-sm font-medium text-white">
-                                {detection.label}
-                              </span>
-                              <div className="flex items-center gap-2">
-                                {/* Confidence bar */}
-                                <div
-                                  className="h-2 w-16 overflow-hidden rounded-full bg-gray-700"
-                                  aria-hidden="true"
-                                >
-                                  <div
-                                    className={`h-full rounded-full transition-all duration-300 ${
-                                      level === 'low'
-                                        ? 'bg-red-500'
-                                        : level === 'medium'
-                                          ? 'bg-yellow-500'
-                                          : 'bg-green-500'
-                                    }`}
-                                    style={{ width: `${Math.round(detection.confidence * 100)}%` }}
-                                  />
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  {detection.bbox && (
+                                    <span title="Has bounding box">
+                                      <Box
+                                        className="h-4 w-4 text-gray-400"
+                                        aria-hidden="true"
+                                      />
+                                    </span>
+                                  )}
+                                  <span className="text-sm font-medium text-white">
+                                    {detection.label}
+                                  </span>
                                 </div>
-                                <span
-                                  className={`min-w-[3rem] text-right text-xs font-semibold ${getConfidenceTextColorClass(level)}`}
-                                >
-                                  {formatConfidence(detection.confidence)}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                  {/* Confidence bar */}
+                                  <div
+                                    className="h-2 w-16 overflow-hidden rounded-full bg-gray-700"
+                                    aria-hidden="true"
+                                  >
+                                    <div
+                                      className={`h-full rounded-full transition-all duration-300 ${
+                                        level === 'low'
+                                          ? 'bg-red-500'
+                                          : level === 'medium'
+                                            ? 'bg-yellow-500'
+                                            : 'bg-green-500'
+                                      }`}
+                                      style={{ width: `${Math.round(detection.confidence * 100)}%` }}
+                                    />
+                                  </div>
+                                  <span
+                                    className={`min-w-[3rem] text-right text-xs font-semibold ${getConfidenceTextColorClass(level)}`}
+                                  >
+                                    {formatConfidence(detection.confidence)}
+                                  </span>
+                                </div>
                               </div>
+                              {/* Detection metadata row */}
+                              {(detection.bbox || formattedDetectionTime) && (
+                                <div className="mt-2 flex flex-wrap gap-4 border-t border-gray-700/50 pt-2 text-xs text-gray-400">
+                                  {detection.bbox && (
+                                    <div className="flex items-center gap-1.5" title="Bounding box coordinates">
+                                      <span className="text-gray-500">BBox:</span>
+                                      <span className="font-mono">
+                                        ({detection.bbox.x}, {detection.bbox.y}) {detection.bbox.width}x{detection.bbox.height}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {formattedDetectionTime && (
+                                    <div className="flex items-center gap-1.5" title="Detection timestamp">
+                                      <Clock className="h-3 w-3" aria-hidden="true" />
+                                      <span>{formattedDetectionTime}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           );
                         })}

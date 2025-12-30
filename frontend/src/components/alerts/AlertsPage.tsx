@@ -1,6 +1,10 @@
-import { AlertTriangle, Bell, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { Tab } from '@headlessui/react';
+import { clsx } from 'clsx';
+import { AlertTriangle, Bell, ChevronLeft, ChevronRight, RefreshCw, Settings2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import AlertRulesManager from './AlertRulesManager';
+import AlertStatsBar from './AlertStatsBar';
 import { fetchCameras, fetchEvents } from '../../services/api';
 import { getRiskLevel } from '../../utils/risk';
 import RiskBadge from '../common/RiskBadge';
@@ -171,124 +175,170 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
         <p className="mt-2 text-gray-400">High and critical risk events requiring attention</p>
       </div>
 
-      {/* Filter and Refresh Bar */}
-      <div className="mb-6 flex flex-col gap-4 rounded-lg border border-gray-800 bg-[#1F1F1F] p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
-          <label htmlFor="risk-filter" className="text-sm font-medium text-gray-300">
-            Filter by severity:
-          </label>
-          <select
-            id="risk-filter"
-            value={riskFilter}
-            onChange={(e) => {
-              setRiskFilter(e.target.value as 'high' | 'critical' | 'all');
-              setPagination((prev) => ({ ...prev, offset: 0 }));
-            }}
-            className="rounded-md border border-gray-700 bg-[#1A1A1A] px-3 py-2 text-sm text-white focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900]"
+      {/* Tabs */}
+      <Tab.Group>
+        <Tab.List className="mb-6 flex space-x-1 rounded-lg border border-gray-800 bg-[#1A1A1A] p-1">
+          <Tab
+            className={({ selected }) =>
+              clsx(
+                'flex w-full items-center justify-center gap-2 rounded-md py-2.5 text-sm font-medium transition-all',
+                'focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#1A1A1A]',
+                selected
+                  ? 'bg-[#76B900] text-gray-900 shadow'
+                  : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+              )
+            }
           >
-            <option value="all">All Alerts</option>
-            <option value="critical">Critical Only</option>
-            <option value="high">High Only</option>
-          </select>
-        </div>
+            <Bell className="h-4 w-4" />
+            Active Alerts
+          </Tab>
+          <Tab
+            className={({ selected }) =>
+              clsx(
+                'flex w-full items-center justify-center gap-2 rounded-md py-2.5 text-sm font-medium transition-all',
+                'focus:outline-none focus:ring-2 focus:ring-[#76B900] focus:ring-offset-2 focus:ring-offset-[#1A1A1A]',
+                selected
+                  ? 'bg-[#76B900] text-gray-900 shadow'
+                  : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+              )
+            }
+          >
+            <Settings2 className="h-4 w-4" />
+            Alert Rules
+          </Tab>
+        </Tab.List>
+        <Tab.Panels>
+          {/* Active Alerts Tab */}
+          <Tab.Panel>
+            {/* Alert Statistics Bar */}
+            <AlertStatsBar className="mb-6" />
 
-        <button
-          onClick={handleRefresh}
-          disabled={loading}
-          className="flex items-center gap-2 rounded-md bg-[#76B900]/10 px-4 py-2 text-sm font-medium text-[#76B900] transition-colors hover:bg-[#76B900]/20 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
-      </div>
+            {/* Filter and Refresh Bar */}
+            <div className="mb-6 flex flex-col gap-4 rounded-lg border border-gray-800 bg-[#1F1F1F] p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-4">
+                <label htmlFor="risk-filter" className="text-sm font-medium text-gray-300">
+                  Filter by severity:
+                </label>
+                <select
+                  id="risk-filter"
+                  value={riskFilter}
+                  onChange={(e) => {
+                    setRiskFilter(e.target.value as 'high' | 'critical' | 'all');
+                    setPagination((prev) => ({ ...prev, offset: 0 }));
+                  }}
+                  className="rounded-md border border-gray-700 bg-[#1A1A1A] px-3 py-2 text-sm text-white focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900]"
+                >
+                  <option value="all">All Alerts</option>
+                  <option value="critical">Critical Only</option>
+                  <option value="high">High Only</option>
+                </select>
+              </div>
 
-      {/* Results Summary */}
-      <div className="mb-4 flex flex-col gap-2">
-        <p className="text-sm text-gray-400">
-          {loading ? 'Loading...' : `${totalCount} alert${totalCount !== 1 ? 's' : ''} found`}
-        </p>
-        {/* Risk Summary Badges */}
-        {!loading && !error && events.length > 0 && (
-          <div className="flex items-center gap-2 text-sm">
-            {riskCounts.critical > 0 && (
-              <div className="flex items-center gap-1.5">
-                <RiskBadge level="critical" size="sm" animated={false} />
-                <span className="font-semibold text-red-400">{riskCounts.critical}</span>
+              <button
+                onClick={handleRefresh}
+                disabled={loading}
+                className="flex items-center gap-2 rounded-md bg-[#76B900]/10 px-4 py-2 text-sm font-medium text-[#76B900] transition-colors hover:bg-[#76B900]/20 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+            </div>
+
+            {/* Results Summary */}
+            <div className="mb-4 flex flex-col gap-2">
+              <p className="text-sm text-gray-400">
+                {loading ? 'Loading...' : `${totalCount} alert${totalCount !== 1 ? 's' : ''} found`}
+              </p>
+              {/* Risk Summary Badges */}
+              {!loading && !error && events.length > 0 && (
+                <div className="flex items-center gap-2 text-sm">
+                  {riskCounts.critical > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <RiskBadge level="critical" size="sm" animated={false} />
+                      <span className="font-semibold text-red-400">{riskCounts.critical}</span>
+                    </div>
+                  )}
+                  {riskCounts.high > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <RiskBadge level="high" size="sm" animated={false} />
+                      <span className="font-semibold text-orange-400">{riskCounts.high}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Alert List */}
+            {loading ? (
+              <div className="flex min-h-[400px] items-center justify-center rounded-lg border border-gray-800 bg-[#1F1F1F]">
+                <div className="text-center">
+                  <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-gray-700 border-t-[#76B900]" />
+                  <p className="text-gray-400">Loading alerts...</p>
+                </div>
+              </div>
+            ) : error ? (
+              <div className="flex min-h-[400px] items-center justify-center rounded-lg border border-red-900/50 bg-red-950/20">
+                <div className="text-center">
+                  <p className="mb-2 text-lg font-semibold text-red-500">Error Loading Alerts</p>
+                  <p className="text-sm text-gray-400">{error}</p>
+                </div>
+              </div>
+            ) : events.length === 0 ? (
+              <div className="flex min-h-[400px] items-center justify-center rounded-lg border border-gray-800 bg-[#1F1F1F]">
+                <div className="text-center">
+                  <Bell className="mx-auto mb-4 h-16 w-16 text-gray-600" />
+                  <p className="mb-2 text-lg font-semibold text-gray-300">No Alerts at This Time</p>
+                  <p className="text-sm text-gray-500">
+                    {riskFilter === 'all'
+                      ? 'There are no high or critical risk events to review. Keep up the good work!'
+                      : `There are no ${riskFilter} risk events to review.`}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
+                {events.map((event) => (
+                  <EventCard key={event.id} {...getEventCardProps(event)} />
+                ))}
               </div>
             )}
-            {riskCounts.high > 0 && (
-              <div className="flex items-center gap-1.5">
-                <RiskBadge level="high" size="sm" animated={false} />
-                <span className="font-semibold text-orange-400">{riskCounts.high}</span>
+
+            {/* Pagination Controls */}
+            {!loading && !error && totalCount > 0 && totalPages > 1 && (
+              <div className="mt-6 flex items-center justify-between rounded-lg border border-gray-800 bg-[#1F1F1F] px-4 py-3">
+                <button
+                  onClick={handlePreviousPage}
+                  disabled={pagination.offset === 0}
+                  className="flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#76B900]/10 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </button>
+
+                <div className="text-sm text-gray-400">
+                  Page {currentPage} of {totalPages}
+                </div>
+
+                <button
+                  onClick={handleNextPage}
+                  disabled={pagination.offset + pagination.limit >= totalCount}
+                  className="flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#76B900]/10 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
+                  aria-label="Next page"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </button>
               </div>
             )}
-          </div>
-        )}
-      </div>
+          </Tab.Panel>
 
-      {/* Alert List */}
-      {loading ? (
-        <div className="flex min-h-[400px] items-center justify-center rounded-lg border border-gray-800 bg-[#1F1F1F]">
-          <div className="text-center">
-            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-gray-700 border-t-[#76B900]" />
-            <p className="text-gray-400">Loading alerts...</p>
-          </div>
-        </div>
-      ) : error ? (
-        <div className="flex min-h-[400px] items-center justify-center rounded-lg border border-red-900/50 bg-red-950/20">
-          <div className="text-center">
-            <p className="mb-2 text-lg font-semibold text-red-500">Error Loading Alerts</p>
-            <p className="text-sm text-gray-400">{error}</p>
-          </div>
-        </div>
-      ) : events.length === 0 ? (
-        <div className="flex min-h-[400px] items-center justify-center rounded-lg border border-gray-800 bg-[#1F1F1F]">
-          <div className="text-center">
-            <Bell className="mx-auto mb-4 h-16 w-16 text-gray-600" />
-            <p className="mb-2 text-lg font-semibold text-gray-300">No Alerts at This Time</p>
-            <p className="text-sm text-gray-500">
-              {riskFilter === 'all'
-                ? 'There are no high or critical risk events to review. Keep up the good work!'
-                : `There are no ${riskFilter} risk events to review.`}
-            </p>
-          </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
-          {events.map((event) => (
-            <EventCard key={event.id} {...getEventCardProps(event)} />
-          ))}
-        </div>
-      )}
-
-      {/* Pagination Controls */}
-      {!loading && !error && totalCount > 0 && totalPages > 1 && (
-        <div className="mt-6 flex items-center justify-between rounded-lg border border-gray-800 bg-[#1F1F1F] px-4 py-3">
-          <button
-            onClick={handlePreviousPage}
-            disabled={pagination.offset === 0}
-            className="flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#76B900]/10 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
-            aria-label="Previous page"
-          >
-            <ChevronLeft className="h-4 w-4" />
-            Previous
-          </button>
-
-          <div className="text-sm text-gray-400">
-            Page {currentPage} of {totalPages}
-          </div>
-
-          <button
-            onClick={handleNextPage}
-            disabled={pagination.offset + pagination.limit >= totalCount}
-            className="flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#76B900]/10 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
-            aria-label="Next page"
-          >
-            Next
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-      )}
+          {/* Alert Rules Tab */}
+          <Tab.Panel>
+            <AlertRulesManager />
+          </Tab.Panel>
+        </Tab.Panels>
+      </Tab.Group>
     </div>
   );
 }

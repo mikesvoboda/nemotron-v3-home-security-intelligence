@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import PipelineOperationsPanel from './PipelineOperationsPanel';
 import WorkerStatusPanel from './WorkerStatusPanel';
 import { useHealthStatus } from '../../hooks/useHealthStatus';
 import {
@@ -321,6 +322,9 @@ export default function SystemMonitoringPage() {
 
           {/* Background Workers Panel - Shows status of all 8 workers */}
           <WorkerStatusPanel pollingInterval={10000} />
+
+          {/* Pipeline Operations Panel - Shows FileWatcher, BatchAggregator, Degradation status */}
+          <PipelineOperationsPanel pollingInterval={5000} />
 
           {/* Pipeline Queues Card - Reusing existing component */}
           <PipelineQueues

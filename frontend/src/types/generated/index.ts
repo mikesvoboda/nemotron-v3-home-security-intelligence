@@ -43,15 +43,28 @@ export type GPUStatsHistoryResponse = components['schemas']['GPUStatsHistoryResp
 export type SystemConfig = components['schemas']['ConfigResponse'];
 export type SystemConfigUpdate = components['schemas']['ConfigUpdateRequest'];
 export type SystemStats = components['schemas']['SystemStatsResponse'];
-export type LivenessResponse = components['schemas']['LivenessResponse'];
 export type ReadinessResponse = components['schemas']['ReadinessResponse'];
 export type WorkerStatus = components['schemas']['WorkerStatus'];
+
+// Storage types
+export type StorageStatsResponse = components['schemas']['StorageStatsResponse'];
+export type StorageCategoryStats = components['schemas']['StorageCategoryStats'];
+
+// Severity types
+export type SeverityEnum = components['schemas']['SeverityEnum'];
+export type SeverityDefinitionResponse =
+  components['schemas']['SeverityDefinitionResponse'];
+export type SeverityThresholds = components['schemas']['SeverityThresholds'];
+export type SeverityMetadataResponse =
+  components['schemas']['SeverityMetadataResponse'];
 
 // Telemetry types
 export type TelemetryResponse = components['schemas']['TelemetryResponse'];
 export type QueueDepths = components['schemas']['QueueDepths'];
 export type PipelineLatencies = components['schemas']['PipelineLatencies'];
 export type StageLatency = components['schemas']['StageLatency'];
+export type PipelineLatencyResponse = components['schemas']['PipelineLatencyResponse'];
+export type PipelineStageLatency = components['schemas']['PipelineStageLatency'];
 
 // Log types
 export type LogEntry = components['schemas']['LogEntry'];
@@ -80,6 +93,14 @@ export type ValidationError = components['schemas']['ValidationError'];
 // Search types
 export type SearchResult = components['schemas']['SearchResult'];
 export type SearchResponse = components['schemas']['SearchResponse'];
+
+// Zone types
+export type Zone = components['schemas']['ZoneResponse'];
+export type ZoneCreate = components['schemas']['ZoneCreate'];
+export type ZoneUpdate = components['schemas']['ZoneUpdate'];
+export type ZoneListResponse = components['schemas']['ZoneListResponse'];
+export type ZoneType = components['schemas']['ZoneType'];
+export type ZoneShape = components['schemas']['ZoneShape'];
 
 // Import the components type for use in type aliases
 import type { components } from './api';

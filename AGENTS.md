@@ -166,7 +166,7 @@ cd frontend && npm test
 
 ### 4. Code Quality Standards
 
-- **Coverage:** 93%+ required for unit tests (enforced by pytest)
+- **Coverage:** 95%+ required for all tests (enforced by pytest and vitest)
 - **Type Hints:** Required for all backend functions (enforced by mypy)
 - **Line Length:** 100 characters (enforced by ruff)
 - **Testing:** TDD approach for tasks labeled `tdd`

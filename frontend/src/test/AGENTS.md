@@ -114,12 +114,12 @@ Coverage reports are generated to `./coverage/`:
 
 | Metric     | Threshold |
 | ---------- | --------- |
-| Statements | 89%       |
-| Branches   | 86%       |
-| Functions  | 85%       |
-| Lines      | 90%       |
+| Statements | 95%       |
+| Branches   | 95%       |
+| Functions  | 95%       |
+| Lines      | 95%       |
 
-Note: Thresholds temporarily lowered due to SearchBar test isolation issue (mousedown listener). See `vite.config.ts` for details and TODO.
+Standard 95% threshold per CLAUDE.md. See pyproject.toml for full coverage policy documentation.
 
 **Excluded from Coverage:**
 

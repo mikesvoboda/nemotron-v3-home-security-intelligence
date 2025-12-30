@@ -11,7 +11,7 @@ Tests cover:
 - Notification disabled behavior
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -88,7 +88,7 @@ def mock_alert():
     alert.severity = AlertSeverity.HIGH
     alert.status = AlertStatus.PENDING
     alert.dedup_key = "front_door:person:test"
-    alert.created_at = datetime.utcnow()
+    alert.created_at = datetime.now(UTC)
     alert.channels = ["email", "webhook"]
     alert.alert_metadata = {
         "rule_name": "Test Rule",
@@ -139,7 +139,7 @@ class TestNotificationDelivery:
         delivery = NotificationDelivery(
             channel=NotificationChannel.EMAIL,
             success=True,
-            delivered_at=datetime.utcnow(),
+            delivered_at=datetime.now(UTC),
             recipient="user@example.com",
         )
         assert delivery.success is True
@@ -159,7 +159,7 @@ class TestNotificationDelivery:
 
     def test_to_dict(self):
         """Test converting delivery to dictionary."""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         delivery = NotificationDelivery(
             channel=NotificationChannel.EMAIL,
             success=True,
@@ -481,12 +481,12 @@ class TestNotificationServiceDeliverAlert:
             mock_email.return_value = NotificationDelivery(
                 channel=NotificationChannel.EMAIL,
                 success=True,
-                delivered_at=datetime.utcnow(),
+                delivered_at=datetime.now(UTC),
             )
             mock_webhook.return_value = NotificationDelivery(
                 channel=NotificationChannel.WEBHOOK,
                 success=True,
-                delivered_at=datetime.utcnow(),
+                delivered_at=datetime.now(UTC),
             )
 
             result = await service.deliver_alert(mock_alert)
@@ -503,7 +503,7 @@ class TestNotificationServiceDeliverAlert:
             mock_email.return_value = NotificationDelivery(
                 channel=NotificationChannel.EMAIL,
                 success=True,
-                delivered_at=datetime.utcnow(),
+                delivered_at=datetime.now(UTC),
             )
 
             result = await service.deliver_alert(mock_alert, channels=[NotificationChannel.EMAIL])
@@ -521,7 +521,7 @@ class TestNotificationServiceDeliverAlert:
             mock_email.return_value = NotificationDelivery(
                 channel=NotificationChannel.EMAIL,
                 success=True,
-                delivered_at=datetime.utcnow(),
+                delivered_at=datetime.now(UTC),
             )
 
             result = await service.deliver_alert(mock_alert)
@@ -539,7 +539,7 @@ class TestNotificationServiceDeliverAlert:
             mock_email.return_value = NotificationDelivery(
                 channel=NotificationChannel.EMAIL,
                 success=True,
-                delivered_at=datetime.utcnow(),
+                delivered_at=datetime.now(UTC),
             )
             mock_webhook.return_value = NotificationDelivery(
                 channel=NotificationChannel.WEBHOOK,
@@ -858,7 +858,7 @@ class TestNotificationServiceEdgeCases:
             mock_email.return_value = NotificationDelivery(
                 channel=NotificationChannel.EMAIL,
                 success=True,
-                delivered_at=datetime.utcnow(),
+                delivered_at=datetime.now(UTC),
             )
 
             result = await service.deliver_alert(mock_alert)

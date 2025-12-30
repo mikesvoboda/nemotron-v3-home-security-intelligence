@@ -43,9 +43,17 @@ async def queue_detection(
     detection: dict,
     redis: RedisClient = Depends(get_redis)
 ):
-    """Add detection to processing queue."""
-    await redis.add_to_queue("detections_queue", detection)
-    return {"status": "queued"}
+    """Add detection to processing queue with proper backpressure handling."""
+    from backend.core.redis import QueueOverflowPolicy
+
+    result = await redis.add_to_queue_safe(
+        "detections_queue",
+        detection,
+        overflow_policy=QueueOverflowPolicy.DLQ,  # Preserve data in dead-letter queue
+    )
+    if not result.success:
+        return {"status": "rejected", "error": result.error}
+    return {"status": "queued", "queue_length": result.queue_length}
 
 @router.get("/detections/next")
 async def get_next_detection(
@@ -61,15 +69,30 @@ async def get_next_detection(
 ### Queue Operations
 
 ```python
-# Add items to queue
-await redis.add_to_queue("my_queue", {"data": "value"})
-await redis.add_to_queue("my_queue", "simple string")
+from backend.core.redis import QueueOverflowPolicy
+
+# Add items to queue with proper overflow handling (recommended)
+result = await redis.add_to_queue_safe(
+    "my_queue",
+    {"data": "value"},
+    overflow_policy=QueueOverflowPolicy.DLQ,  # Moves overflow to dead-letter queue
+)
+print(f"Success: {result.success}, Queue length: {result.queue_length}")
+
+# Available overflow policies:
+# - QueueOverflowPolicy.REJECT: Return error when full (safest)
+# - QueueOverflowPolicy.DLQ: Move oldest to dead-letter queue (preserves all data)
+# - QueueOverflowPolicy.DROP_OLDEST: Trim oldest with warning (for telemetry)
 
 # Get items from queue (blocking with timeout)
 item = await redis.get_from_queue("my_queue", timeout=10)
 
 # Check queue length
 length = await redis.get_queue_length("my_queue")
+
+# Check queue pressure (useful for monitoring)
+pressure = await redis.get_queue_pressure("my_queue")
+print(f"Fill ratio: {pressure.fill_ratio:.1%}, Is full: {pressure.is_full}")
 
 # Peek without removing
 items = await redis.peek_queue("my_queue", start=0, end=9)
@@ -123,13 +146,21 @@ await redis.delete("camera:1:status")
 ### Pattern 1: Batch Processing Queue
 
 ```python
-# Producer: Add images to processing queue
+from backend.core.redis import QueueOverflowPolicy
+
+# Producer: Add images to processing queue with backpressure
 async def on_new_image(image_path: str, camera_id: int):
-    await redis.add_to_queue("images_to_process", {
-        "image_path": image_path,
-        "camera_id": camera_id,
-        "timestamp": datetime.now().isoformat()
-    })
+    result = await redis.add_to_queue_safe(
+        "images_to_process",
+        {
+            "image_path": image_path,
+            "camera_id": camera_id,
+            "timestamp": datetime.now().isoformat()
+        },
+        overflow_policy=QueueOverflowPolicy.DLQ,  # Preserve all data
+    )
+    if not result.success:
+        logger.error(f"Failed to queue image: {result.error}")
 
 # Consumer: Process images in batches
 async def process_image_queue():
@@ -249,6 +280,8 @@ async def test_my_route(mock_redis_client):
 ### Integration Tests with Real Redis
 
 ```python
+from backend.core.redis import QueueOverflowPolicy
+
 @pytest.mark.skipif(
     os.environ.get("REDIS_URL") is None,
     reason="Redis not available"
@@ -259,8 +292,13 @@ async def test_with_real_redis():
     await redis.connect()
 
     try:
-        # Test operations
-        await redis.add_to_queue("test_queue", {"test": "data"})
+        # Test operations with proper overflow handling
+        result = await redis.add_to_queue_safe(
+            "test_queue",
+            {"test": "data"},
+            overflow_policy=QueueOverflowPolicy.REJECT,
+        )
+        assert result.success
         item = await redis.get_from_queue("test_queue", timeout=1)
         assert item["test"] == "data"
     finally:
@@ -348,6 +386,10 @@ redis-cli CONFIG SET maxmemory-policy allkeys-lru
 6. **Clean up resources** in finally blocks
 7. **Use separate DB indexes** for different environments (dev=1, test=15, prod=0)
 8. **Log important operations** for debugging
+9. **Use add_to_queue_safe()** instead of deprecated add_to_queue() for proper backpressure:
+   - Use `QueueOverflowPolicy.REJECT` for critical data (caller handles retry)
+   - Use `QueueOverflowPolicy.DLQ` to preserve all data in dead-letter queue
+   - Use `QueueOverflowPolicy.DROP_OLDEST` only for telemetry that can tolerate loss
 
 ## Performance Tips
 

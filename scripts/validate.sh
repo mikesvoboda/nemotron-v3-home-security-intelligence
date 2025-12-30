@@ -235,11 +235,13 @@ run_backend_validation() {
     print_success "MyPy type checking passed"
 
     # Run tests
-    # Local validation uses 90% combined coverage (unit + integration)
-    # CI enforces stricter per-test-type thresholds: unit=92%, integration=50%
+    # Coverage threshold: 95% combined (unit + integration)
+    # This aligns with CI which enforces 95% coverage (per CLAUDE.md).
+    # The combined threshold applies to all tests run together, ensuring
+    # comprehensive test coverage across unit and integration tests.
     print_step "Running pytest (Tests & Coverage)..."
-    if ! pytest "$PROJECT_ROOT/backend" --cov="$PROJECT_ROOT/backend" --cov-report=term-missing --cov-fail-under=90; then
-        print_error "Backend tests failed or coverage below 90%"
+    if ! pytest "$PROJECT_ROOT/backend" --cov="$PROJECT_ROOT/backend" --cov-report=term-missing --cov-fail-under=95; then
+        print_error "Backend tests failed or coverage below 95%"
         echo ""
         echo "Fix failing tests, then re-run validation."
         exit 1

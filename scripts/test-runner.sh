@@ -2,12 +2,12 @@
 #
 # Unified Test Runner
 # Runs all tests with code coverage enforcement:
-#   - Backend: 93% combined coverage (via pytest --cov-fail-under)
-#   - Frontend: 92-93% thresholds (via vitest coverage thresholds in vite.config.ts)
+#   - Backend: 95% combined coverage (via pytest --cov-fail-under)
+#   - Frontend: coverage thresholds (via vitest coverage thresholds in vite.config.ts)
 #
-# Note: CI enforces separate thresholds per test type:
-#   - Unit tests: 93% (stricter for isolated tests)
-#   - Integration tests: 50% (lower due to mocked deps and endpoint-focused testing)
+# Coverage thresholds are aligned with CI (per CLAUDE.md):
+#   - CI enforces 95% coverage for the full test suite
+#   - This script uses the same 95% threshold for consistency
 #
 
 set -e
@@ -23,10 +23,9 @@ NC='\033[0m' # No Color
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
 
-# Coverage threshold (aligned with CI unit test threshold)
-# CI uses 93% for unit tests, 50% for integration tests
-# When running combined tests locally, we use the stricter unit test threshold
-COVERAGE_THRESHOLD=93
+# Coverage threshold (aligned with CI per CLAUDE.md)
+# CI enforces 95% coverage for the full test suite
+COVERAGE_THRESHOLD=95
 
 # Track results
 BACKEND_RESULT=0
@@ -130,10 +129,9 @@ fi
 
 # Run frontend tests with coverage
 # Note: Frontend coverage thresholds are configured in vite.config.ts (thresholds block).
-# The vitest coverage tool will fail the tests if coverage drops below thresholds:
-#   - statements: 92%, branches: 88%, functions: 90%, lines: 93%
-# These are lower than backend's 95% because some UI animation code paths are
-# intentionally untestable (e.g., import.meta.env.MODE checks).
+# The vitest coverage tool will fail the tests if coverage drops below thresholds.
+# These thresholds are set in vite.config.ts and should be 95% to match the backend
+# coverage threshold for consistency across the codebase (per CLAUDE.md).
 echo ""
 echo "Running frontend tests with coverage..."
 echo ""
@@ -149,7 +147,7 @@ fi
 # Extract frontend coverage percentage for display
 if [ -f "coverage/coverage-summary.json" ]; then
     FRONTEND_COVERAGE=$(node -e "console.log(require('./coverage/coverage-summary.json').total.lines.pct)")
-    echo -e "Frontend coverage: ${BLUE}${FRONTEND_COVERAGE}%${NC} (threshold: 93%)"
+    echo -e "Frontend coverage: ${BLUE}${FRONTEND_COVERAGE}%${NC} (threshold: 95%)"
 fi
 
 cd "$PROJECT_ROOT"
@@ -188,13 +186,13 @@ echo ""
 
 # Final result
 if [ $BACKEND_RESULT -eq 0 ] && [ $FRONTEND_RESULT -eq 0 ]; then
-    echo -e "${GREEN}═══════════════════════════════════════════════════════════════${NC}"
+    echo -e "${GREEN}===============================================================${NC}"
     echo -e "${GREEN}  All tests passed with ${COVERAGE_THRESHOLD}%+ coverage!${NC}"
-    echo -e "${GREEN}═══════════════════════════════════════════════════════════════${NC}"
+    echo -e "${GREEN}===============================================================${NC}"
     exit 0
 else
-    echo -e "${RED}═══════════════════════════════════════════════════════════════${NC}"
+    echo -e "${RED}===============================================================${NC}"
     echo -e "${RED}  Some tests failed or coverage below ${COVERAGE_THRESHOLD}%${NC}"
-    echo -e "${RED}═══════════════════════════════════════════════════════════════${NC}"
+    echo -e "${RED}===============================================================${NC}"
     exit 1
 fi

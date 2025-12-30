@@ -171,7 +171,7 @@ Before submitting a PR:
 
 - [ ] All pre-commit hooks pass
 - [ ] All tests pass locally
-- [ ] Code coverage meets thresholds (92% unit, 50% integration)
+- [ ] Code coverage meets thresholds (95% for all tests per CLAUDE.md)
 - [ ] No new linting warnings
 - [ ] TypeScript compiles without errors
 - [ ] Documentation updated if needed
@@ -213,11 +213,11 @@ All CI jobs must pass before merge:
 | ------------------------- | -------- | ---------------------- |
 | Backend Lint              | Yes      | Ruff check and format  |
 | Backend Type Check        | Yes      | MyPy                   |
-| Backend Unit Tests        | Yes      | 92% coverage threshold |
-| Backend Integration Tests | Yes      | 50% coverage threshold |
+| Backend Unit Tests        | Yes      | 95% coverage threshold |
+| Backend Integration Tests | Yes      | 95% coverage threshold |
 | Frontend Lint             | Yes      | ESLint                 |
 | Frontend Type Check       | Yes      | TypeScript compilation |
-| Frontend Tests            | Yes      | Vitest                 |
+| Frontend Tests            | Yes      | Vitest (95% coverage)  |
 | Frontend E2E              | Yes      | Playwright             |
 | Build Docker Images       | Yes      | Verify builds succeed  |
 | Security Validation       | Yes      | Admin endpoint checks  |

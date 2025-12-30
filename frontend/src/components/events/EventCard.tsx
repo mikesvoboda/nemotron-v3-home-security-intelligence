@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, Clock, Eye, Timer, TrendingUp } from 'lucide-react';
+import { Box, ChevronDown, ChevronUp, Clock, Eye, Timer, TrendingUp } from 'lucide-react';
 import { useState } from 'react';
 
 import {
@@ -24,6 +24,7 @@ export interface Detection {
   label: string;
   confidence: number;
   bbox?: { x: number; y: number; width: number; height: number };
+  detected_at?: string;
 }
 
 export interface EventCardProps {
@@ -297,12 +298,32 @@ export default function EventCard({
             {sortedDetections.map((detection, index) => {
               const level = getConfidenceLevel(detection.confidence);
               const confidenceLabel = getConfidenceLabel(level);
+              // Build comprehensive tooltip with all detection metadata
+              const tooltipParts = [
+                `${detection.label}: ${formatConfidence(detection.confidence)} - ${confidenceLabel}`,
+              ];
+              if (detection.bbox) {
+                tooltipParts.push(
+                  `BBox: (${detection.bbox.x}, ${detection.bbox.y}) ${detection.bbox.width}x${detection.bbox.height}`
+                );
+              }
+              if (detection.detected_at) {
+                try {
+                  const detectedDate = new Date(detection.detected_at);
+                  tooltipParts.push(`Detected: ${detectedDate.toLocaleTimeString()}`);
+                } catch {
+                  // Ignore invalid date
+                }
+              }
               return (
                 <div
                   key={`${detection.label}-${index}`}
                   className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs ${getConfidenceBgColorClass(level)} ${getConfidenceBorderColorClass(level)}`}
-                  title={`${detection.label}: ${formatConfidence(detection.confidence)} - ${confidenceLabel}`}
+                  title={tooltipParts.join('\n')}
                 >
+                  {detection.bbox && (
+                    <Box className="h-3 w-3 text-gray-400" aria-hidden="true" />
+                  )}
                   <span className="font-medium text-white">{detection.label}</span>
                   <span className={`font-semibold ${getConfidenceTextColorClass(level)}`}>
                     {formatConfidence(detection.confidence)}

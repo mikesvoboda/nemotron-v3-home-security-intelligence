@@ -9,7 +9,7 @@ entry points, or sidewalks.
 from __future__ import annotations
 
 import enum
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, Integer, String
@@ -17,6 +17,12 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .camera import Base
+
+
+def _utc_now() -> datetime:
+    """Return current UTC time as a naive datetime (for DB compatibility)."""
+    return datetime.now(UTC).replace(tzinfo=None)
+
 
 if TYPE_CHECKING:
     from .camera import Camera
@@ -71,9 +77,9 @@ class Zone(Base):
     color: Mapped[str] = mapped_column(String(7), default="#3B82F6", nullable=False)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     priority: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utc_now, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        DateTime, default=_utc_now, onupdate=_utc_now, nullable=False
     )
 
     # Relationships

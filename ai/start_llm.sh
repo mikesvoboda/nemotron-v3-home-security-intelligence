@@ -15,6 +15,16 @@ MODEL_FILE_DEFAULT="$NEMOTRON_DIR/nemotron-mini-4b-instruct-q4_k_m.gguf"
 MODEL_FILE="${NEMOTRON_MODEL_PATH:-$MODEL_FILE_DEFAULT}"
 MODEL_PORT="${NEMOTRON_PORT:-8091}"
 
+# Validate port is numeric (defense-in-depth against malformed input)
+if ! [[ "$MODEL_PORT" =~ ^[0-9]+$ ]]; then
+    echo "Error: Invalid port '$MODEL_PORT' - must be numeric"
+    exit 1
+fi
+if [ "$MODEL_PORT" -lt 1 ] || [ "$MODEL_PORT" -gt 65535 ]; then
+    echo "Error: Port '$MODEL_PORT' out of valid range (1-65535)"
+    exit 1
+fi
+
 # Check if model exists
 if [ ! -f "$MODEL_FILE" ]; then
     echo "Error: Model not found at $MODEL_FILE"
@@ -35,7 +45,7 @@ echo "Expected VRAM usage: ~3GB"
 # binding to 127.0.0.1 would prevent container-to-host connectivity.
 llama-server \
   --model "$MODEL_FILE" \
-  --port $MODEL_PORT \
+  --port "$MODEL_PORT" \
   --ctx-size 4096 \
   --n-gpu-layers 99 \
   --host 0.0.0.0 \

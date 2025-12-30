@@ -70,7 +70,7 @@ export function EventCard({ event, onSelect }: EventCardProps) {
 
 - Unit tests alongside implementation
 - Integration tests for API endpoints
-- 90%+ coverage requirement
+- 95%+ coverage requirement (per CLAUDE.md)
 - Mock external services in tests
 
 ## Domain Context

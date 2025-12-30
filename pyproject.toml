@@ -106,6 +106,30 @@ markers = [
     "slow: mark test as legitimately slow (30s timeout)",
 ]
 
+# =============================================================================
+# Coverage Policy
+# =============================================================================
+# This project enforces 95% code coverage as documented in CLAUDE.md.
+#
+# The 95% threshold applies to:
+#   - Backend unit tests (CI: .github/workflows/ci.yml)
+#   - Backend integration tests (CI: .github/workflows/ci.yml)
+#   - Frontend tests (vite.config.ts thresholds)
+#   - Local validation (scripts/validate.sh, scripts/test-runner.sh)
+#
+# To modify coverage thresholds, update ALL of these locations:
+#   1. pyproject.toml [tool.coverage.report] fail_under (this file)
+#   2. .coveragerc [report] fail_under
+#   3. .github/workflows/ci.yml --cov-fail-under flags
+#   4. scripts/validate.sh COVERAGE_THRESHOLD
+#   5. scripts/test-runner.sh COVERAGE_THRESHOLD
+#   6. frontend/vite.config.ts thresholds block
+#   7. CLAUDE.md documentation
+#
+# Never lower coverage thresholds without a documented reason and plan to
+# restore them. See CLAUDE.md "NEVER DISABLE TESTING" section.
+# =============================================================================
+
 [tool.coverage.run]
 source = ["backend"]
 omit = [
@@ -133,7 +157,8 @@ exclude_lines = [
     "if TYPE_CHECKING:",
     "@abstractmethod",
 ]
-fail_under = 92  # Lowered from 93 during logging migration
+# Standard coverage threshold - see Coverage Policy above
+fail_under = 95
 show_missing = true
 precision = 2
 
