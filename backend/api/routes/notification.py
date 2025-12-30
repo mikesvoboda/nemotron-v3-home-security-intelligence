@@ -243,11 +243,8 @@ async def test_notification(
         )
 
     except Exception as e:
-        # Use structured logging to avoid log injection (CodeQL py/log-injection)
-        logger.exception(
-            "Error testing notification",
-            extra={"channel": channel.value, "error_type": type(e).__name__},
-        )
+        # Log without user-controlled data to avoid log injection (CodeQL py/log-injection)
+        logger.exception("Error testing notification")
         return _create_error_response(
             channel,
             str(e),
