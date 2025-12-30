@@ -41,6 +41,7 @@ from typing import Any
 from PIL import Image
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
+from watchdog.observers.api import BaseObserver
 from watchdog.observers.polling import PollingObserver
 
 # Observer selection:
@@ -279,6 +280,7 @@ class FileWatcher:
 
         # Create watchdog observer for filesystem monitoring
         # Use PollingObserver for Docker Desktop/macOS or network filesystem mounts
+        self.observer: BaseObserver
         if self._use_polling:
             self.observer = PollingObserver(timeout=self._polling_interval)
         else:
