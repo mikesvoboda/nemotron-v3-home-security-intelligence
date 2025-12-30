@@ -233,7 +233,7 @@ async def health() -> dict[str, Any]:
 
     # Check Redis
     redis_status = "not_initialized"
-    redis_details = {}
+    redis_details: dict[str, Any] = {}
     try:
         from backend.core.redis import _redis_client
 
@@ -243,7 +243,8 @@ async def health() -> dict[str, Any]:
             redis_details = redis_health
     except Exception as e:
         redis_status = "error"
-        redis_details = {"error": str(e)}
+        # Only expose error details in debug mode to prevent stack trace exposure
+        redis_details = {"error": str(e) if settings.debug else "Redis health check failed"}
 
     overall_status = "healthy"
     if db_status != "operational" or redis_status not in ["healthy", "not_initialized"]:
@@ -264,7 +265,8 @@ async def health() -> dict[str, Any]:
                     "days_remaining": cert_info.get("days_remaining", 0),
                 }
         except Exception as e:
-            tls_details = {"error": str(e)}
+            # Only expose error details in debug mode to prevent stack trace exposure
+            tls_details = {"error": str(e) if settings.debug else "TLS certificate check failed"}
 
     return {
         "status": overall_status,

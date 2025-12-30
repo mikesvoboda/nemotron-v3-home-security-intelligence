@@ -583,7 +583,7 @@ class TestCertificateGenerationScript:
             key_path=str(key_path),
             hostname="localhost",
             san_hosts=["127.0.0.1", "::1"],
-            organization="Home Security Intelligence Dev",
+            _organization="Home Security Intelligence Dev",
             validity_days=365,
         )
 
@@ -601,7 +601,7 @@ class TestCertificateGenerationScript:
             key_path=str(key_path),
             hostname="security.home",
             san_hosts=["192.168.1.100", "192.168.1.101", "localhost"],
-            organization="Home Security Intelligence",
+            _organization="Home Security Intelligence",
             validity_days=730,
         )
 

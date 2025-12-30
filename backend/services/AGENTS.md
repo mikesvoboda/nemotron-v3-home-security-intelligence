@@ -54,26 +54,26 @@ File Upload -> Detection -> Batching -> Analysis -> Event Creation -> Broadcasti
 
 ## Service Files Overview
 
-| Service                    | Purpose                                      | Type           | Dependencies                         |
-| -------------------------- | -------------------------------------------- | -------------- | ------------------------------------ |
-| `file_watcher.py`          | Monitor camera directories for media uploads | Core Pipeline  | watchdog, Redis, PIL                 |
-| `dedupe.py`                | Prevent duplicate file processing            | Core Pipeline  | Redis (primary), Database (fallback) |
-| `detector_client.py`       | Send images to RT-DETRv2 for detection       | Core Pipeline  | httpx, SQLAlchemy                    |
-| `batch_aggregator.py`      | Group detections into time-based batches     | Core Pipeline  | Redis                                |
-| `nemotron_analyzer.py`     | LLM-based risk analysis via llama.cpp        | Core Pipeline  | httpx, SQLAlchemy, Redis             |
-| `thumbnail_generator.py`   | Generate preview images with bounding boxes  | Core Pipeline  | PIL/Pillow                           |
-| `video_processor.py`       | Extract video metadata and thumbnails        | Core Pipeline  | ffmpeg/ffprobe (subprocess)          |
-| `pipeline_workers.py`      | Background queue workers and manager         | Workers        | Redis, all pipeline services         |
-| `event_broadcaster.py`     | Distribute events via WebSocket              | Broadcasting   | Redis, FastAPI WebSocket             |
-| `system_broadcaster.py`    | Broadcast system health status               | Broadcasting   | SQLAlchemy, Redis, FastAPI WebSocket |
-| `gpu_monitor.py`           | Poll NVIDIA GPU metrics                      | Background     | pynvml, SQLAlchemy                   |
-| `cleanup_service.py`       | Enforce data retention policies              | Background     | SQLAlchemy                           |
-| `health_monitor.py`        | Monitor service health with auto-recovery    | Background     | service_managers, httpx              |
-| `retry_handler.py`         | Exponential backoff and DLQ support          | Infrastructure | Redis                                |
-| `service_managers.py`      | Strategy pattern for service management      | Infrastructure | httpx, asyncio subprocess            |
-| `circuit_breaker.py`       | Circuit breaker for service resilience       | Infrastructure | asyncio                              |
-| `degradation_manager.py`   | Graceful degradation management              | Infrastructure | Redis                                |
-| `prompts.py`               | LLM prompt templates                         | Utility        | -                                    |
+| Service                  | Purpose                                      | Type           | Dependencies                         |
+| ------------------------ | -------------------------------------------- | -------------- | ------------------------------------ |
+| `file_watcher.py`        | Monitor camera directories for media uploads | Core Pipeline  | watchdog, Redis, PIL                 |
+| `dedupe.py`              | Prevent duplicate file processing            | Core Pipeline  | Redis (primary), Database (fallback) |
+| `detector_client.py`     | Send images to RT-DETRv2 for detection       | Core Pipeline  | httpx, SQLAlchemy                    |
+| `batch_aggregator.py`    | Group detections into time-based batches     | Core Pipeline  | Redis                                |
+| `nemotron_analyzer.py`   | LLM-based risk analysis via llama.cpp        | Core Pipeline  | httpx, SQLAlchemy, Redis             |
+| `thumbnail_generator.py` | Generate preview images with bounding boxes  | Core Pipeline  | PIL/Pillow                           |
+| `video_processor.py`     | Extract video metadata and thumbnails        | Core Pipeline  | ffmpeg/ffprobe (subprocess)          |
+| `pipeline_workers.py`    | Background queue workers and manager         | Workers        | Redis, all pipeline services         |
+| `event_broadcaster.py`   | Distribute events via WebSocket              | Broadcasting   | Redis, FastAPI WebSocket             |
+| `system_broadcaster.py`  | Broadcast system health status               | Broadcasting   | SQLAlchemy, Redis, FastAPI WebSocket |
+| `gpu_monitor.py`         | Poll NVIDIA GPU metrics                      | Background     | pynvml, SQLAlchemy                   |
+| `cleanup_service.py`     | Enforce data retention policies              | Background     | SQLAlchemy                           |
+| `health_monitor.py`      | Monitor service health with auto-recovery    | Background     | service_managers, httpx              |
+| `retry_handler.py`       | Exponential backoff and DLQ support          | Infrastructure | Redis                                |
+| `service_managers.py`    | Strategy pattern for service management      | Infrastructure | httpx, asyncio subprocess            |
+| `circuit_breaker.py`     | Circuit breaker for service resilience       | Infrastructure | asyncio                              |
+| `degradation_manager.py` | Graceful degradation management              | Infrastructure | Redis                                |
+| `prompts.py`             | LLM prompt templates                         | Utility        | -                                    |
 
 ## Service Files
 

@@ -328,6 +328,9 @@ class FallbackQueue:
                     data = json.load(fp)
                     items.append(data.get("item", {}))
             except Exception:  # noqa: S110
+                # Intentionally ignore corrupted/unreadable files during peek operation.
+                # Peek is non-destructive and should not fail if individual files are
+                # malformed - we simply skip them and continue with remaining files.
                 pass
 
         return items
@@ -612,6 +615,14 @@ class DegradationManager:
         except Exception as e:
             logger.error(f"Failed to queue to memory: {e}")
             return False
+
+    def _use_memory_queue(self) -> bool:
+        """Check if we should use in-memory queue.
+
+        Returns:
+            True if Redis is unavailable and we should use memory queue
+        """
+        return self._redis is None or not self._redis_healthy
 
     def _get_fallback_queue(self, queue_name: str) -> FallbackQueue:
         """Get or create a disk-based fallback queue.
@@ -900,7 +911,7 @@ class DegradationManager:
             try:
                 await self._task
             except asyncio.CancelledError:
-                pass
+                pass  # Expected when stop() cancels the task; no action needed
             self._task = None
 
         logger.info("DegradationManager stopped")
