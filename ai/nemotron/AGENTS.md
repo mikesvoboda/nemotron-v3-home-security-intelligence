@@ -2,7 +2,20 @@
 
 ## Purpose
 
-Contains Nemotron language model configuration for AI-powered risk reasoning. The model runs via llama.cpp server and analyzes batches of object detections to generate risk scores and summaries.
+Contains Nemotron language model configuration for AI-powered risk reasoning. The model runs via llama.cpp server (containerized with GPU passthrough) and analyzes batches of object detections to generate risk scores and summaries.
+
+## Production Deployment
+
+In production, Nemotron runs in a Podman container (`ai-llm_1`) with NVIDIA GPU passthrough:
+
+```bash
+# Current configuration (from running container)
+llama-server --model /models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf \
+  --host 0.0.0.0 --port 8091 \
+  --n-gpu-layers 30 --ctx-size 4096 --parallel 2 --cont-batching
+
+# GPU VRAM usage: ~14.7 GB
+```
 
 ## Directory Contents
 

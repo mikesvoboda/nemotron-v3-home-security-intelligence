@@ -2,7 +2,28 @@
 
 ## Purpose
 
-Contains AI inference services for home security monitoring: object detection (RT-DETRv2) and risk reasoning (Nemotron LLM). Both run as independent HTTP servers.
+Contains AI inference services for home security monitoring: object detection (RT-DETRv2) and risk reasoning (Nemotron LLM). Both run as containerized HTTP servers with GPU passthrough via Podman.
+
+## Deployment
+
+Both AI services run in **Podman containers** with NVIDIA GPU passthrough:
+
+| Container       | Image                           | Port | GPU VRAM |
+| --------------- | ------------------------------- | ---- | -------- |
+| `ai-detector_1` | localhost/...ai-detector:latest | 8090 | ~650 MiB |
+| `ai-llm_1`      | localhost/...ai-llm:latest      | 8091 | ~14.7 GB |
+
+```bash
+# View running AI containers
+podman ps --filter name=ai-
+
+# Check container logs
+podman logs nemotron-v3-home-security-intelligence_ai-detector_1
+podman logs nemotron-v3-home-security-intelligence_ai-llm_1
+
+# Check GPU usage
+nvidia-smi --query-compute-apps=pid,name,used_memory --format=csv
+```
 
 ## Directory Structure
 
@@ -26,6 +47,20 @@ ai/
 ```
 
 ## Quick Start
+
+### Production (Recommended - Podman Containers)
+
+```bash
+# Start all services including AI containers
+podman-compose -f docker-compose.prod.yml up -d
+
+# Verify AI containers are running
+podman ps --filter name=ai-
+```
+
+### Development (Native - Legacy)
+
+Shell scripts for native execution (useful for debugging):
 
 ```bash
 # 1. Download models (first time only)
@@ -107,11 +142,11 @@ Camera Images → RT-DETRv2 (8090) → Detections → Nemotron (8091) → Risk E
 
 ## Hardware Requirements
 
-- **GPU**: NVIDIA with CUDA support
-- **VRAM**:
-  - RT-DETRv2: ~3-4GB
-  - Nemotron 4B: ~3GB
-  - Nemotron 30B: ~16GB
+- **GPU**: NVIDIA with CUDA support (tested on RTX A5500 24GB)
+- **Container Runtime**: Podman with NVIDIA Container Toolkit (CDI)
+- **VRAM** (actual measured usage):
+  - RT-DETRv2: ~650 MiB
+  - Nemotron 30B (Q4_K_M): ~14.7 GB
 - **Performance**:
   - RT-DETRv2: 30-50ms/image
   - Nemotron: 2-5s/analysis

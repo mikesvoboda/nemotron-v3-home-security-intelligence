@@ -140,7 +140,7 @@ architecture/
 - ADR-001: PostgreSQL for Database (chosen for concurrent write support)
 - ADR-002: Redis for Queues and Pub/Sub
 - ADR-003: Detection Batching Strategy (90s window + 30s idle)
-- ADR-004: Hybrid Deployment Architecture (Docker + native GPU)
+- ADR-004: Fully Containerized Deployment (Podman + GPU passthrough)
 - ADR-005: No Authentication (single-user MVP)
 - ADR-006: RT-DETRv2 for Object Detection
 - ADR-007: Nemotron for Risk Analysis
@@ -153,17 +153,19 @@ architecture/
 
 ## Important Patterns
 
-### Hybrid Deployment Model
+### Fully Containerized Deployment
 
 ```
-Docker Compose:          Native Processes:
-- Frontend (React)       - RT-DETRv2 (GPU)
-- Backend (FastAPI)      - Nemotron LLM (GPU)
+Podman Containers (all services):
+- Frontend (React)
+- Backend (FastAPI)
 - Redis
 - PostgreSQL
+- RT-DETRv2 (GPU via CDI)
+- Nemotron LLM (GPU via CDI)
 ```
 
-AI services run natively because Docker GPU access is complex. Services communicate via `host.docker.internal`.
+All services run in Podman containers. GPU access is provided via NVIDIA Container Toolkit (CDI).
 
 ### Batch Processing Strategy
 

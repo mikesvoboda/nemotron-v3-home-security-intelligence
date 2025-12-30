@@ -257,7 +257,7 @@ pre-commit run --all-files
 - **Batch processing:** 90-second time windows with 30-second idle timeout
 - **No auth:** Single-user local deployment
 - **Retention:** 30 days
-- **Deployment:** Hybrid (Podman containers for services, native for GPU AI models)
+- **Deployment:** Fully containerized (Podman) with GPU passthrough for AI models
 
 ## AGENTS.md Navigation
 

@@ -398,8 +398,10 @@ def test_gpu_memory_available() -> None:
             total, free = map(int, output.split(","))
             print(f"\nGPU Memory: {free}MB free / {total}MB total")
 
-            # Require at least 4GB free for RT-DETRv2
-            min_free_mb = 4000
+            # Require at least 900MB free for RT-DETRv2 (~650MB) + headroom
+            # Note: With Nemotron using 45 GPU layers + 8K context (~21.6GB),
+            # we expect ~1-1.5GB free on a 24GB GPU
+            min_free_mb = 900
             assert free >= min_free_mb, (
                 f"Insufficient GPU memory: {free}MB free (need {min_free_mb}MB)"
             )

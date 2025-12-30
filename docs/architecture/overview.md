@@ -67,7 +67,7 @@ flowchart TB
         RD["Redis<br/>:6379"]
     end
 
-    subgraph Native["Native GPU Services"]
+    subgraph GPU["Containerized GPU Services"]
         DET["RT-DETRv2<br/>Object Detection<br/>:8090"]
         LLM["Nemotron LLM<br/>Risk Analysis<br/>:8091"]
     end
@@ -255,9 +255,9 @@ flowchart TB
             RD["Redis Container<br/>Redis 7 Alpine<br/>Port 6379"]
         end
 
-        subgraph Native["Native Processes (GPU Access)"]
-            DET["RT-DETRv2 Server<br/>PyTorch + CUDA<br/>Port 8090<br/>~4GB VRAM"]
-            LLM["Nemotron Server<br/>llama.cpp<br/>Port 8091<br/>~3GB VRAM"]
+        subgraph GPUContainers["Containerized GPU Services (CDI)"]
+            DET["RT-DETRv2 Container<br/>PyTorch + CUDA<br/>Port 8090<br/>~650 MiB VRAM"]
+            LLM["Nemotron Container<br/>llama.cpp<br/>Port 8091<br/>~14.7 GB VRAM"]
         end
 
         subgraph Storage["Persistent Storage"]
@@ -271,8 +271,8 @@ flowchart TB
 
     FE <--> BE
     BE <--> RD
-    BE -.->|host.docker.internal| DET
-    BE -.->|host.docker.internal| LLM
+    BE -->|localhost:8090| DET
+    BE -->|localhost:8091| LLM
     DET --> GPU
     LLM --> GPU
     BE --> VOL1
@@ -282,24 +282,25 @@ flowchart TB
 
 ### What Runs Where
 
-| Component     | Deployment                      | Why                                      |
-| ------------- | ------------------------------- | ---------------------------------------- |
-| **Frontend**  | Docker (dev: Vite, prod: Nginx) | No GPU needed, isolated environment      |
-| **Backend**   | Docker                          | No GPU needed, isolated environment      |
-| **Redis**     | Docker                          | No GPU needed, ephemeral data acceptable |
-| **RT-DETRv2** | Native                          | Requires direct GPU/CUDA access          |
-| **Nemotron**  | Native                          | Requires direct GPU/CUDA access          |
+| Component      | Deployment                      | Why                                      |
+| -------------- | ------------------------------- | ---------------------------------------- |
+| **Frontend**   | Podman (dev: Vite, prod: Nginx) | No GPU needed, isolated environment      |
+| **Backend**    | Podman                          | No GPU needed, isolated environment      |
+| **Redis**      | Podman                          | No GPU needed, ephemeral data acceptable |
+| **PostgreSQL** | Podman                          | Database isolation, volume persistence   |
+| **RT-DETRv2**  | Podman (GPU via CDI)            | GPU access via NVIDIA Container Toolkit  |
+| **Nemotron**   | Podman (GPU via CDI)            | GPU access via NVIDIA Container Toolkit  |
 
 ### Port Summary
 
-| Port | Service         | Protocol | Exposed To                                   |
-| ---- | --------------- | -------- | -------------------------------------------- |
-| 5173 | Frontend (dev)  | HTTP     | Browser                                      |
-| 80   | Frontend (prod) | HTTP     | Browser                                      |
-| 8000 | Backend API     | HTTP/WS  | Browser, Frontend container                  |
-| 6379 | Redis           | TCP      | Backend container only                       |
-| 8090 | RT-DETRv2       | HTTP     | Backend container (via host.docker.internal) |
-| 8091 | Nemotron        | HTTP     | Backend container (via host.docker.internal) |
+| Port | Service         | Protocol | Exposed To                   |
+| ---- | --------------- | -------- | ---------------------------- |
+| 5173 | Frontend (dev)  | HTTP     | Browser                      |
+| 80   | Frontend (prod) | HTTP     | Browser                      |
+| 8000 | Backend API     | HTTP/WS  | Browser, Frontend container  |
+| 6379 | Redis           | TCP      | Backend container only       |
+| 8090 | RT-DETRv2       | HTTP     | Backend container, localhost |
+| 8091 | Nemotron        | HTTP     | Backend container, localhost |
 
 ---
 
