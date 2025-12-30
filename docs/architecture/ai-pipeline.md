@@ -66,7 +66,7 @@ sequenceDiagram
     participant DQ as detection_queue
     participant DW as DetectionQueueWorker
     participant RT as RT-DETRv2 (8090)
-    participant DB as SQLite
+    participant DB as PostgreSQL
     participant BA as BatchAggregator
     participant AQ as analysis_queue
     participant AW as AnalysisQueueWorker
@@ -124,7 +124,7 @@ sequenceDiagram
 | Debounce delay              | 500ms            | Configurable, prevents duplicate processing        |
 | Image validation            | ~5-10ms          | PIL verify()                                       |
 | RT-DETRv2 inference         | 30-50ms          | GPU accelerated, RTX A5500                         |
-| Database write (detections) | ~5-10ms          | SQLite async                                       |
+| Database write (detections) | ~5-10ms          | PostgreSQL async                                   |
 | Batch aggregation           | ~1ms             | Redis operations                                   |
 | **Batch window**            | **30-90s**       | Collects related detections                        |
 | Nemotron LLM inference      | 2-5s             | GPU accelerated                                    |

@@ -14,6 +14,7 @@ describe('WebSocketStatus', () => {
     reconnectAttempts: 0,
     maxReconnectAttempts: 5,
     lastMessageTime: new Date(),
+    hasExhaustedRetries: false,
     ...overrides,
   });
 
@@ -368,6 +369,94 @@ describe('WebSocketStatus', () => {
 
       const label = screen.getByTestId('connection-label');
       expect(label).toHaveClass('text-red-400');
+    });
+  });
+
+  describe('Failed state', () => {
+    it('shows orange indicator when connection has failed', () => {
+      render(
+        <WebSocketStatus
+          eventsChannel={createMockChannel({ name: 'Events', state: 'failed', hasExhaustedRetries: true })}
+          systemChannel={createMockChannel({ name: 'System', state: 'connected' })}
+        />
+      );
+
+      const statusDot = screen.getByTestId('overall-status-dot');
+      expect(statusDot).toHaveClass('bg-orange-500');
+    });
+
+    it('shows Connection Failed label when in failed state', () => {
+      render(
+        <WebSocketStatus
+          eventsChannel={createMockChannel({ name: 'Events', state: 'failed', hasExhaustedRetries: true })}
+          systemChannel={createMockChannel({ name: 'System', state: 'failed', hasExhaustedRetries: true })}
+        />
+      );
+
+      const label = screen.getByTestId('connection-label');
+      expect(label).toHaveTextContent('Connection Failed');
+      expect(label).toHaveClass('text-orange-400');
+    });
+
+    it('shows Retries exhausted message in tooltip for failed channel', () => {
+      render(
+        <WebSocketStatus
+          eventsChannel={createMockChannel({
+            name: 'Events',
+            state: 'failed',
+            hasExhaustedRetries: true,
+            reconnectAttempts: 5,
+            maxReconnectAttempts: 5,
+          })}
+          systemChannel={createMockChannel({ name: 'System', state: 'connected' })}
+        />
+      );
+
+      fireEvent.mouseEnter(screen.getByTestId('websocket-status'));
+
+      const failedIndicator = screen.getByTestId('failed-indicator-events');
+      expect(failedIndicator).toHaveTextContent('Retries exhausted');
+    });
+
+    it('includes click to retry hint in aria-label when failed', () => {
+      render(
+        <WebSocketStatus
+          eventsChannel={createMockChannel({ name: 'Events', state: 'failed', hasExhaustedRetries: true })}
+          systemChannel={createMockChannel({ name: 'System', state: 'connected' })}
+          onRetry={() => {}}
+        />
+      );
+
+      const status = screen.getByTestId('websocket-status');
+      expect(status).toHaveAttribute('aria-label', expect.stringContaining('Click to retry'));
+    });
+
+    it('calls onRetry when clicked in failed state', () => {
+      const onRetry = vi.fn();
+      render(
+        <WebSocketStatus
+          eventsChannel={createMockChannel({ name: 'Events', state: 'failed', hasExhaustedRetries: true })}
+          systemChannel={createMockChannel({ name: 'System', state: 'failed', hasExhaustedRetries: true })}
+          onRetry={onRetry}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('websocket-status'));
+      expect(onRetry).toHaveBeenCalled();
+    });
+
+    it('does not call onRetry when clicked in connected state', () => {
+      const onRetry = vi.fn();
+      render(
+        <WebSocketStatus
+          eventsChannel={createMockChannel({ name: 'Events', state: 'connected' })}
+          systemChannel={createMockChannel({ name: 'System', state: 'connected' })}
+          onRetry={onRetry}
+        />
+      );
+
+      fireEvent.click(screen.getByTestId('websocket-status'));
+      expect(onRetry).not.toHaveBeenCalled();
     });
   });
 });
