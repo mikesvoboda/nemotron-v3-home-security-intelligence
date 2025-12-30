@@ -1679,7 +1679,22 @@ export interface paths {
         };
         /**
          * Health
-         * @description Detailed health check endpoint.
+         * @description Simple liveness health check endpoint.
+         *
+         *     This endpoint indicates whether the process is running and able to
+         *     respond to HTTP requests. It always returns 200 with status "alive"
+         *     if the process is up.
+         *
+         *     For detailed health information, use:
+         *     - GET /api/system/health - Detailed health check with service status
+         *     - GET /api/system/health/live - Kubernetes liveness probe
+         *     - GET /api/system/health/ready - Kubernetes readiness probe
+         *
+         *     This endpoint exists for backward compatibility with existing monitoring
+         *     tools and Docker HEALTHCHECK configurations.
+         *
+         *     Returns:
+         *         Simple status indicating the server is alive.
          */
         get: operations["health_health_get"];
         put?: never;
@@ -6767,7 +6782,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        [key: string]: unknown;
+                        [key: string]: string;
                     };
                 };
             };
