@@ -50,8 +50,8 @@ def mock_redis_instance(mock_redis_client):
     mock_instance.delete = AsyncMock(return_value=1)
     mock_instance.exists = AsyncMock(return_value=0)
     # Retry-enabled methods (delegate to base methods)
-    mock_instance.get_with_retry = AsyncMock(return_value=None)
-    mock_instance.set_with_retry = AsyncMock(return_value=True)
+    mock_instance.get = AsyncMock(return_value=None)
+    mock_instance.set = AsyncMock(return_value=True)
     mock_instance.get_queue_length_with_retry = AsyncMock(return_value=0)
     mock_instance.get_from_queue_with_retry = AsyncMock(return_value=None)
     # Legacy method (deprecated)
@@ -60,7 +60,7 @@ def mock_redis_instance(mock_redis_client):
     mock_instance.add_to_queue_safe = AsyncMock(
         return_value=QueueAddResult(success=True, queue_length=1)
     )
-    mock_instance.add_to_queue_safe_with_retry = AsyncMock(
+    mock_instance.add_to_queue_safe = AsyncMock(
         return_value=QueueAddResult(success=True, queue_length=1)
     )
     return mock_instance
@@ -84,7 +84,7 @@ async def test_add_detection_creates_new_batch(batch_aggregator, mock_redis_inst
     file_path = "/export/foscam/front_door/image_001.jpg"
 
     # Mock: No existing batch
-    mock_redis_instance.get_with_retry.return_value = None
+    mock_redis_instance.get.return_value = None
 
     # Mock UUID generation
     with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
@@ -95,11 +95,11 @@ async def test_add_detection_creates_new_batch(batch_aggregator, mock_redis_inst
     # Verify batch ID was returned
     assert batch_id == "batch_123"
 
-    # Verify Redis calls to create new batch (uses set_with_retry)
-    assert mock_redis_instance.set_with_retry.call_count >= 3
+    # Verify Redis calls to create new batch (uses set)
+    assert mock_redis_instance.set.call_count >= 3
 
     # Check that batch:camera_id:current was set
-    calls = mock_redis_instance.set_with_retry.call_args_list
+    calls = mock_redis_instance.set.call_args_list
     set_keys = [call[0][0] for call in calls]
     assert f"batch:{camera_id}:current" in set_keys
     assert f"batch:{batch_id}:detections" in set_keys
@@ -115,7 +115,7 @@ async def test_add_detection_to_existing_batch(batch_aggregator, mock_redis_inst
     existing_batch_id = "batch_123"
     existing_detections = [1]  # Use integer detection IDs
 
-    # Mock: Existing batch (uses get_with_retry)
+    # Mock: Existing batch (uses get)
     async def mock_get(key):
         if key == f"batch:{camera_id}:current":
             return existing_batch_id
@@ -125,15 +125,15 @@ async def test_add_detection_to_existing_batch(batch_aggregator, mock_redis_inst
             return str(time.time())
         return None
 
-    mock_redis_instance.get_with_retry.side_effect = mock_get
+    mock_redis_instance.get.side_effect = mock_get
 
     batch_id = await batch_aggregator.add_detection(camera_id, detection_id, file_path)
 
     # Should return existing batch ID
     assert batch_id == existing_batch_id
 
-    # Should update detections list (uses set_with_retry)
-    set_calls = list(mock_redis_instance.set_with_retry.call_args_list)
+    # Should update detections list (uses set)
+    set_calls = list(mock_redis_instance.set.call_args_list)
     detections_updated = False
     for call in set_calls:
         if len(call[0]) > 0 and call[0][0] == f"batch:{existing_batch_id}:detections":
@@ -152,7 +152,7 @@ async def test_add_detection_updates_last_activity(batch_aggregator, mock_redis_
     file_path = "/export/foscam/front_door/image_003.jpg"
     existing_batch_id = "batch_123"
 
-    # Mock: Existing batch (uses get_with_retry)
+    # Mock: Existing batch (uses get)
     async def mock_get(key):
         if key == f"batch:{camera_id}:current":
             return existing_batch_id
@@ -162,12 +162,12 @@ async def test_add_detection_updates_last_activity(batch_aggregator, mock_redis_
             return str(time.time() - 30)  # Started 30s ago
         return None
 
-    mock_redis_instance.get_with_retry.side_effect = mock_get
+    mock_redis_instance.get.side_effect = mock_get
 
     await batch_aggregator.add_detection(camera_id, detection_id, file_path)
 
-    # Check that last_activity was updated (uses set_with_retry)
-    set_calls = list(mock_redis_instance.set_with_retry.call_args_list)
+    # Check that last_activity was updated (uses set)
+    set_calls = list(mock_redis_instance.set.call_args_list)
     last_activity_updated = any(
         f"batch:{existing_batch_id}:last_activity" in call[0][0]
         for call in set_calls
@@ -193,7 +193,7 @@ async def test_check_batch_timeouts_window_exceeded(batch_aggregator, mock_redis
         return_value=create_async_generator([f"batch:{camera_id}:current"])
     )
 
-    # Mock: Uses get_with_retry for batch timeout checks
+    # Mock: Uses get for batch timeout checks
     async def mock_get(key):
         if key == f"batch:{camera_id}:current":
             return batch_id
@@ -207,15 +207,15 @@ async def test_check_batch_timeouts_window_exceeded(batch_aggregator, mock_redis
             return camera_id
         return None
 
-    mock_redis_instance.get_with_retry.side_effect = mock_get
+    mock_redis_instance.get.side_effect = mock_get
 
     closed_batches = await batch_aggregator.check_batch_timeouts()
 
     # Should return the closed batch
     assert batch_id in closed_batches
 
-    # Should push to analysis queue (uses add_to_queue_safe_with_retry)
-    assert mock_redis_instance.add_to_queue_safe_with_retry.called
+    # Should push to analysis queue (uses add_to_queue_safe)
+    assert mock_redis_instance.add_to_queue_safe.called
 
 
 @pytest.mark.asyncio
@@ -232,7 +232,7 @@ async def test_check_batch_timeouts_idle_exceeded(batch_aggregator, mock_redis_i
         return_value=create_async_generator([f"batch:{camera_id}:current"])
     )
 
-    # Uses get_with_retry for batch timeout checks
+    # Uses get for batch timeout checks
     async def mock_get(key):
         if key == f"batch:{camera_id}:current":
             return batch_id
@@ -246,7 +246,7 @@ async def test_check_batch_timeouts_idle_exceeded(batch_aggregator, mock_redis_i
             return camera_id
         return None
 
-    mock_redis_instance.get_with_retry.side_effect = mock_get
+    mock_redis_instance.get.side_effect = mock_get
 
     closed_batches = await batch_aggregator.check_batch_timeouts()
 
@@ -268,7 +268,7 @@ async def test_check_batch_timeouts_no_timeout(batch_aggregator, mock_redis_inst
         return_value=create_async_generator([f"batch:{camera_id}:current"])
     )
 
-    # Uses get_with_retry for batch timeout checks
+    # Uses get for batch timeout checks
     async def mock_get(key):
         if key == f"batch:{camera_id}:current":
             return batch_id
@@ -282,13 +282,13 @@ async def test_check_batch_timeouts_no_timeout(batch_aggregator, mock_redis_inst
             return camera_id
         return None
 
-    mock_redis_instance.get_with_retry.side_effect = mock_get
+    mock_redis_instance.get.side_effect = mock_get
 
     closed_batches = await batch_aggregator.check_batch_timeouts()
 
     # Should not close the batch
     assert len(closed_batches) == 0
-    assert not mock_redis_instance.add_to_queue_safe_with_retry.called
+    assert not mock_redis_instance.add_to_queue_safe.called
 
 
 # Test: Manual Batch Close
@@ -301,7 +301,7 @@ async def test_close_batch_success(batch_aggregator, mock_redis_instance):
     camera_id = "garage"
     detections = ["det_001", "det_002", "det_003"]
 
-    # Uses get_with_retry for close_batch
+    # Uses get for close_batch
     async def mock_get(key):
         if key == f"batch:{batch_id}:camera_id":
             return camera_id
@@ -311,7 +311,7 @@ async def test_close_batch_success(batch_aggregator, mock_redis_instance):
             return str(time.time() - 60)
         return None
 
-    mock_redis_instance.get_with_retry.side_effect = mock_get
+    mock_redis_instance.get.side_effect = mock_get
 
     summary = await batch_aggregator.close_batch(batch_id)
 
@@ -321,8 +321,8 @@ async def test_close_batch_success(batch_aggregator, mock_redis_instance):
     assert summary["detection_count"] == len(detections)
     assert "detections" in summary
 
-    # Should push to analysis queue (uses add_to_queue_safe_with_retry)
-    assert mock_redis_instance.add_to_queue_safe_with_retry.called
+    # Should push to analysis queue (uses add_to_queue_safe)
+    assert mock_redis_instance.add_to_queue_safe.called
 
     # Should delete batch keys
     assert mock_redis_instance.delete.called
@@ -333,8 +333,8 @@ async def test_close_batch_not_found(batch_aggregator, mock_redis_instance):
     """Test closing a non-existent batch."""
     batch_id = "batch_nonexistent"
 
-    # Mock: Batch doesn't exist (uses get_with_retry)
-    mock_redis_instance.get_with_retry.return_value = None
+    # Mock: Batch doesn't exist (uses get)
+    mock_redis_instance.get.return_value = None
 
     with pytest.raises(ValueError, match=r"Batch .* not found"):
         await batch_aggregator.close_batch(batch_id)
@@ -346,7 +346,7 @@ async def test_close_batch_empty_detections(batch_aggregator, mock_redis_instanc
     batch_id = "batch_empty"
     camera_id = "front_door"
 
-    # Uses get_with_retry for close_batch
+    # Uses get for close_batch
     async def mock_get(key):
         if key == f"batch:{batch_id}:camera_id":
             return camera_id
@@ -356,7 +356,7 @@ async def test_close_batch_empty_detections(batch_aggregator, mock_redis_instanc
             return str(time.time() - 60)
         return None
 
-    mock_redis_instance.get_with_retry.side_effect = mock_get
+    mock_redis_instance.get.side_effect = mock_get
 
     summary = await batch_aggregator.close_batch(batch_id)
 
@@ -364,7 +364,7 @@ async def test_close_batch_empty_detections(batch_aggregator, mock_redis_instanc
     assert summary["detection_count"] == 0
 
     # Should not push to analysis queue (no detections)
-    assert not mock_redis_instance.add_to_queue_safe_with_retry.called
+    assert not mock_redis_instance.add_to_queue_safe.called
 
 
 @pytest.mark.asyncio
@@ -387,7 +387,7 @@ async def test_add_detection_concurrent_cameras(batch_aggregator, mock_redis_ins
     camera2 = "back_door"
 
     # Mock: No existing batches
-    mock_redis_instance.get_with_retry.return_value = None
+    mock_redis_instance.get.return_value = None
 
     with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
         # Generate unique batch IDs
@@ -424,13 +424,13 @@ async def test_close_batch_queue_format(batch_aggregator, mock_redis_instance):
             return str(time.time() - 60)
         return None
 
-    mock_redis_instance.get_with_retry.side_effect = mock_get
+    mock_redis_instance.get.side_effect = mock_get
 
     await batch_aggregator.close_batch(batch_id)
 
     # Verify queue was called with correct format
-    assert mock_redis_instance.add_to_queue_safe_with_retry.called
-    queue_call = mock_redis_instance.add_to_queue_safe_with_retry.call_args
+    assert mock_redis_instance.add_to_queue_safe.called
+    queue_call = mock_redis_instance.add_to_queue_safe.call_args
 
     # First arg should be "analysis_queue"
     assert queue_call[0][0] == "analysis_queue"
@@ -512,7 +512,7 @@ async def test_check_batch_timeouts_missing_started_at(batch_aggregator, mock_re
             return str(time.time())
         return None
 
-    mock_redis_instance.get_with_retry.side_effect = mock_get
+    mock_redis_instance.get.side_effect = mock_get
 
     closed_batches = await batch_aggregator.check_batch_timeouts()
 
@@ -537,7 +537,7 @@ async def test_check_batch_timeouts_exception_handling(batch_aggregator, mock_re
             raise Exception("Redis error")
         return None
 
-    mock_redis_instance.get_with_retry.side_effect = mock_get
+    mock_redis_instance.get.side_effect = mock_get
 
     # Should handle exception and continue
     closed_batches = await batch_aggregator.check_batch_timeouts()
@@ -560,7 +560,7 @@ async def test_check_batch_timeouts_no_batch_id(batch_aggregator, mock_redis_ins
             return None  # Batch ID is None
         return None
 
-    mock_redis_instance.get_with_retry.side_effect = mock_get
+    mock_redis_instance.get.side_effect = mock_get
 
     closed_batches = await batch_aggregator.check_batch_timeouts()
 
@@ -613,7 +613,7 @@ async def test_check_batch_timeouts_uses_scan_iter_with_count(
     async def mock_get(key):
         return mock_values.get(key)
 
-    mock_redis_instance.get_with_retry.side_effect = mock_get
+    mock_redis_instance.get.side_effect = mock_get
 
     closed_batches = await batch_aggregator.check_batch_timeouts()
 
@@ -744,7 +744,7 @@ async def test_add_detection_triggers_fast_path(batch_aggregator, mock_redis_ins
     )
 
     # Should NOT create a regular batch
-    assert not mock_redis_instance.set_with_retry.called
+    assert not mock_redis_instance.set.called
 
 
 @pytest.mark.asyncio
@@ -755,7 +755,7 @@ async def test_add_detection_skips_fast_path_low_confidence(batch_aggregator, mo
     file_path = "/export/foscam/front_door/image_002.jpg"
 
     # Mock: No existing batch
-    mock_redis_instance.get_with_retry.return_value = None
+    mock_redis_instance.get.return_value = None
 
     # Configure fast path settings
     batch_aggregator._fast_path_threshold = 0.90
@@ -776,7 +776,7 @@ async def test_add_detection_skips_fast_path_low_confidence(batch_aggregator, mo
     assert batch_id == "batch_normal"
 
     # Should have created batch in Redis
-    assert mock_redis_instance.set_with_retry.called
+    assert mock_redis_instance.set.called
 
 
 @pytest.mark.asyncio
@@ -834,7 +834,7 @@ async def test_add_detection_without_confidence_skips_fast_path(
     file_path = "/export/foscam/front_door/image_999.jpg"
 
     # Mock: No existing batch
-    mock_redis_instance.get_with_retry.return_value = None
+    mock_redis_instance.get.return_value = None
 
     with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
         mock_uuid.return_value.hex = "batch_no_confidence"
@@ -870,10 +870,10 @@ async def test_close_batch_queue_overflow_moves_to_dlq(batch_aggregator, mock_re
             return str(time.time() - 60)
         return None
 
-    mock_redis_instance.get_with_retry.side_effect = mock_get
+    mock_redis_instance.get.side_effect = mock_get
 
     # Simulate queue at max capacity with DLQ overflow
-    mock_redis_instance.add_to_queue_safe_with_retry.return_value = QueueAddResult(
+    mock_redis_instance.add_to_queue_safe.return_value = QueueAddResult(
         success=True,
         queue_length=10000,
         moved_to_dlq_count=1,
@@ -886,9 +886,9 @@ async def test_close_batch_queue_overflow_moves_to_dlq(batch_aggregator, mock_re
     assert summary["batch_id"] == batch_id
     assert summary["detection_count"] == len(detections)
 
-    # Verify add_to_queue_safe_with_retry was called with DLQ policy
-    mock_redis_instance.add_to_queue_safe_with_retry.assert_awaited_once()
-    call_kwargs = mock_redis_instance.add_to_queue_safe_with_retry.call_args[1]
+    # Verify add_to_queue_safe was called with DLQ policy
+    mock_redis_instance.add_to_queue_safe.assert_awaited_once()
+    call_kwargs = mock_redis_instance.add_to_queue_safe.call_args[1]
     assert call_kwargs["overflow_policy"] == QueueOverflowPolicy.DLQ
 
 
@@ -908,10 +908,10 @@ async def test_close_batch_queue_full_raises_error(batch_aggregator, mock_redis_
             return str(time.time() - 60)
         return None
 
-    mock_redis_instance.get_with_retry.side_effect = mock_get
+    mock_redis_instance.get.side_effect = mock_get
 
     # Simulate queue full rejection
-    mock_redis_instance.add_to_queue_safe_with_retry.return_value = QueueAddResult(
+    mock_redis_instance.add_to_queue_safe.return_value = QueueAddResult(
         success=False,
         queue_length=10000,
         error="Queue 'analysis_queue' is full (10000/10000). Item rejected.",
@@ -941,10 +941,10 @@ async def test_close_batch_queue_backpressure_logs_warning(
             return str(time.time() - 60)
         return None
 
-    mock_redis_instance.get_with_retry.side_effect = mock_get
+    mock_redis_instance.get.side_effect = mock_get
 
     # Simulate queue at max capacity with DLQ overflow
-    mock_redis_instance.add_to_queue_safe_with_retry.return_value = QueueAddResult(
+    mock_redis_instance.add_to_queue_safe.return_value = QueueAddResult(
         success=True,
         queue_length=10000,
         moved_to_dlq_count=5,
@@ -978,10 +978,10 @@ async def test_close_batch_no_backpressure_no_warning(
             return str(time.time() - 60)
         return None
 
-    mock_redis_instance.get_with_retry.side_effect = mock_get
+    mock_redis_instance.get.side_effect = mock_get
 
     # Simulate successful queue with no backpressure
-    mock_redis_instance.add_to_queue_safe_with_retry.return_value = QueueAddResult(
+    mock_redis_instance.add_to_queue_safe.return_value = QueueAddResult(
         success=True,
         queue_length=100,
     )
