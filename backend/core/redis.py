@@ -15,6 +15,12 @@ from redis.asyncio.client import PubSub
 from redis.exceptions import ConnectionError, TimeoutError
 
 from backend.core.config import get_settings
+from backend.core.metrics import (
+    record_queue_items_dropped,
+    record_queue_items_moved_to_dlq,
+    record_queue_items_rejected,
+    record_queue_overflow,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -297,6 +303,9 @@ class RedisClient:
                         "policy": overflow_policy.value,
                     },
                 )
+                # Record metrics for queue overflow
+                record_queue_overflow(queue_name, overflow_policy.value)
+                record_queue_items_rejected(queue_name)
                 return QueueAddResult(
                     success=False,
                     queue_length=current_length,
@@ -333,6 +342,9 @@ class RedisClient:
                             "policy": overflow_policy.value,
                         },
                     )
+                    # Record metrics for queue overflow
+                    record_queue_overflow(queue_name, overflow_policy.value)
+                    record_queue_items_moved_to_dlq(queue_name, moved_count)
 
                 # Now add the new item
                 new_length = cast("int", await client.rpush(queue_name, serialized))  # type: ignore[misc]
@@ -362,6 +374,9 @@ class RedisClient:
                         },
                     )
                     await client.ltrim(queue_name, -max_size, -1)  # type: ignore[misc]
+                    # Record metrics for queue overflow
+                    record_queue_overflow(queue_name, overflow_policy.value)
+                    record_queue_items_dropped(queue_name, dropped_count)
 
                 return QueueAddResult(
                     success=True,

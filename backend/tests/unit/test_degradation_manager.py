@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from backend.core.redis import QueueAddResult
 from backend.services.degradation_manager import (
     DegradationManager,
     DegradationMode,
@@ -144,6 +145,9 @@ class TestDegradationManager:
         """Create a mock Redis client."""
         redis = MagicMock()
         redis.add_to_queue = AsyncMock(return_value=1)
+        redis.add_to_queue_safe = AsyncMock(
+            return_value=QueueAddResult(success=True, queue_length=1)
+        )
         redis.get_from_queue = AsyncMock(return_value=None)
         redis.get_queue_length = AsyncMock(return_value=0)
         redis.ping = AsyncMock(return_value=True)
@@ -315,7 +319,7 @@ class TestDegradationManager:
         success = await manager.queue_job_for_later("detection", job_data)
 
         assert success is True
-        mock_redis.add_to_queue.assert_called_once()
+        mock_redis.add_to_queue_safe.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_queue_job_without_redis(self) -> None:
@@ -481,6 +485,9 @@ class TestDegradationManagerRecovery:
         """Create a mock Redis client."""
         redis = MagicMock()
         redis.add_to_queue = AsyncMock(return_value=1)
+        redis.add_to_queue_safe = AsyncMock(
+            return_value=QueueAddResult(success=True, queue_length=1)
+        )
         redis.get_from_queue = AsyncMock(return_value=None)
         redis.get_queue_length = AsyncMock(return_value=0)
         redis.ping = AsyncMock(return_value=True)
@@ -553,6 +560,9 @@ class TestDegradationManagerModes:
         redis = MagicMock()
         redis.ping = AsyncMock(return_value=True)
         redis.add_to_queue = AsyncMock(return_value=1)
+        redis.add_to_queue_safe = AsyncMock(
+            return_value=QueueAddResult(success=True, queue_length=1)
+        )
         return redis
 
     def test_mode_affects_behavior(self, mock_redis: MagicMock) -> None:
@@ -666,9 +676,11 @@ class TestInMemoryJobQueue:
 
         assert manager.get_queued_job_count() == 2
 
-        # Add Redis
+        # Add Redis - now need to mock add_to_queue_safe which returns QueueAddResult
         mock_redis = MagicMock()
-        mock_redis.add_to_queue = AsyncMock(return_value=1)
+        mock_redis.add_to_queue_safe = AsyncMock(
+            return_value=QueueAddResult(success=True, queue_length=1)
+        )
         manager._redis = mock_redis
 
         # Drain to Redis
@@ -686,6 +698,9 @@ class TestDegradationMinimalMode:
         redis = MagicMock()
         redis.ping = AsyncMock(return_value=True)
         redis.add_to_queue = AsyncMock(return_value=1)
+        redis.add_to_queue_safe = AsyncMock(
+            return_value=QueueAddResult(success=True, queue_length=1)
+        )
         return redis
 
     @pytest.mark.asyncio

@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from backend.core.redis import QueueAddResult
 from backend.services.retry_handler import (
     DLQStats,
     JobFailure,
@@ -152,6 +153,9 @@ class TestRetryHandler:
         """Create a mock Redis client."""
         redis = MagicMock()
         redis.add_to_queue = AsyncMock(return_value=1)
+        redis.add_to_queue_safe = AsyncMock(
+            return_value=QueueAddResult(success=True, queue_length=1)
+        )
         redis.get_from_queue = AsyncMock(return_value=None)
         redis.get_queue_length = AsyncMock(return_value=0)
         redis.peek_queue = AsyncMock(return_value=[])
