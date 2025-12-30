@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:e2e": "vite --config vite.config.e2e.ts",
     "build": "tsc && vite build",
     "lint": "eslint src --ext ts,tsx --max-warnings 0",
     "lint:fix": "eslint src --ext ts,tsx --fix",

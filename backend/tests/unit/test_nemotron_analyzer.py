@@ -1034,3 +1034,271 @@ async def test_analyze_detection_fast_path_broadcast_called(
     assert data["event_id"] == event.id
     assert data["risk_score"] == 85
     assert data["risk_level"] == "critical"
+
+
+# Test: Detection ID Type Conversion (string to int round-trip)
+
+
+@pytest.mark.asyncio
+async def test_analyze_batch_string_detection_ids_converted_to_int(
+    analyzer, mock_redis_client, isolated_db, sample_detections_factory
+):
+    """Test that string detection IDs from Redis are properly converted to integers.
+
+    This tests the round-trip: detection IDs are stored as strings in Redis batch queue
+    (see pipeline_workers.py lines 363, 468 and batch_aggregator.py line 140),
+    but must be converted to integers for database queries.
+    """
+    # Use unique IDs for test isolation
+    batch_id = unique_id("batch")
+    camera_id = unique_id("camera")
+    base_det_id = random.randint(100000, 999999)  # noqa: S311
+
+    # Simulate detection IDs stored as STRINGS in Redis (as they are in actual pipeline)
+    string_detection_ids = [str(base_det_id), str(base_det_id + 1), str(base_det_id + 2)]
+
+    # Create detections with matching integer IDs
+    detections = sample_detections_factory(camera_id, start_id=base_det_id)
+
+    # Setup Redis mocks - detection_ids come as JSON list of strings
+    async def mock_get(key):
+        if f"batch:{batch_id}:camera_id" in key:
+            return camera_id
+        elif f"batch:{batch_id}:detections" in key:
+            # This is the critical test: IDs are stored as strings in Redis
+            return json.dumps(string_detection_ids)
+        elif f"batch:{batch_id}:started_at" in key:
+            return "1703341800.0"
+        return None
+
+    mock_redis_client.get.side_effect = mock_get
+
+    # Setup database with camera and detections
+    from backend.core.database import get_session
+
+    async with get_session() as session:
+        camera = Camera(
+            id=camera_id,
+            name="Front Door",
+            folder_path=f"/export/foscam/{camera_id}",
+        )
+        session.add(camera)
+        for det in detections:
+            session.add(det)
+        await session.commit()
+
+    # Mock LLM call
+    mock_llm_response = {
+        "content": json.dumps(
+            {
+                "risk_score": 65,
+                "risk_level": "high",
+                "summary": "Test with string IDs",
+                "reasoning": "Verifies string-to-int conversion",
+            }
+        )
+    }
+
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = mock_llm_response
+        mock_post.return_value = mock_resp
+
+        # This should succeed - string IDs are converted to ints for DB query
+        event = await analyzer.analyze_batch(batch_id)
+
+    # Verify event was created successfully
+    assert event is not None
+    assert event.batch_id == batch_id
+    assert event.risk_score == 65
+
+    # Verify detection_ids are stored as integers in the event
+    stored_ids = json.loads(event.detection_ids)
+    assert stored_ids == [base_det_id, base_det_id + 1, base_det_id + 2]
+    assert all(isinstance(d, int) for d in stored_ids)
+
+
+@pytest.mark.asyncio
+async def test_analyze_batch_invalid_detection_id_raises_clear_error(
+    analyzer, mock_redis_client, isolated_db
+):
+    """Test that invalid (non-numeric) detection IDs raise a clear error.
+
+    If somehow a non-numeric string gets into the detection_ids list,
+    the conversion should fail with an informative error message.
+    """
+    batch_id = unique_id("batch")
+    camera_id = unique_id("camera")
+
+    # Setup Redis mocks with invalid detection IDs
+    async def mock_get(key):
+        if f"batch:{batch_id}:camera_id" in key:
+            return camera_id
+        elif f"batch:{batch_id}:detections" in key:
+            # Invalid: contains non-numeric string
+            return json.dumps(["123", "not_a_number", "456"])
+        elif f"batch:{batch_id}:started_at" in key:
+            return "1703341800.0"
+        return None
+
+    mock_redis_client.get.side_effect = mock_get
+
+    # Setup database with camera
+    from backend.core.database import get_session
+
+    async with get_session() as session:
+        camera = Camera(
+            id=camera_id,
+            name="Front Door",
+            folder_path=f"/export/foscam/{camera_id}",
+        )
+        session.add(camera)
+        await session.commit()
+
+    # Should raise ValueError with clear error message
+    with pytest.raises(ValueError, match=r"Invalid detection_id in batch"):
+        await analyzer.analyze_batch(batch_id)
+
+
+@pytest.mark.asyncio
+async def test_analyze_batch_mixed_int_and_string_detection_ids(
+    analyzer, mock_redis_client, isolated_db, sample_detections_factory
+):
+    """Test that analyze_batch handles mixed int/string detection IDs.
+
+    The detection_ids list might contain both integers and strings
+    (e.g., from different code paths). Both should be converted correctly.
+    """
+    batch_id = unique_id("batch")
+    camera_id = unique_id("camera")
+    base_det_id = random.randint(100000, 999999)  # noqa: S311
+
+    # Mixed int and string IDs (both should work)
+    mixed_detection_ids = [base_det_id, str(base_det_id + 1), base_det_id + 2]
+
+    # Create detections with matching integer IDs
+    detections = sample_detections_factory(camera_id, start_id=base_det_id)
+
+    # Setup Redis mocks
+    async def mock_get(key):
+        if f"batch:{batch_id}:camera_id" in key:
+            return camera_id
+        elif f"batch:{batch_id}:detections" in key:
+            return json.dumps(mixed_detection_ids)
+        elif f"batch:{batch_id}:started_at" in key:
+            return "1703341800.0"
+        return None
+
+    mock_redis_client.get.side_effect = mock_get
+
+    # Setup database
+    from backend.core.database import get_session
+
+    async with get_session() as session:
+        camera = Camera(
+            id=camera_id,
+            name="Front Door",
+            folder_path=f"/export/foscam/{camera_id}",
+        )
+        session.add(camera)
+        for det in detections:
+            session.add(det)
+        await session.commit()
+
+    # Mock LLM call
+    mock_llm_response = {
+        "content": json.dumps(
+            {
+                "risk_score": 55,
+                "risk_level": "medium",
+                "summary": "Mixed ID types test",
+                "reasoning": "Test reasoning",
+            }
+        )
+    }
+
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = mock_llm_response
+        mock_post.return_value = mock_resp
+
+        # Should succeed with mixed int/string IDs
+        event = await analyzer.analyze_batch(batch_id)
+
+    assert event is not None
+    assert event.risk_score == 55
+
+    # Verify all detection_ids are stored as integers
+    stored_ids = json.loads(event.detection_ids)
+    assert stored_ids == [base_det_id, base_det_id + 1, base_det_id + 2]
+    assert all(isinstance(d, int) for d in stored_ids)
+
+
+@pytest.mark.asyncio
+async def test_analyze_batch_with_direct_detection_ids_parameter(
+    analyzer, mock_redis_client, isolated_db, sample_detections_factory
+):
+    """Test analyze_batch when detection_ids are passed directly (not from Redis).
+
+    When called from AnalysisQueueWorker, detection_ids are passed directly
+    from the queue payload. These may be strings and need conversion.
+    """
+    batch_id = unique_id("batch")
+    camera_id = unique_id("camera")
+    base_det_id = random.randint(100000, 999999)  # noqa: S311
+
+    # String IDs passed directly (simulating queue payload)
+    direct_string_ids = [str(base_det_id), str(base_det_id + 1)]
+
+    # Create detections
+    detections = sample_detections_factory(camera_id, start_id=base_det_id)
+
+    # Setup database
+    from backend.core.database import get_session
+
+    async with get_session() as session:
+        camera = Camera(
+            id=camera_id,
+            name="Front Door",
+            folder_path=f"/export/foscam/{camera_id}",
+        )
+        session.add(camera)
+        for det in detections[:2]:  # Only first two detections
+            session.add(det)
+        await session.commit()
+
+    # Mock LLM call
+    mock_llm_response = {
+        "content": json.dumps(
+            {
+                "risk_score": 70,
+                "risk_level": "high",
+                "summary": "Direct IDs test",
+                "reasoning": "Test",
+            }
+        )
+    }
+
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = mock_llm_response
+        mock_post.return_value = mock_resp
+
+        # Call with direct detection_ids parameter (bypasses Redis lookup)
+        event = await analyzer.analyze_batch(
+            batch_id=batch_id,
+            camera_id=camera_id,
+            detection_ids=direct_string_ids,
+        )
+
+    assert event is not None
+    assert event.batch_id == batch_id
+    assert event.camera_id == camera_id
+    assert event.risk_score == 70
+
+    # Verify stored IDs are integers
+    stored_ids = json.loads(event.detection_ids)
+    assert stored_ids == [base_det_id, base_det_id + 1]

@@ -124,7 +124,13 @@ class NemotronAnalyzer:
 
             # Get detection details
             # Convert detection_ids to integers (may come as strings from queue payload)
-            int_detection_ids = [int(d) for d in detection_ids]
+            try:
+                int_detection_ids = [int(d) for d in detection_ids]
+            except (ValueError, TypeError) as e:
+                raise ValueError(
+                    f"Invalid detection_id in batch {batch_id}: {e}. "
+                    f"Detection IDs must be numeric (got: {detection_ids})"
+                ) from None
             detections_result = await session.execute(
                 select(Detection).where(Detection.id.in_(int_detection_ids))
             )

@@ -65,8 +65,11 @@ export default defineConfig({
   ],
 
   // Run your local dev server before starting the tests
+  // Uses dev:e2e which runs Vite without the API proxy, allowing Playwright's
+  // page.route() to intercept API requests directly instead of Vite's proxy
+  // trying to forward them to localhost:8000 (causing ECONNREFUSED in CI)
   webServer: {
-    command: 'npm run dev',
+    command: 'npm run dev:e2e',
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,

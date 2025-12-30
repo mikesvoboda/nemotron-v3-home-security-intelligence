@@ -2,8 +2,12 @@
 #
 # Unified Test Runner
 # Runs all tests with code coverage enforcement:
-#   - Backend: 95% coverage (via pytest --cov-fail-under)
+#   - Backend: 95% combined coverage (via pytest --cov-fail-under)
 #   - Frontend: 92-93% thresholds (via vitest coverage thresholds in vite.config.ts)
+#
+# Note: CI enforces separate thresholds per test type:
+#   - Unit tests: 93% (stricter for isolated tests)
+#   - Integration tests: 85% (allows for mocked external dependencies)
 #
 
 set -e

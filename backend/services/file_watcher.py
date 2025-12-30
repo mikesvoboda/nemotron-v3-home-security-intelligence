@@ -52,6 +52,7 @@ from watchdog.observers import Observer
 # inotify events may not propagate.
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
+from backend.core.redis import QueueOverflowPolicy
 from backend.models.camera import Camera, normalize_camera_id
 from backend.services.dedupe import DedupeService
 
@@ -552,7 +553,38 @@ class FileWatcher:
         if file_hash:
             detection_data["file_hash"] = file_hash
 
-        await self.redis_client.add_to_queue(self.queue_name, detection_data)
+        # Use add_to_queue_safe() with DLQ policy to prevent silent data loss
+        # If the queue is full, items are moved to a dead-letter queue instead of being dropped
+        result = await self.redis_client.add_to_queue_safe(
+            self.queue_name,
+            detection_data,
+            overflow_policy=QueueOverflowPolicy.DLQ,
+        )
+
+        if not result.success:
+            logger.error(
+                f"Failed to queue detection for {file_path}: {result.error}",
+                extra={
+                    "camera_id": camera_id,
+                    "file_path": file_path,
+                    "queue_name": self.queue_name,
+                    "queue_length": result.queue_length,
+                },
+            )
+            raise RuntimeError(f"Queue operation failed: {result.error}")
+
+        if result.had_backpressure:
+            logger.warning(
+                f"Queue backpressure detected while adding detection for {file_path}",
+                extra={
+                    "camera_id": camera_id,
+                    "file_path": file_path,
+                    "queue_name": self.queue_name,
+                    "queue_length": result.queue_length,
+                    "moved_to_dlq": result.moved_to_dlq_count,
+                    "warning": result.warning,
+                },
+            )
 
     async def start(self) -> None:
         """Start watching camera directories for file changes.

@@ -5,10 +5,49 @@ import { test, expect } from '@playwright/test';
  *
  * These tests verify that real-time features work correctly.
  * WebSocket connections are mocked to simulate real-time events.
+ *
+ * IMPORTANT: Route handlers are matched in the order they are registered.
+ * More specific routes must be registered BEFORE more general routes.
  */
 
 // Helper function to set up common API mocks
 async function setupApiMocks(page: import('@playwright/test').Page) {
+  // Mock the GPU history endpoint FIRST (more specific than /api/system/gpu)
+  await page.route('**/api/system/gpu/history*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        samples: [
+          {
+            utilization: 45,
+            memory_used: 8192,
+            memory_total: 24576,
+            temperature: 52,
+            inference_fps: 12.5,
+            recorded_at: new Date().toISOString(),
+          },
+        ],
+        total: 1,
+        limit: 100,
+      }),
+    });
+  });
+
+  // Mock camera snapshot endpoint BEFORE general cameras endpoint
+  await page.route('**/api/cameras/*/snapshot*', async (route) => {
+    // Return a 1x1 transparent PNG for camera snapshots
+    const transparentPng = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      'base64'
+    );
+    await route.fulfill({
+      status: 200,
+      contentType: 'image/png',
+      body: transparentPng,
+    });
+  });
+
   // Mock the cameras endpoint - returns { cameras: [...] }
   await page.route('**/api/cameras', async (route) => {
     await route.fulfill({
@@ -44,32 +83,32 @@ async function setupApiMocks(page: import('@playwright/test').Page) {
     });
   });
 
+  // Mock the events stats endpoint BEFORE general events endpoint
+  await page.route('**/api/events/stats*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        total_events: 0,
+        events_by_risk_level: { low: 0, medium: 0, high: 0, critical: 0 },
+        events_by_camera: {},
+        average_risk_score: 0,
+      }),
+    });
+  });
+
   // Mock the events endpoint - returns { events: [...], total, ... }
   await page.route('**/api/events*', async (route) => {
-    // Check if this is the stats endpoint
-    if (route.request().url().includes('/stats')) {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          total_events: 0,
-          events_by_risk_level: { low: 0, medium: 0, high: 0, critical: 0 },
-          events_by_camera: {},
-          average_risk_score: 0,
-        }),
-      });
-    } else {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          events: [],
-          total: 0,
-          limit: 20,
-          offset: 0,
-        }),
-      });
-    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        events: [],
+        total: 0,
+        limit: 20,
+        offset: 0,
+      }),
+    });
   });
 
   // Mock the system config endpoint
@@ -121,8 +160,7 @@ test.describe('Real-time Updates', () => {
     await setupApiMocks(page);
   });
 
-  // TODO: Fix API mocking for dashboard tests - ECONNREFUSED in CI
-  test.skip('dashboard shows disconnected state when WebSocket fails', async ({ page }) => {
+  test('dashboard shows disconnected state when WebSocket fails', async ({ page }) => {
     await page.goto('/');
 
     // Wait for dashboard to load
@@ -135,8 +173,7 @@ test.describe('Real-time Updates', () => {
     await expect(page.getByText(/Disconnected/i)).toBeVisible({ timeout: 10000 });
   });
 
-  // TODO: Fix API mocking for dashboard tests - ECONNREFUSED in CI
-  test.skip('activity feed shows empty state when no events', async ({ page }) => {
+  test('activity feed shows empty state when no events', async ({ page }) => {
     await page.goto('/');
 
     // Wait for dashboard to load
@@ -151,8 +188,7 @@ test.describe('Real-time Updates', () => {
     await expect(page.getByText(/No activity/i)).toBeVisible();
   });
 
-  // TODO: Fix API mocking for dashboard tests - ECONNREFUSED in CI
-  test.skip('dashboard displays GPU stats from API', async ({ page }) => {
+  test('dashboard displays GPU stats from API', async ({ page }) => {
     await page.goto('/');
 
     // Wait for dashboard to load
@@ -171,8 +207,7 @@ test.describe('Connection Status Indicators', () => {
     await setupApiMocks(page);
   });
 
-  // TODO: Fix API mocking for dashboard tests - ECONNREFUSED in CI
-  test.skip('header shows system status indicator', async ({ page }) => {
+  test('header shows system status indicator', async ({ page }) => {
     await page.goto('/');
 
     // Wait for dashboard to load
@@ -200,7 +235,15 @@ test.describe('Error Handling', () => {
       });
     });
 
-    await page.route('**/api/system/gpu', async (route) => {
+    await page.route('**/api/system/gpu*', async (route) => {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Internal server error' }),
+      });
+    });
+
+    await page.route('**/api/events*', async (route) => {
       await route.fulfill({
         status: 500,
         contentType: 'application/json',

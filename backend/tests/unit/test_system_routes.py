@@ -137,26 +137,41 @@ async def test_get_liveness_has_no_dependencies() -> None:
 @pytest.mark.asyncio
 async def test_get_readiness_all_healthy() -> None:
     """Test readiness endpoint when all services are healthy."""
+    original_pipeline_manager = system_routes._pipeline_manager
     mock_response = Response()
 
-    db = AsyncMock()
-    # Mock successful database query
-    mock_result = MagicMock()
-    mock_result.scalar_one.return_value = 5
-    db.execute = AsyncMock(return_value=mock_result)
+    try:
+        # Mock pipeline manager with running workers (required for ready status)
+        mock_manager = MagicMock()
+        mock_manager.get_status.return_value = {
+            "running": True,
+            "workers": {
+                "detection": {"state": "running"},
+                "analysis": {"state": "running"},
+            },
+        }
+        system_routes._pipeline_manager = mock_manager
 
-    redis = AsyncMock()
-    redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
+        db = AsyncMock()
+        # Mock successful database query
+        mock_result = MagicMock()
+        mock_result.scalar_one.return_value = 5
+        db.execute = AsyncMock(return_value=mock_result)
 
-    response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
+        redis = AsyncMock()
+        redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
 
-    assert isinstance(response, ReadinessResponse)
-    assert response.ready is True
-    assert response.status == "ready"
-    assert response.services["database"].status == "healthy"
-    assert response.services["redis"].status == "healthy"
-    assert response.timestamp is not None
-    assert mock_response.status_code == 200
+        response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
+
+        assert isinstance(response, ReadinessResponse)
+        assert response.ready is True
+        assert response.status == "ready"
+        assert response.services["database"].status == "healthy"
+        assert response.services["redis"].status == "healthy"
+        assert response.timestamp is not None
+        assert mock_response.status_code == 200
+    finally:
+        system_routes._pipeline_manager = original_pipeline_manager
 
 
 @pytest.mark.asyncio
@@ -634,14 +649,19 @@ def test_are_critical_pipeline_workers_healthy_manager_not_running() -> None:
 
 
 def test_are_critical_pipeline_workers_healthy_no_manager() -> None:
-    """Test _are_critical_pipeline_workers_healthy returns True when no manager registered."""
+    """Test _are_critical_pipeline_workers_healthy returns False when no manager registered.
+
+    If the pipeline manager failed to initialize, the system cannot process detections,
+    so it should report as not healthy. This prevents the container from accepting
+    traffic when it can't actually process images.
+    """
     original_pipeline_manager = system_routes._pipeline_manager
 
     try:
         system_routes._pipeline_manager = None
 
-        # Should return True for graceful degradation
-        assert system_routes._are_critical_pipeline_workers_healthy() is True
+        # Should return False - system cannot process detections without pipeline manager
+        assert system_routes._are_critical_pipeline_workers_healthy() is False
 
     finally:
         system_routes._pipeline_manager = original_pipeline_manager
@@ -805,6 +825,51 @@ async def test_get_readiness_includes_worker_status() -> None:
         system_routes._gpu_monitor = original_gpu
 
 
+@pytest.mark.asyncio
+async def test_get_readiness_not_ready_when_pipeline_manager_is_none() -> None:
+    """Test readiness returns not_ready when pipeline_manager is None.
+
+    If the pipeline manager failed to initialize (e.g., due to startup error),
+    the system cannot process detections and should not accept traffic.
+    This is a P0 critical fix to prevent containers from accepting traffic
+    when they cannot actually process images.
+    """
+    original_pipeline_manager = system_routes._pipeline_manager
+    original_gpu = system_routes._gpu_monitor
+    mock_response = Response()
+
+    try:
+        # Set pipeline manager to None (simulating failed initialization)
+        system_routes._pipeline_manager = None
+        system_routes._gpu_monitor = None
+        system_routes._cleanup_service = None
+        system_routes._system_broadcaster = None
+        system_routes._file_watcher = None
+
+        db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one.return_value = 5
+        db.execute = AsyncMock(return_value=mock_result)
+
+        redis = AsyncMock()
+        redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
+
+        response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
+
+        assert isinstance(response, ReadinessResponse)
+        # Even though database and Redis are healthy, system should NOT be ready
+        # because pipeline manager is None (can't process images)
+        assert response.ready is False
+        assert response.status == "not_ready"
+        assert response.services["database"].status == "healthy"
+        assert response.services["redis"].status == "healthy"
+        assert mock_response.status_code == 503
+
+    finally:
+        system_routes._pipeline_manager = original_pipeline_manager
+        system_routes._gpu_monitor = original_gpu
+
+
 # =============================================================================
 # Health Check Timeout Tests
 # =============================================================================
@@ -870,41 +935,56 @@ async def test_get_readiness_redis_timeout() -> None:
 @pytest.mark.asyncio
 async def test_get_readiness_ai_services_timeout() -> None:
     """Test readiness endpoint when AI services health check times out."""
+    original_pipeline_manager = system_routes._pipeline_manager
     mock_response = Response()
 
-    db = AsyncMock()
-    mock_result = MagicMock()
-    mock_result.scalar_one.return_value = 5
-    db.execute = AsyncMock(return_value=mock_result)
+    try:
+        # Mock pipeline manager with running workers (required for ready status)
+        mock_manager = MagicMock()
+        mock_manager.get_status.return_value = {
+            "running": True,
+            "workers": {
+                "detection": {"state": "running"},
+                "analysis": {"state": "running"},
+            },
+        }
+        system_routes._pipeline_manager = mock_manager
 
-    redis = AsyncMock()
-    redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
+        db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one.return_value = 5
+        db.execute = AsyncMock(return_value=mock_result)
 
-    async def slow_ai_health_check():
-        """Simulate a slow AI services health check that will timeout."""
-        await asyncio.sleep(10)  # Much longer than the timeout
-        # This return is never reached due to timeout
-        return system_routes.ServiceStatus(
-            status="healthy", message="AI services operational", details=None
-        )
+        redis = AsyncMock()
+        redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
 
-    # Use a short timeout for testing
-    with (
-        patch.object(system_routes, "HEALTH_CHECK_TIMEOUT_SECONDS", 0.1),
-        patch.object(system_routes, "check_ai_services_health", slow_ai_health_check),
-    ):
-        response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
+        async def slow_ai_health_check():
+            """Simulate a slow AI services health check that will timeout."""
+            await asyncio.sleep(10)  # Much longer than the timeout
+            # This return is never reached due to timeout
+            return system_routes.ServiceStatus(
+                status="healthy", message="AI services operational", details=None
+            )
 
-    assert isinstance(response, ReadinessResponse)
-    # Database and Redis are healthy, so system should be ready
-    # but AI services timeout should be reflected
-    assert response.ready is True
-    assert response.status == "ready"
-    assert response.services["database"].status == "healthy"
-    assert response.services["redis"].status == "healthy"
-    assert response.services["ai"].status == "unhealthy"
-    assert "timed out" in response.services["ai"].message
-    assert mock_response.status_code == 200
+        # Use a short timeout for testing
+        with (
+            patch.object(system_routes, "HEALTH_CHECK_TIMEOUT_SECONDS", 0.1),
+            patch.object(system_routes, "check_ai_services_health", slow_ai_health_check),
+        ):
+            response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
+
+        assert isinstance(response, ReadinessResponse)
+        # Database and Redis are healthy, so system should be ready
+        # but AI services timeout should be reflected
+        assert response.ready is True
+        assert response.status == "ready"
+        assert response.services["database"].status == "healthy"
+        assert response.services["redis"].status == "healthy"
+        assert response.services["ai"].status == "unhealthy"
+        assert "timed out" in response.services["ai"].message
+        assert mock_response.status_code == 200
+    finally:
+        system_routes._pipeline_manager = original_pipeline_manager
 
 
 @pytest.mark.asyncio

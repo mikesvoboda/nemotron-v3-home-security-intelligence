@@ -26,7 +26,7 @@ from typing import Any
 
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
-from backend.core.redis import RedisClient
+from backend.core.redis import QueueOverflowPolicy, RedisClient
 
 logger = get_logger(__name__)
 
@@ -298,7 +298,41 @@ class BatchAggregator:
                 "timestamp": time.time(),
             }
 
-            await self._redis.add_to_queue(self._analysis_queue, queue_item)
+            # Use add_to_queue_safe() with DLQ policy to prevent silent data loss
+            # If the queue is full, items are moved to a dead-letter queue instead of being dropped
+            result = await self._redis.add_to_queue_safe(
+                self._analysis_queue,
+                queue_item,
+                overflow_policy=QueueOverflowPolicy.DLQ,
+            )
+
+            if not result.success:
+                logger.error(
+                    f"Failed to push batch {batch_id} to analysis queue: {result.error}",
+                    extra={
+                        "camera_id": camera_id,
+                        "batch_id": batch_id,
+                        "detection_count": len(detections),
+                        "queue_name": self._analysis_queue,
+                        "queue_length": result.queue_length,
+                    },
+                )
+                raise RuntimeError(f"Queue operation failed: {result.error}")
+
+            if result.had_backpressure:
+                logger.warning(
+                    f"Queue backpressure detected while pushing batch {batch_id}",
+                    extra={
+                        "camera_id": camera_id,
+                        "batch_id": batch_id,
+                        "detection_count": len(detections),
+                        "queue_name": self._analysis_queue,
+                        "queue_length": result.queue_length,
+                        "moved_to_dlq": result.moved_to_dlq_count,
+                        "warning": result.warning,
+                    },
+                )
+
             logger.info(
                 f"Pushed batch {batch_id} to analysis queue "
                 f"(camera: {camera_id}, detections: {len(detections)})",

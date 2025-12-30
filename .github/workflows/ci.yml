@@ -113,6 +113,7 @@ jobs:
           exit 1
 
       - name: Run unit tests with coverage
+        # Unit tests have 93% coverage threshold - highest standard for isolated tests
         run: |
           pytest backend/tests/unit/ \
             --cov=backend \
@@ -208,12 +209,15 @@ jobs:
           exit 1
 
       - name: Run integration tests with coverage
+        # Integration tests have 85% coverage threshold (vs 93% for unit tests)
+        # Integration tests cover cross-component interactions and may have
+        # lower coverage due to mocked external dependencies (DB, Redis, AI services)
         run: |
           pytest backend/tests/integration/ \
             --cov=backend \
             --cov-report=xml:coverage-integration.xml \
             --cov-report=term-missing \
-            --cov-fail-under=0 \
+            --cov-fail-under=85 \
             -v
 
       - name: Upload integration test coverage

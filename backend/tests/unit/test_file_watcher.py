@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from PIL import Image
 
+from backend.core.redis import QueueAddResult, QueueOverflowPolicy
 from backend.models.camera import Camera, normalize_camera_id
 from backend.services.dedupe import DedupeService
 from backend.services.file_watcher import (
@@ -34,7 +35,12 @@ def temp_camera_root(tmp_path):
 def mock_redis_client():
     """Mock Redis client."""
     mock_client = AsyncMock()
+    # Legacy method (deprecated)
     mock_client.add_to_queue = AsyncMock(return_value=1)
+    # Safe method with backpressure handling
+    mock_client.add_to_queue_safe = AsyncMock(
+        return_value=QueueAddResult(success=True, queue_length=1)
+    )
     return mock_client
 
 
@@ -268,15 +274,17 @@ async def test_process_file_valid_image(file_watcher, temp_camera_root, mock_red
 
     await file_watcher._process_file(str(image_path))
 
-    # Verify Redis queue was called with correct data
-    mock_redis_client.add_to_queue.assert_awaited_once()
-    call_args = mock_redis_client.add_to_queue.call_args[0]
+    # Verify Redis queue was called with correct data (using add_to_queue_safe)
+    mock_redis_client.add_to_queue_safe.assert_awaited_once()
+    call_args = mock_redis_client.add_to_queue_safe.call_args
 
-    assert call_args[0] == "detection_queue"
-    data = call_args[1]
+    assert call_args[0][0] == "detection_queue"
+    data = call_args[0][1]
     assert data["camera_id"] == "camera1"
     assert data["file_path"] == str(image_path)
     assert "timestamp" in data
+    # Verify DLQ policy is used
+    assert call_args[1]["overflow_policy"] == QueueOverflowPolicy.DLQ
 
 
 @pytest.mark.asyncio
@@ -289,7 +297,7 @@ async def test_process_file_non_image(file_watcher, temp_camera_root, mock_redis
     await file_watcher._process_file(str(text_file))
 
     # Should not queue non-image files
-    mock_redis_client.add_to_queue.assert_not_awaited()
+    mock_redis_client.add_to_queue_safe.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -302,7 +310,7 @@ async def test_process_file_invalid_image(file_watcher, temp_camera_root, mock_r
     await file_watcher._process_file(str(invalid_image))
 
     # Should not queue invalid images
-    mock_redis_client.add_to_queue.assert_not_awaited()
+    mock_redis_client.add_to_queue_safe.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -315,7 +323,7 @@ async def test_process_file_empty_image(file_watcher, temp_camera_root, mock_red
     await file_watcher._process_file(str(empty_image))
 
     # Should not queue empty files
-    mock_redis_client.add_to_queue.assert_not_awaited()
+    mock_redis_client.add_to_queue_safe.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -325,7 +333,7 @@ async def test_process_file_no_camera_id(file_watcher, mock_redis_client):
     await file_watcher._process_file("/some/random/path/image.jpg")
 
     # Should not queue without camera ID
-    mock_redis_client.add_to_queue.assert_not_awaited()
+    mock_redis_client.add_to_queue_safe.assert_not_awaited()
 
 
 # Debounce tests
@@ -348,7 +356,7 @@ async def test_debounce_multiple_events(file_watcher, temp_camera_root, mock_red
     await asyncio.sleep(file_watcher.debounce_delay + 0.1)
 
     # Should only process once
-    assert mock_redis_client.add_to_queue.await_count == 1
+    assert mock_redis_client.add_to_queue_safe.await_count == 1
 
 
 @pytest.mark.asyncio
@@ -373,7 +381,7 @@ async def test_debounce_different_files(file_watcher, temp_camera_root, mock_red
     await asyncio.sleep(file_watcher.debounce_delay + 0.1)
 
     # Should process both files
-    assert mock_redis_client.add_to_queue.await_count == 2
+    assert mock_redis_client.add_to_queue_safe.await_count == 2
 
 
 # Start/Stop tests
@@ -538,11 +546,11 @@ async def test_full_workflow(file_watcher, temp_camera_root, mock_redis_client):
         await asyncio.sleep(file_watcher.debounce_delay + 0.2)
 
         # Verify queue was called at least once (watchdog may trigger it too)
-        assert mock_redis_client.add_to_queue.await_count >= 1
+        assert mock_redis_client.add_to_queue_safe.await_count >= 1
 
         # Check that the image was queued with correct data
         found_correct_call = False
-        for call in mock_redis_client.add_to_queue.call_args_list:
+        for call in mock_redis_client.add_to_queue_safe.call_args_list:
             if len(call[0]) >= 2:
                 queue_name = call[0][0]
                 data = call[0][1]
@@ -591,7 +599,7 @@ async def test_process_file_no_camera_id_warning(file_watcher, temp_camera_root,
     await file_watcher._process_file(str(external_file))
 
     # Should not queue without camera ID
-    mock_redis_client.add_to_queue.assert_not_awaited()
+    mock_redis_client.add_to_queue_safe.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -602,10 +610,10 @@ async def test_process_file_queue_exception(file_watcher, temp_camera_root, mock
     img = Image.new("RGB", (100, 100), color="green")
     img.save(image_path)
 
-    # Mock add_to_queue to raise exception
-    mock_redis_client.add_to_queue.side_effect = Exception("Redis connection error")
+    # Mock add_to_queue_safe to raise exception
+    mock_redis_client.add_to_queue_safe.side_effect = Exception("Redis connection error")
 
-    # Should handle exception gracefully
+    # Should handle exception gracefully (exception is caught in _process_file)
     await file_watcher._process_file(str(image_path))
 
 
@@ -740,10 +748,10 @@ async def test_queue_for_detection_calls_dedupe(
     mock_dedupe_service.is_duplicate_and_mark.assert_called_once_with(str(image_path))
 
     # File should be queued
-    mock_redis_client.add_to_queue.assert_called_once()
+    mock_redis_client.add_to_queue_safe.assert_called_once()
 
     # Verify hash is included in queue data
-    call_args = mock_redis_client.add_to_queue.call_args[0]
+    call_args = mock_redis_client.add_to_queue_safe.call_args[0]
     queue_data = call_args[1]
     assert queue_data["file_hash"] == "hash123"
 
@@ -767,7 +775,7 @@ async def test_queue_for_detection_skips_duplicate(
     mock_dedupe_service.is_duplicate_and_mark.assert_called_once()
 
     # File should NOT be queued
-    mock_redis_client.add_to_queue.assert_not_called()
+    mock_redis_client.add_to_queue_safe.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -790,10 +798,10 @@ async def test_queue_for_detection_without_dedupe_service(temp_camera_root, mock
     await watcher._queue_for_detection("camera1", str(image_path))
 
     # File should still be queued (no dedupe)
-    mock_redis_client.add_to_queue.assert_called_once()
+    mock_redis_client.add_to_queue_safe.assert_called_once()
 
     # No file_hash in queue data since dedupe is disabled
-    call_args = mock_redis_client.add_to_queue.call_args[0]
+    call_args = mock_redis_client.add_to_queue_safe.call_args[0]
     queue_data = call_args[1]
     assert "file_hash" not in queue_data
 
@@ -820,7 +828,7 @@ async def test_duplicate_file_not_processed_twice(temp_camera_root, mock_redis_c
 
     # First queue - should succeed
     await watcher._queue_for_detection("camera1", str(image_path))
-    assert mock_redis_client.add_to_queue.await_count == 1
+    assert mock_redis_client.add_to_queue_safe.await_count == 1
 
     # Simulate Redis now having the key (marked as processed)
     mock_redis_client.exists.return_value = 1
@@ -828,7 +836,7 @@ async def test_duplicate_file_not_processed_twice(temp_camera_root, mock_redis_c
     # Second queue - should be deduplicated
     await watcher._queue_for_detection("camera1", str(image_path))
     # Queue count should still be 1 (not called again)
-    assert mock_redis_client.add_to_queue.await_count == 1
+    assert mock_redis_client.add_to_queue_safe.await_count == 1
 
 
 # Camera auto-creation tests
@@ -1003,8 +1011,8 @@ async def test_process_file_triggers_auto_create(
     assert camera.name == "Front Door"
 
     # File should be queued with normalized camera_id
-    mock_redis_client.add_to_queue.assert_awaited_once()
-    queue_data = mock_redis_client.add_to_queue.call_args[0][1]
+    mock_redis_client.add_to_queue_safe.assert_awaited_once()
+    queue_data = mock_redis_client.add_to_queue_safe.call_args[0][1]
     assert queue_data["camera_id"] == "front_door"
 
 
@@ -1030,6 +1038,130 @@ async def test_process_file_queues_with_normalized_id(temp_camera_root, mock_red
     await watcher._process_file(str(image_path))
 
     # File should be queued with normalized camera_id
-    mock_redis_client.add_to_queue.assert_awaited_once()
-    queue_data = mock_redis_client.add_to_queue.call_args[0][1]
+    mock_redis_client.add_to_queue_safe.assert_awaited_once()
+    queue_data = mock_redis_client.add_to_queue_safe.call_args[0][1]
     assert queue_data["camera_id"] == "back_yard_camera"
+
+
+# Queue overflow and backpressure tests
+
+
+@pytest.mark.asyncio
+async def test_queue_overflow_moves_to_dlq(temp_camera_root, mock_redis_client):
+    """Test that queue overflow moves items to DLQ instead of silently dropping."""
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        debounce_delay=0.1,
+    )
+
+    camera_dir = temp_camera_root / "camera1"
+    camera_dir.mkdir(exist_ok=True)
+    image_path = camera_dir / "test.jpg"
+    img = Image.new("RGB", (100, 100), color="blue")
+    img.save(image_path)
+
+    # Simulate queue at max capacity with DLQ overflow
+    mock_redis_client.add_to_queue_safe.return_value = QueueAddResult(
+        success=True,
+        queue_length=10000,
+        moved_to_dlq_count=1,
+        warning="Moved 1 items to DLQ due to overflow",
+    )
+
+    await watcher._queue_for_detection("camera1", str(image_path))
+
+    # Verify add_to_queue_safe was called with DLQ policy
+    mock_redis_client.add_to_queue_safe.assert_awaited_once()
+    call_kwargs = mock_redis_client.add_to_queue_safe.call_args[1]
+    assert call_kwargs["overflow_policy"] == QueueOverflowPolicy.DLQ
+
+
+@pytest.mark.asyncio
+async def test_queue_overflow_logs_backpressure_warning(
+    temp_camera_root, mock_redis_client, caplog
+):
+    """Test that queue backpressure is logged when overflow occurs."""
+    import logging
+
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        debounce_delay=0.1,
+    )
+
+    camera_dir = temp_camera_root / "camera1"
+    camera_dir.mkdir(exist_ok=True)
+    image_path = camera_dir / "test.jpg"
+    img = Image.new("RGB", (100, 100), color="red")
+    img.save(image_path)
+
+    # Simulate queue at max capacity with DLQ overflow
+    mock_redis_client.add_to_queue_safe.return_value = QueueAddResult(
+        success=True,
+        queue_length=10000,
+        moved_to_dlq_count=5,
+        warning="Moved 5 items to DLQ due to overflow",
+    )
+
+    with caplog.at_level(logging.WARNING):
+        await watcher._queue_for_detection("camera1", str(image_path))
+
+    # Verify backpressure warning was logged
+    assert any("backpressure" in record.message.lower() for record in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_queue_full_reject_raises_error(temp_camera_root, mock_redis_client):
+    """Test that queue rejection (when using REJECT policy) raises RuntimeError."""
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        debounce_delay=0.1,
+    )
+
+    camera_dir = temp_camera_root / "camera1"
+    camera_dir.mkdir(exist_ok=True)
+    image_path = camera_dir / "test.jpg"
+    img = Image.new("RGB", (100, 100), color="green")
+    img.save(image_path)
+
+    # Simulate queue full rejection
+    mock_redis_client.add_to_queue_safe.return_value = QueueAddResult(
+        success=False,
+        queue_length=10000,
+        error="Queue 'detection_queue' is full (10000/10000). Item rejected.",
+    )
+
+    with pytest.raises(RuntimeError, match="Queue operation failed"):
+        await watcher._queue_for_detection("camera1", str(image_path))
+
+
+@pytest.mark.asyncio
+async def test_queue_success_no_backpressure(temp_camera_root, mock_redis_client, caplog):
+    """Test that successful queue with no backpressure doesn't log warning."""
+    import logging
+
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        debounce_delay=0.1,
+    )
+
+    camera_dir = temp_camera_root / "camera1"
+    camera_dir.mkdir(exist_ok=True)
+    image_path = camera_dir / "test.jpg"
+    img = Image.new("RGB", (100, 100), color="yellow")
+    img.save(image_path)
+
+    # Simulate successful queue with no backpressure
+    mock_redis_client.add_to_queue_safe.return_value = QueueAddResult(
+        success=True,
+        queue_length=100,
+    )
+
+    with caplog.at_level(logging.WARNING):
+        await watcher._queue_for_detection("camera1", str(image_path))
+
+    # Verify no backpressure warning was logged
+    assert not any("backpressure" in record.message.lower() for record in caplog.records)

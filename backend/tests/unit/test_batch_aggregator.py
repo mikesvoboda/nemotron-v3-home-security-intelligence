@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from redis.asyncio import Redis
 
+from backend.core.redis import QueueAddResult, QueueOverflowPolicy
 from backend.services.batch_aggregator import BatchAggregator
 
 # Fixtures
@@ -48,7 +49,12 @@ def mock_redis_instance(mock_redis_client):
     mock_instance.set = AsyncMock(return_value=True)
     mock_instance.delete = AsyncMock(return_value=1)
     mock_instance.exists = AsyncMock(return_value=0)
+    # Legacy method (deprecated)
     mock_instance.add_to_queue = AsyncMock(return_value=1)
+    # Safe method with backpressure handling
+    mock_instance.add_to_queue_safe = AsyncMock(
+        return_value=QueueAddResult(success=True, queue_length=1)
+    )
     return mock_instance
 
 
@@ -200,7 +206,7 @@ async def test_check_batch_timeouts_window_exceeded(batch_aggregator, mock_redis
     assert batch_id in closed_batches
 
     # Should push to analysis queue
-    assert mock_redis_instance.add_to_queue.called
+    assert mock_redis_instance.add_to_queue_safe.called
 
 
 @pytest.mark.asyncio
@@ -271,7 +277,7 @@ async def test_check_batch_timeouts_no_timeout(batch_aggregator, mock_redis_inst
 
     # Should not close the batch
     assert len(closed_batches) == 0
-    assert not mock_redis_instance.add_to_queue.called
+    assert not mock_redis_instance.add_to_queue_safe.called
 
 
 # Test: Manual Batch Close
@@ -304,7 +310,7 @@ async def test_close_batch_success(batch_aggregator, mock_redis_instance):
     assert "detections" in summary
 
     # Should push to analysis queue
-    assert mock_redis_instance.add_to_queue.called
+    assert mock_redis_instance.add_to_queue_safe.called
 
     # Should delete batch keys
     assert mock_redis_instance.delete.called
@@ -345,7 +351,7 @@ async def test_close_batch_empty_detections(batch_aggregator, mock_redis_instanc
     assert summary["detection_count"] == 0
 
     # Should not push to analysis queue (no detections)
-    assert not mock_redis_instance.add_to_queue.called
+    assert not mock_redis_instance.add_to_queue_safe.called
 
 
 @pytest.mark.asyncio
@@ -410,8 +416,8 @@ async def test_close_batch_queue_format(batch_aggregator, mock_redis_instance):
     await batch_aggregator.close_batch(batch_id)
 
     # Verify queue was called with correct format
-    assert mock_redis_instance.add_to_queue.called
-    queue_call = mock_redis_instance.add_to_queue.call_args
+    assert mock_redis_instance.add_to_queue_safe.called
+    queue_call = mock_redis_instance.add_to_queue_safe.call_args
 
     # First arg should be "analysis_queue"
     assert queue_call[0][0] == "analysis_queue"
@@ -422,6 +428,9 @@ async def test_close_batch_queue_format(batch_aggregator, mock_redis_instance):
     assert queue_data["camera_id"] == camera_id
     assert queue_data["detection_ids"] == detections
     assert "timestamp" in queue_data
+
+    # Verify DLQ policy is used
+    assert queue_call[1]["overflow_policy"] == QueueOverflowPolicy.DLQ
 
 
 @pytest.mark.asyncio
@@ -818,3 +827,145 @@ async def test_add_detection_without_confidence_skips_fast_path(
 
     # Should use normal batching
     assert batch_id == "batch_no_confidence"
+
+
+# Queue overflow and backpressure tests
+
+
+@pytest.mark.asyncio
+async def test_close_batch_queue_overflow_moves_to_dlq(batch_aggregator, mock_redis_instance):
+    """Test that queue overflow during batch close moves items to DLQ."""
+    batch_id = "batch_overflow"
+    camera_id = "front_door"
+    detections = ["det_001", "det_002"]
+
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            return camera_id
+        elif key == f"batch:{batch_id}:detections":
+            return json.dumps(detections)
+        elif key == f"batch:{batch_id}:started_at":
+            return str(time.time() - 60)
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+
+    # Simulate queue at max capacity with DLQ overflow
+    mock_redis_instance.add_to_queue_safe.return_value = QueueAddResult(
+        success=True,
+        queue_length=10000,
+        moved_to_dlq_count=1,
+        warning="Moved 1 items to DLQ due to overflow",
+    )
+
+    summary = await batch_aggregator.close_batch(batch_id)
+
+    # Should still succeed
+    assert summary["batch_id"] == batch_id
+    assert summary["detection_count"] == len(detections)
+
+    # Verify add_to_queue_safe was called with DLQ policy
+    mock_redis_instance.add_to_queue_safe.assert_awaited_once()
+    call_kwargs = mock_redis_instance.add_to_queue_safe.call_args[1]
+    assert call_kwargs["overflow_policy"] == QueueOverflowPolicy.DLQ
+
+
+@pytest.mark.asyncio
+async def test_close_batch_queue_full_raises_error(batch_aggregator, mock_redis_instance):
+    """Test that queue rejection during batch close raises RuntimeError."""
+    batch_id = "batch_rejected"
+    camera_id = "front_door"
+    detections = ["det_001", "det_002"]
+
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            return camera_id
+        elif key == f"batch:{batch_id}:detections":
+            return json.dumps(detections)
+        elif key == f"batch:{batch_id}:started_at":
+            return str(time.time() - 60)
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+
+    # Simulate queue full rejection
+    mock_redis_instance.add_to_queue_safe.return_value = QueueAddResult(
+        success=False,
+        queue_length=10000,
+        error="Queue 'analysis_queue' is full (10000/10000). Item rejected.",
+    )
+
+    with pytest.raises(RuntimeError, match="Queue operation failed"):
+        await batch_aggregator.close_batch(batch_id)
+
+
+@pytest.mark.asyncio
+async def test_close_batch_queue_backpressure_logs_warning(
+    batch_aggregator, mock_redis_instance, caplog
+):
+    """Test that queue backpressure during batch close is logged."""
+    import logging
+
+    batch_id = "batch_backpressure"
+    camera_id = "front_door"
+    detections = ["det_001", "det_002"]
+
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            return camera_id
+        elif key == f"batch:{batch_id}:detections":
+            return json.dumps(detections)
+        elif key == f"batch:{batch_id}:started_at":
+            return str(time.time() - 60)
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+
+    # Simulate queue at max capacity with DLQ overflow
+    mock_redis_instance.add_to_queue_safe.return_value = QueueAddResult(
+        success=True,
+        queue_length=10000,
+        moved_to_dlq_count=5,
+        warning="Moved 5 items to DLQ due to overflow",
+    )
+
+    with caplog.at_level(logging.WARNING):
+        await batch_aggregator.close_batch(batch_id)
+
+    # Verify backpressure warning was logged
+    assert any("backpressure" in record.message.lower() for record in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_close_batch_no_backpressure_no_warning(
+    batch_aggregator, mock_redis_instance, caplog
+):
+    """Test that successful queue with no backpressure doesn't log warning."""
+    import logging
+
+    batch_id = "batch_success"
+    camera_id = "front_door"
+    detections = ["det_001", "det_002"]
+
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            return camera_id
+        elif key == f"batch:{batch_id}:detections":
+            return json.dumps(detections)
+        elif key == f"batch:{batch_id}:started_at":
+            return str(time.time() - 60)
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+
+    # Simulate successful queue with no backpressure
+    mock_redis_instance.add_to_queue_safe.return_value = QueueAddResult(
+        success=True,
+        queue_length=100,
+    )
+
+    with caplog.at_level(logging.WARNING):
+        await batch_aggregator.close_batch(batch_id)
+
+    # Verify no backpressure warning was logged
+    assert not any("backpressure" in record.message.lower() for record in caplog.records)
