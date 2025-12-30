@@ -540,6 +540,7 @@ jobs:
         run: |
           source .venv/bin/activate
           pip install -r backend/requirements.txt
+          pip install ruff mypy  # Dev tools needed by validate.sh
 
       - name: Install frontend dependencies
         run: cd frontend && npm ci
