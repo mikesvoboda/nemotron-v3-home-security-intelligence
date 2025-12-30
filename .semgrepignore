@@ -5,3 +5,8 @@
 # The configuration uses validated WebSocket upgrade maps that only allow "websocket" value
 # This prevents H2C smuggling while still enabling WebSocket functionality
 frontend/nginx.conf
+
+# Migration script - uses dynamic SQL for table introspection
+# This is an admin-only one-time migration tool (SQLite to PostgreSQL)
+# Not user-facing or production code, table names come from SQLAlchemy models
+scripts/migrate-sqlite-to-postgres.py
