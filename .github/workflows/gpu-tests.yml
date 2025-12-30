@@ -44,9 +44,11 @@ jobs:
       - name: Run AI inference benchmarks
         run: |
           source .venv/bin/activate
-          # Disable xdist to allow benchmarks (xdist auto-disables benchmarking)
+          # Disable xdist and override default opts to allow benchmarks
+          # (xdist auto-disables benchmarking, and pytest.ini has xdist options)
           pytest backend/tests/benchmarks/ \
             -p no:xdist \
+            -o "addopts=-v --strict-markers --tb=short --timeout=30" \
             --benchmark-only \
             --benchmark-json=gpu-benchmark.json \
             -v || [ $? -eq 5 ]
