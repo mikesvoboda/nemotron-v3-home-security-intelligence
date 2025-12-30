@@ -957,22 +957,25 @@ class TestEventBroadcastPipeline:
     """
 
     @pytest.mark.asyncio
-    async def test_channel_alignment(self):
+    async def test_channel_alignment(self, integration_env):
         """Verify NemotronAnalyzer and EventBroadcaster use the same Redis channel.
 
         This is the critical test that ensures the channel mismatch bug is fixed.
         """
-        from unittest.mock import AsyncMock, MagicMock
+        from unittest.mock import AsyncMock, MagicMock, patch
 
-        from backend.services.event_broadcaster import EventBroadcaster
+        from backend.services.event_broadcaster import EventBroadcaster, reset_broadcaster_state
         from backend.services.nemotron_analyzer import NemotronAnalyzer
+
+        # Reset global broadcaster state to ensure clean test
+        reset_broadcaster_state()
 
         # Create mock Redis client
         mock_redis = MagicMock()
         mock_redis.publish = AsyncMock(return_value=1)
 
-        # Create both services
-        broadcaster = EventBroadcaster(mock_redis)
+        # Create both services with explicit channel name
+        broadcaster = EventBroadcaster(mock_redis, channel_name="security_events")
         analyzer = NemotronAnalyzer(mock_redis)
 
         # The channel names should be the same
@@ -987,7 +990,7 @@ class TestEventBroadcastPipeline:
         # Reset mock
         mock_redis.publish.reset_mock()
 
-        # Broadcast through NemotronAnalyzer
+        # Broadcast through NemotronAnalyzer - mock get_broadcaster to use our broadcaster
         from datetime import datetime
 
         from backend.models.event import Event
@@ -1002,7 +1005,14 @@ class TestEventBroadcastPipeline:
             risk_level="medium",
             summary="Test",
         )
-        await analyzer._broadcast_event(test_event)
+
+        # Mock get_broadcaster to return our mock broadcaster
+        with patch(
+            "backend.services.event_broadcaster.get_broadcaster",
+            AsyncMock(return_value=broadcaster),
+        ):
+            await analyzer._broadcast_event(test_event)
+
         analyzer_channel = mock_redis.publish.call_args[0][0]
 
         # Both should use the same channel
@@ -1010,23 +1020,28 @@ class TestEventBroadcastPipeline:
         assert broadcast_channel == "security_events"
 
     @pytest.mark.asyncio
-    async def test_message_envelope_format(self):
+    async def test_message_envelope_format(self, integration_env):
         """Verify NemotronAnalyzer sends messages in the correct envelope format.
 
         The canonical format is: {"type": "event", "data": {...}}
         """
         from datetime import datetime
-        from unittest.mock import AsyncMock, MagicMock
+        from unittest.mock import AsyncMock, MagicMock, patch
 
         from backend.models.event import Event
+        from backend.services.event_broadcaster import EventBroadcaster, reset_broadcaster_state
         from backend.services.nemotron_analyzer import NemotronAnalyzer
+
+        # Reset global broadcaster state to ensure clean test
+        reset_broadcaster_state()
 
         # Create mock Redis client
         mock_redis = MagicMock()
         mock_redis.publish = AsyncMock(return_value=1)
 
-        # Create analyzer
+        # Create analyzer and a mock broadcaster
         analyzer = NemotronAnalyzer(mock_redis)
+        broadcaster = EventBroadcaster(mock_redis, channel_name="security_events")
 
         # Create test event
         camera_id = unique_id("envelope_test_camera")
@@ -1040,8 +1055,12 @@ class TestEventBroadcastPipeline:
             summary="Test envelope format",
         )
 
-        # Broadcast the event
-        await analyzer._broadcast_event(test_event)
+        # Broadcast the event using mocked get_broadcaster
+        with patch(
+            "backend.services.event_broadcaster.get_broadcaster",
+            AsyncMock(return_value=broadcaster),
+        ):
+            await analyzer._broadcast_event(test_event)
 
         # Verify the message format
         call_args = mock_redis.publish.call_args
@@ -1064,7 +1083,7 @@ class TestEventBroadcastPipeline:
         assert data["started_at"] == "2025-12-23T14:30:00"
 
     @pytest.mark.asyncio
-    async def test_broadcaster_wraps_missing_type(self):
+    async def test_broadcaster_wraps_missing_type(self, integration_env):
         """Verify EventBroadcaster wraps messages missing 'type' field.
 
         If a message is published without a 'type' field, EventBroadcaster
@@ -1072,14 +1091,17 @@ class TestEventBroadcastPipeline:
         """
         from unittest.mock import AsyncMock, MagicMock
 
-        from backend.services.event_broadcaster import EventBroadcaster
+        from backend.services.event_broadcaster import EventBroadcaster, reset_broadcaster_state
+
+        # Reset global broadcaster state to ensure clean test
+        reset_broadcaster_state()
 
         # Create mock Redis client
         mock_redis = MagicMock()
         mock_redis.publish = AsyncMock(return_value=1)
 
-        # Create broadcaster
-        broadcaster = EventBroadcaster(mock_redis)
+        # Create broadcaster with explicit channel name
+        broadcaster = EventBroadcaster(mock_redis, channel_name="security_events")
 
         # Broadcast a message without 'type' field
         payload = {"id": 123, "risk_score": 50}
@@ -1091,7 +1113,7 @@ class TestEventBroadcastPipeline:
         assert message["data"] == payload
 
     @pytest.mark.asyncio
-    async def test_end_to_end_publish_subscribe(self):
+    async def test_end_to_end_publish_subscribe(self, integration_env):
         """Verify messages published flow through to WebSocket clients.
 
         This tests the complete pipeline:
@@ -1101,11 +1123,14 @@ class TestEventBroadcastPipeline:
         """
         import json
         from datetime import datetime
-        from unittest.mock import AsyncMock, MagicMock
+        from unittest.mock import AsyncMock, MagicMock, patch
 
         from backend.models.event import Event
-        from backend.services.event_broadcaster import EventBroadcaster
+        from backend.services.event_broadcaster import EventBroadcaster, reset_broadcaster_state
         from backend.services.nemotron_analyzer import NemotronAnalyzer
+
+        # Reset global broadcaster state to ensure clean test
+        reset_broadcaster_state()
 
         # Track messages received by WebSocket clients
         received_messages = []
@@ -1143,8 +1168,8 @@ class TestEventBroadcastPipeline:
         mock_redis.subscribe = AsyncMock(side_effect=mock_subscribe)
         mock_redis.listen = mock_listen
 
-        # Create services
-        broadcaster = EventBroadcaster(mock_redis)
+        # Create services with explicit channel name
+        broadcaster = EventBroadcaster(mock_redis, channel_name="security_events")
         analyzer = NemotronAnalyzer(mock_redis)
 
         # Add WebSocket connection to broadcaster
@@ -1162,7 +1187,12 @@ class TestEventBroadcastPipeline:
             summary="End-to-end test event",
         )
 
-        await analyzer._broadcast_event(test_event)
+        # Use mocked get_broadcaster to return our broadcaster
+        with patch(
+            "backend.services.event_broadcaster.get_broadcaster",
+            AsyncMock(return_value=broadcaster),
+        ):
+            await analyzer._broadcast_event(test_event)
 
         # Verify message was published to correct channel
         assert len(published_messages) == 1
@@ -1219,20 +1249,24 @@ class TestWebSocketEventMessageContract:
     """
 
     @pytest.mark.asyncio
-    async def test_broadcast_event_matches_schema(self):
+    async def test_broadcast_event_matches_schema(self, integration_env):
         """Verify NemotronAnalyzer._broadcast_event produces messages matching WebSocketEventMessage schema.
 
         This is the critical contract test - if _broadcast_event() changes its output format,
         this test will fail, alerting developers to update the schema.
         """
         from datetime import datetime
-        from unittest.mock import AsyncMock, MagicMock
+        from unittest.mock import AsyncMock, MagicMock, patch
 
         from pydantic import ValidationError
 
         from backend.api.schemas.websocket import WebSocketEventMessage
         from backend.models.event import Event
+        from backend.services.event_broadcaster import EventBroadcaster, reset_broadcaster_state
         from backend.services.nemotron_analyzer import NemotronAnalyzer
+
+        # Reset global broadcaster state to ensure clean test
+        reset_broadcaster_state()
 
         # Create mock Redis that captures the published message
         published_message = None
@@ -1245,8 +1279,9 @@ class TestWebSocketEventMessageContract:
         mock_redis = MagicMock()
         mock_redis.publish = AsyncMock(side_effect=capture_publish)
 
-        # Create analyzer and test event
+        # Create analyzer and broadcaster
         analyzer = NemotronAnalyzer(mock_redis)
+        broadcaster = EventBroadcaster(mock_redis, channel_name="security_events")
         camera_id = unique_id("contract_test_camera")
         test_event = Event(
             id=42,
@@ -1258,8 +1293,12 @@ class TestWebSocketEventMessageContract:
             summary="Contract test event",
         )
 
-        # Broadcast the event
-        await analyzer._broadcast_event(test_event)
+        # Broadcast the event using mocked get_broadcaster
+        with patch(
+            "backend.services.event_broadcaster.get_broadcaster",
+            AsyncMock(return_value=broadcaster),
+        ):
+            await analyzer._broadcast_event(test_event)
 
         # Verify a message was published
         assert published_message is not None, "No message was published"
@@ -1328,13 +1367,17 @@ class TestWebSocketEventMessageContract:
         assert validated.data.id == 1
 
     @pytest.mark.asyncio
-    async def test_broadcast_event_with_none_started_at(self):
+    async def test_broadcast_event_with_none_started_at(self, integration_env):
         """Verify broadcast handles events where started_at is None."""
-        from unittest.mock import AsyncMock, MagicMock
+        from unittest.mock import AsyncMock, MagicMock, patch
 
         from backend.api.schemas.websocket import WebSocketEventMessage
         from backend.models.event import Event
+        from backend.services.event_broadcaster import EventBroadcaster, reset_broadcaster_state
         from backend.services.nemotron_analyzer import NemotronAnalyzer
+
+        # Reset global broadcaster state to ensure clean test
+        reset_broadcaster_state()
 
         published_message = None
 
@@ -1347,6 +1390,7 @@ class TestWebSocketEventMessageContract:
         mock_redis.publish = AsyncMock(side_effect=capture_publish)
 
         analyzer = NemotronAnalyzer(mock_redis)
+        broadcaster = EventBroadcaster(mock_redis, channel_name="security_events")
         camera_id = unique_id("test_camera")
         test_event = Event(
             id=99,
@@ -1358,7 +1402,12 @@ class TestWebSocketEventMessageContract:
             summary="Event without started_at",
         )
 
-        await analyzer._broadcast_event(test_event)
+        # Broadcast the event using mocked get_broadcaster
+        with patch(
+            "backend.services.event_broadcaster.get_broadcaster",
+            AsyncMock(return_value=broadcaster),
+        ):
+            await analyzer._broadcast_event(test_event)
 
         # Should still validate - started_at is optional in schema
         validated = WebSocketEventMessage.model_validate(published_message)

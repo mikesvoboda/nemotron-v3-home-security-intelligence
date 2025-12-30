@@ -12,14 +12,19 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from PIL import Image
 
+from backend.core.redis import QueueAddResult
 from backend.services.file_watcher import FileWatcher
 
 # Fixtures
 
 
 @pytest.fixture
-def temp_camera_root(tmp_path):
-    """Create temporary camera directory structure for integration tests."""
+def temp_camera_root(tmp_path, integration_env):
+    """Create temporary camera directory structure for integration tests.
+
+    Depends on integration_env to ensure DATABASE_URL is set before
+    FileWatcher.__init__ calls get_settings().
+    """
     camera_root = tmp_path / "foscam"
     camera_root.mkdir()
     return camera_root
@@ -29,7 +34,12 @@ def temp_camera_root(tmp_path):
 def mock_redis_client():
     """Mock Redis client for capturing queue operations."""
     mock_client = AsyncMock()
+    # Legacy method (deprecated)
     mock_client.add_to_queue = AsyncMock(return_value=1)
+    # Safe method with backpressure handling - this is what FileWatcher actually uses
+    mock_client.add_to_queue_safe = AsyncMock(
+        return_value=QueueAddResult(success=True, queue_length=1)
+    )
     return mock_client
 
 
@@ -80,11 +90,11 @@ class TestFileWatcherDetectsNewImage:
             await asyncio.sleep(0.5)
 
             # Verify the image was queued
-            assert mock_redis_client.add_to_queue.await_count >= 1
+            assert mock_redis_client.add_to_queue_safe.await_count >= 1
 
             # Find the call with our image
             found = False
-            for call in mock_redis_client.add_to_queue.call_args_list:
+            for call in mock_redis_client.add_to_queue_safe.call_args_list:
                 if len(call[0]) >= 2:
                     queue_name, data = call[0]
                     if (
@@ -123,10 +133,10 @@ class TestFileWatcherDetectsNewImage:
             await asyncio.sleep(0.5)
 
             # Verify PNG was detected
-            assert mock_redis_client.add_to_queue.await_count >= 1
+            assert mock_redis_client.add_to_queue_safe.await_count >= 1
 
             found = False
-            for call in mock_redis_client.add_to_queue.call_args_list:
+            for call in mock_redis_client.add_to_queue_safe.call_args_list:
                 if len(call[0]) >= 2:
                     _, data = call[0]
                     if str(image_path) in data.get("file_path", ""):
@@ -165,7 +175,7 @@ class TestFileWatcherIgnoresNonMediaFiles:
 
             # Verify no calls were made to queue
             # (only image files should trigger)
-            for call in mock_redis_client.add_to_queue.call_args_list:
+            for call in mock_redis_client.add_to_queue_safe.call_args_list:
                 if len(call[0]) >= 2:
                     _, data = call[0]
                     assert "notes.txt" not in data.get("file_path", ""), (
@@ -197,7 +207,7 @@ class TestFileWatcherIgnoresNonMediaFiles:
             await asyncio.sleep(0.5)
 
             # Verify tmp file was not queued
-            for call in mock_redis_client.add_to_queue.call_args_list:
+            for call in mock_redis_client.add_to_queue_safe.call_args_list:
                 if len(call[0]) >= 2:
                     _, data = call[0]
                     assert ".tmp" not in data.get("file_path", ""), "Tmp file should not be queued"
@@ -227,7 +237,7 @@ class TestFileWatcherIgnoresNonMediaFiles:
             await asyncio.sleep(0.5)
 
             # Verify mp4 was not queued
-            for call in mock_redis_client.add_to_queue.call_args_list:
+            for call in mock_redis_client.add_to_queue_safe.call_args_list:
                 if len(call[0]) >= 2:
                     _, data = call[0]
                     assert ".mp4" not in data.get("file_path", ""), "MP4 file should not be queued"
@@ -257,7 +267,7 @@ class TestFileWatcherIgnoresNonMediaFiles:
             await asyncio.sleep(0.5)
 
             # Verify no directory paths were queued
-            for call in mock_redis_client.add_to_queue.call_args_list:
+            for call in mock_redis_client.add_to_queue_safe.call_args_list:
                 if len(call[0]) >= 2:
                     _, data = call[0]
                     assert "subdir" not in data.get("file_path", ""), (
@@ -306,7 +316,7 @@ class TestFileWatcherMultipleCameras:
 
             # Collect all camera IDs from queued items
             camera_ids = set()
-            for call in mock_redis_client.add_to_queue.call_args_list:
+            for call in mock_redis_client.add_to_queue_safe.call_args_list:
                 if len(call[0]) >= 2:
                     _, data = call[0]
                     camera_ids.add(data.get("camera_id"))
@@ -343,7 +353,7 @@ class TestFileWatcherMultipleCameras:
 
             # Verify the correct camera ID was extracted
             found = False
-            for call in mock_redis_client.add_to_queue.call_args_list:
+            for call in mock_redis_client.add_to_queue_safe.call_args_list:
                 if len(call[0]) >= 2:
                     _, data = call[0]
                     if data.get("camera_id") == "front_porch":
@@ -448,7 +458,7 @@ class TestFileWatcherStartStopLifecycle:
         await asyncio.sleep(0.5)
 
         # Verify detection still works after restart
-        assert mock_redis_client.add_to_queue.await_count >= 1
+        assert mock_redis_client.add_to_queue_safe.await_count >= 1
 
         await watcher.stop()
 
@@ -509,7 +519,7 @@ class TestFileWatcherRapidFileCreation:
 
             # Verify all files were queued
             queued_files = set()
-            for call in mock_redis_client.add_to_queue.call_args_list:
+            for call in mock_redis_client.add_to_queue_safe.call_args_list:
                 if len(call[0]) >= 2:
                     _, data = call[0]
                     queued_files.add(data.get("file_path"))
@@ -568,7 +578,7 @@ class TestFileWatcherRapidFileCreation:
 
                 # Count queue calls for this file
                 queue_count = 0
-                for call in mock_redis_client.add_to_queue.call_args_list:
+                for call in mock_redis_client.add_to_queue_safe.call_args_list:
                     if len(call[0]) >= 2:
                         _, data = call[0]
                         if data.get("file_path") == str(image_path):
@@ -615,7 +625,7 @@ class TestFileWatcherRapidFileCreation:
 
             # Verify all cameras had files queued
             queued_cameras = set()
-            for call in mock_redis_client.add_to_queue.call_args_list:
+            for call in mock_redis_client.add_to_queue_safe.call_args_list:
                 if len(call[0]) >= 2:
                     _, data = call[0]
                     queued_cameras.add(data.get("camera_id"))
@@ -652,7 +662,7 @@ class TestFileWatcherEdgeCases:
             await asyncio.sleep(0.5)
 
             # Empty files should not be queued
-            for call in mock_redis_client.add_to_queue.call_args_list:
+            for call in mock_redis_client.add_to_queue_safe.call_args_list:
                 if len(call[0]) >= 2:
                     _, data = call[0]
                     assert "empty.jpg" not in data.get("file_path", ""), (
@@ -684,7 +694,7 @@ class TestFileWatcherEdgeCases:
             await asyncio.sleep(0.5)
 
             # Corrupted files should not be queued
-            for call in mock_redis_client.add_to_queue.call_args_list:
+            for call in mock_redis_client.add_to_queue_safe.call_args_list:
                 if len(call[0]) >= 2:
                     _, data = call[0]
                     assert "corrupted.jpg" not in data.get("file_path", ""), (
@@ -729,7 +739,7 @@ class TestFileWatcherEdgeCases:
         camera_dir.mkdir()
 
         # Make Redis client raise exception
-        mock_redis_client.add_to_queue.side_effect = Exception("Redis connection failed")
+        mock_redis_client.add_to_queue_safe.side_effect = Exception("Redis connection failed")
 
         watcher = FileWatcher(
             camera_root=str(temp_camera_root),
@@ -836,7 +846,7 @@ class TestFileWatcherFileTypes:
             await asyncio.sleep(0.5)
 
             found = False
-            for call in mock_redis_client.add_to_queue.call_args_list:
+            for call in mock_redis_client.add_to_queue_safe.call_args_list:
                 if len(call[0]) >= 2:
                     _, data = call[0]
                     if "TEST.JPG" in data.get("file_path", ""):
@@ -869,7 +879,7 @@ class TestFileWatcherFileTypes:
             await asyncio.sleep(0.5)
 
             found = False
-            for call in mock_redis_client.add_to_queue.call_args_list:
+            for call in mock_redis_client.add_to_queue_safe.call_args_list:
                 if len(call[0]) >= 2:
                     _, data = call[0]
                     if "photo.jpeg" in data.get("file_path", ""):
@@ -903,7 +913,7 @@ class TestFileWatcherFileTypes:
 
             await asyncio.sleep(0.5)
 
-            for call in mock_redis_client.add_to_queue.call_args_list:
+            for call in mock_redis_client.add_to_queue_safe.call_args_list:
                 if len(call[0]) >= 2:
                     _, data = call[0]
                     assert ".gif" not in data.get("file_path", ""), "GIF files should not be queued"
@@ -933,7 +943,7 @@ class TestFileWatcherFileTypes:
 
             await asyncio.sleep(0.5)
 
-            for call in mock_redis_client.add_to_queue.call_args_list:
+            for call in mock_redis_client.add_to_queue_safe.call_args_list:
                 if len(call[0]) >= 2:
                     _, data = call[0]
                     assert ".webp" not in data.get("file_path", ""), (

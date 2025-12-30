@@ -103,10 +103,12 @@ async def test_gpu_stats_endpoint_with_data(client, mock_redis):
     # Mock GPU stats query to return data
     with patch("backend.api.routes.system.get_latest_gpu_stats") as mock_gpu:
         mock_gpu.return_value = {
+            "gpu_name": "NVIDIA RTX A5500",
             "utilization": 75.5,
             "memory_used": 12000,
             "memory_total": 24000,
             "temperature": 65.0,
+            "power_usage": 120.0,
             "inference_fps": 30.5,
         }
 
@@ -115,10 +117,12 @@ async def test_gpu_stats_endpoint_with_data(client, mock_redis):
         assert response.status_code == 200
         data = response.json()
 
+        assert data["gpu_name"] == "NVIDIA RTX A5500"
         assert data["utilization"] == 75.5
         assert data["memory_used"] == 12000
         assert data["memory_total"] == 24000
         assert data["temperature"] == 65.0
+        assert data["power_usage"] == 120.0
         assert data["inference_fps"] == 30.5
 
 
@@ -527,7 +531,11 @@ async def test_readiness_endpoint_not_ready_when_detection_worker_in_error(clien
 
 @pytest.mark.asyncio
 async def test_readiness_endpoint_graceful_when_no_pipeline_manager(client, mock_redis):
-    """Test that readiness endpoint works gracefully when pipeline manager is not registered."""
+    """Test that readiness endpoint returns not_ready when pipeline manager is not registered.
+
+    When the pipeline manager is not registered, the system cannot process image detections,
+    so it should be marked as not ready (503) even if database and Redis are healthy.
+    """
     from backend.api.routes import system as system_routes
 
     # Save original
@@ -545,13 +553,18 @@ async def test_readiness_endpoint_graceful_when_no_pipeline_manager(client, mock
 
         response = await client.get("/api/system/health/ready")
 
-        assert response.status_code == 200
+        # Should return 503 when pipeline manager is not registered
+        # because the system cannot process detections without it
+        assert response.status_code == 503
         data = response.json()
 
-        # Should be ready when no pipeline manager is registered (graceful degradation)
-        # because we can't check pipeline workers
-        assert data["ready"] is True
-        assert data["status"] == "ready"
+        # Should NOT be ready when pipeline manager is not registered
+        assert data["ready"] is False
+        assert data["status"] == "not_ready"
+
+        # Database and Redis should still show as healthy
+        assert data["services"]["database"]["status"] == "healthy"
+        assert data["services"]["redis"]["status"] == "healthy"
 
     finally:
         system_routes._pipeline_manager = original_pipeline_manager

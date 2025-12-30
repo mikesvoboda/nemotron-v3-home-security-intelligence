@@ -607,6 +607,11 @@ class TestWebSocketBroadcast:
         self, integration_db, sample_camera, sample_detections, mock_redis_client, mock_llm_response
     ):
         """Test that event is broadcasted via WebSocket after creation."""
+        # Reset the global broadcaster state to ensure clean test
+        from backend.services.event_broadcaster import reset_broadcaster_state
+
+        reset_broadcaster_state()
+
         batch_id = f"batch_{uuid.uuid4()}"
         detection_ids = [d.id for d in sample_detections]
 
@@ -615,6 +620,8 @@ class TestWebSocketBroadcast:
             json.dumps(detection_ids),
         ]
         mock_redis_client.publish.return_value = 1
+        # Mock subscribe to return a mock pubsub object for broadcaster start
+        mock_redis_client.subscribe = AsyncMock(return_value=MagicMock())
 
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -626,7 +633,7 @@ class TestWebSocketBroadcast:
         with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
             event = await analyzer.analyze_batch(batch_id)
 
-        # Verify publish was called
+        # Verify publish was called via EventBroadcaster
         mock_redis_client.publish.assert_called_once()
         call_args = mock_redis_client.publish.call_args
         assert call_args[0][0] == "security_events"  # Canonical channel name
@@ -636,6 +643,9 @@ class TestWebSocketBroadcast:
         assert message["type"] == "event"
         assert message["data"]["event_id"] == event.id
         assert message["data"]["camera_id"] == sample_camera.id
+
+        # Clean up broadcaster state after test
+        reset_broadcaster_state()
 
     async def test_broadcast_event_failure_does_not_fail_analysis(
         self, integration_db, sample_camera, sample_detections, mock_redis_client, mock_llm_response

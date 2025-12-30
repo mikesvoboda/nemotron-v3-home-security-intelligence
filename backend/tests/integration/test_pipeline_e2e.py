@@ -994,7 +994,8 @@ async def test_batch_close_to_analyze_handoff_without_redis_rehydration(
     queue_item = queue_items[0]
     assert queue_item["batch_id"] == batch_id
     assert queue_item["camera_id"] == camera_id
-    assert queue_item["detection_ids"] == [str(detection_id)]
+    # Detection IDs are stored as integers (normalized by BatchAggregator.add_detection)
+    assert queue_item["detection_ids"] == [detection_id]
 
     # Step 5: Simulate AnalysisQueueWorker processing - use queue payload directly
     # This is exactly what the fixed worker does: pass camera_id and detection_ids
