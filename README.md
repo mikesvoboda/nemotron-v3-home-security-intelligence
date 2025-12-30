@@ -56,7 +56,9 @@
 docker compose up --build
 ```
 
-**That's it.** Open [http://localhost:5173](http://localhost:5173) for the dashboard.
+**That's it.** Open [http://localhost:5173](http://localhost:5173) for the dashboard (development mode).
+
+> **Production:** Use `docker compose -f docker-compose.prod.yml up -d` and access at [http://localhost](http://localhost) (port 80).
 
 <details>
 <summary>Linux networking note</summary>
@@ -117,13 +119,17 @@ A single "person walks to door" might generate 15 images over 30 seconds. Batchi
 <details>
 <summary>Service ports</summary>
 
-| Service     | Port | Purpose             |
-| ----------- | ---- | ------------------- |
-| Frontend    | 5173 | Vite dev server     |
-| Backend API | 8000 | FastAPI + WebSocket |
-| RT-DETRv2   | 8090 | Object detection    |
-| Nemotron    | 8091 | LLM risk analysis   |
-| Redis       | 6379 | Queues + pub/sub    |
+| Service     | Dev Port | Prod Port | Purpose                   |
+| ----------- | -------- | --------- | ------------------------- |
+| Frontend    | 5173     | 80        | Vite (dev) / Nginx (prod) |
+| Backend API | 8000     | 8000      | FastAPI + WebSocket       |
+| PostgreSQL  | 5432     | 5432      | Database                  |
+| RT-DETRv2   | 8090     | 8090      | Object detection          |
+| Nemotron    | 8091     | 8091      | LLM risk analysis         |
+| Redis       | 6379     | 6379      | Queues + pub/sub          |
+
+> **Note:** Production frontend runs on Nginx (port 80 inside container).
+> Change with `FRONTEND_PORT` env var.
 
 </details>
 

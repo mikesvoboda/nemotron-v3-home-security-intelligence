@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getRiskColor, getRiskLabel, getRiskLevel } from './risk';
+import { getRiskColor, getRiskLabel, getRiskLevel, getRiskLevelWithThresholds, RISK_THRESHOLDS } from './risk';
 
 describe('risk utilities', () => {
   describe('getRiskLevel', () => {
@@ -74,6 +74,43 @@ describe('risk utilities', () => {
 
     it('returns "Critical" for critical risk level', () => {
       expect(getRiskLabel('critical')).toBe('Critical');
+    });
+  });
+
+  describe('RISK_THRESHOLDS', () => {
+    it('exports default thresholds matching backend SeverityService', () => {
+      expect(RISK_THRESHOLDS.LOW_MAX).toBe(29);
+      expect(RISK_THRESHOLDS.MEDIUM_MAX).toBe(59);
+      expect(RISK_THRESHOLDS.HIGH_MAX).toBe(84);
+    });
+  });
+
+  describe('getRiskLevelWithThresholds', () => {
+    const customThresholds = { low_max: 20, medium_max: 50, high_max: 80 };
+
+    it('uses custom thresholds for low risk', () => {
+      expect(getRiskLevelWithThresholds(20, customThresholds)).toBe('low');
+      expect(getRiskLevelWithThresholds(21, customThresholds)).toBe('medium');
+    });
+
+    it('uses custom thresholds for medium risk', () => {
+      expect(getRiskLevelWithThresholds(50, customThresholds)).toBe('medium');
+      expect(getRiskLevelWithThresholds(51, customThresholds)).toBe('high');
+    });
+
+    it('uses custom thresholds for high risk', () => {
+      expect(getRiskLevelWithThresholds(80, customThresholds)).toBe('high');
+      expect(getRiskLevelWithThresholds(81, customThresholds)).toBe('critical');
+    });
+
+    it('uses custom thresholds for critical risk', () => {
+      expect(getRiskLevelWithThresholds(81, customThresholds)).toBe('critical');
+      expect(getRiskLevelWithThresholds(100, customThresholds)).toBe('critical');
+    });
+
+    it('throws error for out of range scores', () => {
+      expect(() => getRiskLevelWithThresholds(-1, customThresholds)).toThrow('Risk score must be between 0 and 100');
+      expect(() => getRiskLevelWithThresholds(101, customThresholds)).toThrow('Risk score must be between 0 and 100');
     });
   });
 });
