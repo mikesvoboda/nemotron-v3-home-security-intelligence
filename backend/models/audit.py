@@ -42,6 +42,9 @@ class AuditAction(str, Enum):
     API_KEY_CREATED = "api_key_created"
     API_KEY_REVOKED = "api_key_revoked"
 
+    # Notification actions
+    NOTIFICATION_TEST = "notification_test"
+
 
 class AuditStatus(str, Enum):
     """Enumeration of audit log statuses."""

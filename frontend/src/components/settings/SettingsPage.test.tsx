@@ -17,6 +17,10 @@ vi.mock('./AIModelsSettings', () => ({
   default: () => <div data-testid="ai-models-settings">AI Models Settings</div>,
 }));
 
+vi.mock('./NotificationSettings', () => ({
+  default: () => <div data-testid="notification-settings">Notification Settings</div>,
+}));
+
 describe('SettingsPage', () => {
   it('should render the page title and description', () => {
     render(<SettingsPage />);
@@ -25,12 +29,13 @@ describe('SettingsPage', () => {
     expect(screen.getByText('Configure your security monitoring system')).toBeInTheDocument();
   });
 
-  it('should render all three tabs', () => {
+  it('should render all four tabs', () => {
     render(<SettingsPage />);
 
     expect(screen.getByRole('tab', { name: /cameras/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /processing/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /ai models/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /notifications/i })).toBeInTheDocument();
   });
 
   it('should show cameras settings by default', () => {
@@ -101,14 +106,25 @@ describe('SettingsPage', () => {
     render(<SettingsPage />);
 
     const camerasTab = screen.getByRole('tab', { name: /cameras/i });
-    const aiModelsTab = screen.getByRole('tab', { name: /ai models/i });
+    const notificationsTab = screen.getByRole('tab', { name: /notifications/i });
 
-    // Focus on the last tab
-    aiModelsTab.focus();
-    expect(aiModelsTab).toHaveFocus();
+    // Focus on the last tab (notifications is now last)
+    notificationsTab.focus();
+    expect(notificationsTab).toHaveFocus();
 
     // Press arrow right to cycle to first tab
     await user.keyboard('{ArrowRight}');
     expect(camerasTab).toHaveFocus();
+  });
+
+  it('should switch to notification settings when tab is clicked', async () => {
+    const user = userEvent.setup();
+    render(<SettingsPage />);
+
+    const notificationsTab = screen.getByRole('tab', { name: /notifications/i });
+    await user.click(notificationsTab);
+
+    expect(screen.getByTestId('notification-settings')).toBeInTheDocument();
+    expect(screen.queryByTestId('cameras-settings')).not.toBeInTheDocument();
   });
 });

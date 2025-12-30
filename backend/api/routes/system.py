@@ -6,6 +6,7 @@ import asyncio
 import hashlib
 import logging
 import os
+import shutil
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -35,13 +36,15 @@ from backend.api.schemas.system import (
     SeverityMetadataResponse,
     SeverityThresholds,
     StageLatency,
+    StorageCategoryStats,
+    StorageStatsResponse,
     SystemStatsResponse,
     TelemetryResponse,
     WorkerStatus,
 )
 from backend.core import get_db, get_settings
 from backend.core.redis import RedisClient, get_redis, get_redis_optional
-from backend.models import Camera, Detection, Event, GPUStats
+from backend.models import Camera, Detection, Event, GPUStats, Log
 from backend.models.audit import AuditAction
 from backend.services.audit import AuditService
 
@@ -1518,4 +1521,140 @@ async def get_severity_metadata() -> SeverityMetadataResponse:
             medium_max=thresholds["medium_max"],
             high_max=thresholds["high_max"],
         ),
+    )
+
+
+# =============================================================================
+# Storage Endpoint
+# =============================================================================
+
+
+def _get_directory_stats(directory: Path) -> tuple[int, int]:
+    """Calculate total size and file count for a directory.
+
+    Args:
+        directory: Path to the directory to scan
+
+    Returns:
+        Tuple of (total_size_bytes, file_count)
+    """
+    total_size = 0
+    file_count = 0
+
+    if not directory.exists():
+        return 0, 0
+
+    try:
+        for entry in directory.rglob("*"):
+            if entry.is_file():
+                try:
+                    total_size += entry.stat().st_size
+                    file_count += 1
+                except (OSError, PermissionError):
+                    # Skip files we can't access
+                    pass
+    except (OSError, PermissionError):
+        # Return zeros if we can't access the directory
+        pass
+
+    return total_size, file_count
+
+
+@router.get("/storage", response_model=StorageStatsResponse)
+async def get_storage_stats(db: AsyncSession = Depends(get_db)) -> StorageStatsResponse:
+    """Get storage statistics and disk usage metrics.
+
+    Returns detailed storage usage information including:
+    - Overall disk usage (used/total/free)
+    - Storage breakdown by category (thumbnails, images, clips)
+    - Database record counts (events, detections, GPU stats, logs)
+
+    This endpoint helps operators:
+    - Monitor available storage space
+    - Understand storage distribution across data types
+    - Plan cleanup operations
+    - Track database growth
+
+    Returns:
+        StorageStatsResponse with comprehensive storage metrics
+    """
+    settings = get_settings()
+
+    # Get disk usage for the data directory
+    # Use the thumbnail directory's parent as a reference point for data storage
+    thumbnail_dir = Path(settings.video_thumbnails_dir)
+    data_dir = thumbnail_dir.parent if thumbnail_dir.parent.exists() else Path("data")
+
+    # Fall back to current directory if data directory doesn't exist
+    if not data_dir.exists():
+        data_dir = Path()
+
+    try:
+        disk_usage = shutil.disk_usage(data_dir)
+        disk_total = disk_usage.total
+        disk_used = disk_usage.used
+        disk_free = disk_usage.free
+        disk_percent = (disk_used / disk_total * 100) if disk_total > 0 else 0.0
+    except (OSError, PermissionError):
+        # Return zeros if we can't access disk stats
+        disk_total = 0
+        disk_used = 0
+        disk_free = 0
+        disk_percent = 0.0
+
+    # Get storage breakdown by category
+    # Thumbnails directory
+    thumbnails_size, thumbnails_count = _get_directory_stats(thumbnail_dir)
+
+    # Images directory (Foscam uploads)
+    foscam_path = Path(settings.foscam_base_path)
+    images_size, images_count = _get_directory_stats(foscam_path)
+
+    # Clips directory
+    clips_dir = Path(settings.clips_directory)
+    clips_size, clips_count = _get_directory_stats(clips_dir)
+
+    # Get database record counts
+    # Count events
+    event_count_stmt = select(func.count()).select_from(Event)
+    event_result = await db.execute(event_count_stmt)
+    events_count = event_result.scalar_one()
+
+    # Count detections
+    detection_count_stmt = select(func.count()).select_from(Detection)
+    detection_result = await db.execute(detection_count_stmt)
+    detections_count = detection_result.scalar_one()
+
+    # Count GPU stats
+    gpu_stats_count_stmt = select(func.count()).select_from(GPUStats)
+    gpu_stats_result = await db.execute(gpu_stats_count_stmt)
+    gpu_stats_count = gpu_stats_result.scalar_one()
+
+    # Count logs
+    logs_count_stmt = select(func.count()).select_from(Log)
+    logs_result = await db.execute(logs_count_stmt)
+    logs_count = logs_result.scalar_one()
+
+    return StorageStatsResponse(
+        disk_used_bytes=disk_used,
+        disk_total_bytes=disk_total,
+        disk_free_bytes=disk_free,
+        disk_usage_percent=round(disk_percent, 2),
+        thumbnails=StorageCategoryStats(
+            file_count=thumbnails_count,
+            size_bytes=thumbnails_size,
+        ),
+        images=StorageCategoryStats(
+            file_count=images_count,
+            size_bytes=images_size,
+        ),
+        clips=StorageCategoryStats(
+            file_count=clips_count,
+            size_bytes=clips_size,
+        ),
+        events_count=events_count,
+        detections_count=detections_count,
+        gpu_stats_count=gpu_stats_count,
+        logs_count=logs_count,
+        timestamp=datetime.now(UTC),
     )

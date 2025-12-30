@@ -1475,4 +1475,119 @@ describe('EventCard', () => {
       vi.setSystemTime(BASE_TIME);
     });
   });
+
+  describe('detection confidence color coding', () => {
+    const highConfidenceDetections: Detection[] = [
+      { label: 'person', confidence: 0.95, bbox: { x: 0, y: 0, width: 100, height: 100 } },
+    ];
+
+    const mixedConfidenceDetections: Detection[] = [
+      { label: 'person', confidence: 0.95, bbox: { x: 0, y: 0, width: 100, height: 100 } },
+      { label: 'car', confidence: 0.75, bbox: { x: 0, y: 0, width: 100, height: 100 } },
+      { label: 'dog', confidence: 0.5, bbox: { x: 0, y: 0, width: 100, height: 100 } },
+    ];
+
+    it('applies green color for high confidence detections (>= 85%)', () => {
+      const { container } = render(
+        <EventCard {...mockProps} detections={highConfidenceDetections} />
+      );
+      // Check that the detection badge has green text color class
+      const detectionBadges = container.querySelectorAll('.text-green-400');
+      expect(detectionBadges.length).toBeGreaterThan(0);
+    });
+
+    it('applies yellow color for medium confidence detections (70-85%)', () => {
+      const mediumDetections: Detection[] = [
+        { label: 'car', confidence: 0.75, bbox: { x: 0, y: 0, width: 100, height: 100 } },
+      ];
+      const { container } = render(<EventCard {...mockProps} detections={mediumDetections} />);
+      const detectionBadges = container.querySelectorAll('.text-yellow-400');
+      expect(detectionBadges.length).toBeGreaterThan(0);
+    });
+
+    it('applies red color for low confidence detections (< 70%)', () => {
+      const lowDetections: Detection[] = [
+        { label: 'dog', confidence: 0.5, bbox: { x: 0, y: 0, width: 100, height: 100 } },
+      ];
+      const { container } = render(<EventCard {...mockProps} detections={lowDetections} />);
+      const detectionBadges = container.querySelectorAll('.text-red-400');
+      expect(detectionBadges.length).toBeGreaterThan(0);
+    });
+
+    it('sorts detections by confidence (highest first)', () => {
+      render(<EventCard {...mockProps} detections={mixedConfidenceDetections} />);
+      // Get all detection badges
+      const detectionSection = screen.getByText(/Detections \(3\)/i).parentElement;
+      const badges = detectionSection?.querySelectorAll('[title]');
+      if (badges && badges.length >= 3) {
+        // First badge should be the highest confidence (person - 95%)
+        expect(badges[0]).toHaveAttribute('title', expect.stringContaining('person'));
+        expect(badges[0]).toHaveAttribute('title', expect.stringContaining('95%'));
+      }
+    });
+
+    it('displays aggregate confidence (Avg and Max) for multiple detections', () => {
+      render(<EventCard {...mockProps} detections={mixedConfidenceDetections} />);
+      // Check for "Avg:" label
+      expect(screen.getByText('Avg:')).toBeInTheDocument();
+      // Check for "Max:" label
+      expect(screen.getByText('Max:')).toBeInTheDocument();
+    });
+
+    it('calculates average confidence correctly', () => {
+      render(<EventCard {...mockProps} detections={mixedConfidenceDetections} />);
+      // Average of 0.95 + 0.75 + 0.5 = 2.2 / 3 = 0.733... -> 73%
+      expect(screen.getByText('73%')).toBeInTheDocument();
+    });
+
+    it('displays maximum confidence correctly', () => {
+      render(<EventCard {...mockProps} detections={mixedConfidenceDetections} />);
+      // Max is 0.95 -> 95%
+      expect(screen.getByText('95%')).toBeInTheDocument();
+    });
+
+    it('applies color coding to aggregate confidence values', () => {
+      const { container } = render(
+        <EventCard {...mockProps} detections={mixedConfidenceDetections} />
+      );
+      // Max is high (green), Average is medium (yellow)
+      const greenTexts = container.querySelectorAll('.text-green-400');
+      const yellowTexts = container.querySelectorAll('.text-yellow-400');
+      expect(greenTexts.length).toBeGreaterThan(0);
+      expect(yellowTexts.length).toBeGreaterThan(0);
+    });
+
+    it('shows TrendingUp icon for aggregate confidence display', () => {
+      const { container } = render(
+        <EventCard {...mockProps} detections={mixedConfidenceDetections} />
+      );
+      // Check for lucide-trending-up SVG icon
+      const icon = container.querySelector('svg.lucide-trending-up');
+      expect(icon).toBeInTheDocument();
+    });
+
+    it('does not show aggregate confidence when no detections', () => {
+      render(<EventCard {...mockProps} detections={[]} />);
+      expect(screen.queryByText('Avg:')).not.toBeInTheDocument();
+      expect(screen.queryByText('Max:')).not.toBeInTheDocument();
+    });
+
+    it('detection badges have title with confidence label', () => {
+      render(<EventCard {...mockProps} detections={highConfidenceDetections} />);
+      const detectionBadge = screen.getByTitle(/person.*95%.*High Confidence/i);
+      expect(detectionBadge).toBeInTheDocument();
+    });
+
+    it('applies background and border colors based on confidence level', () => {
+      const { container } = render(
+        <EventCard {...mockProps} detections={mixedConfidenceDetections} />
+      );
+      // Check for red background/border for low confidence
+      const redBgElements = container.querySelectorAll('.bg-red-500\\/20');
+      expect(redBgElements.length).toBeGreaterThan(0);
+      // Check for green background/border for high confidence
+      const greenBgElements = container.querySelectorAll('.bg-green-500\\/20');
+      expect(greenBgElements.length).toBeGreaterThan(0);
+    });
+  });
 });

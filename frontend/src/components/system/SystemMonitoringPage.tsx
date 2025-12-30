@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import WorkerStatusPanel from './WorkerStatusPanel';
 import { useHealthStatus } from '../../hooks/useHealthStatus';
 import {
   fetchStats,
@@ -310,6 +311,9 @@ export default function SystemMonitoringPage() {
             )}
           </Card>
 
+          {/* Background Workers Panel - Shows status of all 8 workers */}
+          <WorkerStatusPanel pollingInterval={10000} />
+
           {/* Pipeline Queues Card - Reusing existing component */}
           <PipelineQueues
             detectionQueue={telemetry?.queues.detection_queue ?? 0}
@@ -320,10 +324,12 @@ export default function SystemMonitoringPage() {
           {/* GPU Stats Card - Reusing existing component (spans 2 columns on xl) */}
           <div className="xl:col-span-2">
             <GpuStats
+              gpuName={gpuStats?.gpu_name ?? null}
               utilization={gpuStats?.utilization ?? null}
               memoryUsed={gpuStats?.memory_used ?? null}
               memoryTotal={gpuStats?.memory_total ?? null}
               temperature={gpuStats?.temperature ?? null}
+              powerUsage={gpuStats?.power_usage ?? null}
               inferenceFps={gpuStats?.inference_fps ?? null}
             />
           </div>

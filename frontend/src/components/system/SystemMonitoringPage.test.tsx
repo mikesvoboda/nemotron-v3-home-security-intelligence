@@ -52,6 +52,11 @@ vi.mock('../dashboard/PipelineQueues', () => ({
   ),
 }));
 
+// Mock WorkerStatusPanel to avoid API calls during tests
+vi.mock('./WorkerStatusPanel', () => ({
+  default: () => <div data-testid="worker-status-panel">Worker Status Panel</div>,
+}));
+
 describe('SystemMonitoringPage', () => {
   const mockSystemStats = {
     total_cameras: 4,

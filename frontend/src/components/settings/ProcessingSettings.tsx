@@ -3,6 +3,7 @@ import { AlertCircle, Settings as SettingsIcon, Save, RotateCcw, Trash2 } from '
 import { useEffect, useState } from 'react';
 
 import DlqMonitor from './DlqMonitor';
+import StorageDashboard from './StorageDashboard';
 import {
   fetchConfig,
   updateConfig,
@@ -286,23 +287,9 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
               </div>
             </div>
 
-            {/* Storage Usage */}
+            {/* Storage Dashboard */}
             <div className="border-t border-gray-800 pt-4">
-              <div className="mb-3 flex items-center justify-between">
-                <Text className="font-medium text-gray-300">Storage</Text>
-                <Text className="text-sm text-gray-500">Coming soon</Text>
-              </div>
-              <div className="h-3 w-full overflow-hidden rounded-full bg-gray-700">
-                <div
-                  className="h-full rounded-full bg-[#76B900] transition-all duration-300"
-                  style={{ width: '0%' }}
-                  aria-label="Storage usage percentage"
-                />
-              </div>
-              <div className="mt-1 flex justify-between text-xs text-gray-500">
-                <span>0 GB used</span>
-                <span>0 GB total</span>
-              </div>
+              <StorageDashboard />
             </div>
 
             {/* Action Buttons */}

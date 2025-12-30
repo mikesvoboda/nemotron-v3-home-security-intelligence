@@ -52,6 +52,8 @@ export type {
   CleanupResponse,
   HTTPValidationError,
   ValidationError,
+  SearchResult,
+  SearchResponse,
 } from '../types/generated';
 
 // Import concrete types for use in this module
@@ -74,10 +76,12 @@ import type {
   LogStats,
   CleanupResponse,
   TelemetryResponse,
+  ReadinessResponse,
   DLQStatsResponse as GeneratedDLQStatsResponse,
   DLQJobsResponse as GeneratedDLQJobsResponse,
   DLQRequeueResponse as GeneratedDLQRequeueResponse,
   DLQClearResponse as GeneratedDLQClearResponse,
+  SearchResponse as GeneratedSearchResponse,
 } from '../types/generated';
 
 // ============================================================================
@@ -336,6 +340,16 @@ export async function triggerCleanup(): Promise<CleanupResponse> {
 
 export async function fetchTelemetry(): Promise<TelemetryResponse> {
   return fetchApi<TelemetryResponse>('/api/system/telemetry');
+}
+
+/**
+ * Fetch system readiness status including background worker health.
+ * Returns detailed status of all infrastructure services and background workers.
+ *
+ * @returns ReadinessResponse with service and worker status
+ */
+export async function fetchReadiness(): Promise<ReadinessResponse> {
+  return fetchApi<ReadinessResponse>('/api/system/health/ready');
 }
 
 // ============================================================================
@@ -717,4 +731,212 @@ export async function exportEventsCSV(params?: ExportQueryParams): Promise<void>
     }
     throw new ApiError(0, error instanceof Error ? error.message : 'Export request failed');
   }
+}
+
+// ============================================================================
+// Search Endpoints
+// ============================================================================
+
+/**
+ * Parameters for searching events with full-text search
+ */
+export interface EventSearchParams {
+  /** Search query string (required) */
+  q: string;
+  /** Filter by camera IDs (comma-separated for multiple) */
+  camera_id?: string;
+  /** Filter by start date (ISO format) */
+  start_date?: string;
+  /** Filter by end date (ISO format) */
+  end_date?: string;
+  /** Filter by risk levels (comma-separated: low,medium,high,critical) */
+  severity?: string;
+  /** Filter by object types (comma-separated: person,vehicle,animal) */
+  object_type?: string;
+  /** Filter by reviewed status */
+  reviewed?: boolean;
+  /** Maximum number of results (default 50) */
+  limit?: number;
+  /** Number of results to skip for pagination */
+  offset?: number;
+}
+
+/**
+ * Search events using PostgreSQL full-text search.
+ *
+ * Supports advanced query syntax:
+ * - Basic words: "person vehicle" (implicit AND)
+ * - Phrase search: '"suspicious person"' (exact phrase)
+ * - Boolean OR: "person OR animal"
+ * - Boolean NOT: "person NOT cat"
+ * - Boolean AND: "person AND vehicle" (explicit)
+ *
+ * Results are ranked by relevance score.
+ *
+ * @param params - Search parameters including query and optional filters
+ * @returns SearchResponse with relevance-ranked results and pagination info
+ */
+export async function searchEvents(params: EventSearchParams): Promise<GeneratedSearchResponse> {
+  const queryParams = new URLSearchParams();
+
+  // Query is required
+  queryParams.append('q', params.q);
+
+  // Optional filters
+  if (params.camera_id) queryParams.append('camera_id', params.camera_id);
+  if (params.start_date) queryParams.append('start_date', params.start_date);
+  if (params.end_date) queryParams.append('end_date', params.end_date);
+  if (params.severity) queryParams.append('severity', params.severity);
+  if (params.object_type) queryParams.append('object_type', params.object_type);
+  if (params.reviewed !== undefined) queryParams.append('reviewed', String(params.reviewed));
+  if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
+  if (params.offset !== undefined) queryParams.append('offset', String(params.offset));
+
+  return fetchApi<GeneratedSearchResponse>(`/api/events/search?${queryParams.toString()}`);
+}
+
+// ============================================================================
+// Storage Types (defined locally until types are regenerated)
+// ============================================================================
+
+/**
+ * Storage statistics for a single category.
+ */
+export interface StorageCategoryStats {
+  /** Number of files in this category */
+  file_count: number;
+  /** Total size in bytes for this category */
+  size_bytes: number;
+}
+
+/**
+ * Response schema for storage statistics endpoint.
+ */
+export interface StorageStatsResponse {
+  /** Total disk space used in bytes */
+  disk_used_bytes: number;
+  /** Total disk space available in bytes */
+  disk_total_bytes: number;
+  /** Free disk space in bytes */
+  disk_free_bytes: number;
+  /** Disk usage percentage (0-100) */
+  disk_usage_percent: number;
+  /** Storage used by detection thumbnails */
+  thumbnails: StorageCategoryStats;
+  /** Storage used by original camera images */
+  images: StorageCategoryStats;
+  /** Storage used by event video clips */
+  clips: StorageCategoryStats;
+  /** Total number of events in database */
+  events_count: number;
+  /** Total number of detections in database */
+  detections_count: number;
+  /** Total number of GPU stats records in database */
+  gpu_stats_count: number;
+  /** Total number of log entries in database */
+  logs_count: number;
+  /** Timestamp of storage stats snapshot */
+  timestamp: string;
+}
+
+// ============================================================================
+// Storage Endpoints
+// ============================================================================
+
+/**
+ * Fetch storage statistics and disk usage metrics.
+ *
+ * @returns StorageStatsResponse with disk usage and storage breakdown
+ */
+export async function fetchStorageStats(): Promise<StorageStatsResponse> {
+  return fetchApi<StorageStatsResponse>('/api/system/storage');
+}
+
+/**
+ * Trigger cleanup with dry run mode to preview what would be deleted.
+ *
+ * @returns CleanupResponse with counts of what would be deleted
+ */
+export async function previewCleanup(): Promise<CleanupResponse> {
+  return fetchApi<CleanupResponse>('/api/system/cleanup?dry_run=true', {
+    method: 'POST',
+  });
+}
+
+// ============================================================================
+// Notification Endpoints
+// ============================================================================
+
+/**
+ * Notification channel types
+ */
+export type NotificationChannel = 'email' | 'webhook' | 'push';
+
+/**
+ * Notification configuration status
+ */
+export interface NotificationConfig {
+  notification_enabled: boolean;
+  email_configured: boolean;
+  webhook_configured: boolean;
+  push_configured: boolean;
+  available_channels: NotificationChannel[];
+  smtp_host: string | null;
+  smtp_port: number | null;
+  smtp_from_address: string | null;
+  smtp_use_tls: boolean | null;
+  default_webhook_url: string | null;
+  webhook_timeout_seconds: number | null;
+  default_email_recipients: string[];
+}
+
+/**
+ * Test notification result
+ */
+export interface TestNotificationResult {
+  channel: NotificationChannel;
+  success: boolean;
+  error: string | null;
+  message: string;
+}
+
+/**
+ * Fetch notification configuration status.
+ *
+ * @returns NotificationConfig with current notification settings
+ */
+export async function fetchNotificationConfig(): Promise<NotificationConfig> {
+  return fetchApi<NotificationConfig>('/api/notification/config');
+}
+
+/**
+ * Test notification delivery for a specific channel.
+ *
+ * @param channel - The notification channel to test (email, webhook, push)
+ * @param recipients - Optional email recipients (for email channel)
+ * @param webhookUrl - Optional webhook URL (for webhook channel)
+ * @returns TestNotificationResult with test outcome
+ */
+export async function testNotification(
+  channel: NotificationChannel,
+  recipients?: string[],
+  webhookUrl?: string
+): Promise<TestNotificationResult> {
+  const body: { channel: NotificationChannel; email_recipients?: string[]; webhook_url?: string } =
+    {
+      channel,
+    };
+
+  if (recipients && recipients.length > 0) {
+    body.email_recipients = recipients;
+  }
+
+  if (webhookUrl) {
+    body.webhook_url = webhookUrl;
+  }
+
+  return fetchApi<TestNotificationResult>('/api/notification/test', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
 }

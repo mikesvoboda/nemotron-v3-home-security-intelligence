@@ -982,3 +982,125 @@ class SeverityMetadataResponse(BaseModel):
             }
         }
     )
+
+
+# =============================================================================
+# Storage Schemas
+# =============================================================================
+
+
+class StorageCategoryStats(BaseModel):
+    """Storage statistics for a single category."""
+
+    file_count: int = Field(
+        ...,
+        description="Number of files in this category",
+        ge=0,
+    )
+    size_bytes: int = Field(
+        ...,
+        description="Total size in bytes for this category",
+        ge=0,
+    )
+
+
+class StorageStatsResponse(BaseModel):
+    """Response schema for storage statistics endpoint.
+
+    Provides detailed storage usage information including:
+    - Disk usage for the storage volume
+    - Breakdown by data category (thumbnails, images, clips)
+    - Database record counts
+    """
+
+    # Disk usage
+    disk_used_bytes: int = Field(
+        ...,
+        description="Total disk space used in bytes",
+        ge=0,
+    )
+    disk_total_bytes: int = Field(
+        ...,
+        description="Total disk space available in bytes",
+        ge=0,
+    )
+    disk_free_bytes: int = Field(
+        ...,
+        description="Free disk space in bytes",
+        ge=0,
+    )
+    disk_usage_percent: float = Field(
+        ...,
+        description="Disk usage percentage (0-100)",
+        ge=0,
+        le=100,
+    )
+
+    # Storage breakdown by category
+    thumbnails: StorageCategoryStats = Field(
+        ...,
+        description="Storage used by detection thumbnails",
+    )
+    images: StorageCategoryStats = Field(
+        ...,
+        description="Storage used by original camera images",
+    )
+    clips: StorageCategoryStats = Field(
+        ...,
+        description="Storage used by event video clips",
+    )
+
+    # Database record counts
+    events_count: int = Field(
+        ...,
+        description="Total number of events in database",
+        ge=0,
+    )
+    detections_count: int = Field(
+        ...,
+        description="Total number of detections in database",
+        ge=0,
+    )
+    gpu_stats_count: int = Field(
+        ...,
+        description="Total number of GPU stats records in database",
+        ge=0,
+    )
+    logs_count: int = Field(
+        ...,
+        description="Total number of log entries in database",
+        ge=0,
+    )
+
+    timestamp: datetime = Field(
+        ...,
+        description="Timestamp of storage stats snapshot",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "disk_used_bytes": 107374182400,
+                "disk_total_bytes": 536870912000,
+                "disk_free_bytes": 429496729600,
+                "disk_usage_percent": 20.0,
+                "thumbnails": {
+                    "file_count": 1500,
+                    "size_bytes": 75000000,
+                },
+                "images": {
+                    "file_count": 10000,
+                    "size_bytes": 5000000000,
+                },
+                "clips": {
+                    "file_count": 50,
+                    "size_bytes": 500000000,
+                },
+                "events_count": 156,
+                "detections_count": 892,
+                "gpu_stats_count": 2880,
+                "logs_count": 5000,
+                "timestamp": "2025-12-30T10:30:00Z",
+            }
+        }
+    )
