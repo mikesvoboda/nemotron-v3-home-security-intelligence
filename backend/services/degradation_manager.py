@@ -1,34 +1,56 @@
-"""Graceful degradation manager for handling partial outages.
+"""Graceful degradation manager for system resilience.
 
-This module orchestrates graceful degradation when external services experience
-outages. It provides:
-- Service health tracking with automatic mode transitions
-- Job queueing for later processing when services are unavailable
-- Redis fallback to in-memory queue when Redis is down
-- Recovery handling to reprocess queued jobs
+This module provides graceful degradation capabilities for the home security
+system. When dependent services become unavailable, the system continues
+operating in a degraded mode rather than failing completely.
+
+Features:
+    - Track service health states (Redis, RT-DETRv2, Nemotron)
+    - Fallback to disk-based queues when Redis is down
+    - In-memory queue fallback when Redis unavailable
+    - Automatic recovery detection
+    - Integration with circuit breakers
+    - Job queueing for later processing
 
 Degradation Modes:
     - NORMAL: All services healthy, full functionality
-    - DEGRADED: Some services down, limited functionality
+    - DEGRADED: Some services unavailable, using fallbacks
     - MINIMAL: Critical services down, basic functionality only
     - OFFLINE: All services down, queueing only
 
-Features:
-    - Automatic mode transitions based on service health
-    - Configurable failure and recovery thresholds
-    - In-memory queue fallback when Redis unavailable
-    - Job reprocessing on service recovery
+Usage:
+    manager = get_degradation_manager()
+
+    # Register services for monitoring
+    manager.register_service(
+        name="ai_detector",
+        health_check=detector.health_check,
+        critical=True,
+    )
+
+    # Queue with automatic fallback
+    await manager.queue_with_fallback("detection_queue", item)
+
+    # Check if service is available
+    if manager.is_service_healthy("rtdetr"):
+        # Proceed with AI analysis
+        pass
+
+    # Drain fallback queue when recovered
+    await manager.drain_fallback_queue("detection_queue")
 """
 
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
+from pathlib import Path
 from typing import Any, TypeVar
 
 from backend.core.logging import get_logger
@@ -62,7 +84,7 @@ class ServiceHealth:
     Attributes:
         name: Service name
         status: Current health status
-        last_check: Timestamp of last health check
+        last_check: Timestamp of last health check (monotonic time)
         last_success: Timestamp of last successful check
         consecutive_failures: Count of consecutive failed checks
         error_message: Last error message if unhealthy
@@ -150,6 +172,170 @@ class RegisteredService:
             self.health = ServiceHealth(name=self.name)
 
 
+class FallbackQueue:
+    """Disk-based fallback queue for when Redis is unavailable.
+
+    Stores queue items as JSON files on disk to prevent data loss
+    during Redis outages.
+    """
+
+    def __init__(
+        self,
+        queue_name: str,
+        fallback_dir: str,
+        max_size: int = 10000,
+    ):
+        """Initialize fallback queue.
+
+        Args:
+            queue_name: Name of the queue (used for directory)
+            fallback_dir: Base directory for fallback storage
+            max_size: Maximum items to store (oldest dropped when exceeded)
+        """
+        self._queue_name = queue_name
+        self._fallback_dir = Path(fallback_dir) / queue_name
+        self._max_size = max_size
+        self._counter = 0
+        self._lock = asyncio.Lock()
+
+        # Ensure directory exists
+        self._fallback_dir.mkdir(parents=True, exist_ok=True)
+
+        logger.info(
+            f"FallbackQueue '{queue_name}' initialized",
+            extra={
+                "queue_name": queue_name,
+                "fallback_dir": str(self._fallback_dir),
+                "max_size": max_size,
+            },
+        )
+
+    @property
+    def queue_name(self) -> str:
+        """Get queue name."""
+        return self._queue_name
+
+    @property
+    def fallback_dir(self) -> Path:
+        """Get fallback directory path."""
+        return self._fallback_dir
+
+    def count(self) -> int:
+        """Count items in the fallback queue."""
+        return len(list(self._fallback_dir.glob("*.json")))
+
+    async def add(self, item: dict[str, Any]) -> bool:
+        """Add an item to the fallback queue.
+
+        Args:
+            item: Dictionary to store
+
+        Returns:
+            True if item was stored successfully
+        """
+        async with self._lock:
+            try:
+                # Check size limit
+                current_count = self.count()
+                if current_count >= self._max_size:
+                    # Remove oldest files to make room
+                    files = sorted(self._fallback_dir.glob("*.json"))
+                    for f in files[: current_count - self._max_size + 1]:
+                        f.unlink()
+                        logger.warning(
+                            f"FallbackQueue '{self._queue_name}' dropped oldest item due to size limit"
+                        )
+
+                # Generate unique filename
+                timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S_%f")
+                self._counter += 1
+                filename = f"{timestamp}_{self._counter:06d}.json"
+                filepath = self._fallback_dir / filename
+
+                # Write item to disk
+                with open(filepath, "w") as outfile:
+                    json.dump(
+                        {
+                            "item": item,
+                            "queued_at": datetime.now(UTC).isoformat(),
+                        },
+                        outfile,
+                    )
+
+                logger.debug(
+                    f"FallbackQueue '{self._queue_name}' added item",
+                    extra={"file": filename},
+                )
+                return True
+
+            except Exception as e:
+                logger.error(
+                    f"FallbackQueue '{self._queue_name}' failed to add item: {e}",
+                    extra={"error": str(e)},
+                )
+                return False
+
+    async def get(self) -> dict[str, Any] | None:
+        """Get the oldest item from the fallback queue.
+
+        Returns:
+            The item dictionary, or None if queue is empty
+        """
+        async with self._lock:
+            try:
+                # Get oldest file
+                files = sorted(self._fallback_dir.glob("*.json"))
+                if not files:
+                    return None
+
+                oldest = files[0]
+
+                # Read and delete
+                with open(oldest) as infile:
+                    data = json.load(infile)
+
+                oldest.unlink()
+
+                logger.debug(
+                    f"FallbackQueue '{self._queue_name}' retrieved item",
+                    extra={"file": oldest.name},
+                )
+                result: dict[str, Any] | None = data.get("item")
+                return result
+
+            except Exception as e:
+                logger.error(
+                    f"FallbackQueue '{self._queue_name}' failed to get item: {e}",
+                    extra={"error": str(e)},
+                )
+                return None
+
+    async def peek(self, limit: int = 10) -> list[dict[str, Any]]:
+        """Peek at items without removing them.
+
+        Args:
+            limit: Maximum items to return
+
+        Returns:
+            List of items (oldest first)
+        """
+        items = []
+        files = sorted(self._fallback_dir.glob("*.json"))[:limit]
+
+        for f in files:
+            try:
+                with open(f) as fp:
+                    data = json.load(fp)
+                    items.append(data.get("item", {}))
+            except Exception:  # noqa: S110
+                # Intentionally ignore corrupted/unreadable files during peek operation.
+                # Peek is non-destructive and should not fail if individual files are
+                # malformed - we simply skip them and continue with remaining files.
+                pass
+
+        return items
+
+
 class DegradationManager:
     """Manages graceful degradation during partial outages.
 
@@ -180,17 +366,21 @@ class DegradationManager:
     def __init__(
         self,
         redis_client: Any | None = None,
+        fallback_dir: str | None = None,
         failure_threshold: int = 3,
         recovery_threshold: int = 2,
         max_memory_queue_size: int = 1000,
+        check_interval: float = 15.0,
     ) -> None:
         """Initialize degradation manager.
 
         Args:
             redis_client: Redis client for job queueing
+            fallback_dir: Directory for disk-based fallback queues
             failure_threshold: Failures before marking unhealthy
             recovery_threshold: Successes needed to confirm recovery
             max_memory_queue_size: Max jobs to hold in memory queue
+            check_interval: Interval between health checks in seconds
         """
         self._redis = redis_client
         self._mode = DegradationMode.NORMAL
@@ -198,15 +388,24 @@ class DegradationManager:
         self._memory_queue: deque[QueuedJob] = deque(maxlen=max_memory_queue_size)
         self._lock = asyncio.Lock()
         self._redis_healthy = True
+        self._running = False
+        self._task: asyncio.Task[None] | None = None
+
+        # Disk-based fallback
+        self._fallback_dir = Path(fallback_dir or Path.home() / ".cache" / "hsi_fallback")
+        self._fallback_queues: dict[str, FallbackQueue] = {}
+        self._fallback_dir.mkdir(parents=True, exist_ok=True)
 
         self.failure_threshold = failure_threshold
         self.recovery_threshold = recovery_threshold
         self.max_memory_queue_size = max_memory_queue_size
+        self._check_interval = check_interval
 
         logger.info(
             f"DegradationManager initialized: "
             f"failure_threshold={failure_threshold}, "
-            f"recovery_threshold={recovery_threshold}"
+            f"recovery_threshold={recovery_threshold}, "
+            f"fallback_dir={self._fallback_dir}"
         )
 
     @property
@@ -251,6 +450,19 @@ class DegradationManager:
         if name in self._services:
             return self._services[name].health
         return ServiceHealth(name=name, status=ServiceStatus.UNKNOWN)
+
+    def is_service_healthy(self, name: str) -> bool:
+        """Check if a service is healthy.
+
+        Args:
+            name: Service name
+
+        Returns:
+            True if service is healthy
+        """
+        if name in self._services:
+            return self._services[name].health.is_healthy
+        return False
 
     async def update_service_health(
         self,
@@ -405,8 +617,100 @@ class DegradationManager:
             return False
 
     def _use_memory_queue(self) -> bool:
-        """Check if we should use in-memory queue."""
+        """Check if we should use in-memory queue.
+
+        Returns:
+            True if Redis is unavailable and we should use memory queue
+        """
         return self._redis is None or not self._redis_healthy
+
+    def _get_fallback_queue(self, queue_name: str) -> FallbackQueue:
+        """Get or create a disk-based fallback queue.
+
+        Args:
+            queue_name: Name of the queue
+
+        Returns:
+            FallbackQueue instance
+        """
+        if queue_name not in self._fallback_queues:
+            self._fallback_queues[queue_name] = FallbackQueue(
+                queue_name=queue_name,
+                fallback_dir=str(self._fallback_dir),
+            )
+        return self._fallback_queues[queue_name]
+
+    async def queue_with_fallback(
+        self,
+        queue_name: str,
+        item: dict[str, Any],
+    ) -> bool:
+        """Queue an item with automatic fallback to disk.
+
+        Attempts to queue to Redis first. If Redis is unavailable,
+        falls back to disk-based queue.
+
+        Args:
+            queue_name: Name of the queue
+            item: Item to queue
+
+        Returns:
+            True if item was queued (to either Redis or fallback)
+        """
+        # Try Redis first if available
+        if self._redis_healthy and self._redis is not None:
+            try:
+                await self._redis.add_to_queue(queue_name, item)
+                return True
+            except Exception as e:
+                logger.warning(
+                    f"Redis queue failed, falling back to disk: {e}",
+                    extra={"queue_name": queue_name, "error": str(e)},
+                )
+                self._redis_healthy = False
+
+        # Fallback to disk
+        fallback = self._get_fallback_queue(queue_name)
+        return await fallback.add(item)
+
+    async def drain_fallback_queue(self, queue_name: str) -> int:
+        """Drain items from fallback queue to Redis.
+
+        Args:
+            queue_name: Name of the queue to drain
+
+        Returns:
+            Number of items drained
+        """
+        if self._redis is None:
+            logger.warning("Cannot drain fallback queue: Redis client not configured")
+            return 0
+
+        fallback = self._get_fallback_queue(queue_name)
+        drained = 0
+
+        while True:
+            item = await fallback.get()
+            if item is None:
+                break
+
+            try:
+                await self._redis.add_to_queue(queue_name, item)
+                drained += 1
+            except Exception as e:
+                logger.error(
+                    f"Failed to drain item to Redis, stopping: {e}",
+                    extra={"queue_name": queue_name, "error": str(e)},
+                )
+                # Put item back
+                await fallback.add(item)
+                break
+
+        logger.info(
+            f"Drained {drained} items from fallback queue '{queue_name}'",
+            extra={"queue_name": queue_name, "drained": drained},
+        )
+        return drained
 
     def get_queued_job_count(self) -> int:
         """Get count of jobs in memory queue.
@@ -586,6 +890,57 @@ class DegradationManager:
         """
         return list(self._services.keys())
 
+    async def start(self) -> None:
+        """Start the health check loop."""
+        if self._running:
+            logger.warning("DegradationManager already running")
+            return
+
+        self._running = True
+        self._task = asyncio.create_task(self._health_check_loop())
+        logger.info("DegradationManager started")
+
+    async def stop(self) -> None:
+        """Stop the health check loop."""
+        if not self._running:
+            return
+
+        self._running = False
+        if self._task:
+            self._task.cancel()
+            try:
+                await self._task
+            except asyncio.CancelledError:
+                pass  # Expected when stop() cancels the task; no action needed
+            self._task = None
+
+        logger.info("DegradationManager stopped")
+
+    async def _health_check_loop(self) -> None:
+        """Main health check loop."""
+        while self._running:
+            try:
+                # Run health checks for all registered services
+                await self.run_health_checks()
+
+                # Check Redis health
+                await self.check_redis_health()
+
+                # Drain memory queue to Redis if available
+                if self._redis_healthy:
+                    await self.drain_memory_queue_to_redis()
+
+                await asyncio.sleep(self._check_interval)
+
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(
+                    f"Health check loop error: {e}",
+                    extra={"error": str(e)},
+                )
+                await asyncio.sleep(self._check_interval)
+
     def get_status(self) -> dict[str, Any]:
         """Get overall degradation status.
 
@@ -597,6 +952,9 @@ class DegradationManager:
             "is_degraded": self.is_degraded,
             "redis_healthy": self._redis_healthy,
             "memory_queue_size": len(self._memory_queue),
+            "fallback_queues": {
+                name: queue.count() for name, queue in self._fallback_queues.items()
+            },
             "services": {
                 name: service.health.to_dict() for name, service in self._services.items()
             },
@@ -610,11 +968,13 @@ _manager: DegradationManager | None = None
 
 def get_degradation_manager(
     redis_client: Any | None = None,
+    fallback_dir: str | None = None,
 ) -> DegradationManager:
     """Get or create the global degradation manager.
 
     Args:
         redis_client: Redis client (used on first call)
+        fallback_dir: Directory for fallback queues
 
     Returns:
         DegradationManager instance
@@ -622,7 +982,10 @@ def get_degradation_manager(
     global _manager  # noqa: PLW0603
 
     if _manager is None:
-        _manager = DegradationManager(redis_client=redis_client)
+        _manager = DegradationManager(
+            redis_client=redis_client,
+            fallback_dir=fallback_dir,
+        )
     elif redis_client is not None and _manager._redis is None:
         _manager._redis = redis_client
 

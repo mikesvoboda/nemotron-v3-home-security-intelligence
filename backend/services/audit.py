@@ -1,7 +1,7 @@
 """Audit logging service for tracking security-sensitive operations."""
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from fastapi import Request
 from sqlalchemy import func, select
@@ -153,7 +153,7 @@ class AuditService:
             AuditLog record or None if not found
         """
         result = await db.execute(select(AuditLog).where(AuditLog.id == audit_id))
-        return result.scalar_one_or_none()
+        return cast("AuditLog | None", result.scalar_one_or_none())
 
 
 # Singleton instance for convenience

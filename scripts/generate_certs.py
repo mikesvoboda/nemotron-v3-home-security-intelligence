@@ -154,7 +154,7 @@ Examples:
             key_path=str(key_path),
             hostname=args.hostname,
             san_hosts=san_hosts if san_hosts else None,
-            organization=args.organization,
+            _organization=args.organization,
             validity_days=args.validity_days,
         )
 

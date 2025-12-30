@@ -311,7 +311,7 @@ class BaselineService:
             # Apply time decay to the stored average
             now = datetime.now(UTC)
             decay = self._calculate_time_decay(baseline.last_updated, now)
-            return baseline.avg_count * decay
+            return float(baseline.avg_count * decay)
 
         if session is not None:
             return await _do_get(session)
@@ -357,7 +357,7 @@ class BaselineService:
             # Apply time decay to the stored frequency
             now = datetime.now(UTC)
             decay = self._calculate_time_decay(baseline.last_updated, now)
-            return baseline.frequency * decay
+            return float(baseline.frequency * decay)
 
         if session is not None:
             return await _do_get(session)

@@ -22,6 +22,7 @@ backend/core/
 ├── logging.py            # Centralized logging configuration
 ├── metrics.py            # Prometheus metrics definitions
 ├── redis.py              # Redis async client wrapper
+├── tls.py                # TLS certificate management
 ├── README.md             # General documentation
 ├── README_REDIS.md       # Detailed Redis documentation
 └── REDIS_QUICKSTART.md   # Redis usage quick reference
