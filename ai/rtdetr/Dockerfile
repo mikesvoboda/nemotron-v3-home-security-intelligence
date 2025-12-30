@@ -2,7 +2,7 @@
 # Uses HuggingFace Transformers for model loading and inference
 # Port: 8090 | Expected VRAM: ~3GB
 
-FROM pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime
+FROM docker.io/pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime
 
 LABEL maintainer="home-security-intelligence"
 LABEL description="RT-DETRv2 object detection server for home security monitoring"
