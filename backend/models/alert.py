@@ -32,6 +32,16 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .camera import Base
 
+
+def _utc_now() -> datetime:
+    """Return current UTC time as a naive datetime (for DB compatibility).
+
+    This replaces the deprecated datetime.utcnow() and ensures DB compatibility
+    by stripping timezone info since columns are TIMESTAMP WITHOUT TIME ZONE.
+    """
+    return datetime.now(UTC).replace(tzinfo=None)
+
+
 if TYPE_CHECKING:
     from .event import Event
 
@@ -92,16 +102,11 @@ class Alert(Base):
         nullable=False,
         default=AlertStatus.PENDING,
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utc_now, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(UTC),
-        onupdate=lambda: datetime.now(UTC),
-        nullable=False,
+        DateTime, default=_utc_now, onupdate=_utc_now, nullable=False
     )
-    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     channels: Mapped[list | None] = mapped_column(JSON, nullable=True, default=list)
     dedup_key: Mapped[str] = mapped_column(String(255), nullable=False)
     # Note: Named alert_metadata to avoid collision with SQLAlchemy's reserved 'metadata'
@@ -205,14 +210,9 @@ class AlertRule(Base):
     channels: Mapped[list | None] = mapped_column(JSON, nullable=True, default=list)
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utc_now, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(UTC),
-        onupdate=lambda: datetime.now(UTC),
-        nullable=False,
+        DateTime, default=_utc_now, onupdate=_utc_now, nullable=False
     )
 
     # Relationships
