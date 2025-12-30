@@ -99,6 +99,27 @@ fi
 echo ""
 echo -e "${GREEN}Generated $GENERATED systemd unit files${NC}"
 
+# Add frontend dependency on backend (fixes stale DNS on backend restart)
+FRONTEND_SERVICE="$SYSTEMD_USER_DIR/nemotron-v3-home-security-intelligence_frontend_1.service"
+BACKEND_SERVICE="nemotron-v3-home-security-intelligence_backend_1.service"
+if [[ -f "$FRONTEND_SERVICE" ]]; then
+    echo ""
+    echo "Adding frontend dependency on backend (fixes DNS cache issues)..."
+    # Add After= dependency if not present
+    if ! grep -q "After=.*$BACKEND_SERVICE" "$FRONTEND_SERVICE"; then
+        sed -i "s/^After=network-online.target/After=network-online.target $BACKEND_SERVICE/" "$FRONTEND_SERVICE"
+    fi
+    # Add Requires= if not present
+    if ! grep -q "Requires=$BACKEND_SERVICE" "$FRONTEND_SERVICE"; then
+        sed -i "/^After=/a Requires=$BACKEND_SERVICE" "$FRONTEND_SERVICE"
+    fi
+    # Add PartOf= if not present (causes frontend to restart when backend restarts)
+    if ! grep -q "PartOf=$BACKEND_SERVICE" "$FRONTEND_SERVICE"; then
+        sed -i "/^Requires=/a PartOf=$BACKEND_SERVICE" "$FRONTEND_SERVICE"
+    fi
+    echo -e "  - Frontend linked to backend: ${GREEN}OK${NC}"
+fi
+
 # Reload systemd
 echo ""
 echo "Reloading systemd daemon..."
