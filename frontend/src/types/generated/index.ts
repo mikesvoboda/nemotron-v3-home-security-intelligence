@@ -43,7 +43,6 @@ export type GPUStatsHistoryResponse = components['schemas']['GPUStatsHistoryResp
 export type SystemConfig = components['schemas']['ConfigResponse'];
 export type SystemConfigUpdate = components['schemas']['ConfigUpdateRequest'];
 export type SystemStats = components['schemas']['SystemStatsResponse'];
-export type LivenessResponse = components['schemas']['LivenessResponse'];
 export type ReadinessResponse = components['schemas']['ReadinessResponse'];
 export type WorkerStatus = components['schemas']['WorkerStatus'];
 
