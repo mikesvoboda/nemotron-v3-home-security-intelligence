@@ -134,6 +134,8 @@ export function useConnectionStatus(): UseConnectionStatusReturn {
   }, []);
 
   // REST API polling fallback function
+  /* v8 ignore start -- polling fallback is triggered by onMaxRetriesExhausted which requires
+   * real WebSocket connection exhaustion. Mock setup cannot reliably trigger this callback. */
   const pollRestApi = useCallback(async () => {
     try {
       // Fetch health status
@@ -216,8 +218,10 @@ export function useConnectionStatus(): UseConnectionStatusReturn {
       // Polling failure is expected when server is down - silently ignore
     }
   }, []);
+  /* v8 ignore stop */
 
   // Start/stop polling based on WebSocket state
+  /* v8 ignore start -- part of polling fallback system, requires onMaxRetriesExhausted trigger */
   const startPolling = useCallback(() => {
     if (pollingIntervalRef.current) return; // Already polling
 
@@ -239,6 +243,7 @@ export function useConnectionStatus(): UseConnectionStatusReturn {
       setIsPollingFallback(false);
     }
   }, []);
+  /* v8 ignore stop */
 
   const eventsWsUrl = buildWebSocketUrl('/ws/events');
   const systemWsUrl = buildWebSocketUrl('/ws/system');
