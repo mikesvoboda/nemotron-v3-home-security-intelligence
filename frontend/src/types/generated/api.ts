@@ -76,9 +76,12 @@ export interface paths {
          * Clear Seeded Data
          * @description Clear all seeded data (cameras, events, detections).
          *
-         *     Only available when DEBUG=true.
+         *     Only available when DEBUG=true. Requires JSON body confirmation:
+         *     {"confirm": "DELETE_ALL_DATA"}
          *
          *     Args:
+         *         body: Request body with confirmation string
+         *         request: FastAPI request for audit logging
          *         db: Database session
          *
          *     Returns:
@@ -1351,9 +1354,11 @@ export interface paths {
          * @description Get current GPU statistics.
          *
          *     Returns the most recent GPU statistics including:
+         *     - GPU name
          *     - GPU utilization percentage
          *     - Memory usage (used/total)
          *     - Temperature
+         *     - Power usage
          *     - Inference FPS
          *
          *     Returns:
@@ -2587,6 +2592,17 @@ export interface components {
              * @description Timestamp of cleanup operation
              */
             timestamp: string;
+        };
+        /**
+         * ClearDataRequest
+         * @description Request schema for clearing data - requires confirmation.
+         */
+        ClearDataRequest: {
+            /**
+             * Confirm
+             * @description Must be exactly 'DELETE_ALL_DATA' to confirm deletion
+             */
+            confirm: string;
         };
         /**
          * ClearDataResponse
@@ -5213,7 +5229,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClearDataRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -5222,6 +5242,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClearDataResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
