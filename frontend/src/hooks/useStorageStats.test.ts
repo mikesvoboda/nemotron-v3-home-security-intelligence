@@ -47,7 +47,8 @@ describe('useStorageStats', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.useFakeTimers();
+    // Use shouldAdvanceTime to prevent waitFor from hanging
+    vi.useFakeTimers({ shouldAdvanceTime: true });
   });
 
   afterEach(() => {
