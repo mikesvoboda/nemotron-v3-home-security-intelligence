@@ -410,11 +410,8 @@ class NotificationService:
             )
 
             if response.status_code >= 200 and response.status_code < 300:
-                logger.info(
-                    "Webhook notification sent for alert %s to %s",
-                    alert.id,
-                    _sanitize_log_input(url),
-                )
+                # Log without user-controlled data to avoid log injection (CodeQL py/log-injection)
+                logger.info("Webhook notification sent successfully for alert %s", alert.id)
                 return NotificationDelivery(
                     channel=NotificationChannel.WEBHOOK,
                     success=True,
@@ -422,8 +419,9 @@ class NotificationService:
                     recipient=url,
                 )
             else:
+                # Log status code only to avoid log injection from response body
+                logger.warning("Webhook returned error status %s", response.status_code)
                 error_msg = f"Webhook returned status {response.status_code}: {response.text[:200]}"
-                logger.warning("Webhook error: %s", _sanitize_log_input(error_msg))
                 return NotificationDelivery(
                     channel=NotificationChannel.WEBHOOK,
                     success=False,
