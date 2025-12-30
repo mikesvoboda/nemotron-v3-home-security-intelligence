@@ -391,7 +391,7 @@ class TestWebSocketSystemEndpoint:
                 AsyncMock(return_value=True),
             ),
             patch(
-                "backend.api.routes.websocket.get_system_broadcaster_sync",
+                "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
             ),
         ):
@@ -415,7 +415,7 @@ class TestWebSocketSystemEndpoint:
                 AsyncMock(return_value=True),
             ),
             patch(
-                "backend.api.routes.websocket.get_system_broadcaster_sync",
+                "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
             ),
         ):
@@ -439,7 +439,7 @@ class TestWebSocketSystemEndpoint:
                 AsyncMock(return_value=True),
             ),
             patch(
-                "backend.api.routes.websocket.get_system_broadcaster_sync",
+                "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
             ),
         ):
@@ -469,7 +469,7 @@ class TestWebSocketSystemEndpoint:
                 AsyncMock(return_value=True),
             ),
             patch(
-                "backend.api.routes.websocket.get_system_broadcaster_sync",
+                "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
             ),
         ):
@@ -492,7 +492,7 @@ class TestWebSocketSystemEndpoint:
                 AsyncMock(return_value=True),
             ),
             patch(
-                "backend.api.routes.websocket.get_system_broadcaster_sync",
+                "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
             ),
         ):
@@ -515,7 +515,7 @@ class TestWebSocketSystemEndpoint:
                 AsyncMock(return_value=True),
             ),
             patch(
-                "backend.api.routes.websocket.get_system_broadcaster_sync",
+                "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
             ),
         ):
@@ -539,7 +539,7 @@ class TestWebSocketSystemEndpoint:
                 AsyncMock(return_value=True),
             ),
             patch(
-                "backend.api.routes.websocket.get_system_broadcaster_sync",
+                "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
             ),
         ):
@@ -559,7 +559,7 @@ class TestWebSocketSystemEndpoint:
                 AsyncMock(return_value=True),
             ),
             patch(
-                "backend.api.routes.websocket.get_system_broadcaster_sync",
+                "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
             ),
         ):
@@ -589,7 +589,7 @@ class TestWebSocketSystemEndpoint:
                 AsyncMock(return_value=True),
             ),
             patch(
-                "backend.api.routes.websocket.get_system_broadcaster_sync",
+                "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
             ),
         ):
@@ -659,7 +659,7 @@ class TestWebSocketEdgeCases:
                 AsyncMock(return_value=True),
             ),
             patch(
-                "backend.api.routes.websocket.get_system_broadcaster_sync",
+                "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
             ),
         ):
@@ -716,7 +716,7 @@ class TestWebSocketEdgeCases:
                 AsyncMock(return_value=True),
             ),
             patch(
-                "backend.api.routes.websocket.get_system_broadcaster_sync",
+                "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
             ),
         ):
@@ -791,7 +791,7 @@ class TestWebSocketConnectionStates:
                 AsyncMock(return_value=True),
             ),
             patch(
-                "backend.api.routes.websocket.get_system_broadcaster_sync",
+                "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
             ),
         ):
@@ -850,7 +850,7 @@ class TestWebSocketLogging:
                 AsyncMock(return_value=True),
             ),
             patch(
-                "backend.api.routes.websocket.get_system_broadcaster_sync",
+                "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
             ),
         ):
@@ -932,7 +932,7 @@ class TestWebSocketDependencies:
                 AsyncMock(return_value=True),
             ),
             patch(
-                "backend.api.routes.websocket.get_system_broadcaster_sync",
+                "backend.api.routes.websocket.get_system_broadcaster",
                 mock_get_system_broadcaster,
             ),
         ):
@@ -998,7 +998,7 @@ class TestWebSocketConcurrency:
                 AsyncMock(return_value=True),
             ),
             patch(
-                "backend.api.routes.websocket.get_system_broadcaster_sync",
+                "backend.api.routes.websocket.get_system_broadcaster",
                 return_value=mock_system_broadcaster,
             ),
         ):
