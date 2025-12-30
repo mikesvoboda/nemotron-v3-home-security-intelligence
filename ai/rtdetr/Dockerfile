@@ -24,6 +24,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Add httpx for health check (used by example_client.py)
 RUN pip install --no-cache-dir httpx
 
+# Create non-root user for security
+RUN groupadd -g 1000 rtdetr && \
+    useradd -u 1000 -g rtdetr -s /bin/bash -m rtdetr
+
 # Copy application files
 COPY model.py .
 COPY example_client.py .
@@ -35,10 +39,16 @@ ENV RTDETR_CONFIDENCE=0.5
 ENV HF_HOME=/cache/huggingface
 
 # Create cache directory for HuggingFace models
-RUN mkdir -p /cache/huggingface
+RUN mkdir -p /cache/huggingface && chown -R rtdetr:rtdetr /cache/huggingface
+
+# Set ownership of app directory
+RUN chown -R rtdetr:rtdetr /app
 
 # Expose port
 EXPOSE 8090
+
+# Switch to non-root user
+USER rtdetr
 
 # Health check using Python/httpx on /health endpoint
 # Start period of 60s allows time for model loading
