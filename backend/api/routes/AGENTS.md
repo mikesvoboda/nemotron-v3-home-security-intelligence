@@ -15,6 +15,8 @@ Package initialization with public exports:
 - `logs_router` - Logs API router
 - `zones_router` - Camera zones API router
 
+Note: Other routers (cameras, events, detections, system, media, websocket, dlq, metrics, notification, admin) are imported directly via FastAPI app.include_router() in main.py.
+
 ### `cameras.py`
 
 Camera management CRUD endpoints and snapshot serving.
@@ -179,17 +181,21 @@ System monitoring, health checks, GPU stats, configuration, and telemetry.
 
 **Endpoints:**
 
-| Method | Path                       | Purpose                                   |
-| ------ | -------------------------- | ----------------------------------------- |
-| GET    | `/api/system/health`       | Detailed system health check              |
-| GET    | `/api/system/health/live`  | Liveness probe (always returns "alive")   |
-| GET    | `/api/system/health/ready` | Readiness probe (checks all dependencies) |
-| GET    | `/api/system/gpu`          | Current GPU statistics                    |
-| GET    | `/api/system/gpu/history`  | GPU stats time series                     |
-| GET    | `/api/system/stats`        | System statistics (counts, uptime)        |
-| GET    | `/api/system/config`       | Public configuration settings             |
-| PATCH  | `/api/system/config`       | Update configuration settings             |
-| GET    | `/api/system/telemetry`    | Pipeline queue depths and latency stats   |
+| Method | Path                           | Purpose                                          |
+| ------ | ------------------------------ | ------------------------------------------------ |
+| GET    | `/api/system/health`           | Detailed system health check                     |
+| GET    | `/api/system/health/live`      | Liveness probe (always returns "alive")          |
+| GET    | `/api/system/health/ready`     | Readiness probe (checks all dependencies)        |
+| GET    | `/api/system/gpu`              | Current GPU statistics                           |
+| GET    | `/api/system/gpu/history`      | GPU stats time series                            |
+| GET    | `/api/system/stats`            | System statistics (counts, uptime)               |
+| GET    | `/api/system/config`           | Public configuration settings                    |
+| PATCH  | `/api/system/config`           | Update configuration settings (API key required) |
+| GET    | `/api/system/telemetry`        | Pipeline queue depths and latency stats          |
+| GET    | `/api/system/pipeline-latency` | Pipeline stage transition latencies              |
+| POST   | `/api/system/cleanup`          | Trigger manual cleanup (API key required)        |
+| GET    | `/api/system/severity`         | Severity level definitions and thresholds        |
+| GET    | `/api/system/storage`          | Storage statistics and disk usage                |
 
 **Health Status Logic:**
 
@@ -217,9 +223,14 @@ System monitoring, health checks, GPU stats, configuration, and telemetry.
 **Key Features:**
 
 - Multi-service health checks with timeout protection (5 seconds)
+- Circuit breaker pattern for AI service health checks
 - Runtime configuration updates persisted to env file
 - Application uptime tracking
 - Kubernetes-style liveness/readiness probes
+- Pipeline latency tracking with percentiles (p50, p95, p99)
+- Manual cleanup with dry_run mode for verification
+- Severity taxonomy and thresholds for frontend consistency
+- Storage stats with disk usage and per-category breakdown
 
 ### `media.py`
 
@@ -386,6 +397,27 @@ Camera zone management (nested under cameras resource).
 - Shape support: rectangle, polygon
 - Priority-based overlapping zones
 - Color customization for UI display
+
+### `notification.py`
+
+Notification configuration and testing endpoints.
+
+**Router prefix:** `/api/notification`
+
+**Endpoints:**
+
+| Method | Path                       | Purpose                            |
+| ------ | -------------------------- | ---------------------------------- |
+| GET    | `/api/notification/config` | Get notification configuration     |
+| POST   | `/api/notification/test`   | Test notification channel delivery |
+
+**Key Features:**
+
+- Shows which notification channels are configured (email, webhook, push)
+- Returns SMTP and webhook settings (without sensitive data)
+- Test endpoint sends mock alerts to verify channel configuration
+- Supports email, webhook, and push notification channels
+- Integrates with AuditService for logging test actions
 
 ### `admin.py`
 

@@ -14,6 +14,10 @@ from backend.models import Camera, Detection, Event, GPUStats
 # Import unique_id helper from conftest for test isolation
 from backend.tests.conftest import unique_id
 
+# Mark as integration since these tests require real PostgreSQL database
+# NOTE: This file should be moved to backend/tests/integration/ in a future cleanup
+pytestmark = pytest.mark.integration
+
 # Note: The 'session' fixture is provided by conftest.py with transaction
 # rollback isolation for parallel test execution.
 

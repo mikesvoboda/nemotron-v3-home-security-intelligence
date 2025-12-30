@@ -12,6 +12,8 @@ Contains React components for system observability and monitoring features. Thes
 | `SystemMonitoringPage.test.tsx` | Test suite for SystemMonitoringPage |
 | `ObservabilityPanel.tsx`        | Observability dashboard section     |
 | `ObservabilityPanel.test.tsx`   | Test suite for ObservabilityPanel   |
+| `WorkerStatusPanel.tsx`         | Background workers status display   |
+| `WorkerStatusPanel.test.tsx`    | Test suite for WorkerStatusPanel    |
 | `index.ts`                      | Barrel exports                      |
 
 ## Key Components
@@ -199,10 +201,60 @@ Tests cover:
 
 This component is designed to be added to the main dashboard page or as a dedicated observability section. It works alongside existing dashboard components like `GpuStats` and `RiskGauge`.
 
+### WorkerStatusPanel.tsx
+
+**Purpose:** Displays status of all 8 background workers with real-time polling
+
+**Key Features:**
+
+- Status display for all background workers:
+  - GPU Monitor, Cleanup Service, System Broadcaster
+  - File Watcher, Detection Worker, Analysis Worker
+  - Batch Timeout Worker, Metrics Worker
+- Critical worker highlighting (detection_worker, analysis_worker):
+  - Special NVIDIA green border when running
+  - "Critical" badge
+  - Red border when stopped
+- Summary badges showing running/stopped counts
+- Worker descriptions and human-readable names
+- Error messages for stopped workers
+- Auto-polling with configurable interval (default: 10s)
+- Sorted list: critical workers first, then alphabetical
+- Loading skeleton and error states
+
+**Props:**
+
+```typescript
+interface WorkerStatusPanelProps {
+  /** Polling interval in milliseconds (default: 10000) */
+  pollingInterval?: number;
+  /** Optional callback when worker status changes */
+  onStatusChange?: (workers: WorkerStatus[]) => void;
+}
+```
+
+**API Integration:**
+
+- `fetchReadiness()` - GET /api/system/health/ready
+
+**Worker Display Names:**
+
+| Worker Name          | Display Name         | Description                              |
+| -------------------- | -------------------- | ---------------------------------------- |
+| gpu_monitor          | GPU Monitor          | Monitors GPU utilization and temperature |
+| cleanup_service      | Cleanup Service      | Removes old data based on retention      |
+| system_broadcaster   | System Broadcaster   | Broadcasts system status via WebSocket   |
+| file_watcher         | File Watcher         | Watches for new camera images            |
+| detection_worker     | Detection Worker     | Processes images through RT-DETRv2       |
+| analysis_worker      | Analysis Worker      | Analyzes detections with Nemotron LLM    |
+| batch_timeout_worker | Batch Timeout Worker | Handles batch processing timeouts        |
+| metrics_worker       | Metrics Worker       | Collects and reports pipeline metrics    |
+
 ## Entry Points
 
 **Start here:** `SystemMonitoringPage.tsx` - Main page integrating all system monitoring features
 **Then explore:** `ObservabilityPanel.tsx` - Detailed observability metrics with charts
+**Next:** `WorkerStatusPanel.tsx` - Background worker status with critical worker highlighting
 
 ## Dependencies
 

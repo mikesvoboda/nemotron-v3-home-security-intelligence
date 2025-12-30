@@ -7,9 +7,10 @@ This directory contains SQLAlchemy 2.0 ORM models for the home security intellig
 ## Architecture Overview
 
 - **ORM Framework**: SQLAlchemy 2.0 with modern `Mapped` type hints
-- **Database**: PostgreSQL (for concurrent access and reliability)
+- **Database**: PostgreSQL with asyncpg driver (for concurrent access and reliability)
 - **Type Safety**: Full type annotations for IDE support and mypy checking
 - **Cascade Behavior**: Camera deletion automatically removes dependent records
+- **PostgreSQL Features**: Uses JSONB, TSVECTOR, GIN indexes for efficient querying
 - **Testing**: Comprehensive unit tests in `/backend/tests/unit/test_models.py`
 
 ## Files Overview
@@ -70,7 +71,15 @@ backend/models/
 - `detections` - One-to-many with Detection (cascade="all, delete-orphan")
 - `events` - One-to-many with Event (cascade="all, delete-orphan")
 
-**Note:** This file also defines the `Base` class used by all models.
+**Helper Functions:**
+
+- `normalize_camera_id(folder_name)` - Converts folder names to valid camera IDs (e.g., "Front Door" -> "front_door")
+
+**Factory Methods:**
+
+- `Camera.from_folder_name(folder_name, folder_path)` - Creates camera with properly normalized ID
+
+**Note:** This file also defines the `Base` class used by all models. The camera ID contract requires `camera.id == normalize_camera_id(folder_name)` for proper file watcher mapping.
 
 ## `detection.py` - Detection Model
 
@@ -142,6 +151,7 @@ backend/models/
 **Relationships:**
 
 - `camera` - Many-to-one with Camera
+- `alerts` - One-to-many with Alert (cascade="all, delete-orphan")
 
 **Indexes:**
 
@@ -157,6 +167,10 @@ backend/models/
 - `object_types` - Cached object types from related detections (comma-separated)
 - `clip_path` - Path to generated video clip for this event (optional)
 - `search_vector` - PostgreSQL TSVECTOR for full-text search (auto-populated by trigger)
+
+**Methods:**
+
+- `get_severity()` - Returns Severity enum based on risk_score using SeverityService
 
 ## `alert.py` - Alert and AlertRule Models
 
@@ -212,6 +226,18 @@ backend/models/
 | `color`       | str                  | Display color (default: #3B82F6)         |
 | `enabled`     | bool                 | Active status                            |
 | `priority`    | int                  | Priority for overlapping zones           |
+| `created_at`  | datetime             | Creation timestamp                       |
+| `updated_at`  | datetime             | Last update timestamp (auto-updated)     |
+
+**Relationships:**
+
+- `camera` - Many-to-one with Camera
+
+**Indexes:**
+
+- `idx_zones_camera_id` - Index on camera_id
+- `idx_zones_enabled` - Index on enabled
+- `idx_zones_camera_enabled` - Composite index on (camera_id, enabled)
 
 ## `baseline.py` - Activity Baseline Models
 
@@ -250,7 +276,16 @@ backend/models/
 | `details`       | JSONB                   | Additional action details                |
 | `status`        | str                     | success/failure                          |
 
-**AuditAction Types:** EVENT_REVIEWED, EVENT_DISMISSED, SETTINGS_CHANGED, MEDIA_EXPORTED, RULE_CREATED/UPDATED/DELETED, CAMERA_CREATED/UPDATED/DELETED, LOGIN, LOGOUT, API_KEY_CREATED/REVOKED
+**AuditAction Types:** EVENT_REVIEWED, EVENT_DISMISSED, SETTINGS_CHANGED, MEDIA_EXPORTED, RULE_CREATED/UPDATED/DELETED, CAMERA_CREATED/UPDATED/DELETED, LOGIN, LOGOUT, API_KEY_CREATED/REVOKED, NOTIFICATION_TEST, DATA_CLEARED
+
+**Indexes:**
+
+- `idx_audit_logs_timestamp` - Index on timestamp
+- `idx_audit_logs_action` - Index on action
+- `idx_audit_logs_resource_type` - Index on resource_type
+- `idx_audit_logs_actor` - Index on actor
+- `idx_audit_logs_status` - Index on status
+- `idx_audit_logs_resource` - Composite index on (resource_type, resource_id)
 
 ## `enums.py` - Shared Enumerations
 
@@ -415,17 +450,17 @@ __table_args__ = (
 Camera (1) ----< (many) Detection
 Camera (1) ----< (many) Event
 Camera (1) ----< (many) Zone
-Camera (1) ----< (many) ActivityBaseline
-Camera (1) ----< (many) ClassBaseline
+Camera (1) ----< (many) ActivityBaseline (via backref)
+Camera (1) ----< (many) ClassBaseline (via backref)
 
 Event (1) ----< (many) Alert
 
 AlertRule (1) ----< (many) Alert
 
-GPUStats (standalone, no relationships)
-APIKey (standalone, no relationships)
-Log (standalone, no relationships)
-AuditLog (standalone, no relationships)
+GPUStats (standalone, no foreign key relationships)
+APIKey (standalone, no foreign key relationships)
+Log (standalone, no foreign key relationships - for reliability)
+AuditLog (standalone, no foreign key relationships)
 ```
 
 **Cascade Behavior:**

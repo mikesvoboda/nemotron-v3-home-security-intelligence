@@ -12,6 +12,8 @@ architecture/
   overview.md       # High-level system architecture
   ai-pipeline.md    # AI processing pipeline details
   data-model.md     # Database schema and data flow
+  resilience.md     # Circuit breakers, retries, DLQ, health monitoring
+  real-time.md      # WebSocket channels, Redis pub/sub, event broadcasting
   decisions.md      # Architectural decisions and rationale
 ```
 
@@ -72,13 +74,62 @@ architecture/
 
 **Topics Covered:**
 
-- SQLAlchemy model definitions
-- Table relationships (cameras, detections, events, gpu_stats, logs)
-- Index strategy for performance
+- SQLAlchemy model definitions with PostgreSQL-specific types (JSONB, TSVECTOR, UUID)
+- Table relationships (cameras, detections, events, gpu_stats, logs, zones, alerts, alert_rules)
+- Redis data structures for queues and pub/sub
+- Index strategy for performance (including GIN indexes for full-text search)
 - Data retention and cleanup policies
-- Migration strategies
+- Migration strategies with Alembic
 
 **When to use:** Writing database queries, modifying schema, understanding data relationships.
+
+### resilience.md
+
+**Purpose:** Documentation of resilience patterns for service reliability.
+
+**Topics Covered:**
+
+- Circuit breaker pattern implementation
+- Circuit breaker states (CLOSED, OPEN, HALF_OPEN)
+- Retry handler with exponential backoff
+- Dead-letter queue (DLQ) management
+- Service health monitoring and auto-recovery
+- Graceful degradation strategies
+- Recovery procedures
+
+**Key Source Files:**
+
+- `backend/services/circuit_breaker.py` - CircuitBreaker, CircuitBreakerConfig, CircuitBreakerRegistry
+- `backend/services/retry_handler.py` - RetryHandler, RetryConfig, DLQStats
+- `backend/services/health_monitor.py` - ServiceHealthMonitor
+- `backend/services/degradation_manager.py` - DegradationManager
+
+**When to use:** Implementing error handling, debugging service failures, understanding failure recovery.
+
+### real-time.md
+
+**Purpose:** Documentation of real-time communication architecture.
+
+**Topics Covered:**
+
+- WebSocket channel architecture (/ws/events, /ws/system)
+- Redis pub/sub backbone for multi-instance scaling
+- EventBroadcaster for security event distribution
+- SystemBroadcaster for health status updates
+- Message formats and envelope structure
+- Frontend React hook integration
+- Connection lifecycle management
+- Scaling considerations with sticky sessions
+
+**Key Source Files:**
+
+- `backend/services/event_broadcaster.py` - EventBroadcaster, get_broadcaster
+- `backend/services/system_broadcaster.py` - SystemBroadcaster
+- `frontend/src/hooks/useWebSocket.ts` - Base WebSocket hook
+- `frontend/src/hooks/useEventStream.ts` - Event stream hook
+- `frontend/src/hooks/useSystemStatus.ts` - System status hook
+
+**When to use:** Implementing real-time features, debugging WebSocket issues, understanding event flow.
 
 ### decisions.md
 
@@ -86,11 +137,17 @@ architecture/
 
 **Topics Covered:**
 
-- Why SQLite vs PostgreSQL (single-user local deployment)
-- Why hybrid deployment (Docker + native GPU)
-- Why batch processing vs real-time
-- Why LLM-determined risk scores
-- Technology selection rationale
+- ADR-001: PostgreSQL for Database (chosen for concurrent write support)
+- ADR-002: Redis for Queues and Pub/Sub
+- ADR-003: Detection Batching Strategy (90s window + 30s idle)
+- ADR-004: Hybrid Deployment Architecture (Docker + native GPU)
+- ADR-005: No Authentication (single-user MVP)
+- ADR-006: RT-DETRv2 for Object Detection
+- ADR-007: Nemotron for Risk Analysis
+- ADR-008: FastAPI + React Stack
+- ADR-009: WebSocket for Real-time Updates
+- ADR-010: LLM-Determined Risk Scoring
+- ADR-011: Native Tremor Charts over Grafana Embeds
 
 **When to use:** Understanding why the system is designed this way, evaluating alternatives.
 
@@ -103,6 +160,7 @@ Docker Compose:          Native Processes:
 - Frontend (React)       - RT-DETRv2 (GPU)
 - Backend (FastAPI)      - Nemotron LLM (GPU)
 - Redis
+- PostgreSQL
 ```
 
 AI services run natively because Docker GPU access is complex. Services communicate via `host.docker.internal`.
@@ -150,6 +208,18 @@ FileWatcher --> detection_queue --> DetectionWorker --> RT-DETRv2
 1. Read `decisions.md` for rationale behind choices
 2. Understand constraints that led to current design
 3. Check related ADRs in `docs/decisions/`
+
+### Implementing Resilience Patterns
+
+1. Read `resilience.md` for circuit breaker and retry patterns
+2. Understand DLQ management for failed jobs
+3. Review health monitoring for auto-recovery
+
+### Working on Real-time Features
+
+1. Read `real-time.md` for WebSocket architecture
+2. Understand Redis pub/sub for event distribution
+3. Review message formats and frontend hooks
 
 ## Diagram Conventions
 

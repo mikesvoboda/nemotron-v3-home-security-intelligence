@@ -239,28 +239,35 @@ interface ActivityEvent {
 
 ### GpuStats.tsx
 
-**Purpose:** Display GPU metrics in a dashboard card with utilization history
+**Purpose:** Display GPU metrics in a dashboard card with utilization history and interactive controls
 
 **Props Interface:**
 
 ```typescript
 interface GpuStatsProps {
-  utilization: number | null; // 0-100%
-  memoryUsed: number | null; // MB
-  memoryTotal: number | null; // MB
-  temperature: number | null; // Celsius
-  inferenceFps: number | null;
+  gpuName?: string | null; // GPU device name (e.g., 'NVIDIA RTX A5500')
+  utilization?: number | null; // 0-100% (optional, for initial/override)
+  memoryUsed?: number | null; // MB (optional, for initial/override)
+  memoryTotal?: number | null; // MB (optional, for initial/override)
+  temperature?: number | null; // Celsius (optional, for initial/override)
+  powerUsage?: number | null; // Watts (optional)
+  inferenceFps?: number | null; // FPS (optional, for initial/override)
   className?: string;
+  historyOptions?: UseGpuHistoryOptions; // Options for GPU history hook
+  showHistoryControls?: boolean; // Show start/stop/clear buttons (default: true)
 }
 ```
 
 **Key Features:**
 
-- Uses Tremor Card, ProgressBar, Title, Text, AreaChart components
-- Displays: utilization %, memory (GB), temperature (C), inference FPS
-- GPU utilization history chart (fetched on mount)
-- Color-coded temperature thresholds
+- Uses Tremor Card, ProgressBar, Title, Text, AreaChart, TabGroup, TabList, Tab components
+- Displays: GPU name, utilization %, memory (GB), temperature (C), power (W), inference FPS
+- Tabbed history charts: Utilization, Temperature, Memory
+- Real-time data via `useGpuHistory` hook with polling
+- Start/stop/clear controls for history collection
+- Color-coded temperature and power thresholds
 - Handles null values gracefully with "N/A"
+- Falls back to props when hook data unavailable
 
 **Temperature Color Coding:**
 
@@ -270,16 +277,30 @@ interface GpuStatsProps {
 | 70-80C      | yellow |
 | > 80C       | red    |
 
-**History Chart:**
+**Power Usage Color Coding:**
 
-- Fetches last 100 GPU samples on mount
-- Displays as Tremor AreaChart
-- Loading/error/empty states handled
+| Power    | Color  |
+| -------- | ------ |
+| < 150W   | green  |
+| 150-250W | yellow |
+| > 250W   | red    |
+
+**History Chart Tabs:**
+
+- **Utilization** - GPU usage % over time (emerald color)
+- **Temperature** - Temperature C over time (amber color)
+- **Memory** - Memory GB over time (blue color)
+
+**History Controls:**
+
+- Pause/Resume button to toggle polling
+- Clear button to reset history data
+- Data point count indicator
 
 **Dependencies:**
 
-- `@tremor/react` - Card, ProgressBar, Title, Text, AreaChart
-- `../../services/api` - fetchGpuHistory
+- `@tremor/react` - Card, ProgressBar, Title, Text, AreaChart, TabGroup, TabList, Tab
+- `../../hooks/useGpuHistory` - GPU metrics polling and history collection
 
 ---
 

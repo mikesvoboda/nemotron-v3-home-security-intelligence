@@ -29,7 +29,7 @@ This document captures the key architectural decisions made during the developme
 
 We needed a database for storing security events, detections, camera configurations, and GPU statistics. The system is designed for single-user, local deployment on a home network with moderate data volume (30-day retention, ~5-8 cameras).
 
-**Originally**, we chose SQLite for simplicity. **However**, testing revealed concurrency issues with the AI pipeline's parallel workers, requiring a move to PostgreSQL.
+The system requires a database for storing security events, detections, camera configurations, and GPU statistics. Testing revealed that PostgreSQL was essential for handling the AI pipeline's parallel workers with concurrent writes.
 
 ### Decision
 
@@ -40,7 +40,7 @@ Use **PostgreSQL** with `asyncpg` async driver.
 | Alternative        | Pros                                                                                | Cons                                                                       |
 | ------------------ | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
 | **PostgreSQL**     | Battle-tested, concurrent writes, full-text search, JSONB, handles parallel workers | Requires separate process, slightly more complex deployment                |
-| **SQLite**         | Zero setup, embedded, file-based backup                                             | Single-writer limitation caused bottlenecks with multiple pipeline workers |
+| **SQLite**         | Zero setup, embedded, file-based backup                                             | Single-writer limitation causes bottlenecks with multiple pipeline workers |
 | **MongoDB**        | Flexible schema, good for event-like data                                           | Additional complexity, overkill for structured data                        |
 | **In-memory only** | Fastest, simplest                                                                   | No persistence, data loss on restart                                       |
 
@@ -48,7 +48,7 @@ Use **PostgreSQL** with `asyncpg` async driver.
 
 1. **Concurrency:** Multiple pipeline workers (FileWatcher, BatchAggregator, CleanupService) need concurrent writes without blocking
 2. **Production-ready:** Proven for concurrent workloads, no need for WAL mode tuning or busy timeouts
-3. **Testing reliability:** SQLite's concurrency issues caused test flakiness and race conditions
+3. **Testing reliability:** SQLite's concurrency issues cause test flakiness and race conditions
 4. **Future-proofing:** Easy migration path if scaling beyond single-node
 5. **Modern features:** JSONB for flexible data, full-text search, better indexing
 
@@ -65,7 +65,7 @@ Use **PostgreSQL** with `asyncpg` async driver.
 **Negative:**
 
 - Requires PostgreSQL service (but already using Docker Compose)
-- Slightly more deployment complexity than embedded SQLite
+- Requires separate database process (handled by Docker Compose)
 - Database must be created before first run
 
 **Mitigations:**
@@ -73,16 +73,6 @@ Use **PostgreSQL** with `asyncpg` async driver.
 - Docker Compose handles PostgreSQL automatically
 - Database initialization happens on first app startup
 - Connection pooling handles multiple workers efficiently
-
-**Migration Path from SQLite:**
-
-```bash
-# Export SQLite data
-sqlite3 data/security.db .dump > backup.sql
-
-# Convert to PostgreSQL (manual or with pgloader)
-# Then import to PostgreSQL
-```
 
 ---
 
@@ -195,9 +185,10 @@ if confidence >= 0.90 and object_type == "person":
 ```
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph "Batching Logic"
-        A[New Detection] --> B{Fast Path?}
+        A[New Detection]
+        A --> B{Fast Path?}
         B -->|Yes: person >90%| C[Immediate Analysis]
         B -->|No| D{Active Batch?}
         D -->|No| E[Create Batch]
@@ -711,25 +702,20 @@ These prompts can be used with AI image generators to create documentation infog
 **Prompt:**
 
 ```
-Create a documentation infographic comparing SQLite vs PostgreSQL for a single-user
-home security application.
+Create a documentation infographic showing PostgreSQL as the chosen database for a
+home security AI application.
 
 Style: Clean technical documentation, dark theme (#0E0E0E background),
 accent color #76B900 (NVIDIA green).
 
-Layout: Side-by-side comparison with two columns.
+Layout: Center-focused with PostgreSQL highlighted.
 
-Left column "SQLite" (highlighted as chosen):
-- Icon: Simple database file icon
-- Pros (green checkmarks): Zero setup, Embedded, File-based backup, Sufficient for single-user
-- Cons (orange warnings): Single-writer, No replication
-
-Right column "PostgreSQL":
+Center "PostgreSQL" (highlighted as chosen):
 - Icon: Elephant database icon
-- Pros (green checkmarks): Concurrent writes, Full-text search, Enterprise-grade
-- Cons (orange warnings): Requires separate process, More resources, Complex setup
+- Pros (green checkmarks): Concurrent writes, Full-text search, JSONB support, Transaction isolation
+- Use case: AI pipeline with parallel workers
 
-Bottom section: Decision matrix showing "Single User + Local Deployment = SQLite"
+Bottom section: Decision matrix showing "Concurrent AI Pipeline + Parallel Workers = PostgreSQL"
 
 Visual hierarchy: Clean sans-serif fonts, generous whitespace, subtle borders.
 Dimensions: 1200x800 pixels, suitable for documentation.
@@ -759,7 +745,7 @@ Second Layer "Backend":
 - WebSocket icon + "WebSocket" - "Real-time bidirectional"
 
 Third Layer "Data":
-- SQLite logo + "SQLite" - "Embedded, zero-config"
+- PostgreSQL logo + "PostgreSQL" - "Concurrent, reliable"
 - Redis logo + "Redis" - "Queues + Pub/Sub"
 
 Bottom Layer "AI":

@@ -20,7 +20,7 @@ The MVP architecture is already oriented around **event-based reasoning**:
 - RT-DETRv2 produces per-frame detections
 - Redis batching groups detections into an “event window”
 - Nemotron produces a risk score + summary + reasoning
-- Results persist in SQLite and are surfaced via APIs/WebSockets to the dashboard
+- Results persist in PostgreSQL and are surfaced via APIs/WebSockets to the dashboard
 
 This makes the system naturally extensible in three directions:
 
@@ -34,7 +34,7 @@ This makes the system naturally extensible in three directions:
 
 If you’re an agent picking up roadmap work, treat these as constraints:
 
-- **Local-first**: default to single-machine, SQLite + Redis, minimal ops burden.
+- **Local-first**: default to single-machine, PostgreSQL + Redis, minimal ops burden.
 - **Privacy-aware**: cameras are sensitive; prefer opt-in for identity features (faces/plates).
 - **Event-centric**: keep “event” as the unit of human attention; avoid raw-frame firehose UX.
 - **Measurable wins**: prioritize changes that reduce false positives, increase recall, or improve time-to-action.
@@ -182,7 +182,7 @@ If you’re an agent picking up roadmap work, treat these as constraints:
 
 **Implementation notes**
 
-- Begin with SQLite FTS (fastest win)
+- Begin with PostgreSQL full-text search (fastest win)
 - Consider a separate index only if needed (keep infra minimal)
 
 ---
@@ -235,7 +235,7 @@ If you’re an agent picking up roadmap work, treat these as constraints:
 
 **Implementation notes**
 
-- Keep metrics simple: store periodic snapshots in SQLite or expose via endpoints
+- Keep metrics simple: store periodic snapshots in PostgreSQL or expose via endpoints
 
 ---
 

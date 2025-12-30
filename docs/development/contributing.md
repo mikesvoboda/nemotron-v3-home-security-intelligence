@@ -1,0 +1,389 @@
+---
+title: Contributing Guide
+source_refs:
+  - CLAUDE.md:176
+  - .pre-commit-config.yaml:1
+  - .github/workflows/ci.yml:1
+  - pyproject.toml:7
+---
+
+# Contributing Guide
+
+Thank you for contributing to Home Security Intelligence! This guide covers the development workflow, code standards, and review process.
+
+## Code of Conduct
+
+Be respectful, professional, and constructive in all interactions. Focus on the code, not the person.
+
+## Getting Started
+
+1. Set up your development environment following [setup.md](setup.md)
+2. Read [CLAUDE.md](../../CLAUDE.md) for project rules and conventions
+3. Review the [testing guide](testing.md) to understand test requirements
+
+## Development Workflow
+
+```
+flowchart TB
+    subgraph "Development Flow"
+        CLAIM["Claim task<br/>bd update <id> --status in_progress"]
+        BRANCH["Create feature branch"]
+        CODE["Implement feature"]
+        TEST["Write/run tests"]
+        COMMIT["Commit changes"]
+        PUSH["Push to remote"]
+        PR["Create pull request"]
+        REVIEW["Code review"]
+        MERGE["Merge to main"]
+    end
+
+    CLAIM --> BRANCH --> CODE --> TEST --> COMMIT --> PUSH --> PR --> REVIEW --> MERGE
+
+    style CLAIM fill:#76B900
+    style TEST fill:#3B82F6
+    style REVIEW fill:#A855F7
+```
+
+### 1. Claim a Task
+
+This project uses `bd` (beads) for issue tracking:
+
+```bash
+# Find available work
+bd ready
+
+# Filter by phase
+bd list --label phase-3
+
+# View task details
+bd show <id>
+
+# Claim work
+bd update <id> --status in_progress
+```
+
+### 2. Create a Feature Branch
+
+Branch naming convention:
+
+```bash
+# Feature branches
+git checkout -b feature/camera-grid-pagination
+
+# Bug fixes
+git checkout -b fix/websocket-reconnect
+
+# Refactoring
+git checkout -b refactor/batch-aggregator
+
+# Documentation
+git checkout -b docs/api-reference
+```
+
+### 3. Make Changes
+
+Follow TDD principles:
+
+1. Write tests first (for `tdd` labeled tasks)
+2. Implement the feature
+3. Ensure all tests pass
+4. Refactor if needed
+
+### 4. Commit Changes
+
+#### Pre-commit Hooks
+
+All commits must pass pre-commit hooks. **Never bypass them.**
+
+```bash
+# Hooks run automatically on commit
+git commit -m "feat: add camera pagination"
+
+# If hooks fail, fix the issues
+ruff check --fix backend/
+cd frontend && npm run lint:fix
+```
+
+**CRITICAL: Do NOT use:**
+
+- `git commit --no-verify`
+- `git push --no-verify`
+- `SKIP=hook-name git commit`
+
+See [CLAUDE.md](../../CLAUDE.md:193) for the complete policy.
+
+#### Commit Message Format
+
+Use conventional commit format:
+
+```
+<type>(<scope>): <description>
+
+[optional body]
+
+[optional footer]
+```
+
+**Types:**
+
+| Type       | Description                             |
+| ---------- | --------------------------------------- |
+| `feat`     | New feature                             |
+| `fix`      | Bug fix                                 |
+| `docs`     | Documentation only                      |
+| `style`    | Formatting, no code change              |
+| `refactor` | Code change that neither fixes nor adds |
+| `perf`     | Performance improvement                 |
+| `test`     | Adding or correcting tests              |
+| `chore`    | Maintenance tasks                       |
+
+**Examples:**
+
+```bash
+# Feature
+git commit -m "feat(cameras): add pagination to camera list endpoint"
+
+# Bug fix
+git commit -m "fix(websocket): handle reconnection on network failure"
+
+# Documentation
+git commit -m "docs(api): add websocket channel documentation"
+
+# Test
+git commit -m "test(events): add integration tests for event filtering"
+```
+
+### 5. Push and Create PR
+
+```bash
+# Push to remote
+git push -u origin feature/camera-grid-pagination
+
+# Create PR using GitHub CLI
+gh pr create --title "feat(cameras): add pagination" --body "..."
+```
+
+## Pull Request Process
+
+### PR Requirements
+
+Before submitting a PR:
+
+- [ ] All pre-commit hooks pass
+- [ ] All tests pass locally
+- [ ] Code coverage meets thresholds (92% unit, 50% integration)
+- [ ] No new linting warnings
+- [ ] TypeScript compiles without errors
+- [ ] Documentation updated if needed
+
+### PR Template
+
+```markdown
+## Summary
+
+Brief description of changes (1-2 sentences).
+
+## Changes
+
+- Added camera pagination endpoint
+- Updated frontend to use paginated API
+- Added unit and integration tests
+
+## Test Plan
+
+- [ ] Unit tests pass: `pytest backend/tests/unit/ -v`
+- [ ] Integration tests pass: `pytest backend/tests/integration/ -v`
+- [ ] Frontend tests pass: `cd frontend && npm test`
+- [ ] Manual testing completed
+
+## Screenshots (if UI changes)
+
+[Add screenshots here]
+
+## Related Issues
+
+Closes #123
+```
+
+### CI Checks
+
+All CI jobs must pass before merge:
+
+| Job                       | Required | Description            |
+| ------------------------- | -------- | ---------------------- |
+| Backend Lint              | Yes      | Ruff check and format  |
+| Backend Type Check        | Yes      | MyPy                   |
+| Backend Unit Tests        | Yes      | 92% coverage threshold |
+| Backend Integration Tests | Yes      | 50% coverage threshold |
+| Frontend Lint             | Yes      | ESLint                 |
+| Frontend Type Check       | Yes      | TypeScript compilation |
+| Frontend Tests            | Yes      | Vitest                 |
+| Frontend E2E              | Yes      | Playwright             |
+| Build Docker Images       | Yes      | Verify builds succeed  |
+| Security Validation       | Yes      | Admin endpoint checks  |
+
+### Code Review
+
+#### For Authors
+
+- Keep PRs focused and small (<400 lines preferred)
+- Respond to feedback promptly
+- Request re-review after making changes
+- Don't merge until approved
+
+#### For Reviewers
+
+Focus on:
+
+- **Correctness** - Does the code do what it claims?
+- **Tests** - Are edge cases covered?
+- **Performance** - Any obvious performance issues?
+- **Security** - Any security concerns?
+- **Maintainability** - Is the code readable and maintainable?
+
+Use constructive language:
+
+```markdown
+# Good
+
+Consider using `async with` here for proper cleanup.
+
+# Avoid
+
+This is wrong. Use `async with`.
+```
+
+## Code Standards
+
+### Python (Backend)
+
+Configuration in [pyproject.toml](../../pyproject.toml:7):
+
+```toml
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+src = ["backend"]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "UP",     # pyupgrade
+    "ASYNC",  # flake8-async
+    "S",      # flake8-bandit (security)
+]
+```
+
+Key rules:
+
+- **Line length:** 100 characters
+- **Imports:** Sorted by isort
+- **Type hints:** Required for all public functions
+- **Docstrings:** Required for modules, classes, and public functions
+- **Async:** Use async/await for all I/O operations
+
+### TypeScript (Frontend)
+
+- **Line length:** 100 characters
+- **Formatting:** Prettier
+- **Linting:** ESLint with strict TypeScript rules
+- **Components:** Functional components with hooks
+- **Styling:** Tailwind CSS with design system
+
+### Documentation
+
+- Use Markdown for all documentation
+- Include YAML frontmatter with `source_refs`
+- Link to source code where relevant
+- Keep diagrams vertical for readability
+
+## File Organization
+
+### Backend
+
+```
+backend/
+├── api/routes/        # FastAPI endpoints
+├── api/schemas/       # Pydantic schemas
+├── core/              # Infrastructure (config, database, redis)
+├── models/            # SQLAlchemy models
+├── services/          # Business logic
+└── tests/
+    ├── unit/          # Unit tests
+    └── integration/   # Integration tests
+```
+
+### Frontend
+
+```
+frontend/
+├── src/
+│   ├── components/    # React components
+│   ├── hooks/         # Custom hooks
+│   ├── services/      # API client
+│   └── types/         # TypeScript types
+└── tests/
+    └── e2e/           # Playwright tests
+```
+
+## Task Management
+
+### Using Beads (bd)
+
+```bash
+# Session workflow
+bd ready                              # Find available work
+bd list --label phase-N               # Filter by phase
+bd update <id> --status in_progress   # Claim task
+# ... implement feature ...
+bd close <id>                         # Complete task
+bd sync && git push                   # Sync and push
+```
+
+### Task Labels
+
+| Label     | Description                        |
+| --------- | ---------------------------------- |
+| `phase-1` | Project setup (P0)                 |
+| `phase-2` | Database & layout foundation (P1)  |
+| `phase-3` | Core APIs & components (P2)        |
+| `phase-4` | AI pipeline (P3/P4)                |
+| `phase-5` | Events & real-time (P4)            |
+| `phase-6` | Dashboard components (P3)          |
+| `phase-7` | Pages & modals (P4)                |
+| `phase-8` | Integration & E2E (P4)             |
+| `tdd`     | Test tasks (write tests alongside) |
+
+## Security Guidelines
+
+### Never Commit
+
+- `.env` files with real credentials
+- API keys or tokens
+- Private keys or certificates
+- Database connection strings with passwords
+
+### Code Security
+
+- Validate all user input
+- Use parameterized queries (SQLAlchemy handles this)
+- Sanitize file paths (prevent traversal)
+- Rate limit API endpoints
+- Log security-relevant events
+
+## Getting Help
+
+- **Documentation:** Start with AGENTS.md files in each directory
+- **Issues:** Check existing issues before creating new ones
+- **Discussions:** Use GitHub Discussions for questions
+
+## Related Documentation
+
+- [Setup Guide](setup.md) - Development environment setup
+- [Testing Guide](testing.md) - Test strategy and patterns
+- [Code Patterns](patterns.md) - Key patterns and conventions
+- [CLAUDE.md](../../CLAUDE.md) - Project instructions

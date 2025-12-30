@@ -9,9 +9,10 @@ This directory stores runtime data for the Home Security Intelligence applicatio
 ```
 data/
   AGENTS.md           # This file
-  thumbnails/         # Cached image thumbnails (runtime)
-  logs/               # Application log files (runtime)
+  logs/               # Application log files (runtime, currently empty)
 ```
+
+Note: The `thumbnails/` directory is created at runtime when events are processed. Additional subdirectories may be created as needed.
 
 **MIGRATED TO POSTGRESQL** - This directory no longer stores the database.
 
@@ -203,10 +204,10 @@ await cleanup.cleanup_old_events()
 ```
 data/
 ├── AGENTS.md           # This file
-├── thumbnails/         # Cached image thumbnails (runtime)
-│   ├── {event_id}.jpg
-│   └── ...
-└── .gitignore          # Excludes runtime files from git
+├── logs/               # Application log files (runtime)
+└── thumbnails/         # Cached image thumbnails (created at runtime)
+    ├── {event_id}.jpg
+    └── ...
 ```
 
 ## Git Ignore Rules

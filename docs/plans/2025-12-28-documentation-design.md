@@ -63,23 +63,23 @@ Navigation hub that routes readers by audience:
 
 ### Users
 
-- [Getting Started](user-guide/getting-started.md)
-- [Using the Dashboard](user-guide/using-the-dashboard.md)
-- [Understanding Alerts](user-guide/understanding-alerts.md)
+- [Getting Started](../user-guide/getting-started.md)
+- [Using the Dashboard](../user-guide/using-the-dashboard.md)
+- [Understanding Alerts](../user-guide/understanding-alerts.md)
 
 ### Architecture
 
-- [System Overview](architecture/overview.md)
-- [AI Pipeline](architecture/ai-pipeline.md)
-- [Data Model](architecture/data-model.md)
-- [Design Decisions](architecture/decisions.md)
+- [System Overview](../architecture/overview.md)
+- [AI Pipeline](../architecture/ai-pipeline.md)
+- [Data Model](../architecture/data-model.md)
+- [Design Decisions](../architecture/decisions.md)
 
 ### Development
 
-- [AI Setup](AI_SETUP.md)
-- [Docker Deployment](DOCKER_DEPLOYMENT.md)
-- [Runtime Configuration](RUNTIME_CONFIG.md)
-- [Roadmap](ROADMAP.md)
+- [AI Setup](../AI_SETUP.md)
+- [Docker Deployment](../DOCKER_DEPLOYMENT.md)
+- [Runtime Configuration](../RUNTIME_CONFIG.md)
+- [Roadmap](../ROADMAP.md)
 
 ### Reference
 
