@@ -22,6 +22,10 @@ from backend.services.baseline import (
     reset_baseline_service,
 )
 
+# Mark as integration since some tests require real PostgreSQL database (test_db fixture)
+# NOTE: This file should be moved to backend/tests/integration/ in a future cleanup
+pytestmark = pytest.mark.integration
+
 # ============================================================================
 # Fixtures
 # ============================================================================

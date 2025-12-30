@@ -69,9 +69,11 @@ grafana/
 
 ### Accessing Grafana
 
-1. Start monitoring stack: `docker compose up -d grafana`
+1. Start monitoring stack: `podman-compose -f docker-compose.prod.yml up -d` (or just grafana service)
 2. Open http://localhost:3000
 3. Default login: admin/admin
+
+Note: This project uses **Podman** for container management, not Docker.
 
 ### Dashboard Navigation
 

@@ -12,23 +12,22 @@ For a quick overview of the project and getting started instructions, see the [m
 
 Non-technical guides for operating and understanding the system.
 
-| Document                                                           | Description                           |
-| ------------------------------------------------------------------ | ------------------------------------- |
-| [User Guide: Getting Started](user-guide/getting-started.md)       | First-time setup and basic usage      |
-| [User Guide: Dashboard Overview](user-guide/dashboard-overview.md) | Understanding the dashboard interface |
-| [User Guide: Events & Alerts](user-guide/events-and-alerts.md)     | Working with security events          |
-| [User Guide: Troubleshooting](user-guide/troubleshooting.md)       | Common issues and solutions           |
+| Document                                                               | Description                           |
+| ---------------------------------------------------------------------- | ------------------------------------- |
+| [User Guide: Getting Started](user-guide/getting-started.md)           | First-time setup and basic usage      |
+| [User Guide: Using the Dashboard](user-guide/using-the-dashboard.md)   | Understanding the dashboard interface |
+| [User Guide: Understanding Alerts](user-guide/understanding-alerts.md) | Risk levels and alert interpretation  |
 
 ### Architecture
 
 Technical deep-dives into system design and components.
 
-| Document                                                               | Description                           |
-| ---------------------------------------------------------------------- | ------------------------------------- |
-| [Architecture: System Overview](architecture/system-overview.md)       | High-level architecture and data flow |
-| [Architecture: AI Pipeline](architecture/ai-pipeline.md)               | RT-DETRv2 and Nemotron integration    |
-| [Architecture: Database Schema](architecture/database-schema.md)       | SQLite models and relationships       |
-| [Architecture: WebSocket Protocol](architecture/websocket-protocol.md) | Real-time event streaming             |
+| Document                                                 | Description                           |
+| -------------------------------------------------------- | ------------------------------------- |
+| [Architecture: Overview](architecture/overview.md)       | High-level architecture and data flow |
+| [Architecture: AI Pipeline](architecture/ai-pipeline.md) | RT-DETRv2 and Nemotron integration    |
+| [Architecture: Data Model](architecture/data-model.md)   | PostgreSQL schema and relationships   |
+| [Architecture: Decisions](architecture/decisions.md)     | Architectural Decision Records (ADRs) |
 
 ### Development
 
@@ -48,29 +47,31 @@ Setup guides, deployment instructions, and contributing guidelines.
 
 Design plans, architectural decisions, and future roadmap.
 
-| Document                                                                          | Description                                       |
-| --------------------------------------------------------------------------------- | ------------------------------------------------- |
-| [Roadmap](ROADMAP.md)                                                             | Post-MVP features and future direction            |
-| **Plans**                                                                         |                                                   |
-| [Dashboard MVP Design](plans/2024-12-21-dashboard-mvp-design.md)                  | Original dashboard design specification           |
-| [MVP Implementation Plan](plans/2024-12-22-mvp-implementation-plan.md)            | Phase-by-phase implementation guide               |
-| [Logging System Design](plans/2024-12-24-logging-system-design.md)                | Structured logging architecture                   |
-| [Logging Implementation](plans/2024-12-24-logging-implementation-plan.md)         | Logging system implementation details             |
-| [GitHub CI/CD Design](plans/2025-12-26-github-cicd-design.md)                     | CI/CD pipeline architecture                       |
-| [GitHub CI/CD Implementation](plans/2025-12-26-github-cicd-implementation.md)     | CI/CD implementation details                      |
-| [Service Health Monitoring](plans/2025-12-26-service-health-monitoring-design.md) | Health check and monitoring design                |
-| [README Redesign](plans/2025-12-26-readme-redesign.md)                            | Documentation refresh plan                        |
-| [Documentation Design](plans/2025-12-28-documentation-design.md)                  | This documentation restructure                    |
-| **Decisions**                                                                     |                                                   |
-| [Grafana Integration](decisions/grafana-integration.md)                           | Decision to use native charts over Grafana embeds |
-| **Verification**                                                                  |                                                   |
-| [Docker Verification Summary](DOCKER_VERIFICATION_SUMMARY.md)                     | Docker deployment test results                    |
+| Document                                                                               | Description                                       |
+| -------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| [Roadmap](ROADMAP.md)                                                                  | Post-MVP features and future direction            |
+| **Plans**                                                                              |                                                   |
+| [Dashboard MVP Design](plans/2024-12-21-dashboard-mvp-design.md)                       | Original dashboard design specification           |
+| [MVP Implementation Plan](plans/2024-12-22-mvp-implementation-plan.md)                 | Phase-by-phase implementation guide               |
+| [Logging System Design](plans/2024-12-24-logging-system-design.md)                     | Structured logging architecture                   |
+| [Logging Implementation](plans/2024-12-24-logging-implementation-plan.md)              | Logging system implementation details             |
+| [GitHub CI/CD Design](plans/2025-12-26-github-cicd-design.md)                          | CI/CD pipeline architecture                       |
+| [GitHub CI/CD Implementation](plans/2025-12-26-github-cicd-implementation.md)          | CI/CD implementation details                      |
+| [Service Health Monitoring](plans/2025-12-26-service-health-monitoring-design.md)      | Health check and monitoring design                |
+| [README Redesign](plans/2025-12-26-readme-redesign.md)                                 | Documentation refresh plan                        |
+| [Documentation Design](plans/2025-12-28-documentation-design.md)                       | This documentation restructure                    |
+| [Test Performance Design](plans/2025-12-30-test-performance-optimization-design.md)    | Test time limits and audit design                 |
+| [Test Performance Implementation](plans/2025-12-30-test-performance-implementation.md) | Test performance implementation tasks             |
+| **Decisions**                                                                          |                                                   |
+| [Grafana Integration](decisions/grafana-integration.md)                                | Decision to use native charts over Grafana embeds |
+| **Verification**                                                                       |                                                   |
+| [Docker Verification Summary](DOCKER_VERIFICATION_SUMMARY.md)                          | Docker deployment test results                    |
 
 ---
 
 ## Quick Links
 
-- **Getting Started**: [Main README](../README.md#get-running)
+- **Getting Started**: [Main README](../README.md#quick-start-60-seconds)
 - **API Reference**: `http://localhost:8000/docs` (Swagger UI when running)
 - **Issue Tracking**: Use `bd ready` to find available work
 - **AGENTS.md Files**: Every directory contains an `AGENTS.md` explaining its purpose

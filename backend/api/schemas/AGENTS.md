@@ -75,23 +75,32 @@ Pydantic schemas for system monitoring, configuration, and telemetry endpoints.
 
 **Schemas:**
 
-| Schema                    | Purpose                                     |
-| ------------------------- | ------------------------------------------- |
-| `ServiceStatus`           | Status of individual service components     |
-| `HealthResponse`          | Complete system health check response       |
-| `LivenessResponse`        | Liveness probe response (Kubernetes-style)  |
-| `WorkerStatus`            | Status of background workers                |
-| `ReadinessResponse`       | Readiness probe response (Kubernetes-style) |
-| `GPUStatsResponse`        | Current GPU performance metrics             |
-| `GPUStatsSample`          | Single time-series GPU sample               |
-| `GPUStatsHistoryResponse` | GPU stats time series                       |
-| `ConfigResponse`          | Public configuration settings               |
-| `ConfigUpdateRequest`     | Configuration update request                |
-| `SystemStatsResponse`     | System-wide statistics                      |
-| `QueueDepths`             | Pipeline queue depth information            |
-| `StageLatency`            | Latency statistics for a pipeline stage     |
-| `PipelineLatencies`       | Latency stats for all pipeline stages       |
-| `TelemetryResponse`       | Pipeline telemetry data                     |
+| Schema                       | Purpose                                       |
+| ---------------------------- | --------------------------------------------- |
+| `SeverityEnum`               | Severity levels (low, medium, high, critical) |
+| `ServiceStatus`              | Status of individual service components       |
+| `HealthResponse`             | Complete system health check response         |
+| `LivenessResponse`           | Liveness probe response (Kubernetes-style)    |
+| `WorkerStatus`               | Status of background workers                  |
+| `ReadinessResponse`          | Readiness probe response (Kubernetes-style)   |
+| `GPUStatsResponse`           | Current GPU performance metrics               |
+| `GPUStatsSample`             | Single time-series GPU sample                 |
+| `GPUStatsHistoryResponse`    | GPU stats time series                         |
+| `ConfigResponse`             | Public configuration settings                 |
+| `ConfigUpdateRequest`        | Configuration update request                  |
+| `SystemStatsResponse`        | System-wide statistics                        |
+| `QueueDepths`                | Pipeline queue depth information              |
+| `StageLatency`               | Latency statistics for a pipeline stage       |
+| `PipelineLatencies`          | Latency stats for all pipeline stages         |
+| `TelemetryResponse`          | Pipeline telemetry data                       |
+| `PipelineStageLatency`       | Latency stats for pipeline stage transitions  |
+| `PipelineLatencyResponse`    | Pipeline latency with window and percentiles  |
+| `CleanupResponse`            | Cleanup operation results                     |
+| `SeverityDefinitionResponse` | Single severity level definition              |
+| `SeverityThresholds`         | Current severity threshold configuration      |
+| `SeverityMetadataResponse`   | All severity definitions and thresholds       |
+| `StorageCategoryStats`       | Storage stats for a single category           |
+| `StorageStatsResponse`       | Disk usage and storage breakdown              |
 
 ### `media.py`
 
@@ -177,6 +186,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 - `reviewed: bool` - Whether reviewed (default: False)
 - `notes: str | None` - User notes
 - `detection_count: int` - Number of detections (default: 0)
+- `detection_ids: list[int]` - IDs of associated detections
 
 #### `EventUpdate`
 
@@ -229,7 +239,7 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 
 - `id: int` - Detection ID
 - `camera_id: str` - Camera UUID
-- `file_path: str` - Source image path
+- `file_path: str` - Source image/video path
 - `file_type: str | None` - MIME type
 - `detected_at: datetime` - Detection timestamp
 - `object_type: str | None` - person, car, etc.
@@ -239,6 +249,11 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 - `bbox_width: int | None` - Bounding box width
 - `bbox_height: int | None` - Bounding box height
 - `thumbnail_path: str | None` - Thumbnail path
+- `media_type: str | None` - "image" or "video" (default: "image")
+- `duration: float | None` - Video duration in seconds
+- `video_codec: str | None` - Video codec (e.g., h264, hevc)
+- `video_width: int | None` - Video resolution width
+- `video_height: int | None` - Video resolution height
 
 #### `DetectionListResponse`
 
@@ -440,6 +455,95 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 - `queues: QueueDepths` - Current queue depths
 - `latencies: PipelineLatencies | None` - Stage latencies
 - `timestamp: datetime` - Telemetry snapshot time
+
+#### `PipelineStageLatency`
+
+**Fields:**
+
+- `avg_ms: float | None` - Average latency
+- `min_ms: float | None` - Minimum latency
+- `max_ms: float | None` - Maximum latency
+- `p50_ms: float | None` - 50th percentile
+- `p95_ms: float | None` - 95th percentile
+- `p99_ms: float | None` - 99th percentile
+- `sample_count: int` - Number of samples (>= 0)
+
+#### `PipelineLatencyResponse`
+
+**Fields:**
+
+- `watch_to_detect: PipelineStageLatency | None` - Watch to detect latency
+- `detect_to_batch: PipelineStageLatency | None` - Detect to batch latency
+- `batch_to_analyze: PipelineStageLatency | None` - Batch to analyze latency
+- `total_pipeline: PipelineStageLatency | None` - End-to-end latency
+- `window_minutes: int` - Time window used (>= 1)
+- `timestamp: datetime` - Latency snapshot time
+
+#### `CleanupResponse`
+
+**Fields:**
+
+- `events_deleted: int` - Events deleted (or would be in dry run)
+- `detections_deleted: int` - Detections deleted
+- `gpu_stats_deleted: int` - GPU stats records deleted
+- `logs_deleted: int` - Log records deleted
+- `thumbnails_deleted: int` - Thumbnail files deleted
+- `images_deleted: int` - Original image files deleted
+- `space_reclaimed: int` - Bytes freed (estimated)
+- `retention_days: int` - Retention period used
+- `dry_run: bool` - Whether this was a dry run
+- `timestamp: datetime` - Cleanup operation time
+
+#### `SeverityDefinitionResponse`
+
+**Fields:**
+
+- `severity: SeverityEnum` - The severity level
+- `label: str` - Human-readable label
+- `description: str` - Description of when this applies
+- `color: str` - Hex color code for UI (e.g., "#22c55e")
+- `priority: int` - Sort priority (0 = highest)
+- `min_score: int` - Minimum risk score (inclusive)
+- `max_score: int` - Maximum risk score (inclusive)
+
+#### `SeverityThresholds`
+
+**Fields:**
+
+- `low_max: int` - Max score for LOW severity
+- `medium_max: int` - Max score for MEDIUM severity
+- `high_max: int` - Max score for HIGH severity
+
+#### `SeverityMetadataResponse`
+
+**Fields:**
+
+- `definitions: list[SeverityDefinitionResponse]` - All severity definitions
+- `thresholds: SeverityThresholds` - Current threshold config
+
+#### `StorageCategoryStats`
+
+**Fields:**
+
+- `file_count: int` - Number of files (>= 0)
+- `size_bytes: int` - Total size in bytes (>= 0)
+
+#### `StorageStatsResponse`
+
+**Fields:**
+
+- `disk_used_bytes: int` - Total disk space used
+- `disk_total_bytes: int` - Total disk space available
+- `disk_free_bytes: int` - Free disk space
+- `disk_usage_percent: float` - Usage percentage (0-100)
+- `thumbnails: StorageCategoryStats` - Thumbnail storage
+- `images: StorageCategoryStats` - Camera images storage
+- `clips: StorageCategoryStats` - Event clips storage
+- `events_count: int` - Total events in database
+- `detections_count: int` - Total detections in database
+- `gpu_stats_count: int` - Total GPU stats records
+- `logs_count: int` - Total log entries
+- `timestamp: datetime` - Stats snapshot time
 
 ---
 

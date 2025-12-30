@@ -89,9 +89,9 @@ providers:
 4. Dashboard providers from `dashboards/*.yml` are registered
 5. Dashboards from specified paths are imported
 
-### File Mounting (Docker)
+### File Mounting (Podman/Docker)
 
-In docker-compose.yml:
+In docker-compose.prod.yml (this project uses Podman, not Docker):
 
 ```yaml
 grafana:
@@ -99,6 +99,8 @@ grafana:
     - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
     - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
 ```
+
+Note: Use `podman-compose` instead of `docker compose` in all commands.
 
 ### Update Behavior
 
@@ -121,7 +123,7 @@ Add to `datasources/prometheus.yml`:
   editable: false
 ```
 
-Then restart Grafana: `docker compose restart grafana`
+Then restart Grafana: `podman-compose -f docker-compose.prod.yml restart grafana`
 
 ### Adding a Dashboard Provider
 
