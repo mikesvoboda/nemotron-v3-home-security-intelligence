@@ -40,6 +40,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models import Alert, AlertRule, AlertSeverity, AlertStatus
 
+
+def _utc_now_naive() -> datetime:
+    """Get current UTC time as naive datetime for PostgreSQL compatibility.
+
+    PostgreSQL TIMESTAMP WITHOUT TIME ZONE columns cannot accept timezone-aware
+    datetimes from Python. This function ensures we always use naive UTC times.
+    """
+    return datetime.now(UTC).replace(tzinfo=None)
+
+
 # Constants for dedup_key validation
 MAX_DEDUP_KEY_LENGTH = 512
 # Use ASCII-only pattern to prevent unicode injection
@@ -175,7 +185,7 @@ class AlertDeduplicationService:
         # Validate and normalize the dedup_key
         dedup_key = validate_dedup_key(dedup_key)
 
-        cutoff_time = datetime.now(UTC) - timedelta(seconds=cooldown_seconds)
+        cutoff_time = _utc_now_naive() - timedelta(seconds=cooldown_seconds)
 
         # Find the most recent alert with this dedup_key within the cooldown window
         stmt = (
@@ -191,7 +201,7 @@ class AlertDeduplicationService:
 
         if existing_alert:
             # Calculate seconds until cooldown expires
-            alert_age = (datetime.now(UTC) - existing_alert.created_at).total_seconds()
+            alert_age = (_utc_now_naive() - existing_alert.created_at).total_seconds()
             seconds_remaining = max(0, int(cooldown_seconds - alert_age))
 
             return DedupResult(
@@ -309,7 +319,7 @@ class AlertDeduplicationService:
         # Validate and normalize the dedup_key
         dedup_key = validate_dedup_key(dedup_key)
 
-        cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
+        cutoff_time = _utc_now_naive() - timedelta(hours=hours)
 
         stmt = (
             select(Alert)
@@ -337,7 +347,7 @@ class AlertDeduplicationService:
             - unique_dedup_keys: Number of unique dedup keys
             - potential_duplicates: Alerts that were likely suppressed
         """
-        cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
+        cutoff_time = _utc_now_naive() - timedelta(hours=hours)
 
         # Get total alerts
         total_stmt = select(Alert).where(Alert.created_at >= cutoff_time)
