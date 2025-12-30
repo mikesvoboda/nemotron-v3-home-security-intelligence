@@ -26,11 +26,12 @@ from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from testcontainers.postgres import PostgresContainer
-from testcontainers.redis import RedisContainer
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Generator
+
+    from testcontainers.postgres import PostgresContainer
+    from testcontainers.redis import RedisContainer
 
     from backend.core.redis import RedisClient
 
@@ -72,6 +73,7 @@ def _check_redis_connection(host: str = "localhost", port: int = 6379) -> bool:
 
 
 # Module-level PostgreSQL container shared across all tests in a session
+# Type annotation uses string to avoid import at module level
 _postgres_container: PostgresContainer | None = None
 
 # Module-level Redis container shared across all tests in a session
@@ -106,7 +108,16 @@ def pytest_configure(config: pytest.Config) -> None:
     # Start PostgreSQL container if needed
     if not os.environ.get("TEST_DATABASE_URL") and not _check_postgres_connection():
         try:
-            _postgres_container = PostgresContainer("postgres:16-alpine", driver="asyncpg")
+            # Import testcontainers only when needed to avoid side effects at module load
+            from testcontainers.postgres import PostgresContainer
+
+            _postgres_container = PostgresContainer(
+                "postgres:16-alpine",
+                username="postgres",
+                password="postgres",  # noqa: S106 - test password
+                dbname="security_test",
+                driver="asyncpg",
+            )
             _postgres_container.start()
         except Exception as e:
             print(
@@ -117,6 +128,9 @@ def pytest_configure(config: pytest.Config) -> None:
     # Start Redis container if needed
     if not os.environ.get("TEST_REDIS_URL") and not _check_redis_connection():
         try:
+            # Import testcontainers only when needed to avoid side effects at module load
+            from testcontainers.redis import RedisContainer
+
             _redis_container = RedisContainer("redis:7-alpine")
             _redis_container.start()
         except Exception as e:

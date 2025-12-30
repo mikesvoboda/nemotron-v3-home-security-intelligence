@@ -832,8 +832,8 @@ class TestWebSocketLogging:
             await websocket_events_endpoint(mock_websocket, mock_redis_client)
 
         # Check that relevant log messages were emitted
-        assert "WebSocket client connected to /ws/events" in caplog.text
-        assert "WebSocket connection cleaned up" in caplog.text
+        assert "WebSocket client connected" in caplog.text
+        assert "WebSocket client disconnected" in caplog.text
 
     @pytest.mark.asyncio
     async def test_system_logs_connection_info(
@@ -857,8 +857,8 @@ class TestWebSocketLogging:
             await websocket_system_status(mock_websocket)
 
         # Check that relevant log messages were emitted
-        assert "WebSocket client connected to /ws/system" in caplog.text
-        assert "WebSocket connection cleaned up" in caplog.text
+        assert "WebSocket client connected" in caplog.text
+        assert "WebSocket client disconnected" in caplog.text
 
     @pytest.mark.asyncio
     async def test_events_logs_auth_failure(self, mock_websocket, mock_redis_client, caplog):

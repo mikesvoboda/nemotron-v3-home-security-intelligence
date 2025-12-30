@@ -192,7 +192,7 @@ describe('Header', () => {
     });
 
     render(<Header />);
-    expect(screen.getByText('76%')).toBeInTheDocument();
+    expect(screen.getByText('76% | 30.5 FPS')).toBeInTheDocument();
   });
 
   it('displays GPU temperature when available', () => {
@@ -220,7 +220,7 @@ describe('Header', () => {
     });
 
     render(<Header />);
-    expect(screen.getByText('66°C')).toBeInTheDocument();
+    expect(screen.getByText('66°C | 30.5 FPS')).toBeInTheDocument();
   });
 
   it('displays both GPU utilization and temperature when available', () => {
@@ -248,7 +248,7 @@ describe('Header', () => {
     });
 
     render(<Header />);
-    expect(screen.getByText('45% | 63°C')).toBeInTheDocument();
+    expect(screen.getByText('45% | 63°C | 30.5 FPS')).toBeInTheDocument();
   });
 
   it('displays System Degraded status when system is degraded', () => {

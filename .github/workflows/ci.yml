@@ -237,6 +237,8 @@ jobs:
   api-types-check:
     name: API Types Contract Check
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://user:pass@localhost/db
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -491,6 +493,20 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r backend/requirements.txt
+
+      - name: Wait for PostgreSQL
+        run: |
+          echo "Waiting for PostgreSQL..."
+          for i in {1..30}; do
+            if pg_isready -h localhost -p 5432 -U postgres; then
+              echo "PostgreSQL is ready"
+              exit 0
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 1
+          done
+          echo "PostgreSQL failed to start"
+          exit 1
 
       - name: Validate admin endpoints require DEBUG mode
         run: |
