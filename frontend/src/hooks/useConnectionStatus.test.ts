@@ -64,7 +64,7 @@ describe('useConnectionStatus', () => {
   let mockWsInstances: MockWebSocket[] = [];
 
   beforeEach(() => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     mockWsInstances = [];
 
     // Mock WebSocket constructor

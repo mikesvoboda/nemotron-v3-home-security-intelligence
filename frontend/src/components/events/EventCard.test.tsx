@@ -37,7 +37,7 @@ describe('EventCard', () => {
 
   // Mock system time for consistent testing
   beforeEach(() => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.setSystemTime(BASE_TIME);
   });
 
@@ -477,7 +477,7 @@ describe('EventCard', () => {
       );
       expect(reasoningText).toBeInTheDocument();
 
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
@@ -500,7 +500,7 @@ describe('EventCard', () => {
         screen.queryByText('The detected person is approaching the entrance during daytime hours.')
       ).not.toBeInTheDocument();
 
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
@@ -521,7 +521,7 @@ describe('EventCard', () => {
       const chevronUp = container.querySelector('svg.lucide-chevron-up');
       expect(chevronUp).toBeInTheDocument();
 
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
@@ -541,7 +541,7 @@ describe('EventCard', () => {
 
       expect(toggleButton).toHaveAttribute('aria-expanded', 'true');
 
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
@@ -564,7 +564,7 @@ describe('EventCard', () => {
         .closest('div');
       expect(reasoningContent).toHaveAttribute('id', 'reasoning-event-123');
 
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
   });
@@ -596,7 +596,7 @@ describe('EventCard', () => {
       expect(handleViewDetails).toHaveBeenCalledWith('event-123');
       expect(handleViewDetails).toHaveBeenCalledTimes(1);
 
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
@@ -922,7 +922,7 @@ describe('EventCard', () => {
       const reasoning = screen.getByText(/This is a very long reasoning text/);
       expect(reasoning).toBeInTheDocument();
 
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
@@ -1244,7 +1244,7 @@ describe('EventCard', () => {
       expect(handleClick).toHaveBeenCalledWith('event-123');
       expect(handleClick).toHaveBeenCalledTimes(1);
 
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
@@ -1265,7 +1265,7 @@ describe('EventCard', () => {
       expect(handleClick).not.toHaveBeenCalled();
       expect(handleViewDetails).toHaveBeenCalledWith('event-123');
 
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
@@ -1280,7 +1280,7 @@ describe('EventCard', () => {
 
       expect(handleClick).not.toHaveBeenCalled();
 
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
@@ -1357,7 +1357,7 @@ describe('EventCard', () => {
 
       expect(handleClick).toHaveBeenCalledWith('event-123');
 
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
@@ -1373,7 +1373,7 @@ describe('EventCard', () => {
 
       expect(handleClick).toHaveBeenCalledWith('event-123');
 
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
@@ -1400,7 +1400,7 @@ describe('EventCard', () => {
       expect(handleClick).toHaveBeenCalledTimes(1); // Still only 1 call
       expect(handleViewDetails).toHaveBeenCalledWith('event-123');
 
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
   });
@@ -1473,7 +1473,7 @@ describe('EventCard', () => {
         screen.queryByText('The detected person is approaching the entrance during daytime hours.')
       ).not.toBeInTheDocument();
 
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
   });

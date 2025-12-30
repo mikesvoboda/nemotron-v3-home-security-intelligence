@@ -580,7 +580,7 @@ describe('Header', () => {
     });
 
     it('hides tooltip on mouse leave after delay', async () => {
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
 
       const systemStatus = {
         type: 'system_status' as const,

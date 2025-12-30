@@ -30,7 +30,7 @@ describe('LogStatsCards', () => {
   };
 
   beforeEach(() => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.clearAllMocks();
     vi.mocked(api.fetchLogStats).mockResolvedValue(mockStats);
   });

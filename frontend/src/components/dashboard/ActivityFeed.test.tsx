@@ -45,7 +45,7 @@ describe('ActivityFeed', () => {
 
   // Mock system time for consistent testing
   beforeEach(() => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.setSystemTime(BASE_TIME);
   });
 
@@ -227,7 +227,7 @@ describe('ActivityFeed', () => {
       await user.click(toggleButton);
 
       expect(screen.getByLabelText('Resume auto-scroll')).toBeInTheDocument();
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
@@ -261,7 +261,7 @@ describe('ActivityFeed', () => {
 
       expect(handleClick).toHaveBeenCalledWith('1');
       expect(handleClick).toHaveBeenCalledTimes(1);
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
@@ -275,7 +275,7 @@ describe('ActivityFeed', () => {
       await user.click(garageEvent);
 
       expect(handleClick).toHaveBeenCalledWith('3');
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
@@ -288,7 +288,7 @@ describe('ActivityFeed', () => {
       await user.click(eventCard);
 
       // Should not throw error
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
@@ -303,7 +303,7 @@ describe('ActivityFeed', () => {
       await user.keyboard('{Enter}');
 
       expect(handleClick).toHaveBeenCalledWith('1');
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
@@ -318,7 +318,7 @@ describe('ActivityFeed', () => {
       await user.keyboard(' ');
 
       expect(handleClick).toHaveBeenCalledWith('1');
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
