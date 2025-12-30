@@ -9,8 +9,8 @@ This directory contains all automated tests for the backend Python application. 
 ```
 backend/tests/
 ├── conftest.py              # Shared pytest fixtures and configuration
-├── unit/                    # Unit tests for isolated components (42 test files)
-├── integration/             # Integration tests for API and multi-component workflows (18 test files)
+├── unit/                    # Unit tests for isolated components (58 test files)
+├── integration/             # Integration tests for API and multi-component workflows (19 test files)
 ├── e2e/                     # End-to-end pipeline integration tests (1 test file)
 ├── benchmarks/              # Performance and complexity benchmarks (3 test files)
 ├── check_syntax.py          # Syntax validation script
@@ -34,7 +34,7 @@ Tests for individual components in isolation:
 - **Video Support**: Video file detection, validation, streaming, thumbnails
 - **Mocking**: All external dependencies (HTTP, Redis, file system) are mocked
 
-**Total**: 42 test files covering core functionality
+**Total**: 58 test files covering core functionality
 
 ### Integration Tests (`integration/`)
 
@@ -48,7 +48,7 @@ Tests for complete workflows across multiple components:
 - **GitHub Workflows**: CI/CD pipeline validation
 - **Mocking**: Redis mocked, database uses test PostgreSQL instance
 
-**Total**: 18 test files covering API and workflow integration
+**Total**: 19 test files covering API and workflow integration
 
 ### End-to-End Tests (`e2e/`)
 
@@ -437,8 +437,8 @@ with patch("httpx.AsyncClient") as mock_http:
 
 ### Overall Test Count
 
-- **Unit tests**: 42 test files covering core, models, services, API routes
-- **Integration tests**: 18 test files covering API endpoints and workflows
+- **Unit tests**: 58 test files covering core, models, services, API routes
+- **Integration tests**: 19 test files covering API endpoints and workflows
 - **E2E tests**: 8+ comprehensive scenarios in 1 file
 - **Benchmarks**: 3 test files for performance validation
 - **Total**: Comprehensive coverage of 95%+ of backend code

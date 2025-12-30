@@ -670,13 +670,11 @@ async def test_analyze_batch_detections_not_in_database(analyzer, mock_redis_cli
 
 @pytest.mark.asyncio
 async def test_broadcast_event(analyzer, mock_redis_client):
-    """Test event broadcasting via Redis pub/sub.
+    """Test event broadcasting via EventBroadcaster.
 
-    Verifies that events are published to the canonical 'security_events' channel
+    Verifies that events are published via EventBroadcaster.broadcast_event()
     with the standard message envelope format: {"type": "event", "data": {...}}.
     """
-    from backend.services.event_broadcaster import get_event_channel
-
     event = Event(
         id=1,
         batch_id="batch_123",
@@ -689,15 +687,22 @@ async def test_broadcast_event(analyzer, mock_redis_client):
         reasoning="Test reasoning",
     )
 
-    await analyzer._broadcast_event(event)
+    # Mock the EventBroadcaster.broadcast_event method
+    mock_broadcaster = MagicMock()
+    mock_broadcaster.broadcast_event = AsyncMock()
 
-    # Verify publish was called with correct channel
-    mock_redis_client.publish.assert_called_once()
-    call_args = mock_redis_client.publish.call_args
-    assert call_args[0][0] == get_event_channel()  # canonical: "security_events"
+    with patch(
+        "backend.services.event_broadcaster.get_broadcaster",
+        new=AsyncMock(return_value=mock_broadcaster),
+    ):
+        await analyzer._broadcast_event(event)
+
+    # Verify broadcast_event was called
+    mock_broadcaster.broadcast_event.assert_called_once()
+    call_args = mock_broadcaster.broadcast_event.call_args
 
     # Verify message envelope format: {"type": "event", "data": {...}}
-    message = call_args[0][1]
+    message = call_args[0][0]
     assert message["type"] == "event"
     assert "data" in message
     data = message["data"]
@@ -977,7 +982,7 @@ async def test_analyze_detection_fast_path_detection_ids_format(
 async def test_analyze_detection_fast_path_broadcast_called(
     analyzer, mock_redis_client, isolated_db, sample_detections_factory
 ):
-    """Test fast path broadcasts event after creation."""
+    """Test fast path broadcasts event after creation via EventBroadcaster."""
     # Use unique IDs for test isolation in parallel execution
     camera_id = unique_id("camera")
     det_id = random.randint(100000, 999999)  # noqa: S311
@@ -1011,7 +1016,17 @@ async def test_analyze_detection_fast_path_broadcast_called(
         )
     }
 
-    with patch("httpx.AsyncClient.post") as mock_post:
+    # Mock the EventBroadcaster
+    mock_broadcaster = MagicMock()
+    mock_broadcaster.broadcast_event = AsyncMock()
+
+    with (
+        patch("httpx.AsyncClient.post") as mock_post,
+        patch(
+            "backend.services.nemotron_analyzer.get_broadcaster",
+            new=AsyncMock(return_value=mock_broadcaster),
+        ),
+    ):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = mock_llm_response
@@ -1019,15 +1034,12 @@ async def test_analyze_detection_fast_path_broadcast_called(
 
         event = await analyzer.analyze_detection_fast_path(camera_id, detection_id)
 
-    # Verify publish was called to canonical 'security_events' channel
-    from backend.services.event_broadcaster import get_event_channel
-
-    mock_redis_client.publish.assert_called_once()
-    call_args = mock_redis_client.publish.call_args
-    assert call_args[0][0] == get_event_channel()  # canonical: "security_events"
+    # Verify broadcast_event was called via EventBroadcaster
+    mock_broadcaster.broadcast_event.assert_called_once()
+    call_args = mock_broadcaster.broadcast_event.call_args
 
     # Verify message envelope format: {"type": "event", "data": {...}}
-    message = call_args[0][1]
+    message = call_args[0][0]
     assert message["type"] == "event"
     assert "data" in message
     data = message["data"]

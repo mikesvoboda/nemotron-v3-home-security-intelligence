@@ -8,7 +8,10 @@ from backend.core.config import Settings, get_settings
 
 @pytest.fixture
 def clean_env(monkeypatch):
-    """Clean environment variables and settings cache before each test."""
+    """Clean environment variables and settings cache before each test.
+
+    Sets DATABASE_URL to a valid test value since it's now required.
+    """
     # Clear all config-related environment variables
     env_vars = [
         "DATABASE_URL",
@@ -32,6 +35,9 @@ def clean_env(monkeypatch):
     for var in env_vars:
         monkeypatch.delenv(var, raising=False)
 
+    # Set DATABASE_URL since it's now required (no default)
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://test:test@localhost:5432/test")
+
     # Clear the lru_cache on get_settings
     get_settings.cache_clear()
 
@@ -41,13 +47,11 @@ def clean_env(monkeypatch):
 class TestSettingsDefaults:
     """Test that Settings class has correct default values."""
 
-    def test_default_database_url(self, clean_env):
-        """Test default database URL is PostgreSQL with asyncpg driver."""
+    def test_database_url_from_env(self, clean_env):
+        """Test database URL is read from environment (no default value)."""
         settings = Settings()
-        assert (
-            settings.database_url
-            == "postgresql+asyncpg://security:security_dev_password@localhost:5432/security"
-        )
+        # DATABASE_URL is now required - test fixture sets it
+        assert settings.database_url == "postgresql+asyncpg://test:test@localhost:5432/test"
 
     def test_default_redis_url(self, clean_env):
         """Test default Redis URL points to localhost."""

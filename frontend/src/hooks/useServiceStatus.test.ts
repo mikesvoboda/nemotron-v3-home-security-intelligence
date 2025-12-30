@@ -193,9 +193,11 @@ describe('useServiceStatus', () => {
   it('should connect to the correct WebSocket URL', () => {
     renderHook(() => useServiceStatus());
 
+    // useServiceStatus connects to /ws/events because service_status messages
+    // are broadcast via EventBroadcaster (used by /ws/events), not SystemBroadcaster
     expect(useWebSocketModule.useWebSocket).toHaveBeenCalledWith(
       expect.objectContaining({
-        url: expect.stringContaining('/ws/system'),
+        url: expect.stringContaining('/ws/events'),
         onMessage: expect.any(Function),
       })
     );

@@ -8,9 +8,13 @@ This directory contains visual assets for documentation, including UI mockups, a
 
 ```
 images/
-├── AGENTS.md              # This file
-├── .gitkeep               # Ensures directory is tracked in git
-└── dashboard-mockup.svg   # Main dashboard UI mockup
+  AGENTS.md              # This file
+  .gitkeep               # Ensures directory is tracked in git
+  dashboard-mockup.svg   # Main dashboard UI mockup (vector)
+  dashboard.png          # Dashboard screenshot
+  dashboard-full.png     # Full dashboard screenshot (larger)
+  timeline.png           # Event timeline page screenshot
+  alerts.png             # Alerts page screenshot
 ```
 
 ## Current Assets
@@ -19,7 +23,7 @@ images/
 
 **Type:** SVG vector graphic
 **Dimensions:** 1200 x 700 pixels
-**Purpose:** Visual mockup of the main dashboard UI
+**Purpose:** Visual mockup of the main dashboard UI design
 
 **Sections Shown:**
 
@@ -32,7 +36,32 @@ images/
 | Live Activity   | Right column | Event cards with risk scores and timestamps                                             |
 | System Overview | Bottom       | RT-DETRv2 status, Nemotron status, active cameras, events today, inference rate, uptime |
 
-**Color Scheme:**
+**Usage:** Reference when implementing dashboard components, design reviews.
+
+### dashboard.png / dashboard-full.png
+
+**Type:** PNG raster image
+**Purpose:** Actual screenshot of the running dashboard
+
+**Usage:** Documentation, README, demonstrations.
+
+### timeline.png
+
+**Type:** PNG raster image
+**Purpose:** Screenshot of the event timeline page with filtering capabilities
+
+**Usage:** User guide documentation, feature demonstrations.
+
+### alerts.png
+
+**Type:** PNG raster image
+**Purpose:** Screenshot of the alerts page showing security events
+
+**Usage:** User guide documentation, alert interpretation guides.
+
+## Color Scheme
+
+Dashboard uses NVIDIA-themed dark design:
 
 - Background: `#1a1a2e` (dark blue-gray)
 - Card backgrounds: `#0f3460` (darker blue)
@@ -40,12 +69,7 @@ images/
 - Low risk: `#4ade80` (green)
 - Medium risk: `#fbbf24` (amber)
 - Accent: `#3b82f6` (blue), `#8b5cf6` (purple)
-
-**Usage:**
-
-- Reference when implementing dashboard components
-- Include in README or documentation
-- Share with stakeholders for UI approval
+- NVIDIA Green: `#76B900`
 
 ## File Types
 

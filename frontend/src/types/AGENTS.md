@@ -69,3 +69,9 @@ coverage: {
 - Use `index.ts` re-exports for cleaner imports
 - Types are excluded from test coverage
 - CI runs `--check` mode to ensure types are current
+
+## Entry Points
+
+1. **Start with `generated/index.ts`** - Convenient type aliases matching backend schemas
+2. **Raw types**: `generated/api.ts` contains full OpenAPI types (paths, components, operations)
+3. **Import pattern**: `import type { Camera, Event } from '@/types/generated'`

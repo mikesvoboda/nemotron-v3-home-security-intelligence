@@ -186,6 +186,60 @@ interface SystemConfig {
 - `fetchConfig()` - GET /api/system/config
 - `updateConfig(updates)` - PATCH /api/system/config
 
+### DlqMonitor.tsx
+
+**Purpose:** Dead Letter Queue monitoring and management component
+
+**Props Interface:**
+
+```typescript
+interface DlqMonitorProps {
+  className?: string;
+  refreshInterval?: number; // Polling interval in ms. Default: 30000 (30s)
+}
+```
+
+**Key Features:**
+
+- Badge showing total failed job count
+- Expandable panels for each queue (detection, analysis)
+- Job details with error messages and timestamps
+- "Requeue All" button with confirmation dialog
+- "Clear All" button with confirmation dialog
+- Auto-refresh capability (configurable interval)
+- Original job payload viewer (collapsible)
+
+**Queue Types:**
+
+- `dlq:detection_queue` - Failed RT-DETRv2 detection jobs
+- `dlq:analysis_queue` - Failed Nemotron analysis jobs
+
+**Job Information:**
+
+- Error message
+- Attempt count
+- First failed timestamp
+- Last failed timestamp
+- Original job payload (JSON)
+
+**Actions:**
+
+- **Requeue All:** Moves all failed jobs back to their original queues for retry
+- **Clear All:** Permanently deletes all failed jobs (destructive)
+
+**Usage:**
+
+```tsx
+import DlqMonitor from './DlqMonitor';
+
+<DlqMonitor
+  refreshInterval={30000} // Auto-refresh every 30 seconds
+  className="mt-4"
+/>;
+```
+
+---
+
 ### index.ts
 
 **Purpose:** Barrel export for settings components
@@ -194,6 +248,7 @@ interface SystemConfig {
 export { default as CamerasSettings } from './CamerasSettings';
 export { default as AIModelsSettings } from './AIModelsSettings';
 export { default as ProcessingSettings } from './ProcessingSettings';
+export { default as DlqMonitor } from './DlqMonitor';
 ```
 
 ### README.md
@@ -361,6 +416,10 @@ Comprehensive test coverage:
 - `DELETE /api/cameras/:id` - Delete camera
 - `GET /api/system/config` - Fetch system configuration
 - `PATCH /api/system/config` - Update system configuration
+- `GET /api/dlq/stats` - Fetch DLQ statistics
+- `GET /api/dlq/:queueName/jobs` - Fetch failed jobs for a queue
+- `POST /api/dlq/:queueName/requeue` - Requeue all failed jobs
+- `DELETE /api/dlq/:queueName` - Clear all failed jobs
 
 ## Future Enhancements
 

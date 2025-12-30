@@ -109,17 +109,29 @@ async def list_events(
             # JSON arrays look like: [1, 2, 3] or [1,2,3]
             conditions = []
             for det_id in matching_detection_ids:
+                # Escape SQL LIKE wildcards to prevent pattern injection
+                escaped_det_id = (
+                    str(det_id).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+                )
                 # Match patterns in JSON array format: [id, or ,id, or ,id] or [id]
                 conditions.extend(
                     [
-                        Event.detection_ids.like(f"[{det_id},%"),  # First element: [1, ...
-                        Event.detection_ids.like(f"%, {det_id},%"),  # Middle element: , 2, ...
                         Event.detection_ids.like(
-                            f"%,{det_id},%"
+                            f"[{escaped_det_id},%", escape="\\"
+                        ),  # First element: [1, ...
+                        Event.detection_ids.like(
+                            f"%, {escaped_det_id},%", escape="\\"
+                        ),  # Middle element: , 2, ...
+                        Event.detection_ids.like(
+                            f"%,{escaped_det_id},%", escape="\\"
                         ),  # Middle element no space: ,2,...
-                        Event.detection_ids.like(f"%, {det_id}]"),  # Last element: , 3]
-                        Event.detection_ids.like(f"%,{det_id}]"),  # Last element no space: ,3]
-                        Event.detection_ids == f"[{det_id}]",  # Single element: [1]
+                        Event.detection_ids.like(
+                            f"%, {escaped_det_id}]", escape="\\"
+                        ),  # Last element: , 3]
+                        Event.detection_ids.like(
+                            f"%,{escaped_det_id}]", escape="\\"
+                        ),  # Last element no space: ,3]
+                        Event.detection_ids == f"[{escaped_det_id}]",  # Single element: [1]
                     ]
                 )
             query = query.where(or_(*conditions))

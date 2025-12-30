@@ -42,11 +42,14 @@ workflows/
 | frontend-tests     | ~2m      | Vitest with coverage                |
 | frontend-e2e       | ~5m      | Playwright E2E tests                |
 | build              | ~5m      | Docker image builds (after tests)   |
+| build-prod         | ~5m      | Production Docker image builds      |
 
 **Environment:**
 
-- Python 3.12
+- Python 3.14
 - Node.js 20
+- PostgreSQL 16 (service container)
+- Redis 7 (service container for integration tests)
 - Coverage uploaded to Codecov
 
 **Concurrency:** Only one run per branch at a time.
@@ -348,6 +351,7 @@ See `scripts/setup-gpu-runner.sh` for runner configuration.
 ## Related Files
 
 - `../.github/AGENTS.md` - Parent directory overview
+- `../codeql/AGENTS.md` - CodeQL directory guide
 - `../codeql/codeql-config.yml` - CodeQL configuration
 - `../prompts/code-review.prompt.md` - AI review prompt
 - `../dependabot.yml` - Dependency automation

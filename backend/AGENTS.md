@@ -4,13 +4,15 @@
 
 The backend is a FastAPI-based REST API server for an AI-powered home security monitoring system. It orchestrates:
 
-- **Camera management** - Track cameras and their upload directories
+- **Camera management** - Track cameras, zones, and their upload directories
 - **AI detection pipeline** - File watching, RT-DETRv2 object detection, batch aggregation, Nemotron risk analysis
 - **Data persistence** - PostgreSQL database for structured data (cameras, detections, events, GPU stats, logs)
-- **Real-time capabilities** - Redis for queues, pub/sub, and caching
+- **Real-time capabilities** - Redis for queues, pub/sub, and caching with backpressure handling
 - **Media serving** - Secure file serving with path traversal protection
 - **System monitoring** - Health checks, GPU stats, and system statistics
 - **Observability** - Prometheus metrics, structured logging, dead-letter queues
+- **Alerting** - Alert rules with severity-based thresholds and notification channels
+- **TLS/HTTPS** - Optional TLS support with self-signed certificate generation
 
 ## Directory Structure
 
@@ -23,12 +25,13 @@ backend/
 ├── Dockerfile              # Development Docker configuration
 ├── Dockerfile.prod         # Production Docker configuration
 ├── .dockerignore           # Docker build exclusions
+├── alembic/                # Database migrations (Alembic)
 ├── api/                    # REST API routes, schemas, and middleware
-├── core/                   # Infrastructure (database, Redis, config, logging, metrics)
+├── core/                   # Infrastructure (database, Redis, config, logging, metrics, TLS)
 ├── models/                 # SQLAlchemy ORM models
 ├── services/               # Business logic and AI pipeline
 ├── tests/                  # Unit and integration tests
-├── data/                   # Runtime data (sample images, SQLite DB location)
+├── data/                   # Runtime data (sample images, database location)
 └── examples/               # Example scripts and configurations
 ```
 
@@ -45,6 +48,8 @@ backend/
 - Health check endpoints (`/`, `/health`)
 - Router registration for all API modules:
   - `admin` - Admin operations
+  - `alerts` - Alert rule management
+  - `audit` - Audit logging
   - `cameras` - Camera CRUD
   - `detections` - Detection management
   - `dlq` - Dead-letter queue management
@@ -54,6 +59,7 @@ backend/
   - `metrics` - Prometheus metrics endpoint
   - `system` - System health and status
   - `websocket` - Real-time event streaming
+  - `zones` - Zone management for camera areas
 - Database and Redis initialization
 - Service initialization:
   - `FileWatcher` - Monitors camera directories for new uploads
@@ -78,14 +84,17 @@ See `core/AGENTS.md` for detailed documentation.
 **`config.py`** - Pydantic Settings for configuration:
 
 - Environment variable loading from `.env` and optional `runtime.env`
-- Database URL with PostgreSQL support
-- Redis connection URL
-- API settings (host, port, CORS)
-- File watching settings (Foscam base path)
+- Database URL with PostgreSQL support (required)
+- Redis connection URL with queue backpressure settings
+- API settings (host, port, CORS, rate limiting)
+- File watching settings (Foscam base path, polling options)
 - Retention and batch processing timings
 - AI service endpoints (RT-DETR, Nemotron)
 - Detection and fast path thresholds
-- Logging configuration
+- Logging configuration (file, database, rotation)
+- TLS/HTTPS settings (mode-based: disabled, self_signed, provided)
+- Notification settings (SMTP, webhooks)
+- Severity threshold configuration
 - Cached singleton pattern via `@lru_cache`
 
 **`database.py`** - SQLAlchemy 2.0 async database layer:
@@ -94,15 +103,32 @@ See `core/AGENTS.md` for detailed documentation.
 - `init_db()` / `close_db()` - Lifecycle management
 - `get_db()` - FastAPI dependency for database sessions
 - `get_session()` - Async context manager for services
-- SQLite-specific optimizations (NullPool, WAL mode, foreign keys)
+- PostgreSQL connection pooling with asyncpg driver
+
+**`tls.py`** - TLS/SSL configuration and certificate management:
+
+- `TLSMode` enum: DISABLED, SELF_SIGNED, PROVIDED
+- `TLSConfig` dataclass for configuration
+- Self-signed certificate generation with SANs
+- SSL context creation for uvicorn
+- Certificate validation and info extraction
+
+**`mime_types.py`** - MIME type utilities:
+
+- Image and video MIME type mappings
+- Extension-to-MIME conversion
+- File type normalization
 
 **`redis.py`** - Redis async client wrapper:
 
 - `RedisClient` class with connection pooling
-- Queue operations (RPUSH, BLPOP, LLEN, LRANGE, peek_queue, clear_queue)
+- Queue operations with backpressure handling:
+  - `add_to_queue()` - Legacy method with auto-trimming
+  - `add_to_queue_safe()` - New method with overflow policies (REJECT, DLQ, DROP_OLDEST)
+  - `get_queue_pressure()` - Queue health metrics
 - Pub/Sub operations (publish, subscribe, listen)
-- Cache operations (get, set, delete, exists)
-- Retry logic with exponential backoff
+- Cache operations (get, set, delete, exists, expire)
+- Retry logic with exponential backoff and jitter
 
 **`logging.py`** - Centralized logging infrastructure:
 
@@ -113,11 +139,12 @@ See `core/AGENTS.md` for detailed documentation.
 
 **`metrics.py`** - Prometheus metrics:
 
-- Queue depth gauges
-- Stage duration histograms
+- Queue depth gauges (detection, analysis)
+- Stage duration histograms (detect, batch, analyze)
 - Event/detection counters
-- AI request duration tracking
+- AI request duration tracking (rtdetr, nemotron)
 - Error counters by type
+- `PipelineLatencyTracker` - In-memory latency tracking with percentile calculations
 
 ## Database Models (`models/`)
 
@@ -130,7 +157,7 @@ All models use SQLAlchemy 2.0 `Mapped` type hints:
 - **`Event`** - Security events with LLM risk analysis
 - **`GPUStats`** - GPU performance time-series data
 - **`Log`** - Structured application logs
-- **`APIKey`** - API key authentication records
+- **`Zone`** - Camera monitoring zones/areas
 
 ## API Routes (`api/routes/`)
 
@@ -304,7 +331,7 @@ Key environment variables (loaded via `.env` file):
 
 ```bash
 # Database and Redis
-DATABASE_URL=sqlite+aiosqlite:///./data/security.db
+DATABASE_URL=postgresql+asyncpg://security:password@localhost:5432/security
 REDIS_URL=redis://localhost:6379/0
 
 # Camera configuration
@@ -332,10 +359,20 @@ API_KEY_ENABLED=false
 # Logging
 LOG_LEVEL=INFO
 LOG_DB_ENABLED=true
+
+# TLS (optional)
+TLS_MODE=disabled  # or self_signed, provided
+TLS_CERT_PATH=/path/to/cert.pem
+TLS_KEY_PATH=/path/to/key.pem
+
+# Rate limiting
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_REQUESTS_PER_MINUTE=60
 ```
 
 ## Related Documentation
 
+- `/backend/alembic/AGENTS.md` - Database migration documentation
 - `/backend/core/AGENTS.md` - Core infrastructure documentation
 - `/backend/models/AGENTS.md` - Database model documentation
 - `/backend/services/AGENTS.md` - Service layer documentation

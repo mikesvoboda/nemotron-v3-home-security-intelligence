@@ -19,6 +19,35 @@
 version: "3.8"
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-security}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-security_dev_password}
+      - POSTGRES_DB=${POSTGRES_DB:-security}
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-security} -d ${POSTGRES_DB:-security}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 1G
+
   backend:
     image: ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:${IMAGE_TAG:-latest}
     ports:
@@ -27,13 +56,15 @@ services:
       - ./backend/data:/app/data
       - ${CAMERA_PATH:-/export/foscam}:/cameras:ro
     environment:
-      - DATABASE_URL=sqlite+aiosqlite:////app/data/security.db
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-security}:${POSTGRES_PASSWORD:-security_dev_password}@postgres:5432/${POSTGRES_DB:-security}
       - REDIS_URL=redis://redis:6379
       - RTDETR_URL=http://${AI_HOST:-host.docker.internal}:8090
       - NEMOTRON_URL=http://${AI_HOST:-host.docker.internal}:8091
       - FOSCAM_BASE_PATH=/cameras
       - DEBUG=${DEBUG:-false}
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
@@ -112,6 +143,8 @@ services:
           memory: 512M
 
 volumes:
+  postgres_data:
+    driver: local
   redis_data:
     driver: local
 

@@ -2,14 +2,14 @@
  * Hook for tracking individual service health status.
  *
  * The backend's ServiceHealthMonitor (health_monitor.py) monitors RT-DETRv2 and
- * Nemotron services, broadcasting `service_status` messages when their health
- * changes. This hook listens for those messages and tracks the status of each
- * monitored service.
+ * Nemotron services, broadcasting `service_status` messages via EventBroadcaster
+ * when their health changes. This hook connects to `/ws/events` and listens for
+ * those messages, tracking the status of each monitored service.
  *
- * For overall system health, use `useSystemStatus` which provides an aggregated
- * health field ('healthy', 'degraded', 'unhealthy'). This hook is useful when
- * you need to show detailed per-service status or react to specific service
- * failures.
+ * For overall system health, use `useSystemStatus` which connects to `/ws/system`
+ * and provides an aggregated health field ('healthy', 'degraded', 'unhealthy').
+ * This hook is useful when you need to show detailed per-service status or react
+ * to specific service failures.
  *
  * Note: Redis health is not monitored by ServiceHealthMonitor since the backend
  * handles Redis failures gracefully through other mechanisms.
@@ -17,6 +17,7 @@
 import { useState, useCallback, useMemo } from 'react';
 
 import { useWebSocket } from './useWebSocket';
+import { buildWebSocketUrl } from '../services/api';
 
 export type ServiceName = 'redis' | 'rtdetr' | 'nemotron';
 export type ServiceStatusType =
@@ -116,8 +117,10 @@ export function useServiceStatus(): UseServiceStatusResult {
     }
   }, []);
 
+  const wsUrl = buildWebSocketUrl('/ws/events');
+
   useWebSocket({
-    url: `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/system`,
+    url: wsUrl,
     onMessage: handleMessage,
   });
 

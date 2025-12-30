@@ -10,7 +10,10 @@ The `backend/api/routes/` directory contains FastAPI router modules that define 
 
 Package initialization with public exports:
 
+- `alerts_router` - Alert rules API router
+- `audit_router` - Audit logs API router
 - `logs_router` - Logs API router
+- `zones_router` - Camera zones API router
 
 ### `cameras.py`
 
@@ -295,6 +298,117 @@ Prometheus metrics endpoint for observability.
 - Standard Prometheus text format
 - Integrates with `backend.core.metrics`
 
+### `alerts.py`
+
+Alert rules management with CRUD operations and rule testing.
+
+**Router prefix:** `/api/alerts/rules`
+
+**Endpoints:**
+
+| Method | Path                               | Purpose                             |
+| ------ | ---------------------------------- | ----------------------------------- |
+| GET    | `/api/alerts/rules`                | List alert rules with filtering     |
+| POST   | `/api/alerts/rules`                | Create new alert rule               |
+| GET    | `/api/alerts/rules/{rule_id}`      | Get specific alert rule             |
+| PUT    | `/api/alerts/rules/{rule_id}`      | Update alert rule                   |
+| DELETE | `/api/alerts/rules/{rule_id}`      | Delete alert rule                   |
+| POST   | `/api/alerts/rules/{rule_id}/test` | Test rule against historical events |
+
+**Query Parameters (List):**
+
+- `enabled` - Filter by enabled status
+- `severity` - Filter by severity level (low, medium, high, critical)
+- `limit` / `offset` - Pagination
+
+**Key Features:**
+
+- Rule conditions: risk threshold, object types, camera IDs, zone IDs, min confidence
+- Schedule-based rules with timezone support (time-of-day filtering)
+- Deduplication with cooldown windows
+- Channel-based notification routing
+- Rule testing against historical events to validate configuration
+
+### `audit.py`
+
+Audit log management for security and compliance tracking.
+
+**Router prefix:** `/api/audit`
+
+**Endpoints:**
+
+| Method | Path                    | Purpose                      |
+| ------ | ----------------------- | ---------------------------- |
+| GET    | `/api/audit`            | List audit logs with filters |
+| GET    | `/api/audit/stats`      | Get audit log statistics     |
+| GET    | `/api/audit/{audit_id}` | Get specific audit log entry |
+
+**Query Parameters (List):**
+
+- `action` - Filter by action type
+- `resource_type` - Filter by resource type (event, alert, rule, camera, settings)
+- `resource_id` - Filter by specific resource ID
+- `actor` - Filter by actor (user or system)
+- `status` - Filter by status (success/failure)
+- `start_date` / `end_date` - Date range filter
+- `limit` / `offset` - Pagination
+
+**Key Features:**
+
+- Tracks security-sensitive operations
+- Statistics aggregation by action, resource type, and status
+- Recent actors tracking
+
+### `zones.py`
+
+Camera zone management (nested under cameras resource).
+
+**Router prefix:** `/api/cameras`
+
+**Endpoints:**
+
+| Method | Path                                       | Purpose               |
+| ------ | ------------------------------------------ | --------------------- |
+| GET    | `/api/cameras/{camera_id}/zones`           | List zones for camera |
+| POST   | `/api/cameras/{camera_id}/zones`           | Create zone           |
+| GET    | `/api/cameras/{camera_id}/zones/{zone_id}` | Get specific zone     |
+| PUT    | `/api/cameras/{camera_id}/zones/{zone_id}` | Update zone           |
+| DELETE | `/api/cameras/{camera_id}/zones/{zone_id}` | Delete zone           |
+
+**Query Parameters (List):**
+
+- `enabled` - Filter by enabled status
+
+**Key Features:**
+
+- Polygon coordinates in normalized 0-1 range
+- Zone types: entry_point, exit_point, restricted, monitored, other
+- Shape support: rectangle, polygon
+- Priority-based overlapping zones
+- Color customization for UI display
+
+### `admin.py`
+
+Development-only admin endpoints for seeding test data.
+
+**Router prefix:** `/api/admin`
+
+**Endpoints:**
+
+| Method | Path                      | Purpose                         |
+| ------ | ------------------------- | ------------------------------- |
+| POST   | `/api/admin/seed/cameras` | Seed test cameras               |
+| POST   | `/api/admin/seed/events`  | Seed mock events and detections |
+| DELETE | `/api/admin/seed/clear`   | Clear all seeded data           |
+
+**Key Features:**
+
+- Only available when `DEBUG=true` in environment
+- Predefined sample cameras (Front Door, Backyard, Garage, etc.)
+- Mock events with realistic risk levels and summaries
+- Weighted risk distribution (50% low, 35% medium, 15% high)
+- Auto-generates detections with random bounding boxes
+
 ## Common Patterns
 
 ### Async Database Access
@@ -368,6 +482,10 @@ Routes use FastAPI dependencies for:
 - `Event` - Security events
 - `GPUStats` - GPU metrics
 - `Log` - System and frontend logs
+- `AlertRule` - Alert rule definitions
+- `Alert` - Triggered alerts
+- `AuditLog` - Security audit trail
+- `Zone` - Camera detection zones
 
 ### External Services
 
@@ -390,6 +508,8 @@ Uses `backend.core.config.Settings` for:
 - `SystemBroadcaster` - WebSocket system status broadcasting
 - `ThumbnailGenerator` - Detection thumbnail generation
 - `RetryHandler` - Dead-letter queue operations
+- `AlertRuleEngine` - Alert rule evaluation and testing
+- `AuditService` - Audit log recording and querying
 
 ## Testing Considerations
 
@@ -397,9 +517,12 @@ When testing routes:
 
 1. Use `AsyncClient` for async endpoints
 2. Mock database dependencies with test fixtures
-3. Test error cases (404, 403, validation errors)
+3. Test error cases (404, 403, 429, validation errors)
 4. Verify cascade deletes for cameras
 5. Test path traversal prevention for media endpoints
 6. Verify health check logic for degraded states
 7. Test WebSocket connection lifecycle
 8. Test DLQ operations with mock Redis
+9. Test alert rule conditions and schedule evaluation
+10. Test zone coordinate validation (0-1 range)
+11. Test admin endpoints require DEBUG mode

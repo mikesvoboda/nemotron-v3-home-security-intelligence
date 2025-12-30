@@ -10,8 +10,10 @@ Contains reusable UI components shared across multiple features. These are low-l
 | ------------------------ | --------------------------------------------- | ---------- |
 | `RiskBadge.tsx`          | Risk level badge with icon and optional score | Active     |
 | `ObjectTypeBadge.tsx`    | Detection object type badge                   | Active     |
+| `Lightbox.tsx`           | Full-size image viewer with navigation        | Active     |
 | `ServiceStatusAlert.tsx` | Service health notification banner            | Deprecated |
 | `index.ts`               | Barrel exports (only RiskBadge currently)     | Active     |
+| `*.test.tsx`             | Test files for each component                 | Active     |
 
 ## Key Components
 
@@ -239,10 +241,73 @@ All badge components follow the same sizing pattern (sm/md/lg) for consistency a
 
 **Start here:** `RiskBadge.tsx` - Most commonly used badge component
 **Also see:** `ObjectTypeBadge.tsx` - Detection object type badge
+**Also see:** `Lightbox.tsx` - Full-size image viewing modal
 **Reference:** `ServiceStatusAlert.tsx` - Deprecated but documented for future use
+
+---
+
+### Lightbox.tsx
+
+**Purpose:** Display full-size images in a modal overlay with optional multi-image navigation
+
+**Props Interface:**
+
+```typescript
+interface LightboxImage {
+  src: string;
+  alt: string;
+  caption?: string;
+}
+
+interface LightboxProps {
+  images: LightboxImage | LightboxImage[];
+  initialIndex?: number;
+  isOpen: boolean;
+  onClose: () => void;
+  onIndexChange?: (index: number) => void;
+  showNavigation?: boolean;
+  showCounter?: boolean;
+  className?: string;
+}
+```
+
+**Key Features:**
+
+- Single image or multi-image gallery support
+- Keyboard navigation (Escape, ArrowLeft, ArrowRight)
+- Image counter (e.g., "1 / 5")
+- Optional caption display
+- Backdrop click to close
+- Smooth enter/exit transitions
+- Prevents body scroll when open
+
+**Usage:**
+
+```tsx
+import Lightbox from '../common/Lightbox';
+
+<Lightbox
+  images={[
+    { src: '/img1.jpg', alt: 'Detection 1', caption: 'Front door' },
+    { src: '/img2.jpg', alt: 'Detection 2' },
+  ]}
+  isOpen={isOpen}
+  onClose={() => setIsOpen(false)}
+  showNavigation={true}
+  showCounter={true}
+/>;
+```
+
+**Dependencies:**
+
+- `@headlessui/react` - Dialog, Transition
+- `lucide-react` - ChevronLeft, ChevronRight, X
+
+---
 
 ## Dependencies
 
 - `lucide-react` - Icon components
 - `clsx` - Conditional class composition
+- `@headlessui/react` - Dialog, Transition (Lightbox only)
 - `../../utils/risk` - Risk utility functions (RiskBadge only)

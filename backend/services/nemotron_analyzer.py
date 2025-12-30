@@ -597,9 +597,11 @@ class NemotronAnalyzer:
                 },
             }
 
-            from backend.services.event_broadcaster import get_event_channel
+            # Use EventBroadcaster API instead of direct Redis publish
+            from backend.services.event_broadcaster import get_broadcaster
 
-            await self._redis.publish(get_event_channel(), message)
+            broadcaster = await get_broadcaster(self._redis)
+            await broadcaster.broadcast_event(message)
             logger.debug(f"Broadcasted event {event.id} via WebSocket")
         except Exception as e:  # pragma: no cover
             logger.warning(f"Failed to broadcast event: {e}")  # pragma: no cover

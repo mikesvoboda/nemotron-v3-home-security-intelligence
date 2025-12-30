@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     # PostgreSQL only - required for production and development
     # Example: postgresql+asyncpg://security:password@localhost:5432/security
     database_url: str = Field(
-        default="postgresql+asyncpg://security:security_dev_password@localhost:5432/security",
+        default="",
         description="PostgreSQL database URL (format: postgresql+asyncpg://user:pass@host:port/db)",
     )
 
@@ -435,6 +435,12 @@ class Settings(BaseSettings):
     @classmethod
     def validate_database_url(cls, v: str) -> str:
         """Validate PostgreSQL database URL format."""
+        if not v:
+            raise ValueError(
+                "DATABASE_URL environment variable is required. "
+                "Set it in your .env file or environment. "
+                "Example: DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/dbname"
+            )
         if not v.startswith(("postgresql://", "postgresql+asyncpg://")):
             raise ValueError(
                 "Only PostgreSQL is supported. "
