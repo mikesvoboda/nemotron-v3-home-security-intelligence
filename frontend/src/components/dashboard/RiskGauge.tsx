@@ -65,11 +65,13 @@ export interface RiskGaugeProps {
  * with color-coded severity levels and smooth animations. Optionally displays a sparkline
  * of recent risk history.
  *
- * Color coding:
- * - Green (0-25): Low risk
- * - Yellow (26-50): Medium risk
- * - Orange (51-75): High risk
- * - Red (76-100): Critical risk
+ * Color coding (thresholds match backend SeverityService):
+ * - Green (0-29): Low risk
+ * - Yellow (30-59): Medium risk
+ * - Orange (60-84): High risk
+ * - Red (85-100): Critical risk
+ *
+ * Thresholds can be fetched from GET /api/system/severity for dynamic configuration.
  *
  * Features NVIDIA theme with primary green (#76B900) and dark backgrounds.
  */
@@ -141,15 +143,16 @@ export default function RiskGauge({
   const strokeDashoffset = circumference * (1 - progress);
 
   // Get gradient colors based on risk level
+  // Thresholds match backend SeverityService: LOW 0-29, MEDIUM 30-59, HIGH 60-84, CRITICAL 85-100
   const getGradientStops = () => {
     const stops = [
-      { offset: '0%', color: '#76B900' }, // NVIDIA Green (low)
-      { offset: '25%', color: '#76B900' },
-      { offset: '26%', color: '#FFB800' }, // NVIDIA Yellow (medium)
-      { offset: '50%', color: '#FFB800' },
-      { offset: '51%', color: '#E74856' }, // NVIDIA Red (high)
-      { offset: '75%', color: '#E74856' },
-      { offset: '76%', color: '#ef4444' }, // red-500 (critical)
+      { offset: '0%', color: '#76B900' }, // NVIDIA Green (low: 0-29)
+      { offset: '29%', color: '#76B900' },
+      { offset: '30%', color: '#FFB800' }, // NVIDIA Yellow (medium: 30-59)
+      { offset: '59%', color: '#FFB800' },
+      { offset: '60%', color: '#E74856' }, // NVIDIA Red (high: 60-84)
+      { offset: '84%', color: '#E74856' },
+      { offset: '85%', color: '#ef4444' }, // red-500 (critical: 85-100)
       { offset: '100%', color: '#ef4444' },
     ];
     return stops;

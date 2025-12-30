@@ -276,9 +276,15 @@ def test_validate_risk_data_missing_score(analyzer):
 
 def test_validate_risk_data_invalid_level(analyzer):
     """Test validation infers risk_level from risk_score when invalid."""
+    # With backend thresholds: HIGH is 60-84, CRITICAL is 85-100
     data = {"risk_score": 80, "risk_level": "invalid_level"}
     result = analyzer._validate_risk_data(data)
-    assert result["risk_level"] == "critical"  # Inferred from score (76-100)
+    assert result["risk_level"] == "high"  # Inferred from score (60-84)
+
+    # Test critical inference
+    data_critical = {"risk_score": 90, "risk_level": "invalid_level"}
+    result_critical = analyzer._validate_risk_data(data_critical)
+    assert result_critical["risk_level"] == "critical"  # Inferred from score (85-100)
 
 
 def test_validate_risk_data_level_inference(analyzer):

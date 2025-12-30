@@ -559,15 +559,14 @@ class NemotronAnalyzer:
         valid_levels = ["low", "medium", "high", "critical"]
         risk_level = str(data.get("risk_level", "medium")).lower()
         if risk_level not in valid_levels:
-            # Infer from risk_score
-            if risk_score <= 25:
-                risk_level = "low"
-            elif risk_score <= 50:
-                risk_level = "medium"
-            elif risk_score <= 75:
-                risk_level = "high"
-            else:
-                risk_level = "critical"
+            # Infer from risk_score using SeverityService for consistent thresholds
+            # This ensures fallback behavior matches the backend severity taxonomy:
+            # LOW: 0-29, MEDIUM: 30-59, HIGH: 60-84, CRITICAL: 85-100
+            from backend.services.severity import get_severity_service
+
+            severity_service = get_severity_service()
+            severity = severity_service.risk_score_to_severity(risk_score)
+            risk_level = severity.value
 
         # Ensure summary and reasoning exist
         summary = data.get("summary", "Risk analysis completed")

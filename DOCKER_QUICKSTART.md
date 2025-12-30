@@ -48,6 +48,8 @@ docker compose -f docker-compose.prod.yml down
 
 ## 📋 Service Endpoints
 
+### Development (docker-compose.yml)
+
 | Service  | Port | URL                        | Health Check             |
 | -------- | ---- | -------------------------- | ------------------------ |
 | Backend  | 8000 | http://localhost:8000      | /api/system/health/ready |
@@ -55,16 +57,48 @@ docker compose -f docker-compose.prod.yml down
 | Frontend | 5173 | http://localhost:5173      | / (Vite dev server)      |
 | Redis    | 6379 | redis://localhost:6379     | redis-cli ping           |
 
+### Production (docker-compose.prod.yml)
+
+| Service  | Port | URL                         | Health Check             |
+| -------- | ---- | --------------------------- | ------------------------ |
+| Backend  | 8000 | http://localhost:8000       | /api/system/health/ready |
+| API Docs | 8000 | http://localhost:8000/docs  | -                        |
+| Frontend | 80   | http://localhost            | / (Nginx)                |
+| Redis    | 6379 | redis://localhost:6379      | redis-cli ping           |
+| Postgres | 5432 | postgresql://localhost:5432 | pg_isready               |
+
+> **Note:** In production, the frontend runs on Nginx (port 80 inside container, exposed as port 80 by default).
+> You can change the host port with `FRONTEND_PORT` environment variable.
+
 ## 🔍 Health Checks
+
+The backend provides two health check endpoints for different purposes:
+
+### Liveness vs Readiness Probes
+
+| Endpoint                   | Purpose                                  | When to Use                                            |
+| -------------------------- | ---------------------------------------- | ------------------------------------------------------ |
+| `/api/system/health/live`  | Checks if the process is running         | Container restart decisions                            |
+| `/api/system/health/ready` | Checks if all dependencies are healthy   | Traffic routing decisions (used by Docker healthcheck) |
+| `/api/system/health`       | Detailed health status with all services | Debugging and monitoring dashboards                    |
+
+**Key differences:**
+
+- **Liveness (`/live`)**: Minimal check - always returns 200 if the process is up. Use this for Kubernetes/Docker liveness probes to determine if the container needs restarting.
+- **Readiness (`/ready`)**: Full dependency check - verifies database, Redis, and AI services are healthy. Use this for Kubernetes/Docker readiness probes to determine if traffic should be routed to this instance. **Docker healthchecks use this endpoint.**
+- **Health (`/health`)**: Same checks as readiness but with detailed service status information.
 
 ```bash
 # Check all services
 docker compose ps
 
-# Check Backend health (readiness probe)
+# Check Backend readiness (used by Docker healthcheck)
 curl http://localhost:8000/api/system/health/ready
 
-# Check Backend liveness (basic health)
+# Check Backend liveness (basic process check)
+curl http://localhost:8000/api/system/health/live
+
+# Check Backend detailed health status
 curl http://localhost:8000/api/system/health
 
 # Check Redis
@@ -121,11 +155,14 @@ docker compose up -d
 ### Database issues
 
 ```bash
-# Backup database
-docker compose exec backend sqlite3 /app/data/security.db ".backup /app/data/backup.db"
+# Connect to PostgreSQL
+docker compose exec postgres psql -U security -d security
 
-# Copy to host
-docker compose cp backend:/app/data/security.db ./backup.db
+# Backup database
+docker compose exec postgres pg_dump -U security security > backup.sql
+
+# Restore database
+docker compose exec -T postgres psql -U security security < backup.sql
 ```
 
 ## 🔐 Environment Variables
@@ -222,8 +259,8 @@ docker compose exec frontend npm test
 ### Copy files to/from containers
 
 ```bash
-# Copy from container to host
-docker compose cp backend:/app/data/security.db ./backup.db
+# Backup PostgreSQL to host
+docker compose exec postgres pg_dump -U security security > backup.sql
 
 # Copy from host to container
 docker compose cp ./config.json backend:/app/config.json
@@ -263,10 +300,22 @@ docker rm $(docker ps -aq)
 
 ## 🔗 Quick Links
 
+**Development:**
+
 - Backend API: http://localhost:8000
 - API Documentation: http://localhost:8000/docs
 - Frontend App: http://localhost:5173
-- Redis Commander: `docker compose exec redis redis-cli` (CLI interface)
+
+**Production:**
+
+- Backend API: http://localhost:8000
+- API Documentation: http://localhost:8000/docs
+- Frontend App: http://localhost (port 80)
+
+**Utilities:**
+
+- Redis CLI: `docker compose exec redis redis-cli`
+- PostgreSQL: `docker compose exec postgres psql -U security -d security`
 
 ## ✅ Pre-flight Checklist
 
@@ -276,7 +325,9 @@ Before deploying:
 - [ ] `.env` file is configured
 - [ ] Camera images directory exists (default: `/export/foscam`, or set `CAMERA_PATH`)
 - [ ] AI services are running (RT-DETRv2 on 8090, Nemotron on 8091)
-- [ ] Ports 5173, 6379, and 8000 are available
+- [ ] Required ports are available:
+  - Development: 5173, 6379, 8000
+  - Production: 80, 5432, 6379, 8000
 
 Test deployment:
 
