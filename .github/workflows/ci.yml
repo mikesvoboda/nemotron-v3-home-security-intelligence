@@ -115,9 +115,11 @@ jobs:
       - name: Run unit tests with coverage
         # Unit tests have 92% coverage threshold (lowered from 93% during logging migration)
         # -n0 disables xdist parallelization (CI already parallelizes via separate jobs)
+        # --timeout=0 disables timeout (fixture import takes >1s in CI)
         run: |
           pytest backend/tests/unit/ \
             -n0 \
+            --timeout=0 \
             --cov=backend \
             --cov-config=pyproject.toml \
             --cov-report=xml:coverage-unit.xml \
@@ -228,9 +230,11 @@ jobs:
         # - Testing specific API endpoints rather than all code paths
         # - Focus on end-to-end behavior verification
         # -n0 disables xdist parallelization (CI already parallelizes via separate jobs)
+        # --timeout=0 disables timeout (fixture import takes >1s in CI)
         run: |
           pytest backend/tests/integration/ \
             -n0 \
+            --timeout=0 \
             --cov=backend \
             --cov-report=xml:coverage-integration.xml \
             --cov-report=term-missing \
@@ -567,8 +571,10 @@ jobs:
           # Run specific tests that verify admin endpoints return 403 when DEBUG=false
           # These tests are critical security validation
           # -n0 disables xdist parallelization
+          # --timeout=0 disables timeout (fixture import takes >1s in CI)
           pytest backend/tests/unit/test_admin_api.py \
             -n0 \
+            --timeout=0 \
             -k "requires_debug_mode" \
             -v \
             --tb=short
