@@ -164,7 +164,8 @@ class Settings(BaseSettings):
         try:
             validated_url = AnyHttpUrl(url_str)
             # Return as string for httpx compatibility
-            return str(validated_url)
+            # Strip trailing slash to avoid double-slash when appending paths like /health
+            return str(validated_url).rstrip("/")
         except Exception as e:
             raise ValueError(
                 f"Invalid AI service URL '{url_str}': must be a valid HTTP/HTTPS URL. "
