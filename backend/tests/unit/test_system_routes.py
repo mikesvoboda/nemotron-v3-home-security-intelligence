@@ -1088,10 +1088,12 @@ async def test_get_gpu_stats_with_data() -> None:
     db = AsyncMock()
     mock_gpu_stat = MagicMock()
     mock_gpu_stat.recorded_at = datetime(2025, 12, 27, 10, 0, 0)
+    mock_gpu_stat.gpu_name = "NVIDIA RTX A5500"
     mock_gpu_stat.gpu_utilization = 75.5
     mock_gpu_stat.memory_used = 12000
     mock_gpu_stat.memory_total = 24000
     mock_gpu_stat.temperature = 65.0
+    mock_gpu_stat.power_usage = 150.0
     mock_gpu_stat.inference_fps = 30.5
 
     mock_result = MagicMock()
@@ -1101,10 +1103,12 @@ async def test_get_gpu_stats_with_data() -> None:
     response = await system_routes.get_gpu_stats(db)  # type: ignore[arg-type]
 
     assert isinstance(response, GPUStatsResponse)
+    assert response.gpu_name == "NVIDIA RTX A5500"
     assert response.utilization == 75.5
     assert response.memory_used == 12000
     assert response.memory_total == 24000
     assert response.temperature == 65.0
+    assert response.power_usage == 150.0
     assert response.inference_fps == 30.5
 
 
@@ -1139,18 +1143,22 @@ async def test_get_gpu_stats_history_returns_samples() -> None:
     # Create mock GPU stat rows
     mock_stat1 = MagicMock()
     mock_stat1.recorded_at = datetime(2025, 12, 27, 9, 0, 0)
+    mock_stat1.gpu_name = "NVIDIA RTX A5500"
     mock_stat1.gpu_utilization = 50.0
     mock_stat1.memory_used = 8000
     mock_stat1.memory_total = 24000
     mock_stat1.temperature = 55.0
+    mock_stat1.power_usage = 120.0
     mock_stat1.inference_fps = 25.0
 
     mock_stat2 = MagicMock()
     mock_stat2.recorded_at = datetime(2025, 12, 27, 10, 0, 0)
+    mock_stat2.gpu_name = "NVIDIA RTX A5500"
     mock_stat2.gpu_utilization = 75.0
     mock_stat2.memory_used = 12000
     mock_stat2.memory_total = 24000
     mock_stat2.temperature = 65.0
+    mock_stat2.power_usage = 150.0
     mock_stat2.inference_fps = 30.0
 
     mock_result = MagicMock()
@@ -1178,10 +1186,12 @@ async def test_get_gpu_stats_history_with_since_filter() -> None:
 
     mock_stat = MagicMock()
     mock_stat.recorded_at = datetime(2025, 12, 27, 10, 0, 0)
+    mock_stat.gpu_name = "NVIDIA RTX A5500"
     mock_stat.gpu_utilization = 75.0
     mock_stat.memory_used = 12000
     mock_stat.memory_total = 24000
     mock_stat.temperature = 65.0
+    mock_stat.power_usage = 150.0
     mock_stat.inference_fps = 30.0
 
     mock_result = MagicMock()

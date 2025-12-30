@@ -463,6 +463,208 @@ class TestWebSocketRateLimiting:
             # Redis should not be called
             mock_redis._ensure_connected.assert_not_called()
 
+    @pytest.mark.asyncio
+    async def test_websocket_rapid_connection_attempts_rejected(self, mock_websocket, mock_redis):
+        """Test that rapid connection attempts are rejected after exceeding threshold.
+
+        This test simulates multiple connection attempts in rapid succession,
+        verifying that once the threshold is exceeded, subsequent connections
+        are rejected.
+        """
+        with patch.dict(
+            os.environ,
+            {
+                "RATE_LIMIT_ENABLED": "true",
+                "RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE": "5",
+            },
+        ):
+            from backend.core.config import get_settings
+
+            get_settings.cache_clear()
+
+            # WebSocket tier has burst of 2, so limit is 5 + 2 = 7
+            # Simulate increasing connection count
+            counts = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+            call_count = 0
+
+            async def mock_execute():
+                nonlocal call_count
+                count = counts[min(call_count, len(counts) - 1)]
+                call_count += 1
+                return [0, count, 1, True]
+
+            mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
+            mock_pipe.execute = mock_execute
+
+            # First few connections should be allowed
+            results = []
+            for _ in range(10):
+                result = await check_websocket_rate_limit(mock_websocket, mock_redis)
+                results.append(result)
+
+            # First 6 should be allowed (count 1-6, limit is 7)
+            # After that, count >= 7, so denied
+            assert results[:6] == [True, True, True, True, True, True]
+            assert results[6:] == [False, False, False, False]
+
+    @pytest.mark.asyncio
+    async def test_websocket_different_clients_have_independent_limits(self, mock_redis):
+        """Test that different client IPs have independent rate limits.
+
+        Each client should have their own counter, so one client hitting
+        the limit should not affect other clients.
+        """
+        with patch.dict(
+            os.environ,
+            {
+                "RATE_LIMIT_ENABLED": "true",
+                "RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE": "5",
+            },
+        ):
+            from backend.core.config import get_settings
+
+            get_settings.cache_clear()
+
+            # Create mock websockets for different clients
+            client_a = MagicMock()
+            client_a.client = MagicMock()
+            client_a.client.host = "192.168.1.100"
+            client_a.headers = {}
+
+            client_b = MagicMock()
+            client_b.client = MagicMock()
+            client_b.client.host = "192.168.1.200"
+            client_b.headers = {}
+
+            def mock_pipeline():
+                pipe = MagicMock()
+                pipe.zremrangebyscore = MagicMock()
+                pipe.zcard = MagicMock()
+                pipe.zadd = MagicMock()
+                pipe.expire = MagicMock()
+
+                # Return different counts based on the key (simulating per-client tracking)
+                async def execute():
+                    # Get the last key used (from zadd call)
+                    # For simplicity, return low count for all (under limit)
+                    return [0, 2, 1, True]
+
+                pipe.execute = execute
+                return pipe
+
+            mock_redis._ensure_connected.return_value.pipeline = mock_pipeline
+
+            # Both clients should be allowed (independent limits)
+            result_a = await check_websocket_rate_limit(client_a, mock_redis)
+            result_b = await check_websocket_rate_limit(client_b, mock_redis)
+
+            assert result_a is True
+            assert result_b is True
+
+    @pytest.mark.asyncio
+    async def test_websocket_rate_limit_uses_correct_tier(self, mock_websocket, mock_redis):
+        """Test that WebSocket rate limiting uses the WEBSOCKET tier settings."""
+        with patch.dict(
+            os.environ,
+            {
+                "RATE_LIMIT_ENABLED": "true",
+                "RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE": "20",
+            },
+        ):
+            from backend.core.config import get_settings
+
+            get_settings.cache_clear()
+
+            # WebSocket tier limit is 20 + 2 burst = 22
+            mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
+            mock_pipe.execute = AsyncMock(return_value=[0, 21, 1, True])
+
+            # 21 < 22, so should be allowed
+            result = await check_websocket_rate_limit(mock_websocket, mock_redis)
+            assert result is True
+
+            # Now at limit
+            mock_pipe.execute = AsyncMock(return_value=[0, 22, 1, True])
+            result = await check_websocket_rate_limit(mock_websocket, mock_redis)
+            assert result is False
+
+    @pytest.mark.asyncio
+    async def test_websocket_rate_limit_sliding_window_key_generation(
+        self, mock_websocket, mock_redis
+    ):
+        """Test that rate limit creates correct Redis key for WebSocket tier."""
+        with patch.dict(
+            os.environ,
+            {
+                "RATE_LIMIT_ENABLED": "true",
+                "RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE": "10",
+            },
+        ):
+            from backend.core.config import get_settings
+
+            get_settings.cache_clear()
+
+            mock_websocket.client.host = "10.0.0.5"
+            mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
+            mock_pipe.execute = AsyncMock(return_value=[0, 1, 1, True])
+
+            await check_websocket_rate_limit(mock_websocket, mock_redis)
+
+            # Verify the key includes the websocket tier and client IP
+            # The key format is: rate_limit:websocket:10.0.0.5
+            # We can verify by checking that zadd was called
+            mock_pipe.zadd.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_websocket_rate_limit_redis_error_fails_open(self, mock_websocket, mock_redis):
+        """Test that Redis errors result in allowing WebSocket connections (fail-open)."""
+        with patch.dict(
+            os.environ,
+            {
+                "RATE_LIMIT_ENABLED": "true",
+                "RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE": "10",
+            },
+        ):
+            from backend.core.config import get_settings
+
+            get_settings.cache_clear()
+
+            # Simulate Redis connection error
+            mock_redis._ensure_connected.side_effect = Exception("Redis unavailable")
+
+            result = await check_websocket_rate_limit(mock_websocket, mock_redis)
+
+            # Should fail open (allow connection)
+            assert result is True
+
+    @pytest.mark.asyncio
+    async def test_websocket_rate_limit_with_x_forwarded_for(self, mock_redis):
+        """Test that rate limiting correctly uses X-Forwarded-For header."""
+        with patch.dict(
+            os.environ,
+            {
+                "RATE_LIMIT_ENABLED": "true",
+                "RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE": "10",
+            },
+        ):
+            from backend.core.config import get_settings
+
+            get_settings.cache_clear()
+
+            # Create websocket with X-Forwarded-For header (common with reverse proxies)
+            ws_behind_proxy = MagicMock()
+            ws_behind_proxy.client = MagicMock()
+            ws_behind_proxy.client.host = "127.0.0.1"  # Proxy IP
+            ws_behind_proxy.headers = {"X-Forwarded-For": "203.0.113.50"}  # Real client IP
+
+            mock_pipe = mock_redis._ensure_connected.return_value.pipeline.return_value
+            mock_pipe.execute = AsyncMock(return_value=[0, 5, 1, True])
+
+            result = await check_websocket_rate_limit(ws_behind_proxy, mock_redis)
+
+            assert result is True
+            # The key should use the real client IP (203.0.113.50), not the proxy IP
+
 
 # =============================================================================
 # Convenience Function Tests

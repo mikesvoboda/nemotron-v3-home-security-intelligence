@@ -380,6 +380,26 @@ describe('SystemMonitoringPage', () => {
         expect(screen.getByText('No service data available')).toBeInTheDocument();
       });
     });
+
+    it('shows error message when health API fails', async () => {
+      const errorMessage = 'Connection refused';
+      (useHealthStatusHook.useHealthStatus as Mock).mockReturnValue({
+        health: null,
+        services: {},
+        overallStatus: null,
+        isLoading: false,
+        error: errorMessage,
+        refresh: vi.fn(),
+      });
+
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(`Failed to fetch service health: ${errorMessage}`)
+        ).toBeInTheDocument();
+      });
+    });
   });
 
   describe('Pipeline Queues Component', () => {

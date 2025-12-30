@@ -45,6 +45,9 @@ class AuditAction(str, Enum):
     # Notification actions
     NOTIFICATION_TEST = "notification_test"
 
+    # Admin actions
+    DATA_CLEARED = "data_cleared"
+
 
 class AuditStatus(str, Enum):
     """Enumeration of audit log statuses."""

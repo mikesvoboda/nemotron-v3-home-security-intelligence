@@ -112,6 +112,7 @@ export default function SystemMonitoringPage() {
     services,
     overallStatus,
     isLoading: healthLoading,
+    error: healthError,
   } = useHealthStatus({
     pollingInterval: 30000,
   });
@@ -295,7 +296,14 @@ export default function SystemMonitoringPage() {
             </div>
 
             <div className="space-y-3">
-              {Object.entries(services).length > 0 ? (
+              {healthError ? (
+                <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-3">
+                  <AlertCircle className="h-4 w-4 text-red-500" />
+                  <Text className="text-sm text-red-400">
+                    Failed to fetch service health: {healthError}
+                  </Text>
+                </div>
+              ) : Object.entries(services).length > 0 ? (
                 Object.entries(services).map(([serviceName, serviceStatus]) => (
                   <ServiceHealthRow key={serviceName} name={serviceName} status={serviceStatus} />
                 ))

@@ -85,7 +85,11 @@ async def test_seed_events_requires_debug_mode(client):
 @pytest.mark.asyncio
 async def test_clear_data_requires_debug_mode(client):
     """Test that clear data endpoint requires DEBUG=true."""
-    response = await client.delete("/api/admin/seed/clear")
+    response = await client.request(
+        "DELETE",
+        "/api/admin/seed/clear",
+        json={"confirm": "DELETE_ALL_DATA"},
+    )
 
     assert response.status_code == 403
     assert "DEBUG=true" in response.json()["detail"]
@@ -405,8 +409,12 @@ async def test_clear_data_success(client, clean_seed_data):
         await client.post("/api/admin/seed/cameras", json={"count": 4})
         await client.post("/api/admin/seed/events", json={"count": 10})
 
-        # Clear all data
-        response = await client.delete("/api/admin/seed/clear")
+        # Clear all data with confirmation
+        response = await client.request(
+            "DELETE",
+            "/api/admin/seed/clear",
+            json={"confirm": "DELETE_ALL_DATA"},
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -432,13 +440,115 @@ async def test_clear_data_empty_database(client, clean_seed_data):
 
     try:
         # clean_seed_data ensures we start with an empty database
-        response = await client.delete("/api/admin/seed/clear")
+        response = await client.request(
+            "DELETE",
+            "/api/admin/seed/clear",
+            json={"confirm": "DELETE_ALL_DATA"},
+        )
 
         assert response.status_code == 200
         data = response.json()
         assert data["cameras_cleared"] == 0
         assert data["events_cleared"] == 0
         assert data["detections_cleared"] == 0
+    finally:
+        os.environ.pop("DEBUG", None)
+        get_settings.cache_clear()
+
+
+@pytest.mark.asyncio
+async def test_clear_data_requires_confirmation(client, clean_seed_data):
+    """Test that clear data endpoint requires confirmation body."""
+    from backend.core.config import get_settings
+
+    os.environ["DEBUG"] = "true"
+    get_settings.cache_clear()
+
+    try:
+        # Seed some data first
+        await client.post("/api/admin/seed/cameras", json={"count": 2})
+
+        # Try to clear without confirmation body - should fail with 422 (validation error)
+        response = await client.delete("/api/admin/seed/clear")
+        assert response.status_code == 422
+
+        # Verify data still exists
+        cameras_response = await client.get("/api/cameras")
+        assert cameras_response.json()["count"] == 2
+    finally:
+        os.environ.pop("DEBUG", None)
+        get_settings.cache_clear()
+
+
+@pytest.mark.asyncio
+async def test_clear_data_wrong_confirmation(client, clean_seed_data):
+    """Test that clear data endpoint rejects wrong confirmation string."""
+    from backend.core.config import get_settings
+
+    os.environ["DEBUG"] = "true"
+    get_settings.cache_clear()
+
+    try:
+        # Seed some data first
+        await client.post("/api/admin/seed/cameras", json={"count": 2})
+
+        # Try to clear with wrong confirmation string
+        response = await client.request(
+            "DELETE",
+            "/api/admin/seed/clear",
+            json={"confirm": "wrong_confirmation"},
+        )
+        assert response.status_code == 400
+        assert "DELETE_ALL_DATA" in response.json()["detail"]
+
+        # Verify data still exists
+        cameras_response = await client.get("/api/cameras")
+        assert cameras_response.json()["count"] == 2
+    finally:
+        os.environ.pop("DEBUG", None)
+        get_settings.cache_clear()
+
+
+@pytest.mark.asyncio
+async def test_clear_data_creates_audit_log(client, clean_seed_data):
+    """Test that clear data creates an audit log entry."""
+    from backend.core.config import get_settings
+    from backend.core.database import get_session
+    from backend.models.audit import AuditLog
+
+    os.environ["DEBUG"] = "true"
+    get_settings.cache_clear()
+
+    try:
+        # Seed some data first
+        await client.post("/api/admin/seed/cameras", json={"count": 2})
+        await client.post("/api/admin/seed/events", json={"count": 3})
+
+        # Clear with confirmation
+        response = await client.request(
+            "DELETE",
+            "/api/admin/seed/clear",
+            json={"confirm": "DELETE_ALL_DATA"},
+        )
+        assert response.status_code == 200
+
+        # Verify audit log was created (get the most recent one)
+        async with get_session() as session:
+            result = await session.execute(
+                select(AuditLog)
+                .where(AuditLog.action == "data_cleared")
+                .order_by(AuditLog.timestamp.desc())
+                .limit(1)
+            )
+            audit_log = result.scalar_one_or_none()
+
+            assert audit_log is not None
+            assert audit_log.action == "data_cleared"
+            assert audit_log.resource_type == "admin"
+            assert audit_log.actor == "admin"
+            assert audit_log.details is not None
+            assert audit_log.details["cameras_cleared"] == 2
+            assert audit_log.details["events_cleared"] == 3
     finally:
         os.environ.pop("DEBUG", None)
         get_settings.cache_clear()
@@ -528,8 +638,12 @@ async def test_full_seed_workflow(client, clean_seed_data):
             assert len(events) == 8
             assert len(detections) > 0
 
-        # Step 4: Clear all data
-        clear_response = await client.delete("/api/admin/seed/clear")
+        # Step 4: Clear all data with confirmation
+        clear_response = await client.request(
+            "DELETE",
+            "/api/admin/seed/clear",
+            json={"confirm": "DELETE_ALL_DATA"},
+        )
         assert clear_response.status_code == 200
 
         # Step 5: Verify data is cleared

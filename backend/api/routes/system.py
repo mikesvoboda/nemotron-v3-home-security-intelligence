@@ -386,7 +386,9 @@ if TYPE_CHECKING:
     from backend.services.system_broadcaster import SystemBroadcaster
 
 
-async def get_latest_gpu_stats(db: AsyncSession) -> dict[str, float | int | datetime | None] | None:
+async def get_latest_gpu_stats(
+    db: AsyncSession,
+) -> dict[str, float | int | str | datetime | None] | None:
     """Get the latest GPU statistics from the database.
 
     Args:
@@ -404,10 +406,12 @@ async def get_latest_gpu_stats(db: AsyncSession) -> dict[str, float | int | date
 
     return {
         "recorded_at": gpu_stat.recorded_at,
+        "gpu_name": gpu_stat.gpu_name,
         "utilization": gpu_stat.gpu_utilization,
         "memory_used": gpu_stat.memory_used,
         "memory_total": gpu_stat.memory_total,
         "temperature": gpu_stat.temperature,
+        "power_usage": gpu_stat.power_usage,
         "inference_fps": gpu_stat.inference_fps,
     }
 
@@ -883,9 +887,11 @@ async def get_gpu_stats(db: AsyncSession = Depends(get_db)) -> GPUStatsResponse:
     """Get current GPU statistics.
 
     Returns the most recent GPU statistics including:
+    - GPU name
     - GPU utilization percentage
     - Memory usage (used/total)
     - Temperature
+    - Power usage
     - Inference FPS
 
     Returns:
@@ -896,18 +902,22 @@ async def get_gpu_stats(db: AsyncSession = Depends(get_db)) -> GPUStatsResponse:
     if stats is None:
         # Return all null values if no GPU data available
         return GPUStatsResponse(
+            gpu_name=None,
             utilization=None,
             memory_used=None,
             memory_total=None,
             temperature=None,
+            power_usage=None,
             inference_fps=None,
         )
 
     return GPUStatsResponse(
+        gpu_name=stats["gpu_name"],
         utilization=stats["utilization"],
         memory_used=stats["memory_used"],
         memory_total=stats["memory_total"],
         temperature=stats["temperature"],
+        power_usage=stats["power_usage"],
         inference_fps=stats["inference_fps"],
     )
 
@@ -941,10 +951,12 @@ async def get_gpu_stats_history(
     samples = [
         {
             "recorded_at": r.recorded_at,
+            "gpu_name": r.gpu_name,
             "utilization": r.gpu_utilization,
             "memory_used": r.memory_used,
             "memory_total": r.memory_total,
             "temperature": r.temperature,
+            "power_usage": r.power_usage,
             "inference_fps": r.inference_fps,
         }
         for r in rows

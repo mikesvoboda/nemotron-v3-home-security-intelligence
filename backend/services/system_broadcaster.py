@@ -234,6 +234,34 @@ class SystemBroadcaster:
 
         logger.info("Stopped pub/sub listener")
 
+    async def _reset_pubsub_connection(self) -> None:
+        """Reset the pub/sub connection by closing old and creating new subscription.
+
+        This is used to recover from errors where the connection enters an invalid
+        state (e.g., 'readuntil() called while another coroutine is already waiting').
+        """
+        redis_client = self._get_redis()
+        if not redis_client:
+            logger.error("Cannot reset pub/sub: Redis client not available")
+            self._pubsub = None
+            return
+
+        # Close old pubsub connection if exists
+        if self._pubsub:
+            try:
+                await redis_client.unsubscribe(SYSTEM_STATUS_CHANNEL)
+            except Exception as e:
+                logger.debug(f"Error unsubscribing during reset (expected): {e}")
+            self._pubsub = None
+
+        # Create fresh subscription
+        try:
+            self._pubsub = await redis_client.subscribe(SYSTEM_STATUS_CHANNEL)
+            logger.info(f"Re-established pub/sub subscription on channel: {SYSTEM_STATUS_CHANNEL}")
+        except Exception as e:
+            logger.error(f"Failed to re-subscribe during reset: {e}")
+            self._pubsub = None
+
     async def _listen_for_updates(self) -> None:
         """Listen for system status updates from Redis pub/sub.
 
@@ -269,12 +297,18 @@ class SystemBroadcaster:
             logger.info("Pub/sub listener cancelled")
         except Exception as e:
             logger.error(f"Error in pub/sub listener: {e}")
-            # Attempt to restart listener
+            # Attempt to restart listener with fresh connection
             if self._pubsub_listening:
                 logger.info("Restarting pub/sub listener after error")
                 await asyncio.sleep(1)
                 if self._pubsub_listening:
-                    self._listener_task = asyncio.create_task(self._listen_for_updates())
+                    # Clean up old pubsub and create fresh subscription
+                    await self._reset_pubsub_connection()
+                    if self._pubsub:
+                        self._listener_task = asyncio.create_task(self._listen_for_updates())
+                    else:
+                        logger.error("Failed to re-establish pub/sub connection")
+                        self._pubsub_listening = False
 
     async def _get_system_status(self) -> dict:
         """Gather current system status data.

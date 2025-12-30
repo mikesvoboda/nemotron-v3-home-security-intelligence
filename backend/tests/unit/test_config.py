@@ -1,5 +1,8 @@
 """Unit tests for application configuration settings."""
 
+import re
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
@@ -511,6 +514,83 @@ class TestAIServiceUrlValidation:
         clean_env.setenv("NEMOTRON_URL", "gpu-server:8091")
         with pytest.raises(ValueError):
             Settings()
+
+
+class TestEnvFileAlignment:
+    """Test that .env.example variables align with config.py field names.
+
+    This catches mismatches like:
+    - CAMERA_ROOT vs FOSCAM_BASE_PATH
+    - DETECTOR_URL vs RTDETR_URL
+    - LLM_URL vs NEMOTRON_URL
+    - VITE_API_URL vs VITE_API_BASE_URL
+    """
+
+    def test_env_example_variables_match_config_fields(self):
+        """Verify .env.example variable names match Settings field names.
+
+        This test ensures that environment variables in .env.example have
+        corresponding fields in config.py (case-insensitive, since pydantic
+        Settings uses case_sensitive=False).
+        """
+        # Read .env.example
+        env_example_path = Path(__file__).parent.parent.parent.parent / ".env.example"
+        if not env_example_path.exists():
+            pytest.skip(".env.example not found")
+
+        env_example_content = env_example_path.read_text()
+
+        # Extract env var names (exclude comments and VITE_* which are frontend-only)
+        env_vars = set()
+        for line in env_example_content.split("\n"):
+            stripped = line.strip()
+            if stripped and not stripped.startswith("#") and "=" in stripped:
+                var_name = stripped.split("=")[0].strip()
+                # Skip VITE_* vars - they're frontend-only and not loaded by backend
+                if not var_name.startswith("VITE_"):
+                    env_vars.add(var_name.lower())
+
+        # Get config field names
+        config_fields = {name.lower() for name in Settings.model_fields}
+
+        # Check that every env var in .env.example has a matching config field
+        missing_from_config = env_vars - config_fields
+        assert not missing_from_config, (
+            f"Environment variables in .env.example without matching config.py fields: "
+            f"{sorted(missing_from_config)}. "
+            f"Either add fields to Settings class or fix variable names in .env.example."
+        )
+
+    def test_deprecated_env_var_names_not_present(self):
+        """Ensure deprecated variable names are not used in .env.example.
+
+        This prevents regression to the old naming convention.
+        """
+        env_example_path = Path(__file__).parent.parent.parent.parent / ".env.example"
+        if not env_example_path.exists():
+            pytest.skip(".env.example not found")
+
+        env_example_content = env_example_path.read_text()
+
+        # List of deprecated variable names that should NOT be used
+        deprecated_names = [
+            "CAMERA_ROOT",  # Should be FOSCAM_BASE_PATH
+            "DETECTOR_URL",  # Should be RTDETR_URL
+            "LLM_URL",  # Should be NEMOTRON_URL
+            "VITE_API_URL",  # Should be VITE_API_BASE_URL
+        ]
+
+        found_deprecated = []
+        for deprecated in deprecated_names:
+            # Check if the deprecated name appears as an env var assignment
+            pattern = rf"^{deprecated}="
+            if re.search(pattern, env_example_content, re.MULTILINE):
+                found_deprecated.append(deprecated)
+
+        assert not found_deprecated, (
+            f"Deprecated environment variable names found in .env.example: "
+            f"{found_deprecated}. Use the current naming convention."
+        )
 
 
 class TestEdgeCases:

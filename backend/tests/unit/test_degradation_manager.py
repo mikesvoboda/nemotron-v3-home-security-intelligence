@@ -8,8 +8,12 @@ Tests cover:
 - Redis unavailability handling
 - Recovery from partial outages
 - Service health monitoring integration
+- FallbackQueue disk-based queue operations
+- Health check loop lifecycle
 """
 
+import asyncio
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -711,3 +715,865 @@ class TestDegradationMinimalMode:
 
         # Should be MINIMAL (some critical down, but not all)
         assert manager.mode == DegradationMode.MINIMAL
+
+
+class TestFallbackQueue:
+    """Tests for FallbackQueue disk-based queue."""
+
+    @pytest.fixture
+    def temp_fallback_dir(self, tmp_path: Path) -> Path:
+        """Create a temporary fallback directory."""
+        return tmp_path / "fallback"
+
+    @pytest.mark.asyncio
+    async def test_fallback_queue_add_and_get(self, temp_fallback_dir: Path) -> None:
+        """Test adding and retrieving items from fallback queue."""
+        from backend.services.degradation_manager import FallbackQueue
+
+        queue = FallbackQueue(
+            queue_name="test_queue",
+            fallback_dir=str(temp_fallback_dir),
+        )
+
+        # Add an item
+        item = {"test": "data", "value": 123}
+        success = await queue.add(item)
+        assert success is True
+        assert queue.count() == 1
+
+        # Retrieve the item
+        retrieved = await queue.get()
+        assert retrieved == item
+        assert queue.count() == 0
+
+    @pytest.mark.asyncio
+    async def test_fallback_queue_get_empty(self, temp_fallback_dir: Path) -> None:
+        """Test getting from empty queue returns None."""
+        from backend.services.degradation_manager import FallbackQueue
+
+        queue = FallbackQueue(
+            queue_name="test_queue",
+            fallback_dir=str(temp_fallback_dir),
+        )
+
+        result = await queue.get()
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_fallback_queue_max_size_limit(self, temp_fallback_dir: Path) -> None:
+        """Test that fallback queue respects max size by dropping oldest items."""
+        from backend.services.degradation_manager import FallbackQueue
+
+        queue = FallbackQueue(
+            queue_name="test_queue",
+            fallback_dir=str(temp_fallback_dir),
+            max_size=3,
+        )
+
+        # Add more items than max size
+        for i in range(5):
+            await queue.add({"index": i})
+
+        # Should only have max_size items
+        assert queue.count() == 3
+
+        # Oldest items should be dropped, so we should get 2, 3, 4
+        item1 = await queue.get()
+        item2 = await queue.get()
+        item3 = await queue.get()
+
+        assert item1["index"] == 2
+        assert item2["index"] == 3
+        assert item3["index"] == 4
+
+    @pytest.mark.asyncio
+    async def test_fallback_queue_peek(self, temp_fallback_dir: Path) -> None:
+        """Test peeking at items without removing them."""
+        from backend.services.degradation_manager import FallbackQueue
+
+        queue = FallbackQueue(
+            queue_name="test_queue",
+            fallback_dir=str(temp_fallback_dir),
+        )
+
+        # Add items
+        for i in range(3):
+            await queue.add({"index": i})
+
+        # Peek at items
+        items = await queue.peek(limit=2)
+        assert len(items) == 2
+        assert items[0]["index"] == 0
+        assert items[1]["index"] == 1
+
+        # Items should still be in queue
+        assert queue.count() == 3
+
+    @pytest.mark.asyncio
+    async def test_fallback_queue_peek_with_corrupted_files(self, temp_fallback_dir: Path) -> None:
+        """Test peek gracefully handles corrupted files."""
+        from backend.services.degradation_manager import FallbackQueue
+
+        queue = FallbackQueue(
+            queue_name="test_queue",
+            fallback_dir=str(temp_fallback_dir),
+        )
+
+        # Add a valid item
+        await queue.add({"valid": "data"})
+
+        # Create a corrupted file
+        corrupted_file = queue.fallback_dir / "20250101_000000_000000_corrupted.json"
+        corrupted_file.write_text("not valid json{{{")
+
+        # Peek should skip the corrupted file
+        items = await queue.peek(limit=10)
+        # Should get at least the valid item (corrupted is silently skipped)
+        assert any(item.get("valid") == "data" for item in items)
+
+    @pytest.mark.asyncio
+    async def test_fallback_queue_add_failure(self, temp_fallback_dir: Path) -> None:
+        """Test fallback queue add failure handling."""
+        from backend.services.degradation_manager import FallbackQueue
+
+        queue = FallbackQueue(
+            queue_name="test_queue",
+            fallback_dir=str(temp_fallback_dir),
+        )
+
+        # Make the directory read-only to cause write failure
+        queue.fallback_dir.mkdir(parents=True, exist_ok=True)
+        queue.fallback_dir.chmod(0o444)
+
+        try:
+            success = await queue.add({"test": "data"})
+            assert success is False
+        finally:
+            # Restore permissions for cleanup
+            queue.fallback_dir.chmod(0o755)
+
+    @pytest.mark.asyncio
+    async def test_fallback_queue_get_failure(self, temp_fallback_dir: Path) -> None:
+        """Test fallback queue get failure handling."""
+        from backend.services.degradation_manager import FallbackQueue
+
+        queue = FallbackQueue(
+            queue_name="test_queue",
+            fallback_dir=str(temp_fallback_dir),
+        )
+
+        # Add an item
+        await queue.add({"test": "data"})
+
+        # Create a file that can't be read
+        files = list(queue.fallback_dir.glob("*.json"))
+        if files:
+            files[0].chmod(0o000)
+
+        try:
+            result = await queue.get()
+            assert result is None
+        finally:
+            # Restore permissions for cleanup
+            for f in queue.fallback_dir.glob("*.json"):
+                f.chmod(0o644)
+
+    def test_fallback_queue_properties(self, temp_fallback_dir: Path) -> None:
+        """Test fallback queue properties."""
+        from backend.services.degradation_manager import FallbackQueue
+
+        queue = FallbackQueue(
+            queue_name="my_queue",
+            fallback_dir=str(temp_fallback_dir),
+        )
+
+        assert queue.queue_name == "my_queue"
+        assert queue.fallback_dir == temp_fallback_dir / "my_queue"
+
+
+class TestRegisteredService:
+    """Tests for RegisteredService dataclass."""
+
+    def test_post_init_sets_health_name(self) -> None:
+        """Test that __post_init__ sets health name correctly."""
+        from backend.services.degradation_manager import RegisteredService
+
+        service = RegisteredService(
+            name="test_service",
+            health_check=AsyncMock(return_value=True),
+            critical=True,
+        )
+
+        assert service.health.name == "test_service"
+
+    def test_post_init_with_empty_health_name(self) -> None:
+        """Test that __post_init__ corrects empty health name."""
+        from backend.services.degradation_manager import RegisteredService, ServiceHealth
+
+        service = RegisteredService(
+            name="test_service",
+            health_check=AsyncMock(return_value=True),
+            health=ServiceHealth(name=""),  # Empty name should be fixed
+        )
+
+        assert service.health.name == "test_service"
+
+
+class TestQueueWithFallback:
+    """Tests for queue_with_fallback functionality."""
+
+    @pytest.fixture
+    def temp_fallback_dir(self, tmp_path: Path) -> Path:
+        """Create a temporary fallback directory."""
+        return tmp_path / "fallback"
+
+    @pytest.mark.asyncio
+    async def test_queue_with_fallback_redis_success(self, temp_fallback_dir: Path) -> None:
+        """Test queue_with_fallback uses Redis when available."""
+        mock_redis = MagicMock()
+        mock_redis.add_to_queue = AsyncMock(return_value=1)
+
+        manager = DegradationManager(
+            redis_client=mock_redis,
+            fallback_dir=str(temp_fallback_dir),
+        )
+
+        result = await manager.queue_with_fallback("test_queue", {"test": "data"})
+
+        assert result is True
+        mock_redis.add_to_queue.assert_called_once_with("test_queue", {"test": "data"})
+
+    @pytest.mark.asyncio
+    async def test_queue_with_fallback_redis_failure(self, temp_fallback_dir: Path) -> None:
+        """Test queue_with_fallback falls back to disk when Redis fails."""
+        mock_redis = MagicMock()
+        mock_redis.add_to_queue = AsyncMock(side_effect=Exception("Redis error"))
+
+        manager = DegradationManager(
+            redis_client=mock_redis,
+            fallback_dir=str(temp_fallback_dir),
+        )
+
+        result = await manager.queue_with_fallback("test_queue", {"test": "data"})
+
+        assert result is True
+        assert manager._redis_healthy is False
+        # Check the fallback queue has the item
+        fallback_queue = manager._get_fallback_queue("test_queue")
+        assert fallback_queue.count() == 1
+
+    @pytest.mark.asyncio
+    async def test_queue_with_fallback_no_redis(self, temp_fallback_dir: Path) -> None:
+        """Test queue_with_fallback goes to disk when no Redis."""
+        manager = DegradationManager(
+            redis_client=None,
+            fallback_dir=str(temp_fallback_dir),
+        )
+        manager._redis_healthy = False
+
+        result = await manager.queue_with_fallback("test_queue", {"test": "data"})
+
+        assert result is True
+        fallback_queue = manager._get_fallback_queue("test_queue")
+        assert fallback_queue.count() == 1
+
+
+class TestDrainFallbackQueue:
+    """Tests for drain_fallback_queue functionality."""
+
+    @pytest.fixture
+    def temp_fallback_dir(self, tmp_path: Path) -> Path:
+        """Create a temporary fallback directory."""
+        return tmp_path / "fallback"
+
+    @pytest.mark.asyncio
+    async def test_drain_fallback_queue_success(self, temp_fallback_dir: Path) -> None:
+        """Test draining fallback queue to Redis."""
+        mock_redis = MagicMock()
+        mock_redis.add_to_queue = AsyncMock(return_value=1)
+
+        manager = DegradationManager(
+            redis_client=mock_redis,
+            fallback_dir=str(temp_fallback_dir),
+        )
+
+        # First, queue items to disk
+        manager._redis_healthy = False
+        await manager.queue_with_fallback("test_queue", {"item": 1})
+        await manager.queue_with_fallback("test_queue", {"item": 2})
+
+        # Restore Redis health
+        manager._redis_healthy = True
+
+        # Drain to Redis
+        drained = await manager.drain_fallback_queue("test_queue")
+
+        assert drained == 2
+        assert mock_redis.add_to_queue.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_drain_fallback_queue_no_redis(self, temp_fallback_dir: Path) -> None:
+        """Test drain returns 0 when no Redis configured."""
+        manager = DegradationManager(
+            redis_client=None,
+            fallback_dir=str(temp_fallback_dir),
+        )
+
+        drained = await manager.drain_fallback_queue("test_queue")
+        assert drained == 0
+
+    @pytest.mark.asyncio
+    async def test_drain_fallback_queue_redis_error(self, temp_fallback_dir: Path) -> None:
+        """Test drain stops and re-queues item on Redis error."""
+        mock_redis = MagicMock()
+        mock_redis.add_to_queue = AsyncMock(
+            side_effect=[1, Exception("Redis error")]  # First succeeds, second fails
+        )
+
+        manager = DegradationManager(
+            redis_client=mock_redis,
+            fallback_dir=str(temp_fallback_dir),
+        )
+
+        # Queue items to disk
+        manager._redis_healthy = False
+        await manager.queue_with_fallback("test_queue", {"item": 1})
+        await manager.queue_with_fallback("test_queue", {"item": 2})
+        await manager.queue_with_fallback("test_queue", {"item": 3})
+
+        # Restore Redis health
+        manager._redis_healthy = True
+
+        # Drain - should stop after error
+        drained = await manager.drain_fallback_queue("test_queue")
+
+        assert drained == 1
+        # Should have 2 items back in fallback queue (the failed one was re-added)
+        fallback = manager._get_fallback_queue("test_queue")
+        assert fallback.count() == 2
+
+
+class TestGetPendingJobCount:
+    """Tests for get_pending_job_count functionality."""
+
+    @pytest.mark.asyncio
+    async def test_get_pending_job_count_redis_failure(self) -> None:
+        """Test get_pending_job_count returns memory count on Redis failure."""
+        mock_redis = MagicMock()
+        mock_redis.get_queue_length = AsyncMock(side_effect=Exception("Redis error"))
+
+        manager = DegradationManager(redis_client=mock_redis)
+
+        # Queue some jobs to memory
+        manager._redis_healthy = False
+        await manager.queue_job_for_later("detection", {"file": "1.jpg"})
+        await manager.queue_job_for_later("detection", {"file": "2.jpg"})
+        manager._redis_healthy = True  # Reset for the count check
+
+        count = await manager.get_pending_job_count()
+        assert count == 2
+
+
+class TestProcessQueuedJobs:
+    """Tests for process_queued_jobs functionality."""
+
+    @pytest.fixture
+    def mock_redis(self) -> MagicMock:
+        """Create a mock Redis client."""
+        redis = MagicMock()
+        redis.add_to_queue = AsyncMock(return_value=1)
+        redis.get_from_queue = AsyncMock(return_value=None)
+        redis.ping = AsyncMock(return_value=True)
+        return redis
+
+    @pytest.mark.asyncio
+    async def test_process_queued_jobs_processor_failure(self, mock_redis: MagicMock) -> None:
+        """Test that jobs are re-queued on processor failure."""
+        job_data = {
+            "job_type": "detection",
+            "data": {"file": "test.jpg"},
+            "queued_at": "2025-12-28T10:00:00",
+            "retry_count": 0,
+        }
+        mock_redis.get_from_queue = AsyncMock(side_effect=[job_data, None])
+
+        manager = DegradationManager(redis_client=mock_redis)
+
+        # Processor that fails
+        processor = AsyncMock(side_effect=Exception("Processing failed"))
+
+        processed = await manager.process_queued_jobs("detection", processor, max_jobs=10)
+
+        assert processed == 0
+        # Job should be re-queued with incremented retry count
+        mock_redis.add_to_queue.assert_called()
+        call_args = mock_redis.add_to_queue.call_args[0]
+        assert call_args[1]["retry_count"] == 1
+
+    @pytest.mark.asyncio
+    async def test_process_queued_jobs_redis_error(self, mock_redis: MagicMock) -> None:
+        """Test process_queued_jobs handles Redis errors."""
+        mock_redis.get_from_queue = AsyncMock(side_effect=Exception("Redis error"))
+
+        manager = DegradationManager(redis_client=mock_redis)
+        processor = AsyncMock(return_value=True)
+
+        processed = await manager.process_queued_jobs("detection", processor)
+
+        assert processed == 0
+
+    @pytest.mark.asyncio
+    async def test_process_queued_jobs_memory_queue(self) -> None:
+        """Test processing jobs from memory queue."""
+        manager = DegradationManager(redis_client=None)
+
+        # Queue jobs to memory
+        await manager.queue_job_for_later("detection", {"file": "1.jpg"})
+        await manager.queue_job_for_later("detection", {"file": "2.jpg"})
+        await manager.queue_job_for_later("analysis", {"batch": "b1"})  # Different type
+
+        processor = AsyncMock(return_value=True)
+
+        processed = await manager.process_queued_jobs("detection", processor, max_jobs=10)
+
+        assert processed == 2
+        processor.assert_called()
+        # Analysis job should still be in queue
+        assert manager.get_queued_job_count() == 1
+
+    @pytest.mark.asyncio
+    async def test_process_queued_jobs_memory_processor_failure(self) -> None:
+        """Test memory queue re-queues job on processor failure."""
+        manager = DegradationManager(redis_client=None)
+
+        # Queue a job
+        await manager.queue_job_for_later("detection", {"file": "test.jpg"})
+
+        # Processor that fails
+        processor = AsyncMock(side_effect=Exception("Processing failed"))
+
+        processed = await manager.process_queued_jobs("detection", processor)
+
+        assert processed == 0
+        # Job should be re-queued
+        assert manager.get_queued_job_count() == 1
+
+    @pytest.mark.asyncio
+    async def test_process_queued_jobs_max_jobs_limit(self, mock_redis: MagicMock) -> None:
+        """Test max_jobs limit is respected."""
+        jobs = [
+            {
+                "job_type": "detection",
+                "data": {"file": f"{i}.jpg"},
+                "queued_at": "2025-12-28T10:00:00",
+                "retry_count": 0,
+            }
+            for i in range(5)
+        ]
+        mock_redis.get_from_queue = AsyncMock(side_effect=[*jobs, None])
+
+        manager = DegradationManager(redis_client=mock_redis)
+        processor = AsyncMock(return_value=True)
+
+        processed = await manager.process_queued_jobs("detection", processor, max_jobs=3)
+
+        assert processed == 3
+
+
+class TestCheckRedisHealth:
+    """Tests for check_redis_health functionality."""
+
+    @pytest.mark.asyncio
+    async def test_check_redis_health_recovery_logs(self) -> None:
+        """Test that Redis recovery is logged."""
+        mock_redis = MagicMock()
+        mock_redis.ping = AsyncMock(return_value=True)
+
+        manager = DegradationManager(redis_client=mock_redis)
+        manager._redis_healthy = False  # Simulate previous unhealthy state
+
+        is_healthy = await manager.check_redis_health()
+
+        assert is_healthy is True
+        assert manager._redis_healthy is True
+
+
+class TestDrainMemoryQueueToRedis:
+    """Tests for drain_memory_queue_to_redis functionality."""
+
+    @pytest.mark.asyncio
+    async def test_drain_memory_queue_failure(self) -> None:
+        """Test drain_memory_queue_to_redis handles Redis failure."""
+        mock_redis = MagicMock()
+        mock_redis.add_to_queue = AsyncMock(side_effect=Exception("Redis error"))
+
+        manager = DegradationManager(redis_client=mock_redis)
+        manager._redis_healthy = True
+
+        # Queue jobs to memory by setting redis_healthy to False first
+        manager._redis_healthy = False
+        await manager.queue_job_for_later("detection", {"file": "1.jpg"})
+        await manager.queue_job_for_later("detection", {"file": "2.jpg"})
+        manager._redis_healthy = True
+
+        # Try to drain - should fail and put job back
+        drained = await manager.drain_memory_queue_to_redis()
+
+        assert drained == 0
+        # Jobs should still be in memory queue
+        assert manager.get_queued_job_count() == 2
+
+
+class TestGetAvailableFeatures:
+    """Tests for get_available_features in different modes."""
+
+    def test_get_available_features_minimal_mode(self) -> None:
+        """Test available features in MINIMAL mode."""
+        manager = DegradationManager(redis_client=None)
+        manager._mode = DegradationMode.MINIMAL
+
+        features = manager.get_available_features()
+
+        assert features == ["media"]
+
+    def test_get_available_features_offline_mode(self) -> None:
+        """Test available features in OFFLINE mode."""
+        manager = DegradationManager(redis_client=None)
+        manager._mode = DegradationMode.OFFLINE
+
+        features = manager.get_available_features()
+
+        assert features == []
+
+
+class TestHealthCheckLoop:
+    """Tests for start, stop, and health check loop."""
+
+    @pytest.mark.asyncio
+    async def test_start_and_stop(self) -> None:
+        """Test starting and stopping the health check loop."""
+        manager = DegradationManager(redis_client=None, check_interval=0.1)
+
+        # Start
+        await manager.start()
+        assert manager._running is True
+        assert manager._task is not None
+
+        # Give it a moment to run
+        await asyncio.sleep(0.05)
+
+        # Stop
+        await manager.stop()
+        assert manager._running is False
+        assert manager._task is None
+
+    @pytest.mark.asyncio
+    async def test_start_already_running(self) -> None:
+        """Test that start does nothing if already running."""
+        manager = DegradationManager(redis_client=None, check_interval=0.1)
+
+        await manager.start()
+        task1 = manager._task
+
+        # Try to start again
+        await manager.start()
+        task2 = manager._task
+
+        # Should be the same task
+        assert task1 is task2
+
+        await manager.stop()
+
+    @pytest.mark.asyncio
+    async def test_stop_not_running(self) -> None:
+        """Test that stop does nothing if not running."""
+        manager = DegradationManager(redis_client=None)
+
+        # Should not raise
+        await manager.stop()
+
+    @pytest.mark.asyncio
+    async def test_health_check_loop_runs_checks(self) -> None:
+        """Test that health check loop runs health checks."""
+        mock_redis = MagicMock()
+        mock_redis.ping = AsyncMock(return_value=True)
+        mock_redis.add_to_queue = AsyncMock(return_value=1)
+
+        manager = DegradationManager(redis_client=mock_redis, check_interval=0.05)
+
+        health_check = AsyncMock(return_value=True)
+        manager.register_service(
+            name="test_service",
+            health_check=health_check,
+        )
+
+        await manager.start()
+        await asyncio.sleep(0.15)  # Allow multiple checks
+        await manager.stop()
+
+        # Health check should have been called multiple times
+        assert health_check.call_count >= 2
+
+    @pytest.mark.asyncio
+    async def test_health_check_loop_drains_memory_queue(self) -> None:
+        """Test that health check loop drains memory queue when Redis available."""
+        mock_redis = MagicMock()
+        mock_redis.ping = AsyncMock(return_value=True)
+        mock_redis.add_to_queue = AsyncMock(return_value=1)
+
+        manager = DegradationManager(redis_client=mock_redis, check_interval=0.05)
+
+        # Queue to memory first
+        manager._redis_healthy = False
+        await manager.queue_job_for_later("detection", {"file": "test.jpg"})
+        assert manager.get_queued_job_count() == 1
+
+        # Now let the loop run
+        await manager.start()
+        await asyncio.sleep(0.15)
+        await manager.stop()
+
+        # Memory queue should be drained to Redis
+        assert manager.get_queued_job_count() == 0
+
+    @pytest.mark.asyncio
+    async def test_health_check_loop_error_handling(self) -> None:
+        """Test that health check loop handles errors gracefully."""
+        mock_redis = MagicMock()
+        # Ping fails intermittently
+        mock_redis.ping = AsyncMock(side_effect=[Exception("Error"), True, True])
+        mock_redis.add_to_queue = AsyncMock(return_value=1)
+
+        manager = DegradationManager(redis_client=mock_redis, check_interval=0.05)
+
+        await manager.start()
+        await asyncio.sleep(0.2)
+        await manager.stop()
+
+        # Should not have crashed - manager should still be functional
+        assert manager._task is None
+
+
+class TestGetDegradationManagerSetRedis:
+    """Tests for get_degradation_manager setting Redis on existing manager."""
+
+    def setup_method(self) -> None:
+        """Reset global state before each test."""
+        reset_degradation_manager()
+
+    def teardown_method(self) -> None:
+        """Reset global state after each test."""
+        reset_degradation_manager()
+
+    def test_set_redis_on_existing_manager_without_redis(self) -> None:
+        """Test setting Redis on existing manager that has no Redis."""
+        # Create manager without Redis
+        manager1 = get_degradation_manager()
+        assert manager1._redis is None
+
+        # Set Redis on existing manager
+        mock_redis = MagicMock()
+        manager2 = get_degradation_manager(redis_client=mock_redis)
+
+        # Should be same instance with Redis set
+        assert manager1 is manager2
+        assert manager2._redis is mock_redis
+
+
+class TestUpdateServiceHealthUnregistered:
+    """Tests for update_service_health with unregistered service."""
+
+    @pytest.mark.asyncio
+    async def test_update_unregistered_service_health(self) -> None:
+        """Test updating health for service that isn't registered."""
+        manager = DegradationManager(redis_client=None)
+
+        # Should not raise, just log warning
+        await manager.update_service_health("unregistered_service", is_healthy=True)
+
+        # Service should still not be in list
+        assert "unregistered_service" not in manager.list_services()
+
+
+class TestIsServiceHealthyUnregistered:
+    """Tests for is_service_healthy with unregistered service."""
+
+    def test_is_service_healthy_unregistered(self) -> None:
+        """Test is_service_healthy returns False for unregistered service."""
+        manager = DegradationManager(redis_client=None)
+
+        result = manager.is_service_healthy("unregistered_service")
+        assert result is False
+
+
+class TestQueueJobForLaterRedisFallback:
+    """Tests for queue_job_for_later Redis failure fallback."""
+
+    @pytest.mark.asyncio
+    async def test_queue_job_redis_failure_fallback_to_memory(self) -> None:
+        """Test queueing falls back to memory when Redis fails."""
+        mock_redis = MagicMock()
+        mock_redis.add_to_queue = AsyncMock(side_effect=Exception("Redis error"))
+
+        manager = DegradationManager(redis_client=mock_redis)
+
+        success = await manager.queue_job_for_later("detection", {"file": "test.jpg"})
+
+        assert success is True
+        assert manager._redis_healthy is False
+        assert manager.get_queued_job_count() == 1
+
+
+class TestIsServiceHealthyRegistered:
+    """Tests for is_service_healthy with registered services."""
+
+    @pytest.mark.asyncio
+    async def test_is_service_healthy_returns_true_when_healthy(self) -> None:
+        """Test is_service_healthy returns True for healthy registered service."""
+        manager = DegradationManager(redis_client=None)
+
+        manager.register_service(
+            name="test_service",
+            health_check=AsyncMock(return_value=True),
+        )
+
+        # Update to healthy
+        await manager.update_service_health("test_service", is_healthy=True)
+
+        result = manager.is_service_healthy("test_service")
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_is_service_healthy_returns_false_when_unhealthy(self) -> None:
+        """Test is_service_healthy returns False for unhealthy registered service."""
+        manager = DegradationManager(redis_client=None)
+
+        manager.register_service(
+            name="test_service",
+            health_check=AsyncMock(return_value=False),
+        )
+
+        # Update to unhealthy
+        await manager.update_service_health("test_service", is_healthy=False)
+
+        result = manager.is_service_healthy("test_service")
+        assert result is False
+
+
+class TestShouldQueueJobModes:
+    """Tests for should_queue_job across different modes."""
+
+    def test_should_queue_job_offline_mode(self) -> None:
+        """Test should_queue_job returns True in OFFLINE mode."""
+        manager = DegradationManager(redis_client=None)
+        manager._mode = DegradationMode.OFFLINE
+
+        result = manager.should_queue_job("detection")
+        assert result is True
+
+    def test_should_queue_job_minimal_mode(self) -> None:
+        """Test should_queue_job returns True in MINIMAL mode."""
+        manager = DegradationManager(redis_client=None)
+        manager._mode = DegradationMode.MINIMAL
+
+        result = manager.should_queue_job("detection")
+        assert result is True
+
+    def test_should_queue_job_degraded_mode(self) -> None:
+        """Test should_queue_job returns True in DEGRADED mode."""
+        manager = DegradationManager(redis_client=None)
+        manager._mode = DegradationMode.DEGRADED
+
+        result = manager.should_queue_job("detection")
+        assert result is True
+
+    def test_should_queue_job_normal_mode(self) -> None:
+        """Test should_queue_job returns False in NORMAL mode."""
+        manager = DegradationManager(redis_client=None)
+        manager._mode = DegradationMode.NORMAL
+
+        result = manager.should_queue_job("detection")
+        assert result is False
+
+
+class TestQueueToMemoryException:
+    """Tests for _queue_to_memory exception handling."""
+
+    def test_queue_to_memory_exception_handling(self) -> None:
+        """Test _queue_to_memory handles exceptions gracefully."""
+        from backend.services.degradation_manager import QueuedJob
+
+        manager = DegradationManager(redis_client=None, max_memory_queue_size=10)
+
+        # Create a job
+        job = QueuedJob(
+            job_type="detection",
+            data={"file": "test.jpg"},
+            queued_at="2025-12-28T10:00:00",
+        )
+
+        # Replace deque with a mock that raises on append
+        original_queue = manager._memory_queue
+        manager._memory_queue = MagicMock()
+        manager._memory_queue.append = MagicMock(side_effect=Exception("Memory error"))
+
+        try:
+            result = manager._queue_to_memory(job)
+            assert result is False
+        finally:
+            manager._memory_queue = original_queue
+
+
+class TestHealthCheckLoopNonCancelledError:
+    """Tests for health check loop handling non-cancelled errors."""
+
+    @pytest.mark.asyncio
+    async def test_health_check_loop_handles_non_cancelled_error(self) -> None:
+        """Test that health check loop handles non-CancelledError exceptions."""
+        manager = DegradationManager(redis_client=None, check_interval=0.02)
+
+        # Create a health check that raises an exception (not CancelledError)
+        call_count = [0]
+
+        async def failing_health_check() -> bool:
+            call_count[0] += 1
+            if call_count[0] <= 2:
+                raise RuntimeError("Simulated health check error")
+            return True
+
+        manager.register_service(
+            name="failing_service",
+            health_check=failing_health_check,
+        )
+
+        await manager.start()
+        await asyncio.sleep(0.1)  # Allow loop to run and handle errors
+        await manager.stop()
+
+        # Should have been called multiple times, surviving the errors
+        assert call_count[0] >= 2
+
+    @pytest.mark.asyncio
+    async def test_health_check_loop_exception_in_main_loop(self) -> None:
+        """Test that health check loop handles exceptions raised at top level."""
+        manager = DegradationManager(redis_client=None, check_interval=0.02)
+
+        call_count = [0]
+        original_run_health_checks = manager.run_health_checks
+
+        async def failing_run_health_checks() -> None:
+            call_count[0] += 1
+            if call_count[0] <= 2:
+                # Raise an exception that escapes (not caught internally)
+                raise RuntimeError("Simulated loop exception")
+            await original_run_health_checks()
+
+        # Monkey-patch the method to raise exceptions
+        manager.run_health_checks = failing_run_health_checks  # type: ignore[method-assign]
+
+        await manager.start()
+        await asyncio.sleep(0.15)  # Allow multiple iterations
+        await manager.stop()
+
+        # Loop should continue despite exceptions
+        assert call_count[0] >= 2

@@ -989,3 +989,194 @@ class TestWebSocketConcurrency:
         # Should have sent pong for each ping
         assert mock_websocket.send_text.await_count == 10
         mock_system_broadcaster.disconnect.assert_awaited_once()
+
+
+# =============================================================================
+# Tests for WebSocket Rate Limiting
+# =============================================================================
+
+
+class TestWebSocketRateLimiting:
+    """Tests for WebSocket rate limiting functionality.
+
+    These tests verify that the rate limiting middleware properly protects
+    WebSocket endpoints from connection flood attacks.
+    """
+
+    @pytest.mark.asyncio
+    async def test_events_endpoint_rejects_when_rate_limited(
+        self, mock_websocket, mock_redis_client
+    ):
+        """Test that /ws/events rejects connections when rate limit is exceeded."""
+        with patch(
+            "backend.api.routes.websocket.check_websocket_rate_limit",
+            AsyncMock(return_value=False),
+        ):
+            await websocket_events_endpoint(mock_websocket, mock_redis_client)
+
+        # Connection should be closed with policy violation code (1008)
+        mock_websocket.close.assert_awaited_once_with(code=1008)
+
+    @pytest.mark.asyncio
+    async def test_system_endpoint_rejects_when_rate_limited(
+        self, mock_websocket, mock_redis_client
+    ):
+        """Test that /ws/system rejects connections when rate limit is exceeded."""
+        with patch(
+            "backend.api.routes.websocket.check_websocket_rate_limit",
+            AsyncMock(return_value=False),
+        ):
+            await websocket_system_status(mock_websocket, mock_redis_client)
+
+        # Connection should be closed with policy violation code (1008)
+        mock_websocket.close.assert_awaited_once_with(code=1008)
+
+    @pytest.mark.asyncio
+    async def test_rate_limit_checked_before_authentication(
+        self, mock_websocket, mock_redis_client
+    ):
+        """Test that rate limit is checked before authentication for /ws/events.
+
+        This ensures that even unauthenticated clients can't flood the
+        authentication system.
+        """
+        auth_called = False
+
+        async def mock_auth(_ws):
+            nonlocal auth_called
+            auth_called = True
+            return True
+
+        with (
+            patch(
+                "backend.api.routes.websocket.check_websocket_rate_limit",
+                AsyncMock(return_value=False),
+            ),
+            patch(
+                "backend.api.routes.websocket.authenticate_websocket",
+                mock_auth,
+            ),
+        ):
+            await websocket_events_endpoint(mock_websocket, mock_redis_client)
+
+        # Rate limit should reject before auth is called
+        assert auth_called is False
+        mock_websocket.close.assert_awaited_once_with(code=1008)
+
+    @pytest.mark.asyncio
+    async def test_rate_limit_allows_connection_when_under_limit(
+        self, mock_websocket, mock_redis_client, mock_event_broadcaster
+    ):
+        """Test that connections are allowed when under rate limit."""
+        from fastapi import WebSocketDisconnect
+
+        mock_websocket.receive_text = AsyncMock(side_effect=WebSocketDisconnect())
+
+        with (
+            patch(
+                "backend.api.routes.websocket.check_websocket_rate_limit",
+                AsyncMock(return_value=True),
+            ),
+            patch(
+                "backend.api.routes.websocket.authenticate_websocket",
+                AsyncMock(return_value=True),
+            ),
+            patch(
+                "backend.api.routes.websocket.get_broadcaster",
+                AsyncMock(return_value=mock_event_broadcaster),
+            ),
+        ):
+            await websocket_events_endpoint(mock_websocket, mock_redis_client)
+
+        # Connection should be accepted (broadcaster.connect called)
+        mock_event_broadcaster.connect.assert_awaited_once_with(mock_websocket)
+        # close() should NOT be called with code 1008 (rate limit rejection)
+        # The connection may be closed normally via disconnect, but not due to rate limiting
+        rate_limit_close_calls = [
+            call for call in mock_websocket.close.await_args_list if call.kwargs.get("code") == 1008
+        ]
+        assert len(rate_limit_close_calls) == 0
+
+    @pytest.mark.asyncio
+    async def test_rate_limit_logs_warning_on_rejection(
+        self, mock_websocket, mock_redis_client, caplog
+    ):
+        """Test that rate limit rejections are logged for /ws/events."""
+        with patch(
+            "backend.api.routes.websocket.check_websocket_rate_limit",
+            AsyncMock(return_value=False),
+        ):
+            await websocket_events_endpoint(mock_websocket, mock_redis_client)
+
+        # Should log rate limit exceeded warning
+        assert "rate limit exceeded" in caplog.text.lower()
+
+    @pytest.mark.asyncio
+    async def test_system_rate_limit_logs_warning_on_rejection(
+        self, mock_websocket, mock_redis_client, caplog
+    ):
+        """Test that rate limit rejections are logged for /ws/system."""
+        with patch(
+            "backend.api.routes.websocket.check_websocket_rate_limit",
+            AsyncMock(return_value=False),
+        ):
+            await websocket_system_status(mock_websocket, mock_redis_client)
+
+        # Should log rate limit exceeded warning
+        assert "rate limit exceeded" in caplog.text.lower()
+
+    @pytest.mark.asyncio
+    async def test_rate_limit_passes_correct_arguments(self, mock_websocket, mock_redis_client):
+        """Test that check_websocket_rate_limit receives correct arguments."""
+        mock_check = AsyncMock(return_value=False)
+
+        with patch(
+            "backend.api.routes.websocket.check_websocket_rate_limit",
+            mock_check,
+        ):
+            await websocket_events_endpoint(mock_websocket, mock_redis_client)
+
+        # Verify correct arguments passed to rate limit check
+        mock_check.assert_awaited_once_with(mock_websocket, mock_redis_client)
+
+    @pytest.mark.asyncio
+    async def test_events_rate_limit_does_not_call_broadcaster_on_rejection(
+        self, mock_websocket, mock_redis_client, mock_event_broadcaster
+    ):
+        """Test that broadcaster is not touched when rate limit rejects connection."""
+        with (
+            patch(
+                "backend.api.routes.websocket.check_websocket_rate_limit",
+                AsyncMock(return_value=False),
+            ),
+            patch(
+                "backend.api.routes.websocket.get_broadcaster",
+                AsyncMock(return_value=mock_event_broadcaster),
+            ),
+        ):
+            await websocket_events_endpoint(mock_websocket, mock_redis_client)
+
+        # Broadcaster should not be connected
+        mock_event_broadcaster.connect.assert_not_awaited()
+        mock_event_broadcaster.disconnect.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_system_rate_limit_does_not_call_broadcaster_on_rejection(
+        self, mock_websocket, mock_redis_client, mock_system_broadcaster
+    ):
+        """Test that system broadcaster is not touched when rate limit rejects."""
+        with (
+            patch(
+                "backend.api.routes.websocket.check_websocket_rate_limit",
+                AsyncMock(return_value=False),
+            ),
+            patch(
+                "backend.api.routes.websocket.get_system_broadcaster",
+                return_value=mock_system_broadcaster,
+            ),
+        ):
+            await websocket_system_status(mock_websocket, mock_redis_client)
+
+        # Broadcaster should not be connected
+        mock_system_broadcaster.connect.assert_not_awaited()
+        mock_system_broadcaster.disconnect.assert_not_awaited()
