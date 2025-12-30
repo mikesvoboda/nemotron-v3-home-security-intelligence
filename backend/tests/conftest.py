@@ -227,12 +227,12 @@ def get_test_redis_url() -> str:
 
     # 3. Fall back to testcontainer
     if _redis_container is not None:
-        # Get the connection URL and append database 15 for test isolation
-        url = _redis_container.get_connection_url()
-        # Ensure it uses database 15 for test isolation
-        if "/15" not in url:
-            url = url.rstrip("/") + "/15"
-        return url
+        # RedisContainer doesn't have get_connection_url() like PostgresContainer,
+        # so we need to construct the URL manually from host and port
+        host = _redis_container.get_container_host_ip()
+        port = _redis_container.get_exposed_port(6379)
+        # Use database 15 for test isolation
+        return f"redis://{host}:{port}/15"
 
     raise RuntimeError(
         "Redis not available for testing. Options:\n"

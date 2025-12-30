@@ -476,9 +476,21 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
       TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+      REDIS_URL: redis://localhost:6379
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
       DEBUG: "false"
     steps:
       - name: Checkout
@@ -506,6 +518,24 @@ jobs:
             sleep 1
           done
           echo "PostgreSQL failed to start"
+          exit 1
+
+      - name: Install Redis CLI
+        run: sudo apt-get update && sudo apt-get install -y redis-tools
+
+      - name: Wait for Redis
+        run: |
+          echo "Checking Redis service container..."
+          for i in {1..30}; do
+            if redis-cli -h localhost -p 6379 ping 2>&1 | grep -q PONG; then
+              echo "Redis is ready"
+              exit 0
+            fi
+            echo "Waiting for Redis... ($i/30)"
+            sleep 1
+          done
+          echo "Redis failed to start - checking container status..."
+          docker ps -a || true
           exit 1
 
       - name: Validate admin endpoints require DEBUG mode

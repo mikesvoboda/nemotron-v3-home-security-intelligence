@@ -22,6 +22,7 @@ describe('useServiceStatus', () => {
   let onMessageCallback: ((data: unknown) => void) | undefined;
 
   // Helper to create a backend service status message
+  // The backend sends messages in envelope format: { type, data: {...}, timestamp }
   const createServiceStatusMessage = (
     service: ServiceName,
     status: ServiceStatusType,
@@ -29,9 +30,11 @@ describe('useServiceStatus', () => {
     timestamp: string = '2025-12-23T10:00:00Z'
   ) => ({
     type: 'service_status',
-    service,
-    status,
-    message,
+    data: {
+      service,
+      status,
+      message,
+    },
     timestamp,
   });
 
@@ -266,10 +269,13 @@ describe('useServiceStatus', () => {
   it('should ignore messages with invalid service name', () => {
     const { result } = renderHook(() => useServiceStatus());
 
+    // Backend envelope format with invalid service name in data
     const invalidMessage = {
       type: 'service_status',
-      service: 'invalid_service',
-      status: 'healthy',
+      data: {
+        service: 'invalid_service',
+        status: 'healthy',
+      },
       timestamp: '2025-12-23T10:00:00Z',
     };
 
@@ -285,10 +291,13 @@ describe('useServiceStatus', () => {
   it('should ignore messages with invalid status', () => {
     const { result } = renderHook(() => useServiceStatus());
 
+    // Backend envelope format with invalid status in data
     const invalidMessage = {
       type: 'service_status',
-      service: 'rtdetr',
-      status: 'invalid_status',
+      data: {
+        service: 'rtdetr',
+        status: 'invalid_status',
+      },
       timestamp: '2025-12-23T10:00:00Z',
     };
 
@@ -302,10 +311,13 @@ describe('useServiceStatus', () => {
   it('should ignore messages missing timestamp', () => {
     const { result } = renderHook(() => useServiceStatus());
 
+    // Backend envelope format missing timestamp at envelope level
     const invalidMessage = {
       type: 'service_status',
-      service: 'rtdetr',
-      status: 'healthy',
+      data: {
+        service: 'rtdetr',
+        status: 'healthy',
+      },
       // missing timestamp
     };
 
@@ -381,12 +393,15 @@ describe('useServiceStatus', () => {
   it('should handle message with optional message field undefined', () => {
     const { result } = renderHook(() => useServiceStatus());
 
+    // Backend envelope format: { type, data: {...}, timestamp }
     const message = {
       type: 'service_status',
-      service: 'rtdetr' as ServiceName,
-      status: 'healthy' as ServiceStatusType,
+      data: {
+        service: 'rtdetr' as ServiceName,
+        status: 'healthy' as ServiceStatusType,
+        // message field intentionally undefined
+      },
       timestamp: '2025-12-23T10:00:00Z',
-      // message field intentionally undefined
     };
 
     act(() => {
