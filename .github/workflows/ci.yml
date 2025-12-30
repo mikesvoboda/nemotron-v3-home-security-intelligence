@@ -1,23 +1,5 @@
 name: CI
 
-# =============================================================================
-# CI Pipeline Overview
-# =============================================================================
-# This workflow uses a dual validation approach:
-#
-# 1. GRANULAR JOBS (lint, typecheck, unit-tests, etc.)
-#    - Run in parallel for faster feedback
-#    - Provide specific failure context
-#    - Enable better GitHub Actions caching
-#
-# 2. UNIFIED SCRIPT VALIDATION (validate-with-scripts)
-#    - Runs scripts/validate.sh (same as local development)
-#    - Prevents configuration drift between CI and local dev
-#    - Acts as a safety net to catch any discrepancies
-#
-# Both must pass before builds are allowed.
-# =============================================================================
-
 on:
   push:
     branches: [main]
@@ -34,7 +16,7 @@ env:
 
 jobs:
   # ============================================================================
-  # Backend Jobs (Granular - run in parallel for speed)
+  # Backend Jobs
   # ============================================================================
 
   lint:
@@ -249,7 +231,7 @@ jobs:
           fail_ci_if_error: false
 
   # ============================================================================
-  # Frontend Jobs (Granular - run in parallel for speed)
+  # Frontend Jobs
   # ============================================================================
 
   api-types-check:
@@ -407,7 +389,6 @@ jobs:
       - frontend-typecheck
       - frontend-tests
       - frontend-e2e
-      - validate-with-scripts # Ensures unified scripts pass before building
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -448,7 +429,6 @@ jobs:
       - frontend-typecheck
       - frontend-tests
       - frontend-e2e
-      - validate-with-scripts # Ensures unified scripts pass before building
     strategy:
       matrix:
         include:
@@ -474,115 +454,6 @@ jobs:
           tags: ${{ matrix.name }}-prod:${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.name }}-prod
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}-prod
-
-  # ============================================================================
-  # Unified Script Validation Job
-  # ============================================================================
-  # This job runs the same validation scripts that developers use locally
-  # (scripts/validate.sh), ensuring CI and local dev stay in sync.
-  # The granular jobs above provide parallel execution and caching benefits,
-  # while this job guarantees script parity.
-
-  validate-with-scripts:
-    name: Unified Script Validation
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: security_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    env:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
-      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
-      REDIS_URL: redis://localhost:6379
-      REDIS_HOST: localhost
-      REDIS_PORT: 6379
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: "pip"
-          cache-dependency-path: backend/requirements*.txt
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Create Python virtual environment
-        run: python -m venv .venv
-
-      - name: Install backend dependencies
-        run: |
-          source .venv/bin/activate
-          pip install -r backend/requirements.txt
-          pip install ruff mypy  # Dev tools needed by validate.sh
-
-      - name: Install frontend dependencies
-        run: cd frontend && npm ci
-
-      - name: Install Redis CLI
-        run: sudo apt-get update && sudo apt-get install -y redis-tools
-
-      - name: Wait for PostgreSQL
-        run: |
-          echo "Waiting for PostgreSQL..."
-          for i in {1..30}; do
-            if pg_isready -h localhost -p 5432 -U postgres; then
-              echo "PostgreSQL is ready"
-              exit 0
-            fi
-            echo "Waiting... ($i/30)"
-            sleep 1
-          done
-          echo "PostgreSQL failed to start"
-          exit 1
-
-      - name: Wait for Redis
-        run: |
-          echo "Checking Redis service container..."
-          for i in {1..30}; do
-            if redis-cli -h localhost -p 6379 ping 2>&1 | grep -q PONG; then
-              echo "Redis is ready"
-              exit 0
-            fi
-            echo "Waiting for Redis... ($i/30)"
-            sleep 1
-          done
-          echo "Redis failed to start"
-          exit 1
-
-      # Run the unified validation script that developers use locally
-      # This ensures CI validates using the exact same logic as local dev
-      - name: Run unified validation script (backend)
-        run: ./scripts/validate.sh --backend
-
-      - name: Run unified validation script (frontend)
-        run: ./scripts/validate.sh --frontend
 
   # ============================================================================
   # Security Validation Job
