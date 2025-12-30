@@ -113,6 +113,8 @@ async def test_system_broadcaster_disconnect():
 @pytest.mark.asyncio
 async def test_system_broadcaster_broadcast_status():
     """Test broadcasting status to all connections."""
+    import json
+
     broadcaster = SystemBroadcaster()
     mock_ws1 = AsyncMock()
     mock_ws2 = AsyncMock()
@@ -122,9 +124,10 @@ async def test_system_broadcaster_broadcast_status():
     status_data = {"type": "system_status", "data": {"test": "value"}}
     await broadcaster.broadcast_status(status_data)
 
-    # Both connections should receive the message
-    mock_ws1.send_json.assert_called_once_with(status_data)
-    mock_ws2.send_json.assert_called_once_with(status_data)
+    # Both connections should receive the message as JSON string via send_text
+    expected_message = json.dumps(status_data)
+    mock_ws1.send_text.assert_called_once_with(expected_message)
+    mock_ws2.send_text.assert_called_once_with(expected_message)
 
 
 @pytest.mark.asyncio
@@ -133,7 +136,7 @@ async def test_system_broadcaster_broadcast_status_removes_failed():
     broadcaster = SystemBroadcaster()
     mock_ws_good = AsyncMock()
     mock_ws_bad = AsyncMock()
-    mock_ws_bad.send_json.side_effect = Exception("Connection failed")
+    mock_ws_bad.send_text.side_effect = Exception("Connection failed")
 
     broadcaster.connections.add(mock_ws_good)
     broadcaster.connections.add(mock_ws_bad)
