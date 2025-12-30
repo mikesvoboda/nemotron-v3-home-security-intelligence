@@ -42,11 +42,11 @@ const mockEventStats = {
 };
 
 const mockCameras = [
-  { id: 'cam-1', name: 'Front Door', enabled: true, location: 'entrance' },
-  { id: 'cam-2', name: 'Back Yard', enabled: true, location: 'backyard' },
-  { id: 'cam-3', name: 'Garage', enabled: true, location: 'garage' },
-  { id: 'cam-4', name: 'Side Gate', enabled: false, location: 'side' },
-  { id: 'cam-5', name: 'Driveway', enabled: true, location: 'driveway' },
+  { id: 'cam-1', name: 'Front Door', folder_path: '/cams/front', status: 'online', created_at: '2024-01-01T00:00:00Z', last_seen_at: '2024-01-02T00:00:00Z' },
+  { id: 'cam-2', name: 'Back Yard', folder_path: '/cams/back', status: 'online', created_at: '2024-01-01T00:00:00Z', last_seen_at: '2024-01-02T00:00:00Z' },
+  { id: 'cam-3', name: 'Garage', folder_path: '/cams/garage', status: 'online', created_at: '2024-01-01T00:00:00Z', last_seen_at: '2024-01-02T00:00:00Z' },
+  { id: 'cam-4', name: 'Side Gate', folder_path: '/cams/side', status: 'offline', created_at: '2024-01-01T00:00:00Z', last_seen_at: '2024-01-02T00:00:00Z' },
+  { id: 'cam-5', name: 'Driveway', folder_path: '/cams/driveway', status: 'online', created_at: '2024-01-01T00:00:00Z', last_seen_at: '2024-01-02T00:00:00Z' },
 ];
 
 describe('EventStatsCard', () => {
