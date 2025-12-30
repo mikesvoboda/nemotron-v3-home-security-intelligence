@@ -192,7 +192,14 @@ export default function Header() {
           className="relative flex cursor-pointer items-center gap-2"
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
+          onFocus={handleMouseEnter}
+          onBlur={handleMouseLeave}
           data-testid="health-indicator"
+          role="button"
+          tabIndex={0}
+          aria-label={`System health status: ${effectiveHealth ?? 'checking'}`}
+          aria-haspopup="true"
+          aria-expanded={isTooltipVisible}
         >
           <div
             className={`h-2 w-2 rounded-full ${getHealthDotColor(effectiveHealth)} ${

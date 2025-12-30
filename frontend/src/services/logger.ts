@@ -51,7 +51,7 @@ class Logger {
     // Capture unhandled errors
     window.onerror = (message, source, lineno, colno, error) => {
       this.error('Unhandled error', {
-        message: String(message),
+        message: typeof message === 'string' ? message : message?.type ?? 'Unknown error',
         source,
         lineno,
         colno,
@@ -127,7 +127,6 @@ class Logger {
       if (this.queue.length < 100) {
         this.queue.unshift(...entries);
       }
-      // eslint-disable-next-line no-console
       console.error('Failed to flush logs:', err);
     }
   }
