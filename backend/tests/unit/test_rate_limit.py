@@ -956,21 +956,29 @@ class TestRateLimitTier:
 class TestEdgeCases:
     """Tests for edge cases and error handling."""
 
-    def test_empty_ip_chain(self, mock_request):
+    def test_empty_ip_chain(self, mock_request, mock_settings_for_ip):
         """Test handling of empty X-Forwarded-For header."""
         mock_request.headers = {"X-Forwarded-For": ""}
         mock_request.client.host = "10.0.0.1"
 
-        ip = get_client_ip(mock_request)
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", return_value=mock_settings_for_ip
+        ):
+            ip = get_client_ip(mock_request)
 
         # Empty header should fall through to client.host
         assert ip == "10.0.0.1"
 
-    def test_whitespace_in_forwarded_header(self, mock_request):
+    def test_whitespace_in_forwarded_header(self, mock_request, mock_settings_for_ip):
         """Test stripping of whitespace in X-Forwarded-For header."""
+        # Request from trusted proxy (127.0.0.1) with whitespace-padded X-Forwarded-For
+        mock_request.client.host = "127.0.0.1"
         mock_request.headers = {"X-Forwarded-For": "  203.0.113.50  "}
 
-        ip = get_client_ip(mock_request)
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", return_value=mock_settings_for_ip
+        ):
+            ip = get_client_ip(mock_request)
 
         assert ip == "203.0.113.50"
 
@@ -983,6 +991,7 @@ class TestEdgeCases:
                 "RATE_LIMIT_ENABLED": "true",
                 "RATE_LIMIT_REQUESTS_PER_MINUTE": "10",
                 "RATE_LIMIT_BURST": "1",
+                "DATABASE_URL": "postgresql+asyncpg://test:test@localhost:5432/test",
             },
         ):
             from backend.core.config import get_settings
@@ -1021,15 +1030,23 @@ class TestEdgeCases:
 
     def test_limiter_properties_use_tier_defaults(self):
         """Test that limiter properties fall back to tier defaults."""
-        limiter = RateLimiter(tier=RateLimitTier.MEDIA)
+        with patch.dict(
+            os.environ,
+            {"DATABASE_URL": "postgresql+asyncpg://test:test@localhost:5432/test"},
+        ):
+            from backend.core.config import get_settings
 
-        # Should use tier defaults, not hardcoded values
-        rpm = limiter.requests_per_minute
-        burst = limiter.burst
+            get_settings.cache_clear()
 
-        expected_rpm, expected_burst = get_tier_limits(RateLimitTier.MEDIA)
-        assert rpm == expected_rpm
-        assert burst == expected_burst
+            limiter = RateLimiter(tier=RateLimitTier.MEDIA)
+
+            # Should use tier defaults, not hardcoded values
+            rpm = limiter.requests_per_minute
+            burst = limiter.burst
+
+            expected_rpm, expected_burst = get_tier_limits(RateLimitTier.MEDIA)
+            assert rpm == expected_rpm
+            assert burst == expected_burst
 
     def test_limiter_properties_use_overrides(self):
         """Test that explicit overrides take precedence."""
