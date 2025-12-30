@@ -12,27 +12,59 @@ Usage:
 Environment variables:
     UNIT_TEST_THRESHOLD: Max seconds for unit tests (default: 1.0)
     INTEGRATION_TEST_THRESHOLD: Max seconds for integration tests (default: 5.0)
+    SLOW_TEST_THRESHOLD: Max seconds for known slow tests (default: 60.0)
     WARN_THRESHOLD_PERCENT: Warn at this % of limit (default: 80)
 """
 
 import os
+import re
 import sys
 from pathlib import Path
 
 import defusedxml.ElementTree as ET
 
+# Known slow test patterns - tests marked with @pytest.mark.slow
+# These use real worker timeouts (10-30s) and are expected to be slow
+SLOW_TEST_PATTERNS = [
+    # Pipeline worker manager tests that use real stop timeouts
+    r"test_pipeline_workers.*test_manager_start_stop",
+    r"test_pipeline_workers.*test_manager_idempotent",
+    r"test_pipeline_workers.*test_manager_signal_handler",
+    r"test_pipeline_workers.*test_manager_stops_all",
+    r"test_pipeline_workers.*test_stop_pipeline_manager_clears",
+    # Health monitor tests with subprocess timeouts
+    r"test_health_monitor.*test_subprocess_timeout",
+    # System broadcaster reconnection tests
+    r"test_system_broadcaster.*reconnection",
+    r"test_system_broadcaster.*restarts_with_fresh",
+    # Media route tests (thumbnail generation)
+    r"test_media_api.*test_compat_thumbnail",
+]
 
-def get_thresholds() -> tuple[float, float, float]:
+
+def get_thresholds() -> tuple[float, float, float, float]:
     """Get threshold values from environment or defaults."""
     unit = float(os.environ.get("UNIT_TEST_THRESHOLD", "1.0"))
     integration = float(os.environ.get("INTEGRATION_TEST_THRESHOLD", "5.0"))
+    slow = float(os.environ.get("SLOW_TEST_THRESHOLD", "60.0"))
     warn_pct = float(os.environ.get("WARN_THRESHOLD_PERCENT", "80")) / 100
-    return unit, integration, warn_pct
+    return unit, integration, slow, warn_pct
+
+
+def is_known_slow_test(classname: str, name: str) -> bool:
+    """Check if test matches known slow test patterns."""
+    full_path = f"{classname}::{name}"
+    return any(re.search(pattern, full_path, re.IGNORECASE) for pattern in SLOW_TEST_PATTERNS)
 
 
 def categorize_test(classname: str, name: str) -> str:
-    """Determine if a test is unit or integration based on path."""
+    """Determine if a test is unit, integration, or slow based on path/patterns."""
     full_path = f"{classname}.{name}".lower()
+
+    # Check if it matches known slow test patterns
+    if is_known_slow_test(classname, name):
+        return "slow"
+
     if "integration" in full_path:
         return "integration"
     return "unit"
@@ -76,25 +108,29 @@ def parse_junit_xml(filepath: Path) -> list[dict]:
     return tests
 
 
-def analyze_tests(results_dir: Path) -> tuple[list[dict], list[dict]]:
+def analyze_tests(results_dir: Path) -> tuple[list[dict], list[dict], list[dict]]:
     """Analyze all JUnit XML files in directory."""
-    unit_threshold, integration_threshold, warn_pct = get_thresholds()
+    unit_threshold, integration_threshold, slow_threshold, warn_pct = get_thresholds()
 
     failures = []
     warnings = []
+    slow_tests = []
 
     # Find all XML files
     xml_files = list(results_dir.glob("**/*.xml"))
     if not xml_files:
         print(f"Warning: No XML files found in {results_dir}", file=sys.stderr)
-        return [], []
+        return [], [], []
 
     for xml_file in xml_files:
         tests = parse_junit_xml(xml_file)
 
         for test in tests:
             # Determine threshold based on category
-            if test["category"] == "integration":
+            if test["category"] == "slow":
+                threshold = slow_threshold
+                slow_tests.append(test)
+            elif test["category"] == "integration":
                 threshold = integration_threshold
             else:
                 threshold = unit_threshold
@@ -111,8 +147,9 @@ def analyze_tests(results_dir: Path) -> tuple[list[dict], list[dict]]:
     # Sort by duration descending
     failures.sort(key=lambda x: x["duration"], reverse=True)
     warnings.sort(key=lambda x: x["duration"], reverse=True)
+    slow_tests.sort(key=lambda x: x["duration"], reverse=True)
 
-    return failures, warnings
+    return failures, warnings, slow_tests
 
 
 def format_test_name(test: dict) -> str:
@@ -131,17 +168,31 @@ def main() -> int:
         print(f"Error: Directory not found: {results_dir}", file=sys.stderr)
         return 1
 
-    failures, warnings = analyze_tests(results_dir)
+    failures, warnings, slow_tests = analyze_tests(results_dir)
 
     print("=" * 70)
     print("TEST PERFORMANCE AUDIT")
     print("=" * 70)
     print()
 
-    unit_threshold, integration_threshold, warn_pct = get_thresholds()
-    print(f"Thresholds: unit={unit_threshold}s, integration={integration_threshold}s")
+    unit_threshold, integration_threshold, slow_threshold, warn_pct = get_thresholds()
+    print(
+        f"Thresholds: unit={unit_threshold}s, integration={integration_threshold}s, slow={slow_threshold}s"
+    )
     print(f"Warning at: {warn_pct * 100:.0f}% of threshold")
     print()
+
+    if slow_tests:
+        print(f"KNOWN SLOW TESTS ({len(slow_tests)} tests with extended threshold):")
+        print("-" * 40)
+        for test in slow_tests[:5]:  # Show top 5 slow tests
+            print(
+                f"  {test['duration']:.2f}s (limit: {test['threshold']:.1f}s) [{test['category']}]"
+            )
+            print(f"    {format_test_name(test)}")
+        if len(slow_tests) > 5:
+            print(f"  ... and {len(slow_tests) - 5} more")
+        print()
 
     if failures:
         print("FAILURES (exceeded threshold):")
@@ -171,10 +222,10 @@ def main() -> int:
         print(f"RESULT: FAIL - {len(failures)} test(s) exceeded time limit")
         return 1
     elif warnings:
-        print(f"RESULT: PASS with {len(warnings)} warning(s)")
+        print(f"RESULT: PASS with {len(warnings)} warning(s), {len(slow_tests)} known slow test(s)")
         return 0
     else:
-        print("RESULT: PASS - All tests within time limits")
+        print(f"RESULT: PASS - All tests within time limits ({len(slow_tests)} known slow)")
         return 0
 
 
