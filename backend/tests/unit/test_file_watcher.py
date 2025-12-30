@@ -50,7 +50,7 @@ def file_watcher(temp_camera_root, mock_redis_client):
     watcher = FileWatcher(
         camera_root=str(temp_camera_root),
         redis_client=mock_redis_client,
-        debounce_delay=0.1,  # Shorter delay for tests
+        debounce_delay=0.01,  # Very short delay for fast tests (1s timeout)
     )
     return watcher
 
@@ -120,7 +120,7 @@ def test_is_valid_image_nonexistent():
 def test_file_watcher_initialization(file_watcher, temp_camera_root):
     """Test FileWatcher initializes with correct settings."""
     assert file_watcher.camera_root == str(temp_camera_root)
-    assert file_watcher.debounce_delay == 0.1
+    assert file_watcher.debounce_delay == 0.01  # Fast test fixture uses 0.01
     assert file_watcher.queue_name == "detection_queue"
     assert file_watcher.observer is not None
     assert file_watcher.running is False
@@ -353,7 +353,7 @@ async def test_debounce_multiple_events(file_watcher, temp_camera_root, mock_red
     await file_watcher._schedule_file_processing(str(image_path))
 
     # Wait for debounce delay + processing
-    await asyncio.sleep(file_watcher.debounce_delay + 0.1)
+    await asyncio.sleep(file_watcher.debounce_delay + 0.05)
 
     # Should only process once
     assert mock_redis_client.add_to_queue_safe.await_count == 1
@@ -378,7 +378,7 @@ async def test_debounce_different_files(file_watcher, temp_camera_root, mock_red
     await file_watcher._schedule_file_processing(str(image2))
 
     # Wait for debounce delay + processing
-    await asyncio.sleep(file_watcher.debounce_delay + 0.1)
+    await asyncio.sleep(file_watcher.debounce_delay + 0.05)
 
     # Should process both files
     assert mock_redis_client.add_to_queue_safe.await_count == 2
@@ -436,7 +436,7 @@ async def test_stop_watcher_cancels_pending_tasks(file_watcher, temp_camera_root
         await file_watcher.stop()
 
     # Wait a bit to ensure task was cancelled
-    await asyncio.sleep(0.2)
+    await asyncio.sleep(0.05)
 
     # Task should be cancelled, no processing should occur
     assert file_watcher.running is False
@@ -543,7 +543,7 @@ async def test_full_workflow(file_watcher, temp_camera_root, mock_redis_client):
         await file_watcher._schedule_file_processing(str(image_path))
 
         # Wait for debounce + processing
-        await asyncio.sleep(file_watcher.debounce_delay + 0.2)
+        await asyncio.sleep(file_watcher.debounce_delay + 0.05)
 
         # Verify queue was called at least once (watchdog may trigger it too)
         assert mock_redis_client.add_to_queue_safe.await_count >= 1
