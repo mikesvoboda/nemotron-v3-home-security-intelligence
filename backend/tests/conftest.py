@@ -1,13 +1,16 @@
 """Pytest configuration and shared fixtures.
 
 This module provides shared test fixtures for all backend tests:
-- isolated_db: Function-scoped isolated database for unit tests
+- isolated_db: Function-scoped isolated database for unit tests (PostgreSQL)
 - test_db: Callable session factory for unit tests
 - integration_env: Environment setup for integration tests
 - integration_db: Initialized database for integration tests
 - mock_redis: Mock Redis client for integration tests
 - db_session: Database session for integration tests
 - client: httpx AsyncClient for API integration tests
+
+Tests use PostgreSQL. Configure TEST_DATABASE_URL environment variable or
+use the default test database URL.
 
 See backend/tests/AGENTS.md for full documentation on test conventions.
 """
@@ -17,7 +20,6 @@ from __future__ import annotations
 import os
 import socket
 import sys
-import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
@@ -365,6 +367,7 @@ async def test_db():
             # Use session for database operations
             ...
     """
+
     from backend.core.config import get_settings
     from backend.core.database import close_db, get_session, init_db
 
@@ -425,6 +428,8 @@ def integration_env() -> Generator[str]:
     All integration tests should use this fixture (directly or via integration_db)
     to ensure proper isolation and cleanup.
     """
+    import tempfile
+
     from backend.core.config import get_settings
 
     original_db_url = os.environ.get("DATABASE_URL")
@@ -546,6 +551,8 @@ async def client(integration_db: str, mock_redis: AsyncMock) -> AsyncGenerator:
     - The DB is pre-initialized by `integration_db`.
     - We patch app lifespan DB init/close to avoid double initialization.
     - We patch Redis init/close in `backend.main` so lifespan does not connect.
+    - Tests that need isolation should use clean_events, clean_cameras, or clean_logs
+      fixtures which will truncate tables before data fixtures create their data.
 
     Use this fixture for testing API endpoints.
     """
@@ -553,6 +560,10 @@ async def client(integration_db: str, mock_redis: AsyncMock) -> AsyncGenerator:
 
     # Import the app only after env is set up.
     from backend.main import app
+
+    # NOTE: Removed TRUNCATE from here because it was running AFTER data fixtures
+    # (sample_event, sample_camera, etc) created their data due to pytest fixture
+    # ordering. Tests that need clean state should use clean_* fixtures explicitly.
 
     with (
         patch("backend.main.init_db", return_value=None),

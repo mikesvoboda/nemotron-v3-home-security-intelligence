@@ -9,7 +9,7 @@ This module provides:
 Usage:
     from backend.core.tls import get_tls_config, generate_self_signed_cert
 
-    # Get TLS config for uvicorn
+    # Get TLS config for uvicorn (legacy API)
     tls_config = get_tls_config()
     if tls_config:
         uvicorn.run(app, **tls_config)
@@ -21,6 +21,12 @@ Usage:
         hostname="localhost",
         san_ips=["192.168.1.100"],
     )
+
+    # New mode-based API
+    from backend.core.tls import TLSConfig, TLSMode, create_ssl_context
+
+    config = TLSConfig(mode=TLSMode.SELF_SIGNED, ...)
+    ssl_context = create_ssl_context(config)
 """
 
 from __future__ import annotations
@@ -29,7 +35,9 @@ import ipaddress
 import os
 import socket
 import ssl
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from enum import Enum
 from pathlib import Path
 from typing import Any
 
@@ -45,7 +53,52 @@ logger = get_logger(__name__)
 
 
 # =============================================================================
-# Custom Exceptions
+# TLS Mode Enum and Config Dataclass (new API from origin/main)
+# =============================================================================
+
+
+class TLSMode(str, Enum):
+    """TLS operation mode.
+
+    Attributes:
+        DISABLED: No TLS, HTTP only (default for development)
+        SELF_SIGNED: Auto-generate self-signed certificates
+        PROVIDED: Use externally provided certificate files
+    """
+
+    DISABLED = "disabled"
+    SELF_SIGNED = "self_signed"
+    PROVIDED = "provided"
+
+
+@dataclass
+class TLSConfig:
+    """TLS configuration settings.
+
+    Attributes:
+        mode: TLS operation mode (disabled, self_signed, provided)
+        cert_path: Path to the certificate file (PEM format)
+        key_path: Path to the private key file (PEM format)
+        ca_path: Optional path to CA certificate for client verification
+        verify_client: Whether to require and verify client certificates
+        min_version: Minimum TLS version to accept (default TLS 1.2)
+    """
+
+    mode: TLSMode = TLSMode.DISABLED
+    cert_path: str | None = None
+    key_path: str | None = None
+    ca_path: str | None = None
+    verify_client: bool = False
+    min_version: ssl.TLSVersion = field(default=ssl.TLSVersion.TLSv1_2)
+
+    @property
+    def is_enabled(self) -> bool:
+        """Check if TLS is enabled."""
+        return self.mode != TLSMode.DISABLED
+
+
+# =============================================================================
+# Custom Exceptions (from feature branch)
 # =============================================================================
 
 
@@ -74,7 +127,37 @@ class CertificateValidationError(TLSError):
 
 
 # =============================================================================
-# Certificate Loading
+# Certificate File Validation (from origin/main)
+# =============================================================================
+
+
+def validate_certificate_files(
+    cert_path: str,
+    key_path: str,
+    ca_path: str | None = None,
+) -> None:
+    """Validate that certificate files exist.
+
+    Args:
+        cert_path: Path to the certificate file
+        key_path: Path to the private key file
+        ca_path: Optional path to CA certificate file
+
+    Raises:
+        FileNotFoundError: If any required file does not exist
+    """
+    if not Path(cert_path).exists():
+        raise FileNotFoundError(f"Certificate file not found: {cert_path}")
+
+    if not Path(key_path).exists():
+        raise FileNotFoundError(f"Private key file not found: {key_path}")
+
+    if ca_path and not Path(ca_path).exists():
+        raise FileNotFoundError(f"CA certificate file not found: {ca_path}")
+
+
+# =============================================================================
+# Certificate Loading (from feature branch)
 # =============================================================================
 
 
@@ -110,23 +193,77 @@ def load_certificate_paths() -> tuple[Path | None, Path | None]:
 
 
 def create_ssl_context(
-    cert_path: Path,
-    key_path: Path,
+    config_or_cert_path: TLSConfig | Path,
+    key_path: Path | None = None,
     ca_path: Path | None = None,
-) -> ssl.SSLContext:
+) -> ssl.SSLContext | None:
     """Create an SSL context for server use.
 
+    This function supports two calling conventions:
+    1. New API: create_ssl_context(TLSConfig) - returns SSLContext or None
+    2. Legacy API: create_ssl_context(cert_path, key_path, ca_path) - returns SSLContext
+
     Args:
-        cert_path: Path to the certificate file (PEM format).
-        key_path: Path to the private key file (PEM format).
-        ca_path: Optional path to CA certificate for client verification.
+        config_or_cert_path: Either a TLSConfig object or Path to certificate file
+        key_path: Path to the private key file (legacy API only)
+        ca_path: Optional path to CA certificate for client verification (legacy API only)
 
     Returns:
-        Configured SSL context for server use.
+        Configured SSL context for server use, or None if TLS disabled (new API only)
 
     Raises:
         ssl.SSLError: If certificate or key loading fails.
+        FileNotFoundError: If certificate files are missing (new API).
     """
+    # New API: TLSConfig object
+    if isinstance(config_or_cert_path, TLSConfig):
+        config = config_or_cert_path
+        if config.mode == TLSMode.DISABLED:
+            return None
+
+        # Validate certificate files exist
+        if config.cert_path and config.key_path:
+            validate_certificate_files(config.cert_path, config.key_path, config.ca_path)
+
+        # Create server-side SSL context
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+
+        # Set minimum TLS version
+        context.minimum_version = config.min_version
+
+        # Disable old protocols
+        context.options |= ssl.OP_NO_SSLv2
+        context.options |= ssl.OP_NO_SSLv3
+
+        # Load certificate and key
+        if config.cert_path and config.key_path:
+            context.load_cert_chain(
+                certfile=config.cert_path,
+                keyfile=config.key_path,
+            )
+
+        # Configure client certificate verification if requested
+        if config.verify_client:
+            context.verify_mode = ssl.CERT_REQUIRED
+            if config.ca_path:
+                context.load_verify_locations(cafile=config.ca_path)
+        else:
+            context.verify_mode = ssl.CERT_NONE
+
+        logger.info(
+            "Created SSL context",
+            extra={
+                "mode": config.mode.value,
+                "min_version": config.min_version.name,
+                "verify_client": config.verify_client,
+            },
+        )
+
+        return context
+
+    # Legacy API: Path arguments
+    cert_path = config_or_cert_path
+
     # Create server-side SSL context
     ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
 
@@ -153,7 +290,7 @@ def create_ssl_context(
 
 
 # =============================================================================
-# Certificate Generation
+# Certificate Generation (feature branch - comprehensive version)
 # =============================================================================
 
 
@@ -300,8 +437,68 @@ def generate_self_signed_cert(
     )
 
 
+def generate_self_signed_certificate(
+    cert_path: str,
+    key_path: str,
+    hostname: str = "localhost",
+    san_hosts: list[str] | None = None,
+    organization: str = "Home Security Intelligence",
+    validity_days: int = 365,
+) -> bool:
+    """Generate a self-signed certificate and private key (alternative API).
+
+    Creates a self-signed X.509 certificate suitable for HTTPS on a local
+    network. The certificate includes Subject Alternative Names (SANs) for
+    the specified hosts and IP addresses.
+
+    Args:
+        cert_path: Path to write the certificate file (PEM format)
+        key_path: Path to write the private key file (PEM format)
+        hostname: Primary hostname/CN for the certificate
+        san_hosts: Additional hostnames and IPs for SAN extension
+        organization: Organization name for the certificate subject
+        validity_days: Certificate validity period in days
+
+    Returns:
+        True if certificate was successfully generated
+
+    Example:
+        >>> generate_self_signed_certificate(
+        ...     cert_path="/data/certs/server.crt",
+        ...     key_path="/data/certs/server.key",
+        ...     hostname="security.home",
+        ...     san_hosts=["192.168.1.100", "localhost"],
+        ...     validity_days=730,
+        ... )
+        True
+    """
+    # Parse san_hosts into IPs and DNS names
+    san_ips: list[str] = []
+    san_dns: list[str] = []
+
+    if san_hosts:
+        for host in san_hosts:
+            try:
+                ipaddress.ip_address(host)
+                san_ips.append(host)
+            except ValueError:
+                san_dns.append(host)
+
+    # Use the comprehensive generate_self_signed_cert function
+    generate_self_signed_cert(
+        cert_path=Path(cert_path),
+        key_path=Path(key_path),
+        hostname=hostname,
+        san_ips=san_ips,
+        san_dns=san_dns,
+        days_valid=validity_days,
+    )
+
+    return True
+
+
 # =============================================================================
-# Certificate Validation
+# Certificate Validation (from feature branch)
 # =============================================================================
 
 
@@ -365,25 +562,40 @@ def validate_certificate(cert_path: Path) -> dict[str, Any]:
 
 
 # =============================================================================
-# TLS Configuration Helper
+# TLS Configuration Helpers
 # =============================================================================
 
 
-def get_tls_config() -> dict[str, Any] | None:
-    """Get TLS configuration for uvicorn.
+def _parse_tls_version(version_str: str) -> ssl.TLSVersion:
+    """Parse TLS version string to ssl.TLSVersion enum.
 
-    This function handles the full TLS setup workflow:
-    1. Check if TLS is enabled in settings
-    2. If auto-generate is enabled and no certs exist, generate them
-    3. Load and validate certificates
-    4. Return uvicorn-compatible configuration
+    Args:
+        version_str: Version string like "TLSv1.2" or "TLSv1.3"
 
     Returns:
-        Dictionary with uvicorn SSL parameters, or None if TLS disabled.
-        Keys include:
-        - ssl_certfile: Path to certificate file
-        - ssl_keyfile: Path to private key file
-        - ssl_ca_certs: Path to CA certificate (optional)
+        Corresponding ssl.TLSVersion value
+    """
+    version_map = {
+        "TLSv1.2": ssl.TLSVersion.TLSv1_2,
+        "TLSv1.3": ssl.TLSVersion.TLSv1_3,
+        "1.2": ssl.TLSVersion.TLSv1_2,
+        "1.3": ssl.TLSVersion.TLSv1_3,
+    }
+    return version_map.get(version_str, ssl.TLSVersion.TLSv1_2)
+
+
+def get_tls_config() -> dict[str, Any] | TLSConfig:
+    """Get TLS configuration from settings.
+
+    This function handles the full TLS setup workflow:
+    1. Check if TLS is enabled in settings (legacy or new mode)
+    2. If auto-generate is enabled and no certs exist, generate them
+    3. Load and validate certificates
+    4. Return configuration
+
+    Returns:
+        If using legacy tls_enabled: Dictionary with uvicorn SSL parameters, or None if TLS disabled.
+        If using new tls_mode: TLSConfig object populated from settings.
 
     Raises:
         TLSConfigurationError: If TLS enabled but configuration is invalid.
@@ -391,9 +603,21 @@ def get_tls_config() -> dict[str, Any] | None:
     """
     settings = get_settings()
 
+    # Check if using new mode-based configuration
+    if settings.tls_mode != "disabled":
+        return TLSConfig(
+            mode=TLSMode(settings.tls_mode),
+            cert_path=settings.tls_cert_path,
+            key_path=settings.tls_key_path,
+            ca_path=settings.tls_ca_path,
+            verify_client=settings.tls_verify_client,
+            min_version=_parse_tls_version(settings.tls_min_version),
+        )
+
+    # Legacy tls_enabled configuration
     if not settings.tls_enabled:
         logger.debug("TLS is disabled")
-        return None
+        return TLSConfig(mode=TLSMode.DISABLED)
 
     cert_path: Path | None = None
     key_path: Path | None = None
@@ -514,7 +738,9 @@ def is_tls_enabled() -> bool:
     Returns:
         True if TLS is enabled, False otherwise.
     """
-    return get_settings().tls_enabled
+    settings = get_settings()
+    # Check both legacy and new configuration
+    return settings.tls_enabled or settings.tls_mode != "disabled"
 
 
 def get_cert_info() -> dict[str, Any] | None:
@@ -525,12 +751,16 @@ def get_cert_info() -> dict[str, Any] | None:
     """
     settings = get_settings()
 
-    if not settings.tls_enabled:
+    if not is_tls_enabled():
         return None
 
     cert_path: Path | None = None
 
-    if settings.tls_cert_file:
+    # Check new mode-based paths first
+    if settings.tls_cert_path:
+        cert_path = Path(settings.tls_cert_path)
+    # Fall back to legacy paths
+    elif settings.tls_cert_file:
         cert_path = Path(settings.tls_cert_file)
     elif settings.tls_auto_generate:
         cert_path = Path(settings.tls_cert_dir) / "server.crt"

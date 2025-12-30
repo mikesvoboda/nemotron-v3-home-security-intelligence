@@ -5,6 +5,15 @@ from .alert_engine import AlertRuleEngine, EvaluationResult, TriggeredRule, get_
 from .audit import AuditService, audit_service
 from .baseline import BaselineService, get_baseline_service, reset_baseline_service
 from .batch_aggregator import BatchAggregator
+from .circuit_breaker import (
+    CircuitBreaker,
+    CircuitBreakerConfig,
+    CircuitBreakerError,
+    CircuitBreakerRegistry,
+    CircuitState,
+    get_circuit_breaker,
+    reset_circuit_breaker_registry,
+)
 from .cleanup_service import CleanupService, CleanupStats
 from .clip_generator import (
     ClipGenerationError,
@@ -13,7 +22,16 @@ from .clip_generator import (
     reset_clip_generator,
 )
 from .dedupe import DedupeService, compute_file_hash, get_dedupe_service, reset_dedupe_service
-from .detector_client import DetectorClient
+from .degradation_manager import (
+    DegradationManager,
+    DegradationMode,
+    QueuedJob,
+    ServiceHealth,
+    ServiceStatus,
+    get_degradation_manager,
+    reset_degradation_manager,
+)
+from .detector_client import DetectorClient, DetectorUnavailableError
 from .event_broadcaster import EventBroadcaster, get_broadcaster, stop_broadcaster
 from .file_watcher import FileWatcher, is_image_file, is_valid_image
 from .gpu_monitor import GPUMonitor
@@ -76,6 +94,11 @@ __all__ = [
     "AuditService",
     "BaselineService",
     "BatchAggregator",
+    "CircuitBreaker",
+    "CircuitBreakerConfig",
+    "CircuitBreakerError",
+    "CircuitBreakerRegistry",
+    "CircuitState",
     "CleanupService",
     "CleanupStats",
     "ClipGenerationError",
@@ -83,8 +106,11 @@ __all__ = [
     "DLQStats",
     "DedupResult",
     "DedupeService",
+    "DegradationManager",
+    "DegradationMode",
     "DeliveryResult",
     "DetectorClient",
+    "DetectorUnavailableError",
     "EvaluationResult",
     "EventBroadcaster",
     "FileWatcher",
@@ -94,12 +120,15 @@ __all__ = [
     "NotificationChannel",
     "NotificationDelivery",
     "NotificationService",
+    "QueuedJob",
     "RetryConfig",
     "RetryHandler",
     "RetryResult",
     "SearchFilters",
     "SearchResponse",
     "SearchResult",
+    "ServiceHealth",
+    "ServiceStatus",
     "SeverityDefinition",
     "SeverityService",
     "ThumbnailGenerator",
@@ -112,8 +141,10 @@ __all__ = [
     "get_alert_engine",
     "get_baseline_service",
     "get_broadcaster",
+    "get_circuit_breaker",
     "get_clip_generator",
     "get_dedupe_service",
+    "get_degradation_manager",
     "get_highest_priority_zone",
     "get_notification_service",
     "get_retry_handler",
@@ -126,8 +157,10 @@ __all__ = [
     "point_in_zone",
     "refresh_event_search_vector",
     "reset_baseline_service",
+    "reset_circuit_breaker_registry",
     "reset_clip_generator",
     "reset_dedupe_service",
+    "reset_degradation_manager",
     "reset_notification_service",
     "reset_retry_handler",
     "reset_severity_service",
