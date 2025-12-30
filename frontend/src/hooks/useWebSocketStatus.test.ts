@@ -487,4 +487,143 @@ describe('useWebSocketStatus', () => {
 
     expect(onError).toHaveBeenCalled();
   });
+
+  it('handles non-JSON messages gracefully', async () => {
+    const onMessage = vi.fn();
+    renderHook(() =>
+      useWebSocketStatus({
+        url: 'ws://localhost/ws/test',
+        channelName: 'Test',
+        onMessage,
+      })
+    );
+
+    // Connect
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+    });
+
+    // Simulate raw string message (non-JSON)
+    act(() => {
+      if (mockWsInstances[0].onmessage) {
+        mockWsInstances[0].onmessage(
+          new MessageEvent('message', { data: 'raw string data' })
+        );
+      }
+    });
+
+    expect(onMessage).toHaveBeenCalledWith('raw string data');
+  });
+
+  it('sends data when WebSocket is open', async () => {
+    const { result } = renderHook(() =>
+      useWebSocketStatus({
+        url: 'ws://localhost/ws/test',
+        channelName: 'Test',
+      })
+    );
+
+    // Connect
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+    });
+
+    // Send object data
+    const sendSpy = vi.spyOn(mockWsInstances[0], 'send');
+    act(() => {
+      result.current.send({ type: 'test', value: 123 });
+    });
+
+    expect(sendSpy).toHaveBeenCalledWith('{"type":"test","value":123}');
+  });
+
+  it('sends string data as-is', async () => {
+    const { result } = renderHook(() =>
+      useWebSocketStatus({
+        url: 'ws://localhost/ws/test',
+        channelName: 'Test',
+      })
+    );
+
+    // Connect
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+    });
+
+    const sendSpy = vi.spyOn(mockWsInstances[0], 'send');
+    act(() => {
+      result.current.send('plain string');
+    });
+
+    expect(sendSpy).toHaveBeenCalledWith('plain string');
+  });
+
+  it('warns when sending on disconnected WebSocket', async () => {
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { result } = renderHook(() =>
+      useWebSocketStatus({
+        url: 'ws://localhost/ws/test',
+        channelName: 'Test',
+        reconnect: false,
+      })
+    );
+
+    // Connect
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+    });
+
+    // Disconnect
+    act(() => {
+      result.current.disconnect();
+    });
+
+    // Try to send
+    act(() => {
+      result.current.send({ type: 'test' });
+    });
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'WebSocket is not connected. Message not sent:',
+      { type: 'test' }
+    );
+
+    consoleSpy.mockRestore();
+  });
+
+  it('does not reconnect when already connected', async () => {
+    const { result } = renderHook(() =>
+      useWebSocketStatus({
+        url: 'ws://localhost/ws/test',
+        channelName: 'Test',
+      })
+    );
+
+    // Connect
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+    });
+
+    expect(mockWsInstances.length).toBe(1);
+
+    // Try to connect again
+    act(() => {
+      result.current.connect();
+    });
+
+    // Should not create new instance
+    expect(mockWsInstances.length).toBe(1);
+  });
+
+  it('uses default reconnectAttempts of 5', () => {
+    const { result } = renderHook(() =>
+      useWebSocketStatus({
+        url: 'ws://localhost/ws/test',
+        channelName: 'Test',
+      })
+    );
+
+    expect(result.current.channelStatus.maxReconnectAttempts).toBe(5);
+  });
+
 });

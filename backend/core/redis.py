@@ -505,15 +505,37 @@ class RedisClient:
     # Pub/Sub operations
 
     def get_pubsub(self) -> PubSub:
-        """Get or create a Pub/Sub instance.
+        """Get or create the shared Pub/Sub instance.
+
+        WARNING: This returns a shared PubSub instance. For listeners that need
+        a dedicated connection (to avoid 'readuntil() called while another
+        coroutine is already waiting' errors), use create_pubsub() instead.
 
         Returns:
-            PubSub instance for subscribing to channels
+            Shared PubSub instance for subscribing to channels
         """
         client = self._ensure_connected()
         if not self._pubsub:
             self._pubsub = client.pubsub()
         return self._pubsub
+
+    def create_pubsub(self) -> PubSub:
+        """Create a new, dedicated PubSub instance.
+
+        Use this method when you need a dedicated pub/sub connection that won't
+        conflict with other subscribers. This is necessary when:
+        - Running long-lived listeners (async iteration)
+        - Multiple components need independent pub/sub connections
+        - Avoiding 'readuntil() called while another coroutine is waiting' errors
+
+        The caller is responsible for closing the returned PubSub instance
+        when done (using pubsub.close()).
+
+        Returns:
+            New PubSub instance (caller owns this and must close it)
+        """
+        client = self._ensure_connected()
+        return client.pubsub()
 
     async def publish(self, channel: str, message: Any) -> int:
         """Publish a message to a channel.
@@ -530,15 +552,41 @@ class RedisClient:
         return cast("int", await client.publish(channel, serialized))
 
     async def subscribe(self, *channels: str) -> PubSub:
-        """Subscribe to one or more channels.
+        """Subscribe to one or more channels using the shared PubSub instance.
+
+        WARNING: This uses a shared PubSub instance. If you need to run a
+        long-lived listener, use subscribe_dedicated() instead to get a
+        dedicated connection that won't conflict with other subscribers.
 
         Args:
             *channels: Channel names to subscribe to
 
         Returns:
-            PubSub instance for receiving messages
+            Shared PubSub instance for receiving messages
         """
         pubsub = self.get_pubsub()
+        await pubsub.subscribe(*channels)
+        return pubsub
+
+    async def subscribe_dedicated(self, *channels: str) -> PubSub:
+        """Subscribe to channels with a dedicated PubSub connection.
+
+        Creates a new PubSub instance that won't conflict with other
+        subscribers. Use this for long-lived listeners to avoid the
+        'readuntil() called while another coroutine is waiting' error.
+
+        The caller is responsible for:
+        1. Keeping track of the returned PubSub instance
+        2. Unsubscribing when done: await pubsub.unsubscribe(*channels)
+        3. Closing the connection: await pubsub.close()
+
+        Args:
+            *channels: Channel names to subscribe to
+
+        Returns:
+            New dedicated PubSub instance (caller owns and must close)
+        """
+        pubsub = self.create_pubsub()
         await pubsub.subscribe(*channels)
         return pubsub
 

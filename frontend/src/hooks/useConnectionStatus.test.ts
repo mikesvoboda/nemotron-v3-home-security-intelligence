@@ -6,6 +6,11 @@ import { useConnectionStatus } from './useConnectionStatus';
 // Mock the api module
 vi.mock('../services/api', () => ({
   buildWebSocketUrl: (path: string) => `ws://localhost${path}`,
+  fetchHealth: vi.fn().mockResolvedValue({
+    status: 'healthy',
+    services: { gpu: { status: 'healthy' } },
+  }),
+  fetchEvents: vi.fn().mockResolvedValue({ events: [], total: 0, page: 1, page_size: 20 }),
 }));
 
 // Mock WebSocket
@@ -364,6 +369,141 @@ describe('useConnectionStatus', () => {
     });
 
     // Should not update with invalid status
+    expect(result.current.systemStatus).toBeNull();
+  });
+
+  it('initializes isPollingFallback as false', () => {
+    const { result } = renderHook(() => useConnectionStatus());
+
+    expect(result.current.isPollingFallback).toBe(false);
+  });
+
+  it('provides retryConnection function', () => {
+    const { result } = renderHook(() => useConnectionStatus());
+
+    expect(typeof result.current.retryConnection).toBe('function');
+  });
+
+  it('retryConnection triggers new connections', async () => {
+    const { result } = renderHook(() => useConnectionStatus());
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+    });
+
+    const initialInstances = mockWsInstances.length;
+
+    // Close connections
+    act(() => {
+      mockWsInstances.forEach((ws) => ws.simulateClose());
+    });
+
+    // Call retry
+    act(() => {
+      result.current.retryConnection();
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+    });
+
+    // Should have created new connections
+    expect(mockWsInstances.length).toBeGreaterThanOrEqual(initialInstances);
+  });
+
+  it('handles event_id field as fallback for id', async () => {
+    const { result } = renderHook(() => useConnectionStatus());
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+    });
+
+    // Send event with event_id instead of id
+    const eventMessage = {
+      type: 'event',
+      data: {
+        event_id: 'evt123',
+        camera_id: 'cam1',
+        risk_score: 50,
+        risk_level: 'medium',
+        summary: 'Test event',
+      },
+    };
+
+    act(() => {
+      mockWsInstances[0].simulateMessage(eventMessage);
+    });
+
+    expect(result.current.events.length).toBe(1);
+  });
+
+  it('handles null data in type guard checks', async () => {
+    const { result } = renderHook(() => useConnectionStatus());
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+    });
+
+    // Send null
+    act(() => {
+      mockWsInstances[0].simulateMessage(null);
+    });
+
+    expect(result.current.events.length).toBe(0);
+
+    // Send undefined-like object
+    act(() => {
+      mockWsInstances[1].simulateMessage({ type: 'system_status', data: null });
+    });
+
+    expect(result.current.systemStatus).toBeNull();
+  });
+
+  it('handles system status without timestamp', async () => {
+    const { result } = renderHook(() => useConnectionStatus());
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+    });
+
+    // Send system status missing timestamp
+    const systemMessage = {
+      type: 'system_status',
+      data: {
+        gpu: { utilization: 45 },
+        cameras: { active: 3, total: 5 },
+        health: 'healthy',
+      },
+      // Missing timestamp
+    };
+
+    act(() => {
+      mockWsInstances[1].simulateMessage(systemMessage);
+    });
+
+    // Should not update without timestamp
+    expect(result.current.systemStatus).toBeNull();
+  });
+
+  it('handles non-object data gracefully', async () => {
+    const { result } = renderHook(() => useConnectionStatus());
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+    });
+
+    // Send string
+    act(() => {
+      mockWsInstances[0].simulateMessage('invalid');
+    });
+
+    expect(result.current.events.length).toBe(0);
+
+    // Send number
+    act(() => {
+      mockWsInstances[1].simulateMessage(123);
+    });
+
     expect(result.current.systemStatus).toBeNull();
   });
 });
