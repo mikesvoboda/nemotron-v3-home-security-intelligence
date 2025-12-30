@@ -4,13 +4,15 @@ This guide covers deploying the Home Security Intelligence system using Docker C
 
 ## Overview
 
-The system consists of three main services:
+The system consists of five main services, all containerized:
 
 1. **Backend** - FastAPI application (port 8000)
 2. **Frontend** - React/Vite application (port 5173 dev, port 80 prod)
 3. **Redis** - Cache and message broker (port 6379)
+4. **PostgreSQL** - Database (port 5432)
+5. **AI Services** - RT-DETRv2 (port 8090) and Nemotron LLM (port 8091) with GPU passthrough
 
-**Note:** AI services (RT-DETRv2 and Nemotron) run natively on the host for GPU access.
+All services run in Podman containers. AI services use NVIDIA Container Toolkit (CDI) for GPU access.
 
 ## Container Runtime Options
 
@@ -188,7 +190,7 @@ docker compose -f docker-compose.ghcr.yml up -d
 
 ## Cross-Platform Host Resolution
 
-The AI services (RT-DETRv2, Nemotron) run natively on the host. Containers need to reach them via special hostnames.
+All services run in containers. The following host resolution info is for legacy/native setups or when running the backend outside containers.
 
 | Platform | Container Runtime | Host Resolution                  |
 | -------- | ----------------- | -------------------------------- |
@@ -413,9 +415,9 @@ DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/home_security
 # Redis
 REDIS_URL=redis://redis:6379
 
-# AI Services (native, not in Docker)
-RTDETR_URL=http://host.docker.internal:8090
-NEMOTRON_URL=http://host.docker.internal:8091
+# AI Services (containerized with GPU passthrough)
+RTDETR_URL=http://localhost:8090
+NEMOTRON_URL=http://localhost:8091
 
 # Processing
 BATCH_WINDOW_SECONDS=90
@@ -553,23 +555,25 @@ Both backend and frontend have `.dockerignore` files to exclude unnecessary file
 
 ### AI services not accessible
 
-AI services (RT-DETRv2 and Nemotron) run natively on the host. Ensure they are:
+AI services (RT-DETRv2 and Nemotron) run in Podman containers with GPU passthrough. Ensure they are:
 
-1. Running on the correct ports (8090 and 8091)
-2. Using the correct host resolution for your platform:
-   - **Docker Desktop (macOS/Windows):** `host.docker.internal` (default)
-   - **Podman (macOS):** Set `export AI_HOST=host.containers.internal`
-   - **Linux (Docker or Podman):** Set `export AI_HOST=<your-host-ip>`
-3. Check backend logs for connection errors: `docker compose logs backend | grep -i detector`
+1. Running: `podman ps --filter name=ai-`
+2. Healthy: Check container health status
+3. GPU accessible: `nvidia-smi --query-compute-apps=pid,name,used_memory --format=csv`
 
-**Test connectivity from inside a container:**
+**Check AI container status:**
 
 ```bash
-# Docker
-docker compose exec backend curl http://${AI_HOST:-host.docker.internal}:8090/health
+# List AI containers
+podman ps --filter name=ai-
 
-# Podman
-podman exec <backend-container-id> curl http://host.containers.internal:8090/health
+# Check logs
+podman logs nemotron-v3-home-security-intelligence_ai-detector_1
+podman logs nemotron-v3-home-security-intelligence_ai-llm_1
+
+# Test health endpoints
+curl http://localhost:8090/health
+curl http://localhost:8091/health
 ```
 
 ### Insufficient resources

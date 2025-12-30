@@ -9,18 +9,18 @@ Copy `.env.example` to `.env` and adjust values as needed. All variables have se
 
 ## Service Ports
 
-| Service     | Port | Protocol | Description                                          |
-| ----------- | ---- | -------- | ---------------------------------------------------- |
-| Frontend    | 5173 | HTTP     | Vite dev server (development)                        |
-| Frontend    | 80   | HTTP     | Nginx (production)                                   |
-| Backend API | 8000 | HTTP/WS  | FastAPI REST + WebSocket                             |
-| RT-DETRv2   | 8090 | HTTP     | Object detection service (runs on host, not Docker)  |
-| Nemotron    | 8091 | HTTP     | LLM risk analysis service (runs on host, not Docker) |
-| Redis       | 6379 | TCP      | Cache, queues, pub/sub                               |
+| Service     | Port | Protocol | Description                                        |
+| ----------- | ---- | -------- | -------------------------------------------------- |
+| Frontend    | 5173 | HTTP     | Vite dev server (development)                      |
+| Frontend    | 80   | HTTP     | Nginx (production)                                 |
+| Backend API | 8000 | HTTP/WS  | FastAPI REST + WebSocket                           |
+| RT-DETRv2   | 8090 | HTTP     | Object detection service (containerized with GPU)  |
+| Nemotron    | 8091 | HTTP     | LLM risk analysis service (containerized with GPU) |
+| Redis       | 6379 | TCP      | Cache, queues, pub/sub                             |
 
 ## Container vs Host Networking
 
-The AI services (RT-DETRv2 and Nemotron) run **natively on the host** for GPU access, not inside Docker. The dockerized backend must reach them via special hostnames:
+All services, including AI services (RT-DETRv2 and Nemotron), run in **Podman containers** with GPU passthrough via NVIDIA Container Toolkit. The backend can reach AI services directly within the container network or via localhost ports.
 
 ### macOS and Windows (Docker Desktop)
 
@@ -169,8 +169,7 @@ Lower intervals mean faster detection but increased CPU usage from directory sca
 
 **Notes:**
 
-- Both services run natively on the host for GPU access
-- Inside Docker, use `http://host.docker.internal:8090` (see Container vs Host section)
+- Both services run in Podman containers with NVIDIA GPU passthrough
 - RT-DETRv2 provides `/detect` endpoint for image analysis
 - Nemotron provides `/v1/chat/completions` endpoint for risk reasoning
 

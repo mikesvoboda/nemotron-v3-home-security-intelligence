@@ -4,6 +4,14 @@
 
 FastAPI-based HTTP server that wraps RT-DETRv2 object detection model for real-time security monitoring. Provides GPU-accelerated inference via HuggingFace Transformers, detecting security-relevant objects in camera images.
 
+## Production Deployment
+
+In production, RT-DETRv2 runs in a Podman container (`ai-detector_1`) with NVIDIA GPU passthrough:
+
+- **Container**: `nemotron-v3-home-security-intelligence_ai-detector_1`
+- **Port**: 8090
+- **GPU VRAM**: ~650 MiB
+
 ## Directory Contents
 
 ```
