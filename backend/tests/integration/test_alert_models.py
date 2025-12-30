@@ -4,7 +4,7 @@ Tests use PostgreSQL via the isolated_db fixture since models use
 PostgreSQL-specific features like JSONB and UUID.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 import pytest
 from sqlalchemy import select
@@ -18,6 +18,12 @@ from backend.models import (
     Event,
 )
 from backend.tests.conftest import unique_id
+
+
+def utc_now_naive() -> datetime:
+    """Return current UTC time as a naive datetime (for DB compatibility)."""
+    return utc_now_naive().replace(tzinfo=None)
+
 
 # Mark as integration since these tests require real PostgreSQL database
 # NOTE: This file should be moved to backend/tests/integration/ in a future cleanup
@@ -47,7 +53,7 @@ async def test_event(session, test_camera):
     event = Event(
         batch_id=unique_id("batch"),
         camera_id=test_camera.id,
-        started_at=datetime.now(UTC),
+        started_at=utc_now_naive(),
         risk_score=75,
         risk_level="high",
     )
@@ -257,7 +263,7 @@ class TestAlertModel:
 
         # Transition to delivered
         alert.status = AlertStatus.DELIVERED
-        alert.delivered_at = datetime.now(UTC)
+        alert.delivered_at = utc_now_naive()
         await session.flush()
         assert alert.status == AlertStatus.DELIVERED
         assert alert.delivered_at is not None
@@ -385,7 +391,7 @@ class TestAlertModel:
         event = Event(
             batch_id=batch_id,
             camera_id=test_camera.id,
-            started_at=datetime.now(UTC),
+            started_at=utc_now_naive(),
         )
         session.add(event)
         await session.flush()
@@ -462,7 +468,7 @@ class TestAlertIndexes:
     @pytest.mark.asyncio
     async def test_query_by_dedup_key_and_created_at(self, session, test_event):
         """Test query using composite index on dedup_key and created_at."""
-        now = datetime.now(UTC)
+        now = utc_now_naive()
 
         # Create alerts at different times with same dedup_key
         for i in range(5):
@@ -491,7 +497,7 @@ class TestAlertIndexes:
     @pytest.mark.asyncio
     async def test_query_recent_alerts_by_severity(self, session, test_event):
         """Test querying recent alerts filtered by severity."""
-        now = datetime.now(UTC)
+        now = utc_now_naive()
 
         # Create alerts with different severities
         severities = [
