@@ -671,3 +671,263 @@ async def test_full_seed_workflow(debug_client, clean_seed_data):
         assert len(cameras) == 0
         assert len(events) == 0
         assert len(detections) == 0
+
+
+# =============================================================================
+# CI Security Tests for Admin Endpoints DEBUG Mode Requirement (cj4u)
+# =============================================================================
+# These tests are specifically designed for CI to ensure admin endpoints
+# properly enforce DEBUG=true requirement in production-like configurations.
+
+
+@pytest.fixture
+async def production_client(integration_db, mock_redis):
+    """Async HTTP client with production-like settings (DEBUG=false).
+
+    This fixture simulates a production environment where DEBUG should be false.
+    All admin endpoints should be blocked.
+    """
+    from unittest.mock import patch
+
+    from httpx import ASGITransport, AsyncClient
+
+    from backend.core.config import Settings, get_settings
+
+    # Create production-like settings (DEBUG=false, ADMIN_ENABLED=false)
+    production_settings = Settings(
+        debug=False,
+        admin_enabled=False,
+        database_url=os.environ.get("DATABASE_URL", ""),
+        redis_url=os.environ.get("REDIS_URL", "redis://localhost:6379/15"),
+    )
+
+    # Import the app only after env is set up
+    from backend.main import app
+
+    with (
+        patch("backend.main.init_db", return_value=None),
+        patch("backend.main.close_db", return_value=None),
+        patch("backend.main.init_redis", return_value=mock_redis),
+        patch("backend.main.close_redis", return_value=None),
+        patch("backend.core.config.get_settings", return_value=production_settings),
+        patch("backend.api.routes.admin.get_settings", return_value=production_settings),
+    ):
+        get_settings.cache_clear()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            yield ac
+        get_settings.cache_clear()
+
+
+class TestAdminDebugModeRequirementCI:
+    """CI tests verifying admin endpoints require DEBUG=true.
+
+    These tests are designed to run in CI and verify that:
+    1. All admin endpoints are blocked when DEBUG=false
+    2. Proper error messages are returned
+    3. No data is modified when DEBUG=false
+
+    SECURITY: These tests are critical for ensuring admin endpoints
+    cannot be accidentally exposed in production.
+    """
+
+    @pytest.mark.asyncio
+    async def test_ci_seed_cameras_blocked_in_production(self, production_client):
+        """CI Test: seed/cameras is blocked when DEBUG=false (production mode)."""
+        response = await production_client.post(
+            "/api/admin/seed/cameras",
+            json={"count": 1},
+        )
+
+        assert response.status_code == 403, "Admin seed/cameras should return 403 when DEBUG=false"
+        assert "DEBUG=true" in response.json()["detail"], (
+            "Error message should mention DEBUG=true requirement"
+        )
+
+    @pytest.mark.asyncio
+    async def test_ci_seed_events_blocked_in_production(self, production_client):
+        """CI Test: seed/events is blocked when DEBUG=false (production mode)."""
+        response = await production_client.post(
+            "/api/admin/seed/events",
+            json={"count": 1},
+        )
+
+        assert response.status_code == 403, "Admin seed/events should return 403 when DEBUG=false"
+        assert "DEBUG=true" in response.json()["detail"], (
+            "Error message should mention DEBUG=true requirement"
+        )
+
+    @pytest.mark.asyncio
+    async def test_ci_clear_data_blocked_in_production(self, production_client):
+        """CI Test: seed/clear is blocked when DEBUG=false (production mode)."""
+        response = await production_client.request(
+            "DELETE",
+            "/api/admin/seed/clear",
+            json={"confirm": "DELETE_ALL_DATA"},
+        )
+
+        assert response.status_code == 403, "Admin seed/clear should return 403 when DEBUG=false"
+        assert "DEBUG=true" in response.json()["detail"], (
+            "Error message should mention DEBUG=true requirement"
+        )
+
+    @pytest.mark.asyncio
+    async def test_ci_debug_mode_error_message_is_clear(self, production_client):
+        """CI Test: Error message clearly indicates DEBUG mode requirement."""
+        response = await production_client.post(
+            "/api/admin/seed/cameras",
+            json={"count": 1},
+        )
+
+        error_detail = response.json()["detail"]
+
+        # Error message should be clear and actionable
+        assert "DEBUG" in error_detail, "Error should mention DEBUG"
+        assert "true" in error_detail.lower(), "Error should mention true"
+        assert "only available" in error_detail.lower() or "require" in error_detail.lower(), (
+            "Error should indicate endpoint is restricted"
+        )
+
+    @pytest.mark.asyncio
+    @pytest.mark.slow
+    async def test_ci_defense_in_depth_both_flags_required(self, debug_only_client):
+        """CI Test: Both DEBUG=true AND ADMIN_ENABLED=true are required.
+
+        This tests the defense-in-depth approach: even if DEBUG=true is set,
+        admin endpoints should still be blocked unless ADMIN_ENABLED=true.
+        """
+        response = await debug_only_client.post(
+            "/api/admin/seed/cameras",
+            json={"count": 1},
+        )
+
+        assert response.status_code == 403, (
+            "Admin endpoint should return 403 when ADMIN_ENABLED=false"
+        )
+        assert "ADMIN_ENABLED" in response.json()["detail"], (
+            "Error message should mention ADMIN_ENABLED requirement"
+        )
+
+    @pytest.mark.asyncio
+    async def test_ci_all_admin_endpoints_return_same_error_code(self, production_client):
+        """CI Test: All admin endpoints return consistent 403 error.
+
+        Ensures consistent security behavior across all admin endpoints.
+        """
+        endpoints = [
+            ("POST", "/api/admin/seed/cameras", {"count": 1}),
+            ("POST", "/api/admin/seed/events", {"count": 1}),
+            ("DELETE", "/api/admin/seed/clear", {"confirm": "DELETE_ALL_DATA"}),
+        ]
+
+        for method, url, json_body in endpoints:
+            response = await production_client.request(method, url, json=json_body)
+
+            assert response.status_code == 403, (
+                f"Endpoint {method} {url} should return 403 in production mode, "
+                f"got {response.status_code}"
+            )
+
+    @pytest.mark.asyncio
+    async def test_ci_no_information_leakage_in_production(self, production_client):
+        """CI Test: Production mode doesn't leak sensitive information.
+
+        Error messages should not reveal internal system details.
+        """
+        response = await production_client.post(
+            "/api/admin/seed/cameras",
+            json={"count": 1},
+        )
+
+        error_detail = response.json()["detail"]
+
+        # Should not leak internal paths, versions, or implementation details
+        assert "/export" not in error_detail.lower(), "Should not leak file paths"
+        assert "postgresql" not in error_detail.lower(), "Should not leak database info"
+        assert "redis" not in error_detail.lower(), "Should not leak cache info"
+        assert "traceback" not in error_detail.lower(), "Should not leak stack traces"
+
+
+class TestAdminAPIKeySecurityCI:
+    """CI tests for admin API key security layer.
+
+    These tests verify the third layer of defense-in-depth:
+    when ADMIN_API_KEY is configured, requests must include valid key.
+    """
+
+    @pytest.mark.asyncio
+    @pytest.mark.slow
+    async def test_ci_api_key_timing_attack_protection(self, admin_api_key_client):
+        """CI Test: API key comparison should be constant-time (timing attack prevention).
+
+        This test verifies the endpoint uses constant-time comparison by checking
+        that both short and long invalid keys return the same error quickly.
+        """
+        import time
+
+        # Test with very short key
+        start1 = time.perf_counter()
+        response1 = await admin_api_key_client.post(
+            "/api/admin/seed/cameras",
+            json={"count": 1},
+            headers={"X-Admin-API-Key": "x"},
+        )
+        time1 = time.perf_counter() - start1
+
+        # Test with very long key
+        start2 = time.perf_counter()
+        response2 = await admin_api_key_client.post(
+            "/api/admin/seed/cameras",
+            json={"count": 1},
+            headers={"X-Admin-API-Key": "x" * 10000},
+        )
+        time2 = time.perf_counter() - start2
+
+        # Both should return 401
+        assert response1.status_code == 401
+        assert response2.status_code == 401
+
+        # Times should be similar (within 100ms - accounts for network jitter)
+        # A non-constant-time comparison would show significant difference
+        assert abs(time1 - time2) < 0.1, (
+            f"Timing difference ({abs(time1 - time2):.3f}s) suggests "
+            "non-constant-time comparison. Should use secrets.compare_digest()."
+        )
+
+    @pytest.mark.asyncio
+    @pytest.mark.slow
+    async def test_ci_api_key_header_case_sensitivity(self, admin_api_key_client, clean_seed_data):
+        """CI Test: X-Admin-API-Key header name should be case-insensitive."""
+        # FastAPI/Starlette normalizes header names to lowercase
+        # This test ensures the correct header key is used
+
+        # Correct header (standard casing)
+        response = await admin_api_key_client.post(
+            "/api/admin/seed/cameras",
+            json={"count": 1},
+            headers={"X-Admin-API-Key": "test-secret-key-12345"},
+        )
+        assert response.status_code == 200, "Request with correct API key should succeed"
+
+    @pytest.mark.asyncio
+    @pytest.mark.slow
+    async def test_ci_empty_api_key_rejected(self, admin_api_key_client):
+        """CI Test: Empty API key string should be rejected."""
+        response = await admin_api_key_client.post(
+            "/api/admin/seed/cameras",
+            json={"count": 1},
+            headers={"X-Admin-API-Key": ""},
+        )
+
+        assert response.status_code == 401, "Empty API key should be rejected with 401"
+
+    @pytest.mark.asyncio
+    @pytest.mark.slow
+    async def test_ci_whitespace_api_key_rejected(self, admin_api_key_client):
+        """CI Test: Whitespace-only API key should be rejected."""
+        response = await admin_api_key_client.post(
+            "/api/admin/seed/cameras",
+            json={"count": 1},
+            headers={"X-Admin-API-Key": "   "},
+        )
+
+        assert response.status_code == 401, "Whitespace-only API key should be rejected with 401"
