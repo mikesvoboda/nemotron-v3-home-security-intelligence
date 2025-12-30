@@ -945,8 +945,12 @@ class TestQueueWithFallback:
     @pytest.mark.asyncio
     async def test_queue_with_fallback_redis_success(self, temp_fallback_dir: Path) -> None:
         """Test queue_with_fallback uses Redis when available."""
+        from backend.core.redis import QueueAddResult
+
         mock_redis = MagicMock()
-        mock_redis.add_to_queue = AsyncMock(return_value=1)
+        mock_redis.add_to_queue_safe = AsyncMock(
+            return_value=QueueAddResult(success=True, queue_length=1)
+        )
 
         manager = DegradationManager(
             redis_client=mock_redis,
@@ -956,13 +960,13 @@ class TestQueueWithFallback:
         result = await manager.queue_with_fallback("test_queue", {"test": "data"})
 
         assert result is True
-        mock_redis.add_to_queue.assert_called_once_with("test_queue", {"test": "data"})
+        mock_redis.add_to_queue_safe.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_queue_with_fallback_redis_failure(self, temp_fallback_dir: Path) -> None:
         """Test queue_with_fallback falls back to disk when Redis fails."""
         mock_redis = MagicMock()
-        mock_redis.add_to_queue = AsyncMock(side_effect=Exception("Redis error"))
+        mock_redis.add_to_queue_safe = AsyncMock(side_effect=Exception("Redis error"))
 
         manager = DegradationManager(
             redis_client=mock_redis,
