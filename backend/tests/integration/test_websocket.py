@@ -766,9 +766,10 @@ class TestWebSocketAuthenticationUnit:
     """Unit tests for WebSocket authentication functions."""
 
     @pytest.mark.asyncio
-    async def test_validate_websocket_api_key_disabled(self):
+    async def test_validate_websocket_api_key_disabled(self, integration_env):
         """Test that validation passes when auth is disabled."""
         from backend.api.middleware.auth import validate_websocket_api_key
+        from backend.core.config import get_settings
 
         # Mock websocket
         mock_ws = MagicMock()
@@ -777,8 +778,6 @@ class TestWebSocketAuthenticationUnit:
 
         # Ensure auth is disabled
         os.environ["API_KEY_ENABLED"] = "false"
-        from backend.core.config import get_settings
-
         get_settings.cache_clear()
 
         result = await validate_websocket_api_key(mock_ws)
@@ -789,7 +788,7 @@ class TestWebSocketAuthenticationUnit:
         get_settings.cache_clear()
 
     @pytest.mark.asyncio
-    async def test_validate_websocket_api_key_valid_query_param(self):
+    async def test_validate_websocket_api_key_valid_query_param(self, integration_env):
         """Test that validation passes with valid API key in query param."""
         from backend.api.middleware.auth import validate_websocket_api_key
         from backend.core.config import get_settings
@@ -815,7 +814,7 @@ class TestWebSocketAuthenticationUnit:
         get_settings.cache_clear()
 
     @pytest.mark.asyncio
-    async def test_validate_websocket_api_key_invalid_key(self):
+    async def test_validate_websocket_api_key_invalid_key(self, integration_env):
         """Test that validation fails with invalid API key."""
         from backend.api.middleware.auth import validate_websocket_api_key
         from backend.core.config import get_settings
@@ -839,7 +838,7 @@ class TestWebSocketAuthenticationUnit:
         get_settings.cache_clear()
 
     @pytest.mark.asyncio
-    async def test_validate_websocket_api_key_missing_key(self):
+    async def test_validate_websocket_api_key_missing_key(self, integration_env):
         """Test that validation fails when no API key is provided."""
         from backend.api.middleware.auth import validate_websocket_api_key
         from backend.core.config import get_settings
@@ -863,7 +862,7 @@ class TestWebSocketAuthenticationUnit:
         get_settings.cache_clear()
 
     @pytest.mark.asyncio
-    async def test_validate_websocket_api_key_protocol_header(self):
+    async def test_validate_websocket_api_key_protocol_header(self, integration_env):
         """Test that validation works with Sec-WebSocket-Protocol header."""
         from backend.api.middleware.auth import validate_websocket_api_key
         from backend.core.config import get_settings
@@ -889,7 +888,7 @@ class TestWebSocketAuthenticationUnit:
         get_settings.cache_clear()
 
     @pytest.mark.asyncio
-    async def test_authenticate_websocket_success(self):
+    async def test_authenticate_websocket_success(self, integration_env):
         """Test that authenticate_websocket accepts valid connection."""
         from backend.api.middleware.auth import authenticate_websocket
         from backend.core.config import get_settings
@@ -917,7 +916,7 @@ class TestWebSocketAuthenticationUnit:
         get_settings.cache_clear()
 
     @pytest.mark.asyncio
-    async def test_authenticate_websocket_failure_closes_connection(self):
+    async def test_authenticate_websocket_failure_closes_connection(self, integration_env):
         """Test that authenticate_websocket closes connection on failure."""
         from backend.api.middleware.auth import authenticate_websocket
         from backend.core.config import get_settings
@@ -1214,7 +1213,7 @@ class TestEventBroadcastPipeline:
 class TestChannelDocumentation:
     """Tests verifying that channel names and message formats are documented."""
 
-    def test_broadcaster_channel_name_is_documented(self):
+    def test_broadcaster_channel_name_is_documented(self, integration_env):
         """Verify get_event_channel returns the canonical channel name from settings."""
         from backend.services.event_broadcaster import EventBroadcaster, get_event_channel
 

@@ -40,6 +40,13 @@ def mock_redis_client():
     mock_client.add_to_queue_safe = AsyncMock(
         return_value=QueueAddResult(success=True, queue_length=1)
     )
+    # DedupeService methods - FileWatcher auto-creates DedupeService when redis_client is provided
+    # exists() returns 0 (not found) so files are not considered duplicates
+    mock_client.exists = AsyncMock(return_value=0)
+    # set() for marking files as processed
+    mock_client.set = AsyncMock(return_value=True)
+    # delete() for clearing hash from dedupe cache
+    mock_client.delete = AsyncMock(return_value=1)
     return mock_client
 
 
@@ -463,7 +470,9 @@ class TestFileWatcherStartStopLifecycle:
         await watcher.stop()
 
     @pytest.mark.asyncio
-    async def test_file_watcher_creates_missing_directory(self, tmp_path, mock_redis_client):
+    async def test_file_watcher_creates_missing_directory(
+        self, tmp_path, mock_redis_client, integration_env
+    ):
         """Test that watcher creates camera root if it doesn't exist."""
         nonexistent_root = tmp_path / "nonexistent" / "cameras"
 
