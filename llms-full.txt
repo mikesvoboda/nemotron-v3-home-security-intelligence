@@ -346,34 +346,18 @@ loginctl enable-linger $USER
 
 ### Quick Setup Script
 
+Use the included setup script which handles everything automatically:
+
 ```bash
-#!/bin/bash
-# save as: setup-systemd.sh
-
-set -e
-
-# Ensure containers are running first
-podman-compose -f docker-compose.prod.yml up -d
-
-# Wait for containers to be healthy
-sleep 30
-
-# Create systemd directory
-mkdir -p ~/.config/systemd/user
-
-# Generate and enable services
-for container in $(podman ps --format "{{.Names}}" | grep nemotron-v3); do
-    echo "Creating service for: $container"
-    podman generate systemd --new --name "$container" > ~/.config/systemd/user/"$container".service
-    systemctl --user enable "$container".service
-done
-
-systemctl --user daemon-reload
-loginctl enable-linger $USER
-
-echo "Systemd services created and enabled!"
-echo "Services will start automatically on boot."
+# Run the setup script (generates units, enables services, configures dependencies)
+./scripts/setup-systemd.sh
 ```
+
+The script automatically:
+- Generates systemd unit files for all containers
+- Enables auto-start on boot
+- Adds frontend→backend dependency (fixes DNS cache issues on restart)
+- Enables user lingering (services run without login)
 
 ### Manage Services
 
