@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 import AlertsPage from './components/alerts/AlertsPage';
+import { AuditLogPage } from './components/audit';
 import DashboardPage from './components/dashboard/DashboardPage';
 import EntitiesPage from './components/entities/EntitiesPage';
 import EventTimeline from './components/events/EventTimeline';
@@ -19,6 +20,7 @@ export default function App() {
           <Route path="/alerts" element={<AlertsPage />} />
           <Route path="/entities" element={<EntitiesPage />} />
           <Route path="/logs" element={<LogsDashboard />} />
+          <Route path="/audit" element={<AuditLogPage />} />
           <Route path="/system" element={<SystemMonitoringPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
