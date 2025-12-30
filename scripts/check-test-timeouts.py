@@ -33,6 +33,8 @@ SAFE_COMMENTS = [
     "# timeout",
     "# mocked",
     "# patched",
+    "# intentional",
+    "# real",  # For real subprocess calls in GPU/integration tests
 ]
 
 # HTTP libraries that should be mocked in tests

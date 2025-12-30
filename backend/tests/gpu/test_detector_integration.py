@@ -69,7 +69,7 @@ def check_cuda_available() -> bool:
         return False
 
     try:
-        result = subprocess.run(  # noqa: S603 - nvidia-smi path is validated above
+        result = subprocess.run(  # noqa: S603 - nvidia-smi path is validated above  # real
             [nvidia_smi],
             capture_output=True,
             timeout=5,
@@ -380,7 +380,7 @@ def test_gpu_memory_available() -> None:
         pytest.skip("CUDA not available")
 
     try:
-        result = subprocess.run(  # noqa: S603 - nvidia-smi path is validated above
+        result = subprocess.run(  # noqa: S603 - nvidia-smi path is validated above  # real
             [
                 nvidia_smi,
                 "--query-gpu=memory.total,memory.free",
