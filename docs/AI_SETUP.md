@@ -6,6 +6,7 @@ Comprehensive guide for setting up and running the AI inference services for the
 
 - [Overview](#overview)
 - [Architecture](#architecture)
+- [Environment Variables](#environment-variables)
 - [Hardware Requirements](#hardware-requirements)
 - [Software Prerequisites](#software-prerequisites)
 - [Installation](#installation)
@@ -66,6 +67,42 @@ The AI pipeline consists of two independent native services running outside Dock
     └────────────┘              └───────────────┘
      backend/services/          backend/services/
 ```
+
+## Environment Variables
+
+The following environment variables are used by the AI services. Set these in your shell profile (e.g., `~/.bashrc` or `~/.zshrc`) or in a `.env` file at the project root.
+
+### Required Variables
+
+| Variable       | Description                   | Example                                        |
+| -------------- | ----------------------------- | ---------------------------------------------- |
+| `PROJECT_ROOT` | Root directory of the project | `/home/user/github/home-security-intelligence` |
+
+### Optional Variables
+
+| Variable              | Description                         | Default                                                           |
+| --------------------- | ----------------------------------- | ----------------------------------------------------------------- |
+| `AI_RTDETR_PORT`      | Port for RT-DETRv2 detection server | `8090`                                                            |
+| `AI_NEMOTRON_PORT`    | Port for Nemotron LLM server        | `8091`                                                            |
+| `AI_RTDETR_LOG`       | Log file for RT-DETRv2              | `/tmp/rtdetr-detector.log`                                        |
+| `AI_NEMOTRON_LOG`     | Log file for Nemotron               | `/tmp/nemotron-llm.log`                                           |
+| `NEMOTRON_MODEL_PATH` | Path to Nemotron GGUF model         | `$PROJECT_ROOT/ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf` |
+| `AI_SERVICE_USER`     | User to run systemd services as     | Current user                                                      |
+
+### Setting Up Environment Variables
+
+```bash
+# Option 1: Add to shell profile (~/.bashrc or ~/.zshrc)
+export PROJECT_ROOT="$HOME/github/home-security-intelligence"
+
+# Option 2: Create .env file at project root
+echo 'PROJECT_ROOT="$HOME/github/home-security-intelligence"' >> .env
+
+# Option 3: Set for current session only
+export PROJECT_ROOT="/path/to/your/project"
+```
+
+**Note:** All scripts and examples in this documentation use `$PROJECT_ROOT` to reference the project directory. Replace with your actual path if not using the environment variable.
 
 ## Hardware Requirements
 
@@ -189,7 +226,7 @@ Build time: ~5-10 minutes depending on CPU.
 #### 4. Python Dependencies (RT-DETRv2)
 
 ```bash
-cd /home/msvoboda/github/nemotron-v3-home-security-intelligence/ai/rtdetr
+cd "$PROJECT_ROOT/ai/rtdetr"
 
 # Create and activate virtual environment (optional but recommended)
 python3 -m venv venv
@@ -212,8 +249,11 @@ Key dependencies:
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/yourusername/nemotron-v3-home-security-intelligence.git
-cd nemotron-v3-home-security-intelligence
+git clone https://github.com/yourusername/home-security-intelligence.git
+cd home-security-intelligence
+
+# Set the PROJECT_ROOT environment variable
+export PROJECT_ROOT="$(pwd)"
 ```
 
 ### 2. Verify Prerequisites
@@ -233,7 +273,7 @@ This will identify any missing prerequisites.
 The project provides an automated download script:
 
 ```bash
-cd /home/msvoboda/github/nemotron-v3-home-security-intelligence
+cd "$PROJECT_ROOT"
 ./ai/download_models.sh
 ```
 
@@ -749,7 +789,14 @@ nvidia-smi --query-gpu=memory.used --format=csv,noheader -l 5 >> gpu_mem.log
 
 ### Systemd Service Units
 
-For production deployment, create systemd service units:
+For production deployment, create systemd service units. Replace the placeholder values with your actual paths and username.
+
+**Required substitutions:**
+
+- `${AI_SERVICE_USER}`: Your system username (e.g., the output of `whoami`)
+- `${PROJECT_ROOT}`: Your project root directory (see [Environment Variables](#environment-variables))
+
+**Template files:**
 
 ```bash
 # /etc/systemd/system/ai-detector.service
@@ -759,8 +806,8 @@ After=network.target
 
 [Service]
 Type=simple
-User=msvoboda
-WorkingDirectory=/home/msvoboda/github/nemotron-v3-home-security-intelligence/ai/rtdetr
+User=${AI_SERVICE_USER}
+WorkingDirectory=${PROJECT_ROOT}/ai/rtdetr
 ExecStart=/usr/bin/python3 model.py
 Restart=always
 RestartSec=10
@@ -775,9 +822,9 @@ After=network.target
 
 [Service]
 Type=simple
-User=msvoboda
+User=${AI_SERVICE_USER}
 ExecStart=/usr/bin/llama-server \
-  --model /home/msvoboda/github/nemotron-v3-home-security-intelligence/ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf \
+  --model ${PROJECT_ROOT}/ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf \
   --port 8091 \
   --ctx-size 4096 \
   --n-gpu-layers 99 \
@@ -791,6 +838,49 @@ RestartSec=10
 WantedBy=multi-user.target
 ```
 
+**Creating the service files:**
+
+```bash
+# Generate service files with your actual values
+export AI_SERVICE_USER="$(whoami)"
+export PROJECT_ROOT="/path/to/your/project"  # Set this to your actual project path
+
+# Create detector service
+sudo tee /etc/systemd/system/ai-detector.service > /dev/null << EOF
+[Unit]
+Description=RT-DETRv2 Object Detection Service
+After=network.target
+
+[Service]
+Type=simple
+User=${AI_SERVICE_USER}
+WorkingDirectory=${PROJECT_ROOT}/ai/rtdetr
+ExecStart=/usr/bin/python3 model.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Create LLM service
+sudo tee /etc/systemd/system/ai-llm.service > /dev/null << EOF
+[Unit]
+Description=Nemotron LLM Service
+After=network.target
+
+[Service]
+Type=simple
+User=${AI_SERVICE_USER}
+ExecStart=/usr/bin/llama-server --model ${PROJECT_ROOT}/ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf --port 8091 --ctx-size 4096 --n-gpu-layers 99 --host 0.0.0.0 --parallel 2 --cont-batching
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+```
+
 Enable and start:
 
 ```bash
@@ -801,13 +891,16 @@ sudo systemctl start ai-detector ai-llm
 
 ### Auto-start on Boot
 
-Add to crontab:
+Add to crontab (replace `${PROJECT_ROOT}` with your actual project path):
 
 ```bash
 crontab -e
 
-# Add line:
-@reboot /home/msvoboda/github/nemotron-v3-home-security-intelligence/scripts/start-ai.sh start
+# Add line (substitute your actual project path):
+@reboot ${PROJECT_ROOT}/scripts/start-ai.sh start
+
+# Or use an absolute path, for example:
+# @reboot /home/youruser/github/home-security-intelligence/scripts/start-ai.sh start
 ```
 
 ### High Availability

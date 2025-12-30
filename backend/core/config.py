@@ -42,6 +42,21 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     debug: bool = False
 
+    # Admin endpoints settings
+    # SECURITY: Admin endpoints require BOTH debug=True AND admin_enabled=True
+    # This provides defense-in-depth against accidentally exposing admin endpoints
+    admin_enabled: bool = Field(
+        default=False,
+        description="Enable admin endpoints (requires debug=True as well). "
+        "SECURITY: Must be explicitly enabled - provides protection against "
+        "accidentally enabling admin endpoints in production.",
+    )
+    admin_api_key: str | None = Field(
+        default=None,
+        description="Optional API key required for admin endpoints. "
+        "When set, all admin requests must include X-Admin-API-Key header.",
+    )
+
     # API settings
     api_host: str = "0.0.0.0"  # noqa: S104
     api_port: int = 8000

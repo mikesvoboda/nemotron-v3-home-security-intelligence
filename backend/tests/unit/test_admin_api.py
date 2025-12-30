@@ -62,6 +62,81 @@ async def debug_client(integration_db, mock_redis):
 
 
 @pytest.fixture
+async def debug_only_client(integration_db, mock_redis):
+    """Async HTTP client with DEBUG=true but ADMIN_ENABLED=false.
+
+    This fixture is for testing that ADMIN_ENABLED is required even when DEBUG=true.
+    """
+    from unittest.mock import patch
+
+    from httpx import ASGITransport, AsyncClient
+
+    from backend.core.config import Settings, get_settings
+
+    # Create settings with debug=True but admin_enabled=False
+    debug_only_settings = Settings(
+        debug=True,
+        admin_enabled=False,  # Admin NOT enabled
+        database_url=os.environ.get("DATABASE_URL", ""),
+        redis_url=os.environ.get("REDIS_URL", "redis://localhost:6379/15"),
+    )
+
+    # Import the app only after env is set up
+    from backend.main import app
+
+    with (
+        patch("backend.main.init_db", return_value=None),
+        patch("backend.main.close_db", return_value=None),
+        patch("backend.main.init_redis", return_value=mock_redis),
+        patch("backend.main.close_redis", return_value=None),
+        patch("backend.core.config.get_settings", return_value=debug_only_settings),
+        patch("backend.api.routes.admin.get_settings", return_value=debug_only_settings),
+    ):
+        get_settings.cache_clear()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            yield ac
+        get_settings.cache_clear()
+
+
+@pytest.fixture
+async def admin_api_key_client(integration_db, mock_redis):
+    """Async HTTP client with DEBUG=true, ADMIN_ENABLED=true, and ADMIN_API_KEY set.
+
+    This fixture is for testing admin API key authentication.
+    """
+    from unittest.mock import patch
+
+    from httpx import ASGITransport, AsyncClient
+
+    from backend.core.config import Settings, get_settings
+
+    # Create settings with debug, admin enabled, and API key
+    api_key_settings = Settings(
+        debug=True,
+        admin_enabled=True,
+        admin_api_key="test-secret-key-12345",
+        database_url=os.environ.get("DATABASE_URL", ""),
+        redis_url=os.environ.get("REDIS_URL", "redis://localhost:6379/15"),
+    )
+
+    # Import the app only after env is set up
+    from backend.main import app
+
+    with (
+        patch("backend.main.init_db", return_value=None),
+        patch("backend.main.close_db", return_value=None),
+        patch("backend.main.init_redis", return_value=mock_redis),
+        patch("backend.main.close_redis", return_value=None),
+        patch("backend.core.config.get_settings", return_value=api_key_settings),
+        patch("backend.api.routes.admin.get_settings", return_value=api_key_settings),
+    ):
+        get_settings.cache_clear()
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            yield ac
+        get_settings.cache_clear()
+
+
+@pytest.fixture
 async def clean_seed_data(integration_db):
     """Clean up ALL data before/after each test for proper isolation.
 
@@ -133,110 +208,54 @@ async def test_clear_data_requires_debug_mode(client):
 
 
 @pytest.mark.asyncio
-async def test_seed_cameras_requires_admin_enabled(client):
+async def test_seed_cameras_requires_admin_enabled(debug_only_client):
     """Test that seed cameras endpoint requires ADMIN_ENABLED=true even with DEBUG=true."""
-    from backend.core.config import get_settings
+    response = await debug_only_client.post("/api/admin/seed/cameras", json={"count": 2})
 
-    os.environ["DEBUG"] = "true"
-    # Note: ADMIN_ENABLED is NOT set
-    get_settings.cache_clear()
-
-    try:
-        response = await client.post("/api/admin/seed/cameras", json={"count": 2})
-
-        assert response.status_code == 403
-        assert "ADMIN_ENABLED=true" in response.json()["detail"]
-    finally:
-        os.environ.pop("DEBUG", None)
-        get_settings.cache_clear()
+    assert response.status_code == 403
+    assert "ADMIN_ENABLED=true" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
-async def test_seed_events_requires_admin_enabled(client):
+async def test_seed_events_requires_admin_enabled(debug_only_client):
     """Test that seed events endpoint requires ADMIN_ENABLED=true even with DEBUG=true."""
-    from backend.core.config import get_settings
+    response = await debug_only_client.post("/api/admin/seed/events", json={"count": 5})
 
-    os.environ["DEBUG"] = "true"
-    # Note: ADMIN_ENABLED is NOT set
-    get_settings.cache_clear()
-
-    try:
-        response = await client.post("/api/admin/seed/events", json={"count": 5})
-
-        assert response.status_code == 403
-        assert "ADMIN_ENABLED=true" in response.json()["detail"]
-    finally:
-        os.environ.pop("DEBUG", None)
-        get_settings.cache_clear()
+    assert response.status_code == 403
+    assert "ADMIN_ENABLED=true" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
-async def test_clear_data_requires_admin_enabled(client):
+async def test_clear_data_requires_admin_enabled(debug_only_client):
     """Test that clear data endpoint requires ADMIN_ENABLED=true even with DEBUG=true."""
-    from backend.core.config import get_settings
+    response = await debug_only_client.delete("/api/admin/seed/clear")
 
-    os.environ["DEBUG"] = "true"
-    # Note: ADMIN_ENABLED is NOT set
-    get_settings.cache_clear()
-
-    try:
-        response = await client.delete("/api/admin/seed/clear")
-
-        assert response.status_code == 403
-        assert "ADMIN_ENABLED=true" in response.json()["detail"]
-    finally:
-        os.environ.pop("DEBUG", None)
-        get_settings.cache_clear()
+    assert response.status_code == 403
+    assert "ADMIN_ENABLED=true" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
-async def test_admin_api_key_required_when_configured(client):
+async def test_admin_api_key_required_when_configured(admin_api_key_client):
     """Test that admin API key is required when ADMIN_API_KEY is configured."""
-    from backend.core.config import get_settings
+    # Request without API key should fail
+    response = await admin_api_key_client.post("/api/admin/seed/cameras", json={"count": 2})
 
-    os.environ["DEBUG"] = "true"
-    os.environ["ADMIN_ENABLED"] = "true"
-    os.environ["ADMIN_API_KEY"] = "test-secret-key-12345"
-    get_settings.cache_clear()
-
-    try:
-        # Request without API key should fail
-        response = await client.post("/api/admin/seed/cameras", json={"count": 2})
-
-        assert response.status_code == 401
-        assert "Admin API key required" in response.json()["detail"]
-    finally:
-        os.environ.pop("DEBUG", None)
-        os.environ.pop("ADMIN_ENABLED", None)
-        os.environ.pop("ADMIN_API_KEY", None)
-        get_settings.cache_clear()
+    assert response.status_code == 401
+    assert "Admin API key required" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
-async def test_admin_api_key_invalid(client):
+async def test_admin_api_key_invalid(admin_api_key_client):
     """Test that invalid admin API key is rejected."""
-    from backend.core.config import get_settings
+    # Request with wrong API key should fail
+    response = await admin_api_key_client.post(
+        "/api/admin/seed/cameras",
+        json={"count": 2},
+        headers={"X-Admin-API-Key": "wrong-key"},
+    )
 
-    os.environ["DEBUG"] = "true"
-    os.environ["ADMIN_ENABLED"] = "true"
-    os.environ["ADMIN_API_KEY"] = "test-secret-key-12345"
-    get_settings.cache_clear()
-
-    try:
-        # Request with wrong API key should fail
-        response = await client.post(
-            "/api/admin/seed/cameras",
-            json={"count": 2},
-            headers={"X-Admin-API-Key": "wrong-key"},
-        )
-
-        assert response.status_code == 401
-        assert "Invalid admin API key" in response.json()["detail"]
-    finally:
-        os.environ.pop("DEBUG", None)
-        os.environ.pop("ADMIN_ENABLED", None)
-        os.environ.pop("ADMIN_API_KEY", None)
-        get_settings.cache_clear()
+    assert response.status_code == 401
+    assert "Invalid admin API key" in response.json()["detail"]
 
 
 @pytest.mark.asyncio

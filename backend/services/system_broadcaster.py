@@ -21,6 +21,7 @@ import asyncio
 import contextlib
 import json
 import logging
+import threading
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
@@ -499,19 +500,48 @@ class SystemBroadcaster:
                 await asyncio.sleep(interval)
 
 
-# Global broadcaster instance
+# Global broadcaster instance and initialization lock
 _system_broadcaster: SystemBroadcaster | None = None
+_broadcaster_lock: asyncio.Lock | None = None
+# Thread lock to protect initialization of _broadcaster_lock itself
+_init_lock = threading.Lock()
+
+
+def _get_broadcaster_lock() -> asyncio.Lock:
+    """Get the broadcaster initialization lock (lazy initialization).
+
+    This ensures the lock is created in a thread-safe manner and in the
+    correct event loop context. Uses a threading lock to protect the
+    initial creation of the asyncio lock, preventing race conditions
+    when multiple coroutines attempt to initialize concurrently.
+
+    Must be called from within an async context.
+
+    Returns:
+        asyncio.Lock for broadcaster initialization
+    """
+    global _broadcaster_lock  # noqa: PLW0603
+    if _broadcaster_lock is None:
+        with _init_lock:
+            # Double-check after acquiring thread lock
+            if _broadcaster_lock is None:
+                _broadcaster_lock = asyncio.Lock()
+    return _broadcaster_lock
 
 
 def get_system_broadcaster(
     redis_client: RedisClient | None = None,
     redis_getter: Callable[[], RedisClient | None] | None = None,
 ) -> SystemBroadcaster:
-    """Get the global SystemBroadcaster instance.
+    """Get the global SystemBroadcaster instance (synchronous version).
 
     On first call, creates a new SystemBroadcaster with the provided Redis client
     or getter. Subsequent calls return the existing singleton but will also update
     the Redis client if provided.
+
+    Note: This is a synchronous function that does NOT start the broadcaster.
+    Call start_broadcasting() separately, or use get_system_broadcaster_async()
+    for automatic initialization with Redis pub/sub.
 
     Args:
         redis_client: Optional Redis client instance. If the singleton exists and
@@ -520,7 +550,7 @@ def get_system_broadcaster(
             Only used during initial creation of the singleton.
 
     Returns:
-        SystemBroadcaster instance
+        SystemBroadcaster instance (not started)
     """
     global _system_broadcaster  # noqa: PLW0603
     if _system_broadcaster is None:
@@ -532,3 +562,85 @@ def get_system_broadcaster(
         # Update Redis client on existing singleton
         _system_broadcaster.set_redis_client(redis_client)
     return _system_broadcaster
+
+
+async def get_system_broadcaster_async(
+    redis_client: RedisClient | None = None,
+    redis_getter: Callable[[], RedisClient | None] | None = None,
+    interval: float = 5.0,
+) -> SystemBroadcaster:
+    """Get or create the global SystemBroadcaster instance (async version).
+
+    This function is thread-safe and handles concurrent initialization
+    attempts using an async lock to prevent race conditions. It also
+    starts the broadcaster if not already running.
+
+    Args:
+        redis_client: Optional Redis client instance. If the singleton exists and
+            this is provided, it will update the singleton's Redis client.
+        redis_getter: Optional callable that returns a Redis client or None.
+            Only used during initial creation of the singleton.
+        interval: Seconds between status broadcasts (default: 5.0)
+
+    Returns:
+        SystemBroadcaster instance (started)
+    """
+    global _system_broadcaster  # noqa: PLW0603
+
+    # Fast path: broadcaster already exists and is running
+    if _system_broadcaster is not None and _system_broadcaster._running:
+        if redis_client is not None:
+            _system_broadcaster.set_redis_client(redis_client)
+        return _system_broadcaster
+
+    # Slow path: need to initialize with lock
+    lock = _get_broadcaster_lock()
+    async with lock:
+        # Double-check after acquiring lock (another coroutine may have initialized)
+        if _system_broadcaster is None:
+            _system_broadcaster = SystemBroadcaster(
+                redis_client=redis_client,
+                redis_getter=redis_getter,
+            )
+        elif redis_client is not None:
+            _system_broadcaster.set_redis_client(redis_client)
+
+        # Start if not running
+        if not _system_broadcaster._running:
+            await _system_broadcaster.start_broadcasting(interval)
+            logger.info("Global system broadcaster initialized and started")
+
+    return _system_broadcaster
+
+
+async def stop_system_broadcaster() -> None:
+    """Stop the global system broadcaster instance.
+
+    This function is thread-safe and handles concurrent stop attempts.
+    """
+    global _system_broadcaster  # noqa: PLW0603
+
+    lock = _get_broadcaster_lock()
+    async with lock:
+        if _system_broadcaster:
+            await _system_broadcaster.stop_broadcasting()
+            _system_broadcaster = None
+            logger.info("Global system broadcaster stopped")
+
+
+def reset_broadcaster_state() -> None:
+    """Reset the global broadcaster state for testing purposes.
+
+    This function is NOT thread-safe and should only be used in test
+    fixtures to ensure clean state between tests. It resets both the
+    broadcaster instance and the asyncio lock.
+
+    Warning: Only use this in test teardown, never in production code.
+    """
+    global _system_broadcaster, _broadcaster_lock  # noqa: PLW0603
+    _system_broadcaster = None
+    _broadcaster_lock = None
+
+
+# Alias for explicit sync usage in tests and imports
+get_system_broadcaster_sync = get_system_broadcaster

@@ -35,7 +35,7 @@ from backend.services.gpu_monitor import GPUMonitor
 from backend.services.health_monitor import ServiceHealthMonitor
 from backend.services.pipeline_workers import get_pipeline_manager, stop_pipeline_manager
 from backend.services.service_managers import ServiceConfig, ShellServiceManager
-from backend.services.system_broadcaster import get_system_broadcaster
+from backend.services.system_broadcaster import get_system_broadcaster, stop_system_broadcaster
 
 
 @asynccontextmanager
@@ -163,7 +163,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
 
     await stop_broadcaster()
     print("Event broadcaster stopped")
-    await system_broadcaster.stop_broadcasting()
+    await stop_system_broadcaster()
     print("System status broadcaster stopped")
     await close_db()
     print("Database connections closed")

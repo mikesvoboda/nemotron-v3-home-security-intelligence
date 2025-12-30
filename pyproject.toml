@@ -101,6 +101,8 @@ markers = [
     "asyncio: mark test as an async test",
     "unit: mark test as a unit test",
     "integration: mark test as an integration test",
+    "e2e: mark test as an end-to-end test",
+    "gpu: mark test as a GPU test (runs on self-hosted GPU runner)",
 ]
 
 [tool.coverage.run]
