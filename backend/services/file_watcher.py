@@ -54,6 +54,7 @@ from watchdog.observers.polling import PollingObserver
 # inotify events may not propagate properly. In these cases, enable polling mode
 # via the FILE_WATCHER_POLLING environment variable or settings.file_watcher_polling.
 from backend.core.config import get_settings
+from backend.core.constants import DETECTION_QUEUE
 from backend.core.logging import get_logger
 from backend.core.redis import QueueOverflowPolicy
 from backend.models.camera import Camera, normalize_camera_id
@@ -225,7 +226,7 @@ class FileWatcher:
         camera_root: str | None = None,
         redis_client: Any | None = None,
         debounce_delay: float = 0.5,
-        queue_name: str = "detection_queue",
+        queue_name: str = DETECTION_QUEUE,
         dedupe_service: DedupeService | None = None,
         auto_create_cameras: bool = True,
         camera_creator: Callable[[Camera], Any] | None = None,

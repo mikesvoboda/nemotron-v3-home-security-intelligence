@@ -13,7 +13,9 @@ import threading
 from typing import TYPE_CHECKING, Any
 
 from fastapi import WebSocket
+from pydantic import ValidationError
 
+from backend.api.schemas.websocket import WebSocketEventData, WebSocketEventMessage
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
 from backend.core.redis import RedisClient
@@ -125,9 +127,9 @@ class EventBroadcaster:
     async def broadcast_event(self, event_data: dict[str, Any]) -> int:
         """Broadcast an event to all connected WebSocket clients via Redis pub/sub.
 
-        This method publishes the event to Redis, which then gets picked up by
-        the listener and sent to all connected WebSocket clients. This allows
-        multiple backend instances to share events.
+        This method validates the event data against the WebSocketEventMessage schema
+        before publishing to Redis. This ensures all messages sent to clients conform
+        to the expected format and prevents malformed data from being broadcast.
 
         Args:
             event_data: Event data dictionary containing event details
@@ -135,15 +137,21 @@ class EventBroadcaster:
         Returns:
             Number of Redis subscribers that received the message
 
+        Raises:
+            ValueError: If the message fails schema validation
+
         Example event_data:
             {
                 "type": "event",
                 "data": {
                     "id": 1,
+                    "event_id": 1,
+                    "batch_id": "batch_123",
                     "camera_id": "cam-123",
                     "risk_score": 75,
                     "risk_level": "high",
-                    "summary": "Person detected near entrance"
+                    "summary": "Person detected near entrance",
+                    "started_at": "2025-12-23T12:00:00"
                 }
             }
         """
@@ -152,13 +160,29 @@ class EventBroadcaster:
             if "type" not in event_data:
                 event_data = {"type": "event", "data": event_data}
 
-            # Publish to Redis channel
-            subscriber_count = await self._redis.publish(self._channel_name, event_data)
+            # Validate message format before broadcasting
+            # This ensures all outgoing messages conform to the WebSocketEventMessage schema
+            try:
+                # Extract the data portion and validate it
+                data_dict = event_data.get("data", {})
+                validated_data = WebSocketEventData.model_validate(data_dict)
+                validated_message = WebSocketEventMessage(data=validated_data)
+                # Use the validated message for broadcasting
+                broadcast_data = validated_message.model_dump(mode="json")
+            except ValidationError as ve:
+                logger.error(f"Event message validation failed: {ve}")
+                raise ValueError(f"Invalid event message format: {ve}") from ve
+
+            # Publish validated message to Redis channel
+            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)
             logger.debug(
-                f"Event broadcast to Redis: {event_data.get('type')} "
+                f"Event broadcast to Redis: {broadcast_data.get('type')} "
                 f"(subscribers: {subscriber_count})"
             )
             return subscriber_count
+        except ValueError:
+            # Re-raise validation errors
+            raise
         except Exception as e:
             logger.error(f"Failed to broadcast event: {e}")
             raise

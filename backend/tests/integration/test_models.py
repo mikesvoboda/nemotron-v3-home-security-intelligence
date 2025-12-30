@@ -4,7 +4,7 @@ Tests use PostgreSQL via the isolated_db fixture since models use
 PostgreSQL-specific features like JSONB.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 import pytest
 from sqlalchemy import select
@@ -13,6 +13,14 @@ from backend.models import Camera, Detection, Event, GPUStats
 
 # Import unique_id helper from conftest for test isolation
 from backend.tests.conftest import unique_id
+
+
+def utc_now_naive() -> datetime:
+    """Return current UTC time as a naive datetime (for DB compatibility)."""
+    from datetime import UTC
+
+    return datetime.now(UTC).replace(tzinfo=None)
+
 
 # Mark as integration since these tests require real PostgreSQL database
 # NOTE: This file should be moved to backend/tests/integration/ in a future cleanup
@@ -85,7 +93,7 @@ class TestCameraModel:
         session.add(camera)
         await session.flush()
 
-        now = datetime.now(UTC)
+        now = utc_now_naive()
         camera.last_seen_at = now
         await session.flush()
 
@@ -297,7 +305,7 @@ class TestEventModel:
         session.add(camera)
         await session.flush()
 
-        now = datetime.now(UTC)
+        now = utc_now_naive()
         event = Event(
             batch_id="batch_001",
             camera_id=camera_id,
@@ -324,7 +332,7 @@ class TestEventModel:
         session.add(camera)
         await session.flush()
 
-        now = datetime.now(UTC)
+        now = utc_now_naive()
         event = Event(
             batch_id="batch_002",
             camera_id=camera_id,
@@ -360,7 +368,7 @@ class TestEventModel:
         event = Event(
             batch_id="batch_003",
             camera_id=camera_id,
-            started_at=datetime.now(UTC),
+            started_at=utc_now_naive(),
         )
         session.add(event)
         await session.flush()
@@ -386,7 +394,7 @@ class TestEventModel:
         event = Event(
             batch_id="batch_004",
             camera_id=camera_id,
-            started_at=datetime.now(UTC),
+            started_at=utc_now_naive(),
         )
         session.add(event)
         await session.flush()
@@ -416,7 +424,7 @@ class TestEventModel:
         event = Event(
             batch_id="batch_005",
             camera_id=camera_id,
-            started_at=datetime.now(UTC),
+            started_at=utc_now_naive(),
             risk_score=85,
         )
         session.add(event)
@@ -445,7 +453,7 @@ class TestEventModel:
             event = Event(
                 batch_id=f"batch_{i:03d}",
                 camera_id=camera_id,
-                started_at=datetime.now(UTC),
+                started_at=utc_now_naive(),
                 risk_score=score,
             )
             session.add(event)
@@ -521,7 +529,7 @@ class TestGPUStatsModel:
     @pytest.mark.asyncio
     async def test_query_recent_gpu_stats(self, session):
         """Test querying GPU stats by time range."""
-        now = datetime.now(UTC)
+        now = utc_now_naive()
 
         # Create stats at different times with unique utilization values
         # Use a unique base value to identify our records
@@ -612,8 +620,8 @@ class TestModelIntegration:
         event = Event(
             batch_id="workflow_batch_001",
             camera_id=camera_id,
-            started_at=datetime.now(UTC),
-            ended_at=datetime.now(UTC) + timedelta(seconds=90),
+            started_at=utc_now_naive(),
+            ended_at=utc_now_naive() + timedelta(seconds=90),
             risk_score=65,
             risk_level="medium",
             summary="Mixed activity detected",
@@ -661,12 +669,12 @@ class TestModelIntegration:
         event1 = Event(
             batch_id=f"batch_{cam1_id}",
             camera_id=cam1_id,
-            started_at=datetime.now(UTC),
+            started_at=utc_now_naive(),
         )
         event2 = Event(
             batch_id=f"batch_{cam2_id}",
             camera_id=cam2_id,
-            started_at=datetime.now(UTC),
+            started_at=utc_now_naive(),
         )
         session.add_all([event1, event2])
         await session.flush()

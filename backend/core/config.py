@@ -260,6 +260,30 @@ class Settings(BaseSettings):
         le=100000,
         description="Maximum iterations for requeue-all operations",
     )
+    dlq_circuit_breaker_failure_threshold: int = Field(
+        default=5,
+        ge=1,
+        le=50,
+        description="Number of DLQ write failures before opening circuit breaker",
+    )
+    dlq_circuit_breaker_recovery_timeout: float = Field(
+        default=60.0,
+        ge=10.0,
+        le=600.0,
+        description="Seconds to wait before attempting DLQ writes again after circuit opens",
+    )
+    dlq_circuit_breaker_half_open_max_calls: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Maximum test calls allowed when circuit is half-open",
+    )
+    dlq_circuit_breaker_success_threshold: int = Field(
+        default=2,
+        ge=1,
+        le=10,
+        description="Successful DLQ writes needed to close circuit from half-open state",
+    )
 
     # Queue settings
     queue_max_size: int = Field(
