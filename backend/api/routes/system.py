@@ -18,18 +18,30 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.schemas.system import (
+    BatchAggregatorStatusResponse,
+    BatchInfoResponse,
+    CircuitBreakerConfigResponse,
+    CircuitBreakerResetResponse,
+    CircuitBreakersResponse,
+    CircuitBreakerStateEnum,
+    CircuitBreakerStatusResponse,
     CleanupResponse,
+    CleanupStatusResponse,
     ConfigResponse,
     ConfigUpdateRequest,
+    DegradationModeEnum,
+    DegradationStatusResponse,
+    FileWatcherStatusResponse,
     GPUStatsHistoryResponse,
     GPUStatsResponse,
     HealthResponse,
-    LivenessResponse,
     PipelineLatencies,
     PipelineLatencyResponse,
     PipelineStageLatency,
+    PipelineStatusResponse,
     QueueDepths,
     ReadinessResponse,
+    ServiceHealthStatusResponse,
     ServiceStatus,
     SeverityDefinitionResponse,
     SeverityMetadataResponse,
@@ -42,8 +54,14 @@ from backend.api.schemas.system import (
     WorkerStatus,
 )
 from backend.core import get_db, get_settings
+from backend.core.constants import ANALYSIS_QUEUE, DETECTION_QUEUE
 from backend.core.logging import get_logger
-from backend.core.redis import RedisClient, get_redis, get_redis_optional
+from backend.core.redis import (
+    QueueOverflowPolicy,
+    RedisClient,
+    get_redis,
+    get_redis_optional,
+)
 from backend.models import Camera, Detection, Event, GPUStats, Log
 from backend.models.audit import AuditAction
 from backend.services.audit import AuditService
@@ -206,6 +224,8 @@ _cleanup_service: CleanupService | None = None
 _system_broadcaster: SystemBroadcaster | None = None
 _file_watcher: FileWatcher | None = None
 _pipeline_manager: PipelineWorkerManager | None = None
+_batch_aggregator: BatchAggregator | None = None
+_degradation_manager: DegradationManager | None = None
 
 
 def register_workers(
@@ -214,6 +234,8 @@ def register_workers(
     system_broadcaster: SystemBroadcaster | None = None,
     file_watcher: FileWatcher | None = None,
     pipeline_manager: PipelineWorkerManager | None = None,
+    batch_aggregator: BatchAggregator | None = None,
+    degradation_manager: DegradationManager | None = None,
 ) -> None:
     """Register worker instances for readiness monitoring.
 
@@ -226,13 +248,17 @@ def register_workers(
         system_broadcaster: SystemBroadcaster instance
         file_watcher: FileWatcher instance
         pipeline_manager: PipelineWorkerManager instance (critical for readiness)
+        batch_aggregator: BatchAggregator instance for pipeline status
+        degradation_manager: DegradationManager instance for degradation status
     """
-    global _gpu_monitor, _cleanup_service, _system_broadcaster, _file_watcher, _pipeline_manager  # noqa: PLW0603
+    global _gpu_monitor, _cleanup_service, _system_broadcaster, _file_watcher, _pipeline_manager, _batch_aggregator, _degradation_manager  # noqa: PLW0603
     _gpu_monitor = gpu_monitor
     _cleanup_service = cleanup_service
     _system_broadcaster = system_broadcaster
     _file_watcher = file_watcher
     _pipeline_manager = pipeline_manager
+    _batch_aggregator = batch_aggregator
+    _degradation_manager = degradation_manager
 
 
 def _get_worker_statuses() -> list[WorkerStatus]:
@@ -379,7 +405,9 @@ def _are_critical_pipeline_workers_healthy() -> bool:
 
 # Type hints for worker imports (avoid circular imports)
 if TYPE_CHECKING:
+    from backend.services.batch_aggregator import BatchAggregator
     from backend.services.cleanup_service import CleanupService
+    from backend.services.degradation_manager import DegradationManager
     from backend.services.file_watcher import FileWatcher
     from backend.services.gpu_monitor import GPUMonitor
     from backend.services.pipeline_workers import PipelineWorkerManager
@@ -750,25 +778,8 @@ async def get_health(
     )
 
 
-@router.get("/health/live", response_model=LivenessResponse)
-async def get_liveness() -> LivenessResponse:
-    """Kubernetes-style liveness probe endpoint.
-
-    This endpoint indicates whether the process is running and able to
-    respond to HTTP requests. It always returns 200 with status "alive"
-    if the process is up. This is a minimal check with no dependencies.
-
-    Note: The canonical liveness probe is GET /health at the root level.
-    This endpoint exists for Kubernetes compatibility and provides the
-    same functionality under the /api/system prefix.
-
-    Used by Kubernetes/Docker to determine if the container should be restarted.
-    If this endpoint fails, the process is considered dead and should be restarted.
-
-    Returns:
-        LivenessResponse with status "alive"
-    """
-    return LivenessResponse(status="alive")
+# NOTE: /api/system/health/live has been removed to consolidate duplicate endpoints.
+# Use GET /health (root level) for liveness probes. It provides the same functionality.
 
 
 @router.get("/health/ready", response_model=ReadinessResponse)
@@ -1175,8 +1186,17 @@ async def record_stage_latency(
     key = f"{LATENCY_KEY_PREFIX}{stage}"
     try:
         # Add to list (appends to end, so newest samples are last)
-        # max_size trims to keep only the last MAX_LATENCY_SAMPLES items
-        await redis.add_to_queue(key, latency_ms, max_size=MAX_LATENCY_SAMPLES)
+        # Using DROP_OLDEST policy since telemetry data can tolerate data loss
+        # while keeping the newest samples is more valuable for monitoring
+        result = await redis.add_to_queue_safe(
+            key,
+            latency_ms,
+            max_size=MAX_LATENCY_SAMPLES,
+            overflow_policy=QueueOverflowPolicy.DROP_OLDEST,
+        )
+        if not result.success:
+            logger.warning(f"Failed to record latency for stage {stage}: {result.error}")
+            return
         # Refresh TTL so inactive stages eventually expire
         await redis.expire(key, LATENCY_TTL_SECONDS)
     except Exception as e:
@@ -1292,8 +1312,8 @@ async def get_telemetry(
     analysis_depth = 0
 
     try:
-        detection_depth = await redis.get_queue_length("detection_queue")
-        analysis_depth = await redis.get_queue_length("analysis_queue")
+        detection_depth = await redis.get_queue_length(DETECTION_QUEUE)
+        analysis_depth = await redis.get_queue_length(ANALYSIS_QUEUE)
     except Exception as e:
         logger.warning(f"Failed to get queue depths: {e}")
         # Return zeros on error - endpoint should still work
@@ -1676,5 +1696,342 @@ async def get_storage_stats(db: AsyncSession = Depends(get_db)) -> StorageStatsR
         detections_count=detections_count,
         gpu_stats_count=gpu_stats_count,
         logs_count=logs_count,
+        timestamp=datetime.now(UTC),
+    )
+
+
+# =============================================================================
+# Circuit Breaker Endpoints
+# =============================================================================
+
+
+@router.get("/circuit-breakers", response_model=CircuitBreakersResponse)
+async def get_circuit_breakers() -> CircuitBreakersResponse:
+    """Get status of all circuit breakers in the system.
+
+    Returns the current state and metrics for each circuit breaker,
+    which protect external services from cascading failures.
+
+    Circuit breakers can be in one of three states:
+    - CLOSED: Normal operation, calls pass through
+    - OPEN: Service failing, calls rejected immediately
+    - HALF_OPEN: Testing recovery, limited calls allowed
+
+    Returns:
+        CircuitBreakersResponse with status of all circuit breakers
+    """
+    from backend.services.circuit_breaker import _get_registry
+
+    registry = _get_registry()
+    all_status = registry.get_all_status()
+
+    # Convert to response format
+    circuit_breakers: dict[str, CircuitBreakerStatusResponse] = {}
+    open_count = 0
+
+    for name, status in all_status.items():
+        state_value = status.get("state", "closed")
+        state = CircuitBreakerStateEnum(state_value)
+
+        if state == CircuitBreakerStateEnum.OPEN:
+            open_count += 1
+
+        config = status.get("config", {})
+        circuit_breakers[name] = CircuitBreakerStatusResponse(
+            name=name,
+            state=state,
+            failure_count=status.get("failure_count", 0),
+            success_count=status.get("success_count", 0),
+            total_calls=status.get("total_calls", 0),
+            rejected_calls=status.get("rejected_calls", 0),
+            last_failure_time=status.get("last_failure_time"),
+            opened_at=status.get("opened_at"),
+            config=CircuitBreakerConfigResponse(
+                failure_threshold=config.get("failure_threshold", 5),
+                recovery_timeout=config.get("recovery_timeout", 30.0),
+                half_open_max_calls=config.get("half_open_max_calls", 3),
+                success_threshold=config.get("success_threshold", 2),
+            ),
+        )
+
+    return CircuitBreakersResponse(
+        circuit_breakers=circuit_breakers,
+        total_count=len(circuit_breakers),
+        open_count=open_count,
+        timestamp=datetime.now(UTC),
+    )
+
+
+@router.post(
+    "/circuit-breakers/{name}/reset",
+    response_model=CircuitBreakerResetResponse,
+    dependencies=[Depends(verify_api_key)],
+)
+async def reset_circuit_breaker(name: str) -> CircuitBreakerResetResponse:
+    """Reset a specific circuit breaker to CLOSED state.
+
+    This manually resets a circuit breaker, clearing failure counts
+    and returning it to normal operation. Use this to recover from
+    transient failures or after fixing an underlying issue.
+
+    Requires API key authentication when api_key_enabled is True.
+
+    Args:
+        name: Name of the circuit breaker to reset
+
+    Returns:
+        CircuitBreakerResetResponse with reset confirmation
+
+    Raises:
+        HTTPException 404: If circuit breaker not found
+    """
+    from backend.services.circuit_breaker import _get_registry
+
+    registry = _get_registry()
+    breaker = registry.get(name)
+
+    if breaker is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Circuit breaker '{name}' not found",
+        )
+
+    previous_state = CircuitBreakerStateEnum(breaker.state.value)
+    breaker.reset()
+    new_state = CircuitBreakerStateEnum(breaker.state.value)
+
+    logger.info(
+        f"Circuit breaker '{name}' manually reset: {previous_state.value} -> {new_state.value}"
+    )
+
+    return CircuitBreakerResetResponse(
+        name=name,
+        previous_state=previous_state,
+        new_state=new_state,
+        message=f"Circuit breaker '{name}' reset successfully from {previous_state.value} to {new_state.value}",
+    )
+
+
+# =============================================================================
+# Cleanup Service Status Endpoint
+# =============================================================================
+
+
+@router.get("/cleanup/status", response_model=CleanupStatusResponse)
+async def get_cleanup_status() -> CleanupStatusResponse:
+    """Get current status of the cleanup service.
+
+    Returns information about the automated cleanup service including:
+    - Whether the service is running
+    - Current retention settings
+    - Next scheduled cleanup time
+
+    Returns:
+        CleanupStatusResponse with cleanup service status
+    """
+    if _cleanup_service is not None:
+        stats = _cleanup_service.get_cleanup_stats()
+        return CleanupStatusResponse(
+            running=stats.get("running", False),
+            retention_days=stats.get("retention_days", 30),
+            cleanup_time=stats.get("cleanup_time", "03:00"),
+            delete_images=stats.get("delete_images", False),
+            next_cleanup=stats.get("next_cleanup"),
+            timestamp=datetime.now(UTC),
+        )
+    else:
+        # Return default status if cleanup service is not registered
+        settings = get_settings()
+        return CleanupStatusResponse(
+            running=False,
+            retention_days=settings.retention_days,
+            cleanup_time="03:00",
+            delete_images=False,
+            next_cleanup=None,
+            timestamp=datetime.now(UTC),
+        )
+
+
+# =============================================================================
+# Pipeline Status Endpoint
+# =============================================================================
+
+
+async def _get_batch_aggregator_status(
+    redis: RedisClient | None,
+) -> BatchAggregatorStatusResponse | None:
+    """Get status of batch aggregator service by querying Redis.
+
+    Args:
+        redis: Redis client for batch state queries
+
+    Returns:
+        BatchAggregatorStatusResponse or None if service unavailable
+    """
+    if redis is None:
+        return None
+
+    settings = get_settings()
+    current_time = time.time()
+    active_batches: list[BatchInfoResponse] = []
+
+    try:
+        # Find all active batch keys (batch:{camera_id}:current)
+        redis_client = redis._client
+        if redis_client is None:
+            return None
+
+        async for key in redis_client.scan_iter(match="batch:*:current", count=100):
+            try:
+                # Get batch ID
+                batch_id = await redis.get_with_retry(key)
+                if not batch_id:
+                    continue
+
+                # Get batch metadata
+                camera_id = await redis.get_with_retry(f"batch:{batch_id}:camera_id")
+                if not camera_id:
+                    continue
+
+                detections_data = await redis.get_with_retry(f"batch:{batch_id}:detections")
+                detections = []
+                if detections_data:
+                    import json
+
+                    detections = (
+                        json.loads(detections_data)
+                        if isinstance(detections_data, str)
+                        else detections_data
+                    )
+
+                started_at_str = await redis.get_with_retry(f"batch:{batch_id}:started_at")
+                last_activity_str = await redis.get_with_retry(f"batch:{batch_id}:last_activity")
+
+                started_at = float(started_at_str) if started_at_str else current_time
+                last_activity = float(last_activity_str) if last_activity_str else started_at
+
+                active_batches.append(
+                    BatchInfoResponse(
+                        batch_id=batch_id,
+                        camera_id=camera_id,
+                        detection_count=len(detections),
+                        started_at=started_at,
+                        age_seconds=round(current_time - started_at, 1),
+                        last_activity_seconds=round(current_time - last_activity, 1),
+                    )
+                )
+            except Exception as e:
+                logger.warning(f"Error processing batch key {key}: {e}")
+                continue
+
+        return BatchAggregatorStatusResponse(
+            active_batches=len(active_batches),
+            batches=active_batches,
+            batch_window_seconds=settings.batch_window_seconds,
+            idle_timeout_seconds=settings.batch_idle_timeout_seconds,
+        )
+    except Exception as e:
+        logger.error(f"Error getting batch aggregator status: {e}")
+        return None
+
+
+def _get_degradation_status() -> DegradationStatusResponse | None:
+    """Get status from the global degradation manager.
+
+    Returns:
+        DegradationStatusResponse or None if manager not initialized
+    """
+    if _degradation_manager is None:
+        # Try to get the global manager
+        from backend.services.degradation_manager import get_degradation_manager
+
+        try:
+            manager = get_degradation_manager()
+        except Exception:
+            return None
+    else:
+        manager = _degradation_manager
+
+    try:
+        status = manager.get_status()
+
+        # Convert services to response format
+        services_list: list[ServiceHealthStatusResponse] = []
+        services_dict = status.get("services", {})
+        for name, health in services_dict.items():
+            services_list.append(
+                ServiceHealthStatusResponse(
+                    name=name,
+                    status=health.get("status", "unknown"),
+                    last_check=health.get("last_check"),
+                    consecutive_failures=health.get("consecutive_failures", 0),
+                    error_message=health.get("error_message"),
+                )
+            )
+
+        return DegradationStatusResponse(
+            mode=DegradationModeEnum(status.get("mode", "normal")),
+            is_degraded=status.get("is_degraded", False),
+            redis_healthy=status.get("redis_healthy", False),
+            memory_queue_size=status.get("memory_queue_size", 0),
+            fallback_queues=status.get("fallback_queues", {}),
+            services=services_list,
+            available_features=status.get("available_features", []),
+        )
+    except Exception as e:
+        logger.error(f"Error getting degradation status: {e}")
+        return None
+
+
+@router.get("/pipeline", response_model=PipelineStatusResponse)
+async def get_pipeline_status(
+    redis: RedisClient | None = Depends(get_redis_optional),
+) -> PipelineStatusResponse:
+    """Get combined status of all pipeline operations.
+
+    Returns real-time visibility into the AI processing pipeline:
+
+    **FileWatcher**: Monitors camera directories for new uploads
+    - running: Whether the watcher is active
+    - camera_root: Directory being watched
+    - pending_tasks: Files waiting for debounce completion
+    - observer_type: Filesystem observer type (native/polling)
+
+    **BatchAggregator**: Groups detections into time-based batches
+    - active_batches: Number of batches being aggregated
+    - batches: Details of each active batch
+    - batch_window_seconds: Configured window timeout
+    - idle_timeout_seconds: Configured idle timeout
+
+    **DegradationManager**: Handles graceful degradation
+    - mode: Current degradation mode (normal/degraded/minimal/offline)
+    - is_degraded: Whether system is in any degraded state
+    - services: Health status of registered services
+    - available_features: Features available in current mode
+
+    Returns:
+        PipelineStatusResponse with status of all pipeline services
+    """
+    # Get FileWatcher status
+    file_watcher_status: FileWatcherStatusResponse | None = None
+    if _file_watcher is not None:
+        observer_type = "polling" if getattr(_file_watcher, "_use_polling", False) else "native"
+        file_watcher_status = FileWatcherStatusResponse(
+            running=getattr(_file_watcher, "running", False),
+            camera_root=getattr(_file_watcher, "camera_root", ""),
+            pending_tasks=len(getattr(_file_watcher, "_pending_tasks", {})),
+            observer_type=observer_type,
+        )
+
+    # Get BatchAggregator status from Redis
+    batch_aggregator_status = await _get_batch_aggregator_status(redis)
+
+    # Get DegradationManager status
+    degradation_status = _get_degradation_status()
+
+    return PipelineStatusResponse(
+        file_watcher=file_watcher_status,
+        batch_aggregator=batch_aggregator_status,
+        degradation=degradation_status,
         timestamp=datetime.now(UTC),
     )
