@@ -103,10 +103,13 @@ class TestSettingsDefaults:
         assert settings.batch_idle_timeout_seconds == 30
 
     def test_default_ai_service_urls(self, clean_env):
-        """Test default AI service endpoint URLs."""
+        """Test default AI service endpoint URLs.
+
+        Note: Pydantic's AnyHttpUrl validator normalizes URLs with trailing slashes.
+        """
         settings = Settings()
-        assert settings.rtdetr_url == "http://localhost:8090"
-        assert settings.nemotron_url == "http://localhost:8091"
+        assert settings.rtdetr_url == "http://localhost:8090/"
+        assert settings.nemotron_url == "http://localhost:8091/"
 
 
 class TestEnvironmentOverrides:
