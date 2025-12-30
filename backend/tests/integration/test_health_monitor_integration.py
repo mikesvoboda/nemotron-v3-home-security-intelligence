@@ -730,3 +730,511 @@ async def test_subprocess_timeout_handling() -> None:
     result = await manager.restart(config)
 
     assert result is False, "restart() should return False when subprocess times out"
+
+
+# =============================================================================
+# Tests for mb9s.15: Health monitor restart logic verification
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_health_monitor_restart_cycle_on_failure(fast_sleep) -> None:
+    """Test that health monitor properly restarts a failed service.
+
+    This test verifies the complete restart cycle:
+    1. Service starts unhealthy (health check fails)
+    2. Monitor detects failure and initiates restart
+    3. Restart command is executed
+    4. Post-restart health check is performed
+    5. On successful health check, failure count is reset
+
+    This is a critical test for the automatic recovery feature.
+    """
+    config = ServiceConfig(
+        name="restart_test_service",
+        health_url="http://localhost:19998/health",
+        restart_cmd="echo 'service_restarted'",
+        health_timeout=1.0,
+        max_retries=3,
+        backoff_base=0.1,
+    )
+
+    # Track sequence of events
+    event_sequence: list[str] = []
+
+    # First 2 health checks fail, then succeed (simulating restart fixing the service)
+    health_check_count = 0
+
+    async def mock_check_health(cfg: ServiceConfig) -> bool:
+        nonlocal health_check_count
+        health_check_count += 1
+        event_sequence.append(f"health_check_{health_check_count}")
+
+        # First check fails (triggers restart), post-restart check succeeds
+        return health_check_count != 1  # First check returns False, rest return True
+
+    async def mock_restart(cfg: ServiceConfig) -> bool:
+        event_sequence.append("restart")
+        return True  # Restart succeeds
+
+    mock_manager = MagicMock()
+    mock_manager.check_health = AsyncMock(side_effect=mock_check_health)
+    mock_manager.restart = AsyncMock(side_effect=mock_restart)
+
+    mock_broadcaster = MockBroadcaster()
+
+    monitor = ServiceHealthMonitor(
+        manager=mock_manager,
+        services=[config],
+        broadcaster=mock_broadcaster,
+        check_interval=0.1,
+    )
+
+    await monitor.start()
+
+    # Wait for recovery cycle (mocked 2s pause allows faster completion)
+    await asyncio.sleep(0.5)
+
+    await monitor.stop()
+
+    # Verify the sequence of events
+    assert "health_check_1" in event_sequence, "Initial health check should have occurred"
+    assert "restart" in event_sequence, "Restart should have been called after failure"
+
+    # Verify restart was called exactly once (one failure recovery)
+    assert mock_manager.restart.call_count >= 1, "Restart should have been called"
+
+    # Verify healthy status was broadcast after recovery
+    healthy_broadcasts = [
+        call
+        for call in mock_broadcaster.broadcast_calls
+        if call.get("data", {}).get("status") == "healthy"
+    ]
+    assert len(healthy_broadcasts) > 0, "Should have broadcast 'healthy' status after recovery"
+
+    # Verify failure count was reset
+    status = monitor.get_status()
+    assert status[config.name]["failure_count"] == 0, (
+        "Failure count should be reset to 0 after successful recovery"
+    )
+
+
+@pytest.mark.asyncio
+async def test_health_monitor_multiple_restart_attempts_before_recovery(fast_sleep) -> None:
+    """Test that health monitor retries restart multiple times before succeeding.
+
+    Verifies:
+    1. First restart fails (health check still failing after restart)
+    2. Second restart attempt is made with exponential backoff
+    3. Service eventually recovers
+    4. Failure count is reset
+    """
+    config = ServiceConfig(
+        name="retry_test_service",
+        health_url="http://localhost:19997/health",
+        restart_cmd="echo 'retry_service_restarted'",
+        health_timeout=1.0,
+        max_retries=5,
+        backoff_base=0.05,  # Very short for testing
+    )
+
+    restart_count = 0
+    health_check_count = 0
+
+    async def mock_check_health(cfg: ServiceConfig) -> bool:
+        nonlocal health_check_count
+        health_check_count += 1
+        # Fail first 3 checks, then succeed (simulates 2 restart attempts before success)
+        return health_check_count > 3
+
+    async def mock_restart(cfg: ServiceConfig) -> bool:
+        nonlocal restart_count
+        restart_count += 1
+        return True  # Restart command itself succeeds
+
+    mock_manager = MagicMock()
+    mock_manager.check_health = AsyncMock(side_effect=mock_check_health)
+    mock_manager.restart = AsyncMock(side_effect=mock_restart)
+
+    mock_broadcaster = MockBroadcaster()
+
+    monitor = ServiceHealthMonitor(
+        manager=mock_manager,
+        services=[config],
+        broadcaster=mock_broadcaster,
+        check_interval=0.05,
+    )
+
+    await monitor.start()
+
+    # Wait for multiple retry cycles (mocked 2s pause allows faster completion)
+    await asyncio.sleep(0.8)
+
+    await monitor.stop()
+
+    # Verify multiple restart attempts were made
+    assert restart_count >= 2, f"Expected at least 2 restart attempts, got {restart_count}"
+
+    # Verify eventual recovery (healthy status broadcast)
+    healthy_broadcasts = [
+        call
+        for call in mock_broadcaster.broadcast_calls
+        if call.get("data", {}).get("status") == "healthy"
+    ]
+    assert len(healthy_broadcasts) > 0, "Should have eventually broadcast 'healthy' status"
+
+
+@pytest.mark.asyncio
+async def test_health_monitor_restart_with_health_verification(fast_sleep) -> None:
+    """Test that health monitor verifies health after restart.
+
+    Specifically tests the 2-second post-restart health verification flow:
+    1. Service fails health check
+    2. Restart is triggered
+    3. Brief pause (2s in real code, mocked to 0.02s)
+    4. Health is re-checked to verify restart success
+    5. Status updated based on verification result
+    """
+    config = ServiceConfig(
+        name="verify_restart_service",
+        health_url="http://localhost:19996/health",
+        restart_cmd="echo 'verified_restart'",
+        health_timeout=1.0,
+        max_retries=3,
+        backoff_base=0.1,
+    )
+
+    health_checks_after_restart = 0
+    first_check_done = False
+
+    async def mock_check_health(cfg: ServiceConfig) -> bool:
+        nonlocal health_checks_after_restart, first_check_done
+
+        if not first_check_done:
+            first_check_done = True
+            return False  # First check fails
+
+        # Track post-restart checks
+        health_checks_after_restart += 1
+        return True  # Post-restart checks succeed
+
+    mock_manager = MagicMock()
+    mock_manager.check_health = AsyncMock(side_effect=mock_check_health)
+    mock_manager.restart = AsyncMock(return_value=True)
+
+    mock_broadcaster = MockBroadcaster()
+
+    monitor = ServiceHealthMonitor(
+        manager=mock_manager,
+        services=[config],
+        broadcaster=mock_broadcaster,
+        check_interval=0.1,
+    )
+
+    await monitor.start()
+
+    # Wait for recovery cycle (mocked 2s pause allows faster completion)
+    await asyncio.sleep(0.5)
+
+    await monitor.stop()
+
+    # Verify health check was called after restart (verification step)
+    assert health_checks_after_restart >= 1, "Health should be verified after restart"
+
+    # Verify healthy status was broadcast after verification passed
+    healthy_broadcasts = [
+        call
+        for call in mock_broadcaster.broadcast_calls
+        if call.get("data", {}).get("status") == "healthy"
+        and "restarted successfully" in call.get("data", {}).get("message", "")
+    ]
+    assert len(healthy_broadcasts) > 0, (
+        "Should broadcast 'healthy' with 'restarted successfully' message after verification"
+    )
+
+
+# =============================================================================
+# Tests for mb9s.16: Graceful shutdown order verification
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_graceful_shutdown_completes_without_hanging(fast_sleep) -> None:
+    """Test that graceful shutdown completes in a reasonable time.
+
+    Verifies:
+    1. stop() completes within timeout
+    2. Monitor transitions to not-running state
+    3. Background task is properly cancelled
+    """
+    config = ServiceConfig(
+        name="shutdown_test_service",
+        health_url="http://localhost:19995/health",
+        restart_cmd="echo 'shutdown_test'",
+        health_timeout=1.0,
+        max_retries=3,
+        backoff_base=0.1,
+    )
+
+    mock_manager = MagicMock()
+    mock_manager.check_health = AsyncMock(return_value=True)
+
+    monitor = ServiceHealthMonitor(
+        manager=mock_manager,
+        services=[config],
+        broadcaster=None,
+        check_interval=0.1,
+    )
+
+    await monitor.start()
+    assert monitor.is_running, "Monitor should be running after start"
+    assert monitor._task is not None, "Background task should exist"
+
+    # Wait a bit for the monitor to start its cycle
+    await asyncio.sleep(0.15)
+
+    # Shutdown should complete quickly
+    try:
+        await asyncio.wait_for(monitor.stop(), timeout=2.0)
+    except TimeoutError:
+        pytest.fail("Graceful shutdown took too long (>2 seconds)")
+
+    # Verify clean shutdown
+    assert not monitor.is_running, "Monitor should be stopped"
+    assert monitor._task is None, "Background task should be cleared"
+
+
+@pytest.mark.asyncio
+async def test_shutdown_during_health_check_cycle(fast_sleep) -> None:
+    """Test that shutdown during active health check completes gracefully.
+
+    Verifies:
+    1. Shutdown can happen during a health check
+    2. The check cycle is interrupted cleanly
+    3. No errors or hangs occur
+    """
+    config = ServiceConfig(
+        name="interrupt_check_service",
+        health_url="http://localhost:19994/health",
+        restart_cmd="echo 'interrupt_test'",
+        health_timeout=1.0,
+        max_retries=3,
+        backoff_base=0.1,
+    )
+
+    health_check_started = asyncio.Event()
+
+    async def slow_health_check(cfg: ServiceConfig) -> bool:
+        health_check_started.set()
+        # Simulate a health check that takes some time
+        await asyncio.sleep(0.05)
+        return True
+
+    mock_manager = MagicMock()
+    mock_manager.check_health = AsyncMock(side_effect=slow_health_check)
+
+    monitor = ServiceHealthMonitor(
+        manager=mock_manager,
+        services=[config],
+        broadcaster=None,
+        check_interval=0.1,
+    )
+
+    await monitor.start()
+
+    # Wait for health check to start
+    await asyncio.wait_for(health_check_started.wait(), timeout=1.0)
+
+    # Stop during the health check
+    try:
+        await asyncio.wait_for(monitor.stop(), timeout=2.0)
+    except TimeoutError:
+        pytest.fail("Shutdown during health check should not hang")
+
+    assert not monitor.is_running, "Monitor should be stopped"
+
+
+@pytest.mark.asyncio
+async def test_shutdown_during_backoff_wait(fast_sleep) -> None:
+    """Test that shutdown during backoff wait period completes gracefully.
+
+    When a service fails and the monitor is waiting (backoff), calling stop()
+    should interrupt the wait and shut down cleanly.
+    """
+    config = ServiceConfig(
+        name="backoff_shutdown_service",
+        health_url="http://localhost:19993/health",
+        restart_cmd="echo 'backoff_test'",
+        health_timeout=1.0,
+        max_retries=5,
+        backoff_base=0.2,  # Longer backoff to ensure we catch it
+    )
+
+    mock_manager = MagicMock()
+    mock_manager.check_health = AsyncMock(return_value=False)  # Always failing
+    mock_manager.restart = AsyncMock(return_value=False)  # Restart also fails
+
+    mock_broadcaster = MockBroadcaster()
+
+    monitor = ServiceHealthMonitor(
+        manager=mock_manager,
+        services=[config],
+        broadcaster=mock_broadcaster,
+        check_interval=0.1,
+    )
+
+    await monitor.start()
+
+    # Wait for failure to be detected and backoff to start
+    await asyncio.sleep(0.15)
+
+    # Stop during backoff
+    try:
+        await asyncio.wait_for(monitor.stop(), timeout=2.0)
+    except TimeoutError:
+        pytest.fail("Shutdown during backoff should not hang")
+
+    assert not monitor.is_running, "Monitor should be stopped"
+
+
+@pytest.mark.asyncio
+async def test_shutdown_cleans_up_all_resources(fast_sleep) -> None:
+    """Test that shutdown properly cleans up all internal resources.
+
+    Verifies:
+    1. _running flag is set to False
+    2. _task is set to None
+    3. No lingering asyncio tasks
+    """
+    config = ServiceConfig(
+        name="cleanup_test_service",
+        health_url="http://localhost:19992/health",
+        restart_cmd="echo 'cleanup_test'",
+        health_timeout=1.0,
+        max_retries=3,
+        backoff_base=0.1,
+    )
+
+    mock_manager = MagicMock()
+    mock_manager.check_health = AsyncMock(return_value=True)
+
+    mock_broadcaster = MockBroadcaster()
+
+    monitor = ServiceHealthMonitor(
+        manager=mock_manager,
+        services=[config],
+        broadcaster=mock_broadcaster,
+        check_interval=0.1,
+    )
+
+    # Pre-shutdown state
+    await monitor.start()
+    assert monitor._running is True
+    assert monitor._task is not None
+    task_before_stop = monitor._task
+
+    await asyncio.sleep(0.05)
+
+    await monitor.stop()
+
+    # Post-shutdown state
+    assert monitor._running is False, "_running should be False after stop"
+    assert monitor._task is None, "_task should be None after stop"
+    assert task_before_stop.done() or task_before_stop.cancelled(), (
+        "Original task should be done or cancelled"
+    )
+
+
+@pytest.mark.asyncio
+async def test_multiple_stop_calls_are_safe(fast_sleep) -> None:
+    """Test that calling stop() multiple times is safe (idempotent).
+
+    This is important for robustness - if shutdown is called twice
+    (e.g., from different error handlers), it shouldn't crash.
+    """
+    config = ServiceConfig(
+        name="multi_stop_service",
+        health_url="http://localhost:19991/health",
+        restart_cmd="echo 'multi_stop_test'",
+        health_timeout=1.0,
+        max_retries=3,
+        backoff_base=0.1,
+    )
+
+    mock_manager = MagicMock()
+    mock_manager.check_health = AsyncMock(return_value=True)
+
+    monitor = ServiceHealthMonitor(
+        manager=mock_manager,
+        services=[config],
+        broadcaster=None,
+        check_interval=0.1,
+    )
+
+    await monitor.start()
+    await asyncio.sleep(0.05)
+
+    # Call stop multiple times - should not raise any errors
+    await monitor.stop()
+    await monitor.stop()
+    await monitor.stop()
+
+    assert not monitor.is_running, "Monitor should remain stopped"
+
+
+@pytest.mark.asyncio
+async def test_shutdown_prevents_new_restart_attempts(fast_sleep) -> None:
+    """Test that once shutdown starts, no new restart attempts are initiated.
+
+    Verifies the _running check in _handle_failure prevents new restarts
+    after stop() is called.
+    """
+    config = ServiceConfig(
+        name="no_restart_after_stop_service",
+        health_url="http://localhost:19990/health",
+        restart_cmd="echo 'no_restart_test'",
+        health_timeout=1.0,
+        max_retries=10,
+        backoff_base=0.05,
+    )
+
+    restart_attempts = 0
+
+    async def mock_restart(cfg: ServiceConfig) -> bool:
+        nonlocal restart_attempts
+        restart_attempts += 1
+        # Wait to simulate restart taking time
+        await asyncio.sleep(0.02)
+        return False  # Keep failing to trigger more attempts
+
+    mock_manager = MagicMock()
+    mock_manager.check_health = AsyncMock(return_value=False)
+    mock_manager.restart = AsyncMock(side_effect=mock_restart)
+
+    monitor = ServiceHealthMonitor(
+        manager=mock_manager,
+        services=[config],
+        broadcaster=None,
+        check_interval=0.05,
+    )
+
+    await monitor.start()
+
+    # Wait for some restart attempts
+    await asyncio.sleep(0.2)
+
+    # Record restart count at stop time
+    restarts_at_stop = restart_attempts
+
+    # Stop the monitor
+    await monitor.stop()
+
+    # Wait a bit more to ensure no new restarts
+    await asyncio.sleep(0.1)
+
+    # Restart count should not have increased much after stop
+    # (may have one more in-flight when stop was called)
+    assert restart_attempts <= restarts_at_stop + 1, (
+        f"No significant new restarts after stop. "
+        f"Before: {restarts_at_stop}, After: {restart_attempts}"
+    )

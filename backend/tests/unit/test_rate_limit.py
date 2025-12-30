@@ -19,6 +19,7 @@ from fastapi import FastAPI, HTTPException, status
 from backend.api.middleware.rate_limit import (
     RateLimiter,
     RateLimitTier,
+    _is_ip_trusted,
     check_websocket_rate_limit,
     get_client_ip,
     get_tier_limits,
@@ -86,75 +87,260 @@ def mock_websocket():
 
 
 # =============================================================================
+# _is_ip_trusted Tests
+# =============================================================================
+
+
+class TestIsIPTrusted:
+    """Tests for trusted proxy IP validation."""
+
+    def test_exact_ip_match(self):
+        """Test exact IP address matching."""
+        assert _is_ip_trusted("127.0.0.1", ["127.0.0.1"]) is True
+        assert _is_ip_trusted("192.168.1.1", ["127.0.0.1"]) is False
+
+    def test_multiple_trusted_ips(self):
+        """Test matching against multiple trusted IPs."""
+        trusted = ["127.0.0.1", "10.0.0.1", "192.168.1.1"]
+        assert _is_ip_trusted("10.0.0.1", trusted) is True
+        assert _is_ip_trusted("192.168.1.1", trusted) is True
+        assert _is_ip_trusted("172.16.0.1", trusted) is False
+
+    def test_cidr_range_matching(self):
+        """Test CIDR notation for network ranges."""
+        trusted = ["10.0.0.0/8"]
+        assert _is_ip_trusted("10.0.0.1", trusted) is True
+        assert _is_ip_trusted("10.255.255.255", trusted) is True
+        assert _is_ip_trusted("11.0.0.1", trusted) is False
+
+    def test_mixed_ips_and_cidr(self):
+        """Test mixing individual IPs and CIDR ranges."""
+        trusted = ["127.0.0.1", "192.168.0.0/16"]
+        assert _is_ip_trusted("127.0.0.1", trusted) is True
+        assert _is_ip_trusted("192.168.1.100", trusted) is True
+        assert _is_ip_trusted("192.168.255.255", trusted) is True
+        assert _is_ip_trusted("10.0.0.1", trusted) is False
+
+    def test_ipv6_support(self):
+        """Test IPv6 address matching."""
+        assert _is_ip_trusted("::1", ["::1"]) is True
+        assert _is_ip_trusted("::1", ["127.0.0.1"]) is False
+
+    def test_ipv6_cidr_support(self):
+        """Test IPv6 CIDR notation."""
+        trusted = ["fe80::/10"]
+        assert _is_ip_trusted("fe80::1", trusted) is True
+        assert _is_ip_trusted("fe80::ffff:ffff:ffff:ffff", trusted) is True
+        assert _is_ip_trusted("2001:db8::1", trusted) is False
+
+    def test_invalid_client_ip(self):
+        """Test handling of invalid client IP."""
+        assert _is_ip_trusted("invalid", ["127.0.0.1"]) is False
+        assert _is_ip_trusted("", ["127.0.0.1"]) is False
+
+    def test_invalid_trusted_ip_skipped(self):
+        """Test that invalid trusted IP entries are skipped."""
+        # Invalid entry should be skipped, but valid ones should work
+        trusted = ["invalid", "127.0.0.1"]
+        assert _is_ip_trusted("127.0.0.1", trusted) is True
+
+    def test_empty_trusted_list(self):
+        """Test with empty trusted list."""
+        assert _is_ip_trusted("127.0.0.1", []) is False
+
+    def test_private_network_ranges(self):
+        """Test common private network ranges."""
+        trusted = ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+        # Class A private
+        assert _is_ip_trusted("10.0.0.1", trusted) is True
+        # Class B private
+        assert _is_ip_trusted("172.16.0.1", trusted) is True
+        assert _is_ip_trusted("172.31.255.255", trusted) is True
+        # Class C private
+        assert _is_ip_trusted("192.168.0.1", trusted) is True
+        # Public IP
+        assert _is_ip_trusted("8.8.8.8", trusted) is False
+
+
+# =============================================================================
 # get_client_ip Tests
 # =============================================================================
 
 
-class TestGetClientIP:
-    """Tests for client IP extraction."""
+@pytest.fixture
+def mock_settings_for_ip():
+    """Mock settings with default trusted proxy IPs for get_client_ip tests."""
+    mock = MagicMock()
+    mock.trusted_proxy_ips = ["127.0.0.1", "::1"]
+    return mock
 
-    def test_direct_client_ip(self, mock_request):
-        """Test extraction of direct client IP."""
+
+class TestGetClientIP:
+    """Tests for client IP extraction with trusted proxy validation."""
+
+    def test_direct_client_ip(self, mock_request, mock_settings_for_ip):
+        """Test extraction of direct client IP when not from trusted proxy."""
         mock_request.headers = {}
         mock_request.client.host = "10.0.0.1"
 
-        ip = get_client_ip(mock_request)
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", return_value=mock_settings_for_ip
+        ):
+            ip = get_client_ip(mock_request)
 
         assert ip == "10.0.0.1"
 
-    def test_x_forwarded_for_single(self, mock_request):
-        """Test X-Forwarded-For header with single IP."""
+    def test_x_forwarded_for_from_trusted_proxy(self, mock_request, mock_settings_for_ip):
+        """Test X-Forwarded-For header is used when from trusted proxy."""
+        # Set up request from trusted proxy (127.0.0.1 is trusted by default)
+        mock_request.client.host = "127.0.0.1"
         mock_request.headers = {"X-Forwarded-For": "203.0.113.50"}
 
-        ip = get_client_ip(mock_request)
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", return_value=mock_settings_for_ip
+        ):
+            ip = get_client_ip(mock_request)
 
         assert ip == "203.0.113.50"
 
-    def test_x_forwarded_for_chain(self, mock_request):
-        """Test X-Forwarded-For header with multiple IPs."""
+    def test_x_forwarded_for_from_untrusted_proxy_ignored(self, mock_request, mock_settings_for_ip):
+        """Test X-Forwarded-For header is IGNORED when from untrusted proxy."""
+        # Request from untrusted IP (not localhost)
+        mock_request.client.host = "192.168.1.100"
+        mock_request.headers = {"X-Forwarded-For": "203.0.113.50"}
+
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", return_value=mock_settings_for_ip
+        ):
+            ip = get_client_ip(mock_request)
+
+        # Should return direct IP, NOT the X-Forwarded-For value
+        assert ip == "192.168.1.100"
+
+    def test_x_forwarded_for_chain_from_trusted_proxy(self, mock_request, mock_settings_for_ip):
+        """Test X-Forwarded-For header with multiple IPs from trusted proxy."""
+        mock_request.client.host = "127.0.0.1"
         mock_request.headers = {"X-Forwarded-For": "203.0.113.50, 70.41.3.18, 150.172.238.178"}
 
-        ip = get_client_ip(mock_request)
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", return_value=mock_settings_for_ip
+        ):
+            ip = get_client_ip(mock_request)
 
         # Should return first IP (original client)
         assert ip == "203.0.113.50"
 
-    def test_x_real_ip(self, mock_request):
-        """Test X-Real-IP header."""
+    def test_x_real_ip_from_trusted_proxy(self, mock_request, mock_settings_for_ip):
+        """Test X-Real-IP header from trusted proxy."""
+        mock_request.client.host = "127.0.0.1"
         mock_request.headers = {"X-Real-IP": "198.51.100.42"}
 
-        ip = get_client_ip(mock_request)
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", return_value=mock_settings_for_ip
+        ):
+            ip = get_client_ip(mock_request)
 
         assert ip == "198.51.100.42"
 
-    def test_x_forwarded_for_takes_precedence(self, mock_request):
-        """Test that X-Forwarded-For takes precedence over X-Real-IP."""
+    def test_x_real_ip_from_untrusted_proxy_ignored(self, mock_request, mock_settings_for_ip):
+        """Test X-Real-IP header is IGNORED when from untrusted proxy."""
+        mock_request.client.host = "192.168.1.100"
+        mock_request.headers = {"X-Real-IP": "198.51.100.42"}
+
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", return_value=mock_settings_for_ip
+        ):
+            ip = get_client_ip(mock_request)
+
+        # Should return direct IP, NOT the X-Real-IP value
+        assert ip == "192.168.1.100"
+
+    def test_x_forwarded_for_takes_precedence_from_trusted_proxy(
+        self, mock_request, mock_settings_for_ip
+    ):
+        """Test that X-Forwarded-For takes precedence over X-Real-IP from trusted proxy."""
+        mock_request.client.host = "127.0.0.1"
         mock_request.headers = {
             "X-Forwarded-For": "203.0.113.50",
             "X-Real-IP": "198.51.100.42",
         }
 
-        ip = get_client_ip(mock_request)
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", return_value=mock_settings_for_ip
+        ):
+            ip = get_client_ip(mock_request)
 
         assert ip == "203.0.113.50"
 
-    def test_no_client_info(self, mock_request):
+    def test_no_client_info(self, mock_request, mock_settings_for_ip):
         """Test handling when no client info is available."""
         mock_request.headers = {}
         mock_request.client = None
 
-        ip = get_client_ip(mock_request)
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", return_value=mock_settings_for_ip
+        ):
+            ip = get_client_ip(mock_request)
 
         assert ip == "unknown"
 
-    def test_websocket_ip_extraction(self, mock_websocket):
+    def test_websocket_ip_extraction(self, mock_websocket, mock_settings_for_ip):
         """Test IP extraction from WebSocket."""
         mock_websocket.headers = {}
         mock_websocket.client.host = "172.16.0.5"
 
-        ip = get_client_ip(mock_websocket)
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", return_value=mock_settings_for_ip
+        ):
+            ip = get_client_ip(mock_websocket)
 
         assert ip == "172.16.0.5"
+
+    def test_trusted_ipv6_localhost(self, mock_request, mock_settings_for_ip):
+        """Test X-Forwarded-For is trusted from IPv6 localhost."""
+        mock_request.client.host = "::1"
+        mock_request.headers = {"X-Forwarded-For": "203.0.113.50"}
+
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", return_value=mock_settings_for_ip
+        ):
+            ip = get_client_ip(mock_request)
+
+        assert ip == "203.0.113.50"
+
+    def test_custom_trusted_proxies(self, mock_request):
+        """Test with custom trusted proxy configuration."""
+        mock_settings = MagicMock()
+        mock_settings.trusted_proxy_ips = ["10.0.0.0/8"]
+
+        # Request from trusted proxy network
+        mock_request.client.host = "10.0.0.1"
+        mock_request.headers = {"X-Forwarded-For": "203.0.113.50"}
+
+        with patch("backend.api.middleware.rate_limit.get_settings", return_value=mock_settings):
+            ip = get_client_ip(mock_request)
+
+        assert ip == "203.0.113.50"
+
+    def test_spoofed_xff_from_attacker_rejected(self, mock_request, mock_settings_for_ip):
+        """Test that spoofed X-Forwarded-For from attacker IP is rejected.
+
+        This is the key security test: an attacker sending requests directly
+        with a forged X-Forwarded-For header should not be able to bypass
+        rate limiting.
+        """
+        # Attacker's actual IP (not a valid IP, but not in trusted list)
+        mock_request.client.host = "8.8.8.8"
+        # Attacker forges X-Forwarded-For to appear as a different IP
+        mock_request.headers = {"X-Forwarded-For": "10.0.0.1"}
+
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", return_value=mock_settings_for_ip
+        ):
+            ip = get_client_ip(mock_request)
+
+        # Should return attacker's actual IP, not the forged one
+        assert ip == "8.8.8.8"
 
 
 # =============================================================================
@@ -770,21 +956,29 @@ class TestRateLimitTier:
 class TestEdgeCases:
     """Tests for edge cases and error handling."""
 
-    def test_empty_ip_chain(self, mock_request):
+    def test_empty_ip_chain(self, mock_request, mock_settings_for_ip):
         """Test handling of empty X-Forwarded-For header."""
         mock_request.headers = {"X-Forwarded-For": ""}
         mock_request.client.host = "10.0.0.1"
 
-        ip = get_client_ip(mock_request)
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", return_value=mock_settings_for_ip
+        ):
+            ip = get_client_ip(mock_request)
 
         # Empty header should fall through to client.host
         assert ip == "10.0.0.1"
 
-    def test_whitespace_in_forwarded_header(self, mock_request):
+    def test_whitespace_in_forwarded_header(self, mock_request, mock_settings_for_ip):
         """Test stripping of whitespace in X-Forwarded-For header."""
+        # Request from trusted proxy (127.0.0.1) with whitespace-padded X-Forwarded-For
+        mock_request.client.host = "127.0.0.1"
         mock_request.headers = {"X-Forwarded-For": "  203.0.113.50  "}
 
-        ip = get_client_ip(mock_request)
+        with patch(
+            "backend.api.middleware.rate_limit.get_settings", return_value=mock_settings_for_ip
+        ):
+            ip = get_client_ip(mock_request)
 
         assert ip == "203.0.113.50"
 
@@ -797,6 +991,7 @@ class TestEdgeCases:
                 "RATE_LIMIT_ENABLED": "true",
                 "RATE_LIMIT_REQUESTS_PER_MINUTE": "10",
                 "RATE_LIMIT_BURST": "1",
+                "DATABASE_URL": "postgresql+asyncpg://test:test@localhost:5432/test",
             },
         ):
             from backend.core.config import get_settings
@@ -835,15 +1030,23 @@ class TestEdgeCases:
 
     def test_limiter_properties_use_tier_defaults(self):
         """Test that limiter properties fall back to tier defaults."""
-        limiter = RateLimiter(tier=RateLimitTier.MEDIA)
+        with patch.dict(
+            os.environ,
+            {"DATABASE_URL": "postgresql+asyncpg://test:test@localhost:5432/test"},
+        ):
+            from backend.core.config import get_settings
 
-        # Should use tier defaults, not hardcoded values
-        rpm = limiter.requests_per_minute
-        burst = limiter.burst
+            get_settings.cache_clear()
 
-        expected_rpm, expected_burst = get_tier_limits(RateLimitTier.MEDIA)
-        assert rpm == expected_rpm
-        assert burst == expected_burst
+            limiter = RateLimiter(tier=RateLimitTier.MEDIA)
+
+            # Should use tier defaults, not hardcoded values
+            rpm = limiter.requests_per_minute
+            burst = limiter.burst
+
+            expected_rpm, expected_burst = get_tier_limits(RateLimitTier.MEDIA)
+            assert rpm == expected_rpm
+            assert burst == expected_burst
 
     def test_limiter_properties_use_overrides(self):
         """Test that explicit overrides take precedence."""

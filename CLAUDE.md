@@ -50,7 +50,7 @@ Tasks are organized into 8 execution phases. **Always complete earlier phases be
 
 ### Phase 1: Project Setup (P0) - 7 tasks
 
-Foundation - directory structures, Docker, environment, dependencies.
+Foundation - directory structures, container setup (Podman), environment, dependencies.
 
 ```bash
 bd list --label phase-1

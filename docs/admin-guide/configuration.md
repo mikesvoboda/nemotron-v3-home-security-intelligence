@@ -180,6 +180,34 @@ Set `FILE_WATCHER_POLLING=true` if:
 
 **Source:** [`backend/core/config.py:115-138`](../../backend/core/config.py)
 
+#### Health Check Timeout Configuration
+
+Health checks are used to verify AI services are responsive. Configure timeouts based on your network conditions:
+
+```bash
+# For fast local networks (default)
+AI_HEALTH_TIMEOUT=5.0
+
+# For slower networks or remote AI services
+AI_HEALTH_TIMEOUT=15.0
+
+# For VPN or high-latency connections
+AI_HEALTH_TIMEOUT=30.0
+```
+
+**When to increase `AI_HEALTH_TIMEOUT`:**
+
+- AI services are on remote machines
+- Network has high latency (>100ms)
+- Services are under heavy load
+- Health check failures appear in logs despite services being operational
+
+**When to decrease `AI_HEALTH_TIMEOUT`:**
+
+- AI services are on localhost
+- Fast failover is needed
+- Quick detection of service failures is critical
+
 ### Container Networking
 
 AI services run natively on the host for GPU access. Configure URLs based on your environment:
@@ -457,6 +485,66 @@ Frontend variables use the `VITE_` prefix and are embedded at **build time**.
 | `VITE_WS_BASE_URL`  | `ws://localhost:8000`   | WebSocket URL (from browser)   |
 
 **Important:** These URLs are accessed from the browser, not from containers. Use `localhost` or your server's public hostname, not `host.docker.internal`.
+
+### Frontend Port Configuration
+
+The frontend serves on different ports depending on the environment:
+
+| Environment | Port | Server    | Configuration             |
+| ----------- | ---- | --------- | ------------------------- |
+| Development | 5173 | Vite dev  | Default Vite port         |
+| Production  | 80   | Nginx     | Container exposes port 80 |
+| Production  | 443  | Nginx+TLS | When TLS is enabled       |
+
+#### Changing the Production Port
+
+To change the production frontend port (default: 80), modify `docker-compose.prod.yml`:
+
+```yaml
+# docker-compose.prod.yml
+services:
+  frontend:
+    ports:
+      - "${FRONTEND_PORT:-80}:80" # Use FRONTEND_PORT env var or default to 80
+```
+
+Then set the environment variable:
+
+```bash
+# Serve frontend on port 3000 instead of 80
+export FRONTEND_PORT=3000
+podman-compose -f docker-compose.prod.yml up -d
+```
+
+#### Running Frontend Behind a Reverse Proxy
+
+When running behind nginx, Traefik, or another reverse proxy:
+
+```bash
+# .env - Point frontend to your proxy URL
+VITE_API_BASE_URL=https://yourdomain.com/api
+VITE_WS_BASE_URL=wss://yourdomain.com/api
+
+# Rebuild frontend with new URLs
+cd frontend && npm run build
+```
+
+#### Development Port Override
+
+To change the development port (default: 5173):
+
+```bash
+cd frontend
+
+# Using environment variable
+VITE_PORT=3000 npm run dev
+
+# Or modify vite.config.ts:
+# server: {
+#   port: 3000,
+#   host: true
+# }
+```
 
 ---
 

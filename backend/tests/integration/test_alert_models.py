@@ -4,7 +4,7 @@ Tests use PostgreSQL via the isolated_db fixture since models use
 PostgreSQL-specific features like JSONB and UUID.
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import select
@@ -47,7 +47,7 @@ async def test_event(session, test_camera):
     event = Event(
         batch_id=unique_id("batch"),
         camera_id=test_camera.id,
-        started_at=datetime.utcnow(),
+        started_at=datetime.now(UTC),
         risk_score=75,
         risk_level="high",
     )
@@ -257,7 +257,7 @@ class TestAlertModel:
 
         # Transition to delivered
         alert.status = AlertStatus.DELIVERED
-        alert.delivered_at = datetime.utcnow()
+        alert.delivered_at = datetime.now(UTC)
         await session.flush()
         assert alert.status == AlertStatus.DELIVERED
         assert alert.delivered_at is not None
@@ -385,7 +385,7 @@ class TestAlertModel:
         event = Event(
             batch_id=batch_id,
             camera_id=test_camera.id,
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(UTC),
         )
         session.add(event)
         await session.flush()
@@ -462,7 +462,7 @@ class TestAlertIndexes:
     @pytest.mark.asyncio
     async def test_query_by_dedup_key_and_created_at(self, session, test_event):
         """Test query using composite index on dedup_key and created_at."""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
 
         # Create alerts at different times with same dedup_key
         for i in range(5):
@@ -491,7 +491,7 @@ class TestAlertIndexes:
     @pytest.mark.asyncio
     async def test_query_recent_alerts_by_severity(self, session, test_event):
         """Test querying recent alerts filtered by severity."""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
 
         # Create alerts with different severities
         severities = [

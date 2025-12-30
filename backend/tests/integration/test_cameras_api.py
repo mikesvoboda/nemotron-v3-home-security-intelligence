@@ -2,7 +2,7 @@
 
 import asyncio
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -470,7 +470,7 @@ async def test_delete_camera_cascades_to_related_data(client):
         event = Event(
             batch_id=str(uuid.uuid4()),
             camera_id=camera_id,
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(UTC),
             risk_score=75,
             summary="Test event",
         )

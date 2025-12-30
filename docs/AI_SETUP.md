@@ -76,9 +76,9 @@ The following environment variables are used by the AI services. Set these in yo
 
 ### Required Variables
 
-| Variable       | Description                   | Example                                        |
-| -------------- | ----------------------------- | ---------------------------------------------- |
-| `PROJECT_ROOT` | Root directory of the project | `/home/user/github/home-security-intelligence` |
+| Variable       | Description                   | Example                                   |
+| -------------- | ----------------------------- | ----------------------------------------- |
+| `PROJECT_ROOT` | Root directory of the project | `$HOME/github/home-security-intelligence` |
 
 ### Optional Variables
 
@@ -902,7 +902,7 @@ crontab -e
 @reboot ${PROJECT_ROOT}/scripts/start-ai.sh start
 
 # Or use an absolute path, for example:
-# @reboot /home/youruser/github/home-security-intelligence/scripts/start-ai.sh start
+# @reboot $HOME/github/home-security-intelligence/scripts/start-ai.sh start
 ```
 
 ### High Availability

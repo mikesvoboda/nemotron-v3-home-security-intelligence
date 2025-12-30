@@ -22,6 +22,7 @@ Usage:
 
 from __future__ import annotations
 
+import ipaddress
 import time
 from enum import Enum
 from typing import TYPE_CHECKING
@@ -36,6 +37,43 @@ if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
 logger = get_logger(__name__)
+
+
+def _is_ip_trusted(client_ip: str, trusted_ips: list[str]) -> bool:
+    """Check if an IP address is in the trusted proxy list.
+
+    Supports both individual IPs and CIDR notation (e.g., '10.0.0.0/8').
+
+    Args:
+        client_ip: The IP address to check
+        trusted_ips: List of trusted IPs or CIDR ranges
+
+    Returns:
+        True if the IP is trusted, False otherwise
+    """
+    try:
+        ip_obj = ipaddress.ip_address(client_ip)
+    except ValueError:
+        # Invalid IP, not trusted
+        return False
+
+    for trusted in trusted_ips:
+        try:
+            # Check if it's a network (CIDR notation)
+            if "/" in trusted:
+                network = ipaddress.ip_network(trusted, strict=False)
+                if ip_obj in network:
+                    return True
+            else:
+                # Individual IP
+                trusted_ip = ipaddress.ip_address(trusted)
+                if ip_obj == trusted_ip:
+                    return True
+        except ValueError:
+            # Invalid trusted IP entry, skip
+            continue
+
+    return False
 
 
 class RateLimitTier(str, Enum):
@@ -71,7 +109,15 @@ def get_tier_limits(tier: RateLimitTier) -> tuple[int, int]:
 def get_client_ip(request: Request | WebSocket) -> str:
     """Extract client IP address from request.
 
-    Handles X-Forwarded-For header for proxied requests.
+    Handles X-Forwarded-For header for proxied requests, but ONLY when the
+    direct client IP is from a trusted proxy. This prevents IP spoofing attacks
+    where attackers forge X-Forwarded-For headers to bypass rate limits.
+
+    Security:
+        - X-Forwarded-For is only trusted when the request comes from a trusted proxy
+        - Trusted proxies are configured via TRUSTED_PROXY_IPS setting
+        - Default trusted proxies: 127.0.0.1, ::1 (localhost)
+        - Supports CIDR notation (e.g., '10.0.0.0/8')
 
     Args:
         request: FastAPI Request or WebSocket object
@@ -79,22 +125,32 @@ def get_client_ip(request: Request | WebSocket) -> str:
     Returns:
         Client IP address as string
     """
-    # Check for X-Forwarded-For header (common with reverse proxies)
-    forwarded_for = request.headers.get("X-Forwarded-For")
-    if forwarded_for:
-        # Take the first IP in the chain (original client)
-        return str(forwarded_for.split(",")[0].strip())
+    settings = get_settings()
 
-    # Check for X-Real-IP header
-    real_ip = request.headers.get("X-Real-IP")
-    if real_ip:
-        return str(real_ip.strip())
-
-    # Fall back to direct client IP
+    # Get direct client IP first
+    direct_ip = "unknown"
     if request.client:
-        return str(request.client.host)
+        direct_ip = str(request.client.host)
 
-    return "unknown"
+    # Only process X-Forwarded-For/X-Real-IP if the direct client is a trusted proxy
+    if direct_ip != "unknown" and _is_ip_trusted(direct_ip, settings.trusted_proxy_ips):
+        # Check for X-Forwarded-For header (common with reverse proxies)
+        forwarded_for = request.headers.get("X-Forwarded-For")
+        if forwarded_for:
+            # Take the first IP in the chain (original client)
+            client_ip = str(forwarded_for.split(",")[0].strip())
+            if client_ip:
+                return client_ip
+
+        # Check for X-Real-IP header
+        real_ip = request.headers.get("X-Real-IP")
+        if real_ip:
+            client_ip = str(real_ip.strip())
+            if client_ip:
+                return client_ip
+
+    # Return direct client IP (or "unknown" if not available)
+    return direct_ip
 
 
 class RateLimiter:

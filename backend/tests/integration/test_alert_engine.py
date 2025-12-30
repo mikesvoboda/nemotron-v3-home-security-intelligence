@@ -22,7 +22,7 @@ database, tests must be designed to work independently:
    by a specific test for assertion checking
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -94,7 +94,7 @@ async def test_event(session, test_camera):
     event = Event(
         batch_id="batch_001",
         camera_id=test_camera.id,
-        started_at=datetime.utcnow(),
+        started_at=datetime.now(UTC),
         risk_score=80,
         risk_level="high",
         detection_ids="[1, 2]",
@@ -110,14 +110,14 @@ async def test_detections(session, test_camera):
     det1 = Detection(
         camera_id=test_camera.id,
         file_path="/export/foscam/front_door/image1.jpg",
-        detected_at=datetime.utcnow(),
+        detected_at=datetime.now(UTC),
         object_type="person",
         confidence=0.95,
     )
     det2 = Detection(
         camera_id=test_camera.id,
         file_path="/export/foscam/front_door/image2.jpg",
-        detected_at=datetime.utcnow(),
+        detected_at=datetime.now(UTC),
         object_type="vehicle",
         confidence=0.85,
     )
@@ -251,7 +251,7 @@ class TestRiskThresholdCondition:
         event = Event(
             batch_id=unique_id("batch"),
             camera_id=test_camera.id,
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(UTC),
             risk_score=None,
         )
         session.add(event)
@@ -676,7 +676,7 @@ class TestCooldown:
             event_id=test_event.id,
             rule_id=rule.id,
             dedup_key=dedup_key,
-            created_at=datetime.utcnow() - timedelta(minutes=2),  # 2 minutes ago
+            created_at=datetime.now(UTC) - timedelta(minutes=2),  # 2 minutes ago
         )
         session.add(existing_alert)
         await session.flush()
@@ -710,7 +710,7 @@ class TestCooldown:
             event_id=test_event.id,
             rule_id=rule.id,
             dedup_key=dedup_key,
-            created_at=datetime.utcnow() - timedelta(minutes=10),  # 10 minutes ago
+            created_at=datetime.now(UTC) - timedelta(minutes=10),  # 10 minutes ago
         )
         session.add(existing_alert)
         await session.flush()
@@ -772,19 +772,19 @@ class TestRuleTesting:
         event1 = Event(
             batch_id=unique_id("batch"),
             camera_id=test_camera.id,
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(UTC),
             risk_score=80,
         )
         event2 = Event(
             batch_id=unique_id("batch"),
             camera_id=test_camera.id,
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(UTC),
             risk_score=60,
         )
         event3 = Event(
             batch_id=unique_id("batch"),
             camera_id=test_camera.id,
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(UTC),
             risk_score=90,
         )
         session.add_all([event1, event2, event3])
@@ -875,14 +875,14 @@ class TestLoadEventDetections:
         det1 = Detection(
             camera_id=test_camera.id,
             file_path="/export/foscam/front_door/image1.jpg",
-            detected_at=datetime.utcnow(),
+            detected_at=datetime.now(UTC),
             object_type="person",
             confidence=0.95,
         )
         det2 = Detection(
             camera_id=test_camera.id,
             file_path="/export/foscam/front_door/image2.jpg",
-            detected_at=datetime.utcnow(),
+            detected_at=datetime.now(UTC),
             object_type="vehicle",
             confidence=0.85,
         )
@@ -895,7 +895,7 @@ class TestLoadEventDetections:
         event = Event(
             batch_id=unique_id("batch"),
             camera_id=test_camera.id,
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(UTC),
             risk_score=80,
             detection_ids=json.dumps([det1.id, det2.id]),
         )
@@ -923,7 +923,7 @@ class TestLoadEventDetections:
         event = Event(
             batch_id=unique_id("batch"),
             camera_id=test_camera.id,
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(UTC),
             risk_score=80,
             detection_ids="",  # Empty string
         )
@@ -950,7 +950,7 @@ class TestLoadEventDetections:
         event = Event(
             batch_id=unique_id("batch"),
             camera_id=test_camera.id,
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(UTC),
             risk_score=80,
             detection_ids="not valid json",  # Invalid JSON
         )
@@ -979,7 +979,7 @@ class TestLoadEventDetections:
         event = Event(
             batch_id=unique_id("batch"),
             camera_id=test_camera.id,
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(UTC),
             risk_score=80,
             detection_ids=json.dumps({"id": 1}),  # Dict, not list
         )
@@ -1008,7 +1008,7 @@ class TestLoadEventDetections:
         event = Event(
             batch_id=unique_id("batch"),
             camera_id=test_camera.id,
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(UTC),
             risk_score=80,
             detection_ids=json.dumps([]),  # Empty list
         )
