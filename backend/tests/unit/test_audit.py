@@ -10,6 +10,10 @@ import pytest
 from backend.models.audit import AuditAction, AuditLog, AuditStatus
 from backend.services.audit import AuditService
 
+# Mark as integration since some tests require real PostgreSQL database (test_db fixture)
+# NOTE: This file should be moved to backend/tests/integration/ in a future cleanup
+pytestmark = pytest.mark.integration
+
 
 class TestAuditLogModel:
     """Tests for the AuditLog model."""

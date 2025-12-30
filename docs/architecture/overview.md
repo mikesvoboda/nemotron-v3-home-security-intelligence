@@ -1,6 +1,32 @@
+---
+title: Architecture Overview
+description: High-level system design, technology stack, data flow, and component responsibilities
+last_updated: 2025-12-30
+source_refs:
+  - backend/main.py
+  - backend/api/routes/cameras.py
+  - backend/api/routes/events.py
+  - backend/api/routes/detections.py
+  - backend/api/routes/system.py
+  - backend/services/file_watcher.py:FileWatcher
+  - backend/services/detector_client.py:DetectorClient
+  - backend/services/batch_aggregator.py:BatchAggregator
+  - backend/services/nemotron_analyzer.py:NemotronAnalyzer
+  - backend/services/event_broadcaster.py:EventBroadcaster
+  - backend/services/gpu_monitor.py:GPUMonitor
+  - backend/services/health_monitor.py:ServiceHealthMonitor
+  - backend/models/camera.py:Camera
+  - backend/models/detection.py:Detection
+  - backend/models/event.py:Event
+  - frontend/src/hooks/useWebSocket.ts
+  - frontend/src/hooks/useEventStream.ts
+  - ai/rtdetr/model.py
+  - ai/nemotron/AGENTS.md
+---
+
 # Architecture Overview
 
-> **Last Updated:** 2025-12-28
+> **Last Updated:** 2025-12-30
 > **Target Audience:** Future maintainers, technical contributors
 
 ---
@@ -356,8 +382,9 @@ A single "person walks to door" scenario might generate 15 images over 30 second
 Critical detections can bypass batching for immediate alerts:
 
 ```mermaid
-flowchart LR
-    D[Detection] --> C{Confidence > 90%<br/>AND<br/>type = person?}
+flowchart TB
+    D[Detection]
+    D --> C{Confidence > 90%<br/>AND<br/>type = person?}
     C -->|Yes| FP[Fast Path<br/>Immediate LLM analysis]
     C -->|No| NP[Normal Path<br/>Add to batch]
     FP --> E1[Event created<br/>is_fast_path=true]
@@ -573,8 +600,9 @@ flowchart TB
 ### Retry and Dead-Letter Queues
 
 ```mermaid
-flowchart LR
-    JOB[Job] --> W[Worker]
+flowchart TB
+    JOB[Job]
+    JOB --> W[Worker]
     W --> P{Processing}
     P -->|Success| DONE[Complete]
     P -->|Fail| R{Retries < 3?}

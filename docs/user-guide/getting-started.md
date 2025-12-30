@@ -1,3 +1,12 @@
+---
+title: Getting Started
+description: Introduction to your home security system
+---
+
+<!-- Nano Banana Pro Prompt:
+"Dark mode quick start guide illustration showing 4-step setup flow (install, configure, connect cameras, view dashboard), each step as an icon in vertical sequence connected by arrows, progress indicator style, NVIDIA dark theme #121212 background with #76B900 green checkmarks for completed steps, clean onboarding visual, vertical 2:3 aspect ratio, no text overlays"
+-->
+
 # Getting Started
 
 > Welcome to your home security system! This guide will help you understand what it does and how to use it.

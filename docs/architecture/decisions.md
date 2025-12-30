@@ -195,9 +195,10 @@ if confidence >= 0.90 and object_type == "person":
 ```
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph "Batching Logic"
-        A[New Detection] --> B{Fast Path?}
+        A[New Detection]
+        A --> B{Fast Path?}
         B -->|Yes: person >90%| C[Immediate Analysis]
         B -->|No| D{Active Batch?}
         D -->|No| E[Create Batch]
