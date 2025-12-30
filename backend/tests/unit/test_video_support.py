@@ -196,8 +196,30 @@ class TestFileWatcherVideoProcessing:
     @pytest.fixture
     def mock_redis_client(self) -> AsyncMock:
         """Mock Redis client."""
+        from dataclasses import dataclass
+
+        @dataclass
+        class MockQueueAddResult:
+            """Mock QueueAddResult for testing."""
+
+            success: bool
+            queue_length: int
+            dropped_count: int = 0
+            moved_to_dlq_count: int = 0
+            error: str | None = None
+            warning: str | None = None
+
+            @property
+            def had_backpressure(self) -> bool:
+                return (
+                    self.dropped_count > 0 or self.moved_to_dlq_count > 0 or self.error is not None
+                )
+
         mock_client = AsyncMock()
         mock_client.add_to_queue = AsyncMock(return_value=1)
+        mock_client.add_to_queue_safe = AsyncMock(
+            return_value=MockQueueAddResult(success=True, queue_length=1)
+        )
         return mock_client
 
     @pytest.fixture
@@ -224,8 +246,8 @@ class TestFileWatcherVideoProcessing:
         await file_watcher._process_file(str(video_path))
 
         # Verify Redis queue was called with correct data
-        mock_redis_client.add_to_queue.assert_awaited_once()
-        call_args = mock_redis_client.add_to_queue.call_args[0]
+        mock_redis_client.add_to_queue_safe.assert_awaited_once()
+        call_args = mock_redis_client.add_to_queue_safe.call_args[0]
 
         assert call_args[0] == "detection_queue"
         data = call_args[1]
@@ -245,7 +267,7 @@ class TestFileWatcherVideoProcessing:
 
         await file_watcher._process_file(str(video_path))
 
-        call_args = mock_redis_client.add_to_queue.call_args[0]
+        call_args = mock_redis_client.add_to_queue_safe.call_args[0]
         data = call_args[1]
         assert data["media_type"] == "video"
 
@@ -261,7 +283,7 @@ class TestFileWatcherVideoProcessing:
         await file_watcher._process_file(str(video_path))
 
         # Should not queue invalid videos
-        mock_redis_client.add_to_queue.assert_not_awaited()
+        mock_redis_client.add_to_queue_safe.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_queue_includes_media_type(
@@ -277,7 +299,7 @@ class TestFileWatcherVideoProcessing:
 
         await file_watcher._process_file(str(image_path))
 
-        call_args = mock_redis_client.add_to_queue.call_args[0]
+        call_args = mock_redis_client.add_to_queue_safe.call_args[0]
         data = call_args[1]
         assert data["media_type"] == "image"
 
