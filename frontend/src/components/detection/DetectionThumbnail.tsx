@@ -191,15 +191,18 @@ const DetectionThumbnail: React.FC<DetectionThumbnailProps> = ({
   return (
     <div
       className={`relative overflow-hidden rounded-lg ${className}`}
-      onClick={onClick}
-      onKeyDown={(e) => {
-        if (onClick && (e.key === 'Enter' || e.key === ' ')) {
-          e.preventDefault();
-          onClick();
-        }
-      }}
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
+      {...(onClick && {
+        onClick,
+        onKeyDown: (e: React.KeyboardEvent) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onClick();
+          }
+        },
+        role: 'button',
+        tabIndex: 0,
+        'aria-label': alt,
+      })}
     >
       <img
         src={imageUrl}
