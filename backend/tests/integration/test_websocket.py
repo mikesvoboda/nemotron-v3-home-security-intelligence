@@ -981,20 +981,32 @@ class TestEventBroadcastPipeline:
         # NemotronAnalyzer now imports EventBroadcaster.CHANNEL_NAME
         assert broadcaster.CHANNEL_NAME == "security_events"
 
+        # Create camera_id for use in both tests
+        from datetime import datetime
+
+        from backend.models.event import Event
+
+        camera_id = unique_id("test_camera")
+
         # Test that both use the same channel
-        # Broadcast through EventBroadcaster
-        await broadcaster.broadcast_event({"test": "data"})
+        # Broadcast through EventBroadcaster (with valid WebSocketEventData payload)
+        valid_event_data = {
+            "id": 1,
+            "event_id": 1,
+            "batch_id": "test_batch_channel",
+            "camera_id": camera_id,
+            "risk_score": 50,
+            "risk_level": "medium",
+            "summary": "Channel alignment test",
+            "started_at": "2025-12-23T12:00:00",
+        }
+        await broadcaster.broadcast_event(valid_event_data)
         broadcast_channel = mock_redis.publish.call_args[0][0]
 
         # Reset mock
         mock_redis.publish.reset_mock()
 
         # Broadcast through NemotronAnalyzer - mock get_broadcaster to use our broadcaster
-        from datetime import datetime
-
-        from backend.models.event import Event
-
-        camera_id = unique_id("test_camera")
         test_event = Event(
             id=1,
             batch_id="test_batch",
@@ -1102,14 +1114,31 @@ class TestEventBroadcastPipeline:
         # Create broadcaster with explicit channel name
         broadcaster = EventBroadcaster(mock_redis, channel_name="security_events")
 
-        # Broadcast a message without 'type' field
-        payload = {"id": 123, "risk_score": 50}
+        # Broadcast a message without 'type' field (but with all required WebSocketEventData fields)
+        payload = {
+            "id": 123,
+            "event_id": 123,
+            "batch_id": "wrap_test_batch",
+            "camera_id": unique_id("wrap_test_camera"),
+            "risk_score": 50,
+            "risk_level": "medium",
+            "summary": "Test wrapping of messages without type field",
+            "started_at": "2025-12-23T12:00:00",
+        }
         await broadcaster.broadcast_event(payload)
 
         # Verify it was wrapped
         message = mock_redis.publish.call_args[0][1]
         assert message["type"] == "event"
-        assert message["data"] == payload
+        # The data is validated and normalized, so compare specific fields
+        assert message["data"]["id"] == payload["id"]
+        assert message["data"]["event_id"] == payload["event_id"]
+        assert message["data"]["batch_id"] == payload["batch_id"]
+        assert message["data"]["camera_id"] == payload["camera_id"]
+        assert message["data"]["risk_score"] == payload["risk_score"]
+        assert message["data"]["risk_level"] == payload["risk_level"]
+        assert message["data"]["summary"] == payload["summary"]
+        assert message["data"]["started_at"] == payload["started_at"]
 
     @pytest.mark.asyncio
     async def test_end_to_end_publish_subscribe(self, integration_env):

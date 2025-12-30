@@ -81,7 +81,7 @@ def mock_redis_client():
     mock_internal.ping = AsyncMock(return_value=True)
     mock_client._client = mock_internal
 
-    # High-level operations
+    # High-level operations (base methods)
     mock_client.get = AsyncMock(return_value=None)
     mock_client.set = AsyncMock(return_value=True)
     mock_client.delete = AsyncMock(return_value=1)
@@ -97,13 +97,20 @@ def mock_redis_client():
     mock_client.connect = AsyncMock()
     mock_client.disconnect = AsyncMock()
 
-    # Mock add_to_queue_safe for close_batch (returns QueueResult-like object)
+    # Mock *_with_retry methods used by BatchAggregator
+    # These methods delegate to base methods internally, so we need to mock them
+    # to return the same values as their base counterparts
+    mock_client.get_with_retry = AsyncMock(return_value=None)
+    mock_client.set_with_retry = AsyncMock(return_value=True)
+
+    # Mock add_to_queue_safe_with_retry for close_batch (returns QueueResult-like object)
     queue_result_mock = MagicMock()
     queue_result_mock.success = True
     queue_result_mock.had_backpressure = False
     queue_result_mock.queue_length = 0
     queue_result_mock.error = None
     mock_client.add_to_queue_safe = AsyncMock(return_value=queue_result_mock)
+    mock_client.add_to_queue_safe_with_retry = AsyncMock(return_value=queue_result_mock)
 
     return mock_client
 
@@ -261,7 +268,7 @@ class TestQueueConsumerLoop:
 
         mock_redis_client._client.scan_iter = MagicMock(return_value=mock_scan_iter())
 
-        async def mock_get(key):
+        async def mock_get_with_retry(key, max_retries=None):
             if key == f"batch:{camera_id}:current":
                 return batch_id
             elif key in {f"batch:{batch_id}:started_at", f"batch:{batch_id}:last_activity"}:
@@ -272,15 +279,16 @@ class TestQueueConsumerLoop:
                 return json.dumps([1])  # Use numeric detection ID
             return None
 
-        mock_redis_client.get.side_effect = mock_get
+        # Mock get_with_retry which is used by BatchAggregator.check_batch_timeouts()
+        mock_redis_client.get_with_retry = AsyncMock(side_effect=mock_get_with_retry)
 
         # Execute timeout check
         closed_batches = await batch_aggregator.check_batch_timeouts()
 
         # Verify batch was closed
         assert batch_id in closed_batches
-        # Note: BatchAggregator.close_batch() uses add_to_queue_safe(), not add_to_queue()
-        mock_redis_client.add_to_queue_safe.assert_called()
+        # Note: BatchAggregator.close_batch() uses add_to_queue_safe_with_retry()
+        mock_redis_client.add_to_queue_safe_with_retry.assert_called()
 
     @pytest.mark.asyncio
     async def test_consumer_handles_empty_queue(self, mock_redis_client):
@@ -935,7 +943,7 @@ class TestEdgeCases:
         """Test handling of batch with no detections."""
         batch_id = "empty_batch"
 
-        async def mock_get(key):
+        async def mock_get_with_retry(key, max_retries=None):
             if key == f"batch:{batch_id}:camera_id":
                 return "test_cam"
             elif key == f"batch:{batch_id}:detections":
@@ -944,13 +952,14 @@ class TestEdgeCases:
                 return str(time.time())
             return None
 
-        mock_redis_client.get.side_effect = mock_get
+        # Mock get_with_retry which is used by BatchAggregator.close_batch()
+        mock_redis_client.get_with_retry = AsyncMock(side_effect=mock_get_with_retry)
 
         summary = await batch_aggregator.close_batch(batch_id)
 
         assert summary["detection_count"] == 0
         # Empty batches should not be queued for analysis
-        mock_redis_client.add_to_queue.assert_not_called()
+        mock_redis_client.add_to_queue_safe_with_retry.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_malformed_queue_item_handling(self, mock_redis_client):
@@ -970,7 +979,7 @@ class TestEdgeCases:
         # Detection IDs must be integers (database model requirement)
         detection_ids = list(range(1000))  # 1000 detections (integers 0-999)
 
-        async def mock_get(key):
+        async def mock_get_with_retry(key, max_retries=None):
             if key == f"batch:{batch_id}:camera_id":
                 return "test_cam"
             elif key == f"batch:{batch_id}:detections":
@@ -979,13 +988,14 @@ class TestEdgeCases:
                 return str(time.time())
             return None
 
-        mock_redis_client.get.side_effect = mock_get
+        # Mock get_with_retry which is used by BatchAggregator.close_batch()
+        mock_redis_client.get_with_retry = AsyncMock(side_effect=mock_get_with_retry)
 
         summary = await batch_aggregator.close_batch(batch_id)
 
         assert summary["detection_count"] == 1000
-        # Note: BatchAggregator.close_batch() uses add_to_queue_safe(), not add_to_queue()
-        mock_redis_client.add_to_queue_safe.assert_called_once()
+        # Note: BatchAggregator.close_batch() uses add_to_queue_safe_with_retry()
+        mock_redis_client.add_to_queue_safe_with_retry.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_rapid_shutdown_restart_cycle(self, mock_redis_client):
@@ -1020,7 +1030,8 @@ class TestEdgeCases:
 
         # First add - creates new batch
         # Detection IDs must be integers (database model requirement)
-        mock_redis_client.get.return_value = None
+        # Mock get_with_retry to return None initially (no existing batch)
+        mock_redis_client.get_with_retry = AsyncMock(return_value=None)
         with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
             mock_uuid.return_value.hex = "batch_001"
             batch_id1 = await batch_aggregator.add_detection(
@@ -1030,14 +1041,15 @@ class TestEdgeCases:
             )
 
         # Second add - same detection ID (duplicate)
-        async def mock_get(key):
+        async def mock_get_with_retry(key, max_retries=None):
             if key == f"batch:{camera_id}:current":
                 return "batch_001"
             elif key == "batch:batch_001:detections":
                 return json.dumps([1])  # Already has detection ID 1
             return None
 
-        mock_redis_client.get.side_effect = mock_get
+        # Mock get_with_retry which is used by BatchAggregator.add_detection()
+        mock_redis_client.get_with_retry = AsyncMock(side_effect=mock_get_with_retry)
 
         batch_id2 = await batch_aggregator.add_detection(
             camera_id=camera_id,

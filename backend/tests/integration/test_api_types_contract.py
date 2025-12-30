@@ -88,6 +88,16 @@ class TestAPITypesContract:
         handle this, we first regenerate types to ensure they're current,
         then verify the --check passes.
         """
+        # Check if frontend dependencies are available
+        # This handles CI environments where npm install hasn't been run
+        frontend_node_modules = project_root / "frontend" / "node_modules"
+        openapi_typescript = frontend_node_modules / "openapi-typescript"
+        if not frontend_node_modules.exists() or not openapi_typescript.exists():
+            pytest.skip(
+                "Frontend dependencies not installed (node_modules or openapi-typescript missing). "
+                "This test requires: cd frontend && npm install"
+            )
+
         # First, ensure types are current by regenerating them
         # This handles any drift caused by pytest fixture side effects
         gen_result = subprocess.run(  # noqa: S603 # intentional subprocess for integration test
@@ -141,6 +151,16 @@ class TestAPITypesContract:
         if not generated_types_file.exists():
             pytest.skip("Generated types file doesn't exist")
 
+        # Check if frontend dependencies are available by running a quick test
+        # This handles CI environments where npm install hasn't been run
+        frontend_node_modules = project_root / "frontend" / "node_modules"
+        openapi_typescript = frontend_node_modules / "openapi-typescript"
+        if not frontend_node_modules.exists() or not openapi_typescript.exists():
+            pytest.skip(
+                "Frontend dependencies not installed (node_modules or openapi-typescript missing). "
+                "This test requires: cd frontend && npm install"
+            )
+
         # Create a temporary backup
         with tempfile.NamedTemporaryFile(
             mode="w",
@@ -169,6 +189,15 @@ class TestAPITypesContract:
                 timeout=120,
             )
 
+            # Check if the script failed due to missing frontend dependencies
+            # (This can happen if the node_modules check above passes but something else is missing)
+            output = result.stdout + result.stderr
+            if "Frontend dependencies not installed" in output or "npm install" in output.lower():
+                pytest.skip(
+                    "generate-types.sh failed due to missing frontend dependencies. "
+                    f"Output: {output}"
+                )
+
             # The script should exit with non-zero when types don't match
             assert result.returncode != 0, (
                 "generate-types.sh --check should have failed when types are modified.\n"
@@ -177,7 +206,6 @@ class TestAPITypesContract:
             )
 
             # Check that the error message is helpful
-            output = result.stdout + result.stderr
             assert (
                 "out of date" in output.lower()
                 or "outdated" in output.lower()
