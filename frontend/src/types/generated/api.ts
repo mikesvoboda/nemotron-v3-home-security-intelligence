@@ -83,10 +83,12 @@ export interface paths {
          *
          *     SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
          *     If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
-         *     Requires explicit confirmation via query parameter to prevent accidental data deletion.
+         *     Requires JSON body confirmation to prevent accidental data deletion:
+         *     {"confirm": "DELETE_ALL_DATA"}
          *
          *     Args:
-         *         confirm: Must be set to true to confirm data deletion (query parameter)
+         *         body: Request body with confirmation string
+         *         request: FastAPI request for audit logging
          *         db: Database session
          *         _admin: Admin access validation (via dependency)
          *
@@ -94,7 +96,7 @@ export interface paths {
          *         Summary of cleared data counts
          *
          *     Raises:
-         *         HTTPException: 400 if confirm is not set to true
+         *         HTTPException: 400 if confirmation string is incorrect
          */
         delete: operations["clear_seeded_data_api_admin_seed_clear_delete"];
         options?: never;
@@ -5283,9 +5285,7 @@ export interface operations {
     };
     clear_seeded_data_api_admin_seed_clear_delete: {
         parameters: {
-            query?: {
-                confirm?: boolean;
-            };
+            query?: never;
             header?: {
                 "x-admin-api-key"?: string | null;
             };
