@@ -259,30 +259,17 @@ async def test_admin_api_key_invalid(admin_api_key_client):
 
 
 @pytest.mark.asyncio
-async def test_admin_api_key_valid(client, clean_seed_data):
+async def test_admin_api_key_valid(admin_api_key_client, clean_seed_data):
     """Test that valid admin API key is accepted."""
-    from backend.core.config import get_settings
+    # Request with correct API key should succeed
+    response = await admin_api_key_client.post(
+        "/api/admin/seed/cameras",
+        json={"count": 2},
+        headers={"X-Admin-API-Key": "test-secret-key-12345"},
+    )
 
-    os.environ["DEBUG"] = "true"
-    os.environ["ADMIN_ENABLED"] = "true"
-    os.environ["ADMIN_API_KEY"] = "test-secret-key-12345"
-    get_settings.cache_clear()
-
-    try:
-        # Request with correct API key should succeed
-        response = await client.post(
-            "/api/admin/seed/cameras",
-            json={"count": 2},
-            headers={"X-Admin-API-Key": "test-secret-key-12345"},
-        )
-
-        assert response.status_code == 200
-        assert response.json()["created"] == 2
-    finally:
-        os.environ.pop("DEBUG", None)
-        os.environ.pop("ADMIN_ENABLED", None)
-        os.environ.pop("ADMIN_API_KEY", None)
-        get_settings.cache_clear()
+    assert response.status_code == 200
+    assert response.json()["created"] == 2
 
 
 # === Seed Cameras Tests (with full admin access) ===
