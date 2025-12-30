@@ -30,8 +30,9 @@ Home Security Intelligence is a self-hosted security monitoring system that:
 
 ### For Quick Start (Tier 1)
 
-- Linux: Docker Engine 20.10+ or Podman 4.0+
-- macOS: Podman 4.0+ (Docker Desktop requires paid license for commercial use)
+- Linux: Docker Engine 20.10+ with Docker Compose, or Podman 4.0+ with podman-compose
+- macOS: Podman 4.0+ with podman-compose (Docker Desktop requires paid license for commercial use)
+  - Install: `brew install podman podman-compose`
 - 4GB RAM, 10GB disk space
 
 ### For Production (Tier 2)
@@ -54,12 +55,21 @@ Run the full stack in demo mode without GPU/AI services. Useful for evaluating t
 ### Linux (Docker)
 
 ```bash
-# Clone and start
+# Clone repository
 git clone https://github.com/mikesvoboda/home_security_intelligence.git
 cd home_security_intelligence
+
+# Stop any existing containers using the same ports
+docker compose -f docker-compose.ghcr.yml down 2>/dev/null || true
+
+# Create camera directory (use temp for demo, real path for production)
+mkdir -p /tmp/cameras/demo_camera
+export CAMERA_PATH=/tmp/cameras
+
+# Start containers
 docker compose -f docker-compose.ghcr.yml up -d
 
-# Verify
+# Verify (wait ~60 seconds for all services to be healthy)
 docker compose -f docker-compose.ghcr.yml ps
 curl http://localhost:8000/api/system/health
 ```
@@ -72,13 +82,26 @@ brew install podman podman-compose
 podman machine init
 podman machine start
 
-# Clone and start
+# Clone repository
 git clone https://github.com/mikesvoboda/home_security_intelligence.git
 cd home_security_intelligence
+
+# Stop any existing containers using the same ports
+podman-compose -f docker-compose.ghcr.yml down 2>/dev/null || true
+# Or stop ALL containers if port conflicts persist:
+# podman stop -a && podman rm -a
+
+# Create camera directory (use temp for demo, real path for production)
+mkdir -p /tmp/cameras/demo_camera
+export CAMERA_PATH=/tmp/cameras
+
+# Set host for AI services (required for macOS)
 export AI_HOST=host.containers.internal
+
+# Start containers
 podman-compose -f docker-compose.ghcr.yml up -d
 
-# Verify
+# Verify (wait ~60 seconds for all services to be healthy)
 podman-compose -f docker-compose.ghcr.yml ps
 curl http://localhost:8000/api/system/health
 ```
@@ -324,6 +347,41 @@ lsof -i :8000  # Backend
 lsof -i :8080  # Frontend
 lsof -i :5432  # PostgreSQL
 lsof -i :6379  # Redis
+```
+
+**Port conflicts from existing containers**
+
+```bash
+# Stop containers from this project
+docker compose -f docker-compose.ghcr.yml down
+
+# If ports still in use, stop ALL containers
+docker stop $(docker ps -aq)
+docker rm $(docker ps -aq)
+
+# For Podman
+podman stop -a && podman rm -a
+
+# Then retry
+docker compose -f docker-compose.ghcr.yml up -d
+```
+
+**Camera path doesn't exist**
+
+The default `CAMERA_PATH=/export/foscam` may not exist on your system.
+
+```bash
+# For demo/testing, create a temp directory
+mkdir -p /tmp/cameras/demo_camera
+export CAMERA_PATH=/tmp/cameras
+
+# For production, create the real path
+sudo mkdir -p /export/foscam
+sudo chown $USER:$USER /export/foscam
+export CAMERA_PATH=/export/foscam
+
+# Then start containers
+docker compose -f docker-compose.ghcr.yml up -d
 ```
 
 **Permission denied on camera volume**
