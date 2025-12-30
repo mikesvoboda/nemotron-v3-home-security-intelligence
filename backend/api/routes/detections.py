@@ -117,7 +117,7 @@ async def get_detection(
             detail=f"Detection with id {detection_id} not found",
         )
 
-    assert isinstance(detection, Detection)
+    # Type is already narrowed by the None check above
     return detection
 
 

@@ -42,7 +42,7 @@ async def _get_camera_or_404(camera_id: str, db: AsyncSession) -> Camera:
             detail=f"Camera with id {camera_id} not found",
         )
 
-    assert isinstance(camera, Camera)
+    # Type is already narrowed by the None check above
     return camera
 
 
@@ -69,7 +69,7 @@ async def _get_zone_or_404(zone_id: str, camera_id: str, db: AsyncSession) -> Zo
             detail=f"Zone with id {zone_id} not found for camera {camera_id}",
         )
 
-    assert isinstance(zone, Zone)
+    # Type is already narrowed by the None check above
     return zone
 
 
