@@ -105,7 +105,7 @@ Grafana uses a 24-column grid:
    }
    ```
 3. Add panels as needed
-4. Restart Grafana or wait for auto-reload (30s)
+4. Restart Grafana (`podman-compose -f docker-compose.prod.yml restart grafana`) or wait for auto-reload (30s)
 
 ### Export from Grafana UI
 

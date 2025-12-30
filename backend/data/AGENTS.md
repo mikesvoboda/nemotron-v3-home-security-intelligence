@@ -15,10 +15,11 @@ Note: The application uses PostgreSQL for the database, not SQLite. Database fil
 ```
 backend/data/
 ├── .gitkeep              # Ensures directory exists in git
+├── AGENTS.md             # This file
 ├── cameras/              # Sample camera image directories
-│   ├── front_door/       # Front door camera sample images
+│   ├── backyard/         # Backyard camera sample images
 │   ├── driveway/         # Driveway camera sample images
-│   └── backyard/         # Backyard camera sample images
+│   └── front_door/       # Front door camera sample images
 ├── thumbnails/           # Generated detection thumbnails (runtime)
 └── logs/                 # Log files (runtime, not in git)
     └── security.log      # Rotating application log
@@ -26,28 +27,34 @@ backend/data/
 
 ## Sample Camera Directories
 
-The `cameras/` subdirectory contains sample images for development and testing:
-
-### `cameras/front_door/`
-
-Sample images simulating front door camera uploads:
-
-- `capture_001.jpg` through `capture_005.jpg` - Sequential captures
-- `new_capture_*.jpg` - Additional captures with timestamp naming
-
-### `cameras/driveway/`
-
-Sample images simulating driveway camera uploads:
-
-- `capture_001.jpg` through `capture_005.jpg` - Sequential captures
-- `motion_*.jpg` - Motion-triggered captures with timestamp naming
+The `cameras/` subdirectory contains sample images for development and testing. These images are used by the file watcher service to test the AI pipeline.
 
 ### `cameras/backyard/`
 
 Sample images simulating backyard camera uploads:
 
-- `capture_001.jpg` through `capture_005.jpg` - Sequential captures
-- `alert_*.jpg` - Alert-triggered captures with timestamp naming
+| File                          | Description                      |
+| ----------------------------- | -------------------------------- |
+| `capture_001.jpg` - `005.jpg` | Sequential test captures         |
+| `alert_20251228_011355.jpg`   | Alert-triggered capture (sample) |
+
+### `cameras/driveway/`
+
+Sample images simulating driveway camera uploads:
+
+| File                                | Description                       |
+| ----------------------------------- | --------------------------------- |
+| `capture_001.jpg` - `005.jpg`       | Sequential test captures          |
+| `motion_$(date +%Y%m%d_%H%M%S).jpg` | Motion-triggered capture (sample) |
+
+### `cameras/front_door/`
+
+Sample images simulating front door camera uploads:
+
+| File                          | Description                       |
+| ----------------------------- | --------------------------------- |
+| `capture_001.jpg` - `005.jpg` | Sequential test captures          |
+| `new_capture_1766902398.jpg`  | Additional capture with timestamp |
 
 ## Runtime Files (Not in Git)
 

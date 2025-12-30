@@ -26,13 +26,14 @@ Comprehensive demonstration of Redis client usage patterns in the home security 
 - Cache operations (temporary data storage)
 - Health checking (service monitoring)
 
-**Structure:**
+**Functions (executed in order by `main()`):**
 
-- `example_queue_operations()` - Demonstrates batch processing queue
-- `example_pubsub()` - Demonstrates real-time event broadcasting
-- `example_cache_operations()` - Demonstrates temporary data caching
-- `example_health_check()` - Demonstrates Redis connectivity verification
-- `main()` - Runs all examples sequentially
+| Function                     | Purpose                                  |
+| ---------------------------- | ---------------------------------------- |
+| `example_health_check()`     | Redis connectivity verification          |
+| `example_queue_operations()` | FIFO queue operations for batch pipeline |
+| `example_cache_operations()` | Key-value storage with TTL               |
+| `example_pubsub()`           | Real-time publish/subscribe messaging    |
 
 ## Redis Example Breakdown
 

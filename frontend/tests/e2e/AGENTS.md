@@ -21,17 +21,17 @@ frontend/tests/e2e/
 
 Dashboard smoke tests (2 test suites, 6 tests):
 
-**Dashboard Smoke Tests:**
+**Dashboard Smoke Tests (4 tests):**
 
 - `dashboard page loads successfully` - Verifies page loads with correct title
-- `dashboard displays key components` - Checks Risk Level, Camera Status, Live Activity
-- `dashboard shows real-time monitoring subtitle` - Verifies subtitle text
-- `dashboard has correct page title` - Validates browser title
+- `dashboard displays key components` - Checks Current Risk Level, Camera Status, Live Activity sections
+- `dashboard shows real-time monitoring subtitle` - Verifies "Real-time AI-powered home security monitoring" text
+- `dashboard has correct page title` - Validates browser title contains "Home Security"
 
-**Layout Smoke Tests:**
+**Layout Smoke Tests (2 tests):**
 
-- `header displays branding` - Checks NVIDIA/SECURITY branding
-- `sidebar navigation is visible` - Verifies sidebar presence
+- `header displays branding` - Checks NVIDIA/SECURITY branding in header
+- `sidebar navigation is visible` - Verifies aside element is present
 
 ### navigation.spec.ts
 
@@ -48,19 +48,19 @@ Navigation tests (1 test suite, 6 tests):
 
 Real-time feature tests (3 test suites, 5 tests):
 
-**Real-time Updates:**
+**Real-time Updates (3 tests):**
 
-- `dashboard shows disconnected state when WebSocket fails` - Disconnected indicator
-- `activity feed shows empty state when no events` - Empty state message
-- `dashboard displays GPU stats from API` - GPU utilization display
+- `dashboard shows disconnected state when WebSocket fails` - Checks "(Disconnected)" text appears
+- `activity feed shows empty state when no events` - Verifies "No activity" message in Live Activity section
+- `dashboard displays GPU stats from API` - Checks "Utilization" text is visible
 
-**Connection Status Indicators:**
+**Connection Status Indicators (1 test):**
 
-- `header shows system status indicator` - System status in header
+- `header shows system status indicator` - Verifies "System" text in header
 
-**Error Handling:**
+**Error Handling (1 test):**
 
-- `dashboard shows error state when API fails` - Error page with reload button
+- `dashboard shows error state when API fails` - Checks "Error Loading Dashboard" heading and "Reload Page" button
 
 ## API Mocking Pattern
 
@@ -86,15 +86,21 @@ async function setupApiMocks(page: Page) {
 
 **Mocked Endpoints:**
 
-- `GET /api/cameras` - Camera list
-- `GET /api/system/gpu` - GPU statistics
-- `GET /api/system/health` - System health
+- `GET /api/cameras/*/snapshot*` - Camera snapshot images (transparent PNG)
+- `GET /api/cameras` - Camera list with status
+- `GET /api/system/gpu/history*` - GPU history samples (must be registered before /api/system/gpu)
+- `GET /api/system/gpu` - Current GPU statistics
+- `GET /api/system/health` - System health status
+- `GET /api/health` - Basic health check
+- `GET /api/events/stats*` - Event statistics (must be registered before /api/events)
 - `GET /api/events*` - Events with pagination
 - `GET /api/system/stats` - System statistics
 - `GET /api/system/config` - System configuration
-- `GET /api/logs` - Log entries
-- `GET /api/logs/stats` - Log statistics
+- `GET /api/logs/stats` - Log statistics (must be registered before /api/logs)
+- `GET /api/logs*` - Log entries
 - `WS /ws/**` - WebSocket (aborted to test disconnection)
+
+**Important:** Route handlers are matched in registration order. More specific routes must be registered BEFORE more general routes (e.g., `/api/system/gpu/history` before `/api/system/gpu`).
 
 ## Running E2E Tests
 
@@ -115,21 +121,27 @@ npx playwright test realtime.spec.ts
 
 From `frontend/playwright.config.ts`:
 
-| Setting          | Value                     |
-| ---------------- | ------------------------- |
-| `testDir`        | `./tests/e2e`             |
-| `baseURL`        | `http://localhost:5173`   |
-| `browser`        | Chromium only             |
-| `timeout`        | 30 seconds                |
-| `expect.timeout` | 5 seconds                 |
-| `retries`        | 2 (CI only)               |
-| `workers`        | 1 (CI), unlimited (local) |
+| Setting             | Value                     |
+| ------------------- | ------------------------- |
+| `testDir`           | `./tests/e2e`             |
+| `baseURL`           | `http://localhost:5173`   |
+| `browser`           | Chromium only             |
+| `timeout`           | 30 seconds                |
+| `expect.timeout`    | 5 seconds                 |
+| `navigationTimeout` | 10 seconds                |
+| `retries`           | 2 (CI only)               |
+| `workers`           | 1 (CI), unlimited (local) |
+| `fullyParallel`     | true                      |
+| `webServer.command` | `npm run dev:e2e`         |
+| `webServer.timeout` | 120 seconds               |
 
 **Artifacts on Failure:**
 
 - Screenshots saved to `test-results/`
-- Traces collected on retry
+- Traces collected on first retry
 - Videos retained on failure
+
+**Web Server:** Uses `npm run dev:e2e` which runs Vite without API proxy, allowing Playwright's `page.route()` to intercept API requests directly.
 
 ## CI Integration
 
@@ -147,12 +159,13 @@ E2E tests run in GitHub Actions:
 
 - Tests use **mocked backend** - no real backend required
 - Each test file has a `setupApiMocks()` function in `beforeEach`
+- **Route registration order matters** - more specific routes must be registered first
 - WebSocket connections are aborted to test disconnection handling
-- Use `timeout: 15000` for initial page loads
+- Use `timeout: 15000` for initial page loads in `expect()` calls
 - Tests verify **UI behavior**, not implementation details
 - Response shapes must match actual API schemas
-- E2E tests are excluded from Vitest via `vite.config.ts`
-- Some tests are marked `test.skip` due to CI ECONNREFUSED issues
+- E2E tests are excluded from Vitest via `vite.config.ts` exclude pattern
+- Camera snapshots return a transparent 1x1 PNG to avoid missing image errors
 
 ## Entry Points
 

@@ -69,6 +69,7 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 │   ├── rtdetr/           # RT-DETRv2 detection server
 │   └── nemotron/         # Nemotron model files
 ├── backend/              # FastAPI backend (Python)
+│   ├── alembic/          # Database migrations (PostgreSQL)
 │   ├── api/              # REST endpoints and WebSocket routes
 │   │   ├── routes/       # FastAPI route handlers
 │   │   └── schemas/      # Pydantic request/response schemas
@@ -78,9 +79,10 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 │   └── tests/            # Unit and integration tests
 ├── data/                 # Runtime data directory
 │   ├── logs/             # Application log files
-│   ├── thumbnails/       # Generated image thumbnails
-│   └── security.db       # SQLite database
+│   └── thumbnails/       # Generated image thumbnails
 ├── docs/                 # Documentation
+│   ├── architecture/     # Technical architecture documentation
+│   ├── user-guide/       # End-user documentation
 │   ├── plans/            # Design and implementation plans
 │   ├── decisions/        # Architecture Decision Records (ADRs)
 │   └── images/           # Visual assets (mockups, diagrams)
@@ -171,6 +173,7 @@ cd frontend && npm test
 
 ## Key Design Decisions
 
+- **Database:** PostgreSQL (migrated from SQLite for concurrent write support)
 - **Risk scoring:** LLM-determined (Nemotron analyzes detections and assigns 0-100 score)
 - **Batch processing:** 90-second time windows with 30-second idle timeout
 - **No auth:** Single-user local deployment (MVP)
