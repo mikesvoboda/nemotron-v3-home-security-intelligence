@@ -161,6 +161,35 @@ def pytest_unconfigure(config: pytest.Config) -> None:
             _redis_container = None
 
 
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Assign timeouts based on test location and markers.
+
+    Timeout hierarchy (highest priority first):
+    1. Explicit @pytest.mark.timeout(N) on test - unchanged
+    2. @pytest.mark.slow marker - 30 seconds
+    3. Integration tests (in integration/ directory) - 5 seconds
+    4. Default from pyproject.toml - 1 second
+    """
+    import pytest
+
+    for item in items:
+        # Skip if test has explicit timeout marker
+        if item.get_closest_marker("timeout"):
+            continue
+
+        # Slow-marked tests get 30s
+        if item.get_closest_marker("slow"):
+            item.add_marker(pytest.mark.timeout(30))
+            continue
+
+        # Integration tests get 5s
+        if "/integration/" in str(item.fspath):
+            item.add_marker(pytest.mark.timeout(5))
+            continue
+
+        # Unit tests use default (1s from pyproject.toml)
+
+
 def get_test_db_url() -> str:
     """Get the PostgreSQL test database URL.
 
