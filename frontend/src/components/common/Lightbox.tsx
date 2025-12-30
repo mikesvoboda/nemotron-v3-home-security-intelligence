@@ -50,14 +50,19 @@ export default function Lightbox({
 }: LightboxProps) {
   // Normalize images to always be an array
   const imageArray = Array.isArray(images) ? images : [images];
+
+  // Track when modal opens to reset index - use a key-like pattern
+  // by deriving initial state from props when modal opens
+  const [lastOpenState, setLastOpenState] = useState(isOpen);
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
 
-  // Reset index when images change or modal opens
-  useEffect(() => {
-    if (isOpen) {
-      setCurrentIndex(initialIndex);
-    }
-  }, [isOpen, initialIndex]);
+  // Derive state reset from prop changes (avoids set-state-in-effect)
+  if (isOpen && !lastOpenState) {
+    setLastOpenState(true);
+    setCurrentIndex(initialIndex);
+  } else if (!isOpen && lastOpenState) {
+    setLastOpenState(false);
+  }
 
   // Navigation handlers
   const goToPrevious = useCallback(() => {
