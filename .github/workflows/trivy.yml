@@ -32,6 +32,15 @@ jobs:
         # Use production Dockerfile which has minimal dependencies
         run: docker build -t backend:${{ github.sha }} -f backend/Dockerfile.prod backend/
 
+      - name: Show Trivy vulnerabilities (table format)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "backend:${{ github.sha }}"
+          format: "table"
+          severity: "CRITICAL,HIGH"
+          exit-code: "0"
+          trivyignores: ".trivyignore"
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
