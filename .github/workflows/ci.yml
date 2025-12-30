@@ -114,14 +114,28 @@ jobs:
 
       - name: Run unit tests with coverage
         # Unit tests have 92% coverage threshold (lowered from 93% during logging migration)
+        # -n0 disables xdist parallelization (CI already parallelizes via separate jobs)
+        # --timeout=0 disables timeout (fixture import takes >1s in CI)
         run: |
           pytest backend/tests/unit/ \
+            -n0 \
+            --timeout=0 \
             --cov=backend \
             --cov-config=pyproject.toml \
             --cov-report=xml:coverage-unit.xml \
             --cov-report=term-missing \
             --cov-fail-under=92 \
+            --junit-xml=test-results-unit.xml \
+            --durations=20 \
             -v
+
+      - name: Upload unit test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-unit
+          path: test-results-unit.xml
+          retention-days: 7
 
       - name: Upload unit test coverage
         uses: codecov/codecov-action@v4
@@ -215,13 +229,27 @@ jobs:
         # - Mocked external dependencies (DB, Redis, AI services)
         # - Testing specific API endpoints rather than all code paths
         # - Focus on end-to-end behavior verification
+        # -n0 disables xdist parallelization (CI already parallelizes via separate jobs)
+        # --timeout=0 disables timeout (fixture import takes >1s in CI)
         run: |
           pytest backend/tests/integration/ \
+            -n0 \
+            --timeout=0 \
             --cov=backend \
             --cov-report=xml:coverage-integration.xml \
             --cov-report=term-missing \
             --cov-fail-under=50 \
+            --junit-xml=test-results-integration.xml \
+            --durations=20 \
             -v
+
+      - name: Upload integration test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-integration
+          path: test-results-integration.xml
+          retention-days: 7
 
       - name: Upload integration test coverage
         uses: codecov/codecov-action@v4
@@ -542,7 +570,11 @@ jobs:
         run: |
           # Run specific tests that verify admin endpoints return 403 when DEBUG=false
           # These tests are critical security validation
+          # -n0 disables xdist parallelization
+          # --timeout=0 disables timeout (fixture import takes >1s in CI)
           pytest backend/tests/unit/test_admin_api.py \
+            -n0 \
+            --timeout=0 \
             -k "requires_debug_mode" \
             -v \
             --tb=short
@@ -557,3 +589,38 @@ jobs:
           assert settings.debug == False, f'DEBUG should be False but is {settings.debug}'
           print('SUCCESS: DEBUG mode is correctly set to False')
           "
+
+  # ============================================================================
+  # Test Performance Audit Job
+  # ============================================================================
+
+  test-performance-audit:
+    name: Test Performance Audit
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests]
+    if: always() && (needs.unit-tests.result == 'success' || needs.integration-tests.result == 'success')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Download all test results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-results-*
+          path: test-results/
+          merge-multiple: true
+
+      - name: List downloaded artifacts
+        run: find test-results/ -type f -name "*.xml" | head -20
+
+      - name: Analyze test durations
+        run: python scripts/audit-test-durations.py test-results/
+        env:
+          UNIT_TEST_THRESHOLD: "1.0"
+          INTEGRATION_TEST_THRESHOLD: "5.0"
+          WARN_THRESHOLD_PERCENT: "80"
