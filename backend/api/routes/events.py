@@ -3,7 +3,7 @@
 import csv
 import io
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -453,7 +453,7 @@ async def export_events(
         )
 
     # Generate filename with timestamp
-    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     filename = f"events_export_{timestamp}.csv"
 
     # Log the export action

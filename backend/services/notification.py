@@ -23,7 +23,7 @@ import asyncio
 import smtplib
 import ssl
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from enum import Enum
@@ -216,7 +216,7 @@ class NotificationService:
             return NotificationDelivery(
                 channel=NotificationChannel.EMAIL,
                 success=True,
-                delivered_at=datetime.utcnow(),
+                delivered_at=datetime.now(UTC),
                 recipient=", ".join(email_recipients),
             )
 
@@ -398,7 +398,7 @@ class NotificationService:
                 return NotificationDelivery(
                     channel=NotificationChannel.WEBHOOK,
                     success=True,
-                    delivered_at=datetime.utcnow(),
+                    delivered_at=datetime.now(UTC),
                     recipient=url,
                 )
             else:
@@ -467,7 +467,7 @@ class NotificationService:
                 "matched_conditions": metadata.get("matched_conditions", []),
             },
             "source": "home_security_intelligence",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
     async def send_push(

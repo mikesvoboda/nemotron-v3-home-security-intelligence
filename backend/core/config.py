@@ -322,6 +322,13 @@ class Settings(BaseSettings):
         le=1000,
         description="Maximum search requests per minute per client IP",
     )
+    trusted_proxy_ips: list[str] = Field(
+        default=["127.0.0.1", "::1"],
+        description="List of trusted proxy IP addresses. X-Forwarded-For headers are only "
+        "processed from these IPs. Use CIDR notation for ranges (e.g., '10.0.0.0/8'). "
+        "Common values: '127.0.0.1' (localhost), '10.0.0.0/8' (private), "
+        "'172.16.0.0/12' (private), '192.168.0.0/16' (private)",
+    )
 
     # WebSocket settings
     websocket_idle_timeout_seconds: int = Field(

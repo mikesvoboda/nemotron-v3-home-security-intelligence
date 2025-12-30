@@ -194,6 +194,72 @@ TLS_VERIFY_CLIENT=true
 TLS_CA_PATH=/path/to/ca.crt
 ```
 
+### Generating Self-Signed Certificates
+
+For development or internal LAN deployments, generate self-signed certificates:
+
+```bash
+# Create certificate directory
+mkdir -p data/certs
+cd data/certs
+
+# Generate private key
+openssl genrsa -out server.key 2048
+
+# Generate self-signed certificate (valid for 365 days)
+openssl req -new -x509 -key server.key -out server.crt -days 365 \
+  -subj "/CN=home-security-intelligence/O=Local Development"
+
+# Set proper permissions
+chmod 600 server.key
+chmod 644 server.crt
+```
+
+Then configure in `.env`:
+
+```bash
+TLS_MODE=provided
+TLS_CERT_PATH=data/certs/server.crt
+TLS_KEY_PATH=data/certs/server.key
+```
+
+### Let's Encrypt Certificates
+
+For internet-facing deployments with a domain name:
+
+```bash
+# Install certbot
+sudo apt install certbot  # Debian/Ubuntu
+sudo dnf install certbot  # Fedora/RHEL
+
+# Generate certificate (requires port 80 accessible)
+sudo certbot certonly --standalone -d yourdomain.com
+
+# Certificates are stored in:
+# /etc/letsencrypt/live/yourdomain.com/fullchain.pem
+# /etc/letsencrypt/live/yourdomain.com/privkey.pem
+```
+
+Configure in `.env`:
+
+```bash
+TLS_MODE=provided
+TLS_CERT_PATH=/etc/letsencrypt/live/yourdomain.com/fullchain.pem
+TLS_KEY_PATH=/etc/letsencrypt/live/yourdomain.com/privkey.pem
+```
+
+### TLS Configuration Reference
+
+| Variable            | Default      | Description                                |
+| ------------------- | ------------ | ------------------------------------------ |
+| `TLS_MODE`          | `disabled`   | `disabled`, `self_signed`, or `provided`   |
+| `TLS_CERT_PATH`     | _none_       | Path to TLS certificate file               |
+| `TLS_KEY_PATH`      | _none_       | Path to TLS private key file               |
+| `TLS_CA_PATH`       | _none_       | Path to CA certificate (for mTLS)          |
+| `TLS_VERIFY_CLIENT` | `false`      | Enable client certificate verification     |
+| `TLS_MIN_VERSION`   | `TLSv1.2`    | Minimum TLS version (`TLSv1.2`, `TLSv1.3`) |
+| `TLS_CERT_DIR`      | `data/certs` | Directory for auto-generated certs         |
+
 ---
 
 ## AI Service Security

@@ -3,6 +3,7 @@ import { useEffect, useState, useMemo } from 'react';
 import ActivityFeed, { type ActivityEvent } from './ActivityFeed';
 import CameraGrid, { type CameraStatus } from './CameraGrid';
 import GpuStats from './GpuStats';
+import PipelineTelemetry from './PipelineTelemetry';
 import RiskGauge from './RiskGauge';
 import StatsRow from './StatsRow';
 import { useEventStream, type SecurityEvent } from '../../hooks/useEventStream';
@@ -296,6 +297,11 @@ export default function DashboardPage() {
             powerUsage={gpuStats?.power_usage ?? null}
             inferenceFps={gpuStats?.inference_fps ?? null}
           />
+        </div>
+
+        {/* Pipeline Telemetry - full width */}
+        <div className="mb-8">
+          <PipelineTelemetry />
         </div>
 
         {/* Camera Grid */}

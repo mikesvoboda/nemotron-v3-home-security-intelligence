@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, time, timedelta
+from datetime import UTC, datetime, time, timedelta
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
@@ -117,7 +117,7 @@ class AlertRuleEngine:
             EvaluationResult with list of triggered rules and evaluation metadata
         """
         if current_time is None:
-            current_time = datetime.utcnow()
+            current_time = datetime.now(UTC)
 
         # Load detections if not provided
         if detections is None:
@@ -448,7 +448,7 @@ class AlertRuleEngine:
             List of test results with match status and details
         """
         if current_time is None:
-            current_time = datetime.utcnow()
+            current_time = datetime.now(UTC)
 
         results = []
 

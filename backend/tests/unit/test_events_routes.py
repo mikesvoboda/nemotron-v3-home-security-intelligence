@@ -10,7 +10,7 @@ These tests cover all event-related API endpoints including:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -118,7 +118,7 @@ def create_mock_event(
     mock = MagicMock()
     mock.id = event_id
     mock.camera_id = camera_id
-    mock.started_at = started_at or datetime.utcnow()
+    mock.started_at = started_at or datetime.now(UTC)
     mock.ended_at = ended_at
     mock.risk_score = risk_score
     mock.risk_level = risk_level
@@ -144,7 +144,7 @@ def create_mock_detection(
     mock.camera_id = camera_id
     mock.file_path = file_path
     mock.file_type = "image/jpeg"
-    mock.detected_at = detected_at or datetime.utcnow()
+    mock.detected_at = detected_at or datetime.now(UTC)
     mock.object_type = object_type
     mock.confidence = confidence
     mock.bbox_x = 100
@@ -410,7 +410,7 @@ async def test_list_events_with_date_filters() -> None:
     """Test that list_events filters by start_date and end_date."""
     db = AsyncMock()
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     mock_event = create_mock_event(started_at=now)
 
     # Mock count query
@@ -919,7 +919,7 @@ async def test_get_event_stats_with_date_filters() -> None:
     """Test that get_event_stats filters by date range."""
     db = AsyncMock()
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     mock_events = [
         create_mock_event(event_id=1, started_at=now),
     ]
@@ -1067,7 +1067,7 @@ async def test_get_event_includes_all_fields() -> None:
     """Test that get_event includes all required fields in response."""
     db = AsyncMock()
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     ended = now + timedelta(minutes=5)
 
     mock_event = create_mock_event(
@@ -1571,7 +1571,7 @@ async def test_list_events_with_all_filters_combined() -> None:
     """Test that list_events handles all filters combined."""
     db = AsyncMock()
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     mock_event = create_mock_event(
         event_id=1,
         camera_id="cam-001",
@@ -1706,7 +1706,7 @@ async def test_export_events_returns_csv_streaming_response() -> None:
     """Test that export_events returns a StreamingResponse with CSV content."""
     db = AsyncMock()
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     mock_events = [
         create_mock_event(
             event_id=1,
@@ -1857,7 +1857,7 @@ async def test_export_events_with_date_filters() -> None:
     """Test that export_events filters by date range."""
     db = AsyncMock()
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     mock_event = create_mock_event(event_id=1, started_at=now)
 
     # Mock events query
@@ -1964,7 +1964,7 @@ async def test_export_events_handles_none_values() -> None:
     mock_event = create_mock_event(
         event_id=1,
         camera_id="cam-001",
-        started_at=datetime.utcnow(),
+        started_at=datetime.now(UTC),
         ended_at=None,
         risk_score=None,
         risk_level=None,
@@ -2004,7 +2004,7 @@ async def test_export_events_multiple_events() -> None:
     """Test that export_events handles multiple events correctly."""
     db = AsyncMock()
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     mock_events = [
         create_mock_event(
             event_id=1,

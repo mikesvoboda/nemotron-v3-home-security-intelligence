@@ -192,10 +192,35 @@ Docker/Podman GPU passthrough adds complexity and overhead. Running AI services 
 - Easier debugging
 - Better performance
 
-### RT-DETRv2 (Object Detection) - Port 8090
+### Prerequisites
+
+- NVIDIA GPU with 16GB+ VRAM (RTX 3090, 4090, A4000, A5500, etc.)
+- CUDA 12.0+ and cuDNN 8.0+
+- Python 3.11+
+- llama.cpp installed (`llama-server` command available)
+
+### Quick Start (Recommended)
+
+Use the helper scripts to download models and start services:
 
 ```bash
-# On GPU server
+# 1. Download both AI models (~2.7GB total)
+./ai/download_models.sh
+
+# 2. Start RT-DETRv2 object detection (port 8090, ~4GB VRAM)
+./ai/start_detector.sh
+
+# 3. Start Nemotron LLM risk analysis (port 8091, ~16GB VRAM)
+./ai/start_nemotron.sh
+```
+
+### Manual Setup (Alternative)
+
+If you prefer manual control or need to customize:
+
+#### RT-DETRv2 (Object Detection) - Port 8090
+
+```bash
 cd ai/rtdetr
 
 # Create virtual environment
@@ -206,30 +231,54 @@ source venv/bin/activate
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 pip install -r requirements.txt
 
-# Download model (automatic on first run, or manually)
-python -c "from transformers import AutoModelForObjectDetection; AutoModelForObjectDetection.from_pretrained('PekingU/rtdetr_v2_r50vd')"
-
-# Start server
-python server.py --host 0.0.0.0 --port 8090
+# Start server (model auto-downloads on first run)
+python model.py
 ```
 
-### Nemotron (Risk Analysis LLM) - Port 8091
+#### Nemotron (Risk Analysis LLM) - Port 8091
 
 ```bash
-# On GPU server
-cd ai/nemotron
-
-# Download model (requires ~30GB disk)
-# Option 1: Use Hugging Face
-huggingface-cli download nvidia/Nemotron-Mini-4B-Instruct --local-dir ./model
-
-# Option 2: Use llama.cpp GGUF format (recommended, smaller)
-wget https://huggingface.co/nvidia/Nemotron-Mini-4B-Instruct-GGUF/resolve/main/nemotron-mini-4b-instruct-q4_k_m.gguf
+# Download quantized model (~2.5GB)
+wget -O ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf \
+  https://huggingface.co/bartowski/nemotron-mini-4b-instruct-GGUF/resolve/main/nemotron-mini-4b-instruct-Q4_K_M.gguf
 
 # Start with llama.cpp
-./llama-server -m nemotron-mini-4b-instruct-q4_k_m.gguf \
+llama-server \
+  -m ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf \
   --host 0.0.0.0 --port 8091 \
-  -c 4096 -ngl 99
+  -c 12288 -ngl 45 --parallel 2 --cont-batching
+```
+
+### Environment Variables
+
+Customize AI service behavior with these environment variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `RTDETR_PORT` | `8090` | RT-DETRv2 server port |
+| `NEMOTRON_PORT` | `8091` | Nemotron server port |
+| `NEMOTRON_MODEL_PATH` | (auto-detected) | Path to GGUF model file |
+| `LLAMA_SERVER_PATH` | (auto-detected) | Path to llama-server binary |
+| `NEMOTRON_GPU_LAYERS` | `45` | Number of layers to offload to GPU |
+| `NEMOTRON_CONTEXT_SIZE` | `12288` | Context window size |
+
+### Using Existing Models
+
+If you already have models downloaded elsewhere:
+
+```bash
+# Point to existing Nemotron GGUF
+export NEMOTRON_GGUF_PATH=/path/to/your/model.gguf
+./ai/download_models.sh  # Will copy instead of download
+
+# Point to existing RT-DETRv2 ONNX
+export RTDETR_ONNX_PATH=/path/to/rtdetrv2.onnx
+./ai/download_models.sh  # Will copy instead of download
+
+# Or set model directories for auto-discovery
+export NEMOTRON_MODELS_DIR=/export/ai_models/nemotron
+export RTDETR_MODELS_DIR=/export/ai_models/rt-detrv2
+./ai/download_models.sh  # Will search these directories
 ```
 
 ### Verify AI Services
@@ -240,6 +289,9 @@ curl http://localhost:8090/health
 
 # Test Nemotron
 curl http://localhost:8091/health
+
+# Test full pipeline (requires backend running)
+curl http://localhost:8000/api/system/health/ready
 ```
 
 ### Connect Backend to AI

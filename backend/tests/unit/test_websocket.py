@@ -1,5 +1,18 @@
-"""Unit tests for WebSocket broadcaster classes and utilities."""
+"""Unit tests for WebSocket broadcaster classes and utilities.
 
+This module contains unit tests for the Mock broadcaster classes used in testing.
+These mocks match the real implementation interfaces for EventBroadcaster and
+SystemBroadcaster.
+
+IMPORTANT: The mock classes in this file must match the public interface of the
+real implementations. Tests at the end of this file verify this interface compatibility.
+
+Real implementations:
+- backend.services.event_broadcaster.EventBroadcaster
+- backend.services.system_broadcaster.SystemBroadcaster
+"""
+
+import inspect
 import json
 from datetime import datetime
 from typing import Any
@@ -727,3 +740,195 @@ class TestMessageFormat:
         assert call_args["type"] == "camera_status"
         assert call_args["data"]["camera_id"] == "cam-123"
         assert call_args["data"]["status"] == "online"
+
+
+# =============================================================================
+# Interface Verification Tests
+# =============================================================================
+# These tests verify that mock classes match the public interfaces of real
+# implementations. This prevents the mock from drifting out of sync with
+# the real implementation.
+
+
+class TestMockInterfaceCompatibility:
+    """Verify mock classes match real implementation interfaces.
+
+    These tests ensure that:
+    1. All public methods in real implementations exist in mocks
+    2. Method signatures are compatible
+    3. Any drift between mock and real implementation is caught early
+
+    This addresses the concern that tests pass with mocks but fail with real
+    implementations due to interface mismatches (e.g., mock has broadcast_new_event
+    but real implementation has broadcast_event).
+    """
+
+    def test_mock_event_broadcaster_has_real_public_methods(self):
+        """Verify MockEventBroadcaster has all public methods from EventBroadcaster.
+
+        This test imports the real EventBroadcaster and verifies that all its
+        public methods (not starting with _) exist on MockEventBroadcaster.
+        """
+        from backend.services.event_broadcaster import EventBroadcaster
+
+        real_public_methods = {
+            name
+            for name, method in inspect.getmembers(EventBroadcaster, predicate=inspect.isfunction)
+            if not name.startswith("_")
+        }
+
+        # Also include async methods (coroutines)
+        for name in dir(EventBroadcaster):
+            if not name.startswith("_"):
+                attr = getattr(EventBroadcaster, name, None)
+                if inspect.iscoroutinefunction(attr) or inspect.isfunction(attr):
+                    real_public_methods.add(name)
+
+        # Remove __init__ as it has a different purpose in mocks
+        real_public_methods.discard("__init__")
+
+        mock_methods = {
+            name
+            for name in dir(MockEventBroadcaster)
+            if not name.startswith("_") and callable(getattr(MockEventBroadcaster, name, None))
+        }
+
+        # Check that all real public methods exist in mock
+        missing_methods = real_public_methods - mock_methods
+        assert not missing_methods, (
+            f"MockEventBroadcaster is missing methods from real EventBroadcaster: "
+            f"{missing_methods}. Update MockEventBroadcaster to include these methods."
+        )
+
+    def test_mock_system_broadcaster_has_real_public_methods(self):
+        """Verify MockSystemBroadcaster has all public methods from SystemBroadcaster.
+
+        This test imports the real SystemBroadcaster and verifies that all its
+        public methods (not starting with _) exist on MockSystemBroadcaster.
+        """
+        from backend.services.system_broadcaster import SystemBroadcaster
+
+        real_public_methods = {
+            name
+            for name, method in inspect.getmembers(SystemBroadcaster, predicate=inspect.isfunction)
+            if not name.startswith("_")
+        }
+
+        # Also include async methods (coroutines)
+        for name in dir(SystemBroadcaster):
+            if not name.startswith("_"):
+                attr = getattr(SystemBroadcaster, name, None)
+                if inspect.iscoroutinefunction(attr) or inspect.isfunction(attr):
+                    real_public_methods.add(name)
+
+        # Remove __init__ as it has a different purpose in mocks
+        real_public_methods.discard("__init__")
+
+        mock_methods = {
+            name
+            for name in dir(MockSystemBroadcaster)
+            if not name.startswith("_") and callable(getattr(MockSystemBroadcaster, name, None))
+        }
+
+        # Check that all real public methods exist in mock
+        missing_methods = real_public_methods - mock_methods
+        assert not missing_methods, (
+            f"MockSystemBroadcaster is missing methods from real SystemBroadcaster: "
+            f"{missing_methods}. Update MockSystemBroadcaster to include these methods."
+        )
+
+    def test_event_broadcaster_broadcast_event_signature(self):
+        """Verify broadcast_event method exists and is async in both mock and real."""
+        from backend.services.event_broadcaster import EventBroadcaster
+
+        # Verify real implementation has broadcast_event
+        assert hasattr(EventBroadcaster, "broadcast_event"), (
+            "EventBroadcaster should have broadcast_event method"
+        )
+        assert inspect.iscoroutinefunction(EventBroadcaster.broadcast_event), (
+            "EventBroadcaster.broadcast_event should be async"
+        )
+
+        # Verify mock has broadcast_event
+        assert hasattr(MockEventBroadcaster, "broadcast_event"), (
+            "MockEventBroadcaster should have broadcast_event method"
+        )
+        assert inspect.iscoroutinefunction(MockEventBroadcaster.broadcast_event), (
+            "MockEventBroadcaster.broadcast_event should be async"
+        )
+
+    def test_system_broadcaster_broadcast_status_signature(self):
+        """Verify broadcast_status method exists and is async in both mock and real."""
+        from backend.services.system_broadcaster import SystemBroadcaster
+
+        # Verify real implementation has broadcast_status
+        assert hasattr(SystemBroadcaster, "broadcast_status"), (
+            "SystemBroadcaster should have broadcast_status method"
+        )
+        assert inspect.iscoroutinefunction(SystemBroadcaster.broadcast_status), (
+            "SystemBroadcaster.broadcast_status should be async"
+        )
+
+        # Verify mock has broadcast_status
+        assert hasattr(MockSystemBroadcaster, "broadcast_status"), (
+            "MockSystemBroadcaster should have broadcast_status method"
+        )
+        assert inspect.iscoroutinefunction(MockSystemBroadcaster.broadcast_status), (
+            "MockSystemBroadcaster.broadcast_status should be async"
+        )
+
+    def test_mock_only_methods_are_documented(self):
+        """Verify that mock-only methods (not in real impl) are documented as such.
+
+        This ensures any developer using the mock is aware that certain methods
+        only exist for testing convenience and should not be relied upon in
+        production code.
+        """
+        from backend.services.event_broadcaster import EventBroadcaster
+        from backend.services.system_broadcaster import SystemBroadcaster
+
+        # Get methods that exist in mock but not in real EventBroadcaster
+        mock_event_methods = {
+            name
+            for name in dir(MockEventBroadcaster)
+            if not name.startswith("_") and callable(getattr(MockEventBroadcaster, name, None))
+        }
+        real_event_methods = {
+            name
+            for name in dir(EventBroadcaster)
+            if not name.startswith("_") and callable(getattr(EventBroadcaster, name, None))
+        }
+        mock_only_event_methods = mock_event_methods - real_event_methods
+
+        # Verify mock-only methods have "test" in their docstring or name
+        for method_name in mock_only_event_methods:
+            method = getattr(MockEventBroadcaster, method_name, None)
+            if method:
+                docstring = method.__doc__ or ""
+                assert "test" in docstring.lower() or "test" in method_name.lower(), (
+                    f"MockEventBroadcaster.{method_name} exists only in mock but is not "
+                    f"documented as test-only. Add 'test' to docstring or method name."
+                )
+
+        # Get methods that exist in mock but not in real SystemBroadcaster
+        mock_system_methods = {
+            name
+            for name in dir(MockSystemBroadcaster)
+            if not name.startswith("_") and callable(getattr(MockSystemBroadcaster, name, None))
+        }
+        real_system_methods = {
+            name
+            for name in dir(SystemBroadcaster)
+            if not name.startswith("_") and callable(getattr(SystemBroadcaster, name, None))
+        }
+        mock_only_system_methods = mock_system_methods - real_system_methods
+
+        # Verify mock-only methods have "test" in their docstring
+        for method_name in mock_only_system_methods:
+            method = getattr(MockSystemBroadcaster, method_name, None)
+            if method:
+                docstring = method.__doc__ or ""
+                assert "test" in docstring.lower() or "test" in method_name.lower(), (
+                    f"MockSystemBroadcaster.{method_name} exists only in mock but is not "
+                    f"documented as test-only. Add 'test' to docstring or method name."
+                )
