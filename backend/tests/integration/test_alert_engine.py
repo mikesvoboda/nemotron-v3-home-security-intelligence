@@ -36,6 +36,12 @@ from backend.services.alert_engine import (
 )
 from backend.tests.conftest import unique_id
 
+
+def utc_now_naive() -> datetime:
+    """Get current UTC time as a naive datetime (for DB compatibility)."""
+    return datetime.now(UTC).replace(tzinfo=None)
+
+
 # Mark as integration since these tests require real PostgreSQL database
 # NOTE: This file should be moved to backend/tests/integration/ in a future cleanup
 pytestmark = pytest.mark.integration
@@ -94,7 +100,7 @@ async def test_event(session, test_camera):
     event = Event(
         batch_id="batch_001",
         camera_id=test_camera.id,
-        started_at=datetime.now(UTC),
+        started_at=utc_now_naive(),
         risk_score=80,
         risk_level="high",
         detection_ids="[1, 2]",
@@ -110,14 +116,14 @@ async def test_detections(session, test_camera):
     det1 = Detection(
         camera_id=test_camera.id,
         file_path="/export/foscam/front_door/image1.jpg",
-        detected_at=datetime.now(UTC),
+        detected_at=utc_now_naive(),
         object_type="person",
         confidence=0.95,
     )
     det2 = Detection(
         camera_id=test_camera.id,
         file_path="/export/foscam/front_door/image2.jpg",
-        detected_at=datetime.now(UTC),
+        detected_at=utc_now_naive(),
         object_type="vehicle",
         confidence=0.85,
     )
@@ -251,7 +257,7 @@ class TestRiskThresholdCondition:
         event = Event(
             batch_id=unique_id("batch"),
             camera_id=test_camera.id,
-            started_at=datetime.now(UTC),
+            started_at=utc_now_naive(),
             risk_score=None,
         )
         session.add(event)
@@ -676,7 +682,7 @@ class TestCooldown:
             event_id=test_event.id,
             rule_id=rule.id,
             dedup_key=dedup_key,
-            created_at=datetime.now(UTC) - timedelta(minutes=2),  # 2 minutes ago
+            created_at=utc_now_naive() - timedelta(minutes=2),  # 2 minutes ago
         )
         session.add(existing_alert)
         await session.flush()
@@ -710,7 +716,7 @@ class TestCooldown:
             event_id=test_event.id,
             rule_id=rule.id,
             dedup_key=dedup_key,
-            created_at=datetime.now(UTC) - timedelta(minutes=10),  # 10 minutes ago
+            created_at=utc_now_naive() - timedelta(minutes=10),  # 10 minutes ago
         )
         session.add(existing_alert)
         await session.flush()
@@ -772,19 +778,19 @@ class TestRuleTesting:
         event1 = Event(
             batch_id=unique_id("batch"),
             camera_id=test_camera.id,
-            started_at=datetime.now(UTC),
+            started_at=utc_now_naive(),
             risk_score=80,
         )
         event2 = Event(
             batch_id=unique_id("batch"),
             camera_id=test_camera.id,
-            started_at=datetime.now(UTC),
+            started_at=utc_now_naive(),
             risk_score=60,
         )
         event3 = Event(
             batch_id=unique_id("batch"),
             camera_id=test_camera.id,
-            started_at=datetime.now(UTC),
+            started_at=utc_now_naive(),
             risk_score=90,
         )
         session.add_all([event1, event2, event3])
@@ -875,14 +881,14 @@ class TestLoadEventDetections:
         det1 = Detection(
             camera_id=test_camera.id,
             file_path="/export/foscam/front_door/image1.jpg",
-            detected_at=datetime.now(UTC),
+            detected_at=utc_now_naive(),
             object_type="person",
             confidence=0.95,
         )
         det2 = Detection(
             camera_id=test_camera.id,
             file_path="/export/foscam/front_door/image2.jpg",
-            detected_at=datetime.now(UTC),
+            detected_at=utc_now_naive(),
             object_type="vehicle",
             confidence=0.85,
         )
@@ -895,7 +901,7 @@ class TestLoadEventDetections:
         event = Event(
             batch_id=unique_id("batch"),
             camera_id=test_camera.id,
-            started_at=datetime.now(UTC),
+            started_at=utc_now_naive(),
             risk_score=80,
             detection_ids=json.dumps([det1.id, det2.id]),
         )
@@ -923,7 +929,7 @@ class TestLoadEventDetections:
         event = Event(
             batch_id=unique_id("batch"),
             camera_id=test_camera.id,
-            started_at=datetime.now(UTC),
+            started_at=utc_now_naive(),
             risk_score=80,
             detection_ids="",  # Empty string
         )
@@ -950,7 +956,7 @@ class TestLoadEventDetections:
         event = Event(
             batch_id=unique_id("batch"),
             camera_id=test_camera.id,
-            started_at=datetime.now(UTC),
+            started_at=utc_now_naive(),
             risk_score=80,
             detection_ids="not valid json",  # Invalid JSON
         )
@@ -979,7 +985,7 @@ class TestLoadEventDetections:
         event = Event(
             batch_id=unique_id("batch"),
             camera_id=test_camera.id,
-            started_at=datetime.now(UTC),
+            started_at=utc_now_naive(),
             risk_score=80,
             detection_ids=json.dumps({"id": 1}),  # Dict, not list
         )
@@ -1008,7 +1014,7 @@ class TestLoadEventDetections:
         event = Event(
             batch_id=unique_id("batch"),
             camera_id=test_camera.id,
-            started_at=datetime.now(UTC),
+            started_at=utc_now_naive(),
             risk_score=80,
             detection_ids=json.dumps([]),  # Empty list
         )
