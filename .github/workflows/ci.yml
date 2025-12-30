@@ -573,7 +573,7 @@ jobs:
           # These tests are critical security validation
           # -n0 disables xdist parallelization
           # --timeout=0 disables timeout (fixture import takes >1s in CI)
-          pytest backend/tests/unit/test_admin_api.py \
+          pytest backend/tests/integration/test_admin_api.py \
             -n0 \
             --timeout=0 \
             -k "requires_debug_mode" \
