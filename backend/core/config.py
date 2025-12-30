@@ -3,8 +3,9 @@
 import os
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
-from pydantic import Field, field_validator
+from pydantic import AnyHttpUrl, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -84,17 +85,50 @@ class Settings(BaseSettings):
         description="Idle timeout before processing incomplete batch",
     )
 
-    # AI service endpoints (validated as URLs, stored as strings for compatibility)
+    # AI service endpoints (validated as URLs using Pydantic AnyHttpUrl)
+    # Stored as str after validation for compatibility with httpx clients
     rtdetr_url: str = Field(
         default="http://localhost:8090",
         description="RT-DETRv2 detection service URL",
-        pattern=r"^https?://.*",
     )
     nemotron_url: str = Field(
         default="http://localhost:8091",
         description="Nemotron reasoning service URL (llama.cpp server)",
-        pattern=r"^https?://.*",
     )
+
+    @field_validator("rtdetr_url", "nemotron_url", mode="before")
+    @classmethod
+    def validate_ai_service_urls(cls, v: Any) -> str:
+        """Validate AI service URLs using Pydantic's AnyHttpUrl validator.
+
+        This ensures URLs are well-formed HTTP/HTTPS URLs while returning
+        a string for compatibility with httpx clients.
+
+        Args:
+            v: The URL value to validate
+
+        Returns:
+            The validated URL as a string
+
+        Raises:
+            ValueError: If the URL is not a valid HTTP/HTTPS URL
+        """
+        if v is None:
+            raise ValueError("AI service URL cannot be None")
+
+        # Convert to string if needed
+        url_str = str(v)
+
+        # Use AnyHttpUrl for validation (supports http and https)
+        try:
+            validated_url = AnyHttpUrl(url_str)
+            # Return as string for httpx compatibility
+            return str(validated_url)
+        except Exception as e:
+            raise ValueError(
+                f"Invalid AI service URL '{url_str}': must be a valid HTTP/HTTPS URL. "
+                f"Example: 'http://localhost:8090'. Error: {e}"
+            ) from None
 
     # Detection settings
     detection_confidence_threshold: float = Field(
@@ -248,6 +282,26 @@ class Settings(BaseSettings):
         description="Maximum search requests per minute per client IP",
     )
 
+    # WebSocket settings
+    websocket_idle_timeout_seconds: int = Field(
+        default=300,
+        ge=30,
+        le=3600,
+        description="WebSocket idle timeout in seconds. Connections without activity will be closed.",
+    )
+    websocket_ping_interval_seconds: int = Field(
+        default=30,
+        ge=5,
+        le=120,
+        description="Interval for sending WebSocket ping frames to keep connections alive",
+    )
+    websocket_max_message_size: int = Field(
+        default=65536,
+        ge=1024,
+        le=1048576,
+        description="Maximum WebSocket message size in bytes (default: 64KB)",
+    )
+
     # Severity threshold settings (risk score 0-100)
     severity_low_max: int = Field(
         default=29,
@@ -307,6 +361,37 @@ class Settings(BaseSettings):
         default=None,
         description="Default webhook URL for alert notifications",
     )
+
+    @field_validator("default_webhook_url", mode="before")
+    @classmethod
+    def validate_webhook_url(cls, v: Any) -> str | None:
+        """Validate webhook URL using Pydantic's AnyHttpUrl validator.
+
+        Args:
+            v: The URL value to validate (can be None)
+
+        Returns:
+            The validated URL as a string, or None if not provided
+
+        Raises:
+            ValueError: If the URL is provided but not a valid HTTP/HTTPS URL
+        """
+        if v is None or v == "":
+            return None
+
+        # Convert to string if needed
+        url_str = str(v)
+
+        # Use AnyHttpUrl for validation
+        try:
+            validated_url = AnyHttpUrl(url_str)
+            return str(validated_url)
+        except Exception as e:
+            raise ValueError(
+                f"Invalid webhook URL '{url_str}': must be a valid HTTP/HTTPS URL. "
+                f"Example: 'https://hooks.example.com/webhook'. Error: {e}"
+            ) from None
+
     webhook_timeout_seconds: int = Field(
         default=30,
         ge=1,

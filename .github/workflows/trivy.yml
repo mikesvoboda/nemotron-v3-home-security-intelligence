@@ -32,15 +32,26 @@ jobs:
         # Use production Dockerfile which has minimal dependencies
         run: docker build -t backend:${{ github.sha }} -f backend/Dockerfile.prod backend/
 
-      - name: Run Trivy vulnerability scanner
-        # SARIF results are uploaded to GitHub Security tab for review
+      - name: Run Trivy vulnerability scanner (blocking)
+        # Fail build on CRITICAL/HIGH vulnerabilities not in .trivyignore
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "backend:${{ github.sha }}"
+          format: "table"
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
+          trivyignores: ".trivyignore"
+
+      - name: Run Trivy for SARIF upload
+        # Always run SARIF generation for GitHub Security tab (even after failure above)
+        if: always()
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: "backend:${{ github.sha }}"
           format: "sarif"
           output: "trivy-backend.sarif"
           severity: "CRITICAL,HIGH"
-          exit-code: "1"
+          exit-code: "0"
           trivyignores: ".trivyignore"
 
       - name: Upload Trivy scan results
@@ -60,15 +71,26 @@ jobs:
         # Use production Dockerfile which has minimal dependencies
         run: docker build -t frontend:${{ github.sha }} -f frontend/Dockerfile.prod frontend/
 
-      - name: Run Trivy vulnerability scanner
-        # SARIF results are uploaded to GitHub Security tab for review
+      - name: Run Trivy vulnerability scanner (blocking)
+        # Fail build on CRITICAL/HIGH vulnerabilities not in .trivyignore
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "frontend:${{ github.sha }}"
+          format: "table"
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"
+          trivyignores: ".trivyignore"
+
+      - name: Run Trivy for SARIF upload
+        # Always run SARIF generation for GitHub Security tab (even after failure above)
+        if: always()
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: "frontend:${{ github.sha }}"
           format: "sarif"
           output: "trivy-frontend.sarif"
           severity: "CRITICAL,HIGH"
-          exit-code: "1"
+          exit-code: "0"
           trivyignores: ".trivyignore"
 
       - name: Upload Trivy scan results

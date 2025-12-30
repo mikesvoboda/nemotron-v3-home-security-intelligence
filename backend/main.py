@@ -3,7 +3,6 @@
 import ssl
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -216,67 +215,25 @@ async def root() -> dict[str, str]:
 
 
 @app.get("/health")
-async def health() -> dict[str, Any]:
-    """Detailed health check endpoint."""
-    settings = get_settings()
+async def health() -> dict[str, str]:
+    """Simple liveness health check endpoint.
 
-    # Check database
-    db_status = "operational"
-    try:
-        from backend.core import get_engine
+    This endpoint indicates whether the process is running and able to
+    respond to HTTP requests. It always returns 200 with status "alive"
+    if the process is up.
 
-        engine = get_engine()
-        if engine:
-            db_status = "operational"
-    except RuntimeError:
-        db_status = "not_initialized"
+    For detailed health information, use:
+    - GET /api/system/health - Detailed health check with service status
+    - GET /api/system/health/live - Kubernetes liveness probe
+    - GET /api/system/health/ready - Kubernetes readiness probe
 
-    # Check Redis
-    redis_status = "not_initialized"
-    redis_details: dict[str, Any] = {}
-    try:
-        from backend.core.redis import _redis_client
+    This endpoint exists for backward compatibility with existing monitoring
+    tools and Docker HEALTHCHECK configurations.
 
-        if _redis_client:
-            redis_health = await _redis_client.health_check()
-            redis_status = redis_health.get("status", "unknown")
-            redis_details = redis_health
-    except Exception as e:
-        redis_status = "error"
-        # Only expose error details in debug mode to prevent stack trace exposure
-        redis_details = {"error": str(e) if settings.debug else "Redis health check failed"}
-
-    overall_status = "healthy"
-    if db_status != "operational" or redis_status not in ["healthy", "not_initialized"]:
-        overall_status = "degraded"
-
-    # Include TLS status in health check
-    tls_status = "disabled"
-    tls_details: dict[str, Any] = {}
-    if settings.tls_enabled:
-        tls_status = "enabled"
-        try:
-            from backend.core.tls import get_cert_info
-
-            cert_info = get_cert_info()
-            if cert_info:
-                tls_details = {
-                    "certificate_valid": cert_info.get("valid", False),
-                    "days_remaining": cert_info.get("days_remaining", 0),
-                }
-        except Exception as e:
-            # Only expose error details in debug mode to prevent stack trace exposure
-            tls_details = {"error": str(e) if settings.debug else "TLS certificate check failed"}
-
-    return {
-        "status": overall_status,
-        "api": "operational",
-        "database": db_status,
-        "redis": redis_status,
-        "redis_details": redis_details,
-        "tls": tls_status,
-        "tls_details": tls_details,
-    }
+    Returns:
+        Simple status indicating the server is alive.
+    """
+    return {"status": "alive", "message": "Use /api/system/health for detailed status"}
 
 
 def get_ssl_context() -> ssl.SSLContext | None:

@@ -344,11 +344,12 @@ def _are_critical_pipeline_workers_healthy() -> bool:
 
     Returns:
         True if both detection and analysis workers are running, False otherwise.
-        Returns True if pipeline_manager is not registered (graceful degradation).
+        Returns False if pipeline_manager is not registered (system cannot process detections).
     """
     if _pipeline_manager is None:
-        # Pipeline manager not registered - can't check, assume OK for graceful degradation
-        return True
+        # Pipeline manager not registered - system cannot process detections
+        logger.warning("Pipeline manager not registered - marking as not ready")
+        return False
 
     manager_status = _pipeline_manager.get_status()
 

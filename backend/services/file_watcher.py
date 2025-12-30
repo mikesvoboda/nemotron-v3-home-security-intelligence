@@ -52,6 +52,7 @@ from watchdog.observers import Observer
 # inotify events may not propagate.
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
+from backend.core.redis import QueueOverflowPolicy
 from backend.models.camera import Camera, normalize_camera_id
 from backend.services.dedupe import DedupeService
 
@@ -315,6 +316,11 @@ class FileWatcher:
 
                 Args:
                     file_path: Path to file to process
+
+                Note:
+                    If event loop is not available, this logs an ERROR and increments
+                    an error counter. This is a critical failure mode that indicates
+                    the FileWatcher was not started properly within an async context.
                 """
                 # Use the stored loop reference if available
                 if self.watcher._loop and self.watcher._loop.is_running():
@@ -324,7 +330,20 @@ class FileWatcher:
                         self.watcher._loop,
                     )
                 else:
-                    logger.warning(f"Event loop not available for processing {file_path}")
+                    # This is a critical error - file events are being lost
+                    # Log as ERROR and track the failure for monitoring
+                    logger.error(
+                        f"CRITICAL: Event loop not available for processing {file_path}. "
+                        "File will NOT be processed. FileWatcher must be started within "
+                        "an async context (e.g., during FastAPI lifespan).",
+                        extra={
+                            "file_path": file_path,
+                            "loop_exists": self.watcher._loop is not None,
+                            "loop_running": (
+                                self.watcher._loop.is_running() if self.watcher._loop else False
+                            ),
+                        },
+                    )
 
         return MediaEventHandler(self)
 
@@ -552,7 +571,38 @@ class FileWatcher:
         if file_hash:
             detection_data["file_hash"] = file_hash
 
-        await self.redis_client.add_to_queue(self.queue_name, detection_data)
+        # Use add_to_queue_safe() with DLQ policy to prevent silent data loss
+        # If the queue is full, items are moved to a dead-letter queue instead of being dropped
+        result = await self.redis_client.add_to_queue_safe(
+            self.queue_name,
+            detection_data,
+            overflow_policy=QueueOverflowPolicy.DLQ,
+        )
+
+        if not result.success:
+            logger.error(
+                f"Failed to queue detection for {file_path}: {result.error}",
+                extra={
+                    "camera_id": camera_id,
+                    "file_path": file_path,
+                    "queue_name": self.queue_name,
+                    "queue_length": result.queue_length,
+                },
+            )
+            raise RuntimeError(f"Queue operation failed: {result.error}")
+
+        if result.had_backpressure:
+            logger.warning(
+                f"Queue backpressure detected while adding detection for {file_path}",
+                extra={
+                    "camera_id": camera_id,
+                    "file_path": file_path,
+                    "queue_name": self.queue_name,
+                    "queue_length": result.queue_length,
+                    "moved_to_dlq": result.moved_to_dlq_count,
+                    "warning": result.warning,
+                },
+            )
 
     async def start(self) -> None:
         """Start watching camera directories for file changes.
@@ -566,11 +616,20 @@ class FileWatcher:
         logger.info(f"Starting FileWatcher for {self.camera_root}")
 
         # Capture the current event loop for thread-safe task scheduling
+        # This is REQUIRED - FileWatcher cannot function without an async event loop
         try:
             self._loop = asyncio.get_running_loop()
-        except RuntimeError:
-            logger.warning("No running event loop detected - file processing may not work")
-            self._loop = None
+        except RuntimeError as e:
+            error_msg = (
+                "FileWatcher MUST be started within an async context (e.g., during "
+                "FastAPI lifespan). No running event loop detected - file events "
+                "will be lost. This is a critical configuration error."
+            )
+            logger.error(
+                error_msg,
+                extra={"error": str(e), "camera_root": self.camera_root},
+            )
+            raise RuntimeError(error_msg) from e
 
         # Schedule observer for each camera directory
         camera_root_path = Path(self.camera_root)

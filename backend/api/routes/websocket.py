@@ -16,8 +16,14 @@ WebSocket Message Validation:
     All incoming messages are validated for proper JSON structure and schema.
     Invalid messages receive an error response with details about the issue.
     Supported message types: ping, subscribe, unsubscribe.
+
+WebSocket Idle Timeout:
+    Connections that do not send any messages within the configured idle
+    timeout (default: 300 seconds) will be automatically closed. Clients
+    should send periodic ping messages to keep the connection alive.
 """
 
+import asyncio
 import json
 import logging
 from typing import Any
@@ -34,6 +40,7 @@ from backend.api.schemas.websocket import (
     WebSocketMessageType,
     WebSocketPongResponse,
 )
+from backend.core.config import get_settings
 from backend.core.redis import RedisClient, get_redis
 from backend.services.event_broadcaster import get_broadcaster
 from backend.services.system_broadcaster import get_system_broadcaster
@@ -196,6 +203,8 @@ async def websocket_events_endpoint(
         return
 
     broadcaster = await get_broadcaster(redis)
+    settings = get_settings()
+    idle_timeout = settings.websocket_idle_timeout_seconds
 
     try:
         # Register the WebSocket connection
@@ -206,8 +215,12 @@ async def websocket_events_endpoint(
         # Clients can send ping messages for keep-alive and other commands
         while True:
             try:
-                # Wait for any message from the client
-                data = await websocket.receive_text()
+                # Wait for any message from the client with idle timeout
+                # Connections that don't send messages within the timeout are closed
+                data = await asyncio.wait_for(
+                    websocket.receive_text(),
+                    timeout=idle_timeout,
+                )
                 logger.debug(f"Received message from WebSocket client: {data}")
 
                 # Support legacy plain "ping" string for backward compatibility
@@ -220,6 +233,10 @@ async def websocket_events_endpoint(
                 if message is not None:
                     await handle_validated_message(websocket, message)
 
+            except TimeoutError:
+                logger.info(f"WebSocket idle timeout ({idle_timeout}s) - closing connection")
+                await websocket.close(code=1000, reason="Idle timeout")
+                break
             except WebSocketDisconnect:
                 logger.info("WebSocket client disconnected normally")
                 break
@@ -315,6 +332,8 @@ async def websocket_system_status(
         return
 
     broadcaster = get_system_broadcaster()
+    settings = get_settings()
+    idle_timeout = settings.websocket_idle_timeout_seconds
 
     try:
         # Add connection to broadcaster
@@ -325,8 +344,12 @@ async def websocket_system_status(
         # Clients can send ping messages for keep-alive and other commands
         while True:
             try:
-                # Wait for any message from the client
-                data = await websocket.receive_text()
+                # Wait for any message from the client with idle timeout
+                # Connections that don't send messages within the timeout are closed
+                data = await asyncio.wait_for(
+                    websocket.receive_text(),
+                    timeout=idle_timeout,
+                )
                 logger.debug(f"Received message from WebSocket client: {data}")
 
                 # Support legacy plain "ping" string for backward compatibility
@@ -339,6 +362,10 @@ async def websocket_system_status(
                 if message is not None:
                     await handle_validated_message(websocket, message)
 
+            except TimeoutError:
+                logger.info(f"WebSocket idle timeout ({idle_timeout}s) - closing connection")
+                await websocket.close(code=1000, reason="Idle timeout")
+                break
             except WebSocketDisconnect:
                 logger.info("WebSocket client disconnected normally")
                 break

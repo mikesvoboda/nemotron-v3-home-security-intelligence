@@ -78,6 +78,10 @@ class HealthResponse(BaseModel):
 class GPUStatsResponse(BaseModel):
     """Response schema for GPU statistics endpoint."""
 
+    gpu_name: str | None = Field(
+        None,
+        description="GPU device name (e.g., 'NVIDIA RTX A5500')",
+    )
     utilization: float | None = Field(
         None,
         description="GPU utilization percentage (0-100)",
@@ -98,6 +102,11 @@ class GPUStatsResponse(BaseModel):
         None,
         description="GPU temperature in Celsius",
     )
+    power_usage: float | None = Field(
+        None,
+        description="GPU power usage in watts",
+        ge=0,
+    )
     inference_fps: float | None = Field(
         None,
         description="Inference frames per second",
@@ -107,10 +116,12 @@ class GPUStatsResponse(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
+                "gpu_name": "NVIDIA RTX A5500",
                 "utilization": 75.5,
                 "memory_used": 12000,
                 "memory_total": 24000,
                 "temperature": 65.0,
+                "power_usage": 150.0,
                 "inference_fps": 30.5,
             }
         }
@@ -121,6 +132,7 @@ class GPUStatsSample(BaseModel):
     """Single time-series sample of GPU statistics."""
 
     recorded_at: datetime = Field(..., description="When the GPU sample was recorded (UTC)")
+    gpu_name: str | None = Field(None, description="GPU device name")
     utilization: float | None = Field(
         None,
         description="GPU utilization percentage (0-100)",
@@ -130,6 +142,7 @@ class GPUStatsSample(BaseModel):
     memory_used: int | None = Field(None, description="GPU memory used in MB", ge=0)
     memory_total: int | None = Field(None, description="Total GPU memory in MB", ge=0)
     temperature: float | None = Field(None, description="GPU temperature in Celsius")
+    power_usage: float | None = Field(None, description="GPU power usage in watts", ge=0)
     inference_fps: float | None = Field(None, description="Inference frames per second", ge=0)
 
     model_config = ConfigDict(from_attributes=True)

@@ -38,6 +38,13 @@ from backend.services.prompts import RISK_ANALYSIS_PROMPT
 
 logger = get_logger(__name__)
 
+# Timeout configuration for Nemotron LLM service
+# - connect_timeout: Maximum time to establish connection (10s)
+# - read_timeout: Maximum time to wait for LLM response (120s for complex inference)
+NEMOTRON_CONNECT_TIMEOUT = 10.0
+NEMOTRON_READ_TIMEOUT = 120.0
+NEMOTRON_HEALTH_TIMEOUT = 5.0
+
 
 class NemotronAnalyzer:
     """Analyzes detection batches using Nemotron LLM for risk assessment.
@@ -56,7 +63,20 @@ class NemotronAnalyzer:
         self._redis = redis_client
         settings = get_settings()
         self._llm_url = settings.nemotron_url
-        self._timeout = 60.0  # LLM request timeout in seconds
+        # Use httpx.Timeout for proper timeout configuration
+        # connect: time to establish connection, read: time to wait for LLM response
+        self._timeout = httpx.Timeout(
+            connect=NEMOTRON_CONNECT_TIMEOUT,
+            read=NEMOTRON_READ_TIMEOUT,
+            write=NEMOTRON_READ_TIMEOUT,
+            pool=NEMOTRON_CONNECT_TIMEOUT,
+        )
+        self._health_timeout = httpx.Timeout(
+            connect=NEMOTRON_HEALTH_TIMEOUT,
+            read=NEMOTRON_HEALTH_TIMEOUT,
+            write=NEMOTRON_HEALTH_TIMEOUT,
+            pool=NEMOTRON_HEALTH_TIMEOUT,
+        )
 
     async def analyze_batch(
         self,
@@ -124,7 +144,13 @@ class NemotronAnalyzer:
 
             # Get detection details
             # Convert detection_ids to integers (may come as strings from queue payload)
-            int_detection_ids = [int(d) for d in detection_ids]
+            try:
+                int_detection_ids = [int(d) for d in detection_ids]
+            except (ValueError, TypeError) as e:
+                raise ValueError(
+                    f"Invalid detection_id in batch {batch_id}: {e}. "
+                    f"Detection IDs must be numeric (got: {detection_ids})"
+                ) from None
             detections_result = await session.execute(
                 select(Detection).where(Detection.id.in_(int_detection_ids))
             )
@@ -235,7 +261,7 @@ class NemotronAnalyzer:
 
             return event
 
-    async def analyze_detection_fast_path(self, camera_id: str, detection_id: str) -> Event:
+    async def analyze_detection_fast_path(self, camera_id: str, detection_id: int | str) -> Event:
         """Analyze a single detection via fast path (high-priority).
 
         This method is called for high-confidence critical detections that bypass
@@ -244,7 +270,7 @@ class NemotronAnalyzer:
 
         Args:
             camera_id: Camera identifier
-            detection_id: Detection identifier (as int or string)
+            detection_id: Detection identifier (int or string, normalized to int internally)
 
         Returns:
             Event object with risk assessment and is_fast_path=True
@@ -398,11 +424,8 @@ class NemotronAnalyzer:
             True if LLM server is responding, False otherwise
         """
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{self._llm_url}/health",
-                    timeout=5.0,
-                )
+            async with httpx.AsyncClient(timeout=self._health_timeout) as client:
+                response = await client.get(f"{self._llm_url}/health")
                 return bool(response.status_code == 200)
         except Exception as e:
             logger.warning(f"LLM health check failed: {e}")
