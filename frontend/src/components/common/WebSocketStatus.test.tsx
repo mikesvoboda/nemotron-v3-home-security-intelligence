@@ -121,8 +121,10 @@ describe('WebSocketStatus', () => {
     );
 
     const status = screen.getByTestId('websocket-status');
-    expect(status).toHaveAttribute('role', 'status');
+    expect(status).toHaveAttribute('role', 'button');
+    expect(status).toHaveAttribute('tabIndex', '0');
     expect(status).toHaveAttribute('aria-label', 'WebSocket connection status: Connected');
+    expect(status).toHaveAttribute('aria-haspopup', 'true');
   });
 
   describe('Tooltip', () => {

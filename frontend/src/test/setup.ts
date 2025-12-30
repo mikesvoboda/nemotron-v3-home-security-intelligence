@@ -33,7 +33,6 @@ beforeAll(() => {
    * Some Headless UI components use IntersectionObserver for visibility detection.
    * jsdom doesn't provide this API, so we mock it for testing.
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (globalThis as any).IntersectionObserver = class IntersectionObserver {
     observe() {}
     unobserve() {}
