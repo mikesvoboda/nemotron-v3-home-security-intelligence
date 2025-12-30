@@ -111,7 +111,8 @@ export default function LogDetailModal({ log, isOpen, onClose }: LogDetailModalP
     try {
       return JSON.stringify(data, null, 2);
     } catch {
-      return String(data);
+      // If JSON.stringify fails (e.g., circular reference), return a fallback message
+      return '[Unable to stringify data]';
     }
   };
 
