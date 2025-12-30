@@ -525,8 +525,8 @@ class TestLLMResponseParsing:
         with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
             event = await analyzer.analyze_batch(batch_id)
 
-        # Risk level should be inferred from score (80 = critical)
-        assert event.risk_level == "critical"
+        # Risk level should be inferred from score (80 = high per thresholds: 60-84)
+        assert event.risk_level == "high"
 
     async def test_analyze_batch_handles_json_in_text_response(
         self, integration_db, sample_camera, sample_detections, mock_redis_client
