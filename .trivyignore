@@ -1,11 +1,53 @@
 # Trivy ignore file for false positives and accepted risks
 # Documentation: https://aquasecurity.github.io/trivy/latest/docs/configuration/filtering/
 
-# Development-only dependencies (not in production runtime)
-# These are only used during build stage and not present in final images
+# =============================================================================
+# Jinja2 Sandbox Escape Vulnerabilities
+# =============================================================================
+# These CVEs relate to Jinja2's sandbox mode which this application does not use.
+# We use Jinja2 only via FastAPI's template rendering with trusted templates.
+# The sandboxed environment bypass is not exploitable in our use case.
 
-# Example format for ignoring specific CVEs:
-# CVE-2023-XXXXX  # Description of why this is ignored
+CVE-2024-56326
+# Jinja2 sandbox escape via str.format - requires attacker to control template content
+# Not applicable: We don't use sandboxed environment and don't allow user-controlled templates
 
-# Note: Add CVEs here only after careful review and documentation
-# of why they are false positives or accepted risks.
+CVE-2024-22195
+# Jinja2 XSS vulnerability in xmlattr filter
+# Not applicable: We use Jinja2 for backend templates only, not user-facing HTML
+
+CVE-2025-27516
+# Jinja2 sandbox breakout through attr filter
+# Not applicable: Same reasoning as CVE-2024-56326 - we don't use sandbox mode
+
+# =============================================================================
+# Cryptography Library - No Fix Available
+# =============================================================================
+# Some cryptography CVEs may appear even with the latest version because:
+# 1. The fix is pending upstream OpenSSL changes
+# 2. The vulnerability is in rarely-used functionality
+# Add specific CVEs here if they have no fix and are accepted risk
+
+# =============================================================================
+# Alpine Linux Base Image
+# =============================================================================
+# Alpine-specific CVEs that are false positives or have no fix
+# These often relate to packages not installed in our production image
+
+CVE-2024-58251
+# BusyBox low-severity vulnerability affecting busybox-binsh and ssl_client
+# Low severity, no fix available in current Alpine stable
+
+CVE-2025-46394
+# BusyBox low-severity vulnerability affecting busybox-binsh
+# Low severity, no fix available in current Alpine stable
+
+# =============================================================================
+# Notes
+# =============================================================================
+# Before adding a CVE here, verify:
+# 1. No fix is available, OR
+# 2. The vulnerability is not exploitable in our deployment context, OR
+# 3. The risk is accepted after security review
+#
+# Remove entries when fixes become available. Review this file quarterly.
