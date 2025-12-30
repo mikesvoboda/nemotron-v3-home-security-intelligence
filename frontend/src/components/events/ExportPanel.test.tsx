@@ -565,12 +565,10 @@ describe('ExportPanel', () => {
 
       render(<ExportPanel />);
 
+      // Wait for stats fetch to complete and show "Unknown" (not "Calculating...")
       await waitFor(() => {
-        expect(api.fetchEventStats).toHaveBeenCalled();
+        expect(screen.getByText('Unknown')).toBeInTheDocument();
       });
-
-      // Should show "Unknown" for event count
-      expect(screen.getByText('Unknown')).toBeInTheDocument();
     });
   });
 
