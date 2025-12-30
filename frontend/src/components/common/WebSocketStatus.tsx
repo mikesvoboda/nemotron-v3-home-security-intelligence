@@ -256,11 +256,12 @@ export default function WebSocketStatus({
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       data-testid="websocket-status"
-      role={overallState === 'failed' && onRetry ? 'button' : 'status'}
-      tabIndex={overallState === 'failed' && onRetry ? 0 : undefined}
+      role="button"
+      tabIndex={0}
       aria-label={`WebSocket connection status: ${getStateLabel(overallState)}${
         hasAnyFailed ? ' - Click to retry' : ''
       }`}
+      aria-haspopup="true"
     >
       {/* Connection Icon */}
       <div className={`flex items-center gap-1.5 ${stateColors.text}`}>
