@@ -90,7 +90,8 @@ export default function AuditDetailModal({ log, isOpen, onClose }: AuditDetailMo
     try {
       return JSON.stringify(data, null, 2);
     } catch {
-      return String(data);
+      // Fallback to basic stringify if pretty-print fails
+      return JSON.stringify(data);
     }
   };
 
