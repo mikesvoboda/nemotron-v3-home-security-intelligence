@@ -87,6 +87,7 @@ async def get_camera(
             detail=f"Camera with id {camera_id} not found",
         )
 
+    assert isinstance(camera, Camera)
     return camera
 
 
@@ -201,6 +202,7 @@ async def update_camera(
     await db.commit()
     await db.refresh(camera)
 
+    assert isinstance(camera, Camera)
     return camera
 
 

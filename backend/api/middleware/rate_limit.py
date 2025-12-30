@@ -83,16 +83,16 @@ def get_client_ip(request: Request | WebSocket) -> str:
     forwarded_for = request.headers.get("X-Forwarded-For")
     if forwarded_for:
         # Take the first IP in the chain (original client)
-        return forwarded_for.split(",")[0].strip()
+        return str(forwarded_for.split(",")[0].strip())
 
     # Check for X-Real-IP header
     real_ip = request.headers.get("X-Real-IP")
     if real_ip:
-        return real_ip.strip()
+        return str(real_ip.strip())
 
     # Fall back to direct client IP
     if request.client:
-        return request.client.host
+        return str(request.client.host)
 
     return "unknown"
 

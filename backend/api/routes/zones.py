@@ -42,6 +42,7 @@ async def _get_camera_or_404(camera_id: str, db: AsyncSession) -> Camera:
             detail=f"Camera with id {camera_id} not found",
         )
 
+    assert isinstance(camera, Camera)
     return camera
 
 
@@ -68,6 +69,7 @@ async def _get_zone_or_404(zone_id: str, camera_id: str, db: AsyncSession) -> Zo
             detail=f"Zone with id {zone_id} not found for camera {camera_id}",
         )
 
+    assert isinstance(zone, Zone)
     return zone
 
 

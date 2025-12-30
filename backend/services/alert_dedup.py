@@ -161,7 +161,7 @@ class AlertDeduplicationService:
         rule = result.scalar_one_or_none()
 
         if rule:
-            return rule.cooldown_seconds
+            return int(rule.cooldown_seconds)
 
         return 300  # Default if rule not found
 
