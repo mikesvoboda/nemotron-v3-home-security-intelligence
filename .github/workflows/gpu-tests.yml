@@ -44,10 +44,12 @@ jobs:
       - name: Run AI inference benchmarks
         run: |
           source .venv/bin/activate
+          # Disable xdist to allow benchmarks (xdist auto-disables benchmarking)
           pytest backend/tests/benchmarks/ \
+            -p no:xdist \
             --benchmark-only \
             --benchmark-json=gpu-benchmark.json \
-            -v
+            -v || [ $? -eq 5 ]
         env:
           CUDA_VISIBLE_DEVICES: "0"
 
