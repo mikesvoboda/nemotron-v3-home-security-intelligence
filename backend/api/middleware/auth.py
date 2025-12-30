@@ -135,9 +135,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "/",
             "/health",  # Canonical liveness probe
             "/ready",  # Canonical readiness probe
-            "/api/system/health",
-            "/api/system/health/live",  # Kubernetes-style liveness probe
-            "/api/system/health/ready",  # Kubernetes-style readiness probe
+            "/api/system/health",  # Detailed health check (includes AI services)
+            "/api/system/health/ready",  # Detailed readiness probe
             "/api/metrics",  # Prometheus scraping endpoint
             "/docs",
             "/redoc",
