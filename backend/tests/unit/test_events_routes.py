@@ -518,6 +518,10 @@ async def test_list_events_with_object_type_filter_matching() -> None:
     detection_ids_result = MagicMock()
     detection_ids_result.scalars.return_value.all.return_value = [1, 2]
 
+    # Mock all_events query (returns event_id, detection_ids tuples)
+    all_events_result = MagicMock()
+    all_events_result.all.return_value = [(1, "[1, 2]")]  # event_id=1, detection_ids=[1,2]
+
     # Mock count query
     count_result = MagicMock()
     count_result.scalar.return_value = 1
@@ -526,7 +530,9 @@ async def test_list_events_with_object_type_filter_matching() -> None:
     events_result = MagicMock()
     events_result.scalars.return_value.all.return_value = [mock_event]
 
-    db.execute = AsyncMock(side_effect=[detection_ids_result, count_result, events_result])
+    db.execute = AsyncMock(
+        side_effect=[detection_ids_result, all_events_result, count_result, events_result]
+    )
 
     response = await events_routes.list_events(
         camera_id=None,
