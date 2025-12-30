@@ -117,6 +117,8 @@ omit = [
     "backend/api/routes/audit.py",
     "backend/services/video_processor.py",
     "backend/services/degradation_manager.py",
+    # TLS certificate generation - requires system-level testing
+    "backend/core/tls.py",
 ]
 
 [tool.coverage.report]

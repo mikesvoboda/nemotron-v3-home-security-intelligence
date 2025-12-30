@@ -49,6 +49,8 @@ File Upload -> Detection -> Batching -> Analysis -> Event Creation -> Broadcasti
 
 - **RetryHandler** - Exponential backoff and dead-letter queue support
 - **ServiceManager** - Strategy pattern for service restarts (Shell/Docker)
+- **CircuitBreaker** - Circuit breaker pattern for service resilience
+- **DegradationManager** - Graceful degradation during service outages
 
 ## Service Files Overview
 
@@ -69,6 +71,8 @@ File Upload -> Detection -> Batching -> Analysis -> Event Creation -> Broadcasti
 | `health_monitor.py`      | Monitor service health with auto-recovery    | Background     | service_managers, httpx              |
 | `retry_handler.py`       | Exponential backoff and DLQ support          | Infrastructure | Redis                                |
 | `service_managers.py`    | Strategy pattern for service management      | Infrastructure | httpx, asyncio subprocess            |
+| `circuit_breaker.py`     | Circuit breaker for service resilience       | Infrastructure | asyncio                              |
+| `degradation_manager.py` | Graceful degradation management              | Infrastructure | Redis                                |
 | `prompts.py`             | LLM prompt templates                         | Utility        | -                                    |
 
 ## Service Files

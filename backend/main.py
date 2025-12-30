@@ -218,6 +218,8 @@ async def root() -> dict[str, str]:
 @app.get("/health")
 async def health() -> dict[str, Any]:
     """Detailed health check endpoint."""
+    settings = get_settings()
+
     # Check database
     db_status = "operational"
     try:
@@ -231,7 +233,7 @@ async def health() -> dict[str, Any]:
 
     # Check Redis
     redis_status = "not_initialized"
-    redis_details = {}
+    redis_details: dict[str, Any] = {}
     try:
         from backend.core.redis import _redis_client
 
@@ -241,11 +243,30 @@ async def health() -> dict[str, Any]:
             redis_details = redis_health
     except Exception as e:
         redis_status = "error"
-        redis_details = {"error": str(e)}
+        # Only expose error details in debug mode to prevent stack trace exposure
+        redis_details = {"error": str(e) if settings.debug else "Redis health check failed"}
 
     overall_status = "healthy"
     if db_status != "operational" or redis_status not in ["healthy", "not_initialized"]:
         overall_status = "degraded"
+
+    # Include TLS status in health check
+    tls_status = "disabled"
+    tls_details: dict[str, Any] = {}
+    if settings.tls_enabled:
+        tls_status = "enabled"
+        try:
+            from backend.core.tls import get_cert_info
+
+            cert_info = get_cert_info()
+            if cert_info:
+                tls_details = {
+                    "certificate_valid": cert_info.get("valid", False),
+                    "days_remaining": cert_info.get("days_remaining", 0),
+                }
+        except Exception as e:
+            # Only expose error details in debug mode to prevent stack trace exposure
+            tls_details = {"error": str(e) if settings.debug else "TLS certificate check failed"}
 
     return {
         "status": overall_status,
@@ -253,6 +274,8 @@ async def health() -> dict[str, Any]:
         "database": db_status,
         "redis": redis_status,
         "redis_details": redis_details,
+        "tls": tls_status,
+        "tls_details": tls_details,
     }
 
 
@@ -263,6 +286,7 @@ def get_ssl_context() -> ssl.SSLContext | None:
         ssl.SSLContext if TLS is enabled, None otherwise.
     """
     from backend.core.tls import (
+        TLSConfig,
         TLSMode,
         create_ssl_context,
         generate_self_signed_certificate,
@@ -270,6 +294,11 @@ def get_ssl_context() -> ssl.SSLContext | None:
     )
 
     config = get_tls_config()
+
+    # Type guard: TLSConfig uses new mode API, dict is legacy
+    if isinstance(config, dict):
+        # Legacy dict config - no TLSConfig features
+        return None
 
     if not config.is_enabled:
         return None
@@ -298,8 +327,6 @@ def get_ssl_context() -> ssl.SSLContext | None:
             )
 
         # Update config paths for self-signed mode
-        from backend.core.tls import TLSConfig
-
         config = TLSConfig(
             mode=config.mode,
             cert_path=cert_path,

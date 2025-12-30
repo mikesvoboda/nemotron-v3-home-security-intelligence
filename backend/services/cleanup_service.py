@@ -367,7 +367,7 @@ class CleanupService:
             result = await session.execute(
                 select(func.count()).select_from(Log).where(Log.timestamp < cutoff)
             )
-            count = result.scalar_one()
+            count = int(result.scalar_one() or 0)
 
         if count > 0:
             logger.info(

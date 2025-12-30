@@ -145,6 +145,7 @@ async def get_log(
             detail=f"Log {log_id} not found",
         )
 
+    assert isinstance(log, Log)
     return log
 
 

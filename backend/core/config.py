@@ -342,7 +342,7 @@ class Settings(BaseSettings):
         description="Enable automatic clip generation for events",
     )
 
-    # Video processing settings
+    # Video thumbnails settings
     video_thumbnails_dir: str = Field(
         default="data/thumbnails",
         description="Directory for storing video thumbnails and extracted frames",
@@ -354,7 +354,7 @@ class Settings(BaseSettings):
         description="Maximum number of frames to extract from a video",
     )
 
-    # TLS/HTTPS settings
+    # TLS/HTTPS settings (legacy - kept for backward compatibility)
     tls_enabled: bool = Field(
         default=False,
         description="Enable TLS/HTTPS for the API server",
@@ -380,7 +380,7 @@ class Settings(BaseSettings):
         description="Directory for auto-generated certificates",
     )
 
-    # TLS/HTTPS settings
+    # TLS/HTTPS settings (new mode-based configuration)
     tls_mode: str = Field(
         default="disabled",
         description="TLS mode: 'disabled' (HTTP only), 'self_signed' (auto-generate certs), 'provided' (use existing certs)",

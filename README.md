@@ -59,7 +59,7 @@ docker compose up --build
 **That's it.** Open [http://localhost:5173](http://localhost:5173) for the dashboard.
 
 <details>
-<summary>🐧 Linux networking note</summary>
+<summary>Linux networking note</summary>
 
 The default `docker-compose.yml` uses `host.docker.internal`. On Linux, either:
 
@@ -75,7 +75,7 @@ The default `docker-compose.yml` uses `host.docker.internal`. On Linux, either:
 ```mermaid
 flowchart LR
     subgraph Cameras
-        CAM[📷 Foscam FTP Upload]
+        CAM[Foscam FTP Upload]
     end
 
     subgraph Ingestion
@@ -84,20 +84,20 @@ flowchart LR
     end
 
     subgraph Detection
-        DET[🔍 RT-DETRv2<br/>Object Detection]
+        DET[RT-DETRv2<br/>Object Detection]
         DB1[(Detections + Thumbnails)]
     end
 
     subgraph Analysis
         BA[BatchAggregator<br/>90s windows]
         RQ2[(Redis Queue)]
-        NEM[🧠 Nemotron LLM<br/>Risk Analysis]
+        NEM[Nemotron LLM<br/>Risk Analysis]
         DB2[(Risk-scored Events)]
     end
 
     subgraph Interface
         WS[WebSocket]
-        DASH[📊 Dashboard]
+        DASH[Dashboard]
     end
 
     CAM --> FW --> RQ1 --> DET --> DB1 --> BA --> RQ2 --> NEM --> DB2 --> WS --> DASH
@@ -141,7 +141,7 @@ A single "person walks to door" might generate 15 images over 30 seconds. Batchi
 | **30-day Retention**    | Automatic cleanup, configurable           |
 
 <details>
-<summary>📸 More Screenshots</summary>
+<summary>More Screenshots</summary>
 
 **Event Timeline** — Browse and filter all security events
 ![Timeline](docs/images/timeline.png)
@@ -358,7 +358,7 @@ Ensure PostgreSQL is running and accessible. Check the connection URL and creden
 
 ## Documentation
 
-📚 **[Full Documentation](docs/README.md)** — Comprehensive guides for all audiences:
+Full Documentation available in docs/README.md — Comprehensive guides for all audiences:
 
 - **[User Guide](docs/user-guide/)** — How to use the dashboard (non-technical)
 - **[Architecture](docs/architecture/)** — System design and decisions
@@ -368,7 +368,7 @@ Ensure PostgreSQL is running and accessible. Check the connection URL and creden
 
 ## Security
 
-⚠️ **This is designed for local/trusted network use.**
+**This is designed for local/trusted network use.**
 
 - No authentication by default (single-user assumption)
 - Media endpoints have path traversal protection
