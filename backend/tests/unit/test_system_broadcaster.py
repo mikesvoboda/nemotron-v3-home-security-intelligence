@@ -354,16 +354,18 @@ async def test_system_broadcaster_reset_pubsub_connection():
     """Test resetting pub/sub connection for error recovery."""
     mock_redis = AsyncMock()
     mock_pubsub = AsyncMock()
-    mock_redis.subscribe.return_value = mock_pubsub
+    mock_redis.subscribe_dedicated.return_value = mock_pubsub
 
     broadcaster = SystemBroadcaster(redis_client=mock_redis)
-    broadcaster._pubsub = AsyncMock()  # Simulate existing pubsub
+    old_pubsub = AsyncMock()  # Simulate existing pubsub
+    broadcaster._pubsub = old_pubsub
 
     await broadcaster._reset_pubsub_connection()
 
-    # Should unsubscribe from old and create new subscription
-    mock_redis.unsubscribe.assert_called_once()
-    mock_redis.subscribe.assert_called_once()
+    # Should unsubscribe and close old pubsub, then create new subscription
+    old_pubsub.unsubscribe.assert_called_once()
+    old_pubsub.close.assert_called_once()
+    mock_redis.subscribe_dedicated.assert_called_once()
     assert broadcaster._pubsub is mock_pubsub
 
 
@@ -383,25 +385,27 @@ async def test_system_broadcaster_reset_pubsub_connection_no_redis():
 async def test_system_broadcaster_reset_pubsub_handles_unsubscribe_error():
     """Test reset_pubsub_connection handles unsubscribe errors gracefully."""
     mock_redis = AsyncMock()
-    mock_redis.unsubscribe.side_effect = Exception("Unsubscribe failed")
     mock_pubsub = AsyncMock()
-    mock_redis.subscribe.return_value = mock_pubsub
+    mock_redis.subscribe_dedicated.return_value = mock_pubsub
+
+    old_pubsub = AsyncMock()
+    old_pubsub.unsubscribe.side_effect = Exception("Unsubscribe failed")
 
     broadcaster = SystemBroadcaster(redis_client=mock_redis)
-    broadcaster._pubsub = AsyncMock()
+    broadcaster._pubsub = old_pubsub
 
     # Should not raise, should continue to create new subscription
     await broadcaster._reset_pubsub_connection()
 
     assert broadcaster._pubsub is mock_pubsub
-    mock_redis.subscribe.assert_called_once()
+    mock_redis.subscribe_dedicated.assert_called_once()
 
 
 @pytest.mark.asyncio
 async def test_system_broadcaster_reset_pubsub_handles_subscribe_error():
     """Test reset_pubsub_connection handles subscribe errors gracefully."""
     mock_redis = AsyncMock()
-    mock_redis.subscribe.side_effect = Exception("Subscribe failed")
+    mock_redis.subscribe_dedicated.side_effect = Exception("Subscribe failed")
 
     broadcaster = SystemBroadcaster(redis_client=mock_redis)
     broadcaster._pubsub = AsyncMock()
@@ -496,15 +500,15 @@ async def test_system_broadcaster_start_pubsub_listener_already_running():
     # Should return early without creating new subscription
     await broadcaster._start_pubsub_listener()
 
-    # subscribe should not be called since listener is already running
-    mock_redis.subscribe.assert_not_called()
+    # subscribe_dedicated should not be called since listener is already running
+    mock_redis.subscribe_dedicated.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_system_broadcaster_start_pubsub_listener_subscribe_error():
     """Test _start_pubsub_listener handles subscription errors."""
     mock_redis = AsyncMock()
-    mock_redis.subscribe.side_effect = Exception("Subscription failed")
+    mock_redis.subscribe_dedicated.side_effect = Exception("Subscription failed")
 
     broadcaster = SystemBroadcaster(redis_client=mock_redis)
 
@@ -520,7 +524,7 @@ async def test_system_broadcaster_start_pubsub_listener_success():
     """Test _start_pubsub_listener successful subscription."""
     mock_redis = AsyncMock()
     mock_pubsub = AsyncMock()
-    mock_redis.subscribe.return_value = mock_pubsub
+    mock_redis.subscribe_dedicated.return_value = mock_pubsub
 
     broadcaster = SystemBroadcaster(redis_client=mock_redis)
 
@@ -548,7 +552,7 @@ async def test_system_broadcaster_start_pubsub_listener_success():
 
 @pytest.mark.asyncio
 async def test_system_broadcaster_stop_pubsub_listener_with_task():
-    """Test _stop_pubsub_listener cancels listener task."""
+    """Test _stop_pubsub_listener cancels listener task and closes dedicated pubsub."""
     mock_redis = AsyncMock()
     broadcaster = SystemBroadcaster(redis_client=mock_redis)
 
@@ -557,7 +561,8 @@ async def test_system_broadcaster_stop_pubsub_listener_with_task():
         await asyncio.sleep(100)  # cancelled
 
     broadcaster._listener_task = asyncio.create_task(long_running())
-    broadcaster._pubsub = AsyncMock()
+    mock_pubsub = AsyncMock()
+    broadcaster._pubsub = mock_pubsub
     broadcaster._pubsub_listening = True
 
     await broadcaster._stop_pubsub_listener()
@@ -566,17 +571,20 @@ async def test_system_broadcaster_stop_pubsub_listener_with_task():
     assert broadcaster._pubsub_listening is False
     assert broadcaster._listener_task is None
     assert broadcaster._pubsub is None
-    mock_redis.unsubscribe.assert_called_once()
+    # Should unsubscribe and close the dedicated pubsub connection
+    mock_pubsub.unsubscribe.assert_called_once()
+    mock_pubsub.close.assert_called_once()
 
 
 @pytest.mark.asyncio
 async def test_system_broadcaster_stop_pubsub_listener_unsubscribe_error():
     """Test _stop_pubsub_listener handles unsubscribe errors."""
     mock_redis = AsyncMock()
-    mock_redis.unsubscribe.side_effect = Exception("Unsubscribe failed")
+    mock_pubsub = AsyncMock()
+    mock_pubsub.unsubscribe.side_effect = Exception("Unsubscribe failed")
 
     broadcaster = SystemBroadcaster(redis_client=mock_redis)
-    broadcaster._pubsub = AsyncMock()
+    broadcaster._pubsub = mock_pubsub
     broadcaster._pubsub_listening = True
 
     # Should not raise
@@ -585,6 +593,8 @@ async def test_system_broadcaster_stop_pubsub_listener_unsubscribe_error():
     # Should still clean up
     assert broadcaster._pubsub is None
     assert broadcaster._pubsub_listening is False
+    # close should still be called even if unsubscribe fails
+    mock_pubsub.close.assert_called_once()
 
 
 @pytest.mark.asyncio
