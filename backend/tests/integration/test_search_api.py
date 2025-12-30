@@ -6,7 +6,7 @@ migration applied.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -49,7 +49,7 @@ async def setup_searchable_events(db_session):
         Event(
             batch_id=unique_id("batch1"),
             camera_id=front_door_id,
-            started_at=datetime.utcnow() - timedelta(hours=1),
+            started_at=datetime.now(UTC) - timedelta(hours=1),
             risk_score=75,
             risk_level="high",
             summary="Suspicious person detected near front entrance",
@@ -61,7 +61,7 @@ async def setup_searchable_events(db_session):
         Event(
             batch_id=unique_id("batch2"),
             camera_id=front_door_id,
-            started_at=datetime.utcnow() - timedelta(hours=2),
+            started_at=datetime.now(UTC) - timedelta(hours=2),
             risk_score=30,
             risk_level="low",
             summary="Delivery driver dropped off package",
@@ -73,7 +73,7 @@ async def setup_searchable_events(db_session):
         Event(
             batch_id=unique_id("batch3"),
             camera_id=back_yard_id,
-            started_at=datetime.utcnow() - timedelta(hours=3),
+            started_at=datetime.now(UTC) - timedelta(hours=3),
             risk_score=50,
             risk_level="medium",
             summary="Animal detected in back yard",
@@ -85,7 +85,7 @@ async def setup_searchable_events(db_session):
         Event(
             batch_id=unique_id("batch4"),
             camera_id=back_yard_id,
-            started_at=datetime.utcnow() - timedelta(days=2),
+            started_at=datetime.now(UTC) - timedelta(days=2),
             risk_score=90,
             risk_level="critical",
             summary="Vehicle parked suspiciously for extended time",
@@ -177,8 +177,8 @@ async def test_search_with_risk_level_filter(client, setup_searchable_events):
 @pytest.mark.asyncio
 async def test_search_with_date_range(client, setup_searchable_events):
     """Test search with date range filter."""
-    start_date = (datetime.utcnow() - timedelta(days=1)).isoformat()
-    end_date = datetime.utcnow().isoformat()
+    start_date = (datetime.now(UTC) - timedelta(days=1)).isoformat()
+    end_date = datetime.now(UTC).isoformat()
 
     response = await client.get(
         f"/api/search/events?q=detected&start_date={start_date}&end_date={end_date}"

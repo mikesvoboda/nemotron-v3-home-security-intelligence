@@ -12,7 +12,7 @@ Endpoints:
     POST   /api/alerts/rules/{rule_id}/test - Test rule against historical events
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -354,7 +354,7 @@ async def test_rule(
 
     # Test the rule against each event
     engine = AlertRuleEngine(db)
-    test_time = test_data.test_time or datetime.utcnow()
+    test_time = test_data.test_time or datetime.now(UTC)
 
     test_results = await engine.test_rule_against_events(rule, events, test_time)
 

@@ -4,7 +4,7 @@ Tests use PostgreSQL via the isolated_db fixture since models use
 PostgreSQL-specific features like JSONB.
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import select
@@ -85,7 +85,7 @@ class TestCameraModel:
         session.add(camera)
         await session.flush()
 
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         camera.last_seen_at = now
         await session.flush()
 
@@ -297,7 +297,7 @@ class TestEventModel:
         session.add(camera)
         await session.flush()
 
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         event = Event(
             batch_id="batch_001",
             camera_id=camera_id,
@@ -324,7 +324,7 @@ class TestEventModel:
         session.add(camera)
         await session.flush()
 
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         event = Event(
             batch_id="batch_002",
             camera_id=camera_id,
@@ -360,7 +360,7 @@ class TestEventModel:
         event = Event(
             batch_id="batch_003",
             camera_id=camera_id,
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(UTC),
         )
         session.add(event)
         await session.flush()
@@ -386,7 +386,7 @@ class TestEventModel:
         event = Event(
             batch_id="batch_004",
             camera_id=camera_id,
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(UTC),
         )
         session.add(event)
         await session.flush()
@@ -416,7 +416,7 @@ class TestEventModel:
         event = Event(
             batch_id="batch_005",
             camera_id=camera_id,
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(UTC),
             risk_score=85,
         )
         session.add(event)
@@ -445,7 +445,7 @@ class TestEventModel:
             event = Event(
                 batch_id=f"batch_{i:03d}",
                 camera_id=camera_id,
-                started_at=datetime.utcnow(),
+                started_at=datetime.now(UTC),
                 risk_score=score,
             )
             session.add(event)
@@ -521,7 +521,7 @@ class TestGPUStatsModel:
     @pytest.mark.asyncio
     async def test_query_recent_gpu_stats(self, session):
         """Test querying GPU stats by time range."""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
 
         # Create stats at different times with unique utilization values
         # Use a unique base value to identify our records
@@ -612,8 +612,8 @@ class TestModelIntegration:
         event = Event(
             batch_id="workflow_batch_001",
             camera_id=camera_id,
-            started_at=datetime.utcnow(),
-            ended_at=datetime.utcnow() + timedelta(seconds=90),
+            started_at=datetime.now(UTC),
+            ended_at=datetime.now(UTC) + timedelta(seconds=90),
             risk_score=65,
             risk_level="medium",
             summary="Mixed activity detected",
@@ -661,12 +661,12 @@ class TestModelIntegration:
         event1 = Event(
             batch_id=f"batch_{cam1_id}",
             camera_id=cam1_id,
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(UTC),
         )
         event2 = Event(
             batch_id=f"batch_{cam2_id}",
             camera_id=cam2_id,
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(UTC),
         )
         session.add_all([event1, event2])
         await session.flush()
