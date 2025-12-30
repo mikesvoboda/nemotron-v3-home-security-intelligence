@@ -61,12 +61,26 @@ def mock_redis_client():
 
 @pytest.fixture
 def mock_event_broadcaster():
-    """Create a mock EventBroadcaster."""
+    """Create a mock EventBroadcaster.
+
+    Matches the interface of backend.services.event_broadcaster.EventBroadcaster:
+    - __init__(redis_client, channel_name=None)
+    - CHANNEL_NAME property (class-level, returns settings value)
+    - channel_name property (instance-level)
+    - start() -> None
+    - stop() -> None
+    - connect(websocket) -> None
+    - disconnect(websocket) -> None
+    - broadcast_event(event_data) -> int
+    """
     broadcaster = MagicMock()
     broadcaster.connect = AsyncMock()
     broadcaster.disconnect = AsyncMock()
     broadcaster.start = AsyncMock()
     broadcaster.stop = AsyncMock()
+    broadcaster.broadcast_event = AsyncMock(return_value=1)
+    broadcaster.CHANNEL_NAME = "security_events"
+    broadcaster.channel_name = "security_events"
     return broadcaster
 
 

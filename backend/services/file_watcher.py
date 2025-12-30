@@ -630,6 +630,51 @@ class FileWatcher:
                 extra={"error": str(e), "camera_root": self.camera_root},
             )
             raise RuntimeError(error_msg) from e
+        except Exception as e:
+            # Catch any unexpected exceptions during event loop capture
+            error_msg = (
+                f"Unexpected error capturing event loop: {type(e).__name__}: {e}. "
+                "FileWatcher cannot function without a valid event loop."
+            )
+            logger.error(
+                error_msg,
+                extra={
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                    "camera_root": self.camera_root,
+                },
+            )
+            raise RuntimeError(error_msg) from e
+
+        # Verify the event loop was captured successfully
+        if self._loop is None:
+            error_msg = (
+                "Event loop capture returned None. FileWatcher cannot function "
+                "without a valid event loop. This should not happen - please report this bug."
+            )
+            logger.error(error_msg, extra={"camera_root": self.camera_root})
+            raise RuntimeError(error_msg)
+
+        # Verify the loop is actually running
+        if not self._loop.is_running():
+            error_msg = (
+                "Captured event loop is not running. FileWatcher requires "
+                "a running event loop for thread-safe task scheduling."
+            )
+            logger.error(
+                error_msg,
+                extra={"camera_root": self.camera_root, "loop_closed": self._loop.is_closed()},
+            )
+            raise RuntimeError(error_msg)
+
+        logger.debug(
+            "Event loop captured successfully for FileWatcher",
+            extra={
+                "camera_root": self.camera_root,
+                "loop_running": self._loop.is_running(),
+                "loop_closed": self._loop.is_closed(),
+            },
+        )
 
         # Schedule observer for each camera directory
         camera_root_path = Path(self.camera_root)

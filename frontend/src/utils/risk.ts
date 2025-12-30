@@ -13,9 +13,11 @@ export function getRiskLevel(score: number): RiskLevel {
     throw new Error('Risk score must be between 0 and 100');
   }
 
-  if (score <= 25) return 'low';
-  if (score <= 50) return 'medium';
-  if (score <= 75) return 'high';
+  // Thresholds match backend defaults (see backend/core/config.py):
+  // LOW: 0-29, MEDIUM: 30-59, HIGH: 60-84, CRITICAL: 85-100
+  if (score <= 29) return 'low';
+  if (score <= 59) return 'medium';
+  if (score <= 84) return 'high';
   return 'critical';
 }
 

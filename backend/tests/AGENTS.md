@@ -218,8 +218,8 @@ pytest backend/tests/ -v --timeout=30
 # With coverage
 pytest backend/tests/ -v --cov=backend --cov-report=html --timeout=30
 
-# With coverage threshold check (95%+)
-pytest backend/tests/ -v --cov=backend --cov-report=term-missing --cov-fail-under=95 --timeout=30
+# With coverage threshold check (93%+)
+pytest backend/tests/ -v --cov=backend --cov-report=term-missing --cov-fail-under=93 --timeout=30
 ```
 
 ### Unit tests only

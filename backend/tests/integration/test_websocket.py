@@ -99,10 +99,15 @@ def sync_client(integration_env):
     mock_pipeline_manager.start = AsyncMock()
     mock_pipeline_manager.stop = AsyncMock()
 
-    # Mock EventBroadcaster
+    # Mock EventBroadcaster - matches real EventBroadcaster interface
     mock_event_broadcaster = MagicMock()
     mock_event_broadcaster.start = AsyncMock()
     mock_event_broadcaster.stop = AsyncMock()
+    mock_event_broadcaster.connect = AsyncMock()
+    mock_event_broadcaster.disconnect = AsyncMock()
+    mock_event_broadcaster.broadcast_event = AsyncMock(return_value=1)
+    mock_event_broadcaster.CHANNEL_NAME = "security_events"
+    mock_event_broadcaster.channel_name = "security_events"
 
     # Patch Redis and background services - use custom init_db that handles prior state
     with (
@@ -622,10 +627,15 @@ def sync_client_with_auth_enabled(integration_env, test_api_key):
     mock_pipeline_manager.start = AsyncMock()
     mock_pipeline_manager.stop = AsyncMock()
 
-    # Mock EventBroadcaster
+    # Mock EventBroadcaster - matches real EventBroadcaster interface
     mock_event_broadcaster = MagicMock()
     mock_event_broadcaster.start = AsyncMock()
     mock_event_broadcaster.stop = AsyncMock()
+    mock_event_broadcaster.connect = AsyncMock()
+    mock_event_broadcaster.disconnect = AsyncMock()
+    mock_event_broadcaster.broadcast_event = AsyncMock(return_value=1)
+    mock_event_broadcaster.CHANNEL_NAME = "security_events"
+    mock_event_broadcaster.channel_name = "security_events"
 
     # Patch Redis and background services - use custom init_db that handles prior state
     with (
