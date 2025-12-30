@@ -26,4 +26,3 @@ export default function App() {
     </BrowserRouter>
   );
 }
-// CI trigger Tue Dec 30 04:07:58 AM EST 2025

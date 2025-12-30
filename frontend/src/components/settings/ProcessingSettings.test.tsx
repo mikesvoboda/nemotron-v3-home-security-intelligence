@@ -101,15 +101,28 @@ describe('ProcessingSettings', () => {
 
   it('displays storage usage indicator', async () => {
     vi.mocked(api.fetchConfig).mockResolvedValue(mockConfig);
+    // Mock storage stats for StorageDashboard component
+    vi.mocked(api.fetchStorageStats).mockResolvedValue({
+      disk_used_bytes: 107374182400,
+      disk_total_bytes: 536870912000,
+      disk_free_bytes: 429496729600,
+      disk_usage_percent: 20.0,
+      thumbnails: { file_count: 1500, size_bytes: 75000000 },
+      images: { file_count: 10000, size_bytes: 5000000000 },
+      clips: { file_count: 50, size_bytes: 500000000 },
+      events_count: 156,
+      detections_count: 892,
+      gpu_stats_count: 2880,
+      logs_count: 5000,
+      timestamp: '2025-12-30T10:30:00Z',
+    });
 
     render(<ProcessingSettings />);
 
+    // StorageDashboard shows "Disk Usage" instead of "Storage"
     await waitFor(() => {
-      expect(screen.getByText('Storage')).toBeInTheDocument();
+      expect(screen.getByText('Disk Usage')).toBeInTheDocument();
     });
-
-    expect(screen.getByLabelText('Storage usage percentage')).toBeInTheDocument();
-    expect(screen.getByText('Coming soon')).toBeInTheDocument();
   });
 
   it('displays Clear Old Data button', async () => {
@@ -610,7 +623,7 @@ describe('ProcessingSettings', () => {
       expect(screen.getByLabelText('Batch idle timeout in seconds')).toBeInTheDocument();
       expect(screen.getByLabelText('Retention period in days')).toBeInTheDocument();
       expect(screen.getByLabelText('Detection confidence threshold')).toBeInTheDocument();
-      expect(screen.getByLabelText('Storage usage percentage')).toBeInTheDocument();
+      // StorageDashboard component handles storage display without an aria-label for percentage
     });
 
     it('uses semantic text labels', async () => {

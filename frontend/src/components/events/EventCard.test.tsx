@@ -311,8 +311,9 @@ describe('EventCard', () => {
   describe('confidence formatting', () => {
     it('formats confidence as percentage with 0 decimal places', () => {
       render(<EventCard {...mockProps} />);
-      expect(screen.getByText('95%')).toBeInTheDocument();
-      expect(screen.getByText('87%')).toBeInTheDocument();
+      // Confidence percentages may appear in detection badges and aggregate stats
+      expect(screen.getAllByText('95%').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('87%').length).toBeGreaterThanOrEqual(1);
     });
 
     it('rounds confidence to nearest integer', () => {
@@ -324,30 +325,30 @@ describe('EventCard', () => {
       const eventWithRounding = { ...mockProps, detections: detectionsWithRounding };
       render(<EventCard {...eventWithRounding} />);
 
-      expect(screen.getByText('96%')).toBeInTheDocument();
-      expect(screen.getByText('87%')).toBeInTheDocument();
-      expect(screen.getByText('73%')).toBeInTheDocument();
+      expect(screen.getAllByText('96%').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('87%').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('73%').length).toBeGreaterThanOrEqual(1);
     });
 
     it('handles 100% confidence', () => {
       const perfectDetection: Detection[] = [{ label: 'person', confidence: 1.0 }];
       const eventWithPerfect = { ...mockProps, detections: perfectDetection };
       render(<EventCard {...eventWithPerfect} />);
-      expect(screen.getByText('100%')).toBeInTheDocument();
+      expect(screen.getAllByText('100%').length).toBeGreaterThanOrEqual(1);
     });
 
     it('handles 0% confidence', () => {
       const zeroDetection: Detection[] = [{ label: 'person', confidence: 0.0 }];
       const eventWithZero = { ...mockProps, detections: zeroDetection };
       render(<EventCard {...eventWithZero} />);
-      expect(screen.getByText('0%')).toBeInTheDocument();
+      expect(screen.getAllByText('0%').length).toBeGreaterThanOrEqual(1);
     });
 
     it('handles low confidence values', () => {
       const lowConfidence: Detection[] = [{ label: 'person', confidence: 0.05 }];
       const eventWithLow = { ...mockProps, detections: lowConfidence };
       render(<EventCard {...eventWithLow} />);
-      expect(screen.getByText('5%')).toBeInTheDocument();
+      expect(screen.getAllByText('5%').length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -1544,8 +1545,8 @@ describe('EventCard', () => {
 
     it('displays maximum confidence correctly', () => {
       render(<EventCard {...mockProps} detections={mixedConfidenceDetections} />);
-      // Max is 0.95 -> 95%
-      expect(screen.getByText('95%')).toBeInTheDocument();
+      // Max is 0.95 -> 95% - may appear in both badge and aggregate display
+      expect(screen.getAllByText('95%').length).toBeGreaterThanOrEqual(1);
     });
 
     it('applies color coding to aggregate confidence values', () => {
