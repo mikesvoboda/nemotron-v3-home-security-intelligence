@@ -31,6 +31,30 @@ from backend.services.nemotron_analyzer import NemotronAnalyzer
 from backend.tests.conftest import unique_id
 
 
+class MockQueueAddResult:
+    """Mock QueueAddResult for testing."""
+
+    def __init__(
+        self,
+        success: bool,
+        queue_length: int,
+        dropped_count: int = 0,
+        moved_to_dlq_count: int = 0,
+        error: str | None = None,
+        warning: str | None = None,
+    ) -> None:
+        self.success = success
+        self.queue_length = queue_length
+        self.dropped_count = dropped_count
+        self.moved_to_dlq_count = moved_to_dlq_count
+        self.error = error
+        self.warning = warning
+
+    @property
+    def had_backpressure(self) -> bool:
+        return self.dropped_count > 0 or self.moved_to_dlq_count > 0 or self.error is not None
+
+
 class MockRedisClient:
     """Mock Redis client for testing without a real Redis server.
 
@@ -77,6 +101,13 @@ class MockRedisClient:
             self._queues[queue_name] = []
         self._queues[queue_name].append(data)
         return len(self._queues[queue_name])
+
+    async def add_to_queue_safe(
+        self, queue_name: str, data: Any, overflow_policy: Any = None
+    ) -> MockQueueAddResult:
+        """Safe queue add with backpressure handling mock."""
+        queue_length = await self.add_to_queue(queue_name, data)
+        return MockQueueAddResult(success=True, queue_length=queue_length)
 
     async def get_from_queue(self, queue_name: str, timeout: int = 0) -> Any | None:
         if self._queues.get(queue_name):

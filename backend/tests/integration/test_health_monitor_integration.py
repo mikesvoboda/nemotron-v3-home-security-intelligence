@@ -177,8 +177,11 @@ async def test_full_failure_detection_cycle(test_config: ServiceConfig, fast_sle
     mock_manager.check_health.assert_called()
 
     # Verify broadcast was called for unhealthy status
+    # Broadcast format: {"type": "service_status", "data": {"status": "unhealthy", ...}, "timestamp": ...}
     unhealthy_broadcasts = [
-        call for call in mock_broadcaster.broadcast_calls if call.get("status") == "unhealthy"
+        call
+        for call in mock_broadcaster.broadcast_calls
+        if call.get("data", {}).get("status") == "unhealthy"
     ]
     assert len(unhealthy_broadcasts) > 0, "Should have broadcast unhealthy status"
 
@@ -230,8 +233,11 @@ async def test_full_recovery_cycle(test_config: ServiceConfig, fast_sleep) -> No
     assert mock_manager.restart.call_count >= 1, "Restart should have been attempted"
 
     # Verify healthy status was eventually broadcast
+    # Broadcast format: {"type": "service_status", "data": {"status": "healthy", ...}, "timestamp": ...}
     healthy_broadcasts = [
-        call for call in mock_broadcaster.broadcast_calls if call.get("status") == "healthy"
+        call
+        for call in mock_broadcaster.broadcast_calls
+        if call.get("data", {}).get("status") == "healthy"
     ]
     assert len(healthy_broadcasts) > 0, "Should have broadcast healthy status after recovery"
 
@@ -319,12 +325,15 @@ async def test_websocket_broadcast_on_status_change(test_config: ServiceConfig, 
     assert len(mock_broadcaster.broadcast_calls) > 0, "broadcast_event should have been called"
 
     # Verify payload structure
+    # Broadcast format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
     first_broadcast = mock_broadcaster.broadcast_calls[0]
     assert "type" in first_broadcast
     assert first_broadcast["type"] == "service_status"
-    assert "service" in first_broadcast
-    assert first_broadcast["service"] == test_config.name
-    assert "status" in first_broadcast
+    assert "data" in first_broadcast
+    data = first_broadcast["data"]
+    assert "service" in data
+    assert data["service"] == test_config.name
+    assert "status" in data
     assert "timestamp" in first_broadcast
 
 
@@ -513,8 +522,11 @@ async def test_max_retries_exceeded(test_config: ServiceConfig, fast_sleep) -> N
     await monitor.stop()
 
     # Verify 'failed' status was broadcast
+    # Broadcast format: {"type": "service_status", "data": {"status": "failed", ...}, "timestamp": ...}
     failed_broadcasts = [
-        call for call in mock_broadcaster.broadcast_calls if call.get("status") == "failed"
+        call
+        for call in mock_broadcaster.broadcast_calls
+        if call.get("data", {}).get("status") == "failed"
     ]
     assert len(failed_broadcasts) > 0, "Should have broadcast 'failed' status after max retries"
 
@@ -678,10 +690,12 @@ async def test_multiple_services_different_health_states(fast_sleep) -> None:
     await monitor.stop()
 
     # Verify unhealthy broadcasts for the unhealthy service
+    # Broadcast format: {"type": "service_status", "data": {"status": ..., "service": ...}, "timestamp": ...}
     unhealthy_broadcasts = [
         call
         for call in mock_broadcaster.broadcast_calls
-        if call.get("status") == "unhealthy" and call.get("service") == "unhealthy_service"
+        if call.get("data", {}).get("status") == "unhealthy"
+        and call.get("data", {}).get("service") == "unhealthy_service"
     ]
     assert len(unhealthy_broadcasts) > 0, (
         "Should have broadcast unhealthy status for unhealthy_service"
@@ -691,7 +705,8 @@ async def test_multiple_services_different_health_states(fast_sleep) -> None:
     healthy_service_unhealthy = [
         call
         for call in mock_broadcaster.broadcast_calls
-        if call.get("status") == "unhealthy" and call.get("service") == "healthy_service"
+        if call.get("data", {}).get("status") == "unhealthy"
+        and call.get("data", {}).get("service") == "healthy_service"
     ]
     assert len(healthy_service_unhealthy) == 0, (
         "healthy_service should not have any unhealthy broadcasts"

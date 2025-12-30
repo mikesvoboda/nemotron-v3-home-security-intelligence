@@ -527,7 +527,11 @@ async def test_readiness_endpoint_not_ready_when_detection_worker_in_error(clien
 
 @pytest.mark.asyncio
 async def test_readiness_endpoint_graceful_when_no_pipeline_manager(client, mock_redis):
-    """Test that readiness endpoint works gracefully when pipeline manager is not registered."""
+    """Test that readiness endpoint returns not_ready when pipeline manager is not registered.
+
+    Without the pipeline manager, the system cannot process detections, so it should
+    report as not_ready (503) rather than ready.
+    """
     from backend.api.routes import system as system_routes
 
     # Save original
@@ -545,13 +549,13 @@ async def test_readiness_endpoint_graceful_when_no_pipeline_manager(client, mock
 
         response = await client.get("/api/system/health/ready")
 
-        assert response.status_code == 200
+        # Should return 503 when pipeline manager is not registered
+        # because the system cannot process detections
+        assert response.status_code == 503
         data = response.json()
 
-        # Should be ready when no pipeline manager is registered (graceful degradation)
-        # because we can't check pipeline workers
-        assert data["ready"] is True
-        assert data["status"] == "ready"
+        assert data["ready"] is False
+        assert data["status"] == "not_ready"
 
     finally:
         system_routes._pipeline_manager = original_pipeline_manager
