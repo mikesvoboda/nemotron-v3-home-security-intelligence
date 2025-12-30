@@ -624,3 +624,4 @@ jobs:
           UNIT_TEST_THRESHOLD: "1.0"
           INTEGRATION_TEST_THRESHOLD: "5.0"
           WARN_THRESHOLD_PERCENT: "80"
+# CI benchmark 1767084388
