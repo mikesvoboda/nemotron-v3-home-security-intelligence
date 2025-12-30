@@ -580,3 +580,251 @@ class TestRetryResult:
         assert result.error == "Connection refused"
         assert result.attempts == 3
         assert result.moved_to_dlq is True
+
+
+class TestDLQCircuitBreaker:
+    """Tests for DLQ circuit breaker functionality."""
+
+    @pytest.fixture
+    def mock_redis(self) -> MagicMock:
+        """Create a mock Redis client."""
+        redis = MagicMock()
+        redis.add_to_queue = AsyncMock(return_value=1)
+        redis.add_to_queue_safe = AsyncMock(
+            return_value=QueueAddResult(success=True, queue_length=1)
+        )
+        redis.get_from_queue = AsyncMock(return_value=None)
+        redis.get_queue_length = AsyncMock(return_value=0)
+        redis.peek_queue = AsyncMock(return_value=[])
+        redis.clear_queue = AsyncMock(return_value=True)
+        return redis
+
+    @pytest.fixture
+    def handler_with_low_threshold(self, mock_redis: MagicMock) -> RetryHandler:
+        """Create a retry handler with low circuit breaker threshold for testing."""
+        from backend.services.circuit_breaker import CircuitBreaker, CircuitBreakerConfig
+
+        config = RetryConfig(
+            max_retries=3,
+            base_delay_seconds=0.01,  # Fast for testing
+            jitter=False,
+        )
+        cb_config = CircuitBreakerConfig(
+            failure_threshold=2,  # Low threshold for testing
+            recovery_timeout=0.1,  # Fast recovery for testing
+            half_open_max_calls=1,
+            success_threshold=1,
+        )
+        dlq_circuit_breaker = CircuitBreaker(
+            name="dlq_overflow_test",
+            config=cb_config,
+        )
+        return RetryHandler(
+            redis_client=mock_redis,
+            config=config,
+            dlq_circuit_breaker=dlq_circuit_breaker,
+        )
+
+    def test_circuit_breaker_initialized(self, handler_with_low_threshold: RetryHandler) -> None:
+        """Test that circuit breaker is initialized."""
+        status = handler_with_low_threshold.get_dlq_circuit_breaker_status()
+        assert status["name"] == "dlq_overflow_test"
+        assert status["state"] == "closed"
+        assert status["failure_count"] == 0
+
+    def test_is_dlq_circuit_open_initially_closed(
+        self, handler_with_low_threshold: RetryHandler
+    ) -> None:
+        """Test circuit is initially closed."""
+        assert handler_with_low_threshold.is_dlq_circuit_open() is False
+
+    @pytest.mark.asyncio
+    async def test_circuit_opens_after_failures(
+        self, handler_with_low_threshold: RetryHandler, mock_redis: MagicMock
+    ) -> None:
+        """Test that circuit opens after threshold failures."""
+        # Make DLQ writes fail
+        mock_redis.add_to_queue_safe = AsyncMock(
+            return_value=QueueAddResult(success=False, queue_length=10000, error="Queue full")
+        )
+
+        async def always_fail() -> str:
+            raise ConnectionError("Always fails")
+
+        # First retry exhaustion - should fail to move to DLQ
+        await handler_with_low_threshold.with_retry(
+            operation=always_fail,
+            job_data={"camera_id": "cam1"},
+            queue_name="detection_queue",
+        )
+
+        # Check circuit breaker has recorded the failure
+        status = handler_with_low_threshold.get_dlq_circuit_breaker_status()
+        assert status["failure_count"] == 1
+
+        # Second retry exhaustion - should trip the circuit
+        await handler_with_low_threshold.with_retry(
+            operation=always_fail,
+            job_data={"camera_id": "cam2"},
+            queue_name="detection_queue",
+        )
+
+        # Circuit should now be open
+        assert handler_with_low_threshold.is_dlq_circuit_open() is True
+        status = handler_with_low_threshold.get_dlq_circuit_breaker_status()
+        assert status["state"] == "open"
+
+    @pytest.mark.asyncio
+    async def test_open_circuit_skips_dlq_writes(
+        self, handler_with_low_threshold: RetryHandler, mock_redis: MagicMock
+    ) -> None:
+        """Test that open circuit skips DLQ writes."""
+        # Make DLQ writes fail to trip the circuit
+        mock_redis.add_to_queue_safe = AsyncMock(
+            return_value=QueueAddResult(success=False, queue_length=10000, error="Queue full")
+        )
+
+        async def always_fail() -> str:
+            raise ConnectionError("Always fails")
+
+        # Trip the circuit with 2 failures
+        await handler_with_low_threshold.with_retry(
+            operation=always_fail,
+            job_data={"camera_id": "cam1"},
+            queue_name="detection_queue",
+        )
+        await handler_with_low_threshold.with_retry(
+            operation=always_fail,
+            job_data={"camera_id": "cam2"},
+            queue_name="detection_queue",
+        )
+
+        # Reset mock to track new calls
+        mock_redis.add_to_queue_safe.reset_mock()
+
+        # Third failure - circuit is open, should NOT attempt DLQ write
+        result = await handler_with_low_threshold.with_retry(
+            operation=always_fail,
+            job_data={"camera_id": "cam3"},
+            queue_name="detection_queue",
+        )
+
+        # DLQ write should be skipped when circuit is open
+        assert result.moved_to_dlq is False
+        # No calls to Redis for DLQ write
+        mock_redis.add_to_queue_safe.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_circuit_recovers_after_timeout(
+        self, handler_with_low_threshold: RetryHandler, mock_redis: MagicMock
+    ) -> None:
+        """Test that circuit transitions to half-open after recovery timeout."""
+        # Make DLQ writes fail to trip the circuit
+        mock_redis.add_to_queue_safe = AsyncMock(
+            return_value=QueueAddResult(success=False, queue_length=10000, error="Queue full")
+        )
+
+        async def always_fail() -> str:
+            raise ConnectionError("Always fails")
+
+        # Trip the circuit
+        await handler_with_low_threshold.with_retry(
+            operation=always_fail,
+            job_data={"camera_id": "cam1"},
+            queue_name="detection_queue",
+        )
+        await handler_with_low_threshold.with_retry(
+            operation=always_fail,
+            job_data={"camera_id": "cam2"},
+            queue_name="detection_queue",
+        )
+
+        assert handler_with_low_threshold.is_dlq_circuit_open() is True
+
+        # Wait for recovery timeout (0.1 seconds + buffer)
+        await asyncio.sleep(0.15)
+
+        # Make DLQ writes succeed now
+        mock_redis.add_to_queue_safe = AsyncMock(
+            return_value=QueueAddResult(success=True, queue_length=1)
+        )
+
+        # Next failure should allow DLQ write (half-open state)
+        result = await handler_with_low_threshold.with_retry(
+            operation=always_fail,
+            job_data={"camera_id": "cam3"},
+            queue_name="detection_queue",
+        )
+
+        # Should have successfully moved to DLQ
+        assert result.moved_to_dlq is True
+        mock_redis.add_to_queue_safe.assert_called_once()
+
+        # Circuit should now be closed (success_threshold=1)
+        status = handler_with_low_threshold.get_dlq_circuit_breaker_status()
+        assert status["state"] == "closed"
+
+    def test_reset_circuit_breaker(self, handler_with_low_threshold: RetryHandler) -> None:
+        """Test manual reset of circuit breaker."""
+        # Force circuit open
+        handler_with_low_threshold._dlq_circuit_breaker.force_open()
+        assert handler_with_low_threshold.is_dlq_circuit_open() is True
+
+        # Reset it
+        handler_with_low_threshold.reset_dlq_circuit_breaker()
+
+        # Should be closed now
+        assert handler_with_low_threshold.is_dlq_circuit_open() is False
+        status = handler_with_low_threshold.get_dlq_circuit_breaker_status()
+        assert status["state"] == "closed"
+        assert status["failure_count"] == 0
+
+    @pytest.mark.asyncio
+    async def test_circuit_breaker_tracks_exception_failures(
+        self, handler_with_low_threshold: RetryHandler, mock_redis: MagicMock
+    ) -> None:
+        """Test that circuit breaker tracks failures from exceptions."""
+        # Make add_to_queue_safe raise an exception
+        mock_redis.add_to_queue_safe = AsyncMock(side_effect=RuntimeError("Redis connection lost"))
+
+        async def always_fail() -> str:
+            raise ConnectionError("Always fails")
+
+        # First failure with exception
+        await handler_with_low_threshold.with_retry(
+            operation=always_fail,
+            job_data={"camera_id": "cam1"},
+            queue_name="detection_queue",
+        )
+
+        status = handler_with_low_threshold.get_dlq_circuit_breaker_status()
+        assert status["failure_count"] == 1
+
+        # Second failure trips the circuit
+        await handler_with_low_threshold.with_retry(
+            operation=always_fail,
+            job_data={"camera_id": "cam2"},
+            queue_name="detection_queue",
+        )
+
+        assert handler_with_low_threshold.is_dlq_circuit_open() is True
+
+    def test_default_circuit_breaker_uses_settings(self, mock_redis: MagicMock) -> None:
+        """Test that default circuit breaker uses settings configuration."""
+        from unittest.mock import patch
+
+        mock_settings = MagicMock()
+        mock_settings.dlq_circuit_breaker_failure_threshold = 10
+        mock_settings.dlq_circuit_breaker_recovery_timeout = 120.0
+        mock_settings.dlq_circuit_breaker_half_open_max_calls = 5
+        mock_settings.dlq_circuit_breaker_success_threshold = 3
+
+        with patch("backend.services.retry_handler.get_settings", return_value=mock_settings):
+            handler = RetryHandler(redis_client=mock_redis)
+
+        status = handler.get_dlq_circuit_breaker_status()
+        config = status["config"]
+        assert config["failure_threshold"] == 10
+        assert config["recovery_timeout"] == 120.0
+        assert config["half_open_max_calls"] == 5
+        assert config["success_threshold"] == 3

@@ -49,9 +49,17 @@ def mock_redis_instance(mock_redis_client):
     mock_instance.set = AsyncMock(return_value=True)
     mock_instance.delete = AsyncMock(return_value=1)
     mock_instance.exists = AsyncMock(return_value=0)
+    # Retry-enabled methods (delegate to base methods)
+    mock_instance.get = AsyncMock(return_value=None)
+    mock_instance.set = AsyncMock(return_value=True)
+    mock_instance.get_queue_length_with_retry = AsyncMock(return_value=0)
+    mock_instance.get_from_queue_with_retry = AsyncMock(return_value=None)
     # Legacy method (deprecated)
     mock_instance.add_to_queue = AsyncMock(return_value=1)
     # Safe method with backpressure handling
+    mock_instance.add_to_queue_safe = AsyncMock(
+        return_value=QueueAddResult(success=True, queue_length=1)
+    )
     mock_instance.add_to_queue_safe = AsyncMock(
         return_value=QueueAddResult(success=True, queue_length=1)
     )
@@ -87,7 +95,7 @@ async def test_add_detection_creates_new_batch(batch_aggregator, mock_redis_inst
     # Verify batch ID was returned
     assert batch_id == "batch_123"
 
-    # Verify Redis calls to create new batch
+    # Verify Redis calls to create new batch (uses set)
     assert mock_redis_instance.set.call_count >= 3
 
     # Check that batch:camera_id:current was set
@@ -107,7 +115,7 @@ async def test_add_detection_to_existing_batch(batch_aggregator, mock_redis_inst
     existing_batch_id = "batch_123"
     existing_detections = [1]  # Use integer detection IDs
 
-    # Mock: Existing batch
+    # Mock: Existing batch (uses get)
     async def mock_get(key):
         if key == f"batch:{camera_id}:current":
             return existing_batch_id
@@ -124,7 +132,7 @@ async def test_add_detection_to_existing_batch(batch_aggregator, mock_redis_inst
     # Should return existing batch ID
     assert batch_id == existing_batch_id
 
-    # Should update detections list
+    # Should update detections list (uses set)
     set_calls = list(mock_redis_instance.set.call_args_list)
     detections_updated = False
     for call in set_calls:
@@ -144,7 +152,7 @@ async def test_add_detection_updates_last_activity(batch_aggregator, mock_redis_
     file_path = "/export/foscam/front_door/image_003.jpg"
     existing_batch_id = "batch_123"
 
-    # Mock: Existing batch
+    # Mock: Existing batch (uses get)
     async def mock_get(key):
         if key == f"batch:{camera_id}:current":
             return existing_batch_id
@@ -158,7 +166,7 @@ async def test_add_detection_updates_last_activity(batch_aggregator, mock_redis_
 
     await batch_aggregator.add_detection(camera_id, detection_id, file_path)
 
-    # Check that last_activity was updated
+    # Check that last_activity was updated (uses set)
     set_calls = list(mock_redis_instance.set.call_args_list)
     last_activity_updated = any(
         f"batch:{existing_batch_id}:last_activity" in call[0][0]
@@ -185,6 +193,7 @@ async def test_check_batch_timeouts_window_exceeded(batch_aggregator, mock_redis
         return_value=create_async_generator([f"batch:{camera_id}:current"])
     )
 
+    # Mock: Uses get for batch timeout checks
     async def mock_get(key):
         if key == f"batch:{camera_id}:current":
             return batch_id
@@ -205,7 +214,7 @@ async def test_check_batch_timeouts_window_exceeded(batch_aggregator, mock_redis
     # Should return the closed batch
     assert batch_id in closed_batches
 
-    # Should push to analysis queue
+    # Should push to analysis queue (uses add_to_queue_safe)
     assert mock_redis_instance.add_to_queue_safe.called
 
 
@@ -223,6 +232,7 @@ async def test_check_batch_timeouts_idle_exceeded(batch_aggregator, mock_redis_i
         return_value=create_async_generator([f"batch:{camera_id}:current"])
     )
 
+    # Uses get for batch timeout checks
     async def mock_get(key):
         if key == f"batch:{camera_id}:current":
             return batch_id
@@ -258,6 +268,7 @@ async def test_check_batch_timeouts_no_timeout(batch_aggregator, mock_redis_inst
         return_value=create_async_generator([f"batch:{camera_id}:current"])
     )
 
+    # Uses get for batch timeout checks
     async def mock_get(key):
         if key == f"batch:{camera_id}:current":
             return batch_id
@@ -290,6 +301,7 @@ async def test_close_batch_success(batch_aggregator, mock_redis_instance):
     camera_id = "garage"
     detections = ["det_001", "det_002", "det_003"]
 
+    # Uses get for close_batch
     async def mock_get(key):
         if key == f"batch:{batch_id}:camera_id":
             return camera_id
@@ -309,7 +321,7 @@ async def test_close_batch_success(batch_aggregator, mock_redis_instance):
     assert summary["detection_count"] == len(detections)
     assert "detections" in summary
 
-    # Should push to analysis queue
+    # Should push to analysis queue (uses add_to_queue_safe)
     assert mock_redis_instance.add_to_queue_safe.called
 
     # Should delete batch keys
@@ -321,7 +333,7 @@ async def test_close_batch_not_found(batch_aggregator, mock_redis_instance):
     """Test closing a non-existent batch."""
     batch_id = "batch_nonexistent"
 
-    # Mock: Batch doesn't exist
+    # Mock: Batch doesn't exist (uses get)
     mock_redis_instance.get.return_value = None
 
     with pytest.raises(ValueError, match=r"Batch .* not found"):
@@ -334,6 +346,7 @@ async def test_close_batch_empty_detections(batch_aggregator, mock_redis_instanc
     batch_id = "batch_empty"
     camera_id = "front_door"
 
+    # Uses get for close_batch
     async def mock_get(key):
         if key == f"batch:{batch_id}:camera_id":
             return camera_id
