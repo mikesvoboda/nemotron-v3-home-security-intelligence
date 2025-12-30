@@ -833,10 +833,11 @@ describe('EventTimeline', () => {
       });
 
       // Find all "View Details" buttons (there are multiple events)
+      // Events are sorted by most recent first (3, 2, 1), so first button is for event 3
       const viewButtons = screen.getAllByText('View Details');
       await user.click(viewButtons[0]);
 
-      expect(handleViewDetails).toHaveBeenCalledWith(1);
+      expect(handleViewDetails).toHaveBeenCalledWith(3);
     });
 
     it('displays camera names in event cards', async () => {
@@ -979,8 +980,9 @@ describe('EventTimeline', () => {
       vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
 
       // Mock bulkUpdateEvents for successful update
+      // Events are sorted by most recent first (3, 2, 1), so selecting first two = [3, 2]
       vi.mocked(api.bulkUpdateEvents).mockResolvedValue({
-        successful: [1, 2],
+        successful: [3, 2],
         failed: [],
       });
 
@@ -990,7 +992,7 @@ describe('EventTimeline', () => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
       });
 
-      // Select first two events
+      // Select first two events (events are sorted by most recent first: 3, 2, 1)
       const checkboxButtons = screen.getAllByLabelText(/Select event \d+/);
       await user.click(checkboxButtons[0]);
       await user.click(checkboxButtons[1]);
@@ -1002,16 +1004,16 @@ describe('EventTimeline', () => {
       // Mock the events reload after bulk update
       vi.mocked(api.fetchEvents).mockResolvedValueOnce({
         ...mockEventsResponse,
-        events: mockEvents.map((e) => (e.id === 1 || e.id === 2 ? { ...e, reviewed: true } : e)),
+        events: mockEvents.map((e) => (e.id === 2 || e.id === 3 ? { ...e, reviewed: true } : e)),
       });
 
       // Click mark as reviewed
       const markAsReviewedButton = screen.getByText('Mark as Reviewed');
       await user.click(markAsReviewedButton);
 
-      // Should call bulkUpdateEvents with selected event IDs
+      // Should call bulkUpdateEvents with selected event IDs (sorted by most recent: 3, 2)
       await waitFor(() => {
-        expect(api.bulkUpdateEvents).toHaveBeenCalledWith([1, 2], { reviewed: true });
+        expect(api.bulkUpdateEvents).toHaveBeenCalledWith([3, 2], { reviewed: true });
       });
 
       // Should reload events
@@ -1087,8 +1089,9 @@ describe('EventTimeline', () => {
       vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
 
       // Mock bulkUpdateEvents to return partial failure
+      // Events sorted by most recent: 3, 2, 1 - selecting first two gives [3, 2]
       vi.mocked(api.bulkUpdateEvents).mockResolvedValue({
-        successful: [1],
+        successful: [3],
         failed: [{ id: 2, error: 'Network error' }],
       });
 
@@ -1098,7 +1101,7 @@ describe('EventTimeline', () => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
       });
 
-      // Select two events
+      // Select two events (events sorted by most recent first: 3, 2, 1)
       const checkboxButtons = screen.getAllByLabelText(/Select event \d+/);
       await user.click(checkboxButtons[0]);
       await user.click(checkboxButtons[1]);
@@ -1110,9 +1113,9 @@ describe('EventTimeline', () => {
       const markAsReviewedButton = screen.getByText('Mark as Reviewed');
       await user.click(markAsReviewedButton);
 
-      // Should call bulkUpdateEvents
+      // Should call bulkUpdateEvents (events sorted: 3, 2)
       await waitFor(() => {
-        expect(api.bulkUpdateEvents).toHaveBeenCalledWith([1, 2], { reviewed: true });
+        expect(api.bulkUpdateEvents).toHaveBeenCalledWith([3, 2], { reviewed: true });
       });
 
       // Should show partial success error
@@ -1141,7 +1144,7 @@ describe('EventTimeline', () => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
       });
 
-      // Select an event
+      // Select an event (events sorted by most recent first: 3, 2, 1)
       const checkboxButtons = screen.getAllByLabelText(/Select event \d+/);
       await user.click(checkboxButtons[0]);
 
@@ -1149,8 +1152,8 @@ describe('EventTimeline', () => {
         expect(screen.getByText('1 selected')).toBeInTheDocument();
       });
 
-      // Deselect the same event
-      const deselectButton = screen.getByLabelText('Deselect event 1');
+      // Deselect the same event (first event is ID 3 due to sorting)
+      const deselectButton = screen.getByLabelText('Deselect event 3');
       await user.click(deselectButton);
 
       // Should show select all again
@@ -1187,8 +1190,9 @@ describe('EventTimeline', () => {
       vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
 
       // Mock bulkUpdateEvents for successful update
+      // Events sorted by most recent: 3, 2, 1 - selecting first two gives [3, 2]
       vi.mocked(api.bulkUpdateEvents).mockResolvedValue({
-        successful: [1, 2],
+        successful: [3, 2],
         failed: [],
       });
 
@@ -1198,7 +1202,7 @@ describe('EventTimeline', () => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
       });
 
-      // Select first two events
+      // Select first two events (events sorted by most recent first: 3, 2, 1)
       const checkboxButtons = screen.getAllByLabelText(/Select event \d+/);
       await user.click(checkboxButtons[0]);
       await user.click(checkboxButtons[1]);
@@ -1210,16 +1214,16 @@ describe('EventTimeline', () => {
       // Mock the events reload after bulk update
       vi.mocked(api.fetchEvents).mockResolvedValueOnce({
         ...mockEventsResponse,
-        events: mockEvents.map((e) => (e.id === 1 || e.id === 2 ? { ...e, reviewed: false } : e)),
+        events: mockEvents.map((e) => (e.id === 2 || e.id === 3 ? { ...e, reviewed: false } : e)),
       });
 
       // Click mark as not reviewed
       const markAsNotReviewedButton = screen.getByText('Mark Not Reviewed');
       await user.click(markAsNotReviewedButton);
 
-      // Should call bulkUpdateEvents with reviewed: false
+      // Should call bulkUpdateEvents with reviewed: false (events sorted: 3, 2)
       await waitFor(() => {
-        expect(api.bulkUpdateEvents).toHaveBeenCalledWith([1, 2], { reviewed: false });
+        expect(api.bulkUpdateEvents).toHaveBeenCalledWith([3, 2], { reviewed: false });
       });
 
       // Should reload events
@@ -1295,8 +1299,9 @@ describe('EventTimeline', () => {
       vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
 
       // Mock bulkUpdateEvents to return partial failure
+      // Events sorted by most recent: 3, 2, 1 - selecting first two gives [3, 2]
       vi.mocked(api.bulkUpdateEvents).mockResolvedValue({
-        successful: [1],
+        successful: [3],
         failed: [{ id: 2, error: 'Network error' }],
       });
 
@@ -1306,7 +1311,7 @@ describe('EventTimeline', () => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
       });
 
-      // Select two events
+      // Select two events (events sorted by most recent first: 3, 2, 1)
       const checkboxButtons = screen.getAllByLabelText(/Select event \d+/);
       await user.click(checkboxButtons[0]);
       await user.click(checkboxButtons[1]);
@@ -1318,9 +1323,9 @@ describe('EventTimeline', () => {
       const markAsNotReviewedButton = screen.getByText('Mark Not Reviewed');
       await user.click(markAsNotReviewedButton);
 
-      // Should call bulkUpdateEvents with reviewed: false
+      // Should call bulkUpdateEvents with reviewed: false (events sorted: 3, 2)
       await waitFor(() => {
-        expect(api.bulkUpdateEvents).toHaveBeenCalledWith([1, 2], { reviewed: false });
+        expect(api.bulkUpdateEvents).toHaveBeenCalledWith([3, 2], { reviewed: false });
       });
 
       // Should show partial success error
@@ -1731,8 +1736,9 @@ describe('EventTimeline', () => {
       const viewDetailsButtons = screen.getAllByText('View Details');
       await user.click(viewDetailsButtons[0]);
 
-      // onViewEventDetails should be called
-      expect(handleViewDetails).toHaveBeenCalledWith(1);
+      // onViewEventDetails should be called (events are sorted by most recent first,
+      // so first button corresponds to event id 3 with latest timestamp)
+      expect(handleViewDetails).toHaveBeenCalledWith(3);
     });
   });
 });

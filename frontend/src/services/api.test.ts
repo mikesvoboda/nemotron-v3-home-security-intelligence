@@ -30,6 +30,7 @@ import {
   getThumbnailUrl,
   getDetectionImageUrl,
   exportEventsCSV,
+  searchEvents,
   type Camera,
   type CameraCreate,
   type CameraUpdate,
@@ -52,6 +53,9 @@ import {
   type LogsResponse,
   type LogsQueryParams,
   type ExportQueryParams,
+  type EventSearchParams,
+  type SearchResponse,
+  type SearchResult,
 } from './api';
 
 // Mock data
@@ -1804,5 +1808,183 @@ describe('exportEventsCSV', () => {
     // The URL should end with /api/events/export (no query string)
     const calledUrl = (fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
     expect(calledUrl).toMatch(/\/api\/events\/export$/);
+  });
+});
+
+// =============================================================================
+// Search Events API Tests
+// =============================================================================
+
+const mockSearchResult: SearchResult = {
+  id: 1,
+  camera_id: 'front_door',
+  camera_name: 'Front Door',
+  started_at: '2025-12-30T10:30:00Z',
+  ended_at: '2025-12-30T10:32:00Z',
+  risk_score: 75,
+  risk_level: 'high',
+  summary: 'Suspicious person detected near entrance',
+  reasoning: 'Unknown individual approaching during nighttime hours',
+  reviewed: false,
+  detection_count: 5,
+  detection_ids: [1, 2, 3, 4, 5],
+  object_types: 'person, vehicle',
+  relevance_score: 0.85,
+};
+
+const mockSearchResponse: SearchResponse = {
+  results: [mockSearchResult],
+  total_count: 1,
+  limit: 50,
+  offset: 0,
+};
+
+describe('searchEvents', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('searches events with query only', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockSearchResponse));
+
+    const result = await searchEvents({ q: 'suspicious person' });
+
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/events/search?q=suspicious+person'),
+      expect.any(Object)
+    );
+    expect(result.results).toEqual([mockSearchResult]);
+    expect(result.total_count).toBe(1);
+  });
+
+  it('searches events with all parameters', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockSearchResponse));
+
+    const params: EventSearchParams = {
+      q: 'person',
+      camera_id: 'front_door',
+      start_date: '2025-12-01',
+      end_date: '2025-12-31',
+      severity: 'high,critical',
+      object_type: 'person',
+      reviewed: false,
+      limit: 25,
+      offset: 10,
+    };
+
+    await searchEvents(params);
+
+    const calledUrl = (fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    expect(calledUrl).toContain('q=person');
+    expect(calledUrl).toContain('camera_id=front_door');
+    expect(calledUrl).toContain('start_date=2025-12-01');
+    expect(calledUrl).toContain('end_date=2025-12-31');
+    expect(calledUrl).toContain('severity=high%2Ccritical');
+    expect(calledUrl).toContain('object_type=person');
+    expect(calledUrl).toContain('reviewed=false');
+    expect(calledUrl).toContain('limit=25');
+    expect(calledUrl).toContain('offset=10');
+  });
+
+  it('handles empty search results', async () => {
+    const emptyResponse: SearchResponse = {
+      results: [],
+      total_count: 0,
+      limit: 50,
+      offset: 0,
+    };
+    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(emptyResponse));
+
+    const result = await searchEvents({ q: 'nonexistent term' });
+
+    expect(result.results).toEqual([]);
+    expect(result.total_count).toBe(0);
+  });
+
+  it('handles phrase search queries', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockSearchResponse));
+
+    await searchEvents({ q: '"suspicious person"' });
+
+    const calledUrl = (fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    expect(calledUrl).toContain('q=%22suspicious+person%22');
+  });
+
+  it('handles boolean search operators', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockSearchResponse));
+
+    await searchEvents({ q: 'person OR vehicle' });
+
+    const calledUrl = (fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    expect(calledUrl).toContain('q=person+OR+vehicle');
+  });
+
+  it('returns relevance scores in results', async () => {
+    const multipleResults: SearchResponse = {
+      results: [
+        { ...mockSearchResult, id: 1, relevance_score: 0.95 },
+        { ...mockSearchResult, id: 2, relevance_score: 0.75 },
+        { ...mockSearchResult, id: 3, relevance_score: 0.55 },
+      ],
+      total_count: 3,
+      limit: 50,
+      offset: 0,
+    };
+    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(multipleResults));
+
+    const result = await searchEvents({ q: 'person' });
+
+    expect(result.results[0].relevance_score).toBe(0.95);
+    expect(result.results[1].relevance_score).toBe(0.75);
+    expect(result.results[2].relevance_score).toBe(0.55);
+  });
+
+  it('throws ApiError on server error', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      createMockErrorResponse(500, 'Internal Server Error', 'Search service unavailable')
+    );
+
+    await expect(searchEvents({ q: 'test' })).rejects.toThrow(ApiError);
+
+    vi.mocked(fetch).mockResolvedValueOnce(
+      createMockErrorResponse(500, 'Internal Server Error', 'Search service unavailable')
+    );
+    await expect(searchEvents({ q: 'test' })).rejects.toMatchObject({
+      status: 500,
+      message: 'Search service unavailable',
+    });
+  });
+
+  it('throws ApiError on validation error', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      createMockErrorResponse(422, 'Unprocessable Entity', 'Query parameter is required')
+    );
+
+    await expect(searchEvents({ q: '' })).rejects.toThrow(ApiError);
+  });
+
+  it('excludes undefined optional parameters from URL', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockSearchResponse));
+
+    await searchEvents({ q: 'test' });
+
+    const calledUrl = (fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    expect(calledUrl).not.toContain('camera_id');
+    expect(calledUrl).not.toContain('start_date');
+    expect(calledUrl).not.toContain('severity');
+    expect(calledUrl).not.toContain('reviewed');
+  });
+
+  it('handles special characters in search query', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockSearchResponse));
+
+    await searchEvents({ q: 'person & vehicle' });
+
+    const calledUrl = (fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    expect(calledUrl).toContain('q=person+%26+vehicle');
   });
 });

@@ -608,6 +608,9 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
+      - name: Install dependencies
+        run: pip install defusedxml
+
       - name: Download all test results
         uses: actions/download-artifact@v4
         with:

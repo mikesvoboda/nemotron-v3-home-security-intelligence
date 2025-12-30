@@ -108,7 +108,7 @@ async def test_gpu_stats_endpoint_with_data(client, mock_redis):
             "memory_used": 12000,
             "memory_total": 24000,
             "temperature": 65.0,
-            "power_usage": 120.0,
+            "power_usage": 150.0,
             "inference_fps": 30.5,
         }
 
@@ -122,7 +122,7 @@ async def test_gpu_stats_endpoint_with_data(client, mock_redis):
         assert data["memory_used"] == 12000
         assert data["memory_total"] == 24000
         assert data["temperature"] == 65.0
-        assert data["power_usage"] == 120.0
+        assert data["power_usage"] == 150.0
         assert data["inference_fps"] == 30.5
 
 
@@ -194,8 +194,14 @@ async def test_patch_config_updates_values(client, mock_redis):
 
 
 @pytest.mark.asyncio
-async def test_gpu_history_empty(client, mock_redis):
+async def test_gpu_history_empty(client, db_session, mock_redis):
     """GET /api/system/gpu/history returns empty list when no samples exist."""
+    # Clear any existing GPU stats from the database
+    from sqlalchemy import delete
+
+    await db_session.execute(delete(GPUStats))
+    await db_session.commit()
+
     resp = await client.get("/api/system/gpu/history")
     assert resp.status_code == 200
     data = resp.json()
@@ -329,6 +335,12 @@ async def test_gpu_stats_endpoint_handles_no_gpu(client, mock_redis):
 @pytest.mark.asyncio
 async def test_gpu_history_with_data_and_since_filter(client, db_session, mock_redis):
     """GET /api/system/gpu/history returns samples in chronological order and supports since."""
+    # Clear any existing GPU stats from the database
+    from sqlalchemy import delete
+
+    await db_session.execute(delete(GPUStats))
+    await db_session.commit()
+
     now = datetime.now(UTC)
     older = now - timedelta(minutes=2)
     newer = now - timedelta(minutes=1)
@@ -337,18 +349,22 @@ async def test_gpu_history_with_data_and_since_filter(client, db_session, mock_r
         [
             GPUStats(
                 recorded_at=older,
+                gpu_name="NVIDIA RTX A5500",
                 gpu_utilization=10.0,
                 memory_used=100,
                 memory_total=1000,
                 temperature=40.0,
+                power_usage=100.0,
                 inference_fps=0.0,
             ),
             GPUStats(
                 recorded_at=newer,
+                gpu_name="NVIDIA RTX A5500",
                 gpu_utilization=20.0,
                 memory_used=200,
                 memory_total=1000,
                 temperature=41.0,
+                power_usage=120.0,
                 inference_fps=1.0,
             ),
         ]
@@ -360,7 +376,9 @@ async def test_gpu_history_with_data_and_since_filter(client, db_session, mock_r
     data = resp.json()
     assert data["count"] == 2
     assert data["samples"][0]["utilization"] == 10.0
+    assert data["samples"][0]["power_usage"] == 100.0
     assert data["samples"][1]["utilization"] == 20.0
+    assert data["samples"][1]["power_usage"] == 120.0
 
     # since filter should exclude the older sample
     # Use 'Z' to avoid '+' being interpreted as a space in query strings.
@@ -370,6 +388,7 @@ async def test_gpu_history_with_data_and_since_filter(client, db_session, mock_r
     data2 = resp2.json()
     assert data2["count"] == 1
     assert data2["samples"][0]["utilization"] == 20.0
+    assert data2["samples"][0]["power_usage"] == 120.0
 
 
 # =============================================================================
@@ -533,8 +552,8 @@ async def test_readiness_endpoint_not_ready_when_detection_worker_in_error(clien
 async def test_readiness_endpoint_graceful_when_no_pipeline_manager(client, mock_redis):
     """Test that readiness endpoint returns not_ready when pipeline manager is not registered.
 
-    When the pipeline manager is not registered, the system cannot process image detections,
-    so it should be marked as not ready (503) even if database and Redis are healthy.
+    Without the pipeline manager, the system cannot process image detections, so it should
+    report as not_ready (503) rather than ready, even if database and Redis are healthy.
     """
     from backend.api.routes import system as system_routes
 

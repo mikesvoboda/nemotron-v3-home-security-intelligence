@@ -32,14 +32,39 @@ from backend.services.nemotron_analyzer import NemotronAnalyzer
 from backend.tests.conftest import unique_id
 
 
+class MockQueueAddResult:
+    """Mock QueueAddResult for testing."""
+
+    def __init__(
+        self,
+        success: bool,
+        queue_length: int,
+        dropped_count: int = 0,
+        moved_to_dlq_count: int = 0,
+        error: str | None = None,
+        warning: str | None = None,
+    ) -> None:
+        self.success = success
+        self.queue_length = queue_length
+        self.dropped_count = dropped_count
+        self.moved_to_dlq_count = moved_to_dlq_count
+        self.error = error
+        self.warning = warning
+
+    @property
+    def had_backpressure(self) -> bool:
+        return self.dropped_count > 0 or self.moved_to_dlq_count > 0 or self.error is not None
+
+
 class MockRedisClient:
     """Mock Redis client for testing without a real Redis server.
 
     Simulates Redis operations using in-memory dictionaries.
 
-    This mock validates JSON serialization to match production Redis behavior.
+    IMPORTANT: This mock validates JSON serialization to match real Redis behavior.
     Real Redis stores data as strings, so all values must be JSON-serializable.
-    Non-serializable values (like datetime objects, custom classes) will raise TypeError.
+    If you store a non-JSON-serializable object (e.g., datetime, set, custom class),
+    it will raise TypeError just like the real RedisClient does.
     """
 
     def __init__(self) -> None:
@@ -60,33 +85,43 @@ class MockRedisClient:
         return MagicMock(return_value=_generator())
 
     def _validate_json_serializable(self, value: Any) -> str:
-        """Validate that a value can be JSON-serialized like real Redis.
+        """Validate that a value is JSON-serializable and return the serialized string.
 
-        Real Redis stores values as strings, so the production RedisClient uses
-        json.dumps() for serialization. This mock validates the same behavior
-        to catch serialization errors that would occur in production.
+        This mimics the real RedisClient behavior where non-string values are
+        serialized with json.dumps() before storage. Real Redis stores values as
+        strings, so all values must be JSON-serializable. If serialization fails,
+        TypeError is raised - catching bugs early that would fail in production.
 
         Args:
-            value: The value to validate and serialize
+            value: Value to validate and serialize
 
         Returns:
-            JSON-serialized string if value is already a string, or json.dumps(value)
+            JSON-serialized string if value is not already a string
 
         Raises:
             TypeError: If value is not JSON-serializable (e.g., datetime, custom class)
         """
         if isinstance(value, str):
             return value
-        # This will raise TypeError for non-serializable objects like datetime
+        # This will raise TypeError for non-serializable objects (datetime, set, etc.)
         return json.dumps(value)
 
     async def get(self, key: str) -> Any | None:
-        return self._store.get(key)
+        value = self._store.get(key)
+        if value is None:
+            return None
+        # Deserialize if it's a JSON string
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except json.JSONDecodeError:
+                return value
+        return value
 
     async def set(self, key: str, value: Any, expire: int | None = None) -> bool:
-        # Validate JSON serialization like real Redis
-        self._validate_json_serializable(value)
-        self._store[key] = value
+        # Validate JSON serialization - raises TypeError if not serializable
+        serialized = self._validate_json_serializable(value)
+        self._store[key] = serialized
         return True
 
     async def delete(self, *keys: str) -> int:
@@ -105,7 +140,13 @@ class MockRedisClient:
         self._validate_json_serializable(data)
         if queue_name not in self._queues:
             self._queues[queue_name] = []
-        self._queues[queue_name].append(data)
+        # Validate JSON serialization - raises TypeError if not serializable
+        serialized = self._validate_json_serializable(data)
+        # Store deserialized for easier test assertions (mimics peek_queue behavior)
+        try:
+            self._queues[queue_name].append(json.loads(serialized))
+        except json.JSONDecodeError:
+            self._queues[queue_name].append(serialized)
         return len(self._queues[queue_name])
 
     async def add_to_queue_safe(
@@ -121,7 +162,7 @@ class MockRedisClient:
         This mock version validates JSON serialization but does not implement
         actual backpressure logic - it always succeeds for testing purposes.
         """
-        # Validate JSON serialization like real Redis
+        # Validate JSON serialization - raises TypeError if not serializable
         self._validate_json_serializable(data)
 
         if queue_name not in self._queues:
@@ -153,7 +194,7 @@ class MockRedisClient:
         return queue[start : end + 1]
 
     async def publish(self, channel: str, message: Any) -> int:
-        # Validate JSON serialization like real Redis
+        # Validate JSON serialization - raises TypeError if not serializable
         self._validate_json_serializable(message)
         return 1
 
@@ -1054,79 +1095,102 @@ async def test_batch_close_to_analyze_handoff_without_redis_rehydration(
 
 
 @pytest.mark.asyncio
-async def test_mock_redis_set_rejects_datetime() -> None:
-    """Test that MockRedisClient.set() rejects non-JSON-serializable datetime objects.
+async def test_mock_redis_validates_json_serialization_on_set() -> None:
+    """Test that MockRedisClient.set() raises TypeError for non-JSON-serializable objects.
 
-    This matches production Redis behavior where json.dumps() is used for serialization.
+    This ensures the mock behaves like the real RedisClient, catching bugs early
+    that would fail in production (e.g., storing datetime objects directly).
     """
     redis = MockRedisClient()
 
-    # datetime objects are not JSON-serializable
+    # Valid JSON-serializable values should work
+    await redis.set("string_key", "hello")
+    await redis.set("int_key", 42)
+    await redis.set("float_key", 3.14)
+    await redis.set("list_key", [1, 2, 3])
+    await redis.set("dict_key", {"nested": {"value": True}})
+    await redis.set("none_key", None)
+
+    # Verify round-trip works correctly
+    assert await redis.get("string_key") == "hello"
+    assert await redis.get("int_key") == 42
+    assert await redis.get("dict_key") == {"nested": {"value": True}}
+
+    # Non-JSON-serializable objects should raise TypeError
     with pytest.raises(TypeError, match="not JSON serializable"):
-        await redis.set("key", datetime.now(UTC))
-
-
-@pytest.mark.asyncio
-async def test_mock_redis_set_accepts_json_serializable() -> None:
-    """Test that MockRedisClient.set() accepts JSON-serializable values."""
-    redis = MockRedisClient()
-
-    # These should all work
-    await redis.set("string_key", "test_value")
-    await redis.set("dict_key", {"key": "value", "number": 42})
-    await redis.set("list_key", [1, 2, 3, "four"])
-    await redis.set("number_key", 12345)
-    await redis.set("bool_key", True)
-    await redis.set("null_key", None)
-
-    # Verify values were stored
-    assert await redis.get("string_key") == "test_value"
-    assert await redis.get("dict_key") == {"key": "value", "number": 42}
-    assert await redis.get("list_key") == [1, 2, 3, "four"]
-
-
-@pytest.mark.asyncio
-async def test_mock_redis_add_to_queue_rejects_datetime() -> None:
-    """Test that MockRedisClient.add_to_queue() rejects datetime objects."""
-    redis = MockRedisClient()
+        await redis.set("datetime_key", datetime.now(UTC))
 
     with pytest.raises(TypeError, match="not JSON serializable"):
-        await redis.add_to_queue("test_queue", {"timestamp": datetime.now(UTC)})
+        await redis.set("set_key", {1, 2, 3})
+
+    class CustomClass:
+        pass
+
+    with pytest.raises(TypeError, match="not JSON serializable"):
+        await redis.set("custom_key", CustomClass())
 
 
 @pytest.mark.asyncio
-async def test_mock_redis_add_to_queue_accepts_json_serializable() -> None:
-    """Test that MockRedisClient.add_to_queue() accepts JSON-serializable data."""
+async def test_mock_redis_validates_json_serialization_on_add_to_queue() -> None:
+    """Test that MockRedisClient.add_to_queue() raises TypeError for non-serializable data.
+
+    Queue operations are critical for the pipeline - this ensures we catch
+    serialization bugs before they reach production.
+    """
     redis = MockRedisClient()
 
-    # Add JSON-serializable data
-    await redis.add_to_queue("test_queue", {"event": "test", "count": 1})
-    await redis.add_to_queue("test_queue", "simple_string")
+    # Valid data should work
+    await redis.add_to_queue("test_queue", {"camera_id": "cam1", "detection_ids": [1, 2, 3]})
+    await redis.add_to_queue("test_queue", "string_message")
 
-    # Verify data was added
+    # Verify data was added correctly
     assert await redis.get_queue_length("test_queue") == 2
+    items = await redis.peek_queue("test_queue")
+    assert items[0] == {"camera_id": "cam1", "detection_ids": [1, 2, 3]}
 
-
-@pytest.mark.asyncio
-async def test_mock_redis_publish_rejects_datetime() -> None:
-    """Test that MockRedisClient.publish() rejects datetime objects."""
-    redis = MockRedisClient()
+    # Non-JSON-serializable data should raise TypeError
+    with pytest.raises(TypeError, match="not JSON serializable"):
+        await redis.add_to_queue("test_queue", datetime.now(UTC))
 
     with pytest.raises(TypeError, match="not JSON serializable"):
-        await redis.publish("channel", {"time": datetime.now(UTC)})
+        # This is a common bug - storing set instead of list
+        await redis.add_to_queue("test_queue", {"detection_ids": {1, 2, 3}})
 
 
 @pytest.mark.asyncio
-async def test_mock_redis_publish_accepts_json_serializable() -> None:
-    """Test that MockRedisClient.publish() accepts JSON-serializable messages."""
+async def test_mock_redis_validates_json_serialization_on_publish() -> None:
+    """Test that MockRedisClient.publish() raises TypeError for non-serializable messages.
+
+    Pub/Sub messages must be serializable for the real Redis transport.
+    """
     redis = MockRedisClient()
 
-    # These should all work
-    result = await redis.publish("channel", {"event": "test"})
+    # Valid messages should work
+    result = await redis.publish("events", {"type": "detection", "camera_id": "cam1"})
     assert result == 1
 
-    result = await redis.publish("channel", "simple_message")
-    assert result == 1
+    # Non-JSON-serializable messages should raise TypeError
+    with pytest.raises(TypeError, match="not JSON serializable"):
+        await redis.publish("events", datetime.now(UTC))
+
+
+@pytest.mark.asyncio
+async def test_mock_redis_validates_json_serialization_on_add_to_queue_safe() -> None:
+    """Test that MockRedisClient.add_to_queue_safe() also validates JSON serialization.
+
+    This method is used in production with backpressure handling - it must
+    also validate serialization.
+    """
+    redis = MockRedisClient()
+
+    # Valid data should work
+    result = await redis.add_to_queue_safe("safe_queue", {"batch_id": "batch123"})
+    assert result.success is True
+    assert result.queue_length == 1
+
+    # Non-JSON-serializable data should raise TypeError
+    with pytest.raises(TypeError, match="not JSON serializable"):
+        await redis.add_to_queue_safe("safe_queue", datetime.now(UTC))
 
 
 @pytest.mark.asyncio

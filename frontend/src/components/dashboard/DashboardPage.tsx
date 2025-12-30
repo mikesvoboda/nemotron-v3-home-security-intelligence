@@ -288,10 +288,12 @@ export default function DashboardPage() {
 
           {/* GPU Stats */}
           <GpuStats
+            gpuName={gpuStats?.gpu_name ?? null}
             utilization={gpuStats?.utilization ?? null}
             memoryUsed={gpuStats?.memory_used ?? null}
             memoryTotal={gpuStats?.memory_total ?? null}
             temperature={gpuStats?.temperature ?? null}
+            powerUsage={gpuStats?.power_usage ?? null}
             inferenceFps={gpuStats?.inference_fps ?? null}
           />
         </div>

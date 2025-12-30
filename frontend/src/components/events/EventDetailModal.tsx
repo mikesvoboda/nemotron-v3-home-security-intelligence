@@ -9,6 +9,7 @@ import {
   Flag,
   Save,
   Timer,
+  TrendingUp,
   X,
 } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useState } from 'react';
@@ -20,6 +21,17 @@ import {
   getDetectionVideoThumbnailUrl,
   getDetectionVideoUrl,
 } from '../../services/api';
+import {
+  calculateAverageConfidence,
+  calculateMaxConfidence,
+  formatConfidencePercent,
+  getConfidenceBgColorClass,
+  getConfidenceBorderColorClass,
+  getConfidenceLabel,
+  getConfidenceLevel,
+  getConfidenceTextColorClass,
+  sortDetectionsByConfidence,
+} from '../../utils/confidence';
 import { getRiskLevel } from '../../utils/risk';
 import { formatDuration } from '../../utils/time';
 import Lightbox from '../common/Lightbox';
@@ -549,26 +561,91 @@ export default function EventDetailModal({
                     </div>
                   )}
 
-                  {/* Detections */}
+                  {/* Detections with Color-Coded Confidence */}
                   {event.detections.length > 0 && (
                     <div className="mb-6">
-                      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
-                        Detected Objects ({event.detections.length})
-                      </h3>
-                      <div className="grid gap-2">
-                        {event.detections.map((detection, index) => (
-                          <div
-                            key={`${detection.label}-${index}`}
-                            className="flex items-center justify-between rounded-lg bg-black/30 px-4 py-3"
-                          >
-                            <span className="text-sm font-medium text-white">
-                              {detection.label}
-                            </span>
-                            <span className="rounded-full bg-gray-800 px-3 py-1 text-xs font-semibold text-gray-300">
-                              {formatConfidence(detection.confidence)}
-                            </span>
+                      <div className="mb-3 flex items-center justify-between">
+                        <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
+                          Detected Objects ({event.detections.length})
+                        </h3>
+                        {/* Aggregate Confidence Display */}
+                        {event.detections.length > 0 && (
+                          <div className="flex items-center gap-3 text-sm">
+                            <TrendingUp className="h-4 w-4 text-gray-400" aria-hidden="true" />
+                            {calculateAverageConfidence(event.detections) !== null && (
+                              <div className="flex items-center gap-1">
+                                <span className="text-gray-400">Avg:</span>
+                                <span
+                                  className={`font-semibold ${getConfidenceTextColorClass(
+                                    getConfidenceLevel(
+                                      calculateAverageConfidence(event.detections) as number
+                                    )
+                                  )}`}
+                                >
+                                  {formatConfidencePercent(
+                                    calculateAverageConfidence(event.detections) as number
+                                  )}
+                                </span>
+                              </div>
+                            )}
+                            {calculateMaxConfidence(event.detections) !== null && (
+                              <div className="flex items-center gap-1">
+                                <span className="text-gray-400">Max:</span>
+                                <span
+                                  className={`font-semibold ${getConfidenceTextColorClass(
+                                    getConfidenceLevel(
+                                      calculateMaxConfidence(event.detections) as number
+                                    )
+                                  )}`}
+                                >
+                                  {formatConfidencePercent(
+                                    calculateMaxConfidence(event.detections) as number
+                                  )}
+                                </span>
+                              </div>
+                            )}
                           </div>
-                        ))}
+                        )}
+                      </div>
+                      <div className="grid gap-2">
+                        {sortDetectionsByConfidence(event.detections).map((detection, index) => {
+                          const level = getConfidenceLevel(detection.confidence);
+                          const confidenceLabel = getConfidenceLabel(level);
+                          return (
+                            <div
+                              key={`${detection.label}-${index}`}
+                              className={`flex items-center justify-between rounded-lg border px-4 py-3 ${getConfidenceBgColorClass(level)} ${getConfidenceBorderColorClass(level)}`}
+                              title={`${confidenceLabel}`}
+                            >
+                              <span className="text-sm font-medium text-white">
+                                {detection.label}
+                              </span>
+                              <div className="flex items-center gap-2">
+                                {/* Confidence bar */}
+                                <div
+                                  className="h-2 w-16 overflow-hidden rounded-full bg-gray-700"
+                                  aria-hidden="true"
+                                >
+                                  <div
+                                    className={`h-full rounded-full transition-all duration-300 ${
+                                      level === 'low'
+                                        ? 'bg-red-500'
+                                        : level === 'medium'
+                                          ? 'bg-yellow-500'
+                                          : 'bg-green-500'
+                                    }`}
+                                    style={{ width: `${Math.round(detection.confidence * 100)}%` }}
+                                  />
+                                </div>
+                                <span
+                                  className={`min-w-[3rem] text-right text-xs font-semibold ${getConfidenceTextColorClass(level)}`}
+                                >
+                                  {formatConfidence(detection.confidence)}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}

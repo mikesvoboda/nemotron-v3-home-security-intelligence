@@ -15,16 +15,18 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.config import get_settings
 from backend.core.database import get_db
+from backend.models.audit import AuditAction
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
+from backend.services.audit import audit_service
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -62,6 +64,15 @@ class SeedEventsResponse(BaseModel):
     detections_created: int
     events_cleared: int
     detections_cleared: int
+
+
+class ClearDataRequest(BaseModel):
+    """Request schema for clearing data - requires confirmation."""
+
+    confirm: str = Field(
+        ...,
+        description="Must be exactly 'DELETE_ALL_DATA' to confirm deletion",
+    )
 
 
 class ClearDataResponse(BaseModel):
@@ -436,7 +447,8 @@ async def seed_events(
 
 @router.delete("/seed/clear", response_model=ClearDataResponse)
 async def clear_seeded_data(
-    confirm: bool = False,
+    body: ClearDataRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     _admin: None = Depends(require_admin_access),
 ) -> dict[str, int]:
@@ -444,10 +456,12 @@ async def clear_seeded_data(
 
     SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
     If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
-    Requires explicit confirmation via query parameter to prevent accidental data deletion.
+    Requires JSON body confirmation to prevent accidental data deletion:
+    {"confirm": "DELETE_ALL_DATA"}
 
     Args:
-        confirm: Must be set to true to confirm data deletion (query parameter)
+        body: Request body with confirmation string
+        request: FastAPI request for audit logging
         db: Database session
         _admin: Admin access validation (via dependency)
 
@@ -455,14 +469,13 @@ async def clear_seeded_data(
         Summary of cleared data counts
 
     Raises:
-        HTTPException: 400 if confirm is not set to true
+        HTTPException: 400 if confirmation string is incorrect
     """
-    # Require explicit confirmation for destructive operation
-    if not confirm:
+    # Validate confirmation string
+    if body.confirm != "DELETE_ALL_DATA":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Confirmation required. Set 'confirm=true' query parameter to delete all data. "
-            "This is a destructive operation that cannot be undone.",
+            detail='Confirmation required: body must contain {"confirm": "DELETE_ALL_DATA"}',
         )
 
     # Count existing data
@@ -479,6 +492,21 @@ async def clear_seeded_data(
     await db.execute(delete(Event))
     await db.execute(delete(Detection))
     await db.execute(delete(Camera))
+
+    # Log deletion to audit log
+    await audit_service.log_action(
+        db=db,
+        action=AuditAction.DATA_CLEARED,
+        resource_type="admin",
+        actor="admin",
+        details={
+            "cameras_cleared": cameras_cleared,
+            "events_cleared": events_cleared,
+            "detections_cleared": detections_cleared,
+        },
+        request=request,
+    )
+
     await db.commit()
 
     return {

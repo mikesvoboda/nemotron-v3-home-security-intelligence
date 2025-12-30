@@ -40,6 +40,13 @@ from backend.models.detection import Detection
 
 logger = get_logger(__name__)
 
+# Timeout configuration for AI service clients
+# - connect_timeout: Maximum time to establish connection (10s)
+# - read_timeout: Maximum time to wait for response (60s for AI inference)
+DETECTOR_CONNECT_TIMEOUT = 10.0
+DETECTOR_READ_TIMEOUT = 60.0
+DETECTOR_HEALTH_TIMEOUT = 5.0
+
 
 class DetectorUnavailableError(Exception):
     """Raised when the RT-DETR detector service is unavailable.

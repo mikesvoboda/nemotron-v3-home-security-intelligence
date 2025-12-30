@@ -41,15 +41,18 @@ from typing import Any
 from PIL import Image
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
+from watchdog.observers.api import BaseObserver
+from watchdog.observers.polling import PollingObserver
 
-# NOTE: We use watchdog's default Observer (not PollingObserver) for efficiency.
-# Observer auto-selects the best native backend for each platform:
+# Observer selection:
+# By default, we use watchdog's Observer which auto-selects the best native backend:
 #   - Linux: inotify (kernel-level filesystem notifications)
 #   - macOS: FSEvents (native filesystem event API)
 #   - Windows: ReadDirectoryChangesW (native API)
-# This provides near-instant event detection without CPU-intensive polling.
-# Only use PollingObserver if monitoring network filesystems (NFS/SMB) where
-# inotify events may not propagate.
+#
+# However, in containerized environments (Docker Desktop/macOS, or NFS/SMB mounts),
+# inotify events may not propagate properly. In these cases, enable polling mode
+# via the FILE_WATCHER_POLLING environment variable or settings.file_watcher_polling.
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
 from backend.core.redis import QueueOverflowPolicy
@@ -226,6 +229,8 @@ class FileWatcher:
         dedupe_service: DedupeService | None = None,
         auto_create_cameras: bool = True,
         camera_creator: Callable[[Camera], Any] | None = None,
+        use_polling: bool | None = None,
+        polling_interval: float | None = None,
     ):
         """Initialize file watcher.
 
@@ -239,6 +244,11 @@ class FileWatcher:
             camera_creator: Async callback to create camera in database.
                             Signature: async def creator(camera: Camera) -> None
                             If None, auto-creation is disabled even if auto_create_cameras=True
+            use_polling: If True, use PollingObserver instead of native Observer.
+                        Enable for Docker Desktop/macOS mounts or network filesystems.
+                        If None, reads from settings.file_watcher_polling.
+            polling_interval: Polling interval in seconds when using PollingObserver.
+                             If None, reads from settings.file_watcher_polling_interval.
         """
         settings = get_settings()
         self.camera_root = camera_root or settings.foscam_base_path
@@ -258,8 +268,23 @@ class FileWatcher:
         elif redis_client is not None:
             self._dedupe_service = DedupeService(redis_client=redis_client)
 
-        # Watchdog observer for filesystem monitoring
-        self.observer = Observer()
+        # Determine observer type from parameters or settings
+        self._use_polling = (
+            use_polling if use_polling is not None else settings.file_watcher_polling
+        )
+        self._polling_interval = (
+            polling_interval
+            if polling_interval is not None
+            else settings.file_watcher_polling_interval
+        )
+
+        # Create watchdog observer for filesystem monitoring
+        # Use PollingObserver for Docker Desktop/macOS or network filesystem mounts
+        self.observer: BaseObserver
+        if self._use_polling:
+            self.observer = PollingObserver(timeout=self._polling_interval)
+        else:
+            self.observer = Observer()
 
         # Track running state
         self.running = False
@@ -273,9 +298,13 @@ class FileWatcher:
         # Create event handler
         self._event_handler = self._create_event_handler()
 
+        # Log initialization with observer type
+        observer_type = "polling" if self._use_polling else "native"
+        polling_info = f", interval={self._polling_interval}s" if self._use_polling else ""
         logger.info(
             f"FileWatcher initialized for camera root: {self.camera_root} "
-            f"(dedupe={'enabled' if self._dedupe_service else 'disabled'}, "
+            f"(observer={observer_type}{polling_info}, "
+            f"dedupe={'enabled' if self._dedupe_service else 'disabled'}, "
             f"auto_create={'enabled' if auto_create_cameras and camera_creator else 'disabled'})"
         )
 

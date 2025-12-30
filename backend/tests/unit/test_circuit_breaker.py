@@ -7,6 +7,8 @@ Tests cover:
 - Half-open state trial behavior
 - Recovery and reset logic
 - Circuit breaker registry operations
+- Metrics and monitoring
+- Async context manager support
 """
 
 import asyncio
@@ -17,6 +19,7 @@ from backend.services.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerConfig,
     CircuitBreakerError,
+    CircuitBreakerMetrics,
     CircuitBreakerRegistry,
     CircuitState,
     get_circuit_breaker,
@@ -62,6 +65,54 @@ class TestCircuitState:
         assert CircuitState.HALF_OPEN.value == "half_open"
 
 
+class TestCircuitBreakerMetrics:
+    """Tests for CircuitBreakerMetrics dataclass."""
+
+    def test_to_dict_without_timestamps(self) -> None:
+        """Test to_dict with no timestamps set."""
+        metrics = CircuitBreakerMetrics(
+            name="test_service",
+            state=CircuitState.CLOSED,
+            failure_count=0,
+            success_count=0,
+            total_calls=10,
+            rejected_calls=0,
+        )
+        result = metrics.to_dict()
+        assert result["name"] == "test_service"
+        assert result["state"] == "closed"
+        assert result["failure_count"] == 0
+        assert result["success_count"] == 0
+        assert result["total_calls"] == 10
+        assert result["rejected_calls"] == 0
+        assert result["last_failure_time"] is None
+        assert result["last_state_change"] is None
+
+    def test_to_dict_with_timestamps(self) -> None:
+        """Test to_dict with timestamps set."""
+        from datetime import UTC, datetime
+
+        now = datetime.now(UTC)
+        metrics = CircuitBreakerMetrics(
+            name="test_service",
+            state=CircuitState.OPEN,
+            failure_count=5,
+            success_count=0,
+            total_calls=100,
+            rejected_calls=50,
+            last_failure_time=now,
+            last_state_change=now,
+        )
+        result = metrics.to_dict()
+        assert result["name"] == "test_service"
+        assert result["state"] == "open"
+        assert result["failure_count"] == 5
+        assert result["total_calls"] == 100
+        assert result["rejected_calls"] == 50
+        assert result["last_failure_time"] == now.isoformat()
+        assert result["last_state_change"] == now.isoformat()
+
+
 class TestCircuitBreaker:
     """Tests for CircuitBreaker class."""
 
@@ -90,6 +141,18 @@ class TestCircuitBreaker:
     def test_name_property(self, breaker: CircuitBreaker) -> None:
         """Test name property."""
         assert breaker.name == "test_service"
+
+    def test_config_property(self, breaker: CircuitBreaker) -> None:
+        """Test config property returns the configuration."""
+        config = breaker.config
+        assert config.failure_threshold == 3
+        assert config.recovery_timeout == 0.1
+        assert config.half_open_max_calls == 2
+        assert config.success_threshold == 2
+
+    def test_success_count_property(self, breaker: CircuitBreaker) -> None:
+        """Test success_count property."""
+        assert breaker.success_count == 0
 
     @pytest.mark.asyncio
     async def test_successful_call_stays_closed(self, breaker: CircuitBreaker) -> None:
@@ -315,6 +378,355 @@ class TestCircuitBreaker:
         await breaker.call(tracked_success)
         assert call_count == 2
         assert breaker.state == CircuitState.CLOSED
+
+    @pytest.mark.asyncio
+    async def test_half_open_max_calls_exceeded_rejects(self) -> None:
+        """Test that exceeding half_open_max_calls in half-open state rejects calls."""
+        config = CircuitBreakerConfig(
+            failure_threshold=1,
+            recovery_timeout=0.05,
+            half_open_max_calls=1,
+            success_threshold=3,  # Higher than max_calls to not close circuit
+        )
+        breaker = CircuitBreaker(name="half_open_reject_test", config=config)
+
+        async def failing_op() -> str:
+            raise ConnectionError("Failed")
+
+        async def slow_success() -> str:
+            await asyncio.sleep(0.1)  # Slow to keep half_open_calls occupied
+            return "success"
+
+        # Open the circuit
+        with pytest.raises(ConnectionError):
+            await breaker.call(failing_op)
+
+        assert breaker.state == CircuitState.OPEN
+
+        # Wait for recovery timeout
+        await asyncio.sleep(0.1)
+
+        # Manually set state to half-open and simulate max calls reached
+        breaker._state = CircuitState.HALF_OPEN
+        breaker._half_open_calls = 1  # Already at max
+
+        # Next call should be rejected
+        async def should_not_run() -> str:
+            return "should not run"
+
+        with pytest.raises(CircuitBreakerError):
+            await breaker.call(should_not_run)
+
+    @pytest.mark.asyncio
+    async def test_success_resets_failure_count_in_closed_state(self) -> None:
+        """Test that success in closed state resets failure count."""
+        config = CircuitBreakerConfig(
+            failure_threshold=5,
+            recovery_timeout=60.0,
+        )
+        breaker = CircuitBreaker(name="reset_test", config=config)
+
+        async def failing_op() -> str:
+            raise ConnectionError("Failed")
+
+        async def success_op() -> str:
+            return "success"
+
+        # Accumulate some failures (but not enough to open)
+        for _ in range(3):
+            with pytest.raises(ConnectionError):
+                await breaker.call(failing_op)
+
+        assert breaker.failure_count == 3
+        assert breaker.state == CircuitState.CLOSED
+
+        # Success should reset failure count
+        await breaker.call(success_op)
+        assert breaker.failure_count == 0
+        assert breaker.state == CircuitState.CLOSED
+
+    def test_allow_call_closed_state(self, breaker: CircuitBreaker) -> None:
+        """Test allow_call returns True in closed state."""
+        assert breaker.state == CircuitState.CLOSED
+        assert breaker.allow_call() is True
+
+    def test_allow_call_open_state_no_recovery(self) -> None:
+        """Test allow_call returns False in open state without recovery timeout."""
+        config = CircuitBreakerConfig(
+            failure_threshold=1,
+            recovery_timeout=60.0,  # Long timeout
+        )
+        breaker = CircuitBreaker(name="open_test", config=config)
+        breaker._state = CircuitState.OPEN
+        breaker._opened_at = None  # No opened_at set
+
+        assert breaker.allow_call() is False
+
+    @pytest.mark.asyncio
+    async def test_allow_call_open_state_with_recovery(self) -> None:
+        """Test allow_call triggers half-open transition after recovery timeout."""
+        config = CircuitBreakerConfig(
+            failure_threshold=1,
+            recovery_timeout=0.05,
+        )
+        breaker = CircuitBreaker(name="recovery_test", config=config)
+
+        async def failing_op() -> str:
+            raise ConnectionError("Failed")
+
+        # Open the circuit
+        with pytest.raises(ConnectionError):
+            await breaker.call(failing_op)
+
+        assert breaker.state == CircuitState.OPEN
+
+        # Wait for recovery timeout
+        await asyncio.sleep(0.1)
+
+        # allow_call should transition to half-open
+        assert breaker.allow_call() is True
+        assert breaker.state == CircuitState.HALF_OPEN
+
+    def test_allow_call_half_open_within_limit(self) -> None:
+        """Test allow_call returns True in half-open when under call limit."""
+        config = CircuitBreakerConfig(
+            failure_threshold=1,
+            recovery_timeout=0.05,
+            half_open_max_calls=3,
+        )
+        breaker = CircuitBreaker(name="half_open_limit_test", config=config)
+        breaker._state = CircuitState.HALF_OPEN
+        breaker._half_open_calls = 1
+
+        assert breaker.allow_call() is True
+
+    def test_allow_call_half_open_at_limit(self) -> None:
+        """Test allow_call returns False in half-open when at call limit."""
+        config = CircuitBreakerConfig(
+            failure_threshold=1,
+            recovery_timeout=0.05,
+            half_open_max_calls=3,
+        )
+        breaker = CircuitBreaker(name="half_open_at_limit_test", config=config)
+        breaker._state = CircuitState.HALF_OPEN
+        breaker._half_open_calls = 3
+
+        assert breaker.allow_call() is False
+
+    def test_allow_call_unknown_state_returns_false(self) -> None:
+        """Test allow_call returns False for unknown/invalid state (defensive code)."""
+        config = CircuitBreakerConfig()
+        breaker = CircuitBreaker(name="unknown_state_test", config=config)
+        # Manually set an invalid internal state (simulating corruption)
+        # This tests the defensive fallback return False
+        breaker._state = None  # type: ignore[assignment]
+
+        assert breaker.allow_call() is False
+
+    def test_force_open(self) -> None:
+        """Test force_open method transitions to open state."""
+        config = CircuitBreakerConfig()
+        breaker = CircuitBreaker(name="force_open_test", config=config)
+
+        assert breaker.state == CircuitState.CLOSED
+
+        breaker.force_open()
+
+        assert breaker.state == CircuitState.OPEN
+        assert breaker._last_failure_time is not None
+
+    @pytest.mark.asyncio
+    async def test_get_metrics(self) -> None:
+        """Test get_metrics returns correct CircuitBreakerMetrics."""
+        config = CircuitBreakerConfig(
+            failure_threshold=5,
+            recovery_timeout=60.0,
+        )
+        breaker = CircuitBreaker(name="metrics_test", config=config)
+
+        async def failing_op() -> str:
+            raise ConnectionError("Failed")
+
+        # Record some failures
+        for _ in range(2):
+            with pytest.raises(ConnectionError):
+                await breaker.call(failing_op)
+
+        metrics = breaker.get_metrics()
+
+        assert metrics.name == "metrics_test"
+        assert metrics.state == CircuitState.CLOSED
+        assert metrics.failure_count == 2
+        assert metrics.total_calls == 2
+        assert metrics.last_failure_time is not None
+
+    def test_get_metrics_no_failures(self) -> None:
+        """Test get_metrics when no failures have occurred."""
+        config = CircuitBreakerConfig()
+        breaker = CircuitBreaker(name="metrics_no_fail_test", config=config)
+
+        metrics = breaker.get_metrics()
+
+        assert metrics.name == "metrics_no_fail_test"
+        assert metrics.state == CircuitState.CLOSED
+        assert metrics.failure_count == 0
+        assert metrics.last_failure_time is None
+
+    def test_str_representation(self) -> None:
+        """Test __str__ representation of circuit breaker."""
+        config = CircuitBreakerConfig()
+        breaker = CircuitBreaker(name="str_test", config=config)
+
+        result = str(breaker)
+
+        assert "CircuitBreaker" in result
+        assert "str_test" in result
+        assert "CLOSED" in result
+
+    def test_repr_representation(self) -> None:
+        """Test __repr__ representation of circuit breaker."""
+        config = CircuitBreakerConfig()
+        breaker = CircuitBreaker(name="repr_test", config=config)
+
+        result = repr(breaker)
+
+        assert "CircuitBreaker" in result
+        assert "repr_test" in result
+        assert "closed" in result
+
+
+class TestCircuitBreakerAsyncContextManager:
+    """Tests for async context manager functionality."""
+
+    @pytest.fixture
+    def config(self) -> CircuitBreakerConfig:
+        """Create a test configuration."""
+        return CircuitBreakerConfig(
+            failure_threshold=3,
+            recovery_timeout=0.1,
+            half_open_max_calls=2,
+            success_threshold=2,
+        )
+
+    @pytest.fixture
+    def breaker(self, config: CircuitBreakerConfig) -> CircuitBreaker:
+        """Create a circuit breaker with test config."""
+        return CircuitBreaker(name="ctx_manager_test", config=config)
+
+    @pytest.mark.asyncio
+    async def test_context_manager_success(self, breaker: CircuitBreaker) -> None:
+        """Test async context manager with successful execution."""
+        async with breaker:
+            result = "success"
+
+        assert result == "success"
+        assert breaker.state == CircuitState.CLOSED
+
+    @pytest.mark.asyncio
+    async def test_context_manager_records_failure(self, breaker: CircuitBreaker) -> None:
+        """Test async context manager records failures."""
+        with pytest.raises(ValueError):
+            async with breaker:
+                raise ValueError("Test error")
+
+        assert breaker.failure_count == 1
+
+    @pytest.mark.asyncio
+    async def test_context_manager_opens_circuit(self, breaker: CircuitBreaker) -> None:
+        """Test async context manager opens circuit after threshold failures."""
+        for _ in range(3):
+            with pytest.raises(ConnectionError):
+                async with breaker:
+                    raise ConnectionError("Failed")
+
+        assert breaker.state == CircuitState.OPEN
+
+    @pytest.mark.asyncio
+    async def test_context_manager_rejects_when_open(self, breaker: CircuitBreaker) -> None:
+        """Test async context manager rejects calls when circuit is open."""
+        # Open the circuit
+        for _ in range(3):
+            with pytest.raises(ConnectionError):
+                async with breaker:
+                    raise ConnectionError("Failed")
+
+        # Try to use context manager when open
+        with pytest.raises(CircuitBreakerError):
+            async with breaker:
+                pass  # Should not reach here
+
+    @pytest.mark.asyncio
+    async def test_context_manager_excluded_exceptions(self) -> None:
+        """Test async context manager with excluded exceptions."""
+        config = CircuitBreakerConfig(
+            failure_threshold=3,
+            recovery_timeout=0.1,
+            excluded_exceptions=(ValueError,),
+        )
+        breaker = CircuitBreaker(name="ctx_excluded_test", config=config)
+
+        # Excluded exceptions should not count as failures
+        for _ in range(5):
+            with pytest.raises(ValueError):
+                async with breaker:
+                    raise ValueError("Excluded error")
+
+        assert breaker.failure_count == 0
+        assert breaker.state == CircuitState.CLOSED
+
+    @pytest.mark.asyncio
+    async def test_context_manager_half_open_success(self, breaker: CircuitBreaker) -> None:
+        """Test async context manager in half-open state with success."""
+        # Open the circuit
+        for _ in range(3):
+            with pytest.raises(ConnectionError):
+                async with breaker:
+                    raise ConnectionError("Failed")
+
+        assert breaker.state == CircuitState.OPEN
+
+        # Wait for recovery timeout
+        await asyncio.sleep(0.15)
+
+        # Use context manager in half-open state
+        async with breaker:
+            pass  # Success
+
+        assert breaker.state == CircuitState.HALF_OPEN
+
+        # Second success should close the circuit
+        async with breaker:
+            pass
+
+        assert breaker.state == CircuitState.CLOSED
+
+    @pytest.mark.asyncio
+    async def test_context_manager_half_open_increments_calls(self) -> None:
+        """Test context manager increments half_open_calls."""
+        config = CircuitBreakerConfig(
+            failure_threshold=1,
+            recovery_timeout=0.05,
+            half_open_max_calls=5,
+            success_threshold=3,
+        )
+        breaker = CircuitBreaker(name="half_open_increment_test", config=config)
+
+        # Open the circuit
+        with pytest.raises(ConnectionError):
+            async with breaker:
+                raise ConnectionError("Failed")
+
+        assert breaker.state == CircuitState.OPEN
+
+        # Wait for recovery
+        await asyncio.sleep(0.1)
+
+        # First call in half-open should increment counter
+        async with breaker:
+            pass
+
+        assert breaker._half_open_calls == 1
+        assert breaker.state == CircuitState.HALF_OPEN
 
 
 class TestCircuitBreakerRegistry:

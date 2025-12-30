@@ -614,3 +614,256 @@ class TestNotificationServiceCleanup:
 
             # Now close should work
             await service.close()
+
+
+class TestNotificationServiceEmailErrors:
+    """Tests for email sending error paths (coverage for lines 222-245, 254-269)."""
+
+    @pytest.mark.asyncio
+    async def test_send_email_smtp_authentication_error(self, service, mock_alert):
+        """Test email failure on SMTP authentication error (lines 222-229)."""
+        import smtplib
+
+        with patch.object(service, "_send_email_sync") as mock_send:
+            mock_send.side_effect = smtplib.SMTPAuthenticationError(535, b"Authentication failed")
+
+            result = await service.send_email(mock_alert)
+
+            assert result.success is False
+            assert result.channel == NotificationChannel.EMAIL
+            assert "SMTP authentication failed" in result.error
+
+    @pytest.mark.asyncio
+    async def test_send_email_generic_exception(self, service, mock_alert):
+        """Test email failure on generic exception (lines 238-245)."""
+        with patch.object(service, "_send_email_sync") as mock_send:
+            mock_send.side_effect = RuntimeError("Unexpected error occurred")
+
+            result = await service.send_email(mock_alert)
+
+            assert result.success is False
+            assert result.channel == NotificationChannel.EMAIL
+            assert "Email delivery failed" in result.error
+            assert "Unexpected error occurred" in result.error
+
+    def test_send_email_sync_with_tls(self, mock_settings, mock_alert):
+        """Test synchronous email sending with TLS enabled (lines 254-264)."""
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+
+        mock_settings.smtp_use_tls = True
+        service = NotificationService(mock_settings)
+
+        # Create a test message
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = "Test"
+        msg["From"] = mock_settings.smtp_from_address
+        msg["To"] = "test@example.com"
+        msg.attach(MIMEText("<p>Test</p>", "html"))
+
+        with patch("smtplib.SMTP") as mock_smtp_class:
+            mock_smtp_instance = MagicMock()
+            mock_smtp_class.return_value.__enter__ = MagicMock(return_value=mock_smtp_instance)
+            mock_smtp_class.return_value.__exit__ = MagicMock(return_value=False)
+
+            service._send_email_sync(msg, ["test@example.com"])
+
+            mock_smtp_class.assert_called_once_with(
+                mock_settings.smtp_host, mock_settings.smtp_port
+            )
+            mock_smtp_instance.starttls.assert_called_once()
+            mock_smtp_instance.login.assert_called_once_with(
+                mock_settings.smtp_user, mock_settings.smtp_password
+            )
+            mock_smtp_instance.sendmail.assert_called_once()
+
+    def test_send_email_sync_without_tls(self, mock_settings, mock_alert):
+        """Test synchronous email sending without TLS (lines 265-273)."""
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+
+        mock_settings.smtp_use_tls = False
+        service = NotificationService(mock_settings)
+
+        # Create a test message
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = "Test"
+        msg["From"] = mock_settings.smtp_from_address
+        msg["To"] = "test@example.com"
+        msg.attach(MIMEText("<p>Test</p>", "html"))
+
+        with patch("smtplib.SMTP") as mock_smtp_class:
+            mock_smtp_instance = MagicMock()
+            mock_smtp_class.return_value.__enter__ = MagicMock(return_value=mock_smtp_instance)
+            mock_smtp_class.return_value.__exit__ = MagicMock(return_value=False)
+
+            service._send_email_sync(msg, ["test@example.com"])
+
+            mock_smtp_class.assert_called_once_with(
+                mock_settings.smtp_host, mock_settings.smtp_port
+            )
+            # TLS should NOT be called
+            mock_smtp_instance.starttls.assert_not_called()
+            mock_smtp_instance.login.assert_called_once()
+            mock_smtp_instance.sendmail.assert_called_once()
+
+    def test_send_email_sync_without_auth(self, mock_settings, mock_alert):
+        """Test synchronous email sending without authentication credentials."""
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+
+        mock_settings.smtp_use_tls = False
+        mock_settings.smtp_user = None
+        mock_settings.smtp_password = None
+        service = NotificationService(mock_settings)
+
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = "Test"
+        msg["From"] = mock_settings.smtp_from_address
+        msg["To"] = "test@example.com"
+        msg.attach(MIMEText("<p>Test</p>", "html"))
+
+        with patch("smtplib.SMTP") as mock_smtp_class:
+            mock_smtp_instance = MagicMock()
+            mock_smtp_class.return_value.__enter__ = MagicMock(return_value=mock_smtp_instance)
+            mock_smtp_class.return_value.__exit__ = MagicMock(return_value=False)
+
+            service._send_email_sync(msg, ["test@example.com"])
+
+            # Login should NOT be called when no credentials
+            mock_smtp_instance.login.assert_not_called()
+            mock_smtp_instance.sendmail.assert_called_once()
+
+
+class TestNotificationServiceWebhookErrors:
+    """Tests for webhook sending error paths (coverage for lines 423-440)."""
+
+    @pytest.mark.asyncio
+    async def test_send_webhook_request_error(self, service, mock_alert):
+        """Test webhook failure on httpx.RequestError (lines 423-431)."""
+        import httpx
+
+        mock_client = AsyncMock()
+        mock_client.post.side_effect = httpx.RequestError("Connection refused")
+
+        with patch.object(service, "_get_http_client", return_value=mock_client):
+            result = await service.send_webhook(mock_alert)
+
+            assert result.success is False
+            assert result.channel == NotificationChannel.WEBHOOK
+            assert "Webhook request failed" in result.error
+            assert "Connection refused" in result.error
+
+    @pytest.mark.asyncio
+    async def test_send_webhook_generic_exception(self, service, mock_alert):
+        """Test webhook failure on generic exception (lines 432-440)."""
+        mock_client = AsyncMock()
+        mock_client.post.side_effect = RuntimeError("Unexpected network error")
+
+        with patch.object(service, "_get_http_client", return_value=mock_client):
+            result = await service.send_webhook(mock_alert)
+
+            assert result.success is False
+            assert result.channel == NotificationChannel.WEBHOOK
+            assert "Webhook delivery failed" in result.error
+            assert "Unexpected network error" in result.error
+
+
+class TestNotificationServiceEdgeCases:
+    """Tests for edge cases and configuration scenarios."""
+
+    def test_build_email_body_no_matched_conditions(self, service, mock_alert):
+        """Test email body with no matched conditions (line 306)."""
+        mock_alert.alert_metadata = {"rule_name": "Test Rule", "matched_conditions": []}
+
+        body = service._build_email_body(mock_alert)
+
+        assert "No specific conditions recorded." in body
+
+    def test_build_email_body_none_metadata(self, service, mock_alert):
+        """Test email body with None metadata."""
+        mock_alert.alert_metadata = None
+
+        body = service._build_email_body(mock_alert)
+
+        assert "No specific conditions recorded." in body
+        assert "Unknown Rule" in body
+
+    @pytest.mark.asyncio
+    async def test_resolve_channels_with_unknown_channel(self, service, mock_alert):
+        """Test channel resolution with unknown channel name (lines 518-519)."""
+        mock_alert.channels = ["email", "unknown_channel", "webhook"]
+
+        # Use the _resolve_channels method directly
+        resolved = service._resolve_channels(mock_alert, None)
+
+        # Only valid channels should be resolved
+        assert NotificationChannel.EMAIL in resolved
+        assert NotificationChannel.WEBHOOK in resolved
+        assert len(resolved) == 2  # unknown_channel should be filtered out
+
+    @pytest.mark.asyncio
+    async def test_send_to_unknown_channel(self, service, mock_alert):
+        """Test sending to unknown channel (line 553)."""
+        # Create a mock channel that's not in the handlers
+        # We need to test the fallback case in _send_to_channel
+        # This is tricky because NotificationChannel is an enum
+        # We can test by passing a value that won't match any handler
+
+        # Create a custom channel value by subclassing
+        class FakeChannel(str):
+            value = "fake"
+
+        fake_channel = FakeChannel("fake")
+
+        result = await service._send_to_channel(
+            fake_channel,  # type: ignore
+            mock_alert,
+            None,
+            None,
+        )
+
+        assert result.success is False
+        assert "Unknown channel" in result.error
+
+    def test_get_available_channels_with_push_configured(self, mock_settings):
+        """Test available channels when push would be configured (line 160)."""
+        service = NotificationService(mock_settings)
+
+        # Mock is_push_configured to return True to cover line 160
+        with patch.object(service, "is_push_configured", return_value=True):
+            channels = service.get_available_channels()
+
+            assert NotificationChannel.PUSH in channels
+            assert NotificationChannel.EMAIL in channels
+            assert NotificationChannel.WEBHOOK in channels
+
+    @pytest.mark.asyncio
+    async def test_deliver_alert_with_invalid_alert_channels(self, service, mock_alert):
+        """Test delivery when alert has invalid channel names."""
+        mock_alert.channels = ["invalid1", "invalid2"]
+
+        result = await service.deliver_alert(mock_alert)
+
+        # With no valid channels, should succeed with empty deliveries
+        assert result.all_successful is True
+        assert len(result.deliveries) == 0
+
+    @pytest.mark.asyncio
+    async def test_deliver_alert_with_mixed_valid_invalid_channels(self, service, mock_alert):
+        """Test delivery with mix of valid and invalid channel names."""
+        mock_alert.channels = ["email", "invalid_channel"]
+
+        with patch.object(service, "send_email") as mock_email:
+            mock_email.return_value = NotificationDelivery(
+                channel=NotificationChannel.EMAIL,
+                success=True,
+                delivered_at=datetime.utcnow(),
+            )
+
+            result = await service.deliver_alert(mock_alert)
+
+            # Only email should be delivered (invalid_channel filtered out)
+            assert len(result.deliveries) == 1
+            assert result.deliveries[0].channel == NotificationChannel.EMAIL
+            mock_email.assert_called_once()

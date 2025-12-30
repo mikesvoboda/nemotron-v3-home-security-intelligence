@@ -1,6 +1,17 @@
-import { ChevronDown, ChevronUp, Clock, Eye, Timer } from 'lucide-react';
+import { ChevronDown, ChevronUp, Clock, Eye, Timer, TrendingUp } from 'lucide-react';
 import { useState } from 'react';
 
+import {
+  calculateAverageConfidence,
+  calculateMaxConfidence,
+  formatConfidencePercent,
+  getConfidenceBgColorClass,
+  getConfidenceBorderColorClass,
+  getConfidenceLabel,
+  getConfidenceLevel,
+  getConfidenceTextColorClass,
+  sortDetectionsByConfidence,
+} from '../../utils/confidence';
 import { getRiskColor, getRiskLevel } from '../../utils/risk';
 import { formatDuration } from '../../utils/time';
 import ObjectTypeBadge from '../common/ObjectTypeBadge';
@@ -121,6 +132,13 @@ export default function EventCard({
 
   // Get unique object types from detections
   const uniqueObjectTypes = Array.from(new Set(detections.map((d) => d.label.toLowerCase())));
+
+  // Calculate aggregate confidence metrics
+  const avgConfidence = calculateAverageConfidence(detections);
+  const maxConfidence = calculateMaxConfidence(detections);
+
+  // Sort detections by confidence (highest first)
+  const sortedDetections = sortDetectionsByConfidence(detections);
 
   // Get left border color class based on risk level
   const getBorderColorClass = (): string => {
@@ -243,22 +261,53 @@ export default function EventCard({
         <p className="text-sm leading-relaxed text-gray-200">{summary}</p>
       </div>
 
-      {/* Detection List */}
+      {/* Detection List with Color-Coded Confidence */}
       {detections.length > 0 && (
         <div className="mb-3 rounded-md bg-black/30 p-3">
-          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Detections ({detections.length})
-          </h4>
-          <div className="flex flex-wrap gap-2">
-            {detections.map((detection, index) => (
+          <div className="mb-2 flex items-center justify-between">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+              Detections ({detections.length})
+            </h4>
+            {/* Aggregate Confidence Display */}
+            {avgConfidence !== null && maxConfidence !== null && (
               <div
-                key={`${detection.label}-${index}`}
-                className="flex items-center gap-1.5 rounded-full bg-gray-800/60 px-3 py-1 text-xs"
+                className="flex items-center gap-2 text-xs"
+                title={`Average: ${formatConfidencePercent(avgConfidence)} | Max: ${formatConfidencePercent(maxConfidence)}`}
               >
-                <span className="font-medium text-white">{detection.label}</span>
-                <span className="text-gray-400">{formatConfidence(detection.confidence)}</span>
+                <TrendingUp className="h-3 w-3 text-gray-400" aria-hidden="true" />
+                <span className="text-gray-400">Avg:</span>
+                <span
+                  className={`font-semibold ${getConfidenceTextColorClass(getConfidenceLevel(avgConfidence))}`}
+                >
+                  {formatConfidencePercent(avgConfidence)}
+                </span>
+                <span className="text-gray-500">|</span>
+                <span className="text-gray-400">Max:</span>
+                <span
+                  className={`font-semibold ${getConfidenceTextColorClass(getConfidenceLevel(maxConfidence))}`}
+                >
+                  {formatConfidencePercent(maxConfidence)}
+                </span>
               </div>
-            ))}
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {sortedDetections.map((detection, index) => {
+              const level = getConfidenceLevel(detection.confidence);
+              const confidenceLabel = getConfidenceLabel(level);
+              return (
+                <div
+                  key={`${detection.label}-${index}`}
+                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs ${getConfidenceBgColorClass(level)} ${getConfidenceBorderColorClass(level)}`}
+                  title={`${detection.label}: ${formatConfidence(detection.confidence)} - ${confidenceLabel}`}
+                >
+                  <span className="font-medium text-white">{detection.label}</span>
+                  <span className={`font-semibold ${getConfidenceTextColorClass(level)}`}>
+                    {formatConfidence(detection.confidence)}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

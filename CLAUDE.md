@@ -196,6 +196,45 @@ Validation agents should run the full test suite and report any failures. Fix al
 - `git push --no-verify`
 - Any flags that skip pre-commit hooks
 
+## NEVER DISABLE TESTING
+
+> **⛔ ABSOLUTE RULE: Unit and integration tests must NEVER be disabled, removed, or bypassed.**
+
+This rule is non-negotiable. Previous agents have violated this rule by:
+
+- Moving test hooks from `pre-commit` to `pre-push` stage (reducing test frequency)
+- Lowering coverage thresholds to pass CI
+- Commenting out or skipping failing tests
+- Removing test assertions to make tests pass
+
+**If tests are failing, FIX THE CODE or FIX THE TESTS. Do not:**
+
+1. Disable the test hook
+2. Change the hook stage to run less frequently
+3. Lower coverage thresholds
+4. Skip tests with `@pytest.skip` without a documented reason
+5. Remove test files or test functions
+6. Use `--no-verify` flags
+
+**Required hooks that must remain active:**
+
+| Hook                      | Stage    | Purpose                            |
+| ------------------------- | -------- | ---------------------------------- |
+| `fast-test`               | pre-push | Runs unit tests before every push  |
+| Backend Unit Tests        | CI       | Full unit test suite with coverage |
+| Backend Integration Tests | CI       | API and service integration tests  |
+| Frontend Tests            | CI       | Component and hook tests           |
+| E2E Tests                 | CI       | End-to-end browser tests           |
+
+**Setup (run once per clone):**
+
+```bash
+pre-commit install                    # Install pre-commit hooks
+pre-commit install --hook-type pre-push  # Install pre-push hooks
+```
+
+If you encounter test failures, your job is to investigate and fix them, not to disable the safety net.
+
 If pre-commit checks fail, fix the issues before committing. Run the full test suite after all agents complete work:
 
 ```bash

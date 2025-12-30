@@ -1,6 +1,20 @@
 export { useWebSocket } from './useWebSocket';
 export type { WebSocketOptions, UseWebSocketReturn } from './useWebSocket';
 
+export { useWebSocketStatus } from './useWebSocketStatus';
+export type {
+  ConnectionState,
+  ChannelStatus,
+  WebSocketStatusOptions,
+  UseWebSocketStatusReturn,
+} from './useWebSocketStatus';
+
+export { useConnectionStatus } from './useConnectionStatus';
+export type {
+  ConnectionStatusSummary,
+  UseConnectionStatusReturn,
+} from './useConnectionStatus';
+
 export { useEventStream } from './useEventStream';
 export type { SecurityEvent, UseEventStreamReturn } from './useEventStream';
 

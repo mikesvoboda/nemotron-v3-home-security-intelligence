@@ -194,8 +194,9 @@ describe('EventDetailModal', () => {
 
     it('renders detection confidence scores', () => {
       render(<EventDetailModal {...mockProps} />);
-      expect(screen.getByText('95%')).toBeInTheDocument();
-      expect(screen.getByText('87%')).toBeInTheDocument();
+      // Percentages may appear multiple times in modal
+      expect(screen.getAllByText('95%').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('87%').length).toBeGreaterThanOrEqual(1);
     });
 
     it('formats confidence as percentage with rounding', () => {
@@ -207,8 +208,8 @@ describe('EventDetailModal', () => {
         ],
       };
       render(<EventDetailModal {...mockProps} event={eventWithRounding} />);
-      expect(screen.getByText('96%')).toBeInTheDocument();
-      expect(screen.getByText('87%')).toBeInTheDocument();
+      expect(screen.getAllByText('96%').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('87%').length).toBeGreaterThanOrEqual(1);
     });
 
     it('does not render detections section when detections array is empty', () => {
@@ -658,7 +659,7 @@ describe('EventDetailModal', () => {
         detections: [{ label: 'person', confidence: 1.0 }],
       };
       render(<EventDetailModal {...mockProps} event={eventPerfectConfidence} />);
-      expect(screen.getByText('100%')).toBeInTheDocument();
+      expect(screen.getAllByText('100%').length).toBeGreaterThanOrEqual(1);
     });
 
     it('handles detection with 0% confidence', () => {
@@ -667,7 +668,7 @@ describe('EventDetailModal', () => {
         detections: [{ label: 'person', confidence: 0.0 }],
       };
       render(<EventDetailModal {...mockProps} event={eventZeroConfidence} />);
-      expect(screen.getByText('0%')).toBeInTheDocument();
+      expect(screen.getAllByText('0%').length).toBeGreaterThanOrEqual(1);
     });
 
     it('handles risk score at boundary values', () => {

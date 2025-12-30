@@ -7,3 +7,6 @@ export type {
 } from './ObservabilityPanel';
 
 export { default as SystemMonitoringPage } from './SystemMonitoringPage';
+
+export { default as WorkerStatusPanel } from './WorkerStatusPanel';
+export type { WorkerStatusPanelProps } from './WorkerStatusPanel';

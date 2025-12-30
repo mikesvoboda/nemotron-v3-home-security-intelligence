@@ -83,10 +83,12 @@ export interface paths {
          *
          *     SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
          *     If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
-         *     Requires explicit confirmation via query parameter to prevent accidental data deletion.
+         *     Requires JSON body confirmation to prevent accidental data deletion:
+         *     {"confirm": "DELETE_ALL_DATA"}
          *
          *     Args:
-         *         confirm: Must be set to true to confirm data deletion (query parameter)
+         *         body: Request body with confirmation string
+         *         request: FastAPI request for audit logging
          *         db: Database session
          *         _admin: Admin access validation (via dependency)
          *
@@ -94,7 +96,7 @@ export interface paths {
          *         Summary of cleared data counts
          *
          *     Raises:
-         *         HTTPException: 400 if confirm is not set to true
+         *         HTTPException: 400 if confirmation string is incorrect
          */
         delete: operations["clear_seeded_data_api_admin_seed_clear_delete"];
         options?: never;
@@ -1190,6 +1192,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/notification/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Notification Config
+         * @description Get notification configuration status.
+         *
+         *     Returns the current notification configuration including:
+         *     - Whether notifications are enabled
+         *     - Which channels are configured (email, webhook, push)
+         *     - SMTP host and port (if configured)
+         *     - Default webhook URL (if configured)
+         *     - Default email recipients
+         *
+         *     Note: Sensitive fields like SMTP password are NOT returned.
+         *
+         *     Returns:
+         *         NotificationConfigResponse with current notification settings
+         */
+        get: operations["get_notification_config_api_notification_config_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notification/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Notification
+         * @description Test notification delivery for a specific channel.
+         *
+         *     Sends a test notification to verify the configuration is working.
+         *     For email, sends a test email to the specified recipients or default recipients.
+         *     For webhook, sends a test payload to the specified URL or default URL.
+         *
+         *     Args:
+         *         test_request: Test notification request with channel and optional overrides
+         *
+         *     Returns:
+         *         TestNotificationResponse with test result
+         */
+        post: operations["test_notification_api_notification_test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/system/health": {
         parameters: {
             query?: never;
@@ -1309,9 +1373,11 @@ export interface paths {
          * @description Get current GPU statistics.
          *
          *     Returns the most recent GPU statistics including:
+         *     - GPU name
          *     - GPU utilization percentage
          *     - Memory usage (used/total)
          *     - Temperature
+         *     - Power usage
          *     - Inference FPS
          *
          *     Returns:
@@ -1563,6 +1629,40 @@ export interface paths {
          *         SeverityMetadataResponse with all severity definitions and current thresholds
          */
         get: operations["get_severity_metadata_api_system_severity_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/storage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Storage Stats
+         * @description Get storage statistics and disk usage metrics.
+         *
+         *     Returns detailed storage usage information including:
+         *     - Overall disk usage (used/total/free)
+         *     - Storage breakdown by category (thumbnails, images, clips)
+         *     - Database record counts (events, detections, GPU stats, logs)
+         *
+         *     This endpoint helps operators:
+         *     - Monitor available storage space
+         *     - Understand storage distribution across data types
+         *     - Plan cleanup operations
+         *     - Track database growth
+         *
+         *     Returns:
+         *         StorageStatsResponse with comprehensive storage metrics
+         */
+        get: operations["get_storage_stats_api_system_storage_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2549,6 +2649,17 @@ export interface components {
              * @description Timestamp of cleanup operation
              */
             timestamp: string;
+        };
+        /**
+         * ClearDataRequest
+         * @description Request schema for clearing data - requires confirmation.
+         */
+        ClearDataRequest: {
+            /**
+             * Confirm
+             * @description Must be exactly 'DELETE_ALL_DATA' to confirm deletion
+             */
+            confirm: string;
         };
         /**
          * ClearDataResponse
@@ -3609,6 +3720,97 @@ export interface components {
             path: string;
         };
         /**
+         * NotificationChannel
+         * @description Notification channel types.
+         * @enum {string}
+         */
+        NotificationChannel: "email" | "webhook" | "push";
+        /**
+         * NotificationConfigResponse
+         * @description Schema for notification configuration status.
+         * @example {
+         *       "available_channels": [
+         *         "email",
+         *         "webhook"
+         *       ],
+         *       "default_email_recipients": [
+         *         "user@example.com"
+         *       ],
+         *       "default_webhook_url": "https://example.com/webhook",
+         *       "email_configured": true,
+         *       "notification_enabled": true,
+         *       "push_configured": false,
+         *       "smtp_from_address": "alerts@example.com",
+         *       "smtp_host": "smtp.example.com",
+         *       "smtp_port": 587,
+         *       "smtp_use_tls": true,
+         *       "webhook_configured": true,
+         *       "webhook_timeout_seconds": 30
+         *     }
+         */
+        NotificationConfigResponse: {
+            /**
+             * Notification Enabled
+             * @description Whether notifications are enabled
+             */
+            notification_enabled: boolean;
+            /**
+             * Email Configured
+             * @description Whether email (SMTP) is configured
+             */
+            email_configured: boolean;
+            /**
+             * Webhook Configured
+             * @description Whether webhook is configured
+             */
+            webhook_configured: boolean;
+            /**
+             * Push Configured
+             * @description Whether push notifications are configured
+             */
+            push_configured: boolean;
+            /**
+             * Available Channels
+             * @description List of channels that are properly configured
+             */
+            available_channels: components["schemas"]["NotificationChannel"][];
+            /**
+             * Smtp Host
+             * @description Configured SMTP host (if any)
+             */
+            smtp_host?: string | null;
+            /**
+             * Smtp Port
+             * @description Configured SMTP port
+             */
+            smtp_port?: number | null;
+            /**
+             * Smtp From Address
+             * @description Configured sender email
+             */
+            smtp_from_address?: string | null;
+            /**
+             * Smtp Use Tls
+             * @description Whether TLS is enabled for SMTP
+             */
+            smtp_use_tls?: boolean | null;
+            /**
+             * Default Webhook Url
+             * @description Default webhook URL
+             */
+            default_webhook_url?: string | null;
+            /**
+             * Webhook Timeout Seconds
+             * @description Webhook request timeout
+             */
+            webhook_timeout_seconds?: number | null;
+            /**
+             * Default Email Recipients
+             * @description Default email recipients
+             */
+            default_email_recipients?: string[];
+        };
+        /**
          * PipelineLatencies
          * @description Latency statistics for all pipeline stages.
          *
@@ -4475,6 +4677,108 @@ export interface components {
             sample_count: number;
         };
         /**
+         * StorageCategoryStats
+         * @description Storage statistics for a single category.
+         */
+        StorageCategoryStats: {
+            /**
+             * File Count
+             * @description Number of files in this category
+             */
+            file_count: number;
+            /**
+             * Size Bytes
+             * @description Total size in bytes for this category
+             */
+            size_bytes: number;
+        };
+        /**
+         * StorageStatsResponse
+         * @description Response schema for storage statistics endpoint.
+         *
+         *     Provides detailed storage usage information including:
+         *     - Disk usage for the storage volume
+         *     - Breakdown by data category (thumbnails, images, clips)
+         *     - Database record counts
+         * @example {
+         *       "clips": {
+         *         "file_count": 50,
+         *         "size_bytes": 500000000
+         *       },
+         *       "detections_count": 892,
+         *       "disk_free_bytes": 429496729600,
+         *       "disk_total_bytes": 536870912000,
+         *       "disk_usage_percent": 20,
+         *       "disk_used_bytes": 107374182400,
+         *       "events_count": 156,
+         *       "gpu_stats_count": 2880,
+         *       "images": {
+         *         "file_count": 10000,
+         *         "size_bytes": 5000000000
+         *       },
+         *       "logs_count": 5000,
+         *       "thumbnails": {
+         *         "file_count": 1500,
+         *         "size_bytes": 75000000
+         *       },
+         *       "timestamp": "2025-12-30T10:30:00Z"
+         *     }
+         */
+        StorageStatsResponse: {
+            /**
+             * Disk Used Bytes
+             * @description Total disk space used in bytes
+             */
+            disk_used_bytes: number;
+            /**
+             * Disk Total Bytes
+             * @description Total disk space available in bytes
+             */
+            disk_total_bytes: number;
+            /**
+             * Disk Free Bytes
+             * @description Free disk space in bytes
+             */
+            disk_free_bytes: number;
+            /**
+             * Disk Usage Percent
+             * @description Disk usage percentage (0-100)
+             */
+            disk_usage_percent: number;
+            /** @description Storage used by detection thumbnails */
+            thumbnails: components["schemas"]["StorageCategoryStats"];
+            /** @description Storage used by original camera images */
+            images: components["schemas"]["StorageCategoryStats"];
+            /** @description Storage used by event video clips */
+            clips: components["schemas"]["StorageCategoryStats"];
+            /**
+             * Events Count
+             * @description Total number of events in database
+             */
+            events_count: number;
+            /**
+             * Detections Count
+             * @description Total number of detections in database
+             */
+            detections_count: number;
+            /**
+             * Gpu Stats Count
+             * @description Total number of GPU stats records in database
+             */
+            gpu_stats_count: number;
+            /**
+             * Logs Count
+             * @description Total number of log entries in database
+             */
+            logs_count: number;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Timestamp of storage stats snapshot
+             */
+            timestamp: string;
+        };
+        /**
          * SystemStatsResponse
          * @description Response schema for system statistics endpoint.
          * @example {
@@ -4558,6 +4862,58 @@ export interface components {
              * @description Timestamp of telemetry snapshot
              */
             timestamp: string;
+        };
+        /**
+         * TestNotificationRequest
+         * @description Schema for testing notification configuration.
+         * @example {
+         *       "channel": "email",
+         *       "email_recipients": [
+         *         "test@example.com"
+         *       ]
+         *     }
+         */
+        TestNotificationRequest: {
+            /** @description Channel to test */
+            channel: components["schemas"]["NotificationChannel"];
+            /**
+             * Email Recipients
+             * @description Email recipients for email test
+             */
+            email_recipients?: string[] | null;
+            /**
+             * Webhook Url
+             * @description Webhook URL for webhook test
+             */
+            webhook_url?: string | null;
+        };
+        /**
+         * TestNotificationResponse
+         * @description Schema for test notification result.
+         * @example {
+         *       "channel": "email",
+         *       "message": "Test email sent successfully to test@example.com",
+         *       "success": true
+         *     }
+         */
+        TestNotificationResponse: {
+            /** @description Channel that was tested */
+            channel: components["schemas"]["NotificationChannel"];
+            /**
+             * Success
+             * @description Whether the test was successful
+             */
+            success: boolean;
+            /**
+             * Error
+             * @description Error message if test failed
+             */
+            error?: string | null;
+            /**
+             * Message
+             * @description Human-readable result message
+             */
+            message: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -4929,16 +5285,18 @@ export interface operations {
     };
     clear_seeded_data_api_admin_seed_clear_delete: {
         parameters: {
-            query?: {
-                confirm?: boolean;
-            };
+            query?: never;
             header?: {
                 "x-admin-api-key"?: string | null;
             };
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClearDataRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -6361,6 +6719,59 @@ export interface operations {
             };
         };
     };
+    get_notification_config_api_notification_config_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationConfigResponse"];
+                };
+            };
+        };
+    };
+    test_notification_api_notification_test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TestNotificationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestNotificationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_health_api_system_health_get: {
         parameters: {
             query?: never;
@@ -6648,6 +7059,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SeverityMetadataResponse"];
+                };
+            };
+        };
+    };
+    get_storage_stats_api_system_storage_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageStatsResponse"];
                 };
             };
         };
