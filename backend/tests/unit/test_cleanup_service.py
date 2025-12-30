@@ -276,6 +276,7 @@ def test_get_cleanup_stats_running():
 # Database cleanup tests
 
 
+@pytest.mark.slow
 @pytest.mark.asyncio
 async def test_run_cleanup_deletes_old_events(test_db):
     """Test cleanup deletes old events."""
@@ -331,6 +332,7 @@ async def test_run_cleanup_deletes_old_events(test_db):
         assert recent_events[0].batch_id == recent_batch_id
 
 
+@pytest.mark.slow
 @pytest.mark.asyncio
 async def test_run_cleanup_deletes_old_detections(test_db):
     """Test cleanup deletes old detections."""
@@ -560,6 +562,7 @@ async def test_run_cleanup_keeps_images_when_disabled(test_db, tmp_path):
     assert stats.images_deleted == 0
 
 
+@pytest.mark.slow
 @pytest.mark.asyncio
 async def test_run_cleanup_no_old_data(test_db):
     """Test cleanup when there's no old data to delete.
@@ -1153,6 +1156,7 @@ async def test_log_cleanup_does_not_break_queries(test_db):
 
 
 @pytest.mark.asyncio
+@pytest.mark.slow
 async def test_dry_run_cleanup_counts_without_deleting(test_db):
     """Test dry_run_cleanup counts what would be deleted without actually deleting."""
     from datetime import UTC
