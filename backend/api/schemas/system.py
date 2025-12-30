@@ -1104,3 +1104,489 @@ class StorageStatsResponse(BaseModel):
             }
         }
     )
+
+
+# =============================================================================
+# Circuit Breaker Schemas
+# =============================================================================
+
+
+class CircuitBreakerStateEnum(str, Enum):
+    """Circuit breaker states."""
+
+    CLOSED = "closed"
+    OPEN = "open"
+    HALF_OPEN = "half_open"
+
+
+class CircuitBreakerConfigResponse(BaseModel):
+    """Configuration for a circuit breaker."""
+
+    failure_threshold: int = Field(
+        ...,
+        description="Number of failures before opening circuit",
+        ge=1,
+    )
+    recovery_timeout: float = Field(
+        ...,
+        description="Seconds to wait before transitioning to half-open",
+        ge=0,
+    )
+    half_open_max_calls: int = Field(
+        ...,
+        description="Maximum calls allowed in half-open state",
+        ge=1,
+    )
+    success_threshold: int = Field(
+        ...,
+        description="Successes needed in half-open to close circuit",
+        ge=1,
+    )
+
+
+class CircuitBreakerStatusResponse(BaseModel):
+    """Status of a single circuit breaker."""
+
+    name: str = Field(
+        ...,
+        description="Circuit breaker name",
+    )
+    state: CircuitBreakerStateEnum = Field(
+        ...,
+        description="Current circuit state: closed (normal), open (failing), half_open (testing)",
+    )
+    failure_count: int = Field(
+        ...,
+        description="Current consecutive failure count",
+        ge=0,
+    )
+    success_count: int = Field(
+        ...,
+        description="Current consecutive success count (relevant in half-open)",
+        ge=0,
+    )
+    total_calls: int = Field(
+        ...,
+        description="Total calls attempted through this circuit",
+        ge=0,
+    )
+    rejected_calls: int = Field(
+        ...,
+        description="Calls rejected due to open circuit",
+        ge=0,
+    )
+    last_failure_time: float | None = Field(
+        None,
+        description="Monotonic time of last failure (seconds)",
+    )
+    opened_at: float | None = Field(
+        None,
+        description="Monotonic time when circuit opened (seconds)",
+    )
+    config: CircuitBreakerConfigResponse = Field(
+        ...,
+        description="Circuit breaker configuration",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "name": "ai_service",
+                "state": "closed",
+                "failure_count": 0,
+                "success_count": 0,
+                "total_calls": 150,
+                "rejected_calls": 0,
+                "last_failure_time": None,
+                "opened_at": None,
+                "config": {
+                    "failure_threshold": 5,
+                    "recovery_timeout": 30.0,
+                    "half_open_max_calls": 3,
+                    "success_threshold": 2,
+                },
+            }
+        }
+    )
+
+
+class CircuitBreakersResponse(BaseModel):
+    """Response schema for circuit breakers status endpoint."""
+
+    circuit_breakers: dict[str, CircuitBreakerStatusResponse] = Field(
+        ...,
+        description="Status of all circuit breakers keyed by name",
+    )
+    total_count: int = Field(
+        ...,
+        description="Total number of circuit breakers",
+        ge=0,
+    )
+    open_count: int = Field(
+        ...,
+        description="Number of circuit breakers currently open",
+        ge=0,
+    )
+    timestamp: datetime = Field(
+        ...,
+        description="Timestamp of status snapshot",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "circuit_breakers": {
+                    "rtdetr": {
+                        "name": "rtdetr",
+                        "state": "closed",
+                        "failure_count": 0,
+                        "success_count": 0,
+                        "total_calls": 100,
+                        "rejected_calls": 0,
+                        "last_failure_time": None,
+                        "opened_at": None,
+                        "config": {
+                            "failure_threshold": 5,
+                            "recovery_timeout": 30.0,
+                            "half_open_max_calls": 3,
+                            "success_threshold": 2,
+                        },
+                    },
+                },
+                "total_count": 2,
+                "open_count": 0,
+                "timestamp": "2025-12-30T10:30:00Z",
+            }
+        }
+    )
+
+
+class CircuitBreakerResetResponse(BaseModel):
+    """Response for circuit breaker reset operation."""
+
+    name: str = Field(
+        ...,
+        description="Name of the circuit breaker that was reset",
+    )
+    previous_state: CircuitBreakerStateEnum = Field(
+        ...,
+        description="State before reset",
+    )
+    new_state: CircuitBreakerStateEnum = Field(
+        ...,
+        description="State after reset (should be closed)",
+    )
+    message: str = Field(
+        ...,
+        description="Human-readable result message",
+    )
+
+
+# =============================================================================
+# Cleanup Status Schemas
+# =============================================================================
+
+
+class CleanupStatusResponse(BaseModel):
+    """Response schema for cleanup service status endpoint."""
+
+    running: bool = Field(
+        ...,
+        description="Whether the cleanup service is currently running",
+    )
+    retention_days: int = Field(
+        ...,
+        description="Current retention period in days",
+        ge=1,
+        le=365,
+    )
+    cleanup_time: str = Field(
+        ...,
+        description="Scheduled daily cleanup time in HH:MM format",
+    )
+    delete_images: bool = Field(
+        ...,
+        description="Whether original images are deleted during cleanup",
+    )
+    next_cleanup: str | None = Field(
+        None,
+        description="ISO timestamp of next scheduled cleanup (null if not running)",
+    )
+    timestamp: datetime = Field(
+        ...,
+        description="Timestamp of status snapshot",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "running": True,
+                "retention_days": 30,
+                "cleanup_time": "03:00",
+                "delete_images": False,
+                "next_cleanup": "2025-12-31T03:00:00Z",
+                "timestamp": "2025-12-30T10:30:00Z",
+            }
+        }
+    )
+
+
+# =============================================================================
+# Pipeline Status Schemas
+# =============================================================================
+
+
+class DegradationModeEnum(str, Enum):
+    """System degradation modes."""
+
+    NORMAL = "normal"
+    DEGRADED = "degraded"
+    MINIMAL = "minimal"
+    OFFLINE = "offline"
+
+
+class FileWatcherStatusResponse(BaseModel):
+    """Status information for the FileWatcher service."""
+
+    running: bool = Field(
+        ...,
+        description="Whether the file watcher is currently running",
+    )
+    camera_root: str = Field(
+        ...,
+        description="Root directory being watched for camera uploads",
+    )
+    pending_tasks: int = Field(
+        ...,
+        description="Number of files pending processing (debouncing)",
+        ge=0,
+    )
+    observer_type: str = Field(
+        ...,
+        description="Type of filesystem observer (native or polling)",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "running": True,
+                "camera_root": "/export/foscam",
+                "pending_tasks": 3,
+                "observer_type": "native",
+            }
+        }
+    )
+
+
+class BatchInfoResponse(BaseModel):
+    """Information about an active batch."""
+
+    batch_id: str = Field(
+        ...,
+        description="Unique batch identifier",
+    )
+    camera_id: str = Field(
+        ...,
+        description="Camera ID this batch belongs to",
+    )
+    detection_count: int = Field(
+        ...,
+        description="Number of detections in this batch",
+        ge=0,
+    )
+    started_at: float = Field(
+        ...,
+        description="Batch start time (Unix timestamp)",
+    )
+    age_seconds: float = Field(
+        ...,
+        description="Time since batch started in seconds",
+        ge=0,
+    )
+    last_activity_seconds: float = Field(
+        ...,
+        description="Time since last activity in seconds",
+        ge=0,
+    )
+
+
+class BatchAggregatorStatusResponse(BaseModel):
+    """Status information for the BatchAggregator service."""
+
+    active_batches: int = Field(
+        ...,
+        description="Number of active batches being aggregated",
+        ge=0,
+    )
+    batches: list[BatchInfoResponse] = Field(
+        default_factory=list,
+        description="Details of active batches",
+    )
+    batch_window_seconds: int = Field(
+        ...,
+        description="Configured batch window timeout in seconds",
+        ge=1,
+    )
+    idle_timeout_seconds: int = Field(
+        ...,
+        description="Configured idle timeout in seconds",
+        ge=1,
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "active_batches": 2,
+                "batches": [
+                    {
+                        "batch_id": "abc123",
+                        "camera_id": "front_door",
+                        "detection_count": 5,
+                        "started_at": 1735500000.0,
+                        "age_seconds": 45.5,
+                        "last_activity_seconds": 10.2,
+                    }
+                ],
+                "batch_window_seconds": 90,
+                "idle_timeout_seconds": 30,
+            }
+        }
+    )
+
+
+class ServiceHealthStatusResponse(BaseModel):
+    """Health status of a registered service."""
+
+    name: str = Field(
+        ...,
+        description="Service name",
+    )
+    status: str = Field(
+        ...,
+        description="Health status (healthy, unhealthy, unknown)",
+    )
+    last_check: float | None = Field(
+        None,
+        description="Monotonic time of last health check",
+    )
+    consecutive_failures: int = Field(
+        ...,
+        description="Count of consecutive health check failures",
+        ge=0,
+    )
+    error_message: str | None = Field(
+        None,
+        description="Last error message if unhealthy",
+    )
+
+
+class DegradationStatusResponse(BaseModel):
+    """Status information for the DegradationManager service."""
+
+    mode: DegradationModeEnum = Field(
+        ...,
+        description="Current degradation mode",
+    )
+    is_degraded: bool = Field(
+        ...,
+        description="Whether system is in any degraded state",
+    )
+    redis_healthy: bool = Field(
+        ...,
+        description="Whether Redis is healthy",
+    )
+    memory_queue_size: int = Field(
+        ...,
+        description="Number of jobs in in-memory fallback queue",
+        ge=0,
+    )
+    fallback_queues: dict[str, int] = Field(
+        default_factory=dict,
+        description="Count of items in disk-based fallback queues by name",
+    )
+    services: list[ServiceHealthStatusResponse] = Field(
+        default_factory=list,
+        description="Health status of registered services",
+    )
+    available_features: list[str] = Field(
+        default_factory=list,
+        description="Features available in current degradation mode",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "mode": "normal",
+                "is_degraded": False,
+                "redis_healthy": True,
+                "memory_queue_size": 0,
+                "fallback_queues": {},
+                "services": [
+                    {
+                        "name": "rtdetr",
+                        "status": "healthy",
+                        "last_check": 1735500000.0,
+                        "consecutive_failures": 0,
+                        "error_message": None,
+                    }
+                ],
+                "available_features": ["detection", "analysis", "events", "media"],
+            }
+        }
+    )
+
+
+class PipelineStatusResponse(BaseModel):
+    """Combined status of all pipeline operations.
+
+    Provides visibility into:
+    - FileWatcher: Monitoring camera directories for new uploads
+    - BatchAggregator: Grouping detections into time-based batches
+    - DegradationManager: Graceful degradation and service health
+    """
+
+    file_watcher: FileWatcherStatusResponse | None = Field(
+        None,
+        description="FileWatcher service status (null if not running)",
+    )
+    batch_aggregator: BatchAggregatorStatusResponse | None = Field(
+        None,
+        description="BatchAggregator service status (null if not running)",
+    )
+    degradation: DegradationStatusResponse | None = Field(
+        None,
+        description="DegradationManager service status (null if not initialized)",
+    )
+    timestamp: datetime = Field(
+        ...,
+        description="Timestamp of status snapshot",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "file_watcher": {
+                    "running": True,
+                    "camera_root": "/export/foscam",
+                    "pending_tasks": 0,
+                    "observer_type": "native",
+                },
+                "batch_aggregator": {
+                    "active_batches": 1,
+                    "batches": [],
+                    "batch_window_seconds": 90,
+                    "idle_timeout_seconds": 30,
+                },
+                "degradation": {
+                    "mode": "normal",
+                    "is_degraded": False,
+                    "redis_healthy": True,
+                    "memory_queue_size": 0,
+                    "fallback_queues": {},
+                    "services": [],
+                    "available_features": ["detection", "analysis", "events", "media"],
+                },
+                "timestamp": "2025-12-30T10:30:00Z",
+            }
+        }
+    )

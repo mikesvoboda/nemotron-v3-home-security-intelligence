@@ -46,6 +46,8 @@ def mock_redis_client():
     mock_client = AsyncMock(spec=Redis)
     mock_client.ping = AsyncMock(return_value=True)
     mock_client.close = AsyncMock()
+    mock_client.disconnect = AsyncMock()
+    mock_client.aclose = AsyncMock()
     mock_client.info = AsyncMock(return_value={"redis_version": "7.0.0", "uptime_in_seconds": 3600})
     mock_client.rpush = AsyncMock(return_value=1)
     mock_client.ltrim = AsyncMock(return_value=True)
@@ -870,7 +872,8 @@ async def test_close_redis_cleans_up_global_client(mock_redis_pool, mock_redis_c
         await init_redis()
         await close_redis()
 
-        mock_redis_client.close.assert_awaited()
+        # RedisClient.disconnect() internally calls _client.aclose()
+        mock_redis_client.aclose.assert_awaited()
 
 
 # Integration-style tests using fakeredis (no real Redis required)

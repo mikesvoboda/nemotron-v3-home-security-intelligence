@@ -1286,40 +1286,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/system/health/live": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Liveness
-         * @description Kubernetes-style liveness probe endpoint.
-         *
-         *     This endpoint indicates whether the process is running and able to
-         *     respond to HTTP requests. It always returns 200 with status "alive"
-         *     if the process is up. This is a minimal check with no dependencies.
-         *
-         *     Note: The canonical liveness probe is GET /health at the root level.
-         *     This endpoint exists for Kubernetes compatibility and provides the
-         *     same functionality under the /api/system prefix.
-         *
-         *     Used by Kubernetes/Docker to determine if the container should be restarted.
-         *     If this endpoint fails, the process is considered dead and should be restarted.
-         *
-         *     Returns:
-         *         LivenessResponse with status "alive"
-         */
-        get: operations["get_liveness_api_system_health_live_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/system/health/ready": {
         parameters: {
             query?: never;
@@ -1663,6 +1629,143 @@ export interface paths {
          *         StorageStatsResponse with comprehensive storage metrics
          */
         get: operations["get_storage_stats_api_system_storage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/circuit-breakers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Circuit Breakers
+         * @description Get status of all circuit breakers in the system.
+         *
+         *     Returns the current state and metrics for each circuit breaker,
+         *     which protect external services from cascading failures.
+         *
+         *     Circuit breakers can be in one of three states:
+         *     - CLOSED: Normal operation, calls pass through
+         *     - OPEN: Service failing, calls rejected immediately
+         *     - HALF_OPEN: Testing recovery, limited calls allowed
+         *
+         *     Returns:
+         *         CircuitBreakersResponse with status of all circuit breakers
+         */
+        get: operations["get_circuit_breakers_api_system_circuit_breakers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/circuit-breakers/{name}/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset Circuit Breaker
+         * @description Reset a specific circuit breaker to CLOSED state.
+         *
+         *     This manually resets a circuit breaker, clearing failure counts
+         *     and returning it to normal operation. Use this to recover from
+         *     transient failures or after fixing an underlying issue.
+         *
+         *     Requires API key authentication when api_key_enabled is True.
+         *
+         *     Args:
+         *         name: Name of the circuit breaker to reset
+         *
+         *     Returns:
+         *         CircuitBreakerResetResponse with reset confirmation
+         *
+         *     Raises:
+         *         HTTPException 404: If circuit breaker not found
+         */
+        post: operations["reset_circuit_breaker_api_system_circuit_breakers__name__reset_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/cleanup/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Cleanup Status
+         * @description Get current status of the cleanup service.
+         *
+         *     Returns information about the automated cleanup service including:
+         *     - Whether the service is running
+         *     - Current retention settings
+         *     - Next scheduled cleanup time
+         *
+         *     Returns:
+         *         CleanupStatusResponse with cleanup service status
+         */
+        get: operations["get_cleanup_status_api_system_cleanup_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/pipeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Pipeline Status
+         * @description Get combined status of all pipeline operations.
+         *
+         *     Returns real-time visibility into the AI processing pipeline:
+         *
+         *     **FileWatcher**: Monitors camera directories for new uploads
+         *     - running: Whether the watcher is active
+         *     - camera_root: Directory being watched
+         *     - pending_tasks: Files waiting for debounce completion
+         *     - observer_type: Filesystem observer type (native/polling)
+         *
+         *     **BatchAggregator**: Groups detections into time-based batches
+         *     - active_batches: Number of batches being aggregated
+         *     - batches: Details of each active batch
+         *     - batch_window_seconds: Configured window timeout
+         *     - idle_timeout_seconds: Configured idle timeout
+         *
+         *     **DegradationManager**: Handles graceful degradation
+         *     - mode: Current degradation mode (normal/degraded/minimal/offline)
+         *     - is_degraded: Whether system is in any degraded state
+         *     - services: Health status of registered services
+         *     - available_features: Features available in current mode
+         *
+         *     Returns:
+         *         PipelineStatusResponse with status of all pipeline services
+         */
+        get: operations["get_pipeline_status_api_system_pipeline_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2451,6 +2554,83 @@ export interface components {
             recent_actors: string[];
         };
         /**
+         * BatchAggregatorStatusResponse
+         * @description Status information for the BatchAggregator service.
+         * @example {
+         *       "active_batches": 2,
+         *       "batch_window_seconds": 90,
+         *       "batches": [
+         *         {
+         *           "age_seconds": 45.5,
+         *           "batch_id": "abc123",
+         *           "camera_id": "front_door",
+         *           "detection_count": 5,
+         *           "last_activity_seconds": 10.2,
+         *           "started_at": 1735500000
+         *         }
+         *       ],
+         *       "idle_timeout_seconds": 30
+         *     }
+         */
+        BatchAggregatorStatusResponse: {
+            /**
+             * Active Batches
+             * @description Number of active batches being aggregated
+             */
+            active_batches: number;
+            /**
+             * Batches
+             * @description Details of active batches
+             */
+            batches?: components["schemas"]["BatchInfoResponse"][];
+            /**
+             * Batch Window Seconds
+             * @description Configured batch window timeout in seconds
+             */
+            batch_window_seconds: number;
+            /**
+             * Idle Timeout Seconds
+             * @description Configured idle timeout in seconds
+             */
+            idle_timeout_seconds: number;
+        };
+        /**
+         * BatchInfoResponse
+         * @description Information about an active batch.
+         */
+        BatchInfoResponse: {
+            /**
+             * Batch Id
+             * @description Unique batch identifier
+             */
+            batch_id: string;
+            /**
+             * Camera Id
+             * @description Camera ID this batch belongs to
+             */
+            camera_id: string;
+            /**
+             * Detection Count
+             * @description Number of detections in this batch
+             */
+            detection_count: number;
+            /**
+             * Started At
+             * @description Batch start time (Unix timestamp)
+             */
+            started_at: number;
+            /**
+             * Age Seconds
+             * @description Time since batch started in seconds
+             */
+            age_seconds: number;
+            /**
+             * Last Activity Seconds
+             * @description Time since last activity in seconds
+             */
+            last_activity_seconds: number;
+        };
+        /**
          * CameraCreate
          * @description Schema for creating a new camera.
          * @example {
@@ -2577,6 +2757,167 @@ export interface components {
             status?: string | null;
         };
         /**
+         * CircuitBreakerConfigResponse
+         * @description Configuration for a circuit breaker.
+         */
+        CircuitBreakerConfigResponse: {
+            /**
+             * Failure Threshold
+             * @description Number of failures before opening circuit
+             */
+            failure_threshold: number;
+            /**
+             * Recovery Timeout
+             * @description Seconds to wait before transitioning to half-open
+             */
+            recovery_timeout: number;
+            /**
+             * Half Open Max Calls
+             * @description Maximum calls allowed in half-open state
+             */
+            half_open_max_calls: number;
+            /**
+             * Success Threshold
+             * @description Successes needed in half-open to close circuit
+             */
+            success_threshold: number;
+        };
+        /**
+         * CircuitBreakerResetResponse
+         * @description Response for circuit breaker reset operation.
+         */
+        CircuitBreakerResetResponse: {
+            /**
+             * Name
+             * @description Name of the circuit breaker that was reset
+             */
+            name: string;
+            /** @description State before reset */
+            previous_state: components["schemas"]["CircuitBreakerStateEnum"];
+            /** @description State after reset (should be closed) */
+            new_state: components["schemas"]["CircuitBreakerStateEnum"];
+            /**
+             * Message
+             * @description Human-readable result message
+             */
+            message: string;
+        };
+        /**
+         * CircuitBreakerStateEnum
+         * @description Circuit breaker states.
+         * @enum {string}
+         */
+        CircuitBreakerStateEnum: "closed" | "open" | "half_open";
+        /**
+         * CircuitBreakerStatusResponse
+         * @description Status of a single circuit breaker.
+         * @example {
+         *       "config": {
+         *         "failure_threshold": 5,
+         *         "half_open_max_calls": 3,
+         *         "recovery_timeout": 30,
+         *         "success_threshold": 2
+         *       },
+         *       "failure_count": 0,
+         *       "name": "ai_service",
+         *       "rejected_calls": 0,
+         *       "state": "closed",
+         *       "success_count": 0,
+         *       "total_calls": 150
+         *     }
+         */
+        CircuitBreakerStatusResponse: {
+            /**
+             * Name
+             * @description Circuit breaker name
+             */
+            name: string;
+            /** @description Current circuit state: closed (normal), open (failing), half_open (testing) */
+            state: components["schemas"]["CircuitBreakerStateEnum"];
+            /**
+             * Failure Count
+             * @description Current consecutive failure count
+             */
+            failure_count: number;
+            /**
+             * Success Count
+             * @description Current consecutive success count (relevant in half-open)
+             */
+            success_count: number;
+            /**
+             * Total Calls
+             * @description Total calls attempted through this circuit
+             */
+            total_calls: number;
+            /**
+             * Rejected Calls
+             * @description Calls rejected due to open circuit
+             */
+            rejected_calls: number;
+            /**
+             * Last Failure Time
+             * @description Monotonic time of last failure (seconds)
+             */
+            last_failure_time?: number | null;
+            /**
+             * Opened At
+             * @description Monotonic time when circuit opened (seconds)
+             */
+            opened_at?: number | null;
+            /** @description Circuit breaker configuration */
+            config: components["schemas"]["CircuitBreakerConfigResponse"];
+        };
+        /**
+         * CircuitBreakersResponse
+         * @description Response schema for circuit breakers status endpoint.
+         * @example {
+         *       "circuit_breakers": {
+         *         "rtdetr": {
+         *           "config": {
+         *             "failure_threshold": 5,
+         *             "half_open_max_calls": 3,
+         *             "recovery_timeout": 30,
+         *             "success_threshold": 2
+         *           },
+         *           "failure_count": 0,
+         *           "name": "rtdetr",
+         *           "rejected_calls": 0,
+         *           "state": "closed",
+         *           "success_count": 0,
+         *           "total_calls": 100
+         *         }
+         *       },
+         *       "open_count": 0,
+         *       "timestamp": "2025-12-30T10:30:00Z",
+         *       "total_count": 2
+         *     }
+         */
+        CircuitBreakersResponse: {
+            /**
+             * Circuit Breakers
+             * @description Status of all circuit breakers keyed by name
+             */
+            circuit_breakers: {
+                [key: string]: components["schemas"]["CircuitBreakerStatusResponse"];
+            };
+            /**
+             * Total Count
+             * @description Total number of circuit breakers
+             */
+            total_count: number;
+            /**
+             * Open Count
+             * @description Number of circuit breakers currently open
+             */
+            open_count: number;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Timestamp of status snapshot
+             */
+            timestamp: string;
+        };
+        /**
          * CleanupResponse
          * @description Response schema for data cleanup endpoint.
          *
@@ -2647,6 +2988,51 @@ export interface components {
              * Timestamp
              * Format: date-time
              * @description Timestamp of cleanup operation
+             */
+            timestamp: string;
+        };
+        /**
+         * CleanupStatusResponse
+         * @description Response schema for cleanup service status endpoint.
+         * @example {
+         *       "cleanup_time": "03:00",
+         *       "delete_images": false,
+         *       "next_cleanup": "2025-12-31T03:00:00Z",
+         *       "retention_days": 30,
+         *       "running": true,
+         *       "timestamp": "2025-12-30T10:30:00Z"
+         *     }
+         */
+        CleanupStatusResponse: {
+            /**
+             * Running
+             * @description Whether the cleanup service is currently running
+             */
+            running: boolean;
+            /**
+             * Retention Days
+             * @description Current retention period in days
+             */
+            retention_days: number;
+            /**
+             * Cleanup Time
+             * @description Scheduled daily cleanup time in HH:MM format
+             */
+            cleanup_time: string;
+            /**
+             * Delete Images
+             * @description Whether original images are deleted during cleanup
+             */
+            delete_images: boolean;
+            /**
+             * Next Cleanup
+             * @description ISO timestamp of next scheduled cleanup (null if not running)
+             */
+            next_cleanup?: string | null;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Timestamp of status snapshot
              */
             timestamp: string;
         };
@@ -2925,6 +3311,73 @@ export interface components {
              * @description Total number of jobs across all DLQs
              */
             total_count: number;
+        };
+        /**
+         * DegradationModeEnum
+         * @description System degradation modes.
+         * @enum {string}
+         */
+        DegradationModeEnum: "normal" | "degraded" | "minimal" | "offline";
+        /**
+         * DegradationStatusResponse
+         * @description Status information for the DegradationManager service.
+         * @example {
+         *       "available_features": [
+         *         "detection",
+         *         "analysis",
+         *         "events",
+         *         "media"
+         *       ],
+         *       "fallback_queues": {},
+         *       "is_degraded": false,
+         *       "memory_queue_size": 0,
+         *       "mode": "normal",
+         *       "redis_healthy": true,
+         *       "services": [
+         *         {
+         *           "consecutive_failures": 0,
+         *           "last_check": 1735500000,
+         *           "name": "rtdetr",
+         *           "status": "healthy"
+         *         }
+         *       ]
+         *     }
+         */
+        DegradationStatusResponse: {
+            /** @description Current degradation mode */
+            mode: components["schemas"]["DegradationModeEnum"];
+            /**
+             * Is Degraded
+             * @description Whether system is in any degraded state
+             */
+            is_degraded: boolean;
+            /**
+             * Redis Healthy
+             * @description Whether Redis is healthy
+             */
+            redis_healthy: boolean;
+            /**
+             * Memory Queue Size
+             * @description Number of jobs in in-memory fallback queue
+             */
+            memory_queue_size: number;
+            /**
+             * Fallback Queues
+             * @description Count of items in disk-based fallback queues by name
+             */
+            fallback_queues?: {
+                [key: string]: number;
+            };
+            /**
+             * Services
+             * @description Health status of registered services
+             */
+            services?: components["schemas"]["ServiceHealthStatusResponse"][];
+            /**
+             * Available Features
+             * @description Features available in current degradation mode
+             */
+            available_features?: string[];
         };
         /**
          * DetectionListResponse
@@ -3343,6 +3796,38 @@ export interface components {
             low: number;
         };
         /**
+         * FileWatcherStatusResponse
+         * @description Status information for the FileWatcher service.
+         * @example {
+         *       "camera_root": "/export/foscam",
+         *       "observer_type": "native",
+         *       "pending_tasks": 3,
+         *       "running": true
+         *     }
+         */
+        FileWatcherStatusResponse: {
+            /**
+             * Running
+             * @description Whether the file watcher is currently running
+             */
+            running: boolean;
+            /**
+             * Camera Root
+             * @description Root directory being watched for camera uploads
+             */
+            camera_root: string;
+            /**
+             * Pending Tasks
+             * @description Number of files pending processing (debouncing)
+             */
+            pending_tasks: number;
+            /**
+             * Observer Type
+             * @description Type of filesystem observer (native or polling)
+             */
+            observer_type: string;
+        };
+        /**
          * FrontendLogCreate
          * @description Schema for frontend log submission.
          */
@@ -3547,25 +4032,6 @@ export interface components {
              * @description Timestamp of health check
              */
             timestamp: string;
-        };
-        /**
-         * LivenessResponse
-         * @description Response schema for liveness probe endpoint.
-         *
-         *     Liveness probes indicate whether the process is running and able to
-         *     respond to HTTP requests. This is a minimal check that always returns
-         *     200 if the process is up.
-         * @example {
-         *       "status": "alive"
-         *     }
-         */
-        LivenessResponse: {
-            /**
-             * Status
-             * @description Liveness status: always 'alive' if process is responding
-             * @default alive
-             */
-            status: string;
         };
         /**
          * LogEntry
@@ -3994,6 +4460,58 @@ export interface components {
              * @description Number of samples used to calculate statistics
              */
             sample_count: number;
+        };
+        /**
+         * PipelineStatusResponse
+         * @description Combined status of all pipeline operations.
+         *
+         *     Provides visibility into:
+         *     - FileWatcher: Monitoring camera directories for new uploads
+         *     - BatchAggregator: Grouping detections into time-based batches
+         *     - DegradationManager: Graceful degradation and service health
+         * @example {
+         *       "batch_aggregator": {
+         *         "active_batches": 1,
+         *         "batch_window_seconds": 90,
+         *         "batches": [],
+         *         "idle_timeout_seconds": 30
+         *       },
+         *       "degradation": {
+         *         "available_features": [
+         *           "detection",
+         *           "analysis",
+         *           "events",
+         *           "media"
+         *         ],
+         *         "fallback_queues": {},
+         *         "is_degraded": false,
+         *         "memory_queue_size": 0,
+         *         "mode": "normal",
+         *         "redis_healthy": true,
+         *         "services": []
+         *       },
+         *       "file_watcher": {
+         *         "camera_root": "/export/foscam",
+         *         "observer_type": "native",
+         *         "pending_tasks": 0,
+         *         "running": true
+         *       },
+         *       "timestamp": "2025-12-30T10:30:00Z"
+         *     }
+         */
+        PipelineStatusResponse: {
+            /** @description FileWatcher service status (null if not running) */
+            file_watcher?: components["schemas"]["FileWatcherStatusResponse"] | null;
+            /** @description BatchAggregator service status (null if not running) */
+            batch_aggregator?: components["schemas"]["BatchAggregatorStatusResponse"] | null;
+            /** @description DegradationManager service status (null if not initialized) */
+            degradation?: components["schemas"]["DegradationStatusResponse"] | null;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Timestamp of status snapshot
+             */
+            timestamp: string;
         };
         /**
          * QueueDepths
@@ -4460,6 +4978,37 @@ export interface components {
             events_cleared: number;
             /** Detections Cleared */
             detections_cleared: number;
+        };
+        /**
+         * ServiceHealthStatusResponse
+         * @description Health status of a registered service.
+         */
+        ServiceHealthStatusResponse: {
+            /**
+             * Name
+             * @description Service name
+             */
+            name: string;
+            /**
+             * Status
+             * @description Health status (healthy, unhealthy, unknown)
+             */
+            status: string;
+            /**
+             * Last Check
+             * @description Monotonic time of last health check
+             */
+            last_check?: number | null;
+            /**
+             * Consecutive Failures
+             * @description Count of consecutive health check failures
+             */
+            consecutive_failures: number;
+            /**
+             * Error Message
+             * @description Last error message if unhealthy
+             */
+            error_message?: string | null;
         };
         /**
          * ServiceStatus
@@ -6792,26 +7341,6 @@ export interface operations {
             };
         };
     };
-    get_liveness_api_system_health_live_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LivenessResponse"];
-                };
-            };
-        };
-    };
     get_readiness_api_system_health_ready_get: {
         parameters: {
             query?: never;
@@ -7079,6 +7608,99 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StorageStatsResponse"];
+                };
+            };
+        };
+    };
+    get_circuit_breakers_api_system_circuit_breakers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CircuitBreakersResponse"];
+                };
+            };
+        };
+    };
+    reset_circuit_breaker_api_system_circuit_breakers__name__reset_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CircuitBreakerResetResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_cleanup_status_api_system_cleanup_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CleanupStatusResponse"];
+                };
+            };
+        };
+    };
+    get_pipeline_status_api_system_pipeline_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PipelineStatusResponse"];
                 };
             };
         };
