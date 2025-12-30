@@ -787,6 +787,7 @@ class TestHealthReporting:
 # =============================================================================
 
 
+@pytest.mark.slow
 class TestPipelineWorkerIntegration:
     """Integration-style tests using fakeredis for more realistic behavior."""
 

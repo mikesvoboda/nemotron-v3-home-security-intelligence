@@ -104,7 +104,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
             ServiceConfig(
                 name="rtdetr",
                 health_url=f"{settings.rtdetr_url}/health",
-                restart_cmd="scripts/start_rtdetr.sh",
+                restart_cmd="ai/start_detector.sh",
                 health_timeout=5.0,
                 max_retries=3,
                 backoff_base=5.0,
@@ -112,7 +112,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
             ServiceConfig(
                 name="nemotron",
                 health_url=f"{settings.nemotron_url}/health",
-                restart_cmd="scripts/start_nemotron.sh",
+                restart_cmd="ai/start_llm.sh",
                 health_timeout=5.0,
                 max_retries=3,
                 backoff_base=5.0,
