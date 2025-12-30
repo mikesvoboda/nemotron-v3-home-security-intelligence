@@ -1,4 +1,4 @@
-import { RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import type { ChannelStatus, ConnectionState } from '../../hooks/useWebSocketStatus';
@@ -7,6 +7,8 @@ export interface WebSocketStatusProps {
   eventsChannel: ChannelStatus;
   systemChannel: ChannelStatus;
   showDetails?: boolean;
+  /** Optional callback to retry connection after failure */
+  onRetry?: () => void;
 }
 
 /**
@@ -30,6 +32,12 @@ function getStateColor(state: ConnectionState): {
         text: 'text-yellow-400',
         border: 'border-yellow-500',
       };
+    case 'failed':
+      return {
+        bg: 'bg-orange-500',
+        text: 'text-orange-400',
+        border: 'border-orange-500',
+      };
     case 'disconnected':
     default:
       return {
@@ -49,6 +57,8 @@ function getStateIcon(state: ConnectionState, className: string) {
       return <Wifi className={className} aria-hidden="true" />;
     case 'reconnecting':
       return <RefreshCw className={`${className} animate-spin`} aria-hidden="true" />;
+    case 'failed':
+      return <AlertTriangle className={className} aria-hidden="true" />;
     case 'disconnected':
     default:
       return <WifiOff className={className} aria-hidden="true" />;
@@ -87,6 +97,10 @@ function getOverallState(eventsChannel: ChannelStatus, systemChannel: ChannelSta
   if (eventsChannel.state === 'connected' && systemChannel.state === 'connected') {
     return 'connected';
   }
+  // If any channel has failed (exhausted retries), overall state is failed
+  if (eventsChannel.state === 'failed' || systemChannel.state === 'failed') {
+    return 'failed';
+  }
   if (eventsChannel.state === 'reconnecting' || systemChannel.state === 'reconnecting') {
     return 'reconnecting';
   }
@@ -102,6 +116,8 @@ function getStateLabel(state: ConnectionState): string {
       return 'Connected';
     case 'reconnecting':
       return 'Reconnecting';
+    case 'failed':
+      return 'Connection Failed';
     case 'disconnected':
       return 'Disconnected';
   }
@@ -138,6 +154,11 @@ function ChannelIndicator({ channel }: ChannelIndicatorProps) {
         {channel.state === 'reconnecting' && (
           <span className="text-xs text-yellow-400" data-testid={`reconnect-counter-${channel.name.toLowerCase()}`}>
             Attempt {channel.reconnectAttempts}/{channel.maxReconnectAttempts}
+          </span>
+        )}
+        {channel.state === 'failed' && (
+          <span className="text-xs text-orange-400" data-testid={`failed-indicator-${channel.name.toLowerCase()}`}>
+            Retries exhausted
           </span>
         )}
         <span className="text-xs text-gray-500" data-testid={`last-message-${channel.name.toLowerCase()}`}>
@@ -180,6 +201,7 @@ export default function WebSocketStatus({
   eventsChannel,
   systemChannel,
   showDetails = false,
+  onRetry,
 }: WebSocketStatusProps) {
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
   const tooltipTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -208,28 +230,51 @@ export default function WebSocketStatus({
     }, 150);
   };
 
+  const handleClick = () => {
+    if (overallState === 'failed' && onRetry) {
+      onRetry();
+    }
+  };
+
   const totalReconnectAttempts = eventsChannel.reconnectAttempts + systemChannel.reconnectAttempts;
+  const hasAnyFailed = eventsChannel.hasExhaustedRetries || systemChannel.hasExhaustedRetries;
+
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if ((event.key === 'Enter' || event.key === ' ') && overallState === 'failed' && onRetry) {
+      event.preventDefault();
+      onRetry();
+    }
+  };
 
   return (
     <div
-      className="relative flex cursor-pointer items-center gap-2"
+      className={`relative flex items-center gap-2 ${
+        overallState === 'failed' && onRetry ? 'cursor-pointer hover:opacity-80' : 'cursor-pointer'
+      }`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
       data-testid="websocket-status"
-      role="status"
-      aria-label={`WebSocket connection status: ${getStateLabel(overallState)}`}
+      role={overallState === 'failed' && onRetry ? 'button' : 'status'}
+      tabIndex={overallState === 'failed' && onRetry ? 0 : undefined}
+      aria-label={`WebSocket connection status: ${getStateLabel(overallState)}${
+        hasAnyFailed ? ' - Click to retry' : ''
+      }`}
     >
       {/* Connection Icon */}
       <div className={`flex items-center gap-1.5 ${stateColors.text}`}>
         {getStateIcon(overallState, 'h-4 w-4')}
       </div>
 
-      {/* Status Label (shown when showDetails is true or reconnecting) */}
-      {(showDetails || overallState === 'reconnecting') && (
+      {/* Status Label (shown when showDetails is true, reconnecting, or failed) */}
+      {(showDetails || overallState === 'reconnecting' || overallState === 'failed') && (
         <span className={`text-xs font-medium ${stateColors.text}`} data-testid="connection-label">
           {overallState === 'reconnecting'
             ? `Reconnecting (${totalReconnectAttempts})`
-            : getStateLabel(overallState)}
+            : overallState === 'failed'
+              ? 'Connection Failed'
+              : getStateLabel(overallState)}
         </span>
       )}
 

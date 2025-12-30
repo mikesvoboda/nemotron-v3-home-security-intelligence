@@ -137,7 +137,7 @@ architecture/
 
 **Topics Covered:**
 
-- ADR-001: PostgreSQL for Database (originally SQLite, migrated due to concurrency)
+- ADR-001: PostgreSQL for Database (chosen for concurrent write support)
 - ADR-002: Redis for Queues and Pub/Sub
 - ADR-003: Detection Batching Strategy (90s window + 30s idle)
 - ADR-004: Hybrid Deployment Architecture (Docker + native GPU)

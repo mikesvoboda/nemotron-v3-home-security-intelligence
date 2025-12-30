@@ -203,7 +203,7 @@ Post-MVP roadmap ideas organized into 8 themes:
 
 The design specification and architecture documents these critical decisions:
 
-1. **Database:** PostgreSQL (migrated from SQLite for concurrent pipeline worker access)
+1. **Database:** PostgreSQL (chosen for concurrent pipeline worker access)
 2. **Batch Processing:** 90s window + 30s idle timeout (vs real-time per-frame analysis)
 3. **Risk Scoring:** LLM-determined via Nemotron (0-100 scale)
 4. **Deployment:** Hybrid (Docker for services, native for GPU models)

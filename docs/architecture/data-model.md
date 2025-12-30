@@ -34,7 +34,7 @@ This document describes the complete data model for the Home Security Intelligen
 
 1. [Storage Overview](#storage-overview)
 2. [Entity Relationship Diagram](#entity-relationship-diagram)
-3. [SQLite Tables](#sqlite-tables)
+3. [PostgreSQL Tables](#postgresql-tables)
    - [cameras](#cameras)
    - [detections](#detections)
    - [events](#events)
@@ -55,14 +55,14 @@ This document describes the complete data model for the Home Security Intelligen
 
 The system uses two complementary storage backends optimized for their respective strengths:
 
-| Storage                    | Technology                   | Purpose                                         | Data Persistence           |
-| -------------------------- | ---------------------------- | ----------------------------------------------- | -------------------------- |
-| **Primary Database**       | SQLite (async via aiosqlite) | Permanent records, historical data, audit trail | Durable, survives restarts |
-| **Message Broker / Cache** | Redis                        | Queues, pub/sub, deduplication, batch state     | Ephemeral, reconstructable |
+| Storage                    | Technology                     | Purpose                                         | Data Persistence           |
+| -------------------------- | ------------------------------ | ----------------------------------------------- | -------------------------- |
+| **Primary Database**       | PostgreSQL (async via asyncpg) | Permanent records, historical data, audit trail | Durable, survives restarts |
+| **Message Broker / Cache** | Redis                          | Queues, pub/sub, deduplication, batch state     | Ephemeral, reconstructable |
 
 ### Design Rationale
 
-- **SQLite:** Chosen for single-user deployment simplicity. WAL mode enables concurrent reads during writes. No separate database server required.
+- **PostgreSQL:** Chosen for robust concurrent write support required by the AI pipeline's parallel workers. Provides JSONB for flexible metadata storage and proper transaction isolation.
 - **Redis:** Provides fast pub/sub for real-time WebSocket updates, reliable queues for pipeline processing, and TTL-based caching for deduplication.
 
 ---
@@ -154,7 +154,7 @@ erDiagram
 
 ---
 
-## SQLite Tables
+## PostgreSQL Tables
 
 ### cameras
 
@@ -374,7 +374,7 @@ Camera (front_door)
 
 ```mermaid
 flowchart TB
-    subgraph Permanent["SQLite (Permanent)"]
+    subgraph Permanent["PostgreSQL (Permanent)"]
         cameras[(cameras)]
         detections[(detections)]
         events[(events)]
@@ -400,17 +400,17 @@ flowchart TB
 
 ### What Goes Where
 
-| Data Type            | Storage | Rationale                        |
-| -------------------- | ------- | -------------------------------- |
-| Camera config        | SQLite  | Permanent configuration          |
-| Detection results    | SQLite  | Historical record, audit trail   |
-| Events + risk scores | SQLite  | Primary business data            |
-| GPU metrics          | SQLite  | Performance history              |
-| Logs                 | SQLite  | Debugging, compliance            |
-| Processing queues    | Redis   | Fast pub/sub, rebuilt on restart |
-| Batch state          | Redis   | Short-lived, TTL-protected       |
-| Deduplication        | Redis   | TTL-based cache (5 min default)  |
-| Real-time broadcasts | Redis   | Fire-and-forget pub/sub          |
+| Data Type            | Storage    | Rationale                        |
+| -------------------- | ---------- | -------------------------------- |
+| Camera config        | PostgreSQL | Permanent configuration          |
+| Detection results    | PostgreSQL | Historical record, audit trail   |
+| Events + risk scores | PostgreSQL | Primary business data            |
+| GPU metrics          | PostgreSQL | Performance history              |
+| Logs                 | PostgreSQL | Debugging, compliance            |
+| Processing queues    | Redis      | Fast pub/sub, rebuilt on restart |
+| Batch state          | Redis      | Short-lived, TTL-protected       |
+| Deduplication        | Redis      | TTL-based cache (5 min default)  |
+| Real-time broadcasts | Redis      | Fire-and-forget pub/sub          |
 
 ---
 
@@ -562,8 +562,8 @@ stateDiagram-v2
     Broadcast --> [*]
 
     note right of FileUploaded: Image arrives via FTP
-    note right of DetectionStored: Detection record in SQLite
-    note right of EventCreated: Event record in SQLite
+    note right of DetectionStored: Detection record in PostgreSQL
+    note right of EventCreated: Event record in PostgreSQL
 ```
 
 ### Record Creation Flow
@@ -589,7 +589,7 @@ stateDiagram-v2
 
    - Image sent to RT-DETRv2 service
    - Results filtered by confidence threshold
-   - Detection record(s) created in SQLite
+   - Detection record(s) created in PostgreSQL
    - Thumbnail generated and stored
 
 5. **Batch Aggregation:**
@@ -604,7 +604,7 @@ stateDiagram-v2
    - AnalysisQueueWorker pops batch from queue
    - Detection data sent to Nemotron LLM
    - Risk score, level, summary generated
-   - Event record created in SQLite
+   - Event record created in PostgreSQL
 
 7. **Real-time Broadcast:**
    - Event published to `security_events` channel
@@ -679,16 +679,14 @@ CREATE INDEX idx_logs_source ON logs(source);
 CREATE UNIQUE INDEX ix_api_keys_key_hash ON api_keys(key_hash);
 ```
 
-### SQLite Configuration
+### PostgreSQL Configuration
 
-The system uses these SQLite pragmas for performance and reliability:
+The system uses these PostgreSQL settings for performance and reliability:
 
-```sql
-PRAGMA foreign_keys=ON;      -- Enforce referential integrity
-PRAGMA journal_mode=WAL;     -- Write-Ahead Logging for concurrency
-PRAGMA busy_timeout=30000;   -- 30s timeout for lock contention
-PRAGMA synchronous=NORMAL;   -- Balance safety and speed
-```
+- **Connection pooling:** SQLAlchemy async pool with configurable size
+- **Transaction isolation:** READ COMMITTED (default)
+- **Statement timeout:** Configurable via connection string
+- **Foreign keys:** Enforced by default in PostgreSQL
 
 ---
 
@@ -701,7 +699,7 @@ The `CleanupService` runs daily at a configurable time (default: 03:00 AM):
 ```mermaid
 sequenceDiagram
     participant CS as CleanupService
-    participant DB as SQLite
+    participant DB as PostgreSQL
     participant FS as Filesystem
 
     CS->>CS: Wait until cleanup_time
@@ -792,7 +790,7 @@ Dimensions: 1600x1200 pixels, high resolution for documentation.
 Create a technical data flow diagram showing the dual-storage architecture of a home
 security AI system.
 
-Style: Modern, clean diagram with clear separation between permanent (SQLite) and
+Style: Modern, clean diagram with clear separation between permanent (PostgreSQL) and
 ephemeral (Redis) storage. Use rounded rectangles for processes, cylinders for
 databases, and parallelograms for queues.
 
@@ -804,13 +802,13 @@ Left side (Data Sources):
 
 Center (Processing Pipeline):
 - FileWatcher -> detection_queue (Redis)
-- DetectionQueueWorker -> detections table (SQLite)
+- DetectionQueueWorker -> detections table (PostgreSQL)
 - BatchAggregator with batch state (Redis)
 - analysis_queue (Redis)
-- AnalysisQueueWorker -> events table (SQLite)
+- AnalysisQueueWorker -> events table (PostgreSQL)
 
 Right side (Storage):
-- SQLite cylinder containing: cameras, detections, events, gpu_stats, logs
+- PostgreSQL cylinder containing: cameras, detections, events, gpu_stats, logs
 - Redis cylinder containing: detection_queue, analysis_queue, dedupe:{hash},
   batch:{id}:*, security_events channel
 
@@ -820,7 +818,7 @@ Additional elements:
 - GPU monitor arrow to gpu_stats
 
 Color coding:
-- SQLite/permanent: Blue tones
+- PostgreSQL/permanent: Blue tones
 - Redis/ephemeral: Orange/red tones
 - Processing: Gray boxes
 - Data flow arrows: Dark gray with direction indicators

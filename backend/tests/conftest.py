@@ -461,18 +461,44 @@ async def session(isolated_db: None) -> AsyncGenerator[None]:
 
 @pytest.fixture(autouse=True)
 def reset_settings_cache() -> Generator[None]:
-    """Automatically reset settings cache before each test.
+    """Automatically reset settings cache and ensure required env vars before each test.
 
-    This ensures no global state leaks between tests.
+    This ensures:
+    1. No global state leaks between tests
+    2. Required environment variables (DATABASE_URL, REDIS_URL) have valid defaults
+       so unit tests that instantiate classes calling get_settings() don't fail
+
     Note: We don't auto-close database here since some tests
     explicitly test the behavior when database is not initialized.
     """
     from backend.core.config import get_settings
 
+    # Save original env vars to restore after test
+    original_db_url = os.environ.get("DATABASE_URL")
+    original_redis_url = os.environ.get("REDIS_URL")
+
+    # Set default test values if not already set
+    # This prevents Settings validation errors in unit tests that don't need a real DB
+    if not os.environ.get("DATABASE_URL"):
+        os.environ["DATABASE_URL"] = DEFAULT_DEV_POSTGRES_URL
+    if not os.environ.get("REDIS_URL"):
+        os.environ["REDIS_URL"] = DEFAULT_DEV_REDIS_URL
+
     # Clear settings cache before test
     get_settings.cache_clear()
 
     yield
+
+    # Restore original env vars (or remove if they weren't set)
+    if original_db_url is None:
+        os.environ.pop("DATABASE_URL", None)
+    else:
+        os.environ["DATABASE_URL"] = original_db_url
+
+    if original_redis_url is None:
+        os.environ.pop("REDIS_URL", None)
+    else:
+        os.environ["REDIS_URL"] = original_redis_url
 
     # Clear settings cache after test
     get_settings.cache_clear()
