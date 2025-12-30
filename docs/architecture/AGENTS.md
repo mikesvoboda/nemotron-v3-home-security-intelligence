@@ -72,11 +72,12 @@ architecture/
 
 **Topics Covered:**
 
-- SQLAlchemy model definitions
-- Table relationships (cameras, detections, events, gpu_stats, logs)
-- Index strategy for performance
+- SQLAlchemy model definitions with PostgreSQL-specific types (JSONB, TSVECTOR, UUID)
+- Table relationships (cameras, detections, events, gpu_stats, logs, zones, alerts, alert_rules)
+- Redis data structures for queues and pub/sub
+- Index strategy for performance (including GIN indexes for full-text search)
 - Data retention and cleanup policies
-- Migration strategies
+- Migration strategies with Alembic
 
 **When to use:** Writing database queries, modifying schema, understanding data relationships.
 
@@ -86,11 +87,17 @@ architecture/
 
 **Topics Covered:**
 
-- Why SQLite vs PostgreSQL (single-user local deployment)
-- Why hybrid deployment (Docker + native GPU)
-- Why batch processing vs real-time
-- Why LLM-determined risk scores
-- Technology selection rationale
+- ADR-001: PostgreSQL for Database (originally SQLite, migrated due to concurrency)
+- ADR-002: Redis for Queues and Pub/Sub
+- ADR-003: Detection Batching Strategy (90s window + 30s idle)
+- ADR-004: Hybrid Deployment Architecture (Docker + native GPU)
+- ADR-005: No Authentication (single-user MVP)
+- ADR-006: RT-DETRv2 for Object Detection
+- ADR-007: Nemotron for Risk Analysis
+- ADR-008: FastAPI + React Stack
+- ADR-009: WebSocket for Real-time Updates
+- ADR-010: LLM-Determined Risk Scoring
+- ADR-011: Native Tremor Charts over Grafana Embeds
 
 **When to use:** Understanding why the system is designed this way, evaluating alternatives.
 
@@ -103,6 +110,7 @@ Docker Compose:          Native Processes:
 - Frontend (React)       - RT-DETRv2 (GPU)
 - Backend (FastAPI)      - Nemotron LLM (GPU)
 - Redis
+- PostgreSQL
 ```
 
 AI services run natively because Docker GPU access is complex. Services communicate via `host.docker.internal`.

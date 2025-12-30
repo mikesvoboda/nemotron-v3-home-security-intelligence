@@ -6,14 +6,16 @@ Contains reusable UI components shared across multiple features. These are low-l
 
 ## Files
 
-| File                     | Purpose                                       | Status     |
-| ------------------------ | --------------------------------------------- | ---------- |
-| `RiskBadge.tsx`          | Risk level badge with icon and optional score | Active     |
-| `ObjectTypeBadge.tsx`    | Detection object type badge                   | Active     |
-| `Lightbox.tsx`           | Full-size image viewer with navigation        | Active     |
-| `ServiceStatusAlert.tsx` | Service health notification banner            | Deprecated |
-| `index.ts`               | Barrel exports (only RiskBadge currently)     | Active     |
-| `*.test.tsx`             | Test files for each component                 | Active     |
+| File                     | Purpose                                            | Status     |
+| ------------------------ | -------------------------------------------------- | ---------- |
+| `RiskBadge.tsx`          | Risk level badge with icon and optional score      | Active     |
+| `ConfidenceBadge.tsx`    | Detection confidence score badge with color coding | Active     |
+| `ObjectTypeBadge.tsx`    | Detection object type badge                        | Active     |
+| `Lightbox.tsx`           | Full-size image viewer with navigation             | Active     |
+| `WebSocketStatus.tsx`    | WebSocket connection status indicator              | Active     |
+| `ServiceStatusAlert.tsx` | Service health notification banner                 | Deprecated |
+| `index.ts`               | Barrel exports (RiskBadge, WebSocketStatus)        | Active     |
+| `*.test.tsx`             | Test files for each component                      | Active     |
 
 ## Key Components
 
@@ -179,11 +181,136 @@ export { default as RiskBadge } from './RiskBadge';
 export type { RiskBadgeProps } from './RiskBadge';
 ```
 
-**Note:** ObjectTypeBadge and ServiceStatusAlert are NOT exported from index.ts. Import directly:
+**Note:** ConfidenceBadge, ObjectTypeBadge, Lightbox, and ServiceStatusAlert are NOT exported from index.ts. Import directly:
 
 ```typescript
 import ObjectTypeBadge from '../common/ObjectTypeBadge';
+import ConfidenceBadge from '../common/ConfidenceBadge';
+import Lightbox from '../common/Lightbox';
 ```
+
+---
+
+### ConfidenceBadge.tsx
+
+**Purpose:** Display detection confidence score as a colored badge with optional progress bar
+
+**Props Interface:**
+
+```typescript
+interface ConfidenceBadgeProps {
+  confidence: number; // Confidence score 0-1
+  size?: 'sm' | 'md' | 'lg'; // Badge size (default: 'sm')
+  showBar?: boolean; // Show progress bar (default: false)
+  className?: string; // Additional CSS classes
+}
+```
+
+**Key Features:**
+
+- Three confidence levels with distinct colors based on thresholds
+- Formats confidence as percentage (e.g., "85%")
+- Optional progress bar showing confidence visually
+- Full accessibility: `role="status"` and descriptive `aria-label`
+- Uses utility functions from `../../utils/confidence`
+
+**Confidence Level Mapping:**
+
+| Confidence Range | Level  | Color  |
+| ---------------- | ------ | ------ |
+| < 70%            | low    | red    |
+| 70-85%           | medium | yellow |
+| > 85%            | high   | green  |
+
+**Size Mapping:**
+
+| Size | Text      | Padding     | Bar Height |
+| ---- | --------- | ----------- | ---------- |
+| sm   | text-xs   | px-2 py-0.5 | h-1        |
+| md   | text-sm   | px-2.5 py-1 | h-1.5      |
+| lg   | text-base | px-3 py-1.5 | h-2        |
+
+**Usage:**
+
+```tsx
+import ConfidenceBadge from '../common/ConfidenceBadge';
+
+<ConfidenceBadge confidence={0.85} />
+<ConfidenceBadge confidence={0.92} size="md" showBar />
+<ConfidenceBadge confidence={0.65} size="lg" />
+```
+
+**Dependencies:**
+
+- `clsx` - Conditional class composition
+- `../../utils/confidence` - formatConfidencePercent, getConfidenceLevel, getConfidenceLabel, color class utilities
+
+---
+
+### WebSocketStatus.tsx
+
+**Purpose:** Display WebSocket connection status with channel-level details in a tooltip
+
+**Props Interface:**
+
+```typescript
+interface WebSocketStatusProps {
+  eventsChannel: ChannelStatus;
+  systemChannel: ChannelStatus;
+  showDetails?: boolean; // Show label text (default: false)
+}
+
+// From ../../hooks/useWebSocketStatus
+interface ChannelStatus {
+  name: string;
+  state: ConnectionState; // 'connected' | 'reconnecting' | 'disconnected'
+  lastMessageTime: Date | null;
+  reconnectAttempts: number;
+  maxReconnectAttempts: number;
+}
+```
+
+**Key Features:**
+
+- Overall connection status from multiple WebSocket channels
+- Hover tooltip showing per-channel status details
+- Color-coded indicators: green (connected), yellow (reconnecting), red (disconnected)
+- Shows reconnection attempts counter during reconnection
+- Time since last message per channel ("Just now", "5s ago", "2m ago")
+- Pulse animation on green dot when connected
+
+**State Colors:**
+
+| State        | Icon Color      | Dot Color     | Icon                 |
+| ------------ | --------------- | ------------- | -------------------- |
+| connected    | text-green-400  | bg-green-500  | Wifi                 |
+| reconnecting | text-yellow-400 | bg-yellow-500 | RefreshCw (spinning) |
+| disconnected | text-red-400    | bg-red-500    | WifiOff              |
+
+**Subcomponents:**
+
+- `ChannelIndicator` - Per-channel status row in tooltip
+- `WebSocketTooltip` - Hover tooltip with channel details
+
+**Usage:**
+
+```tsx
+import WebSocketStatus from '../common/WebSocketStatus';
+
+<WebSocketStatus
+  eventsChannel={eventsChannelStatus}
+  systemChannel={systemChannelStatus}
+  showDetails={true}
+/>;
+```
+
+**Dependencies:**
+
+- `lucide-react` - RefreshCw, Wifi, WifiOff
+- `react` - useState, useEffect, useRef
+- `../../hooks/useWebSocketStatus` - ChannelStatus, ConnectionState types
+
+---
 
 ## Important Patterns
 
@@ -240,7 +367,9 @@ All badge components follow the same sizing pattern (sm/md/lg) for consistency a
 ## Entry Points
 
 **Start here:** `RiskBadge.tsx` - Most commonly used badge component
+**Also see:** `ConfidenceBadge.tsx` - Detection confidence scoring badge
 **Also see:** `ObjectTypeBadge.tsx` - Detection object type badge
+**Also see:** `WebSocketStatus.tsx` - Connection status indicator
 **Also see:** `Lightbox.tsx` - Full-size image viewing modal
 **Reference:** `ServiceStatusAlert.tsx` - Deprecated but documented for future use
 
@@ -305,9 +434,28 @@ import Lightbox from '../common/Lightbox';
 
 ---
 
+### ConfidenceBadge.test.tsx
+
+- Renders with correct percentage text
+- Applies correct colors per confidence level
+- Shows/hides progress bar based on showBar prop
+- Applies correct size classes
+- ARIA attributes for accessibility
+
+### WebSocketStatus.test.tsx
+
+- Shows correct overall status based on channel states
+- Displays tooltip on hover with channel details
+- Shows reconnect attempts when reconnecting
+- Updates time since last message
+- Correct icons and colors per state
+- Accessible status role and aria-label
+
 ## Dependencies
 
 - `lucide-react` - Icon components
 - `clsx` - Conditional class composition
 - `@headlessui/react` - Dialog, Transition (Lightbox only)
 - `../../utils/risk` - Risk utility functions (RiskBadge only)
+- `../../utils/confidence` - Confidence utility functions (ConfidenceBadge only)
+- `../../hooks/useWebSocketStatus` - WebSocket types (WebSocketStatus only)

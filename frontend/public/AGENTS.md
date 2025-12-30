@@ -16,9 +16,10 @@ This directory contains static assets that are served directly at the root URL p
 
 The current favicon is an SVG security shield icon:
 
-- Green shield shape with gradient
+- Green shield shape with two-tone gradient
+- Lighter green fill: `#10B981` (emerald-500)
+- Darker green accent: `#059669` (emerald-600)
 - White checkmark overlay
-- Uses emerald/teal colors (`#10B981`, `#059669`)
 
 This is a custom security-themed icon appropriate for the application.
 

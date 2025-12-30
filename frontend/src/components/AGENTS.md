@@ -9,7 +9,7 @@ Root directory for all React components in the NVIDIA Security Intelligence home
 | Directory      | Purpose                                          | Key Components                                                                         |
 | -------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------- |
 | **alerts/**    | Alert management page                            | AlertsPage                                                                             |
-| **common/**    | Shared UI components used across the application | RiskBadge, ObjectTypeBadge, ServiceStatusAlert                                         |
+| **common/**    | Shared UI components used across the application | RiskBadge, ConfidenceBadge, ObjectTypeBadge, WebSocketStatus, Lightbox                 |
 | **dashboard/** | Main dashboard page and monitoring widgets       | DashboardPage, RiskGauge, CameraGrid, ActivityFeed, GpuStats, StatsRow, PipelineQueues |
 | **detection/** | Object detection visualization components        | BoundingBoxOverlay, DetectionImage, DetectionThumbnail                                 |
 | **entities/**  | Entity tracking page (WIP)                       | EntitiesPage                                                                           |
@@ -101,10 +101,13 @@ Test files are co-located with their components using the \`.test.tsx\` extensio
 
 ### common/
 
-- \`RiskBadge.tsx\` - Risk level badge with icon and optional score
-- \`ObjectTypeBadge.tsx\` - Detected object type badge (person, vehicle, animal, etc.)
-- \`ServiceStatusAlert.tsx\` - Service health notification banner (deprecated, not wired to backend)
-- \`index.ts\` - Barrel exports
+- `RiskBadge.tsx` - Risk level badge with icon and optional score
+- `ConfidenceBadge.tsx` - Detection confidence score badge with color coding
+- `ObjectTypeBadge.tsx` - Detected object type badge (person, vehicle, animal, etc.)
+- `WebSocketStatus.tsx` - WebSocket connection status indicator with tooltip
+- `Lightbox.tsx` - Full-size image viewer with navigation
+- `ServiceStatusAlert.tsx` - Service health notification banner (deprecated)
+- `index.ts` - Barrel exports (RiskBadge, WebSocketStatus)
 
 ### dashboard/
 

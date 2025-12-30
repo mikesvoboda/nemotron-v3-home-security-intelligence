@@ -103,13 +103,16 @@ getCameraSnapshotUrl(cameraId: string): string                   // URL for snap
 
 ```typescript
 fetchHealth(): Promise<HealthResponse>                           // GET /api/system/health
+fetchReadiness(): Promise<ReadinessResponse>                     // GET /api/system/health/ready
 fetchGPUStats(): Promise<GPUStats>                               // GET /api/system/gpu
 fetchGpuHistory(limit?: number): Promise<GPUStatsHistoryResponse> // GET /api/system/gpu/history
 fetchConfig(): Promise<SystemConfig>                             // GET /api/system/config
 updateConfig(data: SystemConfigUpdate): Promise<SystemConfig>    // PATCH /api/system/config
 fetchStats(): Promise<SystemStats>                               // GET /api/system/stats
 triggerCleanup(): Promise<CleanupResponse>                       // POST /api/system/cleanup
+previewCleanup(): Promise<CleanupResponse>                       // POST /api/system/cleanup?dry_run=true
 fetchTelemetry(): Promise<TelemetryResponse>                     // GET /api/system/telemetry
+fetchStorageStats(): Promise<StorageStatsResponse>               // GET /api/system/storage
 ```
 
 ### Event Endpoints
@@ -141,7 +144,9 @@ interface EventsQueryParams {
 
 ```typescript
 fetchEventDetections(eventId: number, params?): Promise<DetectionListResponse>  // GET /api/events/{id}/detections
-getDetectionImageUrl(detectionId: number): string    // /api/detections/{detectionId}/image
+getDetectionImageUrl(detectionId: number): string           // /api/detections/{detectionId}/image
+getDetectionVideoUrl(detectionId: number): string           // /api/detections/{detectionId}/video (with Range support)
+getDetectionVideoThumbnailUrl(detectionId: number): string  // /api/detections/{detectionId}/video/thumbnail
 ```
 
 ### Logs Endpoints
@@ -167,6 +172,95 @@ clearDlq(queueName: DLQQueueName): Promise<DLQClearResponse>              // DEL
 
 ```typescript
 exportEventsCSV(params?: ExportQueryParams): Promise<void>  // GET /api/events/export (triggers download)
+```
+
+### Search Endpoints
+
+```typescript
+searchEvents(params: EventSearchParams): Promise<SearchResponse>  // GET /api/events/search
+```
+
+**Search Parameters:**
+
+```typescript
+interface EventSearchParams {
+  q: string; // Required search query
+  camera_id?: string; // Filter by camera IDs (comma-separated)
+  start_date?: string; // Filter by start date (ISO format)
+  end_date?: string; // Filter by end date (ISO format)
+  severity?: string; // Filter by risk levels (comma-separated: low,medium,high,critical)
+  object_type?: string; // Filter by object types (comma-separated: person,vehicle,animal)
+  reviewed?: boolean; // Filter by reviewed status
+  limit?: number; // Max results (default 50)
+  offset?: number; // Pagination offset
+}
+```
+
+**Query Syntax (PostgreSQL full-text search):**
+
+- Basic words: `"person vehicle"` (implicit AND)
+- Phrase search: `'"suspicious person"'` (exact phrase)
+- Boolean OR: `"person OR animal"`
+- Boolean NOT: `"person NOT cat"`
+- Boolean AND: `"person AND vehicle"` (explicit)
+
+### Notification Endpoints
+
+```typescript
+fetchNotificationConfig(): Promise<NotificationConfig>  // GET /api/notification/config
+testNotification(channel, recipients?, webhookUrl?): Promise<TestNotificationResult>  // POST /api/notification/test
+```
+
+**Types:**
+
+```typescript
+type NotificationChannel = 'email' | 'webhook' | 'push';
+
+interface NotificationConfig {
+  notification_enabled: boolean;
+  email_configured: boolean;
+  webhook_configured: boolean;
+  push_configured: boolean;
+  available_channels: NotificationChannel[];
+  smtp_host: string | null;
+  smtp_port: number | null;
+  smtp_from_address: string | null;
+  smtp_use_tls: boolean | null;
+  default_webhook_url: string | null;
+  webhook_timeout_seconds: number | null;
+  default_email_recipients: string[];
+}
+
+interface TestNotificationResult {
+  channel: NotificationChannel;
+  success: boolean;
+  error: string | null;
+  message: string;
+}
+```
+
+### Storage Types (Client-side)
+
+```typescript
+interface StorageCategoryStats {
+  file_count: number;
+  size_bytes: number;
+}
+
+interface StorageStatsResponse {
+  disk_used_bytes: number;
+  disk_total_bytes: number;
+  disk_free_bytes: number;
+  disk_usage_percent: number;
+  thumbnails: StorageCategoryStats;
+  images: StorageCategoryStats;
+  clips: StorageCategoryStats;
+  events_count: number;
+  detections_count: number;
+  gpu_stats_count: number;
+  logs_count: number;
+  timestamp: string;
+}
 ```
 
 ### Media URL Helpers
