@@ -14,74 +14,80 @@
 // ============================================================================
 
 export type {
+  AuditLogListResponse,
+  AuditLogResponse,
+  AuditLogStats,
   Camera,
   CameraCreate,
-  CameraUpdate,
   CameraListResponse,
+  CameraUpdate,
+  CleanupResponse,
+  Detection,
+  DetectionListResponse,
+  DLQClearResponse,
+  DLQJobResponse,
+  DLQJobsResponse,
+  DLQName,
+  DLQRequeueResponse,
+  DLQStatsResponse,
   Event,
   EventListResponse,
   EventStatsResponse,
-  Detection,
-  DetectionListResponse,
-  HealthResponse,
-  ServiceStatus,
+  FrontendLogCreate,
   GPUStats,
   GPUStatsSample,
   GPUStatsHistoryResponse,
-  SystemConfig,
-  SystemConfigUpdate,
-  SystemStats,
+  HealthResponse,
+  HTTPValidationError,
   LivenessResponse,
-  ReadinessResponse,
-  WorkerStatus,
-  TelemetryResponse,
-  QueueDepths,
-  PipelineLatencies,
-  StageLatency,
   LogEntry,
   LogsResponse,
   LogStats,
-  FrontendLogCreate,
-  DLQJobResponse,
-  DLQJobsResponse,
-  DLQStatsResponse,
-  DLQClearResponse,
-  DLQRequeueResponse,
-  DLQName,
   MediaErrorResponse,
-  CleanupResponse,
-  HTTPValidationError,
-  ValidationError,
-  SearchResult,
+  PipelineLatencies,
+  QueueDepths,
+  ReadinessResponse,
   SearchResponse,
+  SearchResult,
+  ServiceStatus,
+  StageLatency,
+  SystemConfig,
+  SystemConfigUpdate,
+  SystemStats,
+  TelemetryResponse,
+  ValidationError,
+  WorkerStatus,
 } from '../types/generated';
 
 // Import concrete types for use in this module
 import type {
+  AuditLogListResponse as GeneratedAuditLogListResponse,
+  AuditLogResponse as GeneratedAuditLogResponse,
+  AuditLogStats as GeneratedAuditLogStats,
   Camera,
   CameraCreate,
-  CameraUpdate,
   CameraListResponse as GeneratedCameraListResponse,
+  CameraUpdate,
+  CleanupResponse,
+  DetectionListResponse as GeneratedDetectionListResponse,
+  DLQClearResponse as GeneratedDLQClearResponse,
+  DLQJobsResponse as GeneratedDLQJobsResponse,
+  DLQRequeueResponse as GeneratedDLQRequeueResponse,
+  DLQStatsResponse as GeneratedDLQStatsResponse,
   Event,
   EventListResponse as GeneratedEventListResponse,
   EventStatsResponse as GeneratedEventStatsResponse,
-  DetectionListResponse as GeneratedDetectionListResponse,
-  HealthResponse,
   GPUStats,
   GPUStatsHistoryResponse,
+  HealthResponse,
+  LogsResponse as GeneratedLogsResponse,
+  LogStats,
+  ReadinessResponse,
+  SearchResponse as GeneratedSearchResponse,
   SystemConfig,
   SystemConfigUpdate,
   SystemStats,
-  LogsResponse as GeneratedLogsResponse,
-  LogStats,
-  CleanupResponse,
   TelemetryResponse,
-  ReadinessResponse,
-  DLQStatsResponse as GeneratedDLQStatsResponse,
-  DLQJobsResponse as GeneratedDLQJobsResponse,
-  DLQRequeueResponse as GeneratedDLQRequeueResponse,
-  DLQClearResponse as GeneratedDLQClearResponse,
-  SearchResponse as GeneratedSearchResponse,
 } from '../types/generated';
 
 // ============================================================================
@@ -939,4 +945,80 @@ export async function testNotification(
     method: 'POST',
     body: JSON.stringify(body),
   });
+}
+
+// ============================================================================
+// Audit Log Endpoints
+// ============================================================================
+
+/**
+ * Query parameters for fetching audit logs
+ */
+export interface AuditLogsQueryParams {
+  /** Filter by action type */
+  action?: string;
+  /** Filter by resource type */
+  resource_type?: string;
+  /** Filter by resource ID */
+  resource_id?: string;
+  /** Filter by actor */
+  actor?: string;
+  /** Filter by status (success/failure) */
+  status?: string;
+  /** Filter from date (ISO format) */
+  start_date?: string;
+  /** Filter to date (ISO format) */
+  end_date?: string;
+  /** Page size (default 100, max 1000) */
+  limit?: number;
+  /** Page offset */
+  offset?: number;
+}
+
+/**
+ * Fetch audit logs with optional filtering and pagination.
+ *
+ * @param params - Query parameters for filtering
+ * @returns AuditLogListResponse with logs and pagination info
+ */
+export async function fetchAuditLogs(
+  params?: AuditLogsQueryParams
+): Promise<GeneratedAuditLogListResponse> {
+  const queryParams = new URLSearchParams();
+
+  if (params) {
+    if (params.action) queryParams.append('action', params.action);
+    if (params.resource_type) queryParams.append('resource_type', params.resource_type);
+    if (params.resource_id) queryParams.append('resource_id', params.resource_id);
+    if (params.actor) queryParams.append('actor', params.actor);
+    if (params.status) queryParams.append('status', params.status);
+    if (params.start_date) queryParams.append('start_date', params.start_date);
+    if (params.end_date) queryParams.append('end_date', params.end_date);
+    if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
+    if (params.offset !== undefined) queryParams.append('offset', String(params.offset));
+  }
+
+  const queryString = queryParams.toString();
+  const endpoint = queryString ? `/api/audit?${queryString}` : '/api/audit';
+
+  return fetchApi<GeneratedAuditLogListResponse>(endpoint);
+}
+
+/**
+ * Fetch audit log statistics for dashboard display.
+ *
+ * @returns AuditLogStats with aggregated statistics
+ */
+export async function fetchAuditStats(): Promise<GeneratedAuditLogStats> {
+  return fetchApi<GeneratedAuditLogStats>('/api/audit/stats');
+}
+
+/**
+ * Fetch a single audit log entry by ID.
+ *
+ * @param id - Audit log ID
+ * @returns AuditLogResponse with log details
+ */
+export async function fetchAuditLog(id: number): Promise<GeneratedAuditLogResponse> {
+  return fetchApi<GeneratedAuditLogResponse>(`/api/audit/${id}`);
 }

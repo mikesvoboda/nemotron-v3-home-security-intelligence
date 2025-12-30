@@ -26,6 +26,7 @@ describe('Sidebar', () => {
     expect(screen.getByText('Entities')).toBeInTheDocument();
     expect(screen.getByText('Alerts')).toBeInTheDocument();
     expect(screen.getByText('Logs')).toBeInTheDocument();
+    expect(screen.getByText('Audit Log')).toBeInTheDocument();
     expect(screen.getByText('System')).toBeInTheDocument();
     expect(screen.getByText('Settings')).toBeInTheDocument();
   });
@@ -114,10 +115,15 @@ describe('Sidebar', () => {
     expect(settingsLink).toHaveClass('bg-[#76B900]');
   });
 
-  it('renders all 7 navigation items', () => {
+  it('renders all 8 navigation items', () => {
     renderWithRouter();
     const links = screen.getAllByRole('link');
-    expect(links).toHaveLength(7);
+    expect(links).toHaveLength(8);
+  });
+
+  it('audit log link has correct href', () => {
+    renderWithRouter();
+    expect(screen.getByRole('link', { name: /audit log/i })).toHaveAttribute('href', '/audit');
   });
 
   it('navigation items have transition classes for smooth hover', () => {

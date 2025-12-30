@@ -33,12 +33,63 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models import Alert, AlertRule, AlertSeverity, AlertStatus
+
+# Constants for dedup_key validation
+MAX_DEDUP_KEY_LENGTH = 512
+# Use ASCII-only pattern to prevent unicode injection
+DEDUP_KEY_ALLOWED_CHARS_PATTERN = (
+    r"^[a-zA-Z0-9_\-\.\:]+$"  # ASCII alphanumeric, underscores, hyphens, dots, colons
+)
+
+
+def validate_dedup_key(dedup_key: str) -> str:
+    """Validate and normalize a dedup_key.
+
+    Args:
+        dedup_key: The deduplication key to validate
+
+    Returns:
+        The normalized dedup_key (stripped of leading/trailing whitespace)
+
+    Raises:
+        ValueError: If the dedup_key is invalid (empty, too long, or contains
+            invalid characters)
+    """
+    import re
+
+    # Check for None
+    if dedup_key is None:
+        raise ValueError("dedup_key cannot be None")
+
+    # Normalize by stripping whitespace
+    normalized = str(dedup_key).strip()
+
+    # Check for empty string
+    if not normalized:
+        raise ValueError("dedup_key cannot be empty or whitespace-only")
+
+    # Check length
+    if len(normalized) > MAX_DEDUP_KEY_LENGTH:
+        raise ValueError(
+            f"dedup_key exceeds maximum length of {MAX_DEDUP_KEY_LENGTH} characters "
+            f"(got {len(normalized)})"
+        )
+
+    # Check for valid characters (alphanumeric, underscores, hyphens, dots, colons)
+    if not re.match(DEDUP_KEY_ALLOWED_CHARS_PATTERN, normalized):
+        raise ValueError(
+            f"dedup_key contains invalid characters. "
+            f"Only alphanumeric characters, underscores, hyphens, dots, and colons are allowed. "
+            f"Got: {normalized[:50]}{'...' if len(normalized) > 50 else ''}"
+        )
+
+    return normalized
 
 
 @dataclass
@@ -116,8 +167,15 @@ class AlertDeduplicationService:
 
         Returns:
             DedupResult indicating whether a duplicate exists and details
+
+        Raises:
+            ValueError: If dedup_key is invalid (empty, too long, or contains
+                invalid characters)
         """
-        cutoff_time = datetime.utcnow() - timedelta(seconds=cooldown_seconds)
+        # Validate and normalize the dedup_key
+        dedup_key = validate_dedup_key(dedup_key)
+
+        cutoff_time = datetime.now(UTC) - timedelta(seconds=cooldown_seconds)
 
         # Find the most recent alert with this dedup_key within the cooldown window
         stmt = (
@@ -133,7 +191,7 @@ class AlertDeduplicationService:
 
         if existing_alert:
             # Calculate seconds until cooldown expires
-            alert_age = (datetime.utcnow() - existing_alert.created_at).total_seconds()
+            alert_age = (datetime.now(UTC) - existing_alert.created_at).total_seconds()
             seconds_remaining = max(0, int(cooldown_seconds - alert_age))
 
             return DedupResult(
@@ -192,12 +250,19 @@ class AlertDeduplicationService:
         Returns:
             Tuple of (Alert, is_new) where is_new is True if a new alert was
             created, False if returning an existing duplicate.
+
+        Raises:
+            ValueError: If dedup_key is invalid (empty, too long, or contains
+                invalid characters)
         """
+        # Validate and normalize the dedup_key
+        dedup_key = validate_dedup_key(dedup_key)
+
         # Determine cooldown
         if cooldown_seconds is None:
             cooldown_seconds = await self.get_cooldown_for_rule(rule_id)
 
-        # Check for duplicates
+        # Check for duplicates (dedup_key already validated)
         dedup_result = await self.check_duplicate(dedup_key, cooldown_seconds)
 
         if dedup_result.is_duplicate and dedup_result.existing_alert:
@@ -236,8 +301,15 @@ class AlertDeduplicationService:
 
         Returns:
             List of alerts matching the dedup_key, ordered by most recent first
+
+        Raises:
+            ValueError: If dedup_key is invalid (empty, too long, or contains
+                invalid characters)
         """
-        cutoff_time = datetime.utcnow() - timedelta(hours=hours)
+        # Validate and normalize the dedup_key
+        dedup_key = validate_dedup_key(dedup_key)
+
+        cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
 
         stmt = (
             select(Alert)
@@ -265,7 +337,7 @@ class AlertDeduplicationService:
             - unique_dedup_keys: Number of unique dedup keys
             - potential_duplicates: Alerts that were likely suppressed
         """
-        cutoff_time = datetime.utcnow() - timedelta(hours=hours)
+        cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
 
         # Get total alerts
         total_stmt = select(Alert).where(Alert.created_at >= cutoff_time)

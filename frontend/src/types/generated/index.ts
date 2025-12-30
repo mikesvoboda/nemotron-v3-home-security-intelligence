@@ -81,5 +81,10 @@ export type ValidationError = components['schemas']['ValidationError'];
 export type SearchResult = components['schemas']['SearchResult'];
 export type SearchResponse = components['schemas']['SearchResponse'];
 
+// Audit types
+export type AuditLogResponse = components['schemas']['AuditLogResponse'];
+export type AuditLogListResponse = components['schemas']['AuditLogListResponse'];
+export type AuditLogStats = components['schemas']['AuditLogStats'];
+
 // Import the components type for use in type aliases
 import type { components } from './api';

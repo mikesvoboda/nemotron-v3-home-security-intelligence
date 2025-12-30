@@ -462,7 +462,7 @@ async def test_get_stats_from_db(mock_pynvml):
     mock_stats = [
         GPUStats(
             id=1,
-            recorded_at=datetime.utcnow(),
+            recorded_at=datetime.now(UTC),
             gpu_name="NVIDIA RTX A5500",
             gpu_utilization=75.0,
             memory_used=8192,
