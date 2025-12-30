@@ -108,12 +108,13 @@ class TestSettingsDefaults:
     def test_default_ai_service_urls(self, clean_env):
         """Test default AI service endpoint URLs.
 
-        Note: Pydantic's AnyHttpUrl validator normalizes URLs with trailing slashes.
+        Note: URLs are normalized without trailing slashes to prevent
+        double-slash issues when appending paths like /health.
         """
         settings = Settings()
-        # AnyHttpUrl validator normalizes URLs with trailing slash
-        assert settings.rtdetr_url == "http://localhost:8090/"
-        assert settings.nemotron_url == "http://localhost:8091/"
+        # URLs should NOT have trailing slashes to avoid //health issues
+        assert settings.rtdetr_url == "http://localhost:8090"
+        assert settings.nemotron_url == "http://localhost:8091"
 
 
 class TestEnvironmentOverrides:
@@ -213,15 +214,15 @@ class TestEnvironmentOverrides:
         """Test RTDETR_URL environment variable overrides default."""
         clean_env.setenv("RTDETR_URL", "http://gpu-server:8001")
         settings = Settings()
-        # AnyHttpUrl validator normalizes URLs with trailing slash
-        assert settings.rtdetr_url == "http://gpu-server:8001/"
+        # URLs normalized without trailing slash to avoid //health issues
+        assert settings.rtdetr_url == "http://gpu-server:8001"
 
     def test_override_nemotron_url(self, clean_env):
         """Test NEMOTRON_URL environment variable overrides default."""
         clean_env.setenv("NEMOTRON_URL", "http://gpu-server:8002")
         settings = Settings()
-        # AnyHttpUrl validator normalizes URLs with trailing slash
-        assert settings.nemotron_url == "http://gpu-server:8002/"
+        # URLs normalized without trailing slash to avoid //health issues
+        assert settings.nemotron_url == "http://gpu-server:8002"
 
 
 class TestTypeCoercion:
@@ -476,8 +477,8 @@ class TestAIServiceUrlValidation:
         """Test that RTDETR_URL accepts valid HTTP URLs."""
         clean_env.setenv("RTDETR_URL", "http://localhost:8090")
         settings = Settings()
-        # AnyHttpUrl validator normalizes URLs with trailing slash
-        assert settings.rtdetr_url == "http://localhost:8090/"
+        # URLs normalized without trailing slash to avoid //health issues
+        assert settings.rtdetr_url == "http://localhost:8090"
 
     def test_rtdetr_url_validates_https(self, clean_env):
         """Test that RTDETR_URL accepts valid HTTPS URLs."""
@@ -489,8 +490,8 @@ class TestAIServiceUrlValidation:
         """Test that NEMOTRON_URL accepts valid HTTP URLs."""
         clean_env.setenv("NEMOTRON_URL", "http://localhost:8091")
         settings = Settings()
-        # AnyHttpUrl validator normalizes URLs with trailing slash
-        assert settings.nemotron_url == "http://localhost:8091/"
+        # URLs normalized without trailing slash to avoid //health issues
+        assert settings.nemotron_url == "http://localhost:8091"
 
     def test_nemotron_url_validates_https(self, clean_env):
         """Test that NEMOTRON_URL accepts valid HTTPS URLs."""
