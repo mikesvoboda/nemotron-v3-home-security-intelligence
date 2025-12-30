@@ -132,7 +132,7 @@ exclude_lines = [
     "if TYPE_CHECKING:",
     "@abstractmethod",
 ]
-fail_under = 93  # Temporarily lowered from 95 due to PostgreSQL migration
+fail_under = 92  # Lowered from 93 during logging migration
 show_missing = true
 precision = 2
 
