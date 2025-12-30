@@ -442,7 +442,7 @@ def generate_self_signed_certificate(
     key_path: str,
     hostname: str = "localhost",
     san_hosts: list[str] | None = None,
-    organization: str = "Home Security Intelligence",
+    _organization: str = "Home Security Intelligence",  # Reserved for future use
     validity_days: int = 365,
 ) -> bool:
     """Generate a self-signed certificate and private key (alternative API).
