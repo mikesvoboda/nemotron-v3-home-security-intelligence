@@ -19,7 +19,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code to backend subdirectory (for absolute imports)
 COPY . ./backend/
 
-# Create data directory for SQLite database
+# Create data directory for logs and thumbnails
 RUN mkdir -p /app/data
 
 # Create non-root user

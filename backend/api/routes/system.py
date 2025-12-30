@@ -745,11 +745,15 @@ async def get_health(
 
 @router.get("/health/live", response_model=LivenessResponse)
 async def get_liveness() -> LivenessResponse:
-    """Liveness probe endpoint.
+    """Kubernetes-style liveness probe endpoint.
 
     This endpoint indicates whether the process is running and able to
     respond to HTTP requests. It always returns 200 with status "alive"
     if the process is up. This is a minimal check with no dependencies.
+
+    Note: The canonical liveness probe is GET /health at the root level.
+    This endpoint exists for Kubernetes compatibility and provides the
+    same functionality under the /api/system prefix.
 
     Used by Kubernetes/Docker to determine if the container should be restarted.
     If this endpoint fails, the process is considered dead and should be restarted.
@@ -766,7 +770,7 @@ async def get_readiness(
     db: AsyncSession = Depends(get_db),
     redis: RedisClient | None = Depends(get_redis_optional),
 ) -> ReadinessResponse:
-    """Readiness probe endpoint.
+    """Kubernetes-style readiness probe endpoint with detailed information.
 
     This endpoint indicates whether the application is ready to receive
     traffic and process uploads. It checks all critical dependencies:
@@ -774,6 +778,10 @@ async def get_readiness(
     - Redis connectivity (required for queue processing)
     - AI services availability
     - Background worker status
+
+    Note: The canonical readiness probe is GET /ready at the root level.
+    This endpoint provides the same readiness check but with detailed
+    service and worker status information.
 
     Used by Kubernetes/Docker to determine if traffic should be routed to this instance.
     If this endpoint returns not_ready, the instance should not receive new requests.

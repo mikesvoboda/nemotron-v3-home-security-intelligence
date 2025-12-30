@@ -55,6 +55,10 @@ def app_with_auth(test_api_key):
     async def readiness():
         return {"ready": True, "status": "ready"}
 
+    @app.get("/ready")
+    async def canonical_readiness():
+        return {"ready": True, "status": "ready"}
+
     @app.get("/api/metrics")
     async def metrics():
         return "# Prometheus metrics"
@@ -162,8 +166,13 @@ def test_health_probe_endpoints_bypass_auth(app_with_auth):
     assert response.status_code == 200
     assert response.json() == {"status": "alive"}
 
-    # Test readiness probe endpoint
+    # Test readiness probe endpoint (Kubernetes-style)
     response = client.get("/api/system/health/ready")
+    assert response.status_code == 200
+    assert response.json() == {"ready": True, "status": "ready"}
+
+    # Test canonical readiness probe endpoint
+    response = client.get("/ready")
     assert response.status_code == 200
     assert response.json() == {"ready": True, "status": "ready"}
 
@@ -255,6 +264,7 @@ def test_is_exempt_path():
     # Test exempt paths
     assert middleware._is_exempt_path("/") is True
     assert middleware._is_exempt_path("/health") is True
+    assert middleware._is_exempt_path("/ready") is True  # Canonical readiness probe
     assert middleware._is_exempt_path("/api/system/health") is True
     assert middleware._is_exempt_path("/api/system/health/live") is True
     assert middleware._is_exempt_path("/api/system/health/ready") is True

@@ -31,7 +31,6 @@ async def test_health_endpoint_liveness(client, mock_redis):
 
     # Simple liveness check - just confirms server is alive
     assert data["status"] == "alive"
-    assert "message" in data
 
 
 @pytest.mark.asyncio
@@ -141,10 +140,33 @@ async def test_health_endpoint_structure(client):
     assert response.status_code == 200
     data = response.json()
 
-    # Verify simple liveness response structure
+    # Verify simple liveness response structure - minimal response
     assert "status" in data
-    assert "message" in data
     assert data["status"] == "alive"
+
+
+@pytest.mark.asyncio
+async def test_ready_endpoint(client, mock_redis):
+    """Test canonical readiness endpoint /ready.
+
+    The /ready endpoint checks critical dependencies and returns readiness status.
+    """
+    mock_redis.health_check.return_value = {
+        "status": "healthy",
+        "connected": True,
+        "redis_version": "7.0.0",
+    }
+
+    response = await client.get("/ready")
+
+    # May return 200 (ready) or 503 (not ready) depending on dependencies
+    assert response.status_code in [200, 503]
+    data = response.json()
+
+    # Verify response structure
+    assert "ready" in data
+    assert "status" in data
+    assert data["status"] in ["ready", "not_ready"]
 
 
 @pytest.mark.asyncio

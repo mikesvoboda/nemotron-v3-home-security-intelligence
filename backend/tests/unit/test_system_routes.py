@@ -693,7 +693,14 @@ async def test_get_readiness_not_ready_when_pipeline_workers_down() -> None:
         redis = AsyncMock()
         redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
 
-        response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
+        # Mock AI services health check to avoid calling get_settings() which requires env vars
+        async def mock_ai_health_check():
+            return system_routes.ServiceStatus(
+                status="healthy", message="AI services operational", details=None
+            )
+
+        with patch.object(system_routes, "check_ai_services_health", mock_ai_health_check):
+            response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
 
         assert isinstance(response, ReadinessResponse)
         # Database and Redis are healthy but pipeline workers are down
@@ -733,7 +740,14 @@ async def test_get_readiness_ready_when_pipeline_workers_running() -> None:
         redis = AsyncMock()
         redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
 
-        response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
+        # Mock AI services health check to avoid calling get_settings() which requires env vars
+        async def mock_ai_health_check():
+            return system_routes.ServiceStatus(
+                status="healthy", message="AI services operational", details=None
+            )
+
+        with patch.object(system_routes, "check_ai_services_health", mock_ai_health_check):
+            response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
 
         assert isinstance(response, ReadinessResponse)
         assert response.ready is True
@@ -778,7 +792,14 @@ async def test_get_readiness_includes_pipeline_worker_status() -> None:
         redis = AsyncMock()
         redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
 
-        response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
+        # Mock AI services health check to avoid calling get_settings() which requires env vars
+        async def mock_ai_health_check():
+            return system_routes.ServiceStatus(
+                status="healthy", message="AI services operational", details=None
+            )
+
+        with patch.object(system_routes, "check_ai_services_health", mock_ai_health_check):
+            response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
 
         # Should include detection_worker and analysis_worker in workers list
         detection_worker = next((w for w in response.workers if w.name == "detection_worker"), None)
@@ -854,7 +875,14 @@ async def test_get_readiness_not_ready_when_pipeline_manager_is_none() -> None:
         redis = AsyncMock()
         redis.health_check = AsyncMock(return_value={"status": "healthy", "redis_version": "7.0.0"})
 
-        response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
+        # Mock AI services health check to avoid calling get_settings() which requires env vars
+        async def mock_ai_health_check():
+            return system_routes.ServiceStatus(
+                status="healthy", message="AI services operational", details=None
+            )
+
+        with patch.object(system_routes, "check_ai_services_health", mock_ai_health_check):
+            response = await system_routes.get_readiness(mock_response, db, redis)  # type: ignore[arg-type]
 
         assert isinstance(response, ReadinessResponse)
         # Even though database and Redis are healthy, system should NOT be ready

@@ -31,7 +31,7 @@ COPY --from=builder /root/.local /home/appuser/.local
 # Copy application code to backend subdirectory (for absolute imports)
 COPY . ./backend/
 
-# Create data directory for SQLite database
+# Create data directory for logs and thumbnails
 RUN mkdir -p /app/data
 
 # Set ownership of app and user directories
@@ -51,14 +51,13 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD python -c "import httpx; exit(0 if httpx.get('http://localhost:8000/api/system/health/ready').status_code == 200 else 1)"
 
 # ============================================================================
-# IMPORTANT: Single Worker Requirement for SQLite + In-Process Background Services
+# IMPORTANT: Single Worker Requirement for In-Process Background Services
 # ============================================================================
-# This application uses SQLite and runs background services (FileWatcher,
-# PipelineWorkerManager, SystemBroadcaster) in the FastAPI lifespan context.
+# This application runs background services (FileWatcher, PipelineWorkerManager,
+# SystemBroadcaster) in the FastAPI lifespan context.
 #
 # Running multiple uvicorn workers (--workers > 1) would cause:
 # - Duplicate file processing: Each worker starts its own FileWatcher
-# - SQLite lock contention: Multiple processes writing to the same database
 # - Race conditions: Multiple PipelineWorkerManagers processing the same queues
 # - Duplicate WebSocket broadcasts: Multiple SystemBroadcasters sending duplicates
 #

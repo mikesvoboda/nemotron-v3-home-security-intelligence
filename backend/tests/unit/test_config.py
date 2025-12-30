@@ -209,13 +209,13 @@ class TestEnvironmentOverrides:
         """Test RTDETR_URL environment variable overrides default."""
         clean_env.setenv("RTDETR_URL", "http://gpu-server:8001")
         settings = Settings()
-        assert settings.rtdetr_url == "http://gpu-server:8001"
+        assert settings.rtdetr_url == "http://gpu-server:8001/"
 
     def test_override_nemotron_url(self, clean_env):
         """Test NEMOTRON_URL environment variable overrides default."""
         clean_env.setenv("NEMOTRON_URL", "http://gpu-server:8002")
         settings = Settings()
-        assert settings.nemotron_url == "http://gpu-server:8002"
+        assert settings.nemotron_url == "http://gpu-server:8002/"
 
 
 class TestTypeCoercion:
@@ -470,7 +470,7 @@ class TestAIServiceUrlValidation:
         """Test that RTDETR_URL accepts valid HTTP URLs."""
         clean_env.setenv("RTDETR_URL", "http://localhost:8090")
         settings = Settings()
-        assert settings.rtdetr_url == "http://localhost:8090"
+        assert settings.rtdetr_url == "http://localhost:8090/"
 
     def test_rtdetr_url_validates_https(self, clean_env):
         """Test that RTDETR_URL accepts valid HTTPS URLs."""
@@ -482,7 +482,7 @@ class TestAIServiceUrlValidation:
         """Test that NEMOTRON_URL accepts valid HTTP URLs."""
         clean_env.setenv("NEMOTRON_URL", "http://localhost:8091")
         settings = Settings()
-        assert settings.nemotron_url == "http://localhost:8091"
+        assert settings.nemotron_url == "http://localhost:8091/"
 
     def test_nemotron_url_validates_https(self, clean_env):
         """Test that NEMOTRON_URL accepts valid HTTPS URLs."""
@@ -571,3 +571,67 @@ class TestEdgeCases:
         assert "user%40name" in settings.database_url
         assert "p%40ssw0rd" in settings.database_url
         assert ":password123!" in settings.redis_url
+
+
+class TestRedisUrlValidation:
+    """Test URL validation for Redis connection strings."""
+
+    def test_redis_url_validates_standard_scheme(self, clean_env):
+        """Test that REDIS_URL accepts valid redis:// URLs."""
+        clean_env.setenv("REDIS_URL", "redis://localhost:6379/0")
+        settings = Settings()
+        assert settings.redis_url == "redis://localhost:6379/0"
+
+    def test_redis_url_validates_secure_scheme(self, clean_env):
+        """Test that REDIS_URL accepts valid rediss:// URLs (TLS)."""
+        clean_env.setenv("REDIS_URL", "rediss://secure-redis:6379/0")
+        settings = Settings()
+        assert settings.redis_url == "rediss://secure-redis:6379/0"
+
+    def test_redis_url_with_password(self, clean_env):
+        """Test that REDIS_URL accepts URLs with authentication."""
+        clean_env.setenv("REDIS_URL", "redis://:mypassword@localhost:6379/0")
+        settings = Settings()
+        assert settings.redis_url == "redis://:mypassword@localhost:6379/0"
+
+    def test_redis_url_with_username_password(self, clean_env):
+        """Test that REDIS_URL accepts URLs with username and password."""
+        clean_env.setenv("REDIS_URL", "redis://user:password@localhost:6379/0")
+        settings = Settings()
+        assert settings.redis_url == "redis://user:password@localhost:6379/0"
+
+    def test_redis_url_without_database(self, clean_env):
+        """Test that REDIS_URL accepts URLs without database number."""
+        clean_env.setenv("REDIS_URL", "redis://localhost:6379")
+        settings = Settings()
+        assert settings.redis_url == "redis://localhost:6379"
+
+    def test_redis_url_without_port(self, clean_env):
+        """Test that REDIS_URL accepts URLs without port."""
+        clean_env.setenv("REDIS_URL", "redis://localhost")
+        settings = Settings()
+        assert settings.redis_url == "redis://localhost"
+
+    def test_invalid_redis_url_wrong_scheme(self, clean_env):
+        """Test that REDIS_URL rejects URLs with wrong scheme."""
+        clean_env.setenv("REDIS_URL", "http://localhost:6379/0")
+        with pytest.raises(ValueError, match="must start with 'redis://'"):
+            Settings()
+
+    def test_invalid_redis_url_no_scheme(self, clean_env):
+        """Test that REDIS_URL rejects URLs without scheme."""
+        clean_env.setenv("REDIS_URL", "localhost:6379/0")
+        with pytest.raises(ValueError, match="must start with 'redis://'"):
+            Settings()
+
+    def test_invalid_redis_url_missing_host(self, clean_env):
+        """Test that REDIS_URL rejects URLs without host."""
+        clean_env.setenv("REDIS_URL", "redis:///0")
+        with pytest.raises(ValueError, match="missing host"):
+            Settings()
+
+    def test_invalid_redis_url_ftp_scheme(self, clean_env):
+        """Test that REDIS_URL rejects FTP URLs."""
+        clean_env.setenv("REDIS_URL", "ftp://localhost:6379/0")
+        with pytest.raises(ValueError, match="must start with 'redis://'"):
+            Settings()

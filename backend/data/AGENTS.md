@@ -5,9 +5,10 @@
 The `backend/data/` directory stores runtime data for the home security intelligence system, including:
 
 - Sample camera images for testing and development
-- SQLite database files (when using default database URL)
 - Log files (when using default log path)
 - Generated thumbnails and other transient data
+
+Note: The application uses PostgreSQL for the database, not SQLite. Database files are not stored in this directory.
 
 ## Directory Structure
 
@@ -19,9 +20,6 @@ backend/data/
 │   ├── driveway/         # Driveway camera sample images
 │   └── backyard/         # Backyard camera sample images
 ├── thumbnails/           # Generated detection thumbnails (runtime)
-├── security.db           # SQLite database (runtime, not in git)
-├── security.db-wal       # SQLite WAL file (runtime, not in git)
-├── security.db-shm       # SQLite shared memory file (runtime, not in git)
 └── logs/                 # Log files (runtime, not in git)
     └── security.log      # Rotating application log
 ```
@@ -55,20 +53,6 @@ Sample images simulating backyard camera uploads:
 
 These files are created at runtime and are not tracked in version control:
 
-### SQLite Database Files
-
-**`security.db`** - Main SQLite database containing:
-
-- Cameras table
-- Detections table
-- Events table
-- GPU stats table
-- Logs table
-- API keys table
-
-**`security.db-wal`** - Write-ahead log for SQLite (WAL mode)
-**`security.db-shm`** - Shared memory file for SQLite
-
 ### Thumbnail Files
 
 **`thumbnails/`** - Generated detection thumbnails
@@ -91,8 +75,8 @@ These files are created at runtime and are not tracked in version control:
 The data directory is referenced in configuration settings:
 
 ```python
-# Default database URL (creates security.db in this directory)
-DATABASE_URL=sqlite+aiosqlite:///./data/security.db
+# Database (PostgreSQL - external to this directory)
+DATABASE_URL=postgresql+asyncpg://security:password@localhost:5432/security
 
 # Default log file path
 LOG_FILE_PATH=data/logs/security.log
@@ -109,18 +93,17 @@ The sample images in `cameras/` can be used with the file watcher to simulate ca
 # When new files appear, they are queued for detection
 ```
 
-### Database Location
+### Database Configuration
 
-For production deployments, consider using a different database location:
+The application uses PostgreSQL (external to this directory):
 
 ```bash
-# Example: Store database in persistent volume
-DATABASE_URL=sqlite+aiosqlite:///var/data/security.db
+# Example: PostgreSQL connection
+DATABASE_URL=postgresql+asyncpg://security:password@localhost:5432/security
 ```
 
 ### Disk Space Considerations
 
-- SQLite WAL files can grow during heavy write activity
 - Log files rotate but can accumulate if not cleaned
 - Thumbnails and detection images are stored based on service configuration
 

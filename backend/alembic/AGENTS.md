@@ -36,7 +36,7 @@ Configures Alembic to use the application's SQLAlchemy models and database conne
 
 - Converts async URLs to sync for Alembic compatibility:
   - `postgresql+asyncpg://` -> `postgresql://`
-  - `sqlite+aiosqlite://` -> `sqlite://`
+- Only PostgreSQL is supported (no SQLite)
 - Uses `NullPool` to avoid connection issues
 - Imports `backend.models.camera.Base` for metadata
 

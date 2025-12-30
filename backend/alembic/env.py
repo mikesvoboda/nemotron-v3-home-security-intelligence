@@ -1,7 +1,7 @@
 """Alembic migration environment configuration.
 
 This module configures Alembic to use our SQLAlchemy models and database connection.
-Supports both SQLite (development) and PostgreSQL (production).
+PostgreSQL is the only supported database.
 """
 
 import os
@@ -29,8 +29,8 @@ if config.config_file_name is not None:
 # Set target metadata from our models
 target_metadata = Base.metadata
 
-# Default database URL for development
-DEFAULT_DATABASE_URL = "sqlite:///./data/security.db"
+# Default database URL for development (PostgreSQL only - no SQLite support)
+DEFAULT_DATABASE_URL = "postgresql://security:password@localhost:5432/security"
 
 
 def get_database_url() -> str:
@@ -39,16 +39,14 @@ def get_database_url() -> str:
     Priority:
     1. DATABASE_URL environment variable
     2. alembic.ini sqlalchemy.url setting
+
+    Note: Only PostgreSQL is supported. SQLite URLs will cause runtime errors.
     """
     url = os.getenv("DATABASE_URL")
     if url:
-        # Convert async URLs to sync for Alembic
-        # asyncpg -> psycopg2 (or just postgresql)
-        # aiosqlite -> sqlite
+        # Convert async URL (asyncpg) to sync (psycopg2/plain postgresql)
         if "+asyncpg" in url:
             url = url.replace("+asyncpg", "")
-        elif "+aiosqlite" in url:
-            url = url.replace("+aiosqlite", "")
         return url
     ini_url = config.get_main_option("sqlalchemy.url")
     return ini_url if ini_url else DEFAULT_DATABASE_URL

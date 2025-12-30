@@ -10,6 +10,7 @@ import asyncio
 import contextlib
 import json
 import logging
+import threading
 from typing import TYPE_CHECKING, Any
 
 from fastapi import WebSocket
@@ -233,12 +234,18 @@ class EventBroadcaster:
 # Global broadcaster instance and initialization lock
 _broadcaster: EventBroadcaster | None = None
 _broadcaster_lock: asyncio.Lock | None = None
+# Thread lock to protect initialization of _broadcaster_lock itself
+_init_lock = threading.Lock()
 
 
 def _get_broadcaster_lock() -> asyncio.Lock:
     """Get the broadcaster initialization lock (lazy initialization).
 
-    This ensures the lock is created in the correct event loop context.
+    This ensures the lock is created in a thread-safe manner and in the
+    correct event loop context. Uses a threading lock to protect the
+    initial creation of the asyncio lock, preventing race conditions
+    when multiple coroutines attempt to initialize concurrently.
+
     Must be called from within an async context.
 
     Returns:
@@ -246,7 +253,10 @@ def _get_broadcaster_lock() -> asyncio.Lock:
     """
     global _broadcaster_lock  # noqa: PLW0603
     if _broadcaster_lock is None:
-        _broadcaster_lock = asyncio.Lock()
+        with _init_lock:
+            # Double-check after acquiring thread lock
+            if _broadcaster_lock is None:
+                _broadcaster_lock = asyncio.Lock()
     return _broadcaster_lock
 
 
@@ -294,3 +304,17 @@ async def stop_broadcaster() -> None:
             await _broadcaster.stop()
             _broadcaster = None
             logger.info("Global event broadcaster stopped")
+
+
+def reset_broadcaster_state() -> None:
+    """Reset the global broadcaster state for testing purposes.
+
+    This function is NOT thread-safe and should only be used in test
+    fixtures to ensure clean state between tests. It resets both the
+    broadcaster instance and the asyncio lock.
+
+    Warning: Only use this in test teardown, never in production code.
+    """
+    global _broadcaster, _broadcaster_lock  # noqa: PLW0603
+    _broadcaster = None
+    _broadcaster_lock = None

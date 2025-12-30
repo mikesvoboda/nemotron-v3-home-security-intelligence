@@ -85,7 +85,7 @@ class ThumbnailGenerator:
         image_path: str,
         detections: list[dict[str, Any]],
         output_size: tuple[int, int] = (320, 240),
-        detection_id: str | None = None,
+        detection_id: int | str | None = None,
     ) -> str | None:
         """Generate thumbnail with bounding boxes from detection image.
 
@@ -274,7 +274,7 @@ class ThumbnailGenerator:
 
         return padded
 
-    def get_output_path(self, detection_id: str) -> Path:
+    def get_output_path(self, detection_id: int | str) -> Path:
         """Get output path for a detection thumbnail.
 
         Args:
@@ -285,7 +285,7 @@ class ThumbnailGenerator:
         """
         return self.output_dir / f"{detection_id}_thumb.jpg"
 
-    def delete_thumbnail(self, detection_id: str) -> bool:
+    def delete_thumbnail(self, detection_id: int | str) -> bool:
         """Delete a thumbnail file.
 
         Args:
