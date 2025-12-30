@@ -57,6 +57,7 @@ services:
       - ${HF_CACHE:-~/.cache/huggingface}:/cache/huggingface
     environment:
       - RTDETR_CONFIDENCE=${RTDETR_CONFIDENCE:-0.5}
+      - RTDETR_MODEL_PATH=${RTDETR_MODEL_PATH:-PekingU/rtdetr_r50vd_coco_o365}
     healthcheck:
       test:
         [
@@ -89,8 +90,8 @@ services:
     volumes:
       - /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km:/models:ro
     environment:
-      - GPU_LAYERS=${GPU_LAYERS:-99}
-      - CONTEXT_SIZE=${CONTEXT_SIZE:-8192}
+      - GPU_LAYERS=${GPU_LAYERS:-30}
+      - CONTEXT_SIZE=${CONTEXT_SIZE:-4096}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8091/health"]
       interval: 10s
