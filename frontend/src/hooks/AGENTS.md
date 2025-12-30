@@ -2,30 +2,36 @@
 
 ## Purpose
 
-React custom hooks for managing WebSocket connections, real-time event streams, system status monitoring, and GPU metrics polling in the home security dashboard.
+React custom hooks for managing WebSocket connections, real-time event streams, system status monitoring, storage stats, and GPU metrics polling in the home security dashboard.
 
 ## Key Files
 
-| File                  | Purpose                                         |
-| --------------------- | ----------------------------------------------- |
-| `index.ts`            | Central export point for all hooks and types    |
-| `useWebSocket.ts`     | Low-level WebSocket connection manager          |
-| `useEventStream.ts`   | Security events via `/ws/events` WebSocket      |
-| `useSystemStatus.ts`  | System health via `/ws/system` WebSocket        |
-| `useGpuHistory.ts`    | GPU metrics polling with history buffer         |
-| `useHealthStatus.ts`  | REST-based health status polling                |
-| `useServiceStatus.ts` | **DEPRECATED** - Per-service status (not wired) |
+| File                     | Purpose                                         |
+| ------------------------ | ----------------------------------------------- |
+| `index.ts`               | Central export point for all hooks and types    |
+| `useWebSocket.ts`        | Low-level WebSocket connection manager          |
+| `useWebSocketStatus.ts`  | Enhanced WebSocket with channel status tracking |
+| `useConnectionStatus.ts` | Unified connection status for all WS channels   |
+| `useEventStream.ts`      | Security events via `/ws/events` WebSocket      |
+| `useSystemStatus.ts`     | System health via `/ws/system` WebSocket        |
+| `useGpuHistory.ts`       | GPU metrics polling with history buffer         |
+| `useHealthStatus.ts`     | REST-based health status polling                |
+| `useStorageStats.ts`     | Storage disk usage polling with cleanup preview |
+| `useServiceStatus.ts`    | Per-service status (not exported from index)    |
 
 ### Test Files
 
-| File                       | Coverage                                               |
-| -------------------------- | ------------------------------------------------------ |
-| `useWebSocket.test.ts`     | Connection lifecycle, message handling, reconnects     |
-| `useEventStream.test.ts`   | Event buffering, envelope parsing, non-event filtering |
-| `useSystemStatus.test.ts`  | Backend message transformation, type guards            |
-| `useGpuHistory.test.ts`    | Polling, history buffer, start/stop controls           |
-| `useHealthStatus.test.ts`  | REST polling, error handling, refresh                  |
-| `useServiceStatus.test.ts` | Service status parsing (deprecated hook)               |
+| File                          | Coverage                                               |
+| ----------------------------- | ------------------------------------------------------ |
+| `useWebSocket.test.ts`        | Connection lifecycle, message handling, reconnects     |
+| `useWebSocketStatus.test.ts`  | Channel status tracking, reconnect state               |
+| `useConnectionStatus.test.ts` | Multi-channel status aggregation                       |
+| `useEventStream.test.ts`      | Event buffering, envelope parsing, non-event filtering |
+| `useSystemStatus.test.ts`     | Backend message transformation, type guards            |
+| `useGpuHistory.test.ts`       | Polling, history buffer, start/stop controls           |
+| `useHealthStatus.test.ts`     | REST polling, error handling, refresh                  |
+| `useStorageStats.test.ts`     | Storage polling, cleanup preview                       |
+| `useServiceStatus.test.ts`    | Service status parsing                                 |
 
 ## Hook Details
 
@@ -228,24 +234,113 @@ interface UseHealthStatusReturn {
 }
 ```
 
-### `useServiceStatus.ts` (DEPRECATED)
+### `useWebSocketStatus.ts`
 
-**WARNING:** This hook is NOT currently wired up on the backend.
+Enhanced WebSocket hook that tracks detailed channel status including reconnection state.
 
-The backend's `ServiceHealthMonitor` (health_monitor.py) exists but is not initialized in `main.py`, so no `service_status` messages are broadcast to `/ws/system`. The `SystemBroadcaster` only emits `system_status` messages.
+**Features:**
 
-**Use `useSystemStatus` instead** for system health information - it correctly handles `system_status` messages which include an overall health field.
+- Full WebSocket lifecycle management with reconnection
+- Channel-level status tracking (name, state, reconnect attempts)
+- Last message timestamp tracking
+- SSR-safe (checks for `window.WebSocket` availability)
 
-See bead vq8.11 for context on this decision.
+**Types:**
 
-## Service Status Hook
+```typescript
+type ConnectionState = 'connected' | 'disconnected' | 'reconnecting';
 
-This hook tracks individual service health status (RT-DETRv2, Nemotron) via WebSocket. The backend's `ServiceHealthMonitor` (health_monitor.py) monitors these services and broadcasts `service_status` messages when health changes.
+interface ChannelStatus {
+  name: string;
+  state: ConnectionState;
+  reconnectAttempts: number;
+  maxReconnectAttempts: number;
+  lastMessageTime: Date | null;
+}
+
+interface UseWebSocketStatusReturn {
+  channelStatus: ChannelStatus;
+  lastMessage: unknown;
+  send: (data: unknown) => void;
+  connect: () => void;
+  disconnect: () => void;
+}
+```
+
+### `useConnectionStatus.ts`
+
+Unified hook that manages both `/ws/events` and `/ws/system` WebSocket channels.
+
+**Features:**
+
+- Single hook for all WebSocket connections
+- Aggregated connection summary (overall state, any reconnecting, all connected)
+- Stores events in memory buffer (max 100 events)
+- Parses backend system status messages
+
+**Return Interface:**
+
+```typescript
+interface ConnectionStatusSummary {
+  eventsChannel: ChannelStatus;
+  systemChannel: ChannelStatus;
+  overallState: ConnectionState;
+  anyReconnecting: boolean;
+  allConnected: boolean;
+  totalReconnectAttempts: number;
+}
+
+interface UseConnectionStatusReturn {
+  summary: ConnectionStatusSummary;
+  events: SecurityEvent[];
+  systemStatus: BackendSystemStatus | null;
+  clearEvents: () => void;
+}
+```
+
+### `useStorageStats.ts`
+
+Hook for polling storage statistics and previewing cleanup operations.
+
+**Features:**
+
+- Polls `GET /api/system/storage` at configurable intervals (default: 60s)
+- Provides disk usage metrics (used, total, free, percent)
+- Storage breakdown by category (thumbnails, images, clips)
+- Database record counts (events, detections, GPU stats, logs)
+- Cleanup preview functionality (dry run mode)
+
+**Options Interface:**
+
+```typescript
+interface UseStorageStatsOptions {
+  pollInterval?: number; // default: 60000ms
+  enablePolling?: boolean; // default: true
+}
+```
+
+**Return Interface:**
+
+```typescript
+interface UseStorageStatsReturn {
+  stats: StorageStatsResponse | null;
+  loading: boolean;
+  error: string | null;
+  refresh: () => Promise;
+  previewCleanup: () => Promise;
+  previewLoading: boolean;
+  cleanupPreview: CleanupResponse | null;
+}
+```
+
+### `useServiceStatus.ts`
+
+**Note:** This hook is NOT exported from `index.ts`.
+
+The backend's `ServiceHealthMonitor` (health_monitor.py) monitors services and can broadcast `service_status` messages. However, this hook is not part of the public API.
 
 **Use `useSystemStatus`** for overall system health (healthy/degraded/unhealthy).
-**Use `useServiceStatus`** for detailed per-service status or when you need to react to specific service failures.
-
-Note: Redis health is not monitored by ServiceHealthMonitor since the backend handles Redis failures gracefully through other mechanisms.
+**Use `useConnectionStatus`** for unified connection management with status summary.
 
 ## Custom Hooks Patterns
 

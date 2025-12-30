@@ -8,7 +8,7 @@ Contains components for visualizing AI object detection results on images. Provi
 
 ### DetectionImage.tsx
 
-**Purpose:** Wrapper component that displays an image with bounding box overlays
+**Purpose:** Wrapper component that displays an image with bounding box overlays and optional lightbox
 
 **Key Features:**
 
@@ -17,6 +17,8 @@ Contains components for visualizing AI object detection results on images. Provi
 - Handles image load event to provide dimensions to overlay
 - Container uses relative positioning for overlay alignment
 - Supports all BoundingBoxOverlay features via prop forwarding
+- Optional lightbox integration for full-size image viewing
+- Hover overlay with "Click to enlarge" hint when lightbox enabled
 
 **Props:**
 
@@ -28,14 +30,18 @@ Contains components for visualizing AI object detection results on images. Provi
 - `minConfidence?: number` - Filter boxes below threshold (default: 0)
 - `className?: string` - Additional CSS classes
 - `onClick?: (box: BoundingBox) => void` - Click handler for boxes
+- `enableLightbox?: boolean` - Enable lightbox on image click (default: false)
+- `lightboxCaption?: string` - Caption to display in lightbox
 
 **State:**
 
 - `imageDimensions: { width: number; height: number } | null` - Natural image size
+- `isLightboxOpen: boolean` - Controls lightbox visibility
 
 **Pattern:**
 
 ```tsx
+// Basic usage
 <DetectionImage
   src="/images/front_door.jpg"
   alt="Front door camera"
@@ -43,7 +49,21 @@ Contains components for visualizing AI object detection results on images. Provi
   showLabels={true}
   showConfidence={true}
 />
+
+// With lightbox
+<DetectionImage
+  src="/images/front_door.jpg"
+  alt="Front door camera"
+  boxes={detections}
+  enableLightbox={true}
+  lightboxCaption="Person detected at 2:45 PM"
+/>
 ```
+
+**Dependencies:**
+
+- `./BoundingBoxOverlay` - SVG bounding box rendering
+- `../common/Lightbox` - Full-size image modal
 
 ### BoundingBoxOverlay.tsx
 

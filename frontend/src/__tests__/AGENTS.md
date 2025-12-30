@@ -18,16 +18,16 @@ frontend/src/__tests__/
 
 Validates the Lighthouse CI configuration structure and threshold values. Tests ensure performance monitoring is correctly configured.
 
-**Test Suites (6 suites, 20 tests):**
+**Test Suites (6 suites, 21 tests):**
 
-| Suite                  | Tests                                         |
-| ---------------------- | --------------------------------------------- |
-| Config Structure       | ci property, collect, assert, upload sections |
-| Collect Configuration  | staticDistDir, numberOfRuns validation        |
-| Assert Configuration   | assertions object, Core Web Vitals presence   |
-| Assertion Thresholds   | Performance score, FCP, LCP, CLS, TBT ranges  |
-| Threshold Value Ranges | Exact threshold value verification            |
-| Upload Configuration   | Valid upload target                           |
+| Suite                      | Tests                                                                                            |
+| -------------------------- | ------------------------------------------------------------------------------------------------ |
+| Config Structure (4)       | ci property, collect, assert, upload sections                                                    |
+| Collect Configuration (3)  | staticDistDir, numberOfRuns defined, numberOfRuns between 1-10                                   |
+| Assert Configuration (3)   | assertions object, performance category, Core Web Vitals presence                                |
+| Assertion Thresholds (6)   | Performance score >= 0.5, FCP < 5000ms, LCP < 8000ms, CLS < 0.5, TBT < 1000ms, warn/error levels |
+| Threshold Value Ranges (5) | Exact threshold values: 0.8 perf, 2000ms FCP, 4000ms LCP, 0.1 CLS, 300ms TBT                     |
+| Upload Configuration (1)   | Valid upload target (temporary-public-storage, lhci, filesystem)                                 |
 
 **Expected Thresholds:**
 

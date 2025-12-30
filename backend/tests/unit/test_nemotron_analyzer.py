@@ -15,6 +15,10 @@ from backend.models.event import Event
 from backend.services.nemotron_analyzer import NemotronAnalyzer
 from backend.tests.conftest import unique_id
 
+# Mark as integration since these tests require real PostgreSQL database
+# NOTE: This file should be moved to backend/tests/integration/ in a future cleanup
+pytestmark = pytest.mark.integration
+
 # Fixtures
 
 

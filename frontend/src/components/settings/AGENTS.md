@@ -240,6 +240,78 @@ import DlqMonitor from './DlqMonitor';
 
 ---
 
+### NotificationSettings.tsx
+
+**Purpose:** Display notification configuration status for email and webhook channels
+
+**Key Features:**
+
+- Shows overall notification system enabled/disabled status
+- Email (SMTP) configuration panel:
+  - Configuration status badge (Configured/Not Configured)
+  - SMTP host, port, from address, TLS status
+  - Default recipients display with badges
+  - "Send Test Email" button with loading state
+- Webhook configuration panel:
+  - Configuration status badge
+  - Webhook URL display
+  - Timeout setting
+  - "Send Test Webhook" button with loading state
+- Available channels summary
+- Test result feedback (success/error with 5-second auto-dismiss)
+- Configuration note explaining environment variable setup
+
+**Props:**
+
+```typescript
+interface NotificationSettingsProps {
+  className?: string;
+}
+```
+
+**API Integration:**
+
+- `fetchNotificationConfig()` - GET /api/notifications/config
+- `testNotification(channel)` - POST /api/notifications/test/{channel}
+
+### StorageDashboard.tsx
+
+**Purpose:** Real-time disk usage metrics and storage breakdown dashboard
+
+**Key Features:**
+
+- Overall disk usage with progress bar (color-coded by percentage):
+  - Green (<50%), Yellow (50-75%), Orange (75-90%), Red (>90%)
+- Storage breakdown by category (3-column grid):
+  - Thumbnails (cyan accent)
+  - Camera images (violet accent)
+  - Video clips (amber accent)
+- Database record counts (4-column grid):
+  - Events, Detections, GPU Stats, Logs
+- Cleanup preview with dry-run button showing:
+  - Records that would be deleted by category
+  - Space to be reclaimed
+  - Retention period
+- Auto-refresh with configurable poll interval (default: 60s)
+- Loading skeleton and error states with retry button
+
+**Props:**
+
+```typescript
+interface StorageDashboardProps {
+  className?: string;
+}
+```
+
+**Hooks Used:**
+
+- `useStorageStats({ pollInterval, enablePolling })` - Custom hook for storage data
+
+**Helper Functions:**
+
+- `formatBytes(bytes)` - Converts bytes to human-readable string (KB, MB, GB, TB)
+- `formatNumber(num)` - Adds thousands separator
+
 ### index.ts
 
 **Purpose:** Barrel export for settings components
@@ -249,6 +321,8 @@ export { default as CamerasSettings } from './CamerasSettings';
 export { default as AIModelsSettings } from './AIModelsSettings';
 export { default as ProcessingSettings } from './ProcessingSettings';
 export { default as DlqMonitor } from './DlqMonitor';
+export { default as NotificationSettings } from './NotificationSettings';
+export { default as StorageDashboard } from './StorageDashboard';
 ```
 
 ### README.md

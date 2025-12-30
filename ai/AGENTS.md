@@ -2,238 +2,158 @@
 
 ## Purpose
 
-This directory contains the AI inference services that power the home security monitoring system. It includes object detection via RT-DETRv2 and risk reasoning via Nemotron LLM, both running as independent HTTP services.
+Contains AI inference services for home security monitoring: object detection (RT-DETRv2) and risk reasoning (Nemotron LLM). Both run as independent HTTP servers.
 
 ## Directory Structure
 
 ```
 ai/
-├── AGENTS.md              # This file - AI pipeline overview
+├── AGENTS.md              # This file
 ├── rtdetr/                # RT-DETRv2 object detection server
 │   ├── AGENTS.md          # RT-DETRv2 documentation
-│   ├── __init__.py        # Package init (version 1.0.0)
-│   ├── model.py           # FastAPI inference server (HuggingFace Transformers) - 435 lines
-│   ├── example_client.py  # Python client example - 187 lines
-│   ├── test_model.py      # Unit tests (pytest) - 337 lines
-│   ├── requirements.txt   # Python dependencies
-│   ├── README.md          # Usage documentation
-│   └── .gitkeep           # Git placeholder
-├── nemotron/              # Nemotron LLM model files and config
+│   ├── model.py           # FastAPI server (HuggingFace Transformers)
+│   ├── example_client.py  # Python client example
+│   ├── test_model.py      # Unit tests (some outdated)
+│   └── requirements.txt   # Python dependencies
+├── nemotron/              # Nemotron LLM model files
 │   ├── AGENTS.md          # Nemotron documentation
-│   ├── config.json        # llama.cpp server config reference
-│   ├── .gitkeep           # Git placeholder
-│   └── *.gguf             # Model file (downloaded, not in git)
-├── download_models.sh     # Download AI models script
-├── start_detector.sh      # Start RT-DETRv2 server
-├── start_llm.sh           # Start Nemotron LLM server (simple)
-└── start_nemotron.sh      # Start Nemotron server (advanced, with auto-recovery)
+│   ├── config.json        # llama.cpp config reference
+│   └── *.gguf             # Model file (not in git)
+├── download_models.sh     # Download AI models
+├── start_detector.sh      # Start RT-DETRv2 (port 8090)
+├── start_llm.sh           # Start Nemotron 4B (port 8091)
+└── start_nemotron.sh      # Start Nemotron 30B with auto-recovery
 ```
 
-## Key Files
+## Quick Start
 
-### `download_models.sh`
+```bash
+# 1. Download models (first time only)
+./ai/download_models.sh
 
-Downloads or locates required AI models:
+# 2. Start RT-DETRv2 detection server
+./ai/start_detector.sh
 
-- **Nemotron Mini 4B Instruct** (Q4_K_M quantized GGUF) - ~2.5GB
-  - Source: HuggingFace (bartowski/nemotron-mini-4b-instruct-GGUF)
-  - Purpose: LLM-based risk reasoning and natural language generation
-  - Search paths: `NEMOTRON_GGUF_PATH`, `NEMOTRON_MODELS_DIR`, `/export/ai_models/nemotron`
-- **RT-DETRv2** (optional ONNX file for legacy support)
-  - Model: `rtdetrv2_r50vd.onnx`
-  - Search paths: `RTDETR_ONNX_PATH`, `RTDETR_MODELS_DIR`, `/export/ai_models/rt-detrv2`
-  - Note: The current `model.py` uses HuggingFace Transformers which auto-downloads models
+# 3. Start Nemotron LLM server
+./ai/start_llm.sh          # Simple (4B model)
+./ai/start_nemotron.sh     # Advanced (30B model)
+```
 
-### `start_detector.sh`
+## Services
 
-Starts the RT-DETRv2 object detection server:
+### RT-DETRv2 (Object Detection)
 
-- **Port**: 8090 (configurable via `RTDETR_PORT`)
-- **VRAM**: ~3-4GB (uses HuggingFace Transformers)
-- **Purpose**: Detects security-relevant objects in camera images
-- Runs `python model.py` from `ai/rtdetr/`
-- **Host**: 0.0.0.0 (accessible from containers)
-- **Environment Variables**:
-  - `MODEL_PATH`: ONNX model path (legacy, checked but not required)
-  - `RTDETR_MODEL_PATH`: HuggingFace model path (default: `/export/ai_models/rt-detrv2/rtdetr_v2_r101vd`)
-  - `RTDETR_CONFIDENCE`: Minimum detection confidence (default: 0.5)
-  - `HOST`: Server bind address (default: 0.0.0.0)
-  - `PORT`: Server port (default: 8090)
+- **Port**: 8090
+- **VRAM**: ~3-4GB
+- **Framework**: HuggingFace Transformers (PyTorch)
+- **Default Model**: `/export/ai_models/rt-detrv2/rtdetr_v2_r101vd`
+- **Endpoints**: `GET /health`, `POST /detect`, `POST /detect/batch`
 
-### `start_llm.sh`
+**Environment Variables**:
 
-Simple startup script for Nemotron LLM server via llama.cpp:
+- `RTDETR_MODEL_PATH`: HuggingFace model path
+- `RTDETR_CONFIDENCE`: Min confidence (default: 0.5)
+- `HOST`: Bind address (default: 0.0.0.0)
+- `PORT`: Server port (default: 8090)
 
-- **Port**: 8091 (configurable via `NEMOTRON_PORT`)
-- **VRAM**: ~3GB (Q4_K_M quantization)
-- **Context**: 4096 tokens
-- **Parallelism**: 2 concurrent requests
-- **GPU layers**: 99 (all layers on GPU)
-- Uses `llama-server` command from llama.cpp
-- **Model**: `ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf`
+**Security-Relevant Classes** (all others filtered):
 
-### `start_nemotron.sh`
+```
+person, car, truck, dog, cat, bird, bicycle, motorcycle, bus
+```
 
-Advanced startup script with auto-recovery support:
+### Nemotron LLM (Risk Reasoning)
 
-- **Port**: 8091 (configurable via `NEMOTRON_PORT`)
-- **Host**: 0.0.0.0 (configurable via `NEMOTRON_HOST`) - accessible from containers
-- **VRAM**: ~16GB (supports larger Nemotron-3-Nano-30B-A3B model)
-- **Context**: 12288 tokens (configurable via `NEMOTRON_CONTEXT_SIZE`)
-- **GPU layers**: 45 (configurable via `NEMOTRON_GPU_LAYERS`)
-- **Startup timeout**: 90 seconds (for large model loading)
-- **Log file**: `/tmp/nemotron.log`
-- **Features**:
-  - Multiple model path search locations
-  - Multiple llama-server binary search locations
-  - Health check before starting (skips if already running)
-  - Background process with nohup
-  - Startup health monitoring with timeout
-- **Model search paths** (in order):
-  1. `$NEMOTRON_MODEL_PATH` environment variable
-  2. `/export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf`
-  3. `ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf`
-- **llama-server search paths** (in order):
-  1. `$LLAMA_SERVER_PATH` environment variable
-  2. `/usr/bin/llama-server`
-  3. `/export/ai_models/nemotron/llama.cpp/build/bin/llama-server`
-  4. System PATH
+- **Port**: 8091
+- **VRAM**: ~3GB (4B) or ~16GB (30B)
+- **Framework**: llama.cpp
+- **Endpoints**: `GET /health`, `POST /completion`, `POST /v1/chat/completions`
+
+**Environment Variables**:
+
+- `NEMOTRON_MODEL_PATH`: GGUF model path
+- `NEMOTRON_PORT`: Server port (default: 8091)
+- `NEMOTRON_CONTEXT_SIZE`: Context window (default: 4096 or 12288)
+- `NEMOTRON_GPU_LAYERS`: GPU layers (default: 99 or 45)
+
+**Risk Scoring**:
+
+- 0-25: Low (normal activity)
+- 26-50: Medium (unusual)
+- 51-75: High (suspicious)
+- 76-100: Critical (threat)
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      AI Pipeline                            │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌──────────────────┐         ┌──────────────────┐         │
-│  │  RT-DETRv2       │         │  Nemotron LLM    │         │
-│  │  Detection       │         │  Reasoning       │         │
-│  │  Port: 8090      │         │  Port: 8091      │         │
-│  │  VRAM: ~3GB      │         │  VRAM: ~3-16GB   │         │
-│  │  HuggingFace     │         │  llama.cpp       │         │
-│  └──────────────────┘         └──────────────────┘         │
-│         ▲                             ▲                     │
-│         │                             │                     │
-│         │ HTTP POST /detect           │ HTTP POST          │
-│         │ (multipart/form-data)       │ /completion        │
-│         │                             │ (JSON)             │
-└─────────┼─────────────────────────────┼─────────────────────┘
-          │                             │
-          │                             │
-    ┌─────┴──────┐              ┌──────┴────────┐
-    │ Detector   │              │ Nemotron      │
-    │ Client     │              │ Analyzer      │
-    │ Service    │              │ Service       │
-    └────────────┘              └───────────────┘
-     (backend)                   (backend)
+Camera Images → RT-DETRv2 (8090) → Detections → Nemotron (8091) → Risk Events
+                   ↑                                  ↑
+                   │                                  │
+           detector_client.py              nemotron_analyzer.py
+                (backend)                       (backend)
 ```
-
-## How the AI Models are Used
-
-### RT-DETRv2 (Object Detection)
-
-RT-DETRv2 (Real-Time Detection Transformer v2) analyzes camera images to detect security-relevant objects:
-
-1. **Input**: Camera images from Foscam FTP uploads (`/export/foscam/{camera_name}/`)
-2. **Processing**: The file watcher service detects new images and sends them to RT-DETRv2
-3. **Detection**: RT-DETRv2 identifies objects with bounding boxes and confidence scores
-4. **Filtering**: Only security-relevant classes are returned (person, car, truck, dog, cat, bird, bicycle, motorcycle, bus)
-5. **Output**: Detection records stored in database with coordinates and timestamps
-
-**Security-Relevant Classes**: person, car, truck, dog, cat, bird, bicycle, motorcycle, bus
-
-### Nemotron (Risk Reasoning)
-
-Nemotron Mini 4B Instruct performs AI-powered risk analysis on batches of detections:
-
-1. **Input**: Batches of detection data aggregated over 90-second time windows
-2. **Analysis**: LLM evaluates the context, timing, and patterns of detected objects
-3. **Risk Scoring**: Generates a 0-100 risk score based on the analysis
-4. **Classification**: Assigns risk level (low/medium/high/critical)
-5. **Output**: Event records with risk scores, summaries, and reasoning
-
-**Risk Scoring Guidelines**:
-
-- 0-25 (low): Normal activity, no concern
-- 26-50 (medium): Unusual but not threatening
-- 51-75 (high): Suspicious activity requiring attention
-- 76-100 (critical): Potential security threat, immediate action needed
 
 ## Backend Integration
 
-The backend services integrate with these AI servers:
-
 ### Detector Client (`backend/services/detector_client.py`)
 
-- Sends camera images to RT-DETRv2 detection server
-- Receives bounding boxes and object classifications
-- Filters by confidence threshold (default 0.5)
+- Sends images to RT-DETRv2
 - Stores Detection records in database
 
 ### Nemotron Analyzer (`backend/services/nemotron_analyzer.py`)
 
-- Analyzes batches of detections using Nemotron LLM
-- Generates risk scores (0-100) and risk levels (low/medium/high/critical)
-- Produces natural language summaries and reasoning
-- Creates Event records with risk assessments
-
-## Starting the Services
-
-### 1. Download Models (First Time Only)
-
-```bash
-cd /path/to/home_security_intelligence
-./ai/download_models.sh
-```
-
-### 2. Start Detection Server
-
-```bash
-./ai/start_detector.sh
-```
-
-Server runs at: `http://localhost:8090`
-
-### 3. Start LLM Server
-
-```bash
-# Simple startup (Nemotron Mini 4B)
-./ai/start_llm.sh
-
-# Or advanced startup with auto-recovery (Nemotron 30B)
-./ai/start_nemotron.sh
-```
-
-Server runs at: `http://localhost:8091`
-
-**Note**: Ensure `llama-server` from llama.cpp is installed and available in PATH before starting the LLM service.
+- Analyzes detection batches
+- Creates Event records with risk scores
 
 ## Hardware Requirements
 
-- **GPU**: NVIDIA RTX A5500 (24GB VRAM) or similar
-- **CUDA**: Required for GPU acceleration
-- **Total VRAM Usage**: ~6-20GB depending on model configuration
+- **GPU**: NVIDIA with CUDA support
+- **VRAM**:
   - RT-DETRv2: ~3-4GB
-  - Nemotron Mini 4B: ~3GB
-  - Nemotron 30B A3B: ~16GB
-- **CPU Fallback**: Both services fall back to CPU if CUDA unavailable (significantly slower)
-- **Inference Performance**:
-  - RT-DETRv2: 30-50ms per image (GPU)
-  - Nemotron: ~2-5 seconds per risk analysis (GPU)
+  - Nemotron 4B: ~3GB
+  - Nemotron 30B: ~16GB
+- **Performance**:
+  - RT-DETRv2: 30-50ms/image
+  - Nemotron: 2-5s/analysis
 
-## Development Notes
+## Startup Scripts
 
-- Both services run as independent HTTP servers (not in Docker)
-- Services must be started manually before running the backend
-- Health check endpoints available at `/health` on both services
-- Use `example_client.py` in rtdetr/ for testing detection API
-- Backend automatically falls back if services are unavailable
+### `download_models.sh`
 
-## Entry Points for Understanding the Code
+Downloads or locates models:
 
-1. **Start here**: Read this file for pipeline overview
-2. **Object Detection**: `ai/rtdetr/AGENTS.md` and `ai/rtdetr/model.py`
-3. **Risk Reasoning**: `ai/nemotron/AGENTS.md` and backend's `nemotron_analyzer.py`
-4. **Model Setup**: `ai/download_models.sh` for model acquisition
-5. **Service Startup**: `ai/start_detector.sh` and `ai/start_nemotron.sh`
+- Nemotron: HuggingFace (bartowski/nemotron-mini-4b-instruct-GGUF)
+- RT-DETRv2: Optional ONNX (legacy, HuggingFace models auto-download)
+
+### `start_detector.sh`
+
+Runs `python model.py` from rtdetr/. Checks for ONNX model path (legacy) but actual code uses HuggingFace.
+
+### `start_llm.sh`
+
+Simple llama-server startup for 4B model:
+
+- Context: 4096 tokens
+- GPU layers: 99
+
+### `start_nemotron.sh`
+
+Advanced startup for 30B model:
+
+- Auto-recovery and health monitoring
+- Multiple model/binary search paths
+- 90-second startup timeout
+- Log file: `/tmp/nemotron.log`
+
+## Known Issues
+
+1. **start_detector.sh references ONNX**: Script checks for ONNX model but code uses HuggingFace Transformers
+2. **test_model.py outdated**: Some tests reference deprecated ONNX API
+3. **README.md outdated**: References ONNX Runtime
+
+## Entry Points
+
+1. **Pipeline overview**: This file
+2. **Detection server**: `rtdetr/AGENTS.md` and `rtdetr/model.py`
+3. **LLM server**: `nemotron/AGENTS.md`
+4. **Backend integration**: `backend/services/detector_client.py` and `nemotron_analyzer.py`

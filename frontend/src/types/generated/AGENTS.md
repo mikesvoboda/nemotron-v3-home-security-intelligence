@@ -69,32 +69,52 @@ export type DLQStatsResponse = components['schemas']['DLQStatsResponse'];
 // Error types
 export type HTTPValidationError = components['schemas']['HTTPValidationError'];
 export type ValidationError = components['schemas']['ValidationError'];
+
+// Search types
+export type SearchResult = components['schemas']['SearchResult'];
+export type SearchResponse = components['schemas']['SearchResponse'];
 ```
 
 ## API Endpoints Defined
 
 The `paths` type includes all backend endpoints:
 
-| Path                                   | Methods            | Description             |
-| -------------------------------------- | ------------------ | ----------------------- |
-| `/api/cameras`                         | GET, POST          | List/create cameras     |
-| `/api/cameras/{camera_id}`             | GET, PATCH, DELETE | Camera CRUD             |
-| `/api/cameras/{camera_id}/snapshot`    | GET                | Camera snapshot image   |
-| `/api/events`                          | GET                | List events             |
-| `/api/events/{event_id}`               | GET, PATCH         | Event details/update    |
-| `/api/events/stats`                    | GET                | Event statistics        |
-| `/api/detections`                      | GET                | List detections         |
-| `/api/detections/{detection_id}`       | GET                | Detection details       |
-| `/api/detections/{detection_id}/image` | GET                | Detection image         |
-| `/api/system/health`                   | GET                | System health           |
-| `/api/system/gpu`                      | GET                | GPU statistics          |
-| `/api/system/config`                   | GET, PATCH         | System configuration    |
-| `/api/system/stats`                    | GET                | System statistics       |
-| `/api/logs`                            | GET, POST          | List/create logs        |
-| `/api/logs/stats`                      | GET                | Log statistics          |
-| `/api/dlq/stats`                       | GET                | Dead-letter queue stats |
-| `/api/dlq/jobs/{queue_name}`           | GET                | DLQ job listing         |
-| `/api/admin/seed/*`                    | POST, DELETE       | Admin seeding (debug)   |
+| Path                                             | Methods            | Description             |
+| ------------------------------------------------ | ------------------ | ----------------------- |
+| `/api/cameras`                                   | GET, POST          | List/create cameras     |
+| `/api/cameras/{camera_id}`                       | GET, PATCH, DELETE | Camera CRUD             |
+| `/api/cameras/{camera_id}/snapshot`              | GET                | Camera snapshot image   |
+| `/api/events`                                    | GET                | List events             |
+| `/api/events/{event_id}`                         | GET, PATCH         | Event details/update    |
+| `/api/events/stats`                              | GET                | Event statistics        |
+| `/api/events/search`                             | GET                | Full-text event search  |
+| `/api/events/export`                             | GET                | CSV export              |
+| `/api/events/{event_id}/detections`              | GET                | Event detections        |
+| `/api/detections`                                | GET                | List detections         |
+| `/api/detections/{detection_id}`                 | GET                | Detection details       |
+| `/api/detections/{detection_id}/image`           | GET                | Detection image         |
+| `/api/detections/{detection_id}/video`           | GET                | Detection video stream  |
+| `/api/detections/{detection_id}/video/thumbnail` | GET                | Detection video poster  |
+| `/api/system/health`                             | GET                | System health           |
+| `/api/system/health/ready`                       | GET                | Readiness with workers  |
+| `/api/system/gpu`                                | GET                | GPU statistics          |
+| `/api/system/gpu/history`                        | GET                | GPU stats history       |
+| `/api/system/config`                             | GET, PATCH         | System configuration    |
+| `/api/system/stats`                              | GET                | System statistics       |
+| `/api/system/storage`                            | GET                | Storage/disk usage      |
+| `/api/system/cleanup`                            | POST               | Trigger cleanup         |
+| `/api/system/telemetry`                          | GET                | Pipeline telemetry      |
+| `/api/logs`                                      | GET, POST          | List/create logs        |
+| `/api/logs/stats`                                | GET                | Log statistics          |
+| `/api/logs/frontend`                             | POST               | Frontend log ingestion  |
+| `/api/dlq/stats`                                 | GET                | Dead-letter queue stats |
+| `/api/dlq/jobs/{queue_name}`                     | GET                | DLQ job listing         |
+| `/api/dlq/requeue/{queue_name}`                  | POST               | Requeue single DLQ job  |
+| `/api/dlq/requeue-all/{queue_name}`              | POST               | Requeue all DLQ jobs    |
+| `/api/dlq/{queue_name}`                          | DELETE             | Clear DLQ               |
+| `/api/notification/config`                       | GET                | Notification config     |
+| `/api/notification/test`                         | POST               | Test notification       |
+| `/api/admin/seed/*`                              | POST, DELETE       | Admin seeding (debug)   |
 
 ## Regenerating Types
 

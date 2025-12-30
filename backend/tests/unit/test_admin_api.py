@@ -20,7 +20,12 @@ from backend.models.event import Event
 # Mark all tests in this module for serial execution to avoid parallel conflicts
 # Admin seed tests use fixed camera IDs and DELETE operations that affect global state
 # Using xdist_group ensures all tests in this module run on the same worker sequentially
-pytestmark = [pytest.mark.serial, pytest.mark.xdist_group(name="admin_seed")]
+# Mark as integration since these tests require real database (integration_db fixture)
+pytestmark = [
+    pytest.mark.serial,
+    pytest.mark.xdist_group(name="admin_seed"),
+    pytest.mark.integration,
+]
 
 
 @pytest.fixture

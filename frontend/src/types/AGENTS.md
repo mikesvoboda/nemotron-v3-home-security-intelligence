@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TypeScript type definitions for the frontend application. Contains auto-generated API types from the backend OpenAPI specification and any custom type definitions.
+TypeScript type definitions for the frontend application. Contains auto-generated API types from the backend OpenAPI specification. All types are generated from backend Pydantic schemas.
 
 ## Directory Structure
 
@@ -11,7 +11,7 @@ frontend/src/types/
 ├── AGENTS.md           # This documentation file
 └── generated/          # Auto-generated types from backend OpenAPI
     ├── AGENTS.md       # Generated types documentation
-    ├── api.ts          # Full OpenAPI-generated types (4133 lines)
+    ├── api.ts          # Full OpenAPI-generated types
     └── index.ts        # Re-exports with convenient type aliases
 ```
 

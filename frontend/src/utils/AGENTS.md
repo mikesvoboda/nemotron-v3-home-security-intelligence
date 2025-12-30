@@ -2,16 +2,18 @@
 
 ## Purpose
 
-Utility functions for common operations across the frontend application, including risk scoring and time/duration formatting.
+Utility functions for common operations across the frontend application, including risk scoring, confidence levels, and time/duration formatting.
 
 ## Key Files
 
-| File           | Purpose                                    |
-| -------------- | ------------------------------------------ |
-| `risk.ts`      | Risk scoring utilities for security events |
-| `risk.test.ts` | Tests for risk utilities                   |
-| `time.ts`      | Time and duration formatting utilities     |
-| `time.test.ts` | Tests for time utilities                   |
+| File                 | Purpose                                    |
+| -------------------- | ------------------------------------------ |
+| `risk.ts`            | Risk scoring utilities for security events |
+| `risk.test.ts`       | Tests for risk utilities                   |
+| `confidence.ts`      | Detection confidence level utilities       |
+| `confidence.test.ts` | Tests for confidence utilities             |
+| `time.ts`            | Time and duration formatting utilities     |
+| `time.test.ts`       | Tests for time utilities                   |
 
 ## Risk Utilities (`risk.ts`)
 
@@ -19,28 +21,48 @@ Utility functions for common operations across the frontend application, includi
 
 ```typescript
 type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
+
+// Configurable thresholds matching backend defaults
+const RISK_THRESHOLDS = {
+  LOW_MAX: 29, // 0-29 = Low
+  MEDIUM_MAX: 59, // 30-59 = Medium
+  HIGH_MAX: 84, // 60-84 = High
+  // 85-100 = Critical
+} as const;
 ```
 
 ### Functions
 
 #### `getRiskLevel(score: number): RiskLevel`
 
-Converts numeric risk score (0-100) to categorical risk level.
+Converts numeric risk score (0-100) to categorical risk level using default thresholds.
 
-**Thresholds:**
+**Default Thresholds (matching backend SeverityService):**
 
-- 0-25: `low`
-- 26-50: `medium`
-- 51-75: `high`
-- 76-100: `critical`
+- 0-29: `low`
+- 30-59: `medium`
+- 60-84: `high`
+- 85-100: `critical`
+
+**Note:** Thresholds are configurable on backend via environment variables (`SEVERITY_LOW_MAX`, `SEVERITY_MEDIUM_MAX`, `SEVERITY_HIGH_MAX`). Use `getRiskLevelWithThresholds()` for dynamic threshold support.
 
 **Throws:** Error if score is outside 0-100 range
 
 ```typescript
-getRiskLevel(25); // 'low'
-getRiskLevel(26); // 'medium'
-getRiskLevel(75); // 'high'
-getRiskLevel(76); // 'critical'
+getRiskLevel(29); // 'low'
+getRiskLevel(30); // 'medium'
+getRiskLevel(84); // 'high'
+getRiskLevel(85); // 'critical'
+```
+
+#### `getRiskLevelWithThresholds(score, thresholds): RiskLevel`
+
+Converts score to risk level using custom thresholds fetched from backend API.
+
+```typescript
+// Fetch dynamic thresholds from GET /api/system/severity
+const thresholds = { low_max: 29, medium_max: 59, high_max: 84 };
+getRiskLevelWithThresholds(50, thresholds); // 'medium'
 ```
 
 #### `getRiskColor(level: RiskLevel): string`
@@ -65,6 +87,100 @@ Returns capitalized human-readable label for a risk level.
 ```typescript
 getRiskLabel('medium'); // 'Medium'
 getRiskLabel('critical'); // 'Critical'
+```
+
+## Confidence Utilities (`confidence.ts`)
+
+### Types
+
+```typescript
+type ConfidenceLevel = 'low' | 'medium' | 'high';
+```
+
+### Functions
+
+#### `getConfidenceLevel(confidence: number): ConfidenceLevel`
+
+Converts detection confidence score (0.0-1.0) to categorical level.
+
+**Thresholds:**
+
+- 0.0-0.69: `low`
+- 0.70-0.84: `medium`
+- 0.85-1.0: `high`
+
+**Throws:** Error if confidence is outside 0.0-1.0 range
+
+```typescript
+getConfidenceLevel(0.5); // 'low'
+getConfidenceLevel(0.75); // 'medium'
+getConfidenceLevel(0.9); // 'high'
+```
+
+#### `getConfidenceColor(level: ConfidenceLevel): string`
+
+Returns hex color code for a confidence level.
+
+| Level    | Color  | Hex       |
+| -------- | ------ | --------- |
+| `low`    | Red    | `#E74856` |
+| `medium` | Yellow | `#FFB800` |
+| `high`   | Green  | `#76B900` |
+
+#### `getConfidenceTextColorClass(level): string`
+
+Returns Tailwind text color class.
+
+```typescript
+getConfidenceTextColorClass('high'); // 'text-green-400'
+```
+
+#### `getConfidenceBgColorClass(level): string`
+
+Returns Tailwind background color class with transparency.
+
+```typescript
+getConfidenceBgColorClass('medium'); // 'bg-yellow-500/20'
+```
+
+#### `getConfidenceBorderColorClass(level): string`
+
+Returns Tailwind border color class.
+
+```typescript
+getConfidenceBorderColorClass('low'); // 'border-red-500/40'
+```
+
+#### `getConfidenceLabel(level): string`
+
+Returns human-readable label.
+
+```typescript
+getConfidenceLabel('high'); // 'High Confidence'
+```
+
+#### `formatConfidencePercent(confidence): string`
+
+Formats confidence as percentage string.
+
+```typescript
+formatConfidencePercent(0.95); // '95%'
+```
+
+#### Array Operations
+
+```typescript
+// Calculate average confidence
+calculateAverageConfidence(detections); // number | null
+
+// Get maximum confidence
+calculateMaxConfidence(detections); // number | null
+
+// Sort detections by confidence (highest first)
+sortDetectionsByConfidence(detections); // T[]
+
+// Filter by minimum confidence threshold
+filterDetectionsByConfidence(detections, 0.7); // T[]
 ```
 
 ## Time Utilities (`time.ts`)
@@ -211,17 +327,20 @@ formatDuration('2024-01-01T10:00:00Z', '2024-01-01T09:00:00Z'); // Returns "0s" 
 
 ## Notes
 
-- Risk levels align with Tailwind CSS risk badge classes (`.risk-badge-low`, `.risk-badge-critical`, etc.)
+- Risk levels align with Tailwind CSS risk badge classes (`.risk-badge-low`, `.risk-badge-high`, etc.)
 - Risk colors use NVIDIA brand palette for consistency with the theme
 - Score validation ensures type safety at runtime
-- Thresholds are inclusive: 25 is `low`, 26 is `medium`
+- Default thresholds match backend SeverityService: Low (0-29), Medium (30-59), High (60-84), Critical (85-100)
+- Use `getRiskLevelWithThresholds()` if backend has custom thresholds configured
 - Time utilities handle ISO 8601 timestamp strings
 - Ongoing event detection uses 5-minute threshold for "ongoing" vs duration display
+- Confidence utilities are for detection confidence (0.0-1.0), not risk scores (0-100)
 
 ## Entry Points
 
 For AI agents exploring this codebase:
 
-1. **Risk utilities**: `risk.ts` - Score-to-level conversion, colors, labels
-2. **Time utilities**: `time.ts` - Duration formatting, ongoing event detection
-3. **Tests**: Each utility has a `.test.ts` file with comprehensive examples
+1. **Risk utilities**: `risk.ts` - Score-to-level conversion with configurable thresholds, colors, labels
+2. **Confidence utilities**: `confidence.ts` - Detection confidence levels, colors, Tailwind classes, array helpers
+3. **Time utilities**: `time.ts` - Duration formatting, ongoing event detection
+4. **Tests**: Each utility has a `.test.ts` file with comprehensive examples

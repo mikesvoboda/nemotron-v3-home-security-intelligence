@@ -1,3 +1,12 @@
+---
+title: Understanding Security Alerts
+description: What security alerts mean and how to respond to them
+---
+
+<!-- Nano Banana Pro Prompt:
+"Dark mode security alert explanation diagram showing risk score gauge from 0-100 with color zones (green 0-30, yellow 30-60, orange 60-85, red 85-100), alert notification cards with severity badges, AI reasoning text panel, NVIDIA dark theme #121212 background with #76B900 green accents, educational infographic style, vertical 2:3 aspect ratio, no text overlays"
+-->
+
 # Understanding Security Alerts
 
 This guide helps you understand what the security alerts mean and how to respond to them. The system uses artificial intelligence to analyze camera footage and assess potential risks, but it is designed to assist you -- not replace your own judgment.

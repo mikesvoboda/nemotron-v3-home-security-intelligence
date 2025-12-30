@@ -1,6 +1,32 @@
+---
+title: Architecture Overview
+description: High-level system design, technology stack, data flow, and component responsibilities
+last_updated: 2025-12-30
+source_refs:
+  - backend/main.py
+  - backend/api/routes/cameras.py
+  - backend/api/routes/events.py
+  - backend/api/routes/detections.py
+  - backend/api/routes/system.py
+  - backend/services/file_watcher.py:FileWatcher
+  - backend/services/detector_client.py:DetectorClient
+  - backend/services/batch_aggregator.py:BatchAggregator
+  - backend/services/nemotron_analyzer.py:NemotronAnalyzer
+  - backend/services/event_broadcaster.py:EventBroadcaster
+  - backend/services/gpu_monitor.py:GPUMonitor
+  - backend/services/health_monitor.py:ServiceHealthMonitor
+  - backend/models/camera.py:Camera
+  - backend/models/detection.py:Detection
+  - backend/models/event.py:Event
+  - frontend/src/hooks/useWebSocket.ts
+  - frontend/src/hooks/useEventStream.ts
+  - ai/rtdetr/model.py
+  - ai/nemotron/AGENTS.md
+---
+
 # Architecture Overview
 
-> **Last Updated:** 2025-12-28
+> **Last Updated:** 2025-12-30
 > **Target Audience:** Future maintainers, technical contributors
 
 ---
@@ -47,7 +73,7 @@ flowchart TB
     end
 
     subgraph Storage["Persistent Storage"]
-        DB[(SQLite<br/>security.db)]
+        DB[(PostgreSQL<br/>security)]
         FS[("Filesystem<br/>thumbnails/")]
     end
 
@@ -66,26 +92,26 @@ flowchart TB
 
 ## Technology Stack
 
-| Layer                | Technology       | Version | Why This Choice                                                               |
-| -------------------- | ---------------- | ------- | ----------------------------------------------------------------------------- |
-| **Frontend**         | React            | 18.2    | Industry standard, excellent ecosystem, component model fits dashboard UI     |
-|                      | TypeScript       | 5.3     | Type safety catches bugs early, better IDE support, self-documenting code     |
-|                      | Tailwind CSS     | 3.4     | Utility-first approach, dark theme customization, responsive design           |
-|                      | Tremor           | 3.17    | Pre-built data visualization components (charts, gauges) for dashboards       |
-|                      | Vite             | 5.0     | Fast dev server with HMR, modern bundling, excellent DX                       |
-| **Backend**          | Python           | 3.11+   | AI/ML ecosystem (PyTorch, transformers), async support, rapid development     |
-|                      | FastAPI          | 0.104+  | Modern async framework, automatic OpenAPI docs, type hints, WebSocket support |
-|                      | SQLAlchemy       | 2.0     | Async ORM, excellent SQLite support, type-safe queries with `Mapped` hints    |
-|                      | Pydantic         | 2.0     | Request validation, settings management, schema generation                    |
-| **Database**         | SQLite           | 3.x     | Zero-config, file-based, sufficient for single-user local deployment          |
-|                      | Redis            | 7.x     | Fast pub/sub for WebSocket, reliable queues for pipeline, ephemeral cache     |
-| **AI - Detection**   | RT-DETRv2        | -       | Real-time transformer detector, 30-50ms inference, COCO-trained               |
-|                      | PyTorch          | 2.x     | GPU acceleration, HuggingFace Transformers integration                        |
-| **AI - Reasoning**   | Nemotron Mini 4B | Q4_K_M  | Small but capable LLM, runs on consumer GPUs, instruction-tuned               |
-|                      | llama.cpp        | -       | Efficient inference, GGUF format, GPU offloading, HTTP API                    |
-| **Containerization** | Docker Compose   | 2.x     | Multi-service orchestration, health checks, networking                        |
-| **Monitoring**       | Prometheus       | 2.48    | Time-series metrics, optional monitoring stack                                |
-|                      | Grafana          | 10.2    | Dashboards for system monitoring                                              |
+| Layer                | Technology       | Version | Why This Choice                                                                |
+| -------------------- | ---------------- | ------- | ------------------------------------------------------------------------------ |
+| **Frontend**         | React            | 18.2    | Industry standard, excellent ecosystem, component model fits dashboard UI      |
+|                      | TypeScript       | 5.3     | Type safety catches bugs early, better IDE support, self-documenting code      |
+|                      | Tailwind CSS     | 3.4     | Utility-first approach, dark theme customization, responsive design            |
+|                      | Tremor           | 3.17    | Pre-built data visualization components (charts, gauges) for dashboards        |
+|                      | Vite             | 5.0     | Fast dev server with HMR, modern bundling, excellent DX                        |
+| **Backend**          | Python           | 3.11+   | AI/ML ecosystem (PyTorch, transformers), async support, rapid development      |
+|                      | FastAPI          | 0.104+  | Modern async framework, automatic OpenAPI docs, type hints, WebSocket support  |
+|                      | SQLAlchemy       | 2.0     | Async ORM, excellent PostgreSQL support, type-safe queries with `Mapped` hints |
+|                      | Pydantic         | 2.0     | Request validation, settings management, schema generation                     |
+| **Database**         | PostgreSQL       | 15+     | Concurrent writes, JSONB, full-text search, proper transaction isolation       |
+|                      | Redis            | 7.x     | Fast pub/sub for WebSocket, reliable queues for pipeline, ephemeral cache      |
+| **AI - Detection**   | RT-DETRv2        | -       | Real-time transformer detector, 30-50ms inference, COCO-trained                |
+|                      | PyTorch          | 2.x     | GPU acceleration, HuggingFace Transformers integration                         |
+| **AI - Reasoning**   | Nemotron Mini 4B | Q4_K_M  | Small but capable LLM, runs on consumer GPUs, instruction-tuned                |
+|                      | llama.cpp        | -       | Efficient inference, GGUF format, GPU offloading, HTTP API                     |
+| **Containerization** | Docker Compose   | 2.x     | Multi-service orchestration, health checks, networking                         |
+| **Monitoring**       | Prometheus       | 2.48    | Time-series metrics, optional monitoring stack                                 |
+|                      | Grafana          | 10.2    | Dashboards for system monitoring                                               |
 
 ---
 
@@ -235,7 +261,7 @@ flowchart TB
         end
 
         subgraph Storage["Persistent Storage"]
-            VOL1["./backend/data/<br/>SQLite database"]
+            VOL1["PostgreSQL<br/>database volume"]
             VOL2["/export/foscam/<br/>Camera uploads (RO)"]
             VOL3["redis_data<br/>Redis persistence"]
         end
@@ -289,7 +315,7 @@ sequenceDiagram
     participant DQ as detection_queue
     participant DW as DetectionWorker
     participant DET as RT-DETRv2
-    participant DB as SQLite
+    participant DB as PostgreSQL
     participant BA as BatchAggregator
     participant AQ as analysis_queue
     participant AW as AnalysisWorker
@@ -356,8 +382,9 @@ A single "person walks to door" scenario might generate 15 images over 30 second
 Critical detections can bypass batching for immediate alerts:
 
 ```mermaid
-flowchart LR
-    D[Detection] --> C{Confidence > 90%<br/>AND<br/>type = person?}
+flowchart TB
+    D[Detection]
+    D --> C{Confidence > 90%<br/>AND<br/>type = person?}
     C -->|Yes| FP[Fast Path<br/>Immediate LLM analysis]
     C -->|No| NP[Normal Path<br/>Add to batch]
     FP --> E1[Event created<br/>is_fast_path=true]
@@ -518,7 +545,7 @@ flowchart TB
 
     subgraph External["External Services"]
         REDIS[(Redis)]
-        SQLITE[(SQLite)]
+        POSTGRES[(PostgreSQL)]
         RTDETR[RT-DETRv2]
         NEMOTRON[Nemotron LLM]
     end
@@ -537,24 +564,24 @@ flowchart TB
     FW --> REDIS
     DW --> DC
     DC --> RTDETR
-    DC --> SQLITE
+    DC --> POSTGRES
     DW --> BA
     BA --> REDIS
     AW --> NA
     NA --> NEMOTRON
-    NA --> SQLITE
+    NA --> POSTGRES
     NA --> EB
-    TG --> SQLITE
-    GPU --> SQLITE
+    TG --> POSTGRES
+    GPU --> POSTGRES
     GPU --> SB
-    CL --> SQLITE
+    CL --> POSTGRES
     EB --> REDIS
     SB --> RW
     EB --> RW
 
     %% Routes to DB
-    RC & RE & RD & RS --> SQLITE
-    RM --> SQLITE
+    RC & RE & RD & RS --> POSTGRES
+    RM --> POSTGRES
 ```
 
 ---
@@ -573,8 +600,9 @@ flowchart TB
 ### Retry and Dead-Letter Queues
 
 ```mermaid
-flowchart LR
-    JOB[Job] --> W[Worker]
+flowchart TB
+    JOB[Job]
+    JOB --> W[Worker]
     W --> P{Processing}
     P -->|Success| DONE[Complete]
     P -->|Fail| R{Retries < 3?}
@@ -626,7 +654,7 @@ The `HealthMonitor` service:
 | RT-DETRv2 inference       | 30-50ms         | Per image, on RTX A5500             |
 | Nemotron analysis         | 2-5s            | Per batch, depends on prompt length |
 | WebSocket broadcast       | <10ms           | Redis pub/sub to clients            |
-| Database query            | <5ms            | SQLite with proper indexes          |
+| Database query            | <5ms            | PostgreSQL with proper indexes      |
 | Full pipeline (fast path) | ~3-6s           | Camera to dashboard notification    |
 | Full pipeline (batched)   | 30-120s         | Depends on batch timeout settings   |
 
@@ -727,7 +755,7 @@ BOTTOM CENTER - AI SERVICES (separate rounded rectangle):
 - Dashed arrow from Backend to these services labeled "host.docker.internal"
 
 RIGHT SIDE - STORAGE:
-- Database cylinder icon labeled "SQLite"
+- Database cylinder icon labeled "PostgreSQL"
 - Folder icon labeled "Thumbnails"
 - Arrows from Backend to storage
 

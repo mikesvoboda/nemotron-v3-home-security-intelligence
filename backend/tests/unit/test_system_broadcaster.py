@@ -9,6 +9,10 @@ import pytest
 from backend.services.system_broadcaster import SystemBroadcaster, get_system_broadcaster
 from backend.tests.conftest import unique_id
 
+# Mark as integration since these tests require real PostgreSQL database
+# NOTE: This file should be moved to backend/tests/integration/ in a future cleanup
+pytestmark = pytest.mark.integration
+
 
 @pytest.mark.asyncio
 async def test_system_broadcaster_init():
