@@ -114,8 +114,10 @@ jobs:
 
       - name: Run unit tests with coverage
         # Unit tests have 92% coverage threshold (lowered from 93% during logging migration)
+        # -n0 disables xdist parallelization (CI already parallelizes via separate jobs)
         run: |
           pytest backend/tests/unit/ \
+            -n0 \
             --cov=backend \
             --cov-config=pyproject.toml \
             --cov-report=xml:coverage-unit.xml \
@@ -225,8 +227,10 @@ jobs:
         # - Mocked external dependencies (DB, Redis, AI services)
         # - Testing specific API endpoints rather than all code paths
         # - Focus on end-to-end behavior verification
+        # -n0 disables xdist parallelization (CI already parallelizes via separate jobs)
         run: |
           pytest backend/tests/integration/ \
+            -n0 \
             --cov=backend \
             --cov-report=xml:coverage-integration.xml \
             --cov-report=term-missing \
@@ -562,7 +566,9 @@ jobs:
         run: |
           # Run specific tests that verify admin endpoints return 403 when DEBUG=false
           # These tests are critical security validation
+          # -n0 disables xdist parallelization
           pytest backend/tests/unit/test_admin_api.py \
+            -n0 \
             -k "requires_debug_mode" \
             -v \
             --tb=short
