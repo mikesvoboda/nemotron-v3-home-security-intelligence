@@ -42,7 +42,7 @@ TEST_POLL_TIMEOUT = 1  # Fast poll timeout for tests
 def mock_redis_client():
     """Create a mock Redis client.
 
-    IMPORTANT: get_from_queue must yield control to the event loop,
+    IMPORTANT: get_from_queue_with_retry must yield control to the event loop,
     otherwise the worker loop will spin without checking _running flag.
     """
     client = MagicMock()
@@ -51,12 +51,21 @@ def mock_redis_client():
         """Mock that yields control like real BLPOP would."""
         await asyncio.sleep(0.01)  # Yield control to event loop
 
+    async def mock_get_from_queue_with_retry(*args, **kwargs):
+        """Mock with retry that yields control like real BLPOP would."""
+        await asyncio.sleep(0.01)  # Yield control to event loop
+
     client.get_from_queue = mock_get_from_queue
+    client.get_from_queue_with_retry = mock_get_from_queue_with_retry
     client.add_to_queue = AsyncMock(return_value=1)
     client.get = AsyncMock(return_value=None)
     client.set = AsyncMock(return_value=True)
     client.delete = AsyncMock(return_value=1)
     client.get_queue_length = AsyncMock(return_value=0)
+    # Retry-enabled methods
+    client.get_with_retry = AsyncMock(return_value=None)
+    client.set_with_retry = AsyncMock(return_value=True)
+    client.get_queue_length_with_retry = AsyncMock(return_value=0)
     client._client = MagicMock()
     client._client.keys = AsyncMock(return_value=[])
     return client
@@ -238,7 +247,7 @@ async def test_detection_worker_processes_item(
             }
         return None
 
-    mock_redis_client.get_from_queue = mock_get_from_queue
+    mock_redis_client.get_from_queue_with_retry = mock_get_from_queue
 
     # Setup detector to return a detection
     detection = MagicMock()
@@ -283,7 +292,7 @@ async def test_detection_worker_handles_invalid_item(mock_redis_client, mock_det
             return {"invalid": "item"}  # Missing camera_id and file_path
         return None
 
-    mock_redis_client.get_from_queue = mock_get_from_queue
+    mock_redis_client.get_from_queue_with_retry = mock_get_from_queue
 
     worker = DetectionQueueWorker(
         redis_client=mock_redis_client,
@@ -332,7 +341,7 @@ async def test_detection_worker_error_recovery_with_retry(
             }
         return None
 
-    mock_redis_client.get_from_queue = mock_get_from_queue
+    mock_redis_client.get_from_queue_with_retry = mock_get_from_queue
 
     # Detector fails on first call, succeeds on subsequent
     detect_call_count = 0
@@ -430,7 +439,7 @@ async def test_detection_worker_loop_cancelled_error(mock_redis_client, mock_det
         # On second call, raise CancelledError
         raise asyncio.CancelledError()
 
-    mock_redis_client.get_from_queue = mock_get_from_queue_that_raises
+    mock_redis_client.get_from_queue_with_retry = mock_get_from_queue_that_raises
 
     worker = DetectionQueueWorker(
         redis_client=mock_redis_client,
@@ -468,7 +477,7 @@ async def test_detection_worker_loop_general_exception_recovery(
             raise RuntimeError("Simulated Redis connection error")
         await asyncio.sleep(0.01)
 
-    mock_redis_client.get_from_queue = mock_get_from_queue_that_raises
+    mock_redis_client.get_from_queue_with_retry = mock_get_from_queue_that_raises
 
     worker = DetectionQueueWorker(
         redis_client=mock_redis_client,
@@ -585,7 +594,7 @@ async def test_analysis_worker_processes_batch(mock_redis_client, mock_analyzer)
             }
         return None
 
-    mock_redis_client.get_from_queue = mock_get_from_queue
+    mock_redis_client.get_from_queue_with_retry = mock_get_from_queue
 
     worker = AnalysisQueueWorker(
         redis_client=mock_redis_client,
@@ -619,7 +628,7 @@ async def test_analysis_worker_handles_value_error(mock_redis_client, mock_analy
             return {"batch_id": "missing_batch", "camera_id": "cam1"}
         return None
 
-    mock_redis_client.get_from_queue = mock_get_from_queue
+    mock_redis_client.get_from_queue_with_retry = mock_get_from_queue
     mock_analyzer.analyze_batch = AsyncMock(side_effect=ValueError("Batch not found"))
 
     worker = AnalysisQueueWorker(
@@ -650,7 +659,7 @@ async def test_analysis_worker_handles_invalid_item(mock_redis_client, mock_anal
             return {"camera_id": "cam1"}  # Missing batch_id
         return None
 
-    mock_redis_client.get_from_queue = mock_get_from_queue
+    mock_redis_client.get_from_queue_with_retry = mock_get_from_queue
 
     worker = AnalysisQueueWorker(
         redis_client=mock_redis_client,
@@ -681,7 +690,7 @@ async def test_analysis_worker_general_exception_handling(mock_redis_client, moc
             return {"batch_id": "batch_123", "camera_id": "cam1"}
         return None
 
-    mock_redis_client.get_from_queue = mock_get_from_queue
+    mock_redis_client.get_from_queue_with_retry = mock_get_from_queue
     mock_analyzer.analyze_batch = AsyncMock(side_effect=RuntimeError("Database error"))
 
     worker = AnalysisQueueWorker(
@@ -745,7 +754,7 @@ async def test_analysis_worker_loop_cancelled_error(mock_redis_client, mock_anal
             return None
         raise asyncio.CancelledError()
 
-    mock_redis_client.get_from_queue = mock_get_from_queue_that_raises
+    mock_redis_client.get_from_queue_with_retry = mock_get_from_queue_that_raises
 
     worker = AnalysisQueueWorker(
         redis_client=mock_redis_client,
@@ -779,7 +788,7 @@ async def test_analysis_worker_loop_general_exception_recovery(mock_redis_client
             raise RuntimeError("Simulated Redis connection error")
         await asyncio.sleep(0.01)
 
-    mock_redis_client.get_from_queue = mock_get_from_queue_that_raises
+    mock_redis_client.get_from_queue_with_retry = mock_get_from_queue_that_raises
 
     worker = AnalysisQueueWorker(
         redis_client=mock_redis_client,
@@ -1038,7 +1047,7 @@ async def test_queue_metrics_worker_idempotent_stop(mock_redis_client):
 @pytest.mark.asyncio
 async def test_queue_metrics_worker_updates_metrics(mock_redis_client):
     """Test QueueMetricsWorker updates queue depth metrics (lines 671-677)."""
-    mock_redis_client.get_queue_length = AsyncMock(side_effect=[10, 5])
+    mock_redis_client.get_queue_length_with_retry = AsyncMock(side_effect=[10, 5])
 
     worker = QueueMetricsWorker(
         redis_client=mock_redis_client,
@@ -1066,7 +1075,7 @@ async def test_queue_metrics_worker_loop_cancelled_error(mock_redis_client):
     async def mock_get_queue_length_that_raises(*args, **kwargs):
         raise asyncio.CancelledError()
 
-    mock_redis_client.get_queue_length = mock_get_queue_length_that_raises
+    mock_redis_client.get_queue_length_with_retry = mock_get_queue_length_that_raises
 
     worker = QueueMetricsWorker(
         redis_client=mock_redis_client,
@@ -1098,7 +1107,7 @@ async def test_queue_metrics_worker_handles_redis_error(mock_redis_client):
             raise RuntimeError("Redis connection error")
         return 0
 
-    mock_redis_client.get_queue_length = mock_get_queue_length
+    mock_redis_client.get_queue_length_with_retry = mock_get_queue_length
 
     worker = QueueMetricsWorker(
         redis_client=mock_redis_client,
@@ -1394,7 +1403,7 @@ async def test_worker_cancellation_during_processing(
             }
         return None
 
-    mock_redis_client.get_from_queue = mock_get_from_queue
+    mock_redis_client.get_from_queue_with_retry = mock_get_from_queue
 
     worker = DetectionQueueWorker(
         redis_client=mock_redis_client,
@@ -1519,7 +1528,7 @@ async def test_detection_worker_processes_video_item(
             }
         return None
 
-    mock_redis_client.get_from_queue = mock_get_from_queue
+    mock_redis_client.get_from_queue_with_retry = mock_get_from_queue
 
     # Setup video processor to return frames
     mock_video_processor.extract_frames_for_detection = AsyncMock(
@@ -1579,7 +1588,7 @@ async def test_detection_worker_handles_video_with_no_frames(
             }
         return None
 
-    mock_redis_client.get_from_queue = mock_get_from_queue
+    mock_redis_client.get_from_queue_with_retry = mock_get_from_queue
 
     # Setup video processor to return empty frames (extraction failed)
     mock_video_processor.extract_frames_for_detection = AsyncMock(return_value=[])
@@ -1622,7 +1631,7 @@ async def test_detection_worker_processes_image_item(
             }
         return None
 
-    mock_redis_client.get_from_queue = mock_get_from_queue
+    mock_redis_client.get_from_queue_with_retry = mock_get_from_queue
 
     detection = MagicMock()
     detection.id = 1
@@ -1676,7 +1685,7 @@ async def test_detection_worker_defaults_to_image_media_type(
             }
         return None
 
-    mock_redis_client.get_from_queue = mock_get_from_queue
+    mock_redis_client.get_from_queue_with_retry = mock_get_from_queue
 
     mock_detector_client.detect_objects = AsyncMock(return_value=[])
 
@@ -1739,7 +1748,7 @@ async def test_detection_worker_uses_retry_handler(
             }
         return None
 
-    mock_redis_client.get_from_queue = mock_get_from_queue
+    mock_redis_client.get_from_queue_with_retry = mock_get_from_queue
 
     # Setup retry handler to return success
     detection = MagicMock()
@@ -1794,7 +1803,7 @@ async def test_detection_worker_handles_retry_failure_and_dlq(
             }
         return None
 
-    mock_redis_client.get_from_queue = mock_get_from_queue
+    mock_redis_client.get_from_queue_with_retry = mock_get_from_queue
 
     # Setup retry handler to return failure (all retries exhausted, moved to DLQ)
     mock_retry_handler.with_retry = AsyncMock(
@@ -1849,7 +1858,7 @@ async def test_detection_worker_passes_job_data_to_retry_handler(
             }
         return None
 
-    mock_redis_client.get_from_queue = mock_get_from_queue
+    mock_redis_client.get_from_queue_with_retry = mock_get_from_queue
 
     # Create a spy retry handler that captures job_data
     async def capture_with_retry(operation, job_data, queue_name, *args, **kwargs):

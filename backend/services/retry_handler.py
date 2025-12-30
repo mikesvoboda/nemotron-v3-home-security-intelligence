@@ -17,6 +17,14 @@ Job Format in DLQ:
         "last_failed_at": "...",     # ISO timestamp of last failure
         "queue_name": "..."          # Original queue name
     }
+
+Circuit Breaker for DLQ:
+    When the DLQ becomes unavailable (full or failing), a circuit breaker
+    prevents cascading failures by stopping further DLQ write attempts.
+    The circuit breaker transitions through states:
+    - CLOSED: Normal operation, DLQ writes proceed
+    - OPEN: DLQ failing, writes are skipped to prevent resource exhaustion
+    - HALF_OPEN: Testing recovery, limited writes allowed
 """
 
 from __future__ import annotations
@@ -27,8 +35,25 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, TypeVar
 
+from backend.core.config import get_settings
+from backend.core.constants import (
+    DLQ_ANALYSIS_QUEUE as _DLQ_ANALYSIS_QUEUE,
+)
+from backend.core.constants import (
+    DLQ_DETECTION_QUEUE as _DLQ_DETECTION_QUEUE,
+)
+from backend.core.constants import (
+    DLQ_PREFIX as _DLQ_PREFIX,
+)
+from backend.core.constants import (
+    get_dlq_name as _get_dlq_name,
+)
 from backend.core.logging import get_logger, sanitize_error
 from backend.core.redis import QueueOverflowPolicy, RedisClient
+from backend.services.circuit_breaker import (
+    CircuitBreaker,
+    CircuitBreakerConfig,
+)
 
 logger = get_logger(__name__)
 
@@ -132,6 +157,7 @@ class RetryHandler:
     - Exponential backoff for failed operations
     - Dead-letter queue for poison jobs
     - DLQ inspection and management
+    - Circuit breaker for DLQ overflow protection
 
     Usage:
         handler = RetryHandler(redis_client)
@@ -146,26 +172,47 @@ class RetryHandler:
         # Check DLQ
         stats = await handler.get_dlq_stats()
         jobs = await handler.get_dlq_jobs("dlq:detection_queue")
+
+        # Check DLQ circuit breaker status
+        status = handler.get_dlq_circuit_breaker_status()
     """
 
-    # DLQ key prefixes
-    DLQ_PREFIX = "dlq:"
-    DLQ_DETECTION_QUEUE = "dlq:detection_queue"
-    DLQ_ANALYSIS_QUEUE = "dlq:analysis_queue"
+    # DLQ key prefixes (re-exported from constants for backward compatibility)
+    DLQ_PREFIX = _DLQ_PREFIX
+    DLQ_DETECTION_QUEUE = _DLQ_DETECTION_QUEUE
+    DLQ_ANALYSIS_QUEUE = _DLQ_ANALYSIS_QUEUE
 
     def __init__(
         self,
         redis_client: RedisClient | None = None,
         config: RetryConfig | None = None,
+        dlq_circuit_breaker: CircuitBreaker | None = None,
     ):
         """Initialize retry handler.
 
         Args:
             redis_client: Redis client for DLQ operations
             config: Retry configuration (uses defaults if not provided)
+            dlq_circuit_breaker: Circuit breaker for DLQ operations (auto-configured if not provided)
         """
         self._redis = redis_client
         self._config = config or RetryConfig()
+
+        # Initialize DLQ circuit breaker
+        if dlq_circuit_breaker is not None:
+            self._dlq_circuit_breaker = dlq_circuit_breaker
+        else:
+            settings = get_settings()
+            cb_config = CircuitBreakerConfig(
+                failure_threshold=settings.dlq_circuit_breaker_failure_threshold,
+                recovery_timeout=settings.dlq_circuit_breaker_recovery_timeout,
+                half_open_max_calls=settings.dlq_circuit_breaker_half_open_max_calls,
+                success_threshold=settings.dlq_circuit_breaker_success_threshold,
+            )
+            self._dlq_circuit_breaker = CircuitBreaker(
+                name="dlq_overflow",
+                config=cb_config,
+            )
 
     @property
     def config(self) -> RetryConfig:
@@ -181,10 +228,7 @@ class RetryHandler:
         Returns:
             DLQ queue name
         """
-        # Handle both with and without dlq: prefix
-        if queue_name.startswith(self.DLQ_PREFIX):
-            return queue_name
-        return f"{self.DLQ_PREFIX}{queue_name}"
+        return _get_dlq_name(queue_name)
 
     async def with_retry(
         self,
@@ -302,6 +346,10 @@ class RetryHandler:
     ) -> bool:
         """Move a failed job to the dead-letter queue.
 
+        Uses a circuit breaker to prevent cascading failures when the DLQ
+        is unavailable or overflowing. When the circuit is open, DLQ writes
+        are skipped to allow the system to recover.
+
         Args:
             job_data: Original job data
             error: Error message from the last failure
@@ -314,6 +362,19 @@ class RetryHandler:
         """
         if not self._redis:
             logger.warning("Cannot move job to DLQ: Redis client not initialized")
+            return False
+
+        # Check circuit breaker state before attempting DLQ write
+        if not self._dlq_circuit_breaker.allow_call():
+            logger.warning(
+                f"DLQ circuit breaker is {self._dlq_circuit_breaker.state.value}, "
+                f"skipping DLQ write for {queue_name}. Job will be lost.",
+                extra={
+                    "queue_name": queue_name,
+                    "circuit_state": self._dlq_circuit_breaker.state.value,
+                    "circuit_failures": self._dlq_circuit_breaker.failure_count,
+                },
+            )
             return False
 
         try:
@@ -336,8 +397,12 @@ class RetryHandler:
             )
 
             if not result.success:
+                # Record failure with circuit breaker
+                await self._dlq_circuit_breaker._record_failure()
                 logger.error(
-                    f"CRITICAL: Failed to move job to DLQ (queue full): {dlq_name}",
+                    f"CRITICAL: Failed to move job to DLQ (queue full): {dlq_name}. "
+                    f"Circuit breaker failures: {self._dlq_circuit_breaker.failure_count}/"
+                    f"{self._dlq_circuit_breaker.config.failure_threshold}",
                     extra={
                         "dlq_name": dlq_name,
                         "original_queue": queue_name,
@@ -345,9 +410,14 @@ class RetryHandler:
                         "error": error,
                         "dlq_error": result.error,
                         "queue_length": result.queue_length,
+                        "circuit_state": self._dlq_circuit_breaker.state.value,
+                        "circuit_failures": self._dlq_circuit_breaker.failure_count,
                     },
                 )
                 return False
+
+            # Record success with circuit breaker (helps recover from half-open)
+            await self._dlq_circuit_breaker._record_success()
 
             logger.info(
                 f"Moved job to DLQ: {dlq_name}",
@@ -361,9 +431,17 @@ class RetryHandler:
             return True
 
         except Exception as e:
+            # Record failure with circuit breaker for unexpected exceptions
+            await self._dlq_circuit_breaker._record_failure()
             logger.error(
-                f"Failed to move job to DLQ: {sanitize_error(e)}",
-                extra={"queue_name": queue_name},
+                f"Failed to move job to DLQ: {sanitize_error(e)}. "
+                f"Circuit breaker failures: {self._dlq_circuit_breaker.failure_count}/"
+                f"{self._dlq_circuit_breaker.config.failure_threshold}",
+                extra={
+                    "queue_name": queue_name,
+                    "circuit_state": self._dlq_circuit_breaker.state.value,
+                    "circuit_failures": self._dlq_circuit_breaker.failure_count,
+                },
             )
             return False
 
@@ -388,6 +466,39 @@ class RetryHandler:
         except Exception as e:
             logger.error(f"Failed to get DLQ stats: {sanitize_error(e)}")
             return DLQStats()
+
+    def get_dlq_circuit_breaker_status(self) -> dict[str, Any]:
+        """Get status of the DLQ circuit breaker.
+
+        Returns:
+            Dictionary containing circuit breaker status including:
+            - name: Circuit breaker name
+            - state: Current state (closed, open, half_open)
+            - failure_count: Current consecutive failure count
+            - is_open: Whether circuit is currently open (rejecting writes)
+            - config: Circuit breaker configuration
+        """
+        return self._dlq_circuit_breaker.get_status()
+
+    def is_dlq_circuit_open(self) -> bool:
+        """Check if DLQ circuit breaker is open.
+
+        Returns:
+            True if circuit is open and DLQ writes are being rejected
+        """
+        return self._dlq_circuit_breaker.is_open
+
+    def reset_dlq_circuit_breaker(self) -> None:
+        """Reset the DLQ circuit breaker to closed state.
+
+        This should be called after manually draining/clearing the DLQ
+        to allow normal operation to resume.
+        """
+        self._dlq_circuit_breaker.reset()
+        logger.info(
+            "DLQ circuit breaker reset to CLOSED state",
+            extra={"circuit_name": self._dlq_circuit_breaker.name},
+        )
 
     async def get_dlq_jobs(
         self,
