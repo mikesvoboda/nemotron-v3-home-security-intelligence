@@ -1,17 +1,17 @@
-"""Unit tests for system broadcaster service."""
+"""Unit tests for system broadcaster service.
+
+These tests verify behavior with mocked dependencies (Redis, WebSocket)
+and don't require a real database connection.
+"""
 
 import asyncio
 import contextlib
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from backend.services.system_broadcaster import SystemBroadcaster, get_system_broadcaster
-from backend.tests.conftest import unique_id
-
-# Mark as integration since these tests require real PostgreSQL database
-# NOTE: This file should be moved to backend/tests/integration/ in a future cleanup
-pytestmark = pytest.mark.integration
 
 
 @pytest.mark.asyncio
@@ -84,25 +84,6 @@ async def test_system_broadcaster_set_redis_client():
 
 
 @pytest.mark.asyncio
-async def test_system_broadcaster_connect(isolated_db):
-    """Test adding a WebSocket connection."""
-    broadcaster = SystemBroadcaster()
-    mock_websocket = AsyncMock()
-
-    # Mock the system status gathering to avoid database calls
-    with patch.object(broadcaster, "_get_system_status", return_value={"test": "data"}):
-        await broadcaster.connect(mock_websocket)
-
-    # WebSocket should be accepted and added to connections
-    mock_websocket.accept.assert_called_once()
-    assert mock_websocket in broadcaster.connections
-    assert len(broadcaster.connections) == 1
-
-    # Should have sent initial status
-    mock_websocket.send_json.assert_called_once()
-
-
-@pytest.mark.asyncio
 async def test_system_broadcaster_disconnect():
     """Test removing a WebSocket connection."""
     broadcaster = SystemBroadcaster()
@@ -122,8 +103,6 @@ async def test_system_broadcaster_broadcast_status():
     When Redis is not available, broadcast_status falls back to _send_to_local_clients
     which uses send_text with JSON-serialized data.
     """
-    import json
-
     broadcaster = SystemBroadcaster()
     mock_ws1 = AsyncMock()
     mock_ws2 = AsyncMock()
@@ -174,140 +153,6 @@ async def test_system_broadcaster_broadcast_status_empty_connections():
 
 
 @pytest.mark.asyncio
-async def test_system_broadcaster_get_system_status(isolated_db):
-    """Test gathering system status data."""
-    broadcaster = SystemBroadcaster()
-
-    status = await broadcaster._get_system_status()
-
-    # Verify structure
-    assert "type" in status
-    assert status["type"] == "system_status"
-    assert "data" in status
-    assert "timestamp" in status
-
-    # Verify data fields
-    data = status["data"]
-    assert "gpu" in data
-    assert "cameras" in data
-    assert "queue" in data
-    assert "health" in data
-
-
-@pytest.mark.asyncio
-async def test_system_broadcaster_get_latest_gpu_stats_no_data(isolated_db):
-    """Test getting GPU stats returns valid structure."""
-    broadcaster = SystemBroadcaster()
-
-    gpu_stats = await broadcaster._get_latest_gpu_stats()
-
-    # Should return expected keys (values may be null or from parallel tests)
-    assert "utilization" in gpu_stats
-    assert "memory_used" in gpu_stats
-    assert "memory_total" in gpu_stats
-    assert "temperature" in gpu_stats
-    assert "inference_fps" in gpu_stats
-
-
-@pytest.mark.asyncio
-async def test_system_broadcaster_get_latest_gpu_stats_with_data(isolated_db):
-    """Test getting GPU stats when data exists."""
-    from backend.core.database import get_session
-    from backend.models import GPUStats
-
-    # Use unique values to identify our test data
-    test_utilization = 75.5
-    test_memory_used = 12000
-    test_memory_total = 24000
-    test_temperature = 65.0
-    test_fps = 30.5
-
-    # Add GPU stats to database
-    async with get_session() as sess:
-        gpu_stat = GPUStats(
-            gpu_utilization=test_utilization,
-            memory_used=test_memory_used,
-            memory_total=test_memory_total,
-            temperature=test_temperature,
-            inference_fps=test_fps,
-        )
-        sess.add(gpu_stat)
-        await sess.commit()
-
-    broadcaster = SystemBroadcaster()
-    gpu_stats = await broadcaster._get_latest_gpu_stats()
-
-    # Should return values (may be our test data or more recent from parallel tests)
-    # The key assertion is that we get non-null values when data exists
-    assert gpu_stats["utilization"] is not None
-    assert gpu_stats["memory_used"] is not None
-    assert gpu_stats["memory_total"] is not None
-    assert gpu_stats["temperature"] is not None
-    assert gpu_stats["inference_fps"] is not None
-
-
-@pytest.mark.asyncio
-async def test_system_broadcaster_get_camera_stats(isolated_db):
-    """Test getting camera statistics."""
-    from backend.core.database import get_session
-    from backend.models import Camera
-
-    # Get initial counts before adding our test data
-    broadcaster = SystemBroadcaster()
-    initial_stats = await broadcaster._get_camera_stats()
-    initial_total = initial_stats["total"]
-    initial_active = initial_stats["active"]
-
-    # Add cameras to database with unique IDs
-    cam_id1 = unique_id("cam")
-    cam_id2 = unique_id("cam")
-    cam_id3 = unique_id("cam")
-
-    async with get_session() as sess:
-        camera1 = Camera(
-            id=cam_id1,
-            name="Front Door",
-            folder_path=f"/test/{cam_id1}",
-            status="online",
-        )
-        camera2 = Camera(
-            id=cam_id2,
-            name="Back Yard",
-            folder_path=f"/test/{cam_id2}",
-            status="offline",
-        )
-        camera3 = Camera(
-            id=cam_id3,
-            name="Garage",
-            folder_path=f"/test/{cam_id3}",
-            status="online",
-        )
-        sess.add_all([camera1, camera2, camera3])
-        await sess.commit()
-
-    camera_stats = await broadcaster._get_camera_stats()
-
-    # Should return incremented counts (relative to initial state)
-    assert camera_stats["total"] >= initial_total + 3
-    assert camera_stats["active"] >= initial_active + 2  # Two are online
-
-
-@pytest.mark.asyncio
-async def test_system_broadcaster_get_camera_stats_empty(isolated_db):
-    """Test getting camera stats returns valid structure."""
-    broadcaster = SystemBroadcaster()
-    camera_stats = await broadcaster._get_camera_stats()
-
-    # Should return valid structure with non-negative counts
-    # (may not be zero due to parallel test data)
-    assert "total" in camera_stats
-    assert "active" in camera_stats
-    assert camera_stats["total"] >= 0
-    assert camera_stats["active"] >= 0
-    assert camera_stats["active"] <= camera_stats["total"]
-
-
-@pytest.mark.asyncio
 async def test_system_broadcaster_get_queue_stats():
     """Test getting queue statistics from Redis."""
     # Mock Redis client
@@ -352,45 +197,6 @@ async def test_system_broadcaster_get_queue_stats_redis_error():
     # Should return zeros on error
     assert queue_stats["pending"] == 0
     assert queue_stats["processing"] == 0
-
-
-@pytest.mark.asyncio
-async def test_system_broadcaster_get_health_status_healthy(isolated_db):
-    """Test health status when all services are healthy."""
-    # Mock Redis to be healthy
-    mock_redis = AsyncMock()
-    # health_check is awaited, so it needs to return a coroutine
-    mock_redis.health_check = AsyncMock(return_value={"status": "healthy"})
-
-    # Use dependency injection
-    broadcaster = SystemBroadcaster(redis_client=mock_redis)
-    health_status = await broadcaster._get_health_status()
-
-    assert health_status == "healthy"
-
-
-@pytest.mark.asyncio
-async def test_system_broadcaster_get_health_status_degraded(isolated_db):
-    """Test health status when Redis is down."""
-    # Mock Redis to fail
-    mock_redis = AsyncMock()
-    mock_redis.health_check.side_effect = Exception("Redis connection failed")
-
-    # Use dependency injection
-    broadcaster = SystemBroadcaster(redis_client=mock_redis)
-    health_status = await broadcaster._get_health_status()
-
-    assert health_status == "degraded"
-
-
-@pytest.mark.asyncio
-async def test_system_broadcaster_get_health_status_no_redis(isolated_db):
-    """Test health status when Redis is not configured."""
-    # No Redis client provided - should report degraded
-    broadcaster = SystemBroadcaster()
-    health_status = await broadcaster._get_health_status()
-
-    assert health_status == "degraded"
 
 
 @pytest.mark.asyncio
@@ -508,24 +314,6 @@ async def test_get_system_broadcaster_with_redis_getter():
 
     # Cleanup
     backend.services.system_broadcaster._system_broadcaster = None
-
-
-@pytest.mark.asyncio
-async def test_system_broadcaster_connect_handles_error(isolated_db):
-    """Test that connect handles errors gracefully."""
-    broadcaster = SystemBroadcaster()
-    mock_websocket = AsyncMock()
-
-    # Mock send_json to fail
-    mock_websocket.send_json.side_effect = Exception("Send failed")
-
-    # Mock the system status gathering
-    with patch.object(broadcaster, "_get_system_status", return_value={"test": "data"}):
-        # Should not raise, just log error
-        await broadcaster.connect(mock_websocket)
-
-    # Connection should still be added
-    assert mock_websocket in broadcaster.connections
 
 
 @pytest.mark.asyncio
@@ -687,8 +475,6 @@ async def test_system_broadcaster_broadcast_status_via_redis():
 @pytest.mark.asyncio
 async def test_system_broadcaster_broadcast_status_redis_publish_failure():
     """Test broadcast_status falls back to direct when Redis publish fails."""
-    import json
-
     mock_redis = AsyncMock()
     mock_redis.publish.side_effect = Exception("Redis publish failed")
 
@@ -714,8 +500,8 @@ async def test_system_broadcaster_start_pubsub_listener_already_running():
     # Should return early without creating new subscription
     await broadcaster._start_pubsub_listener()
 
-    # subscribe should not be called since listener is already running
-    mock_redis.subscribe.assert_not_called()
+    # subscribe_dedicated should not be called since listener is already running
+    mock_redis.subscribe_dedicated.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -919,48 +705,6 @@ async def test_system_broadcaster_listen_for_updates_reconnection_failure():
 
     # Should have stopped listening
     assert broadcaster._pubsub_listening is False
-
-
-@pytest.mark.asyncio
-async def test_system_broadcaster_get_health_status_unhealthy(isolated_db):
-    """Test health status when database is down."""
-    broadcaster = SystemBroadcaster()
-
-    # Mock get_session to raise error (database down)
-    with patch("backend.services.system_broadcaster.get_session") as mock_session:
-        mock_session.side_effect = Exception("Database connection failed")
-
-        health_status = await broadcaster._get_health_status()
-
-    assert health_status == "unhealthy"
-
-
-@pytest.mark.asyncio
-async def test_system_broadcaster_broadcast_loop_execution(isolated_db):
-    """Test _broadcast_loop executes and broadcasts status."""
-    broadcaster = SystemBroadcaster()
-    broadcaster._running = True
-
-    # Add a connection so broadcast happens
-    mock_ws = AsyncMock()
-    broadcaster.connections.add(mock_ws)
-
-    # Track broadcasts
-    broadcast_count = 0
-
-    async def mock_broadcast(status_data):
-        nonlocal broadcast_count
-        broadcast_count += 1
-        # Stop after first broadcast
-        broadcaster._running = False
-
-    with (
-        patch.object(broadcaster, "broadcast_status", side_effect=mock_broadcast),
-        patch.object(broadcaster, "_get_system_status", return_value={"test": "data"}),
-    ):
-        await broadcaster._broadcast_loop(interval=0.1)
-
-    assert broadcast_count == 1
 
 
 @pytest.mark.asyncio

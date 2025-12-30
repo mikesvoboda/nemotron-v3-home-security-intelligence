@@ -21,6 +21,30 @@ async def async_client(client):
 
 
 @pytest.fixture
+async def clean_detections(integration_db):
+    """Truncate detections and related tables before test runs for proper isolation.
+
+    This ensures tests that expect specific detection counts start with empty tables.
+    Uses direct database operations since there's no DELETE endpoint for detections.
+    """
+    from sqlalchemy import text
+
+    from backend.core.database import get_engine
+
+    async with get_engine().begin() as conn:
+        await conn.execute(text("TRUNCATE TABLE detections, cameras RESTART IDENTITY CASCADE"))
+
+    yield
+
+    # Cleanup after test too (best effort)
+    try:
+        async with get_engine().begin() as conn:
+            await conn.execute(text("TRUNCATE TABLE detections, cameras RESTART IDENTITY CASCADE"))
+    except Exception:  # noqa: S110 - ignore cleanup errors
+        pass
+
+
+@pytest.fixture
 async def sample_camera(integration_db):
     """Create a sample camera in the database."""
     from backend.core.database import get_session
@@ -68,7 +92,7 @@ async def sample_detection(integration_db, sample_camera):
 class TestListDetections:
     """Tests for GET /api/detections endpoint."""
 
-    async def test_list_detections_empty(self, async_client):
+    async def test_list_detections_empty(self, async_client, clean_detections):
         """Test listing detections when none exist."""
         response = await async_client.get("/api/detections")
         assert response.status_code == 200
