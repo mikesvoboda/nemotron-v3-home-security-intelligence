@@ -393,17 +393,19 @@ async def refresh_event_search_vector(db: AsyncSession, event_id: int) -> None:
     """
     # The trigger handles this automatically, but we can force a refresh
     # by updating the event (even with no changes, the trigger fires)
+    # Uses UPDATE...FROM JOIN pattern for better performance (avoids correlated subquery)
     await db.execute(
         text(
             """
-            UPDATE events SET
+            UPDATE events e SET
                 search_vector = to_tsvector('english',
-                    COALESCE(summary, '') || ' ' ||
-                    COALESCE(reasoning, '') || ' ' ||
-                    COALESCE(object_types, '') || ' ' ||
-                    COALESCE((SELECT name FROM cameras WHERE id = events.camera_id), '')
+                    COALESCE(e.summary, '') || ' ' ||
+                    COALESCE(e.reasoning, '') || ' ' ||
+                    COALESCE(e.object_types, '') || ' ' ||
+                    COALESCE(c.name, '')
                 )
-            WHERE id = :event_id
+            FROM cameras c
+            WHERE e.camera_id = c.id AND e.id = :event_id
         """
         ),
         {"event_id": event_id},

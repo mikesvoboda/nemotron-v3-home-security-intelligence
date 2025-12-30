@@ -57,13 +57,37 @@ class _FakeRedis:
 # ==============================================================================
 
 
+def _create_valid_event_data(
+    id: int = 1,
+    event_id: int = 1,
+    batch_id: str = "batch_123",
+    camera_id: str = "cam-uuid",
+    risk_score: int = 75,
+    risk_level: str = "high",
+    summary: str = "Person detected at entrance",
+    started_at: str | None = "2025-12-23T12:00:00",
+) -> dict[str, Any]:
+    """Create valid event data for testing."""
+    return {
+        "id": id,
+        "event_id": event_id,
+        "batch_id": batch_id,
+        "camera_id": camera_id,
+        "risk_score": risk_score,
+        "risk_level": risk_level,
+        "summary": summary,
+        "started_at": started_at,
+    }
+
+
 @pytest.mark.asyncio
 async def test_broadcast_event_wraps_missing_type() -> None:
     """Test that broadcast_event wraps payload missing 'type' key."""
     redis = _FakeRedis()
     broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
 
-    payload = {"id": 123, "risk_score": 42}
+    # Use valid event data - will be wrapped with {"type": "event", "data": ...}
+    payload = _create_valid_event_data()
     count = await broadcaster.broadcast_event(payload)
 
     assert count == 1
@@ -71,24 +95,26 @@ async def test_broadcast_event_wraps_missing_type() -> None:
     channel, published = redis.publish.await_args.args
     assert channel == broadcaster.CHANNEL_NAME
     assert published["type"] == "event"
-    assert published["data"] == payload
+    # Data should be validated and serialized
+    assert published["data"]["id"] == 1
+    assert published["data"]["risk_score"] == 75
 
 
 @pytest.mark.asyncio
-async def test_broadcast_event_preserves_existing_type() -> None:
-    """Test that broadcast_event preserves an existing 'type' key."""
+async def test_broadcast_event_with_valid_event_envelope() -> None:
+    """Test that broadcast_event validates and preserves valid event envelope."""
     redis = _FakeRedis()
     broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
 
-    payload = {"type": "custom_event", "data": {"id": 456}}
+    payload = {"type": "event", "data": _create_valid_event_data()}
     count = await broadcaster.broadcast_event(payload)
 
     assert count == 1
     redis.publish.assert_awaited_once()
     channel, published = redis.publish.await_args.args
     assert channel == broadcaster.CHANNEL_NAME
-    # Type should be preserved, not wrapped
-    assert published["type"] == "custom_event"
+    assert published["type"] == "event"
+    assert published["data"]["id"] == 1
 
 
 @pytest.mark.asyncio
@@ -379,8 +405,11 @@ async def test_broadcast_event_raises_on_publish_failure(
     redis.publish = AsyncMock(side_effect=RuntimeError("Publish failed"))
     broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
 
+    # Use valid event data to pass validation, then fail on publish
+    valid_payload = {"type": "event", "data": _create_valid_event_data()}
+
     with pytest.raises(RuntimeError, match="Publish failed"):
-        await broadcaster.broadcast_event({"type": "event", "data": {"id": 1}})
+        await broadcaster.broadcast_event(valid_payload)
 
     assert "Failed to broadcast event" in caplog.text
 
@@ -909,3 +938,204 @@ async def test_reset_broadcaster_state_clears_global_state() -> None:
 
     # Cleanup
     await stop_broadcaster()
+
+
+# ==============================================================================
+# Tests for WebSocket Message Validation (Acceptance Criteria 2, 4, 5)
+# ==============================================================================
+
+
+@pytest.mark.asyncio
+async def test_broadcast_event_validates_valid_message() -> None:
+    """Test that broadcast_event validates and accepts valid event messages.
+
+    Acceptance Criteria 5: Test that valid messages pass validation.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Valid event with all required fields
+    valid_data = _create_valid_event_data(
+        id=42,
+        event_id=42,
+        batch_id="batch_abc",
+        camera_id="cam-123",
+        risk_score=85,
+        risk_level="critical",
+        summary="Critical event detected",
+        started_at="2025-12-30T10:00:00",
+    )
+    payload = {"type": "event", "data": valid_data}
+
+    count = await broadcaster.broadcast_event(payload)
+
+    assert count == 1
+    redis.publish.assert_awaited_once()
+    _, published = redis.publish.await_args.args
+    assert published["type"] == "event"
+    assert published["data"]["id"] == 42
+    assert published["data"]["risk_level"] == "critical"
+
+
+@pytest.mark.asyncio
+async def test_broadcast_event_validates_all_risk_levels() -> None:
+    """Test that broadcast_event accepts all valid risk levels."""
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    for risk_level in ["low", "medium", "high", "critical"]:
+        redis.publish.reset_mock()
+        payload = {"type": "event", "data": _create_valid_event_data(risk_level=risk_level)}
+        count = await broadcaster.broadcast_event(payload)
+        assert count == 1
+        _, published = redis.publish.await_args.args
+        assert published["data"]["risk_level"] == risk_level
+
+
+@pytest.mark.asyncio
+async def test_broadcast_event_validates_risk_score_bounds() -> None:
+    """Test that broadcast_event accepts risk scores within valid bounds (0-100)."""
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Test minimum bound
+    payload = {"type": "event", "data": _create_valid_event_data(risk_score=0)}
+    count = await broadcaster.broadcast_event(payload)
+    assert count == 1
+
+    # Test maximum bound
+    redis.publish.reset_mock()
+    payload = {"type": "event", "data": _create_valid_event_data(risk_score=100)}
+    count = await broadcaster.broadcast_event(payload)
+    assert count == 1
+
+
+@pytest.mark.asyncio
+async def test_broadcast_event_rejects_invalid_message_missing_required_fields(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test that broadcast_event rejects messages missing required fields.
+
+    Acceptance Criteria 4: Test that malformed messages are rejected.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Missing required fields (id, event_id, etc.)
+    invalid_data = {"camera_id": "cam-123"}  # Missing most required fields
+    payload = {"type": "event", "data": invalid_data}
+
+    with pytest.raises(ValueError, match="Invalid event message format"):
+        await broadcaster.broadcast_event(payload)
+
+    assert "Event message validation failed" in caplog.text
+    redis.publish.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_broadcast_event_rejects_invalid_risk_level(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test that broadcast_event rejects messages with invalid risk level.
+
+    Acceptance Criteria 4: Test that malformed messages are rejected.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Invalid risk_level value
+    invalid_data = _create_valid_event_data(risk_level="super_critical")  # type: ignore[arg-type]
+    payload = {"type": "event", "data": invalid_data}
+
+    with pytest.raises(ValueError, match="Invalid event message format"):
+        await broadcaster.broadcast_event(payload)
+
+    redis.publish.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_broadcast_event_rejects_risk_score_out_of_bounds(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test that broadcast_event rejects risk scores outside valid bounds.
+
+    Acceptance Criteria 4: Test that malformed messages are rejected.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Risk score > 100
+    invalid_data = _create_valid_event_data(risk_score=101)
+    payload = {"type": "event", "data": invalid_data}
+
+    with pytest.raises(ValueError, match="Invalid event message format"):
+        await broadcaster.broadcast_event(payload)
+
+    redis.publish.assert_not_awaited()
+
+    # Risk score < 0
+    redis.publish.reset_mock()
+    invalid_data = _create_valid_event_data(risk_score=-1)
+    payload = {"type": "event", "data": invalid_data}
+
+    with pytest.raises(ValueError, match="Invalid event message format"):
+        await broadcaster.broadcast_event(payload)
+
+
+@pytest.mark.asyncio
+async def test_broadcast_event_rejects_invalid_data_type(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test that broadcast_event rejects messages with wrong data types.
+
+    Acceptance Criteria 4: Test that malformed messages are rejected.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # risk_score as string instead of int
+    invalid_data = _create_valid_event_data()
+    invalid_data["risk_score"] = "high"  # Should be int
+    payload = {"type": "event", "data": invalid_data}
+
+    with pytest.raises(ValueError, match="Invalid event message format"):
+        await broadcaster.broadcast_event(payload)
+
+    redis.publish.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_broadcast_event_accepts_nullable_started_at() -> None:
+    """Test that broadcast_event accepts events with null started_at."""
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # started_at is nullable
+    valid_data = _create_valid_event_data(started_at=None)
+    payload = {"type": "event", "data": valid_data}
+
+    count = await broadcaster.broadcast_event(payload)
+
+    assert count == 1
+    redis.publish.assert_awaited_once()
+    _, published = redis.publish.await_args.args
+    assert published["data"]["started_at"] is None
+
+
+@pytest.mark.asyncio
+async def test_broadcast_event_normalizes_risk_level_case() -> None:
+    """Test that broadcast_event normalizes risk level case (uppercase to lowercase)."""
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Test with uppercase - should be normalized to lowercase
+    valid_data = _create_valid_event_data(risk_level="HIGH")
+    payload = {"type": "event", "data": valid_data}
+
+    count = await broadcaster.broadcast_event(payload)
+
+    assert count == 1
+    redis.publish.assert_awaited_once()
+    _, published = redis.publish.await_args.args
+    # Should be normalized to lowercase
+    assert published["data"]["risk_level"] == "high"
