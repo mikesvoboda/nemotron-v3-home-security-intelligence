@@ -133,10 +133,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
         """
         exempt_paths = [
             "/",
-            "/health",
+            "/health",  # Canonical liveness probe
+            "/ready",  # Canonical readiness probe
             "/api/system/health",
-            "/api/system/health/live",  # Liveness probe for Docker healthchecks
-            "/api/system/health/ready",  # Readiness probe for Docker healthchecks
+            "/api/system/health/live",  # Kubernetes-style liveness probe
+            "/api/system/health/ready",  # Kubernetes-style readiness probe
             "/api/metrics",  # Prometheus scraping endpoint
             "/docs",
             "/redoc",

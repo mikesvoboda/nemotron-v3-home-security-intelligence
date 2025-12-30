@@ -1,10 +1,65 @@
-# System Components Directory - AI Agent Guide
+# System Components Directory
 
 ## Purpose
 
-This directory contains React components for system observability and monitoring features. These components display real-time system metrics, GPU statistics, and provide access to detailed monitoring tools like Grafana.
+Contains React components for system observability and monitoring features. These components display real-time system metrics, GPU statistics, service health, and pipeline performance.
+
+## Files
+
+| File                            | Purpose                             |
+| ------------------------------- | ----------------------------------- |
+| `SystemMonitoringPage.tsx`      | Main system monitoring page         |
+| `SystemMonitoringPage.test.tsx` | Test suite for SystemMonitoringPage |
+| `ObservabilityPanel.tsx`        | Observability dashboard section     |
+| `ObservabilityPanel.test.tsx`   | Test suite for ObservabilityPanel   |
+| `index.ts`                      | Barrel exports                      |
 
 ## Key Components
+
+### SystemMonitoringPage.tsx
+
+**Purpose:** Comprehensive system monitoring dashboard aggregating metrics from multiple endpoints
+
+**Key Features:**
+
+- System overview: uptime, total cameras, events, detections
+- Service health status with per-service breakdown
+- Pipeline queue depths (detection, analysis)
+- GPU statistics (reuses GpuStats component)
+- Pipeline latency percentiles (avg, P95, P99)
+- Auto-refresh every 5 seconds for telemetry/GPU
+- Loading skeleton states
+- Error state with reload button
+
+**API Endpoints:**
+
+- `GET /api/system/stats` - Total cameras/events/detections/uptime
+- `GET /api/system/health` - Detailed service health (via useHealthStatus hook)
+- `GET /api/system/telemetry` - Queue depths + latency percentiles
+- `GET /api/system/gpu` - Current GPU metrics
+
+**Layout:**
+
+```
++----------------------------------------+
+|        System Monitoring Header        |
++----------------------------------------+
+| System Overview | Service Health       |
+| (stats card)    | (per-service status) |
++----------------------------------------+
+| Pipeline Queues |                      |
++----------------------------------------+
+|          GPU Stats (2 columns)         |
++----------------------------------------+
+| Latency Stats   |                      |
+| (Detection/     |                      |
+|  Analysis)      |                      |
++----------------------------------------+
+```
+
+**No props** - Top-level page component
+
+---
 
 ### ObservabilityPanel.tsx
 
@@ -143,3 +198,18 @@ Tests cover:
 ## Integration
 
 This component is designed to be added to the main dashboard page or as a dedicated observability section. It works alongside existing dashboard components like `GpuStats` and `RiskGauge`.
+
+## Entry Points
+
+**Start here:** `SystemMonitoringPage.tsx` - Main page integrating all system monitoring features
+**Then explore:** `ObservabilityPanel.tsx` - Detailed observability metrics with charts
+
+## Dependencies
+
+- `@tremor/react` - Card, Title, Text, Badge, Metric, AreaChart, DonutChart, ProgressBar
+- `lucide-react` - Server, Clock, Camera, AlertCircle, Activity, CheckCircle, XCircle, AlertTriangle
+- `clsx` - Conditional class composition
+- `../../hooks/useHealthStatus` - REST API health status hook
+- `../../services/api` - fetchStats, fetchTelemetry, fetchGPUStats
+- `../dashboard/GpuStats` - Reused GPU stats component
+- `../dashboard/PipelineQueues` - Reused queue depth component

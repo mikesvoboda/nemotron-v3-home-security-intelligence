@@ -10,18 +10,47 @@ Uses ffmpeg subprocess for reliable cross-platform video processing.
 
 import asyncio
 import json
-import logging
 import subprocess
 from pathlib import Path
 from typing import Any
 
+from backend.core.logging import get_logger, sanitize_error
 from backend.core.mime_types import DEFAULT_VIDEO_MIME, get_mime_type_with_default
 
-logger = logging.getLogger(__name__)
+# Keep sanitize_error imported for future use, suppress unused import warning
+_ = sanitize_error
+
+logger = get_logger(__name__)
 
 # Default thumbnail extraction settings
 DEFAULT_THUMBNAIL_SIZE = (320, 240)
 DEFAULT_THUMBNAIL_QUALITY = 85
+
+
+def _validate_video_path(video_path: str) -> Path:
+    """Validate video path for safe use in subprocess calls.
+
+    Performs security checks to prevent path injection attacks when
+    the path is passed to ffmpeg/ffprobe subprocess commands.
+
+    Args:
+        video_path: Path to validate
+
+    Returns:
+        Resolved Path object
+
+    Raises:
+        ValueError: If path validation fails
+    """
+    video_path_obj = Path(video_path).resolve()
+    if not video_path_obj.exists():
+        raise ValueError(f"Video file not found: {video_path}")
+    if not video_path_obj.is_file():
+        raise ValueError(f"Path is not a file: {video_path}")
+    # Prevent paths that look like command-line options
+    if str(video_path_obj).startswith("-"):
+        raise ValueError(f"Invalid video path: {video_path}")
+    return video_path_obj
 
 
 class VideoProcessingError(Exception):
@@ -113,8 +142,10 @@ class VideoProcessor:
         Raises:
             VideoProcessingError: If metadata extraction fails
         """
-        if not Path(video_path).exists():
-            raise VideoProcessingError(f"Video file not found: {video_path}")
+        try:
+            validated_path = _validate_video_path(video_path)
+        except ValueError as e:
+            raise VideoProcessingError(str(e)) from e
 
         try:
             # Use ffprobe to get video metadata as JSON
@@ -126,7 +157,7 @@ class VideoProcessor:
                 "json",
                 "-show_format",
                 "-show_streams",
-                video_path,
+                str(validated_path),
             ]
 
             result = await asyncio.to_thread(
@@ -207,9 +238,10 @@ class VideoProcessor:
         Returns:
             Path to the saved thumbnail, or None if extraction failed
         """
-        video_path_obj = Path(video_path)
-        if not video_path_obj.exists():
-            logger.error(f"Video file not found: {video_path}")
+        try:
+            validated_path = _validate_video_path(video_path)
+        except ValueError as e:
+            logger.error(f"Video path validation failed: {e}")
             return None
 
         try:
@@ -226,7 +258,7 @@ class VideoProcessor:
 
             # Generate output path if not provided
             if output_path is None:
-                video_stem = video_path_obj.stem
+                video_stem = validated_path.stem
                 output_path = str(self.output_dir / f"{video_stem}_thumb.jpg")
 
             # Build ffmpeg command for thumbnail extraction
@@ -236,7 +268,7 @@ class VideoProcessor:
                 "-ss",
                 str(timestamp),  # Seek to timestamp
                 "-i",
-                video_path,  # Input file
+                str(validated_path),  # Input file
                 "-vframes",
                 "1",  # Extract only 1 frame
                 "-vf",
@@ -294,9 +326,10 @@ class VideoProcessor:
         Returns:
             List of paths to extracted frame images
         """
-        video_path_obj = Path(video_path)
-        if not video_path_obj.exists():
-            logger.error(f"Video file not found: {video_path}")
+        try:
+            validated_path = _validate_video_path(video_path)
+        except ValueError as e:
+            logger.error(f"Video path validation failed: {e}")
             return []
 
         try:
@@ -325,7 +358,7 @@ class VideoProcessor:
             )
 
             # Create output directory for frames
-            video_stem = video_path_obj.stem
+            video_stem = validated_path.stem
             frames_dir = self.output_dir / f"{video_stem}_frames"
             frames_dir.mkdir(parents=True, exist_ok=True)
 
@@ -347,7 +380,7 @@ class VideoProcessor:
                     "-ss",
                     str(timestamp),  # Seek to timestamp
                     "-i",
-                    video_path,  # Input file
+                    str(validated_path),  # Input file
                     "-vframes",
                     "1",  # Extract only 1 frame
                 ]

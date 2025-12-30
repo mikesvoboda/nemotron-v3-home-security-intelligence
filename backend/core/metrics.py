@@ -141,6 +141,38 @@ PIPELINE_ERRORS_TOTAL = Counter(
 )
 
 # =============================================================================
+# Queue Overflow Metrics
+# =============================================================================
+
+QUEUE_OVERFLOW_TOTAL = Counter(
+    "hsi_queue_overflow_total",
+    "Total number of queue overflow events by queue and policy",
+    labelnames=["queue_name", "policy"],
+    registry=_registry,
+)
+
+QUEUE_ITEMS_MOVED_TO_DLQ_TOTAL = Counter(
+    "hsi_queue_items_moved_to_dlq_total",
+    "Total number of items moved to dead-letter queue due to overflow",
+    labelnames=["queue_name"],
+    registry=_registry,
+)
+
+QUEUE_ITEMS_DROPPED_TOTAL = Counter(
+    "hsi_queue_items_dropped_total",
+    "Total number of items dropped due to queue overflow (drop_oldest policy)",
+    labelnames=["queue_name"],
+    registry=_registry,
+)
+
+QUEUE_ITEMS_REJECTED_TOTAL = Counter(
+    "hsi_queue_items_rejected_total",
+    "Total number of items rejected due to full queue (reject policy)",
+    labelnames=["queue_name"],
+    registry=_registry,
+)
+
+# =============================================================================
 # Helper Functions
 # =============================================================================
 
@@ -201,6 +233,46 @@ def record_pipeline_error(error_type: str) -> None:
         error_type: Type of error (e.g., "connection_error", "timeout_error")
     """
     PIPELINE_ERRORS_TOTAL.labels(error_type=error_type).inc()
+
+
+def record_queue_overflow(queue_name: str, policy: str) -> None:
+    """Record a queue overflow event.
+
+    Args:
+        queue_name: Name of the queue that overflowed
+        policy: Overflow policy that was triggered (dlq, drop_oldest, reject)
+    """
+    QUEUE_OVERFLOW_TOTAL.labels(queue_name=queue_name, policy=policy).inc()
+
+
+def record_queue_items_moved_to_dlq(queue_name: str, count: int = 1) -> None:
+    """Record items moved to dead-letter queue due to overflow.
+
+    Args:
+        queue_name: Name of the source queue
+        count: Number of items moved (default 1)
+    """
+    QUEUE_ITEMS_MOVED_TO_DLQ_TOTAL.labels(queue_name=queue_name).inc(count)
+
+
+def record_queue_items_dropped(queue_name: str, count: int = 1) -> None:
+    """Record items dropped due to queue overflow (drop_oldest policy).
+
+    Args:
+        queue_name: Name of the queue
+        count: Number of items dropped (default 1)
+    """
+    QUEUE_ITEMS_DROPPED_TOTAL.labels(queue_name=queue_name).inc(count)
+
+
+def record_queue_items_rejected(queue_name: str, count: int = 1) -> None:
+    """Record items rejected due to full queue (reject policy).
+
+    Args:
+        queue_name: Name of the queue
+        count: Number of items rejected (default 1)
+    """
+    QUEUE_ITEMS_REJECTED_TOTAL.labels(queue_name=queue_name).inc(count)
 
 
 def get_metrics_response() -> bytes:

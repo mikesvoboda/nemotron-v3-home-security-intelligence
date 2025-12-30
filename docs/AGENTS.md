@@ -8,23 +8,38 @@ This directory contains all project documentation including design specification
 
 ```
 docs/
-├── AGENTS.md                       # This file - guide to documentation
-├── ROADMAP.md                      # Post-MVP roadmap ideas
-├── AI_SETUP.md                     # AI services setup guide
-├── RUNTIME_CONFIG.md               # Authoritative port/env reference
-├── DOCKER_DEPLOYMENT.md            # Docker deployment guide
-├── DOCKER_VERIFICATION_SUMMARY.md  # Docker deployment verification summary
-├── CHROME_DEVTOOLS_MCP.md          # Chrome DevTools MCP server guide
-├── COPILOT_SETUP.md                # GitHub Copilot Free tier setup guide
-├── GITHUB_MODELS.md                # GitHub Models integration guide
-├── SELF_HOSTED_RUNNER.md           # Self-hosted GPU runner setup guide
-├── plans/                          # Design and implementation plans
-│   ├── AGENTS.md                   # Plans directory guide
-│   └── *.md                        # Date-prefixed plan documents
-├── decisions/                      # Architecture Decision Records (ADRs)
-│   └── grafana-integration.md      # Grafana integration decision
-└── images/                         # Visual assets
-    └── dashboard-mockup.svg        # Dashboard UI mockup
+  AGENTS.md                       # This file - guide to documentation
+  README.md                       # Documentation navigation hub
+  ROADMAP.md                      # Post-MVP roadmap ideas
+  AI_SETUP.md                     # AI services setup guide
+  RUNTIME_CONFIG.md               # Authoritative port/env reference
+  DOCKER_DEPLOYMENT.md            # Docker deployment guide
+  DOCKER_VERIFICATION_SUMMARY.md  # Docker deployment verification summary
+  CHROME_DEVTOOLS_MCP.md          # Chrome DevTools MCP server guide
+  COPILOT_SETUP.md                # GitHub Copilot Free tier setup guide
+  GITHUB_MODELS.md                # GitHub Models integration guide
+  SELF_HOSTED_RUNNER.md           # Self-hosted GPU runner setup guide
+  architecture/                   # Technical architecture documentation
+    AGENTS.md                     # Architecture directory guide
+    overview.md                   # System architecture overview
+    ai-pipeline.md                # AI processing pipeline details
+    data-model.md                 # Database schema documentation
+    decisions.md                  # Architecture decisions
+  user-guide/                     # End-user documentation
+    AGENTS.md                     # User guide directory guide
+    getting-started.md            # New user onboarding
+    understanding-alerts.md       # Risk levels and alerts
+    using-the-dashboard.md        # Dashboard usage guide
+  plans/                          # Design and implementation plans
+    AGENTS.md                     # Plans directory guide
+    *.md                          # Date-prefixed plan documents
+  decisions/                      # Architecture Decision Records (ADRs)
+    AGENTS.md                     # Decisions directory guide
+    grafana-integration.md        # Grafana integration decision
+  images/                         # Visual assets
+    AGENTS.md                     # Images directory guide
+    dashboard-mockup.svg          # Dashboard UI mockup
+    *.png                         # Screenshots
 ```
 
 ## Key Files
@@ -77,6 +92,22 @@ Post-MVP roadmap ideas organized into 8 themes:
 
 ### Subdirectories
 
+**architecture/** - Technical architecture documentation
+
+- System overview with Mermaid diagrams
+- AI pipeline details and data flow
+- Database schema and relationships
+- Architecture decisions and rationale
+- See `architecture/AGENTS.md` for detailed documentation
+
+**user-guide/** - End-user documentation
+
+- Written for non-technical users
+- Getting started guide
+- Understanding alerts and risk levels
+- Dashboard usage guide
+- See `user-guide/AGENTS.md` for detailed documentation
+
 **plans/** - Design specifications and implementation plans
 
 - Date-prefixed files (`YYYY-MM-DD-description.md`)
@@ -91,7 +122,11 @@ Post-MVP roadmap ideas organized into 8 themes:
 
 **images/** - Visual assets
 
-- `dashboard-mockup.svg` - Main dashboard UI mockup showing risk gauge, camera grid, activity feed
+- `dashboard-mockup.svg` - Main dashboard UI mockup (vector)
+- `dashboard.png`, `dashboard-full.png` - Dashboard screenshots
+- `timeline.png` - Event timeline screenshot
+- `alerts.png` - Alerts page screenshot
+- See `images/AGENTS.md` for detailed documentation
 
 ## Relationship to Project
 

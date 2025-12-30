@@ -6,7 +6,6 @@ database, and can expose them for real-time monitoring via WebSocket.
 
 import asyncio
 import contextlib
-import logging
 from collections import deque
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -15,9 +14,10 @@ from sqlalchemy import select
 
 from backend.core.config import get_settings
 from backend.core.database import get_session
+from backend.core.logging import get_logger, sanitize_error  # noqa: F401
 from backend.models.gpu_stats import GPUStats
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class GPUMonitor:

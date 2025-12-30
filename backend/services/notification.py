@@ -20,7 +20,6 @@ Delivery Tracking:
 from __future__ import annotations
 
 import asyncio
-import logging
 import smtplib
 import ssl
 from dataclasses import dataclass, field
@@ -32,11 +31,13 @@ from typing import TYPE_CHECKING
 
 import httpx
 
+from backend.core.logging import get_logger, sanitize_error  # noqa: F401
+
 if TYPE_CHECKING:
     from backend.core.config import Settings
     from backend.models import Alert
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class NotificationChannel(str, Enum):

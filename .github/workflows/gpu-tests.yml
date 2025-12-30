@@ -34,8 +34,10 @@ jobs:
         run: |
           source .venv/bin/activate
           # Exit code 5 means no tests collected - treat as success
+          # Ignore integration tests to avoid DATABASE_URL requirement during collection
           pytest backend/tests/ \
             -m "gpu" \
+            --ignore=backend/tests/integration/ \
             -v \
             --tb=short || [ $? -eq 5 ]
         env:

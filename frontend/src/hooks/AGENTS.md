@@ -344,3 +344,13 @@ await refresh();
 - The `useWebSocket` hook auto-connects on mount and disconnects on unmount
 - Message parsing falls back to raw data if JSON parsing fails
 - Non-event messages (e.g., `service_status`, `ping`) are silently ignored by `useEventStream`
+
+## Entry Points
+
+For AI agents exploring this codebase:
+
+1. **Start with `index.ts`** - Central export point showing all available hooks
+2. **WebSocket foundation**: `useWebSocket.ts` is the base layer for real-time data
+3. **High-level hooks**: `useEventStream.ts` and `useSystemStatus.ts` build on WebSocket
+4. **REST hooks**: `useHealthStatus.ts` and `useGpuHistory.ts` use polling
+5. **Tests**: Each hook has corresponding `.test.ts` file with usage patterns

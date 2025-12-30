@@ -2,14 +2,14 @@
  * Hook for tracking individual service health status.
  *
  * The backend's ServiceHealthMonitor (health_monitor.py) monitors RT-DETRv2 and
- * Nemotron services, broadcasting `service_status` messages when their health
- * changes. This hook listens for those messages and tracks the status of each
- * monitored service.
+ * Nemotron services, broadcasting `service_status` messages via EventBroadcaster
+ * when their health changes. This hook connects to `/ws/events` and listens for
+ * those messages, tracking the status of each monitored service.
  *
- * For overall system health, use `useSystemStatus` which provides an aggregated
- * health field ('healthy', 'degraded', 'unhealthy'). This hook is useful when
- * you need to show detailed per-service status or react to specific service
- * failures.
+ * For overall system health, use `useSystemStatus` which connects to `/ws/system`
+ * and provides an aggregated health field ('healthy', 'degraded', 'unhealthy').
+ * This hook is useful when you need to show detailed per-service status or react
+ * to specific service failures.
  *
  * Note: Redis health is not monitored by ServiceHealthMonitor since the backend
  * handles Redis failures gracefully through other mechanisms.
@@ -17,6 +17,7 @@
 import { useState, useCallback, useMemo } from 'react';
 
 import { useWebSocket } from './useWebSocket';
+import { buildWebSocketUrl } from '../services/api';
 
 export type ServiceName = 'redis' | 'rtdetr' | 'nemotron';
 export type ServiceStatusType =
@@ -40,12 +41,17 @@ export interface UseServiceStatusResult {
   getServiceStatus: (name: ServiceName) => ServiceStatus | null;
 }
 
-// Backend WebSocket message structure
-interface BackendServiceStatusMessage {
-  type: 'service_status';
+// Backend WebSocket message envelope structure (matches WebSocketServiceStatusMessage schema)
+// Format: { "type": "service_status", "data": {...}, "timestamp": "..." }
+interface BackendServiceStatusData {
   service: ServiceName;
   status: ServiceStatusType;
   message?: string;
+}
+
+interface BackendServiceStatusMessage {
+  type: 'service_status';
+  data: BackendServiceStatusData;
   timestamp: string;
 }
 
@@ -71,12 +77,22 @@ function isBackendServiceStatusMessage(data: unknown): data is BackendServiceSta
 
   const msg = data as Record<string, unknown>;
 
+  // Check envelope structure: { type: "service_status", data: {...}, timestamp: "..." }
+  if (msg.type !== 'service_status' || typeof msg.timestamp !== 'string') {
+    return false;
+  }
+
+  // Check nested data object
+  if (!msg.data || typeof msg.data !== 'object') {
+    return false;
+  }
+
+  const msgData = msg.data as Record<string, unknown>;
+
   return (
-    msg.type === 'service_status' &&
-    isServiceName(msg.service) &&
-    isServiceStatusType(msg.status) &&
-    typeof msg.timestamp === 'string' &&
-    (msg.message === undefined || typeof msg.message === 'string')
+    isServiceName(msgData.service) &&
+    isServiceStatusType(msgData.status) &&
+    (msgData.message === undefined || typeof msgData.message === 'string')
   );
 }
 
@@ -102,22 +118,25 @@ export function useServiceStatus(): UseServiceStatusResult {
 
   const handleMessage = useCallback((data: unknown) => {
     if (isBackendServiceStatusMessage(data)) {
+      // Extract from envelope: data.data contains service/status/message
       const serviceStatus: ServiceStatus = {
-        service: data.service,
-        status: data.status,
-        message: data.message,
+        service: data.data.service,
+        status: data.data.status,
+        message: data.data.message,
         timestamp: data.timestamp,
       };
 
       setServices((prev) => ({
         ...prev,
-        [data.service]: serviceStatus,
+        [data.data.service]: serviceStatus,
       }));
     }
   }, []);
 
+  const wsUrl = buildWebSocketUrl('/ws/events');
+
   useWebSocket({
-    url: `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/system`,
+    url: wsUrl,
     onMessage: handleMessage,
   });
 

@@ -19,7 +19,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code to backend subdirectory (for absolute imports)
 COPY . ./backend/
 
-# Create data directory for SQLite database
+# Create data directory for logs and thumbnails
 RUN mkdir -p /app/data
 
 # Create non-root user
@@ -34,6 +34,12 @@ EXPOSE 8000
 
 # Switch to non-root user
 USER appuser
+
+# Health check - use /ready endpoint to verify database/redis connectivity
+# Note: /ready is the canonical readiness probe (checks DB, Redis, pipeline workers)
+# For simple liveness only, use /health instead
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD python -c "import httpx; exit(0 if httpx.get('http://localhost:8000/ready').status_code == 200 else 1)"
 
 # Run FastAPI with uvicorn
 CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]

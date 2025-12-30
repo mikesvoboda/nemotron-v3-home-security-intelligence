@@ -54,26 +54,35 @@ File Upload -> Detection -> Batching -> Analysis -> Event Creation -> Broadcasti
 
 ## Service Files Overview
 
-| Service                  | Purpose                                      | Type           | Dependencies                         |
-| ------------------------ | -------------------------------------------- | -------------- | ------------------------------------ |
-| `file_watcher.py`        | Monitor camera directories for media uploads | Core Pipeline  | watchdog, Redis, PIL                 |
-| `dedupe.py`              | Prevent duplicate file processing            | Core Pipeline  | Redis (primary), Database (fallback) |
-| `detector_client.py`     | Send images to RT-DETRv2 for detection       | Core Pipeline  | httpx, SQLAlchemy                    |
-| `batch_aggregator.py`    | Group detections into time-based batches     | Core Pipeline  | Redis                                |
-| `nemotron_analyzer.py`   | LLM-based risk analysis via llama.cpp        | Core Pipeline  | httpx, SQLAlchemy, Redis             |
-| `thumbnail_generator.py` | Generate preview images with bounding boxes  | Core Pipeline  | PIL/Pillow                           |
-| `video_processor.py`     | Extract video metadata and thumbnails        | Core Pipeline  | ffmpeg/ffprobe (subprocess)          |
-| `pipeline_workers.py`    | Background queue workers and manager         | Workers        | Redis, all pipeline services         |
-| `event_broadcaster.py`   | Distribute events via WebSocket              | Broadcasting   | Redis, FastAPI WebSocket             |
-| `system_broadcaster.py`  | Broadcast system health status               | Broadcasting   | SQLAlchemy, Redis, FastAPI WebSocket |
-| `gpu_monitor.py`         | Poll NVIDIA GPU metrics                      | Background     | pynvml, SQLAlchemy                   |
-| `cleanup_service.py`     | Enforce data retention policies              | Background     | SQLAlchemy                           |
-| `health_monitor.py`      | Monitor service health with auto-recovery    | Background     | service_managers, httpx              |
-| `retry_handler.py`       | Exponential backoff and DLQ support          | Infrastructure | Redis                                |
-| `service_managers.py`    | Strategy pattern for service management      | Infrastructure | httpx, asyncio subprocess            |
-| `circuit_breaker.py`     | Circuit breaker for service resilience       | Infrastructure | asyncio                              |
-| `degradation_manager.py` | Graceful degradation management              | Infrastructure | Redis                                |
-| `prompts.py`             | LLM prompt templates                         | Utility        | -                                    |
+| Service                  | Purpose                                          | Type           | Dependencies                         |
+| ------------------------ | ------------------------------------------------ | -------------- | ------------------------------------ |
+| `file_watcher.py`        | Monitor camera directories for media uploads     | Core Pipeline  | watchdog, Redis, PIL                 |
+| `dedupe.py`              | Prevent duplicate file processing                | Core Pipeline  | Redis (primary), Database (fallback) |
+| `detector_client.py`     | Send images to RT-DETRv2 for detection           | Core Pipeline  | httpx, SQLAlchemy                    |
+| `batch_aggregator.py`    | Group detections into time-based batches         | Core Pipeline  | Redis                                |
+| `nemotron_analyzer.py`   | LLM-based risk analysis via llama.cpp            | Core Pipeline  | httpx, SQLAlchemy, Redis             |
+| `thumbnail_generator.py` | Generate preview images with bounding boxes      | Core Pipeline  | PIL/Pillow                           |
+| `video_processor.py`     | Extract video metadata and thumbnails            | Core Pipeline  | ffmpeg/ffprobe (subprocess)          |
+| `pipeline_workers.py`    | Background queue workers and manager             | Workers        | Redis, all pipeline services         |
+| `event_broadcaster.py`   | Distribute events via WebSocket                  | Broadcasting   | Redis, FastAPI WebSocket             |
+| `system_broadcaster.py`  | Broadcast system health status                   | Broadcasting   | SQLAlchemy, Redis, FastAPI WebSocket |
+| `gpu_monitor.py`         | Poll NVIDIA GPU metrics                          | Background     | pynvml, SQLAlchemy                   |
+| `cleanup_service.py`     | Enforce data retention policies                  | Background     | SQLAlchemy                           |
+| `health_monitor.py`      | Monitor service health with auto-recovery        | Background     | service_managers, httpx              |
+| `retry_handler.py`       | Exponential backoff and DLQ support              | Infrastructure | Redis                                |
+| `service_managers.py`    | Strategy pattern for service management          | Infrastructure | httpx, asyncio subprocess            |
+| `circuit_breaker.py`     | Circuit breaker for service resilience           | Infrastructure | asyncio                              |
+| `degradation_manager.py` | Graceful degradation management                  | Infrastructure | Redis                                |
+| `prompts.py`             | LLM prompt templates                             | Utility        | -                                    |
+| `alert_engine.py`        | Evaluate alert rules against events              | Alerting       | SQLAlchemy                           |
+| `alert_dedup.py`         | Alert deduplication logic                        | Alerting       | SQLAlchemy                           |
+| `notification.py`        | Multi-channel notification delivery              | Alerting       | httpx                                |
+| `search.py`              | Full-text search for events                      | Query          | SQLAlchemy, PostgreSQL TSVECTOR      |
+| `severity.py`            | Severity level mapping and configuration         | Utility        | -                                    |
+| `zone_service.py`        | Zone detection and context generation            | Core Pipeline  | SQLAlchemy                           |
+| `baseline.py`            | Activity baseline tracking for anomaly detection | Core Pipeline  | SQLAlchemy                           |
+| `audit.py`               | Audit logging for security-sensitive actions     | Infrastructure | SQLAlchemy                           |
+| `clip_generator.py`      | Video clip generation for events                 | Core Pipeline  | ffmpeg subprocess                    |
 
 ## Service Files
 
@@ -416,6 +425,167 @@ dlq:analysis_queue   - Failed LLM analysis jobs
 
 **Purpose:** Centralized prompt templates for LLM analysis.
 
+### alert_engine.py
+
+**Purpose:** Core engine for evaluating alert rules against events and detections.
+
+**Key Features:**
+
+- Loads and evaluates all enabled AlertRule records
+- Uses AND logic within rules (all conditions must match)
+- Supports multiple condition types: risk_threshold, object_types, camera_ids, zone_ids, min_confidence, schedule
+- Respects cooldown periods using dedup_key
+- Creates Alert records for triggered rules
+
+**Public API:**
+
+- `AlertRuleEngine(session, redis_client)` - Initialize with database session
+- `async evaluate_event(event, detections, current_time)` - Evaluate all rules against event
+- `async create_alerts_for_event(event, triggered_rules)` - Create Alert records
+- `async test_rule_against_events(rule, events)` - Test rule configuration
+
+### circuit_breaker.py
+
+**Purpose:** Circuit breaker pattern implementation for external service protection.
+
+**States:**
+
+- CLOSED: Normal operation, calls pass through
+- OPEN: Circuit tripped, calls rejected immediately
+- HALF_OPEN: Recovery testing, limited calls allowed
+
+**Key Features:**
+
+- Configurable failure thresholds and recovery timeouts
+- Half-open state for gradual recovery testing
+- Excluded exceptions that don't count as failures
+- Thread-safe async implementation
+- Registry for managing multiple circuit breakers
+
+**Public API:**
+
+- `CircuitBreaker(name, config)` - Create circuit breaker
+- `async call(operation, *args, **kwargs)` - Execute through circuit breaker
+- `get_circuit_breaker(name, config)` - Get from global registry
+- Supports async context manager: `async with breaker: ...`
+
+### retry_handler.py
+
+**Purpose:** Retry logic with exponential backoff and dead-letter queue (DLQ) support.
+
+**Key Features:**
+
+- Configurable max retries, base delay, max delay
+- Exponential backoff with optional jitter
+- Moves failed jobs to DLQ after exhausting retries
+- DLQ inspection and management
+
+**DLQ Queues:**
+
+- `dlq:detection_queue` - Failed detection jobs
+- `dlq:analysis_queue` - Failed LLM analysis jobs
+
+**Public API:**
+
+- `RetryHandler(redis_client, config)` - Initialize handler
+- `async with_retry(operation, job_data, queue_name)` - Execute with retries
+- `async get_dlq_stats()` - Get DLQ statistics
+- `async get_dlq_jobs(dlq_name)` - Inspect DLQ contents
+- `async requeue_dlq_job(dlq_name)` - Move job back to processing
+
+### severity.py
+
+**Purpose:** Configurable severity level mapping and utilities.
+
+**Key Features:**
+
+- Maps risk scores (0-100) to severity levels (LOW/MEDIUM/HIGH/CRITICAL)
+- Configurable thresholds via settings
+- Severity comparison functions (gt, gte, lt, lte)
+- Color mapping for UI display
+
+**Default Thresholds:**
+
+- LOW: 0-29
+- MEDIUM: 30-59
+- HIGH: 60-84
+- CRITICAL: 85-100
+
+### search.py
+
+**Purpose:** Full-text search for events using PostgreSQL TSVECTOR.
+
+**Key Features:**
+
+- Searches across summary, reasoning, object_types
+- Supports filtering by camera, risk level, date range
+- Pagination with total count
+
+**Public API:**
+
+- `async search_events(session, query, filters, page, page_size)` - Execute search
+- `async update_event_object_types(session, event, detection_ids)` - Update cached types
+- `async refresh_event_search_vector(session, event_id)` - Refresh TSVECTOR
+
+### zone_service.py
+
+**Purpose:** Zone detection and context generation for detections.
+
+**Key Features:**
+
+- Determines which zones contain a detection (point-in-polygon)
+- Generates context strings for LLM prompts
+- Supports priority-based zone resolution for overlapping zones
+
+**Public API:**
+
+- `point_in_zone(x, y, zone)` - Check if point is in zone
+- `detection_in_zone(detection, zone)` - Check if detection bbox center is in zone
+- `get_zones_for_detection(session, detection)` - Get all matching zones
+- `get_highest_priority_zone(session, detection)` - Get primary zone
+- `zones_to_context(zones)` - Generate context string for LLM
+
+### audit.py
+
+**Purpose:** Audit logging for security-sensitive operations.
+
+**Key Features:**
+
+- Records who, what, when, where for sensitive actions
+- Captures client IP and user agent
+- Supports success/failure status tracking
+
+**Auditable Actions:**
+
+- Event review/dismissal
+- Settings changes
+- Media exports
+- Alert rule CRUD
+- Camera CRUD
+- API key management
+
+**Public API:**
+
+- `AuditService(session)` - Initialize with database session
+- `async log_action(action, resource_type, resource_id, actor, ...)` - Record action
+- `audit_service` - Global singleton accessor
+
+### clip_generator.py
+
+**Purpose:** Generate video clips for security events using ffmpeg.
+
+**Key Features:**
+
+- Creates clips from detection images for an event
+- Configurable output format and quality
+- Async subprocess execution
+
+**Public API:**
+
+- `ClipGenerator(output_dir)` - Initialize with output directory
+- `async generate_clip(event_id, image_paths)` - Create video clip
+- `get_clip_path(event_id)` - Get output path for event
+
 ## Data Flow Between Services
 
 ### Complete Pipeline Flow
@@ -457,7 +627,14 @@ dlq:analysis_queue   - Failed LLM analysis jobs
    | Publishes: Redis pub/sub channel "security_events"
    | Broadcasts: WebSocket to all connected clients
 
-7. [On Demand]
+7. [AlertRuleEngine] (After Event Creation)
+   | Loads: All enabled AlertRule records
+   | Evaluates: Each rule's conditions against event
+   | Creates: Alert records for triggered rules
+   | Calls: NotificationService.send_alert()
+   | Delivers: Notifications via configured channels
+
+8. [On Demand]
    | Calls: ThumbnailGenerator.generate_thumbnail()
    | Stores: Thumbnail files in data/thumbnails/
 ```

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This directory contains SQLAlchemy 2.0 ORM models for the home security intelligence system. These models define the database schema for tracking cameras, object detections, security events, GPU performance metrics, application logs, and API keys.
+This directory contains SQLAlchemy 2.0 ORM models for the home security intelligence system. These models define the database schema for tracking cameras, object detections, security events, alerts, zones, activity baselines, GPU performance metrics, application logs, audit trails, and API keys.
 
 ## Architecture Overview
 
@@ -16,13 +16,18 @@ This directory contains SQLAlchemy 2.0 ORM models for the home security intellig
 
 ```
 backend/models/
-├── __init__.py     # Module exports (Base, Camera, Detection, Event, GPUStats, Log, APIKey)
+├── __init__.py     # Module exports (all models and enums)
 ├── camera.py       # Camera model and Base class definition
 ├── detection.py    # Object detection results model (with video metadata support)
 ├── event.py        # Security event model with LLM analysis
+├── alert.py        # Alert and AlertRule models for notification system
+├── zone.py         # Zone model for camera region definitions
+├── baseline.py     # ActivityBaseline and ClassBaseline for anomaly detection
+├── audit.py        # AuditLog model for security-sensitive operations
 ├── gpu_stats.py    # GPU performance metrics model
 ├── log.py          # Structured application log model
 ├── api_key.py      # API key authentication model
+├── enums.py        # Shared enumerations (Severity)
 └── README.md       # Detailed model documentation
 ```
 
@@ -34,9 +39,14 @@ backend/models/
 - `Camera` - Camera entity model
 - `Detection` - Object detection results model
 - `Event` - Security event model
+- `Alert`, `AlertRule`, `AlertSeverity`, `AlertStatus` - Alerting system models and enums
+- `Zone`, `ZoneType`, `ZoneShape` - Zone definition models and enums
+- `ActivityBaseline`, `ClassBaseline` - Anomaly detection baseline models
+- `AuditLog`, `AuditAction`, `AuditStatus` - Audit trail model and enums
 - `GPUStats` - GPU performance metrics model
 - `Log` - Structured application log model
 - `APIKey` - API key authentication model
+- `Severity` - Shared severity enumeration
 
 ## `camera.py` - Camera Model
 
@@ -140,6 +150,118 @@ backend/models/
 - `idx_events_risk_score` - Single-column index on risk_score
 - `idx_events_reviewed` - Single-column index on reviewed
 - `idx_events_batch_id` - Single-column index on batch_id
+- `idx_events_search_vector` - GIN index for full-text search
+
+**Additional Fields:**
+
+- `object_types` - Cached object types from related detections (comma-separated)
+- `clip_path` - Path to generated video clip for this event (optional)
+- `search_vector` - PostgreSQL TSVECTOR for full-text search (auto-populated by trigger)
+
+## `alert.py` - Alert and AlertRule Models
+
+**Model:** `Alert`
+**Table:** `alerts`
+**Purpose:** Notifications generated from security events based on alert rules
+
+**Fields:**
+
+| Field            | Type                      | Description                                       |
+| ---------------- | ------------------------- | ------------------------------------------------- |
+| `id`             | UUID (PK)                 | Unique alert ID                                   |
+| `event_id`       | int (FK->events.id)       | Source event reference                            |
+| `rule_id`        | UUID (FK->alert_rules.id) | Triggering rule reference (nullable)              |
+| `severity`       | AlertSeverity enum        | Alert severity (low/medium/high/critical)         |
+| `status`         | AlertStatus enum          | Status (pending/delivered/acknowledged/dismissed) |
+| `created_at`     | datetime                  | Alert creation timestamp                          |
+| `delivered_at`   | datetime (nullable)       | Delivery timestamp                                |
+| `channels`       | JSON                      | Notification channels used                        |
+| `dedup_key`      | str                       | Deduplication key                                 |
+| `alert_metadata` | JSON                      | Additional metadata                               |
+
+**Model:** `AlertRule`
+**Table:** `alert_rules`
+**Purpose:** Defines conditions for generating alerts
+
+**Condition Fields:**
+
+- `risk_threshold` - Minimum risk score to trigger
+- `object_types` - JSON array of object types to match
+- `camera_ids` - JSON array of cameras to apply to
+- `zone_ids` - JSON array of zones to match
+- `min_confidence` - Minimum detection confidence
+- `schedule` - Time-based conditions (days, start_time, end_time, timezone)
+- `cooldown_seconds` - Deduplication cooldown period (default: 300s)
+
+## `zone.py` - Zone Model
+
+**Model:** `Zone`
+**Table:** `zones`
+**Purpose:** Defines regions of interest on camera views for detection context
+
+**Fields:**
+
+| Field         | Type                 | Description                              |
+| ------------- | -------------------- | ---------------------------------------- |
+| `id`          | str (PK)             | Unique zone ID                           |
+| `camera_id`   | str (FK->cameras.id) | Parent camera reference                  |
+| `name`        | str                  | Human-readable zone name                 |
+| `zone_type`   | ZoneType enum        | entry_point/driveway/sidewalk/yard/other |
+| `coordinates` | JSONB                | Normalized coordinates (0-1 range)       |
+| `shape`       | ZoneShape enum       | rectangle/polygon                        |
+| `color`       | str                  | Display color (default: #3B82F6)         |
+| `enabled`     | bool                 | Active status                            |
+| `priority`    | int                  | Priority for overlapping zones           |
+
+## `baseline.py` - Activity Baseline Models
+
+**Model:** `ActivityBaseline`
+**Table:** `activity_baselines`
+**Purpose:** Tracks activity rates per camera by hour and day-of-week for anomaly detection
+
+**Key Fields:** `camera_id`, `hour` (0-23), `day_of_week` (0-6), `avg_count`, `sample_count`
+
+**Model:** `ClassBaseline`
+**Table:** `class_baselines`
+**Purpose:** Tracks frequency of specific object classes per camera and hour
+
+**Key Fields:** `camera_id`, `detection_class`, `hour`, `frequency`, `sample_count`
+
+**Note:** Both use exponential decay for handling seasonal drift with a 30-day rolling window.
+
+## `audit.py` - Audit Log Model
+
+**Model:** `AuditLog`
+**Table:** `audit_logs`
+**Purpose:** Tracks security-sensitive operations for compliance and debugging
+
+**Fields:**
+
+| Field           | Type                    | Description                              |
+| --------------- | ----------------------- | ---------------------------------------- |
+| `id`            | int (PK, autoincrement) | Unique audit log ID                      |
+| `timestamp`     | datetime                | Action timestamp (UTC)                   |
+| `action`        | str                     | Action type (from AuditAction enum)      |
+| `resource_type` | str                     | Type of resource (event, settings, etc.) |
+| `resource_id`   | str (nullable)          | ID of affected resource                  |
+| `actor`         | str                     | Who performed the action                 |
+| `ip_address`    | str (nullable)          | Client IP address                        |
+| `user_agent`    | text (nullable)         | Client user agent                        |
+| `details`       | JSONB                   | Additional action details                |
+| `status`        | str                     | success/failure                          |
+
+**AuditAction Types:** EVENT_REVIEWED, EVENT_DISMISSED, SETTINGS_CHANGED, MEDIA_EXPORTED, RULE_CREATED/UPDATED/DELETED, CAMERA_CREATED/UPDATED/DELETED, LOGIN, LOGOUT, API_KEY_CREATED/REVOKED
+
+## `enums.py` - Shared Enumerations
+
+**Severity Enum:** LOW, MEDIUM, HIGH, CRITICAL
+
+Maps risk scores to severity levels (configurable thresholds):
+
+- LOW: 0-29 (routine activity)
+- MEDIUM: 30-59 (notable activity)
+- HIGH: 60-84 (concerning activity)
+- CRITICAL: 85-100 (immediate attention)
 
 ## `gpu_stats.py` - GPU Statistics Model
 
@@ -292,15 +414,25 @@ __table_args__ = (
 ```
 Camera (1) ----< (many) Detection
 Camera (1) ----< (many) Event
+Camera (1) ----< (many) Zone
+Camera (1) ----< (many) ActivityBaseline
+Camera (1) ----< (many) ClassBaseline
+
+Event (1) ----< (many) Alert
+
+AlertRule (1) ----< (many) Alert
 
 GPUStats (standalone, no relationships)
 APIKey (standalone, no relationships)
 Log (standalone, no relationships)
+AuditLog (standalone, no relationships)
 ```
 
 **Cascade Behavior:**
 
-- Deleting a Camera cascades to delete all its Detections and Events
+- Deleting a Camera cascades to delete all its Detections, Events, Zones, and Baselines
+- Deleting an Event cascades to delete all its Alerts
+- Deleting an AlertRule sets Alert.rule_id to NULL (SET NULL on delete)
 - `cascade="all, delete-orphan"` ensures orphaned records are removed
 
 ## Indexing Strategy

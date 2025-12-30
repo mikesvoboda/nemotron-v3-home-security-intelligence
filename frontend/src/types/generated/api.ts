@@ -17,11 +17,13 @@ export interface paths {
          * Seed Cameras
          * @description Seed test cameras into the database.
          *
-         *     Only available when DEBUG=true.
+         *     SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
+         *     If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
          *
          *     Args:
          *         request: Seed configuration (count, clear_existing, create_folders)
          *         db: Database session
+         *         _admin: Admin access validation (via dependency)
          *
          *     Returns:
          *         Summary of seeded cameras
@@ -46,11 +48,14 @@ export interface paths {
          * Seed Events
          * @description Seed mock events and detections into the database.
          *
-         *     Only available when DEBUG=true. Requires cameras to exist first.
+         *     SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
+         *     If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+         *     Requires cameras to exist first.
          *
          *     Args:
          *         request: Seed configuration (count, clear_existing)
          *         db: Database session
+         *         _admin: Admin access validation (via dependency)
          *
          *     Returns:
          *         Summary of seeded events and detections
@@ -76,13 +81,20 @@ export interface paths {
          * Clear Seeded Data
          * @description Clear all seeded data (cameras, events, detections).
          *
-         *     Only available when DEBUG=true.
+         *     SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
+         *     If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+         *     Requires explicit confirmation via query parameter to prevent accidental data deletion.
          *
          *     Args:
+         *         confirm: Must be set to true to confirm data deletion (query parameter)
          *         db: Database session
+         *         _admin: Admin access validation (via dependency)
          *
          *     Returns:
          *         Summary of cleared data counts
+         *
+         *     Raises:
+         *         HTTPException: 400 if confirm is not set to true
          */
         delete: operations["clear_seeded_data_api_admin_seed_clear_delete"];
         options?: never;
@@ -1219,11 +1231,15 @@ export interface paths {
         };
         /**
          * Get Liveness
-         * @description Liveness probe endpoint.
+         * @description Kubernetes-style liveness probe endpoint.
          *
          *     This endpoint indicates whether the process is running and able to
          *     respond to HTTP requests. It always returns 200 with status "alive"
          *     if the process is up. This is a minimal check with no dependencies.
+         *
+         *     Note: The canonical liveness probe is GET /health at the root level.
+         *     This endpoint exists for Kubernetes compatibility and provides the
+         *     same functionality under the /api/system prefix.
          *
          *     Used by Kubernetes/Docker to determine if the container should be restarted.
          *     If this endpoint fails, the process is considered dead and should be restarted.
@@ -1249,7 +1265,7 @@ export interface paths {
         };
         /**
          * Get Readiness
-         * @description Readiness probe endpoint.
+         * @description Kubernetes-style readiness probe endpoint with detailed information.
          *
          *     This endpoint indicates whether the application is ready to receive
          *     traffic and process uploads. It checks all critical dependencies:
@@ -1257,6 +1273,10 @@ export interface paths {
          *     - Redis connectivity (required for queue processing)
          *     - AI services availability
          *     - Background worker status
+         *
+         *     Note: The canonical readiness probe is GET /ready at the root level.
+         *     This endpoint provides the same readiness check but with detailed
+         *     service and worker status information.
          *
          *     Used by Kubernetes/Docker to determine if traffic should be routed to this instance.
          *     If this endpoint returns not_ready, the instance should not receive new requests.
@@ -1679,9 +1699,62 @@ export interface paths {
         };
         /**
          * Health
-         * @description Detailed health check endpoint.
+         * @description Simple liveness health check endpoint (canonical liveness probe).
+         *
+         *     This endpoint indicates whether the process is running and able to
+         *     respond to HTTP requests. It always returns 200 with status "alive"
+         *     if the process is up.
+         *
+         *     This is the canonical liveness probe endpoint. Use this for:
+         *     - Docker HEALTHCHECK liveness checks
+         *     - Kubernetes liveness probes
+         *     - Simple "is the server up?" monitoring
+         *
+         *     For detailed health information, use:
+         *     - GET /api/system/health - Detailed health check with service status
+         *     - GET /ready - Readiness probe (checks dependencies)
+         *
+         *     Returns:
+         *         Simple status indicating the server is alive.
          */
         get: operations["health_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ready": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ready
+         * @description Simple readiness health check endpoint (canonical readiness probe).
+         *
+         *     This endpoint indicates whether the application is ready to receive
+         *     traffic and process requests. It checks critical dependencies:
+         *     - Database connectivity
+         *     - Redis connectivity
+         *     - Critical pipeline workers
+         *
+         *     This is the canonical readiness probe endpoint. Use this for:
+         *     - Docker HEALTHCHECK readiness checks
+         *     - Kubernetes readiness probes
+         *     - Load balancer health checks
+         *
+         *     For detailed readiness information with service breakdown, use:
+         *     - GET /api/system/health/ready - Full readiness response with details
+         *
+         *     Returns:
+         *         Simple status indicating readiness. HTTP 200 if ready, 503 if not.
+         */
+        get: operations["ready_ready_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3221,14 +3294,21 @@ export interface components {
          * GPUStatsResponse
          * @description Response schema for GPU statistics endpoint.
          * @example {
+         *       "gpu_name": "NVIDIA RTX A5500",
          *       "inference_fps": 30.5,
          *       "memory_total": 24000,
          *       "memory_used": 12000,
+         *       "power_usage": 150,
          *       "temperature": 65,
          *       "utilization": 75.5
          *     }
          */
         GPUStatsResponse: {
+            /**
+             * Gpu Name
+             * @description GPU device name (e.g., 'NVIDIA RTX A5500')
+             */
+            gpu_name?: string | null;
             /**
              * Utilization
              * @description GPU utilization percentage (0-100)
@@ -3249,6 +3329,11 @@ export interface components {
              * @description GPU temperature in Celsius
              */
             temperature?: number | null;
+            /**
+             * Power Usage
+             * @description GPU power usage in watts
+             */
+            power_usage?: number | null;
             /**
              * Inference Fps
              * @description Inference frames per second
@@ -3267,6 +3352,11 @@ export interface components {
              */
             recorded_at: string;
             /**
+             * Gpu Name
+             * @description GPU device name
+             */
+            gpu_name?: string | null;
+            /**
              * Utilization
              * @description GPU utilization percentage (0-100)
              */
@@ -3286,6 +3376,11 @@ export interface components {
              * @description GPU temperature in Celsius
              */
             temperature?: number | null;
+            /**
+             * Power Usage
+             * @description GPU power usage in watts
+             */
+            power_usage?: number | null;
             /**
              * Inference Fps
              * @description Inference frames per second
@@ -4765,7 +4860,9 @@ export interface operations {
     seed_cameras_api_admin_seed_cameras_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-admin-api-key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -4798,7 +4895,9 @@ export interface operations {
     seed_events_api_admin_seed_events_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-admin-api-key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -4830,8 +4929,12 @@ export interface operations {
     };
     clear_seeded_data_api_admin_seed_clear_delete: {
         parameters: {
-            query?: never;
-            header?: never;
+            query?: {
+                confirm?: boolean;
+            };
+            header?: {
+                "x-admin-api-key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -4844,6 +4947,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClearDataResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -6745,8 +6857,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        [key: string]: unknown;
+                        [key: string]: string;
                     };
+                };
+            };
+        };
+    };
+    ready_ready_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };

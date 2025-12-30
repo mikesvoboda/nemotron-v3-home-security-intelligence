@@ -149,3 +149,9 @@ coverage: {
 - Use `index.ts` re-exports for cleaner imports
 - CI validates types are current with `--check` flag
 - Types match backend Pydantic schema names
+
+## Entry Points
+
+1. **Start with `index.ts`** - User-friendly type aliases (e.g., `Camera`, `Event`, `GPUStats`)
+2. **Raw OpenAPI**: `api.ts` for advanced use (paths, components, operations)
+3. **Import pattern**: `import type { Camera } from '@/types/generated'`

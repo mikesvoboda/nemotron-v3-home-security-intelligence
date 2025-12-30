@@ -8,12 +8,14 @@ The `backend/api/schemas/` directory contains Pydantic models for request/respon
 
 ### `__init__.py`
 
-Package initialization with public exports:
+Package initialization with public exports. Exports schemas from:
 
-- `CameraCreate`
-- `CameraListResponse`
-- `CameraResponse`
-- `CameraUpdate`
+- `alerts.py` - AlertCreate, AlertResponse, AlertRuleCreate, AlertRuleResponse, etc.
+- `camera.py` - CameraCreate, CameraResponse, CameraUpdate, CameraListResponse
+- `notification.py` - NotificationChannel, SendNotificationRequest, etc.
+- `search.py` - SearchRequest, SearchResponse, SearchResult
+- `websocket.py` - WebSocketMessage, WebSocketErrorResponse, etc.
+- `zone.py` - ZoneCreate, ZoneResponse, ZoneUpdate, ZoneListResponse
 
 ### `camera.py`
 
@@ -496,6 +498,253 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 - `success: bool` - Operation succeeded
 - `message: str` - Status message
 - `queue_name: str` - Cleared queue name
+
+---
+
+### Alert Schemas (`alerts.py`)
+
+#### Enums
+
+- `AlertSeverity` - low, medium, high, critical
+- `AlertStatus` - pending, delivered, acknowledged, dismissed
+
+#### `AlertRuleSchedule`
+
+Time-based conditions for when rules are active.
+
+**Fields:**
+
+- `days: list[str] | None` - Days of week (empty = all days)
+- `start_time: str | None` - Start time in HH:MM format
+- `end_time: str | None` - End time in HH:MM format
+- `timezone: str` - Timezone for evaluation (default: UTC)
+
+#### `AlertRuleConditions`
+
+Legacy conditions schema for backward compatibility.
+
+**Fields:**
+
+- `risk_threshold: int | None` - Minimum risk score (0-100)
+- `object_types: list[str] | None` - Object types to match
+- `camera_ids: list[str] | None` - Camera IDs to filter
+- `time_ranges: list[dict] | None` - Time ranges when active
+
+#### `AlertRuleCreate`
+
+**Fields:**
+
+- `name: str` - Rule name (1-255 chars)
+- `description: str | None` - Rule description
+- `enabled: bool` - Whether rule is active (default: True)
+- `severity: AlertSeverity` - Severity level
+- `risk_threshold: int | None` - Alert when risk_score >= threshold
+- `object_types: list[str] | None` - Object types to match
+- `camera_ids: list[str] | None` - Camera IDs (empty = all)
+- `zone_ids: list[str] | None` - Zone IDs (empty = any)
+- `min_confidence: float | None` - Minimum detection confidence (0.0-1.0)
+- `schedule: AlertRuleSchedule | None` - Time-based conditions
+- `conditions: AlertRuleConditions | None` - Legacy conditions
+- `dedup_key_template: str` - Template for deduplication key
+- `cooldown_seconds: int` - Seconds between duplicate alerts (default: 300)
+- `channels: list[str]` - Notification channels
+
+#### `AlertRuleUpdate`
+
+Same as AlertRuleCreate but all fields optional for partial updates.
+
+#### `AlertRuleResponse`
+
+Response schema with all AlertRule fields plus `id`, `created_at`, `updated_at`.
+
+#### `AlertRuleListResponse`
+
+Paginated list with `rules`, `count`, `limit`, `offset`.
+
+#### `AlertCreate`, `AlertUpdate`, `AlertResponse`, `AlertListResponse`
+
+Standard CRUD schemas for triggered alerts.
+
+#### `DedupCheckRequest`, `DedupCheckResponse`
+
+Deduplication checking schemas.
+
+#### `RuleTestRequest`, `RuleTestEventResult`, `RuleTestResponse`
+
+Rule testing schemas for validating rules against historical events.
+
+---
+
+### Audit Schemas (`audit.py`)
+
+#### `AuditLogResponse`
+
+**Fields:**
+
+- `id: int` - Audit log entry ID
+- `timestamp: datetime` - When action occurred
+- `action: str` - Action performed
+- `resource_type: str` - Type of resource
+- `resource_id: str | None` - Specific resource ID
+- `actor: str` - User or system that performed action
+- `ip_address: str | None` - Client IP address
+- `user_agent: str | None` - Client user agent
+- `details: dict | None` - Action-specific details
+- `status: str` - success or failure
+
+#### `AuditLogListResponse`
+
+Paginated list with `logs`, `count`, `limit`, `offset`.
+
+#### `AuditLogStats`
+
+**Fields:**
+
+- `total_logs: int` - Total audit log count
+- `logs_today: int` - Logs created today
+- `by_action: dict[str, int]` - Counts by action type
+- `by_resource_type: dict[str, int]` - Counts by resource type
+- `by_status: dict[str, int]` - Counts by status
+- `recent_actors: list[str]` - Recently active actors
+
+---
+
+### Zone Schemas (`zone.py`)
+
+#### `ZoneCreate`
+
+**Fields:**
+
+- `name: str` - Zone name (1-255 chars)
+- `zone_type: ZoneType` - entry_point, exit_point, restricted, monitored, other
+- `coordinates: list[list[float]]` - Normalized [x, y] points (0-1 range, min 3 points)
+- `shape: ZoneShape` - rectangle or polygon
+- `color: str` - Hex color for UI (e.g., "#3B82F6")
+- `enabled: bool` - Whether zone is active (default: True)
+- `priority: int` - Priority for overlapping zones (0-100)
+
+**Validators:**
+
+- Coordinates must be exactly 2 values per point
+- All coordinates must be in 0-1 normalized range
+
+#### `ZoneUpdate`
+
+Same as ZoneCreate but all fields optional.
+
+#### `ZoneResponse`
+
+Response with all Zone fields plus `id`, `camera_id`, `created_at`, `updated_at`.
+
+#### `ZoneListResponse`
+
+List with `zones` and `count`.
+
+---
+
+### WebSocket Schemas (`websocket.py`)
+
+#### Message Types (enum)
+
+- `PING` - Keep-alive heartbeat
+- `SUBSCRIBE` - Subscribe to channels
+- `UNSUBSCRIBE` - Unsubscribe from channels
+
+#### Incoming Messages
+
+- `WebSocketPingMessage` - Ping request (responds with pong)
+- `WebSocketSubscribeMessage` - Subscribe with channel list
+- `WebSocketUnsubscribeMessage` - Unsubscribe from channels
+- `WebSocketMessage` - Generic message for type detection
+
+#### Outgoing Messages
+
+- `WebSocketPongResponse` - Pong response
+- `WebSocketErrorResponse` - Error with code and message
+- `WebSocketEventData` - Event data payload
+- `WebSocketEventMessage` - Complete event message envelope
+
+#### Error Codes
+
+- `INVALID_JSON` - Message is not valid JSON
+- `INVALID_MESSAGE_FORMAT` - Message structure is invalid
+- `UNKNOWN_MESSAGE_TYPE` - Unrecognized message type
+- `VALIDATION_ERROR` - Pydantic validation failed
+
+---
+
+### Search Schemas (`search.py`)
+
+#### `SearchResult`
+
+**Fields:**
+
+- `id: int` - Event ID
+- `camera_id: str` - Camera ID
+- `camera_name: str | None` - Camera display name
+- `started_at: datetime` - Event start timestamp
+- `ended_at: datetime | None` - Event end timestamp
+- `risk_score: int | None` - Risk score (0-100)
+- `risk_level: str | None` - Risk classification
+- `summary: str | None` - LLM-generated summary
+- `reasoning: str | None` - LLM reasoning
+- `reviewed: bool` - Review status
+- `detection_count: int` - Number of detections
+- `detection_ids: list[int]` - Detection IDs
+- `object_types: str | None` - Comma-separated object types
+- `relevance_score: float` - Full-text search relevance
+
+#### `SearchResponse`
+
+Paginated results with `results`, `total_count`, `limit`, `offset`.
+
+#### `SearchRequest`
+
+**Fields:**
+
+- `query: str` - Search query string
+- `start_date: datetime | None` - Start date filter
+- `end_date: datetime | None` - End date filter
+- `camera_ids: list[str] | None` - Camera filter
+- `severity: list[str] | None` - Risk level filter
+- `object_types: list[str] | None` - Object type filter
+- `reviewed: bool | None` - Review status filter
+- `limit: int` - Max results (default: 50)
+- `offset: int` - Skip results (default: 0)
+
+---
+
+### Notification Schemas (`notification.py`)
+
+#### `NotificationChannel` (enum)
+
+- `EMAIL` - Email notifications
+- `WEBHOOK` - Webhook notifications
+- `PUSH` - Push notifications
+
+#### `NotificationDeliveryResponse`
+
+Single delivery result with `channel`, `success`, `error`, `delivered_at`, `recipient`.
+
+#### `DeliveryResultResponse`
+
+Complete delivery result across channels with success counts.
+
+#### `SendNotificationRequest`
+
+Request to deliver notifications for an alert.
+
+#### `TestNotificationRequest`, `TestNotificationResponse`
+
+Test notification configuration.
+
+#### `NotificationConfigResponse`
+
+Configuration status with enabled channels and default settings.
+
+#### `NotificationHistoryEntry`, `NotificationHistoryResponse`
+
+Notification delivery history.
 
 ---
 

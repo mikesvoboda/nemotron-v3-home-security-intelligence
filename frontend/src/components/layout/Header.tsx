@@ -148,6 +148,11 @@ export default function Header() {
       parts.push(`${Math.round(status.gpu_temperature)}°C`);
     }
 
+    // Inference FPS
+    if (status.inference_fps !== null) {
+      parts.push(`${status.inference_fps.toFixed(1)} FPS`);
+    }
+
     return parts.length > 0 ? parts.join(' | ') : '--';
   };
 

@@ -4,10 +4,49 @@ import { test, expect } from '@playwright/test';
  * Navigation Tests for Home Security Dashboard
  *
  * These tests verify that navigation between pages works correctly.
+ *
+ * IMPORTANT: Route handlers are matched in the order they are registered.
+ * More specific routes must be registered BEFORE more general routes.
  */
 
 // Helper function to set up common API mocks
 async function setupApiMocks(page: import('@playwright/test').Page) {
+  // Mock the GPU history endpoint FIRST (more specific than /api/system/gpu)
+  await page.route('**/api/system/gpu/history*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        samples: [
+          {
+            utilization: 45,
+            memory_used: 8192,
+            memory_total: 24576,
+            temperature: 52,
+            inference_fps: 12.5,
+            recorded_at: new Date().toISOString(),
+          },
+        ],
+        total: 1,
+        limit: 100,
+      }),
+    });
+  });
+
+  // Mock camera snapshot endpoint BEFORE general cameras endpoint
+  await page.route('**/api/cameras/*/snapshot*', async (route) => {
+    // Return a 1x1 transparent PNG for camera snapshots
+    const transparentPng = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      'base64'
+    );
+    await route.fulfill({
+      status: 200,
+      contentType: 'image/png',
+      body: transparentPng,
+    });
+  });
+
   // Mock the cameras endpoint - returns { cameras: [...] }
   await page.route('**/api/cameras', async (route) => {
     await route.fulfill({
@@ -43,49 +82,35 @@ async function setupApiMocks(page: import('@playwright/test').Page) {
     });
   });
 
-  // Mock the events endpoint - returns { events: [...], total, ... }
-  await page.route('**/api/events*', async (route) => {
-    // Check if this is the stats endpoint
-    if (route.request().url().includes('/stats')) {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          total_events: 0,
-          events_by_risk_level: { low: 0, medium: 0, high: 0, critical: 0 },
-          events_by_camera: {},
-          average_risk_score: 0,
-        }),
-      });
-    } else {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          events: [],
-          total: 0,
-          limit: 20,
-          offset: 0,
-        }),
-      });
-    }
-  });
-
-  // Mock the logs endpoint
-  await page.route('**/api/logs', async (route) => {
+  // Mock the events stats endpoint BEFORE general events endpoint
+  await page.route('**/api/events/stats*', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        logs: [],
+        total_events: 0,
+        events_by_risk_level: { low: 0, medium: 0, high: 0, critical: 0 },
+        events_by_camera: {},
+        average_risk_score: 0,
+      }),
+    });
+  });
+
+  // Mock the events endpoint - returns { events: [...], total, ... }
+  await page.route('**/api/events*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        events: [],
         total: 0,
-        limit: 50,
+        limit: 20,
         offset: 0,
       }),
     });
   });
 
-  // Mock the logs stats endpoint
+  // Mock the logs stats endpoint BEFORE general logs endpoint
   await page.route('**/api/logs/stats', async (route) => {
     await route.fulfill({
       status: 200,
@@ -96,6 +121,20 @@ async function setupApiMocks(page: import('@playwright/test').Page) {
         warning: 0,
         error: 0,
         total: 0,
+      }),
+    });
+  });
+
+  // Mock the logs endpoint
+  await page.route('**/api/logs*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        logs: [],
+        total: 0,
+        limit: 50,
+        offset: 0,
       }),
     });
   });
@@ -149,8 +188,7 @@ test.describe('Navigation Tests', () => {
     await setupApiMocks(page);
   });
 
-  // TODO: Fix API mocking for dashboard tests - ECONNREFUSED in CI
-  test.skip('can navigate to dashboard from root', async ({ page }) => {
+  test('can navigate to dashboard from root', async ({ page }) => {
     await page.goto('/');
 
     // Dashboard should be the default page
@@ -200,8 +238,7 @@ test.describe('Navigation Tests', () => {
     await expect(page).toHaveURL(/\/settings$/);
   });
 
-  // TODO: Fix API mocking for dashboard tests - ECONNREFUSED in CI
-  test.skip('page transitions preserve layout', async ({ page }) => {
+  test('page transitions preserve layout', async ({ page }) => {
     await page.goto('/');
 
     // Wait for dashboard to load

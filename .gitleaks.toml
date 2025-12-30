@@ -1,10 +1,43 @@
 title = "Gitleaks Config"
 
 [allowlist]
-description = "Allowlisted patterns"
+description = "Allowlisted patterns for false positives"
+# NOTE: Do NOT blanket-allow all test files. Only allow specific fixture patterns.
 paths = [
+  # Example environment files (no real secrets)
   '''\.env\.example$''',
+  # Lock files contain checksums, not secrets
   '''package-lock\.json$''',
-  '''\.test\.(ts|tsx|py)$''',
-  '''test_.*\.py$''',
+]
+
+# Regex patterns for allowlisted content (applies to all files including tests)
+regexes = [
+  # Test fixture placeholder values (clearly fake)
+  '''test[-_]?(api[-_]?)?key''',
+  '''fake[-_]?(api[-_]?)?key''',
+  '''mock[-_]?(api[-_]?)?key''',
+  '''dummy[-_]?(api[-_]?)?key''',
+  '''example[-_]?(api[-_]?)?key''',
+  # Common test placeholder passwords
+  '''password123''',
+  '''testpassword''',
+  '''test[-_]?secret''',
+  # Base64-encoded "test" strings commonly used in fixtures
+  '''dGVzdA==''',
+]
+
+# Specific commits to ignore (e.g., historical false positives)
+commits = []
+
+# Stopwords - strings that if found in the secret will cause it to be ignored
+stopwords = [
+  "example",
+  "test",
+  "fake",
+  "mock",
+  "dummy",
+  "placeholder",
+  "sample",
+  "localhost",
+  "127.0.0.1",
 ]

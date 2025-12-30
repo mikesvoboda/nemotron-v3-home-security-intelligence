@@ -3,8 +3,9 @@
 import os
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
-from pydantic import Field, field_validator
+from pydantic import AnyHttpUrl, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -22,7 +23,7 @@ class Settings(BaseSettings):
     # PostgreSQL only - required for production and development
     # Example: postgresql+asyncpg://security:password@localhost:5432/security
     database_url: str = Field(
-        default="postgresql+asyncpg://security:security_dev_password@localhost:5432/security",
+        default="",
         description="PostgreSQL database URL (format: postgresql+asyncpg://user:pass@host:port/db)",
     )
 
@@ -40,6 +41,21 @@ class Settings(BaseSettings):
     app_name: str = "Home Security Intelligence"
     app_version: str = "0.1.0"
     debug: bool = False
+
+    # Admin endpoints settings
+    # SECURITY: Admin endpoints require BOTH debug=True AND admin_enabled=True
+    # This provides defense-in-depth against accidentally exposing admin endpoints
+    admin_enabled: bool = Field(
+        default=False,
+        description="Enable admin endpoints (requires debug=True as well). "
+        "SECURITY: Must be explicitly enabled - provides protection against "
+        "accidentally enabling admin endpoints in production.",
+    )
+    admin_api_key: str | None = Field(
+        default=None,
+        description="Optional API key required for admin endpoints. "
+        "When set, all admin requests must include X-Admin-API-Key header.",
+    )
 
     # API settings
     api_host: str = "0.0.0.0"  # noqa: S104
@@ -84,17 +100,76 @@ class Settings(BaseSettings):
         description="Idle timeout before processing incomplete batch",
     )
 
-    # AI service endpoints (validated as URLs, stored as strings for compatibility)
+    # AI service endpoints (validated as URLs using Pydantic AnyHttpUrl)
+    # Stored as str after validation for compatibility with httpx clients
     rtdetr_url: str = Field(
         default="http://localhost:8090",
         description="RT-DETRv2 detection service URL",
-        pattern=r"^https?://.*",
     )
     nemotron_url: str = Field(
         default="http://localhost:8091",
         description="Nemotron reasoning service URL (llama.cpp server)",
-        pattern=r"^https?://.*",
     )
+
+    # AI service timeout settings
+    ai_connect_timeout: float = Field(
+        default=10.0,
+        ge=1.0,
+        le=60.0,
+        description="Maximum time (seconds) to establish connection to AI services",
+    )
+    ai_health_timeout: float = Field(
+        default=5.0,
+        ge=1.0,
+        le=30.0,
+        description="Timeout (seconds) for AI service health checks",
+    )
+    rtdetr_read_timeout: float = Field(
+        default=60.0,
+        ge=10.0,
+        le=300.0,
+        description="Maximum time (seconds) to wait for RT-DETR detection response",
+    )
+    nemotron_read_timeout: float = Field(
+        default=120.0,
+        ge=30.0,
+        le=600.0,
+        description="Maximum time (seconds) to wait for Nemotron LLM response",
+    )
+
+    @field_validator("rtdetr_url", "nemotron_url", mode="before")
+    @classmethod
+    def validate_ai_service_urls(cls, v: Any) -> str:
+        """Validate AI service URLs using Pydantic's AnyHttpUrl validator.
+
+        This ensures URLs are well-formed HTTP/HTTPS URLs while returning
+        a string for compatibility with httpx clients.
+
+        Args:
+            v: The URL value to validate
+
+        Returns:
+            The validated URL as a string
+
+        Raises:
+            ValueError: If the URL is not a valid HTTP/HTTPS URL
+        """
+        if v is None:
+            raise ValueError("AI service URL cannot be None")
+
+        # Convert to string if needed
+        url_str = str(v)
+
+        # Use AnyHttpUrl for validation (supports http and https)
+        try:
+            validated_url = AnyHttpUrl(url_str)
+            # Return as string for httpx compatibility
+            return str(validated_url)
+        except Exception as e:
+            raise ValueError(
+                f"Invalid AI service URL '{url_str}': must be a valid HTTP/HTTPS URL. "
+                f"Example: 'http://localhost:8090'. Error: {e}"
+            ) from None
 
     # Detection settings
     detection_confidence_threshold: float = Field(
@@ -194,8 +269,8 @@ class Settings(BaseSettings):
         description="Maximum size of Redis queues",
     )
     queue_overflow_policy: str = Field(
-        default="drop_oldest",
-        description="Policy when queue is full: 'drop_oldest', 'reject', or 'dlq'",
+        default="dlq",
+        description="Policy when queue is full: 'dlq' (moves to dead-letter queue), 'reject' (fails operation), or 'drop_oldest' (silent data loss, not recommended)",
     )
     queue_backpressure_threshold: float = Field(
         default=0.8,
@@ -246,6 +321,26 @@ class Settings(BaseSettings):
         ge=1,
         le=1000,
         description="Maximum search requests per minute per client IP",
+    )
+
+    # WebSocket settings
+    websocket_idle_timeout_seconds: int = Field(
+        default=300,
+        ge=30,
+        le=3600,
+        description="WebSocket idle timeout in seconds. Connections without activity will be closed.",
+    )
+    websocket_ping_interval_seconds: int = Field(
+        default=30,
+        ge=5,
+        le=120,
+        description="Interval for sending WebSocket ping frames to keep connections alive",
+    )
+    websocket_max_message_size: int = Field(
+        default=65536,
+        ge=1024,
+        le=1048576,
+        description="Maximum WebSocket message size in bytes (default: 64KB)",
     )
 
     # Severity threshold settings (risk score 0-100)
@@ -307,6 +402,37 @@ class Settings(BaseSettings):
         default=None,
         description="Default webhook URL for alert notifications",
     )
+
+    @field_validator("default_webhook_url", mode="before")
+    @classmethod
+    def validate_webhook_url(cls, v: Any) -> str | None:
+        """Validate webhook URL using Pydantic's AnyHttpUrl validator.
+
+        Args:
+            v: The URL value to validate (can be None)
+
+        Returns:
+            The validated URL as a string, or None if not provided
+
+        Raises:
+            ValueError: If the URL is provided but not a valid HTTP/HTTPS URL
+        """
+        if v is None or v == "":
+            return None
+
+        # Convert to string if needed
+        url_str = str(v)
+
+        # Use AnyHttpUrl for validation
+        try:
+            validated_url = AnyHttpUrl(url_str)
+            return str(validated_url)
+        except Exception as e:
+            raise ValueError(
+                f"Invalid webhook URL '{url_str}': must be a valid HTTP/HTTPS URL. "
+                f"Example: 'https://hooks.example.com/webhook'. Error: {e}"
+            ) from None
+
     webhook_timeout_seconds: int = Field(
         default=30,
         ge=1,
@@ -431,10 +557,56 @@ class Settings(BaseSettings):
         Path(v).parent.mkdir(parents=True, exist_ok=True)
         return v
 
+    @field_validator("redis_url", mode="before")
+    @classmethod
+    def validate_redis_url(cls, v: Any) -> str:
+        """Validate Redis URL format.
+
+        Ensures the URL has a valid Redis scheme (redis:// or rediss:// for TLS).
+
+        Args:
+            v: The URL value to validate
+
+        Returns:
+            The validated URL as a string
+
+        Raises:
+            ValueError: If the URL is not a valid Redis URL
+        """
+        if v is None:
+            raise ValueError("Redis URL cannot be None")
+
+        url_str = str(v)
+
+        # Check for valid Redis URL schemes
+        if not url_str.startswith(("redis://", "rediss://")):
+            raise ValueError(
+                f"Invalid Redis URL '{url_str}': must start with 'redis://' or 'rediss://' (for TLS). "
+                "Example: 'redis://localhost:6379/0' or 'rediss://redis-host:6379/0'"
+            )
+
+        # Basic structure validation: should have host after scheme
+        # redis://[password@]host[:port][/database]
+        scheme_end = url_str.find("://") + 3
+        rest = url_str[scheme_end:]
+
+        if not rest or rest.startswith("/"):
+            raise ValueError(
+                f"Invalid Redis URL '{url_str}': missing host. Example: 'redis://localhost:6379/0'"
+            )
+
+        return url_str
+
     @field_validator("database_url")
     @classmethod
     def validate_database_url(cls, v: str) -> str:
         """Validate PostgreSQL database URL format."""
+        if not v:
+            raise ValueError(
+                "DATABASE_URL environment variable is required. "
+                "Set it in your .env file or environment. "
+                "Example: DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/dbname"
+            )
         if not v.startswith(("postgresql://", "postgresql+asyncpg://")):
             raise ValueError(
                 "Only PostgreSQL is supported. "

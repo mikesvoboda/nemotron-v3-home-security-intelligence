@@ -6,7 +6,7 @@ FastAPI-based HTTP server that wraps RT-DETRv2 object detection model for real-t
 
 ## Key Files
 
-### `model.py` (432 lines)
+### `model.py` (435 lines)
 
 Main inference server implementation using HuggingFace Transformers:
 
@@ -52,7 +52,7 @@ Unit tests with pytest:
   - Batch detection
   - Error handling (model not loaded, invalid input)
 
-### `requirements.txt` (24 lines)
+### `requirements.txt`
 
 Python dependencies:
 
@@ -209,12 +209,14 @@ Server runs on: `http://0.0.0.0:8090`
 
 Environment variables with defaults:
 
-| Variable            | Default                                        | Description                  |
-| ------------------- | ---------------------------------------------- | ---------------------------- |
-| `RTDETR_MODEL_PATH` | `/export/ai_models/rt-detrv2/rtdetr_v2_r101vd` | HuggingFace model path       |
-| `RTDETR_CONFIDENCE` | `0.5`                                          | Minimum detection confidence |
-| `HOST`              | `0.0.0.0`                                      | Server host                  |
-| `PORT`              | `8090`                                         | Server port                  |
+| Variable            | Default                                        | Description                        |
+| ------------------- | ---------------------------------------------- | ---------------------------------- |
+| `RTDETR_MODEL_PATH` | `/export/ai_models/rt-detrv2/rtdetr_v2_r101vd` | HuggingFace model path             |
+| `RTDETR_CONFIDENCE` | `0.5`                                          | Minimum detection confidence (0-1) |
+| `HOST`              | `0.0.0.0`                                      | Server bind address                |
+| `PORT`              | `8090`                                         | Server port                        |
+
+**Note on host binding**: The server defaults to `0.0.0.0` to allow connections from Docker/Podman containers. When AI servers run natively on the host while the backend runs in containers, binding to `127.0.0.1` would prevent container-to-host connectivity.
 
 ## Important Patterns and Conventions
 
@@ -283,10 +285,10 @@ python example_client.py
 ## Performance Characteristics
 
 - **Inference time**: 30-50ms per image (RTX A5500)
-- **VRAM usage**: ~3GB
+- **VRAM usage**: ~3-4GB
 - **Throughput**: ~20-30 images/second
 - **Batch processing**: Currently sequential (room for optimization)
-- **Warmup overhead**: ~1-2 seconds on startup
+- **Warmup overhead**: ~1-2 seconds on startup (3 warmup iterations with 640x480 gray images)
 
 ## Error Handling
 

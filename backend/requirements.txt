@@ -49,7 +49,7 @@ pytest-cov>=4.1.0
 pytest-xdist>=3.5.0
 pytest-timeout>=2.3.0
 fakeredis>=2.20.0
-testcontainers[postgresql]>=4.0.0
+testcontainers[postgresql,redis]>=4.0.0
 
 # CI/CD - Performance
 pytest-benchmark>=4.0.0
