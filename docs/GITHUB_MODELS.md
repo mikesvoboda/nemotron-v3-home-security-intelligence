@@ -494,7 +494,7 @@ cat truncated.txt | gh models run openai/gpt-4o "..."
 ```bash
 gh models run openai/gpt-4o \
   --system "You are reviewing code for a home security system. \
-            The stack is Python FastAPI, React TypeScript, SQLite, Redis. \
+            The stack is Python FastAPI, React TypeScript, PostgreSQL, Redis. \
             AI models are RT-DETRv2 (detection) and Nemotron (reasoning)." \
   "Review this code"
 ```
