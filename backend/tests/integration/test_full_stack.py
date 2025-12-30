@@ -12,7 +12,9 @@ from backend.tests.conftest import unique_id
 
 def utc_now_naive() -> datetime:
     """Return current UTC time as a naive datetime (for DB compatibility)."""
-    return utc_now_naive().replace(tzinfo=None)
+    from datetime import UTC
+
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 @pytest.fixture

@@ -80,12 +80,13 @@ const ZoneEditor: React.FC<ZoneEditorProps> = ({
     const container = containerRef.current;
     if (!container) return;
 
-    const resizeObserver = new ResizeObserver((entries) => {
+    const handleResize: ResizeObserverCallback = (entries) => {
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
         setContainerSize({ width, height });
       }
-    });
+    };
+    const resizeObserver = new ResizeObserver(handleResize);
 
     resizeObserver.observe(container);
     return () => resizeObserver.disconnect();

@@ -185,6 +185,7 @@ export default function AlertRulesManager({ className = '' }: AlertRulesManagerP
   // State for rules data
   const [rules, setRules] = useState<AlertRule[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Modal states
@@ -198,10 +199,14 @@ export default function AlertRulesManager({ className = '' }: AlertRulesManagerP
   const [formErrors, setFormErrors] = useState<RuleFormErrors>({});
   const [submitting, setSubmitting] = useState(false);
 
-  // Load rules
-  const loadRules = useCallback(async () => {
+  // Load rules (initial load sets loading, subsequent refreshes set isRefreshing)
+  const loadRules = useCallback(async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (isRefresh) {
+        setIsRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       setError(null);
       const response = await fetchAlertRules({ limit: 100 });
       setRules(response.rules);
@@ -209,6 +214,7 @@ export default function AlertRulesManager({ className = '' }: AlertRulesManagerP
       setError(err instanceof Error ? err.message : 'Failed to load alert rules');
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   }, []);
 
@@ -364,12 +370,12 @@ export default function AlertRulesManager({ className = '' }: AlertRulesManagerP
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => void loadRules()}
-            disabled={loading}
+            onClick={() => void loadRules(true)}
+            disabled={isRefreshing}
             className="inline-flex items-center gap-2 rounded-lg border border-gray-700 px-3 py-2 text-sm font-medium text-gray-300 transition-colors hover:bg-gray-800 disabled:opacity-50"
             aria-label="Refresh rules"
           >
-            <RefreshCw className={clsx('h-4 w-4', loading && 'animate-spin')} />
+            <RefreshCw className={clsx('h-4 w-4', isRefreshing && 'animate-spin')} />
           </button>
           <button
             onClick={handleOpenAddModal}

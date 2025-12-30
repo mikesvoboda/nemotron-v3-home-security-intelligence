@@ -213,12 +213,16 @@ export default function CircuitBreakerPanel({
 }: CircuitBreakerPanelProps) {
   const [breakers, setBreakers] = useState<CircuitBreakerStatus[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resetting, setResetting] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  const fetchStatus = useCallback(async () => {
+  const fetchStatus = useCallback(async (isRefresh = false) => {
     try {
+      if (isRefresh) {
+        setIsRefreshing(true);
+      }
       const response = await fetchCircuitBreakers();
       const breakerList = Object.values(response.circuit_breakers);
       setBreakers(breakerList);
@@ -230,6 +234,7 @@ export default function CircuitBreakerPanel({
       setError(err instanceof Error ? err.message : 'Failed to fetch circuit breaker status');
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   }, [onStatusChange]);
 
@@ -433,11 +438,11 @@ export default function CircuitBreakerPanel({
           <Button
             size="xs"
             variant="secondary"
-            onClick={() => void fetchStatus()}
-            disabled={loading}
+            onClick={() => void fetchStatus(true)}
+            disabled={isRefreshing}
             className="text-gray-400 hover:text-white"
           >
-            <RefreshCw className={clsx('h-3 w-3', loading && 'animate-spin')} />
+            <RefreshCw className={clsx('h-3 w-3', isRefreshing && 'animate-spin')} />
           </Button>
         </div>
       )}

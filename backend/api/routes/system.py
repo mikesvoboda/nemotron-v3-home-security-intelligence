@@ -224,7 +224,6 @@ _cleanup_service: CleanupService | None = None
 _system_broadcaster: SystemBroadcaster | None = None
 _file_watcher: FileWatcher | None = None
 _pipeline_manager: PipelineWorkerManager | None = None
-_batch_aggregator: BatchAggregator | None = None
 _degradation_manager: DegradationManager | None = None
 
 
@@ -234,7 +233,6 @@ def register_workers(
     system_broadcaster: SystemBroadcaster | None = None,
     file_watcher: FileWatcher | None = None,
     pipeline_manager: PipelineWorkerManager | None = None,
-    batch_aggregator: BatchAggregator | None = None,
     degradation_manager: DegradationManager | None = None,
 ) -> None:
     """Register worker instances for readiness monitoring.
@@ -248,16 +246,14 @@ def register_workers(
         system_broadcaster: SystemBroadcaster instance
         file_watcher: FileWatcher instance
         pipeline_manager: PipelineWorkerManager instance (critical for readiness)
-        batch_aggregator: BatchAggregator instance for pipeline status
         degradation_manager: DegradationManager instance for degradation status
     """
-    global _gpu_monitor, _cleanup_service, _system_broadcaster, _file_watcher, _pipeline_manager, _batch_aggregator, _degradation_manager  # noqa: PLW0603
+    global _gpu_monitor, _cleanup_service, _system_broadcaster, _file_watcher, _pipeline_manager, _degradation_manager  # noqa: PLW0603
     _gpu_monitor = gpu_monitor
     _cleanup_service = cleanup_service
     _system_broadcaster = system_broadcaster
     _file_watcher = file_watcher
     _pipeline_manager = pipeline_manager
-    _batch_aggregator = batch_aggregator
     _degradation_manager = degradation_manager
 
 
@@ -405,7 +401,6 @@ def _are_critical_pipeline_workers_healthy() -> bool:
 
 # Type hints for worker imports (avoid circular imports)
 if TYPE_CHECKING:
-    from backend.services.batch_aggregator import BatchAggregator
     from backend.services.cleanup_service import CleanupService
     from backend.services.degradation_manager import DegradationManager
     from backend.services.file_watcher import FileWatcher
@@ -1800,8 +1795,14 @@ async def reset_circuit_breaker(name: str) -> CircuitBreakerResetResponse:
     breaker.reset()
     new_state = CircuitBreakerStateEnum(breaker.state.value)
 
+    # Sanitize name for logging to prevent log injection (CodeQL fix)
+    # Replace control characters and newlines that could manipulate log entries
+    sanitized_name = name.replace("\n", "").replace("\r", "").replace("\t", "")[:50]
     logger.info(
-        f"Circuit breaker '{name}' manually reset: {previous_state.value} -> {new_state.value}"
+        "Circuit breaker '%s' manually reset: %s -> %s",
+        sanitized_name,
+        previous_state.value,
+        new_state.value,
     )
 
     return CircuitBreakerResetResponse(

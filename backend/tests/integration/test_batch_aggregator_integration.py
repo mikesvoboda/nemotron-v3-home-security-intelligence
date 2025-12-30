@@ -83,11 +83,31 @@ def mock_redis_client():
             if fnmatch.fnmatch(k, match):
                 yield k
 
+    # Assign base methods
     mock_client.get = mock_get
     mock_client.set = mock_set
     mock_client.delete = mock_delete
     mock_client.add_to_queue = mock_add_to_queue
     mock_client.add_to_queue_safe = mock_add_to_queue_safe
+
+    # Add _with_retry variants that delegate to base methods
+    # These match the RedisClient interface used by BatchAggregator
+    async def mock_get_with_retry(key: str, max_retries: int | None = None) -> str | None:
+        return await mock_get(key)
+
+    async def mock_set_with_retry(
+        key: str, value: str, expire: int | None = None, max_retries: int | None = None
+    ) -> bool:
+        return await mock_set(key, value, expire=expire)
+
+    async def mock_add_to_queue_safe_with_retry(
+        queue_name: str, data: dict, **kwargs
+    ) -> QueueAddResult:
+        return await mock_add_to_queue_safe(queue_name, data, **kwargs)
+
+    mock_client.get_with_retry = mock_get_with_retry
+    mock_client.set_with_retry = mock_set_with_retry
+    mock_client.add_to_queue_safe_with_retry = mock_add_to_queue_safe_with_retry
 
     # Internal client for scan_iter operation (replacement for keys)
     mock_internal = MagicMock()
