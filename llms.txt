@@ -1,0 +1,44 @@
+# Home Security Intelligence
+
+> AI-powered home security monitoring with real-time object detection and LLM-based risk analysis. Self-hosted, privacy-first.
+
+## Quick Start
+
+- [Quick Start Guide](llms-full.txt#tier-1-quick-start-no-ai): Run the stack in demo mode without GPU/AI services
+- Clone, run `docker compose -f docker-compose.ghcr.yml up -d`, access at http://localhost:8080
+
+## Full Deployment
+
+- [Production Deployment](llms-full.txt#tier-2-production-deployment): Full stack with camera integration
+- [Docker Compose (GHCR)](docker-compose.ghcr.yml): Pre-built container images from CI/CD
+- [Deployment Docs](docs/DOCKER_DEPLOYMENT.md): Comprehensive deployment documentation
+- [Runtime Config](docs/RUNTIME_CONFIG.md): All environment variables and configuration options
+
+## AI Services
+
+- [AI Setup Guide](llms-full.txt#tier-3-ai-services-setup): Configure GPU-based detection and analysis
+- [RT-DETRv2](ai/rtdetr/): Object detection server (port 8090)
+- [Nemotron](ai/nemotron/): Risk analysis LLM server (port 8091)
+
+## Camera Setup
+
+- [Camera Configuration](llms-full.txt#camera-configuration): Generic IP camera and Foscam FTP setup
+- Cameras FTP images to `/export/foscam/{camera_name}/`
+
+## Troubleshooting
+
+- [Troubleshooting Guide](llms-full.txt#troubleshooting): Container, database, AI, and network issues
+- [Health Check](llms-full.txt#verification): Verify all services are running correctly
+
+## Architecture
+
+- **Frontend**: React + TypeScript + Tailwind + Tremor
+- **Backend**: Python FastAPI + PostgreSQL + Redis
+- **AI**: RT-DETRv2 (detection) + Nemotron via llama.cpp (reasoning)
+- **Containers**: Pre-built on GitHub Container Registry (GHCR)
+
+## Optional
+
+- [Development Setup](CLAUDE.md): Contributing and local development
+- [API Documentation](http://localhost:8000/docs): OpenAPI/Swagger (when running)
+- [Project Roadmap](docs/ROADMAP.md): Post-MVP enhancements
