@@ -22,7 +22,6 @@ Usage:
 
 from __future__ import annotations
 
-import logging
 import time
 from enum import Enum
 from typing import TYPE_CHECKING
@@ -30,12 +29,13 @@ from typing import TYPE_CHECKING
 from fastapi import Depends, HTTPException, Request, WebSocket, status
 
 from backend.core.config import get_settings
+from backend.core.logging import get_logger
 from backend.core.redis import RedisClient, get_redis
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class RateLimitTier(str, Enum):

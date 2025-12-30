@@ -23,6 +23,7 @@ from PIL import Image
 from sqlalchemy import select
 
 from backend.core.database import get_session
+from backend.core.redis import QueueAddResult, QueueOverflowPolicy
 from backend.models import Camera, Detection, Event
 from backend.services.batch_aggregator import BatchAggregator
 from backend.services.detector_client import DetectorClient, DetectorUnavailableError
@@ -61,6 +62,7 @@ class MockRedisClient:
     Simulates Redis operations using in-memory dictionaries.
 
     IMPORTANT: This mock validates JSON serialization to match real Redis behavior.
+    Real Redis stores data as strings, so all values must be JSON-serializable.
     If you store a non-JSON-serializable object (e.g., datetime, set, custom class),
     it will raise TypeError just like the real RedisClient does.
     """
@@ -86,7 +88,8 @@ class MockRedisClient:
         """Validate that a value is JSON-serializable and return the serialized string.
 
         This mimics the real RedisClient behavior where non-string values are
-        serialized with json.dumps() before storage. If serialization fails,
+        serialized with json.dumps() before storage. Real Redis stores values as
+        strings, so all values must be JSON-serializable. If serialization fails,
         TypeError is raised - catching bugs early that would fail in production.
 
         Args:
@@ -96,7 +99,7 @@ class MockRedisClient:
             JSON-serialized string if value is not already a string
 
         Raises:
-            TypeError: If value is not JSON-serializable
+            TypeError: If value is not JSON-serializable (e.g., datetime, custom class)
         """
         if isinstance(value, str):
             return value
@@ -133,6 +136,8 @@ class MockRedisClient:
         return sum(1 for key in keys if key in self._store)
 
     async def add_to_queue(self, queue_name: str, data: Any) -> int:
+        # Validate JSON serialization like real Redis
+        self._validate_json_serializable(data)
         if queue_name not in self._queues:
             self._queues[queue_name] = []
         # Validate JSON serialization - raises TypeError if not serializable
@@ -145,11 +150,29 @@ class MockRedisClient:
         return len(self._queues[queue_name])
 
     async def add_to_queue_safe(
-        self, queue_name: str, data: Any, overflow_policy: Any = None
-    ) -> MockQueueAddResult:
-        """Safe queue add with backpressure handling mock."""
-        queue_length = await self.add_to_queue(queue_name, data)
-        return MockQueueAddResult(success=True, queue_length=queue_length)
+        self,
+        queue_name: str,
+        data: Any,
+        max_size: int | None = None,
+        overflow_policy: QueueOverflowPolicy | str | None = None,
+        dlq_name: str | None = None,
+    ) -> QueueAddResult:
+        """Add item to queue with proper backpressure handling (mock version).
+
+        This mock version validates JSON serialization but does not implement
+        actual backpressure logic - it always succeeds for testing purposes.
+        """
+        # Validate JSON serialization - raises TypeError if not serializable
+        self._validate_json_serializable(data)
+
+        if queue_name not in self._queues:
+            self._queues[queue_name] = []
+        self._queues[queue_name].append(data)
+
+        return QueueAddResult(
+            success=True,
+            queue_length=len(self._queues[queue_name]),
+        )
 
     async def get_from_queue(self, queue_name: str, timeout: int = 0) -> Any | None:
         if self._queues.get(queue_name):
@@ -1012,7 +1035,7 @@ async def test_batch_close_to_analyze_handoff_without_redis_rehydration(
     queue_item = queue_items[0]
     assert queue_item["batch_id"] == batch_id
     assert queue_item["camera_id"] == camera_id
-    # detection_ids are stored as integers (BatchAggregator normalizes to int)
+    # Detection IDs are stored as integers (normalized by BatchAggregator.add_detection)
     assert queue_item["detection_ids"] == [detection_id]
 
     # Step 5: Simulate AnalysisQueueWorker processing - use queue payload directly
@@ -1067,6 +1090,8 @@ async def test_batch_close_to_analyze_handoff_without_redis_rehydration(
 # =============================================================================
 # MockRedisClient JSON Serialization Validation Tests
 # =============================================================================
+# These tests verify that MockRedisClient properly validates JSON serialization
+# to catch issues that would occur with real Redis in production.
 
 
 @pytest.mark.asyncio
@@ -1166,3 +1191,34 @@ async def test_mock_redis_validates_json_serialization_on_add_to_queue_safe() ->
     # Non-JSON-serializable data should raise TypeError
     with pytest.raises(TypeError, match="not JSON serializable"):
         await redis.add_to_queue_safe("safe_queue", datetime.now(UTC))
+
+
+@pytest.mark.asyncio
+async def test_mock_redis_rejects_custom_class() -> None:
+    """Test that MockRedisClient rejects custom class instances."""
+    redis = MockRedisClient()
+
+    class CustomObject:
+        def __init__(self) -> None:
+            self.value = "test"
+
+    with pytest.raises(TypeError, match="not JSON serializable"):
+        await redis.set("key", CustomObject())
+
+
+@pytest.mark.asyncio
+async def test_mock_redis_accepts_iso_datetime_string() -> None:
+    """Test that MockRedisClient accepts datetime as ISO string (proper serialization)."""
+    redis = MockRedisClient()
+
+    # Convert datetime to ISO string (the correct way to store in Redis)
+    timestamp = datetime.now(UTC).isoformat()
+    await redis.set("timestamp_key", timestamp)
+
+    # Also works in a dict
+    await redis.set("event", {"timestamp": timestamp, "value": 42})
+
+    # Verify values were stored
+    assert await redis.get("timestamp_key") == timestamp
+    event = await redis.get("event")
+    assert event["timestamp"] == timestamp

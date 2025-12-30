@@ -196,29 +196,12 @@ class TestFileWatcherVideoProcessing:
     @pytest.fixture
     def mock_redis_client(self) -> AsyncMock:
         """Mock Redis client."""
-        from dataclasses import dataclass
-
-        @dataclass
-        class MockQueueAddResult:
-            """Mock QueueAddResult for testing."""
-
-            success: bool
-            queue_length: int
-            dropped_count: int = 0
-            moved_to_dlq_count: int = 0
-            error: str | None = None
-            warning: str | None = None
-
-            @property
-            def had_backpressure(self) -> bool:
-                return (
-                    self.dropped_count > 0 or self.moved_to_dlq_count > 0 or self.error is not None
-                )
+        from backend.core.redis import QueueAddResult
 
         mock_client = AsyncMock()
-        mock_client.add_to_queue = AsyncMock(return_value=1)
+        # Mock add_to_queue_safe (the method actually used by FileWatcher)
         mock_client.add_to_queue_safe = AsyncMock(
-            return_value=MockQueueAddResult(success=True, queue_length=1)
+            return_value=QueueAddResult(success=True, queue_length=1)
         )
         return mock_client
 
@@ -227,11 +210,21 @@ class TestFileWatcherVideoProcessing:
         """Create FileWatcher instance with mocked dependencies."""
         from backend.services.file_watcher import FileWatcher
 
-        watcher = FileWatcher(
-            camera_root=str(temp_camera_root),
-            redis_client=mock_redis_client,
-            debounce_delay=0.1,
-        )
+        # Mock settings to avoid DATABASE_URL validation error
+        mock_settings = MagicMock()
+        mock_settings.foscam_base_path = str(temp_camera_root)
+
+        # Mock DedupeService to avoid additional settings calls
+        mock_dedupe_service = MagicMock()
+        mock_dedupe_service.is_duplicate_and_mark = AsyncMock(return_value=(False, None))
+
+        with patch("backend.services.file_watcher.get_settings", return_value=mock_settings):
+            watcher = FileWatcher(
+                camera_root=str(temp_camera_root),
+                redis_client=mock_redis_client,
+                debounce_delay=0.1,
+                dedupe_service=mock_dedupe_service,
+            )
         return watcher
 
     @pytest.mark.asyncio
@@ -247,10 +240,10 @@ class TestFileWatcherVideoProcessing:
 
         # Verify Redis queue was called with correct data
         mock_redis_client.add_to_queue_safe.assert_awaited_once()
-        call_args = mock_redis_client.add_to_queue_safe.call_args[0]
+        call_args = mock_redis_client.add_to_queue_safe.call_args
 
-        assert call_args[0] == "detection_queue"
-        data = call_args[1]
+        assert call_args[0][0] == "detection_queue"
+        data = call_args[0][1]
         assert data["camera_id"] == "camera1"
         assert data["file_path"] == str(video_path)
         assert data["media_type"] == "video"
@@ -267,8 +260,8 @@ class TestFileWatcherVideoProcessing:
 
         await file_watcher._process_file(str(video_path))
 
-        call_args = mock_redis_client.add_to_queue_safe.call_args[0]
-        data = call_args[1]
+        call_args = mock_redis_client.add_to_queue_safe.call_args
+        data = call_args[0][1]
         assert data["media_type"] == "video"
 
     @pytest.mark.asyncio
@@ -299,8 +292,8 @@ class TestFileWatcherVideoProcessing:
 
         await file_watcher._process_file(str(image_path))
 
-        call_args = mock_redis_client.add_to_queue_safe.call_args[0]
-        data = call_args[1]
+        call_args = mock_redis_client.add_to_queue_safe.call_args
+        data = call_args[0][1]
         assert data["media_type"] == "image"
 
     @pytest.mark.asyncio

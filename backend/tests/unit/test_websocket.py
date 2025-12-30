@@ -91,9 +91,10 @@ class MockEventBroadcaster:
                 pass
         return count
 
-    # Legacy methods for backward compatibility with existing tests
+    # Legacy test-only methods - NOT part of real EventBroadcaster interface
+    # These are convenience methods used by existing tests in this file
     async def broadcast_new_event(self, event: dict[str, Any]) -> int:
-        """Broadcast a new event (legacy wrapper for broadcast_event)."""
+        """Broadcast a new event (test-only method, not in real implementation)."""
         message = {"type": "new_event", "data": event}
         self.messages.append(message)
         count = 0
@@ -106,7 +107,7 @@ class MockEventBroadcaster:
         return count
 
     async def broadcast_detection(self, detection: dict[str, Any]) -> int:
-        """Broadcast a new detection (legacy wrapper)."""
+        """Broadcast a new detection (test-only method, not in real implementation)."""
         message = {"type": "detection", "data": detection}
         self.messages.append(message)
         count = 0
@@ -125,6 +126,14 @@ class MockSystemBroadcaster:
     Matches the interface of backend.services.system_broadcaster.SystemBroadcaster:
     - __init__(redis_client=None, redis_getter=None)
     - connections: set[WebSocket] attribute
+    - _broadcast_task: asyncio.Task | None attribute
+    - _listener_task: asyncio.Task | None attribute
+    - _running: bool attribute
+    - _redis_client: RedisClient | None attribute
+    - _redis_getter: Callable | None attribute
+    - _pubsub: PubSub | None attribute
+    - _pubsub_listening: bool attribute
+    - _get_redis() -> RedisClient | None
     - set_redis_client(redis_client) -> None
     - connect(websocket) -> None
     - disconnect(websocket) -> None
@@ -145,10 +154,30 @@ class MockSystemBroadcaster:
             redis_getter: Optional callable that returns a Redis client
         """
         self.connections: set = set()
+        self._broadcast_task: Any = None
+        self._listener_task: Any = None
+        self._running = False
         self._redis_client = redis_client
         self._redis_getter = redis_getter
-        self._running = False
+        self._pubsub: Any = None
+        self._pubsub_listening = False
+        # Test-only attribute for capturing broadcast messages
         self.messages: list[dict[str, Any]] = []
+
+    def _get_redis(self) -> Any:
+        """Get the Redis client instance.
+
+        Returns the directly injected redis_client if available, otherwise
+        calls redis_getter if provided.
+
+        Returns:
+            RedisClient instance or None if unavailable
+        """
+        if self._redis_client is not None:
+            return self._redis_client
+        if self._redis_getter is not None:
+            return self._redis_getter()
+        return None
 
     def set_redis_client(self, redis_client: Any) -> None:
         """Set the Redis client after initialization.
@@ -196,9 +225,17 @@ class MockSystemBroadcaster:
         """Stop periodic broadcasting of system status."""
         self._running = False
 
-    # Legacy methods for backward compatibility with existing tests
+    # ==========================================================================
+    # Test-only methods below - NOT part of the real SystemBroadcaster interface
+    # These are convenience methods for tests in this file only.
+    # ==========================================================================
+
     async def broadcast_gpu_stats(self, stats: dict[str, Any]) -> int:
-        """Broadcast GPU statistics (legacy wrapper)."""
+        """[TEST ONLY] Broadcast GPU statistics.
+
+        Note: This method does NOT exist in the real SystemBroadcaster.
+        It's a test convenience method for verifying broadcast behavior.
+        """
         message = {"type": "gpu_stats", "data": stats}
         self.messages.append(message)
         count = 0
@@ -211,7 +248,11 @@ class MockSystemBroadcaster:
         return count
 
     async def broadcast_camera_status(self, status: dict[str, Any]) -> int:
-        """Broadcast camera status update (legacy wrapper)."""
+        """[TEST ONLY] Broadcast camera status update.
+
+        Note: This method does NOT exist in the real SystemBroadcaster.
+        It's a test convenience method for verifying broadcast behavior.
+        """
         message = {"type": "camera_status", "data": status}
         self.messages.append(message)
         count = 0

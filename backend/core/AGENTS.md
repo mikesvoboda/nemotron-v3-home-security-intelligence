@@ -16,13 +16,14 @@ These components are designed as singletons and provide dependency injection pat
 
 ```
 backend/core/
-├── __init__.py           # Public API exports
+├── __init__.py           # Public API exports (comprehensive re-exports)
 ├── config.py             # Pydantic Settings configuration
 ├── database.py           # SQLAlchemy async database layer
 ├── logging.py            # Centralized logging configuration
 ├── metrics.py            # Prometheus metrics definitions
-├── redis.py              # Redis async client wrapper
-├── tls.py                # TLS certificate management
+├── mime_types.py         # MIME type utilities for media files
+├── redis.py              # Redis async client with backpressure
+├── tls.py                # TLS/SSL certificate management
 ├── README.md             # General documentation
 ├── README_REDIS.md       # Detailed Redis documentation
 └── REDIS_QUICKSTART.md   # Redis usage quick reference
@@ -72,10 +73,27 @@ The `__init__.py` file provides a clean public API for the core module:
 - `record_pipeline_error()` - Increment error counter
 - `set_queue_depth()` - Update queue depth gauge
 
+**Exported from mime_types.py:**
+
+- `get_mime_type()` - Get MIME type from file path
+- `get_mime_type_with_default()` - Get MIME type with fallback
+- `is_image_mime_type()` / `is_video_mime_type()` - Type checking
+- `normalize_file_type()` - Normalize extension or MIME type
+
+**Exported from tls.py:**
+
+- `TLSConfig` / `TLSMode` - Configuration dataclass and mode enum
+- `create_ssl_context()` - Create SSL context for server
+- `generate_self_signed_cert()` - Generate self-signed certificates
+- `get_tls_config()` / `is_tls_enabled()` - Configuration helpers
+- `validate_certificate()` / `get_cert_info()` - Certificate inspection
+
 **Usage:**
 
 ```python
 from backend.core import get_settings, init_db, get_redis, get_logger, setup_logging
+from backend.core import TLSConfig, TLSMode, create_ssl_context
+from backend.core import get_mime_type, is_video_mime_type
 ```
 
 ## `config.py` - Configuration Management
@@ -142,10 +160,45 @@ Manages all application configuration using Pydantic Settings with environment v
 - `gpu_poll_interval_seconds: float` - GPU stats polling interval (default: 5.0)
 - `gpu_stats_history_minutes: int` - GPU stats history retention (default: 60)
 
+**Queue Backpressure Settings:**
+
+- `queue_max_size: int` - Maximum queue size (default: 10000)
+- `queue_overflow_policy: str` - Policy when full: 'drop_oldest', 'reject', 'dlq'
+- `queue_backpressure_threshold: float` - Fill ratio for warnings (default: 0.8)
+
+**Rate Limiting Settings:**
+
+- `rate_limit_enabled: bool` - Enable rate limiting (default: True)
+- `rate_limit_requests_per_minute: int` - General limit (default: 60)
+- `rate_limit_media_requests_per_minute: int` - Media endpoint limit
+- `rate_limit_websocket_connections_per_minute: int` - WebSocket limit
+- `rate_limit_search_requests_per_minute: int` - Search endpoint limit
+
+**Severity Threshold Settings:**
+
+- `severity_low_max: int` - Max risk score for LOW severity (default: 29)
+- `severity_medium_max: int` - Max risk score for MEDIUM (default: 59)
+- `severity_high_max: int` - Max risk score for HIGH (default: 84)
+
 **Authentication Settings:**
 
 - `api_key_enabled: bool` - Enable API key authentication (default: False)
 - `api_keys: list[str]` - List of valid API keys
+
+**TLS/HTTPS Settings:**
+
+- `tls_mode: str` - TLS mode: 'disabled', 'self_signed', 'provided'
+- `tls_cert_path: str` - Path to certificate file
+- `tls_key_path: str` - Path to private key file
+- `tls_ca_path: str` - Optional CA certificate for client verification
+- `tls_verify_client: bool` - Require client certificates (mTLS)
+- `tls_min_version: str` - Minimum TLS version ('TLSv1.2' or 'TLSv1.3')
+
+**Notification Settings:**
+
+- `smtp_host/port/user/password` - SMTP email configuration
+- `default_webhook_url` - Default webhook for alerts
+- `notification_enabled: bool` - Enable notification delivery
 
 **File Deduplication Settings:**
 
@@ -270,12 +323,15 @@ async def list_cameras(db: AsyncSession = Depends(get_db)):
     return result.scalars().all()
 ```
 
-### SQLite-Specific Optimizations
+### PostgreSQL Connection Pooling
 
-- Uses `NullPool` for SQLite to avoid connection reuse issues
-- Enables WAL journal mode for better concurrent access
-- Sets busy timeout to 30 seconds
-- Uses `check_same_thread=False` for async compatibility
+The database module is configured for PostgreSQL with asyncpg:
+
+- Pool size: 10 base connections
+- Max overflow: 20 additional connections
+- Pool timeout: 30 seconds
+- Connection recycling: 1800 seconds (30 minutes)
+- Pre-ping: Enabled for connection validation
 
 ## `redis.py` - Redis Async Client
 
@@ -315,11 +371,24 @@ await client.connect()
 
 ### Queue Operations
 
-**`add_to_queue(queue_name, data, max_size=10000)`** - RPUSH with automatic trimming
-**`get_from_queue(queue_name, timeout=0)`** - BLPOP (blocking pop)
-**`get_queue_length(queue_name)`** - LLEN
-**`peek_queue(queue_name, start=0, end=100, max_items=1000)`** - LRANGE
-**`clear_queue(queue_name)`** - DELETE
+**Legacy (may silently drop data):**
+
+- `add_to_queue(queue_name, data, max_size=10000)` - RPUSH with automatic trimming
+
+**Safe (with backpressure handling):**
+
+- `add_to_queue_safe(queue_name, data, max_size, overflow_policy, dlq_name)` - Returns `QueueAddResult`
+  - `QueueOverflowPolicy.REJECT` - Returns error, item NOT added
+  - `QueueOverflowPolicy.DLQ` - Moves oldest to dead-letter queue
+  - `QueueOverflowPolicy.DROP_OLDEST` - Trims with explicit warning
+- `get_queue_pressure(queue_name, max_size)` - Returns `QueuePressureMetrics`
+
+**Standard operations:**
+
+- `get_from_queue(queue_name, timeout=0)` - BLPOP (blocking pop)
+- `get_queue_length(queue_name)` - LLEN
+- `peek_queue(queue_name, start=0, end=100, max_items=1000)` - LRANGE
+- `clear_queue(queue_name)` - DELETE
 
 ### Pub/Sub Operations
 
@@ -451,6 +520,121 @@ observe_ai_request_duration("rtdetr", 0.25)
 record_pipeline_error("connection_error")
 get_metrics_response()  # Returns Prometheus exposition format
 ```
+
+### Pipeline Latency Tracker
+
+`PipelineLatencyTracker` provides in-memory latency tracking with percentile calculations:
+
+```python
+from backend.core.metrics import get_pipeline_latency_tracker, record_pipeline_stage_latency
+
+# Record latency
+record_pipeline_stage_latency("watch_to_detect", 150.5)
+
+# Get statistics
+tracker = get_pipeline_latency_tracker()
+stats = tracker.get_stage_stats("watch_to_detect", window_minutes=5)
+# Returns: {avg_ms, min_ms, max_ms, p50_ms, p95_ms, p99_ms, sample_count}
+
+summary = tracker.get_pipeline_summary()
+# Returns stats for all stages: watch_to_detect, detect_to_batch, batch_to_analyze, total_pipeline
+```
+
+## `mime_types.py` - MIME Type Utilities
+
+### Purpose
+
+Provides centralized MIME type handling for media files:
+
+### Key Constants
+
+- `IMAGE_MIME_TYPES` - Mapping for .jpg, .jpeg, .png
+- `VIDEO_MIME_TYPES` - Mapping for .mp4, .mkv, .avi, .mov
+- `EXTENSION_TO_MIME` - Combined extension-to-MIME mapping
+- `MIME_TO_EXTENSION` - Reverse MIME-to-extension mapping
+
+### Functions
+
+```python
+from backend.core.mime_types import get_mime_type, is_video_mime_type, normalize_file_type
+
+# Get MIME type from path
+mime = get_mime_type("/path/to/video.mp4")  # "video/mp4"
+
+# Check type
+is_video_mime_type(mime)  # True
+
+# Normalize mixed formats (extension or MIME)
+normalize_file_type(".jpg")  # "image/jpeg"
+normalize_file_type("image/png")  # "image/png"
+```
+
+## `tls.py` - TLS/SSL Configuration
+
+### Purpose
+
+Provides TLS certificate management for HTTPS:
+
+### TLS Modes
+
+```python
+from backend.core.tls import TLSMode, TLSConfig
+
+class TLSMode(str, Enum):
+    DISABLED = "disabled"      # HTTP only (default)
+    SELF_SIGNED = "self_signed"  # Auto-generate certificates
+    PROVIDED = "provided"      # Use existing certificate files
+```
+
+### Key Functions
+
+**Certificate Generation:**
+
+```python
+from backend.core.tls import generate_self_signed_cert
+
+generate_self_signed_cert(
+    cert_path=Path("certs/server.crt"),
+    key_path=Path("certs/server.key"),
+    hostname="localhost",
+    san_ips=["192.168.1.100"],
+    san_dns=["localhost", "myserver.local"],
+    days_valid=365,
+)
+```
+
+**SSL Context Creation:**
+
+```python
+from backend.core.tls import TLSConfig, TLSMode, create_ssl_context
+
+config = TLSConfig(
+    mode=TLSMode.PROVIDED,
+    cert_path="/path/to/cert.pem",
+    key_path="/path/to/key.pem",
+    min_version=ssl.TLSVersion.TLSv1_2,
+)
+ssl_context = create_ssl_context(config)
+```
+
+**Certificate Validation:**
+
+```python
+from backend.core.tls import validate_certificate, get_cert_info
+
+info = validate_certificate(Path("/path/to/cert.pem"))
+# Returns: {valid, subject, issuer, not_before, not_after, serial_number, days_remaining}
+
+# Or use get_cert_info() for currently configured certificate
+cert_info = get_cert_info()
+```
+
+### Custom Exceptions
+
+- `TLSError` - Base exception for TLS errors
+- `TLSConfigurationError` - Invalid or incomplete configuration
+- `CertificateNotFoundError` - Certificate file not found
+- `CertificateValidationError` - Certificate parsing/validation failed
 
 ## Dependency Injection Patterns
 

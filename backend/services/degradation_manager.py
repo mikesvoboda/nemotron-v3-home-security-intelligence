@@ -54,6 +54,7 @@ from pathlib import Path
 from typing import Any, TypeVar
 
 from backend.core.logging import get_logger
+from backend.core.redis import QueueOverflowPolicy
 
 logger = get_logger(__name__)
 
@@ -589,9 +590,31 @@ class DegradationManager:
         # Try Redis first
         if self._redis and self._redis_healthy:
             try:
-                await self._redis.add_to_queue(self.DEGRADED_QUEUE, job.to_dict())
-                logger.debug(f"Queued {job_type} job to Redis")
-                return True
+                result = await self._redis.add_to_queue_safe(
+                    self.DEGRADED_QUEUE,
+                    job.to_dict(),
+                    overflow_policy=QueueOverflowPolicy.DLQ,
+                )
+                if result.success:
+                    if result.had_backpressure:
+                        logger.warning(
+                            f"Queue backpressure while queuing {job_type} job",
+                            extra={
+                                "queue_name": self.DEGRADED_QUEUE,
+                                "queue_length": result.queue_length,
+                                "moved_to_dlq": result.moved_to_dlq_count,
+                            },
+                        )
+                    logger.debug(f"Queued {job_type} job to Redis")
+                    return True
+                else:
+                    logger.error(
+                        f"Failed to queue {job_type} job to Redis: {result.error}",
+                        extra={
+                            "queue_name": self.DEGRADED_QUEUE,
+                            "queue_length": result.queue_length,
+                        },
+                    )
             except Exception as e:
                 logger.warning(f"Failed to queue to Redis, using memory: {e}")
                 self._redis_healthy = False
@@ -660,8 +683,30 @@ class DegradationManager:
         # Try Redis first if available
         if self._redis_healthy and self._redis is not None:
             try:
-                await self._redis.add_to_queue(queue_name, item)
-                return True
+                result = await self._redis.add_to_queue_safe(
+                    queue_name,
+                    item,
+                    overflow_policy=QueueOverflowPolicy.DLQ,
+                )
+                if result.success:
+                    if result.had_backpressure:
+                        logger.warning(
+                            f"Queue backpressure while queuing to {queue_name}",
+                            extra={
+                                "queue_name": queue_name,
+                                "queue_length": result.queue_length,
+                                "moved_to_dlq": result.moved_to_dlq_count,
+                            },
+                        )
+                    return True
+                else:
+                    logger.error(
+                        f"Failed to queue to {queue_name}: {result.error}",
+                        extra={
+                            "queue_name": queue_name,
+                            "queue_length": result.queue_length,
+                        },
+                    )
             except Exception as e:
                 logger.warning(
                     f"Redis queue failed, falling back to disk: {e}",
@@ -695,8 +740,33 @@ class DegradationManager:
                 break
 
             try:
-                await self._redis.add_to_queue(queue_name, item)
-                drained += 1
+                result = await self._redis.add_to_queue_safe(
+                    queue_name,
+                    item,
+                    overflow_policy=QueueOverflowPolicy.DLQ,
+                )
+                if result.success:
+                    drained += 1
+                    if result.had_backpressure:
+                        logger.warning(
+                            f"Queue backpressure while draining fallback to {queue_name}",
+                            extra={
+                                "queue_name": queue_name,
+                                "queue_length": result.queue_length,
+                                "moved_to_dlq": result.moved_to_dlq_count,
+                            },
+                        )
+                else:
+                    logger.error(
+                        f"Failed to drain item to Redis: {result.error}",
+                        extra={
+                            "queue_name": queue_name,
+                            "queue_length": result.queue_length,
+                        },
+                    )
+                    # Put item back
+                    await fallback.add(item)
+                    break
             except Exception as e:
                 logger.error(
                     f"Failed to drain item to Redis, stopping: {e}",
@@ -776,10 +846,19 @@ class DegradationManager:
                             logger.error(f"Failed to process queued job: {e}")
                             # Re-queue with incremented retry count
                             job.retry_count += 1
-                            await self._redis.add_to_queue(
+                            result = await self._redis.add_to_queue_safe(
                                 self.DEGRADED_QUEUE,
                                 job.to_dict(),
+                                overflow_policy=QueueOverflowPolicy.DLQ,
                             )
+                            if not result.success:
+                                logger.error(
+                                    f"CRITICAL: Failed to re-queue job: {result.error}",
+                                    extra={
+                                        "queue_name": self.DEGRADED_QUEUE,
+                                        "queue_length": result.queue_length,
+                                    },
+                                )
                 except Exception as e:
                     logger.error(f"Error processing Redis queue: {e}")
                     break
@@ -845,8 +924,32 @@ class DegradationManager:
         while self._memory_queue:
             job = self._memory_queue.popleft()
             try:
-                await self._redis.add_to_queue(self.DEGRADED_QUEUE, job.to_dict())
-                drained += 1
+                result = await self._redis.add_to_queue_safe(
+                    self.DEGRADED_QUEUE,
+                    job.to_dict(),
+                    overflow_policy=QueueOverflowPolicy.DLQ,
+                )
+                if result.success:
+                    drained += 1
+                    if result.had_backpressure:
+                        logger.warning(
+                            "Queue backpressure while draining memory to Redis",
+                            extra={
+                                "queue_name": self.DEGRADED_QUEUE,
+                                "queue_length": result.queue_length,
+                                "moved_to_dlq": result.moved_to_dlq_count,
+                            },
+                        )
+                else:
+                    logger.error(
+                        f"Failed to drain job to Redis: {result.error}",
+                        extra={
+                            "queue_name": self.DEGRADED_QUEUE,
+                            "queue_length": result.queue_length,
+                        },
+                    )
+                    self._memory_queue.appendleft(job)
+                    break
             except Exception as e:
                 logger.error(f"Failed to drain job to Redis: {e}")
                 self._memory_queue.appendleft(job)

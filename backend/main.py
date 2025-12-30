@@ -4,7 +4,7 @@ import ssl
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.middleware import AuthMiddleware
@@ -36,7 +36,7 @@ from backend.services.gpu_monitor import GPUMonitor
 from backend.services.health_monitor import ServiceHealthMonitor
 from backend.services.pipeline_workers import get_pipeline_manager, stop_pipeline_manager
 from backend.services.service_managers import ServiceConfig, ShellServiceManager
-from backend.services.system_broadcaster import get_system_broadcaster
+from backend.services.system_broadcaster import get_system_broadcaster, stop_system_broadcaster
 
 
 @asynccontextmanager
@@ -164,7 +164,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
 
     await stop_broadcaster()
     print("Event broadcaster stopped")
-    await system_broadcaster.stop_broadcasting()
+    await stop_system_broadcaster()
     print("System status broadcaster stopped")
     await close_db()
     print("Database connections closed")
@@ -218,24 +218,93 @@ async def root() -> dict[str, str]:
 
 @app.get("/health")
 async def health() -> dict[str, str]:
-    """Simple liveness health check endpoint.
+    """Simple liveness health check endpoint (canonical liveness probe).
 
     This endpoint indicates whether the process is running and able to
     respond to HTTP requests. It always returns 200 with status "alive"
     if the process is up.
 
+    This is the canonical liveness probe endpoint. Use this for:
+    - Docker HEALTHCHECK liveness checks
+    - Kubernetes liveness probes
+    - Simple "is the server up?" monitoring
+
     For detailed health information, use:
     - GET /api/system/health - Detailed health check with service status
-    - GET /api/system/health/live - Kubernetes liveness probe
-    - GET /api/system/health/ready - Kubernetes readiness probe
-
-    This endpoint exists for backward compatibility with existing monitoring
-    tools and Docker HEALTHCHECK configurations.
+    - GET /ready - Readiness probe (checks dependencies)
 
     Returns:
         Simple status indicating the server is alive.
     """
-    return {"status": "alive", "message": "Use /api/system/health for detailed status"}
+    return {"status": "alive"}
+
+
+@app.get("/ready", response_model=None)
+async def ready() -> Response:
+    """Simple readiness health check endpoint (canonical readiness probe).
+
+    This endpoint indicates whether the application is ready to receive
+    traffic and process requests. It checks critical dependencies:
+    - Database connectivity
+    - Redis connectivity
+    - Critical pipeline workers
+
+    This is the canonical readiness probe endpoint. Use this for:
+    - Docker HEALTHCHECK readiness checks
+    - Kubernetes readiness probes
+    - Load balancer health checks
+
+    For detailed readiness information with service breakdown, use:
+    - GET /api/system/health/ready - Full readiness response with details
+
+    Returns:
+        Simple status indicating readiness. HTTP 200 if ready, 503 if not.
+    """
+    from starlette.responses import JSONResponse
+
+    from backend.api.routes.system import (
+        _are_critical_pipeline_workers_healthy,
+        check_database_health,
+        check_redis_health,
+    )
+    from backend.core import get_db
+    from backend.core.redis import get_redis_optional
+
+    # Get database session
+    db_status = None
+    async for db in get_db():
+        db_status = await check_database_health(db)
+        break
+
+    if db_status is None:
+        return JSONResponse(
+            content={"ready": False, "status": "not_ready"},
+            status_code=503,
+        )
+
+    # Get Redis client (optional - it's a generator that returns None if unavailable)
+    redis = None
+    async for redis_client in get_redis_optional():
+        redis = redis_client
+        break
+    redis_status = await check_redis_health(redis)
+
+    # Check pipeline workers
+    pipeline_workers_healthy = _are_critical_pipeline_workers_healthy()
+
+    db_healthy = db_status.status == "healthy"
+    redis_healthy = redis_status.status == "healthy"
+
+    if db_healthy and redis_healthy and pipeline_workers_healthy:
+        return JSONResponse(
+            content={"ready": True, "status": "ready"},
+            status_code=200,
+        )
+    else:
+        return JSONResponse(
+            content={"ready": False, "status": "not_ready"},
+            status_code=503,
+        )
 
 
 def get_ssl_context() -> ssl.SSLContext | None:

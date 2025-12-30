@@ -73,14 +73,47 @@ Unit tests verify individual components in isolation. Each test focuses on a sin
 | `test_auth_middleware.py` | Authentication middleware | `backend/api/middleware/auth.py` |
 | `test_middleware.py`      | General middleware        | Request handling                 |
 
+### Alert System
+
+| File                   | Description             | Tests For                   |
+| ---------------------- | ----------------------- | --------------------------- |
+| `test_alert_engine.py` | Alert generation engine | Alert creation and routing  |
+| `test_alert_dedup.py`  | Alert deduplication     | Preventing duplicate alerts |
+| `test_alert_models.py` | Alert data models       | Alert model validation      |
+| `test_notification.py` | Notification delivery   | Email/SMS/webhook delivery  |
+
+### Security and Resilience
+
+| File                          | Description               | Tests For                    |
+| ----------------------------- | ------------------------- | ---------------------------- |
+| `test_auth_middleware.py`     | Authentication middleware | API key/token validation     |
+| `test_circuit_breaker.py`     | Circuit breaker pattern   | Service fault tolerance      |
+| `test_degradation_manager.py` | Graceful degradation      | Service degradation handling |
+| `test_rate_limit.py`          | Rate limiting             | Request rate throttling      |
+| `test_tls.py`                 | TLS/SSL configuration     | Secure connections           |
+
+### Search and Zones
+
+| File                   | Description             | Tests For                |
+| ---------------------- | ----------------------- | ------------------------ |
+| `test_search.py`       | Search functionality    | Event/detection search   |
+| `test_zone_service.py` | Zone management service | Security zone operations |
+| `test_zones_routes.py` | Zone API routes         | Zone CRUD endpoints      |
+
 ### Utility Components
 
-| File                        | Description                    | Tests For           |
-| --------------------------- | ------------------------------ | ------------------- |
-| `test_dedupe.py`            | Deduplication logic            | Deduplication       |
-| `test_retry_handler.py`     | Retry logic and error handling | Retry handler       |
-| `test_benchmarks.py`        | Benchmark helper functions     | Benchmark utilities |
-| `test_dockerfile_config.py` | Dockerfile configuration       | Docker config       |
+| File                              | Description                    | Tests For             |
+| --------------------------------- | ------------------------------ | --------------------- |
+| `test_audit.py`                   | Audit logging                  | Activity tracking     |
+| `test_baseline.py`                | Baseline detection             | Normal activity model |
+| `test_clip_generator.py`          | Video clip generation          | Clip creation service |
+| `test_dedupe.py`                  | Deduplication logic            | Deduplication         |
+| `test_migrate_sqlite_postgres.py` | Database migration             | SQLite to PostgreSQL  |
+| `test_mime_types.py`              | MIME type detection            | File type validation  |
+| `test_retry_handler.py`           | Retry logic and error handling | Retry handler         |
+| `test_severity.py`                | Severity classification        | Risk level mapping    |
+| `test_benchmarks.py`              | Benchmark helper functions     | Benchmark utilities   |
+| `test_dockerfile_config.py`       | Dockerfile configuration       | Docker config         |
 
 ## Key Test File Details
 
@@ -410,7 +443,7 @@ with patch("httpx.AsyncClient"):
 
 ## Test Statistics
 
-- **Total test files**: 42
+- **Total test files**: 58
 - **Average execution time**: <10 seconds (unit tests only)
 - **Coverage**: 98%+ for unit-tested components
 

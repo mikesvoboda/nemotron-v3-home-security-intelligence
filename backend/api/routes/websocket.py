@@ -21,11 +21,15 @@ WebSocket Idle Timeout:
     Connections that do not send any messages within the configured idle
     timeout (default: 300 seconds) will be automatically closed. Clients
     should send periodic ping messages to keep the connection alive.
+
+Server-Initiated Heartbeat:
+    The server sends periodic ping messages to clients at a configurable
+    interval (default: 30 seconds) to keep connections alive and detect
+    disconnected clients. This is controlled by websocket_ping_interval_seconds.
 """
 
 import asyncio
 import json
-import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
@@ -41,11 +45,12 @@ from backend.api.schemas.websocket import (
     WebSocketPongResponse,
 )
 from backend.core.config import get_settings
+from backend.core.logging import get_logger
 from backend.core.redis import RedisClient, get_redis
 from backend.services.event_broadcaster import get_broadcaster
 from backend.services.system_broadcaster import get_system_broadcaster
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["websocket"])
 
@@ -133,8 +138,41 @@ async def handle_validated_message(websocket: WebSocket, message: WebSocketMessa
         await websocket.send_text(error_response.model_dump_json())
 
 
+async def send_heartbeat(
+    websocket: WebSocket,
+    interval: int,
+    stop_event: asyncio.Event,
+) -> None:
+    """Send periodic heartbeat pings to keep the WebSocket connection alive.
+
+    This server-initiated heartbeat helps detect disconnected clients and
+    keeps connections alive through proxies/load balancers that may have
+    idle timeouts.
+
+    Args:
+        websocket: The WebSocket connection to send heartbeats on.
+        interval: Time in seconds between heartbeat messages.
+        stop_event: Event to signal when to stop sending heartbeats.
+    """
+    while not stop_event.is_set():
+        try:
+            await asyncio.sleep(interval)
+            if stop_event.is_set():
+                break
+            # Check if connection is still open before sending
+            if websocket.client_state == WebSocketState.CONNECTED:
+                await websocket.send_text('{"type":"ping"}')
+                logger.debug("Sent server heartbeat ping to WebSocket client")
+            else:
+                logger.debug("WebSocket no longer connected, stopping heartbeat")
+                break
+        except Exception as e:
+            logger.debug(f"Heartbeat send failed (connection likely closed): {e}")
+            break
+
+
 @router.websocket("/ws/events")
-async def websocket_events_endpoint(
+async def websocket_events_endpoint(  # noqa: PLR0912
     websocket: WebSocket,
     redis: RedisClient = Depends(get_redis),
 ) -> None:
@@ -205,11 +243,21 @@ async def websocket_events_endpoint(
     broadcaster = await get_broadcaster(redis)
     settings = get_settings()
     idle_timeout = settings.websocket_idle_timeout_seconds
+    heartbeat_interval = settings.websocket_ping_interval_seconds
+
+    # Event to signal heartbeat task to stop
+    heartbeat_stop = asyncio.Event()
+    heartbeat_task: asyncio.Task[None] | None = None
 
     try:
         # Register the WebSocket connection
         await broadcaster.connect(websocket)
         logger.info("WebSocket client connected to /ws/events")
+
+        # Start server-initiated heartbeat task
+        heartbeat_task = asyncio.create_task(
+            send_heartbeat(websocket, heartbeat_interval, heartbeat_stop)
+        )
 
         # Keep the connection alive by waiting for messages
         # Clients can send ping messages for keep-alive and other commands
@@ -253,13 +301,21 @@ async def websocket_events_endpoint(
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
     finally:
+        # Stop heartbeat task
+        heartbeat_stop.set()
+        if heartbeat_task is not None:
+            heartbeat_task.cancel()
+            try:
+                await heartbeat_task
+            except asyncio.CancelledError:
+                pass
         # Ensure the connection is properly cleaned up
         await broadcaster.disconnect(websocket)
         logger.info("WebSocket connection cleaned up")
 
 
 @router.websocket("/ws/system")
-async def websocket_system_status(
+async def websocket_system_status(  # noqa: PLR0912
     websocket: WebSocket,
     redis: RedisClient = Depends(get_redis),
 ) -> None:
@@ -334,11 +390,21 @@ async def websocket_system_status(
     broadcaster = get_system_broadcaster()
     settings = get_settings()
     idle_timeout = settings.websocket_idle_timeout_seconds
+    heartbeat_interval = settings.websocket_ping_interval_seconds
+
+    # Event to signal heartbeat task to stop
+    heartbeat_stop = asyncio.Event()
+    heartbeat_task: asyncio.Task[None] | None = None
 
     try:
         # Add connection to broadcaster
         await broadcaster.connect(websocket)
         logger.info("WebSocket client connected to /ws/system")
+
+        # Start server-initiated heartbeat task
+        heartbeat_task = asyncio.create_task(
+            send_heartbeat(websocket, heartbeat_interval, heartbeat_stop)
+        )
 
         # Keep connection alive and handle messages
         # Clients can send ping messages for keep-alive and other commands
@@ -382,6 +448,14 @@ async def websocket_system_status(
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
     finally:
+        # Stop heartbeat task
+        heartbeat_stop.set()
+        if heartbeat_task is not None:
+            heartbeat_task.cancel()
+            try:
+                await heartbeat_task
+            except asyncio.CancelledError:
+                pass
         # Ensure the connection is properly cleaned up
         await broadcaster.disconnect(websocket)
         logger.info("WebSocket connection cleaned up")

@@ -333,10 +333,15 @@ class ClipGenerator:
 
         Raises:
             ClipGenerationError: If ffmpeg command fails
+            ValueError: If fps is not an integer between 1 and 60
         """
         if not self._enabled:
             logger.debug("Clip generation is disabled")
             return None
+
+        # Validate fps parameter to prevent command injection
+        if not isinstance(fps, int) or not (1 <= fps <= 60):
+            raise ValueError(f"fps must be an integer between 1 and 60, got {fps}")
 
         if not image_paths:
             logger.warning(f"No images provided for event {event.id}")
@@ -395,10 +400,14 @@ class ClipGenerator:
             # Each line: file 'path' followed by duration line
             frame_duration = 1.0 / fps
             for img_path in valid_paths:
-                list_file.write(f"file '{img_path}'\n")
+                # Escape single quotes in paths for FFmpeg concat format
+                # FFmpeg uses shell-style quoting: ' -> '\''
+                escaped_path = str(img_path).replace("'", "'\\''")
+                list_file.write(f"file '{escaped_path}'\n")
                 list_file.write(f"duration {frame_duration}\n")
             # Repeat last image to ensure it's shown
-            list_file.write(f"file '{valid_paths[-1]}'\n")
+            escaped_last = str(valid_paths[-1]).replace("'", "'\\''")
+            list_file.write(f"file '{escaped_last}'\n")
 
         return list_file_path
 
@@ -484,10 +493,17 @@ class ClipGenerator:
 
         Returns:
             Path to generated clip, or None if generation failed
+
+        Raises:
+            ValueError: If fps is not an integer between 1 and 60
         """
         if not self._enabled:
             logger.debug("Clip generation is disabled")
             return None
+
+        # Validate fps parameter to prevent command injection
+        if not isinstance(fps, int) or not (1 <= fps <= 60):
+            raise ValueError(f"fps must be an integer between 1 and 60, got {fps}")
 
         if video_path:
             return await self.generate_clip_from_video(event, video_path)

@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     # PostgreSQL only - required for production and development
     # Example: postgresql+asyncpg://security:password@localhost:5432/security
     database_url: str = Field(
-        default="postgresql+asyncpg://security:security_dev_password@localhost:5432/security",
+        default="",
         description="PostgreSQL database URL (format: postgresql+asyncpg://user:pass@host:port/db)",
     )
 
@@ -41,6 +41,21 @@ class Settings(BaseSettings):
     app_name: str = "Home Security Intelligence"
     app_version: str = "0.1.0"
     debug: bool = False
+
+    # Admin endpoints settings
+    # SECURITY: Admin endpoints require BOTH debug=True AND admin_enabled=True
+    # This provides defense-in-depth against accidentally exposing admin endpoints
+    admin_enabled: bool = Field(
+        default=False,
+        description="Enable admin endpoints (requires debug=True as well). "
+        "SECURITY: Must be explicitly enabled - provides protection against "
+        "accidentally enabling admin endpoints in production.",
+    )
+    admin_api_key: str | None = Field(
+        default=None,
+        description="Optional API key required for admin endpoints. "
+        "When set, all admin requests must include X-Admin-API-Key header.",
+    )
 
     # API settings
     api_host: str = "0.0.0.0"  # noqa: S104
@@ -94,6 +109,32 @@ class Settings(BaseSettings):
     nemotron_url: str = Field(
         default="http://localhost:8091",
         description="Nemotron reasoning service URL (llama.cpp server)",
+    )
+
+    # AI service timeout settings
+    ai_connect_timeout: float = Field(
+        default=10.0,
+        ge=1.0,
+        le=60.0,
+        description="Maximum time (seconds) to establish connection to AI services",
+    )
+    ai_health_timeout: float = Field(
+        default=5.0,
+        ge=1.0,
+        le=30.0,
+        description="Timeout (seconds) for AI service health checks",
+    )
+    rtdetr_read_timeout: float = Field(
+        default=60.0,
+        ge=10.0,
+        le=300.0,
+        description="Maximum time (seconds) to wait for RT-DETR detection response",
+    )
+    nemotron_read_timeout: float = Field(
+        default=120.0,
+        ge=30.0,
+        le=600.0,
+        description="Maximum time (seconds) to wait for Nemotron LLM response",
     )
 
     @field_validator("rtdetr_url", "nemotron_url", mode="before")
@@ -228,8 +269,8 @@ class Settings(BaseSettings):
         description="Maximum size of Redis queues",
     )
     queue_overflow_policy: str = Field(
-        default="drop_oldest",
-        description="Policy when queue is full: 'drop_oldest', 'reject', or 'dlq'",
+        default="dlq",
+        description="Policy when queue is full: 'dlq' (moves to dead-letter queue), 'reject' (fails operation), or 'drop_oldest' (silent data loss, not recommended)",
     )
     queue_backpressure_threshold: float = Field(
         default=0.8,
@@ -516,10 +557,56 @@ class Settings(BaseSettings):
         Path(v).parent.mkdir(parents=True, exist_ok=True)
         return v
 
+    @field_validator("redis_url", mode="before")
+    @classmethod
+    def validate_redis_url(cls, v: Any) -> str:
+        """Validate Redis URL format.
+
+        Ensures the URL has a valid Redis scheme (redis:// or rediss:// for TLS).
+
+        Args:
+            v: The URL value to validate
+
+        Returns:
+            The validated URL as a string
+
+        Raises:
+            ValueError: If the URL is not a valid Redis URL
+        """
+        if v is None:
+            raise ValueError("Redis URL cannot be None")
+
+        url_str = str(v)
+
+        # Check for valid Redis URL schemes
+        if not url_str.startswith(("redis://", "rediss://")):
+            raise ValueError(
+                f"Invalid Redis URL '{url_str}': must start with 'redis://' or 'rediss://' (for TLS). "
+                "Example: 'redis://localhost:6379/0' or 'rediss://redis-host:6379/0'"
+            )
+
+        # Basic structure validation: should have host after scheme
+        # redis://[password@]host[:port][/database]
+        scheme_end = url_str.find("://") + 3
+        rest = url_str[scheme_end:]
+
+        if not rest or rest.startswith("/"):
+            raise ValueError(
+                f"Invalid Redis URL '{url_str}': missing host. Example: 'redis://localhost:6379/0'"
+            )
+
+        return url_str
+
     @field_validator("database_url")
     @classmethod
     def validate_database_url(cls, v: str) -> str:
         """Validate PostgreSQL database URL format."""
+        if not v:
+            raise ValueError(
+                "DATABASE_URL environment variable is required. "
+                "Set it in your .env file or environment. "
+                "Example: DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/dbname"
+            )
         if not v.startswith(("postgresql://", "postgresql+asyncpg://")):
             raise ValueError(
                 "Only PostgreSQL is supported. "

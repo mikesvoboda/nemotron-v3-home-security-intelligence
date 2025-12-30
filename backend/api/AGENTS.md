@@ -38,20 +38,30 @@ Contains FastAPI routers that define HTTP endpoints:
 | `media.py`      | Secure file serving for images/videos              |
 | `dlq.py`        | Dead-letter queue inspection and management        |
 | `metrics.py`    | Prometheus metrics endpoint                        |
+| `alerts.py`     | Alert rules CRUD and rule testing                  |
+| `audit.py`      | Audit log listing and statistics                   |
+| `zones.py`      | Camera zone management (nested under cameras)      |
+| `admin.py`      | Development-only seed data endpoints               |
 
 ### Schemas (`schemas/`)
 
 Contains Pydantic models for request/response validation:
 
-| File            | Purpose                                                  |
-| --------------- | -------------------------------------------------------- |
-| `camera.py`     | Camera data validation schemas                           |
-| `events.py`     | Event request/response and statistics schemas            |
-| `detections.py` | Detection response schemas                               |
-| `logs.py`       | Log entry and statistics schemas                         |
-| `system.py`     | System monitoring, config, health, and telemetry schemas |
-| `media.py`      | Media error response schemas                             |
-| `dlq.py`        | Dead-letter queue schemas                                |
+| File              | Purpose                                                  |
+| ----------------- | -------------------------------------------------------- |
+| `camera.py`       | Camera data validation schemas                           |
+| `events.py`       | Event request/response and statistics schemas            |
+| `detections.py`   | Detection response schemas                               |
+| `logs.py`         | Log entry and statistics schemas                         |
+| `system.py`       | System monitoring, config, health, and telemetry schemas |
+| `media.py`        | Media error response schemas                             |
+| `dlq.py`          | Dead-letter queue schemas                                |
+| `alerts.py`       | Alert rules and alerts CRUD schemas                      |
+| `audit.py`        | Audit log entry and statistics schemas                   |
+| `zone.py`         | Camera zone management schemas                           |
+| `websocket.py`    | WebSocket message validation schemas                     |
+| `search.py`       | Event full-text search schemas                           |
+| `notification.py` | Notification delivery and configuration schemas          |
 
 ### Middleware (`middleware/`)
 
@@ -61,17 +71,18 @@ HTTP middleware for cross-cutting concerns:
 | --------------- | ------------------------------------------------- |
 | `auth.py`       | API key authentication (HTTP and WebSocket)       |
 | `request_id.py` | Request ID generation and propagation for tracing |
+| `rate_limit.py` | Redis-based sliding window rate limiting          |
 
 ## Architecture Overview
 
 This API layer follows a clean architecture pattern:
 
-1. **Middleware** - Authentication, request ID propagation, error handling
+1. **Middleware** - Authentication, request ID propagation, rate limiting, error handling
 2. **Routes** - Handle HTTP requests, call services, return responses
 3. **Schemas** - Validate incoming data and serialize outgoing data
-4. **Services** - Business logic (AI pipeline, broadcasting, monitoring)
+4. **Services** - Business logic (AI pipeline, broadcasting, monitoring, alerts)
 5. **Database** - SQLAlchemy async sessions via dependency injection
-6. **Redis** - Redis client via dependency injection for pub/sub and queues
+6. **Redis** - Redis client via dependency injection for pub/sub, queues, and rate limiting
 
 ## Common Patterns
 
@@ -86,9 +97,10 @@ All routes use FastAPI's dependency injection for:
 ### Error Handling
 
 - **401 Unauthorized** - Missing or invalid API key
-- **403 Forbidden** - Access denied (path traversal, invalid file types)
+- **403 Forbidden** - Access denied (path traversal, invalid file types, debug-only endpoints)
 - **404 Not Found** - Resource doesn't exist
 - **422 Unprocessable Entity** - Validation errors (automatic via Pydantic)
+- **429 Too Many Requests** - Rate limit exceeded
 - **500 Internal Server Error** - Unexpected errors
 
 ### Response Models
@@ -112,6 +124,10 @@ The API interacts with these SQLAlchemy models:
 - **Event** - Security events with risk scores
 - **GPUStats** - GPU performance metrics
 - **Log** - System and frontend logs
+- **AlertRule** - Alert rule definitions
+- **Alert** - Triggered alerts
+- **AuditLog** - Security audit trail
+- **Zone** - Camera detection zones
 
 ## Real-Time Communication
 
@@ -205,6 +221,35 @@ The `/api/media/*` endpoints implement strict security controls:
 
 - `GET /api/metrics` - Prometheus metrics in exposition format
 
+### Alert Rules (`/api/alerts/rules`)
+
+- `GET /api/alerts/rules` - List alert rules with filtering
+- `POST /api/alerts/rules` - Create new alert rule
+- `GET /api/alerts/rules/{id}` - Get specific alert rule
+- `PUT /api/alerts/rules/{id}` - Update alert rule
+- `DELETE /api/alerts/rules/{id}` - Delete alert rule
+- `POST /api/alerts/rules/{id}/test` - Test rule against historical events
+
+### Audit (`/api/audit`)
+
+- `GET /api/audit` - List audit logs with filtering
+- `GET /api/audit/stats` - Get audit log statistics
+- `GET /api/audit/{id}` - Get specific audit log entry
+
+### Zones (`/api/cameras/{camera_id}/zones`)
+
+- `GET /api/cameras/{id}/zones` - List zones for camera
+- `POST /api/cameras/{id}/zones` - Create zone for camera
+- `GET /api/cameras/{id}/zones/{zone_id}` - Get specific zone
+- `PUT /api/cameras/{id}/zones/{zone_id}` - Update zone
+- `DELETE /api/cameras/{id}/zones/{zone_id}` - Delete zone
+
+### Admin (DEBUG mode only) (`/api/admin`)
+
+- `POST /api/admin/seed/cameras` - Seed test cameras
+- `POST /api/admin/seed/events` - Seed test events and detections
+- `DELETE /api/admin/seed/clear` - Clear all seeded data
+
 ### WebSocket
 
 - `WS /ws/events` - Real-time event stream
@@ -238,6 +283,8 @@ Routes delegate to services for:
 - **ThumbnailGenerator** - Detection image generation
 - **GPUMonitor** - GPU metrics collection
 - **RetryHandler** - Dead-letter queue management
+- **AlertRuleEngine** - Alert rule evaluation and testing
+- **AuditService** - Audit log recording and querying
 
 ## Entry Points for Understanding the Code
 

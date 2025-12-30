@@ -104,8 +104,8 @@ from backend.models import Base, Camera, Detection, Event, GPUStats
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-# Create engine and tables
-engine = create_engine("sqlite:///security.db")
+# Create engine and tables (PostgreSQL)
+engine = create_engine("postgresql://security:password@localhost:5432/security")
 Base.metadata.create_all(engine)
 
 # Create session

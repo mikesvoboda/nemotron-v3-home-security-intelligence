@@ -30,7 +30,7 @@ import pytest
 # fakeredis is optional - skip tests that need it if not installed
 fakeredis = pytest.importorskip("fakeredis")
 
-from backend.core.redis import RedisClient  # noqa: E402
+from backend.core.redis import QueueAddResult, RedisClient  # noqa: E402
 from backend.services.batch_aggregator import BatchAggregator  # noqa: E402
 from backend.services.detector_client import DetectorClient  # noqa: E402
 from backend.services.health_monitor import ServiceHealthMonitor  # noqa: E402
@@ -86,6 +86,10 @@ def mock_redis_client():
     mock_client.set = AsyncMock(return_value=True)
     mock_client.delete = AsyncMock(return_value=1)
     mock_client.add_to_queue = AsyncMock(return_value=1)
+    # add_to_queue_safe is the preferred method with backpressure handling
+    mock_client.add_to_queue_safe = AsyncMock(
+        return_value=QueueAddResult(success=True, queue_length=1)
+    )
     mock_client.get_from_queue = AsyncMock(return_value=None)
     mock_client.get_queue_length = AsyncMock(return_value=0)
     mock_client.publish = AsyncMock(return_value=1)
@@ -138,8 +142,14 @@ def batch_aggregator(mock_redis_client, mock_analyzer):
     Returns:
         BatchAggregator: Configured aggregator
     """
-    aggregator = BatchAggregator(redis_client=mock_redis_client, analyzer=mock_analyzer)
-    return aggregator
+    # Mock get_settings to avoid DATABASE_URL validation error in unit tests
+    with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
+        mock_settings.return_value.batch_window_seconds = 90
+        mock_settings.return_value.batch_idle_timeout_seconds = 30
+        mock_settings.return_value.fast_path_confidence_threshold = 0.9
+        mock_settings.return_value.fast_path_object_types = ["person", "vehicle"]
+        aggregator = BatchAggregator(redis_client=mock_redis_client, analyzer=mock_analyzer)
+        return aggregator
 
 
 # =============================================================================
@@ -269,7 +279,7 @@ class TestQueueConsumerLoop:
 
         # Verify batch was closed
         assert batch_id in closed_batches
-        # close_batch now uses add_to_queue_safe instead of add_to_queue
+        # Note: BatchAggregator.close_batch() uses add_to_queue_safe(), not add_to_queue()
         mock_redis_client.add_to_queue_safe.assert_called()
 
     @pytest.mark.asyncio
@@ -728,7 +738,7 @@ class TestHealthReporting:
         broadcaster.broadcast_event.assert_called_once()
         call_args = broadcaster.broadcast_event.call_args[0][0]
         assert call_args["type"] == "service_status"
-        # Status is now nested inside "data" field in the new message format
+        # Note: The broadcast payload uses nested data structure: {"type": "...", "data": {"status": ...}}
         assert call_args["data"]["status"] == "unhealthy"
 
     @pytest.mark.asyncio
@@ -956,8 +966,8 @@ class TestEdgeCases:
     async def test_very_large_batch_handling(self, batch_aggregator, mock_redis_client):
         """Test handling of batch with many detections."""
         batch_id = "large_batch"
-        # Detection IDs must be numeric
-        detection_ids = list(range(1000))  # 1000 detections
+        # Detection IDs must be integers (database model requirement)
+        detection_ids = list(range(1000))  # 1000 detections (integers 0-999)
 
         async def mock_get(key):
             if key == f"batch:{batch_id}:camera_id":
@@ -973,7 +983,7 @@ class TestEdgeCases:
         summary = await batch_aggregator.close_batch(batch_id)
 
         assert summary["detection_count"] == 1000
-        # close_batch now uses add_to_queue_safe instead of add_to_queue
+        # Note: BatchAggregator.close_batch() uses add_to_queue_safe(), not add_to_queue()
         mock_redis_client.add_to_queue_safe.assert_called_once()
 
     @pytest.mark.asyncio
@@ -1008,12 +1018,13 @@ class TestEdgeCases:
         camera_id = "test_cam"
 
         # First add - creates new batch
+        # Detection IDs must be integers (database model requirement)
         mock_redis_client.get.return_value = None
         with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
             mock_uuid.return_value.hex = "batch_001"
             batch_id1 = await batch_aggregator.add_detection(
                 camera_id=camera_id,
-                detection_id=1,  # Use numeric detection ID
+                detection_id=1,  # Use integer detection ID
                 _file_path="/path/1.jpg",
             )
 
@@ -1022,14 +1033,14 @@ class TestEdgeCases:
             if key == f"batch:{camera_id}:current":
                 return "batch_001"
             elif key == "batch:batch_001:detections":
-                return json.dumps([1])  # Already has detection 1
+                return json.dumps([1])  # Already has detection ID 1
             return None
 
         mock_redis_client.get.side_effect = mock_get
 
         batch_id2 = await batch_aggregator.add_detection(
             camera_id=camera_id,
-            detection_id=1,  # Same detection ID (numeric)
+            detection_id=1,  # Same detection ID (integer)
             _file_path="/path/1.jpg",
         )
 

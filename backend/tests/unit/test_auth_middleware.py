@@ -29,6 +29,7 @@ def app_with_auth(test_api_key):
     # Set up environment for testing
     os.environ["API_KEY_ENABLED"] = "true"
     os.environ["API_KEYS"] = f'["{test_api_key}"]'
+    os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost:5432/test")
     get_settings.cache_clear()
 
     app = FastAPI()
@@ -54,6 +55,10 @@ def app_with_auth(test_api_key):
     async def readiness():
         return {"ready": True, "status": "ready"}
 
+    @app.get("/ready")
+    async def canonical_readiness():
+        return {"ready": True, "status": "ready"}
+
     @app.get("/api/metrics")
     async def metrics():
         return "# Prometheus metrics"
@@ -75,6 +80,7 @@ def app_without_auth():
     """Create a test FastAPI app without authentication enabled."""
     # Set up environment for testing
     os.environ["API_KEY_ENABLED"] = "false"
+    os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost:5432/test")
     get_settings.cache_clear()
 
     app = FastAPI()
@@ -160,8 +166,13 @@ def test_health_probe_endpoints_bypass_auth(app_with_auth):
     assert response.status_code == 200
     assert response.json() == {"status": "alive"}
 
-    # Test readiness probe endpoint
+    # Test readiness probe endpoint (Kubernetes-style)
     response = client.get("/api/system/health/ready")
+    assert response.status_code == 200
+    assert response.json() == {"ready": True, "status": "ready"}
+
+    # Test canonical readiness probe endpoint
+    response = client.get("/ready")
     assert response.status_code == 200
     assert response.json() == {"ready": True, "status": "ready"}
 
@@ -223,6 +234,7 @@ def test_hash_key_produces_correct_hash(test_api_key, test_api_key_hash):
 def test_middleware_loads_keys_from_settings(test_api_key, test_api_key_hash):
     """Test that middleware correctly loads and hashes keys from settings."""
     os.environ["API_KEYS"] = f'["{test_api_key}"]'
+    os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost:5432/test")
     get_settings.cache_clear()
 
     app = FastAPI()
@@ -252,6 +264,7 @@ def test_is_exempt_path():
     # Test exempt paths
     assert middleware._is_exempt_path("/") is True
     assert middleware._is_exempt_path("/health") is True
+    assert middleware._is_exempt_path("/ready") is True  # Canonical readiness probe
     assert middleware._is_exempt_path("/api/system/health") is True
     assert middleware._is_exempt_path("/api/system/health/live") is True
     assert middleware._is_exempt_path("/api/system/health/ready") is True
@@ -272,6 +285,7 @@ def test_multiple_valid_keys():
     key2 = "key_two"
     os.environ["API_KEY_ENABLED"] = "true"
     os.environ["API_KEYS"] = f'["{key1}", "{key2}"]'
+    os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost:5432/test")
     get_settings.cache_clear()
 
     app = FastAPI()
@@ -317,6 +331,7 @@ def test_empty_api_keys_list():
     """Test behavior when API_KEYS list is empty but auth is enabled."""
     os.environ["API_KEY_ENABLED"] = "true"
     os.environ["API_KEYS"] = "[]"
+    os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost:5432/test")
     get_settings.cache_clear()
 
     app = FastAPI()

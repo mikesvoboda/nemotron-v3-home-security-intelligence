@@ -112,6 +112,7 @@ export default function Header() {
     gpu_temperature: systemStatus.data.gpu.temperature,
     gpu_memory_used: systemStatus.data.gpu.memory_used,
     gpu_memory_total: systemStatus.data.gpu.memory_total,
+    inference_fps: systemStatus.data.gpu.inference_fps,
   } : null;
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
   const tooltipTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -157,6 +158,11 @@ export default function Header() {
     // GPU Temperature
     if (status.gpu_temperature !== null) {
       parts.push(`${Math.round(status.gpu_temperature)}°C`);
+    }
+
+    // Inference FPS
+    if (status.inference_fps !== null) {
+      parts.push(`${status.inference_fps.toFixed(1)} FPS`);
     }
 
     return parts.length > 0 ? parts.join(' | ') : '--';

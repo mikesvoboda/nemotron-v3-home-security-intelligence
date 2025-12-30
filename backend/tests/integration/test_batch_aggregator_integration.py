@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from backend.core.redis import QueueAddResult
 from backend.services.batch_aggregator import BatchAggregator
 from backend.tests.conftest import unique_id
 
@@ -64,18 +65,15 @@ def mock_redis_client():
         queues[queue_name].append(json.dumps(data))
         return len(queues[queue_name])
 
-    async def mock_add_to_queue_safe(
-        queue_name: str,
-        data: dict,
-        max_size: int | None = None,
-        overflow_policy: str | None = None,
-        dlq_name: str | None = None,
-    ) -> MockQueueAddResult:
-        """Mock add_to_queue_safe that returns a QueueAddResult."""
+    async def mock_add_to_queue_safe(queue_name: str, data: dict, **kwargs) -> QueueAddResult:
+        """Mock add_to_queue_safe that returns a successful QueueAddResult."""
         if queue_name not in queues:
             queues[queue_name] = []
         queues[queue_name].append(json.dumps(data))
-        return MockQueueAddResult(success=True, queue_length=len(queues[queue_name]))
+        return QueueAddResult(
+            success=True,
+            queue_length=len(queues[queue_name]),
+        )
 
     async def mock_scan_iter(match: str = "*", count: int = 100):
         """Async generator for SCAN iteration (replacement for KEYS)."""

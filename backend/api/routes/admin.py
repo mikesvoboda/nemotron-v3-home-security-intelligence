@@ -1,12 +1,21 @@
-"""Admin API routes for seeding test data (development only)."""
+"""Admin API routes for seeding test data (development only).
+
+SECURITY: Admin endpoints are protected by multiple layers:
+1. DEBUG mode must be enabled (debug=True)
+2. ADMIN_ENABLED must be explicitly set (admin_enabled=True)
+3. Optional API key requirement (admin_api_key environment variable)
+
+This defense-in-depth approach prevents accidental exposure in production.
+"""
 
 import random
+import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -164,17 +173,55 @@ MOCK_REASONING = {
 OBJECT_TYPES = ["person", "vehicle", "animal", "package"]
 
 
-# --- Helper to check DEBUG mode ---
+# --- Security: Admin Access Control ---
 
 
-def require_debug_mode() -> None:
-    """Raise 403 if DEBUG mode is not enabled."""
+def require_admin_access(x_admin_api_key: str | None = Header(default=None)) -> None:
+    """Validate admin endpoint access with defense-in-depth security.
+
+    SECURITY: This function enforces multiple layers of protection:
+    1. DEBUG mode must be enabled (debug=True)
+    2. ADMIN_ENABLED must be explicitly set (admin_enabled=True)
+    3. If admin_api_key is configured, the request must include matching X-Admin-API-Key header
+
+    Args:
+        x_admin_api_key: Optional API key from request header
+
+    Raises:
+        HTTPException: 403 if any security check fails
+    """
     settings = get_settings()
+
+    # Layer 1: DEBUG mode must be enabled
     if not settings.debug:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin endpoints are only available when DEBUG=true",
         )
+
+    # Layer 2: ADMIN_ENABLED must be explicitly set
+    if not settings.admin_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin endpoints require ADMIN_ENABLED=true. "
+            "This is a separate flag from DEBUG for defense-in-depth security.",
+        )
+
+    # Layer 3: If admin API key is configured, validate it
+    if settings.admin_api_key:
+        if not x_admin_api_key:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Admin API key required. Provide X-Admin-API-Key header.",
+                headers={"WWW-Authenticate": "ApiKey"},
+            )
+        # Use constant-time comparison to prevent timing attacks
+        if not secrets.compare_digest(x_admin_api_key, settings.admin_api_key):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid admin API key.",
+                headers={"WWW-Authenticate": "ApiKey"},
+            )
 
 
 # --- Endpoints ---
@@ -184,19 +231,21 @@ def require_debug_mode() -> None:
 async def seed_cameras(
     request: SeedCamerasRequest,
     db: AsyncSession = Depends(get_db),
+    _admin: None = Depends(require_admin_access),
 ) -> dict[str, Any]:
     """Seed test cameras into the database.
 
-    Only available when DEBUG=true.
+    SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
+    If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
 
     Args:
         request: Seed configuration (count, clear_existing, create_folders)
         db: Database session
+        _admin: Admin access validation (via dependency)
 
     Returns:
         Summary of seeded cameras
     """
-    require_debug_mode()
 
     cleared = 0
     created = 0
@@ -262,19 +311,22 @@ async def seed_cameras(
 async def seed_events(
     request: SeedEventsRequest,
     db: AsyncSession = Depends(get_db),
+    _admin: None = Depends(require_admin_access),
 ) -> dict[str, Any]:
     """Seed mock events and detections into the database.
 
-    Only available when DEBUG=true. Requires cameras to exist first.
+    SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
+    If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+    Requires cameras to exist first.
 
     Args:
         request: Seed configuration (count, clear_existing)
         db: Database session
+        _admin: Admin access validation (via dependency)
 
     Returns:
         Summary of seeded events and detections
     """
-    require_debug_mode()
 
     events_cleared = 0
     detections_cleared = 0
@@ -398,22 +450,27 @@ async def clear_seeded_data(
     body: ClearDataRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    _admin: None = Depends(require_admin_access),
 ) -> dict[str, int]:
     """Clear all seeded data (cameras, events, detections).
 
-    Only available when DEBUG=true. Requires JSON body confirmation:
+    SECURITY: Requires DEBUG=true AND ADMIN_ENABLED=true.
+    If ADMIN_API_KEY is set, requires X-Admin-API-Key header.
+    Requires JSON body confirmation to prevent accidental data deletion:
     {"confirm": "DELETE_ALL_DATA"}
 
     Args:
         body: Request body with confirmation string
         request: FastAPI request for audit logging
         db: Database session
+        _admin: Admin access validation (via dependency)
 
     Returns:
         Summary of cleared data counts
-    """
-    require_debug_mode()
 
+    Raises:
+        HTTPException: 400 if confirmation string is incorrect
+    """
     # Validate confirmation string
     if body.confirm != "DELETE_ALL_DATA":
         raise HTTPException(

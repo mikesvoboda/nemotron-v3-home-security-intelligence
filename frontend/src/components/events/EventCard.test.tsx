@@ -780,45 +780,46 @@ describe('EventCard', () => {
       expect(screen.getByText('100/100')).toBeInTheDocument();
     });
 
-    it('handles boundary risk score at 25', () => {
-      const { container } = render(<EventCard {...mockProps} risk_score={25} />);
+    // Thresholds match backend defaults: LOW: 0-29, MEDIUM: 30-59, HIGH: 60-84, CRITICAL: 85-100
+    it('handles boundary risk score at 29 (last low)', () => {
+      const { container } = render(<EventCard {...mockProps} risk_score={29} />);
       const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
-      expect(progressFill).toHaveStyle({ width: '25%' });
+      expect(progressFill).toHaveStyle({ width: '29%' });
       expect(progressFill?.style.backgroundColor).toMatch(/rgb\(118,\s*185,\s*0\)|#76B900/i);
     });
 
-    it('handles boundary risk score at 26', () => {
-      const { container } = render(<EventCard {...mockProps} risk_score={26} />);
+    it('handles boundary risk score at 30 (first medium)', () => {
+      const { container } = render(<EventCard {...mockProps} risk_score={30} />);
       const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
-      expect(progressFill).toHaveStyle({ width: '26%' });
+      expect(progressFill).toHaveStyle({ width: '30%' });
       expect(progressFill?.style.backgroundColor).toMatch(/rgb\(255,\s*184,\s*0\)|#FFB800/i);
     });
 
-    it('handles boundary risk score at 50', () => {
-      const { container } = render(<EventCard {...mockProps} risk_score={50} />);
+    it('handles boundary risk score at 59 (last medium)', () => {
+      const { container } = render(<EventCard {...mockProps} risk_score={59} />);
       const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
-      expect(progressFill).toHaveStyle({ width: '50%' });
+      expect(progressFill).toHaveStyle({ width: '59%' });
       expect(progressFill?.style.backgroundColor).toMatch(/rgb\(255,\s*184,\s*0\)|#FFB800/i);
     });
 
-    it('handles boundary risk score at 51', () => {
-      const { container } = render(<EventCard {...mockProps} risk_score={51} />);
+    it('handles boundary risk score at 60 (first high)', () => {
+      const { container } = render(<EventCard {...mockProps} risk_score={60} />);
       const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
-      expect(progressFill).toHaveStyle({ width: '51%' });
+      expect(progressFill).toHaveStyle({ width: '60%' });
       expect(progressFill?.style.backgroundColor).toMatch(/rgb\(231,\s*72,\s*86\)|#E74856/i);
     });
 
-    it('handles boundary risk score at 75', () => {
-      const { container } = render(<EventCard {...mockProps} risk_score={75} />);
+    it('handles boundary risk score at 84 (last high)', () => {
+      const { container } = render(<EventCard {...mockProps} risk_score={84} />);
       const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
-      expect(progressFill).toHaveStyle({ width: '75%' });
+      expect(progressFill).toHaveStyle({ width: '84%' });
       expect(progressFill?.style.backgroundColor).toMatch(/rgb\(231,\s*72,\s*86\)|#E74856/i);
     });
 
-    it('handles boundary risk score at 76', () => {
-      const { container } = render(<EventCard {...mockProps} risk_score={76} />);
+    it('handles boundary risk score at 85 (first critical)', () => {
+      const { container } = render(<EventCard {...mockProps} risk_score={85} />);
       const progressFill = container.querySelector('[role="progressbar"] > div') as HTMLElement;
-      expect(progressFill).toHaveStyle({ width: '76%' });
+      expect(progressFill).toHaveStyle({ width: '85%' });
       expect(progressFill?.style.backgroundColor).toMatch(/rgb\(239,\s*68,\s*68\)|#ef4444/i);
     });
 
@@ -1172,43 +1173,44 @@ describe('EventCard', () => {
       expect(card).toHaveClass('border-l-4');
     });
 
-    it('applies NVIDIA green left border at risk score boundary (25)', () => {
-      const boundaryEvent = { ...mockProps, risk_score: 25 };
+    // Thresholds match backend defaults: LOW: 0-29, MEDIUM: 30-59, HIGH: 60-84, CRITICAL: 85-100
+    it('applies NVIDIA green left border at risk score boundary (29)', () => {
+      const boundaryEvent = { ...mockProps, risk_score: 29 };
       const { container } = render(<EventCard {...boundaryEvent} />);
       const card = container.firstChild as HTMLElement;
       expect(card).toHaveClass('border-l-risk-low');
     });
 
-    it('applies NVIDIA yellow left border at risk score boundary (26)', () => {
-      const boundaryEvent = { ...mockProps, risk_score: 26 };
+    it('applies NVIDIA yellow left border at risk score boundary (30)', () => {
+      const boundaryEvent = { ...mockProps, risk_score: 30 };
       const { container } = render(<EventCard {...boundaryEvent} />);
       const card = container.firstChild as HTMLElement;
       expect(card).toHaveClass('border-l-risk-medium');
     });
 
-    it('applies NVIDIA yellow left border at risk score boundary (50)', () => {
-      const boundaryEvent = { ...mockProps, risk_score: 50 };
+    it('applies NVIDIA yellow left border at risk score boundary (59)', () => {
+      const boundaryEvent = { ...mockProps, risk_score: 59 };
       const { container } = render(<EventCard {...boundaryEvent} />);
       const card = container.firstChild as HTMLElement;
       expect(card).toHaveClass('border-l-risk-medium');
     });
 
-    it('applies NVIDIA red left border at risk score boundary (51)', () => {
-      const boundaryEvent = { ...mockProps, risk_score: 51 };
+    it('applies NVIDIA red left border at risk score boundary (60)', () => {
+      const boundaryEvent = { ...mockProps, risk_score: 60 };
       const { container } = render(<EventCard {...boundaryEvent} />);
       const card = container.firstChild as HTMLElement;
       expect(card).toHaveClass('border-l-risk-high');
     });
 
-    it('applies NVIDIA red left border at risk score boundary (75)', () => {
-      const boundaryEvent = { ...mockProps, risk_score: 75 };
+    it('applies NVIDIA red left border at risk score boundary (84)', () => {
+      const boundaryEvent = { ...mockProps, risk_score: 84 };
       const { container } = render(<EventCard {...boundaryEvent} />);
       const card = container.firstChild as HTMLElement;
       expect(card).toHaveClass('border-l-risk-high');
     });
 
-    it('applies critical red left border at risk score boundary (76)', () => {
-      const boundaryEvent = { ...mockProps, risk_score: 76 };
+    it('applies critical red left border at risk score boundary (85)', () => {
+      const boundaryEvent = { ...mockProps, risk_score: 85 };
       const { container } = render(<EventCard {...boundaryEvent} />);
       const card = container.firstChild as HTMLElement;
       expect(card).toHaveClass('border-l-red-500');

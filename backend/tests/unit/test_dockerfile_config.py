@@ -59,12 +59,17 @@ class TestDockerfileProdConfig:
     def test_dockerfile_has_worker_constraint_documentation(
         self, dockerfile_prod_content: str
     ) -> None:
-        """Test that Dockerfile.prod documents the single worker constraint."""
+        """Test that Dockerfile.prod documents the single worker constraint.
+
+        The single worker requirement exists because background services
+        (FileWatcher, PipelineWorkerManager, SystemBroadcaster) run in the
+        FastAPI lifespan context. Multiple workers would duplicate these services.
+        """
         # Check for documentation about the constraint
         required_terms = [
-            "SQLite",
             "single",
             "worker",
+            "background",  # Documents the background services reason
         ]
 
         content_lower = dockerfile_prod_content.lower()

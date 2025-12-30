@@ -168,7 +168,7 @@ async def test_health_check_detects_unhealthy_service(
     assert mock_manager.check_health.called
 
     # Verify broadcast was called with "unhealthy" status
-    # Status is now nested inside "data" field in the new message format
+    # Event format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
     broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
     unhealthy_broadcasts = [
         call for call in broadcast_calls if call[0][0].get("data", {}).get("status") == "unhealthy"
@@ -194,7 +194,7 @@ async def test_health_check_timeout_treated_as_unhealthy(
     await health_monitor.stop()
 
     # Verify broadcast was called with "unhealthy" status due to exception
-    # Status is now nested inside "data" field in the new message format
+    # Event format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
     broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
     unhealthy_broadcasts = [
         call for call in broadcast_calls if call[0][0].get("data", {}).get("status") == "unhealthy"
@@ -301,7 +301,7 @@ async def test_max_retries_stops_restart_attempts(mock_manager, mock_broadcaster
     assert restart_count <= 2, f"Expected at most 2 restarts, got {restart_count}"
 
     # Verify "failed" status was broadcast
-    # Status is now nested inside "data" field in the new message format
+    # Event format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
     broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
     failed_broadcasts = [
         call for call in broadcast_calls if call[0][0].get("data", {}).get("status") == "failed"
@@ -366,7 +366,7 @@ async def test_broadcasts_status_on_failure(
     await health_monitor.stop()
 
     # Find broadcast calls with "unhealthy" status
-    # Status is now nested inside "data" field in the new message format
+    # Event format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
     broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
     unhealthy_broadcasts = [
         call for call in broadcast_calls if call[0][0].get("data", {}).get("status") == "unhealthy"
@@ -410,7 +410,7 @@ async def test_broadcasts_status_on_recovery(mock_manager, mock_broadcaster, fas
     await monitor.stop()
 
     # Find broadcast calls with "healthy" status
-    # Status is now nested inside "data" field in the new message format
+    # Event format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
     broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
     healthy_broadcasts = [
         call for call in broadcast_calls if call[0][0].get("data", {}).get("status") == "healthy"
@@ -433,7 +433,7 @@ async def test_broadcasts_status_on_restart(
     await health_monitor.stop()
 
     # Find broadcast calls with "restarting" status
-    # Status is now nested inside "data" field in the new message format
+    # Event format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
     broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
     restarting_broadcasts = [
         call for call in broadcast_calls if call[0][0].get("data", {}).get("status") == "restarting"
@@ -508,7 +508,7 @@ async def test_restart_command_failure_handling(
     await health_monitor.stop()
 
     # Verify restart_failed status was broadcast
-    # Status is now nested inside "data" field in the new message format
+    # Event format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
     broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
     restart_failed_broadcasts = [
         call
@@ -664,7 +664,7 @@ async def test_broadcast_event_format(health_monitor, mock_manager, mock_broadca
     await health_monitor.stop()
 
     # Check broadcast event structure
-    # New format wraps service/status/message inside "data" field
+    # Event format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
     assert mock_broadcaster.broadcast_event.called
     event_data = mock_broadcaster.broadcast_event.call_args_list[0][0][0]
 
@@ -770,7 +770,7 @@ async def test_restart_success_but_health_still_fails(mock_manager, mock_broadca
     await monitor.stop()
 
     # Should have broadcast "restart_failed" due to failed health verification
-    # Status is now nested inside "data" field in the new message format
+    # Event format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
     broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
     restart_failed_broadcasts = [
         call
@@ -992,7 +992,7 @@ async def test_restart_exception_handling(
     await monitor.stop()
 
     # Should have broadcast restart_failed status
-    # Status is now nested inside "data" field in the new message format
+    # Event format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
     broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
     restart_failed_broadcasts = [
         call

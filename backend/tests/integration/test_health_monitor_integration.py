@@ -177,7 +177,7 @@ async def test_full_failure_detection_cycle(test_config: ServiceConfig, fast_sle
     mock_manager.check_health.assert_called()
 
     # Verify broadcast was called for unhealthy status
-    # Broadcast format: {"type": "service_status", "data": {"status": "unhealthy", ...}, "timestamp": ...}
+    # The broadcast format is {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
     unhealthy_broadcasts = [
         call
         for call in mock_broadcaster.broadcast_calls
@@ -233,7 +233,7 @@ async def test_full_recovery_cycle(test_config: ServiceConfig, fast_sleep) -> No
     assert mock_manager.restart.call_count >= 1, "Restart should have been attempted"
 
     # Verify healthy status was eventually broadcast
-    # Broadcast format: {"type": "service_status", "data": {"status": "healthy", ...}, "timestamp": ...}
+    # The broadcast format is {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
     healthy_broadcasts = [
         call
         for call in mock_broadcaster.broadcast_calls
@@ -325,15 +325,14 @@ async def test_websocket_broadcast_on_status_change(test_config: ServiceConfig, 
     assert len(mock_broadcaster.broadcast_calls) > 0, "broadcast_event should have been called"
 
     # Verify payload structure
-    # Broadcast format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
+    # The broadcast format is {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
     first_broadcast = mock_broadcaster.broadcast_calls[0]
     assert "type" in first_broadcast
     assert first_broadcast["type"] == "service_status"
     assert "data" in first_broadcast
-    data = first_broadcast["data"]
-    assert "service" in data
-    assert data["service"] == test_config.name
-    assert "status" in data
+    assert "service" in first_broadcast["data"]
+    assert first_broadcast["data"]["service"] == test_config.name
+    assert "status" in first_broadcast["data"]
     assert "timestamp" in first_broadcast
 
 
@@ -522,7 +521,7 @@ async def test_max_retries_exceeded(test_config: ServiceConfig, fast_sleep) -> N
     await monitor.stop()
 
     # Verify 'failed' status was broadcast
-    # Broadcast format: {"type": "service_status", "data": {"status": "failed", ...}, "timestamp": ...}
+    # The broadcast format is {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
     failed_broadcasts = [
         call
         for call in mock_broadcaster.broadcast_calls
@@ -690,7 +689,7 @@ async def test_multiple_services_different_health_states(fast_sleep) -> None:
     await monitor.stop()
 
     # Verify unhealthy broadcasts for the unhealthy service
-    # Broadcast format: {"type": "service_status", "data": {"status": ..., "service": ...}, "timestamp": ...}
+    # The broadcast format is {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
     unhealthy_broadcasts = [
         call
         for call in mock_broadcaster.broadcast_calls

@@ -6,11 +6,12 @@ This module provides shared test fixtures for all backend tests:
 - integration_env: Environment setup for integration tests
 - integration_db: Initialized database for integration tests
 - mock_redis: Mock Redis client for integration tests
+- real_redis: Real Redis client via testcontainers for integration tests
 - db_session: Database session for integration tests
 - client: httpx AsyncClient for API integration tests
 
-Tests use PostgreSQL. Configure TEST_DATABASE_URL environment variable or
-use the default test database URL.
+Tests use PostgreSQL and Redis via testcontainers or local instances.
+Configure TEST_DATABASE_URL/TEST_REDIS_URL environment variables for overrides.
 
 See backend/tests/AGENTS.md for full documentation on test conventions.
 """
@@ -25,10 +26,14 @@ from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from testcontainers.postgres import PostgresContainer
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Generator
+
+    from testcontainers.postgres import PostgresContainer
+    from testcontainers.redis import RedisContainer
+
+    from backend.core.redis import RedisClient
 
 # Add backend to path for imports
 backend_path = Path(__file__).parent.parent
@@ -41,9 +46,12 @@ DEFAULT_DEV_POSTGRES_URL = (
     "postgresql+asyncpg://security:security_dev_password@localhost:5432/security"
 )
 
+# Default development Redis URL (matches docker-compose.yml, using DB 15 for test isolation)
+DEFAULT_DEV_REDIS_URL = "redis://localhost:6379/15"
 
-def _check_postgres_connection(host: str = "localhost", port: int = 5432) -> bool:
-    """Check if PostgreSQL is reachable on the given host/port."""
+
+def _check_tcp_connection(host: str = "localhost", port: int = 5432) -> bool:
+    """Check if a TCP service is reachable on the given host/port."""
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(1)
@@ -54,12 +62,26 @@ def _check_postgres_connection(host: str = "localhost", port: int = 5432) -> boo
         return False
 
 
+def _check_postgres_connection(host: str = "localhost", port: int = 5432) -> bool:
+    """Check if PostgreSQL is reachable on the given host/port."""
+    return _check_tcp_connection(host, port)
+
+
+def _check_redis_connection(host: str = "localhost", port: int = 6379) -> bool:
+    """Check if Redis is reachable on the given host/port."""
+    return _check_tcp_connection(host, port)
+
+
 # Module-level PostgreSQL container shared across all tests in a session
+# Type annotation uses string to avoid import at module level
 _postgres_container: PostgresContainer | None = None
 
+# Module-level Redis container shared across all tests in a session
+_redis_container: RedisContainer | None = None
 
-def pytest_configure(config):
-    """Start PostgreSQL container once for the entire test session.
+
+def pytest_configure(config: pytest.Config) -> None:
+    """Start PostgreSQL and Redis containers once for the entire test session.
 
     Also configures pytest-xdist to use loadgroup scheduling when
     running tests in parallel, which respects xdist_group markers.
@@ -67,10 +89,10 @@ def pytest_configure(config):
     sequentially on the same worker.
 
     Skipped when:
-    - TEST_DATABASE_URL environment variable is set (explicit override)
-    - Local PostgreSQL is already running on port 5432 (Podman/Docker)
+    - TEST_DATABASE_URL/TEST_REDIS_URL environment variable is set (explicit override)
+    - Local PostgreSQL/Redis is already running (Podman/Docker)
     """
-    global _postgres_container  # noqa: PLW0603
+    global _postgres_container, _redis_container  # noqa: PLW0603
 
     # Configure xdist to use loadgroup scheduling if xdist is active
     # This ensures tests with xdist_group markers run on the same worker
@@ -83,29 +105,45 @@ def pytest_configure(config):
         # This is necessary because -n X implicitly sets --dist=load
         config.option.dist = "loadgroup"
 
-    # Skip if explicit database URL is provided
-    if os.environ.get("TEST_DATABASE_URL"):
-        return
+    # Start PostgreSQL container if needed
+    if not os.environ.get("TEST_DATABASE_URL") and not _check_postgres_connection():
+        try:
+            # Import testcontainers only when needed to avoid side effects at module load
+            from testcontainers.postgres import PostgresContainer
 
-    # Skip if local PostgreSQL is already running (development environment)
-    if _check_postgres_connection():
-        return
+            _postgres_container = PostgresContainer(
+                "postgres:16-alpine",
+                username="postgres",
+                password="postgres",  # noqa: S106 - test password
+                dbname="security_test",
+                driver="asyncpg",
+            )
+            _postgres_container.start()
+        except Exception as e:
+            print(
+                f"Warning: Could not start PostgreSQL testcontainer: {e}. "
+                "Start PostgreSQL via 'podman-compose up -d postgres' or set TEST_DATABASE_URL."
+            )
 
-    # Try to start testcontainer, skip if Docker/Podman not available
-    try:
-        _postgres_container = PostgresContainer("postgres:16-alpine", driver="asyncpg")
-        _postgres_container.start()
-    except Exception as e:
-        # Log warning but don't fail - tests will use local PostgreSQL if available
-        print(
-            f"Warning: Could not start PostgreSQL testcontainer: {e}. "
-            "Start PostgreSQL via 'podman-compose up -d postgres' or set TEST_DATABASE_URL."
-        )
+    # Start Redis container if needed
+    if not os.environ.get("TEST_REDIS_URL") and not _check_redis_connection():
+        try:
+            # Import testcontainers only when needed to avoid side effects at module load
+            from testcontainers.redis import RedisContainer
+
+            _redis_container = RedisContainer("redis:7-alpine")
+            _redis_container.start()
+        except Exception as e:
+            print(
+                f"Warning: Could not start Redis testcontainer: {e}. "
+                "Start Redis via 'podman-compose up -d redis' or set TEST_REDIS_URL."
+            )
 
 
-def pytest_unconfigure(config):
-    """Stop PostgreSQL container after all tests complete."""
-    global _postgres_container  # noqa: PLW0603
+def pytest_unconfigure(config: pytest.Config) -> None:
+    """Stop PostgreSQL and Redis containers after all tests complete."""
+    global _postgres_container, _redis_container  # noqa: PLW0603
+
     if _postgres_container:
         try:
             _postgres_container.stop()
@@ -113,6 +151,14 @@ def pytest_unconfigure(config):
             pass  # Ignore errors on cleanup - container may already be stopped
         finally:
             _postgres_container = None
+
+    if _redis_container:
+        try:
+            _redis_container.stop()
+        except Exception:  # noqa: S110
+            pass  # Ignore errors on cleanup - container may already be stopped
+        finally:
+            _redis_container = None
 
 
 def get_test_db_url() -> str:
@@ -152,6 +198,46 @@ def get_test_db_url() -> str:
         "PostgreSQL not available for testing. Options:\n"
         "1. Start PostgreSQL via 'podman-compose up -d postgres' (development)\n"
         "2. Set TEST_DATABASE_URL environment variable\n"
+        "3. Ensure Docker/Podman is available for testcontainers"
+    )
+
+
+def get_test_redis_url() -> str:
+    """Get the Redis test URL.
+
+    Priority order:
+    1. TEST_REDIS_URL environment variable (explicit override)
+    2. Local Redis on port 6379 (development with Podman/Docker)
+    3. Testcontainer (CI or when Docker available)
+
+    Returns:
+        str: Redis connection URL with database 15 for test isolation
+
+    Raises:
+        RuntimeError: If no Redis instance is available
+    """
+    # 1. Check for explicit environment variable override
+    env_url = os.environ.get("TEST_REDIS_URL")
+    if env_url:
+        return env_url
+
+    # 2. Check for local Redis (development environment with Podman/Docker)
+    if _check_redis_connection():
+        return DEFAULT_DEV_REDIS_URL
+
+    # 3. Fall back to testcontainer
+    if _redis_container is not None:
+        # RedisContainer doesn't have get_connection_url() like PostgresContainer,
+        # so we need to construct the URL manually from host and port
+        host = _redis_container.get_container_host_ip()
+        port = _redis_container.get_exposed_port(6379)
+        # Use database 15 for test isolation
+        return f"redis://{host}:{port}/15"
+
+    raise RuntimeError(
+        "Redis not available for testing. Options:\n"
+        "1. Start Redis via 'podman-compose up -d redis' (development)\n"
+        "2. Set TEST_REDIS_URL environment variable\n"
         "3. Ensure Docker/Podman is available for testcontainers"
     )
 
@@ -242,7 +328,7 @@ async def _reset_db_schema(use_lock: bool = True) -> None:
 
 
 @pytest.fixture(scope="function")
-async def isolated_db():
+async def isolated_db() -> AsyncGenerator[None]:
     """Create an isolated test database for each test.
 
     This fixture:
@@ -301,7 +387,7 @@ async def isolated_db():
 
 
 @pytest.fixture
-async def session(isolated_db):
+async def session(isolated_db: None) -> AsyncGenerator[None]:
     """Create an isolated database session with transaction rollback for each test.
 
     This fixture provides true isolation in parallel test execution by:
@@ -337,7 +423,7 @@ async def session(isolated_db):
 
 
 @pytest.fixture(autouse=True)
-def reset_settings_cache():
+def reset_settings_cache() -> Generator[None]:
     """Automatically reset settings cache before each test.
 
     This ensures no global state leaks between tests.
@@ -356,7 +442,7 @@ def reset_settings_cache():
 
 
 @pytest.fixture
-async def test_db():
+async def test_db() -> AsyncGenerator[None]:
     """Create test database session factory for unit tests.
 
     This fixture provides a callable that returns a context manager for database sessions.
@@ -415,12 +501,12 @@ async def test_db():
 # Integration Test Fixtures
 # =============================================================================
 # These fixtures are shared across all integration and E2E tests.
-# They provide consistent database setup, Redis mocking, and HTTP client access.
+# They provide consistent database setup, Redis access, and HTTP client access.
 
 
 @pytest.fixture
 def integration_env() -> Generator[str]:
-    """Set DATABASE_URL/REDIS_URL to a PostgreSQL test database.
+    """Set DATABASE_URL/REDIS_URL for integration tests.
 
     This fixture ONLY sets environment variables and clears cached settings.
     Use `integration_db` if the test needs the database initialized.
@@ -437,15 +523,14 @@ def integration_env() -> Generator[str]:
     original_runtime_env_path = os.environ.get("HSI_RUNTIME_ENV_PATH")
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        # Get PostgreSQL URL from testcontainer
+        # Get PostgreSQL URL from testcontainer or local
         test_db_url = get_test_db_url()
+        # Get Redis URL from testcontainer or local (uses DB 15 for test isolation)
+        test_redis_url = get_test_redis_url()
         runtime_env_path = str(Path(tmpdir) / "runtime.env")
 
         os.environ["DATABASE_URL"] = test_db_url
-        # Use Redis database 15 for test isolation. This keeps test data separate
-        # from development (database 0). FLUSHDB in pre-commit hooks only affects DB 15.
-        # See backend/tests/AGENTS.md for full documentation on test database isolation.
-        os.environ["REDIS_URL"] = "redis://localhost:6379/15"
+        os.environ["REDIS_URL"] = test_redis_url
         os.environ["HSI_RUNTIME_ENV_PATH"] = runtime_env_path
 
         get_settings.cache_clear()
@@ -513,6 +598,9 @@ async def mock_redis() -> AsyncGenerator[AsyncMock]:
     - health_check: Returns healthy status
 
     The mock is patched into backend.core.redis module.
+
+    Use this for tests that need to mock Redis behavior.
+    For tests that need real Redis behavior, use the `real_redis` fixture instead.
     """
     mock_redis_client = AsyncMock()
     mock_redis_client.health_check.return_value = {
@@ -531,7 +619,47 @@ async def mock_redis() -> AsyncGenerator[AsyncMock]:
 
 
 @pytest.fixture
-async def db_session(integration_db: str):
+async def real_redis() -> AsyncGenerator[RedisClient]:
+    """Provide a real Redis client connected to testcontainers or local Redis.
+
+    This fixture provides a real RedisClient instance for integration tests that
+    need to test actual Redis behavior (e.g., queue operations, pub/sub, etc.).
+
+    The fixture:
+    - Connects to Redis (testcontainer or local)
+    - Flushes the test database before yielding (isolation)
+    - Disconnects after the test
+
+    Use this fixture when you need to test real Redis behavior.
+    For tests that just need Redis to not fail, use `mock_redis` instead.
+    """
+    from backend.core.redis import RedisClient
+
+    # Get Redis URL from testcontainer or local
+    redis_url = get_test_redis_url()
+
+    # Create and connect the client
+    client = RedisClient(redis_url=redis_url)
+    await client.connect()
+
+    try:
+        # Flush the test database for isolation
+        redis_client = client._ensure_connected()
+        await redis_client.flushdb()
+
+        yield client
+    finally:
+        # Ensure clean state before disconnecting
+        try:
+            redis_client = client._ensure_connected()
+            await redis_client.flushdb()
+        except Exception:  # noqa: S110
+            pass  # Ignore errors during cleanup
+        await client.disconnect()
+
+
+@pytest.fixture
+async def db_session(integration_db: str) -> AsyncGenerator[None]:
     """Yield a live AsyncSession bound to the integration test database.
 
     Use this fixture when you need direct database session access in tests.
@@ -544,7 +672,7 @@ async def db_session(integration_db: str):
 
 
 @pytest.fixture
-async def client(integration_db: str, mock_redis: AsyncMock) -> AsyncGenerator:
+async def client(integration_db: str, mock_redis: AsyncMock) -> AsyncGenerator[None]:
     """Async HTTP client bound to the FastAPI app (no network, no server startup).
 
     Notes:

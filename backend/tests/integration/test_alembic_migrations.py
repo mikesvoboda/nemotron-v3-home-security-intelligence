@@ -1,9 +1,11 @@
 """Integration tests for Alembic migrations with PostgreSQL support.
 
 This module tests:
-1. URL conversion from async to sync (asyncpg -> psycopg2, aiosqlite -> sqlite)
+1. URL conversion from async to sync (asyncpg -> psycopg2)
 2. Migration autogenerate (detects models)
 3. Offline migration mode (generates SQL without connecting)
+
+Note: This project only supports PostgreSQL. SQLite is not supported.
 """
 
 from __future__ import annotations
@@ -37,6 +39,8 @@ def convert_async_url_to_sync(url: str | None) -> str | None:
     We test this function directly instead of importing env.py which
     requires Alembic's runtime context.
 
+    Note: Only PostgreSQL is supported. SQLite URLs are not handled.
+
     Args:
         url: Database URL that may use async drivers.
 
@@ -49,9 +53,6 @@ def convert_async_url_to_sync(url: str | None) -> str | None:
     # asyncpg -> psycopg2 (or just postgresql)
     if "+asyncpg" in url:
         url = url.replace("+asyncpg", "")
-    # aiosqlite -> sqlite
-    elif "+aiosqlite" in url:
-        url = url.replace("+aiosqlite", "")
 
     return url
 
@@ -66,24 +67,11 @@ class TestUrlConversion:
         assert result == "postgresql://user:pass@localhost:5432/mydb"
         assert "+asyncpg" not in result
 
-    def test_converts_aiosqlite_to_sync(self) -> None:
-        """Test that sqlite+aiosqlite:// is converted to sqlite://."""
-        url = "sqlite+aiosqlite:///./data/test.db"
-        result = convert_async_url_to_sync(url)
-        assert result == "sqlite:///./data/test.db"
-        assert "+aiosqlite" not in result
-
     def test_preserves_plain_postgresql_url(self) -> None:
         """Test that plain postgresql:// URLs are preserved."""
         url = "postgresql://user:pass@localhost:5432/mydb"
         result = convert_async_url_to_sync(url)
         assert result == "postgresql://user:pass@localhost:5432/mydb"
-
-    def test_preserves_plain_sqlite_url(self) -> None:
-        """Test that plain sqlite:// URLs are preserved."""
-        url = "sqlite:///./data/test.db"
-        result = convert_async_url_to_sync(url)
-        assert result == "sqlite:///./data/test.db"
 
     def test_handles_none_input(self) -> None:
         """Test that None input returns None."""
@@ -111,31 +99,21 @@ class TestUrlConversion:
         assert result == "postgresql://user:pass@/mydb?host=/var/run/postgresql"
         assert "+asyncpg" not in result
 
-    def test_handles_memory_sqlite_url(self) -> None:
-        """Test URL conversion handles in-memory SQLite."""
-        url = "sqlite+aiosqlite:///:memory:"
-        result = convert_async_url_to_sync(url)
-        assert result == "sqlite:///:memory:"
-        assert "+aiosqlite" not in result
-
 
 class TestMigrationAutogenerate:
     """Tests for migration autogenerate functionality."""
 
     @pytest.fixture
     def alembic_config(self, tmp_path: Path) -> Config:
-        """Create a test Alembic config pointing to a temp database."""
+        """Create a test Alembic config for testing script metadata.
+
+        Note: This fixture uses the default PostgreSQL URL from alembic.ini.
+        Tests that don't require database connectivity work fine.
+        Tests that need a live database connection are skipped (PostgreSQL-only).
+        """
         # Find the alembic.ini file
         alembic_ini = backend_path / "alembic.ini"
-
         config = Config(str(alembic_ini))
-
-        # Create a temp database
-        db_path = tmp_path / "test_autogen.db"
-        test_db_url = f"sqlite:///{db_path}"
-
-        config.set_main_option("sqlalchemy.url", test_db_url)
-
         return config
 
     def test_script_directory_has_versions(self) -> None:

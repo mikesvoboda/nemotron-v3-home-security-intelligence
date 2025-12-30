@@ -83,19 +83,19 @@ class DetectorClient:
         settings = get_settings()
         self._detector_url = settings.rtdetr_url
         self._confidence_threshold = settings.detection_confidence_threshold
-        # Use httpx.Timeout for proper timeout configuration
+        # Use httpx.Timeout for proper timeout configuration from Settings
         # connect: time to establish connection, read: time to wait for response
         self._timeout = httpx.Timeout(
-            connect=DETECTOR_CONNECT_TIMEOUT,
-            read=DETECTOR_READ_TIMEOUT,
-            write=DETECTOR_READ_TIMEOUT,
-            pool=DETECTOR_CONNECT_TIMEOUT,
+            connect=settings.ai_connect_timeout,
+            read=settings.rtdetr_read_timeout,
+            write=settings.rtdetr_read_timeout,
+            pool=settings.ai_connect_timeout,
         )
         self._health_timeout = httpx.Timeout(
-            connect=DETECTOR_HEALTH_TIMEOUT,
-            read=DETECTOR_HEALTH_TIMEOUT,
-            write=DETECTOR_HEALTH_TIMEOUT,
-            pool=DETECTOR_HEALTH_TIMEOUT,
+            connect=settings.ai_health_timeout,
+            read=settings.ai_health_timeout,
+            write=settings.ai_health_timeout,
+            pool=settings.ai_health_timeout,
         )
 
     async def health_check(self) -> bool:

@@ -12,7 +12,6 @@ supporting:
 from __future__ import annotations
 
 import json
-import logging
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -24,10 +23,11 @@ from sqlalchemy.dialects.postgresql import REGCONFIG
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.core.logging import get_logger
 from backend.models.camera import Camera
 from backend.models.event import Event
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass

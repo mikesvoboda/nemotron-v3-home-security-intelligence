@@ -11,10 +11,14 @@ Tests cover:
 from __future__ import annotations
 
 import logging
+import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.websockets import WebSocketState
+
+# Set DATABASE_URL for tests before importing any backend modules
+os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost:5432/test")
 
 from backend.api.routes.websocket import (
     websocket_events_endpoint,
@@ -61,12 +65,26 @@ def mock_redis_client():
 
 @pytest.fixture
 def mock_event_broadcaster():
-    """Create a mock EventBroadcaster."""
+    """Create a mock EventBroadcaster.
+
+    Matches the interface of backend.services.event_broadcaster.EventBroadcaster:
+    - __init__(redis_client, channel_name=None)
+    - CHANNEL_NAME property (class-level, returns settings value)
+    - channel_name property (instance-level)
+    - start() -> None
+    - stop() -> None
+    - connect(websocket) -> None
+    - disconnect(websocket) -> None
+    - broadcast_event(event_data) -> int
+    """
     broadcaster = MagicMock()
     broadcaster.connect = AsyncMock()
     broadcaster.disconnect = AsyncMock()
     broadcaster.start = AsyncMock()
     broadcaster.stop = AsyncMock()
+    broadcaster.broadcast_event = AsyncMock(return_value=1)
+    broadcaster.CHANNEL_NAME = "security_events"
+    broadcaster.channel_name = "security_events"
     return broadcaster
 
 
@@ -814,8 +832,8 @@ class TestWebSocketLogging:
             await websocket_events_endpoint(mock_websocket, mock_redis_client)
 
         # Check that relevant log messages were emitted
-        assert "WebSocket client connected to /ws/events" in caplog.text
-        assert "WebSocket connection cleaned up" in caplog.text
+        assert "WebSocket client connected" in caplog.text
+        assert "WebSocket client disconnected" in caplog.text
 
     @pytest.mark.asyncio
     async def test_system_logs_connection_info(
@@ -839,8 +857,8 @@ class TestWebSocketLogging:
             await websocket_system_status(mock_websocket)
 
         # Check that relevant log messages were emitted
-        assert "WebSocket client connected to /ws/system" in caplog.text
-        assert "WebSocket connection cleaned up" in caplog.text
+        assert "WebSocket client connected" in caplog.text
+        assert "WebSocket client disconnected" in caplog.text
 
     @pytest.mark.asyncio
     async def test_events_logs_auth_failure(self, mock_websocket, mock_redis_client, caplog):

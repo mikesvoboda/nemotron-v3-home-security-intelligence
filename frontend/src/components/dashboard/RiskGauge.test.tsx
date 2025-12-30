@@ -27,13 +27,14 @@ describe('RiskGauge', () => {
     });
 
     it('displays risk level label when showLabel is true', () => {
-      render(<RiskGauge value={80} showLabel />);
+      // 85+ is critical per backend thresholds
+      render(<RiskGauge value={85} showLabel />);
       // In test environment, animation is instant
       expect(screen.getByText('Critical')).toBeInTheDocument();
     });
 
     it('hides risk level label when showLabel is false', () => {
-      render(<RiskGauge value={80} showLabel={false} />);
+      render(<RiskGauge value={85} showLabel={false} />);
       expect(screen.queryByText('Critical')).not.toBeInTheDocument();
     });
 
@@ -44,22 +45,23 @@ describe('RiskGauge', () => {
   });
 
   describe('Risk Level Categories', () => {
-    it('displays Low risk for values 0-25', () => {
+    // Thresholds match backend defaults: LOW: 0-29, MEDIUM: 30-59, HIGH: 60-84, CRITICAL: 85-100
+    it('displays Low risk for values 0-29', () => {
       render(<RiskGauge value={20} showLabel />);
       expect(screen.getByText('Low')).toBeInTheDocument();
     });
 
-    it('displays Medium risk for values 26-50', () => {
-      render(<RiskGauge value={40} showLabel />);
+    it('displays Medium risk for values 30-59', () => {
+      render(<RiskGauge value={45} showLabel />);
       expect(screen.getByText('Medium')).toBeInTheDocument();
     });
 
-    it('displays High risk for values 51-75', () => {
-      render(<RiskGauge value={60} showLabel />);
+    it('displays High risk for values 60-84', () => {
+      render(<RiskGauge value={70} showLabel />);
       expect(screen.getByText('High')).toBeInTheDocument();
     });
 
-    it('displays Critical risk for values 76-100', () => {
+    it('displays Critical risk for values 85-100', () => {
       render(<RiskGauge value={90} showLabel />);
       expect(screen.getByText('Critical')).toBeInTheDocument();
     });
@@ -76,14 +78,34 @@ describe('RiskGauge', () => {
       expect(screen.getByText('100')).toBeInTheDocument();
     });
 
-    it('handles boundary value at 25 (low/medium threshold)', () => {
-      render(<RiskGauge value={25} showLabel />);
+    it('handles boundary value at 29 (low/medium threshold)', () => {
+      render(<RiskGauge value={29} showLabel />);
       expect(screen.getByText('Low')).toBeInTheDocument();
     });
 
-    it('handles boundary value at 26 (medium start)', () => {
-      render(<RiskGauge value={26} showLabel />);
+    it('handles boundary value at 30 (medium start)', () => {
+      render(<RiskGauge value={30} showLabel />);
       expect(screen.getByText('Medium')).toBeInTheDocument();
+    });
+
+    it('handles boundary value at 59 (medium/high threshold)', () => {
+      render(<RiskGauge value={59} showLabel />);
+      expect(screen.getByText('Medium')).toBeInTheDocument();
+    });
+
+    it('handles boundary value at 60 (high start)', () => {
+      render(<RiskGauge value={60} showLabel />);
+      expect(screen.getByText('High')).toBeInTheDocument();
+    });
+
+    it('handles boundary value at 84 (high/critical threshold)', () => {
+      render(<RiskGauge value={84} showLabel />);
+      expect(screen.getByText('High')).toBeInTheDocument();
+    });
+
+    it('handles boundary value at 85 (critical start)', () => {
+      render(<RiskGauge value={85} showLabel />);
+      expect(screen.getByText('Critical')).toBeInTheDocument();
     });
   });
 
@@ -207,11 +229,12 @@ describe('RiskGauge', () => {
     });
 
     it('includes risk level in aria-label', () => {
-      render(<RiskGauge value={80} />);
+      // 85+ is critical per backend thresholds
+      render(<RiskGauge value={85} />);
       const meter = screen.getByRole('meter');
       const ariaLabel = meter.getAttribute('aria-label');
       expect(ariaLabel).toContain('Critical');
-      expect(ariaLabel).toContain('80');
+      expect(ariaLabel).toContain('85');
     });
 
     it('marks SVG as aria-hidden', () => {
@@ -237,7 +260,8 @@ describe('RiskGauge', () => {
   });
 
   describe('Color Coding', () => {
-    it('uses NVIDIA green color for low risk (0-25)', () => {
+    // Thresholds: LOW: 0-29, MEDIUM: 30-59, HIGH: 60-84, CRITICAL: 85-100
+    it('uses NVIDIA green color for low risk (0-29)', () => {
       const { container } = render(<RiskGauge value={20} />);
       const circles = container.querySelectorAll('circle');
       const progressCircle = Array.from(circles).find(
@@ -246,8 +270,8 @@ describe('RiskGauge', () => {
       expect(progressCircle).toBeInTheDocument();
     });
 
-    it('uses NVIDIA yellow color for medium risk (26-50)', () => {
-      const { container } = render(<RiskGauge value={40} />);
+    it('uses NVIDIA yellow color for medium risk (30-59)', () => {
+      const { container } = render(<RiskGauge value={45} />);
       const circles = container.querySelectorAll('circle');
       const progressCircle = Array.from(circles).find(
         (circle) => circle.getAttribute('stroke') === '#FFB800'
@@ -255,8 +279,8 @@ describe('RiskGauge', () => {
       expect(progressCircle).toBeInTheDocument();
     });
 
-    it('uses NVIDIA red color for high risk (51-75)', () => {
-      const { container } = render(<RiskGauge value={60} />);
+    it('uses NVIDIA red color for high risk (60-84)', () => {
+      const { container } = render(<RiskGauge value={70} />);
       const circles = container.querySelectorAll('circle');
       const progressCircle = Array.from(circles).find(
         (circle) => circle.getAttribute('stroke') === '#E74856'
@@ -264,7 +288,7 @@ describe('RiskGauge', () => {
       expect(progressCircle).toBeInTheDocument();
     });
 
-    it('uses red color for critical risk (76-100)', () => {
+    it('uses red color for critical risk (85-100)', () => {
       const { container } = render(<RiskGauge value={90} />);
       const circles = container.querySelectorAll('circle');
       const progressCircle = Array.from(circles).find(

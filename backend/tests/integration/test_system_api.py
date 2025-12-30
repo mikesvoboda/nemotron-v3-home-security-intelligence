@@ -552,8 +552,8 @@ async def test_readiness_endpoint_not_ready_when_detection_worker_in_error(clien
 async def test_readiness_endpoint_graceful_when_no_pipeline_manager(client, mock_redis):
     """Test that readiness endpoint returns not_ready when pipeline manager is not registered.
 
-    Without the pipeline manager, the system cannot process detections, so it should
-    report as not_ready (503) rather than ready.
+    Without the pipeline manager, the system cannot process image detections, so it should
+    report as not_ready (503) rather than ready, even if database and Redis are healthy.
     """
     from backend.api.routes import system as system_routes
 
@@ -573,12 +573,17 @@ async def test_readiness_endpoint_graceful_when_no_pipeline_manager(client, mock
         response = await client.get("/api/system/health/ready")
 
         # Should return 503 when pipeline manager is not registered
-        # because the system cannot process detections
+        # because the system cannot process detections without it
         assert response.status_code == 503
         data = response.json()
 
+        # Should NOT be ready when pipeline manager is not registered
         assert data["ready"] is False
         assert data["status"] == "not_ready"
+
+        # Database and Redis should still show as healthy
+        assert data["services"]["database"]["status"] == "healthy"
+        assert data["services"]["redis"]["status"] == "healthy"
 
     finally:
         system_routes._pipeline_manager = original_pipeline_manager

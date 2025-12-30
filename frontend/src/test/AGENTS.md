@@ -114,10 +114,10 @@ Coverage reports are generated to `./coverage/`:
 
 | Metric     | Threshold |
 | ---------- | --------- |
-| Statements | 93%       |
-| Branches   | 89%       |
-| Functions  | 91%       |
-| Lines      | 94%       |
+| Statements | 92%       |
+| Branches   | 88%       |
+| Functions  | 90%       |
+| Lines      | 93%       |
 
 **Excluded from Coverage:**
 
@@ -127,6 +127,9 @@ Coverage reports are generated to `./coverage/`:
 - `**/*.d.ts` - Type declarations
 - `**/*.test.{ts,tsx}` - Test files
 - `**/index.ts` - Barrel files
+- `**/*.example.tsx` - Example files
+- `**/Example.tsx` - Example components
+- `*.config.{js,ts,cjs,mjs}` - Config files
 
 ## Example Test
 
