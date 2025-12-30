@@ -25,13 +25,17 @@ Output Format:
     - Format: JPEG
 """
 
-import logging
 from pathlib import Path
 from typing import Any
 
 from PIL import Image, ImageDraw, ImageFont
 
-logger = logging.getLogger(__name__)
+from backend.core.logging import get_logger, sanitize_error
+
+# Keep sanitize_error imported for future use, suppress unused import warning
+_ = sanitize_error
+
+logger = get_logger(__name__)
 
 
 # Color mapping for object types (RGB tuples)

@@ -24,7 +24,6 @@ Cleanup Stats:
 
 import asyncio
 import contextlib
-import logging
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -33,12 +32,13 @@ from sqlalchemy import delete, select
 
 from backend.core.config import get_settings
 from backend.core.database import get_session
+from backend.core.logging import get_logger, sanitize_error  # noqa: F401
 from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.models.gpu_stats import GPUStats
 from backend.models.log import Log
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class CleanupStats:

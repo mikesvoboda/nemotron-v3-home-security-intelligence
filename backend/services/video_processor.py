@@ -10,14 +10,17 @@ Uses ffmpeg subprocess for reliable cross-platform video processing.
 
 import asyncio
 import json
-import logging
 import subprocess
 from pathlib import Path
 from typing import Any
 
+from backend.core.logging import get_logger, sanitize_error
 from backend.core.mime_types import DEFAULT_VIDEO_MIME, get_mime_type_with_default
 
-logger = logging.getLogger(__name__)
+# Keep sanitize_error imported for future use, suppress unused import warning
+_ = sanitize_error
+
+logger = get_logger(__name__)
 
 # Default thumbnail extraction settings
 DEFAULT_THUMBNAIL_SIZE = (320, 240)

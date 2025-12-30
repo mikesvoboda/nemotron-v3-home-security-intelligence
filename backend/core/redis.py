@@ -3,7 +3,6 @@
 import asyncio
 import contextlib
 import json
-import logging
 import random
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
@@ -15,6 +14,7 @@ from redis.asyncio.client import PubSub
 from redis.exceptions import ConnectionError, TimeoutError
 
 from backend.core.config import get_settings
+from backend.core.logging import get_logger
 from backend.core.metrics import (
     record_queue_items_dropped,
     record_queue_items_moved_to_dlq,
@@ -22,7 +22,7 @@ from backend.core.metrics import (
     record_queue_overflow,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class QueueOverflowPolicy(str, Enum):

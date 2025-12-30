@@ -30,7 +30,6 @@ Server-Initiated Heartbeat:
 
 import asyncio
 import json
-import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
@@ -46,11 +45,12 @@ from backend.api.schemas.websocket import (
     WebSocketPongResponse,
 )
 from backend.core.config import get_settings
+from backend.core.logging import get_logger
 from backend.core.redis import RedisClient, get_redis
 from backend.services.event_broadcaster import get_broadcaster
 from backend.services.system_broadcaster import get_system_broadcaster
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["websocket"])
 

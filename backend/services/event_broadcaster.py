@@ -9,19 +9,19 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
-import logging
 import threading
 from typing import TYPE_CHECKING, Any
 
 from fastapi import WebSocket
 
 from backend.core.config import get_settings
+from backend.core.logging import get_logger
 from backend.core.redis import RedisClient
 
 if TYPE_CHECKING:
     from redis.asyncio.client import PubSub
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def get_event_channel() -> str:

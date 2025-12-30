@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import logging
 import os
 import time
 from dataclasses import dataclass, field
@@ -40,12 +39,13 @@ from backend.api.schemas.system import (
     WorkerStatus,
 )
 from backend.core import get_db, get_settings
+from backend.core.logging import get_logger
 from backend.core.redis import RedisClient, get_redis, get_redis_optional
 from backend.models import Camera, Detection, Event, GPUStats
 from backend.models.audit import AuditAction
 from backend.services.audit import AuditService
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/system", tags=["system"])
 

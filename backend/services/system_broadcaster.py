@@ -20,7 +20,6 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
-import logging
 import threading
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -30,6 +29,7 @@ from fastapi import WebSocket
 from sqlalchemy import func, select
 
 from backend.core import get_session
+from backend.core.logging import get_logger
 from backend.models import Camera, GPUStats
 
 if TYPE_CHECKING:
@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 
     from backend.core.redis import RedisClient
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Redis channel for system status updates
 SYSTEM_STATUS_CHANNEL = "system_status"

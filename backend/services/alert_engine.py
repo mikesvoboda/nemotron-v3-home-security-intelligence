@@ -25,7 +25,6 @@ Usage:
 from __future__ import annotations
 
 import json
-import logging
 from dataclasses import dataclass, field
 from datetime import datetime, time, timedelta
 from typing import TYPE_CHECKING
@@ -34,12 +33,13 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.core.logging import get_logger
 from backend.models import Alert, AlertRule, AlertSeverity, AlertStatus, Detection, Event
 
 if TYPE_CHECKING:
     from backend.core.redis import RedisClient
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Severity priority for determining which rule takes precedence
 SEVERITY_PRIORITY = {
