@@ -8,15 +8,18 @@ This directory contains design specifications and implementation plans that defi
 
 ```
 plans/
-├── AGENTS.md                                    # This file
-├── 2024-12-21-dashboard-mvp-design.md          # MVP design specification
-├── 2024-12-22-mvp-implementation-plan.md       # Task breakdown and phases
-├── 2024-12-24-logging-system-design.md         # Logging architecture spec
-├── 2024-12-24-logging-implementation-plan.md   # Logging implementation tasks
-├── 2025-12-26-github-cicd-design.md            # CI/CD pipeline design
-├── 2025-12-26-github-cicd-implementation.md    # CI/CD implementation tasks
-├── 2025-12-26-service-health-monitoring-design.md  # Health monitoring design
-└── 2025-12-26-readme-redesign.md               # README restructuring plan
+├── AGENTS.md                                        # This file
+├── 2024-12-21-dashboard-mvp-design.md               # MVP design specification
+├── 2024-12-22-mvp-implementation-plan.md            # Task breakdown and phases
+├── 2024-12-24-logging-system-design.md              # Logging architecture spec
+├── 2024-12-24-logging-implementation-plan.md        # Logging implementation tasks
+├── 2025-12-26-github-cicd-design.md                 # CI/CD pipeline design
+├── 2025-12-26-github-cicd-implementation.md         # CI/CD implementation tasks
+├── 2025-12-26-service-health-monitoring-design.md   # Health monitoring design
+├── 2025-12-26-readme-redesign.md                    # README restructuring plan
+├── 2025-12-28-documentation-design.md               # Documentation structure design
+├── 2025-12-30-test-performance-optimization-design.md   # Test performance design
+└── 2025-12-30-test-performance-implementation.md    # Test performance implementation
 ```
 
 ## Key Files
@@ -235,6 +238,38 @@ Plan for README.md restructuring:
 - Target audiences (future self, contributors, deployers, showcase)
 - 7-section structure outline
 - Visual assets needed
+
+### Documentation Structure
+
+**2025-12-28-documentation-design.md**
+
+Design for human-readable documentation:
+
+- Target audiences (users, future maintainer, contributors)
+- Proposed directory structure (user-guide/, architecture/)
+- Content guidelines for each document type
+
+### Test Performance Optimization
+
+**2025-12-30-test-performance-optimization-design.md**
+
+Design for enforcing test time limits:
+
+- pytest-timeout configuration with per-category thresholds
+- CI timing auditor for trend detection
+- Pre-commit pattern detection for slow-test anti-patterns
+- Local parallelization with pytest-xdist
+
+**2025-12-30-test-performance-implementation.md**
+
+Implementation plan for test performance (task-by-task):
+
+- Task 1: Update pytest configuration
+- Task 2: Implement conftest.py timeout hook
+- Task 3: Extend check-test-timeouts.py pattern detection
+- Task 4: Create audit-test-durations.py script
+- Task 5: Add CI workflow artifacts and audit job
+- Task 6: Create test-fast.sh convenience script
 
 ## Using These Documents
 

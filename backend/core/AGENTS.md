@@ -5,10 +5,12 @@
 The `backend/core/` directory contains the foundational infrastructure components for the home security intelligence system:
 
 - **Configuration management** - Environment-based settings with Pydantic validation
-- **Database layer** - SQLAlchemy 2.0 async engine and session management
-- **Redis client** - Async Redis wrapper for queues, pub/sub, and caching
+- **Database layer** - SQLAlchemy 2.0 async engine with PostgreSQL and session management
+- **Redis client** - Async Redis wrapper for queues, pub/sub, and caching with backpressure
 - **Logging infrastructure** - Centralized structured logging with console, file, and database handlers
-- **Prometheus metrics** - Observability metrics for pipeline monitoring
+- **Prometheus metrics** - Observability metrics for pipeline monitoring with latency tracking
+- **TLS/SSL** - Certificate management and HTTPS configuration
+- **MIME type utilities** - Media file type detection and normalization
 
 These components are designed as singletons and provide dependency injection patterns for FastAPI routes and services.
 
@@ -83,10 +85,12 @@ The `__init__.py` file provides a clean public API for the core module:
 **Exported from tls.py:**
 
 - `TLSConfig` / `TLSMode` - Configuration dataclass and mode enum
+- `TLSError`, `TLSConfigurationError`, `CertificateNotFoundError`, `CertificateValidationError` - Exception hierarchy
 - `create_ssl_context()` - Create SSL context for server
-- `generate_self_signed_cert()` - Generate self-signed certificates
+- `generate_self_signed_cert()` / `generate_self_signed_certificate()` - Generate self-signed certificates
 - `get_tls_config()` / `is_tls_enabled()` - Configuration helpers
-- `validate_certificate()` / `get_cert_info()` - Certificate inspection
+- `validate_certificate()` / `validate_certificate_files()` / `get_cert_info()` - Certificate inspection
+- `load_certificate_paths()` - Load cert/key paths from settings
 
 **Usage:**
 
@@ -108,8 +112,9 @@ Manages all application configuration using Pydantic Settings with environment v
 
 **Database Configuration:**
 
-- `database_url: str` - SQLAlchemy URL (default: `postgresql+asyncpg://user:pass@localhost:5432/home_security`)
-- Must point to a running PostgreSQL instance
+- `database_url: str` - SQLAlchemy URL (required, no default - must be set)
+- Must use `postgresql+asyncpg://` scheme for async PostgreSQL driver
+- Example: `DATABASE_URL=postgresql+asyncpg://security:password@localhost:5432/security`
 
 **Redis Configuration:**
 
@@ -118,9 +123,11 @@ Manages all application configuration using Pydantic Settings with environment v
 
 **Application Settings:**
 
-- `app_name: str` - Application name
-- `app_version: str` - Version string
+- `app_name: str` - Application name (default: "Home Security Intelligence")
+- `app_version: str` - Version string (default: "0.1.0")
 - `debug: bool` - Debug mode flag (default: False)
+- `admin_enabled: bool` - Enable admin endpoints (requires debug=True also)
+- `admin_api_key: str | None` - Optional API key for admin endpoints
 
 **API Settings:**
 
@@ -146,6 +153,13 @@ Manages all application configuration using Pydantic Settings with environment v
 - `rtdetr_url: str` - RT-DETRv2 detection service URL (default: `http://localhost:8090`)
 - `nemotron_url: str` - Nemotron reasoning service URL (default: `http://localhost:8091`)
 
+**AI Service Timeout Settings:**
+
+- `ai_connect_timeout: float` - Connection timeout (default: 10.0s, range: 1-60)
+- `ai_health_timeout: float` - Health check timeout (default: 5.0s, range: 1-30)
+- `rtdetr_read_timeout: float` - RT-DETR response timeout (default: 60.0s, range: 10-300)
+- `nemotron_read_timeout: float` - Nemotron response timeout (default: 120.0s, range: 30-600)
+
 **Detection Settings:**
 
 - `detection_confidence_threshold: float` - Minimum confidence (default: 0.5, range: 0.0-1.0)
@@ -170,9 +184,16 @@ Manages all application configuration using Pydantic Settings with environment v
 
 - `rate_limit_enabled: bool` - Enable rate limiting (default: True)
 - `rate_limit_requests_per_minute: int` - General limit (default: 60)
-- `rate_limit_media_requests_per_minute: int` - Media endpoint limit
-- `rate_limit_websocket_connections_per_minute: int` - WebSocket limit
-- `rate_limit_search_requests_per_minute: int` - Search endpoint limit
+- `rate_limit_burst: int` - Burst allowance (default: 10)
+- `rate_limit_media_requests_per_minute: int` - Media endpoint limit (default: 120)
+- `rate_limit_websocket_connections_per_minute: int` - WebSocket limit (default: 10)
+- `rate_limit_search_requests_per_minute: int` - Search endpoint limit (default: 30)
+
+**WebSocket Settings:**
+
+- `websocket_idle_timeout_seconds: int` - Idle timeout (default: 300s)
+- `websocket_ping_interval_seconds: int` - Ping interval (default: 30s)
+- `websocket_max_message_size: int` - Max message size (default: 64KB)
 
 **Severity Threshold Settings:**
 
@@ -196,9 +217,26 @@ Manages all application configuration using Pydantic Settings with environment v
 
 **Notification Settings:**
 
+- `notification_enabled: bool` - Enable notification delivery (default: True)
 - `smtp_host/port/user/password` - SMTP email configuration
-- `default_webhook_url` - Default webhook for alerts
-- `notification_enabled: bool` - Enable notification delivery
+- `smtp_from_address: str` - Email sender address
+- `smtp_use_tls: bool` - Use TLS for SMTP (default: True)
+- `default_webhook_url: str | None` - Default webhook URL for alerts
+- `webhook_timeout_seconds: int` - Webhook request timeout (default: 30)
+- `default_email_recipients: list[str]` - Default email recipients
+
+**Clip Generation Settings:**
+
+- `clips_directory: str` - Directory for event clips (default: "data/clips")
+- `clip_pre_roll_seconds: int` - Pre-event time in clips (default: 5)
+- `clip_post_roll_seconds: int` - Post-event time in clips (default: 5)
+- `clip_generation_enabled: bool` - Enable clip generation (default: True)
+
+**Video Processing Settings:**
+
+- `video_frame_interval_seconds: float` - Frame extraction interval (default: 2.0)
+- `video_thumbnails_dir: str` - Thumbnail directory (default: "data/thumbnails")
+- `video_max_frames: int` - Max frames per video (default: 30)
 
 **File Deduplication Settings:**
 

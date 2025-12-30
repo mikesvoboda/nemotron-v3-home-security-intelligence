@@ -158,15 +158,17 @@ Video playback:
 
 ### `/hooks/` - Custom React Hooks
 
-| Hook                  | Purpose                                             |
-| --------------------- | --------------------------------------------------- |
-| `useWebSocket.ts`     | WebSocket connection management with auto-reconnect |
-| `useEventStream.ts`   | Event stream subscription for `/ws/events`          |
-| `useSystemStatus.ts`  | System status monitoring via `/ws/system`           |
-| `useGpuHistory.ts`    | GPU metrics history with polling                    |
-| `useHealthStatus.ts`  | Health status polling                               |
-| `useServiceStatus.ts` | Service status aggregation                          |
-| `index.ts`            | Barrel export for all hooks                         |
+| Hook                     | Purpose                                             |
+| ------------------------ | --------------------------------------------------- |
+| `useWebSocket.ts`        | WebSocket connection management with auto-reconnect |
+| `useWebSocketStatus.ts`  | Enhanced WebSocket with channel status tracking     |
+| `useConnectionStatus.ts` | Unified status for all WS channels (events/system)  |
+| `useEventStream.ts`      | Event stream subscription for `/ws/events`          |
+| `useSystemStatus.ts`     | System status monitoring via `/ws/system`           |
+| `useGpuHistory.ts`       | GPU metrics history with polling                    |
+| `useHealthStatus.ts`     | Health status polling                               |
+| `useStorageStats.ts`     | Storage/disk usage polling with cleanup preview     |
+| `index.ts`               | Barrel export for all hooks                         |
 
 Each hook has a co-located `.test.ts` file.
 
@@ -208,10 +210,11 @@ The `api.ts` file re-exports all types from `types/generated/` for convenience.
 
 ### `/utils/` - Utility Functions
 
-| File      | Purpose                                                               |
-| --------- | --------------------------------------------------------------------- |
-| `risk.ts` | Risk level utilities (getRiskLevel, getRiskColor, getRiskLabel)       |
-| `time.ts` | Time formatting (formatRelativeTime, formatTimestamp, formatDuration) |
+| File            | Purpose                                                                      |
+| --------------- | ---------------------------------------------------------------------------- |
+| `risk.ts`       | Risk level utilities (getRiskLevel, getRiskColor, getRiskLabel)              |
+| `confidence.ts` | Detection confidence utilities (levels, colors, Tailwind classes, array ops) |
+| `time.ts`       | Time formatting (formatDuration, getDurationLabel, isEventOngoing)           |
 
 Each utility has a co-located `.test.ts` file.
 
@@ -307,14 +310,21 @@ import { fetchCameras, fetchHealth } from '../services/api';
 import type { Camera, Event, HealthResponse } from '../services/api';
 
 // Hooks
-import { useWebSocket, useEventStream, useSystemStatus } from '../hooks';
+import {
+  useWebSocket,
+  useEventStream,
+  useSystemStatus,
+  useConnectionStatus,
+  useStorageStats,
+} from '../hooks';
 
 // Components
-import { RiskBadge, ObjectTypeBadge } from '../components/common';
+import { RiskBadge, ObjectTypeBadge, ConfidenceBadge } from '../components/common';
 
 // Utilities
-import { getRiskLevel, getRiskColor } from '../utils/risk';
-import { formatRelativeTime, formatTimestamp } from '../utils/time';
+import { getRiskLevel, getRiskColor, getRiskLevelWithThresholds } from '../utils/risk';
+import { getConfidenceLevel, formatConfidencePercent } from '../utils/confidence';
+import { formatDuration, isEventOngoing } from '../utils/time';
 
 // Icons
 import { Activity, Camera, Settings, AlertTriangle } from 'lucide-react';

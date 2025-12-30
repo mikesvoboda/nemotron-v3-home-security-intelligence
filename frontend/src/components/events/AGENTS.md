@@ -350,9 +350,54 @@ Comprehensive test coverage:
 - `../common/ObjectTypeBadge` - Object type display
 - `../detection/DetectionImage` - Image with bounding boxes
 
+### ExportPanel.tsx
+
+**Purpose:** Comprehensive UI for exporting events data with filters and format selection
+
+**Key Features:**
+
+- Export format selection (CSV supported, JSON coming soon)
+- Filter options matching EventTimeline:
+  - Camera dropdown
+  - Risk level dropdown (low/medium/high/critical)
+  - Date range filters (start date, end date)
+  - Review status filter (all/unreviewed/reviewed)
+- Export preview showing estimated record count
+- Clear all filters button
+- Collapsible panel option
+- Progress indicator during export
+- Success/error feedback with auto-dismissing messages
+- Disabled state when no events to export
+
+**Props:**
+
+```typescript
+interface ExportPanelProps {
+  /** Pre-populate filters from EventTimeline */
+  initialFilters?: ExportQueryParams;
+  /** Callback when export starts (for external UI state management) */
+  onExportStart?: () => void;
+  /** Callback when export completes or fails */
+  onExportComplete?: (success: boolean, message?: string) => void;
+  /** Whether the panel is collapsible */
+  collapsible?: boolean;
+  /** Whether the panel starts collapsed */
+  defaultCollapsed?: boolean;
+  /** Additional CSS classes */
+  className?: string;
+}
+
+type ExportFormat = 'csv' | 'json';
+```
+
+**API Integration:**
+
+- `fetchCameras()` - Loads camera list for filter dropdown
+- `fetchEventStats(filters)` - Gets estimated count for preview
+- `exportEventsCSV(filters)` - Triggers CSV download
+
 ## Future Enhancements
 
-- Export events to CSV/JSON
 - Event tagging system
 - Comments/notes on events (partially implemented)
 - Video playback (if cameras support it)
@@ -360,3 +405,4 @@ Comprehensive test coverage:
 - Advanced filtering (confidence ranges)
 - Keyboard shortcuts for bulk actions
 - Infinite scroll alternative to pagination
+- JSON export format

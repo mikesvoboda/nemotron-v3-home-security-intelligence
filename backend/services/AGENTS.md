@@ -54,35 +54,47 @@ File Upload -> Detection -> Batching -> Analysis -> Event Creation -> Broadcasti
 
 ## Service Files Overview
 
-| Service                  | Purpose                                          | Type           | Dependencies                         |
-| ------------------------ | ------------------------------------------------ | -------------- | ------------------------------------ |
-| `file_watcher.py`        | Monitor camera directories for media uploads     | Core Pipeline  | watchdog, Redis, PIL                 |
-| `dedupe.py`              | Prevent duplicate file processing                | Core Pipeline  | Redis (primary), Database (fallback) |
-| `detector_client.py`     | Send images to RT-DETRv2 for detection           | Core Pipeline  | httpx, SQLAlchemy                    |
-| `batch_aggregator.py`    | Group detections into time-based batches         | Core Pipeline  | Redis                                |
-| `nemotron_analyzer.py`   | LLM-based risk analysis via llama.cpp            | Core Pipeline  | httpx, SQLAlchemy, Redis             |
-| `thumbnail_generator.py` | Generate preview images with bounding boxes      | Core Pipeline  | PIL/Pillow                           |
-| `video_processor.py`     | Extract video metadata and thumbnails            | Core Pipeline  | ffmpeg/ffprobe (subprocess)          |
-| `pipeline_workers.py`    | Background queue workers and manager             | Workers        | Redis, all pipeline services         |
-| `event_broadcaster.py`   | Distribute events via WebSocket                  | Broadcasting   | Redis, FastAPI WebSocket             |
-| `system_broadcaster.py`  | Broadcast system health status                   | Broadcasting   | SQLAlchemy, Redis, FastAPI WebSocket |
-| `gpu_monitor.py`         | Poll NVIDIA GPU metrics                          | Background     | pynvml, SQLAlchemy                   |
-| `cleanup_service.py`     | Enforce data retention policies                  | Background     | SQLAlchemy                           |
-| `health_monitor.py`      | Monitor service health with auto-recovery        | Background     | service_managers, httpx              |
-| `retry_handler.py`       | Exponential backoff and DLQ support              | Infrastructure | Redis                                |
-| `service_managers.py`    | Strategy pattern for service management          | Infrastructure | httpx, asyncio subprocess            |
-| `circuit_breaker.py`     | Circuit breaker for service resilience           | Infrastructure | asyncio                              |
-| `degradation_manager.py` | Graceful degradation management                  | Infrastructure | Redis                                |
-| `prompts.py`             | LLM prompt templates                             | Utility        | -                                    |
-| `alert_engine.py`        | Evaluate alert rules against events              | Alerting       | SQLAlchemy                           |
-| `alert_dedup.py`         | Alert deduplication logic                        | Alerting       | SQLAlchemy                           |
-| `notification.py`        | Multi-channel notification delivery              | Alerting       | httpx                                |
-| `search.py`              | Full-text search for events                      | Query          | SQLAlchemy, PostgreSQL TSVECTOR      |
-| `severity.py`            | Severity level mapping and configuration         | Utility        | -                                    |
-| `zone_service.py`        | Zone detection and context generation            | Core Pipeline  | SQLAlchemy                           |
-| `baseline.py`            | Activity baseline tracking for anomaly detection | Core Pipeline  | SQLAlchemy                           |
-| `audit.py`               | Audit logging for security-sensitive actions     | Infrastructure | SQLAlchemy                           |
-| `clip_generator.py`      | Video clip generation for events                 | Core Pipeline  | ffmpeg subprocess                    |
+| Service                  | Purpose                                          | Type           | Exported via `__init__.py` |
+| ------------------------ | ------------------------------------------------ | -------------- | -------------------------- |
+| `file_watcher.py`        | Monitor camera directories for media uploads     | Core Pipeline  | Yes                        |
+| `dedupe.py`              | Prevent duplicate file processing                | Core Pipeline  | Yes                        |
+| `detector_client.py`     | Send images to RT-DETRv2 for detection           | Core Pipeline  | Yes                        |
+| `batch_aggregator.py`    | Group detections into time-based batches         | Core Pipeline  | Yes                        |
+| `nemotron_analyzer.py`   | LLM-based risk analysis via llama.cpp            | Core Pipeline  | Yes                        |
+| `thumbnail_generator.py` | Generate preview images with bounding boxes      | Core Pipeline  | Yes                        |
+| `video_processor.py`     | Extract video metadata and thumbnails            | Core Pipeline  | No (import directly)       |
+| `pipeline_workers.py`    | Background queue workers and manager             | Workers        | No (import directly)       |
+| `event_broadcaster.py`   | Distribute events via WebSocket                  | Broadcasting   | Yes                        |
+| `system_broadcaster.py`  | Broadcast system health status                   | Broadcasting   | No (import directly)       |
+| `gpu_monitor.py`         | Poll NVIDIA GPU metrics                          | Background     | Yes                        |
+| `cleanup_service.py`     | Enforce data retention policies                  | Background     | Yes                        |
+| `health_monitor.py`      | Monitor service health with auto-recovery        | Background     | No (import directly)       |
+| `retry_handler.py`       | Exponential backoff and DLQ support              | Infrastructure | Yes                        |
+| `service_managers.py`    | Strategy pattern for service management          | Infrastructure | No (import directly)       |
+| `circuit_breaker.py`     | Circuit breaker for service resilience           | Infrastructure | Yes                        |
+| `degradation_manager.py` | Graceful degradation management                  | Infrastructure | Yes                        |
+| `prompts.py`             | LLM prompt templates                             | Utility        | No (import directly)       |
+| `alert_engine.py`        | Evaluate alert rules against events              | Alerting       | Yes                        |
+| `alert_dedup.py`         | Alert deduplication logic                        | Alerting       | Yes                        |
+| `notification.py`        | Multi-channel notification delivery              | Alerting       | Yes                        |
+| `search.py`              | Full-text search for events                      | Query          | Yes                        |
+| `severity.py`            | Severity level mapping and configuration         | Utility        | Yes                        |
+| `zone_service.py`        | Zone detection and context generation            | Core Pipeline  | Yes                        |
+| `baseline.py`            | Activity baseline tracking for anomaly detection | Core Pipeline  | Yes                        |
+| `audit.py`               | Audit logging for security-sensitive actions     | Infrastructure | Yes                        |
+| `clip_generator.py`      | Video clip generation for events                 | Core Pipeline  | Yes                        |
+
+**Import Pattern:**
+
+```python
+# For exported services (most common)
+from backend.services import FileWatcher, DetectorClient, NemotronAnalyzer
+
+# For non-exported services (import directly)
+from backend.services.video_processor import VideoProcessor
+from backend.services.pipeline_workers import PipelineWorkerManager
+from backend.services.health_monitor import ServiceHealthMonitor
+```
 
 ## Service Files
 
@@ -98,26 +110,46 @@ File Upload -> Detection -> Batching -> Analysis -> Event Creation -> Broadcasti
 - Image integrity validation using PIL (checks for corruption, zero-byte files)
 - Video validation (file exists, minimum size check of 1KB)
 - Async-compatible design with thread-safe event loop scheduling
-- Extracts camera ID from path structure: `/export/foscam/{camera_id}/`
+- Camera ID derived from folder name via `normalize_camera_id()`
 - Integrates with DedupeService for content-hash based deduplication
+- Supports both native filesystem events (inotify/FSEvents) and polling mode
+
+**Observer Selection:**
+
+- Default: Native backend (inotify on Linux, FSEvents on macOS)
+- Polling mode: Enabled via `FILE_WATCHER_POLLING` env var or `settings.file_watcher_polling`
+- Use polling for Docker Desktop, NFS/SMB mounts where inotify events don't propagate
 
 **Supported File Types:**
 
 - **Images:** `.jpg`, `.jpeg`, `.png`
 - **Videos:** `.mp4`, `.mkv`, `.avi`, `.mov`
 
-**Public API:**
+**Public API (exported from `backend.services`):**
 
 - `FileWatcher(camera_root, redis_client, debounce_delay, queue_name, dedupe_service)` - Initialize watcher
 - `async start()` - Begin monitoring camera directories
 - `async stop()` - Gracefully shutdown (cancels pending tasks)
-- `is_image_file(path)` - Validate image extension
+- `is_image_file(path)` - Validate image extension (module-level function)
+- `is_valid_image(path)` - Validate image integrity with PIL (module-level function)
+
+**Additional module-level functions (not exported):**
+
 - `is_video_file(path)` - Validate video extension
 - `is_supported_media_file(path)` - Validate any supported media extension
 - `get_media_type(path)` - Returns "image", "video", or None
-- `is_valid_image(path)` - Validate image integrity with PIL
 - `is_valid_video(path)` - Validate video file exists and has content (>1KB)
 - `is_valid_media_file(path)` - Validate either image or video
+
+**Camera ID Contract:**
+
+```
+Upload path: /export/foscam/Front Door/image.jpg
+-> folder_name: "Front Door"
+-> camera_id: "front_door" (normalized)
+```
+
+Auto-creates Camera record if `auto_create_cameras` is enabled (default: True).
 
 **Data Flow:**
 
@@ -135,6 +167,7 @@ File Upload -> Detection -> Batching -> Analysis -> Event Creation -> Broadcasti
 - Logs errors for queue failures
 - Creates camera root directory if missing
 - Skips duplicate files based on content hash
+- Uses QueueOverflowPolicy for queue capacity management
 
 ### dedupe.py
 
@@ -375,6 +408,37 @@ dlq:analysis_queue   - Failed LLM analysis jobs
 ### health_monitor.py
 
 **Purpose:** Monitors service health and orchestrates automatic recovery with exponential backoff.
+
+**Key Features:**
+
+- Periodic health checks for all configured services (Redis, RT-DETRv2, Nemotron)
+- Automatic restart with exponential backoff on failure
+- Configurable max retries before giving up
+- WebSocket broadcast of service status changes
+- Graceful shutdown support
+
+**Status Values:**
+
+- `healthy` - Service responding normally
+- `unhealthy` - Health check failed
+- `restarting` - Restart in progress
+- `restart_failed` - Restart attempt failed
+- `failed` - Max retries exceeded, giving up
+
+**Public API (import directly):**
+
+```python
+from backend.services.health_monitor import ServiceHealthMonitor
+
+monitor = ServiceHealthMonitor(
+    manager=service_manager,
+    services=[redis_config, rtdetr_config, nemotron_config],
+    broadcaster=event_broadcaster,
+    check_interval=15.0  # seconds
+)
+await monitor.start()
+await monitor.stop()
+```
 
 ### cleanup_service.py
 
