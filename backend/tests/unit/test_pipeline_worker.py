@@ -93,6 +93,14 @@ def mock_redis_client():
     mock_client.connect = AsyncMock()
     mock_client.disconnect = AsyncMock()
 
+    # Mock add_to_queue_safe for close_batch (returns QueueResult-like object)
+    queue_result_mock = MagicMock()
+    queue_result_mock.success = True
+    queue_result_mock.had_backpressure = False
+    queue_result_mock.queue_length = 0
+    queue_result_mock.error = None
+    mock_client.add_to_queue_safe = AsyncMock(return_value=queue_result_mock)
+
     return mock_client
 
 
@@ -251,7 +259,7 @@ class TestQueueConsumerLoop:
             elif key == f"batch:{batch_id}:camera_id":
                 return camera_id
             elif key == f"batch:{batch_id}:detections":
-                return json.dumps(["det_1"])
+                return json.dumps([1])  # Use numeric detection ID
             return None
 
         mock_redis_client.get.side_effect = mock_get
@@ -261,7 +269,8 @@ class TestQueueConsumerLoop:
 
         # Verify batch was closed
         assert batch_id in closed_batches
-        mock_redis_client.add_to_queue.assert_called()
+        # close_batch now uses add_to_queue_safe instead of add_to_queue
+        mock_redis_client.add_to_queue_safe.assert_called()
 
     @pytest.mark.asyncio
     async def test_consumer_handles_empty_queue(self, mock_redis_client):
@@ -719,7 +728,8 @@ class TestHealthReporting:
         broadcaster.broadcast_event.assert_called_once()
         call_args = broadcaster.broadcast_event.call_args[0][0]
         assert call_args["type"] == "service_status"
-        assert call_args["status"] == "unhealthy"
+        # Status is now nested inside "data" field in the new message format
+        assert call_args["data"]["status"] == "unhealthy"
 
     @pytest.mark.asyncio
     async def test_health_check_includes_queue_depths(self, mock_redis_client):
@@ -946,7 +956,8 @@ class TestEdgeCases:
     async def test_very_large_batch_handling(self, batch_aggregator, mock_redis_client):
         """Test handling of batch with many detections."""
         batch_id = "large_batch"
-        detection_ids = [f"det_{i}" for i in range(1000)]  # 1000 detections
+        # Detection IDs must be numeric
+        detection_ids = list(range(1000))  # 1000 detections
 
         async def mock_get(key):
             if key == f"batch:{batch_id}:camera_id":
@@ -962,7 +973,8 @@ class TestEdgeCases:
         summary = await batch_aggregator.close_batch(batch_id)
 
         assert summary["detection_count"] == 1000
-        mock_redis_client.add_to_queue.assert_called_once()
+        # close_batch now uses add_to_queue_safe instead of add_to_queue
+        mock_redis_client.add_to_queue_safe.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_rapid_shutdown_restart_cycle(self, mock_redis_client):
@@ -1001,7 +1013,7 @@ class TestEdgeCases:
             mock_uuid.return_value.hex = "batch_001"
             batch_id1 = await batch_aggregator.add_detection(
                 camera_id=camera_id,
-                detection_id="det_1",
+                detection_id=1,  # Use numeric detection ID
                 _file_path="/path/1.jpg",
             )
 
@@ -1010,14 +1022,14 @@ class TestEdgeCases:
             if key == f"batch:{camera_id}:current":
                 return "batch_001"
             elif key == "batch:batch_001:detections":
-                return json.dumps(["det_1"])  # Already has det_1
+                return json.dumps([1])  # Already has detection 1
             return None
 
         mock_redis_client.get.side_effect = mock_get
 
         batch_id2 = await batch_aggregator.add_detection(
             camera_id=camera_id,
-            detection_id="det_1",  # Same detection ID
+            detection_id=1,  # Same detection ID (numeric)
             _file_path="/path/1.jpg",
         )
 
