@@ -756,6 +756,7 @@ class TestCameraBaselineSummary:
 # ============================================================================
 
 
+@pytest.mark.slow
 @pytest.mark.asyncio
 async def test_baseline_service_with_database(test_db):
     """Integration test: update and query baselines with real database."""
@@ -807,6 +808,7 @@ async def test_baseline_service_with_database(test_db):
         assert freq > 0
 
 
+@pytest.mark.slow
 @pytest.mark.asyncio
 async def test_baseline_multiple_updates(test_db):
     """Integration test: multiple updates to the same baseline."""
@@ -863,6 +865,7 @@ async def test_baseline_multiple_updates(test_db):
         assert rate2 >= rate1 * 0.9  # Allow for decay effects
 
 
+@pytest.mark.slow
 @pytest.mark.asyncio
 async def test_baseline_different_classes(test_db):
     """Integration test: track different classes at the same hour."""
