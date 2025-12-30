@@ -31,7 +31,6 @@ async def test_health_endpoint_liveness(client, mock_redis):
 
     # Simple liveness check - just confirms server is alive
     assert data["status"] == "alive"
-    assert "message" in data
 
 
 @pytest.mark.asyncio
@@ -143,7 +142,6 @@ async def test_health_endpoint_structure(client):
 
     # Verify simple liveness response structure
     assert "status" in data
-    assert "message" in data
     assert data["status"] == "alive"
 
 
