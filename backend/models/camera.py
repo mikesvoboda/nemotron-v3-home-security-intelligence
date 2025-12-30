@@ -10,6 +10,7 @@ from sqlalchemy import DateTime, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 if TYPE_CHECKING:
+    from .baseline import ActivityBaseline, ClassBaseline
     from .detection import Detection
     from .event import Event
     from .zone import Zone
@@ -95,6 +96,15 @@ class Camera(Base):
     )
     zones: Mapped[list[Zone]] = relationship(
         "Zone", back_populates="camera", cascade="all, delete-orphan"
+    )
+    activity_baselines: Mapped[list[ActivityBaseline]] = relationship(
+        "ActivityBaseline",
+        back_populates="camera",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    class_baselines: Mapped[list[ClassBaseline]] = relationship(
+        "ClassBaseline", back_populates="camera", cascade="all, delete-orphan", passive_deletes=True
     )
 
     @classmethod
