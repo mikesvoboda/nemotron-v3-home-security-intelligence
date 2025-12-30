@@ -101,7 +101,7 @@ function HealthTooltip({ services, isVisible }: HealthTooltipProps) {
 }
 
 export default function Header() {
-  const { summary, systemStatus } = useConnectionStatus();
+  const { summary, systemStatus, isPollingFallback, retryConnection } = useConnectionStatus();
   const { overallStatus: apiHealth, services, isLoading: healthLoading } = useHealthStatus();
 
   // Derive status and isConnected from the connection status summary
@@ -214,7 +214,15 @@ export default function Header() {
         <WebSocketStatus
           eventsChannel={summary.eventsChannel}
           systemChannel={summary.systemChannel}
+          onRetry={retryConnection}
         />
+
+        {/* Polling fallback indicator */}
+        {isPollingFallback && (
+          <div className="flex items-center gap-1 rounded bg-yellow-900/30 px-2 py-1">
+            <span className="text-xs text-yellow-400">REST Fallback</span>
+          </div>
+        )}
 
         {/* GPU Quick Stats */}
         <div className="flex items-center gap-2 rounded-lg bg-gray-800 px-3 py-1.5">
