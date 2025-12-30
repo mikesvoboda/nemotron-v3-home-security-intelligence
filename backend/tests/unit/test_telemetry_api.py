@@ -309,16 +309,17 @@ async def test_record_stage_latency() -> None:
     from backend.api.routes import system as system_routes
 
     redis = AsyncMock()
-    redis.add_to_queue = AsyncMock()
+    # The implementation uses add_to_queue_safe, not add_to_queue
+    redis.add_to_queue_safe = AsyncMock()
     # Mock expire directly on the redis client (it's called as redis.expire())
     redis.expire = AsyncMock()
 
     await system_routes.record_stage_latency(redis, stage="detect", latency_ms=150.0)
 
-    # Should store latency in a list with max_size limit
-    redis.add_to_queue.assert_called_once()
+    # Should store latency in a list using add_to_queue_safe with DROP_OLDEST policy
+    redis.add_to_queue_safe.assert_called_once()
     # Verify max_size is passed correctly (MAX_LATENCY_SAMPLES = 1000)
-    call_args = redis.add_to_queue.call_args
+    call_args = redis.add_to_queue_safe.call_args
     assert call_args[1].get("max_size") == 1000
     # Should set TTL on the key
     redis.expire.assert_called_once()

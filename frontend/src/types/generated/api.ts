@@ -1731,6 +1731,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/pipeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Pipeline Status
+         * @description Get combined status of all pipeline operations.
+         *
+         *     Returns real-time visibility into the AI processing pipeline:
+         *
+         *     **FileWatcher**: Monitors camera directories for new uploads
+         *     - running: Whether the watcher is active
+         *     - camera_root: Directory being watched
+         *     - pending_tasks: Files waiting for debounce completion
+         *     - observer_type: Filesystem observer type (native/polling)
+         *
+         *     **BatchAggregator**: Groups detections into time-based batches
+         *     - active_batches: Number of batches being aggregated
+         *     - batches: Details of each active batch
+         *     - batch_window_seconds: Configured window timeout
+         *     - idle_timeout_seconds: Configured idle timeout
+         *
+         *     **DegradationManager**: Handles graceful degradation
+         *     - mode: Current degradation mode (normal/degraded/minimal/offline)
+         *     - is_degraded: Whether system is in any degraded state
+         *     - services: Health status of registered services
+         *     - available_features: Features available in current mode
+         *
+         *     Returns:
+         *         PipelineStatusResponse with status of all pipeline services
+         */
+        get: operations["get_pipeline_status_api_system_pipeline_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/cameras/{camera_id}/zones": {
         parameters: {
             query?: never;
@@ -2511,6 +2554,83 @@ export interface components {
             recent_actors: string[];
         };
         /**
+         * BatchAggregatorStatusResponse
+         * @description Status information for the BatchAggregator service.
+         * @example {
+         *       "active_batches": 2,
+         *       "batch_window_seconds": 90,
+         *       "batches": [
+         *         {
+         *           "age_seconds": 45.5,
+         *           "batch_id": "abc123",
+         *           "camera_id": "front_door",
+         *           "detection_count": 5,
+         *           "last_activity_seconds": 10.2,
+         *           "started_at": 1735500000
+         *         }
+         *       ],
+         *       "idle_timeout_seconds": 30
+         *     }
+         */
+        BatchAggregatorStatusResponse: {
+            /**
+             * Active Batches
+             * @description Number of active batches being aggregated
+             */
+            active_batches: number;
+            /**
+             * Batches
+             * @description Details of active batches
+             */
+            batches?: components["schemas"]["BatchInfoResponse"][];
+            /**
+             * Batch Window Seconds
+             * @description Configured batch window timeout in seconds
+             */
+            batch_window_seconds: number;
+            /**
+             * Idle Timeout Seconds
+             * @description Configured idle timeout in seconds
+             */
+            idle_timeout_seconds: number;
+        };
+        /**
+         * BatchInfoResponse
+         * @description Information about an active batch.
+         */
+        BatchInfoResponse: {
+            /**
+             * Batch Id
+             * @description Unique batch identifier
+             */
+            batch_id: string;
+            /**
+             * Camera Id
+             * @description Camera ID this batch belongs to
+             */
+            camera_id: string;
+            /**
+             * Detection Count
+             * @description Number of detections in this batch
+             */
+            detection_count: number;
+            /**
+             * Started At
+             * @description Batch start time (Unix timestamp)
+             */
+            started_at: number;
+            /**
+             * Age Seconds
+             * @description Time since batch started in seconds
+             */
+            age_seconds: number;
+            /**
+             * Last Activity Seconds
+             * @description Time since last activity in seconds
+             */
+            last_activity_seconds: number;
+        };
+        /**
          * CameraCreate
          * @description Schema for creating a new camera.
          * @example {
@@ -3193,6 +3313,73 @@ export interface components {
             total_count: number;
         };
         /**
+         * DegradationModeEnum
+         * @description System degradation modes.
+         * @enum {string}
+         */
+        DegradationModeEnum: "normal" | "degraded" | "minimal" | "offline";
+        /**
+         * DegradationStatusResponse
+         * @description Status information for the DegradationManager service.
+         * @example {
+         *       "available_features": [
+         *         "detection",
+         *         "analysis",
+         *         "events",
+         *         "media"
+         *       ],
+         *       "fallback_queues": {},
+         *       "is_degraded": false,
+         *       "memory_queue_size": 0,
+         *       "mode": "normal",
+         *       "redis_healthy": true,
+         *       "services": [
+         *         {
+         *           "consecutive_failures": 0,
+         *           "last_check": 1735500000,
+         *           "name": "rtdetr",
+         *           "status": "healthy"
+         *         }
+         *       ]
+         *     }
+         */
+        DegradationStatusResponse: {
+            /** @description Current degradation mode */
+            mode: components["schemas"]["DegradationModeEnum"];
+            /**
+             * Is Degraded
+             * @description Whether system is in any degraded state
+             */
+            is_degraded: boolean;
+            /**
+             * Redis Healthy
+             * @description Whether Redis is healthy
+             */
+            redis_healthy: boolean;
+            /**
+             * Memory Queue Size
+             * @description Number of jobs in in-memory fallback queue
+             */
+            memory_queue_size: number;
+            /**
+             * Fallback Queues
+             * @description Count of items in disk-based fallback queues by name
+             */
+            fallback_queues?: {
+                [key: string]: number;
+            };
+            /**
+             * Services
+             * @description Health status of registered services
+             */
+            services?: components["schemas"]["ServiceHealthStatusResponse"][];
+            /**
+             * Available Features
+             * @description Features available in current degradation mode
+             */
+            available_features?: string[];
+        };
+        /**
          * DetectionListResponse
          * @description Schema for detection list response with pagination.
          * @example {
@@ -3607,6 +3794,38 @@ export interface components {
              * @default 0
              */
             low: number;
+        };
+        /**
+         * FileWatcherStatusResponse
+         * @description Status information for the FileWatcher service.
+         * @example {
+         *       "camera_root": "/export/foscam",
+         *       "observer_type": "native",
+         *       "pending_tasks": 3,
+         *       "running": true
+         *     }
+         */
+        FileWatcherStatusResponse: {
+            /**
+             * Running
+             * @description Whether the file watcher is currently running
+             */
+            running: boolean;
+            /**
+             * Camera Root
+             * @description Root directory being watched for camera uploads
+             */
+            camera_root: string;
+            /**
+             * Pending Tasks
+             * @description Number of files pending processing (debouncing)
+             */
+            pending_tasks: number;
+            /**
+             * Observer Type
+             * @description Type of filesystem observer (native or polling)
+             */
+            observer_type: string;
         };
         /**
          * FrontendLogCreate
@@ -4243,6 +4462,58 @@ export interface components {
             sample_count: number;
         };
         /**
+         * PipelineStatusResponse
+         * @description Combined status of all pipeline operations.
+         *
+         *     Provides visibility into:
+         *     - FileWatcher: Monitoring camera directories for new uploads
+         *     - BatchAggregator: Grouping detections into time-based batches
+         *     - DegradationManager: Graceful degradation and service health
+         * @example {
+         *       "batch_aggregator": {
+         *         "active_batches": 1,
+         *         "batch_window_seconds": 90,
+         *         "batches": [],
+         *         "idle_timeout_seconds": 30
+         *       },
+         *       "degradation": {
+         *         "available_features": [
+         *           "detection",
+         *           "analysis",
+         *           "events",
+         *           "media"
+         *         ],
+         *         "fallback_queues": {},
+         *         "is_degraded": false,
+         *         "memory_queue_size": 0,
+         *         "mode": "normal",
+         *         "redis_healthy": true,
+         *         "services": []
+         *       },
+         *       "file_watcher": {
+         *         "camera_root": "/export/foscam",
+         *         "observer_type": "native",
+         *         "pending_tasks": 0,
+         *         "running": true
+         *       },
+         *       "timestamp": "2025-12-30T10:30:00Z"
+         *     }
+         */
+        PipelineStatusResponse: {
+            /** @description FileWatcher service status (null if not running) */
+            file_watcher?: components["schemas"]["FileWatcherStatusResponse"] | null;
+            /** @description BatchAggregator service status (null if not running) */
+            batch_aggregator?: components["schemas"]["BatchAggregatorStatusResponse"] | null;
+            /** @description DegradationManager service status (null if not initialized) */
+            degradation?: components["schemas"]["DegradationStatusResponse"] | null;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Timestamp of status snapshot
+             */
+            timestamp: string;
+        };
+        /**
          * QueueDepths
          * @description Queue depth information for pipeline queues.
          * @example {
@@ -4707,6 +4978,37 @@ export interface components {
             events_cleared: number;
             /** Detections Cleared */
             detections_cleared: number;
+        };
+        /**
+         * ServiceHealthStatusResponse
+         * @description Health status of a registered service.
+         */
+        ServiceHealthStatusResponse: {
+            /**
+             * Name
+             * @description Service name
+             */
+            name: string;
+            /**
+             * Status
+             * @description Health status (healthy, unhealthy, unknown)
+             */
+            status: string;
+            /**
+             * Last Check
+             * @description Monotonic time of last health check
+             */
+            last_check?: number | null;
+            /**
+             * Consecutive Failures
+             * @description Count of consecutive health check failures
+             */
+            consecutive_failures: number;
+            /**
+             * Error Message
+             * @description Last error message if unhealthy
+             */
+            error_message?: string | null;
         };
         /**
          * ServiceStatus
@@ -7379,6 +7681,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CleanupStatusResponse"];
+                };
+            };
+        };
+    };
+    get_pipeline_status_api_system_pipeline_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PipelineStatusResponse"];
                 };
             };
         };
