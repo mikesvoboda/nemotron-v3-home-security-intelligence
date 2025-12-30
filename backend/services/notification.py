@@ -39,6 +39,24 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_log_input(value: str, max_length: int = 200) -> str:
+    """Sanitize user input for safe logging to prevent log injection.
+
+    Replaces newlines, carriage returns, and other control characters
+    to prevent log injection attacks.
+    """
+    if not value:
+        return value
+    # Replace newlines and carriage returns with escaped versions
+    sanitized = value.replace("\n", "\\n").replace("\r", "\\r")
+    # Replace other control characters
+    sanitized = "".join(c if c.isprintable() or c == " " else f"\\x{ord(c):02x}" for c in sanitized)
+    # Truncate to max length
+    if len(sanitized) > max_length:
+        sanitized = sanitized[:max_length] + "..."
+    return sanitized
+
+
 class NotificationChannel(str, Enum):
     """Notification channel types."""
 
@@ -392,7 +410,11 @@ class NotificationService:
             )
 
             if response.status_code >= 200 and response.status_code < 300:
-                logger.info(f"Webhook notification sent for alert {alert.id} to {url}")
+                logger.info(
+                    "Webhook notification sent for alert %s to %s",
+                    alert.id,
+                    _sanitize_log_input(url),
+                )
                 return NotificationDelivery(
                     channel=NotificationChannel.WEBHOOK,
                     success=True,
@@ -401,7 +423,7 @@ class NotificationService:
                 )
             else:
                 error_msg = f"Webhook returned status {response.status_code}: {response.text[:200]}"
-                logger.warning(error_msg)
+                logger.warning("Webhook error: %s", _sanitize_log_input(error_msg))
                 return NotificationDelivery(
                     channel=NotificationChannel.WEBHOOK,
                     success=False,

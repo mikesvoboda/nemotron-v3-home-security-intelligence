@@ -29,6 +29,25 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
+def _sanitize_log_input(value: str, max_length: int = 200) -> str:
+    """Sanitize user input for safe logging to prevent log injection.
+
+    Replaces newlines, carriage returns, and other control characters
+    to prevent log injection attacks.
+    """
+    if not value:
+        return value
+    # Replace newlines and carriage returns with escaped versions
+    sanitized = value.replace("\n", "\\n").replace("\r", "\\r")
+    # Replace other control characters
+    sanitized = "".join(c if c.isprintable() or c == " " else f"\\x{ord(c):02x}" for c in sanitized)
+    # Truncate to max length
+    if len(sanitized) > max_length:
+        sanitized = sanitized[:max_length] + "..."
+    return sanitized
+
+
 router = APIRouter(prefix="/api/notification", tags=["notification"])
 
 
@@ -224,7 +243,9 @@ async def test_notification(
         )
 
     except Exception as e:
-        logger.exception(f"Error testing {channel.value} notification: {e}")
+        logger.exception(
+            "Error testing %s notification: %s", channel.value, _sanitize_log_input(str(e))
+        )
         return _create_error_response(
             channel,
             str(e),
