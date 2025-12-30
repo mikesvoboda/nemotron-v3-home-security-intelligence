@@ -1023,7 +1023,7 @@ async def test_analyze_detection_fast_path_broadcast_called(
     with (
         patch("httpx.AsyncClient.post") as mock_post,
         patch(
-            "backend.services.nemotron_analyzer.get_broadcaster",
+            "backend.services.event_broadcaster.get_broadcaster",
             new=AsyncMock(return_value=mock_broadcaster),
         ),
     ):
