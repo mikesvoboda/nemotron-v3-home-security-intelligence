@@ -1,8 +1,9 @@
 import { Activity } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
+import { useConnectionStatus } from '../../hooks/useConnectionStatus';
 import { useHealthStatus } from '../../hooks/useHealthStatus';
-import { useSystemStatus } from '../../hooks/useSystemStatus';
+import { WebSocketStatus } from '../common';
 
 /**
  * Get the dot color class based on health status
@@ -100,8 +101,19 @@ function HealthTooltip({ services, isVisible }: HealthTooltipProps) {
 }
 
 export default function Header() {
-  const { status, isConnected } = useSystemStatus();
+  const { summary, systemStatus, isPollingFallback, retryConnection } = useConnectionStatus();
   const { overallStatus: apiHealth, services, isLoading: healthLoading } = useHealthStatus();
+
+  // Derive status and isConnected from the connection status summary
+  const isConnected = summary.allConnected;
+  const status = systemStatus ? {
+    health: systemStatus.data.health,
+    gpu_utilization: systemStatus.data.gpu.utilization,
+    gpu_temperature: systemStatus.data.gpu.temperature,
+    gpu_memory_used: systemStatus.data.gpu.memory_used,
+    gpu_memory_total: systemStatus.data.gpu.memory_total,
+    inference_fps: systemStatus.data.gpu.inference_fps,
+  } : null;
   const [isTooltipVisible, setIsTooltipVisible] = useState(false);
   const tooltipTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -197,6 +209,20 @@ export default function Header() {
           </span>
           <HealthTooltip services={services} isVisible={isTooltipVisible} />
         </div>
+
+        {/* WebSocket Connection Status */}
+        <WebSocketStatus
+          eventsChannel={summary.eventsChannel}
+          systemChannel={summary.systemChannel}
+          onRetry={retryConnection}
+        />
+
+        {/* Polling fallback indicator */}
+        {isPollingFallback && (
+          <div className="flex items-center gap-1 rounded bg-yellow-900/30 px-2 py-1">
+            <span className="text-xs text-yellow-400">REST Fallback</span>
+          </div>
+        )}
 
         {/* GPU Quick Stats */}
         <div className="flex items-center gap-2 rounded-lg bg-gray-800 px-3 py-1.5">

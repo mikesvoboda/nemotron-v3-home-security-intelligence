@@ -1,0 +1,310 @@
+---
+title: Installation
+description: Step-by-step installation guide for Home Security Intelligence
+source_refs:
+  - scripts/setup-hooks.sh:1
+  - scripts/setup-hooks.sh:26-51
+  - scripts/setup-hooks.sh:54-67
+  - scripts/setup-hooks.sh:71-82
+  - ai/download_models.sh:1
+  - ai/download_models.sh:19-87
+  - ai/download_models.sh:91-162
+  - docker-compose.yml:1
+  - docker-compose.prod.yml:1
+---
+
+# Installation
+
+This guide walks through the complete installation process for Home Security Intelligence.
+
+<!-- Nano Banana Pro Prompt:
+"Technical illustration of software installation process,
+terminal window with code and progress bars,
+dark background #121212, NVIDIA green #76B900 accent lighting,
+clean minimalist style, vertical 2:3 aspect ratio,
+no text overlays"
+-->
+
+---
+
+## Overview
+
+The installation consists of four steps:
+
+```mermaid
+flowchart TB
+    subgraph Step1["1. Clone Repository"]
+        CLONE[git clone]
+    end
+
+    subgraph Step2["2. Setup Environment"]
+        SETUP[setup-hooks.sh]
+        PYTHON[Python venv + deps]
+        NODE[Node.js deps]
+        HOOKS[Pre-commit hooks]
+        SETUP --> PYTHON --> NODE --> HOOKS
+    end
+
+    subgraph Step3["3. Download Models"]
+        MODELS[download_models.sh]
+        NEMOTRON[Nemotron 4B ~2.5GB]
+        RTDETR[RT-DETRv2 ~160MB]
+        MODELS --> NEMOTRON
+        MODELS --> RTDETR
+    end
+
+    subgraph Step4["4. Configure"]
+        ENV[.env file]
+        CAMERAS[Camera paths]
+    end
+
+    Step1 --> Step2 --> Step3 --> Step4
+
+    style Step1 fill:#3B82F6,color:#fff
+    style Step2 fill:#76B900,color:#fff
+    style Step3 fill:#76B900,color:#fff
+    style Step4 fill:#A855F7,color:#fff
+```
+
+---
+
+## Step 1: Clone the Repository
+
+```bash
+git clone https://github.com/your-org/home-security-intelligence.git
+cd home-security-intelligence
+```
+
+---
+
+## Step 2: Run Setup Script
+
+The setup script ([`scripts/setup-hooks.sh`](../../scripts/setup-hooks.sh:1)) automates environment configuration:
+
+```bash
+./scripts/setup-hooks.sh
+```
+
+### What It Does
+
+1. **Creates Python virtual environment** ([lines 26-51](../../scripts/setup-hooks.sh:26))
+
+   ```bash
+   # Creates .venv/ and installs backend dependencies
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -r backend/requirements.txt
+   pip install pre-commit ruff mypy
+   ```
+
+2. **Installs Node.js dependencies** ([lines 54-67](../../scripts/setup-hooks.sh:54))
+
+   ```bash
+   cd frontend && npm install
+   ```
+
+3. **Configures pre-commit hooks** ([lines 71-82](../../scripts/setup-hooks.sh:71))
+
+   ```bash
+   pre-commit install
+   pre-commit install --hook-type commit-msg
+   ```
+
+### Expected Output
+
+```
+Setting up Python environment...
+Creating Python virtual environment...
+Installing backend dependencies...
+✓ Python environment ready
+
+Setting up Node.js environment...
+Installing frontend dependencies...
+✓ Node.js environment ready
+
+Setting up pre-commit hooks...
+✓ Pre-commit hooks installed
+
+Setup complete!
+```
+
+---
+
+## Step 3: Download AI Models
+
+The model download script ([`ai/download_models.sh`](../../ai/download_models.sh:1)) fetches the required AI models:
+
+```bash
+./ai/download_models.sh
+```
+
+### Models Downloaded
+
+| Model                | Size   | Purpose           | Location                                                       |
+| -------------------- | ------ | ----------------- | -------------------------------------------------------------- |
+| **Nemotron Mini 4B** | ~2.5GB | Risk analysis LLM | `ai/nemotron/` ([lines 19-87](../../ai/download_models.sh:19)) |
+| **RT-DETRv2**        | ~160MB | Object detection  | `ai/rtdetr/` ([lines 91-162](../../ai/download_models.sh:91))  |
+
+### Using Pre-downloaded Models
+
+If you have models cached locally (e.g., on a shared network drive), you can skip the download:
+
+```bash
+# For Nemotron (GGUF format)
+export NEMOTRON_GGUF_PATH=/path/to/nemotron-mini-4b-instruct-q4_k_m.gguf
+
+# For RT-DETRv2 (ONNX format)
+export RTDETR_ONNX_PATH=/path/to/rtdetrv2_r50vd.onnx
+
+# Then run the script
+./ai/download_models.sh
+```
+
+The script will copy from your local path instead of downloading.
+
+### Model Search Paths
+
+The script automatically searches these locations for existing models:
+
+```bash
+# Nemotron search paths
+/export/ai_models/nemotron
+/export/ai_models/weights
+/export/ai_models/cache
+
+# RT-DETRv2 search paths
+/export/ai_models/rt-detrv2
+/export/ai_models/rt-detrv2/weights
+/export/ai_models/rt-detrv2/optimized
+```
+
+---
+
+## Step 4: Configure Environment
+
+### Create Environment File
+
+Copy the example environment file:
+
+```bash
+cp .env.example .env
+```
+
+### Required Configuration
+
+Edit `.env` with your settings:
+
+```bash
+# Database (usually no changes needed)
+DATABASE_URL=postgresql+asyncpg://security:security_dev_password@postgres:5432/security
+REDIS_URL=redis://redis:6379
+
+# AI Services (adjust if AI servers run on different host)
+RTDETR_URL=http://host.docker.internal:8090
+NEMOTRON_URL=http://host.docker.internal:8091
+
+# Camera Upload Directory
+FOSCAM_BASE_PATH=/export/foscam
+```
+
+### Platform-Specific Configuration
+
+#### macOS with Podman
+
+```bash
+# Set AI host for container-to-host communication
+export AI_HOST=host.containers.internal
+```
+
+#### Linux
+
+```bash
+# Use your host's IP address
+export AI_HOST=192.168.1.100  # Replace with your IP
+```
+
+### Configure Camera Paths
+
+Mount your camera upload directory. Edit `docker-compose.prod.yml` or set the environment variable:
+
+```bash
+# In .env or shell
+export CAMERA_PATH=/path/to/your/camera/uploads
+```
+
+The directory structure should be:
+
+```
+/path/to/camera/uploads/
+├── front_door/
+│   └── ... (FTP uploaded images)
+├── back_yard/
+│   └── ...
+└── garage/
+    └── ...
+```
+
+---
+
+## Verify Installation
+
+After completing all steps, verify the installation:
+
+```bash
+# Check Python environment
+source .venv/bin/activate
+python --version
+pip list | grep -E "(fastapi|sqlalchemy|redis)"
+
+# Check Node environment
+cd frontend && npm list --depth=0
+
+# Check models exist
+ls -la ai/nemotron/*.gguf
+ls -la ai/rtdetr/*.onnx
+
+# Check Podman
+podman --version
+podman-compose --version
+```
+
+---
+
+## Troubleshooting
+
+### Setup script fails
+
+```bash
+# Ensure Python 3.14+ is available
+python3 --version
+
+# Try with explicit Python version
+python3.14 -m venv .venv
+```
+
+### Model download fails
+
+```bash
+# Check network connectivity
+curl -I https://huggingface.co
+
+# Use pre-downloaded models (see Step 3)
+export NEMOTRON_GGUF_PATH=/your/local/model.gguf
+```
+
+### Node.js dependency issues
+
+```bash
+# Clear npm cache and retry
+cd frontend
+rm -rf node_modules package-lock.json
+npm install
+```
+
+---
+
+## Next Steps
+
+Installation complete. Proceed to:
+
+**[First Run](first-run.md)** - Start the system and verify everything works.

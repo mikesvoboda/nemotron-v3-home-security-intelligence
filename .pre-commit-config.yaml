@@ -106,10 +106,19 @@ repos:
       - id: fast-test
         name: Quick Backend Tests (Unit Only)
         # -n0 disables xdist parallelization (avoids scheduler race conditions)
-        entry: bash -c 'redis-cli -n 15 FLUSHDB > /dev/null 2>&1; source .venv/bin/activate && pytest backend/tests/unit/ -m "not slow" -q --tb=no -x -n0'
+        # Excludes slow and integration tests (integration tests require real database)
+        entry: bash -c 'redis-cli -n 15 FLUSHDB > /dev/null 2>&1; source .venv/bin/activate && pytest backend/tests/unit/ -m "not slow and not integration" -q --tb=no -x -n0'
         language: system
         pass_filenames: false
         stages: [pre-push] # Changed from pre-commit to pre-push for faster commits
+
+      - id: api-types-contract
+        name: API Types Contract Check
+        entry: bash -c './scripts/generate-types.sh --check'
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
 
       - id: check-test-mocks
         name: Check integration tests mock slow services

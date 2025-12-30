@@ -236,7 +236,7 @@ run_backend_validation() {
 
     # Run tests
     # Local validation uses 90% combined coverage (unit + integration)
-    # CI enforces stricter per-test-type thresholds: unit=93%, integration=50%
+    # CI enforces stricter per-test-type thresholds: unit=92%, integration=50%
     print_step "Running pytest (Tests & Coverage)..."
     if ! pytest "$PROJECT_ROOT/backend" --cov="$PROJECT_ROOT/backend" --cov-report=term-missing --cov-fail-under=90; then
         print_error "Backend tests failed or coverage below 90%"

@@ -101,12 +101,14 @@ Backend API --> JSON Exporter --> Prometheus --> Grafana
 ### Starting Monitoring Stack
 
 ```bash
-# With Docker Compose (if monitoring profile exists)
-docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+# With Podman Compose (this project uses Podman, not Docker)
+podman-compose -f docker-compose.prod.yml up -d
 
-# Or individual services
-docker compose up -d prometheus grafana json-exporter redis-exporter
+# Or individual services (if monitoring compose file exists)
+podman-compose -f docker-compose.monitoring.yml up -d prometheus grafana json-exporter redis-exporter
 ```
+
+Note: This project uses **Podman** for container management. Replace `docker` with `podman` and `docker compose` with `podman-compose` in all commands.
 
 ### Accessing Dashboards
 

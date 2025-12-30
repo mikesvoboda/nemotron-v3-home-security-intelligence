@@ -59,9 +59,9 @@ All buttons: `rounded-lg`, `px-4 py-2`, `font-medium`, `duration-250` transition
 
 | Class                | Color  | Risk Score Range |
 | -------------------- | ------ | ---------------- |
-| `.risk-badge-low`    | Green  | 0-25             |
-| `.risk-badge-medium` | Yellow | 26-50            |
-| `.risk-badge-high`   | Red    | 51-75            |
+| `.risk-badge-low`    | Green  | 0-29             |
+| `.risk-badge-medium` | Yellow | 30-59            |
+| `.risk-badge-high`   | Red    | 60-100           |
 
 Badge styling:
 
@@ -70,7 +70,7 @@ Badge styling:
 - 30% opacity border (`border-risk-{level}/30`)
 - `rounded-full`, `px-3 py-1`, `text-sm font-medium`
 
-**Note:** Critical risk level (76-100) should use `.risk-badge-high` or a custom class as `.risk-badge-critical` is not defined in the current CSS.
+**Note:** Critical risk level (85-100) uses the same `.risk-badge-high` styling. For visual distinction, RiskBadge component uses different colors for high vs critical programmatically.
 
 #### Input Styles
 

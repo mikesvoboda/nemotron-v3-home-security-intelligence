@@ -36,6 +36,10 @@ from backend.services.alert_engine import (
 )
 from backend.tests.conftest import unique_id
 
+# Mark as integration since these tests require real PostgreSQL database
+# NOTE: This file should be moved to backend/tests/integration/ in a future cleanup
+pytestmark = pytest.mark.integration
+
 # Note: The 'session' fixture is provided by conftest.py with transaction
 # rollback isolation for parallel test execution.
 
@@ -859,3 +863,581 @@ class TestCreateAlertsForEvent:
         assert alert.status == AlertStatus.PENDING
         assert alert.channels == ["pushover", "email"]
         assert "matched_conditions" in alert.alert_metadata
+
+
+class TestLoadEventDetections:
+    """Tests for loading detections from database when not provided."""
+
+    @pytest.mark.asyncio
+    async def test_load_detections_from_database(self, session, test_camera, engine):
+        """Test that detections are loaded from database when not provided (line 124)."""
+        # Create detections in the database
+        det1 = Detection(
+            camera_id=test_camera.id,
+            file_path="/export/foscam/front_door/image1.jpg",
+            detected_at=datetime.utcnow(),
+            object_type="person",
+            confidence=0.95,
+        )
+        det2 = Detection(
+            camera_id=test_camera.id,
+            file_path="/export/foscam/front_door/image2.jpg",
+            detected_at=datetime.utcnow(),
+            object_type="vehicle",
+            confidence=0.85,
+        )
+        session.add_all([det1, det2])
+        await session.flush()
+
+        # Create event with detection_ids pointing to these detections
+        import json
+
+        event = Event(
+            batch_id=unique_id("batch"),
+            camera_id=test_camera.id,
+            started_at=datetime.utcnow(),
+            risk_score=80,
+            detection_ids=json.dumps([det1.id, det2.id]),
+        )
+        session.add(event)
+        await session.flush()
+
+        rule = AlertRule(
+            name=unique_id("load_detections_alert"),
+            enabled=True,
+            object_types=["person"],
+        )
+        session.add(rule)
+        await session.flush()
+
+        # Call without providing detections - should load from DB
+        result = await engine.evaluate_event(event, detections=None)
+
+        our_triggered = _filter_triggered_rules_by_ids(result, [rule.id])
+        assert len(our_triggered) == 1
+        assert "object_type in ['person']" in our_triggered[0].matched_conditions
+
+    @pytest.mark.asyncio
+    async def test_load_detections_empty_detection_ids(self, session, test_camera, engine):
+        """Test loading detections when detection_ids is empty string (line 179)."""
+        event = Event(
+            batch_id=unique_id("batch"),
+            camera_id=test_camera.id,
+            started_at=datetime.utcnow(),
+            risk_score=80,
+            detection_ids="",  # Empty string
+        )
+        session.add(event)
+        await session.flush()
+
+        rule = AlertRule(
+            name=unique_id("empty_detections_alert"),
+            enabled=True,
+            object_types=["person"],  # Requires detections
+        )
+        session.add(rule)
+        await session.flush()
+
+        result = await engine.evaluate_event(event, detections=None)
+
+        # Should not trigger since no detections and object_types required
+        our_triggered = _filter_triggered_rules_by_ids(result, [rule.id])
+        assert len(our_triggered) == 0
+
+    @pytest.mark.asyncio
+    async def test_load_detections_invalid_json(self, session, test_camera, engine):
+        """Test loading detections with invalid JSON (lines 187-188)."""
+        event = Event(
+            batch_id=unique_id("batch"),
+            camera_id=test_camera.id,
+            started_at=datetime.utcnow(),
+            risk_score=80,
+            detection_ids="not valid json",  # Invalid JSON
+        )
+        session.add(event)
+        await session.flush()
+
+        rule = AlertRule(
+            name=unique_id("invalid_json_alert"),
+            enabled=True,
+            object_types=["person"],
+        )
+        session.add(rule)
+        await session.flush()
+
+        result = await engine.evaluate_event(event, detections=None)
+
+        # Should not trigger since JSON parsing fails
+        our_triggered = _filter_triggered_rules_by_ids(result, [rule.id])
+        assert len(our_triggered) == 0
+
+    @pytest.mark.asyncio
+    async def test_load_detections_not_list(self, session, test_camera, engine):
+        """Test loading detections when JSON is not a list (lines 185-186)."""
+        import json
+
+        event = Event(
+            batch_id=unique_id("batch"),
+            camera_id=test_camera.id,
+            started_at=datetime.utcnow(),
+            risk_score=80,
+            detection_ids=json.dumps({"id": 1}),  # Dict, not list
+        )
+        session.add(event)
+        await session.flush()
+
+        rule = AlertRule(
+            name=unique_id("not_list_alert"),
+            enabled=True,
+            object_types=["person"],
+        )
+        session.add(rule)
+        await session.flush()
+
+        result = await engine.evaluate_event(event, detections=None)
+
+        # Should not trigger since detection_ids is not a list
+        our_triggered = _filter_triggered_rules_by_ids(result, [rule.id])
+        assert len(our_triggered) == 0
+
+    @pytest.mark.asyncio
+    async def test_load_detections_empty_list(self, session, test_camera, engine):
+        """Test loading detections with empty list (lines 190-191)."""
+        import json
+
+        event = Event(
+            batch_id=unique_id("batch"),
+            camera_id=test_camera.id,
+            started_at=datetime.utcnow(),
+            risk_score=80,
+            detection_ids=json.dumps([]),  # Empty list
+        )
+        session.add(event)
+        await session.flush()
+
+        rule = AlertRule(
+            name=unique_id("empty_list_alert"),
+            enabled=True,
+            object_types=["person"],
+        )
+        session.add(rule)
+        await session.flush()
+
+        result = await engine.evaluate_event(event, detections=None)
+
+        # Should not trigger since no detections
+        our_triggered = _filter_triggered_rules_by_ids(result, [rule.id])
+        assert len(our_triggered) == 0
+
+
+class TestRuleEvaluationErrorHandling:
+    """Tests for error handling during rule evaluation."""
+
+    @pytest.mark.asyncio
+    async def test_evaluation_error_handling(self, session, test_event, engine):
+        """Test that errors during rule evaluation are caught (lines 160-162)."""
+        # Create a rule with a schedule that will cause an error
+        rule = AlertRule(
+            name=unique_id("error_rule"),
+            enabled=True,
+            risk_threshold=50,
+            # Schedule with None value for time that will cause AttributeError
+            schedule={
+                "start_time": None,
+                "end_time": None,
+            },
+        )
+        session.add(rule)
+        await session.flush()
+
+        # This should not raise an exception, but add to skipped_rules
+        result = await engine.evaluate_event(test_event, [])
+
+        # The rule should trigger since None times mean no time restriction
+        # (the _check_schedule returns True when times are None)
+        our_triggered = _filter_triggered_rules_by_ids(result, [rule.id])
+        assert len(our_triggered) == 1
+
+    @pytest.mark.asyncio
+    async def test_evaluation_exception_caught_and_logged(self, session, test_event, caplog):
+        """Test that exceptions during rule evaluation are caught and logged (lines 160-162)."""
+        import logging
+        from unittest.mock import AsyncMock, patch
+
+        rule = AlertRule(
+            name=unique_id("exception_rule"),
+            enabled=True,
+            risk_threshold=50,
+        )
+        session.add(rule)
+        await session.flush()
+
+        # Create an engine and mock _evaluate_rule to raise an exception
+        engine = AlertRuleEngine(session)
+
+        with patch.object(engine, "_evaluate_rule", new_callable=AsyncMock) as mock_evaluate:
+            mock_evaluate.side_effect = RuntimeError("Simulated evaluation error")
+
+            with caplog.at_level(logging.ERROR):
+                result = await engine.evaluate_event(test_event, [])
+
+            # Our rule should be in skipped_rules due to evaluation error
+            our_skipped = _filter_skipped_rules_by_ids(result, [rule.id])
+            assert len(our_skipped) == 1
+            assert "evaluation_error" in our_skipped[0][1]
+            assert "Simulated evaluation error" in our_skipped[0][1]
+
+            # Our rule should NOT be in triggered_rules
+            our_triggered = _filter_triggered_rules_by_ids(result, [rule.id])
+            assert len(our_triggered) == 0
+
+            # Check that error was logged
+            assert any("Error evaluating rule" in record.message for record in caplog.records)
+
+
+class TestZoneCondition:
+    """Tests for zone_ids condition."""
+
+    @pytest.mark.asyncio
+    async def test_zone_ids_logs_debug(self, session, test_event, engine, caplog):
+        """Test that zone_ids condition logs debug message (line 242)."""
+        import logging
+
+        rule = AlertRule(
+            name=unique_id("zone_alert"),
+            enabled=True,
+            zone_ids=["zone1", "zone2"],  # Zone matching not implemented
+        )
+        session.add(rule)
+        await session.flush()
+
+        with caplog.at_level(logging.DEBUG):
+            result = await engine.evaluate_event(test_event, [])
+
+        # Rule should still match (zone check is not blocking)
+        our_triggered = _filter_triggered_rules_by_ids(result, [rule.id])
+        assert len(our_triggered) == 1
+
+
+class TestObjectTypesEdgeCases:
+    """Tests for object_types condition edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_object_types_empty_detections(self, session, test_event, engine):
+        """Test that object_types returns False with empty detections (line 260)."""
+        rule = AlertRule(
+            name=unique_id("object_types_empty"),
+            enabled=True,
+            object_types=["person"],
+        )
+        session.add(rule)
+        await session.flush()
+
+        # Pass empty detections list
+        result = await engine.evaluate_event(test_event, [])
+
+        our_triggered = _filter_triggered_rules_by_ids(result, [rule.id])
+        assert len(our_triggered) == 0
+
+
+class TestMinConfidenceEdgeCases:
+    """Tests for min_confidence condition edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_min_confidence_empty_detections(self, session, test_event, engine):
+        """Test that min_confidence returns False with empty detections (line 271)."""
+        rule = AlertRule(
+            name=unique_id("min_confidence_empty"),
+            enabled=True,
+            min_confidence=0.5,
+        )
+        session.add(rule)
+        await session.flush()
+
+        # Pass empty detections list
+        result = await engine.evaluate_event(test_event, [])
+
+        our_triggered = _filter_triggered_rules_by_ids(result, [rule.id])
+        assert len(our_triggered) == 0
+
+
+class TestScheduleEdgeCases:
+    """Tests for schedule condition edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_schedule_empty_dict(self, session, test_event, engine):
+        """Test that empty schedule dict returns True (line 291-292)."""
+        rule = AlertRule(
+            name=unique_id("empty_schedule_alert"),
+            enabled=True,
+            schedule={},  # Empty dict - triggers `if not schedule` on line 291
+        )
+        session.add(rule)
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, [])
+
+        our_triggered = _filter_triggered_rules_by_ids(result, [rule.id])
+        assert len(our_triggered) == 1
+
+    @pytest.mark.asyncio
+    async def test_check_schedule_directly_with_falsy_value(self, session, engine):
+        """Test _check_schedule method directly with falsy schedule values (line 291-292)."""
+        from datetime import datetime
+
+        test_time = datetime(2025, 12, 28, 10, 0, 0)
+
+        # Test with empty dict (falsy)
+        result_empty_dict = engine._check_schedule({}, test_time)
+        assert result_empty_dict is True
+
+        # Test with None (if passed directly)
+        result_none = engine._check_schedule(None, test_time)
+        assert result_none is True
+
+    @pytest.mark.asyncio
+    async def test_schedule_invalid_timezone(self, session, test_event, engine, caplog):
+        """Test that invalid timezone falls back to UTC (lines 298-300)."""
+        import logging
+
+        test_time = datetime(2025, 12, 28, 10, 0, 0)
+
+        rule = AlertRule(
+            name=unique_id("invalid_tz_alert"),
+            enabled=True,
+            schedule={
+                "timezone": "Invalid/Timezone",  # Invalid timezone
+                "start_time": "09:00",
+                "end_time": "17:00",
+            },
+        )
+        session.add(rule)
+        await session.flush()
+
+        with caplog.at_level(logging.WARNING):
+            result = await engine.evaluate_event(test_event, [], current_time=test_time)
+
+        # Should still match using UTC fallback
+        our_triggered = _filter_triggered_rules_by_ids(result, [rule.id])
+        assert len(our_triggered) == 1
+
+        # Check that warning was logged
+        assert any("Invalid timezone" in record.message for record in caplog.records)
+
+    @pytest.mark.asyncio
+    async def test_schedule_normal_range_outside(self, session, test_event, engine):
+        """Test schedule with normal time range outside match (line 325)."""
+        # Test at 8:00 AM (should NOT match 09:00-17:00)
+        test_time = datetime(2025, 12, 28, 8, 0, 0)
+
+        rule = AlertRule(
+            name=unique_id("business_hours_outside"),
+            enabled=True,
+            schedule={
+                "start_time": "09:00",
+                "end_time": "17:00",
+                "timezone": "UTC",
+            },
+        )
+        session.add(rule)
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, [], current_time=test_time)
+
+        our_triggered = _filter_triggered_rules_by_ids(result, [rule.id])
+        assert len(our_triggered) == 0
+
+    @pytest.mark.asyncio
+    async def test_schedule_time_parsing_error(self, session, test_event, engine, caplog):
+        """Test schedule time parsing error handling (lines 329-331)."""
+        import logging
+
+        test_time = datetime(2025, 12, 28, 10, 0, 0)
+
+        rule = AlertRule(
+            name=unique_id("bad_time_format"),
+            enabled=True,
+            schedule={
+                "start_time": "invalid",  # Invalid time format
+                "end_time": "17:00",
+                "timezone": "UTC",
+            },
+        )
+        session.add(rule)
+        await session.flush()
+
+        with caplog.at_level(logging.WARNING):
+            result = await engine.evaluate_event(test_event, [], current_time=test_time)
+
+        # Should still match due to error handling (returns True on parse error)
+        our_triggered = _filter_triggered_rules_by_ids(result, [rule.id])
+        assert len(our_triggered) == 1
+
+        # Check that warning was logged
+        assert any("Error parsing schedule time" in record.message for record in caplog.records)
+
+
+class TestDedupKeyEdgeCases:
+    """Tests for dedup key generation edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_dedup_key_invalid_template_variable(
+        self, session, test_event, test_detections, engine, caplog
+    ):
+        """Test dedup key with invalid template variable (lines 366-368)."""
+        import logging
+
+        rule = AlertRule(
+            name=unique_id("invalid_dedup_template"),
+            enabled=True,
+            dedup_key_template="{camera_id}:{invalid_variable}",  # Invalid variable
+        )
+        session.add(rule)
+        await session.flush()
+
+        with caplog.at_level(logging.WARNING):
+            result = await engine.evaluate_event(test_event, test_detections)
+
+        our_triggered = _filter_triggered_rules_by_ids(result, [rule.id])
+        assert len(our_triggered) == 1
+
+        # Should fallback to default key format
+        expected_fallback = f"{test_event.camera_id}:{rule.id}"
+        assert our_triggered[0].dedup_key == expected_fallback
+
+        # Check that warning was logged
+        assert any("Invalid dedup_key_template" in record.message for record in caplog.records)
+
+    @pytest.mark.asyncio
+    async def test_dedup_key_no_detections(self, session, test_event, engine):
+        """Test dedup key when detections list is empty (uses 'unknown' for object_type)."""
+        rule = AlertRule(
+            name=unique_id("dedup_no_detections"),
+            enabled=True,
+            dedup_key_template="{camera_id}:{object_type}:{rule_id}",
+        )
+        session.add(rule)
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, [])
+
+        our_triggered = _filter_triggered_rules_by_ids(result, [rule.id])
+        assert len(our_triggered) == 1
+
+        # Should use 'unknown' for object_type
+        expected_key = f"{test_event.camera_id}:unknown:{rule.id}"
+        assert our_triggered[0].dedup_key == expected_key
+
+
+class TestGetAlertEngineFunction:
+    """Tests for the get_alert_engine convenience function."""
+
+    @pytest.mark.asyncio
+    async def test_get_alert_engine(self, session):
+        """Test the get_alert_engine convenience function (line 488)."""
+        from backend.services.alert_engine import get_alert_engine
+
+        engine = await get_alert_engine(session, redis_client=None)
+
+        assert isinstance(engine, AlertRuleEngine)
+        assert engine.session is session
+        assert engine.redis_client is None
+
+    @pytest.mark.asyncio
+    async def test_get_alert_engine_with_redis(self, session):
+        """Test get_alert_engine with redis client."""
+        from unittest.mock import MagicMock
+
+        from backend.services.alert_engine import get_alert_engine
+
+        mock_redis = MagicMock()
+        engine = await get_alert_engine(session, redis_client=mock_redis)
+
+        assert isinstance(engine, AlertRuleEngine)
+        assert engine.session is session
+        assert engine.redis_client is mock_redis
+
+
+class TestHighestSeverityTracking:
+    """Tests for highest severity tracking in evaluation results."""
+
+    @pytest.mark.asyncio
+    async def test_highest_severity_updates_correctly(self, session, test_event, engine):
+        """Test that highest_severity is tracked correctly across multiple rules."""
+        rule_low = AlertRule(
+            name=unique_id("low_severity"),
+            enabled=True,
+            risk_threshold=50,
+            severity=AlertSeverity.LOW,
+        )
+        rule_medium = AlertRule(
+            name=unique_id("medium_severity"),
+            enabled=True,
+            risk_threshold=60,
+            severity=AlertSeverity.MEDIUM,
+        )
+        rule_critical = AlertRule(
+            name=unique_id("critical_severity"),
+            enabled=True,
+            risk_threshold=70,
+            severity=AlertSeverity.CRITICAL,
+        )
+        session.add_all([rule_low, rule_medium, rule_critical])
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, [])
+
+        # All three rules should trigger
+        our_rule_ids = [rule_low.id, rule_medium.id, rule_critical.id]
+        our_triggered = _filter_triggered_rules_by_ids(result, our_rule_ids)
+        assert len(our_triggered) == 3
+
+        # Highest severity should be CRITICAL
+        # Note: result.highest_severity tracks the overall highest, not just our rules
+        triggered_severities = [tr.severity for tr in our_triggered]
+        assert AlertSeverity.CRITICAL in triggered_severities
+
+
+class TestCreateMultipleAlerts:
+    """Tests for creating multiple alerts."""
+
+    @pytest.mark.asyncio
+    async def test_create_multiple_alerts(self, session, test_event, engine):
+        """Test creating multiple alerts for multiple triggered rules."""
+        rule1 = AlertRule(
+            name=unique_id("multi_alert_1"),
+            enabled=True,
+            risk_threshold=50,
+            severity=AlertSeverity.LOW,
+            channels=["email"],
+        )
+        rule2 = AlertRule(
+            name=unique_id("multi_alert_2"),
+            enabled=True,
+            risk_threshold=60,
+            severity=AlertSeverity.HIGH,
+            channels=["pushover"],
+        )
+        session.add_all([rule1, rule2])
+        await session.flush()
+
+        result = await engine.evaluate_event(test_event, [])
+
+        our_rule_ids = [rule1.id, rule2.id]
+        our_triggered = _filter_triggered_rules_by_ids(result, our_rule_ids)
+        assert len(our_triggered) == 2
+
+        alerts = await engine.create_alerts_for_event(test_event, our_triggered)
+
+        assert len(alerts) == 2
+
+        # Verify alerts have correct properties
+        alert_rule_ids = {alert.rule_id for alert in alerts}
+        assert rule1.id in alert_rule_ids
+        assert rule2.id in alert_rule_ids
+
+        for alert in alerts:
+            assert alert.event_id == test_event.id
+            assert alert.status == AlertStatus.PENDING
+            assert "matched_conditions" in alert.alert_metadata
+            assert "rule_name" in alert.alert_metadata

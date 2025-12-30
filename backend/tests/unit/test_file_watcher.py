@@ -50,7 +50,7 @@ def file_watcher(temp_camera_root, mock_redis_client):
     watcher = FileWatcher(
         camera_root=str(temp_camera_root),
         redis_client=mock_redis_client,
-        debounce_delay=0.1,  # Shorter delay for tests
+        debounce_delay=0.01,  # Very short delay for fast tests (1s timeout)
     )
     return watcher
 
@@ -120,7 +120,7 @@ def test_is_valid_image_nonexistent():
 def test_file_watcher_initialization(file_watcher, temp_camera_root):
     """Test FileWatcher initializes with correct settings."""
     assert file_watcher.camera_root == str(temp_camera_root)
-    assert file_watcher.debounce_delay == 0.1
+    assert file_watcher.debounce_delay == 0.01  # Fast test fixture uses 0.01
     assert file_watcher.queue_name == "detection_queue"
     assert file_watcher.observer is not None
     assert file_watcher.running is False
@@ -353,7 +353,7 @@ async def test_debounce_multiple_events(file_watcher, temp_camera_root, mock_red
     await file_watcher._schedule_file_processing(str(image_path))
 
     # Wait for debounce delay + processing
-    await asyncio.sleep(file_watcher.debounce_delay + 0.1)
+    await asyncio.sleep(file_watcher.debounce_delay + 0.05)
 
     # Should only process once
     assert mock_redis_client.add_to_queue_safe.await_count == 1
@@ -378,7 +378,7 @@ async def test_debounce_different_files(file_watcher, temp_camera_root, mock_red
     await file_watcher._schedule_file_processing(str(image2))
 
     # Wait for debounce delay + processing
-    await asyncio.sleep(file_watcher.debounce_delay + 0.1)
+    await asyncio.sleep(file_watcher.debounce_delay + 0.05)
 
     # Should process both files
     assert mock_redis_client.add_to_queue_safe.await_count == 2
@@ -436,7 +436,7 @@ async def test_stop_watcher_cancels_pending_tasks(file_watcher, temp_camera_root
         await file_watcher.stop()
 
     # Wait a bit to ensure task was cancelled
-    await asyncio.sleep(0.2)
+    await asyncio.sleep(0.05)
 
     # Task should be cancelled, no processing should occur
     assert file_watcher.running is False
@@ -543,7 +543,7 @@ async def test_full_workflow(file_watcher, temp_camera_root, mock_redis_client):
         await file_watcher._schedule_file_processing(str(image_path))
 
         # Wait for debounce + processing
-        await asyncio.sleep(file_watcher.debounce_delay + 0.2)
+        await asyncio.sleep(file_watcher.debounce_delay + 0.05)
 
         # Verify queue was called at least once (watchdog may trigger it too)
         assert mock_redis_client.add_to_queue_safe.await_count >= 1
@@ -1171,3 +1171,163 @@ async def test_queue_success_no_backpressure(temp_camera_root, mock_redis_client
 
     # Verify no backpressure warning was logged
     assert not any("backpressure" in record.message.lower() for record in caplog.records)
+
+
+# Polling observer configuration tests
+
+
+def test_file_watcher_uses_native_observer_by_default(temp_camera_root, mock_redis_client):
+    """Test FileWatcher uses native Observer by default."""
+    from watchdog.observers import Observer
+
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        debounce_delay=0.1,
+    )
+
+    assert watcher._use_polling is False
+    assert isinstance(watcher.observer, Observer)
+
+
+def test_file_watcher_uses_polling_observer_when_enabled(temp_camera_root, mock_redis_client):
+    """Test FileWatcher uses PollingObserver when use_polling=True."""
+    from watchdog.observers.polling import PollingObserver
+
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        debounce_delay=0.1,
+        use_polling=True,
+    )
+
+    assert watcher._use_polling is True
+    assert isinstance(watcher.observer, PollingObserver)
+
+
+def test_file_watcher_polling_interval_default(temp_camera_root, mock_redis_client):
+    """Test FileWatcher uses default polling interval from settings."""
+    from backend.core.config import get_settings
+
+    settings = get_settings()
+
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        debounce_delay=0.1,
+        use_polling=True,
+    )
+
+    # Default polling interval from settings
+    assert watcher._polling_interval == settings.file_watcher_polling_interval
+
+
+def test_file_watcher_polling_interval_custom(temp_camera_root, mock_redis_client):
+    """Test FileWatcher uses custom polling interval."""
+    from watchdog.observers.polling import PollingObserver
+
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        debounce_delay=0.1,
+        use_polling=True,
+        polling_interval=5.0,
+    )
+
+    assert watcher._use_polling is True
+    assert watcher._polling_interval == 5.0
+    assert isinstance(watcher.observer, PollingObserver)
+
+
+def test_file_watcher_polling_from_settings(temp_camera_root, mock_redis_client, monkeypatch):
+    """Test FileWatcher reads polling config from settings when not explicitly set."""
+    from watchdog.observers.polling import PollingObserver
+
+    # Mock settings to enable polling
+    from backend.core import config
+
+    # Clear the settings cache to pick up new values
+    config.get_settings.cache_clear()
+
+    # Set environment variables for polling
+    monkeypatch.setenv("FILE_WATCHER_POLLING", "true")
+    monkeypatch.setenv("FILE_WATCHER_POLLING_INTERVAL", "2.5")
+
+    try:
+        watcher = FileWatcher(
+            camera_root=str(temp_camera_root),
+            redis_client=mock_redis_client,
+            debounce_delay=0.1,
+            # Don't pass use_polling - should read from settings
+        )
+
+        assert watcher._use_polling is True
+        assert watcher._polling_interval == 2.5
+        assert isinstance(watcher.observer, PollingObserver)
+    finally:
+        # Clear cache to restore default settings for other tests
+        config.get_settings.cache_clear()
+
+
+def test_file_watcher_explicit_polling_overrides_settings(
+    temp_camera_root, mock_redis_client, monkeypatch
+):
+    """Test explicit use_polling parameter overrides settings."""
+    from watchdog.observers import Observer
+
+    from backend.core import config
+
+    # Clear the settings cache
+    config.get_settings.cache_clear()
+
+    # Set environment variable to enable polling in settings
+    monkeypatch.setenv("FILE_WATCHER_POLLING", "true")
+
+    try:
+        # Explicitly disable polling via parameter
+        watcher = FileWatcher(
+            camera_root=str(temp_camera_root),
+            redis_client=mock_redis_client,
+            debounce_delay=0.1,
+            use_polling=False,  # Explicit override
+        )
+
+        # Should use native observer despite settings
+        assert watcher._use_polling is False
+        assert isinstance(watcher.observer, Observer)
+    finally:
+        config.get_settings.cache_clear()
+
+
+def test_file_watcher_logs_observer_type_native(temp_camera_root, mock_redis_client, caplog):
+    """Test FileWatcher logs native observer type on initialization."""
+    import logging
+
+    with caplog.at_level(logging.INFO):
+        FileWatcher(
+            camera_root=str(temp_camera_root),
+            redis_client=mock_redis_client,
+            debounce_delay=0.1,
+            use_polling=False,
+        )
+
+    # Should log native observer
+    assert any("observer=native" in record.message for record in caplog.records)
+
+
+def test_file_watcher_logs_observer_type_polling(temp_camera_root, mock_redis_client, caplog):
+    """Test FileWatcher logs polling observer type on initialization."""
+    import logging
+
+    with caplog.at_level(logging.INFO):
+        FileWatcher(
+            camera_root=str(temp_camera_root),
+            redis_client=mock_redis_client,
+            debounce_delay=0.1,
+            use_polling=True,
+            polling_interval=2.0,
+        )
+
+    # Should log polling observer with interval
+    log_messages = [record.message for record in caplog.records]
+    assert any("observer=polling" in msg and "interval=2.0s" in msg for msg in log_messages)

@@ -6,7 +6,7 @@ describe('time utilities', () => {
   const BASE_TIME = new Date('2024-01-15T10:00:00Z').getTime();
 
   beforeEach(() => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.setSystemTime(BASE_TIME);
   });
 

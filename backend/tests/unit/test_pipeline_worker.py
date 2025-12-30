@@ -97,6 +97,14 @@ def mock_redis_client():
     mock_client.connect = AsyncMock()
     mock_client.disconnect = AsyncMock()
 
+    # Mock add_to_queue_safe for close_batch (returns QueueResult-like object)
+    queue_result_mock = MagicMock()
+    queue_result_mock.success = True
+    queue_result_mock.had_backpressure = False
+    queue_result_mock.queue_length = 0
+    queue_result_mock.error = None
+    mock_client.add_to_queue_safe = AsyncMock(return_value=queue_result_mock)
+
     return mock_client
 
 
@@ -261,7 +269,7 @@ class TestQueueConsumerLoop:
             elif key == f"batch:{batch_id}:camera_id":
                 return camera_id
             elif key == f"batch:{batch_id}:detections":
-                return json.dumps(["det_1"])
+                return json.dumps([1])  # Use numeric detection ID
             return None
 
         mock_redis_client.get.side_effect = mock_get

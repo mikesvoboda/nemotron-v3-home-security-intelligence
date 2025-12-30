@@ -1121,6 +1121,7 @@ async def test_get_gpu_stats_with_data() -> None:
     mock_gpu_stat.memory_used = 12000
     mock_gpu_stat.memory_total = 24000
     mock_gpu_stat.temperature = 65.0
+    mock_gpu_stat.power_usage = 150.0
     mock_gpu_stat.inference_fps = 30.5
 
     mock_result = MagicMock()
@@ -1135,6 +1136,7 @@ async def test_get_gpu_stats_with_data() -> None:
     assert response.memory_used == 12000
     assert response.memory_total == 24000
     assert response.temperature == 65.0
+    assert response.power_usage == 150.0
     assert response.inference_fps == 30.5
 
 
@@ -1174,6 +1176,7 @@ async def test_get_gpu_stats_history_returns_samples() -> None:
     mock_stat1.memory_used = 8000
     mock_stat1.memory_total = 24000
     mock_stat1.temperature = 55.0
+    mock_stat1.power_usage = 120.0
     mock_stat1.inference_fps = 25.0
 
     mock_stat2 = MagicMock()
@@ -1183,6 +1186,7 @@ async def test_get_gpu_stats_history_returns_samples() -> None:
     mock_stat2.memory_used = 12000
     mock_stat2.memory_total = 24000
     mock_stat2.temperature = 65.0
+    mock_stat2.power_usage = 150.0
     mock_stat2.inference_fps = 30.0
 
     mock_result = MagicMock()
@@ -1215,6 +1219,7 @@ async def test_get_gpu_stats_history_with_since_filter() -> None:
     mock_stat.memory_used = 12000
     mock_stat.memory_total = 24000
     mock_stat.temperature = 65.0
+    mock_stat.power_usage = 150.0
     mock_stat.inference_fps = 30.0
 
     mock_result = MagicMock()

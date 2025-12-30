@@ -441,7 +441,10 @@ class BatchAggregator:
                     f"batch:{batch_id}:last_activity",
                 )
 
-                logger.debug(f"Cleaned up Redis keys for batch {batch_id}")
+                logger.debug(
+                    f"Cleaned up Redis keys for batch {batch_id}",
+                    extra={"camera_id": camera_id, "batch_id": batch_id},
+                )
 
                 return summary
 

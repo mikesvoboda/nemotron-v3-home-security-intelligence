@@ -1,3 +1,12 @@
+---
+title: Using the Dashboard
+description: Complete guide to all dashboard features
+---
+
+<!-- Nano Banana Pro Prompt:
+"Dark mode security dashboard tutorial showing annotated UI elements with callout arrows pointing to key features (risk gauge, camera grid, activity feed, GPU stats), numbered steps overlay, NVIDIA dark theme #121212 background with #76B900 green highlights on interactive elements, instructional guide style, vertical 2:3 aspect ratio, no text overlays"
+-->
+
 # Using the Dashboard
 
 Welcome to your Home Security Intelligence dashboard. This guide will walk you through every feature of the system so you can easily monitor your home's security.

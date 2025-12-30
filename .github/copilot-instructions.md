@@ -8,7 +8,7 @@ detects objects using RT-DETRv2, and analyzes security risks using Nemotron LLM.
 ### Backend (Python 3.11)
 
 - **Framework**: FastAPI with async/await patterns
-- **Database**: SQLAlchemy ORM with SQLite
+- **Database**: SQLAlchemy ORM with PostgreSQL
 - **Cache/Queue**: Redis for real-time messaging
 - **Validation**: Pydantic schemas for all API inputs/outputs
 
@@ -102,4 +102,4 @@ export function EventCard({ event, onSelect }: EventCardProps) {
 - Authentication/authorization code (single-user local deployment)
 - Cloud service integrations (fully self-hosted)
 - Alternative ML frameworks (committed to RT-DETRv2 + Nemotron)
-- Database migrations for SQLite (simple schema evolution)
+- Manual database migrations (use Alembic for schema changes)

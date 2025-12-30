@@ -1,7 +1,9 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, expect, it, vi, beforeEach, Mock } from 'vitest';
 
 import Layout from './Layout';
+import { useServiceStatus } from '../../hooks/useServiceStatus';
+import { ServiceName, ServiceStatus } from '../common/ServiceStatusAlert';
 
 // Mock the child components
 vi.mock('./Header', () => ({
@@ -12,7 +14,54 @@ vi.mock('./Sidebar', () => ({
   default: () => <div data-testid="mock-sidebar">Sidebar</div>,
 }));
 
+// Mock the useServiceStatus hook
+vi.mock('../../hooks/useServiceStatus', () => ({
+  useServiceStatus: vi.fn(),
+}));
+
+// Helper to create service status
+function createServiceStatus(
+  service: ServiceName,
+  status: ServiceStatus['status'],
+  message?: string
+): ServiceStatus {
+  return {
+    service,
+    status,
+    message,
+    timestamp: '2025-12-26T12:00:00Z',
+  };
+}
+
+// Helper to create empty services record
+function createEmptyServices(): Record<ServiceName, ServiceStatus | null> {
+  return {
+    redis: null,
+    rtdetr: null,
+    nemotron: null,
+  };
+}
+
+// Helper to create healthy services
+function createHealthyServices(): Record<ServiceName, ServiceStatus | null> {
+  return {
+    redis: createServiceStatus('redis', 'healthy'),
+    rtdetr: createServiceStatus('rtdetr', 'healthy'),
+    nemotron: createServiceStatus('nemotron', 'healthy'),
+  };
+}
+
 describe('Layout', () => {
+  beforeEach(() => {
+    // Reset mock to return empty/healthy services by default
+    (useServiceStatus as Mock).mockReturnValue({
+      services: createEmptyServices(),
+      hasUnhealthy: false,
+      isAnyRestarting: false,
+      getServiceStatus: () => null,
+    });
+  });
+
   it('renders without crashing', () => {
     render(
       <Layout>
@@ -82,5 +131,198 @@ describe('Layout', () => {
     expect(screen.getByTestId('child-1')).toBeInTheDocument();
     expect(screen.getByTestId('child-2')).toBeInTheDocument();
     expect(screen.getByTestId('child-3')).toBeInTheDocument();
+  });
+
+  describe('ServiceStatusAlert integration', () => {
+    it('does not show alert when all services are null', () => {
+      (useServiceStatus as Mock).mockReturnValue({
+        services: createEmptyServices(),
+        hasUnhealthy: false,
+        isAnyRestarting: false,
+        getServiceStatus: () => null,
+      });
+
+      render(
+        <Layout>
+          <div>Test Content</div>
+        </Layout>
+      );
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('does not show alert when all services are healthy', () => {
+      (useServiceStatus as Mock).mockReturnValue({
+        services: createHealthyServices(),
+        hasUnhealthy: false,
+        isAnyRestarting: false,
+        getServiceStatus: (name: ServiceName) => createHealthyServices()[name],
+      });
+
+      render(
+        <Layout>
+          <div>Test Content</div>
+        </Layout>
+      );
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('shows alert when a service is unhealthy', () => {
+      const services: Record<ServiceName, ServiceStatus | null> = {
+        redis: null,
+        rtdetr: createServiceStatus('rtdetr', 'unhealthy'),
+        nemotron: null,
+      };
+
+      (useServiceStatus as Mock).mockReturnValue({
+        services,
+        hasUnhealthy: true,
+        isAnyRestarting: false,
+        getServiceStatus: (name: ServiceName) => services[name],
+      });
+
+      render(
+        <Layout>
+          <div>Test Content</div>
+        </Layout>
+      );
+
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+      expect(screen.getByText('Service Unhealthy')).toBeInTheDocument();
+      expect(screen.getByText('RT-DETRv2')).toBeInTheDocument();
+    });
+
+    it('shows alert when a service is restarting', () => {
+      const services: Record<ServiceName, ServiceStatus | null> = {
+        redis: null,
+        rtdetr: null,
+        nemotron: createServiceStatus('nemotron', 'restarting', 'Attempting restart'),
+      };
+
+      (useServiceStatus as Mock).mockReturnValue({
+        services,
+        hasUnhealthy: false,
+        isAnyRestarting: true,
+        getServiceStatus: (name: ServiceName) => services[name],
+      });
+
+      render(
+        <Layout>
+          <div>Test Content</div>
+        </Layout>
+      );
+
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+      expect(screen.getByText('Service Restarting')).toBeInTheDocument();
+    });
+
+    it('shows alert when a service has failed', () => {
+      const services: Record<ServiceName, ServiceStatus | null> = {
+        redis: createServiceStatus('redis', 'failed'),
+        rtdetr: null,
+        nemotron: null,
+      };
+
+      (useServiceStatus as Mock).mockReturnValue({
+        services,
+        hasUnhealthy: true,
+        isAnyRestarting: false,
+        getServiceStatus: (name: ServiceName) => services[name],
+      });
+
+      render(
+        <Layout>
+          <div>Test Content</div>
+        </Layout>
+      );
+
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+      expect(screen.getByText('Service Failed')).toBeInTheDocument();
+    });
+
+    it('dismisses alert when dismiss button is clicked', () => {
+      const services: Record<ServiceName, ServiceStatus | null> = {
+        redis: null,
+        rtdetr: createServiceStatus('rtdetr', 'unhealthy'),
+        nemotron: null,
+      };
+
+      (useServiceStatus as Mock).mockReturnValue({
+        services,
+        hasUnhealthy: true,
+        isAnyRestarting: false,
+        getServiceStatus: (name: ServiceName) => services[name],
+      });
+
+      render(
+        <Layout>
+          <div>Test Content</div>
+        </Layout>
+      );
+
+      // Alert should be visible
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+
+      // Click dismiss button
+      fireEvent.click(screen.getByLabelText('Dismiss alert'));
+
+      // Alert should be hidden
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('renders alert before children content', () => {
+      const services: Record<ServiceName, ServiceStatus | null> = {
+        redis: null,
+        rtdetr: createServiceStatus('rtdetr', 'unhealthy'),
+        nemotron: null,
+      };
+
+      (useServiceStatus as Mock).mockReturnValue({
+        services,
+        hasUnhealthy: true,
+        isAnyRestarting: false,
+        getServiceStatus: (name: ServiceName) => services[name],
+      });
+
+      render(
+        <Layout>
+          <div data-testid="test-child">Test Content</div>
+        </Layout>
+      );
+
+      const main = screen.getByRole('main');
+      const alert = screen.getByRole('alert');
+      const child = screen.getByTestId('test-child');
+
+      // Alert should come before children in the DOM
+      expect(main.firstChild).toBe(alert);
+      expect(main.contains(child)).toBe(true);
+    });
+
+    it('shows worst status when multiple services are unhealthy', () => {
+      const services: Record<ServiceName, ServiceStatus | null> = {
+        redis: createServiceStatus('redis', 'unhealthy'),
+        rtdetr: createServiceStatus('rtdetr', 'failed'),
+        nemotron: createServiceStatus('nemotron', 'restarting'),
+      };
+
+      (useServiceStatus as Mock).mockReturnValue({
+        services,
+        hasUnhealthy: true,
+        isAnyRestarting: true,
+        getServiceStatus: (name: ServiceName) => services[name],
+      });
+
+      render(
+        <Layout>
+          <div>Test Content</div>
+        </Layout>
+      );
+
+      // Should show 'Service Failed' as it's the worst status
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+      expect(screen.getByText('Service Failed')).toBeInTheDocument();
+    });
   });
 });

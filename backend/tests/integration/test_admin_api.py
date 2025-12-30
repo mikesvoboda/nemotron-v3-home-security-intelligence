@@ -20,7 +20,12 @@ from backend.models.event import Event
 # Mark all tests in this module for serial execution to avoid parallel conflicts
 # Admin seed tests use fixed camera IDs and DELETE operations that affect global state
 # Using xdist_group ensures all tests in this module run on the same worker sequentially
-pytestmark = [pytest.mark.serial, pytest.mark.xdist_group(name="admin_seed")]
+# Mark as integration since these tests require real database (integration_db fixture)
+pytestmark = [
+    pytest.mark.serial,
+    pytest.mark.xdist_group(name="admin_seed"),
+    pytest.mark.integration,
+]
 
 
 @pytest.fixture
@@ -201,7 +206,11 @@ async def test_seed_events_requires_debug_mode(client):
 @pytest.mark.asyncio
 async def test_clear_data_requires_debug_mode(client):
     """Test that clear data endpoint requires DEBUG=true."""
-    response = await client.delete("/api/admin/seed/clear")
+    response = await client.request(
+        "DELETE",
+        "/api/admin/seed/clear",
+        json={"confirm": "DELETE_ALL_DATA"},
+    )
 
     assert response.status_code == 403
     assert "DEBUG=true" in response.json()["detail"]
@@ -501,8 +510,12 @@ async def test_clear_data_success(debug_client, clean_seed_data):
     await debug_client.post("/api/admin/seed/cameras", json={"count": 4})
     await debug_client.post("/api/admin/seed/events", json={"count": 10})
 
-    # Clear all data with confirmation query parameter
-    response = await debug_client.delete("/api/admin/seed/clear?confirm=true")
+    # Clear all data with confirmation body
+    response = await debug_client.request(
+        "DELETE",
+        "/api/admin/seed/clear",
+        json={"confirm": "DELETE_ALL_DATA"},
+    )
 
     assert response.status_code == 200
     data = response.json()
@@ -520,7 +533,11 @@ async def test_clear_data_success(debug_client, clean_seed_data):
 async def test_clear_data_empty_database(debug_client, clean_seed_data):
     """Test clearing when database is already empty with confirmation."""
     # clean_seed_data ensures we start with an empty database
-    response = await debug_client.delete("/api/admin/seed/clear?confirm=true")
+    response = await debug_client.request(
+        "DELETE",
+        "/api/admin/seed/clear",
+        json={"confirm": "DELETE_ALL_DATA"},
+    )
 
     assert response.status_code == 200
     data = response.json()
@@ -536,8 +553,12 @@ async def test_clear_data_requires_confirmation(debug_client, clean_seed_data):
     # Seed some data first
     await debug_client.post("/api/admin/seed/cameras", json={"count": 2})
 
-    # Try to clear without confirmation (confirm=false)
-    response = await debug_client.delete("/api/admin/seed/clear?confirm=false")
+    # Try to clear with wrong confirmation string
+    response = await debug_client.request(
+        "DELETE",
+        "/api/admin/seed/clear",
+        json={"confirm": "wrong_string"},
+    )
 
     assert response.status_code == 400
     assert "Confirmation required" in response.json()["detail"]
@@ -550,16 +571,19 @@ async def test_clear_data_requires_confirmation(debug_client, clean_seed_data):
 @pytest.mark.asyncio
 @pytest.mark.slow
 async def test_clear_data_missing_confirmation(debug_client, clean_seed_data):
-    """Test that clear data returns 400 when confirm parameter is not provided."""
+    """Test that clear data returns 422 when confirm field is not provided."""
     # Seed some data first
     await debug_client.post("/api/admin/seed/cameras", json={"count": 2})
 
-    # Try to clear without providing confirm parameter
-    # Default is False, so should return 400
-    response = await debug_client.delete("/api/admin/seed/clear")
+    # Try to clear without providing confirm field in body
+    response = await debug_client.request(
+        "DELETE",
+        "/api/admin/seed/clear",
+        json={},
+    )
 
-    assert response.status_code == 400
-    assert "Confirmation required" in response.json()["detail"]
+    # Missing required field returns 422 Unprocessable Entity
+    assert response.status_code == 422
 
     # Verify data is NOT deleted
     cameras_response = await debug_client.get("/api/cameras")
@@ -631,7 +655,11 @@ async def test_full_seed_workflow(debug_client, clean_seed_data):
         assert len(detections) > 0
 
     # Step 4: Clear all data
-    clear_response = await debug_client.delete("/api/admin/seed/clear?confirm=true")
+    clear_response = await debug_client.request(
+        "DELETE",
+        "/api/admin/seed/clear",
+        json={"confirm": "DELETE_ALL_DATA"},
+    )
     assert clear_response.status_code == 200
 
     # Step 5: Verify data is cleared

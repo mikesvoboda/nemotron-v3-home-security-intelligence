@@ -11,6 +11,8 @@ describe('useSystemStatus', () => {
     send: vi.fn(),
     connect: vi.fn(),
     disconnect: vi.fn(),
+    hasExhaustedRetries: false,
+    reconnectCount: 0,
   };
 
   let onMessageCallback: ((data: unknown) => void) | undefined;
@@ -518,6 +520,8 @@ describe('useSystemStatus', () => {
       send: vi.fn(),
       connect: vi.fn(),
       disconnect: vi.fn(),
+      hasExhaustedRetries: false,
+      reconnectCount: 0,
     };
 
     vi.spyOn(useWebSocketModule, 'useWebSocket').mockImplementation((options) => {

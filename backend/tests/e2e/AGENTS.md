@@ -1,12 +1,10 @@
-# End-to-End (E2E) Pipeline Integration Tests
+# End-to-End (E2E) Tests Directory
 
 ## Purpose
 
-This directory contains comprehensive end-to-end tests for the complete AI pipeline, validating the integration of all major components from file detection through event creation and WebSocket broadcasting. E2E tests use real business logic and database operations while mocking only external AI services.
+End-to-end tests validate the complete AI pipeline from file detection through event creation and WebSocket broadcasting. These tests use real business logic and database operations while mocking only external AI services (RT-DETRv2, Nemotron).
 
-## Overview
-
-The E2E tests validate the full pipeline flow:
+## Pipeline Flow Tested
 
 ```
 File Upload -> Detection -> Batching -> Analysis -> Event Creation -> WebSocket Broadcast
@@ -15,55 +13,38 @@ File Upload -> Detection -> Batching -> Analysis -> Event Creation -> WebSocket 
 
 1. **File Detection**: Image/video file appears in camera folder
 2. **RT-DETRv2 Detection**: Object detection service processes image
-3. **Batch Aggregation**: Detections are grouped into time-based batches
+3. **Batch Aggregation**: Detections grouped into time-based batches
 4. **Nemotron Analysis**: LLM analyzes batch and generates risk assessment
-5. **Event Creation**: Event record is created in database
-6. **WebSocket Broadcast**: Event is broadcast to connected clients
+5. **Event Creation**: Event record created in database
+6. **WebSocket Broadcast**: Event broadcast to connected clients
 
-## Test Files
+## Running Tests
 
-| File                           | Description                            |
-| ------------------------------ | -------------------------------------- |
-| `conftest.py`                  | E2E-specific fixtures (integration_db) |
-| `test_pipeline_integration.py` | Comprehensive E2E pipeline tests       |
-| `README.md`                    | Additional E2E documentation           |
-| `TEST_SUMMARY.md`              | Test execution summary                 |
+```bash
+# All E2E tests
+pytest backend/tests/e2e/ -v
 
-### `conftest.py`
+# With E2E marker
+pytest backend/tests/e2e/ -v -m e2e
 
-E2E-specific fixtures for pipeline tests.
+# Specific test file
+pytest backend/tests/e2e/test_pipeline_integration.py -v
 
-**Fixtures:**
+# GPU tests (requires running AI services)
+pytest backend/tests/e2e/test_gpu_pipeline.py -v -m gpu
 
-- `integration_db`: Creates isolated temporary SQLite database for E2E tests
-  - Sets DATABASE_URL and REDIS_URL environment variables
-  - Initializes database schema
-  - Cleans up after test completion
-  - Restores original environment state
+# With verbose debugging
+pytest backend/tests/e2e/ -vv -s --log-cli-level=DEBUG
 
-**Usage:**
-
-```python
-@pytest.mark.e2e
-@pytest.mark.asyncio
-async def test_pipeline_flow(integration_db):
-    # Test code with real database
-    pass
+# With coverage
+pytest backend/tests/e2e/ -v --cov=backend.services --cov-report=html
 ```
+
+## Test Files (2 total)
 
 ### `test_pipeline_integration.py`
 
-Comprehensive end-to-end pipeline tests covering the complete AI flow.
-
-**Test Fixtures:**
-
-- `test_camera`: Creates test camera in database
-- `test_image_path`: Generates valid test JPEG image (640x480)
-- `mock_redis_client`: In-memory Redis mock with all required methods
-- `mock_detector_response`: Mock RT-DETRv2 detection response (person, car)
-- `mock_nemotron_response`: Mock Nemotron LLM analysis response
-
-**Tests:**
+E2E pipeline tests with mocked AI services:
 
 | Test                                                | Description                                   |
 | --------------------------------------------------- | --------------------------------------------- |
@@ -76,114 +57,116 @@ Comprehensive end-to-end pipeline tests covering the complete AI flow.
 | `test_pipeline_event_relationships`                 | Database relationships                        |
 | `test_pipeline_cleanup_after_processing`            | Cleanup behavior verification                 |
 
-## Running E2E Tests
+### `test_gpu_pipeline.py`
 
-### Run all E2E tests
+GPU-specific tests with real or mocked AI services:
 
-```bash
-pytest backend/tests/e2e/test_pipeline_integration.py -v
-```
+| Test                                             | Description                          |
+| ------------------------------------------------ | ------------------------------------ |
+| `test_gpu_detector_client_health_check`          | RT-DETRv2 service health check       |
+| `test_gpu_nemotron_analyzer_health_check`        | Nemotron LLM service health check    |
+| `test_gpu_full_pipeline_with_real_services`      | Complete E2E with real AI services   |
+| `test_gpu_detector_client_inference_performance` | RT-DETRv2 performance measurement    |
+| `test_gpu_nemotron_analysis_performance`         | Nemotron LLM performance measurement |
+| `test_detector_client_integration_mocked`        | DetectorClient with mocked HTTP      |
+| `test_nemotron_analyzer_integration_mocked`      | NemotronAnalyzer with mocked HTTP    |
+| `test_full_pipeline_integration_mocked`          | Complete pipeline with mocks         |
+| `test_detector_unavailable_error_handling`       | Error handling for detector failures |
+| `test_nemotron_llm_failure_fallback`             | Fallback when LLM fails              |
+| `test_fast_path_analysis`                        | High-priority detection handling     |
+| `test_batch_aggregation_and_handoff`             | Batch to analyzer handoff            |
 
-### Run with E2E marker filter
+## Fixtures
 
-```bash
-pytest backend/tests/e2e/test_pipeline_integration.py -v -m e2e
+E2E tests use shared fixtures from `backend/tests/conftest.py`:
 
-# Or from anywhere:
-pytest -m e2e -v
-```
+| Fixture          | Description                            |
+| ---------------- | -------------------------------------- |
+| `integration_db` | PostgreSQL database via testcontainers |
+| `mock_redis`     | AsyncMock Redis client                 |
+| `client`         | httpx AsyncClient for API testing      |
 
-### Run specific test
+Test-specific fixtures in each file:
 
-```bash
-pytest backend/tests/e2e/test_pipeline_integration.py::test_complete_pipeline_flow_with_mocked_services -v
-```
+| Fixture                  | Description                               |
+| ------------------------ | ----------------------------------------- |
+| `test_camera`            | Creates test camera in database           |
+| `test_image_path`        | Generates valid test JPEG image           |
+| `mock_redis_client`      | In-memory Redis mock for batch operations |
+| `mock_detector_response` | Mock RT-DETRv2 detection response         |
+| `mock_nemotron_response` | Mock Nemotron LLM analysis response       |
+| `clean_pipeline`         | Truncates all tables before test          |
 
-### Run from project root
+## Mocking Strategy
 
-```bash
-# All E2E tests
-pytest backend/tests/e2e/ -v
-
-# With marker
-pytest -m e2e -v
-```
-
-### Run with verbose debugging
-
-```bash
-pytest backend/tests/e2e/ -vv -s --log-cli-level=DEBUG
-```
-
-### Run with coverage
-
-```bash
-pytest backend/tests/e2e/ -v --cov=backend.services --cov-report=html
-```
-
-## Test Architecture
-
-### Mocking Strategy
-
-The E2E tests use **targeted mocking** to isolate external dependencies while testing real integration logic:
-
-#### Mocked Components
+### Mocked Components
 
 - **RT-DETRv2 HTTP service**: `httpx.AsyncClient` for detector requests
-  - Mocked to avoid requiring actual RT-DETRv2 server
-  - Returns realistic detection responses
 - **Nemotron LLM HTTP service**: `httpx.AsyncClient` for LLM requests
-  - Mocked to avoid requiring actual Nemotron server
-  - Returns realistic risk analysis responses
-- **Redis**: In-memory mock for queue and cache operations
-  - Tracks batch data in Python dict
-  - Supports all required methods (get, set, delete, add_to_queue, publish, scan_iter)
+- **Redis**: In-memory mock with queue and cache operations
 
-#### Real Components
+### Real Components
 
-- **SQLite Database**: Real database with temporary file
-- **SQLAlchemy ORM**: Real database operations and sessions
-- **Batch Aggregator**: Real business logic (batch_aggregator.py)
-- **Nemotron Analyzer**: Real analysis orchestration (nemotron_analyzer.py)
-- **Detector Client**: Real HTTP client logic (detector_client.py)
+- **PostgreSQL Database**: Real database via testcontainers
+- **SQLAlchemy ORM**: Real database operations
+- **Batch Aggregator**: Real business logic
+- **Nemotron Analyzer**: Real analysis orchestration
+- **Detector Client**: Real HTTP client logic
 
-### Mock Redis Implementation
+## Mock Redis Implementation
 
-The mock Redis client provides an in-memory implementation:
+The E2E tests use an in-memory Redis mock:
 
 ```python
-@pytest.fixture
-async def mock_redis_client():
-    mock_redis = AsyncMock(spec=RedisClient)
+class MockRedisClient:
+    def __init__(self):
+        self._store: dict = {}
+        self._queues: dict = {}
 
-    # Track batch data in memory
-    batch_data = {}
-
-    async def mock_get(key):
-        return batch_data.get(key)
-
-    async def mock_set(key, value, expire=None):
-        batch_data[key] = value
-
-    async def mock_delete(*keys):
-        for key in keys:
-            batch_data.pop(key, None)
-
-    async def mock_add_to_queue(queue_name, item):
-        queue_key = f"queue:{queue_name}"
-        if queue_key not in batch_data:
-            batch_data[queue_key] = []
-        batch_data[queue_key].append(item)
-
-    # ... more methods
-
-    # Store batch_data for test verification
-    mock_redis._test_data = batch_data
-
-    return mock_redis
+    async def get(self, key): return self._store.get(key)
+    async def set(self, key, value, expire=None): self._store[key] = value
+    async def delete(self, *keys): ...
+    async def add_to_queue(self, queue_name, data): ...
+    async def get_from_queue(self, queue_name, timeout=0): ...
+    async def publish(self, channel, message): return 1
 ```
 
-## Test Coverage
+## Test Data
+
+### Camera
+
+- ID: `e2e_test_camera` (or `unique_id("gpu_test_camera")`)
+- Name: `E2E Test Camera`
+- Folder Path: Temporary directory
+
+### Test Image
+
+- Format: JPEG
+- Size: 640x480 (default), 1920x1080 (performance tests)
+- Color: RGB (100, 150, 200)
+- Created with PIL
+
+### Mock Detections
+
+- **Person**: confidence 0.95, bbox [100, 150, 200, 300]
+- **Car**: confidence 0.88, bbox [400, 200, 250, 180]
+
+### Mock Risk Assessment
+
+- Risk Score: 75
+- Risk Level: high
+- Summary: "Person and vehicle detected near entrance"
+- Reasoning: "Multiple detections indicate potential security concern"
+
+## Test Markers
+
+| Marker                                              | Usage                          |
+| --------------------------------------------------- | ------------------------------ |
+| `@pytest.mark.e2e`                                  | E2E tests with mocked services |
+| `@pytest.mark.gpu`                                  | Tests requiring GPU services   |
+| `@pytest.mark.xdist_group(name="gpu_pipeline_e2e")` | Sequential execution group     |
+
+## Coverage
 
 ### Happy Path Testing
 
@@ -209,155 +192,35 @@ async def mock_redis_client():
 - Detection IDs stored in events
 - Relationships between models work correctly
 
-## Key Testing Patterns
-
-### 1. Async Test Structure
-
-All tests use `@pytest.mark.asyncio` for async/await support:
-
-```python
-@pytest.mark.e2e
-@pytest.mark.asyncio
-async def test_complete_pipeline_flow(integration_db, test_camera, ...):
-    # Test implementation
-    pass
-```
-
-### 2. Database Session Management
-
-Tests use context managers for database sessions:
-
-```python
-async with get_session() as session:
-    # Database operations
-    await session.commit()
-    await session.refresh(model)
-```
-
-### 3. Batch Data Verification
-
-Tests verify batch data in Redis mock:
-
-```python
-assert analysis_queue_key in mock_redis_client._test_data
-assert len(mock_redis_client._test_data[analysis_queue_key]) == 1
-```
-
-### 4. Event Broadcasting Verification
-
-Tests verify WebSocket broadcasts were called:
-
-```python
-mock_redis_client.publish.assert_called()
-publish_calls = mock_redis_client.publish.call_args_list
-assert len(publish_calls) > 0
-```
-
-## Test Data
-
-### Camera
-
-- ID: `e2e_test_camera`
-- Name: `E2E Test Camera`
-- Folder Path: `/tmp/e2e_test_camera` (temporary)
-
-### Test Image
-
-- Format: JPEG
-- Size: 640x480
-- Color: RGB (100, 150, 200)
-- Created with PIL
-
-### Mock Detections
-
-- **Person**: confidence 0.95, bbox [100, 150, 200, 300]
-- **Car**: confidence 0.88, bbox [400, 200, 250, 180]
-
-### Mock Risk Assessment
-
-- Risk Score: 75
-- Risk Level: high
-- Summary: "Person and vehicle detected near entrance"
-- Reasoning: "Multiple detections indicate potential security concern"
-
-## Debugging
-
-### Enable verbose logging
-
-```bash
-pytest backend/tests/e2e/ -v -s --log-cli-level=DEBUG
-```
-
-### Run with pdb debugger
-
-```bash
-pytest backend/tests/e2e/ -v --pdb
-```
-
-### Check coverage
-
-```bash
-pytest backend/tests/e2e/ -v --cov=backend.services --cov-report=html
-```
-
-### Inspect mock data
-
-```python
-# In test, after operations:
-print("Batch data:", mock_redis_client._test_data)
-print("Publish calls:", mock_redis_client.publish.call_args_list)
-```
-
-## Common Issues
+## Troubleshooting
 
 ### Test fails with "Database not initialized"
 
-- Ensure `integration_db` fixture is included in test parameters
-- Check that settings cache is cleared properly
+- Use `integration_db` fixture in test parameters
+- Check settings cache is cleared properly
 - Verify environment variables set before `init_db()`
 
 ### Test fails with "Mock object has no attribute"
 
 - Verify mock Redis client has all required methods
-- Check that `_client` internal mock is configured
+- Check `_client` internal mock is configured
 - Ensure `_test_data` dict is attached for verification
 
 ### Test fails with "coroutine was never awaited"
 
 - Ensure async methods are properly awaited
-- Check mock response methods are not AsyncMock (should be MagicMock)
+- Check mock response methods are MagicMock (not AsyncMock for .json())
 - Verify async context managers use `async with`
 
 ### Timeout errors
 
 - Verify batch timeout logic uses correct Redis keys
-- Check that `started_at` and `last_activity` are set properly
+- Check `started_at` and `last_activity` are set properly
 - Ensure time.time() is mocked if testing specific timeouts
-
-## Test Statistics
-
-- **Total test files**: 1 (test_pipeline_integration.py)
-- **Total test cases**: 8+ comprehensive E2E scenarios
-- **Coverage**: Validates all major pipeline components
-- **Execution time**: <10 seconds (all mocked services)
-- **Markers**: `@pytest.mark.e2e` for filtering
-
-## Test Philosophy
-
-E2E tests strike a balance between:
-
-- **Comprehensiveness**: Test complete workflows, not just isolated units
-- **Speed**: Mock slow external services for fast execution
-- **Realism**: Use real business logic and database operations
-- **Reliability**: Tests should pass consistently without flakiness
-- **Maintainability**: Clear test structure and descriptive names
 
 ## Related Documentation
 
-- `/backend/services/AGENTS.md` - Services architecture overview
 - `/backend/tests/AGENTS.md` - Test infrastructure overview
-- `/backend/tests/unit/AGENTS.md` - Unit test patterns
-- `/backend/tests/integration/AGENTS.md` - Integration tests documentation
-- `/backend/tests/benchmarks/AGENTS.md` - Performance benchmarks
-- `/backend/tests/e2e/README.md` - Additional E2E test documentation
-- `/CLAUDE.md` - Project instructions and phase overview
+- `/backend/tests/gpu/AGENTS.md` - GPU-specific tests
+- `/backend/services/AGENTS.md` - Services architecture
+- `/backend/AGENTS.md` - Backend architecture

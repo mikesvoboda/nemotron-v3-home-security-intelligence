@@ -42,6 +42,9 @@ logger = get_logger(__name__)
 # Redis channel for system status updates
 SYSTEM_STATUS_CHANNEL = "system_status"
 
+# Redis channel for system status updates
+SYSTEM_STATUS_CHANNEL = "system_status"
+
 
 class SystemBroadcaster:
     """Manages WebSocket connections for system status broadcasts.
@@ -196,6 +199,10 @@ class SystemBroadcaster:
 
         This enables multi-instance support where status updates published by
         any instance are received and forwarded to local WebSocket clients.
+
+        Uses a dedicated pub/sub connection to avoid concurrency issues with
+        other Redis operations (prevents 'readuntil() called while another
+        coroutine is already waiting' errors).
         """
         redis_client = self._get_redis()
         if redis_client is None:
@@ -207,7 +214,9 @@ class SystemBroadcaster:
             return
 
         try:
-            self._pubsub = await redis_client.subscribe(SYSTEM_STATUS_CHANNEL)
+            # Use subscribe_dedicated() to get a dedicated connection that
+            # won't conflict with other Redis operations
+            self._pubsub = await redis_client.subscribe_dedicated(SYSTEM_STATUS_CHANNEL)
             self._pubsub_listening = True
             self._listener_task = asyncio.create_task(self._listen_for_updates())
             logger.info(f"Started pub/sub listener on channel: {SYSTEM_STATUS_CHANNEL}")
@@ -215,7 +224,7 @@ class SystemBroadcaster:
             logger.error(f"Failed to start pub/sub listener: {e}")
 
     async def _stop_pubsub_listener(self) -> None:
-        """Stop the Redis pub/sub listener."""
+        """Stop the Redis pub/sub listener and close dedicated connection."""
         self._pubsub_listening = False
 
         if self._listener_task:
@@ -225,15 +234,51 @@ class SystemBroadcaster:
             self._listener_task = None
 
         if self._pubsub:
-            redis_client = self._get_redis()
-            if redis_client:
-                try:
-                    await redis_client.unsubscribe(SYSTEM_STATUS_CHANNEL)
-                except Exception as e:
-                    logger.warning(f"Error unsubscribing: {e}")
+            try:
+                # Unsubscribe directly on the dedicated pubsub instance
+                await self._pubsub.unsubscribe(SYSTEM_STATUS_CHANNEL)
+            except Exception as e:
+                logger.warning(f"Error unsubscribing: {e}")
+            try:
+                # Close the dedicated pubsub connection
+                await self._pubsub.close()
+            except Exception as e:
+                logger.warning(f"Error closing pubsub connection: {e}")
             self._pubsub = None
 
         logger.info("Stopped pub/sub listener")
+
+    async def _reset_pubsub_connection(self) -> None:
+        """Reset the pub/sub connection by closing old and creating new subscription.
+
+        This is used to recover from errors where the connection enters an invalid
+        state. Creates a new dedicated connection for the listener.
+        """
+        redis_client = self._get_redis()
+        if not redis_client:
+            logger.error("Cannot reset pub/sub: Redis client not available")
+            self._pubsub = None
+            return
+
+        # Close old dedicated pubsub connection if exists
+        if self._pubsub:
+            try:
+                await self._pubsub.unsubscribe(SYSTEM_STATUS_CHANNEL)
+            except Exception as e:
+                logger.debug(f"Error unsubscribing during reset (expected): {e}")
+            try:
+                await self._pubsub.close()
+            except Exception as e:
+                logger.debug(f"Error closing pubsub during reset (expected): {e}")
+            self._pubsub = None
+
+        # Create fresh dedicated subscription
+        try:
+            self._pubsub = await redis_client.subscribe_dedicated(SYSTEM_STATUS_CHANNEL)
+            logger.info(f"Re-established pub/sub subscription on channel: {SYSTEM_STATUS_CHANNEL}")
+        except Exception as e:
+            logger.error(f"Failed to re-subscribe during reset: {e}")
+            self._pubsub = None
 
     async def _listen_for_updates(self) -> None:
         """Listen for system status updates from Redis pub/sub.
@@ -270,12 +315,18 @@ class SystemBroadcaster:
             logger.info("Pub/sub listener cancelled")
         except Exception as e:
             logger.error(f"Error in pub/sub listener: {e}")
-            # Attempt to restart listener
+            # Attempt to restart listener with fresh connection
             if self._pubsub_listening:
                 logger.info("Restarting pub/sub listener after error")
                 await asyncio.sleep(1)
                 if self._pubsub_listening:
-                    self._listener_task = asyncio.create_task(self._listen_for_updates())
+                    # Clean up old pubsub and create fresh subscription
+                    await self._reset_pubsub_connection()
+                    if self._pubsub:
+                        self._listener_task = asyncio.create_task(self._listen_for_updates())
+                    else:
+                        logger.error("Failed to re-establish pub/sub connection")
+                        self._pubsub_listening = False
 
     async def _get_system_status(self) -> dict:
         """Gather current system status data.

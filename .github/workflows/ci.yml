@@ -113,7 +113,8 @@ jobs:
           exit 1
 
       - name: Run unit tests with coverage
-        # Unit tests have 92% coverage threshold (lowered from 93% during logging migration)
+        # Unit tests have 80% coverage threshold (lowered from 92% after moving
+        # DB-dependent tests to integration/ directory for proper separation)
         # -n0 disables xdist parallelization (CI already parallelizes via separate jobs)
         # --timeout=0 disables timeout (fixture import takes >1s in CI)
         run: |
@@ -124,7 +125,7 @@ jobs:
             --cov-config=pyproject.toml \
             --cov-report=xml:coverage-unit.xml \
             --cov-report=term-missing \
-            --cov-fail-under=92 \
+            --cov-fail-under=80 \
             --junit-xml=test-results-unit.xml \
             --durations=20 \
             -v
@@ -572,7 +573,7 @@ jobs:
           # These tests are critical security validation
           # -n0 disables xdist parallelization
           # --timeout=0 disables timeout (fixture import takes >1s in CI)
-          pytest backend/tests/unit/test_admin_api.py \
+          pytest backend/tests/integration/test_admin_api.py \
             -n0 \
             --timeout=0 \
             -k "requires_debug_mode" \
@@ -607,6 +608,9 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: pip install defusedxml
 
       - name: Download all test results
         uses: actions/download-artifact@v4

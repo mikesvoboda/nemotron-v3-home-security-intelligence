@@ -1,8 +1,12 @@
-"""Unit tests for audit logging functionality."""
+"""Unit tests for audit logging functionality.
+
+These tests use mocked database sessions and do not require a real database.
+For integration tests with a real database, see backend/tests/integration/test_audit.py
+"""
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
 
 import pytest
@@ -53,6 +57,10 @@ class TestAuditLogModel:
         assert "event" in repr_str
         assert "test_user" in repr_str
 
+
+class TestAuditAction:
+    """Tests for the AuditAction enum."""
+
     def test_audit_action_enum(self):
         """Test the AuditAction enum values."""
         assert AuditAction.EVENT_REVIEWED.value == "event_reviewed"
@@ -66,6 +74,10 @@ class TestAuditLogModel:
         assert AuditAction.LOGIN.value == "login"
         assert AuditAction.LOGOUT.value == "logout"
 
+
+class TestAuditStatus:
+    """Tests for the AuditStatus enum."""
+
     def test_audit_status_enum(self):
         """Test the AuditStatus enum values."""
         assert AuditStatus.SUCCESS.value == "success"
@@ -73,7 +85,7 @@ class TestAuditLogModel:
 
 
 class TestAuditService:
-    """Tests for the AuditService."""
+    """Tests for the AuditService using mocked database sessions."""
 
     @pytest.fixture
     def mock_db_session(self):
@@ -197,129 +209,477 @@ class TestAuditService:
         assert result.ip_address is None
         assert result.user_agent is None
 
-
-@pytest.mark.skipif(
-    "CI" not in __import__("os").environ,
-    reason="Database tests require PostgreSQL - run in CI or with TEST_DATABASE_URL set",
-)
-class TestAuditServiceDatabase:
-    """Integration tests for AuditService with real database."""
-
     @pytest.mark.asyncio
-    async def test_log_and_retrieve_audit(self, test_db):
-        """Test logging and retrieving audit entries from database."""
-        async with test_db() as session:
-            # Log an action
-            await AuditService.log_action(
-                db=session,
-                action=AuditAction.CAMERA_CREATED,
-                resource_type="camera",
-                resource_id="test-camera-1",
-                actor="test_user",
-                details={"name": "Test Camera"},
-            )
-            await session.commit()
-
-            # Retrieve the logs
-            logs, count = await AuditService.get_audit_logs(
-                db=session,
-                action="camera_created",
-            )
-
-            assert count >= 1
-            assert any(log.resource_id == "test-camera-1" for log in logs)
-
-    @pytest.mark.asyncio
-    async def test_get_audit_logs_with_filters(self, test_db):
-        """Test filtering audit logs."""
-        async with test_db() as session:
-            # Create multiple audit logs
-            for i in range(5):
-                await AuditService.log_action(
-                    db=session,
-                    action=AuditAction.EVENT_REVIEWED
-                    if i % 2 == 0
-                    else AuditAction.EVENT_DISMISSED,
-                    resource_type="event",
-                    resource_id=f"event-{i}",
-                    actor="test_user" if i < 3 else "other_user",
-                )
-            await session.commit()
-
-            # Filter by action
-            logs, _count = await AuditService.get_audit_logs(
-                db=session,
+    async def test_get_audit_logs_no_filters(self, mock_db_session):
+        """Test get_audit_logs with no filters returns all logs."""
+        # Create mock audit logs
+        mock_logs = [
+            AuditLog(
+                id=1,
+                timestamp=datetime.now(UTC),
                 action="event_reviewed",
-            )
-            assert all(log.action == "event_reviewed" for log in logs)
-
-            # Filter by actor
-            logs, _count = await AuditService.get_audit_logs(
-                db=session,
-                actor="test_user",
-            )
-            assert all(log.actor == "test_user" for log in logs)
-
-    @pytest.mark.asyncio
-    async def test_get_audit_logs_pagination(self, test_db):
-        """Test pagination of audit logs."""
-        async with test_db() as session:
-            # Create 10 audit logs
-            for i in range(10):
-                await AuditService.log_action(
-                    db=session,
-                    action=AuditAction.CAMERA_UPDATED,
-                    resource_type="camera",
-                    resource_id=f"camera-{i}",
-                    actor="system",
-                )
-            await session.commit()
-
-            # Test pagination
-            logs_page1, total = await AuditService.get_audit_logs(
-                db=session,
-                action="camera_updated",
-                limit=5,
-                offset=0,
-            )
-            assert len(logs_page1) == 5 or len(logs_page1) == total
-
-            if total > 5:
-                logs_page2, _ = await AuditService.get_audit_logs(
-                    db=session,
-                    action="camera_updated",
-                    limit=5,
-                    offset=5,
-                )
-                # Ensure no overlap
-                page1_ids = {log.id for log in logs_page1}
-                page2_ids = {log.id for log in logs_page2}
-                assert page1_ids.isdisjoint(page2_ids)
-
-    @pytest.mark.asyncio
-    async def test_get_audit_log_by_id(self, test_db):
-        """Test retrieving a specific audit log by ID."""
-        async with test_db() as session:
-            # Create an audit log
-            log = await AuditService.log_action(
-                db=session,
-                action=AuditAction.MEDIA_EXPORTED,
                 resource_type="event",
+                resource_id="123",
                 actor="test_user",
-                details={"filename": "export.csv"},
-            )
-            await session.commit()
+                status="success",
+            ),
+            AuditLog(
+                id=2,
+                timestamp=datetime.now(UTC),
+                action="camera_created",
+                resource_type="camera",
+                resource_id="456",
+                actor="admin",
+                status="success",
+            ),
+        ]
 
-            # Retrieve by ID
-            retrieved = await AuditService.get_audit_log_by_id(db=session, audit_id=log.id)
+        # Mock the count query result
+        mock_count_result = MagicMock()
+        mock_count_result.scalar.return_value = 2
 
-            assert retrieved is not None
-            assert retrieved.id == log.id
-            assert retrieved.action == "media_exported"
+        # Mock the logs query result
+        mock_logs_result = MagicMock()
+        mock_logs_scalars = MagicMock()
+        mock_logs_scalars.all.return_value = mock_logs
+        mock_logs_result.scalars.return_value = mock_logs_scalars
+
+        # Setup execute to return different results for count and main query
+        call_count = [0]
+
+        async def mock_execute(query):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return mock_count_result
+            return mock_logs_result
+
+        mock_db_session.execute = mock_execute
+
+        logs, total = await AuditService.get_audit_logs(db=mock_db_session)
+
+        assert total == 2
+        assert len(logs) == 2
+        assert logs[0].action == "event_reviewed"
+        assert logs[1].action == "camera_created"
 
     @pytest.mark.asyncio
-    async def test_get_audit_log_by_id_not_found(self, test_db):
-        """Test retrieving a non-existent audit log."""
-        async with test_db() as session:
-            result = await AuditService.get_audit_log_by_id(db=session, audit_id=99999)
-            assert result is None
+    async def test_get_audit_logs_with_action_filter(self, mock_db_session):
+        """Test get_audit_logs filtered by action."""
+        mock_logs = [
+            AuditLog(
+                id=1,
+                timestamp=datetime.now(UTC),
+                action="event_reviewed",
+                resource_type="event",
+                resource_id="123",
+                actor="test_user",
+                status="success",
+            ),
+        ]
+
+        mock_count_result = MagicMock()
+        mock_count_result.scalar.return_value = 1
+
+        mock_logs_result = MagicMock()
+        mock_logs_scalars = MagicMock()
+        mock_logs_scalars.all.return_value = mock_logs
+        mock_logs_result.scalars.return_value = mock_logs_scalars
+
+        call_count = [0]
+
+        async def mock_execute(query):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return mock_count_result
+            return mock_logs_result
+
+        mock_db_session.execute = mock_execute
+
+        logs, total = await AuditService.get_audit_logs(db=mock_db_session, action="event_reviewed")
+
+        assert total == 1
+        assert len(logs) == 1
+        assert logs[0].action == "event_reviewed"
+
+    @pytest.mark.asyncio
+    async def test_get_audit_logs_with_resource_type_filter(self, mock_db_session):
+        """Test get_audit_logs filtered by resource_type."""
+        mock_logs = [
+            AuditLog(
+                id=1,
+                timestamp=datetime.now(UTC),
+                action="camera_created",
+                resource_type="camera",
+                resource_id="cam-1",
+                actor="admin",
+                status="success",
+            ),
+        ]
+
+        mock_count_result = MagicMock()
+        mock_count_result.scalar.return_value = 1
+
+        mock_logs_result = MagicMock()
+        mock_logs_scalars = MagicMock()
+        mock_logs_scalars.all.return_value = mock_logs
+        mock_logs_result.scalars.return_value = mock_logs_scalars
+
+        call_count = [0]
+
+        async def mock_execute(query):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return mock_count_result
+            return mock_logs_result
+
+        mock_db_session.execute = mock_execute
+
+        logs, total = await AuditService.get_audit_logs(db=mock_db_session, resource_type="camera")
+
+        assert total == 1
+        assert logs[0].resource_type == "camera"
+
+    @pytest.mark.asyncio
+    async def test_get_audit_logs_with_resource_id_filter(self, mock_db_session):
+        """Test get_audit_logs filtered by resource_id."""
+        mock_logs = [
+            AuditLog(
+                id=1,
+                timestamp=datetime.now(UTC),
+                action="event_reviewed",
+                resource_type="event",
+                resource_id="specific-event-123",
+                actor="test_user",
+                status="success",
+            ),
+        ]
+
+        mock_count_result = MagicMock()
+        mock_count_result.scalar.return_value = 1
+
+        mock_logs_result = MagicMock()
+        mock_logs_scalars = MagicMock()
+        mock_logs_scalars.all.return_value = mock_logs
+        mock_logs_result.scalars.return_value = mock_logs_scalars
+
+        call_count = [0]
+
+        async def mock_execute(query):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return mock_count_result
+            return mock_logs_result
+
+        mock_db_session.execute = mock_execute
+
+        logs, total = await AuditService.get_audit_logs(
+            db=mock_db_session, resource_id="specific-event-123"
+        )
+
+        assert total == 1
+        assert logs[0].resource_id == "specific-event-123"
+
+    @pytest.mark.asyncio
+    async def test_get_audit_logs_with_actor_filter(self, mock_db_session):
+        """Test get_audit_logs filtered by actor."""
+        mock_logs = [
+            AuditLog(
+                id=1,
+                timestamp=datetime.now(UTC),
+                action="settings_changed",
+                resource_type="settings",
+                resource_id=None,
+                actor="admin_user",
+                status="success",
+            ),
+        ]
+
+        mock_count_result = MagicMock()
+        mock_count_result.scalar.return_value = 1
+
+        mock_logs_result = MagicMock()
+        mock_logs_scalars = MagicMock()
+        mock_logs_scalars.all.return_value = mock_logs
+        mock_logs_result.scalars.return_value = mock_logs_scalars
+
+        call_count = [0]
+
+        async def mock_execute(query):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return mock_count_result
+            return mock_logs_result
+
+        mock_db_session.execute = mock_execute
+
+        logs, total = await AuditService.get_audit_logs(db=mock_db_session, actor="admin_user")
+
+        assert total == 1
+        assert logs[0].actor == "admin_user"
+
+    @pytest.mark.asyncio
+    async def test_get_audit_logs_with_status_filter(self, mock_db_session):
+        """Test get_audit_logs filtered by status."""
+        mock_logs = [
+            AuditLog(
+                id=1,
+                timestamp=datetime.now(UTC),
+                action="login",
+                resource_type="auth",
+                resource_id=None,
+                actor="test_user",
+                status="failure",
+            ),
+        ]
+
+        mock_count_result = MagicMock()
+        mock_count_result.scalar.return_value = 1
+
+        mock_logs_result = MagicMock()
+        mock_logs_scalars = MagicMock()
+        mock_logs_scalars.all.return_value = mock_logs
+        mock_logs_result.scalars.return_value = mock_logs_scalars
+
+        call_count = [0]
+
+        async def mock_execute(query):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return mock_count_result
+            return mock_logs_result
+
+        mock_db_session.execute = mock_execute
+
+        logs, total = await AuditService.get_audit_logs(db=mock_db_session, status="failure")
+
+        assert total == 1
+        assert logs[0].status == "failure"
+
+    @pytest.mark.asyncio
+    async def test_get_audit_logs_with_date_range_filter(self, mock_db_session):
+        """Test get_audit_logs filtered by date range."""
+        now = datetime.now(UTC)
+        mock_logs = [
+            AuditLog(
+                id=1,
+                timestamp=now - timedelta(hours=1),
+                action="event_reviewed",
+                resource_type="event",
+                resource_id="123",
+                actor="test_user",
+                status="success",
+            ),
+        ]
+
+        mock_count_result = MagicMock()
+        mock_count_result.scalar.return_value = 1
+
+        mock_logs_result = MagicMock()
+        mock_logs_scalars = MagicMock()
+        mock_logs_scalars.all.return_value = mock_logs
+        mock_logs_result.scalars.return_value = mock_logs_scalars
+
+        call_count = [0]
+
+        async def mock_execute(query):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return mock_count_result
+            return mock_logs_result
+
+        mock_db_session.execute = mock_execute
+
+        start_date = now - timedelta(days=1)
+        end_date = now + timedelta(days=1)
+
+        logs, total = await AuditService.get_audit_logs(
+            db=mock_db_session, start_date=start_date, end_date=end_date
+        )
+
+        assert total == 1
+        assert len(logs) == 1
+
+    @pytest.mark.asyncio
+    async def test_get_audit_logs_with_pagination(self, mock_db_session):
+        """Test get_audit_logs with pagination (limit and offset)."""
+        mock_logs = [
+            AuditLog(
+                id=6,
+                timestamp=datetime.now(UTC),
+                action="event_reviewed",
+                resource_type="event",
+                resource_id="6",
+                actor="test_user",
+                status="success",
+            ),
+        ]
+
+        mock_count_result = MagicMock()
+        mock_count_result.scalar.return_value = 10  # Total of 10 records
+
+        mock_logs_result = MagicMock()
+        mock_logs_scalars = MagicMock()
+        mock_logs_scalars.all.return_value = mock_logs
+        mock_logs_result.scalars.return_value = mock_logs_scalars
+
+        call_count = [0]
+
+        async def mock_execute(query):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return mock_count_result
+            return mock_logs_result
+
+        mock_db_session.execute = mock_execute
+
+        logs, total = await AuditService.get_audit_logs(db=mock_db_session, limit=5, offset=5)
+
+        assert total == 10
+        assert len(logs) == 1  # Only 1 mock log returned
+
+    @pytest.mark.asyncio
+    async def test_get_audit_logs_empty_result(self, mock_db_session):
+        """Test get_audit_logs when no logs match."""
+        mock_count_result = MagicMock()
+        mock_count_result.scalar.return_value = 0
+
+        mock_logs_result = MagicMock()
+        mock_logs_scalars = MagicMock()
+        mock_logs_scalars.all.return_value = []
+        mock_logs_result.scalars.return_value = mock_logs_scalars
+
+        call_count = [0]
+
+        async def mock_execute(query):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return mock_count_result
+            return mock_logs_result
+
+        mock_db_session.execute = mock_execute
+
+        logs, total = await AuditService.get_audit_logs(
+            db=mock_db_session, action="nonexistent_action"
+        )
+
+        assert total == 0
+        assert len(logs) == 0
+
+    @pytest.mark.asyncio
+    async def test_get_audit_logs_count_returns_none(self, mock_db_session):
+        """Test get_audit_logs when count query returns None (defaults to 0)."""
+        mock_count_result = MagicMock()
+        mock_count_result.scalar.return_value = None  # Simulates empty count
+
+        mock_logs_result = MagicMock()
+        mock_logs_scalars = MagicMock()
+        mock_logs_scalars.all.return_value = []
+        mock_logs_result.scalars.return_value = mock_logs_scalars
+
+        call_count = [0]
+
+        async def mock_execute(query):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return mock_count_result
+            return mock_logs_result
+
+        mock_db_session.execute = mock_execute
+
+        logs, total = await AuditService.get_audit_logs(db=mock_db_session)
+
+        assert total == 0
+        assert len(logs) == 0
+
+    @pytest.mark.asyncio
+    async def test_get_audit_logs_with_all_filters(self, mock_db_session):
+        """Test get_audit_logs with all filters combined."""
+        now = datetime.now(UTC)
+        mock_logs = [
+            AuditLog(
+                id=1,
+                timestamp=now,
+                action="event_reviewed",
+                resource_type="event",
+                resource_id="event-123",
+                actor="admin",
+                status="success",
+            ),
+        ]
+
+        mock_count_result = MagicMock()
+        mock_count_result.scalar.return_value = 1
+
+        mock_logs_result = MagicMock()
+        mock_logs_scalars = MagicMock()
+        mock_logs_scalars.all.return_value = mock_logs
+        mock_logs_result.scalars.return_value = mock_logs_scalars
+
+        call_count = [0]
+
+        async def mock_execute(query):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return mock_count_result
+            return mock_logs_result
+
+        mock_db_session.execute = mock_execute
+
+        logs, total = await AuditService.get_audit_logs(
+            db=mock_db_session,
+            action="event_reviewed",
+            resource_type="event",
+            resource_id="event-123",
+            actor="admin",
+            status="success",
+            start_date=now - timedelta(hours=1),
+            end_date=now + timedelta(hours=1),
+            limit=50,
+            offset=0,
+        )
+
+        assert total == 1
+        assert len(logs) == 1
+        assert logs[0].action == "event_reviewed"
+
+    @pytest.mark.asyncio
+    async def test_get_audit_log_by_id_found(self, mock_db_session):
+        """Test get_audit_log_by_id when log exists."""
+        mock_log = AuditLog(
+            id=42,
+            timestamp=datetime.now(UTC),
+            action="media_exported",
+            resource_type="event",
+            resource_id="event-999",
+            actor="test_user",
+            status="success",
+        )
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = mock_log
+
+        async def mock_execute(query):
+            return mock_result
+
+        mock_db_session.execute = mock_execute
+
+        result = await AuditService.get_audit_log_by_id(db=mock_db_session, audit_id=42)
+
+        assert result is not None
+        assert result.id == 42
+        assert result.action == "media_exported"
+
+    @pytest.mark.asyncio
+    async def test_get_audit_log_by_id_not_found(self, mock_db_session):
+        """Test get_audit_log_by_id when log does not exist."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+
+        async def mock_execute(query):
+            return mock_result
+
+        mock_db_session.execute = mock_execute
+
+        result = await AuditService.get_audit_log_by_id(db=mock_db_session, audit_id=99999)
+
+        assert result is None

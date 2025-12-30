@@ -1,0 +1,719 @@
+---
+title: Resilience Architecture
+description: Circuit breakers, retry logic, dead-letter queues, health monitoring, and graceful degradation patterns
+last_updated: 2025-12-30
+source_refs:
+  - backend/services/circuit_breaker.py:CircuitBreaker:127
+  - backend/services/circuit_breaker.py:CircuitBreakerConfig:47
+  - backend/services/circuit_breaker.py:CircuitBreakerRegistry:491
+  - backend/services/circuit_breaker.py:CircuitState:39
+  - backend/services/retry_handler.py:RetryHandler:128
+  - backend/services/retry_handler.py:RetryConfig:38
+  - backend/services/retry_handler.py:DLQStats:120
+  - backend/services/health_monitor.py:ServiceHealthMonitor:25
+  - backend/services/degradation_manager.py:DegradationManager
+  - backend/services/service_managers.py:ServiceManager
+---
+
+# Resilience Architecture
+
+This document details the resilience patterns implemented in the Home Security Intelligence system to ensure reliable operation even when external services (RT-DETRv2, Nemotron LLM, Redis) experience failures.
+
+---
+
+## Table of Contents
+
+1. [Resilience Overview](#resilience-overview)
+2. [Circuit Breaker Pattern](#circuit-breaker-pattern)
+3. [Retry Handler with Exponential Backoff](#retry-handler-with-exponential-backoff)
+4. [Dead-Letter Queue (DLQ) Management](#dead-letter-queue-dlq-management)
+5. [Service Health Monitoring](#service-health-monitoring)
+6. [Graceful Degradation](#graceful-degradation)
+7. [Recovery Strategies](#recovery-strategies)
+8. [Configuration Reference](#configuration-reference)
+9. [Image Generation Prompts](#image-generation-prompts)
+
+---
+
+## Resilience Overview
+
+The system implements multiple layers of resilience to handle failures gracefully:
+
+```mermaid
+flowchart TB
+    subgraph Input["Incoming Request"]
+        REQ[Service Call]
+    end
+
+    subgraph CircuitBreaker["Circuit Breaker Layer"]
+        CB{Circuit<br/>State?}
+        CLOSED[CLOSED<br/>Normal Operation]
+        OPEN[OPEN<br/>Fast Fail]
+        HALF[HALF_OPEN<br/>Test Recovery]
+    end
+
+    subgraph Retry["Retry Layer"]
+        RT{Retry<br/>Attempt?}
+        BACKOFF[Exponential<br/>Backoff]
+        EXEC[Execute<br/>Operation]
+    end
+
+    subgraph Outcome["Outcome Handling"]
+        SUCCESS[Success<br/>Reset Counters]
+        FAIL[Failure<br/>Increment Counter]
+        DLQ[Dead Letter<br/>Queue]
+    end
+
+    subgraph Recovery["Recovery Services"]
+        HM[Health<br/>Monitor]
+        AUTO[Auto<br/>Restart]
+    end
+
+    REQ --> CB
+    CB -->|Closed| CLOSED --> RT
+    CB -->|Open| OPEN --> FAIL
+    CB -->|Half-Open| HALF --> RT
+
+    RT -->|Yes| BACKOFF --> EXEC
+    RT -->|Max Retries| DLQ
+
+    EXEC -->|OK| SUCCESS
+    EXEC -->|Error| FAIL
+
+    FAIL -->|Threshold Met| OPEN
+    SUCCESS --> CLOSED
+
+    HM -->|Unhealthy| AUTO
+    AUTO -->|Restart| HM
+
+    style OPEN fill:#E74856,color:#fff
+    style SUCCESS fill:#76B900,color:#fff
+    style DLQ fill:#A855F7,color:#fff
+    style HALF fill:#FFB800,color:#000
+```
+
+### Resilience Components
+
+| Component                                                        | Location                                  | Responsibility                              |
+| ---------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------- |
+| [CircuitBreaker](../../backend/services/circuit_breaker.py)      | `backend/services/circuit_breaker.py:127` | Prevents cascading failures by failing fast |
+| [RetryHandler](../../backend/services/retry_handler.py)          | `backend/services/retry_handler.py:128`   | Exponential backoff with DLQ support        |
+| [ServiceHealthMonitor](../../backend/services/health_monitor.py) | `backend/services/health_monitor.py:25`   | Periodic health checks and auto-recovery    |
+| DegradationManager                                               | `backend/services/degradation_manager.py` | Graceful degradation during outages         |
+
+---
+
+## Circuit Breaker Pattern
+
+The circuit breaker protects external services from cascading failures by monitoring failure rates and temporarily blocking calls to unhealthy services.
+
+### Circuit Breaker States
+
+```mermaid
+stateDiagram-v2
+    [*] --> CLOSED: Initial State
+
+    CLOSED --> OPEN: failures >= threshold
+    OPEN --> HALF_OPEN: recovery_timeout elapsed
+    HALF_OPEN --> CLOSED: success_threshold met
+    HALF_OPEN --> OPEN: any failure
+
+    CLOSED: Normal Operation
+    CLOSED: Calls pass through
+    CLOSED: Track failures
+
+    OPEN: Circuit Tripped
+    OPEN: Calls rejected immediately
+    OPEN: CircuitBreakerError raised
+
+    HALF_OPEN: Recovery Testing
+    HALF_OPEN: Limited calls allowed
+    HALF_OPEN: Track successes
+```
+
+### Implementation Details
+
+The [CircuitBreaker](../../backend/services/circuit_breaker.py) class at line 127 implements the pattern:
+
+```python
+# backend/services/circuit_breaker.py:127
+class CircuitBreaker:
+    """Circuit breaker for protecting external service calls.
+
+    Implements the circuit breaker pattern with three states:
+    - CLOSED: Normal operation, calls pass through
+    - OPEN: Service failing, calls rejected immediately
+    - HALF_OPEN: Testing recovery, limited calls allowed
+    """
+
+    def __init__(
+        self,
+        name: str,
+        config: CircuitBreakerConfig | None = None,
+    ) -> None:
+        self._name = name
+        self._config = config or CircuitBreakerConfig()
+        self._state = CircuitState.CLOSED
+        self._failure_count = 0
+        # ...
+```
+
+### Circuit Breaker Configuration
+
+The [CircuitBreakerConfig](../../backend/services/circuit_breaker.py) at line 47 defines behavior:
+
+| Parameter             | Default | Description                                  |
+| --------------------- | ------- | -------------------------------------------- |
+| `failure_threshold`   | 5       | Failures before opening circuit              |
+| `recovery_timeout`    | 30.0s   | Wait time before testing recovery            |
+| `half_open_max_calls` | 3       | Max calls allowed in half-open state         |
+| `success_threshold`   | 2       | Successes needed to close circuit            |
+| `excluded_exceptions` | ()      | Exception types that don't count as failures |
+
+### Usage Pattern
+
+```python
+from backend.services.circuit_breaker import get_circuit_breaker, CircuitBreakerConfig
+
+# Get or create circuit breaker for a service
+breaker = get_circuit_breaker(
+    "rtdetr",
+    CircuitBreakerConfig(
+        failure_threshold=5,
+        recovery_timeout=30.0,
+    )
+)
+
+# Execute through circuit breaker
+try:
+    result = await breaker.call(detector_client.detect_objects, image_path)
+except CircuitBreakerError:
+    # Service unavailable, use fallback
+    result = []
+```
+
+### Circuit Breaker Registry
+
+The [CircuitBreakerRegistry](../../backend/services/circuit_breaker.py) at line 491 manages multiple breakers:
+
+```mermaid
+flowchart TB
+    subgraph Registry["CircuitBreakerRegistry"]
+        R[Global Registry]
+    end
+
+    subgraph Breakers["Individual Circuit Breakers"]
+        B1[rtdetr<br/>breaker]
+        B2[nemotron<br/>breaker]
+        B3[redis<br/>breaker]
+    end
+
+    subgraph Services["Protected Services"]
+        S1[RT-DETRv2<br/>:8090]
+        S2[Nemotron LLM<br/>:8091]
+        S3[Redis<br/>:6379]
+    end
+
+    R --> B1
+    R --> B2
+    R --> B3
+
+    B1 --> S1
+    B2 --> S2
+    B3 --> S3
+
+    style S1 fill:#3B82F6,color:#fff
+    style S2 fill:#3B82F6,color:#fff
+    style S3 fill:#A855F7,color:#fff
+```
+
+---
+
+## Retry Handler with Exponential Backoff
+
+The [RetryHandler](../../backend/services/retry_handler.py) at line 128 provides automatic retries with exponential backoff for transient failures.
+
+### Retry Flow
+
+```mermaid
+flowchart TB
+    subgraph Input["Job Processing"]
+        JOB[Detection/Analysis Job]
+    end
+
+    subgraph RetryLoop["Retry Handler"]
+        ATT{Attempt<br/>N of Max?}
+        EXEC[Execute<br/>Operation]
+        CHK{Success?}
+        CALC[Calculate<br/>Backoff Delay]
+        WAIT[Wait with<br/>Jitter]
+    end
+
+    subgraph Outcomes["Final Outcome"]
+        OK[Success<br/>Return Result]
+        DLQ[Move to DLQ<br/>dlq:queue_name]
+    end
+
+    JOB --> ATT
+    ATT -->|Attempt N| EXEC
+    ATT -->|Max Exceeded| DLQ
+
+    EXEC --> CHK
+    CHK -->|Yes| OK
+    CHK -->|No| CALC
+
+    CALC --> WAIT
+    WAIT --> ATT
+
+    style OK fill:#76B900,color:#fff
+    style DLQ fill:#E74856,color:#fff
+```
+
+### Exponential Backoff Algorithm
+
+The [RetryConfig](../../backend/services/retry_handler.py) at line 38 configures backoff behavior:
+
+```python
+# backend/services/retry_handler.py:38
+@dataclass
+class RetryConfig:
+    """Configuration for retry behavior."""
+
+    max_retries: int = 3
+    base_delay_seconds: float = 1.0
+    max_delay_seconds: float = 30.0
+    exponential_base: float = 2.0
+    jitter: bool = True
+
+    def get_delay(self, attempt: int) -> float:
+        """Calculate delay: base * (exponential_base ^ (attempt - 1))"""
+        delay = self.base_delay_seconds * (self.exponential_base ** (attempt - 1))
+        delay = min(delay, self.max_delay_seconds)
+        if self.jitter:
+            jitter_amount = delay * 0.25 * random.random()
+            delay = delay + jitter_amount
+        return delay
+```
+
+### Backoff Timing Example
+
+| Attempt | Base Delay  | With Jitter (0-25%) |
+| ------- | ----------- | ------------------- |
+| 1       | 1.0s        | 1.0s - 1.25s        |
+| 2       | 2.0s        | 2.0s - 2.5s         |
+| 3       | 4.0s        | 4.0s - 5.0s         |
+| 4       | 8.0s        | 8.0s - 10.0s        |
+| 5       | 16.0s       | 16.0s - 20.0s       |
+| 6+      | 30.0s (max) | 30.0s - 37.5s       |
+
+---
+
+## Dead-Letter Queue (DLQ) Management
+
+Jobs that exhaust all retry attempts are moved to dead-letter queues for manual inspection and reprocessing.
+
+### DLQ Architecture
+
+```mermaid
+flowchart TB
+    subgraph ProcessingQueues["Processing Queues"]
+        DQ[detection_queue]
+        AQ[analysis_queue]
+    end
+
+    subgraph Workers["Queue Workers"]
+        DW[DetectionQueueWorker]
+        AW[AnalysisQueueWorker]
+    end
+
+    subgraph RetryLayer["Retry Handler"]
+        RH[RetryHandler<br/>max_retries=3]
+    end
+
+    subgraph DLQs["Dead Letter Queues"]
+        DLQ1[dlq:detection_queue]
+        DLQ2[dlq:analysis_queue]
+    end
+
+    subgraph Management["DLQ Management API"]
+        API[/api/dlq/*]
+        INSPECT[Inspect Jobs]
+        REQUEUE[Requeue Jobs]
+        CLEAR[Clear Queue]
+    end
+
+    DQ --> DW
+    AQ --> AW
+    DW --> RH
+    AW --> RH
+
+    RH -->|Exhausted| DLQ1
+    RH -->|Exhausted| DLQ2
+
+    API --> INSPECT
+    API --> REQUEUE
+    API --> CLEAR
+
+    DLQ1 -.->|Manual| REQUEUE
+    DLQ2 -.->|Manual| REQUEUE
+    REQUEUE -.->|Return to| DQ
+    REQUEUE -.->|Return to| AQ
+
+    style DLQ1 fill:#E74856,color:#fff
+    style DLQ2 fill:#E74856,color:#fff
+    style API fill:#3B82F6,color:#fff
+```
+
+### DLQ Job Format
+
+Jobs in the DLQ include failure metadata:
+
+```json
+{
+  "original_job": {
+    "camera_id": "front_door",
+    "file_path": "/export/foscam/front_door/image_001.jpg",
+    "timestamp": "2024-01-15T10:30:00.000000"
+  },
+  "error": "Connection refused: RT-DETRv2 service unavailable",
+  "attempt_count": 3,
+  "first_failed_at": "2024-01-15T10:30:01.000000",
+  "last_failed_at": "2024-01-15T10:30:15.000000",
+  "queue_name": "detection_queue"
+}
+```
+
+### DLQ Statistics
+
+The [DLQStats](../../backend/services/retry_handler.py) dataclass at line 120:
+
+```python
+# backend/services/retry_handler.py:120
+@dataclass
+class DLQStats:
+    """Statistics about dead-letter queues."""
+
+    detection_queue_count: int = 0
+    analysis_queue_count: int = 0
+    total_count: int = 0
+```
+
+### DLQ API Endpoints
+
+| Endpoint                        | Method | Description                 |
+| ------------------------------- | ------ | --------------------------- |
+| `/api/dlq/stats`                | GET    | Get DLQ statistics          |
+| `/api/dlq/{queue_name}`         | GET    | List jobs in a DLQ          |
+| `/api/dlq/{queue_name}/requeue` | POST   | Move job back to processing |
+| `/api/dlq/{queue_name}`         | DELETE | Clear all jobs in DLQ       |
+
+---
+
+## Service Health Monitoring
+
+The [ServiceHealthMonitor](../../backend/services/health_monitor.py) at line 25 continuously monitors external services and orchestrates automatic recovery.
+
+### Health Check Flow
+
+```mermaid
+flowchart TB
+    subgraph Monitor["ServiceHealthMonitor"]
+        LOOP[Health Check Loop<br/>Every 15s]
+    end
+
+    subgraph Services["Monitored Services"]
+        S1[RT-DETRv2<br/>GET /health]
+        S2[Nemotron<br/>GET /health]
+        S3[Redis<br/>PING]
+    end
+
+    subgraph States["Service States"]
+        HEALTHY[healthy<br/>Normal operation]
+        UNHEALTHY[unhealthy<br/>Health check failed]
+        RESTARTING[restarting<br/>Restart in progress]
+        FAILED[failed<br/>Max retries exceeded]
+    end
+
+    subgraph Recovery["Recovery Actions"]
+        BACKOFF[Exponential<br/>Backoff]
+        RESTART[Restart<br/>Service]
+        BROADCAST[WebSocket<br/>Broadcast]
+    end
+
+    LOOP --> S1
+    LOOP --> S2
+    LOOP --> S3
+
+    S1 & S2 & S3 -->|OK| HEALTHY
+    S1 & S2 & S3 -->|Fail| UNHEALTHY
+
+    UNHEALTHY --> BACKOFF
+    BACKOFF --> RESTART
+    RESTART -->|Success| HEALTHY
+    RESTART -->|Fail| RESTARTING
+    RESTARTING -->|Max Retries| FAILED
+
+    HEALTHY --> BROADCAST
+    UNHEALTHY --> BROADCAST
+    FAILED --> BROADCAST
+
+    style HEALTHY fill:#76B900,color:#fff
+    style UNHEALTHY fill:#FFB800,color:#000
+    style FAILED fill:#E74856,color:#fff
+    style RESTARTING fill:#3B82F6,color:#fff
+```
+
+### Health Monitor Implementation
+
+```python
+# backend/services/health_monitor.py:25
+class ServiceHealthMonitor:
+    """Monitors service health and orchestrates automatic recovery.
+
+    Status values:
+        - healthy: Service responding normally
+        - unhealthy: Health check failed
+        - restarting: Restart in progress
+        - restart_failed: Restart attempt failed
+        - failed: Max retries exceeded, giving up
+    """
+
+    def __init__(
+        self,
+        manager: ServiceManager,
+        services: list[ServiceConfig],
+        broadcaster: EventBroadcaster | None = None,
+        check_interval: float = 15.0,
+    ) -> None:
+        self._manager = manager
+        self._services = services
+        self._broadcaster = broadcaster
+        self._check_interval = check_interval
+        # ...
+```
+
+### Recovery Backoff Strategy
+
+Recovery attempts use exponential backoff to avoid overwhelming recovering services:
+
+| Attempt | Backoff Delay | Formula              |
+| ------- | ------------- | -------------------- |
+| 1       | 5s            | `backoff_base * 2^0` |
+| 2       | 10s           | `backoff_base * 2^1` |
+| 3       | 20s           | `backoff_base * 2^2` |
+| 4       | 40s           | `backoff_base * 2^3` |
+| 5       | (Give up)     | Max retries exceeded |
+
+---
+
+## Graceful Degradation
+
+When services are unavailable, the system degrades gracefully rather than failing completely.
+
+### Degradation Modes
+
+```mermaid
+flowchart TB
+    subgraph Normal["Normal Operation"]
+        N1[Full AI Pipeline]
+        N2[Real-time Events]
+        N3[Risk Scoring]
+    end
+
+    subgraph Degraded["Degraded Modes"]
+        D1[Detection Only<br/>No LLM Analysis]
+        D2[Queue Buffering<br/>Service Recovery]
+        D3[Fallback Risk<br/>Score: 50, Medium]
+    end
+
+    subgraph Failed["Failure Scenarios"]
+        F1[RT-DETRv2<br/>Unavailable]
+        F2[Nemotron<br/>Unavailable]
+        F3[Redis<br/>Unavailable]
+    end
+
+    F1 -->|Skip Detection| D2
+    F2 -->|Use Fallback| D3
+    F3 -->|Fail Open| D1
+
+    N1 --> F1
+    N1 --> F2
+    N1 --> F3
+
+    style Normal fill:#76B900,color:#fff
+    style Degraded fill:#FFB800,color:#000
+    style Failed fill:#E74856,color:#fff
+```
+
+### Degradation Behavior by Component
+
+| Component      | Failure Mode | Degradation Behavior                                 |
+| -------------- | ------------ | ---------------------------------------------------- |
+| **RT-DETRv2**  | Unreachable  | DetectorClient returns empty list, detection skipped |
+| **Nemotron**   | Unreachable  | NemotronAnalyzer returns default risk (50, medium)   |
+| **Redis**      | Unreachable  | Deduplication fails open (allows processing)         |
+| **Redis**      | Pub/sub down | WebSocket updates unavailable                        |
+| **PostgreSQL** | Unreachable  | Full system failure (critical dependency)            |
+
+### Fallback Risk Assessment
+
+When Nemotron is unavailable, the system uses a fallback risk assessment:
+
+```python
+# backend/services/nemotron_analyzer.py (within analyze_batch)
+# Create fallback risk data when LLM is unavailable
+risk_data = {
+    "risk_score": 50,
+    "risk_level": "medium",
+    "summary": "Analysis unavailable - LLM service error",
+    "reasoning": "Failed to analyze detections due to service error",
+}
+```
+
+---
+
+## Recovery Strategies
+
+### Automatic Recovery Sequence
+
+```mermaid
+sequenceDiagram
+    participant HM as HealthMonitor
+    participant SVC as External Service
+    participant SM as ServiceManager
+    participant WS as WebSocket
+
+    Note over HM: Check interval: 15s
+    HM->>SVC: Health check
+    SVC--xHM: Timeout/Error
+
+    HM->>WS: Broadcast "unhealthy"
+
+    loop Retry with backoff
+        HM->>HM: Calculate backoff (5s * 2^n)
+        HM->>HM: Wait backoff period
+        HM->>WS: Broadcast "restarting"
+        HM->>SM: Restart service
+        SM->>SVC: docker restart / systemctl restart
+        HM->>HM: Wait 2s for startup
+        HM->>SVC: Health check
+        alt Healthy
+            SVC-->>HM: OK
+            HM->>WS: Broadcast "healthy"
+        else Still Unhealthy
+            SVC--xHM: Error
+            Note over HM: Increment retry count
+        end
+    end
+
+    alt Max retries exceeded
+        HM->>WS: Broadcast "failed"
+        Note over HM: Manual intervention required
+    end
+```
+
+### Service Manager Strategies
+
+The system supports different restart strategies via the ServiceManager interface:
+
+| Strategy               | Implementation                        | Use Case                     |
+| ---------------------- | ------------------------------------- | ---------------------------- |
+| `ShellServiceManager`  | Shell commands (`systemctl`, scripts) | Development, native services |
+| `DockerServiceManager` | Docker CLI (`docker restart`)         | Production containers        |
+| `PodmanServiceManager` | Podman CLI (`podman restart`)         | Podman deployments           |
+
+---
+
+## Configuration Reference
+
+### Circuit Breaker Settings
+
+| Environment Variable                  | Default | Description              |
+| ------------------------------------- | ------- | ------------------------ |
+| `CIRCUIT_BREAKER_FAILURE_THRESHOLD`   | 5       | Failures before opening  |
+| `CIRCUIT_BREAKER_RECOVERY_TIMEOUT`    | 30      | Seconds before half-open |
+| `CIRCUIT_BREAKER_HALF_OPEN_MAX_CALLS` | 3       | Max test calls           |
+| `CIRCUIT_BREAKER_SUCCESS_THRESHOLD`   | 2       | Successes to close       |
+
+### Retry Handler Settings
+
+| Environment Variable     | Default | Description             |
+| ------------------------ | ------- | ----------------------- |
+| `RETRY_MAX_RETRIES`      | 3       | Maximum retry attempts  |
+| `RETRY_BASE_DELAY`       | 1.0     | Initial delay (seconds) |
+| `RETRY_MAX_DELAY`        | 30.0    | Maximum delay (seconds) |
+| `RETRY_EXPONENTIAL_BASE` | 2.0     | Backoff multiplier      |
+
+### Health Monitor Settings
+
+| Environment Variable    | Default | Description              |
+| ----------------------- | ------- | ------------------------ |
+| `HEALTH_CHECK_INTERVAL` | 15.0    | Check interval (seconds) |
+| `SERVICE_MAX_RETRIES`   | 5       | Max restart attempts     |
+| `SERVICE_BACKOFF_BASE`  | 5.0     | Initial restart backoff  |
+
+---
+
+## Image Generation Prompts
+
+### Prompt: Resilience Architecture Overview
+
+**Dimensions:** 800x1200 (vertical 2:3)
+
+```
+Technical illustration of a resilience system architecture,
+showing layered defense with circuit breakers, retry logic, and health monitoring.
+
+Visual elements:
+- Top layer: incoming requests represented as flowing data streams
+- Middle layer: circuit breaker icons (open/closed switches) with state indicators
+- Retry layer: circular arrows with backoff timing indicators
+- Bottom layer: dead-letter queue as a secure vault/buffer
+- Side panel: health monitor with heartbeat line and status indicators
+
+Color scheme:
+- Dark background #121212
+- NVIDIA green #76B900 for healthy/success states
+- Red #E74856 for failures and DLQ
+- Yellow #FFB800 for warning/half-open states
+- Blue #3B82F6 for external services
+
+Style: Isometric technical diagram, clean lines, glowing data paths, vertical orientation
+No text overlays
+```
+
+### Prompt: Circuit Breaker State Machine
+
+**Dimensions:** 800x1000 (vertical)
+
+```
+Technical illustration of a circuit breaker state machine,
+showing three states: Closed, Open, and Half-Open.
+
+Visual elements:
+- Three interconnected circular nodes representing states
+- Arrows showing state transitions with trigger conditions
+- CLOSED state: green glow, electricity flowing through
+- OPEN state: red glow, broken connection, barrier
+- HALF_OPEN state: yellow glow, partial connection, testing probe
+
+Background: Dark #121212 with subtle grid pattern
+Accent lighting: State-appropriate colors (green/red/yellow)
+Style: Modern technical diagram, glowing circuit aesthetic, vertical layout
+No text overlays
+```
+
+---
+
+## Related Documentation
+
+| Document                                              | Purpose                            |
+| ----------------------------------------------------- | ---------------------------------- |
+| [AI Pipeline](ai-pipeline.md)                         | Detection and analysis flow        |
+| [Real-Time](real-time.md)                             | WebSocket and pub/sub architecture |
+| [Data Model](data-model.md)                           | Database schema and relationships  |
+| [Backend AGENTS.md](../../backend/services/AGENTS.md) | Service implementation details     |
+
+---
+
+_This document describes the resilience architecture for the Home Security Intelligence system. For implementation details, see the source files referenced in the frontmatter._

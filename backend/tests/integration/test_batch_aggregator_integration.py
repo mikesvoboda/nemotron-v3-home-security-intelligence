@@ -6,6 +6,7 @@ avoid real timeout waits while still testing timeout logic correctly.
 """
 
 import json
+from dataclasses import dataclass
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -13,6 +14,24 @@ import pytest
 from backend.core.redis import QueueAddResult
 from backend.services.batch_aggregator import BatchAggregator
 from backend.tests.conftest import unique_id
+
+
+@dataclass
+class MockQueueAddResult:
+    """Mock QueueAddResult for testing."""
+
+    success: bool
+    queue_length: int
+    dropped_count: int = 0
+    moved_to_dlq_count: int = 0
+    error: str | None = None
+    warning: str | None = None
+
+    @property
+    def had_backpressure(self) -> bool:
+        """Return True if backpressure was applied."""
+        return self.dropped_count > 0 or self.moved_to_dlq_count > 0 or self.error is not None
+
 
 # Fixtures
 

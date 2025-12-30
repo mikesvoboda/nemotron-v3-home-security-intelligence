@@ -619,7 +619,7 @@ async def test_publish_message(redis_client, mock_redis_client):
 
 @pytest.mark.asyncio
 async def test_subscribe_to_channel(redis_client, mock_redis_client):
-    """Test subscribing to a channel."""
+    """Test subscribing to a channel using shared pubsub."""
     mock_pubsub = AsyncMock()
     mock_pubsub.subscribe = AsyncMock()
     mock_redis_client.pubsub.return_value = mock_pubsub
@@ -628,6 +628,55 @@ async def test_subscribe_to_channel(redis_client, mock_redis_client):
 
     assert pubsub is not None
     mock_pubsub.subscribe.assert_awaited_once_with("test_channel", "another_channel")
+
+
+@pytest.mark.asyncio
+async def test_create_pubsub_returns_new_instance(redis_client, mock_redis_client):
+    """Test create_pubsub returns a new PubSub instance each time."""
+    mock_pubsub1 = MagicMock()
+    mock_pubsub2 = MagicMock()
+    mock_redis_client.pubsub.side_effect = [mock_pubsub1, mock_pubsub2]
+
+    pubsub1 = redis_client.create_pubsub()
+    pubsub2 = redis_client.create_pubsub()
+
+    assert pubsub1 is not pubsub2
+    assert mock_redis_client.pubsub.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_subscribe_dedicated_creates_new_pubsub(redis_client, mock_redis_client):
+    """Test subscribe_dedicated creates a dedicated pubsub connection."""
+    mock_pubsub = AsyncMock()
+    mock_pubsub.subscribe = AsyncMock()
+    mock_redis_client.pubsub.return_value = mock_pubsub
+
+    pubsub = await redis_client.subscribe_dedicated("test_channel")
+
+    assert pubsub is mock_pubsub
+    mock_pubsub.subscribe.assert_awaited_once_with("test_channel")
+    # Should NOT set internal _pubsub (that's for shared instance)
+    # The dedicated pubsub is returned for caller to manage
+
+
+@pytest.mark.asyncio
+async def test_subscribe_dedicated_multiple_calls_create_separate_connections(
+    redis_client, mock_redis_client
+):
+    """Test multiple subscribe_dedicated calls create separate connections."""
+    mock_pubsub1 = AsyncMock()
+    mock_pubsub1.subscribe = AsyncMock()
+    mock_pubsub2 = AsyncMock()
+    mock_pubsub2.subscribe = AsyncMock()
+    mock_redis_client.pubsub.side_effect = [mock_pubsub1, mock_pubsub2]
+
+    pubsub1 = await redis_client.subscribe_dedicated("channel1")
+    pubsub2 = await redis_client.subscribe_dedicated("channel2")
+
+    assert pubsub1 is not pubsub2
+    assert mock_redis_client.pubsub.call_count == 2
+    mock_pubsub1.subscribe.assert_awaited_once_with("channel1")
+    mock_pubsub2.subscribe.assert_awaited_once_with("channel2")
 
 
 @pytest.mark.asyncio

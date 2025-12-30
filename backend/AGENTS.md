@@ -13,6 +13,21 @@ The backend is a FastAPI-based REST API server for an AI-powered home security m
 - **Observability** - Prometheus metrics, structured logging, dead-letter queues
 - **Alerting** - Alert rules with severity-based thresholds and notification channels
 - **TLS/HTTPS** - Optional TLS support with self-signed certificate generation
+- **Audit logging** - Security-sensitive operation tracking for compliance
+
+## Running the Backend
+
+```bash
+# Development (from project root)
+source .venv/bin/activate
+python -m backend.main
+
+# Or with uvicorn directly
+uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+
+# Production (via Podman)
+podman-compose -f docker-compose.prod.yml up -d backend
+```
 
 ## Directory Structure
 
@@ -57,6 +72,7 @@ backend/
   - `logs` - Log querying and frontend log ingestion
   - `media` - Secure file serving
   - `metrics` - Prometheus metrics endpoint
+  - `notification` - Notification channel management
   - `system` - System health and status
   - `websocket` - Real-time event streaming
   - `zones` - Zone management for camera areas
@@ -369,6 +385,17 @@ TLS_KEY_PATH=/path/to/key.pem
 RATE_LIMIT_ENABLED=true
 RATE_LIMIT_REQUESTS_PER_MINUTE=60
 ```
+
+## Health Endpoints
+
+The backend provides three health endpoints for different use cases:
+
+| Endpoint                 | Purpose                                     | Returns               |
+| ------------------------ | ------------------------------------------- | --------------------- |
+| `GET /`                  | Basic status check                          | `{"status": "ok"}`    |
+| `GET /health`            | Liveness probe (Kubernetes/Docker)          | `{"status": "alive"}` |
+| `GET /ready`             | Readiness probe (checks DB, Redis, workers) | HTTP 200 or 503       |
+| `GET /api/system/health` | Detailed health with service breakdown      | Full status object    |
 
 ## Related Documentation
 

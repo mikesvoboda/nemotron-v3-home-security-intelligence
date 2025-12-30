@@ -27,21 +27,22 @@ Package initialization. Contains a simple docstring: "API package for routes and
 
 Contains FastAPI routers that define HTTP endpoints:
 
-| File            | Purpose                                            |
-| --------------- | -------------------------------------------------- |
-| `cameras.py`    | Camera CRUD operations and snapshot serving        |
-| `events.py`     | Security event management, queries, and statistics |
-| `detections.py` | Object detection listing and thumbnail serving     |
-| `logs.py`       | System and frontend log management                 |
-| `websocket.py`  | WebSocket endpoints for real-time updates          |
-| `system.py`     | System health, GPU stats, configuration, telemetry |
-| `media.py`      | Secure file serving for images/videos              |
-| `dlq.py`        | Dead-letter queue inspection and management        |
-| `metrics.py`    | Prometheus metrics endpoint                        |
-| `alerts.py`     | Alert rules CRUD and rule testing                  |
-| `audit.py`      | Audit log listing and statistics                   |
-| `zones.py`      | Camera zone management (nested under cameras)      |
-| `admin.py`      | Development-only seed data endpoints               |
+| File              | Purpose                                            |
+| ----------------- | -------------------------------------------------- |
+| `cameras.py`      | Camera CRUD operations and snapshot serving        |
+| `events.py`       | Security event management, queries, and statistics |
+| `detections.py`   | Object detection listing and thumbnail serving     |
+| `logs.py`         | System and frontend log management                 |
+| `websocket.py`    | WebSocket endpoints for real-time updates          |
+| `system.py`       | System health, GPU stats, configuration, telemetry |
+| `media.py`        | Secure file serving for images/videos              |
+| `dlq.py`          | Dead-letter queue inspection and management        |
+| `metrics.py`      | Prometheus metrics endpoint                        |
+| `alerts.py`       | Alert rules CRUD and rule testing                  |
+| `audit.py`        | Audit log listing and statistics                   |
+| `zones.py`        | Camera zone management (nested under cameras)      |
+| `notification.py` | Notification configuration and test endpoints      |
+| `admin.py`        | Development-only seed data endpoints               |
 
 ### Schemas (`schemas/`)
 
@@ -200,8 +201,12 @@ The `/api/media/*` endpoints implement strict security controls:
 - `GET /api/system/gpu/history` - GPU stats time series
 - `GET /api/system/stats` - System statistics (counts, uptime)
 - `GET /api/system/config` - Public configuration
-- `PATCH /api/system/config` - Update configuration
+- `PATCH /api/system/config` - Update configuration (requires API key)
 - `GET /api/system/telemetry` - Pipeline queue depths and latency stats
+- `GET /api/system/pipeline-latency` - Pipeline stage transition latencies with percentiles
+- `POST /api/system/cleanup` - Trigger manual data cleanup (requires API key, supports dry_run)
+- `GET /api/system/severity` - Severity level definitions and thresholds
+- `GET /api/system/storage` - Storage statistics and disk usage
 
 ### Media (`/api/media`)
 
@@ -243,6 +248,11 @@ The `/api/media/*` endpoints implement strict security controls:
 - `GET /api/cameras/{id}/zones/{zone_id}` - Get specific zone
 - `PUT /api/cameras/{id}/zones/{zone_id}` - Update zone
 - `DELETE /api/cameras/{id}/zones/{zone_id}` - Delete zone
+
+### Notification (`/api/notification`)
+
+- `GET /api/notification/config` - Get notification configuration status
+- `POST /api/notification/test` - Test notification channel delivery
 
 ### Admin (DEBUG mode only) (`/api/admin`)
 
