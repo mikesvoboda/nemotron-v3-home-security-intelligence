@@ -20,22 +20,24 @@ Comprehensive guide for setting up and running the AI inference services for the
 
 ## Overview
 
-The AI pipeline consists of two independent native services running outside Docker for optimal GPU performance:
+The AI pipeline consists of two independent services running in **Podman containers with GPU passthrough**:
 
 1. **RT-DETRv2 Detection Server** (Port 8090)
 
    - Real-time object detection from camera images
-   - ONNX Runtime with CUDA acceleration
-   - ~4GB VRAM usage
+   - HuggingFace Transformers with PyTorch CUDA
+   - ~650 MiB VRAM usage
    - 30-50ms inference per image
 
 2. **Nemotron LLM Server** (Port 8091)
    - Risk reasoning and natural language generation
    - llama.cpp with quantized GGUF model
-   - ~3GB VRAM usage
+   - ~14.7 GB VRAM usage (30B Q4_K_M model)
    - 2-5 seconds per risk analysis
 
-**Total VRAM requirement**: ~7GB (both services running)
+**Total VRAM requirement**: ~15.5 GB (both services running with 30B model)
+
+**Production Deployment**: Both services run in Podman containers (`ai-detector_1` and `ai-llm_1`) with NVIDIA GPU passthrough via Container Device Interface (CDI).
 
 ## Architecture
 

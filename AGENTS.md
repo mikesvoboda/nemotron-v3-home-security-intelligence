@@ -178,7 +178,7 @@ cd frontend && npm test
 - **Batch processing:** 90-second time windows with 30-second idle timeout
 - **No auth:** Single-user local deployment (MVP)
 - **Retention:** 30 days
-- **Deployment:** Hybrid (Docker for services, native for GPU AI models)
+- **Deployment:** Fully containerized (Podman) with GPU passthrough for AI models
 
 ## Data Flow
 
@@ -239,13 +239,13 @@ cd frontend && npm test
 
 ## Service Ports
 
-| Service     | Port | Description                |
-| ----------- | ---- | -------------------------- |
-| Frontend    | 5173 | Vite dev server            |
-| Backend API | 8000 | FastAPI REST + WebSocket   |
-| RT-DETRv2   | 8090 | Object detection (native)  |
-| Nemotron    | 8091 | LLM risk analysis (native) |
-| Redis       | 6379 | Cache and queues           |
+| Service     | Port | Description                            |
+| ----------- | ---- | -------------------------------------- |
+| Frontend    | 5173 | Vite dev server                        |
+| Backend API | 8000 | FastAPI REST + WebSocket               |
+| RT-DETRv2   | 8090 | Object detection (container with GPU)  |
+| Nemotron    | 8091 | LLM risk analysis (container with GPU) |
+| Redis       | 6379 | Cache and queues                       |
 
 ## Session Completion Workflow
 
