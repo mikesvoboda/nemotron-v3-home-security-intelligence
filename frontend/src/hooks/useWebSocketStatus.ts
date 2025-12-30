@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
-export type ConnectionState = 'connected' | 'disconnected' | 'reconnecting';
+export type ConnectionState = 'connected' | 'disconnected' | 'reconnecting' | 'failed';
 
 export interface ChannelStatus {
   name: string;
@@ -8,6 +8,8 @@ export interface ChannelStatus {
   reconnectAttempts: number;
   maxReconnectAttempts: number;
   lastMessageTime: Date | null;
+  /** True when max reconnection attempts have been exhausted */
+  hasExhaustedRetries: boolean;
 }
 
 export interface WebSocketStatusOptions {
@@ -17,9 +19,14 @@ export interface WebSocketStatusOptions {
   onOpen?: () => void;
   onClose?: () => void;
   onError?: (error: Event) => void;
+  /** Called when max reconnection attempts are exhausted */
+  onMaxRetriesExhausted?: () => void;
   reconnect?: boolean;
+  /** Base reconnection interval in ms (will be used with exponential backoff) */
   reconnectInterval?: number;
   reconnectAttempts?: number;
+  /** Connection timeout in ms - close and retry if connection hangs */
+  connectionTimeout?: number;
 }
 
 export interface UseWebSocketStatusReturn {
@@ -28,6 +35,20 @@ export interface UseWebSocketStatusReturn {
   send: (data: unknown) => void;
   connect: () => void;
   disconnect: () => void;
+}
+
+/**
+ * Calculate exponential backoff delay with jitter
+ */
+function calculateBackoffDelay(
+  attempt: number,
+  baseInterval: number,
+  maxInterval: number = 30000
+): number {
+  const exponentialDelay = baseInterval * Math.pow(2, attempt);
+  const cappedDelay = Math.min(exponentialDelay, maxInterval);
+  const jitter = Math.random() * 0.25 * cappedDelay;
+  return Math.floor(cappedDelay + jitter);
 }
 
 export function useWebSocketStatus(
@@ -40,33 +61,45 @@ export function useWebSocketStatus(
     onOpen,
     onClose,
     onError,
+    onMaxRetriesExhausted,
     reconnect = true,
-    reconnectInterval = 3000,
+    reconnectInterval = 1000, // Base interval for exponential backoff
     reconnectAttempts = 5,
+    connectionTimeout = 10000, // 10 second connection timeout
   } = options;
 
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
   const [reconnectCount, setReconnectCount] = useState(0);
   const [lastMessageTime, setLastMessageTime] = useState<Date | null>(null);
   const [lastMessage, setLastMessage] = useState<unknown>(null);
+  const [hasExhaustedRetries, setHasExhaustedRetries] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const connectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shouldConnectRef = useRef(true);
+  const reconnectCountRef = useRef(0);
 
-  const disconnect = useCallback(() => {
-    shouldConnectRef.current = false;
-
+  const clearAllTimeouts = useCallback(() => {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
     }
+    if (connectionTimeoutRef.current) {
+      clearTimeout(connectionTimeoutRef.current);
+      connectionTimeoutRef.current = null;
+    }
+  }, []);
+
+  const disconnect = useCallback(() => {
+    shouldConnectRef.current = false;
+    clearAllTimeouts();
 
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
     }
-  }, []);
+  }, [clearAllTimeouts]);
 
   const connect = useCallback(() => {
     // Check if WebSocket is available (SSR support)
@@ -83,41 +116,67 @@ export function useWebSocketStatus(
     }
 
     shouldConnectRef.current = true;
+    // Reset exhausted state when manually connecting
+    setHasExhaustedRetries(false);
 
     try {
       const ws = new WebSocket(url);
       wsRef.current = ws;
 
+      // Set connection timeout - if we don't connect within timeout, close and retry
+      if (connectionTimeout > 0) {
+        connectionTimeoutRef.current = setTimeout(() => {
+          if (ws.readyState === WebSocket.CONNECTING) {
+            console.warn(`[${channelName}] WebSocket connection timeout after ${connectionTimeout}ms, retrying...`);
+            ws.close();
+          }
+        }, connectionTimeout);
+      }
+
       ws.onopen = () => {
+        // Clear connection timeout
+        if (connectionTimeoutRef.current) {
+          clearTimeout(connectionTimeoutRef.current);
+          connectionTimeoutRef.current = null;
+        }
+
         setConnectionState('connected');
+        reconnectCountRef.current = 0;
         setReconnectCount(0);
+        setHasExhaustedRetries(false);
         onOpen?.();
       };
 
       ws.onclose = () => {
-        setConnectionState(() => {
-          // If we were connected and should reconnect, transition to reconnecting
-          if (shouldConnectRef.current && reconnect) {
-            return 'reconnecting';
-          }
-          return 'disconnected';
-        });
+        // Clear connection timeout
+        if (connectionTimeoutRef.current) {
+          clearTimeout(connectionTimeoutRef.current);
+          connectionTimeoutRef.current = null;
+        }
+
         onClose?.();
 
         // Attempt reconnection if enabled and within retry limits
-        if (shouldConnectRef.current && reconnect) {
-          setReconnectCount((prev) => {
-            const newCount = prev + 1;
-            if (newCount <= reconnectAttempts) {
-              reconnectTimeoutRef.current = setTimeout(() => {
-                connect();
-              }, reconnectInterval);
-            } else {
-              // Max reconnect attempts reached, stay disconnected
-              setConnectionState('disconnected');
-            }
-            return newCount;
-          });
+        if (shouldConnectRef.current && reconnect && reconnectCountRef.current < reconnectAttempts) {
+          setConnectionState('reconnecting');
+
+          const currentAttempt = reconnectCountRef.current;
+          reconnectCountRef.current += 1;
+          setReconnectCount(reconnectCountRef.current);
+
+          // Calculate delay with exponential backoff
+          const delay = calculateBackoffDelay(currentAttempt, reconnectInterval);
+
+          reconnectTimeoutRef.current = setTimeout(() => {
+            connect();
+          }, delay);
+        } else if (shouldConnectRef.current && reconnect && reconnectCountRef.current >= reconnectAttempts) {
+          // Max retries exhausted
+          setConnectionState('failed');
+          setHasExhaustedRetries(true);
+          onMaxRetriesExhausted?.();
+        } else {
+          setConnectionState('disconnected');
         }
       };
 
@@ -138,10 +197,10 @@ export function useWebSocketStatus(
         }
       };
     } catch (error) {
-      console.error('WebSocket connection error:', error);
+      console.error(`[${channelName}] WebSocket connection error:`, error);
       setConnectionState('disconnected');
     }
-  }, [url, onMessage, onOpen, onClose, onError, reconnect, reconnectInterval, reconnectAttempts]);
+  }, [url, channelName, onMessage, onOpen, onClose, onError, onMaxRetriesExhausted, reconnect, reconnectInterval, reconnectAttempts, connectionTimeout]);
 
   const send = useCallback((data: unknown) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -166,6 +225,7 @@ export function useWebSocketStatus(
     reconnectAttempts: reconnectCount,
     maxReconnectAttempts: reconnectAttempts,
     lastMessageTime,
+    hasExhaustedRetries,
   };
 
   return {

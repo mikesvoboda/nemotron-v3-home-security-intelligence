@@ -19,6 +19,7 @@ function createMockChannel(
     reconnectAttempts,
     maxReconnectAttempts: 5,
     lastMessageTime: state === 'connected' ? new Date() : null,
+    hasExhaustedRetries: state === 'failed',
   };
 }
 
@@ -51,10 +52,14 @@ function createMockConnectionStatus(
       anyReconnecting,
       allConnected,
       totalReconnectAttempts: eventsChannel.reconnectAttempts + systemChannel.reconnectAttempts,
+      hasExhaustedRetries: eventsChannel.hasExhaustedRetries || systemChannel.hasExhaustedRetries,
+      allFailed: eventsState === 'failed' && systemState === 'failed',
     },
     events: [],
     systemStatus,
     clearEvents: vi.fn(),
+    isPollingFallback: false,
+    retryConnection: vi.fn(),
   };
 }
 
