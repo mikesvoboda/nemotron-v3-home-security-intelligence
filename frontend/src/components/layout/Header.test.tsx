@@ -63,6 +63,7 @@ describe('Header', () => {
         gpu_temperature: 65,
         gpu_memory_used: 8192,
         gpu_memory_total: 24576,
+        inference_fps: 30.5,
         active_cameras: 3,
         last_update: '2025-12-23T10:00:00Z',
       },
@@ -90,6 +91,7 @@ describe('Header', () => {
         gpu_temperature: 65,
         gpu_memory_used: 8192,
         gpu_memory_total: 24576,
+        inference_fps: 30.5,
         active_cameras: 3,
         last_update: '2025-12-23T10:00:00Z',
       },
@@ -173,6 +175,7 @@ describe('Header', () => {
         gpu_temperature: null,
         gpu_memory_used: 8192,
         gpu_memory_total: 24576,
+        inference_fps: 30.5,
         active_cameras: 3,
         last_update: '2025-12-23T10:00:00Z',
       },
@@ -189,7 +192,7 @@ describe('Header', () => {
     });
 
     render(<Header />);
-    expect(screen.getByText('76%')).toBeInTheDocument();
+    expect(screen.getByText('76% | 30.5 FPS')).toBeInTheDocument();
   });
 
   it('displays GPU temperature when available', () => {
@@ -200,6 +203,7 @@ describe('Header', () => {
         gpu_temperature: 65.7,
         gpu_memory_used: 8192,
         gpu_memory_total: 24576,
+        inference_fps: 30.5,
         active_cameras: 3,
         last_update: '2025-12-23T10:00:00Z',
       },
@@ -216,7 +220,7 @@ describe('Header', () => {
     });
 
     render(<Header />);
-    expect(screen.getByText('66°C')).toBeInTheDocument();
+    expect(screen.getByText('66°C | 30.5 FPS')).toBeInTheDocument();
   });
 
   it('displays both GPU utilization and temperature when available', () => {
@@ -227,6 +231,7 @@ describe('Header', () => {
         gpu_temperature: 62.8,
         gpu_memory_used: 8192,
         gpu_memory_total: 24576,
+        inference_fps: 30.5,
         active_cameras: 3,
         last_update: '2025-12-23T10:00:00Z',
       },
@@ -243,7 +248,7 @@ describe('Header', () => {
     });
 
     render(<Header />);
-    expect(screen.getByText('45% | 63°C')).toBeInTheDocument();
+    expect(screen.getByText('45% | 63°C | 30.5 FPS')).toBeInTheDocument();
   });
 
   it('displays System Degraded status when system is degraded', () => {
@@ -254,6 +259,7 @@ describe('Header', () => {
         gpu_temperature: 75,
         gpu_memory_used: 8192,
         gpu_memory_total: 24576,
+        inference_fps: 30.5,
         active_cameras: 1,
         last_update: '2025-12-23T10:00:00Z',
       },
@@ -281,6 +287,7 @@ describe('Header', () => {
         gpu_temperature: 90,
         gpu_memory_used: 8192,
         gpu_memory_total: 24576,
+        inference_fps: 30.5,
         active_cameras: 0,
         last_update: '2025-12-23T10:00:00Z',
       },
@@ -308,6 +315,7 @@ describe('Header', () => {
         gpu_temperature: 75,
         gpu_memory_used: 8192,
         gpu_memory_total: 24576,
+        inference_fps: 30.5,
         active_cameras: 1,
         last_update: '2025-12-23T10:00:00Z',
       },
@@ -336,6 +344,7 @@ describe('Header', () => {
         gpu_temperature: 90,
         gpu_memory_used: 8192,
         gpu_memory_total: 24576,
+        inference_fps: 30.5,
         active_cameras: 0,
         last_update: '2025-12-23T10:00:00Z',
       },
@@ -364,6 +373,7 @@ describe('Header', () => {
         gpu_temperature: 65,
         gpu_memory_used: 8192,
         gpu_memory_total: 24576,
+        inference_fps: 30.5,
         active_cameras: 3,
         last_update: '2025-12-23T10:00:00Z',
       },
@@ -393,6 +403,7 @@ describe('Header', () => {
           gpu_temperature: 65,
           gpu_memory_used: 8192,
           gpu_memory_total: 24576,
+          inference_fps: 30.5,
           active_cameras: 3,
           last_update: '2025-12-23T10:00:00Z',
         },
@@ -449,6 +460,7 @@ describe('Header', () => {
           gpu_temperature: 65,
           gpu_memory_used: 8192,
           gpu_memory_total: 24576,
+          inference_fps: 30.5,
           active_cameras: 3,
           last_update: '2025-12-23T10:00:00Z',
         },
@@ -505,6 +517,7 @@ describe('Header', () => {
           gpu_temperature: 65,
           gpu_memory_used: 8192,
           gpu_memory_total: 24576,
+          inference_fps: 30.5,
           active_cameras: 3,
           last_update: '2025-12-23T10:00:00Z',
         },
@@ -537,6 +550,7 @@ describe('Header', () => {
           gpu_temperature: 65,
           gpu_memory_used: 8192,
           gpu_memory_total: 24576,
+          inference_fps: 30.5,
           active_cameras: 3,
           last_update: '2025-12-23T10:00:00Z',
         },
@@ -589,6 +603,7 @@ describe('Header', () => {
           gpu_temperature: 65,
           gpu_memory_used: 8192,
           gpu_memory_total: 24576,
+          inference_fps: 30.5,
           active_cameras: 3,
           last_update: '2025-12-23T10:00:00Z',
         },
@@ -620,6 +635,7 @@ describe('Header', () => {
           gpu_temperature: 65,
           gpu_memory_used: 8192,
           gpu_memory_total: 24576,
+          inference_fps: 30.5,
           active_cameras: 3,
           last_update: '2025-12-23T10:00:00Z',
         },
@@ -659,6 +675,7 @@ describe('Header', () => {
           gpu_temperature: 65,
           gpu_memory_used: 8192,
           gpu_memory_total: 24576,
+          inference_fps: 30.5,
           active_cameras: 3,
           last_update: '2025-12-23T10:00:00Z',
         },

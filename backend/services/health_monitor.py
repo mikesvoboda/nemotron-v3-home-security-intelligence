@@ -274,11 +274,15 @@ class ServiceHealthMonitor:
         if self._broadcaster is None:
             return
 
+        # Use the canonical message envelope format: {"type": "...", "data": {...}}
+        # This is consistent with other WebSocket messages (events, system_status)
         event_data = {
             "type": "service_status",
-            "service": service.name,
-            "status": status,
-            "message": message,
+            "data": {
+                "service": service.name,
+                "status": status,
+                "message": message,
+            },
             "timestamp": datetime.now(UTC).isoformat(),
         }
 

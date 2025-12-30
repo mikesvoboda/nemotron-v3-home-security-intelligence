@@ -8,7 +8,7 @@ from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.api.schemas.detections import DetectionListResponse
@@ -53,7 +53,7 @@ def parse_detection_ids(detection_ids_str: str | None) -> list[int]:
 
 
 @router.get("", response_model=EventListResponse)
-async def list_events(
+async def list_events(  # noqa: PLR0912
     camera_id: str | None = Query(None, description="Filter by camera ID"),
     risk_level: str | None = Query(
         None, description="Filter by risk level (low, medium, high, critical)"
@@ -98,31 +98,36 @@ async def list_events(
         query = query.where(Event.reviewed == reviewed)
 
     # Filter by object type - find events that have at least one detection with this type
+    # We use a subquery approach to find matching event IDs, avoiding fragile LIKE patterns
+    # that could incorrectly match partial IDs (e.g., "1" matching "10")
+    matching_event_ids_for_object_type: set[int] | None = None
     if object_type:
         # Subquery to find detection IDs with matching object_type
         detection_ids_subquery = select(Detection.id).where(Detection.object_type == object_type)
         detection_ids_result = await db.execute(detection_ids_subquery)
-        matching_detection_ids = {str(d) for d in detection_ids_result.scalars().all()}
+        matching_detection_ids = set(detection_ids_result.scalars().all())
 
         if matching_detection_ids:
-            # Filter events where detection_ids (JSON array) contains at least one matching ID
-            # JSON arrays look like: [1, 2, 3] or [1,2,3]
-            conditions = []
-            for det_id in matching_detection_ids:
-                # Match patterns in JSON array format: [id, or ,id, or ,id] or [id]
-                conditions.extend(
-                    [
-                        Event.detection_ids.like(f"[{det_id},%"),  # First element: [1, ...
-                        Event.detection_ids.like(f"%, {det_id},%"),  # Middle element: , 2, ...
-                        Event.detection_ids.like(
-                            f"%,{det_id},%"
-                        ),  # Middle element no space: ,2,...
-                        Event.detection_ids.like(f"%, {det_id}]"),  # Last element: , 3]
-                        Event.detection_ids.like(f"%,{det_id}]"),  # Last element no space: ,3]
-                        Event.detection_ids == f"[{det_id}]",  # Single element: [1]
-                    ]
-                )
-            query = query.where(or_(*conditions))
+            # Find events that contain at least one of the matching detection IDs
+            # We fetch all events and filter in Python to avoid fragile LIKE patterns
+            # LIKE patterns like "[1,%" incorrectly match "[10,..." when searching for ID 1
+            all_events_query = select(Event.id, Event.detection_ids)
+            all_events_result = await db.execute(all_events_query)
+            all_events = all_events_result.all()
+
+            matching_event_ids_for_object_type = set()
+            for event_id, detection_ids_str in all_events:
+                # Parse the JSON array of detection IDs
+                event_detection_ids = set(parse_detection_ids(detection_ids_str))
+                # Check if any of the event's detection IDs match our target detection IDs
+                if event_detection_ids & matching_detection_ids:
+                    matching_event_ids_for_object_type.add(event_id)
+
+            if matching_event_ids_for_object_type:
+                query = query.where(Event.id.in_(matching_event_ids_for_object_type))
+            else:
+                # No matching events found, return empty result
+                query = query.where(Event.id == -1)  # Impossible condition
         else:
             # No matching detections found, return empty result
             query = query.where(Event.id == -1)  # Impossible condition

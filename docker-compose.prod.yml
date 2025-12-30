@@ -70,7 +70,7 @@ services:
           "CMD",
           "python",
           "-c",
-          "import httpx; r = httpx.get('http://localhost:8000/api/system/health/live'); exit(0 if r.status_code == 200 else 1)",
+          "import httpx; r = httpx.get('http://localhost:8000/api/system/health/ready'); exit(0 if r.status_code == 200 else 1)",
         ]
       interval: 10s
       timeout: 5s
@@ -111,7 +111,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile.prod
     ports:
-      - "${FRONTEND_PORT:-8080}:80"
+      - "${FRONTEND_PORT:-80}:80"
     # NOTE: VITE_* environment variables are NOT used at runtime.
     # Vite bakes these values at build time. The frontend uses relative URLs
     # (empty BASE_URL), and nginx proxies /api and /ws to the backend.

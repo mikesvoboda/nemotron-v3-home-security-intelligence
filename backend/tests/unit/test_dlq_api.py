@@ -8,12 +8,17 @@ Tests cover:
 - DELETE /api/dlq/{queue_name} - Clear DLQ
 """
 
+import os
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
 
+# Set DATABASE_URL for tests before importing any backend modules
+os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost:5432/test")
+
 from backend.api.routes.dlq import DLQName
+from backend.core.redis import QueueAddResult
 from backend.services.retry_handler import reset_retry_handler
 
 
@@ -22,6 +27,7 @@ def mock_redis() -> MagicMock:
     """Create a mock Redis client."""
     redis = MagicMock()
     redis.add_to_queue = AsyncMock(return_value=1)
+    redis.add_to_queue_safe = AsyncMock(return_value=QueueAddResult(success=True, queue_length=1))
     redis.get_from_queue = AsyncMock(return_value=None)
     redis.get_queue_length = AsyncMock(return_value=0)
     redis.peek_queue = AsyncMock(return_value=[])

@@ -328,3 +328,13 @@ if (stats.total > 0) {
 - FastAPI `detail` field automatically extracted from error responses
 - Logger automatically logs to console in all environments
 - Logger queue is preserved on flush failures (up to 100 entries)
+
+## Entry Points
+
+For AI agents exploring this codebase:
+
+1. **Start with `api.ts`** - Main API client with all REST endpoint methods
+2. **Type imports**: Types are re-exported from `../types/generated/`
+3. **WebSocket URLs**: Use `buildWebSocketUrl()` for WebSocket connections
+4. **Error handling**: All API calls can throw `ApiError` with status and data
+5. **Logging**: Import `logger` singleton for frontend logging to backend

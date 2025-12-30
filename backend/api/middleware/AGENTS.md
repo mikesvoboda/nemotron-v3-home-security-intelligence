@@ -13,6 +13,11 @@ Package initialization with public exports:
 - `AuthMiddleware` - HTTP API key authentication middleware
 - `authenticate_websocket` - WebSocket authentication helper
 - `validate_websocket_api_key` - WebSocket API key validation
+- `RateLimiter` - FastAPI dependency for rate limiting
+- `RateLimitTier` - Rate limit tier enum (DEFAULT, MEDIA, WEBSOCKET, SEARCH)
+- `check_websocket_rate_limit` - WebSocket connection rate limiting
+- `get_client_ip` - Extract client IP from request
+- `rate_limit_default`, `rate_limit_media`, `rate_limit_search` - Convenience dependencies
 
 ### `auth.py`
 
@@ -42,6 +47,28 @@ Request ID generation and propagation middleware for request tracing and log cor
 | Class                 | Purpose                            |
 | --------------------- | ---------------------------------- |
 | `RequestIDMiddleware` | Generate and propagate request IDs |
+
+### `rate_limit.py`
+
+Redis-based sliding window rate limiting for API endpoints.
+
+**Classes:**
+
+| Class           | Purpose                              |
+| --------------- | ------------------------------------ |
+| `RateLimitTier` | Enum for rate limit tiers            |
+| `RateLimiter`   | FastAPI dependency for rate limiting |
+
+**Functions:**
+
+| Function                     | Purpose                                    |
+| ---------------------------- | ------------------------------------------ |
+| `get_tier_limits(tier)`      | Get rate limit settings for a tier         |
+| `get_client_ip(request)`     | Extract client IP from request headers     |
+| `check_websocket_rate_limit` | Check rate limit for WebSocket connections |
+| `rate_limit_default()`       | Get default rate limiter dependency        |
+| `rate_limit_media()`         | Get media rate limiter dependency          |
+| `rate_limit_search()`        | Get search rate limiter dependency         |
 
 ---
 
@@ -226,6 +253,120 @@ X-Request-ID: a1b2c3d4
 
 ---
 
+## Rate Limiting Middleware (`rate_limit.py`)
+
+### Purpose
+
+Provides Redis-based sliding window rate limiting to prevent API abuse. Uses a sliding window counter algorithm for smoother rate limiting compared to fixed windows.
+
+### Configuration
+
+Rate limiting is controlled via environment variables:
+
+```bash
+# Enable rate limiting (default: false)
+export RATE_LIMIT_ENABLED=true
+
+# Default requests per minute
+export RATE_LIMIT_REQUESTS_PER_MINUTE=60
+
+# Media endpoint requests per minute
+export RATE_LIMIT_MEDIA_REQUESTS_PER_MINUTE=120
+
+# Search endpoint requests per minute
+export RATE_LIMIT_SEARCH_REQUESTS_PER_MINUTE=30
+
+# WebSocket connections per minute
+export RATE_LIMIT_WEBSOCKET_CONNECTIONS_PER_MINUTE=10
+
+# Burst allowance
+export RATE_LIMIT_BURST=10
+```
+
+### Rate Limit Tiers
+
+| Tier      | Purpose               | Default Limit |
+| --------- | --------------------- | ------------- |
+| DEFAULT   | General API endpoints | 60/min        |
+| MEDIA     | Media file serving    | 120/min       |
+| SEARCH    | Search endpoints      | 30/min        |
+| WEBSOCKET | WebSocket connections | 10/min        |
+
+### Usage as FastAPI Dependency
+
+```python
+from backend.api.middleware import RateLimiter, RateLimitTier
+
+@router.get("/endpoint")
+async def endpoint(
+    _: None = Depends(RateLimiter(tier=RateLimitTier.DEFAULT)),
+):
+    return {"data": "value"}
+
+# Or use convenience functions
+@router.get("/search")
+async def search(_: None = Depends(rate_limit_search())):
+    return {"results": []}
+```
+
+### WebSocket Rate Limiting
+
+```python
+from backend.api.middleware import check_websocket_rate_limit
+
+async def websocket_handler(websocket: WebSocket):
+    if not await check_websocket_rate_limit(websocket, redis_client):
+        await websocket.close(code=1008)  # Policy Violation
+        return
+    # ... handle connection
+```
+
+### Implementation Details
+
+**Algorithm:** Sliding window counter using Redis sorted sets
+
+**Flow:**
+
+1. Check if rate limiting is enabled
+2. Extract client IP from request (supports X-Forwarded-For, X-Real-IP)
+3. Create Redis key: `{prefix}:{tier}:{client_ip}`
+4. Remove expired entries outside the sliding window
+5. Count current requests in window
+6. Add current request with timestamp
+7. Compare count against limit + burst
+8. If exceeded, return 429 with Retry-After header
+
+**Redis Operations (atomic pipeline):**
+
+- `ZREMRANGEBYSCORE` - Remove expired entries
+- `ZCARD` - Count current requests
+- `ZADD` - Add new request with timestamp
+- `EXPIRE` - Set key expiry
+
+### Error Response (429 Too Many Requests)
+
+```json
+{
+  "error": "Too many requests",
+  "message": "Rate limit exceeded. Maximum 60 requests per minute.",
+  "retry_after_seconds": 60,
+  "tier": "default"
+}
+```
+
+**Response Headers:**
+
+- `Retry-After: 60`
+- `X-RateLimit-Limit: 60`
+- `X-RateLimit-Remaining: 0`
+- `X-RateLimit-Reset: 1703779200`
+
+### Fail-Open Behavior
+
+On Redis errors, the rate limiter fails open (allows the request) to prevent service disruption.
+
+---
+
 ## Integration with FastAPI
 
 Middleware is registered in the FastAPI application during startup:
@@ -263,11 +404,16 @@ backend/tests/unit/test_auth_middleware.py
 - SHA-256 hash validation
 - WebSocket authentication
 - Request ID generation and propagation
+- Rate limit enforcement
+- Rate limit bypass when disabled
+- Different rate limit tiers
+- WebSocket rate limiting
 
 **Run Tests:**
 
 ```bash
 pytest backend/tests/unit/test_auth_middleware.py -v
+pytest backend/tests/unit/test_rate_limit.py -v
 ```
 
 ---

@@ -20,10 +20,15 @@ scripts/
   validate.sh                  # Full validation (lint, type, test)
   test-runner.sh               # Test suite runner with coverage
   test-docker.sh               # Docker Compose deployment testing
+  test-prod-connectivity.sh    # Production connectivity tests
   smoke-test.sh                # End-to-end pipeline smoke test
   seed-cameras.py              # Database seeding script
   seed-mock-events.py          # Mock events seeding script
+  db-migrate.sh                # Database migration script
+  migrate-sqlite-to-postgres.py # SQLite to PostgreSQL migration
+  migrate-file-types.py        # File type migration utility
   generate-types.sh            # TypeScript API type generation
+  generate_certs.py            # SSL certificate generation
   setup-gpu-runner.sh          # GitHub Actions GPU runner setup
   find-slow-tests.sh           # Test performance debugging
   check-test-mocks.py          # Pre-commit: mock validation
@@ -183,6 +188,18 @@ scripts/
 ./scripts/test-docker.sh --skip-build # Use existing images
 ```
 
+#### test-prod-connectivity.sh
+
+**Purpose:** Test production service connectivity and health.
+
+**Usage:**
+
+```bash
+./scripts/test-prod-connectivity.sh              # Test all services
+./scripts/test-prod-connectivity.sh --backend    # Test backend only
+./scripts/test-prod-connectivity.sh --ai         # Test AI services only
+```
+
 #### smoke-test.sh
 
 **Purpose:** End-to-end smoke test for MVP pipeline validation.
@@ -247,6 +264,34 @@ scripts/
 
 **Purpose:** Populate database with mock security events for testing.
 
+### Database Migration
+
+#### db-migrate.sh
+
+**Purpose:** Run database migrations using Alembic.
+
+**Usage:**
+
+```bash
+./scripts/db-migrate.sh                    # Run pending migrations
+./scripts/db-migrate.sh --generate "msg"   # Generate new migration
+./scripts/db-migrate.sh --downgrade        # Rollback last migration
+```
+
+#### migrate-sqlite-to-postgres.py
+
+**Purpose:** Migrate data from SQLite to PostgreSQL database.
+
+**Usage:**
+
+```bash
+python scripts/migrate-sqlite-to-postgres.py --source data/security.db --target postgresql://...
+```
+
+#### migrate-file-types.py
+
+**Purpose:** Utility for migrating file type configurations.
+
 ### Code Generation
 
 #### generate-types.sh
@@ -261,6 +306,20 @@ scripts/
 ```
 
 **Output:** `frontend/src/types/api.ts`
+
+#### generate_certs.py
+
+**Purpose:** Generate self-signed SSL certificates for HTTPS development.
+
+**Usage:**
+
+```bash
+python scripts/generate_certs.py                    # Generate certs in ./certs/
+python scripts/generate_certs.py --output /path/    # Custom output directory
+python scripts/generate_certs.py --days 365         # Custom validity period
+```
+
+**Output:** Creates `server.crt` and `server.key` files.
 
 ### Pre-commit Hooks
 

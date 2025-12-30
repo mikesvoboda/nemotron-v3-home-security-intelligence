@@ -650,8 +650,8 @@ See `docs/RUNTIME_CONFIG.md` for complete reference.
 **Key environment variables:**
 
 ```bash
-# Database and Redis
-DATABASE_URL=sqlite+aiosqlite:///./data/security.db
+# Database and Redis (PostgreSQL required)
+DATABASE_URL=postgresql+asyncpg://security:password@localhost:5432/security
 REDIS_URL=redis://localhost:6379/0
 
 # AI Services

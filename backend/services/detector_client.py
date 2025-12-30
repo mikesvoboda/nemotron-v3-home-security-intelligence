@@ -76,7 +76,20 @@ class DetectorClient:
         settings = get_settings()
         self._detector_url = settings.rtdetr_url
         self._confidence_threshold = settings.detection_confidence_threshold
-        self._timeout = 30.0  # 30 second timeout
+        # Use httpx.Timeout for proper timeout configuration from Settings
+        # connect: time to establish connection, read: time to wait for response
+        self._timeout = httpx.Timeout(
+            connect=settings.ai_connect_timeout,
+            read=settings.rtdetr_read_timeout,
+            write=settings.rtdetr_read_timeout,
+            pool=settings.ai_connect_timeout,
+        )
+        self._health_timeout = httpx.Timeout(
+            connect=settings.ai_health_timeout,
+            read=settings.ai_health_timeout,
+            write=settings.ai_health_timeout,
+            pool=settings.ai_health_timeout,
+        )
 
     async def health_check(self) -> bool:
         """Check if detector service is healthy and reachable.
@@ -85,7 +98,7 @@ class DetectorClient:
             True if detector is healthy, False otherwise
         """
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
+            async with httpx.AsyncClient(timeout=self._health_timeout) as client:
                 response = await client.get(f"{self._detector_url}/health")
                 response.raise_for_status()
                 return True

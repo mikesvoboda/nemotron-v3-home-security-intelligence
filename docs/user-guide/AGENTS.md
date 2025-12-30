@@ -1,0 +1,175 @@
+# User Guide Directory - Agent Guide
+
+## Purpose
+
+This directory contains end-user documentation for the Home Security Intelligence dashboard. These guides are written for non-technical users who want to understand and operate the security system.
+
+## Directory Contents
+
+```
+user-guide/
+  AGENTS.md                 # This file
+  getting-started.md        # Quick start guide for new users
+  understanding-alerts.md   # Risk levels and alert interpretation
+  using-the-dashboard.md    # Comprehensive dashboard guide
+```
+
+## Key Files
+
+### getting-started.md
+
+**Purpose:** Onboarding guide for new users with minimal technical knowledge.
+
+**Target Audience:** Homeowners and family members who will use the dashboard.
+
+**Sections:**
+
+| Section               | Description                                        |
+| --------------------- | -------------------------------------------------- |
+| What Does This Do?    | Simple explanation of system value proposition     |
+| How It Works          | Simplified pipeline diagram (cameras -> AI -> you) |
+| Opening the Dashboard | How to access at localhost:5173                    |
+| What You'll See       | Overview of dashboard sections                     |
+| About Demo Data       | Explains sample data during setup                  |
+| Quick Tips            | Getting started advice                             |
+| Next Steps            | Links to other guides                              |
+| Need Help?            | Basic troubleshooting                              |
+
+**Key Features:**
+
+- Mermaid diagrams simplified for non-technical users
+- Tables explaining UI sections
+- No technical jargon
+- AI image generation prompts for documentation visuals
+
+**When to use:** First-time user onboarding, sharing with family members.
+
+### understanding-alerts.md
+
+**Purpose:** Explains risk scoring and how to interpret alerts.
+
+**Target Audience:** Users who want to understand what alerts mean.
+
+**Topics Covered:**
+
+- Risk score scale (0-100)
+- Risk levels (low, medium, high, critical)
+- Color coding (green, yellow, orange, red)
+- What factors affect risk scores
+- When to take action vs ignore
+- Examples of different alert types
+- False alarm handling
+
+**When to use:** Understanding why an alert was triggered, learning to prioritize alerts.
+
+### using-the-dashboard.md
+
+**Purpose:** Comprehensive guide to all dashboard features.
+
+**Target Audience:** Users who want to fully utilize the dashboard.
+
+**Topics Covered:**
+
+- Main dashboard overview
+- Risk gauge interpretation
+- Camera grid navigation
+- Live activity feed usage
+- Timeline page filtering
+- Event detail modal features
+- Settings page configuration
+- Keyboard shortcuts (if any)
+
+**When to use:** Learning dashboard features, troubleshooting UI issues.
+
+## Writing Style Guidelines
+
+User guide documentation follows these conventions:
+
+### Tone
+
+- **Friendly and reassuring** - Security systems can feel invasive; emphasize protection, not surveillance
+- **Non-technical** - Avoid jargon; explain concepts simply
+- **Action-oriented** - Tell users what to do, not just what exists
+
+### Structure
+
+- **Short paragraphs** - 2-3 sentences maximum
+- **Tables for reference** - Easy scanning of information
+- **Numbered steps** - Clear procedural guidance
+- **Callouts for tips** - Use blockquotes for helpful hints
+
+### Visual Elements
+
+- **Mermaid diagrams** - Simplified, user-friendly flowcharts
+- **Screenshots** - Reference actual UI when possible
+- **Icons** - Consistent iconography for navigation
+- **Color coding** - Match dashboard color scheme
+
+## Target Audiences
+
+| Audience           | Needs                                     | Primary Documents       |
+| ------------------ | ----------------------------------------- | ----------------------- |
+| **New Users**      | Quick orientation, basic understanding    | getting-started.md      |
+| **Daily Users**    | Alert interpretation, dashboard usage     | understanding-alerts.md |
+| **Power Users**    | Full feature exploration, configuration   | using-the-dashboard.md  |
+| **Family Members** | Simple overview without technical details | getting-started.md      |
+
+## Important Patterns
+
+### Progressive Disclosure
+
+Documents are ordered from simple to complex:
+
+1. `getting-started.md` - Minimal, essential information
+2. `understanding-alerts.md` - Deeper dive into one concept
+3. `using-the-dashboard.md` - Comprehensive reference
+
+### Cross-References
+
+Documents link to each other for navigation:
+
+```markdown
+- **[Using the Dashboard](using-the-dashboard.md)** - Detailed guide...
+- **[Understanding Alerts](understanding-alerts.md)** - What the risk levels mean...
+```
+
+### Visual Generation
+
+Each document includes AI image generation prompts for creating:
+
+- Hero/banner images
+- Simplified diagrams
+- Instructional illustrations
+
+These prompts can be used with DALL-E, Midjourney, or Stable Diffusion.
+
+## Entry Points for Agents
+
+### Updating User Documentation
+
+1. Maintain non-technical language
+2. Update screenshots when UI changes
+3. Keep Mermaid diagrams synchronized with actual system behavior
+4. Test all navigation links
+
+### Adding New Features
+
+1. Update `using-the-dashboard.md` with new feature documentation
+2. Add to Quick Tips in `getting-started.md` if universally useful
+3. Update alert documentation if new risk factors are added
+
+### Localizing Documentation
+
+Documents are written in English. For localization:
+
+1. Maintain same file structure with language suffix (e.g., `getting-started.es.md`)
+2. Update all navigation links
+3. Localize Mermaid diagram labels
+4. Regenerate images with localized text prompts
+
+## Related Documentation
+
+- **docs/AGENTS.md:** Documentation directory overview
+- **docs/architecture/:** Technical architecture (for developers, not users)
+- **frontend/src/components/:** React components implementing described UI
+- **README.md:** Project overview with setup instructions

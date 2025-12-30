@@ -138,12 +138,12 @@ cp .env.example .env
 
 ### Core Configuration
 
-| Variable       | Default                                  | Description                             |
-| -------------- | ---------------------------------------- | --------------------------------------- |
-| `DATABASE_URL` | `sqlite+aiosqlite:///./data/security.db` | SQLAlchemy database URL                 |
-| `REDIS_URL`    | `redis://localhost:6379/0`               | Redis connection URL                    |
-| `RTDETR_URL`   | `http://localhost:8090`                  | RT-DETRv2 object detection service URL  |
-| `NEMOTRON_URL` | `http://localhost:8091`                  | Nemotron LLM risk reasoning service URL |
+| Variable       | Default                                                          | Description                             |
+| -------------- | ---------------------------------------------------------------- | --------------------------------------- |
+| `DATABASE_URL` | `postgresql+asyncpg://security:password@localhost:5432/security` | PostgreSQL database URL (required)      |
+| `REDIS_URL`    | `redis://localhost:6379/0`                                       | Redis connection URL                    |
+| `RTDETR_URL`   | `http://localhost:8090`                                          | RT-DETRv2 object detection service URL  |
+| `NEMOTRON_URL` | `http://localhost:8091`                                          | Nemotron LLM risk reasoning service URL |
 
 ### Camera Path Configuration
 

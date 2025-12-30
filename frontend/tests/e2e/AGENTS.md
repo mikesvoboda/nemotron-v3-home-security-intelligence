@@ -152,3 +152,11 @@ E2E tests run in GitHub Actions:
 - Tests verify **UI behavior**, not implementation details
 - Response shapes must match actual API schemas
 - E2E tests are excluded from Vitest via `vite.config.ts`
+- Some tests are marked `test.skip` due to CI ECONNREFUSED issues
+
+## Entry Points
+
+1. **smoke.spec.ts** - Start here for basic page loading tests
+2. **navigation.spec.ts** - Page routing and transitions
+3. **realtime.spec.ts** - WebSocket and real-time features
+4. **Mock pattern**: Look at `setupApiMocks()` in any test file

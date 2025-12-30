@@ -361,6 +361,7 @@ class AlertResponse(BaseModel):
 
     model_config = ConfigDict(
         from_attributes=True,
+        populate_by_name=True,
         json_schema_extra={
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440001",
@@ -388,7 +389,12 @@ class AlertResponse(BaseModel):
     delivered_at: datetime | None = Field(None, description="Delivery timestamp")
     channels: list[str] = Field(default_factory=list, description="Notification channels")
     dedup_key: str = Field(..., description="Deduplication key")
-    metadata: dict | None = Field(None, description="Additional context")
+    # Maps from model's alert_metadata attribute to API's metadata field
+    metadata: dict | None = Field(
+        None,
+        description="Additional context",
+        validation_alias="alert_metadata",
+    )
 
 
 class AlertListResponse(BaseModel):

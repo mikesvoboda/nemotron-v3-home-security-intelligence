@@ -5,10 +5,58 @@ import { test, expect } from '@playwright/test';
  *
  * These tests verify that the application loads and renders correctly.
  * They run against a development server with mocked backend responses.
+ *
+ * IMPORTANT: Route handlers are matched in the order they are registered.
+ * More specific routes must be registered BEFORE more general routes.
+ * For example, '/api/system/gpu/history' must be registered before '/api/system/gpu'.
  */
 
 // Helper function to set up common API mocks
 async function setupApiMocks(page: import('@playwright/test').Page) {
+  // Mock the GPU history endpoint FIRST (more specific than /api/system/gpu)
+  await page.route('**/api/system/gpu/history*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        samples: [
+          {
+            utilization: 45,
+            memory_used: 8192,
+            memory_total: 24576,
+            temperature: 52,
+            inference_fps: 12.5,
+            recorded_at: new Date().toISOString(),
+          },
+          {
+            utilization: 48,
+            memory_used: 8300,
+            memory_total: 24576,
+            temperature: 53,
+            inference_fps: 12.3,
+            recorded_at: new Date(Date.now() - 60000).toISOString(),
+          },
+        ],
+        total: 2,
+        limit: 100,
+      }),
+    });
+  });
+
+  // Mock camera snapshot endpoint BEFORE general cameras endpoint
+  await page.route('**/api/cameras/*/snapshot*', async (route) => {
+    // Return a 1x1 transparent PNG for camera snapshots
+    const transparentPng = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      'base64'
+    );
+    await route.fulfill({
+      status: 200,
+      contentType: 'image/png',
+      body: transparentPng,
+    });
+  });
+
   // Mock the cameras endpoint - returns { cameras: [...] }
   await page.route('**/api/cameras', async (route) => {
     await route.fulfill({
@@ -37,7 +85,7 @@ async function setupApiMocks(page: import('@playwright/test').Page) {
     });
   });
 
-  // Mock the GPU stats endpoint
+  // Mock the GPU stats endpoint (after gpu/history)
   await page.route('**/api/system/gpu', async (route) => {
     await route.fulfill({
       status: 200,
@@ -78,43 +126,44 @@ async function setupApiMocks(page: import('@playwright/test').Page) {
     });
   });
 
+  // Mock the events stats endpoint BEFORE general events endpoint
+  await page.route('**/api/events/stats*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        total_events: 1,
+        events_by_risk_level: { low: 1, medium: 0, high: 0, critical: 0 },
+        events_by_camera: { 'cam-1': 1 },
+        average_risk_score: 25,
+      }),
+    });
+  });
+
   // Mock the events endpoint - returns { events: [...], total, ... }
   await page.route('**/api/events*', async (route) => {
-    // Check if this is the stats endpoint
-    if (route.request().url().includes('/stats')) {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          total_events: 1,
-          events_by_risk_level: { low: 1, medium: 0, high: 0, critical: 0 },
-          events_by_camera: { 'cam-1': 1 },
-          average_risk_score: 25,
-        }),
-      });
-    } else {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          events: [
-            {
-              id: 1,
-              camera_id: 'cam-1',
-              camera_name: 'Front Door',
-              timestamp: new Date().toISOString(),
-              risk_score: 25,
-              risk_level: 'low',
-              summary: 'Person detected at front door',
-              reviewed: false,
-            },
-          ],
-          total: 1,
-          limit: 20,
-          offset: 0,
-        }),
-      });
-    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        events: [
+          {
+            id: 1,
+            camera_id: 'cam-1',
+            camera_name: 'Front Door',
+            timestamp: new Date().toISOString(),
+            started_at: new Date().toISOString(),
+            risk_score: 25,
+            risk_level: 'low',
+            summary: 'Person detected at front door',
+            reviewed: false,
+          },
+        ],
+        total: 1,
+        limit: 20,
+        offset: 0,
+      }),
+    });
   });
 
   // Mock the system stats endpoint
@@ -156,8 +205,7 @@ test.describe('Dashboard Smoke Tests', () => {
     await setupApiMocks(page);
   });
 
-  // TODO: Fix API mocking for dashboard tests - ECONNREFUSED in CI
-  test.skip('dashboard page loads successfully', async ({ page }) => {
+  test('dashboard page loads successfully', async ({ page }) => {
     await page.goto('/');
 
     // Wait for the page to load
@@ -169,8 +217,7 @@ test.describe('Dashboard Smoke Tests', () => {
     });
   });
 
-  // TODO: Fix API mocking for dashboard tests - ECONNREFUSED in CI
-  test.skip('dashboard displays key components', async ({ page }) => {
+  test('dashboard displays key components', async ({ page }) => {
     await page.goto('/');
 
     // Wait for loading to complete (loading skeleton should disappear)
@@ -188,8 +235,7 @@ test.describe('Dashboard Smoke Tests', () => {
     await expect(page.getByRole('heading', { name: /Live Activity/i }).first()).toBeVisible();
   });
 
-  // TODO: Fix API mocking for dashboard tests - ECONNREFUSED in CI
-  test.skip('dashboard shows real-time monitoring subtitle', async ({ page }) => {
+  test('dashboard shows real-time monitoring subtitle', async ({ page }) => {
     await page.goto('/');
 
     // Wait for main heading first
@@ -200,8 +246,7 @@ test.describe('Dashboard Smoke Tests', () => {
     await expect(page.getByText(/Real-time AI-powered home security monitoring/i)).toBeVisible();
   });
 
-  // TODO: Fix API mocking for dashboard tests - ECONNREFUSED in CI
-  test.skip('dashboard has correct page title', async ({ page }) => {
+  test('dashboard has correct page title', async ({ page }) => {
     await page.goto('/');
 
     // Wait for the page to load
@@ -219,8 +264,7 @@ test.describe('Layout Smoke Tests', () => {
     await setupApiMocks(page);
   });
 
-  // TODO: Fix API mocking for dashboard tests - ECONNREFUSED in CI
-  test.skip('header displays branding', async ({ page }) => {
+  test('header displays branding', async ({ page }) => {
     await page.goto('/');
 
     // Wait for dashboard to load
@@ -233,8 +277,7 @@ test.describe('Layout Smoke Tests', () => {
     await expect(page.getByText(/SECURITY/i).first()).toBeVisible();
   });
 
-  // TODO: Fix API mocking for dashboard tests - ECONNREFUSED in CI
-  test.skip('sidebar navigation is visible', async ({ page }) => {
+  test('sidebar navigation is visible', async ({ page }) => {
     await page.goto('/');
 
     // Wait for dashboard to load

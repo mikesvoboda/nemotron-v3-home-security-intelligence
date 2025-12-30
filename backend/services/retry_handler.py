@@ -28,7 +28,7 @@ from datetime import UTC, datetime
 from typing import Any, TypeVar
 
 from backend.core.logging import get_logger, sanitize_error
-from backend.core.redis import RedisClient
+from backend.core.redis import QueueOverflowPolicy, RedisClient
 
 logger = get_logger(__name__)
 
@@ -327,7 +327,27 @@ class RetryHandler:
                 queue_name=queue_name,
             )
 
-            await self._redis.add_to_queue(dlq_name, failure.to_dict())
+            # Use add_to_queue_safe to prevent silent data loss
+            # DLQ uses REJECT policy - if DLQ is full, we must not silently lose the failed job
+            result = await self._redis.add_to_queue_safe(
+                dlq_name,
+                failure.to_dict(),
+                overflow_policy=QueueOverflowPolicy.REJECT,
+            )
+
+            if not result.success:
+                logger.error(
+                    f"CRITICAL: Failed to move job to DLQ (queue full): {dlq_name}",
+                    extra={
+                        "dlq_name": dlq_name,
+                        "original_queue": queue_name,
+                        "attempt_count": attempt_count,
+                        "error": error,
+                        "dlq_error": result.error,
+                        "queue_length": result.queue_length,
+                    },
+                )
+                return False
 
             logger.info(
                 f"Moved job to DLQ: {dlq_name}",
@@ -465,7 +485,35 @@ class RetryHandler:
         try:
             job = await self.requeue_dlq_job(dlq_name)
             if job:
-                await self._redis.add_to_queue(target_queue, job)
+                # Use add_to_queue_safe to prevent silent data loss when requeuing
+                result = await self._redis.add_to_queue_safe(
+                    target_queue,
+                    job,
+                    overflow_policy=QueueOverflowPolicy.DLQ,
+                )
+
+                if not result.success:
+                    logger.error(
+                        f"Failed to move job from {dlq_name} to {target_queue}: {result.error}",
+                        extra={
+                            "dlq_name": dlq_name,
+                            "target_queue": target_queue,
+                            "queue_length": result.queue_length,
+                        },
+                    )
+                    return False
+
+                if result.had_backpressure:
+                    logger.warning(
+                        f"Queue backpressure while moving job from {dlq_name} to {target_queue}",
+                        extra={
+                            "dlq_name": dlq_name,
+                            "target_queue": target_queue,
+                            "queue_length": result.queue_length,
+                            "moved_to_dlq": result.moved_to_dlq_count,
+                        },
+                    )
+
                 logger.info(
                     f"Moved job from {dlq_name} to {target_queue}",
                     extra={

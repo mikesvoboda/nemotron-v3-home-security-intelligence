@@ -91,6 +91,7 @@ describe('useSystemStatus', () => {
       gpu_temperature: 65,
       gpu_memory_used: 8192,
       gpu_memory_total: 24576,
+      inference_fps: 30.5,
       active_cameras: 3,
       last_update: '2025-12-23T10:00:00Z',
     });

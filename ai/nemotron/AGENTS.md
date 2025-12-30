@@ -112,13 +112,29 @@ Configuration for `start_nemotron.sh`:
 | Parameter       | Value                                            |
 | --------------- | ------------------------------------------------ |
 | Port            | 8091 (configurable via `NEMOTRON_PORT`)          |
-| Host            | 127.0.0.1 (configurable via `NEMOTRON_HOST`)     |
+| Host            | 0.0.0.0 (configurable via `NEMOTRON_HOST`)       |
 | Context size    | 12288 (configurable via `NEMOTRON_CONTEXT_SIZE`) |
 | GPU layers      | 45 (configurable via `NEMOTRON_GPU_LAYERS`)      |
 | Startup timeout | 90 seconds                                       |
 | Log file        | `/tmp/nemotron.log`                              |
+| Parallelism     | 2 concurrent requests                            |
+
+**Model search paths** (in order):
+
+1. `$NEMOTRON_MODEL_PATH` environment variable
+2. `/export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf`
+3. `ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf`
+
+**llama-server search paths** (in order):
+
+1. `$LLAMA_SERVER_PATH` environment variable
+2. `/usr/bin/llama-server`
+3. `/export/ai_models/nemotron/llama.cpp/build/bin/llama-server`
+4. System PATH
 
 Server runs at: `http://localhost:8091`
+
+**Note on host binding**: The server defaults to `0.0.0.0` to allow connections from Docker/Podman containers. When AI servers run natively on the host while the backend runs in containers, binding to `127.0.0.1` would prevent container-to-host connectivity.
 
 ## API Endpoints (llama.cpp)
 

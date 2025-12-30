@@ -4,27 +4,29 @@ import { getRiskColor, getRiskLabel, getRiskLevel } from './risk';
 
 describe('risk utilities', () => {
   describe('getRiskLevel', () => {
-    it('returns "low" for scores 0-25', () => {
+    // Thresholds match backend defaults (see backend/core/config.py):
+    // LOW: 0-29, MEDIUM: 30-59, HIGH: 60-84, CRITICAL: 85-100
+    it('returns "low" for scores 0-29', () => {
       expect(getRiskLevel(0)).toBe('low');
-      expect(getRiskLevel(10)).toBe('low');
-      expect(getRiskLevel(25)).toBe('low');
+      expect(getRiskLevel(15)).toBe('low');
+      expect(getRiskLevel(29)).toBe('low');
     });
 
-    it('returns "medium" for scores 26-50', () => {
-      expect(getRiskLevel(26)).toBe('medium');
-      expect(getRiskLevel(40)).toBe('medium');
-      expect(getRiskLevel(50)).toBe('medium');
+    it('returns "medium" for scores 30-59', () => {
+      expect(getRiskLevel(30)).toBe('medium');
+      expect(getRiskLevel(45)).toBe('medium');
+      expect(getRiskLevel(59)).toBe('medium');
     });
 
-    it('returns "high" for scores 51-75', () => {
-      expect(getRiskLevel(51)).toBe('high');
-      expect(getRiskLevel(65)).toBe('high');
-      expect(getRiskLevel(75)).toBe('high');
+    it('returns "high" for scores 60-84', () => {
+      expect(getRiskLevel(60)).toBe('high');
+      expect(getRiskLevel(70)).toBe('high');
+      expect(getRiskLevel(84)).toBe('high');
     });
 
-    it('returns "critical" for scores 76-100', () => {
-      expect(getRiskLevel(76)).toBe('critical');
-      expect(getRiskLevel(90)).toBe('critical');
+    it('returns "critical" for scores 85-100', () => {
+      expect(getRiskLevel(85)).toBe('critical');
+      expect(getRiskLevel(92)).toBe('critical');
       expect(getRiskLevel(100)).toBe('critical');
     });
 

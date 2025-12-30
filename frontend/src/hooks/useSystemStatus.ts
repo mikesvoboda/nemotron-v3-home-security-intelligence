@@ -9,6 +9,7 @@ export interface SystemStatus {
   gpu_temperature: number | null;
   gpu_memory_used: number | null;
   gpu_memory_total: number | null;
+  inference_fps: number | null;
   active_cameras: number;
   last_update: string;
 }
@@ -72,6 +73,7 @@ export function useSystemStatus(): UseSystemStatusReturn {
         gpu_temperature: data.data.gpu.temperature,
         gpu_memory_used: data.data.gpu.memory_used,
         gpu_memory_total: data.data.gpu.memory_total,
+        inference_fps: data.data.gpu.inference_fps,
         active_cameras: data.data.cameras.active,
         last_update: data.timestamp,
       };

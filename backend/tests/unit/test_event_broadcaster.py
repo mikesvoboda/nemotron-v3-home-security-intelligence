@@ -18,6 +18,7 @@ from backend.services.event_broadcaster import (
     EventBroadcaster,
     get_broadcaster,
     get_event_channel,
+    reset_broadcaster_state,
     stop_broadcaster,
 )
 
@@ -26,6 +27,12 @@ from backend.services.event_broadcaster import (
 def _enable_log_capture(caplog: pytest.LogCaptureFixture) -> None:
     """Automatically enable INFO-level log capture for all tests."""
     caplog.set_level(logging.INFO)
+
+
+@pytest.fixture(autouse=True)
+def _reset_broadcaster_state() -> None:
+    """Reset global broadcaster state before each test for isolation."""
+    reset_broadcaster_state()
 
 
 class _FakePubSub:
@@ -549,9 +556,7 @@ async def test_send_to_all_clients_passes_string_directly() -> None:
 @pytest.mark.asyncio
 async def test_get_broadcaster_creates_and_starts_instance() -> None:
     """Test that get_broadcaster() creates and starts broadcaster (lines 224-228)."""
-    # Reset global state
-    event_broadcaster._broadcaster = None
-
+    # Note: global state is reset by _reset_broadcaster_state fixture
     redis = _FakeRedis()
 
     # Override listen to return immediately
@@ -825,3 +830,82 @@ async def test_send_to_all_clients_logs_cleanup_count(
 
     assert "Cleaned up 2 disconnected clients" in caplog.text
     assert len(broadcaster._connections) == 0
+
+
+# ==============================================================================
+# Tests for Race Condition Prevention in get_broadcaster()
+# ==============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_broadcaster_concurrent_initialization() -> None:
+    """Test that concurrent get_broadcaster() calls don't create multiple instances.
+
+    This test verifies that the race condition fix works correctly by
+    calling get_broadcaster() concurrently from multiple coroutines.
+    """
+    redis = _FakeRedis()
+
+    # Override listen to return immediately
+    async def quick_listen(_pubsub: Any) -> AsyncIterator[dict[str, Any]]:
+        if False:  # pragma: no cover
+            yield {}
+        return
+
+    redis.listen = quick_listen  # type: ignore[method-assign]
+
+    # Call get_broadcaster concurrently from multiple coroutines
+    results = await asyncio.gather(
+        get_broadcaster(redis),  # type: ignore[arg-type]
+        get_broadcaster(redis),  # type: ignore[arg-type]
+        get_broadcaster(redis),  # type: ignore[arg-type]
+        get_broadcaster(redis),  # type: ignore[arg-type]
+        get_broadcaster(redis),  # type: ignore[arg-type]
+    )
+
+    # All results should be the same instance
+    first_broadcaster = results[0]
+    for broadcaster in results[1:]:
+        assert broadcaster is first_broadcaster
+
+    # subscribe should only have been called once
+    redis.subscribe.assert_awaited_once()
+
+    # Cleanup
+    await stop_broadcaster()
+
+
+@pytest.mark.asyncio
+async def test_reset_broadcaster_state_clears_global_state() -> None:
+    """Test that reset_broadcaster_state() properly clears global state."""
+    redis = _FakeRedis()
+
+    # Override listen to return immediately
+    async def quick_listen(_pubsub: Any) -> AsyncIterator[dict[str, Any]]:
+        if False:  # pragma: no cover
+            yield {}
+        return
+
+    redis.listen = quick_listen  # type: ignore[method-assign]
+
+    # Create a broadcaster
+    broadcaster1 = await get_broadcaster(redis)  # type: ignore[arg-type]
+    assert broadcaster1 is not None
+
+    # Stop and reset
+    await stop_broadcaster()
+    reset_broadcaster_state()
+
+    # Verify global state is cleared
+    assert event_broadcaster._broadcaster is None
+    assert event_broadcaster._broadcaster_lock is None
+
+    # Create a new broadcaster - should be a different instance
+    redis2 = _FakeRedis()
+    redis2.listen = quick_listen  # type: ignore[method-assign]
+    broadcaster2 = await get_broadcaster(redis2)  # type: ignore[arg-type]
+
+    assert broadcaster2 is not broadcaster1
+
+    # Cleanup
+    await stop_broadcaster()

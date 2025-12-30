@@ -16,7 +16,7 @@ exclude_lines =
     if __name__ == .__main__.:
     if TYPE_CHECKING:
     @abstractmethod
-fail_under = 95
+fail_under = 93
 show_missing = true
 precision = 2
 

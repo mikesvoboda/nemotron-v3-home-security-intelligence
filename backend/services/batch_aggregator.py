@@ -17,16 +17,23 @@ Redis Keys (all keys have 1-hour TTL for orphan cleanup):
     - batch:{batch_id}:detections - JSON list of detection IDs
     - batch:{batch_id}:started_at - Batch start timestamp (float)
     - batch:{batch_id}:last_activity - Last activity timestamp (float)
+
+Concurrency:
+    Uses per-camera locks to prevent race conditions when multiple detections
+    arrive for the same camera simultaneously. Global lock protects batch
+    timeout checking and closing operations.
 """
 
+import asyncio
 import json
 import time
 import uuid
+from collections import defaultdict
 from typing import Any
 
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
-from backend.core.redis import RedisClient
+from backend.core.redis import QueueOverflowPolicy, RedisClient
 
 logger = get_logger(__name__)
 
@@ -60,10 +67,37 @@ class BatchAggregator:
         self._fast_path_threshold = settings.fast_path_confidence_threshold
         self._fast_path_types = settings.fast_path_object_types
 
+        # Per-camera locks to prevent race conditions when adding detections
+        # Using defaultdict to lazily create locks for each camera
+        self._camera_locks: defaultdict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
+
+        # Global lock for batch timeout checking and closing operations
+        # Prevents race between check_batch_timeouts and close_batch
+        self._batch_close_lock = asyncio.Lock()
+
+        # Lock for the camera_locks dict itself to prevent race in lock creation
+        self._locks_lock = asyncio.Lock()
+
+    async def _get_camera_lock(self, camera_id: str) -> asyncio.Lock:
+        """Get or create a lock for the specified camera.
+
+        Thread-safe lock creation to prevent race conditions when
+        multiple coroutines try to create locks for the same camera.
+
+        Args:
+            camera_id: Camera identifier
+
+        Returns:
+            asyncio.Lock for the specified camera
+        """
+        async with self._locks_lock:
+            # defaultdict will create the lock if it doesn't exist
+            return self._camera_locks[camera_id]
+
     async def add_detection(
         self,
         camera_id: str,
-        detection_id: str,
+        detection_id: int | str,
         _file_path: str,
         confidence: float | None = None,
         object_type: str | None = None,
@@ -78,84 +112,105 @@ class BatchAggregator:
 
         Args:
             camera_id: Camera identifier
-            detection_id: Detection identifier
+            detection_id: Detection identifier (int or string, normalized to int internally)
             file_path: Path to the detection image file
             confidence: Detection confidence score (0.0-1.0)
             object_type: Detected object type (e.g., "person", "car")
 
         Returns:
             Batch ID that the detection was added to (or fast path batch ID)
+
+        Raises:
+            ValueError: If detection_id cannot be converted to int
+            RuntimeError: If Redis client not initialized
         """
         if not self._redis:
             raise RuntimeError("Redis client not initialized")
 
+        # Normalize detection_id to int for consistent storage
+        # This handles both int IDs from the database and string IDs from legacy code
+        try:
+            detection_id_int: int = int(detection_id)
+        except (ValueError, TypeError) as e:
+            raise ValueError(
+                f"Invalid detection_id: {detection_id!r}. Detection IDs must be numeric."
+            ) from e
+
         # Check if detection meets fast path criteria
         if self._should_use_fast_path(confidence, object_type):
             logger.info(
-                f"Fast path triggered for detection {detection_id}: "
+                f"Fast path triggered for detection {detection_id_int}: "
                 f"confidence={confidence}, object_type={object_type}",
                 extra={
                     "camera_id": camera_id,
-                    "detection_id": detection_id,
+                    "detection_id": detection_id_int,
                     "confidence": confidence,
                     "object_type": object_type,
                 },
             )
-            await self._process_fast_path(camera_id, detection_id)
-            return f"fast_path_{detection_id}"
+            await self._process_fast_path(camera_id, detection_id_int)
+            return f"fast_path_{detection_id_int}"
 
-        current_time = time.time()
+        # Acquire per-camera lock to prevent race conditions when multiple
+        # detections arrive for the same camera simultaneously
+        camera_lock = await self._get_camera_lock(camera_id)
+        async with camera_lock:
+            current_time = time.time()
 
-        # Check for existing active batch for this camera
-        batch_key = f"batch:{camera_id}:current"
-        batch_id = await self._redis.get(batch_key)
+            # Check for existing active batch for this camera
+            batch_key = f"batch:{camera_id}:current"
+            batch_id = await self._redis.get(batch_key)
 
-        if not batch_id:
-            # Create new batch
-            batch_id = uuid.uuid4().hex
-            logger.info(
-                f"Creating new batch {batch_id} for camera {camera_id}",
-                extra={"camera_id": camera_id, "batch_id": batch_id},
-            )
+            if not batch_id:
+                # Create new batch
+                batch_id = uuid.uuid4().hex
+                logger.info(
+                    f"Creating new batch {batch_id} for camera {camera_id}",
+                    extra={"camera_id": camera_id, "batch_id": batch_id},
+                )
 
-            # Set batch metadata with TTL for orphan cleanup
+                # Set batch metadata with TTL for orphan cleanup
+                ttl = self.BATCH_KEY_TTL_SECONDS
+                await self._redis.set(batch_key, batch_id, expire=ttl)
+                await self._redis.set(f"batch:{batch_id}:camera_id", camera_id, expire=ttl)
+                await self._redis.set(f"batch:{batch_id}:started_at", str(current_time), expire=ttl)
+                await self._redis.set(
+                    f"batch:{batch_id}:last_activity", str(current_time), expire=ttl
+                )
+                await self._redis.set(f"batch:{batch_id}:detections", json.dumps([]), expire=ttl)
+
+            # Add detection to batch
+            detections_key = f"batch:{batch_id}:detections"
+            detections_data = await self._redis.get(detections_key)
+
+            if detections_data:
+                detections = (
+                    json.loads(detections_data)
+                    if isinstance(detections_data, str)
+                    else detections_data
+                )
+            else:
+                detections = []
+
+            detections.append(detection_id_int)
+
+            # Update batch with new detection and activity timestamp (refresh TTL)
             ttl = self.BATCH_KEY_TTL_SECONDS
-            await self._redis.set(batch_key, batch_id, expire=ttl)
-            await self._redis.set(f"batch:{batch_id}:camera_id", camera_id, expire=ttl)
-            await self._redis.set(f"batch:{batch_id}:started_at", str(current_time), expire=ttl)
+            await self._redis.set(detections_key, json.dumps(detections), expire=ttl)
             await self._redis.set(f"batch:{batch_id}:last_activity", str(current_time), expire=ttl)
-            await self._redis.set(f"batch:{batch_id}:detections", json.dumps([]), expire=ttl)
 
-        # Add detection to batch
-        detections_key = f"batch:{batch_id}:detections"
-        detections_data = await self._redis.get(detections_key)
-
-        if detections_data:
-            detections = (
-                json.loads(detections_data) if isinstance(detections_data, str) else detections_data
+            logger.debug(
+                f"Added detection {detection_id_int} to batch {batch_id} "
+                f"(camera: {camera_id}, total detections: {len(detections)})",
+                extra={
+                    "camera_id": camera_id,
+                    "batch_id": batch_id,
+                    "detection_id": detection_id_int,
+                    "detection_count": len(detections),
+                },
             )
-        else:
-            detections = []
 
-        detections.append(detection_id)
-
-        # Update batch with new detection and activity timestamp (refresh TTL)
-        ttl = self.BATCH_KEY_TTL_SECONDS
-        await self._redis.set(detections_key, json.dumps(detections), expire=ttl)
-        await self._redis.set(f"batch:{batch_id}:last_activity", str(current_time), expire=ttl)
-
-        logger.debug(
-            f"Added detection {detection_id} to batch {batch_id} "
-            f"(camera: {camera_id}, total detections: {len(detections)})",
-            extra={
-                "camera_id": camera_id,
-                "batch_id": batch_id,
-                "detection_id": detection_id,
-                "detection_count": len(detections),
-            },
-        )
-
-        return batch_id
+            return batch_id
 
     async def check_batch_timeouts(self) -> list[str]:
         """Check all active batches for timeouts and close expired ones.
@@ -250,6 +305,10 @@ class BatchAggregator:
         Retrieves batch metadata, pushes to analysis queue if detections exist,
         and cleans up Redis keys.
 
+        This method acquires locks to prevent race conditions:
+        - Batch close lock: prevents concurrent close_batch calls for the same batch
+        - Camera lock: prevents add_detection from modifying the batch during close
+
         Args:
             batch_id: Batch identifier to close
 
@@ -262,70 +321,129 @@ class BatchAggregator:
         if not self._redis:
             raise RuntimeError("Redis client not initialized")
 
-        # Get batch metadata
-        camera_id = await self._redis.get(f"batch:{batch_id}:camera_id")
-        if not camera_id:
-            raise ValueError(f"Batch {batch_id} not found")
+        # Acquire global batch close lock to prevent concurrent close operations
+        async with self._batch_close_lock:
+            # Get batch metadata (camera_id first to acquire camera lock)
+            camera_id = await self._redis.get(f"batch:{batch_id}:camera_id")
+            if not camera_id:
+                raise ValueError(f"Batch {batch_id} not found")
 
-        detections_data = await self._redis.get(f"batch:{batch_id}:detections")
-        # Handle both pre-deserialized (from redis.get) and string formats
-        if detections_data:
-            detections = (
-                json.loads(detections_data) if isinstance(detections_data, str) else detections_data
-            )
-        else:
-            detections = []
+            # Acquire camera lock to prevent add_detection from modifying the batch
+            camera_lock = await self._get_camera_lock(camera_id)
+            async with camera_lock:
+                # Re-check batch exists after acquiring lock (may have been closed already)
+                camera_id_check = await self._redis.get(f"batch:{batch_id}:camera_id")
+                if not camera_id_check:
+                    # Batch was already closed by another coroutine
+                    logger.debug(
+                        f"Batch {batch_id} already closed, skipping",
+                        extra={"batch_id": batch_id},
+                    )
+                    return {
+                        "batch_id": batch_id,
+                        "camera_id": camera_id,
+                        "detection_count": 0,
+                        "detections": [],
+                        "started_at": time.time(),
+                        "closed_at": time.time(),
+                        "already_closed": True,
+                    }
 
-        started_at_str = await self._redis.get(f"batch:{batch_id}:started_at")
-        started_at = float(started_at_str) if started_at_str else time.time()
+                detections_data = await self._redis.get(f"batch:{batch_id}:detections")
+                # Handle both pre-deserialized (from redis.get) and string formats
+                if detections_data:
+                    detections = (
+                        json.loads(detections_data)
+                        if isinstance(detections_data, str)
+                        else detections_data
+                    )
+                else:
+                    detections = []
 
-        # Create summary
-        summary = {
-            "batch_id": batch_id,
-            "camera_id": camera_id,
-            "detection_count": len(detections),
-            "detections": detections,
-            "started_at": started_at,
-            "closed_at": time.time(),
-        }
+                started_at_str = await self._redis.get(f"batch:{batch_id}:started_at")
+                started_at = float(started_at_str) if started_at_str else time.time()
 
-        # Push to analysis queue if there are detections
-        if detections:
-            queue_item = {
-                "batch_id": batch_id,
-                "camera_id": camera_id,
-                "detection_ids": detections,
-                "timestamp": time.time(),
-            }
-
-            await self._redis.add_to_queue(self._analysis_queue, queue_item)
-            logger.info(
-                f"Pushed batch {batch_id} to analysis queue "
-                f"(camera: {camera_id}, detections: {len(detections)})",
-                extra={
-                    "camera_id": camera_id,
+                # Create summary
+                summary: dict[str, Any] = {
                     "batch_id": batch_id,
+                    "camera_id": camera_id,
                     "detection_count": len(detections),
-                },
-            )
-        else:
-            logger.debug(
-                f"Batch {batch_id} has no detections, skipping analysis queue",
-                extra={"camera_id": camera_id, "batch_id": batch_id},
-            )
+                    "detections": detections,
+                    "started_at": started_at,
+                    "closed_at": time.time(),
+                }
 
-        # Clean up Redis keys
-        await self._redis.delete(
-            f"batch:{camera_id}:current",
-            f"batch:{batch_id}:camera_id",
-            f"batch:{batch_id}:detections",
-            f"batch:{batch_id}:started_at",
-            f"batch:{batch_id}:last_activity",
-        )
+                # Push to analysis queue if there are detections
+                if detections:
+                    queue_item = {
+                        "batch_id": batch_id,
+                        "camera_id": camera_id,
+                        "detection_ids": detections,
+                        "timestamp": time.time(),
+                    }
 
-        logger.debug(f"Cleaned up Redis keys for batch {batch_id}")
+                    # Use add_to_queue_safe() with DLQ policy to prevent silent data loss
+                    # If the queue is full, items are moved to a dead-letter queue
+                    result = await self._redis.add_to_queue_safe(
+                        self._analysis_queue,
+                        queue_item,
+                        overflow_policy=QueueOverflowPolicy.DLQ,
+                    )
 
-        return summary
+                    if not result.success:
+                        logger.error(
+                            f"Failed to push batch {batch_id} to analysis queue: {result.error}",
+                            extra={
+                                "camera_id": camera_id,
+                                "batch_id": batch_id,
+                                "detection_count": len(detections),
+                                "queue_name": self._analysis_queue,
+                                "queue_length": result.queue_length,
+                            },
+                        )
+                        raise RuntimeError(f"Queue operation failed: {result.error}")
+
+                    if result.had_backpressure:
+                        logger.warning(
+                            f"Queue backpressure detected while pushing batch {batch_id}",
+                            extra={
+                                "camera_id": camera_id,
+                                "batch_id": batch_id,
+                                "detection_count": len(detections),
+                                "queue_name": self._analysis_queue,
+                                "queue_length": result.queue_length,
+                                "moved_to_dlq": result.moved_to_dlq_count,
+                                "warning": result.warning,
+                            },
+                        )
+
+                    logger.info(
+                        f"Pushed batch {batch_id} to analysis queue "
+                        f"(camera: {camera_id}, detections: {len(detections)})",
+                        extra={
+                            "camera_id": camera_id,
+                            "batch_id": batch_id,
+                            "detection_count": len(detections),
+                        },
+                    )
+                else:
+                    logger.debug(
+                        f"Batch {batch_id} has no detections, skipping analysis queue",
+                        extra={"camera_id": camera_id, "batch_id": batch_id},
+                    )
+
+                # Clean up Redis keys
+                await self._redis.delete(
+                    f"batch:{camera_id}:current",
+                    f"batch:{batch_id}:camera_id",
+                    f"batch:{batch_id}:detections",
+                    f"batch:{batch_id}:started_at",
+                    f"batch:{batch_id}:last_activity",
+                )
+
+                logger.debug(f"Cleaned up Redis keys for batch {batch_id}")
+
+                return summary
 
     def _should_use_fast_path(self, confidence: float | None, object_type: str | None) -> bool:
         """Check if detection meets fast path criteria.
@@ -349,7 +467,7 @@ class BatchAggregator:
 
         return object_type.lower() in [t.lower() for t in self._fast_path_types]
 
-    async def _process_fast_path(self, camera_id: str, detection_id: str) -> None:
+    async def _process_fast_path(self, camera_id: str, detection_id: int) -> None:
         """Process detection via fast path (immediate analysis).
 
         Creates a fast path analyzer if needed and triggers immediate analysis
@@ -357,7 +475,7 @@ class BatchAggregator:
 
         Args:
             camera_id: Camera identifier
-            detection_id: Detection identifier
+            detection_id: Detection identifier (integer)
         """
         if not self._analyzer:
             # Lazy import to avoid circular dependency

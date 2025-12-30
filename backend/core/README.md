@@ -10,7 +10,7 @@ Application configuration using Pydantic Settings. All configuration is loaded f
 
 Key settings:
 
-- `DATABASE_URL`: SQLAlchemy database connection string (default: sqlite+aiosqlite:///./data/security.db)
+- `DATABASE_URL`: PostgreSQL database connection string (required, format: postgresql+asyncpg://user:pass@host:port/db)
 - `REDIS_URL`: Redis connection string
 - `FOSCAM_BASE_PATH`: Base path for camera FTP uploads
 - `RETENTION_DAYS`: Data retention period (default: 30 days)
@@ -32,7 +32,7 @@ Database connection and session management using SQLAlchemy 2.0 async patterns.
 
 Features:
 
-- Async SQLite database engine with proper connection pooling
+- Async PostgreSQL database engine with proper connection pooling
 - Session factory with automatic commit/rollback
 - Base declarative class for models
 - FastAPI dependency injection support
@@ -111,7 +111,7 @@ python backend/tests/verify_database.py
 Create a `.env` file in the project root to override default settings:
 
 ```env
-DATABASE_URL=sqlite+aiosqlite:///./data/security.db
+DATABASE_URL=postgresql+asyncpg://security:password@localhost:5432/security
 REDIS_URL=redis://localhost:6379/0
 DEBUG=false
 RETENTION_DAYS=30
@@ -119,6 +119,6 @@ RETENTION_DAYS=30
 
 ## Database Schema
 
-The database schema is defined by SQLAlchemy models in `backend/models/`. The database is automatically created and migrated when the application starts.
+The database schema is defined by SQLAlchemy models in `backend/models/`. The database is automatically migrated when the application starts.
 
-Database file location: `./data/security.db` (configurable via DATABASE_URL)
+Database connection is configured via the `DATABASE_URL` environment variable (PostgreSQL only).

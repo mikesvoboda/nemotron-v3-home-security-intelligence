@@ -360,7 +360,7 @@ class DetectionQueueWorker:
         for detection in detections:
             await self._aggregator.add_detection(
                 camera_id=camera_id,
-                detection_id=str(detection.id),
+                detection_id=detection.id,  # Pass int directly (normalized in add_detection)
                 _file_path=file_path,
                 confidence=detection.confidence,
                 object_type=detection.object_type,
@@ -465,7 +465,7 @@ class DetectionQueueWorker:
                         for detection in detections:
                             await self._aggregator.add_detection(
                                 camera_id=camera_id,
-                                detection_id=str(detection.id),
+                                detection_id=detection.id,  # Pass int directly (normalized in add_detection)
                                 _file_path=video_path,  # Use video path, not frame
                                 confidence=detection.confidence,
                                 object_type=detection.object_type,

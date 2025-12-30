@@ -21,7 +21,7 @@
 | **Interface**  | React dashboard + REST API + WebSocket |
 | **Target GPU** | NVIDIA RTX (8GB+ VRAM)                 |
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.14+](https://img.shields.io/badge/python-3.14+-blue.svg)](https://www.python.org/downloads/)
 [![Node 18+](https://img.shields.io/badge/node-18+-green.svg)](https://nodejs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-009688.svg)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-18.2-61dafb.svg)](https://react.dev/)
@@ -36,7 +36,7 @@
 
 - NVIDIA GPU with 8GB+ VRAM and CUDA 12.0+
 - Docker + Docker Compose
-- Python 3.11+, Node 18+
+- Python 3.14+, Node 18+
 - `llama-server` on PATH ([install llama.cpp](https://github.com/ggerganov/llama.cpp))
 
 ### Quick Start

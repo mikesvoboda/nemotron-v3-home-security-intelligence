@@ -182,7 +182,7 @@ Verified the Docker Compose deployment configuration and enhanced it with health
 
 **Backend:**
 
-- DATABASE_URL: sqlite+aiosqlite:///data/security.db
+- DATABASE_URL: postgresql+asyncpg://security:password@postgres:5432/security
 - REDIS_URL: redis://redis:6379
 - RTDETR_URL: http://host.docker.internal:8090
 - NEMOTRON_URL: http://host.docker.internal:8091

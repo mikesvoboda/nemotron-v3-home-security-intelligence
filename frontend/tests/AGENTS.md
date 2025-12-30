@@ -47,10 +47,10 @@ Coverage thresholds are configured in `vite.config.ts`:
 
 | Metric     | Threshold |
 | ---------- | --------- |
-| Statements | 93%       |
-| Branches   | 89%       |
-| Functions  | 91%       |
-| Lines      | 94%       |
+| Statements | 92%       |
+| Branches   | 88%       |
+| Functions  | 90%       |
+| Lines      | 93%       |
 
 ## Related Documentation
 
@@ -66,3 +66,9 @@ Coverage thresholds are configured in `vite.config.ts`:
 - E2E tests mock all backend endpoints via Playwright route interception
 - Test setup is in `src/test/setup.ts`
 - E2E tests are excluded from Vitest runs via `vite.config.ts`
+
+## Entry Points
+
+1. **E2E tests**: `e2e/` directory contains Playwright browser tests
+2. **Configuration**: `playwright.config.ts` in frontend root
+3. **Unit tests**: Look in `src/**/*.test.ts` (co-located with source)

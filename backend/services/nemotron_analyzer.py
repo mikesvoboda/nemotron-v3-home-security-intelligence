@@ -56,7 +56,20 @@ class NemotronAnalyzer:
         self._redis = redis_client
         settings = get_settings()
         self._llm_url = settings.nemotron_url
-        self._timeout = 60.0  # LLM request timeout in seconds
+        # Use httpx.Timeout for proper timeout configuration from Settings
+        # connect: time to establish connection, read: time to wait for LLM response
+        self._timeout = httpx.Timeout(
+            connect=settings.ai_connect_timeout,
+            read=settings.nemotron_read_timeout,
+            write=settings.nemotron_read_timeout,
+            pool=settings.ai_connect_timeout,
+        )
+        self._health_timeout = httpx.Timeout(
+            connect=settings.ai_health_timeout,
+            read=settings.ai_health_timeout,
+            write=settings.ai_health_timeout,
+            pool=settings.ai_health_timeout,
+        )
 
     async def analyze_batch(
         self,
@@ -124,7 +137,13 @@ class NemotronAnalyzer:
 
             # Get detection details
             # Convert detection_ids to integers (may come as strings from queue payload)
-            int_detection_ids = [int(d) for d in detection_ids]
+            try:
+                int_detection_ids = [int(d) for d in detection_ids]
+            except (ValueError, TypeError) as e:
+                raise ValueError(
+                    f"Invalid detection_id in batch {batch_id}: {e}. "
+                    f"Detection IDs must be numeric (got: {detection_ids})"
+                ) from None
             detections_result = await session.execute(
                 select(Detection).where(Detection.id.in_(int_detection_ids))
             )
@@ -235,7 +254,7 @@ class NemotronAnalyzer:
 
             return event
 
-    async def analyze_detection_fast_path(self, camera_id: str, detection_id: str) -> Event:
+    async def analyze_detection_fast_path(self, camera_id: str, detection_id: int | str) -> Event:
         """Analyze a single detection via fast path (high-priority).
 
         This method is called for high-confidence critical detections that bypass
@@ -244,7 +263,7 @@ class NemotronAnalyzer:
 
         Args:
             camera_id: Camera identifier
-            detection_id: Detection identifier (as int or string)
+            detection_id: Detection identifier (int or string, normalized to int internally)
 
         Returns:
             Event object with risk assessment and is_fast_path=True
@@ -398,11 +417,8 @@ class NemotronAnalyzer:
             True if LLM server is responding, False otherwise
         """
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{self._llm_url}/health",
-                    timeout=5.0,
-                )
+            async with httpx.AsyncClient(timeout=self._health_timeout) as client:
+                response = await client.get(f"{self._llm_url}/health")
                 return bool(response.status_code == 200)
         except Exception as e:
             logger.warning(f"LLM health check failed: {e}")
@@ -464,11 +480,10 @@ class NemotronAnalyzer:
             "stop": ["\n\n"],
         }
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=self._timeout) as client:
             response = await client.post(
                 f"{self._llm_url}/completion",
                 json=payload,
-                timeout=self._timeout,
             )
             response.raise_for_status()
             result = response.json()
@@ -597,9 +612,11 @@ class NemotronAnalyzer:
                 },
             }
 
-            from backend.services.event_broadcaster import get_event_channel
+            # Use EventBroadcaster API instead of direct Redis publish
+            from backend.services.event_broadcaster import get_broadcaster
 
-            await self._redis.publish(get_event_channel(), message)
+            broadcaster = await get_broadcaster(self._redis)
+            await broadcaster.broadcast_event(message)
             logger.debug(f"Broadcasted event {event.id} via WebSocket")
         except Exception as e:  # pragma: no cover
             logger.warning(f"Failed to broadcast event: {e}")  # pragma: no cover

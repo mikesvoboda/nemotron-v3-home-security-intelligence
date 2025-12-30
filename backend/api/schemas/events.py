@@ -21,6 +21,7 @@ class EventResponse(BaseModel):
                 "summary": "Person detected near front entrance",
                 "reasoning": "Person approaching entrance during daytime, no suspicious behavior",
                 "reviewed": False,
+                "notes": None,
                 "detection_count": 5,
                 "detection_ids": [1, 2, 3, 4, 5],
             }
@@ -76,6 +77,7 @@ class EventListResponse(BaseModel):
                         "summary": "Person detected near front entrance",
                         "reasoning": "Person approaching entrance during daytime, no suspicious behavior",
                         "reviewed": False,
+                        "notes": None,
                         "detection_count": 5,
                         "detection_ids": [1, 2, 3, 4, 5],
                     }

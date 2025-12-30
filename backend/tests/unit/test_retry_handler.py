@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from backend.core.redis import QueueAddResult
 from backend.services.retry_handler import (
     DLQStats,
     JobFailure,
@@ -152,6 +153,9 @@ class TestRetryHandler:
         """Create a mock Redis client."""
         redis = MagicMock()
         redis.add_to_queue = AsyncMock(return_value=1)
+        redis.add_to_queue_safe = AsyncMock(
+            return_value=QueueAddResult(success=True, queue_length=1)
+        )
         redis.get_from_queue = AsyncMock(return_value=None)
         redis.get_queue_length = AsyncMock(return_value=0)
         redis.peek_queue = AsyncMock(return_value=[])
@@ -251,9 +255,9 @@ class TestRetryHandler:
         assert result.error == "Always fails"
         assert result.moved_to_dlq is True
 
-        # Verify DLQ was called
-        mock_redis.add_to_queue.assert_called_once()
-        call_args = mock_redis.add_to_queue.call_args
+        # Verify DLQ was called - now uses add_to_queue_safe
+        mock_redis.add_to_queue_safe.assert_called_once()
+        call_args = mock_redis.add_to_queue_safe.call_args
         assert call_args[0][0] == "dlq:detection_queue"
 
     @pytest.mark.asyncio
@@ -418,7 +422,12 @@ class TestRetryHandler:
         success = await handler.move_dlq_job_to_queue("dlq:detection_queue", "detection_queue")
 
         assert success is True
-        mock_redis.add_to_queue.assert_called_once_with("detection_queue", {"camera_id": "cam1"})
+        # Now uses add_to_queue_safe instead of add_to_queue
+        mock_redis.add_to_queue_safe.assert_called()
+        # Verify the queue name and job data
+        call_args = mock_redis.add_to_queue_safe.call_args
+        assert call_args[0][0] == "detection_queue"
+        assert call_args[0][1] == {"camera_id": "cam1"}
 
     @pytest.mark.asyncio
     async def test_move_dlq_job_empty_queue(

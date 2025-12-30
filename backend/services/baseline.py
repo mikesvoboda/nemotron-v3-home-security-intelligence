@@ -24,7 +24,6 @@ Usage:
 
 from __future__ import annotations
 
-import logging
 import math
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
@@ -32,12 +31,16 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select, update
 
 from backend.core.database import get_session
+from backend.core.logging import get_logger, sanitize_error
 from backend.models.baseline import ActivityBaseline, ClassBaseline
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
-logger = logging.getLogger(__name__)
+# Keep sanitize_error imported for future use, suppress unused import warning
+_ = sanitize_error
+
+logger = get_logger(__name__)
 
 # Global singleton
 _baseline_service: BaselineService | None = None

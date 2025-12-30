@@ -217,3 +217,11 @@ formatDuration('2024-01-01T10:00:00Z', '2024-01-01T09:00:00Z'); // Returns "0s" 
 - Thresholds are inclusive: 25 is `low`, 26 is `medium`
 - Time utilities handle ISO 8601 timestamp strings
 - Ongoing event detection uses 5-minute threshold for "ongoing" vs duration display
+
+## Entry Points
+
+For AI agents exploring this codebase:
+
+1. **Risk utilities**: `risk.ts` - Score-to-level conversion, colors, labels
+2. **Time utilities**: `time.ts` - Duration formatting, ongoing event detection
+3. **Tests**: Each utility has a `.test.ts` file with comprehensive examples

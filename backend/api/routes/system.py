@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import logging
 import os
 import time
 from dataclasses import dataclass, field
@@ -40,12 +39,13 @@ from backend.api.schemas.system import (
     WorkerStatus,
 )
 from backend.core import get_db, get_settings
+from backend.core.logging import get_logger
 from backend.core.redis import RedisClient, get_redis, get_redis_optional
 from backend.models import Camera, Detection, Event, GPUStats
 from backend.models.audit import AuditAction
 from backend.services.audit import AuditService
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/system", tags=["system"])
 
@@ -344,11 +344,12 @@ def _are_critical_pipeline_workers_healthy() -> bool:
 
     Returns:
         True if both detection and analysis workers are running, False otherwise.
-        Returns True if pipeline_manager is not registered (graceful degradation).
+        Returns False if pipeline_manager is not registered (system cannot process detections).
     """
     if _pipeline_manager is None:
-        # Pipeline manager not registered - can't check, assume OK for graceful degradation
-        return True
+        # Pipeline manager not registered - system cannot process detections
+        logger.warning("Pipeline manager not registered - marking as not ready")
+        return False
 
     manager_status = _pipeline_manager.get_status()
 
@@ -382,7 +383,9 @@ if TYPE_CHECKING:
     from backend.services.system_broadcaster import SystemBroadcaster
 
 
-async def get_latest_gpu_stats(db: AsyncSession) -> dict[str, float | int | datetime | None] | None:
+async def get_latest_gpu_stats(
+    db: AsyncSession,
+) -> dict[str, float | int | str | datetime | None] | None:
     """Get the latest GPU statistics from the database.
 
     Args:
@@ -400,10 +403,12 @@ async def get_latest_gpu_stats(db: AsyncSession) -> dict[str, float | int | date
 
     return {
         "recorded_at": gpu_stat.recorded_at,
+        "gpu_name": gpu_stat.gpu_name,
         "utilization": gpu_stat.gpu_utilization,
         "memory_used": gpu_stat.memory_used,
         "memory_total": gpu_stat.memory_total,
         "temperature": gpu_stat.temperature,
+        "power_usage": gpu_stat.power_usage,
         "inference_fps": gpu_stat.inference_fps,
     }
 
@@ -744,11 +749,15 @@ async def get_health(
 
 @router.get("/health/live", response_model=LivenessResponse)
 async def get_liveness() -> LivenessResponse:
-    """Liveness probe endpoint.
+    """Kubernetes-style liveness probe endpoint.
 
     This endpoint indicates whether the process is running and able to
     respond to HTTP requests. It always returns 200 with status "alive"
     if the process is up. This is a minimal check with no dependencies.
+
+    Note: The canonical liveness probe is GET /health at the root level.
+    This endpoint exists for Kubernetes compatibility and provides the
+    same functionality under the /api/system prefix.
 
     Used by Kubernetes/Docker to determine if the container should be restarted.
     If this endpoint fails, the process is considered dead and should be restarted.
@@ -765,7 +774,7 @@ async def get_readiness(
     db: AsyncSession = Depends(get_db),
     redis: RedisClient | None = Depends(get_redis_optional),
 ) -> ReadinessResponse:
-    """Readiness probe endpoint.
+    """Kubernetes-style readiness probe endpoint with detailed information.
 
     This endpoint indicates whether the application is ready to receive
     traffic and process uploads. It checks all critical dependencies:
@@ -773,6 +782,10 @@ async def get_readiness(
     - Redis connectivity (required for queue processing)
     - AI services availability
     - Background worker status
+
+    Note: The canonical readiness probe is GET /ready at the root level.
+    This endpoint provides the same readiness check but with detailed
+    service and worker status information.
 
     Used by Kubernetes/Docker to determine if traffic should be routed to this instance.
     If this endpoint returns not_ready, the instance should not receive new requests.
@@ -892,18 +905,22 @@ async def get_gpu_stats(db: AsyncSession = Depends(get_db)) -> GPUStatsResponse:
     if stats is None:
         # Return all null values if no GPU data available
         return GPUStatsResponse(
+            gpu_name=None,
             utilization=None,
             memory_used=None,
             memory_total=None,
             temperature=None,
+            power_usage=None,
             inference_fps=None,
         )
 
     return GPUStatsResponse(
+        gpu_name=stats["gpu_name"],
         utilization=stats["utilization"],
         memory_used=stats["memory_used"],
         memory_total=stats["memory_total"],
         temperature=stats["temperature"],
+        power_usage=stats["power_usage"],
         inference_fps=stats["inference_fps"],
     )
 
@@ -937,10 +954,12 @@ async def get_gpu_stats_history(
     samples = [
         {
             "recorded_at": r.recorded_at,
+            "gpu_name": r.gpu_name,
             "utilization": r.gpu_utilization,
             "memory_used": r.memory_used,
             "memory_total": r.memory_total,
             "temperature": r.temperature,
+            "power_usage": r.power_usage,
             "inference_fps": r.inference_fps,
         }
         for r in rows

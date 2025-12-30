@@ -12,55 +12,180 @@ import pytest
 
 
 class MockEventBroadcaster:
-    """Mock EventBroadcaster for unit testing."""
+    """Mock EventBroadcaster for unit testing.
 
-    def __init__(self):
-        """Initialize mock broadcaster."""
-        self.connections: set = set()
+    Matches the interface of backend.services.event_broadcaster.EventBroadcaster:
+    - __init__(redis_client, channel_name=None)
+    - CHANNEL_NAME property (class-level, returns settings value)
+    - channel_name property (instance-level)
+    - start() -> None
+    - stop() -> None
+    - connect(websocket) -> None
+    - disconnect(websocket) -> None
+    - broadcast_event(event_data) -> int
+    """
+
+    CHANNEL_NAME = "security_events"  # Matches real implementation default
+
+    def __init__(self, redis_client: Any = None, channel_name: str | None = None):
+        """Initialize mock broadcaster.
+
+        Args:
+            redis_client: Mock Redis client (ignored in mock)
+            channel_name: Optional channel name override
+        """
+        self._redis = redis_client
+        self._channel_name = channel_name or self.CHANNEL_NAME
+        self._connections: set = set()
+        self._is_listening = False
         self.messages: list[dict[str, Any]] = []
+
+    @property
+    def channel_name(self) -> str:
+        """Get the Redis channel name for this broadcaster instance."""
+        return self._channel_name
+
+    @property
+    def connections(self) -> set:
+        """Alias for _connections to maintain backward compatibility with tests."""
+        return self._connections
+
+    async def start(self) -> None:
+        """Start listening for events from Redis pub/sub."""
+        self._is_listening = True
+
+    async def stop(self) -> None:
+        """Stop listening for events and cleanup resources."""
+        self._is_listening = False
+        for ws in list(self._connections):
+            await self.disconnect(ws)
 
     async def connect(self, websocket: Any) -> None:
         """Add a WebSocket connection."""
-        self.connections.add(websocket)
+        self._connections.add(websocket)
 
     async def disconnect(self, websocket: Any) -> None:
         """Remove a WebSocket connection."""
-        self.connections.discard(websocket)
+        self._connections.discard(websocket)
 
+    async def broadcast_event(self, event_data: dict[str, Any]) -> int:
+        """Broadcast an event to all connected WebSocket clients via Redis pub/sub.
+
+        Args:
+            event_data: Event data dictionary containing event details
+
+        Returns:
+            Number of clients that received the message
+        """
+        # Ensure the message has the correct structure (matches real implementation)
+        if "type" not in event_data:
+            event_data = {"type": "event", "data": event_data}
+
+        self.messages.append(event_data)
+        count = 0
+        for connection in self._connections:
+            try:
+                await connection.send_json(event_data)
+                count += 1
+            except Exception:  # noqa: S110 - Intentionally ignore send failures
+                pass
+        return count
+
+    # Legacy test-only methods - NOT part of real EventBroadcaster interface
+    # These are convenience methods used by existing tests in this file
     async def broadcast_new_event(self, event: dict[str, Any]) -> int:
-        """Broadcast a new event to all connected clients."""
+        """Broadcast a new event (test-only method, not in real implementation)."""
         message = {"type": "new_event", "data": event}
         self.messages.append(message)
         count = 0
-        for connection in self.connections:
+        for connection in self._connections:
             try:
                 await connection.send_json(message)
                 count += 1
-            except Exception:  # noqa: S110 - Intentionally ignore send failures to continue broadcasting to other clients
+            except Exception:  # noqa: S110 - Intentionally ignore send failures
                 pass
         return count
 
     async def broadcast_detection(self, detection: dict[str, Any]) -> int:
-        """Broadcast a new detection to all connected clients."""
+        """Broadcast a new detection (test-only method, not in real implementation)."""
         message = {"type": "detection", "data": detection}
         self.messages.append(message)
         count = 0
-        for connection in self.connections:
+        for connection in self._connections:
             try:
                 await connection.send_json(message)
                 count += 1
-            except Exception:  # noqa: S110 - Intentionally ignore send failures to continue broadcasting to other clients
+            except Exception:  # noqa: S110 - Intentionally ignore send failures
                 pass
         return count
 
 
 class MockSystemBroadcaster:
-    """Mock SystemBroadcaster for unit testing."""
+    """Mock SystemBroadcaster for unit testing.
 
-    def __init__(self):
-        """Initialize mock broadcaster."""
+    Matches the interface of backend.services.system_broadcaster.SystemBroadcaster:
+    - __init__(redis_client=None, redis_getter=None)
+    - connections: set[WebSocket] attribute
+    - _broadcast_task: asyncio.Task | None attribute
+    - _listener_task: asyncio.Task | None attribute
+    - _running: bool attribute
+    - _redis_client: RedisClient | None attribute
+    - _redis_getter: Callable | None attribute
+    - _pubsub: PubSub | None attribute
+    - _pubsub_listening: bool attribute
+    - _get_redis() -> RedisClient | None
+    - set_redis_client(redis_client) -> None
+    - connect(websocket) -> None
+    - disconnect(websocket) -> None
+    - broadcast_status(status_data) -> None
+    - start_broadcasting(interval=5.0) -> None
+    - stop_broadcasting() -> None
+    """
+
+    def __init__(
+        self,
+        redis_client: Any = None,
+        redis_getter: Any = None,
+    ):
+        """Initialize mock broadcaster.
+
+        Args:
+            redis_client: Optional Redis client instance
+            redis_getter: Optional callable that returns a Redis client
+        """
         self.connections: set = set()
+        self._broadcast_task: Any = None
+        self._listener_task: Any = None
+        self._running = False
+        self._redis_client = redis_client
+        self._redis_getter = redis_getter
+        self._pubsub: Any = None
+        self._pubsub_listening = False
+        # Test-only attribute for capturing broadcast messages
         self.messages: list[dict[str, Any]] = []
+
+    def _get_redis(self) -> Any:
+        """Get the Redis client instance.
+
+        Returns the directly injected redis_client if available, otherwise
+        calls redis_getter if provided.
+
+        Returns:
+            RedisClient instance or None if unavailable
+        """
+        if self._redis_client is not None:
+            return self._redis_client
+        if self._redis_getter is not None:
+            return self._redis_getter()
+        return None
+
+    def set_redis_client(self, redis_client: Any) -> None:
+        """Set the Redis client after initialization.
+
+        Args:
+            redis_client: Redis client instance or None
+        """
+        self._redis_client = redis_client
 
     async def connect(self, websocket: Any) -> None:
         """Add a WebSocket connection."""
@@ -70,8 +195,47 @@ class MockSystemBroadcaster:
         """Remove a WebSocket connection."""
         self.connections.discard(websocket)
 
+    async def broadcast_status(self, status_data: dict[str, Any]) -> None:
+        """Broadcast system status to all connected clients.
+
+        Args:
+            status_data: System status data to broadcast
+        """
+        self.messages.append(status_data)
+        failed_connections = set()
+
+        for websocket in self.connections:
+            try:
+                await websocket.send_json(status_data)
+            except Exception:
+                failed_connections.add(websocket)
+
+        # Remove failed connections
+        self.connections -= failed_connections
+
+    async def start_broadcasting(self, interval: float = 5.0) -> None:
+        """Start periodic broadcasting of system status.
+
+        Args:
+            interval: Seconds between broadcasts (default: 5.0)
+        """
+        self._running = True
+
+    async def stop_broadcasting(self) -> None:
+        """Stop periodic broadcasting of system status."""
+        self._running = False
+
+    # ==========================================================================
+    # Test-only methods below - NOT part of the real SystemBroadcaster interface
+    # These are convenience methods for tests in this file only.
+    # ==========================================================================
+
     async def broadcast_gpu_stats(self, stats: dict[str, Any]) -> int:
-        """Broadcast GPU statistics to all connected clients."""
+        """[TEST ONLY] Broadcast GPU statistics.
+
+        Note: This method does NOT exist in the real SystemBroadcaster.
+        It's a test convenience method for verifying broadcast behavior.
+        """
         message = {"type": "gpu_stats", "data": stats}
         self.messages.append(message)
         count = 0
@@ -79,12 +243,16 @@ class MockSystemBroadcaster:
             try:
                 await connection.send_json(message)
                 count += 1
-            except Exception:  # noqa: S110 - Intentionally ignore send failures to continue broadcasting to other clients
+            except Exception:  # noqa: S110 - Intentionally ignore send failures
                 pass
         return count
 
     async def broadcast_camera_status(self, status: dict[str, Any]) -> int:
-        """Broadcast camera status update to all connected clients."""
+        """[TEST ONLY] Broadcast camera status update.
+
+        Note: This method does NOT exist in the real SystemBroadcaster.
+        It's a test convenience method for verifying broadcast behavior.
+        """
         message = {"type": "camera_status", "data": status}
         self.messages.append(message)
         count = 0
@@ -92,7 +260,7 @@ class MockSystemBroadcaster:
             try:
                 await connection.send_json(message)
                 count += 1
-            except Exception:  # noqa: S110 - Intentionally ignore send failures to continue broadcasting to other clients
+            except Exception:  # noqa: S110 - Intentionally ignore send failures
                 pass
         return count
 

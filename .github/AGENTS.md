@@ -12,6 +12,7 @@ This directory contains GitHub-specific configuration files for the Home Securit
   dependabot.yml              # Automated dependency updates
   copilot-instructions.md     # GitHub Copilot context
   codeql/                     # CodeQL configuration
+    AGENTS.md                 # CodeQL directory guide
     codeql-config.yml         # Query configuration and path exclusions
   prompts/                    # AI prompt templates
     AGENTS.md                 # Prompts directory guide
@@ -108,8 +109,10 @@ This directory contains GitHub-specific configuration files for the Home Securit
 
 **Environment:**
 
-- Python 3.12
+- Python 3.14
 - Node.js 20
+- PostgreSQL 16 (service container)
+- Redis 7 (service container for integration tests)
 - Coverage uploaded to Codecov
 
 ### Deploy Pipeline (deploy.yml)

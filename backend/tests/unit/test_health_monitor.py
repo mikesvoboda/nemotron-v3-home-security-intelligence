@@ -168,9 +168,10 @@ async def test_health_check_detects_unhealthy_service(
     assert mock_manager.check_health.called
 
     # Verify broadcast was called with "unhealthy" status
+    # Event format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
     broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
     unhealthy_broadcasts = [
-        call for call in broadcast_calls if call[0][0].get("status") == "unhealthy"
+        call for call in broadcast_calls if call[0][0].get("data", {}).get("status") == "unhealthy"
     ]
     assert len(unhealthy_broadcasts) > 0
 
@@ -193,9 +194,10 @@ async def test_health_check_timeout_treated_as_unhealthy(
     await health_monitor.stop()
 
     # Verify broadcast was called with "unhealthy" status due to exception
+    # Event format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
     broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
     unhealthy_broadcasts = [
-        call for call in broadcast_calls if call[0][0].get("status") == "unhealthy"
+        call for call in broadcast_calls if call[0][0].get("data", {}).get("status") == "unhealthy"
     ]
     assert len(unhealthy_broadcasts) > 0
 
@@ -299,8 +301,11 @@ async def test_max_retries_stops_restart_attempts(mock_manager, mock_broadcaster
     assert restart_count <= 2, f"Expected at most 2 restarts, got {restart_count}"
 
     # Verify "failed" status was broadcast
+    # Event format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
     broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
-    failed_broadcasts = [call for call in broadcast_calls if call[0][0].get("status") == "failed"]
+    failed_broadcasts = [
+        call for call in broadcast_calls if call[0][0].get("data", {}).get("status") == "failed"
+    ]
     assert len(failed_broadcasts) > 0, "Expected 'failed' status to be broadcast"
 
 
@@ -361,9 +366,10 @@ async def test_broadcasts_status_on_failure(
     await health_monitor.stop()
 
     # Find broadcast calls with "unhealthy" status
+    # Event format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
     broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
     unhealthy_broadcasts = [
-        call for call in broadcast_calls if call[0][0].get("status") == "unhealthy"
+        call for call in broadcast_calls if call[0][0].get("data", {}).get("status") == "unhealthy"
     ]
     assert len(unhealthy_broadcasts) > 0, "Expected 'unhealthy' status to be broadcast"
 
@@ -404,8 +410,11 @@ async def test_broadcasts_status_on_recovery(mock_manager, mock_broadcaster, fas
     await monitor.stop()
 
     # Find broadcast calls with "healthy" status
+    # Event format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
     broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
-    healthy_broadcasts = [call for call in broadcast_calls if call[0][0].get("status") == "healthy"]
+    healthy_broadcasts = [
+        call for call in broadcast_calls if call[0][0].get("data", {}).get("status") == "healthy"
+    ]
     assert len(healthy_broadcasts) > 0, "Expected 'healthy' status to be broadcast on recovery"
 
 
@@ -424,9 +433,10 @@ async def test_broadcasts_status_on_restart(
     await health_monitor.stop()
 
     # Find broadcast calls with "restarting" status
+    # Event format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
     broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
     restarting_broadcasts = [
-        call for call in broadcast_calls if call[0][0].get("status") == "restarting"
+        call for call in broadcast_calls if call[0][0].get("data", {}).get("status") == "restarting"
     ]
     assert len(restarting_broadcasts) > 0, "Expected 'restarting' status to be broadcast"
 
@@ -498,9 +508,12 @@ async def test_restart_command_failure_handling(
     await health_monitor.stop()
 
     # Verify restart_failed status was broadcast
+    # Event format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
     broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
     restart_failed_broadcasts = [
-        call for call in broadcast_calls if call[0][0].get("status") == "restart_failed"
+        call
+        for call in broadcast_calls
+        if call[0][0].get("data", {}).get("status") == "restart_failed"
     ]
     assert len(restart_failed_broadcasts) > 0, "Expected 'restart_failed' status to be broadcast"
 
@@ -651,13 +664,15 @@ async def test_broadcast_event_format(health_monitor, mock_manager, mock_broadca
     await health_monitor.stop()
 
     # Check broadcast event structure
+    # Event format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
     assert mock_broadcaster.broadcast_event.called
     event_data = mock_broadcaster.broadcast_event.call_args_list[0][0][0]
 
     assert "type" in event_data
     assert event_data["type"] == "service_status"
-    assert "service" in event_data
-    assert "status" in event_data
+    assert "data" in event_data
+    assert "service" in event_data["data"]
+    assert "status" in event_data["data"]
     assert "timestamp" in event_data
 
 
@@ -755,9 +770,12 @@ async def test_restart_success_but_health_still_fails(mock_manager, mock_broadca
     await monitor.stop()
 
     # Should have broadcast "restart_failed" due to failed health verification
+    # Event format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
     broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
     restart_failed_broadcasts = [
-        call for call in broadcast_calls if call[0][0].get("status") == "restart_failed"
+        call
+        for call in broadcast_calls
+        if call[0][0].get("data", {}).get("status") == "restart_failed"
     ]
     assert len(restart_failed_broadcasts) > 0
 
@@ -974,8 +992,11 @@ async def test_restart_exception_handling(
     await monitor.stop()
 
     # Should have broadcast restart_failed status
+    # Event format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
     broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
     restart_failed_broadcasts = [
-        call for call in broadcast_calls if call[0][0].get("status") == "restart_failed"
+        call
+        for call in broadcast_calls
+        if call[0][0].get("data", {}).get("status") == "restart_failed"
     ]
     assert len(restart_failed_broadcasts) > 0

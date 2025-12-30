@@ -8,13 +8,16 @@ Integration tests verify that multiple components work together correctly. Unlik
 
 | File                                    | Description                   | Tests For                        |
 | --------------------------------------- | ----------------------------- | -------------------------------- |
+| `test_alembic_migrations.py`            | Database migrations           | Alembic migration validation     |
 | `test_api.py`                           | FastAPI application endpoints | Root, health, CORS, lifecycle    |
+| `test_audit_api.py`                     | Audit logging API             | `/api/audit/*` endpoints         |
 | `test_cameras_api.py`                   | Camera CRUD API               | `/api/cameras/*` endpoints       |
 | `test_system_api.py`                    | System information            | `/api/system/*` endpoints        |
 | `test_media_api.py`                     | Media file serving            | `/api/media/*` endpoints         |
 | `test_detections_api.py`                | Detections API                | `/api/detections/*` endpoints    |
 | `test_events_api.py`                    | Events API                    | `/api/events/*` endpoints        |
 | `test_logs_api.py`                      | Logs API                      | `/api/logs/*` endpoints          |
+| `test_search_api.py`                    | Search API                    | `/api/search/*` endpoints        |
 | `test_websocket.py`                     | WebSocket endpoints           | `/ws/events`, `/ws/system`       |
 | `test_full_stack.py`                    | Complete workflows            | Database, models, business logic |
 | `test_batch_aggregator_integration.py`  | Batch aggregation             | BatchAggregator service          |
@@ -366,7 +369,7 @@ async def test_concurrent_requests(client):
 
 ## Test Statistics
 
-- **Total test files**: 18
+- **Total test files**: 19
 - **Key test categories**:
   - API tests: test_api.py
   - Camera API tests: test_cameras_api.py

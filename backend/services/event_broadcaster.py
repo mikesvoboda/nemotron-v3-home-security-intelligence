@@ -9,18 +9,19 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
-import logging
+import threading
 from typing import TYPE_CHECKING, Any
 
 from fastapi import WebSocket
 
 from backend.core.config import get_settings
+from backend.core.logging import get_logger
 from backend.core.redis import RedisClient
 
 if TYPE_CHECKING:
     from redis.asyncio.client import PubSub
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def get_event_channel() -> str:
@@ -230,12 +231,40 @@ class EventBroadcaster:
             logger.info(f"Cleaned up {len(disconnected)} disconnected clients")
 
 
-# Global broadcaster instance
+# Global broadcaster instance and initialization lock
 _broadcaster: EventBroadcaster | None = None
+_broadcaster_lock: asyncio.Lock | None = None
+# Thread lock to protect initialization of _broadcaster_lock itself
+_init_lock = threading.Lock()
+
+
+def _get_broadcaster_lock() -> asyncio.Lock:
+    """Get the broadcaster initialization lock (lazy initialization).
+
+    This ensures the lock is created in a thread-safe manner and in the
+    correct event loop context. Uses a threading lock to protect the
+    initial creation of the asyncio lock, preventing race conditions
+    when multiple coroutines attempt to initialize concurrently.
+
+    Must be called from within an async context.
+
+    Returns:
+        asyncio.Lock for broadcaster initialization
+    """
+    global _broadcaster_lock  # noqa: PLW0603
+    if _broadcaster_lock is None:
+        with _init_lock:
+            # Double-check after acquiring thread lock
+            if _broadcaster_lock is None:
+                _broadcaster_lock = asyncio.Lock()
+    return _broadcaster_lock
 
 
 async def get_broadcaster(redis_client: RedisClient) -> EventBroadcaster:
     """Get or create the global event broadcaster instance.
+
+    This function is thread-safe and handles concurrent initialization
+    attempts using an async lock to prevent race conditions.
 
     Args:
         redis_client: Redis client instance
@@ -245,17 +274,47 @@ async def get_broadcaster(redis_client: RedisClient) -> EventBroadcaster:
     """
     global _broadcaster  # noqa: PLW0603
 
-    if _broadcaster is None:
-        _broadcaster = EventBroadcaster(redis_client)
-        await _broadcaster.start()
+    # Fast path: broadcaster already exists
+    if _broadcaster is not None:
+        return _broadcaster
+
+    # Slow path: need to initialize with lock
+    lock = _get_broadcaster_lock()
+    async with lock:
+        # Double-check after acquiring lock (another coroutine may have initialized)
+        if _broadcaster is None:
+            broadcaster = EventBroadcaster(redis_client)
+            await broadcaster.start()
+            _broadcaster = broadcaster
+            logger.info("Global event broadcaster initialized")
 
     return _broadcaster
 
 
 async def stop_broadcaster() -> None:
-    """Stop the global event broadcaster instance."""
+    """Stop the global event broadcaster instance.
+
+    This function is thread-safe and handles concurrent stop attempts.
+    """
     global _broadcaster  # noqa: PLW0603
 
-    if _broadcaster:
-        await _broadcaster.stop()
-        _broadcaster = None
+    lock = _get_broadcaster_lock()
+    async with lock:
+        if _broadcaster:
+            await _broadcaster.stop()
+            _broadcaster = None
+            logger.info("Global event broadcaster stopped")
+
+
+def reset_broadcaster_state() -> None:
+    """Reset the global broadcaster state for testing purposes.
+
+    This function is NOT thread-safe and should only be used in test
+    fixtures to ensure clean state between tests. It resets both the
+    broadcaster instance and the asyncio lock.
+
+    Warning: Only use this in test teardown, never in production code.
+    """
+    global _broadcaster, _broadcaster_lock  # noqa: PLW0603
+    _broadcaster = None
+    _broadcaster_lock = None

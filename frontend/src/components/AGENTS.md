@@ -174,16 +174,19 @@ Test files are co-located with their components using the \`.test.tsx\` extensio
 
 ## Navigation
 
-Each subdirectory contains its own \`AGENTS.md\` with detailed component documentation:
+Each subdirectory contains its own `AGENTS.md` with detailed component documentation:
 
-- \`common/AGENTS.md\` - Shared component patterns and APIs
-- \`dashboard/AGENTS.md\` - Dashboard widget details and data flow
-- \`layout/AGENTS.md\` - Application shell and navigation
-- \`events/AGENTS.md\` - Event component hierarchy
-- \`detection/AGENTS.md\` - Detection visualization components
-- \`settings/AGENTS.md\` - Settings page structure
-- \`logs/AGENTS.md\` - Logging dashboard components
-- \`system/AGENTS.md\` - System monitoring components
+- `alerts/AGENTS.md` - High/critical risk event alerts page
+- `common/AGENTS.md` - Shared component patterns and APIs (RiskBadge, ObjectTypeBadge, Lightbox)
+- `dashboard/AGENTS.md` - Dashboard widget details and data flow
+- `detection/AGENTS.md` - Detection visualization components (BoundingBoxOverlay, DetectionThumbnail)
+- `entities/AGENTS.md` - Entity tracking page (WIP)
+- `events/AGENTS.md` - Event component hierarchy (EventCard, EventTimeline, EventDetailModal)
+- `layout/AGENTS.md` - Application shell and navigation (Layout, Header, Sidebar)
+- `logs/AGENTS.md` - Logging dashboard components
+- `settings/AGENTS.md` - Settings page structure (CamerasSettings, ProcessingSettings, DlqMonitor)
+- `system/AGENTS.md` - System monitoring components (SystemMonitoringPage, ObservabilityPanel)
+- `video/AGENTS.md` - Video playback components (VideoPlayer)
 
 ## Entry Points
 
