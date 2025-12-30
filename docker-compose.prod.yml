@@ -7,11 +7,15 @@
 #   Docker:  docker compose -f docker-compose.prod.yml up -d
 #   Podman:  podman-compose -f docker-compose.prod.yml up -d
 #
-# For Podman on macOS:
-#   export AI_HOST=host.containers.internal
+# GPU Requirements:
+#   - NVIDIA GPU with CUDA support required for AI services
+#   - nvidia-container-toolkit must be installed
 #
-# For Linux (Docker or Podman), use your host IP:
-#   export AI_HOST=192.168.1.100  # Replace with your host IP
+# Environment Variables:
+#   - RTDETR_CONFIDENCE: Detection confidence threshold (default: 0.5)
+#   - GPU_LAYERS: Number of GPU layers for LLM (default: 99)
+#   - CONTEXT_SIZE: LLM context window size (default: 8192)
+#   - HF_CACHE: HuggingFace cache directory (default: ~/.cache/huggingface)
 
 services:
   postgres:
@@ -43,6 +47,68 @@ services:
           cpus: "2"
           memory: 1G
 
+  ai-detector:
+    build:
+      context: ./ai/rtdetr
+      dockerfile: Dockerfile
+    ports:
+      - "8090:8090"
+    volumes:
+      - ${HF_CACHE:-~/.cache/huggingface}:/cache/huggingface
+    environment:
+      - RTDETR_CONFIDENCE=${RTDETR_CONFIDENCE:-0.5}
+      - RTDETR_MODEL_PATH=${RTDETR_MODEL_PATH:-PekingU/rtdetr_r50vd_coco_o365}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import httpx; r = httpx.get('http://localhost:8090/health'); exit(0 if r.status_code == 200 else 1)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  ai-llm:
+    build:
+      context: ./ai/nemotron
+      dockerfile: Dockerfile
+    ports:
+      - "8091:8091"
+    volumes:
+      - /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km:/models:ro
+    environment:
+      - GPU_LAYERS=${GPU_LAYERS:-30}
+      - CONTEXT_SIZE=${CONTEXT_SIZE:-4096}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8091/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
   backend:
     build:
       context: ./backend
@@ -55,14 +121,18 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-security}:${POSTGRES_PASSWORD:-security_dev_password}@postgres:5432/${POSTGRES_DB:-security}
       - REDIS_URL=redis://redis:6379
-      - RTDETR_URL=http://${AI_HOST:-host.docker.internal}:8090
-      - NEMOTRON_URL=http://${AI_HOST:-host.docker.internal}:8091
+      - RTDETR_URL=http://ai-detector:8090
+      - NEMOTRON_URL=http://ai-llm:8091
       - FOSCAM_BASE_PATH=/cameras
       - DEBUG=false
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      ai-detector:
+        condition: service_healthy
+      ai-llm:
         condition: service_healthy
     healthcheck:
       test:
