@@ -18,45 +18,38 @@ async def test_root_endpoint(client):
 
 
 @pytest.mark.asyncio
-async def test_health_endpoint_with_healthy_services(client, mock_redis):
-    """Test health check endpoint when all services are operational."""
-    # Configure mock Redis to return healthy status
-    mock_redis.health_check.return_value = {
-        "status": "healthy",
-        "connected": True,
-        "redis_version": "7.0.0",
-    }
+async def test_health_endpoint_liveness(client, mock_redis):
+    """Test simple liveness health check endpoint.
 
+    The /health endpoint is a simple liveness probe that always returns 200
+    if the server is running. For detailed health, use /api/system/health.
+    """
     response = await client.get("/health")
 
     assert response.status_code == 200
     data = response.json()
 
-    # Check overall status - can be degraded if database engine not fully initialized
-    assert data["status"] in ["healthy", "degraded"]
-    assert data["api"] == "operational"
-    # Database may not be fully initialized in test context
-    assert data["database"] in ["operational", "not_initialized"]
-    assert data["redis"] in ["healthy", "not_initialized"]
+    # Simple liveness check - just confirms server is alive
+    assert data["status"] == "alive"
+    assert "message" in data
 
 
 @pytest.mark.asyncio
-async def test_health_endpoint_with_redis_error(client):
-    """Test health check endpoint when Redis is unavailable."""
-    # Mock Redis to raise an exception
+async def test_health_endpoint_always_succeeds(client):
+    """Test that /health endpoint always succeeds as a liveness probe.
+
+    Unlike /api/system/health which checks dependencies, /health is a
+    simple liveness check that always returns 200 if the server is up.
+    """
+    # Even without Redis, the simple /health endpoint should succeed
     with patch("backend.core.redis._redis_client", None):
         response = await client.get("/health")
 
         assert response.status_code == 200
         data = response.json()
 
-        # Overall status should be healthy since Redis is optional (not_initialized is acceptable)
-        assert data["status"] in ["healthy", "degraded"]
-        assert data["api"] == "operational"
-        # Database may not be fully initialized in test context
-        assert data["database"] in ["operational", "not_initialized"]
-        # When _redis_client is None, status is "not_initialized"
-        assert data["redis"] == "not_initialized"
+        # Simple liveness check - always returns alive
+        assert data["status"] == "alive"
 
 
 @pytest.mark.asyncio
@@ -105,12 +98,13 @@ async def test_lifespan_startup_initializes_database(integration_env, mock_redis
     # Create a fresh client which will trigger lifespan events
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         # Make a request to ensure app is initialized
-        response = await ac.get("/health")
+        # Use root endpoint since /health is now a simple liveness check
+        response = await ac.get("/")
         assert response.status_code == 200
 
-        # Check that database is initialized (may be operational or not_initialized in test context)
+        # Verify app is responding
         data = response.json()
-        assert data["database"] in ["operational", "not_initialized"]
+        assert data["status"] == "ok"
 
 
 @pytest.mark.asyncio
@@ -137,21 +131,20 @@ async def test_api_returns_json_content_type(client):
 
 @pytest.mark.asyncio
 async def test_health_endpoint_structure(client):
-    """Test that health endpoint returns all expected fields."""
+    """Test that simple /health endpoint returns expected fields.
+
+    The /health endpoint is a simple liveness check. For detailed health
+    information, use /api/system/health.
+    """
     response = await client.get("/health")
 
     assert response.status_code == 200
     data = response.json()
 
-    # Verify all required fields are present
-    required_fields = ["status", "api", "database", "redis", "redis_details"]
-    for field in required_fields:
-        assert field in data, f"Missing required field: {field}"
-
-    # Verify status values are valid
-    assert data["status"] in ["healthy", "degraded", "unhealthy"]
-    assert data["api"] in ["operational", "degraded", "down"]
-    assert data["database"] in ["operational", "not_initialized", "error"]
+    # Verify simple liveness response structure
+    assert "status" in data
+    assert "message" in data
+    assert data["status"] == "alive"
 
 
 @pytest.mark.asyncio

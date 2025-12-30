@@ -4,20 +4,26 @@ This module manages WebSocket connections and broadcasts real-time system
 status updates to connected clients. It handles:
 
 - Connection lifecycle management
-- Periodic system status broadcasting
+- Periodic system status broadcasting via Redis pub/sub
 - GPU statistics
 - Camera status
 - Processing queue status
+
+Redis Pub/Sub Integration:
+    The SystemBroadcaster uses Redis pub/sub to enable multi-instance deployments.
+    System status updates are published to a dedicated Redis channel, and all
+    instances subscribe to receive updates for their connected WebSocket clients.
 """
 
 from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import logging
 from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import WebSocket
 from sqlalchemy import func, select
@@ -26,9 +32,14 @@ from backend.core import get_session
 from backend.models import Camera, GPUStats
 
 if TYPE_CHECKING:
+    from redis.asyncio.client import PubSub
+
     from backend.core.redis import RedisClient
 
 logger = logging.getLogger(__name__)
+
+# Redis channel for system status updates
+SYSTEM_STATUS_CHANNEL = "system_status"
 
 
 class SystemBroadcaster:
@@ -36,13 +47,17 @@ class SystemBroadcaster:
 
     This class maintains a set of active WebSocket connections and provides
     methods to broadcast system status updates to all connected clients.
+    Uses Redis pub/sub to enable multi-instance deployments where any instance
+    can publish status updates and all instances forward them to their clients.
 
     Attributes:
         connections: Set of active WebSocket connections
         _broadcast_task: Background task for periodic status updates
+        _listener_task: Background task for listening to Redis pub/sub
         _running: Flag indicating if broadcaster is running
         _redis_client: Injected Redis client instance (optional)
         _redis_getter: Callable that returns Redis client (alternative to direct injection)
+        _pubsub: Redis pub/sub instance for receiving updates
     """
 
     def __init__(
@@ -60,9 +75,12 @@ class SystemBroadcaster:
         """
         self.connections: set[WebSocket] = set()
         self._broadcast_task: asyncio.Task[None] | None = None
+        self._listener_task: asyncio.Task[None] | None = None
         self._running = False
         self._redis_client = redis_client
         self._redis_getter = redis_getter
+        self._pubsub: PubSub | None = None
+        self._pubsub_listening = False
 
     def _get_redis(self) -> RedisClient | None:
         """Get the Redis client instance.
@@ -117,21 +135,49 @@ class SystemBroadcaster:
         logger.info(f"WebSocket disconnected. Total connections: {len(self.connections)}")
 
     async def broadcast_status(self, status_data: dict) -> None:
-        """Broadcast system status to all connected clients.
+        """Broadcast system status to all connected clients via Redis pub/sub.
 
-        Removes any connections that fail to receive the message.
+        If Redis is available, publishes to the system_status channel so all
+        instances receive the update. Falls back to direct broadcasting if
+        Redis is unavailable.
 
         Args:
             status_data: System status data to broadcast
         """
+        redis_client = self._get_redis()
+
+        # Try to publish via Redis for multi-instance support
+        if redis_client is not None:
+            try:
+                await redis_client.publish(SYSTEM_STATUS_CHANNEL, status_data)
+                logger.debug("Published system status via Redis pub/sub")
+                return
+            except Exception as e:
+                logger.warning(f"Failed to publish via Redis, falling back to direct: {e}")
+
+        # Fallback: broadcast directly to local connections
+        await self._send_to_local_clients(status_data)
+
+    async def _send_to_local_clients(self, status_data: dict | Any) -> None:
+        """Send status data directly to all locally connected WebSocket clients.
+
+        This is used both by the Redis listener and as a fallback when Redis
+        is unavailable.
+
+        Args:
+            status_data: System status data to send
+        """
         if not self.connections:
             return
+
+        # Convert to JSON string if needed
+        message = json.dumps(status_data) if not isinstance(status_data, str) else status_data
 
         failed_connections = set()
 
         for websocket in self.connections:
             try:
-                await websocket.send_json(status_data)
+                await websocket.send_text(message)
             except Exception as e:
                 logger.warning(f"Failed to send to WebSocket: {e}")
                 failed_connections.add(websocket)
@@ -143,6 +189,92 @@ class SystemBroadcaster:
                 f"Removed {len(failed_connections)} failed connections. "
                 f"Active connections: {len(self.connections)}"
             )
+
+    async def _start_pubsub_listener(self) -> None:
+        """Start the Redis pub/sub listener for receiving system status updates.
+
+        This enables multi-instance support where status updates published by
+        any instance are received and forwarded to local WebSocket clients.
+        """
+        redis_client = self._get_redis()
+        if redis_client is None:
+            logger.warning("Redis not available, pub/sub listener not started")
+            return
+
+        if self._pubsub_listening:
+            logger.warning("Pub/sub listener already running")
+            return
+
+        try:
+            self._pubsub = await redis_client.subscribe(SYSTEM_STATUS_CHANNEL)
+            self._pubsub_listening = True
+            self._listener_task = asyncio.create_task(self._listen_for_updates())
+            logger.info(f"Started pub/sub listener on channel: {SYSTEM_STATUS_CHANNEL}")
+        except Exception as e:
+            logger.error(f"Failed to start pub/sub listener: {e}")
+
+    async def _stop_pubsub_listener(self) -> None:
+        """Stop the Redis pub/sub listener."""
+        self._pubsub_listening = False
+
+        if self._listener_task:
+            self._listener_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._listener_task
+            self._listener_task = None
+
+        if self._pubsub:
+            redis_client = self._get_redis()
+            if redis_client:
+                try:
+                    await redis_client.unsubscribe(SYSTEM_STATUS_CHANNEL)
+                except Exception as e:
+                    logger.warning(f"Error unsubscribing: {e}")
+            self._pubsub = None
+
+        logger.info("Stopped pub/sub listener")
+
+    async def _listen_for_updates(self) -> None:
+        """Listen for system status updates from Redis pub/sub.
+
+        Forwards received messages to all locally connected WebSocket clients.
+        """
+        if not self._pubsub:
+            logger.error("Cannot listen: pubsub not initialized")
+            return
+
+        redis_client = self._get_redis()
+        if not redis_client:
+            logger.error("Cannot listen: Redis client not available")
+            return
+
+        logger.info("Starting pub/sub listener loop")
+
+        try:
+            async for message in redis_client.listen(self._pubsub):
+                if not self._pubsub_listening:
+                    break
+
+                # Extract the status data
+                status_data = message.get("data")
+                if not status_data:
+                    continue
+
+                logger.debug(f"Received system status from Redis: {type(status_data)}")
+
+                # Forward to local WebSocket clients
+                await self._send_to_local_clients(status_data)
+
+        except asyncio.CancelledError:
+            logger.info("Pub/sub listener cancelled")
+        except Exception as e:
+            logger.error(f"Error in pub/sub listener: {e}")
+            # Attempt to restart listener
+            if self._pubsub_listening:
+                logger.info("Restarting pub/sub listener after error")
+                await asyncio.sleep(1)
+                if self._pubsub_listening:
+                    self._listener_task = asyncio.create_task(self._listen_for_updates())
 
     async def _get_system_status(self) -> dict:
         """Gather current system status data.
@@ -308,6 +440,9 @@ class SystemBroadcaster:
     async def start_broadcasting(self, interval: float = 5.0) -> None:
         """Start periodic broadcasting of system status.
 
+        Starts both the broadcast loop (for publishing status updates) and
+        the pub/sub listener (for receiving updates from other instances).
+
         Args:
             interval: Seconds between broadcasts (default: 5.0)
         """
@@ -316,17 +451,31 @@ class SystemBroadcaster:
             return
 
         self._running = True
+
+        # Start the pub/sub listener for multi-instance support
+        await self._start_pubsub_listener()
+
+        # Start the broadcast loop
         self._broadcast_task = asyncio.create_task(self._broadcast_loop(interval))
         logger.info(f"Started system status broadcasting (interval: {interval}s)")
 
     async def stop_broadcasting(self) -> None:
-        """Stop periodic broadcasting of system status."""
+        """Stop periodic broadcasting of system status.
+
+        Stops both the broadcast loop and the pub/sub listener.
+        """
         self._running = False
+
+        # Stop the broadcast loop
         if self._broadcast_task:
             self._broadcast_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await self._broadcast_task
             self._broadcast_task = None
+
+        # Stop the pub/sub listener
+        await self._stop_pubsub_listener()
+
         logger.info("Stopped system status broadcasting")
 
     async def _broadcast_loop(self, interval: float) -> None:

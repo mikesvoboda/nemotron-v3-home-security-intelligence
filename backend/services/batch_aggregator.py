@@ -63,7 +63,7 @@ class BatchAggregator:
     async def add_detection(
         self,
         camera_id: str,
-        detection_id: str,
+        detection_id: int | str,
         _file_path: str,
         confidence: float | None = None,
         object_type: str | None = None,
@@ -78,31 +78,44 @@ class BatchAggregator:
 
         Args:
             camera_id: Camera identifier
-            detection_id: Detection identifier
+            detection_id: Detection identifier (int or string, normalized to int internally)
             file_path: Path to the detection image file
             confidence: Detection confidence score (0.0-1.0)
             object_type: Detected object type (e.g., "person", "car")
 
         Returns:
             Batch ID that the detection was added to (or fast path batch ID)
+
+        Raises:
+            ValueError: If detection_id cannot be converted to int
+            RuntimeError: If Redis client not initialized
         """
         if not self._redis:
             raise RuntimeError("Redis client not initialized")
 
+        # Normalize detection_id to int for consistent storage
+        # This handles both int IDs from the database and string IDs from legacy code
+        try:
+            detection_id_int: int = int(detection_id)
+        except (ValueError, TypeError) as e:
+            raise ValueError(
+                f"Invalid detection_id: {detection_id!r}. Detection IDs must be numeric."
+            ) from e
+
         # Check if detection meets fast path criteria
         if self._should_use_fast_path(confidence, object_type):
             logger.info(
-                f"Fast path triggered for detection {detection_id}: "
+                f"Fast path triggered for detection {detection_id_int}: "
                 f"confidence={confidence}, object_type={object_type}",
                 extra={
                     "camera_id": camera_id,
-                    "detection_id": detection_id,
+                    "detection_id": detection_id_int,
                     "confidence": confidence,
                     "object_type": object_type,
                 },
             )
-            await self._process_fast_path(camera_id, detection_id)
-            return f"fast_path_{detection_id}"
+            await self._process_fast_path(camera_id, detection_id_int)
+            return f"fast_path_{detection_id_int}"
 
         current_time = time.time()
 
@@ -137,7 +150,7 @@ class BatchAggregator:
         else:
             detections = []
 
-        detections.append(detection_id)
+        detections.append(detection_id_int)
 
         # Update batch with new detection and activity timestamp (refresh TTL)
         ttl = self.BATCH_KEY_TTL_SECONDS
@@ -145,12 +158,12 @@ class BatchAggregator:
         await self._redis.set(f"batch:{batch_id}:last_activity", str(current_time), expire=ttl)
 
         logger.debug(
-            f"Added detection {detection_id} to batch {batch_id} "
+            f"Added detection {detection_id_int} to batch {batch_id} "
             f"(camera: {camera_id}, total detections: {len(detections)})",
             extra={
                 "camera_id": camera_id,
                 "batch_id": batch_id,
-                "detection_id": detection_id,
+                "detection_id": detection_id_int,
                 "detection_count": len(detections),
             },
         )
@@ -383,7 +396,7 @@ class BatchAggregator:
 
         return object_type.lower() in [t.lower() for t in self._fast_path_types]
 
-    async def _process_fast_path(self, camera_id: str, detection_id: str) -> None:
+    async def _process_fast_path(self, camera_id: str, detection_id: int) -> None:
         """Process detection via fast path (immediate analysis).
 
         Creates a fast path analyzer if needed and triggers immediate analysis
@@ -391,7 +404,7 @@ class BatchAggregator:
 
         Args:
             camera_id: Camera identifier
-            detection_id: Detection identifier
+            detection_id: Detection identifier (integer)
         """
         if not self._analyzer:
             # Lazy import to avoid circular dependency

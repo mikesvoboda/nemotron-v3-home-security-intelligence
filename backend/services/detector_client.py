@@ -40,6 +40,13 @@ from backend.models.detection import Detection
 
 logger = get_logger(__name__)
 
+# Timeout configuration for AI service clients
+# - connect_timeout: Maximum time to establish connection (10s)
+# - read_timeout: Maximum time to wait for response (60s for AI inference)
+DETECTOR_CONNECT_TIMEOUT = 10.0
+DETECTOR_READ_TIMEOUT = 60.0
+DETECTOR_HEALTH_TIMEOUT = 5.0
+
 
 class DetectorUnavailableError(Exception):
     """Raised when the RT-DETR detector service is unavailable.
@@ -76,7 +83,20 @@ class DetectorClient:
         settings = get_settings()
         self._detector_url = settings.rtdetr_url
         self._confidence_threshold = settings.detection_confidence_threshold
-        self._timeout = 30.0  # 30 second timeout
+        # Use httpx.Timeout for proper timeout configuration
+        # connect: time to establish connection, read: time to wait for response
+        self._timeout = httpx.Timeout(
+            connect=DETECTOR_CONNECT_TIMEOUT,
+            read=DETECTOR_READ_TIMEOUT,
+            write=DETECTOR_READ_TIMEOUT,
+            pool=DETECTOR_CONNECT_TIMEOUT,
+        )
+        self._health_timeout = httpx.Timeout(
+            connect=DETECTOR_HEALTH_TIMEOUT,
+            read=DETECTOR_HEALTH_TIMEOUT,
+            write=DETECTOR_HEALTH_TIMEOUT,
+            pool=DETECTOR_HEALTH_TIMEOUT,
+        )
 
     async def health_check(self) -> bool:
         """Check if detector service is healthy and reachable.
@@ -85,7 +105,7 @@ class DetectorClient:
             True if detector is healthy, False otherwise
         """
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
+            async with httpx.AsyncClient(timeout=self._health_timeout) as client:
                 response = await client.get(f"{self._detector_url}/health")
                 response.raise_for_status()
                 return True

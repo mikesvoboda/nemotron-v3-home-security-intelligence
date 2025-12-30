@@ -629,7 +629,11 @@ async def test_queue_for_detection_without_redis(file_watcher, temp_camera_root)
 
 @pytest.mark.asyncio
 async def test_start_without_event_loop(tmp_path):
-    """Test starting watcher when no event loop is running."""
+    """Test starting watcher when no event loop is running raises error.
+
+    FileWatcher MUST be started within an async context (e.g., FastAPI lifespan).
+    If no event loop is available, it should fail loudly to prevent silent data loss.
+    """
     mock_redis = AsyncMock()
     test_camera_root = tmp_path / "test_cameras"
     test_camera_root.mkdir()
@@ -644,11 +648,13 @@ async def test_start_without_event_loop(tmp_path):
         patch("asyncio.get_running_loop", side_effect=RuntimeError("No running loop")),
         patch.object(watcher.observer, "start"),
     ):
-        await watcher.start()
+        # Should raise RuntimeError when no event loop is available
+        with pytest.raises(RuntimeError, match="MUST be started within an async context"):
+            await watcher.start()
 
-        # Should set _loop to None and log warning
+        # Should NOT have started
         assert watcher._loop is None
-        assert watcher.running is True
+        assert watcher.running is False
 
 
 @pytest.mark.asyncio

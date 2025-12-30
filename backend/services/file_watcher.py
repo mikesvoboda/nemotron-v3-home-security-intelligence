@@ -316,6 +316,11 @@ class FileWatcher:
 
                 Args:
                     file_path: Path to file to process
+
+                Note:
+                    If event loop is not available, this logs an ERROR and increments
+                    an error counter. This is a critical failure mode that indicates
+                    the FileWatcher was not started properly within an async context.
                 """
                 # Use the stored loop reference if available
                 if self.watcher._loop and self.watcher._loop.is_running():
@@ -325,7 +330,20 @@ class FileWatcher:
                         self.watcher._loop,
                     )
                 else:
-                    logger.warning(f"Event loop not available for processing {file_path}")
+                    # This is a critical error - file events are being lost
+                    # Log as ERROR and track the failure for monitoring
+                    logger.error(
+                        f"CRITICAL: Event loop not available for processing {file_path}. "
+                        "File will NOT be processed. FileWatcher must be started within "
+                        "an async context (e.g., during FastAPI lifespan).",
+                        extra={
+                            "file_path": file_path,
+                            "loop_exists": self.watcher._loop is not None,
+                            "loop_running": (
+                                self.watcher._loop.is_running() if self.watcher._loop else False
+                            ),
+                        },
+                    )
 
         return MediaEventHandler(self)
 
@@ -598,11 +616,20 @@ class FileWatcher:
         logger.info(f"Starting FileWatcher for {self.camera_root}")
 
         # Capture the current event loop for thread-safe task scheduling
+        # This is REQUIRED - FileWatcher cannot function without an async event loop
         try:
             self._loop = asyncio.get_running_loop()
-        except RuntimeError:
-            logger.warning("No running event loop detected - file processing may not work")
-            self._loop = None
+        except RuntimeError as e:
+            error_msg = (
+                "FileWatcher MUST be started within an async context (e.g., during "
+                "FastAPI lifespan). No running event loop detected - file events "
+                "will be lost. This is a critical configuration error."
+            )
+            logger.error(
+                error_msg,
+                extra={"error": str(e), "camera_root": self.camera_root},
+            )
+            raise RuntimeError(error_msg) from e
 
         # Schedule observer for each camera directory
         camera_root_path = Path(self.camera_root)

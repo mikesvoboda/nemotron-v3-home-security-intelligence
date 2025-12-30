@@ -230,12 +230,31 @@ class EventBroadcaster:
             logger.info(f"Cleaned up {len(disconnected)} disconnected clients")
 
 
-# Global broadcaster instance
+# Global broadcaster instance and initialization lock
 _broadcaster: EventBroadcaster | None = None
+_broadcaster_lock: asyncio.Lock | None = None
+
+
+def _get_broadcaster_lock() -> asyncio.Lock:
+    """Get the broadcaster initialization lock (lazy initialization).
+
+    This ensures the lock is created in the correct event loop context.
+    Must be called from within an async context.
+
+    Returns:
+        asyncio.Lock for broadcaster initialization
+    """
+    global _broadcaster_lock  # noqa: PLW0603
+    if _broadcaster_lock is None:
+        _broadcaster_lock = asyncio.Lock()
+    return _broadcaster_lock
 
 
 async def get_broadcaster(redis_client: RedisClient) -> EventBroadcaster:
     """Get or create the global event broadcaster instance.
+
+    This function is thread-safe and handles concurrent initialization
+    attempts using an async lock to prevent race conditions.
 
     Args:
         redis_client: Redis client instance
@@ -245,17 +264,33 @@ async def get_broadcaster(redis_client: RedisClient) -> EventBroadcaster:
     """
     global _broadcaster  # noqa: PLW0603
 
-    if _broadcaster is None:
-        _broadcaster = EventBroadcaster(redis_client)
-        await _broadcaster.start()
+    # Fast path: broadcaster already exists
+    if _broadcaster is not None:
+        return _broadcaster
+
+    # Slow path: need to initialize with lock
+    lock = _get_broadcaster_lock()
+    async with lock:
+        # Double-check after acquiring lock (another coroutine may have initialized)
+        if _broadcaster is None:
+            broadcaster = EventBroadcaster(redis_client)
+            await broadcaster.start()
+            _broadcaster = broadcaster
+            logger.info("Global event broadcaster initialized")
 
     return _broadcaster
 
 
 async def stop_broadcaster() -> None:
-    """Stop the global event broadcaster instance."""
+    """Stop the global event broadcaster instance.
+
+    This function is thread-safe and handles concurrent stop attempts.
+    """
     global _broadcaster  # noqa: PLW0603
 
-    if _broadcaster:
-        await _broadcaster.stop()
-        _broadcaster = None
+    lock = _get_broadcaster_lock()
+    async with lock:
+        if _broadcaster:
+            await _broadcaster.stop()
+            _broadcaster = None
+            logger.info("Global event broadcaster stopped")

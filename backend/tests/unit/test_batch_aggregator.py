@@ -72,7 +72,7 @@ async def batch_aggregator(mock_redis_instance):
 async def test_add_detection_creates_new_batch(batch_aggregator, mock_redis_instance):
     """Test that adding a detection to a camera with no active batch creates a new batch."""
     camera_id = "front_door"
-    detection_id = "det_001"
+    detection_id = 1  # Use integer detection ID (matches database model)
     file_path = "/export/foscam/front_door/image_001.jpg"
 
     # Mock: No existing batch
@@ -102,10 +102,10 @@ async def test_add_detection_creates_new_batch(batch_aggregator, mock_redis_inst
 async def test_add_detection_to_existing_batch(batch_aggregator, mock_redis_instance):
     """Test that adding a detection to a camera with an active batch adds to that batch."""
     camera_id = "front_door"
-    detection_id = "det_002"
+    detection_id = 2  # Use integer detection ID (matches database model)
     file_path = "/export/foscam/front_door/image_002.jpg"
     existing_batch_id = "batch_123"
-    existing_detections = ["det_001"]
+    existing_detections = [1]  # Use integer detection IDs
 
     # Mock: Existing batch
     async def mock_get(key):
@@ -140,7 +140,7 @@ async def test_add_detection_to_existing_batch(batch_aggregator, mock_redis_inst
 async def test_add_detection_updates_last_activity(batch_aggregator, mock_redis_instance):
     """Test that adding a detection updates the last_activity timestamp."""
     camera_id = "front_door"
-    detection_id = "det_003"
+    detection_id = 3  # Use integer detection ID (matches database model)
     file_path = "/export/foscam/front_door/image_003.jpg"
     existing_batch_id = "batch_123"
 
@@ -149,7 +149,7 @@ async def test_add_detection_updates_last_activity(batch_aggregator, mock_redis_
         if key == f"batch:{camera_id}:current":
             return existing_batch_id
         elif key == f"batch:{existing_batch_id}:detections":
-            return json.dumps(["det_001", "det_002"])
+            return json.dumps([1, 2])  # Use integer detection IDs
         elif key == f"batch:{existing_batch_id}:started_at":
             return str(time.time() - 30)  # Started 30s ago
         return None
@@ -381,10 +381,10 @@ async def test_add_detection_concurrent_cameras(batch_aggregator, mock_redis_ins
         batch_ids = ["batch_001", "batch_002"]
         mock_uuid.return_value.hex = batch_ids[0]
 
-        batch_id1 = await batch_aggregator.add_detection(camera1, "det_001", "/path/1.jpg")
+        batch_id1 = await batch_aggregator.add_detection(camera1, 1, "/path/1.jpg")
 
         mock_uuid.return_value.hex = batch_ids[1]
-        batch_id2 = await batch_aggregator.add_detection(camera2, "det_002", "/path/2.jpg")
+        batch_id2 = await batch_aggregator.add_detection(camera2, 2, "/path/2.jpg")
 
     # Should create separate batches
     assert batch_id1 != batch_id2
@@ -440,7 +440,16 @@ async def test_add_detection_without_redis_client():
     aggregator = BatchAggregator(redis_client=None)
 
     with pytest.raises(RuntimeError, match="Redis client not initialized"):
-        await aggregator.add_detection("camera1", "det_001", "/path/to/file.jpg")
+        await aggregator.add_detection("camera1", 1, "/path/to/file.jpg")
+
+
+@pytest.mark.asyncio
+async def test_add_detection_with_invalid_detection_id(mock_redis_instance):
+    """Test that adding detection with non-numeric ID raises ValueError."""
+    aggregator = BatchAggregator(redis_client=mock_redis_instance)
+
+    with pytest.raises(ValueError, match="Detection IDs must be numeric"):
+        await aggregator.add_detection("camera1", "invalid_id", "/path/to/file.jpg")
 
 
 @pytest.mark.asyncio
@@ -692,7 +701,7 @@ async def test_should_use_fast_path_case_insensitive(mock_redis_instance):
 async def test_add_detection_triggers_fast_path(batch_aggregator, mock_redis_instance):
     """Test that high-confidence person detection triggers fast path."""
     camera_id = "front_door"
-    detection_id = "123"
+    detection_id = 123  # Use integer detection ID (matches database model)
     file_path = "/export/foscam/front_door/image_001.jpg"
 
     # Mock analyzer
@@ -715,7 +724,7 @@ async def test_add_detection_triggers_fast_path(batch_aggregator, mock_redis_ins
     # Should return fast path batch ID
     assert batch_id == f"fast_path_{detection_id}"
 
-    # Should call analyzer
+    # Should call analyzer (passes normalized int)
     mock_analyzer.analyze_detection_fast_path.assert_called_once_with(
         camera_id=camera_id,
         detection_id=detection_id,
@@ -729,7 +738,7 @@ async def test_add_detection_triggers_fast_path(batch_aggregator, mock_redis_ins
 async def test_add_detection_skips_fast_path_low_confidence(batch_aggregator, mock_redis_instance):
     """Test that low-confidence detection skips fast path and uses normal batching."""
     camera_id = "front_door"
-    detection_id = "124"
+    detection_id = 124  # Use integer detection ID (matches database model)
     file_path = "/export/foscam/front_door/image_002.jpg"
 
     # Mock: No existing batch
@@ -761,7 +770,7 @@ async def test_add_detection_skips_fast_path_low_confidence(batch_aggregator, mo
 async def test_process_fast_path_creates_analyzer(batch_aggregator, mock_redis_instance):
     """Test that fast path creates analyzer if not provided."""
     camera_id = "back_door"
-    detection_id = "456"
+    detection_id = 456  # Use integer detection ID (matches database model)
 
     # Ensure analyzer is None
     batch_aggregator._analyzer = None
@@ -788,7 +797,7 @@ async def test_process_fast_path_creates_analyzer(batch_aggregator, mock_redis_i
 async def test_process_fast_path_handles_error(batch_aggregator, mock_redis_instance):
     """Test that fast path handles analyzer errors gracefully."""
     camera_id = "garage"
-    detection_id = "789"
+    detection_id = 789  # Use integer detection ID (matches database model)
 
     # Mock analyzer that raises error
     mock_analyzer = AsyncMock()
@@ -808,7 +817,7 @@ async def test_add_detection_without_confidence_skips_fast_path(
 ):
     """Test that detection without confidence value skips fast path."""
     camera_id = "front_door"
-    detection_id = "999"
+    detection_id = 999  # Use integer detection ID (matches database model)
     file_path = "/export/foscam/front_door/image_999.jpg"
 
     # Mock: No existing batch

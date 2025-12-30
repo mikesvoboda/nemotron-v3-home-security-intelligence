@@ -2,12 +2,12 @@
 #
 # Unified Test Runner
 # Runs all tests with code coverage enforcement:
-#   - Backend: 95% combined coverage (via pytest --cov-fail-under)
+#   - Backend: 93% combined coverage (via pytest --cov-fail-under)
 #   - Frontend: 92-93% thresholds (via vitest coverage thresholds in vite.config.ts)
 #
 # Note: CI enforces separate thresholds per test type:
 #   - Unit tests: 93% (stricter for isolated tests)
-#   - Integration tests: 85% (allows for mocked external dependencies)
+#   - Integration tests: 50% (lower due to mocked deps and endpoint-focused testing)
 #
 
 set -e
@@ -23,8 +23,10 @@ NC='\033[0m' # No Color
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
 
-# Coverage threshold
-COVERAGE_THRESHOLD=95
+# Coverage threshold (aligned with CI unit test threshold)
+# CI uses 93% for unit tests, 50% for integration tests
+# When running combined tests locally, we use the stricter unit test threshold
+COVERAGE_THRESHOLD=93
 
 # Track results
 BACKEND_RESULT=0

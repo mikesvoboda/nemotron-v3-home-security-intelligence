@@ -3221,14 +3221,21 @@ export interface components {
          * GPUStatsResponse
          * @description Response schema for GPU statistics endpoint.
          * @example {
+         *       "gpu_name": "NVIDIA RTX A5500",
          *       "inference_fps": 30.5,
          *       "memory_total": 24000,
          *       "memory_used": 12000,
+         *       "power_usage": 150,
          *       "temperature": 65,
          *       "utilization": 75.5
          *     }
          */
         GPUStatsResponse: {
+            /**
+             * Gpu Name
+             * @description GPU device name (e.g., 'NVIDIA RTX A5500')
+             */
+            gpu_name?: string | null;
             /**
              * Utilization
              * @description GPU utilization percentage (0-100)
@@ -3249,6 +3256,11 @@ export interface components {
              * @description GPU temperature in Celsius
              */
             temperature?: number | null;
+            /**
+             * Power Usage
+             * @description GPU power usage in watts
+             */
+            power_usage?: number | null;
             /**
              * Inference Fps
              * @description Inference frames per second
@@ -3267,6 +3279,11 @@ export interface components {
              */
             recorded_at: string;
             /**
+             * Gpu Name
+             * @description GPU device name
+             */
+            gpu_name?: string | null;
+            /**
              * Utilization
              * @description GPU utilization percentage (0-100)
              */
@@ -3286,6 +3303,11 @@ export interface components {
              * @description GPU temperature in Celsius
              */
             temperature?: number | null;
+            /**
+             * Power Usage
+             * @description GPU power usage in watts
+             */
+            power_usage?: number | null;
             /**
              * Inference Fps
              * @description Inference frames per second
