@@ -17,12 +17,18 @@ import pytest
 from pydantic import ValidationError
 
 from backend.api.schemas.websocket import (
+    RiskLevel,
+    ServiceStatus,
     WebSocketErrorCode,
     WebSocketErrorResponse,
+    WebSocketEventData,
+    WebSocketEventMessage,
     WebSocketMessage,
     WebSocketMessageType,
     WebSocketPingMessage,
     WebSocketPongResponse,
+    WebSocketServiceStatusData,
+    WebSocketServiceStatusMessage,
     WebSocketSubscribeMessage,
     WebSocketUnsubscribeMessage,
 )
@@ -477,3 +483,479 @@ class TestWebSocketMessageFlow:
         response = json.loads(mock_websocket.send_text.call_args[0][0])
         assert response["type"] == "error"
         assert response["error"] == "unknown_message_type"
+
+
+# =============================================================================
+# RiskLevel Enum Tests
+# =============================================================================
+
+
+class TestRiskLevel:
+    """Tests for RiskLevel enum."""
+
+    def test_risk_level_values(self) -> None:
+        """Test that RiskLevel enum has expected values."""
+        assert RiskLevel.LOW.value == "low"
+        assert RiskLevel.MEDIUM.value == "medium"
+        assert RiskLevel.HIGH.value == "high"
+        assert RiskLevel.CRITICAL.value == "critical"
+
+    def test_risk_level_str(self) -> None:
+        """Test RiskLevel __str__ method returns the value."""
+        # This tests line 39: return self.value
+        assert str(RiskLevel.LOW) == "low"
+        assert str(RiskLevel.MEDIUM) == "medium"
+        assert str(RiskLevel.HIGH) == "high"
+        assert str(RiskLevel.CRITICAL) == "critical"
+
+    def test_risk_level_string_comparison(self) -> None:
+        """Test that RiskLevel can be compared with strings."""
+        assert RiskLevel.LOW == "low"
+        assert RiskLevel.HIGH == "high"
+
+
+# =============================================================================
+# ServiceStatus Enum Tests
+# =============================================================================
+
+
+class TestServiceStatus:
+    """Tests for ServiceStatus enum."""
+
+    def test_service_status_values(self) -> None:
+        """Test that ServiceStatus enum has expected values."""
+        assert ServiceStatus.HEALTHY.value == "healthy"
+        assert ServiceStatus.UNHEALTHY.value == "unhealthy"
+        assert ServiceStatus.RESTARTING.value == "restarting"
+        assert ServiceStatus.RESTART_FAILED.value == "restart_failed"
+        assert ServiceStatus.FAILED.value == "failed"
+
+    def test_service_status_str(self) -> None:
+        """Test ServiceStatus __str__ method returns the value."""
+        # This tests line 343: return self.value
+        assert str(ServiceStatus.HEALTHY) == "healthy"
+        assert str(ServiceStatus.UNHEALTHY) == "unhealthy"
+        assert str(ServiceStatus.RESTARTING) == "restarting"
+        assert str(ServiceStatus.RESTART_FAILED) == "restart_failed"
+        assert str(ServiceStatus.FAILED) == "failed"
+
+    def test_service_status_string_comparison(self) -> None:
+        """Test that ServiceStatus can be compared with strings."""
+        assert ServiceStatus.HEALTHY == "healthy"
+        assert ServiceStatus.FAILED == "failed"
+
+
+# =============================================================================
+# WebSocketEventData Schema Tests
+# =============================================================================
+
+
+class TestWebSocketEventData:
+    """Tests for WebSocketEventData schema."""
+
+    def test_valid_event_data(self) -> None:
+        """Test creating valid event data."""
+        event_data = WebSocketEventData(
+            id=1,
+            event_id=1,
+            batch_id="batch_abc123",
+            camera_id="cam-uuid",
+            risk_score=75,
+            risk_level=RiskLevel.HIGH,
+            summary="Person detected at front door",
+            started_at="2025-12-23T12:00:00",
+        )
+        assert event_data.id == 1
+        assert event_data.risk_score == 75
+        assert event_data.risk_level == RiskLevel.HIGH
+
+    def test_risk_level_validator_with_enum(self) -> None:
+        """Test risk_level validator when passed a RiskLevel enum directly."""
+        # This tests line 258-259: if isinstance(v, RiskLevel): return v
+        event_data = WebSocketEventData(
+            id=1,
+            event_id=1,
+            batch_id="batch_abc123",
+            camera_id="cam-uuid",
+            risk_score=50,
+            risk_level=RiskLevel.MEDIUM,
+            summary="Test event",
+        )
+        assert event_data.risk_level == RiskLevel.MEDIUM
+
+    def test_risk_level_validator_with_lowercase_string(self) -> None:
+        """Test risk_level validator with lowercase string."""
+        # This tests lines 260-262: if isinstance(v, str): return RiskLevel(v.lower())
+        event_data = WebSocketEventData(
+            id=1,
+            event_id=1,
+            batch_id="batch_abc123",
+            camera_id="cam-uuid",
+            risk_score=25,
+            risk_level="low",  # type: ignore[arg-type]
+            summary="Test event",
+        )
+        assert event_data.risk_level == RiskLevel.LOW
+
+    def test_risk_level_validator_with_uppercase_string(self) -> None:
+        """Test risk_level validator with uppercase string (case-insensitive)."""
+        event_data = WebSocketEventData(
+            id=1,
+            event_id=1,
+            batch_id="batch_abc123",
+            camera_id="cam-uuid",
+            risk_score=100,
+            risk_level="CRITICAL",  # type: ignore[arg-type]
+            summary="Test event",
+        )
+        assert event_data.risk_level == RiskLevel.CRITICAL
+
+    def test_risk_level_validator_with_mixed_case_string(self) -> None:
+        """Test risk_level validator with mixed case string."""
+        event_data = WebSocketEventData(
+            id=1,
+            event_id=1,
+            batch_id="batch_abc123",
+            camera_id="cam-uuid",
+            risk_score=60,
+            risk_level="MeDiUm",  # type: ignore[arg-type]
+            summary="Test event",
+        )
+        assert event_data.risk_level == RiskLevel.MEDIUM
+
+    def test_risk_level_validator_invalid_string(self) -> None:
+        """Test risk_level validator with invalid string value."""
+        # This tests lines 263-267: except ValueError - invalid string
+        with pytest.raises(ValidationError) as exc_info:
+            WebSocketEventData(
+                id=1,
+                event_id=1,
+                batch_id="batch_abc123",
+                camera_id="cam-uuid",
+                risk_score=50,
+                risk_level="invalid_level",  # type: ignore[arg-type]
+                summary="Test event",
+            )
+        errors = exc_info.value.errors()
+        assert any("risk_level" in str(e["loc"]) for e in errors)
+        # Verify error message contains valid values
+        error_msg = str(exc_info.value)
+        assert "low" in error_msg or "Invalid risk_level" in error_msg
+
+    def test_risk_level_validator_invalid_type(self) -> None:
+        """Test risk_level validator with invalid type (not string or enum)."""
+        # This tests line 268: raise ValueError for non-string/non-enum type
+        with pytest.raises(ValidationError) as exc_info:
+            WebSocketEventData(
+                id=1,
+                event_id=1,
+                batch_id="batch_abc123",
+                camera_id="cam-uuid",
+                risk_score=50,
+                risk_level=123,  # type: ignore[arg-type]
+                summary="Test event",
+            )
+        errors = exc_info.value.errors()
+        assert any("risk_level" in str(e["loc"]) for e in errors)
+
+    def test_risk_score_bounds(self) -> None:
+        """Test risk_score validation bounds (0-100)."""
+        # Valid minimum
+        event_data = WebSocketEventData(
+            id=1,
+            event_id=1,
+            batch_id="batch_abc123",
+            camera_id="cam-uuid",
+            risk_score=0,
+            risk_level=RiskLevel.LOW,
+            summary="Test event",
+        )
+        assert event_data.risk_score == 0
+
+        # Valid maximum
+        event_data = WebSocketEventData(
+            id=1,
+            event_id=1,
+            batch_id="batch_abc123",
+            camera_id="cam-uuid",
+            risk_score=100,
+            risk_level=RiskLevel.CRITICAL,
+            summary="Test event",
+        )
+        assert event_data.risk_score == 100
+
+    def test_risk_score_out_of_bounds(self) -> None:
+        """Test risk_score validation fails for out of bounds values."""
+        with pytest.raises(ValidationError):
+            WebSocketEventData(
+                id=1,
+                event_id=1,
+                batch_id="batch_abc123",
+                camera_id="cam-uuid",
+                risk_score=101,  # Over max
+                risk_level=RiskLevel.HIGH,
+                summary="Test event",
+            )
+
+        with pytest.raises(ValidationError):
+            WebSocketEventData(
+                id=1,
+                event_id=1,
+                batch_id="batch_abc123",
+                camera_id="cam-uuid",
+                risk_score=-1,  # Below min
+                risk_level=RiskLevel.LOW,
+                summary="Test event",
+            )
+
+    def test_event_data_serialization(self) -> None:
+        """Test that event data serializes to JSON correctly."""
+        event_data = WebSocketEventData(
+            id=1,
+            event_id=1,
+            batch_id="batch_abc123",
+            camera_id="cam-uuid",
+            risk_score=75,
+            risk_level=RiskLevel.HIGH,
+            summary="Person detected at front door",
+            started_at="2025-12-23T12:00:00",
+        )
+        json_str = event_data.model_dump_json()
+        parsed = json.loads(json_str)
+        assert parsed["id"] == 1
+        assert parsed["risk_score"] == 75
+        assert parsed["risk_level"] == "high"
+
+
+# =============================================================================
+# WebSocketEventMessage Schema Tests
+# =============================================================================
+
+
+class TestWebSocketEventMessage:
+    """Tests for WebSocketEventMessage schema."""
+
+    def test_valid_event_message(self) -> None:
+        """Test creating valid event message envelope."""
+        event_data = WebSocketEventData(
+            id=1,
+            event_id=1,
+            batch_id="batch_abc123",
+            camera_id="cam-uuid",
+            risk_score=75,
+            risk_level=RiskLevel.HIGH,
+            summary="Person detected at front door",
+        )
+        message = WebSocketEventMessage(data=event_data)
+        assert message.type == "event"
+        assert message.data.id == 1
+
+    def test_event_message_serialization(self) -> None:
+        """Test that event message serializes correctly."""
+        event_data = WebSocketEventData(
+            id=1,
+            event_id=1,
+            batch_id="batch_abc123",
+            camera_id="cam-uuid",
+            risk_score=50,
+            risk_level=RiskLevel.MEDIUM,
+            summary="Test event",
+        )
+        message = WebSocketEventMessage(data=event_data)
+        json_str = message.model_dump_json()
+        parsed = json.loads(json_str)
+        assert parsed["type"] == "event"
+        assert parsed["data"]["id"] == 1
+        assert parsed["data"]["risk_level"] == "medium"
+
+
+# =============================================================================
+# WebSocketServiceStatusData Schema Tests
+# =============================================================================
+
+
+class TestWebSocketServiceStatusData:
+    """Tests for WebSocketServiceStatusData schema."""
+
+    def test_valid_service_status_data(self) -> None:
+        """Test creating valid service status data."""
+        status_data = WebSocketServiceStatusData(
+            service="redis",
+            status=ServiceStatus.HEALTHY,
+            message="Service responding normally",
+        )
+        assert status_data.service == "redis"
+        assert status_data.status == ServiceStatus.HEALTHY
+
+    def test_status_validator_with_enum(self) -> None:
+        """Test status validator when passed a ServiceStatus enum directly."""
+        # This tests lines 360-361: if isinstance(v, ServiceStatus): return v
+        status_data = WebSocketServiceStatusData(
+            service="rtdetr",
+            status=ServiceStatus.RESTARTING,
+        )
+        assert status_data.status == ServiceStatus.RESTARTING
+
+    def test_status_validator_with_lowercase_string(self) -> None:
+        """Test status validator with lowercase string."""
+        # This tests lines 362-364: if isinstance(v, str): return ServiceStatus(v.lower())
+        status_data = WebSocketServiceStatusData(
+            service="redis",
+            status="healthy",  # type: ignore[arg-type]
+        )
+        assert status_data.status == ServiceStatus.HEALTHY
+
+    def test_status_validator_with_uppercase_string(self) -> None:
+        """Test status validator with uppercase string (case-insensitive)."""
+        status_data = WebSocketServiceStatusData(
+            service="nemotron",
+            status="UNHEALTHY",  # type: ignore[arg-type]
+        )
+        assert status_data.status == ServiceStatus.UNHEALTHY
+
+    def test_status_validator_with_mixed_case_string(self) -> None:
+        """Test status validator with mixed case string."""
+        status_data = WebSocketServiceStatusData(
+            service="redis",
+            status="ReStArTiNg",  # type: ignore[arg-type]
+        )
+        assert status_data.status == ServiceStatus.RESTARTING
+
+    def test_status_validator_invalid_string(self) -> None:
+        """Test status validator with invalid string value."""
+        # This tests lines 365-367: except ValueError - invalid string
+        with pytest.raises(ValidationError) as exc_info:
+            WebSocketServiceStatusData(
+                service="redis",
+                status="invalid_status",  # type: ignore[arg-type]
+            )
+        errors = exc_info.value.errors()
+        assert any("status" in str(e["loc"]) for e in errors)
+        # Verify error message contains valid values
+        error_msg = str(exc_info.value)
+        assert "healthy" in error_msg or "Invalid status" in error_msg
+
+    def test_status_validator_invalid_type(self) -> None:
+        """Test status validator with invalid type (not string or enum)."""
+        # This tests line 368: raise ValueError for non-string/non-enum type
+        with pytest.raises(ValidationError) as exc_info:
+            WebSocketServiceStatusData(
+                service="redis",
+                status=42,  # type: ignore[arg-type]
+            )
+        errors = exc_info.value.errors()
+        assert any("status" in str(e["loc"]) for e in errors)
+
+    def test_service_status_optional_message(self) -> None:
+        """Test that message field is optional."""
+        status_data = WebSocketServiceStatusData(
+            service="redis",
+            status=ServiceStatus.HEALTHY,
+        )
+        assert status_data.message is None
+
+    def test_service_status_serialization(self) -> None:
+        """Test that service status data serializes to JSON correctly."""
+        status_data = WebSocketServiceStatusData(
+            service="redis",
+            status=ServiceStatus.HEALTHY,
+            message="All good",
+        )
+        json_str = status_data.model_dump_json()
+        parsed = json.loads(json_str)
+        assert parsed["service"] == "redis"
+        assert parsed["status"] == "healthy"
+        assert parsed["message"] == "All good"
+
+
+# =============================================================================
+# WebSocketServiceStatusMessage Schema Tests
+# =============================================================================
+
+
+class TestWebSocketServiceStatusMessage:
+    """Tests for WebSocketServiceStatusMessage schema."""
+
+    def test_valid_service_status_message(self) -> None:
+        """Test creating valid service status message envelope."""
+        status_data = WebSocketServiceStatusData(
+            service="redis",
+            status=ServiceStatus.HEALTHY,
+        )
+        message = WebSocketServiceStatusMessage(
+            data=status_data,
+            timestamp="2025-12-23T12:00:00.000Z",
+        )
+        assert message.type == "service_status"
+        assert message.data.service == "redis"
+
+    def test_service_status_message_serialization(self) -> None:
+        """Test that service status message serializes correctly."""
+        status_data = WebSocketServiceStatusData(
+            service="nemotron",
+            status=ServiceStatus.UNHEALTHY,
+            message="Model loading failed",
+        )
+        message = WebSocketServiceStatusMessage(
+            data=status_data,
+            timestamp="2025-12-23T12:00:00.000Z",
+        )
+        json_str = message.model_dump_json()
+        parsed = json.loads(json_str)
+        assert parsed["type"] == "service_status"
+        assert parsed["data"]["service"] == "nemotron"
+        assert parsed["data"]["status"] == "unhealthy"
+        assert parsed["timestamp"] == "2025-12-23T12:00:00.000Z"
+
+
+# =============================================================================
+# Additional Edge Case Tests for Validators
+# =============================================================================
+
+
+class TestValidatorEdgeCases:
+    """Edge case tests for validator methods."""
+
+    def test_risk_level_all_valid_values(self) -> None:
+        """Test all valid risk level string values."""
+        for level in ["low", "medium", "high", "critical"]:
+            event_data = WebSocketEventData(
+                id=1,
+                event_id=1,
+                batch_id="batch_abc123",
+                camera_id="cam-uuid",
+                risk_score=50,
+                risk_level=level,  # type: ignore[arg-type]
+                summary="Test event",
+            )
+            assert event_data.risk_level.value == level
+
+    def test_service_status_all_valid_values(self) -> None:
+        """Test all valid service status string values."""
+        for status in ["healthy", "unhealthy", "restarting", "restart_failed", "failed"]:
+            status_data = WebSocketServiceStatusData(
+                service="test",
+                status=status,  # type: ignore[arg-type]
+            )
+            assert status_data.status.value == status
+
+    def test_risk_level_validator_with_list_type(self) -> None:
+        """Test risk_level validator with list type raises error."""
+        with pytest.raises(ValidationError):
+            WebSocketEventData(
+                id=1,
+                event_id=1,
+                batch_id="batch_abc123",
+                camera_id="cam-uuid",
+                risk_score=50,
+                risk_level=["high"],  # type: ignore[arg-type]
+                summary="Test event",
+            )
+
+    def test_status_validator_with_dict_type(self) -> None:
+        """Test status validator with dict type raises error."""
+        with pytest.raises(ValidationError):
+            WebSocketServiceStatusData(
+                service="redis",
+                status={"value": "healthy"},  # type: ignore[arg-type]
+            )

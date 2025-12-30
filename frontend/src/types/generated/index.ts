@@ -77,5 +77,9 @@ export type CleanupResponse = components['schemas']['CleanupResponse'];
 export type HTTPValidationError = components['schemas']['HTTPValidationError'];
 export type ValidationError = components['schemas']['ValidationError'];
 
+// Search types
+export type SearchResult = components['schemas']['SearchResult'];
+export type SearchResponse = components['schemas']['SearchResponse'];
+
 // Import the components type for use in type aliases
 import type { components } from './api';

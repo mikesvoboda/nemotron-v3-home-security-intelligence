@@ -37,7 +37,7 @@ describe('EventCard', () => {
 
   // Mock system time for consistent testing
   beforeEach(() => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.setSystemTime(BASE_TIME);
   });
 
@@ -311,8 +311,9 @@ describe('EventCard', () => {
   describe('confidence formatting', () => {
     it('formats confidence as percentage with 0 decimal places', () => {
       render(<EventCard {...mockProps} />);
-      expect(screen.getByText('95%')).toBeInTheDocument();
-      expect(screen.getByText('87%')).toBeInTheDocument();
+      // Confidence percentages may appear in detection badges and aggregate stats
+      expect(screen.getAllByText('95%').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('87%').length).toBeGreaterThanOrEqual(1);
     });
 
     it('rounds confidence to nearest integer', () => {
@@ -324,30 +325,30 @@ describe('EventCard', () => {
       const eventWithRounding = { ...mockProps, detections: detectionsWithRounding };
       render(<EventCard {...eventWithRounding} />);
 
-      expect(screen.getByText('96%')).toBeInTheDocument();
-      expect(screen.getByText('87%')).toBeInTheDocument();
-      expect(screen.getByText('73%')).toBeInTheDocument();
+      expect(screen.getAllByText('96%').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('87%').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('73%').length).toBeGreaterThanOrEqual(1);
     });
 
     it('handles 100% confidence', () => {
       const perfectDetection: Detection[] = [{ label: 'person', confidence: 1.0 }];
       const eventWithPerfect = { ...mockProps, detections: perfectDetection };
       render(<EventCard {...eventWithPerfect} />);
-      expect(screen.getByText('100%')).toBeInTheDocument();
+      expect(screen.getAllByText('100%').length).toBeGreaterThanOrEqual(1);
     });
 
     it('handles 0% confidence', () => {
       const zeroDetection: Detection[] = [{ label: 'person', confidence: 0.0 }];
       const eventWithZero = { ...mockProps, detections: zeroDetection };
       render(<EventCard {...eventWithZero} />);
-      expect(screen.getByText('0%')).toBeInTheDocument();
+      expect(screen.getAllByText('0%').length).toBeGreaterThanOrEqual(1);
     });
 
     it('handles low confidence values', () => {
       const lowConfidence: Detection[] = [{ label: 'person', confidence: 0.05 }];
       const eventWithLow = { ...mockProps, detections: lowConfidence };
       render(<EventCard {...eventWithLow} />);
-      expect(screen.getByText('5%')).toBeInTheDocument();
+      expect(screen.getAllByText('5%').length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -477,7 +478,7 @@ describe('EventCard', () => {
       );
       expect(reasoningText).toBeInTheDocument();
 
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
@@ -500,7 +501,7 @@ describe('EventCard', () => {
         screen.queryByText('The detected person is approaching the entrance during daytime hours.')
       ).not.toBeInTheDocument();
 
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
@@ -521,7 +522,7 @@ describe('EventCard', () => {
       const chevronUp = container.querySelector('svg.lucide-chevron-up');
       expect(chevronUp).toBeInTheDocument();
 
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
@@ -541,7 +542,7 @@ describe('EventCard', () => {
 
       expect(toggleButton).toHaveAttribute('aria-expanded', 'true');
 
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
@@ -564,7 +565,7 @@ describe('EventCard', () => {
         .closest('div');
       expect(reasoningContent).toHaveAttribute('id', 'reasoning-event-123');
 
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
   });
@@ -596,7 +597,7 @@ describe('EventCard', () => {
       expect(handleViewDetails).toHaveBeenCalledWith('event-123');
       expect(handleViewDetails).toHaveBeenCalledTimes(1);
 
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
@@ -922,7 +923,7 @@ describe('EventCard', () => {
       const reasoning = screen.getByText(/This is a very long reasoning text/);
       expect(reasoning).toBeInTheDocument();
 
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
@@ -1244,7 +1245,7 @@ describe('EventCard', () => {
       expect(handleClick).toHaveBeenCalledWith('event-123');
       expect(handleClick).toHaveBeenCalledTimes(1);
 
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
@@ -1265,7 +1266,7 @@ describe('EventCard', () => {
       expect(handleClick).not.toHaveBeenCalled();
       expect(handleViewDetails).toHaveBeenCalledWith('event-123');
 
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
@@ -1280,7 +1281,7 @@ describe('EventCard', () => {
 
       expect(handleClick).not.toHaveBeenCalled();
 
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
@@ -1357,7 +1358,7 @@ describe('EventCard', () => {
 
       expect(handleClick).toHaveBeenCalledWith('event-123');
 
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
@@ -1373,7 +1374,7 @@ describe('EventCard', () => {
 
       expect(handleClick).toHaveBeenCalledWith('event-123');
 
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
 
@@ -1400,7 +1401,7 @@ describe('EventCard', () => {
       expect(handleClick).toHaveBeenCalledTimes(1); // Still only 1 call
       expect(handleViewDetails).toHaveBeenCalledWith('event-123');
 
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
     });
   });
@@ -1473,8 +1474,123 @@ describe('EventCard', () => {
         screen.queryByText('The detected person is approaching the entrance during daytime hours.')
       ).not.toBeInTheDocument();
 
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       vi.setSystemTime(BASE_TIME);
+    });
+  });
+
+  describe('detection confidence color coding', () => {
+    const highConfidenceDetections: Detection[] = [
+      { label: 'person', confidence: 0.95, bbox: { x: 0, y: 0, width: 100, height: 100 } },
+    ];
+
+    const mixedConfidenceDetections: Detection[] = [
+      { label: 'person', confidence: 0.95, bbox: { x: 0, y: 0, width: 100, height: 100 } },
+      { label: 'car', confidence: 0.75, bbox: { x: 0, y: 0, width: 100, height: 100 } },
+      { label: 'dog', confidence: 0.5, bbox: { x: 0, y: 0, width: 100, height: 100 } },
+    ];
+
+    it('applies green color for high confidence detections (>= 85%)', () => {
+      const { container } = render(
+        <EventCard {...mockProps} detections={highConfidenceDetections} />
+      );
+      // Check that the detection badge has green text color class
+      const detectionBadges = container.querySelectorAll('.text-green-400');
+      expect(detectionBadges.length).toBeGreaterThan(0);
+    });
+
+    it('applies yellow color for medium confidence detections (70-85%)', () => {
+      const mediumDetections: Detection[] = [
+        { label: 'car', confidence: 0.75, bbox: { x: 0, y: 0, width: 100, height: 100 } },
+      ];
+      const { container } = render(<EventCard {...mockProps} detections={mediumDetections} />);
+      const detectionBadges = container.querySelectorAll('.text-yellow-400');
+      expect(detectionBadges.length).toBeGreaterThan(0);
+    });
+
+    it('applies red color for low confidence detections (< 70%)', () => {
+      const lowDetections: Detection[] = [
+        { label: 'dog', confidence: 0.5, bbox: { x: 0, y: 0, width: 100, height: 100 } },
+      ];
+      const { container } = render(<EventCard {...mockProps} detections={lowDetections} />);
+      const detectionBadges = container.querySelectorAll('.text-red-400');
+      expect(detectionBadges.length).toBeGreaterThan(0);
+    });
+
+    it('sorts detections by confidence (highest first)', () => {
+      render(<EventCard {...mockProps} detections={mixedConfidenceDetections} />);
+      // Get all detection badges
+      const detectionSection = screen.getByText(/Detections \(3\)/i).parentElement;
+      const badges = detectionSection?.querySelectorAll('[title]');
+      if (badges && badges.length >= 3) {
+        // First badge should be the highest confidence (person - 95%)
+        expect(badges[0]).toHaveAttribute('title', expect.stringContaining('person'));
+        expect(badges[0]).toHaveAttribute('title', expect.stringContaining('95%'));
+      }
+    });
+
+    it('displays aggregate confidence (Avg and Max) for multiple detections', () => {
+      render(<EventCard {...mockProps} detections={mixedConfidenceDetections} />);
+      // Check for "Avg:" label
+      expect(screen.getByText('Avg:')).toBeInTheDocument();
+      // Check for "Max:" label
+      expect(screen.getByText('Max:')).toBeInTheDocument();
+    });
+
+    it('calculates average confidence correctly', () => {
+      render(<EventCard {...mockProps} detections={mixedConfidenceDetections} />);
+      // Average of 0.95 + 0.75 + 0.5 = 2.2 / 3 = 0.733... -> 73%
+      expect(screen.getByText('73%')).toBeInTheDocument();
+    });
+
+    it('displays maximum confidence correctly', () => {
+      render(<EventCard {...mockProps} detections={mixedConfidenceDetections} />);
+      // Max is 0.95 -> 95% - may appear in both badge and aggregate display
+      expect(screen.getAllByText('95%').length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('applies color coding to aggregate confidence values', () => {
+      const { container } = render(
+        <EventCard {...mockProps} detections={mixedConfidenceDetections} />
+      );
+      // Max is high (green), Average is medium (yellow)
+      const greenTexts = container.querySelectorAll('.text-green-400');
+      const yellowTexts = container.querySelectorAll('.text-yellow-400');
+      expect(greenTexts.length).toBeGreaterThan(0);
+      expect(yellowTexts.length).toBeGreaterThan(0);
+    });
+
+    it('shows TrendingUp icon for aggregate confidence display', () => {
+      const { container } = render(
+        <EventCard {...mockProps} detections={mixedConfidenceDetections} />
+      );
+      // Check for lucide-trending-up SVG icon
+      const icon = container.querySelector('svg.lucide-trending-up');
+      expect(icon).toBeInTheDocument();
+    });
+
+    it('does not show aggregate confidence when no detections', () => {
+      render(<EventCard {...mockProps} detections={[]} />);
+      expect(screen.queryByText('Avg:')).not.toBeInTheDocument();
+      expect(screen.queryByText('Max:')).not.toBeInTheDocument();
+    });
+
+    it('detection badges have title with confidence label', () => {
+      render(<EventCard {...mockProps} detections={highConfidenceDetections} />);
+      const detectionBadge = screen.getByTitle(/person.*95%.*High Confidence/i);
+      expect(detectionBadge).toBeInTheDocument();
+    });
+
+    it('applies background and border colors based on confidence level', () => {
+      const { container } = render(
+        <EventCard {...mockProps} detections={mixedConfidenceDetections} />
+      );
+      // Check for red background/border for low confidence
+      const redBgElements = container.querySelectorAll('.bg-red-500\\/20');
+      expect(redBgElements.length).toBeGreaterThan(0);
+      // Check for green background/border for high confidence
+      const greenBgElements = container.querySelectorAll('.bg-green-500\\/20');
+      expect(greenBgElements.length).toBeGreaterThan(0);
     });
   });
 });

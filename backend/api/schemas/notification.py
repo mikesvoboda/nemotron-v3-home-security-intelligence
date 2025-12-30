@@ -175,7 +175,9 @@ class NotificationConfigResponse(BaseModel):
                 "smtp_host": "smtp.example.com",
                 "smtp_port": 587,
                 "smtp_from_address": "alerts@example.com",
+                "smtp_use_tls": True,
                 "default_webhook_url": "https://example.com/webhook",
+                "webhook_timeout_seconds": 30,
                 "default_email_recipients": ["user@example.com"],
             }
         }
@@ -191,7 +193,9 @@ class NotificationConfigResponse(BaseModel):
     smtp_host: str | None = Field(None, description="Configured SMTP host (if any)")
     smtp_port: int | None = Field(None, description="Configured SMTP port")
     smtp_from_address: str | None = Field(None, description="Configured sender email")
+    smtp_use_tls: bool | None = Field(None, description="Whether TLS is enabled for SMTP")
     default_webhook_url: str | None = Field(None, description="Default webhook URL")
+    webhook_timeout_seconds: int | None = Field(None, description="Webhook request timeout")
     default_email_recipients: list[str] = Field(
         default_factory=list, description="Default email recipients"
     )

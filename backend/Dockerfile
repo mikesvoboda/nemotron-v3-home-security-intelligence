@@ -39,7 +39,7 @@ USER appuser
 # Note: /ready is the canonical readiness probe (checks DB, Redis, pipeline workers)
 # For simple liveness only, use /health instead
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD python -c "import httpx; exit(0 if httpx.get('http://localhost:8000/ready').status_code == 200 else 1)"
+    CMD python -c "import httpx; exit(0 if httpx.get('http://localhost:8000/api/system/health/ready').status_code == 200 else 1)"
 
 # Run FastAPI with uvicorn
 CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,4 +1,5 @@
 import {
+  ArrowDownUp,
   Calendar,
   CheckSquare,
   ChevronLeft,
@@ -9,24 +10,34 @@ import {
   Square,
   X,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import EventCard from './EventCard';
 import EventDetailModal from './EventDetailModal';
+import ExportPanel from './ExportPanel';
 import {
   bulkUpdateEvents,
   exportEventsCSV,
   fetchCameras,
   fetchEvents,
+  searchEvents,
   updateEvent,
 } from '../../services/api';
 import { getRiskLevel } from '../../utils/risk';
 import RiskBadge from '../common/RiskBadge';
+import { SearchBar, SearchResultsPanel } from '../search';
 
 import type { Detection } from './EventCard';
+import type { SearchFilters } from '../search';
 import type { Event as ModalEvent } from './EventDetailModal';
-import type { Camera, Event, EventsQueryParams } from '../../services/api';
+import type { Camera, Event, EventsQueryParams, SearchResult } from '../../services/api';
 import type { RiskLevel } from '../../utils/risk';
+
+// Confidence filter threshold options
+type ConfidenceFilter = '' | 'high' | 'medium' | 'any';
+
+// Sorting options for events
+type SortOption = 'newest' | 'oldest' | 'risk_high' | 'risk_low';
 
 export interface EventTimelineProps {
   onViewEventDetails?: (eventId: number) => void;
@@ -54,6 +65,8 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   });
   const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [confidenceFilter, setConfidenceFilter] = useState<ConfidenceFilter>('');
+  const [sortOption, setSortOption] = useState<SortOption>('newest');
 
   // State for selection and bulk actions
   const [selectedEventIds, setSelectedEventIds] = useState<Set<number>>(new Set());
@@ -61,9 +74,20 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
 
   // State for export
   const [exportLoading, setExportLoading] = useState(false);
+  const [showExportPanel, setShowExportPanel] = useState(false);
 
   // State for event detail modal
   const [selectedEventForModal, setSelectedEventForModal] = useState<number | null>(null);
+
+  // State for full-text search mode
+  const [isSearchMode, setIsSearchMode] = useState(false);
+  const [fullTextQuery, setFullTextQuery] = useState('');
+  const [searchFilters, setSearchFilters] = useState<SearchFilters>({});
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchTotalCount, setSearchTotalCount] = useState(0);
+  const [searchOffset, setSearchOffset] = useState(0);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   // Load cameras for filter dropdown
   useEffect(() => {
@@ -132,7 +156,91 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   const handleClearFilters = () => {
     setFilters({ limit: 20, offset: 0 });
     setSearchQuery('');
+    setConfidenceFilter('');
+    setSortOption('newest');
   };
+
+  // Handle full-text search
+  const handleFullTextSearch = useCallback(
+    async (query: string, filters: SearchFilters) => {
+      if (!query.trim()) return;
+
+      setIsSearchMode(true);
+      setIsSearching(true);
+      setSearchError(null);
+      setFullTextQuery(query);
+      setSearchFilters(filters);
+      setSearchOffset(0);
+
+      try {
+        const response = await searchEvents({
+          q: query,
+          camera_id: filters.camera_id,
+          start_date: filters.start_date,
+          end_date: filters.end_date,
+          severity: filters.severity,
+          object_type: filters.object_type,
+          reviewed: filters.reviewed,
+          limit: 20,
+          offset: 0,
+        });
+        setSearchResults(response.results);
+        setSearchTotalCount(response.total_count);
+      } catch (err) {
+        setSearchError(err instanceof Error ? err.message : 'Search failed');
+        setSearchResults([]);
+        setSearchTotalCount(0);
+      } finally {
+        setIsSearching(false);
+      }
+    },
+    []
+  );
+
+  // Handle search pagination
+  const handleSearchPageChange = useCallback(
+    async (newOffset: number) => {
+      setIsSearching(true);
+      setSearchOffset(newOffset);
+
+      try {
+        const response = await searchEvents({
+          q: fullTextQuery,
+          camera_id: searchFilters.camera_id,
+          start_date: searchFilters.start_date,
+          end_date: searchFilters.end_date,
+          severity: searchFilters.severity,
+          object_type: searchFilters.object_type,
+          reviewed: searchFilters.reviewed,
+          limit: 20,
+          offset: newOffset,
+        });
+        setSearchResults(response.results);
+        setSearchTotalCount(response.total_count);
+      } catch (err) {
+        setSearchError(err instanceof Error ? err.message : 'Search failed');
+      } finally {
+        setIsSearching(false);
+      }
+    },
+    [fullTextQuery, searchFilters]
+  );
+
+  // Clear search and return to browse mode
+  const handleClearSearch = useCallback(() => {
+    setIsSearchMode(false);
+    setFullTextQuery('');
+    setSearchFilters({});
+    setSearchResults([]);
+    setSearchTotalCount(0);
+    setSearchOffset(0);
+    setSearchError(null);
+  }, []);
+
+  // Handle clicking a search result
+  const handleSearchResultClick = useCallback((eventId: number) => {
+    setSelectedEventForModal(eventId);
+  }, []);
 
   // Handle selection toggle for individual event
   const handleToggleSelection = (eventId: number) => {
@@ -233,9 +341,29 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   };
 
   // Filter events by search query (client-side for summary search)
-  const filteredEvents = searchQuery
+  let filteredEvents = searchQuery
     ? events.filter((event) => event.summary?.toLowerCase().includes(searchQuery.toLowerCase()))
     : events;
+
+  // Note: Confidence filtering would ideally be done server-side with detection data
+  // For now, this is a placeholder since events in list view don't include detections
+  // The filter UI still provides value as it indicates user intent and could be passed to backend
+
+  // Apply sorting (client-side)
+  filteredEvents = [...filteredEvents].sort((a, b) => {
+    switch (sortOption) {
+      case 'newest':
+        return new Date(b.started_at).getTime() - new Date(a.started_at).getTime();
+      case 'oldest':
+        return new Date(a.started_at).getTime() - new Date(b.started_at).getTime();
+      case 'risk_high':
+        return (b.risk_score || 0) - (a.risk_score || 0);
+      case 'risk_low':
+        return (a.risk_score || 0) - (b.risk_score || 0);
+      default:
+        return 0;
+    }
+  });
 
   // Calculate risk level counts for the currently displayed events
   const riskCounts = filteredEvents.reduce(
@@ -259,7 +387,9 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
     filters.end_date ||
     filters.reviewed !== undefined ||
     filters.object_type ||
-    searchQuery;
+    searchQuery ||
+    confidenceFilter ||
+    sortOption !== 'newest';
 
   // Convert Event to EventCard props
   const getEventCardProps = (event: Event) => {
@@ -348,7 +478,51 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
         <p className="mt-2 text-gray-400">View and filter all security events from your cameras</p>
       </div>
 
-      {/* Filter Bar */}
+      {/* Full-Text Search Bar */}
+      <div className="mb-6 rounded-lg border border-gray-800 bg-[#1F1F1F] p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-white">Full-Text Search</h2>
+          {isSearchMode && (
+            <button
+              onClick={handleClearSearch}
+              className="text-sm text-gray-400 transition-colors hover:text-white"
+            >
+              Back to browse
+            </button>
+          )}
+        </div>
+        <SearchBar
+          query={fullTextQuery}
+          onQueryChange={setFullTextQuery}
+          onSearch={(q, f) => void handleFullTextSearch(q, f)}
+          isSearching={isSearching}
+          cameras={cameras}
+          initialFilters={searchFilters}
+          placeholder='Search events (e.g., "suspicious person", vehicle OR animal)...'
+        />
+      </div>
+
+      {/* Search Results */}
+      {isSearchMode && (
+        <SearchResultsPanel
+          results={searchResults}
+          totalCount={searchTotalCount}
+          offset={searchOffset}
+          limit={20}
+          isLoading={isSearching}
+          error={searchError}
+          onPageChange={(offset) => void handleSearchPageChange(offset)}
+          onResultClick={handleSearchResultClick}
+          onClearSearch={handleClearSearch}
+          searchQuery={fullTextQuery}
+          className="mb-6"
+        />
+      )}
+
+      {/* Browse Mode: Filter Bar */}
+      {!isSearchMode && (
+        <>
+          {/* Filter Bar */}
       <div className="mb-6 rounded-lg border border-gray-800 bg-[#1F1F1F] p-4">
         {/* Filter Toggle and Search */}
         <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -387,12 +561,13 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
             )}
           </div>
 
-          {/* Export Button */}
+          {/* Quick Export Button */}
           <button
             onClick={() => void handleExport()}
             disabled={exportLoading || totalCount === 0}
             className="flex items-center gap-2 rounded-md border border-gray-700 bg-[#1A1A1A] px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:border-gray-600 hover:bg-[#252525] disabled:cursor-not-allowed disabled:opacity-50"
-            aria-label="Export events to CSV"
+            aria-label="Quick export events to CSV"
+            title="Quick export with current filters"
           >
             {exportLoading ? (
               <>
@@ -402,9 +577,24 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
             ) : (
               <>
                 <Download className="h-4 w-4" />
-                <span>Export CSV</span>
+                <span>Quick Export</span>
               </>
             )}
+          </button>
+
+          {/* Advanced Export Panel Toggle */}
+          <button
+            onClick={() => setShowExportPanel(!showExportPanel)}
+            className={`flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium transition-colors ${
+              showExportPanel
+                ? 'border-[#76B900] bg-[#76B900]/10 text-[#76B900]'
+                : 'border-gray-700 bg-[#1A1A1A] text-gray-300 hover:border-gray-600 hover:bg-[#252525]'
+            }`}
+            aria-expanded={showExportPanel}
+            aria-label="Toggle advanced export options"
+          >
+            <Download className="h-4 w-4" />
+            <span>Advanced Export</span>
           </button>
         </div>
 
@@ -501,6 +691,51 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
               </select>
             </div>
 
+            {/* Confidence Filter */}
+            <div>
+              <label
+                htmlFor="confidence-filter"
+                className="mb-1 block text-sm font-medium text-gray-300"
+              >
+                Min Confidence
+              </label>
+              <select
+                id="confidence-filter"
+                value={confidenceFilter}
+                onChange={(e) => setConfidenceFilter(e.target.value as ConfidenceFilter)}
+                className="w-full rounded-md border border-gray-700 bg-[#1A1A1A] px-3 py-2 text-sm text-white focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900]"
+              >
+                <option value="">All Confidence Levels</option>
+                <option value="high">High Only (85%+)</option>
+                <option value="medium">Medium+ (70%+)</option>
+                <option value="any">Any Detection</option>
+              </select>
+            </div>
+
+            {/* Sort By */}
+            <div>
+              <label
+                htmlFor="sort-filter"
+                className="mb-1 block text-sm font-medium text-gray-300"
+              >
+                Sort By
+              </label>
+              <div className="relative">
+                <ArrowDownUp className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <select
+                  id="sort-filter"
+                  value={sortOption}
+                  onChange={(e) => setSortOption(e.target.value as SortOption)}
+                  className="w-full rounded-md border border-gray-700 bg-[#1A1A1A] py-2 pl-10 pr-3 text-sm text-white focus:border-[#76B900] focus:outline-none focus:ring-1 focus:ring-[#76B900]"
+                >
+                  <option value="newest">Newest First</option>
+                  <option value="oldest">Oldest First</option>
+                  <option value="risk_high">Highest Risk</option>
+                  <option value="risk_low">Lowest Risk</option>
+                </select>
+              </div>
+            </div>
+
             {/* Start Date Filter */}
             <div>
               <label
@@ -554,6 +789,28 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
           </div>
         )}
       </div>
+
+      {/* Advanced Export Panel */}
+      {showExportPanel && (
+        <div className="mb-6">
+          <ExportPanel
+            initialFilters={{
+              camera_id: filters.camera_id,
+              risk_level: filters.risk_level,
+              start_date: filters.start_date,
+              end_date: filters.end_date,
+              reviewed: filters.reviewed,
+            }}
+            onExportStart={() => setExportLoading(true)}
+            onExportComplete={(success) => {
+              setExportLoading(false);
+              if (!success) {
+                // Error will be shown in the ExportPanel
+              }
+            }}
+          />
+        </div>
+      )}
 
       {/* Results Summary and Bulk Actions */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -746,6 +1003,8 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
+      )}
+        </>
       )}
 
       {/* Event Detail Modal */}

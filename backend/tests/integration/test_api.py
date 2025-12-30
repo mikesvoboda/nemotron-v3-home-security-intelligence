@@ -140,7 +140,7 @@ async def test_health_endpoint_structure(client):
     assert response.status_code == 200
     data = response.json()
 
-    # Verify simple liveness response structure - minimal response
+    # Verify simple liveness response structure
     assert "status" in data
     assert data["status"] == "alive"
 

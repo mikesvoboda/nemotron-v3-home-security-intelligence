@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import WorkerStatusPanel from './WorkerStatusPanel';
 import { useHealthStatus } from '../../hooks/useHealthStatus';
 import {
   fetchStats,
@@ -111,6 +112,7 @@ export default function SystemMonitoringPage() {
     services,
     overallStatus,
     isLoading: healthLoading,
+    error: healthError,
   } = useHealthStatus({
     pollingInterval: 30000,
   });
@@ -294,7 +296,14 @@ export default function SystemMonitoringPage() {
             </div>
 
             <div className="space-y-3">
-              {Object.entries(services).length > 0 ? (
+              {healthError ? (
+                <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-3">
+                  <AlertCircle className="h-4 w-4 text-red-500" />
+                  <Text className="text-sm text-red-400">
+                    Failed to fetch service health: {healthError}
+                  </Text>
+                </div>
+              ) : Object.entries(services).length > 0 ? (
                 Object.entries(services).map(([serviceName, serviceStatus]) => (
                   <ServiceHealthRow key={serviceName} name={serviceName} status={serviceStatus} />
                 ))
@@ -310,6 +319,9 @@ export default function SystemMonitoringPage() {
             )}
           </Card>
 
+          {/* Background Workers Panel - Shows status of all 8 workers */}
+          <WorkerStatusPanel pollingInterval={10000} />
+
           {/* Pipeline Queues Card - Reusing existing component */}
           <PipelineQueues
             detectionQueue={telemetry?.queues.detection_queue ?? 0}
@@ -320,10 +332,12 @@ export default function SystemMonitoringPage() {
           {/* GPU Stats Card - Reusing existing component (spans 2 columns on xl) */}
           <div className="xl:col-span-2">
             <GpuStats
+              gpuName={gpuStats?.gpu_name ?? null}
               utilization={gpuStats?.utilization ?? null}
               memoryUsed={gpuStats?.memory_used ?? null}
               memoryTotal={gpuStats?.memory_total ?? null}
               temperature={gpuStats?.temperature ?? null}
+              powerUsage={gpuStats?.power_usage ?? null}
               inferenceFps={gpuStats?.inference_fps ?? null}
             />
           </div>

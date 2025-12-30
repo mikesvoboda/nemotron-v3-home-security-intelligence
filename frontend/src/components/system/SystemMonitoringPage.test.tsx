@@ -52,6 +52,11 @@ vi.mock('../dashboard/PipelineQueues', () => ({
   ),
 }));
 
+// Mock WorkerStatusPanel to avoid API calls during tests
+vi.mock('./WorkerStatusPanel', () => ({
+  default: () => <div data-testid="worker-status-panel">Worker Status Panel</div>,
+}));
+
 describe('SystemMonitoringPage', () => {
   const mockSystemStats = {
     total_cameras: 4,
@@ -373,6 +378,26 @@ describe('SystemMonitoringPage', () => {
 
       await waitFor(() => {
         expect(screen.getByText('No service data available')).toBeInTheDocument();
+      });
+    });
+
+    it('shows error message when health API fails', async () => {
+      const errorMessage = 'Connection refused';
+      (useHealthStatusHook.useHealthStatus as Mock).mockReturnValue({
+        health: null,
+        services: {},
+        overallStatus: null,
+        isLoading: false,
+        error: errorMessage,
+        refresh: vi.fn(),
+      });
+
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(`Failed to fetch service health: ${errorMessage}`)
+        ).toBeInTheDocument();
       });
     });
   });

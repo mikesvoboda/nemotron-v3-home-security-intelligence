@@ -454,7 +454,7 @@ describe('VideoPlayer', () => {
 
   describe('Controls Visibility', () => {
     beforeEach(() => {
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
     });
 
     afterEach(() => {

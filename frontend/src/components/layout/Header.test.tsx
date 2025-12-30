@@ -2,16 +2,68 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 import Header from './Header';
+import * as useConnectionStatusModule from '../../hooks/useConnectionStatus';
 import * as useHealthStatusModule from '../../hooks/useHealthStatus';
-import * as useSystemStatusModule from '../../hooks/useSystemStatus';
+
+import type { ChannelStatus, ConnectionState } from '../../hooks/useWebSocketStatus';
+
+// Helper to create mock channel status
+function createMockChannel(
+  name: string,
+  state: ConnectionState = 'disconnected',
+  reconnectAttempts: number = 0
+): ChannelStatus {
+  return {
+    name,
+    state,
+    reconnectAttempts,
+    maxReconnectAttempts: 5,
+    lastMessageTime: state === 'connected' ? new Date() : null,
+  };
+}
+
+// Helper to create mock connection status return value
+function createMockConnectionStatus(
+  eventsState: ConnectionState = 'disconnected',
+  systemState: ConnectionState = 'disconnected',
+  systemStatus: ReturnType<typeof useConnectionStatusModule.useConnectionStatus>['systemStatus'] = null
+): ReturnType<typeof useConnectionStatusModule.useConnectionStatus> {
+  const eventsChannel = createMockChannel('Events', eventsState);
+  const systemChannel = createMockChannel('System', systemState);
+
+  const allConnected = eventsState === 'connected' && systemState === 'connected';
+  const anyReconnecting = eventsState === 'reconnecting' || systemState === 'reconnecting';
+
+  let overallState: ConnectionState;
+  if (allConnected) {
+    overallState = 'connected';
+  } else if (anyReconnecting) {
+    overallState = 'reconnecting';
+  } else {
+    overallState = 'disconnected';
+  }
+
+  return {
+    summary: {
+      eventsChannel,
+      systemChannel,
+      overallState,
+      anyReconnecting,
+      allConnected,
+      totalReconnectAttempts: eventsChannel.reconnectAttempts + systemChannel.reconnectAttempts,
+    },
+    events: [],
+    systemStatus,
+    clearEvents: vi.fn(),
+  };
+}
 
 describe('Header', () => {
   beforeEach(() => {
-    // Mock useSystemStatus to return null status (disconnected state)
-    vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
-      status: null,
-      isConnected: false,
-    });
+    // Mock useConnectionStatus to return disconnected state
+    vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(
+      createMockConnectionStatus('disconnected', 'disconnected', null)
+    );
 
     // Mock useHealthStatus to return loading state
     vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
@@ -56,19 +108,26 @@ describe('Header', () => {
   });
 
   it('displays Checking status when health is loading', () => {
-    vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
-      status: {
-        health: 'healthy',
-        gpu_utilization: 45,
-        gpu_temperature: 65,
-        gpu_memory_used: 8192,
-        gpu_memory_total: 24576,
-        inference_fps: 30.5,
-        active_cameras: 3,
-        last_update: '2025-12-23T10:00:00Z',
+    const systemStatus = {
+      type: 'system_status' as const,
+      data: {
+        gpu: {
+          utilization: 45,
+          memory_used: 8192,
+          memory_total: 24576,
+          temperature: 65,
+          inference_fps: 30.5,
+        },
+        cameras: { active: 3, total: 5 },
+        queue: { pending: 0, processing: 0 },
+        health: 'healthy' as const,
       },
-      isConnected: true,
-    });
+      timestamp: '2025-12-23T10:00:00Z',
+    };
+
+    vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(
+      createMockConnectionStatus('connected', 'connected', systemStatus)
+    );
 
     vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
       health: null,
@@ -84,19 +143,26 @@ describe('Header', () => {
   });
 
   it('displays LIVE MONITORING status when connected and healthy', () => {
-    vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
-      status: {
-        health: 'healthy',
-        gpu_utilization: 45,
-        gpu_temperature: 65,
-        gpu_memory_used: 8192,
-        gpu_memory_total: 24576,
-        inference_fps: 30.5,
-        active_cameras: 3,
-        last_update: '2025-12-23T10:00:00Z',
+    const systemStatus = {
+      type: 'system_status' as const,
+      data: {
+        gpu: {
+          utilization: 45,
+          memory_used: 8192,
+          memory_total: 24576,
+          temperature: 65,
+          inference_fps: 30.5,
+        },
+        cameras: { active: 3, total: 5 },
+        queue: { pending: 0, processing: 0 },
+        health: 'healthy' as const,
       },
-      isConnected: true,
-    });
+      timestamp: '2025-12-23T10:00:00Z',
+    };
+
+    vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(
+      createMockConnectionStatus('connected', 'connected', systemStatus)
+    );
 
     vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
       health: {
@@ -168,19 +234,26 @@ describe('Header', () => {
   });
 
   it('displays GPU utilization when available', () => {
-    vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
-      status: {
-        health: 'healthy',
-        gpu_utilization: 75.5,
-        gpu_temperature: null,
-        gpu_memory_used: 8192,
-        gpu_memory_total: 24576,
-        inference_fps: 30.5,
-        active_cameras: 3,
-        last_update: '2025-12-23T10:00:00Z',
+    const systemStatus = {
+      type: 'system_status' as const,
+      data: {
+        gpu: {
+          utilization: 75.5,
+          memory_used: 8192,
+          memory_total: 24576,
+          temperature: null,
+          inference_fps: 30.5,
+        },
+        cameras: { active: 3, total: 5 },
+        queue: { pending: 0, processing: 0 },
+        health: 'healthy' as const,
       },
-      isConnected: true,
-    });
+      timestamp: '2025-12-23T10:00:00Z',
+    };
+
+    vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(
+      createMockConnectionStatus('connected', 'connected', systemStatus)
+    );
 
     vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
       health: null,
@@ -196,19 +269,26 @@ describe('Header', () => {
   });
 
   it('displays GPU temperature when available', () => {
-    vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
-      status: {
-        health: 'healthy',
-        gpu_utilization: null,
-        gpu_temperature: 65.7,
-        gpu_memory_used: 8192,
-        gpu_memory_total: 24576,
-        inference_fps: 30.5,
-        active_cameras: 3,
-        last_update: '2025-12-23T10:00:00Z',
+    const systemStatus = {
+      type: 'system_status' as const,
+      data: {
+        gpu: {
+          utilization: null,
+          memory_used: 8192,
+          memory_total: 24576,
+          temperature: 65.7,
+          inference_fps: 30.5,
+        },
+        cameras: { active: 3, total: 5 },
+        queue: { pending: 0, processing: 0 },
+        health: 'healthy' as const,
       },
-      isConnected: true,
-    });
+      timestamp: '2025-12-23T10:00:00Z',
+    };
+
+    vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(
+      createMockConnectionStatus('connected', 'connected', systemStatus)
+    );
 
     vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
       health: null,
@@ -224,19 +304,26 @@ describe('Header', () => {
   });
 
   it('displays both GPU utilization and temperature when available', () => {
-    vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
-      status: {
-        health: 'healthy',
-        gpu_utilization: 45.2,
-        gpu_temperature: 62.8,
-        gpu_memory_used: 8192,
-        gpu_memory_total: 24576,
-        inference_fps: 30.5,
-        active_cameras: 3,
-        last_update: '2025-12-23T10:00:00Z',
+    const systemStatus = {
+      type: 'system_status' as const,
+      data: {
+        gpu: {
+          utilization: 45.2,
+          memory_used: 8192,
+          memory_total: 24576,
+          temperature: 62.8,
+          inference_fps: 30.5,
+        },
+        cameras: { active: 3, total: 5 },
+        queue: { pending: 0, processing: 0 },
+        health: 'healthy' as const,
       },
-      isConnected: true,
-    });
+      timestamp: '2025-12-23T10:00:00Z',
+    };
+
+    vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(
+      createMockConnectionStatus('connected', 'connected', systemStatus)
+    );
 
     vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
       health: null,
@@ -252,19 +339,26 @@ describe('Header', () => {
   });
 
   it('displays System Degraded status when system is degraded', () => {
-    vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
-      status: {
-        health: 'degraded',
-        gpu_utilization: 85,
-        gpu_temperature: 75,
-        gpu_memory_used: 8192,
-        gpu_memory_total: 24576,
-        inference_fps: 30.5,
-        active_cameras: 1,
-        last_update: '2025-12-23T10:00:00Z',
+    const systemStatus = {
+      type: 'system_status' as const,
+      data: {
+        gpu: {
+          utilization: 85,
+          memory_used: 8192,
+          memory_total: 24576,
+          temperature: 75,
+          inference_fps: 30.5,
+        },
+        cameras: { active: 1, total: 5 },
+        queue: { pending: 0, processing: 0 },
+        health: 'degraded' as const,
       },
-      isConnected: true,
-    });
+      timestamp: '2025-12-23T10:00:00Z',
+    };
+
+    vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(
+      createMockConnectionStatus('connected', 'connected', systemStatus)
+    );
 
     vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
       health: null,
@@ -280,19 +374,26 @@ describe('Header', () => {
   });
 
   it('displays System Offline status when system is unhealthy', () => {
-    vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
-      status: {
-        health: 'unhealthy',
-        gpu_utilization: 100,
-        gpu_temperature: 90,
-        gpu_memory_used: 8192,
-        gpu_memory_total: 24576,
-        inference_fps: 30.5,
-        active_cameras: 0,
-        last_update: '2025-12-23T10:00:00Z',
+    const systemStatus = {
+      type: 'system_status' as const,
+      data: {
+        gpu: {
+          utilization: 100,
+          memory_used: 8192,
+          memory_total: 24576,
+          temperature: 90,
+          inference_fps: 30.5,
+        },
+        cameras: { active: 0, total: 5 },
+        queue: { pending: 0, processing: 0 },
+        health: 'unhealthy' as const,
       },
-      isConnected: true,
-    });
+      timestamp: '2025-12-23T10:00:00Z',
+    };
+
+    vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(
+      createMockConnectionStatus('connected', 'connected', systemStatus)
+    );
 
     vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
       health: null,
@@ -308,19 +409,26 @@ describe('Header', () => {
   });
 
   it('shows yellow status dot for degraded system', () => {
-    vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
-      status: {
-        health: 'degraded',
-        gpu_utilization: 85,
-        gpu_temperature: 75,
-        gpu_memory_used: 8192,
-        gpu_memory_total: 24576,
-        inference_fps: 30.5,
-        active_cameras: 1,
-        last_update: '2025-12-23T10:00:00Z',
+    const systemStatus = {
+      type: 'system_status' as const,
+      data: {
+        gpu: {
+          utilization: 85,
+          memory_used: 8192,
+          memory_total: 24576,
+          temperature: 75,
+          inference_fps: 30.5,
+        },
+        cameras: { active: 1, total: 5 },
+        queue: { pending: 0, processing: 0 },
+        health: 'degraded' as const,
       },
-      isConnected: true,
-    });
+      timestamp: '2025-12-23T10:00:00Z',
+    };
+
+    vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(
+      createMockConnectionStatus('connected', 'connected', systemStatus)
+    );
 
     vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
       health: null,
@@ -337,19 +445,26 @@ describe('Header', () => {
   });
 
   it('shows red status dot for unhealthy system', () => {
-    vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
-      status: {
-        health: 'unhealthy',
-        gpu_utilization: 100,
-        gpu_temperature: 90,
-        gpu_memory_used: 8192,
-        gpu_memory_total: 24576,
-        inference_fps: 30.5,
-        active_cameras: 0,
-        last_update: '2025-12-23T10:00:00Z',
+    const systemStatus = {
+      type: 'system_status' as const,
+      data: {
+        gpu: {
+          utilization: 100,
+          memory_used: 8192,
+          memory_total: 24576,
+          temperature: 90,
+          inference_fps: 30.5,
+        },
+        cameras: { active: 0, total: 5 },
+        queue: { pending: 0, processing: 0 },
+        health: 'unhealthy' as const,
       },
-      isConnected: true,
-    });
+      timestamp: '2025-12-23T10:00:00Z',
+    };
+
+    vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(
+      createMockConnectionStatus('connected', 'connected', systemStatus)
+    );
 
     vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
       health: null,
@@ -366,19 +481,26 @@ describe('Header', () => {
   });
 
   it('shows green status dot for healthy system', () => {
-    vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
-      status: {
-        health: 'healthy',
-        gpu_utilization: 45,
-        gpu_temperature: 65,
-        gpu_memory_used: 8192,
-        gpu_memory_total: 24576,
-        inference_fps: 30.5,
-        active_cameras: 3,
-        last_update: '2025-12-23T10:00:00Z',
+    const systemStatus = {
+      type: 'system_status' as const,
+      data: {
+        gpu: {
+          utilization: 45,
+          memory_used: 8192,
+          memory_total: 24576,
+          temperature: 65,
+          inference_fps: 30.5,
+        },
+        cameras: { active: 3, total: 5 },
+        queue: { pending: 0, processing: 0 },
+        health: 'healthy' as const,
       },
-      isConnected: true,
-    });
+      timestamp: '2025-12-23T10:00:00Z',
+    };
+
+    vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(
+      createMockConnectionStatus('connected', 'connected', systemStatus)
+    );
 
     vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
       health: null,
@@ -396,19 +518,26 @@ describe('Header', () => {
 
   describe('Health Tooltip', () => {
     it('shows tooltip on hover with service details', () => {
-      vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
-        status: {
-          health: 'healthy',
-          gpu_utilization: 45,
-          gpu_temperature: 65,
-          gpu_memory_used: 8192,
-          gpu_memory_total: 24576,
-          inference_fps: 30.5,
-          active_cameras: 3,
-          last_update: '2025-12-23T10:00:00Z',
+      const systemStatus = {
+        type: 'system_status' as const,
+        data: {
+          gpu: {
+            utilization: 45,
+            memory_used: 8192,
+            memory_total: 24576,
+            temperature: 65,
+            inference_fps: 30.5,
+          },
+          cameras: { active: 3, total: 5 },
+          queue: { pending: 0, processing: 0 },
+          health: 'healthy' as const,
         },
-        isConnected: true,
-      });
+        timestamp: '2025-12-23T10:00:00Z',
+      };
+
+      vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(
+        createMockConnectionStatus('connected', 'connected', systemStatus)
+      );
 
       vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
         health: {
@@ -451,21 +580,28 @@ describe('Header', () => {
     });
 
     it('hides tooltip on mouse leave after delay', async () => {
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
 
-      vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
-        status: {
-          health: 'healthy',
-          gpu_utilization: 45,
-          gpu_temperature: 65,
-          gpu_memory_used: 8192,
-          gpu_memory_total: 24576,
-          inference_fps: 30.5,
-          active_cameras: 3,
-          last_update: '2025-12-23T10:00:00Z',
+      const systemStatus = {
+        type: 'system_status' as const,
+        data: {
+          gpu: {
+            utilization: 45,
+            memory_used: 8192,
+            memory_total: 24576,
+            temperature: 65,
+            inference_fps: 30.5,
+          },
+          cameras: { active: 3, total: 5 },
+          queue: { pending: 0, processing: 0 },
+          health: 'healthy' as const,
         },
-        isConnected: true,
-      });
+        timestamp: '2025-12-23T10:00:00Z',
+      };
+
+      vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(
+        createMockConnectionStatus('connected', 'connected', systemStatus)
+      );
 
       vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
         health: {
@@ -510,19 +646,26 @@ describe('Header', () => {
     });
 
     it('does not show tooltip when no services available', () => {
-      vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
-        status: {
-          health: 'healthy',
-          gpu_utilization: 45,
-          gpu_temperature: 65,
-          gpu_memory_used: 8192,
-          gpu_memory_total: 24576,
-          inference_fps: 30.5,
-          active_cameras: 3,
-          last_update: '2025-12-23T10:00:00Z',
+      const systemStatus = {
+        type: 'system_status' as const,
+        data: {
+          gpu: {
+            utilization: 45,
+            memory_used: 8192,
+            memory_total: 24576,
+            temperature: 65,
+            inference_fps: 30.5,
+          },
+          cameras: { active: 3, total: 5 },
+          queue: { pending: 0, processing: 0 },
+          health: 'healthy' as const,
         },
-        isConnected: true,
-      });
+        timestamp: '2025-12-23T10:00:00Z',
+      };
+
+      vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(
+        createMockConnectionStatus('connected', 'connected', systemStatus)
+      );
 
       vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
         health: null,
@@ -543,19 +686,26 @@ describe('Header', () => {
     });
 
     it('shows correct service status colors in tooltip', () => {
-      vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
-        status: {
-          health: 'degraded',
-          gpu_utilization: 45,
-          gpu_temperature: 65,
-          gpu_memory_used: 8192,
-          gpu_memory_total: 24576,
-          inference_fps: 30.5,
-          active_cameras: 3,
-          last_update: '2025-12-23T10:00:00Z',
+      const systemStatus = {
+        type: 'system_status' as const,
+        data: {
+          gpu: {
+            utilization: 45,
+            memory_used: 8192,
+            memory_total: 24576,
+            temperature: 65,
+            inference_fps: 30.5,
+          },
+          cameras: { active: 3, total: 5 },
+          queue: { pending: 0, processing: 0 },
+          health: 'degraded' as const,
         },
-        isConnected: true,
-      });
+        timestamp: '2025-12-23T10:00:00Z',
+      };
+
+      vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(
+        createMockConnectionStatus('connected', 'connected', systemStatus)
+      );
 
       vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
         health: {
@@ -596,19 +746,26 @@ describe('Header', () => {
     });
 
     it('has cursor-pointer on health indicator', () => {
-      vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
-        status: {
-          health: 'healthy',
-          gpu_utilization: 45,
-          gpu_temperature: 65,
-          gpu_memory_used: 8192,
-          gpu_memory_total: 24576,
-          inference_fps: 30.5,
-          active_cameras: 3,
-          last_update: '2025-12-23T10:00:00Z',
+      const systemStatus = {
+        type: 'system_status' as const,
+        data: {
+          gpu: {
+            utilization: 45,
+            memory_used: 8192,
+            memory_total: 24576,
+            temperature: 65,
+            inference_fps: 30.5,
+          },
+          cameras: { active: 3, total: 5 },
+          queue: { pending: 0, processing: 0 },
+          health: 'healthy' as const,
         },
-        isConnected: true,
-      });
+        timestamp: '2025-12-23T10:00:00Z',
+      };
+
+      vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(
+        createMockConnectionStatus('connected', 'connected', systemStatus)
+      );
 
       vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
         health: null,
@@ -628,19 +785,26 @@ describe('Header', () => {
 
   describe('API health takes precedence over WebSocket health', () => {
     it('uses API health when both are available', () => {
-      vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
-        status: {
-          health: 'healthy', // WebSocket says healthy
-          gpu_utilization: 45,
-          gpu_temperature: 65,
-          gpu_memory_used: 8192,
-          gpu_memory_total: 24576,
-          inference_fps: 30.5,
-          active_cameras: 3,
-          last_update: '2025-12-23T10:00:00Z',
+      const systemStatus = {
+        type: 'system_status' as const,
+        data: {
+          gpu: {
+            utilization: 45,
+            memory_used: 8192,
+            memory_total: 24576,
+            temperature: 65,
+            inference_fps: 30.5,
+          },
+          cameras: { active: 3, total: 5 },
+          queue: { pending: 0, processing: 0 },
+          health: 'healthy' as const, // WebSocket says healthy
         },
-        isConnected: true,
-      });
+        timestamp: '2025-12-23T10:00:00Z',
+      };
+
+      vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(
+        createMockConnectionStatus('connected', 'connected', systemStatus)
+      );
 
       vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
         health: {
@@ -668,19 +832,26 @@ describe('Header', () => {
     });
 
     it('falls back to WebSocket health when API health is null', () => {
-      vi.spyOn(useSystemStatusModule, 'useSystemStatus').mockReturnValue({
-        status: {
-          health: 'healthy',
-          gpu_utilization: 45,
-          gpu_temperature: 65,
-          gpu_memory_used: 8192,
-          gpu_memory_total: 24576,
-          inference_fps: 30.5,
-          active_cameras: 3,
-          last_update: '2025-12-23T10:00:00Z',
+      const systemStatus = {
+        type: 'system_status' as const,
+        data: {
+          gpu: {
+            utilization: 45,
+            memory_used: 8192,
+            memory_total: 24576,
+            temperature: 65,
+            inference_fps: 30.5,
+          },
+          cameras: { active: 3, total: 5 },
+          queue: { pending: 0, processing: 0 },
+          health: 'healthy' as const,
         },
-        isConnected: true,
-      });
+        timestamp: '2025-12-23T10:00:00Z',
+      };
+
+      vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(
+        createMockConnectionStatus('connected', 'connected', systemStatus)
+      );
 
       vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
         health: null,
@@ -697,6 +868,83 @@ describe('Header', () => {
       expect(screen.getByText('LIVE MONITORING')).toBeInTheDocument();
       const statusDot = screen.getByTestId('health-dot');
       expect(statusDot).toHaveClass('bg-green-500');
+    });
+  });
+
+  describe('WebSocket Status Component', () => {
+    it('renders WebSocket status indicator', () => {
+      const systemStatus = {
+        type: 'system_status' as const,
+        data: {
+          gpu: {
+            utilization: 45,
+            memory_used: 8192,
+            memory_total: 24576,
+            temperature: 65,
+            inference_fps: 30.5,
+          },
+          cameras: { active: 3, total: 5 },
+          queue: { pending: 0, processing: 0 },
+          health: 'healthy' as const,
+        },
+        timestamp: '2025-12-23T10:00:00Z',
+      };
+
+      vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(
+        createMockConnectionStatus('connected', 'connected', systemStatus)
+      );
+
+      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
+        health: null,
+        isLoading: false,
+        error: null,
+        overallStatus: 'healthy',
+        services: {},
+        refresh: vi.fn(),
+      });
+
+      render(<Header />);
+
+      expect(screen.getByTestId('websocket-status')).toBeInTheDocument();
+    });
+
+    it('shows WebSocket status tooltip on hover', () => {
+      const systemStatus = {
+        type: 'system_status' as const,
+        data: {
+          gpu: {
+            utilization: 45,
+            memory_used: 8192,
+            memory_total: 24576,
+            temperature: 65,
+            inference_fps: 30.5,
+          },
+          cameras: { active: 3, total: 5 },
+          queue: { pending: 0, processing: 0 },
+          health: 'healthy' as const,
+        },
+        timestamp: '2025-12-23T10:00:00Z',
+      };
+
+      vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(
+        createMockConnectionStatus('connected', 'connected', systemStatus)
+      );
+
+      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
+        health: null,
+        isLoading: false,
+        error: null,
+        overallStatus: 'healthy',
+        services: {},
+        refresh: vi.fn(),
+      });
+
+      render(<Header />);
+
+      fireEvent.mouseEnter(screen.getByTestId('websocket-status'));
+
+      expect(screen.getByTestId('websocket-tooltip')).toBeInTheDocument();
+      expect(screen.getByText('WebSocket Channels')).toBeInTheDocument();
     });
   });
 });

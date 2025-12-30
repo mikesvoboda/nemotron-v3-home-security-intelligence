@@ -19,6 +19,7 @@ from backend.api.routes import (
     events,
     media,
     metrics,
+    notification,
     system,
     websocket,
     zones,
@@ -203,6 +204,7 @@ app.include_router(events.router)
 app.include_router(logs_router)
 app.include_router(media.router)
 app.include_router(metrics.router)
+app.include_router(notification.router)
 app.include_router(system.router)
 app.include_router(websocket.router)
 app.include_router(zones.router)

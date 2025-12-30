@@ -7,6 +7,10 @@ Tests cover:
 - Filtering by time range, cameras, severity, object types
 - Relevance ranking
 - Query parsing
+- Filter building
+- Search query building
+- Database row conversion
+- Async service functions
 """
 
 from __future__ import annotations
@@ -20,8 +24,16 @@ from backend.services.search import (
     SearchFilters,
     SearchResponse,
     SearchResult,
+    _build_filter_conditions,
+    _build_search_query,
     _convert_query_to_tsquery,
+    _join_query_parts,
     _parse_detection_ids,
+    _process_phrase_token,
+    _row_to_search_result,
+    refresh_event_search_vector,
+    search_events,
+    update_event_object_types,
 )
 
 
@@ -104,6 +116,19 @@ class TestDetectionIdsParsing:
         """Legacy comma-separated format works as fallback."""
         assert _parse_detection_ids("1, 2, 3") == [1, 2, 3]
         assert _parse_detection_ids("1,2,3") == [1, 2, 3]
+
+    def test_json_non_list_returns_empty(self):
+        """When JSON parses to non-list, return empty list (line 121)."""
+        # JSON object (dict) - not a list
+        assert _parse_detection_ids('{"key": "value"}') == []
+        # JSON string
+        assert _parse_detection_ids('"just a string"') == []
+        # JSON number
+        assert _parse_detection_ids("42") == []
+        # JSON null
+        assert _parse_detection_ids("null") == []
+        # JSON boolean
+        assert _parse_detection_ids("true") == []
 
 
 class TestSearchFilters:
@@ -281,6 +306,244 @@ class TestSearchEventsService:
         # The actual database filtering is tested in integration tests
 
 
+class TestProcessPhraseToken:
+    """Tests for _process_phrase_token helper function."""
+
+    def test_process_phrase_token_valid(self):
+        """Process a valid phrase token."""
+        phrases = ["suspicious person", "front door"]
+        result_parts: list[str] = []
+        new_idx = _process_phrase_token(0, phrases, result_parts)
+        assert new_idx == 1
+        assert len(result_parts) == 1
+        assert "suspicious <-> person" in result_parts[0]
+
+    def test_process_phrase_token_out_of_bounds(self):
+        """When phrase_idx >= len(phrases), return phrase_idx (line 135)."""
+        phrases = ["suspicious person"]
+        result_parts: list[str] = []
+        # phrase_idx (2) is greater than len(phrases) (1)
+        new_idx = _process_phrase_token(2, phrases, result_parts)
+        assert new_idx == 2  # Returns phrase_idx unchanged
+        assert len(result_parts) == 0  # No parts added
+
+    def test_process_phrase_token_empty_phrase(self):
+        """Empty phrase words list."""
+        phrases = [""]  # Empty string phrase
+        result_parts: list[str] = []
+        new_idx = _process_phrase_token(0, phrases, result_parts)
+        assert new_idx == 1  # Incremented
+        assert len(result_parts) == 0  # No parts added for empty phrase
+
+
+class TestJoinQueryParts:
+    """Tests for _join_query_parts helper function."""
+
+    def test_join_simple_parts(self):
+        """Join simple word parts."""
+        result = _join_query_parts(["person", "vehicle", "dog"])
+        assert result == "person & vehicle & dog"
+
+    def test_join_with_or(self):
+        """Join parts with OR operator."""
+        result = _join_query_parts(["person", "|", "vehicle"])
+        assert result == "person | vehicle"
+
+    def test_join_empty_parts(self):
+        """Join empty parts list."""
+        result = _join_query_parts([])
+        assert result == ""
+
+    def test_join_single_part(self):
+        """Join single part."""
+        result = _join_query_parts(["person"])
+        assert result == "person"
+
+
+class TestBuildFilterConditions:
+    """Tests for _build_filter_conditions function (lines 284-300)."""
+
+    def test_empty_filters(self):
+        """Empty filters return empty conditions list."""
+        filters = SearchFilters()
+        conditions = _build_filter_conditions(filters)
+        assert conditions == []
+
+    def test_start_date_filter(self):
+        """Start date filter creates condition."""
+        filters = SearchFilters(start_date=datetime(2025, 1, 1))
+        conditions = _build_filter_conditions(filters)
+        assert len(conditions) == 1
+
+    def test_end_date_filter(self):
+        """End date filter creates condition."""
+        filters = SearchFilters(end_date=datetime(2025, 12, 31))
+        conditions = _build_filter_conditions(filters)
+        assert len(conditions) == 1
+
+    def test_camera_ids_filter(self):
+        """Camera IDs filter creates condition."""
+        filters = SearchFilters(camera_ids=["cam1", "cam2"])
+        conditions = _build_filter_conditions(filters)
+        assert len(conditions) == 1
+
+    def test_severity_filter(self):
+        """Severity filter creates condition."""
+        filters = SearchFilters(severity=["high", "critical"])
+        conditions = _build_filter_conditions(filters)
+        assert len(conditions) == 1
+
+    def test_reviewed_true_filter(self):
+        """Reviewed=True filter creates condition."""
+        filters = SearchFilters(reviewed=True)
+        conditions = _build_filter_conditions(filters)
+        assert len(conditions) == 1
+
+    def test_reviewed_false_filter(self):
+        """Reviewed=False filter creates condition."""
+        filters = SearchFilters(reviewed=False)
+        conditions = _build_filter_conditions(filters)
+        assert len(conditions) == 1
+
+    def test_object_types_filter(self):
+        """Object types filter creates OR condition."""
+        filters = SearchFilters(object_types=["person", "vehicle"])
+        conditions = _build_filter_conditions(filters)
+        assert len(conditions) == 1  # Single OR condition
+
+    def test_all_filters_combined(self):
+        """All filters combined creates multiple conditions."""
+        filters = SearchFilters(
+            start_date=datetime(2025, 1, 1),
+            end_date=datetime(2025, 12, 31),
+            camera_ids=["cam1"],
+            severity=["high"],
+            object_types=["person"],
+            reviewed=False,
+        )
+        conditions = _build_filter_conditions(filters)
+        assert len(conditions) == 6
+
+
+class TestBuildSearchQuery:
+    """Tests for _build_search_query function (lines 257-272)."""
+
+    def test_build_with_operators(self):
+        """Build search query with operators like & | ! <->."""
+        # Query with AND operator
+        tsquery_str = "person & vehicle"
+        query = "person AND vehicle"
+        result, has_search = _build_search_query(tsquery_str, query)
+        assert has_search is True
+        # The result is a SQLAlchemy Select object
+        assert result is not None
+
+    def test_build_with_or_operator(self):
+        """Build search query with OR operator."""
+        tsquery_str = "person | vehicle"
+        query = "person OR vehicle"
+        _result, has_search = _build_search_query(tsquery_str, query)
+        assert has_search is True
+
+    def test_build_with_not_operator(self):
+        """Build search query with NOT operator."""
+        tsquery_str = "person & !cat"
+        query = "person NOT cat"
+        _result, has_search = _build_search_query(tsquery_str, query)
+        assert has_search is True
+
+    def test_build_with_proximity_operator(self):
+        """Build search query with phrase proximity operator."""
+        tsquery_str = "(suspicious <-> person)"
+        query = '"suspicious person"'
+        _result, has_search = _build_search_query(tsquery_str, query)
+        assert has_search is True
+
+    def test_build_without_operators_uses_websearch(self):
+        """Build search query without operators uses websearch_to_tsquery."""
+        # Single word without operators
+        tsquery_str = "person"
+        query = "person"
+        _result, has_search = _build_search_query(tsquery_str, query)
+        assert has_search is True
+
+    def test_build_empty_tsquery(self):
+        """Build search query with empty tsquery string (line 271-272)."""
+        tsquery_str = ""
+        query = ""
+        result, has_search = _build_search_query(tsquery_str, query)
+        assert has_search is False
+        # The result should still be a valid query object
+        assert result is not None
+
+
+class TestRowToSearchResult:
+    """Tests for _row_to_search_result function (lines 305-310)."""
+
+    def test_convert_row_to_search_result(self):
+        """Convert database row tuple to SearchResult."""
+        # Create mock event object
+        mock_event = MagicMock()
+        mock_event.id = 1
+        mock_event.camera_id = "front_door"
+        mock_event.started_at = datetime(2025, 12, 28, 12, 0, 0)
+        mock_event.ended_at = datetime(2025, 12, 28, 12, 5, 0)
+        mock_event.risk_score = 75
+        mock_event.risk_level = "high"
+        mock_event.summary = "Person detected near entrance"
+        mock_event.reasoning = "Unknown individual during nighttime"
+        mock_event.reviewed = False
+        mock_event.detection_ids = "[1, 2, 3]"
+        mock_event.object_types = "person, vehicle"
+
+        # Create row tuple (event, relevance_score, camera_name)
+        row = (mock_event, 0.85, "Front Door Camera")
+
+        result = _row_to_search_result(row)
+
+        assert result.id == 1
+        assert result.camera_id == "front_door"
+        assert result.camera_name == "Front Door Camera"
+        assert result.started_at == datetime(2025, 12, 28, 12, 0, 0)
+        assert result.ended_at == datetime(2025, 12, 28, 12, 5, 0)
+        assert result.risk_score == 75
+        assert result.risk_level == "high"
+        assert result.summary == "Person detected near entrance"
+        assert result.reasoning == "Unknown individual during nighttime"
+        assert result.reviewed is False
+        assert result.detection_count == 3
+        assert result.detection_ids == [1, 2, 3]
+        assert result.object_types == "person, vehicle"
+        assert result.relevance_score == 0.85
+
+    def test_convert_row_with_none_relevance(self):
+        """Convert row with None relevance score."""
+        mock_event = MagicMock()
+        mock_event.id = 2
+        mock_event.camera_id = "back_yard"
+        mock_event.started_at = datetime(2025, 12, 28, 10, 0, 0)
+        mock_event.ended_at = None
+        mock_event.risk_score = None
+        mock_event.risk_level = None
+        mock_event.summary = None
+        mock_event.reasoning = None
+        mock_event.reviewed = True
+        mock_event.detection_ids = None
+        mock_event.object_types = None
+
+        row = (mock_event, None, None)
+
+        result = _row_to_search_result(row)
+
+        assert result.id == 2
+        assert result.camera_name is None
+        assert result.ended_at is None
+        assert result.risk_score is None
+        assert result.relevance_score == 0.0  # None converted to 0.0
+        assert result.detection_count == 0
+        assert result.detection_ids == []
+
+
 class TestQueryOperatorEdgeCases:
     """Test edge cases in query operator handling."""
 
@@ -363,3 +626,285 @@ class TestPaginationAndLimits:
         assert d["total_count"] == 100
         assert d["limit"] == 10
         assert d["offset"] == 20
+
+
+class TestQueryEmptyTokens:
+    """Tests for empty token handling in query parsing (lines 228-229, 235)."""
+
+    def test_query_with_multiple_spaces(self):
+        """Multiple spaces between words should be handled."""
+        result = _convert_query_to_tsquery("person    vehicle")
+        assert "person" in result
+        assert "vehicle" in result
+
+    def test_query_all_whitespace_tokens(self):
+        """Query that becomes empty after processing."""
+        # All special characters that get stripped
+        result = _convert_query_to_tsquery("!@#$%")
+        # Should return empty string since no valid tokens
+        assert result == "" or result.strip() == ""
+
+    def test_query_only_operators(self):
+        """Query with only operators (line 235 - empty result_parts)."""
+        result = _convert_query_to_tsquery("AND OR NOT")
+        # Should return empty string since no actual words
+        # Note: This tests line 235 where result_parts is empty
+        assert result == ""
+
+
+class TestSearchEventsAsync:
+    """Async tests for search_events function (lines 350-377)."""
+
+    @pytest.fixture
+    def mock_db(self):
+        """Create a mock database session."""
+        db = AsyncMock()
+        return db
+
+    @pytest.fixture
+    def mock_event(self):
+        """Create a mock event object."""
+        event = MagicMock()
+        event.id = 1
+        event.camera_id = "front_door"
+        event.started_at = datetime(2025, 12, 28, 12, 0, 0)
+        event.ended_at = datetime(2025, 12, 28, 12, 5, 0)
+        event.risk_score = 75
+        event.risk_level = "high"
+        event.summary = "Person detected"
+        event.reasoning = "Unknown individual"
+        event.reviewed = False
+        event.detection_ids = "[1, 2, 3]"
+        event.object_types = "person"
+        return event
+
+    @pytest.mark.asyncio
+    async def test_search_with_no_filters(self, mock_db, mock_event):
+        """Search events without filters (line 350-351)."""
+        # Mock count query result
+        mock_count_result = MagicMock()
+        mock_count_result.scalar.return_value = 1
+
+        # Mock main query result
+        mock_main_result = MagicMock()
+        mock_main_result.all.return_value = [(mock_event, 0.5, "Front Door")]
+
+        mock_db.execute = AsyncMock(side_effect=[mock_count_result, mock_main_result])
+
+        response = await search_events(mock_db, "person")
+
+        assert response.total_count == 1
+        assert len(response.results) == 1
+        assert response.limit == 50
+        assert response.offset == 0
+
+    @pytest.mark.asyncio
+    async def test_search_with_filters(self, mock_db, mock_event):
+        """Search events with filters applied."""
+        mock_count_result = MagicMock()
+        mock_count_result.scalar.return_value = 1
+
+        mock_main_result = MagicMock()
+        mock_main_result.all.return_value = [(mock_event, 0.5, "Front Door")]
+
+        mock_db.execute = AsyncMock(side_effect=[mock_count_result, mock_main_result])
+
+        filters = SearchFilters(
+            camera_ids=["front_door"],
+            severity=["high"],
+        )
+
+        response = await search_events(mock_db, "person", filters=filters)
+
+        assert response.total_count == 1
+        assert len(response.results) == 1
+
+    @pytest.mark.asyncio
+    async def test_search_with_empty_results(self, mock_db):
+        """Search returns empty results."""
+        mock_count_result = MagicMock()
+        mock_count_result.scalar.return_value = 0
+
+        mock_main_result = MagicMock()
+        mock_main_result.all.return_value = []
+
+        mock_db.execute = AsyncMock(side_effect=[mock_count_result, mock_main_result])
+
+        response = await search_events(mock_db, "nonexistent")
+
+        assert response.total_count == 0
+        assert len(response.results) == 0
+
+    @pytest.mark.asyncio
+    async def test_search_with_pagination(self, mock_db, mock_event):
+        """Search with custom limit and offset."""
+        mock_count_result = MagicMock()
+        mock_count_result.scalar.return_value = 100
+
+        mock_main_result = MagicMock()
+        mock_main_result.all.return_value = [(mock_event, 0.5, "Front Door")]
+
+        mock_db.execute = AsyncMock(side_effect=[mock_count_result, mock_main_result])
+
+        response = await search_events(mock_db, "person", limit=10, offset=20)
+
+        assert response.total_count == 100
+        assert response.limit == 10
+        assert response.offset == 20
+
+    @pytest.mark.asyncio
+    async def test_search_with_empty_query(self, mock_db, mock_event):
+        """Search with empty query returns all events (no search filter)."""
+        mock_count_result = MagicMock()
+        mock_count_result.scalar.return_value = 5
+
+        mock_main_result = MagicMock()
+        mock_main_result.all.return_value = [(mock_event, 0.0, "Front Door")]
+
+        mock_db.execute = AsyncMock(side_effect=[mock_count_result, mock_main_result])
+
+        response = await search_events(mock_db, "")
+
+        assert response.total_count == 5
+
+    @pytest.mark.asyncio
+    async def test_search_with_null_count(self, mock_db):
+        """Search handles null count result (line 364)."""
+        mock_count_result = MagicMock()
+        mock_count_result.scalar.return_value = None  # NULL from DB
+
+        mock_main_result = MagicMock()
+        mock_main_result.all.return_value = []
+
+        mock_db.execute = AsyncMock(side_effect=[mock_count_result, mock_main_result])
+
+        response = await search_events(mock_db, "person")
+
+        assert response.total_count == 0  # None converted to 0
+
+
+class TestRefreshEventSearchVector:
+    """Tests for refresh_event_search_vector async function (lines 396-411)."""
+
+    @pytest.mark.asyncio
+    async def test_refresh_search_vector(self):
+        """Test refreshing search vector for an event."""
+        mock_db = AsyncMock()
+        mock_db.execute = AsyncMock()
+        mock_db.commit = AsyncMock()
+
+        await refresh_event_search_vector(mock_db, event_id=42)
+
+        # Verify execute was called with the UPDATE statement
+        mock_db.execute.assert_called_once()
+        call_args = mock_db.execute.call_args
+
+        # Verify the event_id parameter was passed
+        assert call_args[0][1] == {"event_id": 42}
+
+        # Verify commit was called
+        mock_db.commit.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_refresh_search_vector_multiple_events(self):
+        """Refresh search vector for multiple events sequentially."""
+        mock_db = AsyncMock()
+        mock_db.execute = AsyncMock()
+        mock_db.commit = AsyncMock()
+
+        await refresh_event_search_vector(mock_db, event_id=1)
+        await refresh_event_search_vector(mock_db, event_id=2)
+
+        assert mock_db.execute.call_count == 2
+        assert mock_db.commit.call_count == 2
+
+
+class TestUpdateEventObjectTypes:
+    """Tests for update_event_object_types async function (lines 430-436)."""
+
+    @pytest.mark.asyncio
+    async def test_update_object_types(self):
+        """Test updating object types for an event."""
+        mock_db = AsyncMock()
+        mock_db.execute = AsyncMock()
+        mock_db.commit = AsyncMock()
+
+        await update_event_object_types(mock_db, event_id=42, object_types=["person", "vehicle"])
+
+        # Verify execute was called
+        mock_db.execute.assert_called_once()
+        call_args = mock_db.execute.call_args
+
+        # Object types should be sorted and joined
+        assert call_args[0][1]["object_types"] == "person, vehicle"
+        assert call_args[0][1]["event_id"] == 42
+
+        # Verify commit was called
+        mock_db.commit.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_update_object_types_deduplicates(self):
+        """Duplicate object types are removed."""
+        mock_db = AsyncMock()
+        mock_db.execute = AsyncMock()
+        mock_db.commit = AsyncMock()
+
+        await update_event_object_types(
+            mock_db, event_id=1, object_types=["person", "person", "vehicle", "vehicle"]
+        )
+
+        call_args = mock_db.execute.call_args
+        # Should be deduplicated and sorted
+        assert call_args[0][1]["object_types"] == "person, vehicle"
+
+    @pytest.mark.asyncio
+    async def test_update_object_types_empty_list(self):
+        """Empty object types list sets None."""
+        mock_db = AsyncMock()
+        mock_db.execute = AsyncMock()
+        mock_db.commit = AsyncMock()
+
+        await update_event_object_types(mock_db, event_id=1, object_types=[])
+
+        call_args = mock_db.execute.call_args
+        assert call_args[0][1]["object_types"] is None
+
+    @pytest.mark.asyncio
+    async def test_update_object_types_sorts_alphabetically(self):
+        """Object types are sorted alphabetically."""
+        mock_db = AsyncMock()
+        mock_db.execute = AsyncMock()
+        mock_db.commit = AsyncMock()
+
+        await update_event_object_types(
+            mock_db, event_id=1, object_types=["zebra", "animal", "cat"]
+        )
+
+        call_args = mock_db.execute.call_args
+        assert call_args[0][1]["object_types"] == "animal, cat, zebra"
+
+
+class TestSearchResultToDict:
+    """Additional tests for SearchResult.to_dict edge cases."""
+
+    def test_to_dict_with_none_started_at(self):
+        """SearchResult with None started_at."""
+        result = SearchResult(
+            id=1,
+            camera_id="cam1",
+            camera_name=None,
+            started_at=None,  # type: ignore  # Testing edge case
+            ended_at=None,
+            risk_score=None,
+            risk_level=None,
+            summary=None,
+            reasoning=None,
+            reviewed=False,
+            detection_count=0,
+            detection_ids=[],
+            object_types=None,
+            relevance_score=0.0,
+        )
+        d = result.to_dict()
+        assert d["started_at"] is None
+        assert d["ended_at"] is None

@@ -38,6 +38,13 @@ from backend.services.prompts import RISK_ANALYSIS_PROMPT
 
 logger = get_logger(__name__)
 
+# Timeout configuration for Nemotron LLM service
+# - connect_timeout: Maximum time to establish connection (10s)
+# - read_timeout: Maximum time to wait for LLM response (120s for complex inference)
+NEMOTRON_CONNECT_TIMEOUT = 10.0
+NEMOTRON_READ_TIMEOUT = 120.0
+NEMOTRON_HEALTH_TIMEOUT = 5.0
+
 
 class NemotronAnalyzer:
     """Analyzes detection batches using Nemotron LLM for risk assessment.

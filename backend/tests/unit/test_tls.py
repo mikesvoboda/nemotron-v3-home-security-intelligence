@@ -608,3 +608,671 @@ class TestCertificateGenerationScript:
         assert result is True
         assert cert_path.exists()
         assert key_path.exists()
+
+
+class TestLoadCertificatePaths:
+    """Test load_certificate_paths function (lines 173-187)."""
+
+    def test_load_paths_not_configured(self):
+        """Test when certificate paths are not configured."""
+        from backend.core.tls import load_certificate_paths
+
+        with patch("backend.core.tls.get_settings") as mock_get_settings:
+            mock_settings = MagicMock()
+            mock_settings.tls_cert_file = None
+            mock_settings.tls_key_file = None
+            mock_get_settings.return_value = mock_settings
+
+            cert_path, key_path = load_certificate_paths()
+            assert cert_path is None
+            assert key_path is None
+
+    def test_load_paths_cert_missing_only(self):
+        """Test when only tls_cert_file is set but tls_key_file is None."""
+        from backend.core.tls import load_certificate_paths
+
+        with patch("backend.core.tls.get_settings") as mock_get_settings:
+            mock_settings = MagicMock()
+            mock_settings.tls_cert_file = "/path/to/cert.pem"
+            mock_settings.tls_key_file = None
+            mock_get_settings.return_value = mock_settings
+
+            cert_path, key_path = load_certificate_paths()
+            assert cert_path is None
+            assert key_path is None
+
+    def test_load_paths_existing_files(self, tmp_path):
+        """Test when certificate files exist."""
+        from backend.core.tls import load_certificate_paths
+
+        cert_file = tmp_path / "cert.pem"
+        key_file = tmp_path / "key.pem"
+        cert_file.write_text("CERT")
+        key_file.write_text("KEY")
+
+        with patch("backend.core.tls.get_settings") as mock_get_settings:
+            mock_settings = MagicMock()
+            mock_settings.tls_cert_file = str(cert_file)
+            mock_settings.tls_key_file = str(key_file)
+            mock_get_settings.return_value = mock_settings
+
+            cert_path, key_path = load_certificate_paths()
+            assert cert_path == cert_file
+            assert key_path == key_file
+
+    def test_load_paths_cert_not_found(self, tmp_path):
+        """Test when certificate file doesn't exist."""
+        from backend.core.tls import CertificateNotFoundError, load_certificate_paths
+
+        key_file = tmp_path / "key.pem"
+        key_file.write_text("KEY")
+
+        with patch("backend.core.tls.get_settings") as mock_get_settings:
+            mock_settings = MagicMock()
+            mock_settings.tls_cert_file = "/nonexistent/cert.pem"
+            mock_settings.tls_key_file = str(key_file)
+            mock_get_settings.return_value = mock_settings
+
+            with pytest.raises(CertificateNotFoundError, match="Certificate file not found"):
+                load_certificate_paths()
+
+    def test_load_paths_key_not_found(self, tmp_path):
+        """Test when key file doesn't exist."""
+        from backend.core.tls import CertificateNotFoundError, load_certificate_paths
+
+        cert_file = tmp_path / "cert.pem"
+        cert_file.write_text("CERT")
+
+        with patch("backend.core.tls.get_settings") as mock_get_settings:
+            mock_settings = MagicMock()
+            mock_settings.tls_cert_file = str(cert_file)
+            mock_settings.tls_key_file = "/nonexistent/key.pem"
+            mock_get_settings.return_value = mock_settings
+
+            with pytest.raises(CertificateNotFoundError, match="Key file not found"):
+                load_certificate_paths()
+
+
+class TestCreateSSLContextLegacyAPI:
+    """Test create_ssl_context with legacy Path arguments (lines 265-289)."""
+
+    def test_legacy_api_with_path_arguments(self, tmp_path):
+        """Test legacy API using Path arguments."""
+        from backend.core.tls import create_ssl_context
+
+        cert_path = tmp_path / "cert.pem"
+        key_path = tmp_path / "key.pem"
+
+        generate_self_signed_certificate(
+            cert_path=str(cert_path),
+            key_path=str(key_path),
+            hostname="localhost",
+        )
+
+        context = create_ssl_context(cert_path, key_path)
+        assert context is not None
+        assert isinstance(context, ssl.SSLContext)
+        assert context.minimum_version == ssl.TLSVersion.TLSv1_2
+
+    def test_legacy_api_with_ca_path(self, tmp_path):
+        """Test legacy API with CA certificate for client verification."""
+        from backend.core.tls import create_ssl_context
+
+        cert_path = tmp_path / "cert.pem"
+        key_path = tmp_path / "key.pem"
+        ca_path = tmp_path / "ca.pem"
+
+        generate_self_signed_certificate(
+            cert_path=str(cert_path),
+            key_path=str(key_path),
+            hostname="localhost",
+        )
+
+        # Use same cert as CA for testing
+        ca_path.write_text(cert_path.read_text())
+
+        context = create_ssl_context(cert_path, key_path, ca_path)
+        assert context is not None
+        assert isinstance(context, ssl.SSLContext)
+        assert context.verify_mode == ssl.CERT_OPTIONAL
+
+
+class TestInvalidIPInSAN:
+    """Test handling of invalid IP addresses in SAN (lines 364-365)."""
+
+    def test_invalid_ip_in_san_logged_warning(self, tmp_path, caplog):
+        """Test that invalid IP in SAN is logged as warning."""
+        import logging
+
+        from backend.core.tls import generate_self_signed_cert
+
+        caplog.set_level(logging.WARNING)
+
+        cert_path = tmp_path / "cert.pem"
+        key_path = tmp_path / "key.pem"
+
+        generate_self_signed_cert(
+            cert_path=cert_path,
+            key_path=key_path,
+            hostname="localhost",
+            san_ips=["not-a-valid-ip", "192.168.1.100"],
+            san_dns=["localhost"],
+        )
+
+        assert cert_path.exists()
+        assert key_path.exists()
+        # Check warning was logged
+        assert any("Invalid IP address in SAN" in record.message for record in caplog.records)
+
+
+class TestValidateCertificate:
+    """Test validate_certificate function (lines 525-553)."""
+
+    def test_validate_valid_certificate(self, tmp_path):
+        """Test validating a valid certificate."""
+        from backend.core.tls import validate_certificate
+
+        cert_path = tmp_path / "cert.pem"
+        key_path = tmp_path / "key.pem"
+
+        generate_self_signed_certificate(
+            cert_path=str(cert_path),
+            key_path=str(key_path),
+            hostname="localhost",
+            validity_days=365,
+        )
+
+        result = validate_certificate(cert_path)
+
+        assert result["valid"] is True
+        assert "subject" in result
+        assert "issuer" in result
+        assert "not_before" in result
+        assert "not_after" in result
+        assert "serial_number" in result
+        assert result["days_remaining"] > 0
+
+    def test_validate_certificate_not_found(self, tmp_path):
+        """Test validating a non-existent certificate."""
+        from backend.core.tls import CertificateNotFoundError, validate_certificate
+
+        nonexistent = tmp_path / "nonexistent.pem"
+
+        with pytest.raises(CertificateNotFoundError, match="Certificate file not found"):
+            validate_certificate(nonexistent)
+
+    def test_validate_certificate_invalid_format(self, tmp_path):
+        """Test validating an invalid certificate file."""
+        from backend.core.tls import CertificateValidationError, validate_certificate
+
+        invalid_cert = tmp_path / "invalid.pem"
+        invalid_cert.write_text("This is not a valid certificate")
+
+        with pytest.raises(CertificateValidationError, match="Failed to parse certificate"):
+            validate_certificate(invalid_cert)
+
+    def test_validate_certificate_extracts_attributes(self, tmp_path):
+        """Test that validation extracts subject and issuer attributes."""
+        from backend.core.tls import validate_certificate
+
+        cert_path = tmp_path / "cert.pem"
+        key_path = tmp_path / "key.pem"
+
+        generate_self_signed_certificate(
+            cert_path=str(cert_path),
+            key_path=str(key_path),
+            hostname="testhost.local",
+            validity_days=365,
+        )
+
+        result = validate_certificate(cert_path)
+
+        # Should contain Common Name
+        assert "commonName=testhost.local" in result["subject"]
+        assert "countryName=US" in result["subject"]
+        assert "organizationName=Home Security Intelligence" in result["subject"]
+
+
+class TestGetTLSConfigModeBased:
+    """Test get_tls_config with mode-based configuration (line 608)."""
+
+    def test_get_config_self_signed_mode(self, tmp_path):
+        """Test get_tls_config with self_signed mode."""
+        cert_path = tmp_path / "cert.pem"
+        key_path = tmp_path / "key.pem"
+
+        generate_self_signed_certificate(
+            cert_path=str(cert_path),
+            key_path=str(key_path),
+            hostname="localhost",
+        )
+
+        with patch("backend.core.tls.get_settings") as mock_get_settings:
+            mock_settings = MagicMock()
+            mock_settings.tls_mode = "self_signed"
+            mock_settings.tls_cert_path = str(cert_path)
+            mock_settings.tls_key_path = str(key_path)
+            mock_settings.tls_ca_path = None
+            mock_settings.tls_verify_client = False
+            mock_settings.tls_min_version = "TLSv1.2"
+            mock_get_settings.return_value = mock_settings
+
+            config = get_tls_config()
+            assert isinstance(config, TLSConfig)
+            assert config.mode == TLSMode.SELF_SIGNED
+            assert config.cert_path == str(cert_path)
+            assert config.key_path == str(key_path)
+
+    def test_get_config_provided_mode(self, tmp_path):
+        """Test get_tls_config with provided mode."""
+        cert_path = tmp_path / "cert.pem"
+        key_path = tmp_path / "key.pem"
+
+        generate_self_signed_certificate(
+            cert_path=str(cert_path),
+            key_path=str(key_path),
+            hostname="localhost",
+        )
+
+        with patch("backend.core.tls.get_settings") as mock_get_settings:
+            mock_settings = MagicMock()
+            mock_settings.tls_mode = "provided"
+            mock_settings.tls_cert_path = str(cert_path)
+            mock_settings.tls_key_path = str(key_path)
+            mock_settings.tls_ca_path = None
+            mock_settings.tls_verify_client = True
+            mock_settings.tls_min_version = "TLSv1.3"
+            mock_get_settings.return_value = mock_settings
+
+            config = get_tls_config()
+            assert isinstance(config, TLSConfig)
+            assert config.mode == TLSMode.PROVIDED
+            assert config.verify_client is True
+            assert config.min_version == ssl.TLSVersion.TLSv1_3
+
+
+class TestGetTLSConfigLegacy:
+    """Test legacy get_tls_config with tls_enabled (lines 622-692)."""
+
+    def test_legacy_tls_disabled(self):
+        """Test legacy mode with TLS disabled."""
+        with patch("backend.core.tls.get_settings") as mock_get_settings:
+            mock_settings = MagicMock()
+            mock_settings.tls_mode = "disabled"
+            mock_settings.tls_enabled = False
+            mock_get_settings.return_value = mock_settings
+
+            config = get_tls_config()
+            assert isinstance(config, TLSConfig)
+            assert config.mode == TLSMode.DISABLED
+
+    def test_legacy_tls_enabled_with_certs(self, tmp_path):
+        """Test legacy mode with TLS enabled and cert files."""
+        cert_path = tmp_path / "cert.pem"
+        key_path = tmp_path / "key.pem"
+
+        generate_self_signed_certificate(
+            cert_path=str(cert_path),
+            key_path=str(key_path),
+            hostname="localhost",
+        )
+
+        with patch("backend.core.tls.get_settings") as mock_get_settings:
+            mock_settings = MagicMock()
+            mock_settings.tls_mode = "disabled"
+            mock_settings.tls_enabled = True
+            mock_settings.tls_cert_file = str(cert_path)
+            mock_settings.tls_key_file = str(key_path)
+            mock_settings.tls_ca_file = None
+            mock_get_settings.return_value = mock_settings
+
+            result = get_tls_config()
+            # Legacy mode returns dict
+            assert isinstance(result, dict)
+            assert result["ssl_certfile"] == str(cert_path)
+            assert result["ssl_keyfile"] == str(key_path)
+
+    def test_legacy_tls_enabled_certs_not_found(self, tmp_path):
+        """Test legacy mode raises error when certs not found."""
+        from backend.core.tls import CertificateNotFoundError
+
+        with patch("backend.core.tls.get_settings") as mock_get_settings:
+            mock_settings = MagicMock()
+            mock_settings.tls_mode = "disabled"
+            mock_settings.tls_enabled = True
+            mock_settings.tls_cert_file = "/nonexistent/cert.pem"
+            mock_settings.tls_key_file = "/nonexistent/key.pem"
+            mock_get_settings.return_value = mock_settings
+
+            with pytest.raises(CertificateNotFoundError):
+                get_tls_config()
+
+    def test_legacy_tls_auto_generate(self, tmp_path):
+        """Test legacy mode with auto-generate enabled."""
+        cert_dir = tmp_path / "certs"
+        cert_dir.mkdir()
+
+        with patch("backend.core.tls.get_settings") as mock_get_settings:
+            mock_settings = MagicMock()
+            mock_settings.tls_mode = "disabled"
+            mock_settings.tls_enabled = True
+            mock_settings.tls_cert_file = None
+            mock_settings.tls_key_file = None
+            mock_settings.tls_auto_generate = True
+            mock_settings.tls_cert_dir = str(cert_dir)
+            mock_settings.tls_ca_file = None
+            mock_get_settings.return_value = mock_settings
+
+            result = get_tls_config()
+            assert isinstance(result, dict)
+            assert "ssl_certfile" in result
+            assert "ssl_keyfile" in result
+            # Verify files were created
+            assert (cert_dir / "server.crt").exists()
+            assert (cert_dir / "server.key").exists()
+
+    def test_legacy_tls_no_certs_no_auto_generate(self):
+        """Test legacy mode raises error when no certs and auto-generate disabled."""
+        from backend.core.tls import TLSConfigurationError
+
+        with patch("backend.core.tls.get_settings") as mock_get_settings:
+            mock_settings = MagicMock()
+            mock_settings.tls_mode = "disabled"
+            mock_settings.tls_enabled = True
+            mock_settings.tls_cert_file = None
+            mock_settings.tls_key_file = None
+            mock_settings.tls_auto_generate = False
+            mock_get_settings.return_value = mock_settings
+
+            with pytest.raises(TLSConfigurationError, match="TLS enabled but no certificates"):
+                get_tls_config()
+
+    def test_legacy_tls_with_ca_file(self, tmp_path):
+        """Test legacy mode with CA file configured."""
+        cert_path = tmp_path / "cert.pem"
+        key_path = tmp_path / "key.pem"
+        ca_path = tmp_path / "ca.pem"
+
+        generate_self_signed_certificate(
+            cert_path=str(cert_path),
+            key_path=str(key_path),
+            hostname="localhost",
+        )
+
+        ca_path.write_text(cert_path.read_text())
+
+        with patch("backend.core.tls.get_settings") as mock_get_settings:
+            mock_settings = MagicMock()
+            mock_settings.tls_mode = "disabled"
+            mock_settings.tls_enabled = True
+            mock_settings.tls_cert_file = str(cert_path)
+            mock_settings.tls_key_file = str(key_path)
+            mock_settings.tls_ca_file = str(ca_path)
+            mock_get_settings.return_value = mock_settings
+
+            result = get_tls_config()
+            assert isinstance(result, dict)
+            assert result["ssl_ca_certs"] == str(ca_path)
+
+    def test_legacy_tls_with_missing_ca_file(self, tmp_path, caplog):
+        """Test legacy mode logs warning when CA file missing."""
+        import logging
+
+        caplog.set_level(logging.WARNING)
+
+        cert_path = tmp_path / "cert.pem"
+        key_path = tmp_path / "key.pem"
+
+        generate_self_signed_certificate(
+            cert_path=str(cert_path),
+            key_path=str(key_path),
+            hostname="localhost",
+        )
+
+        with patch("backend.core.tls.get_settings") as mock_get_settings:
+            mock_settings = MagicMock()
+            mock_settings.tls_mode = "disabled"
+            mock_settings.tls_enabled = True
+            mock_settings.tls_cert_file = str(cert_path)
+            mock_settings.tls_key_file = str(key_path)
+            mock_settings.tls_ca_file = "/nonexistent/ca.pem"
+            mock_get_settings.return_value = mock_settings
+
+            result = get_tls_config()
+            assert isinstance(result, dict)
+            assert "ssl_ca_certs" not in result
+
+
+class TestGetLocalIPs:
+    """Test _get_local_ips function (lines 701-727)."""
+
+    def test_get_local_ips_returns_list(self):
+        """Test that _get_local_ips returns a list with at least 127.0.0.1."""
+        from backend.core.tls import _get_local_ips
+
+        ips = _get_local_ips()
+        assert isinstance(ips, list)
+        assert "127.0.0.1" in ips
+
+    def test_get_local_ips_includes_host_ip(self):
+        """Test that _get_local_ips includes the hostname IP."""
+        from backend.core.tls import _get_local_ips
+
+        with (
+            patch("socket.gethostname", return_value="testhost"),
+            patch("socket.gethostbyname", return_value="192.168.1.100"),
+        ):
+            ips = _get_local_ips()
+            assert "127.0.0.1" in ips
+            assert "192.168.1.100" in ips
+
+    def test_get_local_ips_handles_exception(self, caplog):
+        """Test that _get_local_ips handles exceptions gracefully."""
+        import logging
+
+        from backend.core.tls import _get_local_ips
+
+        caplog.set_level(logging.DEBUG)
+
+        with patch("socket.gethostname", side_effect=Exception("Network error")):
+            ips = _get_local_ips()
+            # Should still return 127.0.0.1
+            assert "127.0.0.1" in ips
+
+
+class TestIsTLSEnabled:
+    """Test is_tls_enabled function (lines 741-743)."""
+
+    def test_tls_disabled_both_flags(self):
+        """Test is_tls_enabled returns False when both flags disabled."""
+        from backend.core.tls import is_tls_enabled
+
+        with patch("backend.core.tls.get_settings") as mock_get_settings:
+            mock_settings = MagicMock()
+            mock_settings.tls_enabled = False
+            mock_settings.tls_mode = "disabled"
+            mock_get_settings.return_value = mock_settings
+
+            assert is_tls_enabled() is False
+
+    def test_tls_enabled_legacy(self):
+        """Test is_tls_enabled returns True when legacy flag enabled."""
+        from backend.core.tls import is_tls_enabled
+
+        with patch("backend.core.tls.get_settings") as mock_get_settings:
+            mock_settings = MagicMock()
+            mock_settings.tls_enabled = True
+            mock_settings.tls_mode = "disabled"
+            mock_get_settings.return_value = mock_settings
+
+            assert is_tls_enabled() is True
+
+    def test_tls_enabled_new_mode(self):
+        """Test is_tls_enabled returns True when mode is not disabled."""
+        from backend.core.tls import is_tls_enabled
+
+        with patch("backend.core.tls.get_settings") as mock_get_settings:
+            mock_settings = MagicMock()
+            mock_settings.tls_enabled = False
+            mock_settings.tls_mode = "self_signed"
+            mock_get_settings.return_value = mock_settings
+
+            assert is_tls_enabled() is True
+
+
+class TestGetCertInfo:
+    """Test get_cert_info function (lines 752-775)."""
+
+    def test_get_cert_info_tls_disabled(self):
+        """Test get_cert_info returns None when TLS disabled."""
+        from backend.core.tls import get_cert_info
+
+        with patch("backend.core.tls.get_settings") as mock_get_settings:
+            mock_settings = MagicMock()
+            mock_settings.tls_enabled = False
+            mock_settings.tls_mode = "disabled"
+            mock_get_settings.return_value = mock_settings
+
+            result = get_cert_info()
+            assert result is None
+
+    def test_get_cert_info_from_tls_cert_path(self, tmp_path):
+        """Test get_cert_info with new mode cert path."""
+        from backend.core.tls import get_cert_info
+
+        cert_path = tmp_path / "cert.pem"
+        key_path = tmp_path / "key.pem"
+
+        generate_self_signed_certificate(
+            cert_path=str(cert_path),
+            key_path=str(key_path),
+            hostname="localhost",
+        )
+
+        with patch("backend.core.tls.get_settings") as mock_get_settings:
+            mock_settings = MagicMock()
+            mock_settings.tls_enabled = False
+            mock_settings.tls_mode = "self_signed"
+            mock_settings.tls_cert_path = str(cert_path)
+            mock_settings.tls_cert_file = None
+            mock_settings.tls_auto_generate = False
+            mock_settings.tls_cert_dir = str(tmp_path)
+            mock_get_settings.return_value = mock_settings
+
+            result = get_cert_info()
+            assert result is not None
+            assert result["valid"] is True
+
+    def test_get_cert_info_from_tls_cert_file(self, tmp_path):
+        """Test get_cert_info with legacy cert file path."""
+        from backend.core.tls import get_cert_info
+
+        cert_path = tmp_path / "cert.pem"
+        key_path = tmp_path / "key.pem"
+
+        generate_self_signed_certificate(
+            cert_path=str(cert_path),
+            key_path=str(key_path),
+            hostname="localhost",
+        )
+
+        with patch("backend.core.tls.get_settings") as mock_get_settings:
+            mock_settings = MagicMock()
+            mock_settings.tls_enabled = True
+            mock_settings.tls_mode = "disabled"
+            mock_settings.tls_cert_path = None
+            mock_settings.tls_cert_file = str(cert_path)
+            mock_settings.tls_auto_generate = False
+            mock_settings.tls_cert_dir = str(tmp_path)
+            mock_get_settings.return_value = mock_settings
+
+            result = get_cert_info()
+            assert result is not None
+            assert result["valid"] is True
+
+    def test_get_cert_info_from_auto_generate(self, tmp_path):
+        """Test get_cert_info with auto-generate cert."""
+        from backend.core.tls import get_cert_info
+
+        cert_dir = tmp_path / "certs"
+        cert_dir.mkdir()
+        cert_path = cert_dir / "server.crt"
+        key_path = cert_dir / "server.key"
+
+        generate_self_signed_certificate(
+            cert_path=str(cert_path),
+            key_path=str(key_path),
+            hostname="localhost",
+        )
+
+        with patch("backend.core.tls.get_settings") as mock_get_settings:
+            mock_settings = MagicMock()
+            mock_settings.tls_enabled = True
+            mock_settings.tls_mode = "disabled"
+            mock_settings.tls_cert_path = None
+            mock_settings.tls_cert_file = None
+            mock_settings.tls_auto_generate = True
+            mock_settings.tls_cert_dir = str(cert_dir)
+            mock_get_settings.return_value = mock_settings
+
+            result = get_cert_info()
+            assert result is not None
+            assert result["valid"] is True
+
+    def test_get_cert_info_cert_not_found(self, tmp_path):
+        """Test get_cert_info returns None when cert doesn't exist."""
+        from backend.core.tls import get_cert_info
+
+        with patch("backend.core.tls.get_settings") as mock_get_settings:
+            mock_settings = MagicMock()
+            mock_settings.tls_enabled = True
+            mock_settings.tls_mode = "disabled"
+            mock_settings.tls_cert_path = None
+            mock_settings.tls_cert_file = "/nonexistent/cert.pem"
+            mock_settings.tls_auto_generate = False
+            mock_settings.tls_cert_dir = str(tmp_path)
+            mock_get_settings.return_value = mock_settings
+
+            result = get_cert_info()
+            assert result is None
+
+    def test_get_cert_info_validation_error(self, tmp_path, caplog):
+        """Test get_cert_info handles validation errors gracefully."""
+        import logging
+
+        from backend.core.tls import get_cert_info
+
+        caplog.set_level(logging.ERROR)
+
+        invalid_cert = tmp_path / "invalid.pem"
+        invalid_cert.write_text("Not a valid certificate")
+
+        with patch("backend.core.tls.get_settings") as mock_get_settings:
+            mock_settings = MagicMock()
+            mock_settings.tls_enabled = True
+            mock_settings.tls_mode = "disabled"
+            mock_settings.tls_cert_path = None
+            mock_settings.tls_cert_file = str(invalid_cert)
+            mock_settings.tls_auto_generate = False
+            mock_settings.tls_cert_dir = str(tmp_path)
+            mock_get_settings.return_value = mock_settings
+
+            result = get_cert_info()
+            assert result is None
+
+    def test_get_cert_info_no_cert_configured(self, tmp_path):
+        """Test get_cert_info returns None when no cert is configured."""
+        from backend.core.tls import get_cert_info
+
+        with patch("backend.core.tls.get_settings") as mock_get_settings:
+            mock_settings = MagicMock()
+            mock_settings.tls_enabled = True
+            mock_settings.tls_mode = "disabled"
+            mock_settings.tls_cert_path = None
+            mock_settings.tls_cert_file = None
+            mock_settings.tls_auto_generate = False
+            mock_settings.tls_cert_dir = str(tmp_path)
+            mock_get_settings.return_value = mock_settings
+
+            result = get_cert_info()
+            assert result is None

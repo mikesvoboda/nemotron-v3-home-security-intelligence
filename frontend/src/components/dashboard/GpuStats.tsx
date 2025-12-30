@@ -1,25 +1,48 @@
-import { Card, ProgressBar, Title, Text, AreaChart } from '@tremor/react';
+import { Card, ProgressBar, Title, Text, AreaChart, TabGroup, TabList, Tab } from '@tremor/react';
 import { clsx } from 'clsx';
-import { Cpu, Thermometer, Activity, Zap, TrendingUp } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Cpu, Thermometer, Activity, Zap, TrendingUp, Plug, Play, Pause, Trash2 } from 'lucide-react';
+import { useState, useCallback } from 'react';
 
-import { fetchGpuHistory, type GPUStatsHistoryResponse } from '../../services/api';
+import {
+  useGpuHistory,
+  type GpuMetricDataPoint,
+  type UseGpuHistoryOptions,
+} from '../../hooks/useGpuHistory';
 
 export interface GpuStatsProps {
-  utilization: number | null; // 0-100%
-  memoryUsed: number | null; // MB
-  memoryTotal: number | null; // MB
-  temperature: number | null; // Celsius
-  inferenceFps: number | null;
+  /** GPU device name (e.g., 'NVIDIA RTX A5500') */
+  gpuName?: string | null;
+  /** GPU utilization 0-100% (optional, for initial/override display) */
+  utilization?: number | null;
+  /** Memory used in MB (optional, for initial/override display) */
+  memoryUsed?: number | null;
+  /** Memory total in MB (optional, for initial/override display) */
+  memoryTotal?: number | null;
+  /** Temperature in Celsius (optional, for initial/override display) */
+  temperature?: number | null;
+  /** Power usage in Watts (optional) */
+  powerUsage?: number | null;
+  /** Inference FPS (optional, for initial/override display) */
+  inferenceFps?: number | null;
+  /** Additional CSS classes */
   className?: string;
+  /** Options for the GPU history hook */
+  historyOptions?: UseGpuHistoryOptions;
+  /** Whether to show history controls (start/stop/clear) - default: true */
+  showHistoryControls?: boolean;
 }
 
 /**
- * Chart data point for GPU utilization history
+ * Tab index for history chart selection
+ */
+type HistoryTab = 0 | 1 | 2;
+
+/**
+ * Chart data point for GPU history visualization
  */
 interface ChartDataPoint {
   time: string;
-  'GPU Utilization': number;
+  value: number;
 }
 
 /**
@@ -29,6 +52,19 @@ function getTemperatureColor(temp: number | null): 'gray' | 'green' | 'yellow' |
   if (temp === null) return 'gray';
   if (temp < 70) return 'green';
   if (temp < 80) return 'yellow';
+  return 'red';
+}
+
+/**
+ * Determines power usage color based on value (watts)
+ * - Green: < 150W (normal operation)
+ * - Yellow: 150-250W (moderate load)
+ * - Red: > 250W (high load)
+ */
+function getPowerColor(watts: number | null): 'gray' | 'green' | 'yellow' | 'red' {
+  if (watts === null) return 'gray';
+  if (watts < 150) return 'green';
+  if (watts < 250) return 'yellow';
   return 'red';
 }
 
@@ -56,82 +92,166 @@ function formatMemory(
 }
 
 /**
- * Transform GPU history response to chart data format
+ * Transform GPU history to utilization chart data format
  */
-function transformHistoryToChartData(history: GPUStatsHistoryResponse | null): ChartDataPoint[] {
-  if (!history || !history.samples || history.samples.length === 0) {
-    return [];
-  }
-
-  return history.samples.map((sample) => ({
-    time: new Date(sample.recorded_at).toLocaleTimeString('en-US', {
+function transformToUtilizationChart(history: GpuMetricDataPoint[]): ChartDataPoint[] {
+  return history.map((point) => ({
+    time: new Date(point.timestamp).toLocaleTimeString('en-US', {
       hour: '2-digit',
       minute: '2-digit',
     }),
-    'GPU Utilization': sample.utilization ?? 0,
+    value: point.utilization,
+  }));
+}
+
+/**
+ * Transform GPU history to temperature chart data format
+ */
+function transformToTemperatureChart(history: GpuMetricDataPoint[]): ChartDataPoint[] {
+  return history.map((point) => ({
+    time: new Date(point.timestamp).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+    }),
+    value: point.temperature,
+  }));
+}
+
+/**
+ * Transform GPU history to memory chart data format (in GB)
+ */
+function transformToMemoryChart(history: GpuMetricDataPoint[]): ChartDataPoint[] {
+  return history.map((point) => ({
+    time: new Date(point.timestamp).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+    }),
+    value: point.memory_used / 1024, // Convert MB to GB
   }));
 }
 
 /**
  * GpuStats component displays GPU metrics in a compact dashboard card
- * - Shows utilization, memory usage, temperature, and inference FPS
- * - Displays GPU utilization history chart
+ * - Shows GPU device name in header
+ * - Shows utilization, memory usage, temperature, power usage, and inference FPS
+ * - Displays tabbed history charts for utilization, temperature, and memory
  * - Uses NVIDIA branding color (#76B900) for healthy metrics
  * - Temperature color coding: green (<70C), yellow (70-80C), red (>80C)
+ * - Power color coding: green (<150W), yellow (150-250W), red (>250W)
  * - Handles null values gracefully with "N/A" display
+ * - Provides start/stop/clear controls for history collection
  */
 export default function GpuStats({
-  utilization,
-  memoryUsed,
-  memoryTotal,
-  temperature,
-  inferenceFps,
+  gpuName,
+  utilization: propUtilization,
+  memoryUsed: propMemoryUsed,
+  memoryTotal: propMemoryTotal,
+  temperature: propTemperature,
+  powerUsage,
+  inferenceFps: propInferenceFps,
   className,
+  historyOptions,
+  showHistoryControls = true,
 }: GpuStatsProps) {
-  const [history, setHistory] = useState<GPUStatsHistoryResponse | null>(null);
-  const [historyLoading, setHistoryLoading] = useState(true);
-  const [historyError, setHistoryError] = useState<string | null>(null);
+  // Use GPU history hook for real-time data and history collection
+  const { current, history, isLoading, error, start, stop, clearHistory } =
+    useGpuHistory(historyOptions);
+
+  // Track whether polling is active (derived from whether we have current data updating)
+  const [isPolling, setIsPolling] = useState(historyOptions?.autoStart !== false);
+
+  // Track selected history tab
+  const [selectedTab, setSelectedTab] = useState<HistoryTab>(0);
+
+  // Use hook data if available, otherwise fall back to props
+  const utilization = current?.utilization ?? propUtilization ?? null;
+  const memoryUsed = current?.memory_used ?? propMemoryUsed ?? null;
+  const memoryTotal = current?.memory_total ?? propMemoryTotal ?? null;
+  const temperature = current?.temperature ?? propTemperature ?? null;
+  const inferenceFps = current?.inference_fps ?? propInferenceFps ?? null;
 
   const memory = formatMemory(memoryUsed, memoryTotal);
   const tempColor = getTemperatureColor(temperature);
-  const chartData = transformHistoryToChartData(history);
+  const powerColor = getPowerColor(powerUsage ?? null);
 
-  // Fetch GPU history on mount
-  useEffect(() => {
-    let isMounted = true;
+  // Transform history for different chart views
+  const utilizationChartData = transformToUtilizationChart(history);
+  const temperatureChartData = transformToTemperatureChart(history);
+  const memoryChartData = transformToMemoryChart(history);
 
-    async function loadHistory() {
-      try {
-        setHistoryLoading(true);
-        setHistoryError(null);
-        const data = await fetchGpuHistory(100);
-        if (isMounted) {
-          setHistory(data);
-        }
-      } catch (error) {
-        if (isMounted) {
-          setHistoryError(error instanceof Error ? error.message : 'Failed to load GPU history');
-        }
-      } finally {
-        if (isMounted) {
-          setHistoryLoading(false);
-        }
-      }
+  // Handle start/stop toggle
+  const handleTogglePolling = useCallback(() => {
+    if (isPolling) {
+      stop();
+      setIsPolling(false);
+    } else {
+      start();
+      setIsPolling(true);
     }
+  }, [isPolling, start, stop]);
 
-    void loadHistory();
+  // Handle clear history
+  const handleClearHistory = useCallback(() => {
+    clearHistory();
+  }, [clearHistory]);
 
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  // Get chart data based on selected tab
+  const getChartData = () => {
+    switch (selectedTab) {
+      case 0:
+        return utilizationChartData;
+      case 1:
+        return temperatureChartData;
+      case 2:
+        return memoryChartData;
+      default:
+        return utilizationChartData;
+    }
+  };
+
+  // Get value formatter based on selected tab
+  const getValueFormatter = () => {
+    switch (selectedTab) {
+      case 0:
+        return (value: number) => `${value.toFixed(0)}%`;
+      case 1:
+        return (value: number) => `${value.toFixed(0)}\u00B0C`;
+      case 2:
+        return (value: number) => `${value.toFixed(1)} GB`;
+      default:
+        return (value: number) => `${value}`;
+    }
+  };
+
+  // Get chart color based on selected tab
+  const getChartColor = (): 'emerald' | 'amber' | 'blue' => {
+    switch (selectedTab) {
+      case 0:
+        return 'emerald';
+      case 1:
+        return 'amber';
+      case 2:
+        return 'blue';
+      default:
+        return 'emerald';
+    }
+  };
+
+  const chartData = getChartData();
 
   return (
     <Card className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)}>
-      <Title className="mb-4 flex items-center gap-2 text-white">
-        <Cpu className="h-5 w-5 text-[#76B900]" />
-        GPU Statistics
-      </Title>
+      <div className="mb-4">
+        <Title className="flex items-center gap-2 text-white">
+          <Cpu className="h-5 w-5 text-[#76B900]" />
+          GPU Statistics
+        </Title>
+        {gpuName && (
+          <p className="mt-1 text-sm text-gray-400" data-testid="gpu-device-name">
+            {gpuName}
+          </p>
+        )}
+      </div>
 
       <div className="space-y-4">
         {/* GPU Utilization */}
@@ -188,6 +308,33 @@ export default function GpuStats({
           <ProgressBar value={temperature ?? 0} color={tempColor} className="mt-1" />
         </div>
 
+        {/* Power Usage */}
+        <div>
+          <div className="mb-1 flex items-center justify-between">
+            <Text className="flex items-center gap-1.5 text-sm text-gray-300">
+              <Plug className="h-4 w-4" />
+              Power Usage
+            </Text>
+            <span
+              className={clsx(
+                'text-sm font-medium',
+                powerColor === 'green' && 'text-[#76B900]',
+                powerColor === 'yellow' && 'text-yellow-500',
+                powerColor === 'red' && 'text-red-500',
+                powerColor === 'gray' && 'text-gray-400'
+              )}
+              data-testid="gpu-power-usage"
+            >
+              {formatValue(powerUsage ?? null, 'W')}
+            </span>
+          </div>
+          <ProgressBar
+            value={powerUsage !== null && powerUsage !== undefined ? Math.min((powerUsage / 350) * 100, 100) : 0}
+            color={powerColor}
+            className="mt-1"
+          />
+        </div>
+
         {/* Inference FPS */}
         <div className="border-t border-gray-800 pt-2">
           <div className="flex items-center justify-between">
@@ -198,34 +345,87 @@ export default function GpuStats({
           </div>
         </div>
 
-        {/* GPU Utilization History Chart */}
+        {/* GPU History Charts with Tabs */}
         <div className="border-t border-gray-800 pt-4">
-          <div className="mb-3 flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-[#76B900]" />
-            <Text className="text-sm font-medium text-gray-300">Utilization History</Text>
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-[#76B900]" />
+              <Text className="text-sm font-medium text-gray-300">Metrics History</Text>
+            </div>
+            {showHistoryControls && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleTogglePolling}
+                  className={clsx(
+                    'flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors',
+                    isPolling
+                      ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30'
+                      : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+                  )}
+                  data-testid="gpu-history-toggle"
+                  aria-label={isPolling ? 'Pause monitoring' : 'Resume monitoring'}
+                >
+                  {isPolling ? (
+                    <>
+                      <Pause className="h-3 w-3" />
+                      Pause
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-3 w-3" />
+                      Resume
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={handleClearHistory}
+                  className="flex items-center gap-1 rounded bg-red-500/20 px-2 py-1 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/30"
+                  data-testid="gpu-history-clear"
+                  aria-label="Clear history"
+                >
+                  <Trash2 className="h-3 w-3" />
+                  Clear
+                </button>
+              </div>
+            )}
           </div>
-          {historyLoading ? (
+
+          {/* Tab Selection */}
+          <TabGroup
+            index={selectedTab}
+            onIndexChange={(index) => setSelectedTab(index as HistoryTab)}
+            className="mb-3"
+          >
+            <TabList variant="solid" className="bg-gray-800/50">
+              <Tab className="text-xs" data-testid="tab-utilization">Utilization</Tab>
+              <Tab className="text-xs" data-testid="tab-temperature">Temperature</Tab>
+              <Tab className="text-xs" data-testid="tab-memory">Memory</Tab>
+            </TabList>
+          </TabGroup>
+
+          {/* Chart Display */}
+          {isLoading && history.length === 0 ? (
             <div
               className="flex h-32 items-center justify-center text-gray-500"
               data-testid="gpu-history-loading"
             >
               <Text>Loading history...</Text>
             </div>
-          ) : historyError ? (
+          ) : error ? (
             <div
               className="flex h-32 items-center justify-center text-red-400"
               data-testid="gpu-history-error"
             >
-              <Text>{historyError}</Text>
+              <Text>{error}</Text>
             </div>
           ) : chartData.length > 0 ? (
             <AreaChart
               className="h-32"
               data={chartData}
               index="time"
-              categories={['GPU Utilization']}
-              colors={['emerald']}
-              valueFormatter={(value) => `${value}%`}
+              categories={['value']}
+              colors={[getChartColor()]}
+              valueFormatter={getValueFormatter()}
               showLegend={false}
               showGridLines={false}
               curveType="monotone"
@@ -237,6 +437,15 @@ export default function GpuStats({
               data-testid="gpu-history-empty"
             >
               <Text>No history data available</Text>
+            </div>
+          )}
+
+          {/* Data point count indicator */}
+          {history.length > 0 && (
+            <div className="mt-2 text-right">
+              <span className="text-xs text-gray-500" data-testid="gpu-history-count">
+                {history.length} data point{history.length !== 1 ? 's' : ''}
+              </span>
             </div>
           )}
         </div>
