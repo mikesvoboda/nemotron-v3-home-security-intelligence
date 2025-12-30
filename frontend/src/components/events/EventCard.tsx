@@ -168,16 +168,18 @@ export default function EventCard({
   return (
     <div
       className={`rounded-lg border border-gray-800 ${getBorderColorClass()} border-l-4 bg-[#1F1F1F] p-4 shadow-lg transition-all hover:border-gray-700 ${isClickable ? 'cursor-pointer hover:bg-[#252525]' : ''} ${className}`}
-      onClick={handleCardClick}
-      onKeyDown={(e) => {
-        if (isClickable && (e.key === 'Enter' || e.key === ' ')) {
-          e.preventDefault();
-          onClick?.(id);
-        }
-      }}
-      role={isClickable ? 'button' : undefined}
-      tabIndex={isClickable ? 0 : undefined}
-      aria-label={isClickable ? `View details for event from ${camera_name}` : undefined}
+      {...(isClickable && {
+        onClick: handleCardClick,
+        onKeyDown: (e: React.KeyboardEvent) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onClick?.(id);
+          }
+        },
+        role: 'button',
+        tabIndex: 0,
+        'aria-label': `View details for event from ${camera_name}`,
+      })}
     >
       {/* Header: Camera name, timestamp, risk badge */}
       <div className={`mb-3 flex items-start justify-between ${hasCheckboxOverlay ? 'ml-8' : ''}`}>

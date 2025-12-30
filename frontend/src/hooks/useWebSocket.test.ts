@@ -527,7 +527,6 @@ describe('useWebSocket', () => {
   it('should not connect when WebSocket is not available', () => {
     // Remove WebSocket from window to simulate no WebSocket support
     const savedWebSocket = window.WebSocket;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).WebSocket = undefined;
 
     const options: WebSocketOptions = {

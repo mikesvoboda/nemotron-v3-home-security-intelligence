@@ -62,12 +62,14 @@ const DetectionImage: React.FC<DetectionImageProps> = ({
     <>
       <div
         className={`relative inline-block ${className} ${enableLightbox ? 'cursor-pointer' : ''}`}
-        onClick={handleImageClick}
-        onKeyDown={handleKeyDown}
-        role={enableLightbox ? 'button' : undefined}
-        tabIndex={enableLightbox ? 0 : undefined}
-        aria-label={enableLightbox ? `View ${alt} in full size` : undefined}
         data-testid="detection-image-container"
+        {...(enableLightbox && {
+          onClick: handleImageClick,
+          onKeyDown: handleKeyDown,
+          role: 'button',
+          tabIndex: 0,
+          'aria-label': `View ${alt} in full size`,
+        })}
       >
         <img
           src={src}

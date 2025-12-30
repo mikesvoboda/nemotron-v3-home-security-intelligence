@@ -479,6 +479,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               className="relative flex items-center"
               onMouseEnter={() => setShowVolumeSlider(true)}
               onMouseLeave={() => setShowVolumeSlider(false)}
+              onFocus={() => setShowVolumeSlider(true)}
+              onBlur={(e) => {
+                // Only hide if focus is leaving the volume control group entirely
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                  setShowVolumeSlider(false);
+                }
+              }}
+              role="group"
+              aria-label="Volume controls"
             >
               <button
                 onClick={toggleMute}
