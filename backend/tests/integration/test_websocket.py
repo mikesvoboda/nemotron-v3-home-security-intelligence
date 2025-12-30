@@ -982,8 +982,18 @@ class TestEventBroadcastPipeline:
         assert broadcaster.CHANNEL_NAME == "security_events"
 
         # Test that both use the same channel
-        # Broadcast through EventBroadcaster
-        await broadcaster.broadcast_event({"test": "data"})
+        # Broadcast through EventBroadcaster with valid event data
+        valid_event_data = {
+            "id": 1,
+            "event_id": 1,
+            "batch_id": "test_batch",
+            "camera_id": "test_camera",
+            "risk_score": 50,
+            "risk_level": "medium",
+            "summary": "Test event",
+            "started_at": "2025-12-23T12:00:00",
+        }
+        await broadcaster.broadcast_event(valid_event_data)
         broadcast_channel = mock_redis.publish.call_args[0][0]
 
         # Reset mock
@@ -1102,8 +1112,17 @@ class TestEventBroadcastPipeline:
         # Create broadcaster with explicit channel name
         broadcaster = EventBroadcaster(mock_redis, channel_name="security_events")
 
-        # Broadcast a message without 'type' field
-        payload = {"id": 123, "risk_score": 50}
+        # Broadcast a message without 'type' field but with all required fields
+        payload = {
+            "id": 123,
+            "event_id": 123,
+            "batch_id": "test_batch",
+            "camera_id": "test_camera",
+            "risk_score": 50,
+            "risk_level": "medium",
+            "summary": "Test event",
+            "started_at": "2025-12-23T12:00:00",
+        }
         await broadcaster.broadcast_event(payload)
 
         # Verify it was wrapped
