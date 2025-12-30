@@ -41,6 +41,16 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+
+def _utc_now_naive() -> datetime:
+    """Get current UTC time as naive datetime for PostgreSQL compatibility.
+
+    PostgreSQL TIMESTAMP WITHOUT TIME ZONE columns cannot accept timezone-aware
+    datetimes from Python. This function ensures we always use naive UTC times.
+    """
+    return datetime.now(UTC).replace(tzinfo=None)
+
+
 # Severity priority for determining which rule takes precedence
 SEVERITY_PRIORITY = {
     AlertSeverity.LOW: 0,
@@ -117,7 +127,7 @@ class AlertRuleEngine:
             EvaluationResult with list of triggered rules and evaluation metadata
         """
         if current_time is None:
-            current_time = datetime.now(UTC)
+            current_time = _utc_now_naive()
 
         # Load detections if not provided
         if detections is None:
@@ -448,7 +458,7 @@ class AlertRuleEngine:
             List of test results with match status and details
         """
         if current_time is None:
-            current_time = datetime.now(UTC)
+            current_time = _utc_now_naive()
 
         results = []
 
