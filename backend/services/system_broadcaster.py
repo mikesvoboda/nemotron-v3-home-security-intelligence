@@ -29,6 +29,7 @@ from fastapi import WebSocket
 from sqlalchemy import func, select
 
 from backend.core import get_session
+from backend.core.constants import ANALYSIS_QUEUE, DETECTION_QUEUE
 from backend.core.logging import get_logger
 from backend.models import Camera, GPUStats
 
@@ -442,10 +443,10 @@ class SystemBroadcaster:
                 return {"pending": 0, "processing": 0}
 
             # Get detection queue length
-            detection_queue_len = await redis_client.get_queue_length("detection_queue")
+            detection_queue_len = await redis_client.get_queue_length(DETECTION_QUEUE)
 
             # Get analysis queue length
-            analysis_queue_len = await redis_client.get_queue_length("analysis_queue")
+            analysis_queue_len = await redis_client.get_queue_length(ANALYSIS_QUEUE)
 
             return {
                 "pending": detection_queue_len,
