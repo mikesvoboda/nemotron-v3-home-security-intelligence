@@ -13,6 +13,7 @@
 ## Pre-Implementation Notes
 
 **Already in place:**
+
 - `pytest-timeout>=2.3.0` in requirements.txt
 - `pytest-xdist>=3.5.0` in requirements.txt
 - Basic `--timeout=30` in pyproject.toml
@@ -20,6 +21,7 @@
 - `check-test-timeouts.py` for sleep detection
 
 **Key files to modify:**
+
 - `pyproject.toml` - pytest configuration
 - `backend/tests/conftest.py` - timeout hook
 - `scripts/check-test-timeouts.py` - extend pattern detection
@@ -32,6 +34,7 @@
 ## Task 1: Update pytest Configuration
 
 **Files:**
+
 - Modify: `pyproject.toml:91-106`
 
 **Step 1: Update pyproject.toml pytest settings**
@@ -84,6 +87,7 @@ git commit -m "perf(tests): configure 1s default timeout and parallel execution
 ## Task 2: Add Timeout Assignment Hook
 
 **Files:**
+
 - Modify: `backend/tests/conftest.py:83-106`
 
 **Step 1: Add the timeout hook after pytest_configure**
@@ -143,6 +147,7 @@ git commit -m "perf(tests): add timeout assignment hook
 ## Task 3: Create CI Timing Audit Script
 
 **Files:**
+
 - Create: `scripts/audit-test-durations.py`
 
 **Step 1: Write the audit script**
@@ -354,6 +359,7 @@ Parses JUnit XML from CI runs to detect slow tests:
 ## Task 4: Extend Pre-commit Pattern Detection
 
 **Files:**
+
 - Modify: `scripts/check-test-timeouts.py`
 
 **Step 1: Add HTTP and subprocess detection**
@@ -652,6 +658,7 @@ Recognizes mock context from surrounding code to reduce false positives."
 ## Task 5: Update CI Workflow for JUnit XML Artifacts
 
 **Files:**
+
 - Modify: `.github/workflows/ci.yml`
 
 **Step 1: Update unit-tests job to output JUnit XML**
@@ -659,25 +666,25 @@ Recognizes mock context from surrounding code to reduce false positives."
 In the `unit-tests` job, update the pytest command (around line 115-124):
 
 ```yaml
-      - name: Run unit tests with coverage
-        run: |
-          pytest backend/tests/unit/ \
-            --cov=backend \
-            --cov-config=pyproject.toml \
-            --cov-report=xml:coverage-unit.xml \
-            --cov-report=term-missing \
-            --cov-fail-under=92 \
-            --junit-xml=test-results-unit.xml \
-            --durations=20 \
-            -v
+- name: Run unit tests with coverage
+  run: |
+    pytest backend/tests/unit/ \
+      --cov=backend \
+      --cov-config=pyproject.toml \
+      --cov-report=xml:coverage-unit.xml \
+      --cov-report=term-missing \
+      --cov-fail-under=92 \
+      --junit-xml=test-results-unit.xml \
+      --durations=20 \
+      -v
 
-      - name: Upload unit test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results-unit
-          path: test-results-unit.xml
-          retention-days: 7
+- name: Upload unit test results
+  if: always()
+  uses: actions/upload-artifact@v4
+  with:
+    name: test-results-unit
+    path: test-results-unit.xml
+    retention-days: 7
 ```
 
 **Step 2: Update integration-tests job similarly**
@@ -685,24 +692,24 @@ In the `unit-tests` job, update the pytest command (around line 115-124):
 In the `integration-tests` job, update the pytest command (around line 211-224):
 
 ```yaml
-      - name: Run integration tests with coverage
-        run: |
-          pytest backend/tests/integration/ \
-            --cov=backend \
-            --cov-report=xml:coverage-integration.xml \
-            --cov-report=term-missing \
-            --cov-fail-under=50 \
-            --junit-xml=test-results-integration.xml \
-            --durations=20 \
-            -v
+- name: Run integration tests with coverage
+  run: |
+    pytest backend/tests/integration/ \
+      --cov=backend \
+      --cov-report=xml:coverage-integration.xml \
+      --cov-report=term-missing \
+      --cov-fail-under=50 \
+      --junit-xml=test-results-integration.xml \
+      --durations=20 \
+      -v
 
-      - name: Upload integration test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results-integration
-          path: test-results-integration.xml
-          retention-days: 7
+- name: Upload integration test results
+  if: always()
+  uses: actions/upload-artifact@v4
+  with:
+    name: test-results-integration
+    path: test-results-integration.xml
+    retention-days: 7
 ```
 
 **Step 3: Update frontend-tests job**
@@ -710,16 +717,16 @@ In the `integration-tests` job, update the pytest command (around line 211-224):
 In the `frontend-tests` job, update to output JUnit XML (around line 326):
 
 ```yaml
-      - name: Run tests with coverage
-        run: cd frontend && npm run test:coverage -- --run --reporter=junit --outputFile=test-results-frontend.xml
+- name: Run tests with coverage
+  run: cd frontend && npm run test:coverage -- --run --reporter=junit --outputFile=test-results-frontend.xml
 
-      - name: Upload frontend test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results-frontend
-          path: frontend/test-results-frontend.xml
-          retention-days: 7
+- name: Upload frontend test results
+  if: always()
+  uses: actions/upload-artifact@v4
+  with:
+    name: test-results-frontend
+    path: frontend/test-results-frontend.xml
+    retention-days: 7
 ```
 
 **Step 4: Add the test-performance-audit job**
@@ -727,40 +734,40 @@ In the `frontend-tests` job, update to output JUnit XML (around line 326):
 Add after the `security-validation` job (around line 560):
 
 ```yaml
-  # ============================================================================
-  # Test Performance Audit Job
-  # ============================================================================
+# ============================================================================
+# Test Performance Audit Job
+# ============================================================================
 
-  test-performance-audit:
-    name: Test Performance Audit
-    runs-on: ubuntu-latest
-    needs: [unit-tests, integration-tests, frontend-tests]
-    if: always() && (needs.unit-tests.result == 'success' || needs.integration-tests.result == 'success')
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+test-performance-audit:
+  name: Test Performance Audit
+  runs-on: ubuntu-latest
+  needs: [unit-tests, integration-tests, frontend-tests]
+  if: always() && (needs.unit-tests.result == 'success' || needs.integration-tests.result == 'success')
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Download all test results
-        uses: actions/download-artifact@v4
-        with:
-          pattern: test-results-*
-          path: test-results/
-          merge-multiple: true
+    - name: Download all test results
+      uses: actions/download-artifact@v4
+      with:
+        pattern: test-results-*
+        path: test-results/
+        merge-multiple: true
 
-      - name: List downloaded artifacts
-        run: find test-results/ -type f -name "*.xml" | head -20
+    - name: List downloaded artifacts
+      run: find test-results/ -type f -name "*.xml" | head -20
 
-      - name: Analyze test durations
-        run: python scripts/audit-test-durations.py test-results/
-        env:
-          UNIT_TEST_THRESHOLD: "1.0"
-          INTEGRATION_TEST_THRESHOLD: "5.0"
-          WARN_THRESHOLD_PERCENT: "80"
+    - name: Analyze test durations
+      run: python scripts/audit-test-durations.py test-results/
+      env:
+        UNIT_TEST_THRESHOLD: "1.0"
+        INTEGRATION_TEST_THRESHOLD: "5.0"
+        WARN_THRESHOLD_PERCENT: "80"
 ```
 
 **Step 5: Commit**
@@ -780,6 +787,7 @@ git commit -m "feat(ci): add test performance audit job
 ## Task 6: Create Local Test Runner Script
 
 **Files:**
+
 - Create: `scripts/test-fast.sh`
 
 **Step 1: Write the script**
@@ -872,6 +880,7 @@ Usage:
 ## Task 7: Run Full Test Suite and Fix Slow Tests
 
 **Files:**
+
 - Various test files that exceed thresholds
 
 **Step 1: Run tests with timing to identify slow tests**
@@ -881,6 +890,7 @@ Run: `./scripts/test-fast.sh unit 4 --durations=0 2>&1 | grep -E "^\d+\.\d+s" | 
 **Step 2: For each slow test, either:**
 
 a) Add `@pytest.mark.slow` if legitimately slow:
+
 ```python
 @pytest.mark.slow
 def test_complex_batch_processing():
@@ -888,6 +898,7 @@ def test_complex_batch_processing():
 ```
 
 b) Add explicit timeout if needs more than 1s but less than 30s:
+
 ```python
 @pytest.mark.timeout(3)
 def test_moderate_operation():
