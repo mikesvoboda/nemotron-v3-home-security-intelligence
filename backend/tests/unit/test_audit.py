@@ -1,18 +1,18 @@
-"""Unit tests for audit logging functionality."""
+"""Unit tests for audit logging functionality.
+
+These tests use mocked database sessions and do not require a real database.
+For integration tests with a real database, see backend/tests/integration/test_audit.py
+"""
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
 
 import pytest
 
 from backend.models.audit import AuditAction, AuditLog, AuditStatus
 from backend.services.audit import AuditService
-
-# Mark as integration since some tests require real PostgreSQL database (test_db fixture)
-# NOTE: This file should be moved to backend/tests/integration/ in a future cleanup
-pytestmark = pytest.mark.integration
 
 
 class TestAuditLogModel:
@@ -57,6 +57,10 @@ class TestAuditLogModel:
         assert "event" in repr_str
         assert "test_user" in repr_str
 
+
+class TestAuditAction:
+    """Tests for the AuditAction enum."""
+
     def test_audit_action_enum(self):
         """Test the AuditAction enum values."""
         assert AuditAction.EVENT_REVIEWED.value == "event_reviewed"
@@ -70,6 +74,10 @@ class TestAuditLogModel:
         assert AuditAction.LOGIN.value == "login"
         assert AuditAction.LOGOUT.value == "logout"
 
+
+class TestAuditStatus:
+    """Tests for the AuditStatus enum."""
+
     def test_audit_status_enum(self):
         """Test the AuditStatus enum values."""
         assert AuditStatus.SUCCESS.value == "success"
@@ -77,7 +85,7 @@ class TestAuditLogModel:
 
 
 class TestAuditService:
-    """Tests for the AuditService."""
+    """Tests for the AuditService using mocked database sessions."""
 
     @pytest.fixture
     def mock_db_session(self):
@@ -450,8 +458,6 @@ class TestAuditService:
     @pytest.mark.asyncio
     async def test_get_audit_logs_with_date_range_filter(self, mock_db_session):
         """Test get_audit_logs filtered by date range."""
-        from datetime import timedelta
-
         now = datetime.now(UTC)
         mock_logs = [
             AuditLog(
@@ -588,8 +594,6 @@ class TestAuditService:
     @pytest.mark.asyncio
     async def test_get_audit_logs_with_all_filters(self, mock_db_session):
         """Test get_audit_logs with all filters combined."""
-        from datetime import timedelta
-
         now = datetime.now(UTC)
         mock_logs = [
             AuditLog(
@@ -679,130 +683,3 @@ class TestAuditService:
         result = await AuditService.get_audit_log_by_id(db=mock_db_session, audit_id=99999)
 
         assert result is None
-
-
-@pytest.mark.skipif(
-    "CI" not in __import__("os").environ,
-    reason="Database tests require PostgreSQL - run in CI or with TEST_DATABASE_URL set",
-)
-class TestAuditServiceDatabase:
-    """Integration tests for AuditService with real database."""
-
-    @pytest.mark.asyncio
-    async def test_log_and_retrieve_audit(self, test_db):
-        """Test logging and retrieving audit entries from database."""
-        async with test_db() as session:
-            # Log an action
-            await AuditService.log_action(
-                db=session,
-                action=AuditAction.CAMERA_CREATED,
-                resource_type="camera",
-                resource_id="test-camera-1",
-                actor="test_user",
-                details={"name": "Test Camera"},
-            )
-            await session.commit()
-
-            # Retrieve the logs
-            logs, count = await AuditService.get_audit_logs(
-                db=session,
-                action="camera_created",
-            )
-
-            assert count >= 1
-            assert any(log.resource_id == "test-camera-1" for log in logs)
-
-    @pytest.mark.asyncio
-    async def test_get_audit_logs_with_filters(self, test_db):
-        """Test filtering audit logs."""
-        async with test_db() as session:
-            # Create multiple audit logs
-            for i in range(5):
-                await AuditService.log_action(
-                    db=session,
-                    action=AuditAction.EVENT_REVIEWED
-                    if i % 2 == 0
-                    else AuditAction.EVENT_DISMISSED,
-                    resource_type="event",
-                    resource_id=f"event-{i}",
-                    actor="test_user" if i < 3 else "other_user",
-                )
-            await session.commit()
-
-            # Filter by action
-            logs, _count = await AuditService.get_audit_logs(
-                db=session,
-                action="event_reviewed",
-            )
-            assert all(log.action == "event_reviewed" for log in logs)
-
-            # Filter by actor
-            logs, _count = await AuditService.get_audit_logs(
-                db=session,
-                actor="test_user",
-            )
-            assert all(log.actor == "test_user" for log in logs)
-
-    @pytest.mark.asyncio
-    async def test_get_audit_logs_pagination(self, test_db):
-        """Test pagination of audit logs."""
-        async with test_db() as session:
-            # Create 10 audit logs
-            for i in range(10):
-                await AuditService.log_action(
-                    db=session,
-                    action=AuditAction.CAMERA_UPDATED,
-                    resource_type="camera",
-                    resource_id=f"camera-{i}",
-                    actor="system",
-                )
-            await session.commit()
-
-            # Test pagination
-            logs_page1, total = await AuditService.get_audit_logs(
-                db=session,
-                action="camera_updated",
-                limit=5,
-                offset=0,
-            )
-            assert len(logs_page1) == 5 or len(logs_page1) == total
-
-            if total > 5:
-                logs_page2, _ = await AuditService.get_audit_logs(
-                    db=session,
-                    action="camera_updated",
-                    limit=5,
-                    offset=5,
-                )
-                # Ensure no overlap
-                page1_ids = {log.id for log in logs_page1}
-                page2_ids = {log.id for log in logs_page2}
-                assert page1_ids.isdisjoint(page2_ids)
-
-    @pytest.mark.asyncio
-    async def test_get_audit_log_by_id(self, test_db):
-        """Test retrieving a specific audit log by ID."""
-        async with test_db() as session:
-            # Create an audit log
-            log = await AuditService.log_action(
-                db=session,
-                action=AuditAction.MEDIA_EXPORTED,
-                resource_type="event",
-                actor="test_user",
-                details={"filename": "export.csv"},
-            )
-            await session.commit()
-
-            # Retrieve by ID
-            retrieved = await AuditService.get_audit_log_by_id(db=session, audit_id=log.id)
-
-            assert retrieved is not None
-            assert retrieved.id == log.id
-            assert retrieved.action == "media_exported"
-
-    @pytest.mark.asyncio
-    async def test_get_audit_log_by_id_not_found(self, test_db):
-        """Test retrieving a non-existent audit log."""
-        async with test_db() as session:
-            result = await AuditService.get_audit_log_by_id(db=session, audit_id=99999)
-            assert result is None

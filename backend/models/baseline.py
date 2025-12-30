@@ -61,7 +61,7 @@ class ActivityBaseline(Base):
     )
 
     # Relationships
-    camera: Mapped[Camera] = relationship("Camera", backref="activity_baselines")
+    camera: Mapped[Camera] = relationship("Camera", back_populates="activity_baselines")
 
     # Constraints and indexes
     __table_args__ = (
@@ -109,7 +109,7 @@ class ClassBaseline(Base):
     )
 
     # Relationships
-    camera: Mapped[Camera] = relationship("Camera", backref="class_baselines")
+    camera: Mapped[Camera] = relationship("Camera", back_populates="class_baselines")
 
     # Constraints and indexes
     __table_args__ = (

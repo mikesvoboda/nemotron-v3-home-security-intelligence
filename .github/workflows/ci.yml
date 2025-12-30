@@ -113,7 +113,8 @@ jobs:
           exit 1
 
       - name: Run unit tests with coverage
-        # Unit tests have 92% coverage threshold (lowered from 93% during logging migration)
+        # Unit tests have 80% coverage threshold (lowered from 92% after moving
+        # DB-dependent tests to integration/ directory for proper separation)
         # -n0 disables xdist parallelization (CI already parallelizes via separate jobs)
         # --timeout=0 disables timeout (fixture import takes >1s in CI)
         run: |
@@ -124,7 +125,7 @@ jobs:
             --cov-config=pyproject.toml \
             --cov-report=xml:coverage-unit.xml \
             --cov-report=term-missing \
-            --cov-fail-under=92 \
+            --cov-fail-under=80 \
             --junit-xml=test-results-unit.xml \
             --durations=20 \
             -v
