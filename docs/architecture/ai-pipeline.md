@@ -1,3 +1,32 @@
+---
+title: AI Pipeline Architecture
+description: Detection, batching, and analysis flow with RT-DETRv2 and Nemotron LLM integration
+last_updated: 2025-12-30
+source_refs:
+  - backend/services/file_watcher.py:FileWatcher:34
+  - backend/services/file_watcher.py:is_image_file
+  - backend/services/file_watcher.py:is_valid_image
+  - backend/services/dedupe.py:DedupeService
+  - backend/services/dedupe.py:compute_file_hash
+  - backend/services/detector_client.py:DetectorClient:21
+  - backend/services/detector_client.py:detect_objects
+  - backend/services/batch_aggregator.py:BatchAggregator:23
+  - backend/services/batch_aggregator.py:add_detection
+  - backend/services/batch_aggregator.py:check_batch_timeouts
+  - backend/services/nemotron_analyzer.py:NemotronAnalyzer:28
+  - backend/services/nemotron_analyzer.py:analyze_batch
+  - backend/services/nemotron_analyzer.py:analyze_detection_fast_path
+  - backend/services/thumbnail_generator.py:ThumbnailGenerator
+  - backend/services/video_processor.py:VideoProcessor
+  - backend/services/pipeline_workers.py:DetectionQueueWorker
+  - backend/services/pipeline_workers.py:AnalysisQueueWorker
+  - backend/services/pipeline_workers.py:BatchTimeoutWorker
+  - backend/services/pipeline_workers.py:PipelineWorkerManager
+  - backend/services/prompts.py
+  - ai/rtdetr/model.py
+  - ai/nemotron/config.json
+---
+
 # AI Pipeline Architecture
 
 This document provides comprehensive technical documentation for the AI-powered detection and analysis pipeline in the Home Security Intelligence system. It is intended for maintainers who need to debug, extend, or optimize the AI processing flow.
@@ -721,7 +750,7 @@ Database table: `events`
 ### Detection to Event Transformation
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph "Raw Detections"
         D1[Detection 1<br/>person, 0.95]
         D2[Detection 2<br/>person, 0.92]

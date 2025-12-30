@@ -19,6 +19,10 @@ from backend.models.gpu_stats import GPUStats
 from backend.services.cleanup_service import CleanupService, CleanupStats
 from backend.tests.conftest import unique_id
 
+# Mark as integration since many tests require real PostgreSQL database (test_db fixture)
+# NOTE: This file should be moved to backend/tests/integration/ in a future cleanup
+pytestmark = pytest.mark.integration
+
 # Fixtures
 
 

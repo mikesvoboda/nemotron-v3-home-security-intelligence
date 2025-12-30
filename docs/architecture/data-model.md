@@ -1,8 +1,32 @@
+---
+title: Data Model Reference
+description: Database schema, entity relationships, Redis data structures, and data lifecycle
+last_updated: 2025-12-30
+source_refs:
+  - backend/models/camera.py:Camera:59
+  - backend/models/camera.py:Base:53
+  - backend/models/camera.py:normalize_camera_id:18
+  - backend/models/detection.py:Detection:17
+  - backend/models/event.py:Event:20
+  - backend/models/alert.py:Alert
+  - backend/models/alert.py:AlertRule
+  - backend/models/zone.py:Zone
+  - backend/models/baseline.py:ActivityBaseline
+  - backend/models/baseline.py:ClassBaseline
+  - backend/models/audit.py:AuditLog
+  - backend/models/gpu_stats.py:GPUStats
+  - backend/models/log.py:Log
+  - backend/models/api_key.py:APIKey
+  - backend/models/enums.py:Severity
+  - backend/core/database.py:init_db
+  - backend/core/redis.py:RedisClient
+---
+
 # Data Model Reference
 
 > **Audience:** Future maintainers who need to understand what data is stored, where, and why.
 
-This document describes the complete data model for the Home Security Intelligence system, including SQLite tables, Redis data structures, and the data lifecycle from camera capture to event analysis.
+This document describes the complete data model for the Home Security Intelligence system, including PostgreSQL tables, Redis data structures, and the data lifecycle from camera capture to event analysis.
 
 ---
 
