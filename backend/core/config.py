@@ -512,6 +512,14 @@ class Settings(BaseSettings):
         description="Maximum number of frames to extract from a video",
     )
 
+    # Service health monitor settings
+    ai_restart_enabled: bool = Field(
+        default=True,
+        description="Enable automatic restart of AI services (RT-DETRv2, Nemotron) on health check failure. "
+        "Set to False in containerized deployments where restart scripts are not available. "
+        "Health monitoring and status broadcasts still occur when disabled.",
+    )
+
     # TLS/HTTPS settings (legacy - kept for backward compatibility)
     tls_enabled: bool = Field(
         default=False,

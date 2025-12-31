@@ -69,20 +69,70 @@ class MockRedisClient:
 
     def __init__(self) -> None:
         self._store: dict[str, Any] = {}
+        self._lists: dict[str, list[str]] = {}  # For Redis LIST operations (rpush/lrange)
         self._queues: dict[str, list[Any]] = {}
-        # Create a mock inner client that supports async scan_iter()
-        self._client = AsyncMock()
-        # scan_iter returns an async generator - we'll set it up dynamically
-        self._client.scan_iter = self._create_scan_iter_mock([])
+        # Create a mock inner client that supports async operations
+        self._client = self._create_inner_client()
+
+    def _create_inner_client(self) -> MagicMock:
+        """Create a mock inner client with all required async operations."""
+        inner_client = MagicMock()
+        parent = self  # Capture self for closures
+
+        # scan_iter returns an async generator
+        async def _scan_iter_impl(match: str = "*", count: int = 100):
+            import fnmatch
+
+            for key in list(parent._store.keys()):
+                if fnmatch.fnmatch(key, match):
+                    yield key
+
+        inner_client.scan_iter = MagicMock(
+            side_effect=lambda match="*", count=100: _scan_iter_impl(match, count)
+        )
+
+        # rpush - atomically append to list
+        async def _rpush_impl(key: str, value: str) -> int:
+            if key not in parent._lists:
+                parent._lists[key] = []
+            parent._lists[key].append(value)
+            return len(parent._lists[key])
+
+        inner_client.rpush = _rpush_impl
+
+        # lrange - get list elements
+        async def _lrange_impl(key: str, start: int, end: int) -> list[str]:
+            if key not in parent._lists:
+                return []
+            if end == -1:
+                return parent._lists[key][start:]
+            return parent._lists[key][start : end + 1]
+
+        inner_client.lrange = _lrange_impl
+
+        # expire - set key TTL (no-op in mock)
+        async def _expire_impl(key: str, ttl: int) -> bool:
+            return True
+
+        inner_client.expire = _expire_impl
+
+        return inner_client
 
     def _create_scan_iter_mock(self, keys: list[str]) -> MagicMock:
-        """Create a mock scan_iter that returns an async generator."""
+        """Create a mock scan_iter that returns specific keys.
 
-        async def _generator():
+        Args:
+            keys: List of keys to yield from scan_iter
+
+        Returns:
+            MagicMock configured to return an async generator yielding the keys
+        """
+
+        async def _custom_scan_iter(match: str = "*", count: int = 100):
             for key in keys:
                 yield key
 
-        return MagicMock(return_value=_generator())
+        return MagicMock(side_effect=lambda match="*", count=100: _custom_scan_iter(match, count))
 
     def _validate_json_serializable(self, value: Any) -> str:
         """Validate that a value is JSON-serializable and return the serialized string.
@@ -129,6 +179,9 @@ class MockRedisClient:
         for key in keys:
             if key in self._store:
                 del self._store[key]
+                deleted += 1
+            if key in self._lists:
+                del self._lists[key]
                 deleted += 1
         return deleted
 
@@ -1016,8 +1069,9 @@ async def test_batch_close_to_analyze_handoff_without_redis_rehydration(
 
     # Verify batch metadata exists in Redis before close
     assert await mock_redis.get(f"batch:{batch_id}:camera_id") == camera_id
-    batch_detections_before = await mock_redis.get(f"batch:{batch_id}:detections")
-    assert batch_detections_before is not None
+    # Detections are now stored in a Redis LIST (using rpush), not as a JSON string
+    batch_detections_before = mock_redis._lists.get(f"batch:{batch_id}:detections", [])
+    assert len(batch_detections_before) > 0
 
     # Step 3: Close batch - this deletes Redis keys and enqueues
     batch_summary = await aggregator.close_batch(batch_id)
@@ -1026,7 +1080,8 @@ async def test_batch_close_to_analyze_handoff_without_redis_rehydration(
 
     # Verify Redis keys are deleted after close
     assert await mock_redis.get(f"batch:{batch_id}:camera_id") is None
-    assert await mock_redis.get(f"batch:{batch_id}:detections") is None
+    # Detections list should be deleted too
+    assert f"batch:{batch_id}:detections" not in mock_redis._lists
 
     # Step 4: Verify queue item contains all needed data
     queue_items = await mock_redis.peek_queue("analysis_queue")

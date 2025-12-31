@@ -10,7 +10,7 @@ import {
   Square,
   X,
 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import EventCard from './EventCard';
 import EventDetailModal from './EventDetailModal';
@@ -89,6 +89,9 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
+  // Ref to track the latest search request ID to prevent race conditions
+  const searchRequestIdRef = useRef(0);
+
   // Load cameras for filter dropdown
   useEffect(() => {
     const loadCameras = async () => {
@@ -165,6 +168,9 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
     async (query: string, filters: SearchFilters) => {
       if (!query.trim()) return;
 
+      // Increment request ID to track this request
+      const requestId = ++searchRequestIdRef.current;
+
       setIsSearchMode(true);
       setIsSearching(true);
       setSearchError(null);
@@ -184,14 +190,23 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
           limit: 20,
           offset: 0,
         });
-        setSearchResults(response.results);
-        setSearchTotalCount(response.total_count);
+        // Only update state if this is still the latest request
+        if (requestId === searchRequestIdRef.current) {
+          setSearchResults(response.results);
+          setSearchTotalCount(response.total_count);
+        }
       } catch (err) {
-        setSearchError(err instanceof Error ? err.message : 'Search failed');
-        setSearchResults([]);
-        setSearchTotalCount(0);
+        // Only update error state if this is still the latest request
+        if (requestId === searchRequestIdRef.current) {
+          setSearchError(err instanceof Error ? err.message : 'Search failed');
+          setSearchResults([]);
+          setSearchTotalCount(0);
+        }
       } finally {
-        setIsSearching(false);
+        // Only update loading state if this is still the latest request
+        if (requestId === searchRequestIdRef.current) {
+          setIsSearching(false);
+        }
       }
     },
     []
@@ -200,6 +215,9 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   // Handle search pagination
   const handleSearchPageChange = useCallback(
     async (newOffset: number) => {
+      // Increment request ID to track this request
+      const requestId = ++searchRequestIdRef.current;
+
       setIsSearching(true);
       setSearchOffset(newOffset);
 
@@ -215,12 +233,21 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
           limit: 20,
           offset: newOffset,
         });
-        setSearchResults(response.results);
-        setSearchTotalCount(response.total_count);
+        // Only update state if this is still the latest request
+        if (requestId === searchRequestIdRef.current) {
+          setSearchResults(response.results);
+          setSearchTotalCount(response.total_count);
+        }
       } catch (err) {
-        setSearchError(err instanceof Error ? err.message : 'Search failed');
+        // Only update error state if this is still the latest request
+        if (requestId === searchRequestIdRef.current) {
+          setSearchError(err instanceof Error ? err.message : 'Search failed');
+        }
       } finally {
-        setIsSearching(false);
+        // Only update loading state if this is still the latest request
+        if (requestId === searchRequestIdRef.current) {
+          setIsSearching(false);
+        }
       }
     },
     [fullTextQuery, searchFilters]

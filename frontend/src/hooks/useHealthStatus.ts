@@ -95,18 +95,24 @@ export function useHealthStatus(options: UseHealthStatusOptions = {}): UseHealth
     };
   }, [enabled, fetchHealthStatus]);
 
+  // Store fetchHealthStatus in a ref to avoid restarting the interval
+  // when the callback identity changes (which shouldn't happen, but this is defensive)
+  const fetchHealthStatusRef = useRef(fetchHealthStatus);
+  fetchHealthStatusRef.current = fetchHealthStatus;
+
   // Set up polling interval
   useEffect(() => {
     if (!enabled || pollingInterval <= 0) return;
 
     const intervalId = setInterval(() => {
-      void fetchHealthStatus();
+      void fetchHealthStatusRef.current();
     }, pollingInterval);
 
     return () => {
       clearInterval(intervalId);
     };
-  }, [enabled, pollingInterval, fetchHealthStatus]);
+    // Only depend on enabled and pollingInterval - use ref for callback to avoid restarts
+  }, [enabled, pollingInterval]);
 
   // Derive overall status from health response
   const overallStatus: 'healthy' | 'degraded' | 'unhealthy' | null =

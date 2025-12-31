@@ -79,6 +79,10 @@ def mock_redis_client():
     # Use scan_iter instead of keys (returns async generator)
     mock_internal.scan_iter = MagicMock(return_value=_create_empty_async_generator())
     mock_internal.ping = AsyncMock(return_value=True)
+    # lrange is used for atomic list operations (detections)
+    mock_internal.lrange = AsyncMock(return_value=[])
+    mock_internal.rpush = AsyncMock(return_value=1)
+    mock_internal.expire = AsyncMock(return_value=True)
     mock_client._client = mock_internal
 
     # High-level operations
@@ -268,11 +272,11 @@ class TestQueueConsumerLoop:
                 return old_timestamp
             elif key == f"batch:{batch_id}:camera_id":
                 return camera_id
-            elif key == f"batch:{batch_id}:detections":
-                return json.dumps([1])  # Use numeric detection ID
             return None
 
         mock_redis_client.get.side_effect = mock_get
+        # Mock lrange for detections (now uses atomic list operations)
+        mock_redis_client._client.lrange = AsyncMock(return_value=["1"])
 
         # Execute timeout check
         closed_batches = await batch_aggregator.check_batch_timeouts()
@@ -969,17 +973,19 @@ class TestEdgeCases:
         batch_id = "large_batch"
         # Detection IDs must be integers (database model requirement)
         detection_ids = list(range(1000))  # 1000 detections (integers 0-999)
+        # lrange returns list of strings
+        detection_ids_str = [str(i) for i in detection_ids]
 
         async def mock_get(key):
             if key == f"batch:{batch_id}:camera_id":
                 return "test_cam"
-            elif key == f"batch:{batch_id}:detections":
-                return json.dumps(detection_ids)
             elif key == f"batch:{batch_id}:started_at":
                 return str(time.time())
             return None
 
         mock_redis_client.get.side_effect = mock_get
+        # Mock lrange for detections (now uses atomic list operations)
+        mock_redis_client._client.lrange = AsyncMock(return_value=detection_ids_str)
 
         summary = await batch_aggregator.close_batch(batch_id)
 

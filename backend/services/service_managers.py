@@ -33,7 +33,8 @@ class ServiceConfig:
     Attributes:
         name: Service identifier (e.g., "rtdetr", "nemotron", "redis")
         health_url: HTTP endpoint for health checks (e.g., "http://localhost:8001/health")
-        restart_cmd: Command to restart the service (script path or container name)
+        restart_cmd: Command to restart the service (script path or container name).
+            Set to None to disable automatic restart (health monitoring still works).
         health_timeout: Timeout in seconds for health check requests
         max_retries: Maximum number of restart attempts before giving up
         backoff_base: Base time in seconds for exponential backoff (5s, 10s, 20s...)
@@ -41,7 +42,7 @@ class ServiceConfig:
 
     name: str
     health_url: str
-    restart_cmd: str
+    restart_cmd: str | None = None
     health_timeout: float = 5.0
     max_retries: int = 3
     backoff_base: float = 5.0
@@ -228,12 +229,23 @@ class ShellServiceManager(ServiceManager):
         complete. If the subprocess takes longer than subprocess_timeout,
         it is killed and the restart is considered failed.
 
+        If restart_cmd is None, logs a warning and returns False.
+        This allows health monitoring without automatic restart capability.
+
         Args:
             config: Service configuration with restart_cmd
 
         Returns:
             True if the command exits with code 0, False otherwise
         """
+        # Handle case where restart is disabled (no restart_cmd configured)
+        if config.restart_cmd is None:
+            logger.warning(
+                f"Restart disabled for {config.name}: no restart_cmd configured",
+                extra={"service": config.name},
+            )
+            return False
+
         logger.info(
             f"Attempting to restart {config.name} via shell",
             extra={"service": config.name, "command": config.restart_cmd},
@@ -326,18 +338,21 @@ class DockerServiceManager(ServiceManager):
         """
         return await self._shell_manager.check_health(config)
 
-    def _extract_container_name(self, config: ServiceConfig) -> str:
+    def _extract_container_name(self, config: ServiceConfig) -> str | None:
         """Extract Docker container name from config.
 
         If restart_cmd starts with 'docker restart ', extract the container name.
         Otherwise, use the service name as the container name.
+        Returns None if restart_cmd is None.
 
         Args:
             config: Service configuration
 
         Returns:
-            Docker container name to restart
+            Docker container name to restart, or None if restart is disabled
         """
+        if config.restart_cmd is None:
+            return None
         restart_cmd = config.restart_cmd.strip()
 
         # Check if restart_cmd is already a docker restart command
@@ -359,6 +374,9 @@ class DockerServiceManager(ServiceManager):
         config.name as the container name. Executes `docker restart`
         and waits for completion.
 
+        If restart_cmd is None, logs a warning and returns False.
+        This allows health monitoring without automatic restart capability.
+
         Args:
             config: Service configuration
 
@@ -366,6 +384,14 @@ class DockerServiceManager(ServiceManager):
             True if docker restart exits with code 0, False otherwise
         """
         container_name = self._extract_container_name(config)
+
+        # Handle case where restart is disabled (no restart_cmd configured)
+        if container_name is None:
+            logger.warning(
+                f"Restart disabled for {config.name}: no restart_cmd configured",
+                extra={"service": config.name},
+            )
+            return False
 
         logger.info(
             f"Attempting to restart {config.name} via Docker",
