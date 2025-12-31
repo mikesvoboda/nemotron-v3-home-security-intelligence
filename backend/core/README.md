@@ -21,9 +21,12 @@ Usage:
 
 ```python
 from backend.core import get_settings
+from backend.core.logging import redact_url
 
 settings = get_settings()
-print(settings.database_url)
+# IMPORTANT: Always redact sensitive URLs when logging/printing
+print(redact_url(settings.database_url))
+# Output: postgresql+asyncpg://security:[REDACTED]@localhost:5432/security
 ```
 
 ### redis.py

@@ -679,4 +679,174 @@ describe('useWebSocket', () => {
     // Hook should work with connectionTimeout of 0
     expect(result.current).toBeDefined();
   });
+
+  // Heartbeat handling tests
+  describe('heartbeat handling', () => {
+    it('should handle server heartbeat messages and update lastHeartbeat', async () => {
+      const onHeartbeat = vi.fn();
+      const onMessage = vi.fn();
+      const options: WebSocketOptions = {
+        url: 'ws://localhost:8000/ws',
+        onHeartbeat,
+        onMessage,
+      };
+
+      const { result } = renderHook(() => useWebSocket(options));
+
+      await waitFor(() => {
+        expect(result.current.isConnected).toBe(true);
+      });
+
+      // Initially lastHeartbeat should be null
+      expect(result.current.lastHeartbeat).toBeNull();
+
+      // Simulate server sending a heartbeat ping
+      const heartbeatMessage = { type: 'ping' };
+
+      act(() => {
+        mockWebSocket?.simulateMessage(heartbeatMessage);
+      });
+
+      // lastHeartbeat should be updated
+      expect(result.current.lastHeartbeat).toBeInstanceOf(Date);
+      // onHeartbeat callback should be called
+      expect(onHeartbeat).toHaveBeenCalled();
+      // onMessage should NOT be called for heartbeat messages
+      expect(onMessage).not.toHaveBeenCalled();
+      // lastMessage should NOT be updated for heartbeat messages
+      expect(result.current.lastMessage).toBeNull();
+    });
+
+    it('should automatically respond with pong to server heartbeats', async () => {
+      const options: WebSocketOptions = {
+        url: 'ws://localhost:8000/ws',
+        autoRespondToHeartbeat: true, // This is the default
+      };
+
+      const { result } = renderHook(() => useWebSocket(options));
+
+      await waitFor(() => {
+        expect(result.current.isConnected).toBe(true);
+      });
+
+      const sendSpy = vi.spyOn(mockWebSocket as MockWebSocket, 'send');
+
+      // Simulate server sending a heartbeat ping
+      const heartbeatMessage = { type: 'ping' };
+
+      act(() => {
+        mockWebSocket?.simulateMessage(heartbeatMessage);
+      });
+
+      // Should have sent a pong response
+      expect(sendSpy).toHaveBeenCalledWith(JSON.stringify({ type: 'pong' }));
+    });
+
+    it('should not send pong when autoRespondToHeartbeat is false', async () => {
+      const options: WebSocketOptions = {
+        url: 'ws://localhost:8000/ws',
+        autoRespondToHeartbeat: false,
+      };
+
+      const { result } = renderHook(() => useWebSocket(options));
+
+      await waitFor(() => {
+        expect(result.current.isConnected).toBe(true);
+      });
+
+      const sendSpy = vi.spyOn(mockWebSocket as MockWebSocket, 'send');
+
+      // Simulate server sending a heartbeat ping
+      const heartbeatMessage = { type: 'ping' };
+
+      act(() => {
+        mockWebSocket?.simulateMessage(heartbeatMessage);
+      });
+
+      // Should NOT have sent a pong response
+      expect(sendSpy).not.toHaveBeenCalled();
+      // But lastHeartbeat should still be updated
+      expect(result.current.lastHeartbeat).toBeInstanceOf(Date);
+    });
+
+    it('should not treat regular messages with type field as heartbeats', async () => {
+      const onMessage = vi.fn();
+      const onHeartbeat = vi.fn();
+      const options: WebSocketOptions = {
+        url: 'ws://localhost:8000/ws',
+        onMessage,
+        onHeartbeat,
+      };
+
+      const { result } = renderHook(() => useWebSocket(options));
+
+      await waitFor(() => {
+        expect(result.current.isConnected).toBe(true);
+      });
+
+      // Simulate a regular message with a different type
+      const regularMessage = { type: 'event', data: { id: 1 } };
+
+      act(() => {
+        mockWebSocket?.simulateMessage(regularMessage);
+      });
+
+      // onMessage should be called for non-heartbeat messages
+      expect(onMessage).toHaveBeenCalledWith(regularMessage);
+      // onHeartbeat should NOT be called
+      expect(onHeartbeat).not.toHaveBeenCalled();
+      // lastMessage should be updated
+      expect(result.current.lastMessage).toEqual(regularMessage);
+    });
+
+    it('should expose lastHeartbeat in return value', async () => {
+      const options: WebSocketOptions = {
+        url: 'ws://localhost:8000/ws',
+      };
+
+      const { result } = renderHook(() => useWebSocket(options));
+
+      // Initially should be null
+      expect(result.current.lastHeartbeat).toBeNull();
+
+      await waitFor(() => {
+        expect(result.current.isConnected).toBe(true);
+      });
+
+      // After connection, should still be null (no heartbeat yet)
+      expect(result.current.lastHeartbeat).toBeNull();
+    });
+
+    it('should update lastHeartbeat timestamp on each heartbeat', async () => {
+      const options: WebSocketOptions = {
+        url: 'ws://localhost:8000/ws',
+      };
+
+      const { result } = renderHook(() => useWebSocket(options));
+
+      await waitFor(() => {
+        expect(result.current.isConnected).toBe(true);
+      });
+
+      // First heartbeat
+      act(() => {
+        mockWebSocket?.simulateMessage({ type: 'ping' });
+      });
+
+      const firstHeartbeat = result.current.lastHeartbeat;
+      expect(firstHeartbeat).toBeInstanceOf(Date);
+
+      // Wait a bit and send another heartbeat
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      act(() => {
+        mockWebSocket?.simulateMessage({ type: 'ping' });
+      });
+
+      const secondHeartbeat = result.current.lastHeartbeat;
+      expect(secondHeartbeat).toBeInstanceOf(Date);
+      // Second heartbeat should be later (or equal due to timing)
+      expect(secondHeartbeat!.getTime()).toBeGreaterThanOrEqual(firstHeartbeat!.getTime());
+    });
+  });
 });

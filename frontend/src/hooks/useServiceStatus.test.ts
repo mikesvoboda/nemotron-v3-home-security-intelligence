@@ -19,6 +19,7 @@ describe('useServiceStatus', () => {
     disconnect: vi.fn(),
     hasExhaustedRetries: false,
     reconnectCount: 0,
+    lastHeartbeat: null,
   };
 
   let onMessageCallback: ((data: unknown) => void) | undefined;
