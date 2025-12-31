@@ -29,6 +29,18 @@ no text overlays"
 
 ---
 
+## Documentation
+
+> **Pick your path based on what you want to do:**
+
+| I want to...                  | Go here                                |
+| ----------------------------- | -------------------------------------- |
+| **Run this at home**          | [User Hub](docs/user-hub.md)           |
+| **Deploy and maintain this**  | [Operator Hub](docs/operator-hub.md)   |
+| **Contribute or extend this** | [Developer Hub](docs/developer-hub.md) |
+
+---
+
 ## Quick Start
 
 Choose your deployment path:
@@ -82,15 +94,17 @@ docker compose up -d
 
 > **Note:** Do NOT mix host AI servers with `docker-compose.prod.yml` -- this causes port conflicts on 8090/8091.
 
+For detailed deployment guidance, see the [Operator Hub](docs/operator-hub.md).
+
 ---
 
 ## Key Features
 
-| Feature                 | Description                               | Docs                                                |
-| ----------------------- | ----------------------------------------- | --------------------------------------------------- |
-| **AI Risk Scoring**     | 0-100 scores with LLM-generated reasoning | [Architecture](docs/architecture/ai-pipeline.md)    |
-| **Real-time Dashboard** | Live event feed, risk gauge, camera grid  | [User Guide](docs/user-guide/dashboard-overview.md) |
-| **Event Timeline**      | Filter by camera, risk level, date range  | [User Guide](docs/user-guide/event-timeline.md)     |
+| Feature                 | Description                               |
+| ----------------------- | ----------------------------------------- |
+| **AI Risk Scoring**     | 0-100 scores with LLM-generated reasoning |
+| **Real-time Dashboard** | Live event feed, risk gauge, camera grid  |
+| **Event Timeline**      | Filter by camera, risk level, date range  |
 
 ---
 
@@ -106,19 +120,6 @@ docker compose up -d
 
 ---
 
-## Documentation
-
-> **[Full Documentation](docs/README.md)** -- Comprehensive guides for all audiences.
-
-| Audience            | Start Here                                                                                                                                                       |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Getting Started** | [Prerequisites](docs/getting-started/prerequisites.md) -> [Installation](docs/getting-started/installation.md) -> [First Run](docs/getting-started/first-run.md) |
-| **End Users**       | [Dashboard Overview](docs/user-guide/dashboard-overview.md)                                                                                                      |
-| **Administrators**  | [Configuration](docs/admin-guide/configuration.md)                                                                                                               |
-| **Developers**      | [Architecture Overview](docs/architecture/overview.md)                                                                                                           |
-
----
-
 ## Security
 
 **Designed for local/trusted network use.** No authentication by default (single-user assumption).
@@ -128,6 +129,8 @@ Do not expose to the internet without adding authentication and hardening.
 ---
 
 ## Contributing
+
+See the [Developer Hub](docs/developer-hub.md) for architecture, testing, and contribution guidelines.
 
 Task tracking uses **bd (beads)**:
 
