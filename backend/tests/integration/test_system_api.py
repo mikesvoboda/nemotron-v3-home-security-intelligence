@@ -587,3 +587,164 @@ async def test_readiness_endpoint_graceful_when_no_pipeline_manager(client, mock
 
     finally:
         system_routes._pipeline_manager = original_pipeline_manager
+
+
+# =============================================================================
+# Pipeline Status Endpoint Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_pipeline_status_endpoint_basic(client, mock_redis):
+    """Test pipeline status endpoint returns valid response structure."""
+    response = await client.get("/api/system/pipeline")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # Check response structure
+    assert "file_watcher" in data
+    assert "batch_aggregator" in data
+    assert "degradation" in data
+    assert "timestamp" in data
+
+    # Verify timestamp format
+    timestamp = datetime.fromisoformat(data["timestamp"])
+    assert isinstance(timestamp, datetime)
+
+
+@pytest.mark.asyncio
+async def test_pipeline_status_with_file_watcher_registered(client, mock_redis):
+    """Test pipeline status endpoint when file watcher is registered."""
+    from unittest.mock import MagicMock
+
+    from backend.api.routes import system as system_routes
+
+    # Save original
+    original_file_watcher = system_routes._file_watcher
+
+    try:
+        # Mock file watcher
+        mock_watcher = MagicMock()
+        mock_watcher.running = True
+        mock_watcher.camera_root = "/export/foscam"
+        mock_watcher._use_polling = False
+        mock_watcher._pending_tasks = {"file1.jpg": True, "file2.jpg": True}
+        system_routes._file_watcher = mock_watcher
+
+        response = await client.get("/api/system/pipeline")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Check file watcher status
+        fw = data["file_watcher"]
+        assert fw is not None
+        assert fw["running"] is True
+        assert fw["camera_root"] == "/export/foscam"
+        assert fw["pending_tasks"] == 2
+        assert fw["observer_type"] == "native"
+
+    finally:
+        system_routes._file_watcher = original_file_watcher
+
+
+@pytest.mark.asyncio
+async def test_pipeline_status_with_file_watcher_polling_mode(client, mock_redis):
+    """Test pipeline status endpoint shows polling observer type."""
+    from unittest.mock import MagicMock
+
+    from backend.api.routes import system as system_routes
+
+    # Save original
+    original_file_watcher = system_routes._file_watcher
+
+    try:
+        # Mock file watcher with polling mode
+        mock_watcher = MagicMock()
+        mock_watcher.running = True
+        mock_watcher.camera_root = "/mnt/cameras"
+        mock_watcher._use_polling = True
+        mock_watcher._pending_tasks = {}
+        system_routes._file_watcher = mock_watcher
+
+        response = await client.get("/api/system/pipeline")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Check file watcher shows polling mode
+        fw = data["file_watcher"]
+        assert fw is not None
+        assert fw["observer_type"] == "polling"
+
+    finally:
+        system_routes._file_watcher = original_file_watcher
+
+
+@pytest.mark.asyncio
+async def test_pipeline_status_file_watcher_not_running(client, mock_redis):
+    """Test pipeline status when file watcher is not registered."""
+    from backend.api.routes import system as system_routes
+
+    # Save original
+    original_file_watcher = system_routes._file_watcher
+
+    try:
+        # Set file watcher to None
+        system_routes._file_watcher = None
+
+        response = await client.get("/api/system/pipeline")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # File watcher should be null
+        assert data["file_watcher"] is None
+
+    finally:
+        system_routes._file_watcher = original_file_watcher
+
+
+@pytest.mark.asyncio
+async def test_pipeline_status_with_degradation_manager(client, mock_redis):
+    """Test pipeline status endpoint with degradation manager status."""
+
+    response = await client.get("/api/system/pipeline")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # Degradation field may be None or have status depending on initialization
+    # This is expected behavior - degradation manager may not be initialized in tests
+    assert "degradation" in data
+
+
+@pytest.mark.asyncio
+async def test_pipeline_status_batch_aggregator_no_redis(client):
+    """Test pipeline status when Redis is not available."""
+    from unittest.mock import patch
+
+    # Mock get_redis_optional to return None
+    with patch("backend.api.routes.system.get_redis_optional", return_value=None):
+        response = await client.get("/api/system/pipeline")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Batch aggregator should be null when Redis is unavailable
+        assert data["batch_aggregator"] is None
+
+
+@pytest.mark.asyncio
+async def test_pipeline_status_timestamp_is_recent(client, mock_redis):
+    """Test pipeline status endpoint timestamp is recent."""
+    response = await client.get("/api/system/pipeline")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # Parse timestamp and verify it's within last minute
+    timestamp = datetime.fromisoformat(data["timestamp"].replace("Z", "+00:00"))
+    now = datetime.now(UTC)
+    assert (now - timestamp).total_seconds() < 60

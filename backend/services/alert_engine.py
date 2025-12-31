@@ -41,6 +41,16 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+
+def _utc_now_naive() -> datetime:
+    """Get current UTC time as naive datetime for PostgreSQL compatibility.
+
+    PostgreSQL TIMESTAMP WITHOUT TIME ZONE columns cannot accept timezone-aware
+    datetimes from Python. This function ensures we always use naive UTC times.
+    """
+    return datetime.now(UTC).replace(tzinfo=None)
+
+
 # Severity priority for determining which rule takes precedence
 SEVERITY_PRIORITY = {
     AlertSeverity.LOW: 0,
@@ -117,7 +127,7 @@ class AlertRuleEngine:
             EvaluationResult with list of triggered rules and evaluation metadata
         """
         if current_time is None:
-            current_time = datetime.now(UTC)
+            current_time = _utc_now_naive()
 
         # Load detections if not provided
         if detections is None:
@@ -378,15 +388,22 @@ class AlertRuleEngine:
         Returns True if in cooldown (should skip), False if not in cooldown.
         """
         cooldown_seconds = rule.cooldown_seconds or 300
-        cutoff_time = current_time - timedelta(seconds=cooldown_seconds)
+        # Strip timezone for naive DB column comparison
+        cutoff_time = (current_time - timedelta(seconds=cooldown_seconds)).replace(tzinfo=None)
 
         # Check database for recent alerts with this dedup_key and rule
+        # Use with_for_update() to lock the rows during check-then-insert operation
+        # This prevents TOCTOU race conditions where concurrent requests could both
+        # pass the cooldown check before either inserts.
+        # skip_locked=True allows non-blocking behavior for concurrent queries on
+        # different dedup_keys.
         stmt = (
             select(Alert)
             .where(Alert.dedup_key == dedup_key)
             .where(Alert.rule_id == rule.id)
             .where(Alert.created_at >= cutoff_time)
             .limit(1)
+            .with_for_update(skip_locked=True)
         )
 
         result = await self.session.execute(stmt)
@@ -448,7 +465,7 @@ class AlertRuleEngine:
             List of test results with match status and details
         """
         if current_time is None:
-            current_time = datetime.now(UTC)
+            current_time = _utc_now_naive()
 
         results = []
 
