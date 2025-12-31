@@ -555,3 +555,418 @@ async def test_nvml_shutdown_handles_error(mock_pynvml, mock_database_session):
 
     # Should not raise exception
     await monitor.stop()
+
+
+# Test NVML initialization with generic exception (not ImportError)
+
+
+def test_gpu_monitor_init_generic_exception():
+    """Test GPUMonitor initialization when nvmlInit raises a generic exception."""
+    # Save original if it exists
+    original_pynvml = sys.modules.get("pynvml")
+
+    # Create a mock pynvml that raises generic exception on nvmlInit
+    mock_nvml = MagicMock()
+    mock_nvml.nvmlInit.side_effect = Exception("Generic NVML error")
+
+    sys.modules["pynvml"] = mock_nvml
+
+    try:
+        monitor = GPUMonitor(poll_interval=5.0)
+
+        # Should fall back to mock mode
+        assert monitor._gpu_available is False
+        assert monitor._nvml_initialized is False
+        assert monitor.running is False
+    finally:
+        # Cleanup
+        if original_pynvml is not None:
+            sys.modules["pynvml"] = original_pynvml
+        elif "pynvml" in sys.modules:
+            del sys.modules["pynvml"]
+
+
+# Test _get_gpu_stats_real when GPU not available
+
+
+def test_get_gpu_stats_real_raises_when_gpu_unavailable(mock_pynvml_not_available):
+    """Test that _get_gpu_stats_real raises RuntimeError when GPU not available."""
+    monitor = GPUMonitor()
+
+    # GPU should not be available
+    assert monitor._gpu_available is False
+
+    # Trying to get real stats should raise RuntimeError
+    with pytest.raises(RuntimeError, match="GPU not available"):
+        monitor._get_gpu_stats_real()
+
+
+# Test partial NVML failures for memory and power
+
+
+def test_get_stats_with_memory_nvml_failure(mock_pynvml):
+    """Test getting stats when memory NVML calls fail."""
+    monitor = GPUMonitor()
+
+    # Make memory call fail
+    mock_pynvml.nvmlDeviceGetMemoryInfo.side_effect = Exception("Memory info error")
+
+    stats = monitor.get_current_stats()
+
+    # Memory should be None, others should still work
+    assert stats["gpu_name"] == "NVIDIA RTX A5500"
+    assert stats["gpu_utilization"] == 75.0
+    assert stats["memory_used"] is None
+    assert stats["memory_total"] is None
+    assert stats["temperature"] == 65.0
+    assert stats["power_usage"] == 150.0
+
+
+def test_get_stats_with_power_nvml_failure(mock_pynvml):
+    """Test getting stats when power NVML call fails."""
+    monitor = GPUMonitor()
+
+    # Make power call fail
+    mock_pynvml.nvmlDeviceGetPowerUsage.side_effect = Exception("Power info error")
+
+    stats = monitor.get_current_stats()
+
+    # Power should be None, others should still work
+    assert stats["gpu_name"] == "NVIDIA RTX A5500"
+    assert stats["gpu_utilization"] == 75.0
+    assert stats["memory_used"] == 8192
+    assert stats["temperature"] == 65.0
+    assert stats["power_usage"] is None
+
+
+def test_get_stats_real_generic_exception(mock_pynvml):
+    """Test that generic exceptions in _get_gpu_stats_real are re-raised."""
+    monitor = GPUMonitor()
+
+    # Make a generic error occur
+    with patch.object(monitor, "_gpu_handle", None):
+        monitor._gpu_available = True  # Force it to try real stats
+
+        # Should fall back to mock data in get_current_stats
+        stats = monitor.get_current_stats()
+        assert stats["gpu_name"] == "Mock GPU (No NVIDIA GPU Available)"
+
+
+# Test _parse_rtdetr_response
+
+
+def test_parse_rtdetr_response_full_data(mock_pynvml):
+    """Test parsing RT-DETRv2 response with all data."""
+    monitor = GPUMonitor()
+
+    data = {"vram_used_gb": 4.5, "device": "cuda:0"}
+    vram_mb, device = monitor._parse_rtdetr_response(data)
+
+    assert vram_mb == 4.5 * 1024  # 4608 MB
+    assert device == "cuda:0"
+
+
+def test_parse_rtdetr_response_no_vram(mock_pynvml):
+    """Test parsing RT-DETRv2 response without VRAM data."""
+    monitor = GPUMonitor()
+
+    data = {"device": "cuda:0"}
+    vram_mb, device = monitor._parse_rtdetr_response(data)
+
+    assert vram_mb == 0.0
+    assert device == "cuda:0"
+
+
+def test_parse_rtdetr_response_no_device(mock_pynvml):
+    """Test parsing RT-DETRv2 response without device data."""
+    monitor = GPUMonitor()
+
+    data = {"vram_used_gb": 2.0}
+    vram_mb, device = monitor._parse_rtdetr_response(data)
+
+    assert vram_mb == 2.0 * 1024
+    assert device is None
+
+
+def test_parse_rtdetr_response_empty(mock_pynvml):
+    """Test parsing RT-DETRv2 response with empty data."""
+    monitor = GPUMonitor()
+
+    data = {}
+    vram_mb, device = monitor._parse_rtdetr_response(data)
+
+    assert vram_mb == 0.0
+    assert device is None
+
+
+# Test _parse_vram_metric_line
+
+
+def test_parse_vram_metric_line_bytes(mock_pynvml):
+    """Test parsing VRAM metric line with bytes unit."""
+    monitor = GPUMonitor()
+
+    line = "vram_used_bytes 8589934592"  # 8 GB in bytes
+    result = monitor._parse_vram_metric_line(line)
+
+    # 8589934592 bytes = 8192 MB
+    assert result == 8589934592 / (1024 * 1024)
+
+
+def test_parse_vram_metric_line_gb(mock_pynvml):
+    """Test parsing VRAM metric line with GB unit."""
+    monitor = GPUMonitor()
+
+    line = "vram_used_gb 4.0"
+    result = monitor._parse_vram_metric_line(line)
+
+    assert result == 4.0 * 1024  # 4096 MB
+
+
+def test_parse_vram_metric_line_default_mb(mock_pynvml):
+    """Test parsing VRAM metric line with default MB assumption."""
+    monitor = GPUMonitor()
+
+    line = "vram_used 2048"  # Assumed MB
+    result = monitor._parse_vram_metric_line(line)
+
+    assert result == 2048.0
+
+
+def test_parse_vram_metric_line_too_few_parts(mock_pynvml):
+    """Test parsing VRAM metric line with insufficient parts."""
+    monitor = GPUMonitor()
+
+    line = "vram_used"
+    result = monitor._parse_vram_metric_line(line)
+
+    assert result == 0.0
+
+
+def test_parse_vram_metric_line_invalid_value(mock_pynvml):
+    """Test parsing VRAM metric line with invalid value."""
+    monitor = GPUMonitor()
+
+    line = "vram_used invalid_number"
+    result = monitor._parse_vram_metric_line(line)
+
+    assert result == 0.0
+
+
+# Test _get_gpu_stats_from_ai_containers
+
+
+@pytest.mark.asyncio
+async def test_get_gpu_stats_from_ai_containers_rtdetr_only(mock_pynvml):
+    """Test getting GPU stats from AI containers with RT-DETRv2 only."""
+    monitor = GPUMonitor()
+
+    rtdetr_response = {"vram_used_gb": 3.5, "device": "cuda:0"}
+
+    with patch("httpx.AsyncClient") as mock_client_class:
+        mock_client = AsyncMock()
+        mock_client_class.return_value.__aenter__.return_value = mock_client
+
+        # RT-DETRv2 succeeds
+        mock_rtdetr_resp = MagicMock()
+        mock_rtdetr_resp.status_code = 200
+        mock_rtdetr_resp.json.return_value = rtdetr_response
+
+        # Nemotron fails
+        mock_nemotron_resp = MagicMock()
+        mock_nemotron_resp.status_code = 500
+
+        mock_client.get.side_effect = [mock_rtdetr_resp, mock_nemotron_resp]
+
+        stats = await monitor._get_gpu_stats_from_ai_containers()
+
+        assert stats is not None
+        assert stats["memory_used"] == int(3.5 * 1024)
+        assert "cuda:0" in stats["gpu_name"]
+
+
+@pytest.mark.asyncio
+async def test_get_gpu_stats_from_ai_containers_nemotron_metrics(mock_pynvml):
+    """Test getting GPU stats from AI containers with Nemotron metrics."""
+    monitor = GPUMonitor()
+
+    with patch("httpx.AsyncClient") as mock_client_class:
+        mock_client = AsyncMock()
+        mock_client_class.return_value.__aenter__.return_value = mock_client
+
+        # RT-DETRv2 succeeds
+        mock_rtdetr_resp = MagicMock()
+        mock_rtdetr_resp.status_code = 200
+        mock_rtdetr_resp.json.return_value = {"vram_used_gb": 2.0}
+
+        # Nemotron metrics
+        mock_nemotron_resp = MagicMock()
+        mock_nemotron_resp.status_code = 200
+        mock_nemotron_resp.text = "# HELP vram\nvram_used_bytes 1073741824\n"
+
+        mock_client.get.side_effect = [mock_rtdetr_resp, mock_nemotron_resp]
+
+        stats = await monitor._get_gpu_stats_from_ai_containers()
+
+        assert stats is not None
+        # 2.0 GB from RT-DETRv2 + 1 GB from Nemotron
+        expected_total = int(2.0 * 1024 + 1073741824 / (1024 * 1024))
+        assert stats["memory_used"] == expected_total
+
+
+@pytest.mark.asyncio
+async def test_get_gpu_stats_from_ai_containers_all_fail(mock_pynvml):
+    """Test getting GPU stats when all AI containers fail."""
+    monitor = GPUMonitor()
+
+    with patch("httpx.AsyncClient") as mock_client_class:
+        mock_client = AsyncMock()
+        mock_client_class.return_value.__aenter__.return_value = mock_client
+
+        # Both requests fail
+        mock_client.get.side_effect = Exception("Connection error")
+
+        stats = await monitor._get_gpu_stats_from_ai_containers()
+
+        assert stats is None
+
+
+@pytest.mark.asyncio
+async def test_get_gpu_stats_from_ai_containers_no_vram(mock_pynvml):
+    """Test getting GPU stats when AI containers return no VRAM data."""
+    monitor = GPUMonitor()
+
+    with patch("httpx.AsyncClient") as mock_client_class:
+        mock_client = AsyncMock()
+        mock_client_class.return_value.__aenter__.return_value = mock_client
+
+        # RT-DETRv2 returns empty
+        mock_rtdetr_resp = MagicMock()
+        mock_rtdetr_resp.status_code = 200
+        mock_rtdetr_resp.json.return_value = {}
+
+        # Nemotron returns no metrics
+        mock_nemotron_resp = MagicMock()
+        mock_nemotron_resp.status_code = 200
+        mock_nemotron_resp.text = "# No vram metrics"
+
+        mock_client.get.side_effect = [mock_rtdetr_resp, mock_nemotron_resp]
+
+        stats = await monitor._get_gpu_stats_from_ai_containers()
+
+        # Should return None when no VRAM data found
+        assert stats is None
+
+
+@pytest.mark.asyncio
+async def test_get_gpu_stats_from_ai_containers_exception(mock_pynvml):
+    """Test getting GPU stats when AI container query raises exception."""
+    monitor = GPUMonitor()
+
+    with patch("httpx.AsyncClient") as mock_client_class:
+        # Make the entire client context manager fail
+        mock_client_class.return_value.__aenter__.side_effect = Exception("Client error")
+
+        stats = await monitor._get_gpu_stats_from_ai_containers()
+
+        assert stats is None
+
+
+# Test get_current_stats_async
+
+
+@pytest.mark.asyncio
+async def test_get_current_stats_async_with_gpu(mock_pynvml):
+    """Test async stats retrieval with GPU available."""
+    monitor = GPUMonitor()
+
+    stats = await monitor.get_current_stats_async()
+
+    assert stats["gpu_name"] == "NVIDIA RTX A5500"
+    assert stats["gpu_utilization"] == 75.0
+
+
+@pytest.mark.asyncio
+async def test_get_current_stats_async_ai_container_fallback(mock_pynvml_not_available):
+    """Test async stats retrieval falls back to AI containers."""
+    monitor = GPUMonitor()
+
+    # Mock AI container response
+    ai_stats = {
+        "gpu_name": "NVIDIA GPU (via AI Containers)",
+        "memory_used": 4096,
+        "recorded_at": datetime.now(UTC),
+    }
+
+    with patch.object(monitor, "_get_gpu_stats_from_ai_containers", return_value=ai_stats):
+        stats = await monitor.get_current_stats_async()
+
+        assert stats["gpu_name"] == "NVIDIA GPU (via AI Containers)"
+        assert stats["memory_used"] == 4096
+
+
+@pytest.mark.asyncio
+async def test_get_current_stats_async_mock_fallback(mock_pynvml_not_available):
+    """Test async stats retrieval falls back to mock when AI containers fail."""
+    monitor = GPUMonitor()
+
+    # Mock AI containers returning None
+    with patch.object(monitor, "_get_gpu_stats_from_ai_containers", return_value=None):
+        stats = await monitor.get_current_stats_async()
+
+        assert stats["gpu_name"] == "Mock GPU (No NVIDIA GPU Available)"
+        assert stats["gpu_utilization"] is None
+
+
+@pytest.mark.asyncio
+async def test_get_current_stats_async_exception_fallback(mock_pynvml):
+    """Test async stats retrieval falls back to mock on exception."""
+    monitor = GPUMonitor()
+
+    # Make _get_gpu_stats_real raise exception
+    with patch.object(monitor, "_get_gpu_stats_real", side_effect=Exception("GPU error")):
+        stats = await monitor.get_current_stats_async()
+
+        assert stats["gpu_name"] == "Mock GPU (No NVIDIA GPU Available)"
+
+
+# Test poll loop exception handling
+
+
+@pytest.mark.asyncio
+async def test_poll_loop_handles_exception_in_iteration(mock_pynvml, mock_database_session):
+    """Test that poll loop handles exceptions in a single iteration and continues."""
+    monitor = GPUMonitor(poll_interval=0.05)
+
+    call_count = 0
+
+    async def get_stats_with_error():
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise Exception("Simulated poll error")
+        return monitor._get_gpu_stats_mock()
+
+    with patch.object(monitor, "get_current_stats_async", side_effect=get_stats_with_error):
+        await monitor.start()
+        await asyncio.sleep(0.15)  # Let it run for a few iterations
+        await monitor.stop()
+
+    # Should have recovered from the error and continued
+    assert call_count >= 2
+
+
+# Test _get_gpu_stats_real exception path that re-raises
+
+
+def test_get_gpu_stats_real_reraises_exception(mock_pynvml):
+    """Test that _get_gpu_stats_real re-raises exceptions after logging."""
+    monitor = GPUMonitor()
+
+    # Make the import of pynvml inside _get_gpu_stats_real fail
+    # This simulates an unexpected error inside the function
+    with (
+        patch("builtins.__import__", side_effect=RuntimeError("Unexpected import error")),
+        pytest.raises(RuntimeError, match="Unexpected import error"),
+    ):
+        monitor._get_gpu_stats_real()

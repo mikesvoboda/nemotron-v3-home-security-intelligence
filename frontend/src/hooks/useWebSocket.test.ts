@@ -637,4 +637,46 @@ describe('useWebSocket', () => {
     // The key is that hasExhaustedRetries or reconnectCount is updated
     expect(result.current.reconnectCount).toBeGreaterThanOrEqual(1);
   });
+
+  it('should accept onMaxRetriesExhausted callback', () => {
+    const onMaxRetriesExhausted = vi.fn();
+    const options: WebSocketOptions = {
+      url: 'ws://localhost:8000/ws',
+      reconnect: true,
+      reconnectAttempts: 2,
+      onMaxRetriesExhausted,
+    };
+
+    const { result } = renderHook(() => useWebSocket(options));
+
+    // Callback is provided but not called initially
+    expect(result.current.hasExhaustedRetries).toBe(false);
+    expect(onMaxRetriesExhausted).not.toHaveBeenCalled();
+  });
+
+  it('should accept connectionTimeout option', () => {
+    const options: WebSocketOptions = {
+      url: 'ws://localhost:8000/ws',
+      connectionTimeout: 100,
+      reconnect: false,
+    };
+
+    const { result } = renderHook(() => useWebSocket(options));
+
+    // Hook should work with connectionTimeout option
+    expect(result.current).toBeDefined();
+    expect(result.current.reconnectCount).toBe(0);
+  });
+
+  it('should handle connectionTimeout with zero value', () => {
+    const options: WebSocketOptions = {
+      url: 'ws://localhost:8000/ws',
+      connectionTimeout: 0,
+    };
+
+    const { result } = renderHook(() => useWebSocket(options));
+
+    // Hook should work with connectionTimeout of 0
+    expect(result.current).toBeDefined();
+  });
 });

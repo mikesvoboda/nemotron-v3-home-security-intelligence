@@ -144,6 +144,21 @@ describe('LogsTable', () => {
       const criticalBadge = screen.getByText('CRITICAL');
       expect(criticalBadge).toHaveClass('text-red-400');
     });
+
+    it('displays unknown level with gray styling (default case)', () => {
+      // Test the default case in getLevelBadgeClasses (line 46)
+      const unknownLog: LogEntry = {
+        ...mockLogs[0],
+        level: 'UNKNOWN' as LogEntry['level'],
+      };
+
+      render(<LogsTable logs={[unknownLog]} totalCount={1} limit={50} offset={0} />);
+
+      const unknownBadge = screen.getByText('UNKNOWN');
+      expect(unknownBadge).toHaveClass('text-gray-400');
+      expect(unknownBadge).toHaveClass('bg-gray-500/10');
+      expect(unknownBadge).toHaveClass('border-gray-500/20');
+    });
   });
 
   describe('Component Display', () => {
@@ -238,6 +253,21 @@ describe('LogsTable', () => {
       const row = screen.getByText('Failed to process request').closest('tr');
       expect(row).not.toHaveClass('cursor-pointer');
     });
+
+    it('does not call handler when row is clicked and onRowClick is not provided (line 123)', async () => {
+      const user = userEvent.setup();
+
+      render(<LogsTable logs={mockLogs} totalCount={5} limit={50} offset={0} />);
+
+      const row = screen.getByText('Failed to process request').closest('tr');
+      expect(row).toBeInTheDocument();
+
+      if (row) {
+        // Click row without handler - should not error
+        await user.click(row);
+        // No assertion needed - test passes if no error thrown
+      }
+    });
   });
 
   describe('Pagination', () => {
@@ -315,6 +345,76 @@ describe('LogsTable', () => {
       expect(screen.queryByLabelText('Previous page')).not.toBeInTheDocument();
       expect(screen.queryByLabelText('Next page')).not.toBeInTheDocument();
     });
+
+    it('does not call onPageChange when clicking disabled previous button (line 110)', async () => {
+      const handlePageChange = vi.fn();
+      const user = userEvent.setup();
+
+      render(
+        <LogsTable
+          logs={mockLogs}
+          totalCount={100}
+          limit={50}
+          offset={0}
+          onPageChange={handlePageChange}
+        />
+      );
+
+      const prevButton = screen.getByLabelText('Previous page');
+      expect(prevButton).toBeDisabled();
+
+      // Try to click disabled button - should not call handler
+      await user.click(prevButton);
+      expect(handlePageChange).not.toHaveBeenCalled();
+    });
+
+    it('does not call onPageChange when clicking disabled next button (line 116)', async () => {
+      const handlePageChange = vi.fn();
+      const user = userEvent.setup();
+
+      render(
+        <LogsTable
+          logs={mockLogs}
+          totalCount={100}
+          limit={50}
+          offset={50}
+          onPageChange={handlePageChange}
+        />
+      );
+
+      const nextButton = screen.getByLabelText('Next page');
+      expect(nextButton).toBeDisabled();
+
+      // Try to click disabled button - should not call handler
+      await user.click(nextButton);
+      expect(handlePageChange).not.toHaveBeenCalled();
+    });
+
+    it('does not call onPageChange when handler is not provided (line 110)', async () => {
+      const user = userEvent.setup();
+
+      render(<LogsTable logs={mockLogs} totalCount={100} limit={50} offset={50} />);
+
+      const prevButton = screen.getByLabelText('Previous page');
+      expect(prevButton).toBeInTheDocument();
+
+      // Click button without handler - should not error
+      await user.click(prevButton);
+      // No assertion needed - test passes if no error thrown
+    });
+
+    it('does not call onPageChange when handler is not provided (line 116)', async () => {
+      const user = userEvent.setup();
+
+      render(<LogsTable logs={mockLogs} totalCount={100} limit={50} offset={0} />);
+
+      const nextButton = screen.getByLabelText('Next page');
+      expect(nextButton).toBeInTheDocument();
+
+      // Click button without handler - should not error
+      await user.click(nextButton);
+      // No assertion needed - test passes if no error thrown
+    });
   });
 
   describe('Loading State', () => {
@@ -378,7 +478,7 @@ describe('LogsTable', () => {
   });
 
   describe('Timestamp Formatting', () => {
-    it('displays relative time for recent logs', () => {
+    it('displays "Just now" for very recent logs (less than 1 minute)', () => {
       const recentLog: LogEntry = {
         ...mockLogs[0],
         timestamp: new Date().toISOString(),
@@ -386,9 +486,66 @@ describe('LogsTable', () => {
 
       render(<LogsTable logs={[recentLog]} totalCount={1} limit={50} offset={0} />);
 
-      // Should show "Just now" or similar relative time
       const table = screen.getByRole('table');
-      expect(within(table).getByText(/now|ago/i)).toBeInTheDocument();
+      expect(within(table).getByText('Just now')).toBeInTheDocument();
+    });
+
+    it('displays minutes ago for logs less than 1 hour old (line 63)', () => {
+      // 30 minutes ago
+      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      const recentLog: LogEntry = {
+        ...mockLogs[0],
+        timestamp: thirtyMinutesAgo,
+      };
+
+      render(<LogsTable logs={[recentLog]} totalCount={1} limit={50} offset={0} />);
+
+      const table = screen.getByRole('table');
+      expect(within(table).getByText(/\d+m ago/)).toBeInTheDocument();
+    });
+
+    it('displays hours ago for logs less than 24 hours old (line 64)', () => {
+      // 5 hours ago
+      const fiveHoursAgo = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString();
+      const oldLog: LogEntry = {
+        ...mockLogs[0],
+        timestamp: fiveHoursAgo,
+      };
+
+      render(<LogsTable logs={[oldLog]} totalCount={1} limit={50} offset={0} />);
+
+      const table = screen.getByRole('table');
+      expect(within(table).getByText(/\d+h ago/)).toBeInTheDocument();
+    });
+
+    it('displays days ago for logs less than 7 days old (line 65)', () => {
+      // 3 days ago
+      const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+      const oldLog: LogEntry = {
+        ...mockLogs[0],
+        timestamp: threeDaysAgo,
+      };
+
+      render(<LogsTable logs={[oldLog]} totalCount={1} limit={50} offset={0} />);
+
+      const table = screen.getByRole('table');
+      expect(within(table).getByText(/\d+d ago/)).toBeInTheDocument();
+    });
+
+    it('displays formatted date for logs older than 7 days', () => {
+      // 10 days ago
+      const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
+      const oldLog: LogEntry = {
+        ...mockLogs[0],
+        timestamp: tenDaysAgo,
+      };
+
+      render(<LogsTable logs={[oldLog]} totalCount={1} limit={50} offset={0} />);
+
+      const table = screen.getByRole('table');
+      // Should show formatted date (e.g., "Jan 1, 12:00 PM")
+      const rows = within(table).getAllByRole('row');
+      expect(rows.length).toBeGreaterThan(0);
     });
 
     it('formats all log timestamps', () => {

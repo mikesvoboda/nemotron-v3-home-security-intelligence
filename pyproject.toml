@@ -133,7 +133,7 @@ exclude_lines = [
     "if TYPE_CHECKING:",
     "@abstractmethod",
 ]
-fail_under = 92  # Lowered from 93 during logging migration
+fail_under = 95  # Enforced at 95% per bead 2s4y
 show_missing = true
 precision = 2
 
