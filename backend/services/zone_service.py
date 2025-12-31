@@ -100,9 +100,19 @@ def bbox_center(
 
     Returns:
         Tuple of (normalized_x, normalized_y) coordinates (0-1 range)
+
+    Raises:
+        ValueError: If image dimensions are not positive, or if bbox
+            coordinates are negative, or if bbox dimensions are not positive.
     """
     if image_width <= 0 or image_height <= 0:
         raise ValueError("Image dimensions must be positive")
+
+    if bbox_x < 0 or bbox_y < 0:
+        raise ValueError("Bounding box coordinates must be non-negative")
+
+    if bbox_width <= 0 or bbox_height <= 0:
+        raise ValueError("Bounding box dimensions must be positive")
 
     center_x = bbox_x + bbox_width / 2
     center_y = bbox_y + bbox_height / 2

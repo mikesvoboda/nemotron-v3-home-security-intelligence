@@ -17,6 +17,7 @@ Comprehensive guide for setting up and running the AI inference services for the
 - [Troubleshooting](#troubleshooting)
 - [Performance Tuning](#performance-tuning)
 - [Monitoring](#monitoring)
+- [TLS Configuration for AI Services](#tls-configuration-for-ai-services)
 
 ## Overview
 
@@ -785,6 +786,197 @@ nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader -l 1 >> gpu_util.lo
 
 # Memory usage tracking
 nvidia-smi --query-gpu=memory.used --format=csv,noheader -l 5 >> gpu_mem.log
+```
+
+## TLS Configuration for AI Services
+
+By default, AI services communicate over HTTP, which is acceptable for local development but **not recommended for production**. This section documents how to secure AI service communication with TLS.
+
+### Security Considerations
+
+**Risks of unencrypted AI communication:**
+
+- Camera images sent to RT-DETRv2 can be intercepted
+- Detection results can be modified in transit
+- LLM prompts and responses are visible to network attackers
+- Man-in-the-middle attacks can inject false security alerts
+
+**When TLS is required:**
+
+| Scenario                        | TLS Required | Notes                                        |
+| ------------------------------- | ------------ | -------------------------------------------- |
+| All services on localhost       | No           | Loopback interface is secure                 |
+| Services in same Docker network | No           | Isolated container network                   |
+| AI services on separate host    | **Yes**      | Network traffic crosses untrusted boundaries |
+| AI services exposed to internet | **Yes**      | Never expose AI services without TLS         |
+| Compliance requirements (HIPAA) | **Yes**      | Encryption in transit required               |
+
+### Enabling TLS for llama.cpp (Nemotron)
+
+llama.cpp server supports TLS natively. To enable:
+
+**1. Generate or obtain certificates:**
+
+```bash
+# Option A: Self-signed (development/LAN only)
+mkdir -p data/certs
+openssl req -x509 -newkey rsa:4096 -keyout data/certs/nemotron.key \
+  -out data/certs/nemotron.crt -days 365 -nodes \
+  -subj "/CN=nemotron.local"
+
+# Option B: Let's Encrypt (production)
+# Use certbot or your preferred ACME client
+```
+
+**2. Start llama-server with TLS:**
+
+```bash
+llama-server \
+  --model ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf \
+  --port 8091 \
+  --host 0.0.0.0 \
+  --ssl-cert data/certs/nemotron.crt \
+  --ssl-key data/certs/nemotron.key \
+  --ctx-size 4096 \
+  --n-gpu-layers 99 \
+  --parallel 2 \
+  --cont-batching
+```
+
+**3. Update backend configuration:**
+
+```bash
+# In .env
+NEMOTRON_URL=https://localhost:8091
+```
+
+**4. For self-signed certificates, configure certificate verification:**
+
+The backend uses httpx for HTTP requests. For self-signed certificates, you may need to:
+
+```python
+# Option A: Disable verification (development only - NOT recommended for production)
+# Set in environment or handle in code
+
+# Option B: Add CA certificate to system trust store
+# Linux: Copy to /usr/local/share/ca-certificates/ and run update-ca-certificates
+# macOS: Add to Keychain
+```
+
+### Enabling TLS for RT-DETRv2
+
+The RT-DETRv2 server uses FastAPI/Uvicorn. To enable TLS:
+
+**1. Generate certificates (same as above):**
+
+```bash
+mkdir -p data/certs
+openssl req -x509 -newkey rsa:4096 -keyout data/certs/rtdetr.key \
+  -out data/certs/rtdetr.crt -days 365 -nodes \
+  -subj "/CN=rtdetr.local"
+```
+
+**2. Modify the startup script or run manually:**
+
+```bash
+cd ai/rtdetr
+uvicorn model:app --host 0.0.0.0 --port 8090 \
+  --ssl-keyfile ../../data/certs/rtdetr.key \
+  --ssl-certfile ../../data/certs/rtdetr.crt
+```
+
+**3. Update backend configuration:**
+
+```bash
+# In .env
+RTDETR_URL=https://localhost:8090
+```
+
+### Production TLS Configuration Example
+
+For production deployments with both AI services secured:
+
+```bash
+# .env for production
+
+# Use HTTPS for AI services
+RTDETR_URL=https://ai-detector.yourdomain.com:8090
+NEMOTRON_URL=https://ai-llm.yourdomain.com:8091
+
+# Optional: API keys for AI services (if implemented)
+RTDETR_API_KEY=your-rtdetr-api-key
+NEMOTRON_API_KEY=your-nemotron-api-key
+
+# Backend API also with TLS
+TLS_MODE=provided
+TLS_CERT_PATH=/etc/ssl/certs/backend.crt
+TLS_KEY_PATH=/etc/ssl/private/backend.key
+TLS_MIN_VERSION=TLSv1.3
+```
+
+### Using a Reverse Proxy (Alternative)
+
+Instead of configuring TLS directly on AI services, you can use a reverse proxy like nginx:
+
+```nginx
+# /etc/nginx/sites-available/ai-services
+
+# RT-DETRv2
+server {
+    listen 8090 ssl;
+    server_name ai-detector.yourdomain.com;
+
+    ssl_certificate /etc/ssl/certs/ai-services.crt;
+    ssl_certificate_key /etc/ssl/private/ai-services.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    location / {
+        proxy_pass http://127.0.0.1:18090;  # Internal HTTP port
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+
+# Nemotron LLM
+server {
+    listen 8091 ssl;
+    server_name ai-llm.yourdomain.com;
+
+    ssl_certificate /etc/ssl/certs/ai-services.crt;
+    ssl_certificate_key /etc/ssl/private/ai-services.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    location / {
+        proxy_pass http://127.0.0.1:18091;  # Internal HTTP port
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+This approach:
+
+- Centralizes certificate management
+- Allows AI services to run on HTTP internally
+- Provides additional security features (rate limiting, logging)
+- Simplifies certificate renewal (single point)
+
+### Verifying TLS Configuration
+
+After enabling TLS, verify the configuration:
+
+```bash
+# Test Nemotron TLS
+curl -v https://localhost:8091/health
+
+# Test RT-DETRv2 TLS
+curl -v https://localhost:8090/health
+
+# For self-signed certificates, add -k flag (insecure, for testing only)
+curl -kv https://localhost:8091/health
+
+# Verify certificate details
+openssl s_client -connect localhost:8091 -showcerts
 ```
 
 ## Production Deployment

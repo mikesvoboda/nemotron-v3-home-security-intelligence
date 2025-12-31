@@ -9,20 +9,21 @@ This project is an AI-powered home security monitoring dashboard.
 - **AI:** RT-DETRv2 (object detection) + Nemotron via llama.cpp (risk reasoning)
 - **GPU:** NVIDIA RTX A5500 (24GB)
 - **Cameras:** Foscam FTP uploads to `/export/foscam/{camera_name}/`
-- **Containers:** Podman (not Docker)
+- **Containers:** Docker Compose files compatible with both Docker and Podman
 
 ## Local Development Environment
 
-This project uses **Podman** for container management (not Docker):
+This project uses standard Docker Compose files (`docker-compose.prod.yml`) that work with both Docker and Podman:
 
 ```bash
-# Start containers
+# Using Docker Compose
+docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml logs -f
+docker compose -f docker-compose.prod.yml down
+
+# Using Podman Compose
 podman-compose -f docker-compose.prod.yml up -d
-
-# View logs
 podman-compose -f docker-compose.prod.yml logs -f
-
-# Stop containers
 podman-compose -f docker-compose.prod.yml down
 ```
 
@@ -50,7 +51,7 @@ Tasks are organized into 8 execution phases. **Always complete earlier phases be
 
 ### Phase 1: Project Setup (P0) - 7 tasks
 
-Foundation - directory structures, container setup (Podman), environment, dependencies.
+Foundation - directory structures, container setup, environment, dependencies.
 
 ```bash
 bd list --label phase-1
@@ -257,7 +258,7 @@ pre-commit run --all-files
 - **Batch processing:** 90-second time windows with 30-second idle timeout
 - **No auth:** Single-user local deployment
 - **Retention:** 30 days
-- **Deployment:** Fully containerized (Podman) with GPU passthrough for AI models
+- **Deployment:** Fully containerized (Docker or Podman) with GPU passthrough for AI models
 
 ## AGENTS.md Navigation
 

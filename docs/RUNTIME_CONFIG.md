@@ -9,14 +9,14 @@ Copy `.env.example` to `.env` and adjust values as needed. All variables have se
 
 ## Service Ports
 
-| Service     | Port | Protocol | Description                                        |
-| ----------- | ---- | -------- | -------------------------------------------------- |
-| Frontend    | 5173 | HTTP     | Vite dev server (development)                      |
-| Frontend    | 80   | HTTP     | Nginx (production)                                 |
-| Backend API | 8000 | HTTP/WS  | FastAPI REST + WebSocket                           |
-| RT-DETRv2   | 8090 | HTTP     | Object detection service (containerized with GPU)  |
-| Nemotron    | 8091 | HTTP     | LLM risk analysis service (containerized with GPU) |
-| Redis       | 6379 | TCP      | Cache, queues, pub/sub                             |
+| Service     | Port | Protocol | Description                                                        |
+| ----------- | ---- | -------- | ------------------------------------------------------------------ |
+| Frontend    | 5173 | HTTP     | Vite dev server (development) or host port in production (default) |
+| Frontend    | 80   | HTTP     | Nginx inside production container (mapped via FRONTEND_PORT)       |
+| Backend API | 8000 | HTTP/WS  | FastAPI REST + WebSocket                                           |
+| RT-DETRv2   | 8090 | HTTP     | Object detection service (containerized with GPU)                  |
+| Nemotron    | 8091 | HTTP     | LLM risk analysis service (containerized with GPU)                 |
+| Redis       | 6379 | TCP      | Cache, queues, pub/sub                                             |
 
 ## AI Service Deployment Modes
 
@@ -240,6 +240,60 @@ Lower intervals mean faster detection but increased CPU usage from directory sca
 - RT-DETRv2 provides `/detect` endpoint for image analysis
 - Nemotron provides `/completion` endpoint for risk reasoning (llama.cpp server completion API)
 
+### AI Service Timeout Settings
+
+| Variable                | Default | Range      | Description                                      |
+| ----------------------- | ------- | ---------- | ------------------------------------------------ |
+| `AI_CONNECT_TIMEOUT`    | `10.0`  | 1.0-60.0   | Maximum time (seconds) to establish connection   |
+| `AI_HEALTH_TIMEOUT`     | `5.0`   | 1.0-30.0   | Timeout (seconds) for AI service health checks   |
+| `RTDETR_READ_TIMEOUT`   | `60.0`  | 10.0-300.0 | Maximum time (seconds) for RT-DETR detection     |
+| `NEMOTRON_READ_TIMEOUT` | `120.0` | 30.0-600.0 | Maximum time (seconds) for Nemotron LLM response |
+
+**Health Check Timeout Configuration:**
+
+Health checks verify AI services are responsive before sending inference requests. The `AI_HEALTH_TIMEOUT` setting controls how long to wait for the `/health` endpoint response.
+
+```bash
+# Default: 5 seconds (good for local/fast networks)
+AI_HEALTH_TIMEOUT=5.0
+
+# Increase for slower networks or remote AI services
+AI_HEALTH_TIMEOUT=15.0
+
+# Maximum allowed (for VPN or high-latency connections)
+AI_HEALTH_TIMEOUT=30.0
+```
+
+**When to Increase Timeouts:**
+
+| Symptom                                    | Setting to Adjust       | Recommended Value |
+| ------------------------------------------ | ----------------------- | ----------------- |
+| Connection refused during startup          | `AI_CONNECT_TIMEOUT`    | 30.0              |
+| Health checks timing out (services are up) | `AI_HEALTH_TIMEOUT`     | 10.0-15.0         |
+| Detection requests timing out              | `RTDETR_READ_TIMEOUT`   | 120.0             |
+| LLM responses timing out                   | `NEMOTRON_READ_TIMEOUT` | 300.0             |
+| AI services on remote/VPN network          | All AI timeouts         | 2x default        |
+
+**When to Decrease Timeouts:**
+
+- AI services are on localhost: Consider `AI_HEALTH_TIMEOUT=3.0` for faster failover
+- Quick detection of service failures is critical
+- Running in a controlled local environment with fast networking
+
+**Timeout Tuning for Slow Systems:**
+
+If running on systems with limited resources (older hardware, constrained VMs, or high load conditions):
+
+```bash
+# Conservative settings for slow systems
+AI_CONNECT_TIMEOUT=30.0
+AI_HEALTH_TIMEOUT=15.0
+RTDETR_READ_TIMEOUT=180.0
+NEMOTRON_READ_TIMEOUT=300.0
+```
+
+These settings prevent premature timeouts when services are functional but slow to respond.
+
 ### Detection Settings
 
 | Variable                         | Default | Range   | Description                              |
@@ -352,6 +406,80 @@ docker compose restart backend
 - Enable for multi-user or exposed deployments
 - Keys are hashed on startup for security
 
+### TLS/HTTPS Settings
+
+The application supports HTTPS for secure communication. There are two configuration approaches:
+
+#### Modern Mode-Based Configuration (Recommended)
+
+| Variable            | Default    | Description                                               |
+| ------------------- | ---------- | --------------------------------------------------------- |
+| `TLS_MODE`          | `disabled` | TLS mode: `disabled`, `self_signed`, or `provided`        |
+| `TLS_CERT_PATH`     | -          | Path to TLS certificate file (PEM format)                 |
+| `TLS_KEY_PATH`      | -          | Path to TLS private key file (PEM format)                 |
+| `TLS_CA_PATH`       | -          | Path to CA certificate for client verification (optional) |
+| `TLS_VERIFY_CLIENT` | `false`    | Require and verify client certificates (mutual TLS)       |
+| `TLS_MIN_VERSION`   | `TLSv1.2`  | Minimum TLS version: `TLSv1.2` or `TLSv1.3`               |
+
+**TLS Modes:**
+
+| Mode          | Description                                                              |
+| ------------- | ------------------------------------------------------------------------ |
+| `disabled`    | HTTP only, no encryption (default, suitable for local development)       |
+| `self_signed` | Auto-generate self-signed certificates (LAN deployments, not production) |
+| `provided`    | Use existing certificates from `TLS_CERT_PATH` and `TLS_KEY_PATH`        |
+
+**Configuration Examples:**
+
+```bash
+# Development (HTTP only - default)
+TLS_MODE=disabled
+
+# LAN deployment with auto-generated self-signed certificates
+TLS_MODE=self_signed
+TLS_CERT_DIR=data/certs
+
+# Production with Let's Encrypt or purchased certificates
+TLS_MODE=provided
+TLS_CERT_PATH=/etc/ssl/certs/hsi.crt
+TLS_KEY_PATH=/etc/ssl/private/hsi.key
+TLS_MIN_VERSION=TLSv1.3
+
+# Production with mutual TLS (mTLS) for client authentication
+TLS_MODE=provided
+TLS_CERT_PATH=/etc/ssl/certs/hsi.crt
+TLS_KEY_PATH=/etc/ssl/private/hsi.key
+TLS_CA_PATH=/etc/ssl/certs/client-ca.crt
+TLS_VERIFY_CLIENT=true
+```
+
+#### Legacy Configuration (Deprecated)
+
+These settings are kept for backward compatibility but will be removed in a future version. Use `TLS_MODE` instead.
+
+| Variable            | Default      | Description                                    |
+| ------------------- | ------------ | ---------------------------------------------- |
+| `TLS_ENABLED`       | `false`      | Enable TLS (use `TLS_MODE=provided` instead)   |
+| `TLS_CERT_FILE`     | -            | Certificate path (use `TLS_CERT_PATH` instead) |
+| `TLS_KEY_FILE`      | -            | Key path (use `TLS_KEY_PATH` instead)          |
+| `TLS_CA_FILE`       | -            | CA path (use `TLS_CA_PATH` instead)            |
+| `TLS_AUTO_GENERATE` | `false`      | Auto-generate (use `TLS_MODE=self_signed`)     |
+| `TLS_CERT_DIR`      | `data/certs` | Directory for auto-generated certificates      |
+
+**Migration from Legacy to Modern:**
+
+```bash
+# Legacy configuration:
+TLS_ENABLED=true
+TLS_CERT_FILE=/path/to/cert.pem
+TLS_KEY_FILE=/path/to/key.pem
+
+# Equivalent modern configuration:
+TLS_MODE=provided
+TLS_CERT_PATH=/path/to/cert.pem
+TLS_KEY_PATH=/path/to/key.pem
+```
+
 ### File Deduplication Settings
 
 | Variable             | Default | Range   | Description                         |
@@ -388,6 +516,41 @@ Frontend variables use the `VITE_` prefix and are embedded at build time.
 - These are accessed from the browser, not the container
 - Use `localhost` or your server's public hostname
 - Do NOT use `host.docker.internal` (that's for container-to-host, not browser-to-host)
+
+### Frontend Production Port Configuration
+
+| Variable        | Default | Description                                           |
+| --------------- | ------- | ----------------------------------------------------- |
+| `FRONTEND_PORT` | `5173`  | Host port to expose the production frontend container |
+
+**How it works:**
+
+In production, the frontend is served by nginx inside a Docker/Podman container. The nginx server always listens on **port 80 inside the container**. The `FRONTEND_PORT` environment variable controls which host port is mapped to container port 80.
+
+```yaml
+# docker-compose.prod.yml
+ports:
+  - "${FRONTEND_PORT:-5173}:80"
+```
+
+**Examples:**
+
+```bash
+# Default: Access frontend at http://localhost:5173
+FRONTEND_PORT=5173
+
+# Custom: Access frontend at http://localhost:3000
+FRONTEND_PORT=3000
+
+# Standard HTTP: Access frontend at http://localhost:80
+FRONTEND_PORT=80
+```
+
+**Notes:**
+
+- The container internal port (80) is fixed and cannot be changed without modifying nginx.conf
+- Only the host-side port is configurable via `FRONTEND_PORT`
+- Development mode uses Vite's dev server on port 5173 directly (not nginx)
 
 ## Configuration Files
 
