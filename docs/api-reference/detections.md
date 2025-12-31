@@ -29,7 +29,7 @@ The Detections API provides endpoints for accessing object detections from the A
 
 List detections with optional filtering and pagination.
 
-**Source:** [`list_detections`](../backend/api/routes/detections.py:28)
+**Source:** [`list_detections`](../../backend/api/routes/detections.py:28)
 
 **Parameters:**
 
@@ -96,7 +96,7 @@ curl "http://localhost:8000/api/detections?start_date=2025-12-23T00:00:00Z&end_d
 
 Get a specific detection by ID.
 
-**Source:** [`get_detection`](../backend/api/routes/detections.py:94)
+**Source:** [`get_detection`](../../backend/api/routes/detections.py:94)
 
 **Parameters:**
 
@@ -168,7 +168,7 @@ curl http://localhost:8000/api/detections/1
 
 Get the thumbnail image with bounding box overlay.
 
-**Source:** [`get_detection_image`](../backend/api/routes/detections.py:124)
+**Source:** [`get_detection_image`](../../backend/api/routes/detections.py:124)
 
 **Parameters:**
 
@@ -220,7 +220,7 @@ curl -o thumbnail.jpg http://localhost:8000/api/detections/1/image
 
 Stream detection video with HTTP Range request support.
 
-**Source:** [`stream_detection_video`](../backend/api/routes/detections.py:260)
+**Source:** [`stream_detection_video`](../../backend/api/routes/detections.py:260)
 
 **Parameters:**
 
@@ -298,7 +298,7 @@ curl -H "Range: bytes=0-1048575" http://localhost:8000/api/detections/1/video
 
 Get a thumbnail frame extracted from a video detection.
 
-**Source:** [`get_video_thumbnail`](../backend/api/routes/detections.py:373)
+**Source:** [`get_video_thumbnail`](../../backend/api/routes/detections.py:373)
 
 **Parameters:**
 
@@ -349,7 +349,7 @@ curl -o video_thumb.jpg http://localhost:8000/api/detections/1/video/thumbnail
 
 Full detection response model.
 
-**Source:** [`DetectionResponse`](../backend/api/schemas/detections.py:8)
+**Source:** [`DetectionResponse`](../../backend/api/schemas/detections.py:8)
 
 | Field            | Type     | Description                        |
 | ---------------- | -------- | ---------------------------------- |
@@ -375,7 +375,7 @@ Full detection response model.
 
 Response model for detection list.
 
-**Source:** [`DetectionListResponse`](../backend/api/schemas/detections.py:58)
+**Source:** [`DetectionListResponse`](../../backend/api/schemas/detections.py:58)
 
 | Field        | Type                     | Description                  |
 | ------------ | ------------------------ | ---------------------------- |

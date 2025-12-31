@@ -320,9 +320,16 @@ docker compose exec -T postgres psql -U security security < backup.sql
 
 ## Next Steps
 
-- [Backup and Recovery](../DOCKER_DEPLOYMENT.md#backup-and-recovery) - Database backup procedures
-- [Monitoring](../admin-guide/monitoring.md) - Monitor database health
-- [Storage Retention](../admin-guide/storage-retention.md) - Configure retention policies
+- [Backup and Recovery](backup.md) - Database backup procedures
+- [Data Model](../developer/data-model.md) - Database schema details
+
+---
+
+## See Also
+
+- [Database Troubleshooting](../reference/troubleshooting/database-issues.md) - Solve PostgreSQL problems
+- [Environment Variable Reference](../reference/config/env-reference.md) - DATABASE_URL and retention configuration
+- [Alerts](../developer/alerts.md) - How alert rules use the database
 
 ---
 

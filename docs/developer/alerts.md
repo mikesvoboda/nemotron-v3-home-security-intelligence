@@ -340,5 +340,17 @@ Real-time updates use WebSocket via `EventBroadcaster` for event notifications.
 ## Next Steps
 
 - [Data Model](data-model.md) - Database schema
-- [AI Pipeline](ai-pipeline.md) - Risk score generation
-- Back to [Developer Hub](../developer-hub.md)
+- [Pipeline Overview](pipeline-overview.md) - How events are generated
+
+---
+
+## See Also
+
+- [Risk Analysis](risk-analysis.md) - How risk scores are generated
+- [Risk Levels Reference](../reference/config/risk-levels.md) - Risk score definitions
+- [Database Management](../operator/database.md) - Alert table maintenance
+- [Understanding Alerts](../user/understanding-alerts.md) - User perspective on alerts
+
+---
+
+[Back to Developer Hub](../developer-hub.md)

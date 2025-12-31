@@ -220,8 +220,15 @@ If hooks fail, **fix the code**. The hooks exist to maintain code quality across
 
 ## Next Steps
 
-- [Testing Guide](../development/testing.md) - Test requirements
-- [Contributing Guide](../development/contributing.md) - Full PR workflow
+- [Local Setup](local-setup.md) - Development environment setup
+- [Codebase Tour](codebase-tour.md) - Navigate the codebase
+
+---
+
+## See Also
+
+- [CLAUDE.md](../../CLAUDE.md) - Project rules including hook enforcement
+- [Glossary](../reference/glossary.md) - Terms and abbreviations
 
 ---
 

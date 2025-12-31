@@ -311,9 +311,16 @@ POST /detect (multipart file) -> {"detections": [...]}
 
 ## Next Steps
 
-- [AI Pipeline](../architecture/ai-pipeline.md) - Detection and analysis details
-- [Real-time System](../architecture/real-time.md) - WebSocket architecture
-- [Backend Services AGENTS.md](/backend/services/AGENTS.md) - Complete service reference
+- [Pipeline Overview](pipeline-overview.md) - Detection and analysis details
+- [Detection Service](detection-service.md) - How RT-DETRv2 processes images
+
+---
+
+## See Also
+
+- [AI Overview](../operator/ai-overview.md) - AI services architecture
+- [Environment Variable Reference](../reference/config/env-reference.md) - Video processing configuration
+- [Data Model](data-model.md) - Detection database schema
 
 ---
 

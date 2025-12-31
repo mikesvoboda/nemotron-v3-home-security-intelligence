@@ -163,5 +163,17 @@ def risk_score_to_severity(self, score: int) -> Severity:
 
 ## Next Steps
 
-- [Understanding Alerts](../../user-guide/understanding-alerts.md) - How to interpret and respond to alerts
-- [Dashboard Overview](../../user-guide/dashboard-overview.md) - Reading the risk gauge
+- [Understanding Alerts](../../user/understanding-alerts.md) - How to interpret and respond to alerts
+- [Environment Variable Reference](env-reference.md) - Severity configuration variables
+
+---
+
+## See Also
+
+- [Risk Analysis](../../developer/risk-analysis.md) - How Nemotron generates risk scores
+- [Alerts](../../developer/alerts.md) - How alert rules use risk levels
+- [Dashboard Basics](../../user/dashboard-basics.md) - Reading the risk gauge
+
+---
+
+[Back to User Hub](../../user-hub.md) | [Operator Hub](../../operator-hub.md) | [Developer Hub](../../developer-hub.md)

@@ -217,4 +217,16 @@ curl --cacert ca.crt https://localhost:8090/health
 ## Next Steps
 
 - [AI Troubleshooting](ai-troubleshooting.md) - Common issues
-- [Back to Operator Hub](../operator-hub.md)
+- [AI Services](ai-services.md) - Service management
+
+---
+
+## See Also
+
+- [AI Configuration](ai-configuration.md) - Environment variables
+- [Environment Variable Reference](../reference/config/env-reference.md) - TLS configuration variables
+- [AI Overview](ai-overview.md) - Architecture and capabilities
+
+---
+
+[Back to Operator Hub](../operator-hub.md)

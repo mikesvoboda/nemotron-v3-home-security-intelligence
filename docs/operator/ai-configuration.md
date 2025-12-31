@@ -192,6 +192,18 @@ NEMOTRON_READ_TIMEOUT=120.0
 
 ## Next Steps
 
-- [AI Services Management](ai-services.md) - Start and verify services
+- [AI Services](ai-services.md) - Start and verify services
 - [AI Troubleshooting](ai-troubleshooting.md) - Common issues and solutions
-- [Back to Operator Hub](../operator-hub.md)
+- [AI Performance](ai-performance.md) - Performance tuning
+
+---
+
+## See Also
+
+- [Environment Variable Reference](../reference/config/env-reference.md) - Complete configuration reference
+- [Risk Levels Reference](../reference/config/risk-levels.md) - Severity threshold configuration
+- [AI TLS](ai-tls.md) - Secure communications setup
+
+---
+
+[Back to Operator Hub](../operator-hub.md)

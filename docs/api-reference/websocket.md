@@ -25,7 +25,7 @@ The WebSocket API provides real-time streaming of security events and system sta
 
 Stream security events in real-time as they are detected and analyzed.
 
-**Source:** [`websocket_events_endpoint`](../backend/api/routes/websocket.py:174)
+**Source:** [`websocket_events_endpoint`](../../backend/api/routes/websocket.py:174)
 
 ### Connection
 
@@ -232,7 +232,7 @@ ws.onclose = (event) => {
 
 Stream real-time system status updates including GPU metrics, queue status, and health.
 
-**Source:** [`websocket_system_status`](../backend/api/routes/websocket.py:317)
+**Source:** [`websocket_system_status`](../../backend/api/routes/websocket.py:317)
 
 ### Connection
 

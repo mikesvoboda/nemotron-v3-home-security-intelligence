@@ -296,7 +296,18 @@ A background process that performs asynchronous tasks. The system has several wo
 
 ## Related Resources
 
-- [API Reference](api/overview.md) - Complete API documentation
 - [Environment Variables](config/env-reference.md) - Configuration reference
 - [Risk Levels](config/risk-levels.md) - Severity thresholds
 - [Troubleshooting](troubleshooting/index.md) - Problem solving guide
+
+---
+
+## See Also
+
+- [Codebase Tour](../developer/codebase-tour.md) - Project structure overview
+- [Pipeline Overview](../developer/pipeline-overview.md) - AI pipeline architecture
+- [User Hub](../user-hub.md) - User documentation
+
+---
+
+[Back to User Hub](../user-hub.md) | [Operator Hub](../operator-hub.md) | [Developer Hub](../developer-hub.md)

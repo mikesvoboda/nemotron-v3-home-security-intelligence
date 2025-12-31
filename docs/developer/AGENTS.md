@@ -58,7 +58,7 @@ All spoke documents in this directory should follow the template:
 
 ## Next Steps
 
-- [Related Doc](path.md)
+- [Related Doc](../developer-hub.md)
 
 ---
 

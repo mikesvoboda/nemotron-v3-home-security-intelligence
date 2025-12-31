@@ -108,7 +108,17 @@ Configure via `RATE_LIMIT_*` environment variables.
 
 ## Next Steps
 
-- [Camera Endpoints](cameras.md) - Manage cameras
-- [Event Endpoints](events.md) - Access security events
-- [WebSocket API](websocket.md) - Real-time streaming
-- [Environment Variables](../config/env-reference.md) - Configuration reference
+- [Environment Variable Reference](../config/env-reference.md) - Configuration reference
+- [Troubleshooting Index](../troubleshooting/index.md) - API issues
+
+---
+
+## See Also
+
+- [Data Model](../../developer/data-model.md) - Database schema for API objects
+- [Alerts](../../developer/alerts.md) - Alert system architecture
+- [Glossary](../glossary.md) - API terminology
+
+---
+
+[Back to Operator Hub](../../operator-hub.md) | [Developer Hub](../../developer-hub.md)

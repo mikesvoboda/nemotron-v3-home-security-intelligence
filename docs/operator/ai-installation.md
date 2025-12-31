@@ -204,5 +204,17 @@ This identifies any missing prerequisites.
 ## Next Steps
 
 - [AI Configuration](ai-configuration.md) - Configure environment variables
-- [AI Services Management](ai-services.md) - Start and verify services
-- [Back to Operator Hub](../operator-hub.md)
+- [AI Services](ai-services.md) - Start and verify services
+- [AI Troubleshooting](ai-troubleshooting.md) - Common issues and solutions
+
+---
+
+## See Also
+
+- [GPU Setup](gpu-setup.md) - Detailed GPU driver and container configuration
+- [GPU Troubleshooting](../reference/troubleshooting/gpu-issues.md) - CUDA and VRAM problems
+- [AI Overview](ai-overview.md) - Architecture and capabilities
+
+---
+
+[Back to Operator Hub](../operator-hub.md)

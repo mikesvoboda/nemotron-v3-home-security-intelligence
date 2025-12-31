@@ -147,6 +147,8 @@ When viewing event details:
 
 ### Something not working?
 
+See our [Troubleshooting Guide](admin-guide/troubleshooting.md) for detailed solutions, or check these quick fixes:
+
 1. **Dashboard not loading?** Try refreshing your browser (F5 or Cmd+R)
 2. **Cameras showing offline?** Check that cameras are powered and connected
 3. **No events appearing?** Make sure cameras have activity to detect

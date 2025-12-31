@@ -1207,8 +1207,17 @@ stmt = (
 ## Next Steps
 
 - [Codebase Tour](codebase-tour.md) - Understanding project structure
-- [AI Pipeline](../architecture/AI_PIPELINE.md) - Detection and analysis flow
+- [Pipeline Overview](pipeline-overview.md) - Detection and analysis flow
 
 ---
 
-Back to [Developer Hub](../developer-hub.md)
+## See Also
+
+- [Database Management](../operator/database.md) - PostgreSQL setup and maintenance
+- [Backup and Recovery](../operator/backup.md) - Database backup procedures
+- [Alerts](alerts.md) - How the alert system uses these models
+- [Detection Service](detection-service.md) - How detections are created
+
+---
+
+[Back to Developer Hub](../developer-hub.md)

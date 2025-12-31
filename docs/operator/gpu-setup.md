@@ -682,10 +682,18 @@ Before starting services, ensure:
 
 ## Next Steps
 
-- [AI Setup Guide](../AI_SETUP.md) - Complete AI service configuration
-- [Troubleshooting GPU Issues](../reference/troubleshooting/gpu-issues.md) - Detailed problem solving
-- [Container Setup](../DOCKER_DEPLOYMENT.md) - Docker/Podman deployment
+- [AI Overview](ai-overview.md) - AI services architecture
+- [AI Installation](ai-installation.md) - Set up AI services
+- [AI Services](ai-services.md) - Start and verify AI services
 
 ---
 
-Back to [Operator Hub](../operator-hub.md)
+## See Also
+
+- [GPU Troubleshooting](../reference/troubleshooting/gpu-issues.md) - Detailed GPU problem solving
+- [AI Performance](ai-performance.md) - Optimize inference performance
+- [Detection Service](../developer/detection-service.md) - How RT-DETRv2 uses the GPU
+
+---
+
+[Back to Operator Hub](../operator-hub.md)

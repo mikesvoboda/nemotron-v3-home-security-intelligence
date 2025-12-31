@@ -4,7 +4,7 @@
 
 This hub is for software developers who want to understand the codebase, contribute features or fixes, or extend the system with new capabilities. It assumes programming experience and familiarity with Python, TypeScript, and web development concepts.
 
-**Quick Start:** [Local Setup](developer/local-setup.md) | [Codebase Tour](developer/codebase-tour.md) | [Testing Guide](developer/testing.md)
+**Quick Start:** [Local Setup](developer/local-setup.md) | [Codebase Tour](developer/codebase-tour.md) | [Testing Guide](development/testing.md)
 
 ---
 
@@ -66,7 +66,8 @@ See [Risk Levels Reference](reference/config/risk-levels.md) for the canonical d
 | ------------------------------------------------- | ---------------------------------------------------------------------- |
 | [Architecture Overview](architecture/overview.md) | High-level system design, technology stack, component responsibilities |
 | [Codebase Tour](developer/codebase-tour.md)       | Directory structure, key files, entry points                           |
-| [Data Model](architecture/data-model.md)          | PostgreSQL schemas, Redis structures, entity relationships             |
+| [Data Model Overview](architecture/data-model.md) | PostgreSQL schemas, Redis structures, entity relationships             |
+| [Data Model Reference](developer/data-model.md)   | Complete database model documentation with code examples               |
 | [AI Pipeline](architecture/ai-pipeline.md)        | FileWatcher -> RT-DETRv2 -> BatchAggregator -> Nemotron flow           |
 
 **AI Pipeline Deep Dives:**

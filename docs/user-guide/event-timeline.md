@@ -16,6 +16,16 @@ source_refs:
 
 The Event Timeline page provides a complete history of all security events detected by your cameras. Use this page to browse past events, filter by various criteria, and review events that need attention.
 
+<!-- SCREENSHOT: Event Timeline Full Page
+Location: Timeline page (click Timeline in sidebar)
+Shows: Complete Timeline page with: page header, full-text search bar, expanded filter controls, results summary showing event counts and risk level badges, event cards grid (2-3 columns), and pagination controls at bottom
+Size: 1400x900 pixels (16:9 aspect ratio)
+Alt text: Event Timeline page showing search bar, filters, results summary, and grid of event cards with pagination
+-->
+<!-- Image placeholder - screenshot would go here -->
+
+_Caption: The Event Timeline page lets you browse, filter, and search all your security events._
+
 ## Accessing the Event Timeline
 
 Click the **Timeline** link in the left sidebar to open the Event Timeline page.
@@ -51,6 +61,16 @@ flowchart TB
 
 ### Event Cards
 
+<!-- SCREENSHOT: Event Card Detail
+Location: Any event card on Timeline page
+Shows: Single event card showing: checkbox, camera name with icon, timestamp, duration, risk badge with score, colored left border, object type badges (Person, Vehicle), AI summary text, and detection list with confidence percentages
+Size: 400x350 pixels (~8:7 aspect ratio)
+Alt text: Single event card showing all information including risk badge, object detections, AI summary, and action checkbox
+-->
+<!-- Image placeholder - screenshot would go here -->
+
+_Caption: Each event card shows key information at a glance._
+
 Events are displayed as cards in a grid layout. Each event card shows:
 
 - **Camera name**: Which camera detected the event
@@ -84,6 +104,16 @@ Detection confidence scores use color coding:
 | Below 70%  | Red    | Lower confidence          |
 
 ## Filtering Events
+
+<!-- SCREENSHOT: Timeline Filters Expanded
+Location: Filter panel on Timeline page (expanded state)
+Shows: Expanded filter section with: Camera dropdown, Risk Level dropdown, Status dropdown (Reviewed/Unreviewed), Object Type dropdown, Min Confidence dropdown, Sort By dropdown, Start Date picker, End Date picker, and "Clear All Filters" button
+Size: 1100x250 pixels (~4:1 aspect ratio)
+Alt text: Expanded filter panel showing all available filter options for narrowing down event results
+-->
+<!-- Image placeholder - screenshot would go here -->
+
+_Caption: Use filters to find exactly the events you are looking for._
 
 ### Show/Hide Filters
 

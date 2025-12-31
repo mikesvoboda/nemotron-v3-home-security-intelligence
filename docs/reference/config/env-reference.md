@@ -394,5 +394,16 @@ These are embedded at frontend build time:
 ## Next Steps
 
 - [Risk Levels Reference](risk-levels.md) - Severity configuration details
-- [API Overview](../api/overview.md) - How to use the API
 - [Troubleshooting](../troubleshooting/index.md) - Configuration issues
+
+---
+
+## See Also
+
+- [AI Configuration](../../operator/ai-configuration.md) - AI-specific configuration
+- [Batching Logic](../../developer/batching-logic.md) - Batch timing configuration
+- [Local Setup](../../developer/local-setup.md) - Development environment setup
+
+---
+
+[Back to Operator Hub](../../operator-hub.md) | [Developer Hub](../../developer-hub.md)

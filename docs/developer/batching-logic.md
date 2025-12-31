@@ -241,4 +241,16 @@ async def _close_batch(self, batch_id: str, reason: str):
 
 - [Risk Analysis](risk-analysis.md) - LLM processing and scoring
 - [Pipeline Overview](pipeline-overview.md) - Full pipeline flow
-- [Back to Developer Hub](../developer-hub.md)
+
+---
+
+## See Also
+
+- [AI Performance](../operator/ai-performance.md) - Tuning batch timing parameters
+- [Environment Variable Reference](../reference/config/env-reference.md) - Batch configuration variables
+- [Data Model](data-model.md) - How batches become events
+- [Detection Service](detection-service.md) - What creates detections
+
+---
+
+[Back to Developer Hub](../developer-hub.md)

@@ -11,6 +11,16 @@ description: What security alerts mean and how to respond to them
 
 This guide helps you understand what the security alerts mean and how to respond to them. The system uses artificial intelligence to analyze camera footage and assess potential risks, but it is designed to assist you -- not replace your own judgment.
 
+<!-- SCREENSHOT: Risk Score Thermometer Visual
+Location: N/A - infographic/diagram
+Shows: Visual thermometer-style or horizontal bar design showing the 0-100 risk score scale. Sections colored: green (0-29 Low), yellow (30-59 Medium), orange (60-84 High), red (85-100 Critical). Include simple icons and brief action descriptions for each level
+Size: 1000x300 pixels (~3:1 aspect ratio)
+Alt text: Risk score scale visualization showing four risk levels from Low (green) to Critical (red) with score ranges and recommended actions
+-->
+<!-- Image placeholder -->
+
+_Caption: Risk scores range from 0 (nothing to worry about) to 100 (needs immediate attention)._
+
 ---
 
 ## How Risk Scores Work
@@ -127,6 +137,16 @@ graph LR
 ## Reading the AI Reasoning
 
 Each alert includes an "AI Reasoning" section that explains why the system assigned a particular risk score. Here is how to interpret it:
+
+<!-- SCREENSHOT: AI Reasoning Section Example
+Location: Event detail modal > AI Reasoning section
+Shows: The AI Reasoning highlighted box (with green tint) containing example reasoning text explaining why a high risk score was assigned, such as: "High risk score assigned due to: (1) Unknown individual, (2) Extended time at door, (3) Evening hours with low light"
+Size: 700x200 pixels (3.5:1 aspect ratio)
+Alt text: AI Reasoning section showing the system's explanation for assigning a particular risk score to an event
+-->
+<!-- Image placeholder -->
+
+_Caption: The AI Reasoning section explains why the system assigned a particular risk score._
 
 ### What the Reasoning Tells You
 

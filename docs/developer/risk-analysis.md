@@ -295,5 +295,17 @@ Clients receive:
 ## Next Steps
 
 - [Pipeline Overview](pipeline-overview.md) - Full pipeline context
-- [Error Handling Patterns](error-handling.md) - Detailed error strategies
-- [Back to Developer Hub](../developer-hub.md)
+- [Batching Logic](batching-logic.md) - Batch aggregation details
+
+---
+
+## See Also
+
+- [Risk Levels Reference](../reference/config/risk-levels.md) - Canonical risk level definitions
+- [AI Overview](../operator/ai-overview.md) - Nemotron deployment
+- [Alerts](alerts.md) - How risk scores trigger alerts
+- [Understanding Alerts](../user/understanding-alerts.md) - User-friendly risk level guide
+
+---
+
+[Back to Developer Hub](../developer-hub.md)

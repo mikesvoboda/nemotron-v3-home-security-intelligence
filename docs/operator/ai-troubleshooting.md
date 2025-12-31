@@ -320,5 +320,17 @@ tail -100 /tmp/nemotron-llm.log
 ## Next Steps
 
 - [AI Performance](ai-performance.md) - Optimize performance
-- [AI TLS Configuration](ai-tls.md) - Secure communications
-- [Back to Operator Hub](../operator-hub.md)
+- [AI TLS](ai-tls.md) - Secure communications
+
+---
+
+## See Also
+
+- [AI Issues (Reference)](../reference/troubleshooting/ai-issues.md) - More detailed AI troubleshooting
+- [GPU Troubleshooting](../reference/troubleshooting/gpu-issues.md) - CUDA and VRAM issues
+- [Connection Troubleshooting](../reference/troubleshooting/connection-issues.md) - Network problems
+- [Troubleshooting Index](../reference/troubleshooting/index.md) - Full symptom reference
+
+---
+
+[Back to Operator Hub](../operator-hub.md)

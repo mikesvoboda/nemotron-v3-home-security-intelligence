@@ -120,8 +120,16 @@ cd frontend && npm test
 ## Next Steps
 
 - [Codebase Tour](codebase-tour.md) - Understand the directory structure
-- [Testing Guide](../development/testing.md) - Write and run tests
-- [Contributing Guide](../development/contributing.md) - PR workflow
+- [Hooks](hooks.md) - Pre-commit configuration
+- [Pipeline Overview](pipeline-overview.md) - AI processing flow
+
+---
+
+## See Also
+
+- [GPU Setup](../operator/gpu-setup.md) - GPU driver configuration for AI
+- [Database Management](../operator/database.md) - PostgreSQL setup
+- [Environment Variable Reference](../reference/config/env-reference.md) - Configuration options
 
 ---
 

@@ -182,4 +182,16 @@ New events are published via Redis pub/sub to all connected WebSocket clients.
 - [Detection Service](detection-service.md) - RT-DETRv2 integration details
 - [Batching Logic](batching-logic.md) - How detections are grouped
 - [Risk Analysis](risk-analysis.md) - LLM processing and scoring
-- [Back to Developer Hub](../developer-hub.md)
+
+---
+
+## See Also
+
+- [AI Overview](../operator/ai-overview.md) - Operator perspective on AI services
+- [Data Model](data-model.md) - Database schema for events and detections
+- [Video Processing](video.md) - How camera images enter the pipeline
+- [Risk Levels Reference](../reference/config/risk-levels.md) - Risk score definitions
+
+---
+
+[Back to Developer Hub](../developer-hub.md)

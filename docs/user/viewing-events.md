@@ -11,6 +11,16 @@
 
 The Live Activity Feed shows security events as they happen in real-time.
 
+<!-- SCREENSHOT: Live Activity Feed
+Location: Bottom section of main dashboard
+Shows: The Live Activity feed panel with "Live Activity" title, Pause button, and 3-4 event cards showing: thumbnail, camera name, risk badge (varied colors), AI summary text, and relative timestamp
+Size: 600x500 pixels (1.2:1 aspect ratio)
+Alt text: Live Activity feed showing recent security events with thumbnails, risk level badges, AI-generated summaries, and timestamps
+-->
+<!-- Image placeholder - activity feed screenshot would go here -->
+
+_Caption: The Live Activity feed shows security events as they happen._
+
 ### Understanding the Feed
 
 Each event in the feed shows:
@@ -42,6 +52,16 @@ When paused, you can manually scroll through events.
 
 The Event Timeline page shows a complete history of all security events with powerful filtering.
 
+<!-- SCREENSHOT: Event Timeline Page
+Location: Timeline page (click Timeline in sidebar)
+Shows: Full Timeline page with: page title, "Show Filters" button (expanded showing filter dropdowns), results summary with risk badges, event cards grid (3 columns), and pagination at bottom
+Size: 1200x800 pixels (3:2 aspect ratio)
+Alt text: Event Timeline page showing filter controls, search bar, results summary with event counts by risk level, and grid of event cards
+-->
+<!-- Image placeholder - event timeline screenshot would go here -->
+
+_Caption: The Event Timeline shows all your security events with powerful filtering options._
+
 ### Accessing the Timeline
 
 Click **Timeline** in the left sidebar.
@@ -49,6 +69,16 @@ Click **Timeline** in the left sidebar.
 ### Filtering Events
 
 Click **Show Filters** to reveal filtering options:
+
+<!-- SCREENSHOT: Timeline Filter Controls
+Location: Filter panel on Timeline page (expanded)
+Shows: Expanded filter panel with dropdowns for Camera, Risk Level, Status, Object Type, date pickers for Start/End dates, and "Clear All Filters" button
+Size: 1000x200 pixels (5:1 aspect ratio)
+Alt text: Timeline filter controls showing dropdowns for camera, risk level, status, object type, and date range pickers
+-->
+<!-- Image placeholder - timeline filters screenshot would go here -->
+
+_Caption: Use filters to narrow down events by camera, risk level, status, object type, or date range._
 
 | Filter          | What It Does                                  |
 | --------------- | --------------------------------------------- |
@@ -94,6 +124,16 @@ Events are shown 20 at a time. Use **Previous** and **Next** buttons at the bott
 
 When you click any event (in the feed, timeline, or alerts), a detailed popup appears.
 
+<!-- SCREENSHOT: Event Detail Modal
+Location: Modal popup that appears when clicking any event
+Shows: Full event detail modal with: header (camera name, timestamp, duration, risk badge, close X), large detection image with bounding boxes, thumbnail strip, AI Summary section, AI Reasoning highlighted box, Detected Objects list, Notes section with Save button, and navigation buttons
+Size: 900x800 pixels (9:8 aspect ratio)
+Alt text: Event detail modal showing detection image with object highlighting, AI analysis summary, reasoning explanation, detected objects list, and notes section
+-->
+<!-- Image placeholder - event detail modal screenshot would go here -->
+
+_Caption: Click any event to see full details including the AI analysis and detection image._
+
 ### Header Section
 
 - **Camera Name** - Large title showing which camera
@@ -105,6 +145,16 @@ When you click any event (in the feed, timeline, or alerts), a detailed popup ap
 ### Detection Image
 
 Full-size image from the event. If the AI detected objects, they are highlighted with colored boxes and labels (like "Person 95%").
+
+<!-- SCREENSHOT: Detection Image with Bounding Boxes
+Location: Image section of Event Detail Modal
+Shows: A detection image with AI-drawn bounding boxes around detected objects (person, vehicle, etc.) with labels showing object type and confidence percentage
+Size: 700x500 pixels (7:5 aspect ratio)
+Alt text: Security camera image with AI-highlighted detection boxes showing identified objects with confidence scores
+-->
+<!-- Image placeholder - detection image screenshot would go here -->
+
+_Caption: The AI highlights detected objects with boxes and confidence scores._
 
 ### Detection Sequence
 
@@ -191,4 +241,15 @@ Mark as Reviewed
 
 - [Understanding Alerts](understanding-alerts.md) - Risk levels and how to respond
 - [Dashboard Settings](dashboard-settings.md) - Configure the system
-- [Back to User Hub](../user-hub.md)
+
+---
+
+## See Also
+
+- [Dashboard Basics](dashboard-basics.md) - Main dashboard overview
+- [Risk Levels Reference](../reference/config/risk-levels.md) - Technical details on risk scoring
+- [Troubleshooting Index](../reference/troubleshooting/index.md) - Common problems and solutions
+
+---
+
+[Back to User Hub](../user-hub.md)

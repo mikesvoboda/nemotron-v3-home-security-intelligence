@@ -11,6 +11,16 @@ description: Complete guide to all dashboard features
 
 Welcome to your Home Security Intelligence dashboard. This guide will walk you through every feature of the system so you can easily monitor your home's security.
 
+<!-- SCREENSHOT: Complete Dashboard Tutorial Overview
+Location: Main dashboard page with annotations
+Shows: Full dashboard view with numbered callouts pointing to: (1) Header/status area, (2) Sidebar navigation, (3) Quick stats row, (4) Risk gauge, (5) GPU stats, (6) Camera grid, (7) Activity feed
+Size: 1400x900 pixels (16:9 aspect ratio)
+Alt text: Annotated dashboard overview showing all major sections with numbered callouts for learning the interface
+-->
+<!-- Image placeholder - screenshot would go here -->
+
+_Caption: The main dashboard with numbered sections for easy reference._
+
 ## Table of Contents
 
 1. [Getting Started](#getting-started)
@@ -293,6 +303,16 @@ Events are shown 20 at a time. Use the **Previous** and **Next** buttons at the 
 
 When you click on any event (in the feed, timeline, or alerts), a detailed popup window appears.
 
+<!-- SCREENSHOT: Event Detail Modal Complete
+Location: Modal popup after clicking any event
+Shows: Full event detail modal with: header (camera name, timestamp, duration, large risk badge), detection image with bounding boxes, thumbnail strip for sequence, AI Summary text, AI Reasoning highlighted section, Detected Objects list with confidence bars, Notes text area with Save button, and Previous/Next navigation buttons
+Size: 900x850 pixels (~1:1 aspect ratio)
+Alt text: Complete event detail modal showing all sections including detection image, AI analysis, detected objects, and user notes area
+-->
+<!-- Image placeholder - screenshot would go here -->
+
+_Caption: The event detail popup shows everything the AI observed and analyzed._
+
 ### Event Detail Modal Contents
 
 The popup is divided into several sections:
@@ -360,6 +380,16 @@ Technical information including:
 
 The Alerts page focuses only on events that need your attention - those rated High or Critical risk.
 
+<!-- SCREENSHOT: Alerts Page View
+Location: Alerts page (click Alerts in sidebar)
+Shows: Alerts page with warning triangle icon in title, severity filter dropdown showing options (All Alerts, Critical Only, High Only), refresh button, results summary with counts, and event cards with orange/red left borders indicating high/critical risk
+Size: 1200x700 pixels (12:7 aspect ratio)
+Alt text: Alerts page showing filtered view of high and critical risk events with severity dropdown and colored event cards
+-->
+<!-- Image placeholder - screenshot would go here -->
+
+_Caption: The Alerts page shows only high-priority events that need your attention._
+
 ### Accessing Alerts
 
 Click **Alerts** in the left sidebar. A warning triangle icon appears next to the title.
@@ -390,6 +420,16 @@ If no high-risk events exist, you will see a friendly message: "No Alerts at Thi
 ---
 
 ## Navigation
+
+<!-- SCREENSHOT: Sidebar Navigation
+Location: Left sidebar of dashboard
+Shows: Sidebar with navigation items: Dashboard (selected/highlighted in green), Timeline, Entities (with "WIP" badge), Alerts, Logs, System, Settings. Show different states - normal (gray), hover (lighter), selected (green background)
+Size: 300x500 pixels (3:5 aspect ratio)
+Alt text: Sidebar navigation showing menu items with Dashboard selected and highlighted in green
+-->
+<!-- Image placeholder - screenshot would go here -->
+
+_Caption: The sidebar lets you navigate between different areas of the dashboard._
 
 ### Moving Between Pages
 

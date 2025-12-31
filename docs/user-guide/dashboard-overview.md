@@ -13,9 +13,15 @@ source_refs:
 
 The Security Dashboard is your central command center for monitoring home security. It displays real-time information from all connected cameras, AI detection results, and system health in one unified view.
 
-<!-- Nano Banana Pro Prompt:
-"Dark mode security dashboard showing real-time camera feeds with risk gauge and activity feed, vertical crop, NVIDIA aesthetic, clean minimalist interface"
+<!-- SCREENSHOT: Full Dashboard Overview
+Location: Main dashboard page (http://localhost:5173/)
+Shows: Complete dashboard with all sections visible - header with system status, sidebar navigation, quick stats row, risk gauge, GPU statistics panel, camera grid, and live activity feed
+Size: 1400x900 pixels (16:9 aspect ratio)
+Alt text: Complete security dashboard showing all main components including navigation, statistics, risk gauge, cameras, and activity feed
 -->
+<!-- Image placeholder - screenshot would go here -->
+
+_Caption: The Security Dashboard is your central command center for home security monitoring._
 
 ## Dashboard Layout
 
@@ -53,6 +59,16 @@ flowchart TB
 
 The **Risk Gauge** appears in the top-left corner of the dashboard. It displays the current security risk level from 0 to 100.
 
+<!-- SCREENSHOT: Risk Gauge Component
+Location: Top-left of main dashboard content area
+Shows: Circular risk gauge with score number in center (e.g., 23), colored arc (green for low), "Low" text label, and sparkline showing recent risk history trend
+Size: 400x450 pixels (8:9 aspect ratio)
+Alt text: Circular risk gauge showing current security risk level with score, colored arc, risk level label, and trend sparkline
+-->
+<!-- Image placeholder - screenshot would go here -->
+
+_Caption: The Risk Gauge provides an at-a-glance view of your current security status._
+
 ### Understanding Risk Levels
 
 > See [Risk Levels Reference](../reference/config/risk-levels.md) for the canonical definition and configuration options.
@@ -78,6 +94,16 @@ Below the main gauge, you may see a small chart showing how risk has changed ove
 ## Camera Grid
 
 The **Camera Grid** shows all your connected security cameras in a responsive grid layout.
+
+<!-- SCREENSHOT: Camera Grid Component
+Location: Middle section of dashboard, below risk gauge and GPU stats
+Shows: Grid of 3-4 camera cards showing: thumbnail images, status badges (mix of Online green, Offline gray), camera names (e.g., "Front Door", "Backyard"), and last seen timestamps. One camera should be selected with green border
+Size: 1000x400 pixels (2.5:1 aspect ratio)
+Alt text: Camera grid showing multiple security camera cards with thumbnails, status indicators, names, and timestamps
+-->
+<!-- Image placeholder - screenshot would go here -->
+
+_Caption: The Camera Grid shows all your connected cameras with their current status._
 
 ### Camera Status Indicators
 
@@ -110,6 +136,16 @@ If no cameras are configured, you will see a message prompting you to add camera
 ## GPU Statistics
 
 The **GPU Statistics** panel in the top-right shows how your AI processing hardware is performing.
+
+<!-- SCREENSHOT: GPU Statistics Panel
+Location: Top-right area of dashboard, next to risk gauge
+Shows: GPU statistics card with utilization percentage bar, memory usage bar, temperature reading with color coding (green/yellow/red), power usage, and inference FPS metric
+Size: 400x350 pixels (8:7 aspect ratio)
+Alt text: GPU statistics panel showing utilization, memory, temperature, power, and inference performance metrics
+-->
+<!-- Image placeholder - screenshot would go here -->
+
+_Caption: GPU Statistics show how your AI hardware is performing._
 
 ### Key Metrics
 
@@ -146,6 +182,16 @@ Use the **Pause/Resume** button to stop or start collecting history data.
 ## Live Activity Feed
 
 The **Activity Feed** at the bottom of the dashboard shows a scrolling list of recent security events as they happen.
+
+<!-- SCREENSHOT: Live Activity Feed
+Location: Bottom section of dashboard
+Shows: Activity feed panel with "Live Activity" title, Pause/Resume button, and 3-4 event cards showing thumbnails, camera names, risk badges (varied colors), AI summaries, and relative timestamps ("Just now", "5 mins ago")
+Size: 600x450 pixels (4:3 aspect ratio)
+Alt text: Live activity feed showing recent security events with thumbnails, risk indicators, and AI-generated summaries
+-->
+<!-- Image placeholder - screenshot would go here -->
+
+_Caption: The Live Activity Feed shows security events as they happen in real-time._
 
 ### Event Information
 

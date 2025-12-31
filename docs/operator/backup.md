@@ -283,9 +283,16 @@ rsync -avz /opt/hsi-backup/ user@remote:/backups/hsi/
 
 ## Next Steps
 
-- [Monitoring](../admin-guide/monitoring.md) - Set up alerts for backup failures
-- [Retention Policies](../admin-guide/storage-retention.md) - Configure data retention
+- [Database Management](database.md) - PostgreSQL setup and maintenance
+- [Data Model](../developer/data-model.md) - Understanding what is backed up
 
 ---
 
-<- Back to [Operator Hub](../operator-hub.md)
+## See Also
+
+- [Database Troubleshooting](../reference/troubleshooting/database-issues.md) - Solve PostgreSQL problems
+- [Environment Variable Reference](../reference/config/env-reference.md) - Retention configuration
+
+---
+
+[Back to Operator Hub](../operator-hub.md)

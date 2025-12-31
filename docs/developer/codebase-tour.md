@@ -277,9 +277,17 @@ User Action → Frontend Component → API Call → Backend Route
 
 ## Next Steps
 
-- [Testing Guide](../development/testing.md) - Write tests for your changes
-- [AI Pipeline](../architecture/ai-pipeline.md) - Deep dive into detection flow
-- [Real-time System](../architecture/real-time.md) - WebSocket architecture
+- [Pipeline Overview](pipeline-overview.md) - Deep dive into detection flow
+- [Data Model](data-model.md) - Database schema reference
+- [Hooks](hooks.md) - Pre-commit hook configuration
+
+---
+
+## See Also
+
+- [Local Setup](local-setup.md) - Development environment setup
+- [AI Overview](../operator/ai-overview.md) - Operator perspective on AI services
+- [Environment Variable Reference](../reference/config/env-reference.md) - Configuration options
 
 ---
 

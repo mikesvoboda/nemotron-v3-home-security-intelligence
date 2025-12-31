@@ -20,6 +20,16 @@ The AI system assigns a risk score (0-100) to every event based on:
 
 ## Risk Levels
 
+<!-- SCREENSHOT: Risk Level Color Guide
+Location: N/A - composite infographic
+Shows: Horizontal bar divided into four color-coded sections showing risk levels: Low (green, 0-29), Medium (yellow, 30-59), High (orange, 60-84), Critical (red, 85-100). Each section includes the level name, score range, and a simple icon
+Size: 1000x200 pixels (5:1 aspect ratio)
+Alt text: Risk level color guide showing four sections - green for Low (0-29), yellow for Medium (30-59), orange for High (60-84), and red for Critical (85-100)
+-->
+<!-- Image placeholder - risk level color guide would go here -->
+
+_Caption: Risk levels are color-coded for easy identification._
+
 ### Low Risk (Green, 0-29)
 
 **What it means:** Normal activity, nothing concerning.
@@ -84,6 +94,16 @@ The AI system assigns a risk score (0-100) to every event based on:
 
 The Alerts page focuses only on events needing attention.
 
+<!-- SCREENSHOT: Alerts Page Overview
+Location: Alerts page (click Alerts in sidebar)
+Shows: Alerts page with warning triangle icon in title, severity filter dropdown, refresh button, results summary showing alert counts, and event cards with orange and red left borders
+Size: 1200x700 pixels (12:7 aspect ratio)
+Alt text: Alerts page showing high and critical risk events with orange and red severity indicators, filter dropdown, and event cards
+-->
+<!-- Image placeholder - alerts page screenshot would go here -->
+
+_Caption: The Alerts page shows only high-priority events that need your attention._
+
 ### Accessing Alerts
 
 Click **Alerts** in the left sidebar. A warning triangle icon appears next to the title.
@@ -114,6 +134,16 @@ If no high-risk events exist, you see: "No Alerts at This Time" - your system is
 ---
 
 ## Color Guide
+
+<!-- SCREENSHOT: Alert Card Examples by Risk Level
+Location: N/A - composite showing 4 sample alert cards
+Shows: Four event cards side by side, each representing a different risk level: Low (green left border), Medium (yellow left border), High (orange left border), Critical (red left border with glow). Each card shows camera name, timestamp, risk badge, and brief summary
+Size: 1000x400 pixels (2.5:1 aspect ratio)
+Alt text: Four example alert cards showing Low (green), Medium (yellow), High (orange), and Critical (red) risk levels with their distinctive border colors
+-->
+<!-- Image placeholder - alert cards comparison would go here -->
+
+_Caption: Event cards are color-coded by risk level for easy identification._
 
 | Color  | Meaning               | Action            |
 | ------ | --------------------- | ----------------- |
@@ -212,4 +242,15 @@ This system is a monitoring tool - it does NOT automatically contact emergency s
 
 - [Viewing Events](viewing-events.md) - How to view event details
 - [Dashboard Settings](dashboard-settings.md) - Configure notifications
-- [Back to User Hub](../user-hub.md)
+
+---
+
+## See Also
+
+- [Risk Levels Reference](../reference/config/risk-levels.md) - Technical risk score definitions
+- [Dashboard Basics](dashboard-basics.md) - Main dashboard overview
+- [Alerts (Developer)](../developer/alerts.md) - Technical alert system details
+
+---
+
+[Back to User Hub](../user-hub.md)

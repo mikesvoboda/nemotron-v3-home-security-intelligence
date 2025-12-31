@@ -370,4 +370,16 @@ gunzip -c backup_20250115.sql.gz | psql -h localhost -U security security
 
 - [Connection Issues](connection-issues.md) - Network problems
 - [Troubleshooting Index](index.md) - Back to symptom index
-- [Environment Variables](../config/env-reference.md) - Database configuration
+
+---
+
+## See Also
+
+- [Database Management](../../operator/database.md) - PostgreSQL setup and maintenance
+- [Backup and Recovery](../../operator/backup.md) - Backup procedures
+- [Data Model](../../developer/data-model.md) - Database schema reference
+- [Environment Variable Reference](../config/env-reference.md) - Database configuration
+
+---
+
+[Back to Operator Hub](../../operator-hub.md)
