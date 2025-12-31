@@ -82,4 +82,5 @@ CMD ["sh", "-c", "llama-server \
     --n-gpu-layers ${GPU_LAYERS} \
     --ctx-size ${CTX_SIZE} \
     --parallel ${PARALLEL} \
-    --cont-batching"]
+    --cont-batching \
+    --metrics"]

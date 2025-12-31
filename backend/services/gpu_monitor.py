@@ -1,7 +1,10 @@
-"""GPU monitoring service using pynvml for NVIDIA GPU statistics.
+"""GPU monitoring service using pynvml or AI container endpoints.
 
 This service polls GPU statistics at a configurable interval, stores them in the
 database, and can expose them for real-time monitoring via WebSocket.
+
+When running in a container without GPU access, it queries the AI containers
+(RT-DETRv2 and Nemotron) for GPU statistics instead of using local pynvml.
 """
 
 import asyncio
@@ -10,6 +13,7 @@ from collections import deque
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import httpx
 from sqlalchemy import select
 
 from backend.core.config import get_settings
@@ -21,14 +25,15 @@ logger = get_logger(__name__)
 
 
 class GPUMonitor:
-    """Monitor NVIDIA GPU statistics using pynvml.
+    """Monitor NVIDIA GPU statistics using pynvml or AI container endpoints.
 
     Features:
     - Async polling at configurable intervals
     - Graceful handling of missing GPU or pynvml errors
     - In-memory stats history for quick access
     - Database persistence for historical analysis
-    - Mock data mode when GPU is unavailable
+    - AI container querying when local GPU unavailable
+    - Mock data mode as final fallback
     """
 
     def __init__(
@@ -178,8 +183,128 @@ class GPUMonitor:
             "recorded_at": datetime.now(UTC),
         }
 
+    def _parse_rtdetr_response(self, data: dict[str, Any]) -> tuple[float, str | None]:
+        """Parse RT-DETRv2 health response for GPU stats.
+
+        Returns:
+            Tuple of (vram_used_mb, gpu_device_name or None)
+        """
+        vram_mb = 0.0
+        device = None
+        if data.get("vram_used_gb") is not None:
+            vram_mb = data["vram_used_gb"] * 1024  # Convert GB to MB
+        if data.get("device"):
+            device = data["device"]
+        return vram_mb, device
+
+    def _parse_vram_metric_line(self, line: str) -> float:
+        """Parse a single Prometheus metric line for VRAM value.
+
+        Returns VRAM in MB, or 0 if parsing fails.
+        """
+        parts = line.split()
+        if len(parts) < 2:
+            return 0.0
+        try:
+            value = float(parts[-1])
+        except ValueError:
+            return 0.0
+
+        # Convert based on unit in metric name
+        line_lower = line.lower()
+        if "bytes" in line_lower:
+            return value / (1024 * 1024)
+        if "gb" in line_lower:
+            return value * 1024
+        # Assume MB if unit unclear
+        return value
+
+    async def _get_gpu_stats_from_ai_containers(self) -> dict[str, Any] | None:
+        """Query AI containers for GPU statistics.
+
+        Queries RT-DETRv2 and Nemotron health endpoints to aggregate GPU usage.
+        RT-DETRv2 reports vram_used_gb, Nemotron can report metrics if enabled.
+
+        Returns:
+            Dictionary containing aggregated GPU stats from AI containers, or None if unavailable.
+        """
+        settings = get_settings()
+        total_vram_used_mb = 0.0
+        gpu_name = "NVIDIA GPU (via AI Containers)"
+
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                # Query RT-DETRv2 health endpoint
+                try:
+                    resp = await client.get(f"{settings.rtdetr_url}/health")
+                    if resp.status_code == 200:
+                        vram_mb, device = self._parse_rtdetr_response(resp.json())
+                        total_vram_used_mb += vram_mb
+                        if device:
+                            gpu_name = f"NVIDIA GPU ({device})"
+                        logger.debug(f"RT-DETRv2 GPU stats: {vram_mb / 1024:.2f} GB")
+                except Exception as e:
+                    logger.debug(f"Failed to query RT-DETRv2 health: {e}")
+
+                # Query Nemotron metrics endpoint (if enabled with --metrics flag)
+                try:
+                    resp = await client.get(f"{settings.nemotron_url}/metrics")
+                    if resp.status_code == 200:
+                        for line in resp.text.split("\n"):
+                            if "vram" in line.lower() and not line.startswith("#"):
+                                total_vram_used_mb += self._parse_vram_metric_line(line)
+                        logger.debug(f"Nemotron metrics: total VRAM {total_vram_used_mb:.0f} MB")
+                except Exception as e:
+                    logger.debug(f"Failed to query Nemotron metrics: {e}")
+
+                if total_vram_used_mb > 0:
+                    return {
+                        "gpu_name": gpu_name,
+                        "gpu_utilization": None,
+                        "memory_used": int(total_vram_used_mb),
+                        "memory_total": None,
+                        "temperature": None,
+                        "power_usage": None,
+                        "recorded_at": datetime.now(UTC),
+                    }
+
+        except Exception as e:
+            logger.warning(f"Failed to query AI containers for GPU stats: {e}")
+
+        return None
+
+    async def get_current_stats_async(self) -> dict[str, Any]:
+        """Get current GPU statistics asynchronously.
+
+        Tries in order:
+        1. Local pynvml (if GPU available)
+        2. AI container health endpoints (RT-DETRv2, Nemotron)
+        3. Mock data as fallback
+
+        Returns:
+            Dictionary containing current GPU stats
+        """
+        try:
+            # First try local pynvml
+            if self._gpu_available:
+                return self._get_gpu_stats_real()
+
+            # Try AI container endpoints
+            ai_stats = await self._get_gpu_stats_from_ai_containers()
+            if ai_stats is not None:
+                return ai_stats
+
+            # Fallback to mock data
+            return self._get_gpu_stats_mock()
+        except Exception as e:
+            logger.error(f"Failed to get GPU stats: {e}")
+            return self._get_gpu_stats_mock()
+
     def get_current_stats(self) -> dict[str, Any]:
-        """Get current GPU statistics.
+        """Get current GPU statistics (sync version).
+
+        Note: This sync version cannot query AI containers. Use get_current_stats_async()
+        for the full functionality including AI container querying.
 
         Returns:
             Dictionary containing current GPU stats (real or mock)
@@ -260,8 +385,8 @@ class GPUMonitor:
 
         while self.running:
             try:
-                # Get current stats
-                stats = self.get_current_stats()
+                # Get current stats (use async version to query AI containers)
+                stats = await self.get_current_stats_async()
 
                 # Add to in-memory history
                 self._stats_history.append(stats)
