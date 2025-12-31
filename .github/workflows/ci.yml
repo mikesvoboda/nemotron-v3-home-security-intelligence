@@ -235,11 +235,11 @@ jobs:
         # - Testing specific API endpoints rather than all code paths
         # - Focus on end-to-end behavior verification
         # -n0 disables xdist parallelization (CI already parallelizes via separate jobs)
-        # --timeout=0 disables timeout (fixture import takes >1s in CI)
+        # --timeout=30 gives tests 30s each (prevents hangs while allowing slow DB ops)
         run: |
           pytest backend/tests/integration/ \
             -n0 \
-            --timeout=0 \
+            --timeout=30 \
             --cov=backend \
             --cov-report=xml:coverage-integration.xml \
             --cov-report=term-missing \
