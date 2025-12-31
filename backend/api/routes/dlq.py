@@ -22,6 +22,12 @@ from backend.api.schemas.dlq import (
     DLQStatsResponse,
 )
 from backend.core.config import get_settings
+from backend.core.constants import (
+    ANALYSIS_QUEUE,
+    DETECTION_QUEUE,
+    DLQ_ANALYSIS_QUEUE,
+    DLQ_DETECTION_QUEUE,
+)
 from backend.core.logging import get_logger
 from backend.core.redis import RedisClient, get_redis
 from backend.services.retry_handler import get_retry_handler
@@ -81,8 +87,8 @@ async def verify_api_key(
 class DLQName(str, Enum):
     """Available dead-letter queue names."""
 
-    DETECTION = "dlq:detection_queue"
-    ANALYSIS = "dlq:analysis_queue"
+    DETECTION = DLQ_DETECTION_QUEUE
+    ANALYSIS = DLQ_ANALYSIS_QUEUE
 
     @property
     def target_queue(self) -> str:
@@ -92,8 +98,8 @@ class DLQName(str, Enum):
             Target queue name
         """
         return {
-            DLQName.DETECTION: "detection_queue",
-            DLQName.ANALYSIS: "analysis_queue",
+            DLQName.DETECTION: DETECTION_QUEUE,
+            DLQName.ANALYSIS: ANALYSIS_QUEUE,
         }[self]
 
 

@@ -39,7 +39,6 @@ export type {
   GPUStatsHistoryResponse,
   HealthResponse,
   HTTPValidationError,
-  LivenessResponse,
   LogEntry,
   LogsResponse,
   LogStats,
