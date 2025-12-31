@@ -17,7 +17,7 @@ Root directory for all React components in the NVIDIA Security Intelligence home
 | **layout/**    | Application shell components                     | Layout, Header, Sidebar                                                                |
 | **logs/**      | Logging dashboard and viewer                     | LogsDashboard, LogsTable, LogFilters, LogStatsCards, LogDetailModal                    |
 | **settings/**  | Configuration pages                              | SettingsPage, CamerasSettings, AIModelsSettings, ProcessingSettings, DlqMonitor        |
-| **system/**    | System monitoring page                           | SystemMonitoringPage, ObservabilityPanel                                               |
+| **system/**    | System monitoring page                           | SystemMonitoringPage, WorkerStatusPanel                                                |
 | **video/**     | Video playback components                        | VideoPlayer                                                                            |
 
 ## Component Hierarchy
@@ -51,7 +51,6 @@ Routes:
 │ ├── LogsTable
 │ └── LogDetailModal
 ├── /system -> SystemMonitoringPage (system/)
-│ └── ObservabilityPanel
 └── /settings -> SettingsPage (settings/)
 ├── CamerasSettings
 ├── AIModelsSettings
@@ -167,7 +166,7 @@ Test files are co-located with their components using the \`.test.tsx\` extensio
 ### system/
 
 - \`SystemMonitoringPage.tsx\` - System health monitoring page
-- \`ObservabilityPanel.tsx\` - Observability metrics panel
+- \`WorkerStatusPanel.tsx\` - Background workers status display
 - \`index.ts\` - Barrel exports
 
 ### video/
@@ -188,7 +187,7 @@ Each subdirectory contains its own `AGENTS.md` with detailed component documenta
 - `layout/AGENTS.md` - Application shell and navigation (Layout, Header, Sidebar)
 - `logs/AGENTS.md` - Logging dashboard components
 - `settings/AGENTS.md` - Settings page structure (CamerasSettings, ProcessingSettings, DlqMonitor)
-- `system/AGENTS.md` - System monitoring components (SystemMonitoringPage, ObservabilityPanel)
+- `system/AGENTS.md` - System monitoring components (SystemMonitoringPage, WorkerStatusPanel)
 - `video/AGENTS.md` - Video playback components (VideoPlayer)
 
 ## Entry Points

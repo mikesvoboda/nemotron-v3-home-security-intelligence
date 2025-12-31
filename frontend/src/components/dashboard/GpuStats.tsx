@@ -1,13 +1,15 @@
 import { Card, ProgressBar, Title, Text, AreaChart, TabGroup, TabList, Tab } from '@tremor/react';
 import { clsx } from 'clsx';
 import { Cpu, Thermometer, Activity, Zap, TrendingUp, Plug, Play, Pause, Trash2 } from 'lucide-react';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 
 import {
   useGpuHistory,
   type GpuMetricDataPoint,
   type UseGpuHistoryOptions,
 } from '../../hooks/useGpuHistory';
+
+import type { TimeRange } from '../../types/performance';
 
 export interface GpuStatsProps {
   /** GPU device name (e.g., 'NVIDIA RTX A5500') */
@@ -30,6 +32,10 @@ export interface GpuStatsProps {
   historyOptions?: UseGpuHistoryOptions;
   /** Whether to show history controls (start/stop/clear) - default: true */
   showHistoryControls?: boolean;
+  /** Time range for historical data display ('5m' | '15m' | '60m') */
+  timeRange?: TimeRange;
+  /** External history data - when provided, used instead of internal useGpuHistory */
+  historyData?: GpuMetricDataPoint[];
 }
 
 /**
@@ -152,13 +158,37 @@ export default function GpuStats({
   className,
   historyOptions,
   showHistoryControls = true,
+  timeRange,
+  historyData,
 }: GpuStatsProps) {
+  // Determine if we should use the internal hook or external data
+  const useExternalData = historyData !== undefined;
+
   // Use GPU history hook for real-time data and history collection
-  const { current, history, isLoading, error, start, stop, clearHistory } =
-    useGpuHistory(historyOptions);
+  // Only activate if not using external data
+  const {
+    current,
+    history: internalHistory,
+    isLoading: internalLoading,
+    error: internalError,
+    start,
+    stop,
+    clearHistory,
+  } = useGpuHistory({
+    ...historyOptions,
+    autoStart: useExternalData ? false : (historyOptions?.autoStart ?? true),
+  });
+
+  // Use external history data when provided, otherwise use internal hook data
+  const history = useExternalData ? historyData : internalHistory;
+  const isLoading = useExternalData ? false : internalLoading;
+  const error = useExternalData ? null : internalError;
 
   // Track whether polling is active (derived from whether we have current data updating)
-  const [isPolling, setIsPolling] = useState(historyOptions?.autoStart !== false);
+  // Only relevant when using internal hook
+  const [isPolling, setIsPolling] = useState(
+    !useExternalData && historyOptions?.autoStart !== false
+  );
 
   // Track selected history tab
   const [selectedTab, setSelectedTab] = useState<HistoryTab>(0);
@@ -174,10 +204,10 @@ export default function GpuStats({
   const tempColor = getTemperatureColor(temperature);
   const powerColor = getPowerColor(powerUsage ?? null);
 
-  // Transform history for different chart views
-  const utilizationChartData = transformToUtilizationChart(history);
-  const temperatureChartData = transformToTemperatureChart(history);
-  const memoryChartData = transformToMemoryChart(history);
+  // Transform history for different chart views, memoized for performance
+  const utilizationChartData = useMemo(() => transformToUtilizationChart(history), [history]);
+  const temperatureChartData = useMemo(() => transformToTemperatureChart(history), [history]);
+  const memoryChartData = useMemo(() => transformToMemoryChart(history), [history]);
 
   // Handle start/stop toggle
   const handleTogglePolling = useCallback(() => {
@@ -350,9 +380,11 @@ export default function GpuStats({
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-[#76B900]" />
-              <Text className="text-sm font-medium text-gray-300">Metrics History</Text>
+              <Text className="text-sm font-medium text-gray-300">
+                Metrics History{timeRange ? ` (${timeRange})` : ''}
+              </Text>
             </div>
-            {showHistoryControls && (
+            {showHistoryControls && !useExternalData && (
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleTogglePolling}

@@ -35,6 +35,7 @@ from backend.services.event_broadcaster import get_broadcaster, stop_broadcaster
 from backend.services.file_watcher import FileWatcher
 from backend.services.gpu_monitor import GPUMonitor
 from backend.services.health_monitor import ServiceHealthMonitor
+from backend.services.performance_collector import PerformanceCollector
 from backend.services.pipeline_workers import get_pipeline_manager, stop_pipeline_manager
 from backend.services.service_managers import ServiceConfig, ShellServiceManager
 from backend.services.system_broadcaster import get_system_broadcaster, stop_system_broadcaster
@@ -129,6 +130,12 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     system_broadcaster = get_system_broadcaster(redis_client=redis_client)
     await system_broadcaster.start_broadcasting(interval=5.0)
     print("System status broadcaster initialized (5s interval)")
+
+    # Initialize performance collector and attach to system broadcaster
+    # This enables detailed performance metrics broadcasting alongside system status
+    performance_collector = PerformanceCollector()
+    system_broadcaster.set_performance_collector(performance_collector)
+    print("Performance collector initialized and attached to system broadcaster")
 
     # Initialize GPU monitor
     # Note: broadcaster=None to avoid duplicate GPU stats broadcasts
@@ -225,6 +232,9 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     print("Event broadcaster stopped")
     await stop_system_broadcaster()
     print("System status broadcaster stopped")
+    # Close performance collector (cleanup HTTP client and pynvml)
+    await performance_collector.close()
+    print("Performance collector closed")
     await close_db()
     print("Database connections closed")
     await close_redis()

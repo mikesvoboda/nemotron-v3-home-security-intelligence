@@ -37,11 +37,15 @@ if TYPE_CHECKING:
     from redis.asyncio.client import PubSub
 
     from backend.core.redis import RedisClient
+    from backend.services.performance_collector import PerformanceCollector
 
 logger = get_logger(__name__)
 
 # Redis channel for system status updates
 SYSTEM_STATUS_CHANNEL = "system_status"
+
+# Redis channel for performance updates
+PERFORMANCE_UPDATE_CHANNEL = "performance_update"
 
 
 class SystemBroadcaster:
@@ -60,6 +64,7 @@ class SystemBroadcaster:
         _redis_client: Injected Redis client instance (optional)
         _redis_getter: Callable that returns Redis client (alternative to direct injection)
         _pubsub: Redis pub/sub instance for receiving updates
+        _performance_collector: Optional PerformanceCollector for detailed system metrics
     """
 
     # Maximum number of consecutive recovery attempts before giving up
@@ -88,6 +93,7 @@ class SystemBroadcaster:
         self._pubsub: PubSub | None = None
         self._pubsub_listening = False
         self._recovery_attempts = 0
+        self._performance_collector: PerformanceCollector | None = None
 
     def _get_redis(self) -> RedisClient | None:
         """Get the Redis client instance.
@@ -114,6 +120,17 @@ class SystemBroadcaster:
             redis_client: Redis client instance or None
         """
         self._redis_client = redis_client
+
+    def set_performance_collector(self, collector: PerformanceCollector | None) -> None:
+        """Set the PerformanceCollector after initialization.
+
+        This allows the broadcaster to collect and broadcast detailed performance
+        metrics from GPU, AI models, databases, and host system.
+
+        Args:
+            collector: PerformanceCollector instance or None
+        """
+        self._performance_collector = collector
 
     async def connect(self, websocket: WebSocket) -> None:
         """Add a WebSocket connection to the broadcaster.
@@ -165,6 +182,49 @@ class SystemBroadcaster:
         # Fallback: broadcast directly to local connections
         await self._send_to_local_clients(status_data)
 
+    async def broadcast_performance(self) -> None:
+        """Broadcast detailed performance metrics to all connected clients.
+
+        Uses the PerformanceCollector to gather comprehensive system metrics
+        including GPU, AI models, databases, and host metrics. Broadcasts
+        as message type "performance_update" via WebSocket.
+
+        If no PerformanceCollector is configured, this method returns early
+        without broadcasting.
+        """
+        if self._performance_collector is None:
+            logger.debug("No PerformanceCollector configured, skipping performance broadcast")
+            return
+
+        try:
+            # Collect all performance metrics
+            performance_update = await self._performance_collector.collect_all()
+
+            # Build the broadcast message
+            performance_data = {
+                "type": "performance_update",
+                "data": performance_update.model_dump(mode="json"),
+            }
+
+            redis_client = self._get_redis()
+
+            # Try to publish via Redis for multi-instance support
+            if redis_client is not None:
+                try:
+                    await redis_client.publish(PERFORMANCE_UPDATE_CHANNEL, performance_data)
+                    logger.debug("Published performance update via Redis pub/sub")
+                    return
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to publish performance via Redis, falling back to direct: {e}"
+                    )
+
+            # Fallback: broadcast directly to local connections
+            await self._send_to_local_clients(performance_data)
+
+        except Exception as e:
+            logger.error(f"Error broadcasting performance metrics: {e}", exc_info=True)
+
     async def _send_to_local_clients(self, status_data: dict | Any) -> None:
         """Send status data directly to all locally connected WebSocket clients.
 
@@ -203,6 +263,9 @@ class SystemBroadcaster:
         This enables multi-instance support where status updates published by
         any instance are received and forwarded to local WebSocket clients.
 
+        Subscribes to both system_status and performance_update channels to
+        receive all types of updates.
+
         Uses a dedicated pub/sub connection to avoid concurrency issues with
         other Redis operations (prevents 'readuntil() called while another
         coroutine is already waiting' errors).
@@ -219,11 +282,17 @@ class SystemBroadcaster:
         try:
             # Use subscribe_dedicated() to get a dedicated connection that
             # won't conflict with other Redis operations
-            self._pubsub = await redis_client.subscribe_dedicated(SYSTEM_STATUS_CHANNEL)
+            # Subscribe to both system status and performance update channels
+            self._pubsub = await redis_client.subscribe_dedicated(
+                SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL
+            )
             self._pubsub_listening = True
             self._recovery_attempts = 0  # Reset recovery attempts on successful start
             self._listener_task = asyncio.create_task(self._listen_for_updates())
-            logger.info(f"Started pub/sub listener on channel: {SYSTEM_STATUS_CHANNEL}")
+            logger.info(
+                f"Started pub/sub listener on channels: {SYSTEM_STATUS_CHANNEL}, "
+                f"{PERFORMANCE_UPDATE_CHANNEL}"
+            )
         except Exception as e:
             logger.error(f"Failed to start pub/sub listener: {e}", exc_info=True)
 
@@ -239,8 +308,8 @@ class SystemBroadcaster:
 
         if self._pubsub:
             try:
-                # Unsubscribe directly on the dedicated pubsub instance
-                await self._pubsub.unsubscribe(SYSTEM_STATUS_CHANNEL)
+                # Unsubscribe from both channels
+                await self._pubsub.unsubscribe(SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL)
             except Exception as e:
                 logger.warning(f"Error unsubscribing: {e}")
             try:
@@ -267,7 +336,7 @@ class SystemBroadcaster:
         # Close old dedicated pubsub connection if exists
         if self._pubsub:
             try:
-                await self._pubsub.unsubscribe(SYSTEM_STATUS_CHANNEL)
+                await self._pubsub.unsubscribe(SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL)
             except Exception as e:
                 logger.debug(f"Error unsubscribing during reset (expected): {e}")
             try:
@@ -276,10 +345,15 @@ class SystemBroadcaster:
                 logger.debug(f"Error closing pubsub during reset (expected): {e}")
             self._pubsub = None
 
-        # Create fresh dedicated subscription
+        # Create fresh dedicated subscription to both channels
         try:
-            self._pubsub = await redis_client.subscribe_dedicated(SYSTEM_STATUS_CHANNEL)
-            logger.info(f"Re-established pub/sub subscription on channel: {SYSTEM_STATUS_CHANNEL}")
+            self._pubsub = await redis_client.subscribe_dedicated(
+                SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL
+            )
+            logger.info(
+                f"Re-established pub/sub subscription on channels: {SYSTEM_STATUS_CHANNEL}, "
+                f"{PERFORMANCE_UPDATE_CHANNEL}"
+            )
         except Exception as e:
             logger.error(f"Failed to re-subscribe during reset: {e}", exc_info=True)
             self._pubsub = None
@@ -566,7 +640,11 @@ class SystemBroadcaster:
         logger.info("Stopped system status broadcasting")
 
     async def _broadcast_loop(self, interval: float) -> None:
-        """Background task that periodically broadcasts system status.
+        """Background task that periodically broadcasts system status and performance.
+
+        Broadcasts two message types:
+        - system_status: Basic system health information
+        - performance_update: Detailed performance metrics (if PerformanceCollector configured)
 
         Args:
             interval: Seconds between broadcasts
@@ -577,6 +655,9 @@ class SystemBroadcaster:
                 if self.connections:
                     status_data = await self._get_system_status()
                     await self.broadcast_status(status_data)
+
+                    # Also broadcast detailed performance metrics if collector is configured
+                    await self.broadcast_performance()
 
                 await asyncio.sleep(interval)
             except asyncio.CancelledError:

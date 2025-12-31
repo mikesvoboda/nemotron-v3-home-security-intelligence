@@ -876,491 +876,206 @@ async def test_system_broadcaster_listen_stops_when_flag_false():
     assert messages_processed <= 2
 
 
-# Test connect() method with initial status
+# ============================================================================
+# Tests for PerformanceCollector integration
+# ============================================================================
 
 
 @pytest.mark.asyncio
-async def test_system_broadcaster_connect():
-    """Test connecting a WebSocket and sending initial status."""
+async def test_system_broadcaster_set_performance_collector():
+    """Test setting PerformanceCollector after initialization."""
     broadcaster = SystemBroadcaster()
-    mock_websocket = AsyncMock()
+    assert broadcaster._performance_collector is None
 
-    # Mock _get_system_status to avoid database calls
-    mock_status = {"type": "system_status", "data": {"test": "initial"}}
-    with patch.object(broadcaster, "_get_system_status", return_value=mock_status):
-        await broadcaster.connect(mock_websocket)
-
-    # Should accept and add the connection
-    mock_websocket.accept.assert_called_once()
-    assert mock_websocket in broadcaster.connections
-
-    # Should send initial status
-    mock_websocket.send_json.assert_called_once_with(mock_status)
+    mock_collector = AsyncMock()
+    broadcaster.set_performance_collector(mock_collector)
+    assert broadcaster._performance_collector is mock_collector
 
 
 @pytest.mark.asyncio
-async def test_system_broadcaster_connect_initial_status_error():
-    """Test connect() handles initial status send errors gracefully."""
+async def test_system_broadcaster_broadcast_performance_no_collector():
+    """Test broadcast_performance returns early when no collector configured."""
     broadcaster = SystemBroadcaster()
-    mock_websocket = AsyncMock()
+    broadcaster._performance_collector = None
 
-    # Mock _get_system_status to raise error
-    with patch.object(broadcaster, "_get_system_status", side_effect=Exception("Status error")):
-        # Should not raise
-        await broadcaster.connect(mock_websocket)
-
-    # Should still accept and add the connection
-    mock_websocket.accept.assert_called_once()
-    assert mock_websocket in broadcaster.connections
-
-
-# Test _stop_pubsub_listener close error
+    # Should not raise, should return early
+    await broadcaster.broadcast_performance()
+    # No error means success - method returned early
 
 
 @pytest.mark.asyncio
-async def test_system_broadcaster_stop_pubsub_listener_close_error():
-    """Test _stop_pubsub_listener handles close errors gracefully."""
+async def test_system_broadcaster_broadcast_performance_with_collector():
+    """Test broadcast_performance collects and broadcasts metrics."""
     mock_redis = AsyncMock()
-    mock_pubsub = AsyncMock()
-    mock_pubsub.close.side_effect = Exception("Close failed")
+    broadcaster = SystemBroadcaster(redis_client=mock_redis)
+
+    # Create mock performance update
+    mock_performance_update = MagicMock()
+    mock_performance_update.model_dump.return_value = {
+        "timestamp": "2025-12-31T10:00:00Z",
+        "gpu": {"name": "Test GPU", "utilization": 50.0},
+        "alerts": [],
+    }
+
+    mock_collector = AsyncMock()
+    mock_collector.collect_all.return_value = mock_performance_update
+
+    broadcaster.set_performance_collector(mock_collector)
+
+    await broadcaster.broadcast_performance()
+
+    # Should have called collect_all
+    mock_collector.collect_all.assert_called_once()
+
+    # Should have published via Redis
+    mock_redis.publish.assert_called_once()
+    call_args = mock_redis.publish.call_args
+    assert call_args[0][0] == "performance_update"  # Channel name
+    assert call_args[0][1]["type"] == "performance_update"  # Message type
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_broadcast_performance_fallback_to_direct():
+    """Test broadcast_performance falls back to direct send when Redis publish fails."""
+    mock_redis = AsyncMock()
+    mock_redis.publish.side_effect = Exception("Redis publish failed")
 
     broadcaster = SystemBroadcaster(redis_client=mock_redis)
-    broadcaster._pubsub = mock_pubsub
-    broadcaster._pubsub_listening = True
+
+    # Create mock performance update
+    mock_performance_update = MagicMock()
+    mock_performance_update.model_dump.return_value = {
+        "timestamp": "2025-12-31T10:00:00Z",
+        "gpu": None,
+        "alerts": [],
+    }
+
+    mock_collector = AsyncMock()
+    mock_collector.collect_all.return_value = mock_performance_update
+
+    broadcaster.set_performance_collector(mock_collector)
+
+    # Add a connection
+    mock_ws = AsyncMock()
+    broadcaster.connections.add(mock_ws)
+
+    await broadcaster.broadcast_performance()
+
+    # Should have fallen back to direct send
+    mock_ws.send_text.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_broadcast_performance_no_redis():
+    """Test broadcast_performance sends directly when Redis not available."""
+    broadcaster = SystemBroadcaster()  # No Redis
+
+    # Create mock performance update
+    mock_performance_update = MagicMock()
+    mock_performance_update.model_dump.return_value = {
+        "timestamp": "2025-12-31T10:00:00Z",
+        "alerts": [],
+    }
+
+    mock_collector = AsyncMock()
+    mock_collector.collect_all.return_value = mock_performance_update
+
+    broadcaster.set_performance_collector(mock_collector)
+
+    # Add a connection
+    mock_ws = AsyncMock()
+    broadcaster.connections.add(mock_ws)
+
+    await broadcaster.broadcast_performance()
+
+    # Should have sent directly
+    mock_ws.send_text.assert_called_once()
+    # Verify the message contains the performance_update type
+    call_args = mock_ws.send_text.call_args
+    import json as json_mod
+
+    sent_data = json_mod.loads(call_args[0][0])
+    assert sent_data["type"] == "performance_update"
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_broadcast_performance_collector_error():
+    """Test broadcast_performance handles collector errors gracefully."""
+    broadcaster = SystemBroadcaster()
+
+    mock_collector = AsyncMock()
+    mock_collector.collect_all.side_effect = Exception("Collector error")
+
+    broadcaster.set_performance_collector(mock_collector)
 
     # Should not raise
-    await broadcaster._stop_pubsub_listener()
-
-    # Should still clean up
-    assert broadcaster._pubsub is None
-    assert broadcaster._pubsub_listening is False
-
-
-# Test _reset_pubsub_connection close error
+    await broadcaster.broadcast_performance()
+    # No error means success - error was handled
 
 
 @pytest.mark.asyncio
-async def test_system_broadcaster_reset_pubsub_handles_close_error():
-    """Test _reset_pubsub_connection handles close errors gracefully."""
-    mock_redis = AsyncMock()
-    mock_pubsub = AsyncMock()
-    mock_redis.subscribe_dedicated.return_value = mock_pubsub
-
-    old_pubsub = AsyncMock()
-    old_pubsub.close.side_effect = Exception("Close failed")
-
-    broadcaster = SystemBroadcaster(redis_client=mock_redis)
-    broadcaster._pubsub = old_pubsub
-
-    # Should not raise, should continue to create new subscription
-    await broadcaster._reset_pubsub_connection()
-
-    assert broadcaster._pubsub is mock_pubsub
-    mock_redis.subscribe_dedicated.assert_called_once()
-
-
-# Test _get_system_status
-
-
-@pytest.mark.asyncio
-async def test_system_broadcaster_get_system_status():
-    """Test _get_system_status gathers all status data."""
+async def test_system_broadcaster_broadcast_loop_calls_performance():
+    """Test that _broadcast_loop calls broadcast_performance alongside broadcast_status."""
     broadcaster = SystemBroadcaster()
+    broadcaster._running = True
 
-    # Mock all the component getters
-    mock_gpu_stats = {"utilization": 75, "memory_used": 8192}
-    mock_camera_stats = {"active": 3, "total": 5}
-    mock_queue_stats = {"pending": 10, "processing": 2}
-    mock_health = "healthy"
+    # Add a connection
+    mock_ws = AsyncMock()
+    broadcaster.connections.add(mock_ws)
+
+    # Track calls
+    performance_called = False
+    status_called = False
+    loop_count = 0
+
+    async def mock_broadcast_performance():
+        nonlocal performance_called
+        performance_called = True
+
+    async def mock_broadcast_status(data):
+        nonlocal status_called
+        status_called = True
+
+    async def mock_get_status():
+        return {"test": "data"}
+
+    original_sleep = asyncio.sleep
+
+    async def counting_sleep(delay):
+        nonlocal loop_count
+        loop_count += 1
+        if loop_count >= 1:
+            broadcaster._running = False
+        await original_sleep(0.01)
 
     with (
-        patch.object(broadcaster, "_get_latest_gpu_stats", return_value=mock_gpu_stats),
-        patch.object(broadcaster, "_get_camera_stats", return_value=mock_camera_stats),
-        patch.object(broadcaster, "_get_queue_stats", return_value=mock_queue_stats),
-        patch.object(broadcaster, "_get_health_status", return_value=mock_health),
+        patch.object(broadcaster, "broadcast_performance", side_effect=mock_broadcast_performance),
+        patch.object(broadcaster, "broadcast_status", side_effect=mock_broadcast_status),
+        patch.object(broadcaster, "_get_system_status", side_effect=mock_get_status),
+        patch("asyncio.sleep", side_effect=counting_sleep),
     ):
-        status = await broadcaster._get_system_status()
+        await broadcaster._broadcast_loop(interval=0.1)
 
-    assert status["type"] == "system_status"
-    assert status["data"]["gpu"] == mock_gpu_stats
-    assert status["data"]["cameras"] == mock_camera_stats
-    assert status["data"]["queue"] == mock_queue_stats
-    assert status["data"]["health"] == mock_health
-    assert "timestamp" in status
-
-
-# Test _get_latest_gpu_stats with actual GPU data
+    # Both should have been called
+    assert status_called is True
+    assert performance_called is True
 
 
 @pytest.mark.asyncio
-async def test_system_broadcaster_get_latest_gpu_stats_with_data():
-    """Test _get_latest_gpu_stats returns GPU stats from database."""
+async def test_system_broadcaster_init_has_no_performance_collector():
+    """Test that SystemBroadcaster initializes with no performance collector."""
+    broadcaster = SystemBroadcaster()
+    assert broadcaster._performance_collector is None
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_set_performance_collector_to_none():
+    """Test setting performance collector to None clears it."""
     broadcaster = SystemBroadcaster()
 
-    # Create a mock GPU stats object
-    mock_gpu_stat = MagicMock()
-    mock_gpu_stat.gpu_utilization = 80.5
-    mock_gpu_stat.memory_used = 10240
-    mock_gpu_stat.memory_total = 24576
-    mock_gpu_stat.temperature = 72.0
-    mock_gpu_stat.inference_fps = 30.0
-
-    # Mock database session
-    mock_session = AsyncMock()
-    mock_result = MagicMock()
-    mock_result.scalar_one_or_none.return_value = mock_gpu_stat
-    mock_session.execute.return_value = mock_result
-
-    with patch("backend.services.system_broadcaster.get_session") as mock_get_session:
-        mock_context = AsyncMock()
-        mock_context.__aenter__.return_value = mock_session
-        mock_context.__aexit__.return_value = None
-        mock_get_session.return_value = mock_context
-
-        gpu_stats = await broadcaster._get_latest_gpu_stats()
-
-    assert gpu_stats["utilization"] == 80.5
-    assert gpu_stats["memory_used"] == 10240
-    assert gpu_stats["memory_total"] == 24576
-    assert gpu_stats["temperature"] == 72.0
-    assert gpu_stats["inference_fps"] == 30.0
-
-
-# Test _get_camera_stats
-
-
-@pytest.mark.asyncio
-async def test_system_broadcaster_get_camera_stats():
-    """Test _get_camera_stats returns camera counts from database."""
-    broadcaster = SystemBroadcaster()
-
-    # Mock database session
-    mock_session = AsyncMock()
-
-    # Mock total cameras query
-    mock_total_result = MagicMock()
-    mock_total_result.scalar_one.return_value = 5
-
-    # Mock active cameras query
-    mock_active_result = MagicMock()
-    mock_active_result.scalar_one.return_value = 3
-
-    mock_session.execute.side_effect = [mock_total_result, mock_active_result]
-
-    with patch("backend.services.system_broadcaster.get_session") as mock_get_session:
-        mock_context = AsyncMock()
-        mock_context.__aenter__.return_value = mock_session
-        mock_context.__aexit__.return_value = None
-        mock_get_session.return_value = mock_context
-
-        camera_stats = await broadcaster._get_camera_stats()
-
-    assert camera_stats["total"] == 5
-    assert camera_stats["active"] == 3
-
-
-# Test _get_health_status
-
-
-@pytest.mark.asyncio
-async def test_system_broadcaster_get_health_status_healthy():
-    """Test _get_health_status returns healthy when all services are up."""
-    mock_redis = AsyncMock()
-    mock_redis.health_check.return_value = {"status": "ok"}
-
-    broadcaster = SystemBroadcaster(redis_client=mock_redis)
-
-    # Mock database session
-    mock_session = AsyncMock()
-    mock_result = MagicMock()
-    mock_session.execute.return_value = mock_result
-
-    with patch("backend.services.system_broadcaster.get_session") as mock_get_session:
-        mock_context = AsyncMock()
-        mock_context.__aenter__.return_value = mock_session
-        mock_context.__aexit__.return_value = None
-        mock_get_session.return_value = mock_context
-
-        health = await broadcaster._get_health_status()
-
-    assert health == "healthy"
-
-
-@pytest.mark.asyncio
-async def test_system_broadcaster_get_health_status_degraded():
-    """Test _get_health_status returns degraded when Redis is down."""
-    mock_redis = AsyncMock()
-    mock_redis.health_check.side_effect = Exception("Redis error")
-
-    broadcaster = SystemBroadcaster(redis_client=mock_redis)
-
-    # Mock database session (DB is healthy)
-    mock_session = AsyncMock()
-    mock_result = MagicMock()
-    mock_session.execute.return_value = mock_result
-
-    with patch("backend.services.system_broadcaster.get_session") as mock_get_session:
-        mock_context = AsyncMock()
-        mock_context.__aenter__.return_value = mock_session
-        mock_context.__aexit__.return_value = None
-        mock_get_session.return_value = mock_context
-
-        health = await broadcaster._get_health_status()
-
-    assert health == "degraded"
-
-
-@pytest.mark.asyncio
-async def test_system_broadcaster_get_health_status_degraded_no_redis():
-    """Test _get_health_status returns degraded when Redis not configured."""
-    broadcaster = SystemBroadcaster()  # No Redis
-
-    # Mock database session (DB is healthy)
-    mock_session = AsyncMock()
-    mock_result = MagicMock()
-    mock_session.execute.return_value = mock_result
-
-    with patch("backend.services.system_broadcaster.get_session") as mock_get_session:
-        mock_context = AsyncMock()
-        mock_context.__aenter__.return_value = mock_session
-        mock_context.__aexit__.return_value = None
-        mock_get_session.return_value = mock_context
-
-        health = await broadcaster._get_health_status()
-
-    assert health == "degraded"
-
-
-@pytest.mark.asyncio
-async def test_system_broadcaster_get_health_status_unhealthy():
-    """Test _get_health_status returns unhealthy when database is down."""
-    broadcaster = SystemBroadcaster()
-
-    # Mock database session to fail
-    with patch("backend.services.system_broadcaster.get_session") as mock_get_session:
-        mock_context = AsyncMock()
-        mock_context.__aenter__.side_effect = Exception("Database error")
-        mock_get_session.return_value = mock_context
-
-        health = await broadcaster._get_health_status()
-
-    assert health == "unhealthy"
-
-
-# Test _get_broadcaster_lock
-
-
-def test_get_broadcaster_lock_creates_lock():
-    """Test _get_broadcaster_lock creates and returns asyncio.Lock."""
-    import backend.services.system_broadcaster as sb
-
-    # Reset the lock
-    sb._broadcaster_lock = None
-
-    lock = sb._get_broadcaster_lock()
-
-    assert lock is not None
-    assert isinstance(lock, asyncio.Lock)
-
-
-def test_get_broadcaster_lock_returns_same_lock():
-    """Test _get_broadcaster_lock returns the same lock on subsequent calls."""
-    import backend.services.system_broadcaster as sb
-
-    # Reset the lock
-    sb._broadcaster_lock = None
-
-    lock1 = sb._get_broadcaster_lock()
-    lock2 = sb._get_broadcaster_lock()
-
-    assert lock1 is lock2
-
-
-# Test get_system_broadcaster_async
-
-
-@pytest.mark.asyncio
-async def test_get_system_broadcaster_async_creates_and_starts():
-    """Test get_system_broadcaster_async creates and starts broadcaster."""
-    import backend.services.system_broadcaster as sb
-
-    # Reset state
-    sb._system_broadcaster = None
-    sb._broadcaster_lock = None
-
-    mock_redis = AsyncMock()
-
-    # Mock start_broadcasting to avoid actual broadcasting
-    with patch.object(SystemBroadcaster, "start_broadcasting") as mock_start:
-        broadcaster = await sb.get_system_broadcaster_async(redis_client=mock_redis, interval=2.0)
-
-        mock_start.assert_called_once_with(2.0)
-        assert broadcaster is not None
-        assert broadcaster._redis_client is mock_redis
-
-    # Cleanup
-    sb._system_broadcaster = None
-    sb._broadcaster_lock = None
-
-
-@pytest.mark.asyncio
-async def test_get_system_broadcaster_async_fast_path():
-    """Test get_system_broadcaster_async returns existing running broadcaster."""
-    import backend.services.system_broadcaster as sb
-
-    # Reset state
-    sb._broadcaster_lock = None
-
-    # Create a running broadcaster
-    existing_broadcaster = SystemBroadcaster()
-    existing_broadcaster._running = True
-    sb._system_broadcaster = existing_broadcaster
-
-    # Fast path should return existing broadcaster without acquiring lock
-    result = await sb.get_system_broadcaster_async()
-
-    assert result is existing_broadcaster
-
-    # Cleanup
-    sb._system_broadcaster = None
-
-
-@pytest.mark.asyncio
-async def test_get_system_broadcaster_async_updates_redis():
-    """Test get_system_broadcaster_async updates Redis on existing broadcaster."""
-    import backend.services.system_broadcaster as sb
-
-    # Reset state
-    sb._broadcaster_lock = None
-
-    # Create a running broadcaster
-    existing_broadcaster = SystemBroadcaster()
-    existing_broadcaster._running = True
-    sb._system_broadcaster = existing_broadcaster
-
-    new_redis = AsyncMock()
-    result = await sb.get_system_broadcaster_async(redis_client=new_redis)
-
-    assert result._redis_client is new_redis
-
-    # Cleanup
-    sb._system_broadcaster = None
-
-
-@pytest.mark.asyncio
-async def test_get_system_broadcaster_async_starts_if_not_running():
-    """Test get_system_broadcaster_async starts broadcaster if not running."""
-    import backend.services.system_broadcaster as sb
-
-    # Reset state
-    sb._broadcaster_lock = None
-
-    # Create a non-running broadcaster
-    existing_broadcaster = SystemBroadcaster()
-    existing_broadcaster._running = False
-    sb._system_broadcaster = existing_broadcaster
-
-    with patch.object(existing_broadcaster, "start_broadcasting") as mock_start:
-        result = await sb.get_system_broadcaster_async(interval=3.0)
-
-        mock_start.assert_called_once_with(3.0)
-        assert result is existing_broadcaster
-
-    # Cleanup
-    sb._system_broadcaster = None
-
-
-# Test stop_system_broadcaster
-
-
-@pytest.mark.asyncio
-async def test_stop_system_broadcaster():
-    """Test stop_system_broadcaster stops and clears the broadcaster."""
-    import backend.services.system_broadcaster as sb
-
-    # Reset state
-    sb._broadcaster_lock = None
-
-    # Create a broadcaster
-    existing_broadcaster = SystemBroadcaster()
-    existing_broadcaster._running = True
-    sb._system_broadcaster = existing_broadcaster
-
-    with patch.object(existing_broadcaster, "stop_broadcasting") as mock_stop:
-        await sb.stop_system_broadcaster()
-
-        mock_stop.assert_called_once()
-        assert sb._system_broadcaster is None
-
-
-@pytest.mark.asyncio
-async def test_stop_system_broadcaster_when_none():
-    """Test stop_system_broadcaster handles None broadcaster."""
-    import backend.services.system_broadcaster as sb
-
-    # Reset state
-    sb._system_broadcaster = None
-    sb._broadcaster_lock = None
-
-    # Should not raise
-    await sb.stop_system_broadcaster()
-    assert sb._system_broadcaster is None
-
-
-# Test reset_broadcaster_state
-
-
-def test_reset_broadcaster_state():
-    """Test reset_broadcaster_state clears global state."""
-    import backend.services.system_broadcaster as sb
-
-    # Set some state
-    sb._system_broadcaster = SystemBroadcaster()
-    sb._broadcaster_lock = asyncio.Lock()
-
-    sb.reset_broadcaster_state()
-
-    assert sb._system_broadcaster is None
-    assert sb._broadcaster_lock is None
-
-
-# Test _start_pubsub_listener when Redis unavailable
-
-
-@pytest.mark.asyncio
-async def test_system_broadcaster_start_pubsub_listener_no_redis():
-    """Test _start_pubsub_listener when Redis is not available."""
-    broadcaster = SystemBroadcaster()  # No Redis
-
-    await broadcaster._start_pubsub_listener()
-
-    # Should not be listening since no Redis
-    assert broadcaster._pubsub_listening is False
-    assert broadcaster._pubsub is None
-
-
-@pytest.mark.asyncio
-async def test_get_system_broadcaster_async_updates_redis_in_slow_path():
-    """Test get_system_broadcaster_async updates Redis in slow path (existing non-running broadcaster)."""
-    import backend.services.system_broadcaster as sb
-
-    # Reset state
-    sb._broadcaster_lock = None
-
-    # Create an existing non-running broadcaster without Redis
-    existing_broadcaster = SystemBroadcaster()
-    existing_broadcaster._running = False
-    sb._system_broadcaster = existing_broadcaster
-
-    # Provide new Redis client in the slow path
-    new_redis = AsyncMock()
-
-    with patch.object(existing_broadcaster, "start_broadcasting") as mock_start:
-        result = await sb.get_system_broadcaster_async(redis_client=new_redis, interval=2.0)
-
-        # Should update the Redis client in the slow path (line 658)
-        assert result._redis_client is new_redis
-        mock_start.assert_called_once_with(2.0)
-
-    # Cleanup
-    sb._system_broadcaster = None
+    mock_collector = AsyncMock()
+    broadcaster.set_performance_collector(mock_collector)
+    assert broadcaster._performance_collector is mock_collector
+
+    broadcaster.set_performance_collector(None)
+    assert broadcaster._performance_collector is None

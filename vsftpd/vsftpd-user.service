@@ -1,0 +1,17 @@
+[Unit]
+Description=vsftpd Docker Container for Foscam Camera Uploads
+After=docker.socket
+Documentation=https://github.com/your-repo/nemotron-v3-home-security-intelligence
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=%h/github/nemotron-v3-home-security-intelligence/vsftpd/docker-compose-wrapper.sh start
+ExecStop=%h/github/nemotron-v3-home-security-intelligence/vsftpd/docker-compose-wrapper.sh stop
+ExecReload=%h/github/nemotron-v3-home-security-intelligence/vsftpd/docker-compose-wrapper.sh restart
+TimeoutStartSec=0
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target
