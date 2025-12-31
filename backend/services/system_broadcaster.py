@@ -92,6 +92,7 @@ class SystemBroadcaster:
         self._redis_getter = redis_getter
         self._pubsub: PubSub | None = None
         self._pubsub_listening = False
+        self._recovery_attempts = 0
         self._performance_collector: PerformanceCollector | None = None
 
     def _get_redis(self) -> RedisClient | None:
