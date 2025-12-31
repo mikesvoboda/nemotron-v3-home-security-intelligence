@@ -72,19 +72,28 @@ nvidia-smi
 ./scripts/setup-systemd.sh
 ```
 
-## Systemd Auto-Start (Linux)
+## Auto-Start on Boot
+
+| Platform | Script | Service Manager |
+|----------|--------|-----------------|
+| Linux | `./scripts/setup-systemd.sh` | systemd |
+| macOS | `./scripts/setup-launchd.sh` | launchd |
+| Windows | `.\scripts\setup-windows.ps1` (Admin) | Task Scheduler |
 
 ```bash
-# Run setup script to enable boot startup (all 6 containers)
+# Linux
 ./scripts/setup-systemd.sh
-
-# Manage services
 systemctl --user restart nemotron-v3-home-security-intelligence_backend_1
-systemctl --user status 'nemotron-v3-home-security-intelligence_*'
-journalctl --user -u nemotron-v3-home-security-intelligence_backend_1 -f
+
+# macOS
+./scripts/setup-launchd.sh
+launchctl list | grep com.security
+
+# Windows (run as Administrator)
+powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
 ```
 
-The setup script configures:
+All scripts configure:
 - Auto-start on boot for all 6 containers
-- `ExecStartPre` cleanup (fixes orphaned container failures)
-- Frontend restarts automatically when backend restarts (`PartOf=`)
+- Frontend dependency on backend (waits for healthy backend)
+- Orphaned container cleanup on restart

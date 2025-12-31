@@ -388,20 +388,70 @@ journalctl --user -u nemotron-v3-home-security-intelligence_backend_1 -f
 systemctl --user disable nemotron-v3-home-security-intelligence_backend_1
 ```
 
-### Alternative: Podman Pod with Systemd
+## macOS Auto-Start (launchd)
 
-For simpler management, create a pod and generate a single service:
+Run containers as launchd user agents for automatic startup on login.
 
 ```bash
-# Create pod from compose
-podman-compose -f docker-compose.prod.yml up -d
+# Run setup script (creates plist files, enables auto-start)
+./scripts/setup-launchd.sh
+```
 
-# Generate pod service (manages all containers together)
-podman generate systemd --new --name nemotron-v3-home-security-intelligence_default > \
-    ~/.config/systemd/user/home-security.service
+The script automatically:
+- Creates plist files in `~/Library/LaunchAgents/`
+- Configures frontend to wait for backend health before starting
+- Enables auto-start on login
 
-systemctl --user daemon-reload
-systemctl --user enable home-security.service
+### Manage Services (macOS)
+
+```bash
+# Check service status
+launchctl list | grep com.security
+
+# View logs
+tail -f /tmp/nemotron-v3-home-security-intelligence_backend_1.log
+
+# Stop a service
+launchctl unload ~/Library/LaunchAgents/com.security.nemotron-v3-home-security-intelligence_backend_1.plist
+
+# Start a service
+launchctl load ~/Library/LaunchAgents/com.security.nemotron-v3-home-security-intelligence_backend_1.plist
+
+# Remove all (disable auto-start)
+rm ~/Library/LaunchAgents/com.security.nemotron-v3-home-security-intelligence_*.plist
+```
+
+## Windows Auto-Start (Task Scheduler)
+
+Run containers via Windows Task Scheduler for automatic startup on boot.
+
+```powershell
+# Run as Administrator
+powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
+
+# To uninstall
+powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1 -Uninstall
+```
+
+The script automatically:
+- Creates scheduled tasks for all 6 containers
+- Runs tasks as SYSTEM at startup
+- Configures frontend to restart after backend is healthy
+
+### Manage Services (Windows)
+
+```powershell
+# View all tasks
+Get-ScheduledTask | Where-Object { $_.TaskName -like 'HomeSecurityIntelligence*' }
+
+# Run a task manually
+Start-ScheduledTask -TaskName 'HomeSecurityIntelligence_backend_1'
+
+# Disable a task
+Disable-ScheduledTask -TaskName 'HomeSecurityIntelligence_backend_1'
+
+# Enable a task
+Enable-ScheduledTask -TaskName 'HomeSecurityIntelligence_backend_1'
 ```
 
 ## Upgrading
