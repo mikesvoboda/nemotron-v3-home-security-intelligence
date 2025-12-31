@@ -103,6 +103,11 @@ def client(module_temp_foscam_dir, module_thumbnail_dir):
     mock_pipeline_manager.start = AsyncMock()
     mock_pipeline_manager.stop = AsyncMock()
 
+    # Mock ServiceHealthMonitor with async methods
+    mock_service_health_monitor = MagicMock()
+    mock_service_health_monitor.start = AsyncMock()
+    mock_service_health_monitor.stop = AsyncMock()
+
     # Create mock settings that uses our temp directory
     from backend.core.config import Settings
 
@@ -166,7 +171,7 @@ def client(module_temp_foscam_dir, module_thumbnail_dir):
         patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
         patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor),
         patch("backend.main.CleanupService", return_value=mock_cleanup_service),
-        patch("backend.main.ServiceHealthMonitor", return_value=MagicMock()),
+        patch("backend.main.ServiceHealthMonitor", return_value=mock_service_health_monitor),
         patch("backend.api.routes.media.get_settings", mock_get_settings),
         patch.object(media_module, "serve_thumbnail", patched_serve_thumbnail),
         TestClient(app) as test_client,

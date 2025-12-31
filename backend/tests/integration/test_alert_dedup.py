@@ -320,6 +320,9 @@ class TestAlertDeduplicationService:
             session.add(alert)
         await session.flush()
 
+        # Expire cached objects to ensure fresh load from database with proper timezone handling
+        session.expire_all()
+
         # Get alerts from last 24 hours
         recent = await dedup_service.get_recent_alerts_for_key(
             dedup_key=dedup_key,
