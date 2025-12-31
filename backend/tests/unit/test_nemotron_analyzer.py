@@ -25,8 +25,10 @@ pytestmark = pytest.mark.unit
 
 @pytest.fixture
 def mock_redis_client():
-    """Mock Redis client for Nemotron analyzer tests."""
-    mock_client = MagicMock()
+    """Mock Redis client for Nemotron analyzer tests with spec to prevent mocking non-existent attributes."""
+    from backend.core.redis import RedisClient
+
+    mock_client = MagicMock(spec=RedisClient)
     mock_client.get = AsyncMock(return_value=None)
     mock_client.set = AsyncMock(return_value=True)
     mock_client.delete = AsyncMock(return_value=1)
@@ -348,6 +350,48 @@ async def test_call_llm_success(analyzer):
     assert result["risk_score"] == 60
     assert result["risk_level"] == "high"
     assert "Unusual activity" in result["summary"]
+
+
+@pytest.mark.asyncio
+async def test_call_llm_uses_completion_endpoint(analyzer):
+    """Test LLM call uses the correct /completion endpoint path.
+
+    This test ensures the Nemotron analyzer uses the llama.cpp server's
+    /completion endpoint (not /v1/chat/completions or other variants).
+    See docs/RUNTIME_CONFIG.md for endpoint documentation.
+    """
+    mock_response = {
+        "content": json.dumps(
+            {
+                "risk_score": 50,
+                "risk_level": "medium",
+                "summary": "Normal activity",
+                "reasoning": "Test reasoning",
+            }
+        )
+    }
+
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = mock_response
+        mock_post.return_value = mock_resp
+
+        await analyzer._call_llm(
+            camera_name="Front Door",
+            start_time="2025-12-23T14:30:00",
+            end_time="2025-12-23T14:31:00",
+            detections_list="1. 14:30:00 - person",
+        )
+
+        # Verify the endpoint path is /completion (llama.cpp completion API)
+        mock_post.assert_called_once()
+        call_args = mock_post.call_args
+        url = call_args[0][0]  # First positional argument is the URL
+        assert url.endswith("/completion"), (
+            f"Expected URL to end with '/completion', got: {url}. "
+            "The Nemotron analyzer should use the llama.cpp /completion endpoint."
+        )
 
 
 @pytest.mark.asyncio

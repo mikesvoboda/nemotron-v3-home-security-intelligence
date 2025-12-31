@@ -211,11 +211,24 @@ class CircuitBreaker:
         """Check if circuit is open (rejecting calls)."""
         return self._state == CircuitState.OPEN
 
-    def allow_call(self) -> bool:
+    async def allow_call(self) -> bool:
         """Check if a call is allowed based on current state.
 
         This method handles state transitions from OPEN to HALF_OPEN
-        when the timeout has elapsed.
+        when the timeout has elapsed. It acquires the lock to ensure
+        thread-safe state transitions.
+
+        Returns:
+            True if call should proceed, False if it should be rejected
+        """
+        async with self._lock:
+            return self._allow_call_unlocked()
+
+    def _allow_call_unlocked(self) -> bool:
+        """Check if a call is allowed (must be called with lock held).
+
+        Internal method that performs the actual allow_call logic without
+        acquiring the lock. Used by __aenter__ which already holds the lock.
 
         Returns:
             True if call should proceed, False if it should be rejected
@@ -451,7 +464,7 @@ class CircuitBreaker:
         async with self._lock:
             self._total_calls += 1
 
-            if not self.allow_call():
+            if not self._allow_call_unlocked():
                 self._rejected_calls += 1
                 raise CircuitBreakerError(self._name, self._state)
 

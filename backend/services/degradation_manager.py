@@ -276,6 +276,7 @@ class FallbackQueue:
                 logger.error(
                     f"FallbackQueue '{self._queue_name}' failed to add item: {e}",
                     extra={"error": str(e)},
+                    exc_info=True,
                 )
                 return False
 
@@ -311,6 +312,7 @@ class FallbackQueue:
                 logger.error(
                     f"FallbackQueue '{self._queue_name}' failed to get item: {e}",
                     extra={"error": str(e)},
+                    exc_info=True,
                 )
                 return None
 
@@ -573,7 +575,7 @@ class DegradationManager:
                     error_message=f"Health check timed out after {self._health_check_timeout}s",
                 )
             except Exception as e:
-                logger.error(f"Health check failed for '{service.name}': {e}")
+                logger.error(f"Health check failed for '{service.name}': {e}", exc_info=True)
                 await self.update_service_health(
                     service.name,
                     is_healthy=False,
@@ -650,7 +652,7 @@ class DegradationManager:
                         },
                     )
             except Exception as e:
-                logger.warning(f"Failed to queue to Redis, using memory: {e}")
+                logger.warning(f"Failed to queue to Redis, using memory: {e}", exc_info=True)
                 self._redis_healthy = False
 
         # Fall back to in-memory queue
@@ -693,7 +695,7 @@ class DegradationManager:
             logger.debug(f"Queued {job.job_type} job to memory (size={len(self._memory_queue)})")
             return True
         except Exception as e:
-            logger.error(f"Failed to queue to memory: {e}")
+            logger.error(f"Failed to queue to memory: {e}", exc_info=True)
             return False
 
     def _use_memory_queue(self) -> bool:
@@ -768,6 +770,7 @@ class DegradationManager:
                 logger.warning(
                     f"Redis queue failed, falling back to disk: {e}",
                     extra={"queue_name": queue_name, "error": str(e)},
+                    exc_info=True,
                 )
                 self._redis_healthy = False
 
@@ -828,6 +831,7 @@ class DegradationManager:
                 logger.error(
                     f"Failed to drain item to Redis, stopping: {e}",
                     extra={"queue_name": queue_name, "error": str(e)},
+                    exc_info=True,
                 )
                 # Put item back
                 await fallback.add(item)
@@ -860,7 +864,7 @@ class DegradationManager:
                 redis_count: int = await self._redis.get_queue_length(self.DEGRADED_QUEUE)
                 return redis_count + memory_count
             except Exception as e:
-                logger.warning(f"Failed to get Redis queue length: {e}")
+                logger.warning(f"Failed to get Redis queue length: {e}", exc_info=True)
 
         return memory_count
 
@@ -900,7 +904,7 @@ class DegradationManager:
                             processed += 1
                             logger.debug(f"Processed queued {job_type} job")
                         except Exception as e:
-                            logger.error(f"Failed to process queued job: {e}")
+                            logger.error(f"Failed to process queued job: {e}", exc_info=True)
                             # Re-queue with incremented retry count
                             job.retry_count += 1
                             result = await self._redis.add_to_queue_safe(
@@ -917,7 +921,7 @@ class DegradationManager:
                                     },
                                 )
                 except Exception as e:
-                    logger.error(f"Error processing Redis queue: {e}")
+                    logger.error(f"Error processing Redis queue: {e}", exc_info=True)
                     break
 
         # Process from memory queue
@@ -930,7 +934,7 @@ class DegradationManager:
                     await processor(job.data)
                     processed += 1
                 except Exception as e:
-                    logger.error(f"Failed to process memory queued job: {e}")
+                    logger.error(f"Failed to process memory queued job: {e}", exc_info=True)
                     job.retry_count += 1
                     self._memory_queue.append(job)
             else:
@@ -956,7 +960,7 @@ class DegradationManager:
             return True
         except Exception as e:
             if self._redis_healthy:
-                logger.warning(f"Redis health check failed: {e}")
+                logger.warning(f"Redis health check failed: {e}", exc_info=True)
                 self._redis_healthy = False
             return False
 
@@ -1008,7 +1012,7 @@ class DegradationManager:
                     self._memory_queue.appendleft(job)
                     break
             except Exception as e:
-                logger.error(f"Failed to drain job to Redis: {e}")
+                logger.error(f"Failed to drain job to Redis: {e}", exc_info=True)
                 self._memory_queue.appendleft(job)
                 break
 
@@ -1098,6 +1102,7 @@ class DegradationManager:
                 logger.error(
                     f"Health check loop error: {e}",
                     extra={"error": str(e)},
+                    exc_info=True,
                 )
                 await asyncio.sleep(self._check_interval)
 

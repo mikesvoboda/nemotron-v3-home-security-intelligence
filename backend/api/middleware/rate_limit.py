@@ -284,7 +284,7 @@ class RateLimiter:
 
         except Exception as e:
             # On Redis errors, fail open (allow the request)
-            logger.error(f"Rate limit check failed: {e}")
+            logger.error(f"Rate limit check failed: {e}", exc_info=True)
             return (True, 0, self.requests_per_minute)
 
     async def __call__(
