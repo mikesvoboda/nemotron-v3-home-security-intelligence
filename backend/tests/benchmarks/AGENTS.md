@@ -4,6 +4,17 @@
 
 Performance and complexity benchmarks for detecting regressions in API response times, algorithmic complexity, and memory usage. Benchmarks ensure critical paths maintain acceptable performance as the codebase evolves.
 
+## Directory Structure
+
+```
+backend/tests/benchmarks/
+├── AGENTS.md                # This file
+├── __init__.py              # Package initialization
+├── test_api_benchmarks.py   # API response time benchmarks
+├── test_bigo.py             # Big-O complexity tests
+└── test_memory.py           # Memory profiling tests
+```
+
 ## Running Tests
 
 ```bash

@@ -2,7 +2,23 @@
 
 ## Purpose
 
-Contains components for displaying, filtering, and interacting with security events. Includes event cards, timeline views, detailed event modals with AI-generated summaries, detection visualizations, and thumbnail sequences.
+Contains components for displaying, filtering, and interacting with security events. Includes event cards, timeline views, detailed event modals with AI-generated summaries, detection visualizations, thumbnail sequences, and event export functionality.
+
+## Files
+
+| File                        | Purpose                                     |
+| --------------------------- | ------------------------------------------- |
+| `EventCard.tsx`             | Compact event display card                  |
+| `EventCard.test.tsx`        | Test suite for EventCard                    |
+| `EventTimeline.tsx`         | Full-page timeline view with filtering      |
+| `EventTimeline.test.tsx`    | Test suite for EventTimeline                |
+| `EventDetailModal.tsx`      | Full event detail modal                     |
+| `EventDetailModal.test.tsx` | Test suite for EventDetailModal             |
+| `ThumbnailStrip.tsx`        | Detection thumbnail strip                   |
+| `ThumbnailStrip.test.tsx`   | Test suite for ThumbnailStrip               |
+| `ExportPanel.tsx`           | Event export with filters and format select |
+| `ExportPanel.test.tsx`      | Test suite for ExportPanel                  |
+| `index.ts`                  | Barrel exports                              |
 
 ## Key Components
 

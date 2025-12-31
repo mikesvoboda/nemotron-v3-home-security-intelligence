@@ -6,19 +6,20 @@ Root directory for all React components in the NVIDIA Security Intelligence home
 
 ## Directory Structure
 
-| Directory      | Purpose                                          | Key Components                                                                         |
-| -------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------- |
-| **alerts/**    | Alert management page                            | AlertsPage                                                                             |
-| **common/**    | Shared UI components used across the application | RiskBadge, ConfidenceBadge, ObjectTypeBadge, WebSocketStatus, Lightbox                 |
-| **dashboard/** | Main dashboard page and monitoring widgets       | DashboardPage, RiskGauge, CameraGrid, ActivityFeed, GpuStats, StatsRow, PipelineQueues |
-| **detection/** | Object detection visualization components        | BoundingBoxOverlay, DetectionImage, DetectionThumbnail                                 |
-| **entities/**  | Entity tracking page (WIP)                       | EntitiesPage                                                                           |
-| **events/**    | Security event components                        | EventCard, EventTimeline, EventDetailModal, ThumbnailStrip                             |
-| **layout/**    | Application shell components                     | Layout, Header, Sidebar                                                                |
-| **logs/**      | Logging dashboard and viewer                     | LogsDashboard, LogsTable, LogFilters, LogStatsCards, LogDetailModal                    |
-| **settings/**  | Configuration pages                              | SettingsPage, CamerasSettings, AIModelsSettings, ProcessingSettings, DlqMonitor        |
-| **system/**    | System monitoring page                           | SystemMonitoringPage, WorkerStatusPanel                                                |
-| **video/**     | Video playback components                        | VideoPlayer                                                                            |
+| Directory      | Purpose                                          | Key Components                                                                                                                                 |
+| -------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **alerts/**    | Alert management page                            | AlertsPage                                                                                                                                     |
+| **audit/**     | Audit log viewing and filtering                  | AuditLogPage, AuditTable, AuditFilters, AuditDetailModal, AuditStatsCards                                                                      |
+| **common/**    | Shared UI components used across the application | RiskBadge, ConfidenceBadge, ObjectTypeBadge, WebSocketStatus, Lightbox                                                                         |
+| **dashboard/** | Main dashboard page and monitoring widgets       | DashboardPage, RiskGauge, CameraGrid, ActivityFeed, GpuStats, StatsRow, PipelineQueues, PipelineTelemetry                                      |
+| **detection/** | Object detection visualization components        | BoundingBoxOverlay, DetectionImage, DetectionThumbnail                                                                                         |
+| **entities/**  | Entity tracking page (WIP)                       | EntitiesPage                                                                                                                                   |
+| **events/**    | Security event components                        | EventCard, EventTimeline, EventDetailModal, ThumbnailStrip, ExportPanel                                                                        |
+| **layout/**    | Application shell components                     | Layout, Header, Sidebar                                                                                                                        |
+| **logs/**      | Logging dashboard and viewer                     | LogsDashboard, LogsTable, LogFilters, LogStatsCards, LogDetailModal                                                                            |
+| **settings/**  | Configuration pages                              | SettingsPage, CamerasSettings, AIModelsSettings, ProcessingSettings, DlqMonitor, NotificationSettings, StorageDashboard                        |
+| **system/**    | System monitoring page                           | SystemMonitoringPage, WorkerStatusPanel, AiModelsPanel, ContainersPanel, DatabasesPanel, HostSystemPanel, PerformanceAlerts, TimeRangeSelector |
+| **video/**     | Video playback components                        | VideoPlayer                                                                                                                                    |
 
 ## Component Hierarchy
 
@@ -36,26 +37,42 @@ Routes:
 │ ├── RiskGauge
 │ ├── GpuStats
 │ ├── CameraGrid
-│ └── ActivityFeed
-│ └── RiskBadge (common/)
+│ ├── ActivityFeed
+│ │ └── RiskBadge (common/)
+│ └── PipelineTelemetry
 ├── /timeline -> EventTimeline (events/)
 │ ├── EventCard
 │ │ └── RiskBadge, ObjectTypeBadge (common/)
 │ ├── ThumbnailStrip
+│ ├── ExportPanel
 │ └── EventDetailModal
 ├── /entities -> EntitiesPage (entities/)
 ├── /alerts -> AlertsPage (alerts/)
+├── /audit -> AuditLogPage (audit/)
+│ ├── AuditStatsCards
+│ ├── AuditFilters
+│ ├── AuditTable
+│ └── AuditDetailModal
 ├── /logs -> LogsDashboard (logs/)
 │ ├── LogStatsCards
 │ ├── LogFilters
 │ ├── LogsTable
 │ └── LogDetailModal
 ├── /system -> SystemMonitoringPage (system/)
+│ ├── HostSystemPanel
+│ ├── ContainersPanel
+│ ├── DatabasesPanel
+│ ├── AiModelsPanel
+│ ├── WorkerStatusPanel
+│ ├── PerformanceAlerts
+│ └── TimeRangeSelector
 └── /settings -> SettingsPage (settings/)
 ├── CamerasSettings
 ├── AIModelsSettings
 ├── ProcessingSettings
-└── DlqMonitor
+├── DlqMonitor
+├── NotificationSettings
+└── StorageDashboard
 \`\`\`
 
 ## Styling Approach
@@ -96,7 +113,18 @@ Test files are co-located with their components using the \`.test.tsx\` extensio
 
 ### alerts/
 
-- \`AlertsPage.tsx\` - Alert management page with filtering
+- `AlertsPage.tsx` - Alert management page with filtering
+- `AlertsPage.test.tsx` - Test suite for AlertsPage
+
+### audit/
+
+- `AuditLogPage.tsx` - Main audit log page
+- `AuditLogPage.test.tsx` - Test suite for AuditLogPage
+- `AuditTable.tsx` - Paginated audit log table
+- `AuditFilters.tsx` - Filtering controls for audit logs
+- `AuditDetailModal.tsx` - Full audit entry detail modal
+- `AuditStatsCards.tsx` - Audit statistics summary cards
+- `index.ts` - Barrel exports
 
 ### common/
 
@@ -110,14 +138,23 @@ Test files are co-located with their components using the \`.test.tsx\` extensio
 
 ### dashboard/
 
-- \`DashboardPage.tsx\` - Main dashboard page orchestrating all widgets
-- \`RiskGauge.tsx\` - Circular SVG gauge for risk score with sparkline
-- \`CameraGrid.tsx\` - Responsive camera thumbnail grid with status indicators
-- \`ActivityFeed.tsx\` - Scrolling event feed with auto-scroll
-- \`GpuStats.tsx\` - GPU metrics display with utilization history chart
-- \`StatsRow.tsx\` - Key metrics cards (cameras, events, risk, status)
-- \`PipelineQueues.tsx\` - AI pipeline queue depth display
-- \`RiskGauge.example.tsx\` - Example usage for RiskGauge
+- `DashboardPage.tsx` - Main dashboard page orchestrating all widgets
+- `DashboardPage.test.tsx` - Test suite for DashboardPage
+- `RiskGauge.tsx` - Circular SVG gauge for risk score with sparkline
+- `RiskGauge.test.tsx` - Test suite for RiskGauge
+- `RiskGauge.example.tsx` - Example usage for RiskGauge
+- `CameraGrid.tsx` - Responsive camera thumbnail grid with status indicators
+- `CameraGrid.test.tsx` - Test suite for CameraGrid
+- `ActivityFeed.tsx` - Scrolling event feed with auto-scroll
+- `ActivityFeed.test.tsx` - Test suite for ActivityFeed
+- `GpuStats.tsx` - GPU metrics display with utilization history chart
+- `GpuStats.test.tsx` - Test suite for GpuStats
+- `StatsRow.tsx` - Key metrics cards (cameras, events, risk, status)
+- `StatsRow.test.tsx` - Test suite for StatsRow
+- `PipelineQueues.tsx` - AI pipeline queue depth display
+- `PipelineQueues.test.tsx` - Test suite for PipelineQueues
+- `PipelineTelemetry.tsx` - Pipeline latency and throughput metrics display
+- `PipelineTelemetry.test.tsx` - Test suite for PipelineTelemetry
 
 ### detection/
 
@@ -142,52 +179,89 @@ Test files are co-located with their components using the \`.test.tsx\` extensio
 
 ### layout/
 
-- \`Layout.tsx\` - Main layout wrapper composing Header + Sidebar + content
-- \`Header.tsx\` - Top navigation with branding, health status, GPU stats
-- \`Sidebar.tsx\` - Left navigation menu with route links
+- `Layout.tsx` - Main layout wrapper composing Header + Sidebar + content
+- `Layout.test.tsx` - Test suite for Layout
+- `Header.tsx` - Top navigation with branding, health status, GPU stats
+- `Header.test.tsx` - Test suite for Header
+- `Sidebar.tsx` - Left navigation menu with route links
+- `Sidebar.test.tsx` - Test suite for Sidebar
 
 ### logs/
 
-- \`LogsDashboard.tsx\` - Main logs page
-- \`LogsTable.tsx\` - Paginated log entries table
-- \`LogFilters.tsx\` - Log filtering controls
-- \`LogStatsCards.tsx\` - Log statistics summary cards
-- \`LogDetailModal.tsx\` - Full log entry detail modal
+- `LogsDashboard.tsx` - Main logs page
+- `LogsDashboard.test.tsx` - Test suite for LogsDashboard
+- `LogsTable.tsx` - Paginated log entries table
+- `LogsTable.test.tsx` - Test suite for LogsTable
+- `LogFilters.tsx` - Log filtering controls
+- `LogFilters.test.tsx` - Test suite for LogFilters
+- `LogStatsCards.tsx` - Log statistics summary cards
+- `LogStatsCards.test.tsx` - Test suite for LogStatsCards
+- `LogDetailModal.tsx` - Full log entry detail modal
+- `LogDetailModal.test.tsx` - Test suite for LogDetailModal
 
 ### settings/
 
-- \`SettingsPage.tsx\` - Settings page with tab navigation
-- \`CamerasSettings.tsx\` - Camera configuration management
-- \`AIModelsSettings.tsx\` - AI model configuration
-- \`ProcessingSettings.tsx\` - Processing pipeline settings
-- \`DlqMonitor.tsx\` - Dead letter queue monitoring
-- \`index.ts\` - Barrel exports
+- `SettingsPage.tsx` - Settings page with tab navigation
+- `SettingsPage.test.tsx` - Test suite for SettingsPage
+- `CamerasSettings.tsx` - Camera configuration management
+- `CamerasSettings.test.tsx` - Test suite for CamerasSettings
+- `AIModelsSettings.tsx` - AI model configuration
+- `AIModelsSettings.test.tsx` - Test suite for AIModelsSettings
+- `AIModelsSettings.example.tsx` - Example usage for AIModelsSettings
+- `ProcessingSettings.tsx` - Processing pipeline settings
+- `ProcessingSettings.test.tsx` - Test suite for ProcessingSettings
+- `ProcessingSettings.example.tsx` - Example usage for ProcessingSettings
+- `DlqMonitor.tsx` - Dead letter queue monitoring
+- `DlqMonitor.test.tsx` - Test suite for DlqMonitor
+- `NotificationSettings.tsx` - Email and webhook notification configuration
+- `NotificationSettings.test.tsx` - Test suite for NotificationSettings
+- `StorageDashboard.tsx` - Storage usage and cleanup dashboard
+- `StorageDashboard.test.tsx` - Test suite for StorageDashboard
+- `index.ts` - Barrel exports
+- `README.md` - Documentation
 
 ### system/
 
-- \`SystemMonitoringPage.tsx\` - System health monitoring page
-- \`WorkerStatusPanel.tsx\` - Background workers status display
-- \`index.ts\` - Barrel exports
+- `SystemMonitoringPage.tsx` - System health monitoring page
+- `SystemMonitoringPage.test.tsx` - Test suite for SystemMonitoringPage
+- `WorkerStatusPanel.tsx` - Background workers status display
+- `WorkerStatusPanel.test.tsx` - Test suite for WorkerStatusPanel
+- `HostSystemPanel.tsx` - Host OS and hardware metrics panel
+- `HostSystemPanel.test.tsx` - Test suite for HostSystemPanel
+- `ContainersPanel.tsx` - Container status and metrics panel
+- `ContainersPanel.test.tsx` - Test suite for ContainersPanel
+- `DatabasesPanel.tsx` - PostgreSQL and Redis metrics panel
+- `DatabasesPanel.test.tsx` - Test suite for DatabasesPanel
+- `AiModelsPanel.tsx` - AI model status panel
+- `AiModelsPanel.test.tsx` - Test suite for AiModelsPanel
+- `PerformanceAlerts.tsx` - Performance threshold alerts
+- `PerformanceAlerts.test.tsx` - Test suite for PerformanceAlerts
+- `TimeRangeSelector.tsx` - Time range selection for metrics
+- `TimeRangeSelector.test.tsx` - Test suite for TimeRangeSelector
+- `index.ts` - Barrel exports
 
 ### video/
 
-- \`VideoPlayer.tsx\` - HLS/MP4 video player with controls
-- \`index.ts\` - Barrel exports
+- `VideoPlayer.tsx` - HLS/MP4 video player with controls
+- `VideoPlayer.test.tsx` - Test suite for VideoPlayer
+- `index.ts` - Barrel exports
 
 ## Navigation
 
 Each subdirectory contains its own `AGENTS.md` with detailed component documentation:
 
 - `alerts/AGENTS.md` - High/critical risk event alerts page
+- `audit/AGENTS.md` - Audit log viewing and filtering components
 - `common/AGENTS.md` - Shared component patterns and APIs (RiskBadge, ObjectTypeBadge, Lightbox)
 - `dashboard/AGENTS.md` - Dashboard widget details and data flow
 - `detection/AGENTS.md` - Detection visualization components (BoundingBoxOverlay, DetectionThumbnail)
 - `entities/AGENTS.md` - Entity tracking page (WIP)
-- `events/AGENTS.md` - Event component hierarchy (EventCard, EventTimeline, EventDetailModal)
+- `events/AGENTS.md` - Event component hierarchy (EventCard, EventTimeline, EventDetailModal, ExportPanel)
 - `layout/AGENTS.md` - Application shell and navigation (Layout, Header, Sidebar)
 - `logs/AGENTS.md` - Logging dashboard components
-- `settings/AGENTS.md` - Settings page structure (CamerasSettings, ProcessingSettings, DlqMonitor)
-- `system/AGENTS.md` - System monitoring components (SystemMonitoringPage, WorkerStatusPanel)
+- `search/AGENTS.md` - Full-text search components (SearchBar, SearchResultCard, SearchResultsPanel)
+- `settings/AGENTS.md` - Settings page structure (CamerasSettings, ProcessingSettings, DlqMonitor, NotificationSettings, StorageDashboard)
+- `system/AGENTS.md` - System monitoring components (SystemMonitoringPage, WorkerStatusPanel, HostSystemPanel, ContainersPanel, DatabasesPanel, AiModelsPanel)
 - `video/AGENTS.md` - Video playback components (VideoPlayer)
 
 ## Entry Points

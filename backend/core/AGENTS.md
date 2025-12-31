@@ -20,6 +20,7 @@ These components are designed as singletons and provide dependency injection pat
 backend/core/
 ├── __init__.py           # Public API exports (comprehensive re-exports)
 ├── config.py             # Pydantic Settings configuration
+├── constants.py          # Application-wide constants (queue names, DLQ names, prefixes)
 ├── database.py           # SQLAlchemy async database layer
 ├── logging.py            # Centralized logging configuration
 ├── metrics.py            # Prometheus metrics definitions
@@ -53,9 +54,11 @@ The `__init__.py` file provides a clean public API for the core module:
 **Exported from redis.py:**
 
 - `RedisClient` - Redis client wrapper class
+- `QueueAddResult` - Result enum for queue operations (SUCCESS, REJECTED, SENT_TO_DLQ)
 - `init_redis()` - Initialize Redis connection
 - `close_redis()` - Cleanup Redis connection
 - `get_redis()` - FastAPI dependency for Redis client
+- `get_redis_optional()` - FastAPI dependency returning None if unavailable
 
 **Exported from logging.py:**
 
@@ -80,7 +83,10 @@ The `__init__.py` file provides a clean public API for the core module:
 - `get_mime_type()` - Get MIME type from file path
 - `get_mime_type_with_default()` - Get MIME type with fallback
 - `is_image_mime_type()` / `is_video_mime_type()` - Type checking
+- `is_supported_mime_type()` - Check if MIME type is supported (image or video)
 - `normalize_file_type()` - Normalize extension or MIME type
+- `EXTENSION_TO_MIME` - Extension to MIME type mapping dict
+- `DEFAULT_IMAGE_MIME` / `DEFAULT_VIDEO_MIME` - Default MIME type constants
 
 **Exported from tls.py:**
 
@@ -98,6 +104,46 @@ The `__init__.py` file provides a clean public API for the core module:
 from backend.core import get_settings, init_db, get_redis, get_logger, setup_logging
 from backend.core import TLSConfig, TLSMode, create_ssl_context
 from backend.core import get_mime_type, is_video_mime_type
+```
+
+## `constants.py` - Application Constants
+
+### Purpose
+
+Provides centralized constants for Redis queue names and DLQ (dead-letter queue) naming.
+
+### Constants
+
+**Queue Names:**
+
+- `DETECTION_QUEUE = "detection_queue"` - Queue for incoming detection jobs
+- `ANALYSIS_QUEUE = "analysis_queue"` - Queue for batched detections ready for LLM analysis
+
+**DLQ Names:**
+
+- `DLQ_PREFIX = "dlq:"` - Prefix for all dead-letter queues
+- `DLQ_DETECTION_QUEUE = "dlq:detection_queue"` - DLQ for failed detection jobs
+- `DLQ_ANALYSIS_QUEUE = "dlq:analysis_queue"` - DLQ for failed LLM analysis jobs
+- `DLQ_OVERFLOW_PREFIX = "dlq:overflow:"` - Prefix for overflow DLQ queues
+
+### Helper Functions
+
+- `get_dlq_name(queue_name)` - Get the DLQ name for a given queue
+- `get_dlq_overflow_name(queue_name)` - Get the overflow DLQ name for a given queue
+
+**Usage:**
+
+```python
+from backend.core.constants import (
+    DETECTION_QUEUE,
+    ANALYSIS_QUEUE,
+    DLQ_DETECTION_QUEUE,
+    get_dlq_name,
+)
+
+# Queue operations
+await redis.add_to_queue(DETECTION_QUEUE, data)
+dlq_name = get_dlq_name("detection_queue")  # Returns "dlq:detection_queue"
 ```
 
 ## `config.py` - Configuration Management

@@ -54,35 +54,36 @@ File Upload -> Detection -> Batching -> Analysis -> Event Creation -> Broadcasti
 
 ## Service Files Overview
 
-| Service                  | Purpose                                          | Type           | Exported via `__init__.py` |
-| ------------------------ | ------------------------------------------------ | -------------- | -------------------------- |
-| `file_watcher.py`        | Monitor camera directories for media uploads     | Core Pipeline  | Yes                        |
-| `dedupe.py`              | Prevent duplicate file processing                | Core Pipeline  | Yes                        |
-| `detector_client.py`     | Send images to RT-DETRv2 for detection           | Core Pipeline  | Yes                        |
-| `batch_aggregator.py`    | Group detections into time-based batches         | Core Pipeline  | Yes                        |
-| `nemotron_analyzer.py`   | LLM-based risk analysis via llama.cpp            | Core Pipeline  | Yes                        |
-| `thumbnail_generator.py` | Generate preview images with bounding boxes      | Core Pipeline  | Yes                        |
-| `video_processor.py`     | Extract video metadata and thumbnails            | Core Pipeline  | No (import directly)       |
-| `pipeline_workers.py`    | Background queue workers and manager             | Workers        | No (import directly)       |
-| `event_broadcaster.py`   | Distribute events via WebSocket                  | Broadcasting   | Yes                        |
-| `system_broadcaster.py`  | Broadcast system health status                   | Broadcasting   | No (import directly)       |
-| `gpu_monitor.py`         | Poll NVIDIA GPU metrics                          | Background     | Yes                        |
-| `cleanup_service.py`     | Enforce data retention policies                  | Background     | Yes                        |
-| `health_monitor.py`      | Monitor service health with auto-recovery        | Background     | No (import directly)       |
-| `retry_handler.py`       | Exponential backoff and DLQ support              | Infrastructure | Yes                        |
-| `service_managers.py`    | Strategy pattern for service management          | Infrastructure | No (import directly)       |
-| `circuit_breaker.py`     | Circuit breaker for service resilience           | Infrastructure | Yes                        |
-| `degradation_manager.py` | Graceful degradation management                  | Infrastructure | Yes                        |
-| `prompts.py`             | LLM prompt templates                             | Utility        | No (import directly)       |
-| `alert_engine.py`        | Evaluate alert rules against events              | Alerting       | Yes                        |
-| `alert_dedup.py`         | Alert deduplication logic                        | Alerting       | Yes                        |
-| `notification.py`        | Multi-channel notification delivery              | Alerting       | Yes                        |
-| `search.py`              | Full-text search for events                      | Query          | Yes                        |
-| `severity.py`            | Severity level mapping and configuration         | Utility        | Yes                        |
-| `zone_service.py`        | Zone detection and context generation            | Core Pipeline  | Yes                        |
-| `baseline.py`            | Activity baseline tracking for anomaly detection | Core Pipeline  | Yes                        |
-| `audit.py`               | Audit logging for security-sensitive actions     | Infrastructure | Yes                        |
-| `clip_generator.py`      | Video clip generation for events                 | Core Pipeline  | Yes                        |
+| Service                    | Purpose                                          | Type           | Exported via `__init__.py` |
+| -------------------------- | ------------------------------------------------ | -------------- | -------------------------- |
+| `file_watcher.py`          | Monitor camera directories for media uploads     | Core Pipeline  | Yes                        |
+| `dedupe.py`                | Prevent duplicate file processing                | Core Pipeline  | Yes                        |
+| `detector_client.py`       | Send images to RT-DETRv2 for detection           | Core Pipeline  | Yes                        |
+| `batch_aggregator.py`      | Group detections into time-based batches         | Core Pipeline  | Yes                        |
+| `nemotron_analyzer.py`     | LLM-based risk analysis via llama.cpp            | Core Pipeline  | Yes                        |
+| `thumbnail_generator.py`   | Generate preview images with bounding boxes      | Core Pipeline  | Yes                        |
+| `video_processor.py`       | Extract video metadata and thumbnails            | Core Pipeline  | No (import directly)       |
+| `pipeline_workers.py`      | Background queue workers and manager             | Workers        | No (import directly)       |
+| `event_broadcaster.py`     | Distribute events via WebSocket                  | Broadcasting   | Yes                        |
+| `system_broadcaster.py`    | Broadcast system health status                   | Broadcasting   | No (import directly)       |
+| `gpu_monitor.py`           | Poll NVIDIA GPU metrics                          | Background     | Yes                        |
+| `cleanup_service.py`       | Enforce data retention policies                  | Background     | Yes                        |
+| `health_monitor.py`        | Monitor service health with auto-recovery        | Background     | No (import directly)       |
+| `retry_handler.py`         | Exponential backoff and DLQ support              | Infrastructure | Yes                        |
+| `service_managers.py`      | Strategy pattern for service management          | Infrastructure | No (import directly)       |
+| `circuit_breaker.py`       | Circuit breaker for service resilience           | Infrastructure | Yes                        |
+| `degradation_manager.py`   | Graceful degradation management                  | Infrastructure | Yes                        |
+| `prompts.py`               | LLM prompt templates                             | Utility        | No (import directly)       |
+| `alert_engine.py`          | Evaluate alert rules against events              | Alerting       | Yes                        |
+| `alert_dedup.py`           | Alert deduplication logic                        | Alerting       | Yes                        |
+| `notification.py`          | Multi-channel notification delivery              | Alerting       | Yes                        |
+| `search.py`                | Full-text search for events                      | Query          | Yes                        |
+| `severity.py`              | Severity level mapping and configuration         | Utility        | Yes                        |
+| `zone_service.py`          | Zone detection and context generation            | Core Pipeline  | Yes                        |
+| `baseline.py`              | Activity baseline tracking for anomaly detection | Core Pipeline  | Yes                        |
+| `audit.py`                 | Audit logging for security-sensitive actions     | Infrastructure | Yes                        |
+| `clip_generator.py`        | Video clip generation for events                 | Core Pipeline  | Yes                        |
+| `performance_collector.py` | Collect system performance metrics               | Background     | No (import directly)       |
 
 **Import Pattern:**
 
@@ -94,6 +95,7 @@ from backend.services import FileWatcher, DetectorClient, NemotronAnalyzer
 from backend.services.video_processor import VideoProcessor
 from backend.services.pipeline_workers import PipelineWorkerManager
 from backend.services.health_monitor import ServiceHealthMonitor
+from backend.services.performance_collector import PerformanceCollector
 ```
 
 ## Service Files
@@ -650,6 +652,55 @@ await monitor.stop()
 - `async generate_clip(event_id, image_paths)` - Create video clip
 - `get_clip_path(event_id)` - Get output path for event
 
+### performance_collector.py
+
+**Purpose:** Collects system performance metrics from all components for the System Performance Dashboard.
+
+**Key Features:**
+
+- Aggregates metrics from GPU, AI models, databases, host system, and containers
+- Uses pynvml for direct GPU metrics or falls back to AI container health endpoints
+- Collects PostgreSQL metrics (connections, cache hit ratio, transactions)
+- Collects Redis metrics (clients, memory, hit ratio)
+- Host metrics via psutil (CPU, RAM, disk)
+- Alert threshold checking with warning and critical levels
+- Metrics broadcast via WebSocket every 5 seconds
+
+**Metrics Sources:**
+
+| Source     | Method                         | Metrics                               |
+| ---------- | ------------------------------ | ------------------------------------- |
+| GPU        | pynvml or HTTP fallback        | Utilization, VRAM, temperature, power |
+| RT-DETRv2  | HTTP `/health` endpoint        | Status, VRAM, model name, device      |
+| Nemotron   | HTTP `/slots` endpoint         | Status, active/total slots, context   |
+| PostgreSQL | SQL queries (pg_stat_activity) | Connections, cache hit ratio, txns    |
+| Redis      | redis-py INFO command          | Clients, memory, hit ratio, blocked   |
+| Host       | psutil                         | CPU%, RAM GB, disk GB                 |
+| Containers | HTTP health endpoints          | Status, health for each container     |
+| Inference  | PipelineLatencyTracker         | RT-DETR/Nemotron/pipeline latencies   |
+
+**Alert Thresholds:**
+
+- GPU temperature: warning 75C, critical 85C
+- GPU utilization: warning 90%, critical 98%
+- GPU VRAM: warning 90%, critical 95%
+- PostgreSQL connections: warning 80%, critical 95%
+- PostgreSQL cache hit: warning below 90%, critical below 80%
+- Redis memory: warning 100MB, critical 500MB
+- Host CPU: warning 80%, critical 95%
+- Host RAM: warning 85%, critical 95%
+- Host disk: warning 80%, critical 90%
+
+**Public API (import directly):**
+
+```python
+from backend.services.performance_collector import PerformanceCollector
+
+collector = PerformanceCollector()
+metrics = await collector.collect_all()  # Returns PerformanceUpdate schema
+await collector.close()
+```
+
 ## Data Flow Between Services
 
 ### Complete Pipeline Flow
@@ -718,6 +769,12 @@ SystemBroadcaster (Periodic Broadcasting)
    | Queries: Latest GPUStats, Camera counts, Redis queue lengths
    | Checks: Database + Redis health
    | Broadcasts: WebSocket system_status to all connected clients
+
+PerformanceCollector (Periodic Collection)
+   | Every 5 seconds
+   | Collects: GPU, AI models, PostgreSQL, Redis, host, containers
+   | Calculates: Alert thresholds (warning/critical)
+   | Returns: PerformanceUpdate schema for WebSocket broadcast
 
 CleanupService (Daily Scheduled)
    | Once per day at cleanup_time (default: 03:00)

@@ -9,7 +9,13 @@ This directory contains end-user documentation for the Home Security Intelligenc
 ```
 user-guide/
   AGENTS.md                 # This file
+  alerts-notifications.md   # Alerts and notifications guide
+  dashboard-overview.md     # Dashboard overview
+  event-timeline.md         # Event timeline guide
   getting-started.md        # Quick start guide for new users
+  logs-dashboard.md         # Logs dashboard guide
+  search.md                 # Search functionality guide
+  settings.md               # Settings page guide
   understanding-alerts.md   # Risk levels and alert interpretation
   using-the-dashboard.md    # Comprehensive dashboard guide
 ```
@@ -80,6 +86,83 @@ user-guide/
 - Keyboard shortcuts (if any)
 
 **When to use:** Learning dashboard features, troubleshooting UI issues.
+
+### alerts-notifications.md
+
+**Purpose:** Guide to alerts and notification features.
+
+**Topics Covered:**
+
+- Alert types and severity levels
+- Notification settings
+- Alert acknowledgment and dismissal
+- Alert history and filtering
+
+**When to use:** Configuring notifications, managing alerts.
+
+### dashboard-overview.md
+
+**Purpose:** Quick overview of the main dashboard.
+
+**Topics Covered:**
+
+- Dashboard layout and sections
+- Key metrics and indicators
+- Quick actions
+
+**When to use:** Getting a quick orientation to the dashboard.
+
+### event-timeline.md
+
+**Purpose:** Guide to using the event timeline page.
+
+**Topics Covered:**
+
+- Timeline navigation
+- Filtering events by date, camera, risk level
+- Event grouping and sorting
+- Exporting event data
+
+**When to use:** Reviewing historical events, investigating incidents.
+
+### logs-dashboard.md
+
+**Purpose:** Guide to the logs dashboard.
+
+**Topics Covered:**
+
+- Log viewing and filtering
+- Log levels (debug, info, warning, error)
+- Log search and export
+- Log retention settings
+
+**When to use:** Troubleshooting issues, reviewing system activity.
+
+### search.md
+
+**Purpose:** Guide to search functionality.
+
+**Topics Covered:**
+
+- Search syntax and operators
+- Searching events and detections
+- Filtering search results
+- Saving search queries
+
+**When to use:** Finding specific events or patterns.
+
+### settings.md
+
+**Purpose:** Guide to settings configuration.
+
+**Topics Covered:**
+
+- Camera configuration
+- Processing settings
+- AI model settings
+- System preferences
+
+**When to use:** Configuring the system, adjusting preferences.
 
 ## Writing Style Guidelines
 

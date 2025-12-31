@@ -15,11 +15,15 @@ plans/
 ├── 2024-12-24-logging-implementation-plan.md        # Logging implementation tasks
 ├── 2025-12-26-github-cicd-design.md                 # CI/CD pipeline design
 ├── 2025-12-26-github-cicd-implementation.md         # CI/CD implementation tasks
-├── 2025-12-26-service-health-monitoring-design.md   # Health monitoring design
 ├── 2025-12-26-readme-redesign.md                    # README restructuring plan
+├── 2025-12-26-service-health-monitoring-design.md   # Health monitoring design
 ├── 2025-12-28-documentation-design.md               # Documentation structure design
+├── 2025-12-30-ai-containerization-design.md         # AI service containerization design
+├── 2025-12-30-documentation-restructure-design.md   # Documentation restructure design
+├── 2025-12-30-test-performance-implementation.md    # Test performance implementation
 ├── 2025-12-30-test-performance-optimization-design.md   # Test performance design
-└── 2025-12-30-test-performance-implementation.md    # Test performance implementation
+├── 2025-12-31-system-performance-design.md          # System performance optimization design
+└── 2025-12-31-system-performance-plan.md            # System performance implementation plan
 ```
 
 ## Key Files
@@ -270,6 +274,48 @@ Implementation plan for test performance (task-by-task):
 - Task 4: Create audit-test-durations.py script
 - Task 5: Add CI workflow artifacts and audit job
 - Task 6: Create test-fast.sh convenience script
+
+### AI Containerization
+
+**2025-12-30-ai-containerization-design.md**
+
+Design for containerizing AI services:
+
+- RT-DETRv2 container configuration
+- Nemotron LLM container configuration
+- GPU passthrough with NVIDIA Container Toolkit (CDI)
+- Docker Compose integration
+
+### Documentation Restructure
+
+**2025-12-30-documentation-restructure-design.md**
+
+Design for restructuring documentation:
+
+- Target audience analysis
+- Directory structure reorganization
+- Content migration plan
+- Cross-referencing strategy
+
+### System Performance Optimization
+
+**2025-12-31-system-performance-design.md**
+
+Design for system performance improvements:
+
+- Profiling strategy and bottleneck identification
+- Database query optimization
+- Caching strategies
+- Memory and resource management
+
+**2025-12-31-system-performance-plan.md**
+
+Implementation plan for system performance (task-by-task):
+
+- Profiling and baseline measurements
+- Database optimization tasks
+- API response time improvements
+- Frontend performance enhancements
 
 ## Using These Documents
 

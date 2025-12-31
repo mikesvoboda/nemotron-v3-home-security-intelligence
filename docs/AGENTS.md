@@ -19,27 +19,60 @@ docs/
   COPILOT_SETUP.md                # GitHub Copilot Free tier setup guide
   GITHUB_MODELS.md                # GitHub Models integration guide
   SELF_HOSTED_RUNNER.md           # Self-hosted GPU runner setup guide
+  admin-guide/                    # System administrator documentation
+    configuration.md              # System configuration guide
+    monitoring.md                 # Monitoring and observability
+    security.md                   # Security hardening guide
+    storage-retention.md          # Data storage and retention policies
+    troubleshooting.md            # Admin troubleshooting guide
+  api-reference/                  # API documentation
+    overview.md                   # API overview
+    alerts.md                     # Alerts API reference
+    cameras.md                    # Cameras API reference
+    detections.md                 # Detections API reference
+    events.md                     # Events API reference
+    system.md                     # System API reference
+    websocket.md                  # WebSocket API reference
   architecture/                   # Technical architecture documentation
     AGENTS.md                     # Architecture directory guide
     overview.md                   # System architecture overview
     ai-pipeline.md                # AI processing pipeline details
     data-model.md                 # Database schema documentation
     decisions.md                  # Architecture decisions
+    frontend-hooks.md             # Frontend React hooks documentation
+    real-time.md                  # Real-time communication architecture
+    resilience.md                 # Resilience patterns documentation
+  decisions/                      # Architecture Decision Records (ADRs)
+    AGENTS.md                     # Decisions directory guide
+    grafana-integration.md        # Grafana integration decision
+  development/                    # Developer documentation
+    contributing.md               # Contribution guidelines
+    patterns.md                   # Code patterns and conventions
+    setup.md                      # Development environment setup
+    testing.md                    # Testing guide
+  getting-started/                # Quick start guides
+    first-run.md                  # First run guide
+    installation.md               # Installation guide
+    prerequisites.md              # System prerequisites
+    upgrading.md                  # Upgrade guide
+  images/                         # Visual assets
+    AGENTS.md                     # Images directory guide
+    dashboard-mockup.svg          # Dashboard UI mockup
+    *.png                         # Screenshots
+  plans/                          # Design and implementation plans
+    AGENTS.md                     # Plans directory guide
+    *.md                          # Date-prefixed plan documents
   user-guide/                     # End-user documentation
     AGENTS.md                     # User guide directory guide
     getting-started.md            # New user onboarding
     understanding-alerts.md       # Risk levels and alerts
     using-the-dashboard.md        # Dashboard usage guide
-  plans/                          # Design and implementation plans
-    AGENTS.md                     # Plans directory guide
-    *.md                          # Date-prefixed plan documents
-  decisions/                      # Architecture Decision Records (ADRs)
-    AGENTS.md                     # Decisions directory guide
-    grafana-integration.md        # Grafana integration decision
-  images/                         # Visual assets
-    AGENTS.md                     # Images directory guide
-    dashboard-mockup.svg          # Dashboard UI mockup
-    *.png                         # Screenshots
+    alerts-notifications.md       # Alerts and notifications guide
+    dashboard-overview.md         # Dashboard overview
+    event-timeline.md             # Event timeline guide
+    logs-dashboard.md             # Logs dashboard guide
+    search.md                     # Search functionality guide
+    settings.md                   # Settings page guide
 ```
 
 ## Key Files
@@ -92,33 +125,51 @@ Post-MVP roadmap ideas organized into 8 themes:
 
 ### Subdirectories
 
+**admin-guide/** - System administrator documentation
+
+- Configuration and environment setup
+- Monitoring and observability
+- Security hardening guidelines
+- Storage and retention policies
+- Troubleshooting common issues
+
+**api-reference/** - API documentation
+
+- REST API endpoint documentation
+- WebSocket API reference
+- Request/response examples
+- Authentication and error handling
+
 **architecture/** - Technical architecture documentation
 
 - System overview with Mermaid diagrams
 - AI pipeline details and data flow
 - Database schema and relationships
 - Architecture decisions and rationale
+- Frontend hooks documentation
+- Real-time communication patterns
+- Resilience and error handling
 - See `architecture/AGENTS.md` for detailed documentation
-
-**user-guide/** - End-user documentation
-
-- Written for non-technical users
-- Getting started guide
-- Understanding alerts and risk levels
-- Dashboard usage guide
-- See `user-guide/AGENTS.md` for detailed documentation
-
-**plans/** - Design specifications and implementation plans
-
-- Date-prefixed files (`YYYY-MM-DD-description.md`)
-- MVP design, implementation plan, logging system, CI/CD, health monitoring
-- See `plans/AGENTS.md` for detailed documentation
 
 **decisions/** - Architecture Decision Records (ADRs)
 
 - Documents significant technical decisions
 - Currently contains: Grafana integration strategy
 - See `decisions/AGENTS.md` for more details
+
+**development/** - Developer documentation
+
+- Contribution guidelines
+- Code patterns and conventions
+- Development environment setup
+- Testing strategies and tools
+
+**getting-started/** - Quick start guides
+
+- System prerequisites
+- Installation guide
+- First run walkthrough
+- Upgrade procedures
 
 **images/** - Visual assets
 
@@ -127,6 +178,23 @@ Post-MVP roadmap ideas organized into 8 themes:
 - `timeline.png` - Event timeline screenshot
 - `alerts.png` - Alerts page screenshot
 - See `images/AGENTS.md` for detailed documentation
+
+**plans/** - Design specifications and implementation plans
+
+- Date-prefixed files (`YYYY-MM-DD-description.md`)
+- MVP design, implementation plan, logging system, CI/CD, health monitoring
+- Test performance optimization, documentation restructure
+- System performance design and plans
+- See `plans/AGENTS.md` for detailed documentation
+
+**user-guide/** - End-user documentation
+
+- Written for non-technical users
+- Getting started guide
+- Understanding alerts and risk levels
+- Dashboard usage and feature guides
+- Search, settings, and logs documentation
+- See `user-guide/AGENTS.md` for detailed documentation
 
 ## Relationship to Project
 

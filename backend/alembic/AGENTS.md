@@ -18,7 +18,9 @@ backend/alembic/
     ├── add_alerts_and_alert_rules.py
     ├── add_zones_table.py
     ├── audit_logs_table.py
-    └── add_baseline_tables.py
+    ├── add_baseline_tables.py
+    ├── add_clip_path_column.py
+    └── fix_datetime_timezone.py
 ```
 
 ## Current Migration Chain
@@ -35,6 +37,10 @@ add_zones_001 - zones table for camera regions
 add_audit_logs - audit_logs table
        |
 add_baselines - activity_baselines and class_baselines tables
+       |
+add_clip_path - clip_path column on events table
+       |
+fix_datetime_tz - datetime timezone awareness fixes
 ```
 
 ## Key Files
