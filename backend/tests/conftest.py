@@ -771,10 +771,17 @@ async def client(integration_db: str, mock_redis: AsyncMock) -> AsyncGenerator[N
     mock_file_watcher.start = AsyncMock()
     mock_file_watcher.stop = AsyncMock()
     # Configure attributes accessed by /api/system/pipeline endpoint
-    mock_file_watcher.running = False
-    mock_file_watcher.camera_root = "/mock/foscam"
-    mock_file_watcher._use_polling = False
-    mock_file_watcher._pending_tasks = {}
+    # NOTE: Must use configure_mock() to ensure attributes are set properly
+    # as return_value in patch may use a fresh MagicMock otherwise
+    mock_file_watcher.configure_mock(
+        running=False,
+        camera_root="/mock/foscam",
+        _use_polling=False,
+        _pending_tasks={},
+    )
+
+    # Create a mock class that returns our configured instance
+    mock_file_watcher_class = MagicMock(return_value=mock_file_watcher)
 
     mock_pipeline_manager = MagicMock()
     mock_pipeline_manager.start = AsyncMock()
@@ -797,7 +804,7 @@ async def client(integration_db: str, mock_redis: AsyncMock) -> AsyncGenerator[N
         patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
         patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor),
         patch("backend.main.CleanupService", return_value=mock_cleanup_service),
-        patch("backend.main.FileWatcher", return_value=mock_file_watcher),
+        patch("backend.main.FileWatcher", mock_file_watcher_class),
         patch("backend.main.get_pipeline_manager", AsyncMock(return_value=mock_pipeline_manager)),
         patch("backend.main.stop_pipeline_manager", AsyncMock()),
         patch("backend.main.get_broadcaster", AsyncMock(return_value=mock_event_broadcaster)),
