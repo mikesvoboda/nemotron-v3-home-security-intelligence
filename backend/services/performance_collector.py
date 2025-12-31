@@ -243,7 +243,7 @@ class PerformanceCollector:
         try:
             from sqlalchemy import text
 
-            from core.database import get_session_factory
+            from backend.core.database import get_session_factory
 
             session_factory = get_session_factory()
             async with session_factory() as session:
@@ -296,9 +296,9 @@ class PerformanceCollector:
     async def collect_redis_metrics(self) -> RedisMetrics | None:
         """Collect Redis metrics."""
         try:
-            from core.redis import get_redis_optional
+            from backend.core.redis import init_redis
 
-            redis_client = await get_redis_optional()
+            redis_client = await init_redis()
             if redis_client is None:
                 return RedisMetrics(
                     status="unreachable",
@@ -307,7 +307,9 @@ class PerformanceCollector:
                     hit_ratio=0,
                     blocked_clients=0,
                 )
-            info = await redis_client.info()
+            # Get the underlying redis-py client to access info()
+            raw_client = redis_client._ensure_connected()
+            info = await raw_client.info()
             hits = info.get("keyspace_hits", 0)
             misses = info.get("keyspace_misses", 0)
             hit_ratio = (hits / (hits + misses) * 100) if (hits + misses) > 0 else 0
@@ -359,22 +361,29 @@ class PerformanceCollector:
     async def collect_inference_metrics(self) -> InferenceMetrics | None:
         """Collect inference latency metrics from PipelineLatencyTracker."""
         try:
-            from core.metrics import pipeline_latency
+            from backend.core.metrics import get_pipeline_latency_tracker
+
+            tracker = get_pipeline_latency_tracker()
+
+            # Get stats for each pipeline stage (returns dict with avg_ms, p95_ms, p99_ms, etc.)
+            rtdetr_stats = tracker.get_stage_stats("watch_to_detect", window_minutes=5)
+            nemotron_stats = tracker.get_stage_stats("batch_to_analyze", window_minutes=5)
+            pipeline_stats = tracker.get_stage_stats("total_pipeline", window_minutes=5)
 
             return InferenceMetrics(
                 rtdetr_latency_ms={
-                    "avg": pipeline_latency.watch_to_detect.avg * 1000,
-                    "p95": pipeline_latency.watch_to_detect.p95 * 1000,
-                    "p99": pipeline_latency.watch_to_detect.p99 * 1000,
+                    "avg": rtdetr_stats.get("avg_ms") or 0,
+                    "p95": rtdetr_stats.get("p95_ms") or 0,
+                    "p99": rtdetr_stats.get("p99_ms") or 0,
                 },
                 nemotron_latency_ms={
-                    "avg": pipeline_latency.batch_to_analyze.avg * 1000,
-                    "p95": pipeline_latency.batch_to_analyze.p95 * 1000,
-                    "p99": pipeline_latency.batch_to_analyze.p99 * 1000,
+                    "avg": nemotron_stats.get("avg_ms") or 0,
+                    "p95": nemotron_stats.get("p95_ms") or 0,
+                    "p99": nemotron_stats.get("p99_ms") or 0,
                 },
                 pipeline_latency_ms={
-                    "avg": pipeline_latency.total_pipeline.avg * 1000,
-                    "p95": pipeline_latency.total_pipeline.p95 * 1000,
+                    "avg": pipeline_stats.get("avg_ms") or 0,
+                    "p95": pipeline_stats.get("p95_ms") or 0,
                 },
                 throughput={"images_per_min": 0, "events_per_min": 0},
                 queues={"detection": 0, "analysis": 0},

@@ -195,7 +195,7 @@ class TestDatabaseMetrics:
         mock_session_factory.return_value.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session_factory.return_value.__aexit__ = AsyncMock(return_value=None)
 
-        with patch("core.database.get_session_factory", return_value=mock_session_factory):
+        with patch("backend.core.database.get_session_factory", return_value=mock_session_factory):
             metrics = await collector.collect_postgresql_metrics()
             assert metrics is not None
             assert metrics.status == "healthy"
@@ -205,7 +205,8 @@ class TestDatabaseMetrics:
     async def test_collect_postgresql_metrics_failure(self, collector):
         """Test PostgreSQL metrics returns unreachable on failure."""
         with patch(
-            "core.database.get_session_factory", side_effect=RuntimeError("DB not initialized")
+            "backend.core.database.get_session_factory",
+            side_effect=RuntimeError("DB not initialized"),
         ):
             metrics = await collector.collect_postgresql_metrics()
             assert metrics is not None
@@ -222,11 +223,16 @@ class TestDatabaseMetrics:
             "blocked_clients": 2,
         }
 
-        mock_redis = AsyncMock()
-        mock_redis.info = AsyncMock(return_value=mock_info)
+        # Create a mock raw Redis client
+        mock_raw_client = AsyncMock()
+        mock_raw_client.info = AsyncMock(return_value=mock_info)
+
+        # Create a mock RedisClient wrapper
+        mock_redis_client = MagicMock()
+        mock_redis_client._ensure_connected = MagicMock(return_value=mock_raw_client)
 
         with patch(
-            "core.redis.get_redis_optional", new_callable=AsyncMock, return_value=mock_redis
+            "backend.core.redis.init_redis", new_callable=AsyncMock, return_value=mock_redis_client
         ):
             metrics = await collector.collect_redis_metrics()
             assert metrics is not None
@@ -237,11 +243,16 @@ class TestDatabaseMetrics:
     @pytest.mark.asyncio
     async def test_collect_redis_metrics_failure(self, collector):
         """Test Redis metrics returns unreachable on failure."""
-        mock_redis = AsyncMock()
-        mock_redis.info = AsyncMock(side_effect=Exception("Redis error"))
+        # Create a mock raw Redis client that raises on info()
+        mock_raw_client = AsyncMock()
+        mock_raw_client.info = AsyncMock(side_effect=Exception("Redis error"))
+
+        # Create a mock RedisClient wrapper
+        mock_redis_client = MagicMock()
+        mock_redis_client._ensure_connected = MagicMock(return_value=mock_raw_client)
 
         with patch(
-            "core.redis.get_redis_optional", new_callable=AsyncMock, return_value=mock_redis
+            "backend.core.redis.init_redis", new_callable=AsyncMock, return_value=mock_redis_client
         ):
             metrics = await collector.collect_redis_metrics()
             assert metrics is not None
@@ -250,7 +261,7 @@ class TestDatabaseMetrics:
     @pytest.mark.asyncio
     async def test_collect_redis_metrics_no_client(self, collector):
         """Test Redis metrics returns unreachable when client unavailable."""
-        with patch("core.redis.get_redis_optional", new_callable=AsyncMock, return_value=None):
+        with patch("backend.core.redis.init_redis", new_callable=AsyncMock, return_value=None):
             metrics = await collector.collect_redis_metrics()
             assert metrics is not None
             assert metrics.status == "unreachable"
