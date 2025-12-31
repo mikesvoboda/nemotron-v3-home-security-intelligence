@@ -43,9 +43,6 @@ logger = get_logger(__name__)
 # Redis channel for system status updates
 SYSTEM_STATUS_CHANNEL = "system_status"
 
-# Redis channel for system status updates
-SYSTEM_STATUS_CHANNEL = "system_status"
-
 
 class SystemBroadcaster:
     """Manages WebSocket connections for system status broadcasts.
@@ -64,6 +61,10 @@ class SystemBroadcaster:
         _redis_getter: Callable that returns Redis client (alternative to direct injection)
         _pubsub: Redis pub/sub instance for receiving updates
     """
+
+    # Maximum number of consecutive recovery attempts before giving up
+    # Prevents unbounded recursion / stack overflow on repeated failures
+    MAX_RECOVERY_ATTEMPTS = 5
 
     def __init__(
         self,
@@ -86,6 +87,7 @@ class SystemBroadcaster:
         self._redis_getter = redis_getter
         self._pubsub: PubSub | None = None
         self._pubsub_listening = False
+        self._recovery_attempts = 0
 
     def _get_redis(self) -> RedisClient | None:
         """Get the Redis client instance.
@@ -219,6 +221,7 @@ class SystemBroadcaster:
             # won't conflict with other Redis operations
             self._pubsub = await redis_client.subscribe_dedicated(SYSTEM_STATUS_CHANNEL)
             self._pubsub_listening = True
+            self._recovery_attempts = 0  # Reset recovery attempts on successful start
             self._listener_task = asyncio.create_task(self._listen_for_updates())
             logger.info(f"Started pub/sub listener on channel: {SYSTEM_STATUS_CHANNEL}")
         except Exception as e:
@@ -285,6 +288,9 @@ class SystemBroadcaster:
         """Listen for system status updates from Redis pub/sub.
 
         Forwards received messages to all locally connected WebSocket clients.
+
+        Recovery from errors is bounded to MAX_RECOVERY_ATTEMPTS to prevent
+        unbounded recursion and stack overflow.
         """
         if not self._pubsub:
             logger.error("Cannot listen: pubsub not initialized")
@@ -302,6 +308,9 @@ class SystemBroadcaster:
                 if not self._pubsub_listening:
                     break
 
+                # Reset recovery attempts on successful message processing
+                self._recovery_attempts = 0
+
                 # Extract the status data
                 status_data = message.get("data")
                 if not status_data:
@@ -316,18 +325,43 @@ class SystemBroadcaster:
             logger.info("Pub/sub listener cancelled")
         except Exception as e:
             logger.error(f"Error in pub/sub listener: {e}")
-            # Attempt to restart listener with fresh connection
-            if self._pubsub_listening:
-                logger.info("Restarting pub/sub listener after error")
-                await asyncio.sleep(1)
-                if self._pubsub_listening:
-                    # Clean up old pubsub and create fresh subscription
-                    await self._reset_pubsub_connection()
-                    if self._pubsub:
-                        self._listener_task = asyncio.create_task(self._listen_for_updates())
-                    else:
-                        logger.error("Failed to re-establish pub/sub connection")
-                        self._pubsub_listening = False
+            await self._attempt_listener_recovery()
+
+    async def _attempt_listener_recovery(self) -> None:
+        """Attempt to recover the pub/sub listener with bounded retries.
+
+        This helper method is extracted to reduce branch complexity in
+        _listen_for_updates(). Recovery is bounded to MAX_RECOVERY_ATTEMPTS
+        to prevent unbounded recursion and stack overflow.
+        """
+        if not self._pubsub_listening:
+            return
+
+        self._recovery_attempts += 1
+        if self._recovery_attempts > self.MAX_RECOVERY_ATTEMPTS:
+            logger.error(
+                f"Pub/sub listener recovery failed after {self.MAX_RECOVERY_ATTEMPTS} "
+                "attempts. Giving up - manual restart required."
+            )
+            self._pubsub_listening = False
+            return
+
+        logger.info(
+            f"Restarting pub/sub listener after error "
+            f"(attempt {self._recovery_attempts}/{self.MAX_RECOVERY_ATTEMPTS})"
+        )
+        await asyncio.sleep(1)
+
+        if not self._pubsub_listening:
+            return
+
+        # Clean up old pubsub and create fresh subscription
+        await self._reset_pubsub_connection()
+        if self._pubsub:
+            self._listener_task = asyncio.create_task(self._listen_for_updates())
+        else:
+            logger.error("Failed to re-establish pub/sub connection")
+            self._pubsub_listening = False
 
     async def _get_system_status(self) -> dict:
         """Gather current system status data.
