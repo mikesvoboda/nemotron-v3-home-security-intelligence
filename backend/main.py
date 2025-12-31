@@ -98,13 +98,20 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     # Initialize service health monitor for auto-recovery of AI services
     # Note: This monitors RT-DETRv2 and Nemotron services for health and can trigger restarts
     # Redis is excluded since the application handles Redis failures gracefully already
+    # Restart capability can be disabled via AI_RESTART_ENABLED=false for containerized deployments
+    # where the restart scripts are not available inside the backend container
     service_health_monitor: ServiceHealthMonitor | None = None
     if redis_client is not None:
+        # Set restart_cmd based on ai_restart_enabled setting
+        # When disabled (e.g., in containers), health monitoring still works but no restart attempts
+        rtdetr_restart_cmd = "ai/start_detector.sh" if settings.ai_restart_enabled else None
+        nemotron_restart_cmd = "ai/start_llm.sh" if settings.ai_restart_enabled else None
+
         service_configs = [
             ServiceConfig(
                 name="rtdetr",
                 health_url=f"{settings.rtdetr_url}/health",
-                restart_cmd="ai/start_detector.sh",
+                restart_cmd=rtdetr_restart_cmd,
                 health_timeout=5.0,
                 max_retries=3,
                 backoff_base=5.0,
@@ -112,7 +119,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
             ServiceConfig(
                 name="nemotron",
                 health_url=f"{settings.nemotron_url}/health",
-                restart_cmd="ai/start_llm.sh",
+                restart_cmd=nemotron_restart_cmd,
                 health_timeout=5.0,
                 max_retries=3,
                 backoff_base=5.0,
@@ -128,7 +135,12 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
             check_interval=15.0,
         )
         await service_health_monitor.start()
-        print("Service health monitor initialized (RT-DETRv2, Nemotron)")
+        restart_status = (
+            "enabled" if settings.ai_restart_enabled else "disabled (AI_RESTART_ENABLED=false)"
+        )
+        print(
+            f"Service health monitor initialized (RT-DETRv2, Nemotron) - restart: {restart_status}"
+        )
 
     # Register workers with system routes for readiness checks
     register_workers(

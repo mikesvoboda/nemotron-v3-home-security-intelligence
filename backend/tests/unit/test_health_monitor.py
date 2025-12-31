@@ -1000,3 +1000,198 @@ async def test_restart_exception_handling(
         if call[0][0].get("data", {}).get("status") == "restart_failed"
     ]
     assert len(restart_failed_broadcasts) > 0
+
+
+# Test: Restart Disabled (restart_cmd is None)
+
+
+@pytest.fixture
+def config_no_restart():
+    """Create a ServiceConfig without restart_cmd (restart disabled)."""
+    return ServiceConfig(
+        name="test_service_no_restart",
+        health_url="http://localhost:9999/health",
+        restart_cmd=None,  # Restart disabled
+        health_timeout=1.0,
+        max_retries=3,
+        backoff_base=0.1,
+    )
+
+
+@pytest.fixture
+def health_monitor_no_restart(mock_manager, config_no_restart, mock_broadcaster):
+    """Create a ServiceHealthMonitor with restart disabled."""
+    return ServiceHealthMonitor(
+        manager=mock_manager,
+        services=[config_no_restart],
+        broadcaster=mock_broadcaster,
+        check_interval=0.1,
+    )
+
+
+@pytest.mark.asyncio
+async def test_restart_disabled_broadcasts_restart_disabled_status(
+    health_monitor_no_restart, mock_manager, mock_broadcaster, fast_sleep
+):
+    """Test that when restart_cmd is None, 'restart_disabled' status is broadcast instead of attempting restart."""
+    mock_manager.check_health.return_value = False
+
+    await health_monitor_no_restart.start()
+    await asyncio.sleep(0.15)
+    await health_monitor_no_restart.stop()
+
+    # Verify health was checked
+    assert mock_manager.check_health.called
+
+    # Verify restart was NEVER called (since restart is disabled)
+    mock_manager.restart.assert_not_called()
+
+    # Verify 'restart_disabled' status was broadcast
+    broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
+    restart_disabled_broadcasts = [
+        call
+        for call in broadcast_calls
+        if call[0][0].get("data", {}).get("status") == "restart_disabled"
+    ]
+    assert len(restart_disabled_broadcasts) > 0, (
+        "Expected 'restart_disabled' status to be broadcast"
+    )
+
+
+@pytest.mark.asyncio
+async def test_restart_disabled_does_not_increment_failure_count(
+    health_monitor_no_restart, mock_manager, config_no_restart, fast_sleep
+):
+    """Test that failure count is not incremented when restart is disabled."""
+    mock_manager.check_health.return_value = False
+
+    await health_monitor_no_restart.start()
+    await asyncio.sleep(0.15)
+    await health_monitor_no_restart.stop()
+
+    # Failure count should remain at 0 since we don't track failures when restart is disabled
+    status = health_monitor_no_restart.get_status()
+    assert status[config_no_restart.name]["failure_count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_restart_disabled_continues_health_monitoring(
+    health_monitor_no_restart, mock_manager, fast_sleep
+):
+    """Test that health monitoring continues even when restart is disabled."""
+    health_check_count = 0
+
+    async def count_health_checks(_config):
+        nonlocal health_check_count
+        health_check_count += 1
+        return False  # Always unhealthy
+
+    mock_manager.check_health.side_effect = count_health_checks
+
+    await health_monitor_no_restart.start()
+    await asyncio.sleep(0.25)  # Multiple check intervals
+    await health_monitor_no_restart.stop()
+
+    # Should have multiple health checks even though restart is disabled
+    assert health_check_count >= 2, f"Expected multiple health checks, got {health_check_count}"
+
+
+@pytest.mark.asyncio
+async def test_restart_disabled_healthy_service_no_broadcast(
+    health_monitor_no_restart, mock_manager, mock_broadcaster, fast_sleep
+):
+    """Test that healthy services don't trigger restart_disabled broadcasts."""
+    mock_manager.check_health.return_value = True
+
+    await health_monitor_no_restart.start()
+    await asyncio.sleep(0.15)
+    await health_monitor_no_restart.stop()
+
+    # Should not have any restart_disabled broadcasts since service is healthy
+    broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
+    restart_disabled_broadcasts = [
+        call
+        for call in broadcast_calls
+        if call[0][0].get("data", {}).get("status") == "restart_disabled"
+    ]
+    assert len(restart_disabled_broadcasts) == 0, (
+        "Should not broadcast restart_disabled for healthy service"
+    )
+
+
+@pytest.mark.asyncio
+async def test_mixed_services_only_disabled_one_skips_restart(
+    mock_manager, mock_broadcaster, fast_sleep
+):
+    """Test that services with restart_cmd work normally while those without skip restart."""
+    config_with_restart = ServiceConfig(
+        name="with_restart",
+        health_url="http://localhost:9001/health",
+        restart_cmd="echo restart",  # Has restart command
+        health_timeout=1.0,
+        max_retries=3,
+        backoff_base=0.02,
+    )
+    config_without_restart = ServiceConfig(
+        name="without_restart",
+        health_url="http://localhost:9002/health",
+        restart_cmd=None,  # No restart command
+        health_timeout=1.0,
+        max_retries=3,
+        backoff_base=0.02,
+    )
+
+    # Both services unhealthy
+    mock_manager.check_health.return_value = False
+    mock_manager.restart.return_value = True
+
+    monitor = ServiceHealthMonitor(
+        manager=mock_manager,
+        services=[config_with_restart, config_without_restart],
+        broadcaster=mock_broadcaster,
+        check_interval=0.05,
+    )
+
+    await monitor.start()
+    await asyncio.sleep(0.3)
+    await monitor.stop()
+
+    # Verify restart was called (only for the service with restart enabled)
+    assert mock_manager.restart.called
+
+    # Check that the restart was called with the correct config (the one with restart_cmd)
+    restart_calls = mock_manager.restart.call_args_list
+    restarted_services = [call[0][0].name for call in restart_calls]
+    assert "with_restart" in restarted_services, (
+        "Service with restart_cmd should have restart attempted"
+    )
+
+    # Verify both unhealthy and restart_disabled status broadcasts occurred
+    broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
+    restart_disabled_broadcasts = [
+        call
+        for call in broadcast_calls
+        if call[0][0].get("data", {}).get("status") == "restart_disabled"
+    ]
+    assert len(restart_disabled_broadcasts) > 0, (
+        "Expected restart_disabled for service without restart_cmd"
+    )
+
+
+def test_service_config_restart_cmd_default_is_none():
+    """Test that ServiceConfig.restart_cmd defaults to None."""
+    config = ServiceConfig(
+        name="test",
+        health_url="http://localhost:9999/health",
+    )
+    assert config.restart_cmd is None, "restart_cmd should default to None"
+
+
+def test_service_config_restart_cmd_can_be_set():
+    """Test that ServiceConfig.restart_cmd can be explicitly set."""
+    config = ServiceConfig(
+        name="test",
+        health_url="http://localhost:9999/health",
+        restart_cmd="echo test",
+    )
+    assert config.restart_cmd == "echo test"

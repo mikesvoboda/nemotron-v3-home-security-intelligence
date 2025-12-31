@@ -828,3 +828,131 @@ class TestDLQCircuitBreaker:
         assert config["recovery_timeout"] == 120.0
         assert config["half_open_max_calls"] == 5
         assert config["success_threshold"] == 3
+
+
+class TestDLQJobLossLogging:
+    """Tests for DLQ job loss logging fix (wa0t.16)."""
+
+    @pytest.fixture
+    def mock_redis(self) -> MagicMock:
+        """Create a mock Redis client."""
+        redis = MagicMock()
+        redis.add_to_queue = AsyncMock(return_value=1)
+        redis.add_to_queue_safe = AsyncMock(
+            return_value=QueueAddResult(success=False, queue_length=10000, error="Queue full")
+        )
+        redis.get_from_queue = AsyncMock(return_value=None)
+        redis.get_queue_length = AsyncMock(return_value=0)
+        redis.peek_queue = AsyncMock(return_value=[])
+        redis.clear_queue = AsyncMock(return_value=True)
+        return redis
+
+    @pytest.fixture
+    def handler_with_low_threshold(self, mock_redis: MagicMock) -> RetryHandler:
+        """Create a handler with low circuit breaker threshold."""
+        from backend.services.circuit_breaker import CircuitBreaker, CircuitBreakerConfig
+
+        cb_config = CircuitBreakerConfig(
+            failure_threshold=2,
+            recovery_timeout=0.1,
+            half_open_max_calls=1,
+            success_threshold=1,
+        )
+        dlq_circuit_breaker = CircuitBreaker(
+            name="test_dlq_overflow",
+            config=cb_config,
+        )
+        return RetryHandler(
+            redis_client=mock_redis,
+            config=RetryConfig(max_retries=1, base_delay_seconds=0.01),
+            dlq_circuit_breaker=dlq_circuit_breaker,
+        )
+
+    @pytest.mark.asyncio
+    async def test_job_loss_logs_error_with_full_context(
+        self, handler_with_low_threshold: RetryHandler, mock_redis: MagicMock
+    ) -> None:
+        """Test that job loss logs error with full job context when circuit is open."""
+        from unittest.mock import patch
+
+        async def always_fail() -> str:
+            raise ConnectionError("Service unavailable")
+
+        # Trip the circuit breaker first by failing DLQ writes
+        await handler_with_low_threshold.with_retry(
+            operation=always_fail,
+            job_data={"camera_id": "cam1"},
+            queue_name="detection_queue",
+        )
+        await handler_with_low_threshold.with_retry(
+            operation=always_fail,
+            job_data={"camera_id": "cam2"},
+            queue_name="detection_queue",
+        )
+
+        # Verify circuit is open
+        assert handler_with_low_threshold.is_dlq_circuit_open() is True
+
+        # Now capture logs when processing job with open circuit
+        # When circuit is open, the allow_call() check should log CRITICAL DATA LOSS
+        with patch("backend.services.retry_handler.logger") as mock_logger:
+            result = await handler_with_low_threshold.with_retry(
+                operation=always_fail,
+                job_data={"camera_id": "cam3", "file_path": "/path/to/image.jpg"},
+                queue_name="detection_queue",
+            )
+
+            # Verify the job was NOT moved to DLQ (circuit was open)
+            assert result.moved_to_dlq is False
+
+            # Find the error call that contains the critical data loss message
+            error_calls = mock_logger.error.call_args_list
+            found_critical_data_loss = False
+            for call in error_calls:
+                call_str = str(call)
+                if "CRITICAL DATA LOSS" in call_str:
+                    found_critical_data_loss = True
+                    # Verify job data is in the extras
+                    assert "cam3" in call_str or "lost_job_data" in call_str
+                    break
+
+            assert found_critical_data_loss, (
+                f"Expected CRITICAL DATA LOSS log message not found. Error calls: {error_calls}"
+            )
+
+    @pytest.mark.asyncio
+    async def test_job_loss_includes_job_data_in_extra(
+        self, handler_with_low_threshold: RetryHandler, mock_redis: MagicMock
+    ) -> None:
+        """Test that job loss log includes the job data in extras for audit."""
+        from unittest.mock import patch
+
+        # Trip the circuit breaker
+        async def always_fail() -> str:
+            raise ConnectionError("Service unavailable")
+
+        # Trip the circuit
+        await handler_with_low_threshold.with_retry(
+            operation=always_fail,
+            job_data={"camera_id": "cam1"},
+            queue_name="detection_queue",
+        )
+        await handler_with_low_threshold.with_retry(
+            operation=always_fail,
+            job_data={"camera_id": "cam2"},
+            queue_name="detection_queue",
+        )
+
+        with patch("backend.services.retry_handler.logger") as mock_logger:
+            await handler_with_low_threshold.with_retry(
+                operation=always_fail,
+                job_data={"camera_id": "cam_lost", "important_data": "should_be_logged"},
+                queue_name="detection_queue",
+            )
+
+            # Check that the extra field contains job data
+            error_calls = list(mock_logger.error.call_args_list)
+            has_job_data_in_extra = any(
+                "lost_job_data" in str(call) or "cam_lost" in str(call) for call in error_calls
+            )
+            assert has_job_data_in_extra, f"Job data not found in error logs: {error_calls}"

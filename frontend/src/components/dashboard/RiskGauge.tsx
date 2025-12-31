@@ -1,5 +1,5 @@
 import { clsx } from 'clsx';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { getRiskColor, getRiskLabel, getRiskLevel } from '../../utils/risk';
 
@@ -92,33 +92,42 @@ export default function RiskGauge({
 
   // Animated value for smooth transitions
   const [animatedValue, setAnimatedValue] = useState(0);
+  // Use ref to track the starting value for animation without causing re-renders
+  const animationStartRef = useRef(0);
 
   // Animate value changes
   useEffect(() => {
     // Skip animation in test environment for instant updates
     if (import.meta.env.MODE === 'test') {
       setAnimatedValue(clampedValue);
+      animationStartRef.current = clampedValue;
       return;
     }
 
     const duration = 1000; // 1 second animation
     const steps = 60; // 60fps
     const stepDuration = duration / steps;
-    const stepSize = (clampedValue - animatedValue) / steps;
+
+    // Capture the starting value at the beginning of this animation
+    const startValue = animationStartRef.current;
+    const stepSize = (clampedValue - startValue) / steps;
 
     let currentStep = 0;
     const timer = setInterval(() => {
       currentStep++;
       if (currentStep >= steps) {
         setAnimatedValue(clampedValue);
+        animationStartRef.current = clampedValue;
         clearInterval(timer);
       } else {
-        setAnimatedValue((prev) => prev + stepSize);
+        const newValue = startValue + stepSize * currentStep;
+        setAnimatedValue(newValue);
       }
     }, stepDuration);
 
     return () => clearInterval(timer);
-  }, [clampedValue, animatedValue]);
+    // Only depend on clampedValue - NOT animatedValue to avoid infinite loop
+  }, [clampedValue]);
 
   // Get risk level and associated styling
   const level = getRiskLevel(clampedValue);

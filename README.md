@@ -29,26 +29,54 @@ no text overlays"
 
 ---
 
-## Quick Start (60 seconds)
+## Quick Start
+
+Choose your deployment path:
+
+### Option A: Production (Recommended)
+
+All services run in containers, including GPU-accelerated AI. Requires NVIDIA GPU with `nvidia-container-toolkit`.
 
 ```bash
-# 1. Setup environment and dependencies
+# 1. Setup environment
 ./scripts/setup-hooks.sh
 
 # 2. Download AI models (~10GB)
 ./ai/download_models.sh
 
-# 3. Start AI servers (separate terminals)
-./ai/start_detector.sh    # RT-DETRv2 on :8090
-./ai/start_llm.sh         # Nemotron on :8091
-
-# 4. Launch the app
+# 3. Launch everything (AI + backend + frontend)
 podman-compose -f docker-compose.prod.yml up -d
 ```
 
-**Open [http://localhost](http://localhost)** -- that's it.
+**Open [http://localhost:5173](http://localhost:5173)** -- that's it.
 
-> **macOS with Podman?** Set `export AI_HOST=host.containers.internal` first.
+### Option B: Development (Host AI)
+
+AI servers run natively on the host for faster iteration. Backend and frontend run in containers.
+
+```bash
+# 1. Setup environment
+./scripts/setup-hooks.sh
+
+# 2. Download AI models (~10GB)
+./ai/download_models.sh
+
+# 3. Start AI servers on host (separate terminals)
+./ai/start_detector.sh    # RT-DETRv2 on :8090
+./ai/start_llm.sh         # Nemotron on :8091
+
+# 4. Set AI host for container networking
+export AI_HOST=host.docker.internal    # Docker on Linux/Windows
+# OR
+export AI_HOST=host.containers.internal  # Podman on macOS
+
+# 5. Launch app containers (no AI services)
+podman-compose up -d
+```
+
+**Open [http://localhost:5173](http://localhost:5173)**
+
+> **Note:** Do NOT mix host AI servers with `docker-compose.prod.yml` -- this causes port conflicts on 8090/8091.
 
 ---
 

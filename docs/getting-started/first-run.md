@@ -11,6 +11,7 @@ source_refs:
   - docker-compose.prod.yml:1
   - docker-compose.prod.yml:46-81
   - docker-compose.prod.yml:109-143
+  - docker-compose.yml:1
 ---
 
 # First Run
@@ -27,9 +28,71 @@ no text overlays"
 
 ---
 
-## Startup Sequence
+## Choose Your Deployment Mode
 
-The system requires starting components in a specific order:
+There are two deployment paths. Choose the one that fits your setup:
+
+| Mode            | AI Services          | Use Case                                 | Docker Compose File       |
+| --------------- | -------------------- | ---------------------------------------- | ------------------------- |
+| **Production**  | Run in containers    | Simplest setup, everything containerized | `docker-compose.prod.yml` |
+| **Development** | Run natively on host | Faster AI iteration, debugging           | `docker-compose.yml`      |
+
+> **Important:** Do NOT mix host-run AI servers with `docker-compose.prod.yml`. This causes port conflicts on 8090/8091.
+
+---
+
+## Option A: Production Mode (Recommended)
+
+All services run in containers, including GPU-accelerated AI servers.
+
+### Prerequisites
+
+- NVIDIA GPU with `nvidia-container-toolkit` installed
+- Models downloaded via `./ai/download_models.sh`
+
+### Start Everything
+
+```bash
+# Launch all services (AI + backend + frontend)
+podman-compose -f docker-compose.prod.yml up -d
+```
+
+**What starts** ([`docker-compose.prod.yml`](../../docker-compose.prod.yml:1)):
+
+| Service     | Port | Purpose                    |
+| ----------- | ---- | -------------------------- |
+| PostgreSQL  | 5432 | Database                   |
+| Redis       | 6379 | Queues + pub/sub           |
+| ai-detector | 8090 | RT-DETRv2 object detection |
+| ai-llm      | 8091 | Nemotron LLM risk analysis |
+| Backend     | 8000 | FastAPI + WebSocket        |
+| Frontend    | 5173 | React dashboard (nginx)    |
+
+### Verify Production Deployment
+
+```bash
+# Check container status
+podman-compose -f docker-compose.prod.yml ps
+
+# Expected: All services "healthy" or "running"
+NAME                      STATUS
+security-postgres-1       healthy
+security-redis-1          healthy
+security-ai-detector-1    healthy
+security-ai-llm-1         healthy
+security-backend-1        healthy
+security-frontend-1       healthy
+```
+
+### Access Dashboard
+
+Open **[http://localhost:5173](http://localhost:5173)**
+
+---
+
+## Option B: Development Mode (Host AI)
+
+AI servers run natively on the host for faster iteration. Application services run in containers.
 
 ```mermaid
 flowchart TB
@@ -42,7 +105,7 @@ flowchart TB
         PG[(PostgreSQL<br/>Port 5432)]
         REDIS[(Redis<br/>Port 6379)]
         BACK[Backend<br/>Port 8000]
-        FRONT[Frontend<br/>Port 80]
+        FRONT[Frontend<br/>Port 5173]
 
         PG --> BACK
         REDIS --> BACK
@@ -56,15 +119,13 @@ flowchart TB
     style Containers fill:#3B82F6,color:#fff
 ```
 
-> **Why native AI servers?** GPU access from containers requires complex configuration. Running AI servers natively with Podman for the application stack is simpler and more reliable.
+> **Why host AI servers?** Faster restart times during model development, easier debugging, and simpler GPU access without container runtime configuration.
 
----
-
-## Step 1: Start AI Servers
+### Step 1: Start AI Servers
 
 Open **two separate terminal windows** for the AI servers.
 
-### Terminal 1: RT-DETRv2 Detection Server
+#### Terminal 1: RT-DETRv2 Detection Server
 
 ```bash
 cd home-security-intelligence
@@ -87,7 +148,7 @@ Expected VRAM usage: ~4GB
 INFO:     Uvicorn running on http://0.0.0.0:8090
 ```
 
-### Terminal 2: Nemotron LLM Server
+#### Terminal 2: Nemotron LLM Server
 
 ```bash
 cd home-security-intelligence
@@ -112,7 +173,7 @@ GPU layers: 99 (all layers)
 llama server listening at http://0.0.0.0:8091
 ```
 
-### Verify AI Servers
+#### Verify AI Servers
 
 ```bash
 # Check RT-DETRv2
@@ -124,46 +185,36 @@ curl http://localhost:8091/health
 # Expected: {"status": "ok"}
 ```
 
----
+### Step 2: Start Application Stack
 
-## Step 2: Start Application Stack
-
-In a **third terminal**, start the Podman containers:
-
-### Production Mode (Recommended)
+In a **third terminal**, set the AI host and start containers:
 
 ```bash
-# macOS: Set AI host first
+# macOS with Podman
 export AI_HOST=host.containers.internal
 
-# Start containers
-podman-compose -f docker-compose.prod.yml up -d
-```
+# OR Linux (Docker or Podman)
+export AI_HOST=host.docker.internal    # Docker
+# export AI_HOST=192.168.1.100        # Or your host IP for Podman on Linux
 
-**What starts** ([`docker-compose.prod.yml`](../../docker-compose.prod.yml:1)):
-
-| Service    | Port | Purpose                                                               |
-| ---------- | ---- | --------------------------------------------------------------------- |
-| PostgreSQL | 5432 | Database ([lines 17-45](../../docker-compose.prod.yml:17))            |
-| Redis      | 6379 | Queues + pub/sub ([lines 88-107](../../docker-compose.prod.yml:88))   |
-| Backend    | 8000 | FastAPI + WebSocket ([lines 46-86](../../docker-compose.prod.yml:46)) |
-| Frontend   | 80   | React dashboard ([lines 109-143](../../docker-compose.prod.yml:109))  |
-
-### Development Mode
-
-For development with hot-reload:
-
-```bash
+# Start containers (uses docker-compose.yml - NO ai-detector/ai-llm services)
 podman-compose up -d
 ```
 
-This uses `docker-compose.yml` with Vite dev server on port 5173.
+**What starts** ([`docker-compose.yml`](../../docker-compose.yml:1)):
 
-### Verify Containers
+| Service    | Port | Purpose                           |
+| ---------- | ---- | --------------------------------- |
+| PostgreSQL | 5432 | Database                          |
+| Redis      | 6379 | Queues + pub/sub                  |
+| Backend    | 8000 | FastAPI + WebSocket               |
+| Frontend   | 5173 | React dashboard (Vite dev server) |
+
+### Verify Development Deployment
 
 ```bash
 # Check container status
-podman-compose -f docker-compose.prod.yml ps
+podman-compose ps
 
 # Expected: All services "healthy" or "running"
 NAME                    STATUS
@@ -173,31 +224,17 @@ security-backend-1      healthy
 security-frontend-1     healthy
 ```
 
----
+### Access Dashboard
 
-## Step 3: Access the Dashboard
-
-Open your browser to:
-
-| Mode            | URL                                            |
-| --------------- | ---------------------------------------------- |
-| **Production**  | [http://localhost](http://localhost)           |
-| **Development** | [http://localhost:5173](http://localhost:5173) |
-
-### First-time Dashboard
-
-On first load, you should see:
-
-- **Risk Gauge**: Shows "No Data" or low risk (no events yet)
-- **Camera Grid**: Empty (cameras not configured yet)
-- **Activity Feed**: Empty (no detections yet)
-- **System Status**: All green indicators
+Open **[http://localhost:5173](http://localhost:5173)**
 
 ---
 
-## Step 4: Health Check
+## Post-Startup Verification
 
-Verify all services are communicating:
+After starting with either mode, verify all services are communicating:
+
+### Backend Health Check
 
 ```bash
 # Backend health (checks all dependencies)
@@ -219,7 +256,7 @@ curl http://localhost:8000/api/system/health
 ### Individual Health Endpoints
 
 ```bash
-# Database
+# Database readiness
 curl http://localhost:8000/api/system/health/ready
 
 # GPU Stats (if AI servers running)
@@ -228,7 +265,7 @@ curl http://localhost:8000/api/system/gpu
 
 ---
 
-## Step 5: Configure Your First Camera
+## Configure Your First Camera
 
 1. **Via Dashboard**: Navigate to Settings > Cameras > Add Camera
 
@@ -252,11 +289,7 @@ curl http://localhost:8000/api/system/gpu
 
 ## Viewing Logs
 
-### AI Server Logs
-
-Logs appear in the terminal windows where you started the servers.
-
-### Container Logs
+### Production Mode
 
 ```bash
 # All services
@@ -264,35 +297,43 @@ podman-compose -f docker-compose.prod.yml logs -f
 
 # Specific service
 podman-compose -f docker-compose.prod.yml logs -f backend
+podman-compose -f docker-compose.prod.yml logs -f ai-detector
+podman-compose -f docker-compose.prod.yml logs -f ai-llm
 ```
 
-### Log Locations
+### Development Mode
 
-| Component | Location                |
-| --------- | ----------------------- |
-| RT-DETRv2 | Terminal stdout         |
-| Nemotron  | Terminal stdout         |
-| Backend   | Container: `/app/logs/` |
-| Frontend  | Browser console         |
+AI server logs appear in the terminal windows where you started them.
+
+```bash
+# Container logs
+podman-compose logs -f
+
+# Specific service
+podman-compose logs -f backend
+```
 
 ---
 
 ## Stopping the System
 
-### Stop Containers
+### Production Mode
 
 ```bash
+# Stop all containers
 podman-compose -f docker-compose.prod.yml down
+
+# Full cleanup (removes volumes)
+podman-compose -f docker-compose.prod.yml down -v
 ```
 
-### Stop AI Servers
-
-Press `Ctrl+C` in each AI server terminal.
-
-### Full Cleanup (removes volumes)
+### Development Mode
 
 ```bash
-podman-compose -f docker-compose.prod.yml down -v
+# Stop containers
+podman-compose down
+
+# Stop AI Servers: Press Ctrl+C in each terminal
 ```
 
 ---
@@ -314,6 +355,15 @@ lsof -i :8090
 lsof -i :8091
 ```
 
+### Port conflict on 8090/8091
+
+This happens when you mix host AI servers with `docker-compose.prod.yml`.
+
+**Solution:** Choose one path:
+
+- **Production:** Stop host AI servers, use `docker-compose.prod.yml` only
+- **Development:** Use `docker-compose.yml` (no AI containers) with host AI servers
+
 ### Backend can't reach AI services
 
 ```bash
@@ -328,10 +378,10 @@ echo $AI_HOST
 
 ```bash
 # Check PostgreSQL is running
-podman-compose -f docker-compose.prod.yml ps postgres
+podman-compose ps postgres
 
 # View PostgreSQL logs
-podman-compose -f docker-compose.prod.yml logs postgres
+podman-compose logs postgres
 ```
 
 ### Frontend not loading

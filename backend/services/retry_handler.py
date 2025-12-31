@@ -366,13 +366,24 @@ class RetryHandler:
 
         # Check circuit breaker state before attempting DLQ write
         if not self._dlq_circuit_breaker.allow_call():
-            logger.warning(
-                f"DLQ circuit breaker is {self._dlq_circuit_breaker.state.value}, "
-                f"skipping DLQ write for {queue_name}. Job will be lost.",
+            # CRITICAL: Job is being permanently lost due to open circuit breaker
+            # Log at ERROR level with full job context for audit trail
+            logger.error(
+                f"CRITICAL DATA LOSS: DLQ circuit breaker is {self._dlq_circuit_breaker.state.value}, "
+                f"job from {queue_name} will be PERMANENTLY LOST. "
+                f"Original error: {error}. "
+                f"Circuit breaker will recover after timeout or manual reset.",
                 extra={
                     "queue_name": queue_name,
                     "circuit_state": self._dlq_circuit_breaker.state.value,
                     "circuit_failures": self._dlq_circuit_breaker.failure_count,
+                    "circuit_threshold": self._dlq_circuit_breaker.config.failure_threshold,
+                    "circuit_recovery_timeout": self._dlq_circuit_breaker.config.recovery_timeout,
+                    "lost_job_data": job_data,
+                    "lost_job_error": error,
+                    "lost_job_attempt_count": attempt_count,
+                    "lost_job_first_failed_at": first_failed_at,
+                    "data_loss": True,
                 },
             )
             return False

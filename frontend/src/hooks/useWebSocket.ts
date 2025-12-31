@@ -74,6 +74,20 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
   const connectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shouldConnectRef = useRef(true);
 
+  // Store callbacks in refs to avoid stale closures during reconnection
+  const onMessageRef = useRef(onMessage);
+  const onOpenRef = useRef(onOpen);
+  const onCloseRef = useRef(onClose);
+  const onErrorRef = useRef(onError);
+  const onMaxRetriesExhaustedRef = useRef(onMaxRetriesExhausted);
+
+  // Update refs when callbacks change
+  onMessageRef.current = onMessage;
+  onOpenRef.current = onOpen;
+  onCloseRef.current = onClose;
+  onErrorRef.current = onError;
+  onMaxRetriesExhaustedRef.current = onMaxRetriesExhausted;
+
   const clearAllTimeouts = useCallback(() => {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
@@ -138,7 +152,8 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
         reconnectCountRef.current = 0;
         setReconnectCount(0);
         setHasExhaustedRetries(false);
-        onOpen?.();
+        // Use ref to get latest callback
+        onOpenRef.current?.();
       };
 
       ws.onclose = () => {
@@ -149,7 +164,8 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
         }
 
         setIsConnected(false);
-        onClose?.();
+        // Use ref to get latest callback
+        onCloseRef.current?.();
 
         // Attempt reconnection if enabled and within retry limits
         if (
@@ -174,29 +190,34 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
         ) {
           // Max retries exhausted
           setHasExhaustedRetries(true);
-          onMaxRetriesExhausted?.();
+          // Use ref to get latest callback
+          onMaxRetriesExhaustedRef.current?.();
         }
       };
 
       ws.onerror = (error: Event) => {
-        onError?.(error);
+        // Use ref to get latest callback
+        onErrorRef.current?.(error);
       };
 
       ws.onmessage = (event: MessageEvent) => {
         try {
           const data = JSON.parse(event.data as string) as unknown;
           setLastMessage(data);
-          onMessage?.(data);
+          // Use ref to get latest callback
+          onMessageRef.current?.(data);
         } catch {
           // If parsing fails, pass the raw data
           setLastMessage(event.data as unknown);
-          onMessage?.(event.data as unknown);
+          // Use ref to get latest callback
+          onMessageRef.current?.(event.data as unknown);
         }
       };
     } catch (error) {
       console.error('WebSocket connection error:', error);
     }
-  }, [url, onMessage, onOpen, onClose, onError, onMaxRetriesExhausted, reconnect, reconnectInterval, reconnectAttempts, connectionTimeout]);
+    // Reduced dependencies - callbacks are accessed via refs to avoid stale closures
+  }, [url, reconnect, reconnectInterval, reconnectAttempts, connectionTimeout]);
 
   const send = useCallback((data: unknown) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {

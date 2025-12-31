@@ -168,9 +168,23 @@ class ServiceHealthMonitor:
         Increments failure count, calculates backoff delay, and attempts
         restart if max retries have not been exceeded.
 
+        If restart_cmd is None (restart disabled), logs the failure and
+        broadcasts "restart_disabled" status without attempting restart.
+        Health monitoring continues to function normally.
+
         Args:
             service: Configuration of the failed service
         """
+        # Check if restart is disabled for this service
+        if service.restart_cmd is None:
+            logger.warning(f"Service {service.name} is unhealthy but restart is disabled")
+            await self._broadcast_status(
+                service,
+                "restart_disabled",
+                "Service unhealthy but automatic restart is disabled",
+            )
+            return
+
         # Increment failure count
         current_failures = self._failure_counts.get(service.name, 0) + 1
         self._failure_counts[service.name] = current_failures

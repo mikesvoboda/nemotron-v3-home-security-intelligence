@@ -14,7 +14,7 @@ Batching Logic:
 Redis Keys (all keys have 1-hour TTL for orphan cleanup):
     - batch:{camera_id}:current - Current batch ID for camera
     - batch:{batch_id}:camera_id - Camera ID for batch
-    - batch:{batch_id}:detections - JSON list of detection IDs
+    - batch:{batch_id}:detections - Redis LIST of detection IDs (uses RPUSH for atomic append)
     - batch:{batch_id}:started_at - Batch start timestamp (float)
     - batch:{batch_id}:last_activity - Last activity timestamp (float)
 
@@ -22,10 +22,13 @@ Concurrency:
     Uses per-camera locks to prevent race conditions when multiple detections
     arrive for the same camera simultaneously. Global lock protects batch
     timeout checking and closing operations.
+
+    For distributed environments (multiple backend instances), detection list
+    updates use Redis RPUSH for atomic append operations, eliminating race
+    conditions in the read-modify-write pattern.
 """
 
 import asyncio
-import json
 import time
 import uuid
 from collections import defaultdict
@@ -95,6 +98,57 @@ class BatchAggregator:
             # defaultdict will create the lock if it doesn't exist
             return self._camera_locks[camera_id]
 
+    async def _atomic_list_append(self, key: str, value: int, ttl: int) -> int:
+        """Atomically append a value to a Redis list and refresh TTL.
+
+        Uses Redis RPUSH for atomic append, eliminating race conditions
+        in distributed environments.
+
+        Args:
+            key: Redis list key
+            value: Value to append (will be converted to string)
+            ttl: TTL in seconds to set on the key
+
+        Returns:
+            Length of the list after append
+        """
+        if not self._redis or not self._redis._client:
+            raise RuntimeError("Redis client not initialized")
+
+        client = self._redis._client
+        # RPUSH is atomic - multiple processes can safely append
+        length: int = await client.rpush(key, str(value))  # type: ignore[misc]
+        # Refresh TTL
+        await client.expire(key, ttl)
+        return length
+
+    async def _atomic_list_get_all(self, key: str) -> list[int]:
+        """Get all values from a Redis list.
+
+        Uses Redis LRANGE to retrieve all elements.
+
+        Args:
+            key: Redis list key
+
+        Returns:
+            List of detection IDs (integers)
+        """
+        if not self._redis or not self._redis._client:
+            raise RuntimeError("Redis client not initialized")
+
+        client = self._redis._client
+        # LRANGE 0 -1 gets all elements
+        items: list[str] = await client.lrange(key, 0, -1)  # type: ignore[misc]
+        # Convert string values back to integers
+        result = []
+        for item in items:
+            try:
+                result.append(int(item))
+            except (ValueError, TypeError):
+                # Skip invalid entries
+                logger.warning(f"Invalid detection ID in batch list: {item}")
+        return result
+
     async def add_detection(
         self,
         camera_id: str,
@@ -110,6 +164,9 @@ class BatchAggregator:
 
         If detection meets fast path criteria (confidence > threshold AND object_type in
         fast path list), immediately triggers analysis instead of batching.
+
+        Uses atomic Redis RPUSH for detection list updates to prevent race conditions
+        in distributed environments.
 
         Args:
             camera_id: Camera identifier
@@ -180,37 +237,25 @@ class BatchAggregator:
                 await self._redis.set(
                     f"batch:{batch_id}:last_activity", str(current_time), expire=ttl
                 )
-                await self._redis.set(f"batch:{batch_id}:detections", json.dumps([]), expire=ttl)
+                # Note: No need to initialize empty list - RPUSH creates it automatically
 
-            # Add detection to batch
+            # Add detection to batch using atomic RPUSH operation
+            # This eliminates the race condition in read-modify-write pattern
             detections_key = f"batch:{batch_id}:detections"
-            detections_data = await self._redis.get(detections_key)
-
-            if detections_data:
-                detections = (
-                    json.loads(detections_data)
-                    if isinstance(detections_data, str)
-                    else detections_data
-                )
-            else:
-                detections = []
-
-            detections.append(detection_id_int)
-
-            # Update batch with new detection and activity timestamp (refresh TTL)
-            # Uses retry with exponential backoff for Redis connection failures
             ttl = self.BATCH_KEY_TTL_SECONDS
-            await self._redis.set(detections_key, json.dumps(detections), expire=ttl)
+            detection_count = await self._atomic_list_append(detections_key, detection_id_int, ttl)
+
+            # Update last activity timestamp
             await self._redis.set(f"batch:{batch_id}:last_activity", str(current_time), expire=ttl)
 
             logger.debug(
                 f"Added detection {detection_id_int} to batch {batch_id} "
-                f"(camera: {camera_id}, total detections: {len(detections)})",
+                f"(camera: {camera_id}, total detections: {detection_count})",
                 extra={
                     "camera_id": camera_id,
                     "batch_id": batch_id,
                     "detection_id": detection_id_int,
-                    "detection_count": len(detections),
+                    "detection_count": detection_count,
                 },
             )
 
@@ -354,16 +399,8 @@ class BatchAggregator:
                         "already_closed": True,
                     }
 
-                detections_data = await self._redis.get(f"batch:{batch_id}:detections")
-                # Handle both pre-deserialized (from redis.get) and string formats
-                if detections_data:
-                    detections = (
-                        json.loads(detections_data)
-                        if isinstance(detections_data, str)
-                        else detections_data
-                    )
-                else:
-                    detections = []
+                # Get detections using atomic list read
+                detections = await self._atomic_list_get_all(f"batch:{batch_id}:detections")
 
                 started_at_str = await self._redis.get(f"batch:{batch_id}:started_at")
                 started_at = float(started_at_str) if started_at_str else time.time()
