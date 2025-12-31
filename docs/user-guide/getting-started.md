@@ -119,7 +119,7 @@ Once your cameras are connected and active, real events will start appearing aut
 
 ## Quick Tips for Getting Started
 
-1. **Check the Risk Gauge first** - If it's green (0-30), everything is calm. Yellow (31-60) means take a look. Red (61-100) deserves immediate attention.
+1. **Check the Risk Gauge first** - If it's green (0-29), everything is calm. Yellow (30-59) means take a look. Orange/Red (60-100) deserves prompt attention. See [Risk Levels Reference](../reference/config/risk-levels.md) for details.
 
 2. **Click on events to see details** - Each event in the activity feed can be clicked to see the full AI analysis, including the original image and reasoning.
 

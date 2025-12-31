@@ -68,8 +68,8 @@ podman-compose logs -f frontend
 
 2. **Check GPU memory:**
 
-   - RT-DETRv2 needs ~2GB VRAM
-   - Nemotron needs ~4GB VRAM
+   - RT-DETRv2 needs ~4GB VRAM
+   - Nemotron Mini 4B needs ~3GB VRAM
    - Close other GPU-using applications
 
 3. **Verify models are downloaded:**
@@ -641,7 +641,9 @@ podman-compose logs -f frontend
 3. **Verify variable is set:**
 
    ```bash
-   # In container
+   # In container (Docker or Podman)
+   docker exec backend printenv | grep YOUR_VAR
+   # OR
    podman exec backend printenv | grep YOUR_VAR
    ```
 

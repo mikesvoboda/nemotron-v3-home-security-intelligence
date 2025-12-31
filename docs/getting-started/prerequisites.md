@@ -3,7 +3,7 @@ title: Prerequisites
 description: Hardware and software requirements for Home Security Intelligence
 source_refs:
   - pyproject.toml:5
-  - frontend/package.json:32
+  - frontend/package.json:6-8
   - ai/start_detector.sh:6-7
   - ai/start_llm.sh:6-7
   - docker-compose.prod.yml:18-19
@@ -115,15 +115,17 @@ brew install python@3.14
 
 ### Node.js
 
-| Requirement | Version                                                            |
-| ----------- | ------------------------------------------------------------------ |
-| **Node.js** | 18+ ([`frontend/package.json:32`](../../frontend/package.json:32)) |
-| **npm**     | 9+                                                                 |
+| Requirement | Version                                                                   |
+| ----------- | ------------------------------------------------------------------------- |
+| **Node.js** | 20.19+ or 22.12+ ([`frontend/package.json`](../../frontend/package.json)) |
+| **npm**     | 10+                                                                       |
+
+> **Note:** Vite 7 requires Node.js 20.19+ or 22.12+ for native ESM support. Node.js 18 is NOT supported.
 
 ```bash
 # Verify Node version
 node --version
-# v18.x.x or higher
+# v20.19.x or v22.12.x or higher
 ```
 
 **Installation:**
@@ -139,30 +141,62 @@ brew install node@20
 
 ### Container Runtime
 
-This project uses **Podman** (not Docker) for container management.
+This project supports **both Docker and Podman**. Choose whichever is available on your system.
 
-| Runtime            | Version |
-| ------------------ | ------- |
-| **Podman**         | 4.0+    |
-| **podman-compose** | 1.0+    |
+| Runtime            | Version | License                          |
+| ------------------ | ------- | -------------------------------- |
+| **Docker Engine**  | 20.10+  | Free (Linux)                     |
+| **Docker Desktop** | 4.0+    | Paid (commercial >250 employees) |
+| **Podman**         | 4.0+    | Free (Apache 2.0)                |
+| **docker-compose** | 2.0+    | Included with Docker             |
+| **podman-compose** | 1.0+    | Separate install                 |
 
 ```bash
-# Verify Podman
+# Verify Docker
+docker --version
+docker compose version
+
+# OR verify Podman
 podman --version
 podman-compose --version
 ```
 
 **Installation:**
 
+<details>
+<summary><strong>Docker Installation</strong></summary>
+
+```bash
+# Ubuntu/Debian
+sudo apt update
+sudo apt install docker.io docker-compose-v2
+sudo usermod -aG docker $USER  # Log out and back in
+
+# macOS (Docker Desktop)
+# Download from https://www.docker.com/products/docker-desktop
+```
+
+</details>
+
+<details>
+<summary><strong>Podman Installation</strong></summary>
+
 ```bash
 # Ubuntu/Debian
 sudo apt install podman podman-compose
+
+# Fedora/RHEL
+sudo dnf install podman podman-compose
 
 # macOS (via Homebrew)
 brew install podman podman-compose
 podman machine init
 podman machine start
 ```
+
+</details>
+
+> **macOS Note:** If using Podman on macOS, set `AI_HOST=host.containers.internal` before starting containers. Docker Desktop uses `host.docker.internal` by default.
 
 ### llama.cpp
 
@@ -203,20 +237,34 @@ python3 --version
 # Node.js
 node --version && npm --version
 
-# Podman
-podman --version && podman-compose --version
+# Container runtime (choose one)
+docker --version && docker compose version   # Docker
+# OR
+podman --version && podman-compose --version  # Podman
 
 # llama.cpp
 which llama-server
 ```
 
-Expected output:
+Expected output (Docker example):
 
 ```
 NVIDIA-SMI 535.xxx  Driver Version: 535.xxx  CUDA Version: 12.x
 Python 3.14.x
-v20.x.x
-9.x.x
+v20.19.x (or v22.12.x+)
+10.x.x
+Docker version 24.x.x
+Docker Compose version v2.x.x
+/usr/local/bin/llama-server
+```
+
+Expected output (Podman example):
+
+```
+NVIDIA-SMI 535.xxx  Driver Version: 535.xxx  CUDA Version: 12.x
+Python 3.14.x
+v20.19.x (or v22.12.x+)
+10.x.x
 podman version 4.x.x
 podman-compose version 1.x.x
 /usr/local/bin/llama-server

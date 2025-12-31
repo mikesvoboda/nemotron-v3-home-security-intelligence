@@ -55,6 +55,8 @@ The **Risk Gauge** appears in the top-left corner of the dashboard. It displays 
 
 ### Understanding Risk Levels
 
+> See [Risk Levels Reference](../reference/config/risk-levels.md) for the canonical definition and configuration options.
+
 | Score Range | Level    | Color  | Meaning                                       |
 | ----------- | -------- | ------ | --------------------------------------------- |
 | 0-29        | Low      | Green  | Normal activity, no concerns                  |

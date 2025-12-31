@@ -12,7 +12,7 @@ The system consists of five main services, all containerized:
 4. **PostgreSQL** - Database (port 5432)
 5. **AI Services** - RT-DETRv2 (port 8090) and Nemotron LLM (port 8091) with GPU passthrough
 
-All services run in Podman containers. AI services use NVIDIA Container Toolkit (CDI) for GPU access.
+All services run in OCI-compliant containers (Docker or Podman). AI services use NVIDIA Container Toolkit for GPU access.
 
 ## Container Runtime Options
 
@@ -555,21 +555,24 @@ Both backend and frontend have `.dockerignore` files to exclude unnecessary file
 
 ### AI services not accessible
 
-AI services (RT-DETRv2 and Nemotron) run in Podman containers with GPU passthrough. Ensure they are:
+AI services (RT-DETRv2 and Nemotron) run in containers (Docker or Podman) with GPU passthrough. Ensure they are:
 
-1. Running: `podman ps --filter name=ai-`
+1. Running: `docker ps --filter name=ai-` or `podman ps --filter name=ai-`
 2. Healthy: Check container health status
 3. GPU accessible: `nvidia-smi --query-compute-apps=pid,name,used_memory --format=csv`
 
 **Check AI container status:**
 
 ```bash
-# List AI containers
+# List AI containers (Docker or Podman)
+docker ps --filter name=ai-
+# OR
 podman ps --filter name=ai-
 
 # Check logs
-podman logs nemotron-v3-home-security-intelligence_ai-detector_1
-podman logs nemotron-v3-home-security-intelligence_ai-llm_1
+docker compose -f docker-compose.prod.yml logs ai-detector ai-llm
+# OR
+podman-compose -f docker-compose.prod.yml logs ai-detector ai-llm
 
 # Test health endpoints
 curl http://localhost:8090/health
@@ -637,7 +640,10 @@ podman-compose up -d --userns=keep-id
 **Container can't reach host services:**
 
 ```bash
-# Verify host.containers.internal resolves
+# Docker - verify host.docker.internal resolves
+docker exec <container> getent hosts host.docker.internal
+
+# Podman - verify host.containers.internal resolves
 podman exec <container> getent hosts host.containers.internal
 
 # If not, use host IP directly

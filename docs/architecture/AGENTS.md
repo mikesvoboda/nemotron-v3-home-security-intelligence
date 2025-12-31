@@ -189,7 +189,7 @@ Podman Containers (all services):
 - Nemotron LLM (GPU via CDI)
 ```
 
-All services run in Podman containers. GPU access is provided via NVIDIA Container Toolkit (CDI).
+All services run in OCI containers (Docker or Podman). GPU access is provided via NVIDIA Container Toolkit.
 
 ### Batch Processing Strategy
 

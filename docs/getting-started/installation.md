@@ -209,17 +209,23 @@ FOSCAM_BASE_PATH=/export/foscam
 
 ### Platform-Specific Configuration
 
-#### macOS with Podman
+#### macOS
 
 ```bash
-# Set AI host for container-to-host communication
+# Docker Desktop (default works automatically)
+# Uses host.docker.internal
+
+# Podman on macOS
 export AI_HOST=host.containers.internal
 ```
 
 #### Linux
 
 ```bash
-# Use your host's IP address
+# Docker Engine (default works automatically for most setups)
+# Uses host.docker.internal
+
+# Podman on Linux - use your host's IP address
 export AI_HOST=192.168.1.100  # Replace with your IP
 ```
 
@@ -263,9 +269,10 @@ cd frontend && npm list --depth=0
 ls -la ai/nemotron/*.gguf
 ls -la ai/rtdetr/*.onnx
 
-# Check Podman
-podman --version
-podman-compose --version
+# Check container runtime (choose one)
+docker --version && docker compose version   # Docker
+# OR
+podman --version && podman-compose --version  # Podman
 ```
 
 ---

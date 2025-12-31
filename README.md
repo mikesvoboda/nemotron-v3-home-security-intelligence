@@ -13,11 +13,11 @@ no text overlays"
 ![Dashboard](docs/images/dashboard.png)
 
 [![Python 3.14+](https://img.shields.io/badge/python-3.14+-blue.svg)](https://www.python.org/downloads/)
-[![Node 18+](https://img.shields.io/badge/node-18+-green.svg)](https://nodejs.org/)
+[![Node 20.19+](https://img.shields.io/badge/node-20.19+-green.svg)](https://nodejs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-009688.svg)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
-[![Backend Coverage](https://img.shields.io/badge/backend_coverage-98%25-brightgreen.svg)]()
-[![Frontend Coverage](https://img.shields.io/badge/frontend_coverage-99%25-brightgreen.svg)]()
+[![Backend Coverage](https://img.shields.io/badge/backend_coverage-%E2%89%A595%25-brightgreen.svg)]()
+[![Frontend Coverage](https://img.shields.io/badge/frontend_coverage-%E2%89%A589%25-brightgreen.svg)]()
 
 ---
 
@@ -45,7 +45,9 @@ All services run in containers, including GPU-accelerated AI. Requires NVIDIA GP
 ./ai/download_models.sh
 
 # 3. Launch everything (AI + backend + frontend)
-podman-compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d
+# OR with Podman:
+# podman-compose -f docker-compose.prod.yml up -d
 ```
 
 **Open [http://localhost:5173](http://localhost:5173)** -- that's it.
@@ -65,13 +67,15 @@ AI servers run natively on the host for faster iteration. Backend and frontend r
 ./ai/start_detector.sh    # RT-DETRv2 on :8090
 ./ai/start_llm.sh         # Nemotron on :8091
 
-# 4. Set AI host for container networking
-export AI_HOST=host.docker.internal    # Docker on Linux/Windows
+# 4. Set AI host for container networking (if needed)
+export AI_HOST=host.docker.internal     # Docker on Linux/macOS
 # OR
-export AI_HOST=host.containers.internal  # Podman on macOS
+export AI_HOST=host.containers.internal # Podman on macOS
 
 # 5. Launch app containers (no AI services)
-podman-compose up -d
+docker compose up -d
+# OR with Podman:
+# podman-compose up -d
 ```
 
 **Open [http://localhost:5173](http://localhost:5173)**

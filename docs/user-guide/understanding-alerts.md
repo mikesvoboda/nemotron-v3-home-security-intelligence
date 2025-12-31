@@ -4,7 +4,7 @@ description: What security alerts mean and how to respond to them
 ---
 
 <!-- Nano Banana Pro Prompt:
-"Dark mode security alert explanation diagram showing risk score gauge from 0-100 with color zones (green 0-30, yellow 30-60, orange 60-85, red 85-100), alert notification cards with severity badges, AI reasoning text panel, NVIDIA dark theme #121212 background with #76B900 green accents, educational infographic style, vertical 2:3 aspect ratio, no text overlays"
+"Dark mode security alert explanation diagram showing risk score gauge from 0-100 with color zones (green 0-29, yellow 30-59, orange 60-84, red 85-100), alert notification cards with severity badges, AI reasoning text panel, NVIDIA dark theme #121212 background with #76B900 green accents, educational infographic style, vertical 2:3 aspect ratio, no text overlays"
 -->
 
 # Understanding Security Alerts
@@ -34,12 +34,14 @@ The AI looks at several factors to determine this score:
 
 The system groups risk scores into four levels, each with a distinct color to help you quickly assess the situation.
 
+> **Note:** For the canonical definition of risk score ranges and thresholds, see the [Risk Levels Reference](../reference/config/risk-levels.md).
+
 ```mermaid
 graph LR
     subgraph Risk Scale
-        A[0-30<br/>LOW] --> B[31-60<br/>MEDIUM]
-        B --> C[61-80<br/>HIGH]
-        C --> D[81-100<br/>CRITICAL]
+        A[0-29<br/>LOW] --> B[30-59<br/>MEDIUM]
+        B --> C[60-84<br/>HIGH]
+        C --> D[85-100<br/>CRITICAL]
     end
 
     style A fill:#76B900,color:#000
@@ -48,7 +50,7 @@ graph LR
     style D fill:#ef4444,color:#fff
 ```
 
-### LOW Risk (0-30) - Green
+### LOW Risk (0-29) - Green
 
 **What it means:** Normal, expected activity. No action needed.
 
@@ -65,7 +67,7 @@ graph LR
 
 ---
 
-### MEDIUM Risk (31-60) - Yellow
+### MEDIUM Risk (30-59) - Yellow
 
 **What it means:** Something unusual that may warrant a quick look, but is not immediately alarming.
 
@@ -81,7 +83,7 @@ graph LR
 
 ---
 
-### HIGH Risk (61-80) - Orange/Red
+### HIGH Risk (60-84) - Orange
 
 **What it means:** Concerning activity that deserves your prompt attention.
 
@@ -102,7 +104,7 @@ graph LR
 
 ---
 
-### CRITICAL Risk (81-100) - Bright Red
+### CRITICAL Risk (85-100) - Red
 
 **What it means:** Potentially dangerous situation requiring immediate attention.
 
@@ -305,12 +307,14 @@ It is important to have realistic expectations about what this security system c
 
 ## Quick Reference Card
 
+> See [Risk Levels Reference](../reference/config/risk-levels.md) for complete details.
+
 | Risk Level | Color  | Score Range | Action Required                    |
 | ---------- | ------ | ----------- | ---------------------------------- |
-| Low        | Green  | 0-30        | None - informational only          |
-| Medium     | Yellow | 31-60       | Quick review when convenient       |
-| High       | Orange | 61-80       | Review promptly, consider response |
-| Critical   | Red    | 81-100      | Immediate attention required       |
+| Low        | Green  | 0-29        | None - informational only          |
+| Medium     | Yellow | 30-59       | Quick review when convenient       |
+| High       | Orange | 60-84       | Review promptly, consider response |
+| Critical   | Red    | 85-100      | Immediate attention required       |
 
 ---
 
@@ -334,13 +338,13 @@ The following prompts can be used with AI image generation tools (such as DALL-E
 
 **Style:** Clean, modern infographic design with flat colors and clear typography. Minimalist corporate security aesthetic.
 
-**Content:** A horizontal gradient bar divided into four distinct sections representing risk levels. From left to right: green (LOW, 0-30), yellow (MEDIUM, 31-60), orange (HIGH, 61-80), red (CRITICAL, 81-100). Each section should include:
+**Content:** A horizontal gradient bar divided into four distinct sections representing risk levels. From left to right: green (LOW, 0-29), yellow (MEDIUM, 30-59), orange (HIGH, 60-84), red (CRITICAL, 85-100). Each section should include:
 
 - The risk level name in bold text
 - The numeric range
 - A simple icon (checkmark for low, warning triangle for medium, alert triangle for high, octagon stop sign for critical)
 
-**Labeling:** Clear section dividers with score numbers at boundaries (0, 30, 60, 80, 100). Title at top: "Security Alert Risk Levels"
+**Labeling:** Clear section dividers with score numbers at boundaries (0, 29, 59, 84, 100). Title at top: "Security Alert Risk Levels"
 
 **Dimensions:** 1200 x 300 pixels (4:1 aspect ratio), suitable for horizontal web banner or print insert
 

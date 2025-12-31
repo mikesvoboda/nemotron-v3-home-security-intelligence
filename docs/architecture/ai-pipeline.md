@@ -498,11 +498,11 @@ Respond in JSON format:
   "reasoning": "<detailed explanation>"
 }}
 
-Risk guidelines:
-- Low (0-25): Normal activity (pets, known vehicles, delivery persons)
-- Medium (26-50): Unusual but not alarming (unknown person during day, unfamiliar vehicle)
-- High (51-75): Concerning activity (person at odd hours, multiple unknowns, loitering)
-- Critical (76-100): Immediate attention (forced entry attempt, multiple persons at night, suspicious behavior)
+Risk guidelines (see docs/reference/config/risk-levels.md for details):
+- Low (0-29): Normal activity (pets, known vehicles, delivery persons)
+- Medium (30-59): Unusual but not alarming (unknown person during day, unfamiliar vehicle)
+- High (60-84): Concerning activity (person at odd hours, multiple unknowns, loitering)
+- Critical (85-100): Immediate attention (forced entry attempt, multiple persons at night, suspicious behavior)
 """
 ```
 
@@ -579,12 +579,14 @@ The risk score is determined entirely by the LLM based on the prompt guidelines.
 
 ### Risk Level Mapping
 
+> See [Risk Levels Reference](../reference/config/risk-levels.md) for the canonical definition.
+
 | Score Range | Level      | Description                                        |
 | ----------- | ---------- | -------------------------------------------------- |
-| 0-25        | `low`      | Normal activity, no concern                        |
-| 26-50       | `medium`   | Unusual but not threatening                        |
-| 51-75       | `high`     | Suspicious activity requiring attention            |
-| 76-100      | `critical` | Potential security threat, immediate action needed |
+| 0-29        | `low`      | Normal activity, no concern                        |
+| 30-59       | `medium`   | Unusual but not threatening                        |
+| 60-84       | `high`     | Suspicious activity requiring attention            |
+| 85-100      | `critical` | Potential security threat, immediate action needed |
 
 ### Validation and Normalization
 
@@ -937,10 +939,10 @@ Center:
 
 Right column (Output):
 - Risk gauge semicircle (0-100 scale)
-  - Green zone (0-25)
-  - Yellow zone (26-50)
-  - Orange zone (51-75)
-  - Red zone (76-100)
+  - Green zone (0-29)
+  - Yellow zone (30-59)
+  - Orange zone (60-84)
+  - Red zone (85-100)
   - Needle pointing to 65
 - Text box with:
   - "Risk Level: HIGH"

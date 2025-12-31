@@ -53,7 +53,10 @@ All services run in containers, including GPU-accelerated AI servers.
 ### Start Everything
 
 ```bash
-# Launch all services (AI + backend + frontend)
+# Docker
+docker compose -f docker-compose.prod.yml up -d
+
+# OR Podman
 podman-compose -f docker-compose.prod.yml up -d
 ```
 
@@ -71,7 +74,10 @@ podman-compose -f docker-compose.prod.yml up -d
 ### Verify Production Deployment
 
 ```bash
-# Check container status
+# Docker
+docker compose -f docker-compose.prod.yml ps
+
+# OR Podman
 podman-compose -f docker-compose.prod.yml ps
 
 # Expected: All services "healthy" or "running"
@@ -101,7 +107,7 @@ flowchart TB
         LLM[Nemotron<br/>Port 8091]
     end
 
-    subgraph Containers["2. Application (Podman)"]
+    subgraph Containers["2. Application (Docker/Podman)"]
         PG[(PostgreSQL<br/>Port 5432)]
         REDIS[(Redis<br/>Port 6379)]
         BACK[Backend<br/>Port 8000]
@@ -190,16 +196,22 @@ curl http://localhost:8091/health
 In a **third terminal**, set the AI host and start containers:
 
 ```bash
+# macOS with Docker Desktop (default, no export needed)
+docker compose up -d
+
 # macOS with Podman
 export AI_HOST=host.containers.internal
+podman-compose up -d
 
-# OR Linux (Docker or Podman)
-export AI_HOST=host.docker.internal    # Docker
-# export AI_HOST=192.168.1.100        # Or your host IP for Podman on Linux
+# Linux with Docker
+docker compose up -d
 
-# Start containers (uses docker-compose.yml - NO ai-detector/ai-llm services)
+# Linux with Podman (use your host IP)
+export AI_HOST=192.168.1.100  # Replace with your IP
 podman-compose up -d
 ```
+
+> **Note:** The development compose file (`docker-compose.yml`) does NOT include AI services - it expects them to run on the host.
 
 **What starts** ([`docker-compose.yml`](../../docker-compose.yml:1)):
 
@@ -213,7 +225,10 @@ podman-compose up -d
 ### Verify Development Deployment
 
 ```bash
-# Check container status
+# Docker
+docker compose ps
+
+# OR Podman
 podman-compose ps
 
 # Expected: All services "healthy" or "running"
@@ -292,13 +307,13 @@ curl http://localhost:8000/api/system/gpu
 ### Production Mode
 
 ```bash
-# All services
-podman-compose -f docker-compose.prod.yml logs -f
+# Docker
+docker compose -f docker-compose.prod.yml logs -f
+docker compose -f docker-compose.prod.yml logs -f backend
 
-# Specific service
+# OR Podman
+podman-compose -f docker-compose.prod.yml logs -f
 podman-compose -f docker-compose.prod.yml logs -f backend
-podman-compose -f docker-compose.prod.yml logs -f ai-detector
-podman-compose -f docker-compose.prod.yml logs -f ai-llm
 ```
 
 ### Development Mode
@@ -306,10 +321,12 @@ podman-compose -f docker-compose.prod.yml logs -f ai-llm
 AI server logs appear in the terminal windows where you started them.
 
 ```bash
-# Container logs
-podman-compose logs -f
+# Docker
+docker compose logs -f
+docker compose logs -f backend
 
-# Specific service
+# OR Podman
+podman-compose logs -f
 podman-compose logs -f backend
 ```
 
@@ -320,17 +337,22 @@ podman-compose logs -f backend
 ### Production Mode
 
 ```bash
-# Stop all containers
-podman-compose -f docker-compose.prod.yml down
+# Docker
+docker compose -f docker-compose.prod.yml down
+docker compose -f docker-compose.prod.yml down -v  # Full cleanup (removes volumes)
 
-# Full cleanup (removes volumes)
-podman-compose -f docker-compose.prod.yml down -v
+# OR Podman
+podman-compose -f docker-compose.prod.yml down
+podman-compose -f docker-compose.prod.yml down -v  # Full cleanup (removes volumes)
 ```
 
 ### Development Mode
 
 ```bash
-# Stop containers
+# Docker
+docker compose down
+
+# OR Podman
 podman-compose down
 
 # Stop AI Servers: Press Ctrl+C in each terminal
@@ -367,8 +389,11 @@ This happens when you mix host AI servers with `docker-compose.prod.yml`.
 ### Backend can't reach AI services
 
 ```bash
-# From inside container (Linux)
-podman exec security-backend-1 curl http://host.docker.internal:8090/health
+# From inside container - Docker
+docker exec security-backend-1 curl http://host.docker.internal:8090/health
+
+# From inside container - Podman
+podman exec security-backend-1 curl http://host.containers.internal:8090/health
 
 # Check AI_HOST is set correctly
 echo $AI_HOST
@@ -377,17 +402,21 @@ echo $AI_HOST
 ### Database connection issues
 
 ```bash
-# Check PostgreSQL is running
-podman-compose ps postgres
+# Docker
+docker compose ps postgres
+docker compose logs postgres
 
-# View PostgreSQL logs
+# OR Podman
+podman-compose ps postgres
 podman-compose logs postgres
 ```
 
 ### Frontend not loading
 
 ```bash
-# Check nginx logs (production)
+# Check nginx logs (production) - Docker or Podman
+docker compose -f docker-compose.prod.yml logs frontend
+# OR
 podman-compose -f docker-compose.prod.yml logs frontend
 
 # Verify backend is healthy

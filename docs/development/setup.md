@@ -20,15 +20,15 @@ Before starting, ensure you have the following installed:
 
 ### Required Software
 
-| Requirement    | Minimum Version | Check Command            | Notes                          |
-| -------------- | --------------- | ------------------------ | ------------------------------ |
-| **Python**     | 3.14+           | `python3 --version`      | Required for backend           |
-| **Node.js**    | 18+             | `node --version`         | Required for frontend          |
-| **npm**        | 9+              | `npm --version`          | Comes with Node.js             |
-| **Git**        | 2.x             | `git --version`          | Version control                |
-| **Podman**     | 4.x             | `podman --version`       | Container runtime (not Docker) |
-| **PostgreSQL** | 16+             | `psql --version`         | Or use testcontainers          |
-| **Redis**      | 7+              | `redis-server --version` | Or use testcontainers          |
+| Requirement    | Minimum Version         | Check Command                            | Notes                 |
+| -------------- | ----------------------- | ---------------------------------------- | --------------------- |
+| **Python**     | 3.14+                   | `python3 --version`                      | Required for backend  |
+| **Node.js**    | 18+                     | `node --version`                         | Required for frontend |
+| **npm**        | 9+                      | `npm --version`                          | Comes with Node.js    |
+| **Git**        | 2.x                     | `git --version`                          | Version control       |
+| **Container**  | Docker 20+ or Podman 4+ | `docker --version` or `podman --version` | Docker or Podman      |
+| **PostgreSQL** | 16+                     | `psql --version`                         | Or use testcontainers |
+| **Redis**      | 7+                      | `redis-server --version`                 | Or use testcontainers |
 
 ### Optional (for GPU features)
 
@@ -158,10 +158,13 @@ NEMOTRON_URL=http://localhost:8091
 
 ### 6. Start Infrastructure Services
 
-Using Podman:
+Using Docker or Podman:
 
 ```bash
-# Start PostgreSQL and Redis
+# Docker
+docker compose -f docker-compose.prod.yml up -d postgres redis
+
+# OR Podman
 podman-compose -f docker-compose.prod.yml up -d postgres redis
 ```
 
@@ -292,6 +295,10 @@ If hooks fail, fix the issues before committing. **Never use `--no-verify`**.
 Ensure PostgreSQL is running:
 
 ```bash
+# Docker
+docker compose -f docker-compose.prod.yml up -d postgres
+
+# OR Podman
 podman-compose -f docker-compose.prod.yml up -d postgres
 ```
 
