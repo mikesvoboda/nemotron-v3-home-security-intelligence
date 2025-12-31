@@ -1,6 +1,5 @@
 """Unit tests for batch aggregator service."""
 
-import json
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -34,6 +33,7 @@ def mock_redis_client():
     mock_client.rpush = AsyncMock(return_value=1)
     mock_client.lrange = AsyncMock(return_value=[])
     mock_client.llen = AsyncMock(return_value=0)
+    mock_client.expire = AsyncMock(return_value=True)
     # Use scan_iter instead of keys (returns async generator)
     mock_client.scan_iter = MagicMock(return_value=create_async_generator([]))
     return mock_client
@@ -85,6 +85,8 @@ async def test_add_detection_creates_new_batch(batch_aggregator, mock_redis_inst
 
     # Mock: No existing batch
     mock_redis_instance.get.return_value = None
+    # Mock RPUSH to return 1 (list length after push)
+    mock_redis_instance._client.rpush.return_value = 1
 
     # Mock UUID generation
     with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
@@ -95,15 +97,17 @@ async def test_add_detection_creates_new_batch(batch_aggregator, mock_redis_inst
     # Verify batch ID was returned
     assert batch_id == "batch_123"
 
-    # Verify Redis calls to create new batch (uses set)
+    # Verify Redis calls to create new batch (uses set for metadata)
     assert mock_redis_instance.set.call_count >= 3
 
     # Check that batch:camera_id:current was set
     calls = mock_redis_instance.set.call_args_list
     set_keys = [call[0][0] for call in calls]
     assert f"batch:{camera_id}:current" in set_keys
-    assert f"batch:{batch_id}:detections" in set_keys
-    assert f"batch:{batch_id}:started_at" in set_keys
+    assert "batch:batch_123:started_at" in set_keys
+
+    # Verify RPUSH was called for atomic detection list append
+    mock_redis_instance._client.rpush.assert_called()
 
 
 @pytest.mark.asyncio
@@ -113,35 +117,27 @@ async def test_add_detection_to_existing_batch(batch_aggregator, mock_redis_inst
     detection_id = 2  # Use integer detection ID (matches database model)
     file_path = "/export/foscam/front_door/image_002.jpg"
     existing_batch_id = "batch_123"
-    existing_detections = [1]  # Use integer detection IDs
 
     # Mock: Existing batch (uses get)
     async def mock_get(key):
         if key == f"batch:{camera_id}:current":
             return existing_batch_id
-        elif key == f"batch:{existing_batch_id}:detections":
-            return json.dumps(existing_detections)
         elif key == f"batch:{existing_batch_id}:started_at":
             return str(time.time())
         return None
 
     mock_redis_instance.get.side_effect = mock_get
+    # Mock RPUSH to return 2 (list length after push)
+    mock_redis_instance._client.rpush.return_value = 2
 
     batch_id = await batch_aggregator.add_detection(camera_id, detection_id, file_path)
 
     # Should return existing batch ID
     assert batch_id == existing_batch_id
 
-    # Should update detections list (uses set)
-    set_calls = list(mock_redis_instance.set.call_args_list)
-    detections_updated = False
-    for call in set_calls:
-        if len(call[0]) > 0 and call[0][0] == f"batch:{existing_batch_id}:detections":
-            detections = json.loads(call[0][1])
-            assert detection_id in detections
-            detections_updated = True
-
-    assert detections_updated, "Detections list should be updated"
+    # Verify RPUSH was called with detection ID
+    rpush_calls = mock_redis_instance._client.rpush.call_args_list
+    assert len(rpush_calls) >= 1
 
 
 @pytest.mark.asyncio
@@ -156,13 +152,12 @@ async def test_add_detection_updates_last_activity(batch_aggregator, mock_redis_
     async def mock_get(key):
         if key == f"batch:{camera_id}:current":
             return existing_batch_id
-        elif key == f"batch:{existing_batch_id}:detections":
-            return json.dumps([1, 2])  # Use integer detection IDs
         elif key == f"batch:{existing_batch_id}:started_at":
             return str(time.time() - 30)  # Started 30s ago
         return None
 
     mock_redis_instance.get.side_effect = mock_get
+    mock_redis_instance._client.rpush.return_value = 3
 
     await batch_aggregator.add_detection(camera_id, detection_id, file_path)
 
@@ -201,13 +196,13 @@ async def test_check_batch_timeouts_window_exceeded(batch_aggregator, mock_redis
             return str(start_time)
         elif key == f"batch:{batch_id}:last_activity":
             return str(time.time() - 20)  # Recent activity
-        elif key == f"batch:{batch_id}:detections":
-            return json.dumps(["det_001", "det_002"])
         elif key == f"batch:{batch_id}:camera_id":
             return camera_id
         return None
 
     mock_redis_instance.get.side_effect = mock_get
+    # Mock LRANGE to return detections
+    mock_redis_instance._client.lrange.return_value = ["1", "2"]
 
     closed_batches = await batch_aggregator.check_batch_timeouts()
 
@@ -240,13 +235,13 @@ async def test_check_batch_timeouts_idle_exceeded(batch_aggregator, mock_redis_i
             return str(start_time)
         elif key == f"batch:{batch_id}:last_activity":
             return str(last_activity)
-        elif key == f"batch:{batch_id}:detections":
-            return json.dumps(["det_001"])
         elif key == f"batch:{batch_id}:camera_id":
             return camera_id
         return None
 
     mock_redis_instance.get.side_effect = mock_get
+    # Mock LRANGE to return detections
+    mock_redis_instance._client.lrange.return_value = ["1"]
 
     closed_batches = await batch_aggregator.check_batch_timeouts()
 
@@ -276,8 +271,6 @@ async def test_check_batch_timeouts_no_timeout(batch_aggregator, mock_redis_inst
             return str(start_time)
         elif key == f"batch:{batch_id}:last_activity":
             return str(last_activity)
-        elif key == f"batch:{batch_id}:detections":
-            return json.dumps(["det_001", "det_002"])
         elif key == f"batch:{batch_id}:camera_id":
             return camera_id
         return None
@@ -299,19 +292,19 @@ async def test_close_batch_success(batch_aggregator, mock_redis_instance):
     """Test manually closing a batch."""
     batch_id = "batch_manual"
     camera_id = "garage"
-    detections = ["det_001", "det_002", "det_003"]
+    detections = ["1", "2", "3"]
 
     # Uses get for close_batch
     async def mock_get(key):
         if key == f"batch:{batch_id}:camera_id":
             return camera_id
-        elif key == f"batch:{batch_id}:detections":
-            return json.dumps(detections)
         elif key == f"batch:{batch_id}:started_at":
             return str(time.time() - 60)
         return None
 
     mock_redis_instance.get.side_effect = mock_get
+    # Mock LRANGE to return detections
+    mock_redis_instance._client.lrange.return_value = detections
 
     summary = await batch_aggregator.close_batch(batch_id)
 
@@ -350,13 +343,13 @@ async def test_close_batch_empty_detections(batch_aggregator, mock_redis_instanc
     async def mock_get(key):
         if key == f"batch:{batch_id}:camera_id":
             return camera_id
-        elif key == f"batch:{batch_id}:detections":
-            return json.dumps([])
         elif key == f"batch:{batch_id}:started_at":
             return str(time.time() - 60)
         return None
 
     mock_redis_instance.get.side_effect = mock_get
+    # Mock LRANGE to return empty list
+    mock_redis_instance._client.lrange.return_value = []
 
     summary = await batch_aggregator.close_batch(batch_id)
 
@@ -373,6 +366,8 @@ async def test_batch_aggregator_uses_config(mock_redis_instance):
     with patch("backend.services.batch_aggregator.get_settings") as mock_settings:
         mock_settings.return_value.batch_window_seconds = 120
         mock_settings.return_value.batch_idle_timeout_seconds = 45
+        mock_settings.return_value.fast_path_confidence_threshold = 0.90
+        mock_settings.return_value.fast_path_object_types = ["person"]
 
         aggregator = BatchAggregator(redis_client=mock_redis_instance)
 
@@ -388,6 +383,7 @@ async def test_add_detection_concurrent_cameras(batch_aggregator, mock_redis_ins
 
     # Mock: No existing batches
     mock_redis_instance.get.return_value = None
+    mock_redis_instance._client.rpush.return_value = 1
 
     with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
         # Generate unique batch IDs
@@ -413,18 +409,17 @@ async def test_close_batch_queue_format(batch_aggregator, mock_redis_instance):
     """Test that closed batch pushes correct format to analysis queue."""
     batch_id = "batch_format_test"
     camera_id = "test_camera"
-    detections = ["det_001", "det_002"]
+    detections = ["1", "2"]
 
     async def mock_get(key):
         if key == f"batch:{batch_id}:camera_id":
             return camera_id
-        elif key == f"batch:{batch_id}:detections":
-            return json.dumps(detections)
         elif key == f"batch:{batch_id}:started_at":
             return str(time.time() - 60)
         return None
 
     mock_redis_instance.get.side_effect = mock_get
+    mock_redis_instance._client.lrange.return_value = detections
 
     await batch_aggregator.close_batch(batch_id)
 
@@ -439,7 +434,7 @@ async def test_close_batch_queue_format(batch_aggregator, mock_redis_instance):
     queue_data = queue_call[0][1]
     assert queue_data["batch_id"] == batch_id
     assert queue_data["camera_id"] == camera_id
-    assert queue_data["detection_ids"] == detections
+    assert queue_data["detection_ids"] == [1, 2]  # Converted to ints
     assert "timestamp" in queue_data
 
     # Verify DLQ policy is used
@@ -604,8 +599,6 @@ async def test_check_batch_timeouts_uses_scan_iter_with_count(
         f"batch:{batch_id2}:started_at": str(start_time),
         f"batch:{batch_id1}:last_activity": str(last_activity),
         f"batch:{batch_id2}:last_activity": str(last_activity),
-        f"batch:{batch_id1}:detections": json.dumps(["det_001"]),
-        f"batch:{batch_id2}:detections": json.dumps(["det_001"]),
         f"batch:{batch_id1}:camera_id": camera_id1,
         f"batch:{batch_id2}:camera_id": camera_id2,
     }
@@ -743,8 +736,8 @@ async def test_add_detection_triggers_fast_path(batch_aggregator, mock_redis_ins
         detection_id=detection_id,
     )
 
-    # Should NOT create a regular batch
-    assert not mock_redis_instance.set.called
+    # Should NOT create a regular batch (RPUSH should not be called)
+    assert not mock_redis_instance._client.rpush.called
 
 
 @pytest.mark.asyncio
@@ -756,6 +749,7 @@ async def test_add_detection_skips_fast_path_low_confidence(batch_aggregator, mo
 
     # Mock: No existing batch
     mock_redis_instance.get.return_value = None
+    mock_redis_instance._client.rpush.return_value = 1
 
     # Configure fast path settings
     batch_aggregator._fast_path_threshold = 0.90
@@ -775,8 +769,8 @@ async def test_add_detection_skips_fast_path_low_confidence(batch_aggregator, mo
     # Should create normal batch
     assert batch_id == "batch_normal"
 
-    # Should have created batch in Redis
-    assert mock_redis_instance.set.called
+    # Should have created batch in Redis (RPUSH called)
+    assert mock_redis_instance._client.rpush.called
 
 
 @pytest.mark.asyncio
@@ -835,6 +829,7 @@ async def test_add_detection_without_confidence_skips_fast_path(
 
     # Mock: No existing batch
     mock_redis_instance.get.return_value = None
+    mock_redis_instance._client.rpush.return_value = 1
 
     with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
         mock_uuid.return_value.hex = "batch_no_confidence"
@@ -859,18 +854,17 @@ async def test_close_batch_queue_overflow_moves_to_dlq(batch_aggregator, mock_re
     """Test that queue overflow during batch close moves items to DLQ."""
     batch_id = "batch_overflow"
     camera_id = "front_door"
-    detections = ["det_001", "det_002"]
+    detections = ["1", "2"]
 
     async def mock_get(key):
         if key == f"batch:{batch_id}:camera_id":
             return camera_id
-        elif key == f"batch:{batch_id}:detections":
-            return json.dumps(detections)
         elif key == f"batch:{batch_id}:started_at":
             return str(time.time() - 60)
         return None
 
     mock_redis_instance.get.side_effect = mock_get
+    mock_redis_instance._client.lrange.return_value = detections
 
     # Simulate queue at max capacity with DLQ overflow
     mock_redis_instance.add_to_queue_safe.return_value = QueueAddResult(
@@ -897,18 +891,17 @@ async def test_close_batch_queue_full_raises_error(batch_aggregator, mock_redis_
     """Test that queue rejection during batch close raises RuntimeError."""
     batch_id = "batch_rejected"
     camera_id = "front_door"
-    detections = ["det_001", "det_002"]
+    detections = ["1", "2"]
 
     async def mock_get(key):
         if key == f"batch:{batch_id}:camera_id":
             return camera_id
-        elif key == f"batch:{batch_id}:detections":
-            return json.dumps(detections)
         elif key == f"batch:{batch_id}:started_at":
             return str(time.time() - 60)
         return None
 
     mock_redis_instance.get.side_effect = mock_get
+    mock_redis_instance._client.lrange.return_value = detections
 
     # Simulate queue full rejection
     mock_redis_instance.add_to_queue_safe.return_value = QueueAddResult(
@@ -930,18 +923,17 @@ async def test_close_batch_queue_backpressure_logs_warning(
 
     batch_id = "batch_backpressure"
     camera_id = "front_door"
-    detections = ["det_001", "det_002"]
+    detections = ["1", "2"]
 
     async def mock_get(key):
         if key == f"batch:{batch_id}:camera_id":
             return camera_id
-        elif key == f"batch:{batch_id}:detections":
-            return json.dumps(detections)
         elif key == f"batch:{batch_id}:started_at":
             return str(time.time() - 60)
         return None
 
     mock_redis_instance.get.side_effect = mock_get
+    mock_redis_instance._client.lrange.return_value = detections
 
     # Simulate queue at max capacity with DLQ overflow
     mock_redis_instance.add_to_queue_safe.return_value = QueueAddResult(
@@ -967,18 +959,17 @@ async def test_close_batch_no_backpressure_no_warning(
 
     batch_id = "batch_success"
     camera_id = "front_door"
-    detections = ["det_001", "det_002"]
+    detections = ["1", "2"]
 
     async def mock_get(key):
         if key == f"batch:{batch_id}:camera_id":
             return camera_id
-        elif key == f"batch:{batch_id}:detections":
-            return json.dumps(detections)
         elif key == f"batch:{batch_id}:started_at":
             return str(time.time() - 60)
         return None
 
     mock_redis_instance.get.side_effect = mock_get
+    mock_redis_instance._client.lrange.return_value = detections
 
     # Simulate successful queue with no backpressure
     mock_redis_instance.add_to_queue_safe.return_value = QueueAddResult(
@@ -991,3 +982,77 @@ async def test_close_batch_no_backpressure_no_warning(
 
     # Verify no backpressure warning was logged
     assert not any("backpressure" in record.message.lower() for record in caplog.records)
+
+
+# ==============================================================================
+# Tests for Atomic Operations (Race Condition Prevention)
+# ==============================================================================
+
+
+@pytest.mark.asyncio
+async def test_atomic_list_append_uses_rpush(batch_aggregator, mock_redis_instance):
+    """Test that _atomic_list_append uses Redis RPUSH for atomic append."""
+    mock_redis_instance._client.rpush.return_value = 5
+    mock_redis_instance._client.expire.return_value = True
+
+    result = await batch_aggregator._atomic_list_append("test:key", 123, 3600)
+
+    # Should return list length after append
+    assert result == 5
+
+    # Should have called RPUSH
+    mock_redis_instance._client.rpush.assert_called_once_with("test:key", "123")
+
+    # Should have refreshed TTL
+    mock_redis_instance._client.expire.assert_called_once_with("test:key", 3600)
+
+
+@pytest.mark.asyncio
+async def test_atomic_list_append_without_redis():
+    """Test that _atomic_list_append raises error without Redis."""
+    aggregator = BatchAggregator(redis_client=None)
+
+    with pytest.raises(RuntimeError, match="Redis client not initialized"):
+        await aggregator._atomic_list_append("test:key", 123, 3600)
+
+
+@pytest.mark.asyncio
+async def test_atomic_list_get_all_uses_lrange(batch_aggregator, mock_redis_instance):
+    """Test that _atomic_list_get_all uses Redis LRANGE."""
+    mock_redis_instance._client.lrange.return_value = ["1", "2", "3"]
+
+    result = await batch_aggregator._atomic_list_get_all("test:key")
+
+    # Should return list of integers
+    assert result == [1, 2, 3]
+
+    # Should have called LRANGE with 0 -1 to get all elements
+    mock_redis_instance._client.lrange.assert_called_once_with("test:key", 0, -1)
+
+
+@pytest.mark.asyncio
+async def test_atomic_list_get_all_handles_invalid_entries(
+    batch_aggregator, mock_redis_instance, caplog
+):
+    """Test that _atomic_list_get_all handles invalid entries gracefully."""
+    import logging
+
+    mock_redis_instance._client.lrange.return_value = ["1", "invalid", "3", ""]
+
+    with caplog.at_level(logging.WARNING):
+        result = await batch_aggregator._atomic_list_get_all("test:key")
+
+    # Should only return valid integers
+    assert result == [1, 3]
+
+    # Should have logged warnings for invalid entries
+    assert any("Invalid detection ID" in record.message for record in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_atomic_list_get_all_without_redis():
+    """Test that _atomic_list_get_all raises error without Redis."""
+    aggregator = BatchAggregator(redis_client=None)
+
+    with pytest.raises(RuntimeError, match="Redis client not initialized"):
+        await aggregator._atomic_list_get_all("test:key")

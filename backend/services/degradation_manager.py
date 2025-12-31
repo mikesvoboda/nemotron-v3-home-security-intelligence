@@ -60,6 +60,9 @@ logger = get_logger(__name__)
 
 T = TypeVar("T")
 
+# Default timeout for health checks in seconds
+DEFAULT_HEALTH_CHECK_TIMEOUT = 10.0
+
 
 class DegradationMode(Enum):
     """System degradation modes."""
@@ -372,6 +375,7 @@ class DegradationManager:
         recovery_threshold: int = 2,
         max_memory_queue_size: int = 1000,
         check_interval: float = 15.0,
+        health_check_timeout: float = DEFAULT_HEALTH_CHECK_TIMEOUT,
     ) -> None:
         """Initialize degradation manager.
 
@@ -382,6 +386,7 @@ class DegradationManager:
             recovery_threshold: Successes needed to confirm recovery
             max_memory_queue_size: Max jobs to hold in memory queue
             check_interval: Interval between health checks in seconds
+            health_check_timeout: Timeout for individual health checks in seconds
         """
         self._redis = redis_client
         self._mode = DegradationMode.NORMAL
@@ -401,11 +406,13 @@ class DegradationManager:
         self.recovery_threshold = recovery_threshold
         self.max_memory_queue_size = max_memory_queue_size
         self._check_interval = check_interval
+        self._health_check_timeout = health_check_timeout
 
         logger.info(
             f"DegradationManager initialized: "
             f"failure_threshold={failure_threshold}, "
             f"recovery_threshold={recovery_threshold}, "
+            f"health_check_timeout={health_check_timeout}s, "
             f"fallback_dir={self._fallback_dir}"
         )
 
@@ -418,6 +425,11 @@ class DegradationManager:
     def is_degraded(self) -> bool:
         """Check if system is in any degraded state."""
         return self._mode != DegradationMode.NORMAL
+
+    @property
+    def health_check_timeout(self) -> float:
+        """Get the health check timeout in seconds."""
+        return self._health_check_timeout
 
     def register_service(
         self,
@@ -533,11 +545,33 @@ class DegradationManager:
             logger.warning(f"Degradation mode changed: {old_mode.value} -> {self._mode.value}")
 
     async def run_health_checks(self) -> None:
-        """Run health checks for all registered services."""
+        """Run health checks for all registered services.
+
+        Each health check is executed with a timeout to prevent hanging
+        indefinitely on unresponsive services.
+        """
         for service in self._services.values():
             try:
-                is_healthy = await service.health_check()
+                # Apply timeout to health check to prevent hanging
+                is_healthy = await asyncio.wait_for(
+                    service.health_check(),
+                    timeout=self._health_check_timeout,
+                )
                 await self.update_service_health(service.name, is_healthy=is_healthy)
+            except TimeoutError:
+                logger.error(
+                    f"Health check timed out for '{service.name}' "
+                    f"after {self._health_check_timeout}s",
+                    extra={
+                        "service_name": service.name,
+                        "timeout": self._health_check_timeout,
+                    },
+                )
+                await self.update_service_health(
+                    service.name,
+                    is_healthy=False,
+                    error_message=f"Health check timed out after {self._health_check_timeout}s",
+                )
             except Exception as e:
                 logger.error(f"Health check failed for '{service.name}': {e}")
                 await self.update_service_health(
@@ -632,6 +666,29 @@ class DegradationManager:
             True if queued successfully
         """
         try:
+            queue_size_before = len(self._memory_queue)
+            queue_at_capacity = queue_size_before >= self.max_memory_queue_size
+
+            if queue_at_capacity:
+                # Log that we're about to drop an item due to overflow
+                dropped_job = self._memory_queue[0] if self._memory_queue else None
+                logger.warning(
+                    f"Memory queue overflow: dropping oldest job "
+                    f"to make room for {job.job_type} job "
+                    f"(queue_size={queue_size_before}, "
+                    f"max_size={self.max_memory_queue_size}). "
+                    "DATA LOSS: oldest queued job will be discarded.",
+                    extra={
+                        "queue_size": queue_size_before,
+                        "max_size": self.max_memory_queue_size,
+                        "new_job_type": job.job_type,
+                        "dropped_job_type": dropped_job.job_type if dropped_job else "unknown",
+                        "dropped_job_queued_at": (
+                            dropped_job.queued_at if dropped_job else "unknown"
+                        ),
+                    },
+                )
+
             self._memory_queue.append(job)
             logger.debug(f"Queued {job.job_type} job to memory (size={len(self._memory_queue)})")
             return True
@@ -1062,6 +1119,7 @@ class DegradationManager:
                 name: service.health.to_dict() for name, service in self._services.items()
             },
             "available_features": self.get_available_features(),
+            "health_check_timeout": self._health_check_timeout,
         }
 
 

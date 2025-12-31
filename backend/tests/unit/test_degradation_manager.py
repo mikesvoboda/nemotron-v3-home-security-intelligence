@@ -1618,3 +1618,169 @@ class TestHealthCheckLoopNonCancelledError:
 
         # Loop should continue despite exceptions
         assert call_count[0] >= 2
+
+
+class TestMemoryQueueOverflowLogging:
+    """Tests for memory queue overflow logging fix (wa0t.19)."""
+
+    @pytest.mark.asyncio
+    async def test_memory_queue_overflow_logs_warning(self) -> None:
+        """Test that memory queue overflow logs a warning with job details."""
+        from unittest.mock import patch
+
+        manager = DegradationManager(redis_client=None, max_memory_queue_size=2)
+
+        with (
+            patch.object(manager, "_memory_queue") as mock_queue,
+            patch("backend.services.degradation_manager.logger") as mock_logger,
+        ):
+            # Set up mock to simulate queue at capacity
+            mock_queue.__len__ = lambda _self: 2
+            mock_queue.__getitem__ = lambda _self, _idx: QueuedJob(
+                job_type="old_detection",
+                data={"file": "old.jpg"},
+                queued_at="2025-12-28T09:00:00",
+            )
+            mock_queue.append = lambda _job: None  # Simulate deque behavior
+
+            # Queue a new job when queue is at capacity
+            await manager.queue_job_for_later("detection", {"file": "new.jpg"})
+
+            # Verify warning was logged
+            mock_logger.warning.assert_called()
+            call_args = mock_logger.warning.call_args
+            assert "Memory queue overflow" in str(call_args)
+            assert "DATA LOSS" in str(call_args)
+
+    @pytest.mark.asyncio
+    async def test_memory_queue_overflow_includes_dropped_job_info(self) -> None:
+        """Test that overflow log includes information about the dropped job."""
+        manager = DegradationManager(redis_client=None, max_memory_queue_size=2)
+
+        # Fill the queue to capacity
+        await manager.queue_job_for_later("detection", {"file": "1.jpg"})
+        await manager.queue_job_for_later("detection", {"file": "2.jpg"})
+
+        # The queue is now at capacity (2 items)
+        assert manager.get_queued_job_count() == 2
+
+        # Add a third item - this should trigger overflow and drop the oldest
+        await manager.queue_job_for_later("analysis", {"batch": "batch1"})
+
+        # Due to deque maxlen, size stays at 2
+        assert manager.get_queued_job_count() == 2
+
+    def test_memory_queue_overflow_detection(self) -> None:
+        """Test that queue at capacity is detected correctly."""
+        manager = DegradationManager(redis_client=None, max_memory_queue_size=3)
+
+        # Initially not at capacity
+        assert len(manager._memory_queue) < manager.max_memory_queue_size
+
+        # Add jobs up to capacity
+        for i in range(3):
+            job = QueuedJob(
+                job_type="detection",
+                data={"file": f"{i}.jpg"},
+                queued_at=f"2025-12-28T10:0{i}:00",
+            )
+            manager._queue_to_memory(job)
+
+        # Now at capacity
+        assert len(manager._memory_queue) == manager.max_memory_queue_size
+
+
+class TestHealthCheckTimeout:
+    """Tests for health check timeout fix (wa0t.15)."""
+
+    def test_default_health_check_timeout(self) -> None:
+        """Test that default health check timeout is set."""
+        from backend.services.degradation_manager import DEFAULT_HEALTH_CHECK_TIMEOUT
+
+        manager = DegradationManager(redis_client=None)
+        assert manager.health_check_timeout == DEFAULT_HEALTH_CHECK_TIMEOUT
+
+    def test_custom_health_check_timeout(self) -> None:
+        """Test that custom health check timeout can be set."""
+        manager = DegradationManager(redis_client=None, health_check_timeout=5.0)
+        assert manager.health_check_timeout == 5.0
+
+    @pytest.mark.asyncio
+    async def test_health_check_timeout_triggers(self) -> None:
+        """Test that health check timeout is properly enforced."""
+        manager = DegradationManager(
+            redis_client=None,
+            health_check_timeout=0.05,  # 50ms timeout
+        )
+
+        async def slow_health_check() -> bool:
+            await asyncio.sleep(0.5)  # 500ms - will timeout
+            return True
+
+        manager.register_service(
+            name="slow_service",
+            health_check=slow_health_check,
+        )
+
+        # Run health checks - should timeout
+        await manager.run_health_checks()
+
+        # Service should be marked unhealthy due to timeout
+        health = manager.get_service_health("slow_service")
+        assert health.status == ServiceStatus.UNHEALTHY
+        assert "timed out" in (health.error_message or "").lower()
+
+    @pytest.mark.asyncio
+    async def test_health_check_success_within_timeout(self) -> None:
+        """Test that fast health checks succeed."""
+        manager = DegradationManager(
+            redis_client=None,
+            health_check_timeout=1.0,  # 1 second timeout
+        )
+
+        async def fast_health_check() -> bool:
+            await asyncio.sleep(0.01)  # 10ms - well within timeout
+            return True
+
+        manager.register_service(
+            name="fast_service",
+            health_check=fast_health_check,
+        )
+
+        await manager.run_health_checks()
+
+        health = manager.get_service_health("fast_service")
+        assert health.status == ServiceStatus.HEALTHY
+
+    @pytest.mark.asyncio
+    async def test_health_check_timeout_counts_as_failure(self) -> None:
+        """Test that health check timeouts count toward failure threshold."""
+        manager = DegradationManager(
+            redis_client=None,
+            health_check_timeout=0.05,
+            failure_threshold=2,
+        )
+
+        async def slow_health_check() -> bool:
+            await asyncio.sleep(1.0)  # Will timeout
+            return True
+
+        manager.register_service(
+            name="slow_service",
+            health_check=slow_health_check,
+            critical=False,
+        )
+
+        # Run health checks multiple times to trigger threshold
+        await manager.run_health_checks()
+        await manager.run_health_checks()
+
+        health = manager.get_service_health("slow_service")
+        assert health.consecutive_failures >= 2
+
+    def test_health_check_timeout_in_status(self) -> None:
+        """Test that health check timeout appears in status output."""
+        manager = DegradationManager(redis_client=None, health_check_timeout=30.0)
+        status = manager.get_status()
+        assert "health_check_timeout" in status
+        assert status["health_check_timeout"] == 30.0

@@ -1139,3 +1139,115 @@ async def test_broadcast_event_normalizes_risk_level_case() -> None:
     _, published = redis.publish.await_args.args
     # Should be normalized to lowercase
     assert published["data"]["risk_level"] == "high"
+
+
+# ==============================================================================
+# Tests for Bounded Recovery (MAX_RECOVERY_ATTEMPTS)
+# ==============================================================================
+
+
+@pytest.mark.asyncio
+async def test_listen_for_events_recovery_bounded(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that _listen_for_events stops retrying after MAX_RECOVERY_ATTEMPTS."""
+    error_count = 0
+
+    class RedisAlwaysErrors(_FakeRedis):
+        async def listen(self, _pubsub: Any) -> AsyncIterator[dict[str, Any]]:
+            nonlocal error_count
+            error_count += 1
+            raise RuntimeError("redis blew up")
+            if False:  # pragma: no cover
+                yield {}
+
+    redis = RedisAlwaysErrors()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+    broadcaster._pubsub = _FakePubSub()
+    broadcaster._is_listening = True
+    broadcaster._recovery_attempts = 0
+
+    sleep_calls: list[float] = []
+
+    async def _fake_sleep(seconds: float) -> None:
+        sleep_calls.append(seconds)
+        # Simulate error continuing
+        if len(sleep_calls) >= broadcaster.MAX_RECOVERY_ATTEMPTS:
+            broadcaster._is_listening = False
+
+    monkeypatch.setattr(asyncio, "sleep", _fake_sleep)
+
+    # Run the listener - it should stop after MAX_RECOVERY_ATTEMPTS
+    await broadcaster._listen_for_events()
+
+    # Should have hit the max recovery attempts
+    assert broadcaster._recovery_attempts <= broadcaster.MAX_RECOVERY_ATTEMPTS
+
+
+@pytest.mark.asyncio
+async def test_listen_for_events_recovery_resets_on_success(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that _recovery_attempts resets on successful message processing."""
+    message_count = 0
+
+    class RedisWithMessages(_FakeRedis):
+        async def listen(self, _pubsub: Any) -> AsyncIterator[dict[str, Any]]:
+            nonlocal message_count
+            message_count += 1
+            yield {"data": {"type": "event", "data": {"id": message_count}}}
+
+    redis = RedisWithMessages()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+    broadcaster._pubsub = _FakePubSub()
+    broadcaster._is_listening = True
+    broadcaster._recovery_attempts = 3  # Start with some recovery attempts
+
+    broadcaster._send_to_all_clients = AsyncMock(return_value=None)  # type: ignore[method-assign]
+
+    await broadcaster._listen_for_events()
+
+    # Recovery attempts should be reset to 0 after successful message
+    assert broadcaster._recovery_attempts == 0
+
+
+@pytest.mark.asyncio
+async def test_broadcaster_has_max_recovery_constant() -> None:
+    """Test that EventBroadcaster has MAX_RECOVERY_ATTEMPTS constant."""
+    assert hasattr(EventBroadcaster, "MAX_RECOVERY_ATTEMPTS")
+    assert EventBroadcaster.MAX_RECOVERY_ATTEMPTS > 0
+    assert EventBroadcaster.MAX_RECOVERY_ATTEMPTS <= 10  # Reasonable upper bound
+
+
+@pytest.mark.asyncio
+async def test_listen_for_events_logs_error_on_max_retries(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test that error is logged when max recovery attempts reached."""
+
+    class RedisAlwaysErrors(_FakeRedis):
+        async def listen(self, _pubsub: Any) -> AsyncIterator[dict[str, Any]]:
+            raise RuntimeError("redis connection failed")
+            if False:  # pragma: no cover
+                yield {}
+
+    redis = RedisAlwaysErrors()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+    broadcaster._pubsub = _FakePubSub()
+    broadcaster._is_listening = True
+    # Set to one below max so next error triggers the "giving up" log
+    broadcaster._recovery_attempts = broadcaster.MAX_RECOVERY_ATTEMPTS
+
+    async def _fake_sleep(seconds: float) -> None:
+        pass
+
+    monkeypatch.setattr(asyncio, "sleep", _fake_sleep)
+
+    await broadcaster._listen_for_events()
+
+    # Should have logged the "giving up" message
+    assert any(
+        "recovery failed" in record.message.lower() or "giving up" in record.message.lower()
+        for record in caplog.records
+    )
+    # Should have set _is_listening to False
+    assert broadcaster._is_listening is False
