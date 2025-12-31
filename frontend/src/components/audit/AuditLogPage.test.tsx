@@ -175,12 +175,13 @@ describe('AuditLogPage', () => {
     it('displays stats cards with data', async () => {
       render(<AuditLogPage />);
 
+      // Wait for stats to load (value appears when loading is complete)
       await waitFor(() => {
-        expect(screen.getByText('Total Audit Entries')).toBeInTheDocument();
+        expect(screen.getByText('100')).toBeInTheDocument(); // total_logs
       });
 
       // Stats cards should show values
-      expect(screen.getByText('100')).toBeInTheDocument(); // total_logs
+      expect(screen.getByText('Total Audit Entries')).toBeInTheDocument();
       expect(screen.getByText('Entries Today')).toBeInTheDocument();
       expect(screen.getByText('Successful Operations')).toBeInTheDocument();
       expect(screen.getByText('95')).toBeInTheDocument(); // success count
