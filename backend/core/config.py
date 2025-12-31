@@ -531,26 +531,30 @@ class Settings(BaseSettings):
         "Health monitoring and status broadcasts still occur when disabled.",
     )
 
-    # TLS/HTTPS settings (legacy - kept for backward compatibility)
+    # TLS/HTTPS settings (legacy - DEPRECATED, use TLS_MODE instead)
+    # These fields are kept for backward compatibility but will be removed in a future version.
+    # Migration guide:
+    #   TLS_ENABLED=true + TLS_CERT_FILE + TLS_KEY_FILE -> TLS_MODE=provided + TLS_CERT_PATH + TLS_KEY_PATH
+    #   TLS_AUTO_GENERATE=true -> TLS_MODE=self_signed
     tls_enabled: bool = Field(
         default=False,
-        description="Enable TLS/HTTPS for the API server",
+        description="DEPRECATED: Use TLS_MODE instead. Enable TLS/HTTPS for the API server.",
     )
     tls_cert_file: str | None = Field(
         default=None,
-        description="Path to TLS certificate file (PEM format)",
+        description="DEPRECATED: Use TLS_CERT_PATH instead. Path to TLS certificate file (PEM format).",
     )
     tls_key_file: str | None = Field(
         default=None,
-        description="Path to TLS private key file (PEM format)",
+        description="DEPRECATED: Use TLS_KEY_PATH instead. Path to TLS private key file (PEM format).",
     )
     tls_ca_file: str | None = Field(
         default=None,
-        description="Path to CA certificate for client verification (optional)",
+        description="DEPRECATED: Use TLS_CA_PATH instead. Path to CA certificate for client verification.",
     )
     tls_auto_generate: bool = Field(
         default=False,
-        description="Auto-generate self-signed certificates if none provided",
+        description="DEPRECATED: Use TLS_MODE=self_signed instead. Auto-generate self-signed certificates.",
     )
     tls_cert_dir: str = Field(
         default="data/certs",
