@@ -785,10 +785,10 @@ async def client(integration_db: str, mock_redis: AsyncMock) -> AsyncGenerator[N
     mock_service_health_monitor.stop = AsyncMock()
 
     with (
-        patch("backend.main.init_db", return_value=None),
-        patch("backend.main.close_db", return_value=None),
-        patch("backend.main.init_redis", return_value=mock_redis),
-        patch("backend.main.close_redis", return_value=None),
+        patch("backend.main.init_db", AsyncMock(return_value=None)),
+        patch("backend.main.close_db", AsyncMock(return_value=None)),
+        patch("backend.main.init_redis", AsyncMock(return_value=mock_redis)),
+        patch("backend.main.close_redis", AsyncMock(return_value=None)),
         patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
         patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor),
         patch("backend.main.CleanupService", return_value=mock_cleanup_service),
