@@ -1,6 +1,7 @@
 """Database connection and session management using SQLAlchemy 2.0 async patterns.
 
-This module provides PostgreSQL database connectivity using asyncpg.
+This module provides PostgreSQL database connectivity using asyncpg,
+along with SQL utility functions like ILIKE pattern escaping.
 """
 
 from collections.abc import AsyncGenerator
@@ -16,6 +17,32 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import DeclarativeBase
 
 from backend.core.config import get_settings
+
+
+def escape_ilike_pattern(value: str) -> str:
+    """Escape special characters in a string for safe use in ILIKE patterns.
+
+    PostgreSQL ILIKE uses '%' and '_' as wildcards and '\\' as escape character.
+    This function escapes these characters to prevent pattern injection attacks
+    where user input containing these characters could cause unexpected matching.
+
+    Args:
+        value: The user-provided string to escape
+
+    Returns:
+        The escaped string safe for use in ILIKE patterns
+
+    Example:
+        >>> escape_ilike_pattern("100% complete")
+        '100\\\\% complete'
+        >>> escape_ilike_pattern("file_name")
+        'file\\\\_name'
+        >>> escape_ilike_pattern("path\\\\to\\\\file")
+        'path\\\\\\\\to\\\\\\\\file'
+    """
+    # Escape backslash first (it's the escape character itself)
+    # Then escape % and _ wildcards
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 class Base(DeclarativeBase):
@@ -78,14 +105,18 @@ async def init_db() -> None:
         )
 
     # PostgreSQL connection pooling configuration
-    # These settings optimize for concurrent access
+    # These settings optimize for concurrent access and are configurable via Settings
+    # Default: pool_size=20, max_overflow=30 (50 max connections)
+    # Previous default: pool_size=10, max_overflow=20 (30 max connections)
+    # Increased to handle multiple background workers (detection, analysis, timeout,
+    # metrics, GPU monitor, system broadcaster) plus API requests
     engine_kwargs: dict[str, Any] = {
         "echo": settings.debug,
         "future": True,
-        "pool_size": 10,  # Base pool size
-        "max_overflow": 20,  # Additional connections beyond pool_size
-        "pool_timeout": 30,  # Seconds to wait for available connection
-        "pool_recycle": 1800,  # Recycle connections after 30 minutes
+        "pool_size": settings.database_pool_size,
+        "max_overflow": settings.database_pool_overflow,
+        "pool_timeout": settings.database_pool_timeout,
+        "pool_recycle": settings.database_pool_recycle,
         "pool_pre_ping": True,  # Verify connections before use
     }
 

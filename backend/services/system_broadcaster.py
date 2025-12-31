@@ -25,16 +25,23 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
+import httpx
 from fastapi import WebSocket
 from sqlalchemy import func, select
 
 from backend.core import get_session
+from backend.core.config import get_settings
 from backend.core.constants import ANALYSIS_QUEUE, DETECTION_QUEUE
 from backend.core.logging import get_logger
 from backend.models import Camera, GPUStats
 
+# Timeout for AI service health checks in seconds
+# Keep this short to avoid blocking the broadcast loop
+AI_HEALTH_CHECK_TIMEOUT = 1.0  # Short timeout to avoid blocking broadcast loop
+
 if TYPE_CHECKING:
     from redis.asyncio.client import PubSub
+    from sqlalchemy.ext.asyncio import AsyncSession
 
     from backend.core.redis import RedisClient
     from backend.services.performance_collector import PerformanceCollector
@@ -440,23 +447,58 @@ class SystemBroadcaster:
     async def _get_system_status(self) -> dict:
         """Gather current system status data.
 
+        Uses a single database session for all queries to avoid connection pool
+        exhaustion. This is critical for high-frequency status broadcasts.
+
         Returns:
             Dictionary containing system status information:
             - type: "system_status"
             - data: System metrics (GPU, cameras, queue, health)
             - timestamp: ISO format timestamp
         """
-        # Get GPU stats
-        gpu_stats = await self._get_latest_gpu_stats()
+        # Use a single database session for all queries to prevent connection
+        # pool exhaustion when broadcasting at high frequency
+        try:
+            async with get_session() as session:
+                gpu_stats = await self._get_latest_gpu_stats_with_session(session)
+                camera_stats = await self._get_camera_stats_with_session(session)
+                health_status = "healthy"  # Database is healthy if we got here
+        except Exception as e:
+            logger.error(f"Failed to get system status from database: {e}", exc_info=True)
+            gpu_stats = {
+                "utilization": None,
+                "memory_used": None,
+                "memory_total": None,
+                "temperature": None,
+                "inference_fps": None,
+            }
+            camera_stats = {"active": 0, "total": 0}
+            health_status = "unhealthy"
 
-        # Get camera counts
-        camera_stats = await self._get_camera_stats()
-
-        # Get queue stats
+        # Get queue stats (Redis, not database)
         queue_stats = await self._get_queue_stats()
 
-        # Get health status
-        health_status = await self._get_health_status()
+        # Check Redis health separately
+        redis_healthy = await self._check_redis_health()
+        if health_status == "healthy" and not redis_healthy:
+            health_status = "degraded"
+
+        # Check AI services health - this is critical for accurate status reporting
+        # If Nemotron is unhealthy, events will show "LLM service error"
+        ai_health = await self._check_ai_health()
+
+        # Determine AI status string for the health response
+        if ai_health["all_healthy"]:
+            ai_status = "healthy"
+        elif ai_health["any_healthy"]:
+            ai_status = "degraded"
+        else:
+            ai_status = "unhealthy"
+
+        # If AI services are not all healthy and overall is currently healthy,
+        # degrade the overall status to reflect AI issues
+        if health_status == "healthy" and not ai_health["all_healthy"]:
+            health_status = "degraded"
 
         return {
             "type": "system_status",
@@ -465,39 +507,46 @@ class SystemBroadcaster:
                 "cameras": camera_stats,
                 "queue": queue_stats,
                 "health": health_status,
+                "ai": {
+                    "status": ai_status,
+                    "rtdetr": "healthy" if ai_health["rtdetr"] else "unhealthy",
+                    "nemotron": "healthy" if ai_health["nemotron"] else "unhealthy",
+                },
             },
             "timestamp": datetime.now(UTC).isoformat(),
         }
 
-    async def _get_latest_gpu_stats(self) -> dict:
-        """Get latest GPU statistics from database.
+    async def _get_latest_gpu_stats_with_session(self, session: AsyncSession) -> dict:
+        """Get latest GPU statistics using provided database session.
+
+        Args:
+            session: Active database session
 
         Returns:
             Dictionary with GPU stats (utilization, memory, etc.)
             Returns null values if no data available.
         """
         try:
-            async with get_session() as session:
-                stmt = select(GPUStats).order_by(GPUStats.recorded_at.desc()).limit(1)
-                result = await session.execute(stmt)
-                gpu_stat = result.scalar_one_or_none()
+            stmt = select(GPUStats).order_by(GPUStats.recorded_at.desc()).limit(1)
+            result = await session.execute(stmt)
+            gpu_stat = result.scalar_one_or_none()
 
-                if gpu_stat is None:
-                    return {
-                        "utilization": None,
-                        "memory_used": None,
-                        "memory_total": None,
-                        "temperature": None,
-                        "inference_fps": None,
-                    }
-
+            if gpu_stat is None:
                 return {
-                    "utilization": gpu_stat.gpu_utilization,
-                    "memory_used": gpu_stat.memory_used,
-                    "memory_total": gpu_stat.memory_total,
-                    "temperature": gpu_stat.temperature,
-                    "inference_fps": gpu_stat.inference_fps,
+                    "utilization": None,
+                    "memory_used": None,
+                    "memory_total": None,
+                    "temperature": None,
+                    "inference_fps": None,
                 }
+
+            return {
+                "utilization": gpu_stat.gpu_utilization,
+                "memory_used": gpu_stat.memory_used,
+                "memory_total": gpu_stat.memory_total,
+                "temperature": gpu_stat.temperature,
+                "inference_fps": gpu_stat.inference_fps,
+            }
         except Exception as e:
             logger.error(f"Failed to get GPU stats: {e}", exc_info=True)
             return {
@@ -508,30 +557,70 @@ class SystemBroadcaster:
                 "inference_fps": None,
             }
 
+    async def _get_latest_gpu_stats(self) -> dict:
+        """Get latest GPU statistics from database.
+
+        Deprecated: Use _get_latest_gpu_stats_with_session() with a shared session.
+
+        Returns:
+            Dictionary with GPU stats (utilization, memory, etc.)
+            Returns null values if no data available.
+        """
+        try:
+            async with get_session() as session:
+                return await self._get_latest_gpu_stats_with_session(session)
+        except Exception as e:
+            logger.error(f"Failed to get GPU stats: {e}", exc_info=True)
+            return {
+                "utilization": None,
+                "memory_used": None,
+                "memory_total": None,
+                "temperature": None,
+                "inference_fps": None,
+            }
+
+    async def _get_camera_stats_with_session(self, session: AsyncSession) -> dict:
+        """Get camera statistics using provided database session.
+
+        Args:
+            session: Active database session
+
+        Returns:
+            Dictionary with camera counts (active, total)
+        """
+        try:
+            # Count total cameras
+            total_stmt = select(func.count()).select_from(Camera)
+            total_result = await session.execute(total_stmt)
+            total_cameras = total_result.scalar_one()
+
+            # Count active cameras (status = 'online')
+            active_stmt = select(func.count()).select_from(Camera).where(Camera.status == "online")
+            active_result = await session.execute(active_stmt)
+            active_cameras = active_result.scalar_one()
+
+            return {
+                "active": active_cameras,
+                "total": total_cameras,
+            }
+        except Exception as e:
+            logger.error(f"Failed to get camera stats: {e}", exc_info=True)
+            return {
+                "active": 0,
+                "total": 0,
+            }
+
     async def _get_camera_stats(self) -> dict:
         """Get camera statistics from database.
+
+        Deprecated: Use _get_camera_stats_with_session() with a shared session.
 
         Returns:
             Dictionary with camera counts (active, total)
         """
         try:
             async with get_session() as session:
-                # Count total cameras
-                total_stmt = select(func.count()).select_from(Camera)
-                total_result = await session.execute(total_stmt)
-                total_cameras = total_result.scalar_one()
-
-                # Count active cameras (status = 'online')
-                active_stmt = (
-                    select(func.count()).select_from(Camera).where(Camera.status == "online")
-                )
-                active_result = await session.execute(active_stmt)
-                active_cameras = active_result.scalar_one()
-
-                return {
-                    "active": active_cameras,
-                    "total": total_cameras,
-                }
+                return await self._get_camera_stats_with_session(session)
         except Exception as e:
             logger.error(f"Failed to get camera stats: {e}", exc_info=True)
             return {
@@ -567,8 +656,75 @@ class SystemBroadcaster:
                 "processing": 0,
             }
 
+    async def _check_redis_health(self) -> bool:
+        """Check Redis connection health.
+
+        Returns:
+            True if Redis is healthy, False otherwise
+        """
+        try:
+            redis_client = self._get_redis()
+            if redis_client:
+                await redis_client.health_check()
+                return True
+        except Exception as e:
+            logger.debug(f"Redis health check failed: {e}")
+        return False
+
+    async def _check_ai_health(self) -> dict[str, bool]:
+        """Check AI services (RT-DETRv2 and Nemotron) health.
+
+        Performs concurrent health checks on both AI services to minimize
+        latency in the broadcast loop. Uses a short timeout to avoid blocking.
+
+        Returns:
+            Dictionary with:
+            - rtdetr: True if RT-DETRv2 is healthy
+            - nemotron: True if Nemotron is healthy
+            - any_healthy: True if at least one AI service is healthy
+            - all_healthy: True if all AI services are healthy
+        """
+        settings = get_settings()
+        rtdetr_healthy = False
+        nemotron_healthy = False
+
+        async def check_rtdetr() -> bool:
+            try:
+                async with httpx.AsyncClient(timeout=AI_HEALTH_CHECK_TIMEOUT) as client:
+                    response = await client.get(f"{settings.rtdetr_url}/health")
+                    return bool(response.status_code == 200)
+            except Exception:
+                return False
+
+        async def check_nemotron() -> bool:
+            try:
+                async with httpx.AsyncClient(timeout=AI_HEALTH_CHECK_TIMEOUT) as client:
+                    response = await client.get(f"{settings.nemotron_url}/health")
+                    return bool(response.status_code == 200)
+            except Exception:
+                return False
+
+        # Check both services concurrently for efficiency
+        try:
+            rtdetr_healthy, nemotron_healthy = await asyncio.gather(
+                check_rtdetr(),
+                check_nemotron(),
+            )
+        except Exception as e:
+            logger.warning(f"Error during AI health check: {e}")
+
+        return {
+            "rtdetr": rtdetr_healthy,
+            "nemotron": nemotron_healthy,
+            "any_healthy": rtdetr_healthy or nemotron_healthy,
+            "all_healthy": rtdetr_healthy and nemotron_healthy,
+        }
+
     async def _get_health_status(self) -> str:
         """Determine overall system health status.
+
+        Deprecated: Health is now determined in _get_system_status() using
+        a single database session.
 
         Returns:
             Health status: "healthy", "degraded", or "unhealthy"
@@ -579,14 +735,7 @@ class SystemBroadcaster:
                 await session.execute(select(func.count()).select_from(Camera))
 
             # Check Redis health
-            redis_healthy = False
-            try:
-                redis_client = self._get_redis()
-                if redis_client:
-                    await redis_client.health_check()
-                    redis_healthy = True
-            except Exception:
-                redis_healthy = False
+            redis_healthy = await self._check_redis_health()
 
             # Determine overall health
             if redis_healthy:
