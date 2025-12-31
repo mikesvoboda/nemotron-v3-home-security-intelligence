@@ -262,6 +262,9 @@ class SystemBroadcaster:
         This enables multi-instance support where status updates published by
         any instance are received and forwarded to local WebSocket clients.
 
+        Subscribes to both system_status and performance_update channels to
+        receive all types of updates.
+
         Uses a dedicated pub/sub connection to avoid concurrency issues with
         other Redis operations (prevents 'readuntil() called while another
         coroutine is already waiting' errors).
@@ -278,11 +281,17 @@ class SystemBroadcaster:
         try:
             # Use subscribe_dedicated() to get a dedicated connection that
             # won't conflict with other Redis operations
-            self._pubsub = await redis_client.subscribe_dedicated(SYSTEM_STATUS_CHANNEL)
+            # Subscribe to both system status and performance update channels
+            self._pubsub = await redis_client.subscribe_dedicated(
+                SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL
+            )
             self._pubsub_listening = True
             self._recovery_attempts = 0  # Reset recovery attempts on successful start
             self._listener_task = asyncio.create_task(self._listen_for_updates())
-            logger.info(f"Started pub/sub listener on channel: {SYSTEM_STATUS_CHANNEL}")
+            logger.info(
+                f"Started pub/sub listener on channels: {SYSTEM_STATUS_CHANNEL}, "
+                f"{PERFORMANCE_UPDATE_CHANNEL}"
+            )
         except Exception as e:
             logger.error(f"Failed to start pub/sub listener: {e}", exc_info=True)
 
@@ -298,8 +307,8 @@ class SystemBroadcaster:
 
         if self._pubsub:
             try:
-                # Unsubscribe directly on the dedicated pubsub instance
-                await self._pubsub.unsubscribe(SYSTEM_STATUS_CHANNEL)
+                # Unsubscribe from both channels
+                await self._pubsub.unsubscribe(SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL)
             except Exception as e:
                 logger.warning(f"Error unsubscribing: {e}")
             try:
@@ -326,7 +335,7 @@ class SystemBroadcaster:
         # Close old dedicated pubsub connection if exists
         if self._pubsub:
             try:
-                await self._pubsub.unsubscribe(SYSTEM_STATUS_CHANNEL)
+                await self._pubsub.unsubscribe(SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL)
             except Exception as e:
                 logger.debug(f"Error unsubscribing during reset (expected): {e}")
             try:
@@ -335,10 +344,15 @@ class SystemBroadcaster:
                 logger.debug(f"Error closing pubsub during reset (expected): {e}")
             self._pubsub = None
 
-        # Create fresh dedicated subscription
+        # Create fresh dedicated subscription to both channels
         try:
-            self._pubsub = await redis_client.subscribe_dedicated(SYSTEM_STATUS_CHANNEL)
-            logger.info(f"Re-established pub/sub subscription on channel: {SYSTEM_STATUS_CHANNEL}")
+            self._pubsub = await redis_client.subscribe_dedicated(
+                SYSTEM_STATUS_CHANNEL, PERFORMANCE_UPDATE_CHANNEL
+            )
+            logger.info(
+                f"Re-established pub/sub subscription on channels: {SYSTEM_STATUS_CHANNEL}, "
+                f"{PERFORMANCE_UPDATE_CHANNEL}"
+            )
         except Exception as e:
             logger.error(f"Failed to re-subscribe during reset: {e}", exc_info=True)
             self._pubsub = None
