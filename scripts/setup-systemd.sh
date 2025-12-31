@@ -99,6 +99,20 @@ fi
 echo ""
 echo -e "${GREEN}Generated $GENERATED systemd unit files${NC}"
 
+# Add ExecStartPre cleanup to all services (fixes orphaned container restarts)
+echo ""
+echo "Adding container cleanup to all services..."
+for container in $CONTAINERS; do
+    SERVICE_FILE="$SYSTEMD_USER_DIR/${container}.service"
+    if [[ -f "$SERVICE_FILE" ]]; then
+        # Add ExecStartPre to remove orphaned containers before ExecStart
+        if ! grep -q "ExecStartPre=.*podman rm" "$SERVICE_FILE"; then
+            sed -i "/^ExecStart=/i # Cleanup any orphaned container before starting (fixes stuck container restarts)\nExecStartPre=-/usr/bin/podman rm -f --ignore $container" "$SERVICE_FILE"
+            echo -e "  - $container: ${GREEN}cleanup added${NC}"
+        fi
+    fi
+done
+
 # Add frontend dependency on backend (fixes stale DNS on backend restart)
 FRONTEND_SERVICE="$SYSTEMD_USER_DIR/nemotron-v3-home-security-intelligence_frontend_1.service"
 BACKEND_SERVICE="nemotron-v3-home-security-intelligence_backend_1.service"
