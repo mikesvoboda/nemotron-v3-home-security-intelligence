@@ -1,0 +1,331 @@
+# AI Services Management
+
+> Start, stop, verify, and monitor AI inference services.
+
+**Time to read:** ~8 min
+**Prerequisites:** [AI Configuration](ai-configuration.md)
+
+---
+
+## Starting Services
+
+### Unified Startup (Recommended)
+
+Use the unified startup script to manage both services:
+
+```bash
+./scripts/start-ai.sh start
+```
+
+**Expected output:**
+
+```
+==========================================
+Starting AI Services
+==========================================
+
+[INFO] Checking prerequisites...
+[OK] NVIDIA GPU detected: NVIDIA RTX A5500
+[OK] CUDA available
+[OK] llama-server found: /usr/bin/llama-server
+[OK] Python found: /usr/bin/python3
+[OK] Nemotron model found (2.5G)
+[WARN] RT-DETRv2 model not found (will auto-download)
+[OK] All prerequisites satisfied
+
+[INFO] Starting RT-DETRv2 detection server...
+[OK] RT-DETRv2 detection server started successfully
+  Port: 8090
+  PID: 12345
+  Log: /tmp/rtdetr-detector.log
+  Expected VRAM: ~4GB
+
+[INFO] Starting Nemotron LLM server...
+[OK] Nemotron LLM server started successfully
+  Port: 8091
+  PID: 12346
+  Log: /tmp/nemotron-llm.log
+  Expected VRAM: ~3GB
+```
+
+First startup takes longer (~2-3 minutes) due to:
+
+- Model loading into VRAM
+- CUDA initialization
+- GPU warmup inferences
+
+### Individual Service Startup
+
+Start services separately for debugging:
+
+```bash
+# RT-DETRv2 detection server
+./ai/start_detector.sh
+
+# Nemotron LLM server (in separate terminal)
+./ai/start_llm.sh
+```
+
+---
+
+## Service Management
+
+### Check Status
+
+```bash
+./scripts/start-ai.sh status
+```
+
+Output shows:
+
+- Service status (RUNNING/STOPPED)
+- Process IDs
+- Health check results
+- GPU memory usage
+- Log file locations
+
+### Stop Services
+
+```bash
+./scripts/start-ai.sh stop
+```
+
+Performs graceful shutdown (10 second timeout), force kills if not responding.
+
+### Restart Services
+
+```bash
+./scripts/start-ai.sh restart
+```
+
+Useful after:
+
+- Model updates
+- Configuration changes
+- Service crashes
+
+### Health Check
+
+```bash
+./scripts/start-ai.sh health
+```
+
+Returns:
+
+- HTTP health check results
+- Service response times
+- Detailed status JSON
+
+---
+
+## Verification
+
+### Test RT-DETRv2 Detection
+
+```bash
+# Health check
+curl http://localhost:8090/health
+```
+
+**Expected response:**
+
+```json
+{
+  "status": "healthy",
+  "model_loaded": true,
+  "device": "cuda:0",
+  "cuda_available": true,
+  "vram_used_gb": 4.2
+}
+```
+
+**Test detection (requires test image):**
+
+```bash
+cd ai/rtdetr
+python example_client.py path/to/test/image.jpg
+```
+
+### Test Nemotron LLM
+
+```bash
+# Health check
+curl http://localhost:8091/health
+
+# Test completion
+curl -X POST http://localhost:8091/completion \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "Analyze: A person detected at front door at 14:30.",
+    "temperature": 0.7,
+    "max_tokens": 200
+  }'
+```
+
+### Integration Test
+
+Test full pipeline from backend:
+
+```bash
+cd backend
+
+# Run integration tests
+pytest tests/integration/ -v -k "test_ai_pipeline"
+
+# Run full test suite
+pytest tests/ -v
+```
+
+---
+
+## Service Logs
+
+### View Logs
+
+```bash
+# RT-DETRv2 logs
+tail -f /tmp/rtdetr-detector.log
+
+# Nemotron LLM logs
+tail -f /tmp/nemotron-llm.log
+
+# Both logs (parallel)
+tail -f /tmp/rtdetr-detector.log -f /tmp/nemotron-llm.log
+```
+
+### Backend Integration Logging
+
+The backend automatically monitors AI service health:
+
+```bash
+# Check backend logs for AI service status
+cd backend
+tail -f logs/app.log | grep -E "rtdetr|nemotron"
+```
+
+Backend logs include:
+
+- Connection failures
+- Timeout errors
+- Health check results
+- Inference latencies
+
+---
+
+## Production Deployment
+
+### Systemd Service Units
+
+Create systemd services for production. Replace placeholders with actual values.
+
+**RT-DETRv2 Service:**
+
+```bash
+sudo tee /etc/systemd/system/ai-detector.service > /dev/null << EOF
+[Unit]
+Description=RT-DETRv2 Object Detection Service
+After=network.target
+
+[Service]
+Type=simple
+User=$(whoami)
+WorkingDirectory=${PROJECT_ROOT}/ai/rtdetr
+ExecStart=/usr/bin/python3 model.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+```
+
+**Nemotron LLM Service:**
+
+```bash
+sudo tee /etc/systemd/system/ai-llm.service > /dev/null << EOF
+[Unit]
+Description=Nemotron LLM Service
+After=network.target
+
+[Service]
+Type=simple
+User=$(whoami)
+ExecStart=/usr/bin/llama-server --model ${PROJECT_ROOT}/ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf --port 8091 --ctx-size 4096 --n-gpu-layers 99 --host 0.0.0.0 --parallel 2 --cont-batching
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+```
+
+**Enable and start:**
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable ai-detector ai-llm
+sudo systemctl start ai-detector ai-llm
+```
+
+### Auto-start on Boot
+
+Add to crontab:
+
+```bash
+crontab -e
+
+# Add line:
+@reboot /path/to/project/scripts/start-ai.sh start
+```
+
+---
+
+## Quick Reference
+
+### Common Commands
+
+```bash
+# Start all AI services
+./scripts/start-ai.sh start
+
+# Stop all AI services
+./scripts/start-ai.sh stop
+
+# Check status
+./scripts/start-ai.sh status
+
+# Health check
+./scripts/start-ai.sh health
+
+# Check GPU
+nvidia-smi
+
+# Download models
+./ai/download_models.sh
+```
+
+### Service Endpoints
+
+| Service   | Endpoint                  | Purpose          |
+| --------- | ------------------------- | ---------------- |
+| RT-DETRv2 | GET /health               | Health check     |
+| RT-DETRv2 | POST /detect              | Object detection |
+| RT-DETRv2 | POST /detect/batch        | Batch detection  |
+| Nemotron  | GET /health               | Health check     |
+| Nemotron  | POST /completion          | Text completion  |
+| Nemotron  | POST /v1/chat/completions | Chat API         |
+
+### Expected Resource Usage
+
+| Service   | VRAM | CPU    | Latency | Throughput    |
+| --------- | ---- | ------ | ------- | ------------- |
+| RT-DETRv2 | ~4GB | 10-20% | 30-50ms | 20-30 img/s   |
+| Nemotron  | ~3GB | 5-10%  | 2-5s    | 0.2-0.5 req/s |
+
+---
+
+## Next Steps
+
+- [AI Troubleshooting](ai-troubleshooting.md) - Common issues and solutions
+- [AI Performance](ai-performance.md) - Performance tuning
+- [Back to Operator Hub](../operator-hub.md)

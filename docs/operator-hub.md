@@ -81,7 +81,7 @@ podman-compose -f docker-compose.prod.yml down
 
 ### GPU Passthrough
 
-~8 min read | [Full Guide](AI_SETUP.md#hardware-requirements)
+~15 min read | [Full Guide](operator/gpu-setup.md)
 
 AI services run in containers with NVIDIA GPU passthrough via Container Device Interface (CDI).
 
@@ -94,13 +94,17 @@ AI services run in containers with NVIDIA GPU passthrough via Container Device I
 # Verify GPU access
 nvidia-smi
 
-# Test container GPU access
+# Test container GPU access (Docker)
 docker run --rm --gpus all nvidia/cuda:12.0-base-ubuntu22.04 nvidia-smi
+
+# Test container GPU access (Podman with CDI)
+podman run --rm --device nvidia.com/gpu=all nvidia/cuda:12.0-base-ubuntu22.04 nvidia-smi
 ```
 
 **Troubleshooting:**
 
-- [GPU issues](admin-guide/troubleshooting.md#ai-services)
+- [GPU Setup Guide](operator/gpu-setup.md#7-troubleshooting)
+- [GPU Issues Reference](reference/troubleshooting/gpu-issues.md)
 
 ### Installation
 
@@ -210,7 +214,21 @@ RETENTION_DAYS=30
 
 ### AI Configuration
 
-~8 min read | [Full Guide](AI_SETUP.md)
+~8 min read | [Full Guide](operator/ai-overview.md)
+
+**AI Services Documentation:**
+
+| Document                                             | Description                    | Time    |
+| ---------------------------------------------------- | ------------------------------ | ------- |
+| [AI Overview](operator/ai-overview.md)               | What the AI does, architecture | ~5 min  |
+| [AI Installation](operator/ai-installation.md)       | Prerequisites and dependencies | ~10 min |
+| [AI Configuration](operator/ai-configuration.md)     | Environment variables          | ~8 min  |
+| [AI Services](operator/ai-services.md)               | Starting, stopping, verifying  | ~8 min  |
+| [AI Troubleshooting](operator/ai-troubleshooting.md) | Common issues and solutions    | ~10 min |
+| [AI Performance](operator/ai-performance.md)         | Performance tuning             | ~6 min  |
+| [AI TLS](operator/ai-tls.md)                         | Secure communications          | ~5 min  |
+
+**Key variables:**
 
 | Variable                         | Default                 | Description                  |
 | -------------------------------- | ----------------------- | ---------------------------- |
@@ -334,41 +352,39 @@ GPU stats and service status broadcast via `/ws/system` channel.
 
 ### Backup and Recovery
 
-~8 min read | [Full Guide](DOCKER_DEPLOYMENT.md#backup-and-recovery)
+~10 min read | [Full Guide](operator/backup.md)
 
-**Database backup:**
-
-```bash
-# PostgreSQL backup
-docker compose exec postgres pg_dump -U postgres home_security > backup.sql
-
-# Compressed backup
-docker compose exec postgres pg_dump -U postgres -F c home_security > backup.dump
-```
-
-**Redis backup:**
+**Quick database backup:**
 
 ```bash
-# Trigger background save
-docker compose exec redis redis-cli BGSAVE
+# Docker - compressed custom format (recommended)
+docker exec postgres pg_dump -U security -d security \
+    --format=custom --compress=9 \
+    > backup_$(date +%Y%m%d).dump
 
-# Copy RDB file
-docker compose cp redis:/data/dump.rdb ./redis-backup.rdb
+# Podman
+podman exec postgres pg_dump -U security -d security \
+    --format=custom --compress=9 \
+    > backup_$(date +%Y%m%d).dump
 ```
 
-**Restore from backup:**
+**Quick restore:**
 
 ```bash
-# Stop services
-docker compose down
-
-# Restore PostgreSQL
-docker compose up -d postgres
-docker compose exec -T postgres psql -U postgres home_security < backup.sql
-
-# Restart all services
-docker compose up -d
+# Restore from compressed backup
+docker exec -i postgres pg_restore \
+    -U security -d security --clean --if-exists \
+    < backup.dump
 ```
+
+> [!NOTE]
+> Redis is ephemeral cache and does **not** require backup.
+
+See [Backup Guide](operator/backup.md) for:
+
+- Automated daily backups
+- Full system recovery procedures
+- Disaster recovery checklist
 
 ### Data Retention
 

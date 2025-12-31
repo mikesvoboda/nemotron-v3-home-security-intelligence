@@ -69,6 +69,15 @@ See [Risk Levels Reference](reference/config/risk-levels.md) for the canonical d
 | [Data Model](architecture/data-model.md)          | PostgreSQL schemas, Redis structures, entity relationships             |
 | [AI Pipeline](architecture/ai-pipeline.md)        | FileWatcher -> RT-DETRv2 -> BatchAggregator -> Nemotron flow           |
 
+**AI Pipeline Deep Dives:**
+
+| Document                                            | Description                               | Time    |
+| --------------------------------------------------- | ----------------------------------------- | ------- |
+| [Pipeline Overview](developer/pipeline-overview.md) | High-level flow, timing characteristics   | ~8 min  |
+| [Detection Service](developer/detection-service.md) | RT-DETRv2 API, bounding boxes, confidence | ~8 min  |
+| [Batching Logic](developer/batching-logic.md)       | Window timing, Redis keys, fast path      | ~8 min  |
+| [Risk Analysis](developer/risk-analysis.md)         | Nemotron prompts, scoring, validation     | ~10 min |
+
 ### Quick Architecture Diagram
 
 ```
@@ -113,12 +122,14 @@ cd frontend && npm test
 
 ## Deep Dives
 
-| Document                                          | Description                                         |
-| ------------------------------------------------- | --------------------------------------------------- |
-| [Real-time System](architecture/real-time.md)     | WebSocket channels, Redis pub/sub, EventBroadcaster |
-| [Frontend Hooks](architecture/frontend-hooks.md)  | useWebSocket, useEventStream, useSystemStatus       |
-| [Design Decisions](architecture/decisions.md)     | ADRs - why PostgreSQL, why Redis, why batching      |
-| [Resilience Patterns](architecture/resilience.md) | Error handling, retry logic, dead-letter queues     |
+| Document                                          | Description                                             |
+| ------------------------------------------------- | ------------------------------------------------------- |
+| [Alert System](developer/alerts.md)               | Alert rules, evaluation pipeline, notification channels |
+| [Real-time System](architecture/real-time.md)     | WebSocket channels, Redis pub/sub, EventBroadcaster     |
+| [Video Processing](developer/video.md)            | FTP uploads, file watching, ffmpeg, frame extraction    |
+| [Frontend Hooks](architecture/frontend-hooks.md)  | useWebSocket, useEventStream, useSystemStatus           |
+| [Design Decisions](architecture/decisions.md)     | ADRs - why PostgreSQL, why Redis, why batching          |
+| [Resilience Patterns](architecture/resilience.md) | Error handling, retry logic, dead-letter queues         |
 
 ### WebSocket Channels
 

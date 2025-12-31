@@ -24,6 +24,15 @@ These guides help you understand what you see when you open the app.
 | [Dashboard Overview](user-guide/dashboard-overview.md)   | The main screen layout - risk gauge, cameras, activity feed | ~8 min  |
 | [Using the Dashboard](user-guide/using-the-dashboard.md) | Complete walkthrough of every feature                       | ~20 min |
 
+**Dashboard Deep Dives (Focused Guides):**
+
+| Guide                                                | Description                            | Time    |
+| ---------------------------------------------------- | -------------------------------------- | ------- |
+| [Dashboard Basics](user/dashboard-basics.md)         | Layout, header, sidebar, quick stats   | ~8 min  |
+| [Viewing Events](user/viewing-events.md)             | Activity feed, timeline, event details | ~10 min |
+| [Understanding Alerts](user/understanding-alerts.md) | Risk levels and how to respond         | ~8 min  |
+| [Dashboard Settings](user/dashboard-settings.md)     | Configuration and quick reference      | ~5 min  |
+
 ---
 
 ## Understanding Risk Scores
