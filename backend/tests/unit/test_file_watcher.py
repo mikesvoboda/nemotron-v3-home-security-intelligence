@@ -1331,3 +1331,149 @@ def test_file_watcher_logs_observer_type_polling(temp_camera_root, mock_redis_cl
     # Should log polling observer with interval
     log_messages = [record.message for record in caplog.records]
     assert any("observer=polling" in msg and "interval=2.0s" in msg for msg in log_messages)
+
+
+# Bug fix tests: wa0t.13 (blocking join) and wa0t.14 (task memory leak)
+
+
+@pytest.mark.asyncio
+async def test_stop_uses_executor_for_blocking_join(file_watcher):
+    """Test that stop() runs observer.join() in executor to avoid blocking event loop.
+
+    Bug fix for wa0t.13: The observer.join(timeout=5) call was blocking the
+    event loop for up to 5 seconds during shutdown.
+    """
+    # Start watcher
+    with patch.object(file_watcher.observer, "start"):
+        await file_watcher.start()
+
+    # Mock observer methods
+    with (
+        patch.object(file_watcher.observer, "stop") as mock_stop,
+        patch.object(file_watcher.observer, "join") as mock_join,
+        patch("asyncio.get_running_loop") as mock_get_loop,
+    ):
+        mock_loop = AsyncMock()
+        mock_get_loop.return_value = mock_loop
+        # run_in_executor should be awaited
+        mock_loop.run_in_executor = AsyncMock()
+
+        await file_watcher.stop()
+
+        # Verify stop was called
+        mock_stop.assert_called_once()
+
+        # Verify run_in_executor was used for join
+        mock_loop.run_in_executor.assert_awaited_once()
+
+        # Verify join was NOT called directly (it should be called via executor)
+        # The lambda passed to run_in_executor will call join, not the test
+        mock_join.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_task_cleanup_callback_prevents_memory_leak(file_watcher, temp_camera_root):
+    """Test that task done callback properly cleans up _pending_tasks dict.
+
+    Bug fix for wa0t.14: Tasks were added to _pending_tasks but never removed,
+    causing memory to grow unbounded. The fix adds a done_callback that removes
+    the task from the dict when it completes.
+    """
+    camera_dir = temp_camera_root / "camera1"
+    image_path = camera_dir / "test.jpg"
+    img = Image.new("RGB", (100, 100), color="magenta")
+    img.save(image_path)
+
+    # Schedule file processing
+    await file_watcher._schedule_file_processing(str(image_path))
+
+    # Task should be in pending_tasks
+    assert str(image_path) in file_watcher._pending_tasks
+
+    # Wait for debounce + processing to complete
+    await asyncio.sleep(file_watcher.debounce_delay + 0.1)
+
+    # Task should be cleaned up from pending_tasks (no memory leak)
+    assert str(image_path) not in file_watcher._pending_tasks
+
+
+@pytest.mark.asyncio
+async def test_task_replacement_does_not_remove_new_task(temp_camera_root, mock_redis_client):
+    """Test that when a task is replaced, the old task's cleanup doesn't remove the new task.
+
+    Bug fix for wa0t.14: When a task is cancelled and replaced, the old task's
+    finally block could remove the new task from the dict. The done_callback
+    now checks if the task in the dict is still the same task before removing.
+    """
+    # Use a longer debounce to give us time to verify state
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        debounce_delay=0.5,  # Long enough to check task states
+    )
+
+    camera_dir = temp_camera_root / "camera1"
+    image_path = camera_dir / "test.jpg"
+    img = Image.new("RGB", (100, 100), color="cyan")
+    img.save(image_path)
+
+    # Schedule first task
+    await watcher._schedule_file_processing(str(image_path))
+    first_task = watcher._pending_tasks.get(str(image_path))
+    assert first_task is not None
+
+    # Immediately schedule second task (replaces first)
+    await watcher._schedule_file_processing(str(image_path))
+    second_task = watcher._pending_tasks.get(str(image_path))
+    assert second_task is not None
+    assert second_task is not first_task  # Different task
+
+    # Wait a bit for the first task's cancellation to complete
+    # (task.cancelled() only returns True after cancellation is processed)
+    await asyncio.sleep(0.05)
+
+    # First task should now be cancelled (or done with CancelledError)
+    assert first_task.done()
+
+    # Second task should still be in the dict (not removed by first task's cleanup)
+    # This is the key assertion - before the fix, the first task's cleanup would
+    # incorrectly remove the second task from the dict
+    current_task = watcher._pending_tasks.get(str(image_path))
+    assert current_task is second_task, (
+        f"Second task should still be in pending_tasks, but got: {current_task}. "
+        f"First task cancelled: {first_task.cancelled()}, done: {first_task.done()}"
+    )
+
+    # Cancel the second task to clean up
+    second_task.cancel()
+    await asyncio.sleep(0.05)
+
+
+@pytest.mark.asyncio
+async def test_multiple_files_cleaned_up_independently(file_watcher, temp_camera_root):
+    """Test that multiple files are tracked and cleaned up independently.
+
+    Verifies no memory leak when processing multiple different files.
+    """
+    camera_dir = temp_camera_root / "camera1"
+
+    # Create multiple images
+    image_paths = []
+    for i in range(5):
+        image_path = camera_dir / f"test_{i}.jpg"
+        img = Image.new("RGB", (100, 100), color=(i * 50, 0, 0))
+        img.save(image_path)
+        image_paths.append(str(image_path))
+
+    # Schedule all files
+    for path in image_paths:
+        await file_watcher._schedule_file_processing(path)
+
+    # All should be in pending_tasks
+    assert len(file_watcher._pending_tasks) == 5
+
+    # Wait for all to complete
+    await asyncio.sleep(file_watcher.debounce_delay + 0.2)
+
+    # All should be cleaned up
+    assert len(file_watcher._pending_tasks) == 0

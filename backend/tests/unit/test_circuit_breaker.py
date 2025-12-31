@@ -445,12 +445,14 @@ class TestCircuitBreaker:
         assert breaker.failure_count == 0
         assert breaker.state == CircuitState.CLOSED
 
-    def test_allow_call_closed_state(self, breaker: CircuitBreaker) -> None:
+    @pytest.mark.asyncio
+    async def test_allow_call_closed_state(self, breaker: CircuitBreaker) -> None:
         """Test allow_call returns True in closed state."""
         assert breaker.state == CircuitState.CLOSED
-        assert breaker.allow_call() is True
+        assert await breaker.allow_call() is True
 
-    def test_allow_call_open_state_no_recovery(self) -> None:
+    @pytest.mark.asyncio
+    async def test_allow_call_open_state_no_recovery(self) -> None:
         """Test allow_call returns False in open state without recovery timeout."""
         config = CircuitBreakerConfig(
             failure_threshold=1,
@@ -460,7 +462,7 @@ class TestCircuitBreaker:
         breaker._state = CircuitState.OPEN
         breaker._opened_at = None  # No opened_at set
 
-        assert breaker.allow_call() is False
+        assert await breaker.allow_call() is False
 
     @pytest.mark.asyncio
     async def test_allow_call_open_state_with_recovery(self) -> None:
@@ -484,10 +486,11 @@ class TestCircuitBreaker:
         await asyncio.sleep(0.1)
 
         # allow_call should transition to half-open
-        assert breaker.allow_call() is True
+        assert await breaker.allow_call() is True
         assert breaker.state == CircuitState.HALF_OPEN
 
-    def test_allow_call_half_open_within_limit(self) -> None:
+    @pytest.mark.asyncio
+    async def test_allow_call_half_open_within_limit(self) -> None:
         """Test allow_call returns True in half-open when under call limit."""
         config = CircuitBreakerConfig(
             failure_threshold=1,
@@ -498,9 +501,10 @@ class TestCircuitBreaker:
         breaker._state = CircuitState.HALF_OPEN
         breaker._half_open_calls = 1
 
-        assert breaker.allow_call() is True
+        assert await breaker.allow_call() is True
 
-    def test_allow_call_half_open_at_limit(self) -> None:
+    @pytest.mark.asyncio
+    async def test_allow_call_half_open_at_limit(self) -> None:
         """Test allow_call returns False in half-open when at call limit."""
         config = CircuitBreakerConfig(
             failure_threshold=1,
@@ -511,9 +515,10 @@ class TestCircuitBreaker:
         breaker._state = CircuitState.HALF_OPEN
         breaker._half_open_calls = 3
 
-        assert breaker.allow_call() is False
+        assert await breaker.allow_call() is False
 
-    def test_allow_call_unknown_state_returns_false(self) -> None:
+    @pytest.mark.asyncio
+    async def test_allow_call_unknown_state_returns_false(self) -> None:
         """Test allow_call returns False for unknown/invalid state (defensive code)."""
         config = CircuitBreakerConfig()
         breaker = CircuitBreaker(name="unknown_state_test", config=config)
@@ -521,7 +526,7 @@ class TestCircuitBreaker:
         # This tests the defensive fallback return False
         breaker._state = None  # type: ignore[assignment]
 
-        assert breaker.allow_call() is False
+        assert await breaker.allow_call() is False
 
     def test_force_open(self) -> None:
         """Test force_open method transitions to open state."""

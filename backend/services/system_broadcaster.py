@@ -225,7 +225,7 @@ class SystemBroadcaster:
             self._listener_task = asyncio.create_task(self._listen_for_updates())
             logger.info(f"Started pub/sub listener on channel: {SYSTEM_STATUS_CHANNEL}")
         except Exception as e:
-            logger.error(f"Failed to start pub/sub listener: {e}")
+            logger.error(f"Failed to start pub/sub listener: {e}", exc_info=True)
 
     async def _stop_pubsub_listener(self) -> None:
         """Stop the Redis pub/sub listener and close dedicated connection."""
@@ -281,7 +281,7 @@ class SystemBroadcaster:
             self._pubsub = await redis_client.subscribe_dedicated(SYSTEM_STATUS_CHANNEL)
             logger.info(f"Re-established pub/sub subscription on channel: {SYSTEM_STATUS_CHANNEL}")
         except Exception as e:
-            logger.error(f"Failed to re-subscribe during reset: {e}")
+            logger.error(f"Failed to re-subscribe during reset: {e}", exc_info=True)
             self._pubsub = None
 
     async def _listen_for_updates(self) -> None:
@@ -324,7 +324,7 @@ class SystemBroadcaster:
         except asyncio.CancelledError:
             logger.info("Pub/sub listener cancelled")
         except Exception as e:
-            logger.error(f"Error in pub/sub listener: {e}")
+            logger.error(f"Error in pub/sub listener: {e}", exc_info=True)
             await self._attempt_listener_recovery()
 
     async def _attempt_listener_recovery(self) -> None:

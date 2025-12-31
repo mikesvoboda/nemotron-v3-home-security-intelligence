@@ -143,7 +143,7 @@ class ServiceHealthMonitor:
                             await self._handle_failure(service)
 
                     except Exception as e:
-                        logger.error(f"Error checking health of {service.name}: {e}")
+                        logger.error(f"Error checking health of {service.name}: {e}", exc_info=True)
                         await self._broadcast_status(
                             service, "unhealthy", f"Health check error: {e}"
                         )
@@ -257,7 +257,7 @@ class ServiceHealthMonitor:
                 )
 
         except Exception as e:
-            logger.error(f"Error during restart of {service.name}: {e}")
+            logger.error(f"Error during restart of {service.name}: {e}", exc_info=True)
             await self._broadcast_status(
                 service,
                 "restart_failed",
@@ -304,7 +304,9 @@ class ServiceHealthMonitor:
             await self._broadcaster.broadcast_event(event_data)
         except Exception as e:
             # Don't let broadcast failures crash the monitor
-            logger.warning(f"Failed to broadcast service status for {service.name}: {e}")
+            logger.warning(
+                f"Failed to broadcast service status for {service.name}: {e}", exc_info=True
+            )
 
     def get_status(self) -> dict[str, dict[str, int | str]]:
         """Get current status of all monitored services.
