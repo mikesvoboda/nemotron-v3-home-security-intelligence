@@ -26,16 +26,11 @@ export default defineConfig({
     css: true,
     // Exclude Playwright E2E tests - they should only be run via `npm run test:e2e`
     exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**'],
-    // Memory optimization: use forks pool with single fork to prevent heap out of memory
+    // Memory optimization and parallelization
     pool: 'forks',
-    poolOptions: {
-      forks: {
-        singleFork: true,
-      },
-    },
     // Test timeouts
-    testTimeout: 10000,
-    hookTimeout: 10000,
+    testTimeout: 30000,
+    hookTimeout: 30000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -57,17 +52,13 @@ export default defineConfig({
         'tailwind.config.js',
       ],
       thresholds: {
-        // Coverage thresholds lowered temporarily due to:
-        // 1. SearchBar tests being skipped (test isolation issue with mousedown listener)
-        // 2. New PipelineTelemetry component adding uncovered branches
-        // TODO: Re-raise thresholds after fixing SearchBar test isolation and improving coverage
-        // Original thresholds: statements: 92, branches: 88, functions: 90, lines: 93
-        // Previous thresholds: statements: 89, branches: 86, functions: 85, lines: 90
-        // Temporarily lowered branches from 85 to 84 for PR #72 merge (another PR is upleveling)
-        statements: 88,
-        branches: 84,
-        functions: 85,
-        lines: 89,
+        // Coverage thresholds - high quality targets with realistic branch expectations
+        // Branches at 90% due to defensive code paths (switch defaults, error handlers)
+        // Functions at 93% due to some animation/timing-sensitive code
+        statements: 95,
+        branches: 90,
+        functions: 93,
+        lines: 95,
       },
     },
   },

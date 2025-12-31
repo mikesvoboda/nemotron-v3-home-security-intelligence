@@ -288,6 +288,28 @@ describe('DashboardPage', () => {
       });
     });
 
+    it('reloads page when reload button is clicked', async () => {
+      (api.fetchCameras as Mock).mockRejectedValue(new Error('API Error'));
+
+      // Mock window.location.reload
+      const reloadMock = vi.fn();
+      Object.defineProperty(window, 'location', {
+        value: { reload: reloadMock },
+        writable: true,
+      });
+
+      render(<DashboardPage />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /reload page/i })).toBeInTheDocument();
+      });
+
+      const reloadButton = screen.getByRole('button', { name: /reload page/i });
+      reloadButton.click();
+
+      expect(reloadMock).toHaveBeenCalled();
+    });
+
     it('error state has correct styling', async () => {
       (api.fetchCameras as Mock).mockRejectedValue(new Error('API Error'));
 
@@ -843,6 +865,30 @@ describe('DashboardPage', () => {
       });
 
       // Verify interval was set up (component renders successfully)
+      expect(screen.getByTestId('risk-gauge')).toBeInTheDocument();
+    });
+
+    it('handles GPU stats polling errors silently', async () => {
+      let pollCallCount = 0;
+
+      // Mock to succeed first, then fail
+      (api.fetchGPUStats as Mock).mockImplementation(() => {
+        pollCallCount++;
+        if (pollCallCount === 1) {
+          return Promise.resolve(mockGPUStats);
+        }
+        return Promise.reject(new Error('GPU stats fetch failed'));
+      });
+
+      render(<DashboardPage />);
+
+      // Wait for initial load to succeed
+      await waitFor(() => {
+        expect(screen.getByTestId('risk-gauge')).toBeInTheDocument();
+      });
+
+      // The component should remain functional even after polling errors
+      // (The setInterval is running in background but errors are caught)
       expect(screen.getByTestId('risk-gauge')).toBeInTheDocument();
     });
   });

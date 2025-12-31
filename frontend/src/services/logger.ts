@@ -39,6 +39,7 @@ class Logger {
   }
 
   private startFlushTimer(): void {
+    // Clear existing timer if present (defensive programming for future extensibility)
     if (this.flushTimer) {
       clearInterval(this.flushTimer);
     }
@@ -163,6 +164,11 @@ class Logger {
     return new ComponentLogger(this, component);
   }
 
+  restart(): void {
+    // Restart the flush timer with current configuration
+    this.startFlushTimer();
+  }
+
   destroy(): void {
     if (this.flushTimer) {
       clearInterval(this.flushTimer);
@@ -205,3 +211,5 @@ class ComponentLogger {
 
 export const logger = new Logger();
 export type { LogLevel, LogEntry, ComponentLogger };
+// Export Logger class for testing purposes
+export { Logger };

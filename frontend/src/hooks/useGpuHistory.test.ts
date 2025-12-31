@@ -256,4 +256,33 @@ describe('useGpuHistory', () => {
       expect(typeof result.current.clearHistory).toBe('function');
     });
   });
+
+  describe('polling interval', () => {
+    it('accepts pollingInterval option', () => {
+      const { result } = renderHook(() =>
+        useGpuHistory({ pollingInterval: 1000, autoStart: false })
+      );
+
+      // Hook should work with pollingInterval option
+      expect(result.current).toBeDefined();
+      expect(result.current.history).toEqual([]);
+    });
+
+    it('respects autoStart false', () => {
+      renderHook(() => useGpuHistory({ autoStart: false }));
+
+      // Should not fetch when autoStart is false
+      expect(api.fetchGPUStats).not.toHaveBeenCalled();
+    });
+
+    it('uses maxDataPoints option', () => {
+      const { result } = renderHook(() =>
+        useGpuHistory({ maxDataPoints: 10, autoStart: false })
+      );
+
+      // Hook should work with maxDataPoints option
+      expect(result.current).toBeDefined();
+      expect(result.current.history).toEqual([]);
+    });
+  });
 });

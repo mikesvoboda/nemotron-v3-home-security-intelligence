@@ -306,6 +306,46 @@ describe('WebSocketStatus', () => {
       const eventsLastMessage = screen.getByTestId('last-message-events');
       expect(eventsLastMessage).toHaveTextContent('No messages yet');
     });
+
+    it('shows hours ago for messages over an hour old', () => {
+      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+
+      render(
+        <WebSocketStatus
+          eventsChannel={createMockChannel({ name: 'Events', lastMessageTime: twoHoursAgo })}
+          systemChannel={createMockChannel({ name: 'System', lastMessageTime: new Date() })}
+        />
+      );
+
+      fireEvent.mouseEnter(screen.getByTestId('websocket-status'));
+
+      const eventsLastMessage = screen.getByTestId('last-message-events');
+      expect(eventsLastMessage).toHaveTextContent('2h ago');
+    });
+
+    it('updates time since message every second', async () => {
+      const fourSecondsAgo = new Date(Date.now() - 4000);
+
+      render(
+        <WebSocketStatus
+          eventsChannel={createMockChannel({ name: 'Events', lastMessageTime: fourSecondsAgo })}
+          systemChannel={createMockChannel({ name: 'System', lastMessageTime: new Date() })}
+        />
+      );
+
+      fireEvent.mouseEnter(screen.getByTestId('websocket-status'));
+
+      const eventsLastMessage = screen.getByTestId('last-message-events');
+      expect(eventsLastMessage).toHaveTextContent('Just now');
+
+      // Advance time by 2 seconds to cross the 5-second threshold
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000);
+      });
+
+      // Should now show seconds
+      expect(eventsLastMessage).toHaveTextContent('6s ago');
+    });
   });
 
   describe('Icon states', () => {
@@ -458,6 +498,67 @@ describe('WebSocketStatus', () => {
       );
 
       fireEvent.click(screen.getByTestId('websocket-status'));
+      expect(onRetry).not.toHaveBeenCalled();
+    });
+
+    it('calls onRetry when Enter key is pressed in failed state', () => {
+      const onRetry = vi.fn();
+      render(
+        <WebSocketStatus
+          eventsChannel={createMockChannel({ name: 'Events', state: 'failed', hasExhaustedRetries: true })}
+          systemChannel={createMockChannel({ name: 'System', state: 'failed', hasExhaustedRetries: true })}
+          onRetry={onRetry}
+        />
+      );
+
+      const status = screen.getByTestId('websocket-status');
+      fireEvent.keyDown(status, { key: 'Enter' });
+      expect(onRetry).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls onRetry when Space key is pressed in failed state', () => {
+      const onRetry = vi.fn();
+      render(
+        <WebSocketStatus
+          eventsChannel={createMockChannel({ name: 'Events', state: 'failed', hasExhaustedRetries: true })}
+          systemChannel={createMockChannel({ name: 'System', state: 'failed', hasExhaustedRetries: true })}
+          onRetry={onRetry}
+        />
+      );
+
+      const status = screen.getByTestId('websocket-status');
+      fireEvent.keyDown(status, { key: ' ' });
+      expect(onRetry).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not call onRetry when Enter key is pressed in connected state', () => {
+      const onRetry = vi.fn();
+      render(
+        <WebSocketStatus
+          eventsChannel={createMockChannel({ name: 'Events', state: 'connected' })}
+          systemChannel={createMockChannel({ name: 'System', state: 'connected' })}
+          onRetry={onRetry}
+        />
+      );
+
+      const status = screen.getByTestId('websocket-status');
+      fireEvent.keyDown(status, { key: 'Enter' });
+      expect(onRetry).not.toHaveBeenCalled();
+    });
+
+    it('does not call onRetry when other keys are pressed in failed state', () => {
+      const onRetry = vi.fn();
+      render(
+        <WebSocketStatus
+          eventsChannel={createMockChannel({ name: 'Events', state: 'failed', hasExhaustedRetries: true })}
+          systemChannel={createMockChannel({ name: 'System', state: 'failed', hasExhaustedRetries: true })}
+          onRetry={onRetry}
+        />
+      );
+
+      const status = screen.getByTestId('websocket-status');
+      fireEvent.keyDown(status, { key: 'Tab' });
+      fireEvent.keyDown(status, { key: 'Escape' });
       expect(onRetry).not.toHaveBeenCalled();
     });
   });
