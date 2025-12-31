@@ -179,7 +179,7 @@ describe('useHealthStatus', () => {
         expect(result.current.health).toEqual(mockHealthyResponse);
       });
 
-      // Manually trigger refresh (which will fail)
+      // Manually refresh (which will fail)
       await act(async () => {
         await result.current.refresh().catch(() => {});
       });
@@ -246,6 +246,35 @@ describe('useHealthStatus', () => {
       });
 
       expect(api.fetchHealth).toHaveBeenCalledTimes(2);
+    });
+
+    it('respects current enabled state via ref (no stale closure)', async () => {
+      // Start with enabled = true
+      const { result, rerender } = renderHook(
+        ({ enabled }) => useHealthStatus({ pollingInterval: 0, enabled }),
+        { initialProps: { enabled: true } }
+      );
+
+      // Wait for initial fetch
+      await waitFor(() => {
+        expect(api.fetchHealth).toHaveBeenCalledTimes(1);
+      });
+
+      // Store reference to refresh function
+      const storedRefresh = result.current.refresh;
+
+      // Rerender with enabled = false
+      rerender({ enabled: false });
+
+      // Call the stored refresh function (which was created when enabled = true)
+      // Without the ref fix, this would still fetch because it captured enabled = true
+      // With the ref fix, it should NOT fetch because enabledRef.current is now false
+      await act(async () => {
+        await storedRefresh();
+      });
+
+      // Should still be 1 call (the initial one) - no new fetch when disabled
+      expect(api.fetchHealth).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -357,6 +386,69 @@ describe('useHealthStatus', () => {
 
       // Should not fetch when disabled
       expect(api.fetchHealth).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('stale closure prevention', () => {
+    it('refresh does not fetch when enabled changes to false', async () => {
+      const { result, rerender } = renderHook(
+        ({ enabled }) => useHealthStatus({ pollingInterval: 0, enabled }),
+        { initialProps: { enabled: true } }
+      );
+
+      // Wait for initial fetch
+      await waitFor(() => {
+        expect(api.fetchHealth).toHaveBeenCalledTimes(1);
+      });
+
+      // Change enabled to false
+      rerender({ enabled: false });
+
+      // Try to refresh - should not fetch because enabled is now false
+      await act(async () => {
+        await result.current.refresh();
+      });
+
+      // Still only 1 fetch (the initial one)
+      expect(api.fetchHealth).toHaveBeenCalledTimes(1);
+    });
+
+    it('refresh fetches when enabled changes back to true', async () => {
+      const { result, rerender } = renderHook(
+        ({ enabled }) => useHealthStatus({ pollingInterval: 0, enabled }),
+        { initialProps: { enabled: true } }
+      );
+
+      // Wait for initial fetch
+      await waitFor(() => {
+        expect(api.fetchHealth).toHaveBeenCalledTimes(1);
+      });
+
+      // Change enabled to false
+      rerender({ enabled: false });
+
+      // Try to refresh - should not fetch
+      await act(async () => {
+        await result.current.refresh();
+      });
+
+      expect(api.fetchHealth).toHaveBeenCalledTimes(1);
+
+      // Change enabled back to true - this triggers the useEffect which calls fetchHealthStatus
+      rerender({ enabled: true });
+
+      // Wait for the useEffect-triggered fetch to complete
+      await waitFor(() => {
+        // The rerender with enabled=true triggers a fetch via useEffect
+        expect(api.fetchHealth).toHaveBeenCalledTimes(2);
+      });
+
+      // Now manual refresh should also work since enabled is true
+      await act(async () => {
+        await result.current.refresh();
+      });
+
+      expect(api.fetchHealth).toHaveBeenCalledTimes(3);
     });
   });
 });

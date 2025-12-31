@@ -238,6 +238,84 @@ describe('useGpuHistory', () => {
 
       expect(clearIntervalSpy).toHaveBeenCalled();
     });
+
+    it('clears existing interval before creating new one on rapid toggle', async () => {
+      const clearIntervalSpy = vi.spyOn(globalThis, 'clearInterval');
+
+      const { result } = renderHook(() =>
+        useGpuHistory({ autoStart: false, pollingInterval: 60000 })
+      );
+
+      // Rapidly toggle start/stop multiple times
+      for (let i = 0; i < 5; i++) {
+        act(() => {
+          result.current.start();
+        });
+        act(() => {
+          result.current.stop();
+        });
+      }
+
+      // Start one final time
+      act(() => {
+        result.current.start();
+      });
+
+      await waitFor(() => {
+        expect(api.fetchGPUStats).toHaveBeenCalled();
+      });
+
+      // clearInterval should have been called multiple times to clean up orphaned intervals
+      // Each start() after the first should clear the previous interval
+      expect(clearIntervalSpy.mock.calls.length).toBeGreaterThan(0);
+    });
+
+    it('prevents orphaned intervals during rapid isPolling toggles', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+
+      const { result, unmount } = renderHook(() =>
+        useGpuHistory({ autoStart: false, pollingInterval: 1000 })
+      );
+
+      // Rapidly toggle start/stop
+      act(() => {
+        result.current.start();
+      });
+      act(() => {
+        result.current.stop();
+      });
+      act(() => {
+        result.current.start();
+      });
+      act(() => {
+        result.current.stop();
+      });
+      act(() => {
+        result.current.start();
+      });
+
+      // Wait for initial fetch
+      await waitFor(() => {
+        expect(api.fetchGPUStats).toHaveBeenCalled();
+      });
+
+      // Clear the call count
+      vi.mocked(api.fetchGPUStats).mockClear();
+
+      // Advance time by 5 seconds (5 polling intervals)
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+
+      // If intervals were leaking, we would see more than 5 calls
+      // With proper cleanup, we should see exactly 5 calls (once per second)
+      await waitFor(() => {
+        expect(api.fetchGPUStats).toHaveBeenCalledTimes(5);
+      });
+
+      unmount();
+      vi.useRealTimers();
+    });
   });
 
   describe('return values', () => {

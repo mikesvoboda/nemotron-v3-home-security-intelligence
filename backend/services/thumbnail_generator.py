@@ -23,8 +23,18 @@ Output Format:
     - File: {output_dir}/{detection_id}_thumb.jpg
     - Quality: 85
     - Format: JPEG
+
+Font Configuration:
+    Set the THUMBNAIL_FONT_PATH environment variable to specify a custom font path.
+    If not set, the service will search common system font locations for:
+    - Linux: /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
+    - macOS: /System/Library/Fonts/Helvetica.ttc, /Library/Fonts/Arial.ttf
+    - Windows: C:\\Windows\\Fonts\\arial.ttf, C:\\Windows\\Fonts\\segoeui.ttf
+    Falls back to PIL's default bitmap font if no TrueType font is found.
 """
 
+import os
+import platform
 from pathlib import Path
 from typing import Any
 
@@ -51,6 +61,78 @@ OBJECT_COLORS = {
 }
 
 DEFAULT_COLOR = (255, 255, 255)  # white
+
+# Cross-platform font paths (in order of preference)
+FONT_PATHS = {
+    "Linux": [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/TTF/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/liberation/LiberationSans-Regular.ttf",
+    ],
+    "Darwin": [  # macOS
+        "/System/Library/Fonts/Helvetica.ttc",
+        "/Library/Fonts/Arial.ttf",
+        "/System/Library/Fonts/SFNSText.ttf",
+        "/System/Library/Fonts/Supplemental/Arial.ttf",
+    ],
+    "Windows": [
+        "C:\\Windows\\Fonts\\arial.ttf",
+        "C:\\Windows\\Fonts\\segoeui.ttf",
+        "C:\\Windows\\Fonts\\tahoma.ttf",
+        "C:\\Windows\\Fonts\\verdana.ttf",
+    ],
+}
+
+
+def get_system_font(size: int = 14) -> Any:
+    """Get a TrueType font appropriate for the current operating system.
+
+    This function implements cross-platform font discovery:
+    1. Check THUMBNAIL_FONT_PATH environment variable first
+    2. Try platform-specific font paths based on detected OS
+    3. Fall back to PIL's default bitmap font if no TrueType font found
+
+    Args:
+        size: Font size in points. Defaults to 14.
+
+    Returns:
+        A PIL font object (TrueType if available, default bitmap otherwise)
+    """
+    # Check environment variable override first
+    env_font_path = os.environ.get("THUMBNAIL_FONT_PATH")
+    if env_font_path:
+        try:
+            font = ImageFont.truetype(env_font_path, size)
+            logger.debug(f"Using font from THUMBNAIL_FONT_PATH: {env_font_path}")
+            return font
+        except Exception as e:
+            logger.warning(f"Failed to load font from THUMBNAIL_FONT_PATH '{env_font_path}': {e}")
+
+    # Get platform-specific font paths
+    system = platform.system()
+    font_paths = FONT_PATHS.get(system, [])
+
+    # Also try other platform paths as fallback (useful in containers)
+    all_paths = list(font_paths)
+    for other_system, other_paths in FONT_PATHS.items():
+        if other_system != system:
+            all_paths.extend(other_paths)
+
+    # Try each font path
+    for font_path in all_paths:
+        try:
+            font = ImageFont.truetype(font_path, size)
+            logger.debug(f"Using system font: {font_path}")
+            return font
+        except Exception:  # noqa: S110
+            # Font not found at this path, try next one
+            pass
+
+    # Fall back to default PIL font
+    logger.debug("Using default PIL font for thumbnail labels (no TrueType font found)")
+    return ImageFont.load_default()
 
 
 class ThumbnailGenerator:
@@ -82,7 +164,8 @@ class ThumbnailGenerator:
             logger.debug(f"Thumbnail output directory ready: {self.output_dir}")
         except Exception as e:
             logger.error(
-                f"Failed to create thumbnail output directory {self.output_dir}: {e}", exc_info=True
+                f"Failed to create thumbnail output directory {self.output_dir}: {e}",
+                exc_info=True,
             )
             raise
 
@@ -174,19 +257,8 @@ class ThumbnailGenerator:
         img_copy = image.copy()
         draw = ImageDraw.Draw(img_copy)
 
-        # Try to load a font, fall back to default if unavailable
-        font: Any
-        try:
-            # Try to use a TrueType font at size 14
-            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 14)
-        except Exception:
-            try:
-                # Try alternative font path
-                font = ImageFont.truetype("/usr/share/fonts/dejavu/DejaVuSans.ttf", 14)
-            except Exception:
-                # Fall back to default PIL font
-                font = ImageFont.load_default()
-                logger.debug("Using default PIL font for thumbnail labels")
+        # Get cross-platform font
+        font = get_system_font(size=14)
 
         for detection in detections:
             # Extract detection data

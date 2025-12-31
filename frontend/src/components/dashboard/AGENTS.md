@@ -6,16 +6,25 @@ Contains all components for the main security dashboard page, including risk vis
 
 ## Files
 
-| File                    | Purpose                                       |
-| ----------------------- | --------------------------------------------- |
-| `DashboardPage.tsx`     | Main dashboard page orchestrating all widgets |
-| `RiskGauge.tsx`         | Circular SVG gauge for risk score             |
-| `CameraGrid.tsx`        | Responsive grid of camera thumbnails          |
-| `ActivityFeed.tsx`      | Scrolling feed of recent events               |
-| `GpuStats.tsx`          | GPU metrics with utilization history          |
-| `StatsRow.tsx`          | Key metrics summary cards                     |
-| `PipelineQueues.tsx`    | AI pipeline queue depth display               |
-| `RiskGauge.example.tsx` | Example usage for RiskGauge                   |
+| File                         | Purpose                                       |
+| ---------------------------- | --------------------------------------------- |
+| `DashboardPage.tsx`          | Main dashboard page orchestrating all widgets |
+| `DashboardPage.test.tsx`     | Test suite for DashboardPage                  |
+| `RiskGauge.tsx`              | Circular SVG gauge for risk score             |
+| `RiskGauge.test.tsx`         | Test suite for RiskGauge                      |
+| `RiskGauge.example.tsx`      | Example usage for RiskGauge                   |
+| `CameraGrid.tsx`             | Responsive grid of camera thumbnails          |
+| `CameraGrid.test.tsx`        | Test suite for CameraGrid                     |
+| `ActivityFeed.tsx`           | Scrolling feed of recent events               |
+| `ActivityFeed.test.tsx`      | Test suite for ActivityFeed                   |
+| `GpuStats.tsx`               | GPU metrics with utilization history          |
+| `GpuStats.test.tsx`          | Test suite for GpuStats                       |
+| `StatsRow.tsx`               | Key metrics summary cards                     |
+| `StatsRow.test.tsx`          | Test suite for StatsRow                       |
+| `PipelineQueues.tsx`         | AI pipeline queue depth display               |
+| `PipelineQueues.test.tsx`    | Test suite for PipelineQueues                 |
+| `PipelineTelemetry.tsx`      | Pipeline latency and throughput metrics       |
+| `PipelineTelemetry.test.tsx` | Test suite for PipelineTelemetry              |
 
 ## Key Components
 
@@ -394,6 +403,46 @@ Shows various configurations:
 - With and without history sparkline
 - Different risk levels
 
+---
+
+### PipelineTelemetry.tsx
+
+**Purpose:** Display pipeline latency and throughput metrics with time series charts
+
+**Props Interface:**
+
+```typescript
+interface PipelineTelemetryProps {
+  className?: string;
+}
+```
+
+**Key Features:**
+
+- Pipeline latency percentiles (P50, P95, P99) for detection and analysis stages
+- Throughput metrics (events/second, detections/second)
+- Time series charts showing historical performance
+- Auto-refresh with configurable poll interval
+- Loading skeleton and error states
+- Color-coded performance indicators (green/yellow/red thresholds)
+
+**Metrics Displayed:**
+
+| Metric Category | Values Shown               |
+| --------------- | -------------------------- |
+| Detection       | P50, P95, P99 latency      |
+| Analysis        | P50, P95, P99 latency      |
+| Throughput      | Events/sec, Detections/sec |
+
+**API Integration:**
+
+- `GET /api/system/telemetry` - Fetch pipeline metrics
+
+**Dependencies:**
+
+- `@tremor/react` - Card, Title, Text, AreaChart, Badge
+- `lucide-react` - Activity, Clock icons
+
 ## Important Patterns
 
 ### Data Transformation
@@ -449,6 +498,7 @@ All components have comprehensive test files:
 - `GpuStats.test.tsx` - Tremor components, temperature colors, null handling, history chart
 - `StatsRow.test.tsx` - Stat cards, status colors, risk level display
 - `PipelineQueues.test.tsx` - Queue badges, warning states, thresholds
+- `PipelineTelemetry.test.tsx` - Latency charts, throughput display, auto-refresh
 
 ## Component Hierarchy
 
@@ -459,8 +509,9 @@ DashboardPage
 ├── GpuStats
 ├── CameraGrid
 │   └── CameraCard (per camera)
-└── ActivityFeed
-    └── RiskBadge (from common/)
+├── ActivityFeed
+│   └── RiskBadge (from common/)
+└── PipelineTelemetry (optional)
 ```
 
 ## Dependencies

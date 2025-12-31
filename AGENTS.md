@@ -37,12 +37,15 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 
 ### Documentation
 
-| File                   | Purpose                                 |
-| ---------------------- | --------------------------------------- |
-| `README.md`            | Project overview and quick start guide  |
-| `DOCKER_QUICKSTART.md` | Quick reference for Docker commands     |
-| `AUDIT_REPORT.md`      | Security audit findings and remediation |
-| `LICENSE`              | Mozilla Public License 2.0              |
+| File            | Purpose                                |
+| --------------- | -------------------------------------- |
+| `README.md`     | Project overview and quick start guide |
+| `CHANGELOG.md`  | Version history and release notes      |
+| `LICENSE`       | Mozilla Public License 2.0             |
+| `llms.txt`      | LLM context summary for AI assistants  |
+| `llms-full.txt` | Full LLM context for AI assistants     |
+
+> **Note:** Detailed Docker deployment documentation is in `docs/DOCKER_DEPLOYMENT.md`.
 
 ### Build Files
 
@@ -50,6 +53,7 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 | ------------------- | ------------------------------------------ |
 | `package.json`      | Root-level Node.js configuration (minimal) |
 | `package-lock.json` | Node.js lockfile                           |
+| `uv.lock`           | uv package manager lockfile                |
 
 ### Git Configuration
 
@@ -77,9 +81,12 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 │   ├── models/           # SQLAlchemy ORM models
 │   ├── services/         # Business logic (file watcher, detector, batch aggregator)
 │   └── tests/            # Unit and integration tests
+├── custom/               # Custom configurations and extensions
 ├── data/                 # Runtime data directory
 │   ├── logs/             # Application log files
 │   └── thumbnails/       # Generated image thumbnails
+├── logs/                 # Root-level log files
+├── vsftpd/               # FTP server configuration files
 ├── docs/                 # Documentation
 │   ├── architecture/     # Technical architecture documentation
 │   ├── user-guide/       # End-user documentation
@@ -166,7 +173,7 @@ cd frontend && npm test
 
 ### 4. Code Quality Standards
 
-- **Coverage:** 93%+ required for unit tests (enforced by pytest)
+- **Coverage:** 95%+ required for unit tests (enforced by pytest)
 - **Type Hints:** Required for all backend functions (enforced by mypy)
 - **Line Length:** 100 characters (enforced by ruff)
 - **Testing:** TDD approach for tasks labeled `tdd`

@@ -18,6 +18,7 @@ In production, RT-DETRv2 runs in a Podman container (`ai-detector_1`) with NVIDI
 ai/rtdetr/
 ├── AGENTS.md          # This file
 ├── __init__.py        # Package init (version 1.0.0)
+├── Dockerfile         # Container build configuration (PyTorch + CUDA)
 ├── model.py           # FastAPI inference server (HuggingFace Transformers)
 ├── example_client.py  # Python client example using httpx
 ├── test_model.py      # Unit tests (pytest) - NOTE: some tests reference deprecated ONNX API
@@ -27,6 +28,16 @@ ai/rtdetr/
 ```
 
 ## Key Files
+
+### `Dockerfile`
+
+Container build configuration using PyTorch + CUDA runtime image:
+
+- **Base image**: `pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime`
+- **Non-root user**: `rtdetr` for security
+- **Health check**: 60s start period for model loading
+- **Environment variables**: `HOST`, `PORT`, `RTDETR_CONFIDENCE`, `HF_HOME`
+- **HuggingFace cache**: Models cached at `/cache/huggingface`
 
 ### `model.py`
 

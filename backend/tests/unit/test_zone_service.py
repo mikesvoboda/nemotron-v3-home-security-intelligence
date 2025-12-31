@@ -206,6 +206,48 @@ class TestBboxCenter:
         with pytest.raises(ValueError, match="positive"):
             bbox_center(10, 10, 10, 10, -100, 100)
 
+    def test_bbox_center_negative_x_coordinate(self) -> None:
+        """Test that negative bbox_x raises ValueError."""
+        with pytest.raises(ValueError, match="non-negative"):
+            bbox_center(-10, 10, 100, 100, 640, 480)
+
+    def test_bbox_center_negative_y_coordinate(self) -> None:
+        """Test that negative bbox_y raises ValueError."""
+        with pytest.raises(ValueError, match="non-negative"):
+            bbox_center(10, -10, 100, 100, 640, 480)
+
+    def test_bbox_center_negative_both_coordinates(self) -> None:
+        """Test that negative bbox_x and bbox_y raises ValueError."""
+        with pytest.raises(ValueError, match="non-negative"):
+            bbox_center(-10, -20, 100, 100, 640, 480)
+
+    def test_bbox_center_zero_width(self) -> None:
+        """Test that zero bbox_width raises ValueError."""
+        with pytest.raises(ValueError, match="positive"):
+            bbox_center(10, 10, 0, 100, 640, 480)
+
+    def test_bbox_center_zero_height(self) -> None:
+        """Test that zero bbox_height raises ValueError."""
+        with pytest.raises(ValueError, match="positive"):
+            bbox_center(10, 10, 100, 0, 640, 480)
+
+    def test_bbox_center_negative_width(self) -> None:
+        """Test that negative bbox_width raises ValueError."""
+        with pytest.raises(ValueError, match="positive"):
+            bbox_center(10, 10, -100, 100, 640, 480)
+
+    def test_bbox_center_negative_height(self) -> None:
+        """Test that negative bbox_height raises ValueError."""
+        with pytest.raises(ValueError, match="positive"):
+            bbox_center(10, 10, 100, -100, 640, 480)
+
+    def test_bbox_center_zero_coordinates_valid(self) -> None:
+        """Test that zero bbox_x and bbox_y are valid (origin is acceptable)."""
+        x, y = bbox_center(0, 0, 100, 100, 640, 480)
+        # Center should be at (50, 50) normalized to (50/640, 50/480)
+        assert x == pytest.approx(0.078125, rel=1e-5)  # 50/640
+        assert y == pytest.approx(0.104167, rel=1e-4)  # 50/480
+
 
 # =============================================================================
 # detection_in_zone Tests

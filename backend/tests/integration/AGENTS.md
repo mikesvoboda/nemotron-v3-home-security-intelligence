@@ -23,13 +23,27 @@ pytest backend/tests/integration/ -v --cov=backend --cov-report=html
 pytest backend/tests/integration/ -vv -s --log-cli-level=DEBUG
 ```
 
-## Test Files (19 total)
+## Directory Structure
+
+```
+backend/tests/integration/
+├── AGENTS.md                              # This file
+├── conftest.py                            # Integration-specific fixtures
+├── __init__.py                            # Package initialization
+├── .gitkeep                               # Directory placeholder
+├── COVERAGE.md                            # Coverage documentation
+├── README.md                              # Integration test documentation
+└── test_*.py                              # Test files (30 total)
+```
+
+## Test Files (30 total)
 
 ### API Endpoint Tests
 
 | File                     | Endpoints Tested                 |
 | ------------------------ | -------------------------------- |
 | `test_api.py`            | `/`, `/health`, CORS, lifecycle  |
+| `test_admin_api.py`      | `/api/admin/*` admin operations  |
 | `test_cameras_api.py`    | `/api/cameras/*` CRUD operations |
 | `test_events_api.py`     | `/api/events/*` with filtering   |
 | `test_detections_api.py` | `/api/detections/*`              |
@@ -42,13 +56,28 @@ pytest backend/tests/integration/ -vv -s --log-cli-level=DEBUG
 
 ### Service Integration Tests
 
-| File                                    | Service Tested   |
-| --------------------------------------- | ---------------- |
-| `test_batch_aggregator_integration.py`  | BatchAggregator  |
-| `test_detector_client_integration.py`   | DetectorClient   |
-| `test_file_watcher_integration.py`      | FileWatcher      |
-| `test_health_monitor_integration.py`    | HealthMonitor    |
-| `test_nemotron_analyzer_integration.py` | NemotronAnalyzer |
+| File                                    | Service Tested             |
+| --------------------------------------- | -------------------------- |
+| `test_batch_aggregator_integration.py`  | BatchAggregator            |
+| `test_detector_client_integration.py`   | DetectorClient             |
+| `test_file_watcher_integration.py`      | FileWatcher                |
+| `test_health_monitor_integration.py`    | HealthMonitor              |
+| `test_nemotron_analyzer_integration.py` | NemotronAnalyzer           |
+| `test_nemotron_analyzer.py`             | NemotronAnalyzer (focused) |
+| `test_cleanup_service.py`               | CleanupService             |
+| `test_system_broadcaster.py`            | SystemBroadcaster          |
+
+### Model and Database Tests
+
+| File                   | Coverage                |
+| ---------------------- | ----------------------- |
+| `test_models.py`       | SQLAlchemy model tests  |
+| `test_database.py`     | Database operations     |
+| `test_audit.py`        | Audit logging           |
+| `test_baseline.py`     | Baseline calculations   |
+| `test_alert_dedup.py`  | Alert deduplication     |
+| `test_alert_engine.py` | Alert engine processing |
+| `test_alert_models.py` | Alert model operations  |
 
 ### Full Stack Tests
 

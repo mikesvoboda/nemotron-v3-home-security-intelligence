@@ -4,6 +4,15 @@
 
 GPU tests validate the RT-DETRv2 detector client connectivity and basic inference on the self-hosted GPU runner (NVIDIA RTX A5500). These tests are designed to run WITHOUT database dependencies, testing only HTTP client functionality.
 
+## Directory Structure
+
+```
+backend/tests/gpu/
+├── AGENTS.md                      # This file
+├── __init__.py                    # Package initialization with GPU markers
+└── test_detector_integration.py   # GPU service integration tests
+```
+
 ## Running Tests
 
 ```bash

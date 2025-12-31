@@ -33,6 +33,7 @@ frontend/
 | ---------------------- | ------------------------------------------- |
 | `package.json`         | Project manifest, dependencies, npm scripts |
 | `vite.config.ts`       | Vite bundler and test configuration         |
+| `vite.config.e2e.ts`   | E2E-specific Vite configuration             |
 | `tsconfig.json`        | TypeScript compiler settings                |
 | `tsconfig.node.json`   | TypeScript config for Node.js tooling       |
 | `postcss.config.js`    | PostCSS plugins (Tailwind, Autoprefixer)    |
@@ -41,11 +42,12 @@ frontend/
 
 ### Code Quality
 
-| File              | Purpose                                             |
-| ----------------- | --------------------------------------------------- |
-| `.eslintrc.cjs`   | ESLint rules (TypeScript, React, a11y, imports)     |
-| `.prettierrc`     | Prettier formatting (single quotes, 100 char width) |
-| `.prettierignore` | Files excluded from Prettier                        |
+| File                | Purpose                                             |
+| ------------------- | --------------------------------------------------- |
+| `eslint.config.mjs` | ESLint flat config (TypeScript, React, a11y)        |
+| `.eslintrc.cjs`     | Legacy ESLint config (deprecated)                   |
+| `.prettierrc`       | Prettier formatting (single quotes, 100 char width) |
+| `.prettierignore`   | Files excluded from Prettier                        |
 
 ### Docker and Deployment
 
@@ -147,7 +149,7 @@ The `vite.config.ts` configures:
 - **API Proxy**: `/api/*` -> `http://localhost:8000`
 - **WebSocket Proxy**: `/ws/*` -> `ws://localhost:8000`
 - **Test Environment**: jsdom with globals
-- **Coverage Thresholds**: 92% statements, 88% branches, 90% functions, 93% lines
+- **Coverage Thresholds**: 89% statements, 84% branches, 86% functions, 90% lines
 - **Memory Optimization**: Uses forks pool with single fork
 
 ## TypeScript Configuration
@@ -275,6 +277,7 @@ Defined in `src/App.tsx`:
 | `/alerts`   | `AlertsPage`           | Alert management                         |
 | `/entities` | `EntitiesPage`         | Entity tracking                          |
 | `/logs`     | `LogsDashboard`        | Application logs viewer                  |
+| `/audit`    | `AuditLogPage`         | Audit log viewer                         |
 | `/system`   | `SystemMonitoringPage` | System health and metrics                |
 | `/settings` | `SettingsPage`         | Application settings                     |
 

@@ -4,6 +4,17 @@
 
 Unit tests verify individual components in isolation. Each test focuses on a single function, class, or module without dependencies on external services. All external dependencies (Redis, HTTP, file system) are mocked.
 
+## Directory Structure
+
+```
+backend/tests/unit/
+├── AGENTS.md                  # This file
+├── __init__.py                # Package initialization
+├── .gitkeep                   # Directory placeholder
+├── test_websocket_README.md   # WebSocket testing documentation
+└── test_*.py                  # Test files (56 total)
+```
+
 ## Running Tests
 
 ```bash
@@ -11,13 +22,13 @@ Unit tests verify individual components in isolation. Each test focuses on a sin
 pytest backend/tests/unit/ -v
 
 # Single test file
-pytest backend/tests/unit/test_models.py -v
+pytest backend/tests/unit/test_config.py -v
 
 # Specific test class
-pytest backend/tests/unit/test_models.py::TestCameraModel -v
+pytest backend/tests/unit/test_config.py::TestSettings -v
 
 # Specific test
-pytest backend/tests/unit/test_models.py::TestCameraModel::test_create_camera -v
+pytest backend/tests/unit/test_config.py::TestSettings::test_defaults -v
 
 # With coverage
 pytest backend/tests/unit/ -v --cov=backend --cov-report=html
@@ -26,24 +37,22 @@ pytest backend/tests/unit/ -v --cov=backend --cov-report=html
 pytest backend/tests/unit/ -v --no-cov
 ```
 
-## Test Files (59 total)
+## Test Files (56 total)
 
 ### Core Components
 
-| File               | Tests For                                                    |
-| ------------------ | ------------------------------------------------------------ |
-| `test_config.py`   | `backend/core/config.py` - Settings, env vars, type coercion |
-| `test_database.py` | `backend/core/database.py` - Connection, session management  |
-| `test_redis.py`    | `backend/core/redis.py` - Redis client operations            |
-| `test_logging.py`  | `backend/core/logging.py` - Structured logging               |
-| `test_metrics.py`  | `backend/core/metrics.py` - Metrics collection               |
+| File              | Tests For                                                    |
+| ----------------- | ------------------------------------------------------------ |
+| `test_config.py`  | `backend/core/config.py` - Settings, env vars, type coercion |
+| `test_redis.py`   | `backend/core/redis.py` - Redis client operations            |
+| `test_logging.py` | `backend/core/logging.py` - Structured logging               |
+| `test_metrics.py` | `backend/core/metrics.py` - Metrics collection               |
 
 ### Database Models
 
-| File                | Tests For                                                   |
-| ------------------- | ----------------------------------------------------------- |
-| `test_models.py`    | Camera, Detection, Event, GPUStats models and relationships |
-| `test_log_model.py` | `backend/models/log.py`                                     |
+| File                | Tests For               |
+| ------------------- | ----------------------- |
+| `test_log_model.py` | `backend/models/log.py` |
 
 ### AI Services
 
@@ -104,28 +113,28 @@ pytest backend/tests/unit/ -v --no-cov
 
 ### Alert System
 
-| File                   | Tests For               |
-| ---------------------- | ----------------------- |
-| `test_alert_engine.py` | Alert generation engine |
-| `test_alert_dedup.py`  | Alert deduplication     |
-| `test_alert_models.py` | Alert data models       |
-| `test_notification.py` | Notification delivery   |
+| File                   | Tests For             |
+| ---------------------- | --------------------- |
+| `test_alert_dedup.py`  | Alert deduplication   |
+| `test_notification.py` | Notification delivery |
 
 ### Utility Components
 
-| File                              | Tests For               |
-| --------------------------------- | ----------------------- |
-| `test_audit.py`                   | Audit logging           |
-| `test_baseline.py`                | Baseline detection      |
-| `test_dedupe.py`                  | Deduplication logic     |
-| `test_search.py`                  | Search functionality    |
-| `test_zone_service.py`            | Zone management         |
-| `test_severity.py`                | Severity classification |
-| `test_retry_handler.py`           | Retry logic             |
-| `test_mime_types.py`              | MIME type detection     |
-| `test_migrate_sqlite_postgres.py` | Database migration      |
-| `test_dockerfile_config.py`       | Docker configuration    |
-| `test_benchmarks.py`              | Benchmark utilities     |
+| File                              | Tests For                  |
+| --------------------------------- | -------------------------- |
+| `test_audit.py`                   | Audit logging              |
+| `test_baseline.py`                | Baseline detection         |
+| `test_dedupe.py`                  | Deduplication logic        |
+| `test_search.py`                  | Search functionality       |
+| `test_zone_service.py`            | Zone management            |
+| `test_severity.py`                | Severity classification    |
+| `test_retry_handler.py`           | Retry logic                |
+| `test_mime_types.py`              | MIME type detection        |
+| `test_migrate_sqlite_postgres.py` | Database migration         |
+| `test_dockerfile_config.py`       | Docker configuration       |
+| `test_benchmarks.py`              | Benchmark utilities        |
+| `test_performance_collector.py`   | Performance data collector |
+| `test_performance_schemas.py`     | Performance schema models  |
 
 ## Common Fixtures
 
@@ -197,26 +206,24 @@ def mock_session():
 Group related tests in classes with descriptive names:
 
 ```python
-class TestCameraModel:
-    def test_create_camera_with_defaults(self, session):
-        camera = Camera(id="test", name="Test Camera")
-        session.add(camera)
-        session.commit()
-        assert camera.status == "online"  # Default value
+class TestConfigSettings:
+    def test_default_values(self, clean_env):
+        settings = get_settings()
+        assert settings.database_url is not None
+        assert settings.redis_url is not None
 ```
 
 ### 2. Fixture Usage
 
-Use `isolated_db` for any database operations:
+Use `isolated_db` for database operations (most unit tests use mocks instead):
 
 ```python
 @pytest.fixture
-def sample_camera(isolated_db):
-    async with get_session() as session:
-        camera = Camera(id="test", name="Test")
-        session.add(camera)
-        await session.commit()
-        yield camera
+def mock_redis_client():
+    mock = AsyncMock(spec=RedisClient)
+    mock.get = AsyncMock(return_value=None)
+    mock.set = AsyncMock(return_value=True)
+    return mock
 ```
 
 ### 3. Mocking at Boundaries

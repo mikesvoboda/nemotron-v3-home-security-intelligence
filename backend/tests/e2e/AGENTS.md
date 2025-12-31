@@ -18,6 +18,19 @@ File Upload -> Detection -> Batching -> Analysis -> Event Creation -> WebSocket 
 5. **Event Creation**: Event record created in database
 6. **WebSocket Broadcast**: Event broadcast to connected clients
 
+## Directory Structure
+
+```
+backend/tests/e2e/
+├── AGENTS.md                      # This file
+├── conftest.py                    # E2E-specific fixtures
+├── __init__.py                    # Package initialization
+├── README.md                      # E2E test documentation
+├── TEST_SUMMARY.md                # Test results summary
+├── test_gpu_pipeline.py           # GPU pipeline E2E tests
+└── test_pipeline_integration.py   # Mocked pipeline E2E tests
+```
+
 ## Running Tests
 
 ```bash

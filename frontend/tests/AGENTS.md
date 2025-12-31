@@ -9,22 +9,35 @@ Test suite directory for end-to-end (E2E) tests using Playwright. Unit tests are
 ```
 frontend/tests/
 ├── AGENTS.md        # This documentation file
-└── e2e/             # End-to-end Playwright tests
-    ├── AGENTS.md    # E2E test documentation
-    ├── smoke.spec.ts       # Dashboard loading and smoke tests
-    ├── navigation.spec.ts  # Page navigation tests
-    ├── realtime.spec.ts    # Real-time/WebSocket tests
-    └── .gitkeep            # Git placeholder
+├── e2e/             # End-to-end Playwright tests
+│   ├── AGENTS.md    # E2E test documentation
+│   ├── smoke.spec.ts       # Dashboard loading and smoke tests
+│   ├── navigation.spec.ts  # Page navigation tests
+│   ├── realtime.spec.ts    # Real-time/WebSocket tests
+│   └── .gitkeep            # Git placeholder
+└── integration/     # Integration tests (WebSocket, cross-component)
+    └── websocket-performance.test.ts  # WebSocket performance metrics tests
 ```
 
 ## Test Organization
 
-| Test Type | Location            | Framework    | Purpose                      |
-| --------- | ------------------- | ------------ | ---------------------------- |
-| **Unit**  | `src/**/*.test.tsx` | Vitest + RTL | Component/function isolation |
-| **E2E**   | `tests/e2e/`        | Playwright   | Full browser workflows       |
+| Test Type       | Location             | Framework    | Purpose                          |
+| --------------- | -------------------- | ------------ | -------------------------------- |
+| **Unit**        | `src/**/*.test.tsx`  | Vitest + RTL | Component/function isolation     |
+| **Integration** | `tests/integration/` | Vitest       | Cross-component, WebSocket tests |
+| **E2E**         | `tests/e2e/`         | Playwright   | Full browser workflows           |
 
 **Important**: Unit tests are NOT in this directory. They are co-located with source files (e.g., `src/components/events/EventCard.test.tsx`).
+
+## Integration Tests
+
+The `integration/` directory contains tests that verify interactions between multiple components or systems:
+
+| File                            | Description                                                 |
+| ------------------------------- | ----------------------------------------------------------- |
+| `websocket-performance.test.ts` | WebSocket message handling, performance metrics integration |
+
+These tests use Vitest but test more complex scenarios than unit tests, such as WebSocket message flow and state management across components.
 
 ## Running Tests
 
@@ -72,5 +85,6 @@ Note: Thresholds temporarily lowered due to SearchBar test isolation issue. See 
 ## Entry Points
 
 1. **E2E tests**: `e2e/` directory contains Playwright browser tests
-2. **Configuration**: `playwright.config.ts` in frontend root
-3. **Unit tests**: Look in `src/**/*.test.ts` (co-located with source)
+2. **Integration tests**: `integration/` directory contains cross-component tests
+3. **Configuration**: `playwright.config.ts` in frontend root
+4. **Unit tests**: Look in `src/**/*.test.ts` (co-located with source)

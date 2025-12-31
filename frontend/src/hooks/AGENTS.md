@@ -6,32 +6,34 @@ React custom hooks for managing WebSocket connections, real-time event streams, 
 
 ## Key Files
 
-| File                     | Purpose                                         |
-| ------------------------ | ----------------------------------------------- |
-| `index.ts`               | Central export point for all hooks and types    |
-| `useWebSocket.ts`        | Low-level WebSocket connection manager          |
-| `useWebSocketStatus.ts`  | Enhanced WebSocket with channel status tracking |
-| `useConnectionStatus.ts` | Unified connection status for all WS channels   |
-| `useEventStream.ts`      | Security events via `/ws/events` WebSocket      |
-| `useSystemStatus.ts`     | System health via `/ws/system` WebSocket        |
-| `useGpuHistory.ts`       | GPU metrics polling with history buffer         |
-| `useHealthStatus.ts`     | REST-based health status polling                |
-| `useStorageStats.ts`     | Storage disk usage polling with cleanup preview |
-| `useServiceStatus.ts`    | Per-service status (not exported from index)    |
+| File                       | Purpose                                         |
+| -------------------------- | ----------------------------------------------- |
+| `index.ts`                 | Central export point for all hooks and types    |
+| `useWebSocket.ts`          | Low-level WebSocket connection manager          |
+| `useWebSocketStatus.ts`    | Enhanced WebSocket with channel status tracking |
+| `useConnectionStatus.ts`   | Unified connection status for all WS channels   |
+| `useEventStream.ts`        | Security events via `/ws/events` WebSocket      |
+| `useSystemStatus.ts`       | System health via `/ws/system` WebSocket        |
+| `useGpuHistory.ts`         | GPU metrics polling with history buffer         |
+| `useHealthStatus.ts`       | REST-based health status polling                |
+| `useStorageStats.ts`       | Storage disk usage polling with cleanup preview |
+| `useServiceStatus.ts`      | Per-service status (not exported from index)    |
+| `usePerformanceMetrics.ts` | System performance metrics via WebSocket        |
 
 ### Test Files
 
-| File                          | Coverage                                               |
-| ----------------------------- | ------------------------------------------------------ |
-| `useWebSocket.test.ts`        | Connection lifecycle, message handling, reconnects     |
-| `useWebSocketStatus.test.ts`  | Channel status tracking, reconnect state               |
-| `useConnectionStatus.test.ts` | Multi-channel status aggregation                       |
-| `useEventStream.test.ts`      | Event buffering, envelope parsing, non-event filtering |
-| `useSystemStatus.test.ts`     | Backend message transformation, type guards            |
-| `useGpuHistory.test.ts`       | Polling, history buffer, start/stop controls           |
-| `useHealthStatus.test.ts`     | REST polling, error handling, refresh                  |
-| `useStorageStats.test.ts`     | Storage polling, cleanup preview                       |
-| `useServiceStatus.test.ts`    | Service status parsing                                 |
+| File                            | Coverage                                               |
+| ------------------------------- | ------------------------------------------------------ |
+| `useWebSocket.test.ts`          | Connection lifecycle, message handling, reconnects     |
+| `useWebSocketStatus.test.ts`    | Channel status tracking, reconnect state               |
+| `useConnectionStatus.test.ts`   | Multi-channel status aggregation                       |
+| `useEventStream.test.ts`        | Event buffering, envelope parsing, non-event filtering |
+| `useSystemStatus.test.ts`       | Backend message transformation, type guards            |
+| `useGpuHistory.test.ts`         | Polling, history buffer, start/stop controls           |
+| `useHealthStatus.test.ts`       | REST polling, error handling, refresh                  |
+| `useStorageStats.test.ts`       | Storage polling, cleanup preview                       |
+| `useServiceStatus.test.ts`      | Service status parsing                                 |
+| `usePerformanceMetrics.test.ts` | WebSocket performance metrics, alerts, history buffer  |
 
 ## Hook Details
 
@@ -333,6 +335,45 @@ interface UseStorageStatsReturn {
 }
 ```
 
+### `usePerformanceMetrics.ts`
+
+Hook for real-time system performance metrics via WebSocket (`/ws/system` endpoint).
+
+**Features:**
+
+- Subscribes to `performance_update` messages via the system WebSocket channel
+- Maintains circular buffers for historical data at 3 time resolutions (5m, 15m, 60m)
+- Tracks GPU metrics, AI model status, inference latencies, database metrics
+- Surfaces active performance alerts (warning/critical severity)
+- Downsamples updates: 5m buffer gets every update, 15m every 3rd, 60m every 12th
+
+**Types:**
+
+```typescript
+type TimeRange = '5m' | '15m' | '60m';
+
+interface PerformanceUpdate {
+  timestamp: string;
+  gpu: GpuMetrics | null;
+  ai_models: Record;
+  nemotron: NemotronMetrics | null;
+  inference: InferenceMetrics | null;
+  databases: Record;
+  host: HostMetrics | null;
+  containers: ContainerMetrics[];
+  alerts: PerformanceAlert[];
+}
+
+interface UsePerformanceMetricsReturn {
+  current: PerformanceUpdate | null;
+  history: PerformanceHistory;
+  alerts: PerformanceAlert[];
+  isConnected: boolean;
+  timeRange: TimeRange;
+  setTimeRange: (range: TimeRange) => void;
+}
+```
+
 ### `useServiceStatus.ts`
 
 **Note:** This hook is NOT exported from `index.ts`.
@@ -341,6 +382,7 @@ The backend's `ServiceHealthMonitor` (health_monitor.py) monitors services and c
 
 **Use `useSystemStatus`** for overall system health (healthy/degraded/unhealthy).
 **Use `useConnectionStatus`** for unified connection management with status summary.
+**Use `usePerformanceMetrics`** for detailed performance metrics and alerts.
 
 ## Custom Hooks Patterns
 

@@ -62,8 +62,16 @@ export function useHealthStatus(options: UseHealthStatusOptions = {}): UseHealth
   // Use ref to track if component is mounted to avoid state updates after unmount
   const isMountedRef = useRef<boolean>(true);
 
+  // Store enabled in a ref to avoid recreating fetchHealthStatus when enabled changes
+  // This prevents unnecessary interval restarts while still allowing the callback to
+  // check the current enabled state when called manually via refresh()
+  const enabledRef = useRef(enabled);
+  enabledRef.current = enabled;
+
   const fetchHealthStatus = useCallback(async () => {
     if (!isMountedRef.current) return;
+    // Check enabled state via ref to get current value without stale closure
+    if (!enabledRef.current) return;
 
     try {
       const response = await fetchHealth();

@@ -12,9 +12,10 @@ architecture/
   overview.md       # High-level system architecture
   ai-pipeline.md    # AI processing pipeline details
   data-model.md     # Database schema and data flow
-  resilience.md     # Circuit breakers, retries, DLQ, health monitoring
-  real-time.md      # WebSocket channels, Redis pub/sub, event broadcasting
   decisions.md      # Architectural decisions and rationale
+  frontend-hooks.md # Frontend React hooks architecture
+  real-time.md      # WebSocket channels, Redis pub/sub, event broadcasting
+  resilience.md     # Circuit breakers, retries, DLQ, health monitoring
 ```
 
 ## Key Files
@@ -150,6 +151,29 @@ architecture/
 - ADR-011: Native Tremor Charts over Grafana Embeds
 
 **When to use:** Understanding why the system is designed this way, evaluating alternatives.
+
+### frontend-hooks.md
+
+**Purpose:** Documentation of frontend React hooks architecture.
+
+**Topics Covered:**
+
+- Custom hook patterns and conventions
+- Data fetching hooks (useEvents, useDetections, useCameras)
+- WebSocket hooks (useWebSocket, useEventStream, useSystemStatus)
+- State management hooks
+- Error handling and loading states
+- Hook composition patterns
+
+**Key Source Files:**
+
+- `frontend/src/hooks/useWebSocket.ts` - Base WebSocket hook
+- `frontend/src/hooks/useEventStream.ts` - Event stream hook
+- `frontend/src/hooks/useSystemStatus.ts` - System status hook
+- `frontend/src/hooks/useEvents.ts` - Events data fetching
+- `frontend/src/hooks/useCameras.ts` - Cameras data fetching
+
+**When to use:** Implementing new frontend features, understanding data flow in components.
 
 ## Important Patterns
 
