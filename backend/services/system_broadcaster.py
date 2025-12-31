@@ -37,7 +37,7 @@ from backend.models import Camera, GPUStats
 
 # Timeout for AI service health checks in seconds
 # Keep this short to avoid blocking the broadcast loop
-AI_HEALTH_CHECK_TIMEOUT = 3.0
+AI_HEALTH_CHECK_TIMEOUT = 1.0  # Short timeout to avoid blocking broadcast loop
 
 if TYPE_CHECKING:
     from redis.asyncio.client import PubSub

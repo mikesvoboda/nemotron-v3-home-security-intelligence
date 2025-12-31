@@ -113,6 +113,16 @@ def sync_client(integration_env):
     mock_service_health_monitor.start = AsyncMock()
     mock_service_health_monitor.stop = AsyncMock()
 
+    # Mock AI health check to avoid HTTP calls to non-existent AI services in tests
+    mock_ai_health = AsyncMock(
+        return_value={
+            "rtdetr": False,
+            "nemotron": False,
+            "any_healthy": False,
+            "all_healthy": False,
+        }
+    )
+
     # Patch all lifespan services for fast startup
     with (
         patch("backend.core.redis._redis_client", mock_redis_client),
@@ -130,6 +140,9 @@ def sync_client(integration_env):
         patch("backend.main.get_broadcaster", AsyncMock(return_value=mock_event_broadcaster)),
         patch("backend.main.stop_broadcaster", AsyncMock()),
         patch("backend.main.ServiceHealthMonitor", return_value=mock_service_health_monitor),
+        patch(
+            "backend.services.system_broadcaster.SystemBroadcaster._check_ai_health", mock_ai_health
+        ),
         TestClient(app) as client,
     ):
         yield client
