@@ -562,6 +562,11 @@ async def _check_nemotron_health(nemotron_url: str, timeout: float) -> tuple[boo
 # Timeout for individual AI service health checks (in seconds)
 AI_HEALTH_CHECK_TIMEOUT_SECONDS = 3.0
 
+# Maximum concurrent health checks across all requests
+# Prevents thundering herd when multiple clients check health simultaneously
+MAX_CONCURRENT_HEALTH_CHECKS = 10
+_health_check_semaphore = asyncio.Semaphore(MAX_CONCURRENT_HEALTH_CHECKS)
+
 
 async def _check_rtdetr_health_with_circuit_breaker(
     rtdetr_url: str, timeout: float
@@ -633,12 +638,36 @@ async def _check_nemotron_health_with_circuit_breaker(
     return is_healthy, error_msg
 
 
+async def _bounded_health_check(
+    check_func: Any,
+    *args: Any,
+) -> tuple[bool, str | None]:
+    """Run a health check with semaphore-bounded concurrency.
+
+    Limits concurrent health checks across all requests to prevent
+    thundering herd when multiple clients check health simultaneously.
+
+    Args:
+        check_func: Async function to call for health check
+        *args: Arguments to pass to the check function
+
+    Returns:
+        Tuple of (is_healthy, error_message)
+    """
+    async with _health_check_semaphore:
+        result: tuple[bool, str | None] = await check_func(*args)
+        return result
+
+
 async def check_ai_services_health() -> ServiceStatus:
     """Check AI services health by pinging RT-DETR and Nemotron endpoints.
 
     Performs concurrent health checks on both AI services:
     - RT-DETR (object detection): GET {rtdetr_url}/health
     - Nemotron (LLM reasoning): GET {nemotron_url}/health
+
+    Health checks are bounded by MAX_CONCURRENT_HEALTH_CHECKS semaphore
+    to prevent thundering herd when multiple clients check simultaneously.
 
     Returns:
         ServiceStatus with AI services health information:
@@ -651,9 +680,16 @@ async def check_ai_services_health() -> ServiceStatus:
     nemotron_url = settings.nemotron_url
 
     # Check both services concurrently with circuit breaker protection
+    # Each check is bounded by the semaphore to limit total concurrent checks
     rtdetr_result, nemotron_result = await asyncio.gather(
-        _check_rtdetr_health_with_circuit_breaker(rtdetr_url, AI_HEALTH_CHECK_TIMEOUT_SECONDS),
-        _check_nemotron_health_with_circuit_breaker(nemotron_url, AI_HEALTH_CHECK_TIMEOUT_SECONDS),
+        _bounded_health_check(
+            _check_rtdetr_health_with_circuit_breaker, rtdetr_url, AI_HEALTH_CHECK_TIMEOUT_SECONDS
+        ),
+        _bounded_health_check(
+            _check_nemotron_health_with_circuit_breaker,
+            nemotron_url,
+            AI_HEALTH_CHECK_TIMEOUT_SECONDS,
+        ),
     )
 
     rtdetr_healthy, rtdetr_error = rtdetr_result

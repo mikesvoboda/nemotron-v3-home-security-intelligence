@@ -17,6 +17,8 @@ Output Format:
     - Audio: copy (if present) or none
 """
 
+from __future__ import annotations
+
 import asyncio
 from pathlib import Path
 from typing import TYPE_CHECKING

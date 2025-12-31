@@ -138,8 +138,8 @@ class AlertDeduplicationService:
             ValueError: If dedup_key is empty or malformed
         """
         self._validate_dedup_key(dedup_key)
-        # Use timezone-aware UTC, then strip timezone for naive DB column comparison
-        cutoff_time = (datetime.now(UTC) - timedelta(seconds=cooldown_seconds)).replace(tzinfo=None)
+        # Use timezone-aware UTC for comparison with DateTime(timezone=True) columns
+        cutoff_time = datetime.now(UTC) - timedelta(seconds=cooldown_seconds)
 
         # Find the most recent alert with this dedup_key within the cooldown window
         # Use with_for_update() to lock the rows during check-then-insert operation
@@ -160,9 +160,9 @@ class AlertDeduplicationService:
         existing_alert = result.scalar_one_or_none()
 
         if existing_alert:
-            # Calculate seconds until cooldown expires (use naive UTC for comparison)
-            now_naive = datetime.now(UTC).replace(tzinfo=None)
-            alert_age = (now_naive - existing_alert.created_at).total_seconds()
+            # Calculate seconds until cooldown expires
+            now_utc = datetime.now(UTC)
+            alert_age = (now_utc - existing_alert.created_at).total_seconds()
             seconds_remaining = max(0, int(cooldown_seconds - alert_age))
 
             return DedupResult(
@@ -270,8 +270,8 @@ class AlertDeduplicationService:
             ValueError: If dedup_key is empty or malformed
         """
         self._validate_dedup_key(dedup_key)
-        # Use timezone-aware UTC, then strip timezone for naive DB column comparison
-        cutoff_time = (datetime.now(UTC) - timedelta(hours=hours)).replace(tzinfo=None)
+        # Use timezone-aware UTC for comparison with DateTime(timezone=True) columns
+        cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
 
         stmt = (
             select(Alert)
@@ -299,8 +299,8 @@ class AlertDeduplicationService:
             - unique_dedup_keys: Number of unique dedup keys
             - potential_duplicates: Alerts that were likely suppressed
         """
-        # Use timezone-aware UTC, then strip timezone for naive DB column comparison
-        cutoff_time = (datetime.now(UTC) - timedelta(hours=hours)).replace(tzinfo=None)
+        # Use timezone-aware UTC for comparison with DateTime(timezone=True) columns
+        cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
 
         # Get total alerts
         total_stmt = select(Alert).where(Alert.created_at >= cutoff_time)

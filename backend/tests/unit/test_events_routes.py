@@ -113,6 +113,7 @@ def create_mock_event(
     reviewed: bool = False,
     notes: str | None = None,
     detection_ids: str | None = "1,2,3",
+    object_types: str | None = None,
 ) -> MagicMock:
     """Create a mock Event object for testing."""
     mock = MagicMock()
@@ -127,6 +128,7 @@ def create_mock_event(
     mock.reviewed = reviewed
     mock.notes = notes
     mock.detection_ids = detection_ids
+    mock.object_types = object_types
     return mock
 
 
@@ -509,18 +511,11 @@ async def test_list_events_with_reviewed_filter_false() -> None:
 
 @pytest.mark.asyncio
 async def test_list_events_with_object_type_filter_matching() -> None:
-    """Test that list_events filters by object_type when matches exist."""
+    """Test that list_events filters by object_type using the object_types column."""
     db = AsyncMock()
 
-    mock_event = create_mock_event(detection_ids="1,2")
-
-    # Mock detection IDs query for object_type filter
-    detection_ids_result = MagicMock()
-    detection_ids_result.scalars.return_value.all.return_value = [1, 2]
-
-    # Mock all_events query (returns event_id, detection_ids tuples)
-    all_events_result = MagicMock()
-    all_events_result.all.return_value = [(1, "[1, 2]")]  # event_id=1, detection_ids=[1,2]
+    # Event with object_types containing "person"
+    mock_event = create_mock_event(detection_ids="1,2", object_types="person,vehicle")
 
     # Mock count query
     count_result = MagicMock()
@@ -530,9 +525,7 @@ async def test_list_events_with_object_type_filter_matching() -> None:
     events_result = MagicMock()
     events_result.scalars.return_value.all.return_value = [mock_event]
 
-    db.execute = AsyncMock(
-        side_effect=[detection_ids_result, all_events_result, count_result, events_result]
-    )
+    db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
         camera_id=None,
@@ -551,22 +544,18 @@ async def test_list_events_with_object_type_filter_matching() -> None:
 
 @pytest.mark.asyncio
 async def test_list_events_with_object_type_filter_no_matches() -> None:
-    """Test that list_events returns empty when no detections match object_type."""
+    """Test that list_events returns empty when no events match object_type."""
     db = AsyncMock()
 
-    # Mock detection IDs query - no matching detections
-    detection_ids_result = MagicMock()
-    detection_ids_result.scalars.return_value.all.return_value = []
-
-    # Mock count query
+    # Mock count query - no matches due to SQL LIKE filter
     count_result = MagicMock()
     count_result.scalar.return_value = 0
 
-    # Mock events query
+    # Mock events query - empty result
     events_result = MagicMock()
     events_result.scalars.return_value.all.return_value = []
 
-    db.execute = AsyncMock(side_effect=[detection_ids_result, count_result, events_result])
+    db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
         camera_id=None,
@@ -582,6 +571,72 @@ async def test_list_events_with_object_type_filter_no_matches() -> None:
 
     assert len(response["events"]) == 0
     assert response["count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_list_events_with_object_type_filter_single_value() -> None:
+    """Test that list_events filters by object_type when it's the only value."""
+    db = AsyncMock()
+
+    # Event with only "person" as object_type
+    mock_event = create_mock_event(detection_ids="1", object_types="person")
+
+    # Mock count query
+    count_result = MagicMock()
+    count_result.scalar.return_value = 1
+
+    # Mock events query
+    events_result = MagicMock()
+    events_result.scalars.return_value.all.return_value = [mock_event]
+
+    db.execute = AsyncMock(side_effect=[count_result, events_result])
+
+    response = await events_routes.list_events(
+        camera_id=None,
+        risk_level=None,
+        start_date=None,
+        end_date=None,
+        reviewed=None,
+        object_type="person",
+        limit=50,
+        offset=0,
+        db=db,
+    )
+
+    assert len(response["events"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_list_events_with_object_type_filter_at_end() -> None:
+    """Test that list_events filters by object_type when it's at the end of the list."""
+    db = AsyncMock()
+
+    # Event with "person" at the end
+    mock_event = create_mock_event(detection_ids="1,2", object_types="vehicle,person")
+
+    # Mock count query
+    count_result = MagicMock()
+    count_result.scalar.return_value = 1
+
+    # Mock events query
+    events_result = MagicMock()
+    events_result.scalars.return_value.all.return_value = [mock_event]
+
+    db.execute = AsyncMock(side_effect=[count_result, events_result])
+
+    response = await events_routes.list_events(
+        camera_id=None,
+        risk_level=None,
+        start_date=None,
+        end_date=None,
+        reviewed=None,
+        object_type="person",
+        limit=50,
+        offset=0,
+        db=db,
+    )
+
+    assert len(response["events"]) == 1
 
 
 @pytest.mark.asyncio
@@ -802,11 +857,19 @@ async def test_get_event_stats_returns_empty_stats_when_no_events() -> None:
     """Test that get_event_stats returns zero counts when no events exist."""
     db = AsyncMock()
 
-    # Mock events query - empty result
-    events_result = MagicMock()
-    events_result.scalars.return_value.all.return_value = []
+    # Mock total count query - returns 0
+    total_count_result = MagicMock()
+    total_count_result.scalar.return_value = 0
 
-    db.execute = AsyncMock(return_value=events_result)
+    # Mock risk level GROUP BY query - empty result
+    risk_level_result = MagicMock()
+    risk_level_result.all.return_value = []
+
+    # Mock camera stats GROUP BY query - empty result
+    camera_stats_result = MagicMock()
+    camera_stats_result.all.return_value = []
+
+    db.execute = AsyncMock(side_effect=[total_count_result, risk_level_result, camera_stats_result])
 
     response = await events_routes.get_event_stats(db=db)
 
@@ -820,28 +883,27 @@ async def test_get_event_stats_returns_empty_stats_when_no_events() -> None:
 
 @pytest.mark.asyncio
 async def test_get_event_stats_counts_events_by_risk_level() -> None:
-    """Test that get_event_stats correctly counts events by risk level."""
+    """Test that get_event_stats correctly counts events by risk level using SQL GROUP BY."""
     db = AsyncMock()
 
-    mock_events = [
-        create_mock_event(event_id=1, risk_level="critical"),
-        create_mock_event(event_id=2, risk_level="critical"),
-        create_mock_event(event_id=3, risk_level="high"),
-        create_mock_event(event_id=4, risk_level="medium"),
-        create_mock_event(event_id=5, risk_level="medium"),
-        create_mock_event(event_id=6, risk_level="medium"),
-        create_mock_event(event_id=7, risk_level="low"),
+    # Mock total count query - returns 7
+    total_count_result = MagicMock()
+    total_count_result.scalar.return_value = 7
+
+    # Mock risk level GROUP BY query - returns tuples of (risk_level, count)
+    risk_level_result = MagicMock()
+    risk_level_result.all.return_value = [
+        ("critical", 2),
+        ("high", 1),
+        ("medium", 3),
+        ("low", 1),
     ]
 
-    # Mock events query
-    events_result = MagicMock()
-    events_result.scalars.return_value.all.return_value = mock_events
+    # Mock camera stats GROUP BY query - returns tuples of (camera_id, camera_name, count)
+    camera_stats_result = MagicMock()
+    camera_stats_result.all.return_value = [("cam-001", "Front Door", 7)]
 
-    # Mock camera query
-    camera_result = MagicMock()
-    camera_result.scalars.return_value.all.return_value = [create_mock_camera(camera_id="cam-001")]
-
-    db.execute = AsyncMock(side_effect=[events_result, camera_result])
+    db.execute = AsyncMock(side_effect=[total_count_result, risk_level_result, camera_stats_result])
 
     response = await events_routes.get_event_stats(db=db)
 
@@ -854,34 +916,31 @@ async def test_get_event_stats_counts_events_by_risk_level() -> None:
 
 @pytest.mark.asyncio
 async def test_get_event_stats_counts_events_by_camera() -> None:
-    """Test that get_event_stats correctly counts events by camera."""
+    """Test that get_event_stats correctly counts events by camera using SQL GROUP BY."""
     db = AsyncMock()
 
-    mock_events = [
-        create_mock_event(event_id=1, camera_id="cam-001"),
-        create_mock_event(event_id=2, camera_id="cam-001"),
-        create_mock_event(event_id=3, camera_id="cam-001"),
-        create_mock_event(event_id=4, camera_id="cam-002"),
-        create_mock_event(event_id=5, camera_id="cam-002"),
+    # Mock total count query - returns 5
+    total_count_result = MagicMock()
+    total_count_result.scalar.return_value = 5
+
+    # Mock risk level GROUP BY query
+    risk_level_result = MagicMock()
+    risk_level_result.all.return_value = [("medium", 5)]
+
+    # Mock camera stats GROUP BY query - returns tuples sorted by count descending
+    # Returns (camera_id, camera_name, event_count) tuples
+    camera_stats_result = MagicMock()
+    camera_stats_result.all.return_value = [
+        ("cam-001", "Front Door", 3),
+        ("cam-002", "Back Door", 2),
     ]
 
-    # Mock events query
-    events_result = MagicMock()
-    events_result.scalars.return_value.all.return_value = mock_events
-
-    # Mock camera query
-    camera_result = MagicMock()
-    camera_result.scalars.return_value.all.return_value = [
-        create_mock_camera(camera_id="cam-001", name="Front Door"),
-        create_mock_camera(camera_id="cam-002", name="Back Door"),
-    ]
-
-    db.execute = AsyncMock(side_effect=[events_result, camera_result])
+    db.execute = AsyncMock(side_effect=[total_count_result, risk_level_result, camera_stats_result])
 
     response = await events_routes.get_event_stats(db=db)
 
     assert len(response["events_by_camera"]) == 2
-    # Results should be sorted by event count descending
+    # Results should be sorted by event count descending (from SQL ORDER BY)
     assert response["events_by_camera"][0]["camera_id"] == "cam-001"
     assert response["events_by_camera"][0]["event_count"] == 3
     assert response["events_by_camera"][0]["camera_name"] == "Front Door"
@@ -891,22 +950,22 @@ async def test_get_event_stats_counts_events_by_camera() -> None:
 
 @pytest.mark.asyncio
 async def test_get_event_stats_with_unknown_camera() -> None:
-    """Test that get_event_stats handles unknown camera IDs."""
+    """Test that get_event_stats handles unknown camera IDs (NULL from LEFT JOIN)."""
     db = AsyncMock()
 
-    mock_events = [
-        create_mock_event(event_id=1, camera_id="unknown-cam"),
-    ]
+    # Mock total count query - returns 1
+    total_count_result = MagicMock()
+    total_count_result.scalar.return_value = 1
 
-    # Mock events query
-    events_result = MagicMock()
-    events_result.scalars.return_value.all.return_value = mock_events
+    # Mock risk level GROUP BY query
+    risk_level_result = MagicMock()
+    risk_level_result.all.return_value = [("medium", 1)]
 
-    # Mock camera query - no cameras found
-    camera_result = MagicMock()
-    camera_result.scalars.return_value.all.return_value = []
+    # Mock camera stats GROUP BY query - camera name is None (no matching camera in JOIN)
+    camera_stats_result = MagicMock()
+    camera_stats_result.all.return_value = [("unknown-cam", None, 1)]
 
-    db.execute = AsyncMock(side_effect=[events_result, camera_result])
+    db.execute = AsyncMock(side_effect=[total_count_result, risk_level_result, camera_stats_result])
 
     response = await events_routes.get_event_stats(db=db)
 
@@ -920,19 +979,20 @@ async def test_get_event_stats_with_date_filters() -> None:
     db = AsyncMock()
 
     now = datetime.now(UTC)
-    mock_events = [
-        create_mock_event(event_id=1, started_at=now),
-    ]
 
-    # Mock events query
-    events_result = MagicMock()
-    events_result.scalars.return_value.all.return_value = mock_events
+    # Mock total count query - returns 1
+    total_count_result = MagicMock()
+    total_count_result.scalar.return_value = 1
 
-    # Mock camera query
-    camera_result = MagicMock()
-    camera_result.scalars.return_value.all.return_value = [create_mock_camera(camera_id="cam-001")]
+    # Mock risk level GROUP BY query
+    risk_level_result = MagicMock()
+    risk_level_result.all.return_value = [("medium", 1)]
 
-    db.execute = AsyncMock(side_effect=[events_result, camera_result])
+    # Mock camera stats GROUP BY query
+    camera_stats_result = MagicMock()
+    camera_stats_result.all.return_value = [("cam-001", "Front Door", 1)]
+
+    db.execute = AsyncMock(side_effect=[total_count_result, risk_level_result, camera_stats_result])
 
     start = now - timedelta(hours=1)
     end = now + timedelta(hours=1)
@@ -947,21 +1007,24 @@ async def test_get_event_stats_ignores_invalid_risk_levels() -> None:
     """Test that get_event_stats ignores events with invalid risk levels."""
     db = AsyncMock()
 
-    mock_events = [
-        create_mock_event(event_id=1, risk_level="high"),
-        create_mock_event(event_id=2, risk_level="invalid_level"),
-        create_mock_event(event_id=3, risk_level=None),
+    # Mock total count query - returns 3
+    total_count_result = MagicMock()
+    total_count_result.scalar.return_value = 3
+
+    # Mock risk level GROUP BY query - includes invalid and None levels
+    # Only valid levels should be counted in the response
+    risk_level_result = MagicMock()
+    risk_level_result.all.return_value = [
+        ("high", 1),
+        ("invalid_level", 1),  # Will be ignored
+        (None, 1),  # Will be ignored
     ]
 
-    # Mock events query
-    events_result = MagicMock()
-    events_result.scalars.return_value.all.return_value = mock_events
+    # Mock camera stats GROUP BY query
+    camera_stats_result = MagicMock()
+    camera_stats_result.all.return_value = [("cam-001", "Front Door", 3)]
 
-    # Mock camera query
-    camera_result = MagicMock()
-    camera_result.scalars.return_value.all.return_value = [create_mock_camera(camera_id="cam-001")]
-
-    db.execute = AsyncMock(side_effect=[events_result, camera_result])
+    db.execute = AsyncMock(side_effect=[total_count_result, risk_level_result, camera_stats_result])
 
     response = await events_routes.get_event_stats(db=db)
 
@@ -1578,15 +1641,8 @@ async def test_list_events_with_all_filters_combined() -> None:
         risk_level="high",
         reviewed=True,
         started_at=now,
+        object_types="person,vehicle",
     )
-
-    # Mock detection IDs query for object_type filter
-    detection_ids_result = MagicMock()
-    detection_ids_result.scalars.return_value.all.return_value = [1]
-
-    # Mock all_events query (to find events containing matching detection IDs)
-    all_events_result = MagicMock()
-    all_events_result.all.return_value = [(1, "[1]")]  # event_id=1 has detection_id=1
 
     # Mock count query
     count_result = MagicMock()
@@ -1596,9 +1652,7 @@ async def test_list_events_with_all_filters_combined() -> None:
     events_result = MagicMock()
     events_result.scalars.return_value.all.return_value = [mock_event]
 
-    db.execute = AsyncMock(
-        side_effect=[detection_ids_result, all_events_result, count_result, events_result]
-    )
+    db.execute = AsyncMock(side_effect=[count_result, events_result])
 
     response = await events_routes.list_events(
         camera_id="cam-001",
@@ -1617,22 +1671,22 @@ async def test_list_events_with_all_filters_combined() -> None:
 
 @pytest.mark.asyncio
 async def test_get_event_stats_empty_camera_list() -> None:
-    """Test that get_event_stats handles case with events but no camera lookup."""
+    """Test that get_event_stats handles case with events but no camera lookup (NULL from JOIN)."""
     db = AsyncMock()
 
-    mock_events = [
-        create_mock_event(event_id=1, camera_id="cam-001"),
-    ]
+    # Mock total count query - returns 1
+    total_count_result = MagicMock()
+    total_count_result.scalar.return_value = 1
 
-    # Mock events query
-    events_result = MagicMock()
-    events_result.scalars.return_value.all.return_value = mock_events
+    # Mock risk level GROUP BY query
+    risk_level_result = MagicMock()
+    risk_level_result.all.return_value = [("medium", 1)]
 
-    # Mock camera query - camera not found
-    camera_result = MagicMock()
-    camera_result.scalars.return_value.all.return_value = []
+    # Mock camera stats GROUP BY query - camera_name is NULL (no matching camera)
+    camera_stats_result = MagicMock()
+    camera_stats_result.all.return_value = [("cam-001", None, 1)]
 
-    db.execute = AsyncMock(side_effect=[events_result, camera_result])
+    db.execute = AsyncMock(side_effect=[total_count_result, risk_level_result, camera_stats_result])
 
     response = await events_routes.get_event_stats(db=db)
 

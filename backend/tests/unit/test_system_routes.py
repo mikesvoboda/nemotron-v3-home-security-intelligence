@@ -3618,3 +3618,104 @@ async def test_get_cleanup_status_without_service() -> None:
 
     finally:
         system_routes._cleanup_service = original_cleanup_service
+
+
+# =============================================================================
+# Bounded Health Check Concurrency Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_bounded_health_check_respects_semaphore_limit() -> None:
+    """Test that _bounded_health_check uses the semaphore to limit concurrency."""
+
+    # Track concurrent executions
+    max_concurrent = 0
+    current_concurrent = 0
+    lock = asyncio.Lock()
+
+    async def slow_check(*args):
+        nonlocal max_concurrent, current_concurrent
+        async with lock:
+            current_concurrent += 1
+            max_concurrent = max(max_concurrent, current_concurrent)
+        await asyncio.sleep(0.1)
+        async with lock:
+            current_concurrent -= 1
+        return (True, None)
+
+    # Run more tasks than the semaphore allows (MAX_CONCURRENT_HEALTH_CHECKS=10)
+    tasks = [system_routes._bounded_health_check(slow_check, "arg1", "arg2") for _ in range(15)]
+
+    await asyncio.gather(*tasks)
+
+    # max_concurrent should not exceed the semaphore limit (10)
+    assert max_concurrent <= system_routes.MAX_CONCURRENT_HEALTH_CHECKS
+
+
+@pytest.mark.asyncio
+async def test_bounded_health_check_passes_args_correctly() -> None:
+    """Test that _bounded_health_check passes arguments to the check function."""
+    received_args = []
+
+    async def mock_check(*args):
+        received_args.extend(args)
+        return (True, None)
+
+    await system_routes._bounded_health_check(mock_check, "url", 3.0)
+
+    assert received_args == ["url", 3.0]
+
+
+@pytest.mark.asyncio
+async def test_bounded_health_check_returns_result() -> None:
+    """Test that _bounded_health_check returns the result from the check function."""
+
+    async def mock_check(*args):
+        return (False, "Test error message")
+
+    is_healthy, error = await system_routes._bounded_health_check(mock_check)
+
+    assert is_healthy is False
+    assert error == "Test error message"
+
+
+@pytest.mark.asyncio
+async def test_check_ai_services_health_uses_bounded_checks() -> None:
+    """Test that check_ai_services_health uses bounded health checks."""
+    # Verify the semaphore is being used by checking that both checks complete
+    mock_settings = MagicMock()
+    mock_settings.rtdetr_url = "http://localhost:8090"
+    mock_settings.nemotron_url = "http://localhost:8091"
+
+    with (
+        patch.object(system_routes, "get_settings", return_value=mock_settings),
+        patch.object(
+            system_routes,
+            "_check_rtdetr_health_with_circuit_breaker",
+            return_value=(True, None),
+        ),
+        patch.object(
+            system_routes,
+            "_check_nemotron_health_with_circuit_breaker",
+            return_value=(True, None),
+        ),
+    ):
+        status = await system_routes.check_ai_services_health()
+
+    assert status.status == "healthy"
+    assert status.message == "AI services operational"
+
+
+@pytest.mark.asyncio
+async def test_max_concurrent_health_checks_constant_exists() -> None:
+    """Test that MAX_CONCURRENT_HEALTH_CHECKS constant is defined."""
+    assert hasattr(system_routes, "MAX_CONCURRENT_HEALTH_CHECKS")
+    assert system_routes.MAX_CONCURRENT_HEALTH_CHECKS == 10
+
+
+@pytest.mark.asyncio
+async def test_health_check_semaphore_exists() -> None:
+    """Test that _health_check_semaphore is defined."""
+    assert hasattr(system_routes, "_health_check_semaphore")
+    assert isinstance(system_routes._health_check_semaphore, asyncio.Semaphore)

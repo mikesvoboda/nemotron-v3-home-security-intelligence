@@ -20,11 +20,11 @@ from backend.models import (
 from backend.tests.conftest import unique_id
 
 
-def utc_now_naive() -> datetime:
-    """Return current UTC time as a naive datetime (for DB compatibility)."""
+def utc_now() -> datetime:
+    """Return current UTC time as a timezone-aware datetime."""
     from datetime import UTC
 
-    return datetime.now(UTC).replace(tzinfo=None)
+    return datetime.now(UTC)
 
 
 # Mark as integration since these tests require real PostgreSQL database
@@ -55,7 +55,7 @@ async def test_event(session, test_camera):
     event = Event(
         batch_id=unique_id("batch"),
         camera_id=test_camera.id,
-        started_at=utc_now_naive(),
+        started_at=utc_now(),
         risk_score=75,
         risk_level="high",
     )
@@ -265,7 +265,7 @@ class TestAlertModel:
 
         # Transition to delivered
         alert.status = AlertStatus.DELIVERED
-        alert.delivered_at = utc_now_naive()
+        alert.delivered_at = utc_now()
         await session.flush()
         assert alert.status == AlertStatus.DELIVERED
         assert alert.delivered_at is not None
@@ -393,7 +393,7 @@ class TestAlertModel:
         event = Event(
             batch_id=batch_id,
             camera_id=test_camera.id,
-            started_at=utc_now_naive(),
+            started_at=utc_now(),
         )
         session.add(event)
         await session.flush()
@@ -470,7 +470,7 @@ class TestAlertIndexes:
     @pytest.mark.asyncio
     async def test_query_by_dedup_key_and_created_at(self, session, test_event):
         """Test query using composite index on dedup_key and created_at."""
-        now = utc_now_naive()
+        now = utc_now()
 
         # Create alerts at different times with same dedup_key
         for i in range(5):
@@ -499,7 +499,7 @@ class TestAlertIndexes:
     @pytest.mark.asyncio
     async def test_query_recent_alerts_by_severity(self, session, test_event):
         """Test querying recent alerts filtered by severity."""
-        now = utc_now_naive()
+        now = utc_now()
 
         # Create alerts with different severities
         severities = [
@@ -530,3 +530,111 @@ class TestAlertIndexes:
         high_alerts = result.scalars().all()
 
         assert len(high_alerts) == 2
+
+
+class TestMutableDefaults:
+    """Tests to ensure no mutable default issues in models.
+
+    These tests verify that the mutable default bug (using default=list or default=dict)
+    has been fixed. With mutable defaults, all instances share the same list/dict object,
+    causing state corruption between instances.
+    """
+
+    @pytest.mark.asyncio
+    async def test_alert_channels_no_shared_state(self, session, test_event):
+        """Test that Alert.channels doesn't share state between instances."""
+        # Create two alerts without specifying channels
+        alert1 = Alert(
+            event_id=test_event.id,
+            dedup_key="test_camera:person:1",
+        )
+        alert2 = Alert(
+            event_id=test_event.id,
+            dedup_key="test_camera:person:2",
+        )
+        session.add(alert1)
+        session.add(alert2)
+        await session.flush()
+
+        # Verify channels are None (not empty list) by default
+        # This is the safe behavior - no mutable default
+        assert alert1.channels is None
+        assert alert2.channels is None
+
+        # Set channels on alert1
+        alert1.channels = ["pushover"]
+        await session.flush()
+
+        # alert2 should still be None (not affected by alert1)
+        assert alert1.channels == ["pushover"]
+        assert alert2.channels is None
+
+    @pytest.mark.asyncio
+    async def test_alert_metadata_no_shared_state(self, session, test_event):
+        """Test that Alert.alert_metadata doesn't share state between instances."""
+        # Create two alerts without specifying metadata
+        alert1 = Alert(
+            event_id=test_event.id,
+            dedup_key="test_camera:person:meta:1",
+        )
+        alert2 = Alert(
+            event_id=test_event.id,
+            dedup_key="test_camera:person:meta:2",
+        )
+        session.add(alert1)
+        session.add(alert2)
+        await session.flush()
+
+        # Verify metadata is None by default
+        assert alert1.alert_metadata is None
+        assert alert2.alert_metadata is None
+
+        # Set metadata on alert1
+        alert1.alert_metadata = {"key": "value"}
+        await session.flush()
+
+        # alert2 should still be None
+        assert alert1.alert_metadata == {"key": "value"}
+        assert alert2.alert_metadata is None
+
+    @pytest.mark.asyncio
+    async def test_alert_rule_channels_no_shared_state(self, session):
+        """Test that AlertRule.channels doesn't share state between instances."""
+        rule1 = AlertRule(name="Rule 1")
+        rule2 = AlertRule(name="Rule 2")
+        session.add(rule1)
+        session.add(rule2)
+        await session.flush()
+
+        # Verify channels are None by default
+        assert rule1.channels is None
+        assert rule2.channels is None
+
+        # Set channels on rule1
+        rule1.channels = ["webhook"]
+        await session.flush()
+
+        # rule2 should still be None
+        assert rule1.channels == ["webhook"]
+        assert rule2.channels is None
+
+    @pytest.mark.asyncio
+    async def test_alert_rule_conditions_no_shared_state(self, session):
+        """Test that AlertRule.conditions doesn't share state between instances."""
+        rule1 = AlertRule(name="Rule 1")
+        rule2 = AlertRule(name="Rule 2")
+        session.add(rule1)
+        session.add(rule2)
+        await session.flush()
+
+        # Verify conditions are None by default
+        assert rule1.conditions is None
+        assert rule2.conditions is None
+
+        # Set conditions on rule1
+        rule1.conditions = {"legacy": True}
+        await session.flush()
+
+        # rule2 should still be None
+        assert rule1.conditions == {"legacy": True}
+        assert rule2.conditions is None

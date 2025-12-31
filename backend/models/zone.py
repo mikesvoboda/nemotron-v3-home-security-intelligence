@@ -20,8 +20,8 @@ from .camera import Base
 
 
 def _utc_now() -> datetime:
-    """Return current UTC time as a naive datetime (for DB compatibility)."""
-    return datetime.now(UTC).replace(tzinfo=None)
+    """Return current UTC time as a timezone-aware datetime."""
+    return datetime.now(UTC)
 
 
 if TYPE_CHECKING:
@@ -77,9 +77,11 @@ class Zone(Base):
     color: Mapped[str] = mapped_column(String(7), default="#3B82F6", nullable=False)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     priority: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utc_now, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utc_now, nullable=False
+    )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=_utc_now, onupdate=_utc_now, nullable=False
+        DateTime(timezone=True), default=_utc_now, onupdate=_utc_now, nullable=False
     )
 
     # Relationships

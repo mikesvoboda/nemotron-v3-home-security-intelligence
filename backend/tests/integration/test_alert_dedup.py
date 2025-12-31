@@ -14,9 +14,13 @@ from backend.services.alert_dedup import AlertDeduplicationService
 from backend.tests.conftest import unique_id
 
 
-def utc_now_naive() -> datetime:
-    """Get current UTC time as a naive datetime (for DB compatibility)."""
-    return datetime.now(UTC).replace(tzinfo=None)
+def _utcnow() -> datetime:
+    """Get current UTC time as a timezone-aware datetime.
+
+    Uses datetime.now(UTC) to avoid deprecation warning from datetime.utcnow().
+    Returns timezone-aware datetime to match SQLAlchemy DateTime(timezone=True) columns.
+    """
+    return datetime.now(UTC)
 
 
 # Mark as integration since these tests require real PostgreSQL database
@@ -52,7 +56,7 @@ async def test_event(session, test_camera):
     event = Event(
         batch_id=unique_id("batch"),
         camera_id=test_camera.id,
-        started_at=utc_now_naive(),
+        started_at=_utcnow(),
         risk_score=80,
         risk_level="high",
     )
@@ -95,7 +99,7 @@ class TestAlertDeduplicationService:
         existing_alert = Alert(
             event_id=test_event.id,
             dedup_key=dedup_key,
-            created_at=utc_now_naive() - timedelta(minutes=2),  # 2 minutes ago
+            created_at=_utcnow() - timedelta(minutes=2),  # 2 minutes ago
         )
         session.add(existing_alert)
         await session.flush()
@@ -122,7 +126,7 @@ class TestAlertDeduplicationService:
         old_alert = Alert(
             event_id=test_event.id,
             dedup_key=dedup_key,
-            created_at=utc_now_naive() - timedelta(minutes=10),  # 10 minutes ago
+            created_at=_utcnow() - timedelta(minutes=10),  # 10 minutes ago
         )
         session.add(old_alert)
         await session.flush()
@@ -147,7 +151,7 @@ class TestAlertDeduplicationService:
         existing_alert = Alert(
             event_id=test_event.id,
             dedup_key=dedup_key1,
-            created_at=utc_now_naive(),
+            created_at=_utcnow(),
         )
         session.add(existing_alert)
         await session.flush()
@@ -260,7 +264,7 @@ class TestAlertDeduplicationService:
         assert is_new is True
 
         # Manually backdate the alert to 30 seconds ago
-        first_alert.created_at = utc_now_naive() - timedelta(seconds=30)
+        first_alert.created_at = _utcnow() - timedelta(seconds=30)
         await session.flush()
 
         # Try to create another - should be duplicate (within 60s cooldown)
@@ -287,7 +291,7 @@ class TestAlertDeduplicationService:
         assert is_new is True
 
         # Backdate to 90 seconds ago
-        first_alert.created_at = utc_now_naive() - timedelta(seconds=90)
+        first_alert.created_at = _utcnow() - timedelta(seconds=90)
         await session.flush()
 
         # Try to create with same 60s cooldown - should NOT be duplicate
@@ -303,7 +307,7 @@ class TestAlertDeduplicationService:
     async def test_get_recent_alerts_for_key(self, session, dedup_service, test_event, test_prefix):
         """Test getting recent alerts for a dedup key."""
         dedup_key = f"{test_prefix}:person"
-        now = utc_now_naive()
+        now = _utcnow()
 
         # Create alerts at different times (all within 23 hours to avoid boundary issues)
         # The query uses >= cutoff_time, so we need to stay well within the window
@@ -315,6 +319,9 @@ class TestAlertDeduplicationService:
             )
             session.add(alert)
         await session.flush()
+
+        # Expire cached objects to ensure fresh load from database with proper timezone handling
+        session.expire_all()
 
         # Get alerts from last 24 hours
         recent = await dedup_service.get_recent_alerts_for_key(
@@ -333,7 +340,7 @@ class TestAlertDeduplicationService:
     ):
         """Test getting recent alerts with limit."""
         dedup_key = f"{test_prefix}:person"
-        now = utc_now_naive()
+        now = _utcnow()
 
         # Create 10 alerts
         for i in range(10):
@@ -362,7 +369,7 @@ class TestAlertDeduplicationService:
         verifies the count matches what was created in this test. With savepoint
         isolation, this test only sees its own data.
         """
-        now = utc_now_naive()
+        now = _utcnow()
 
         # Create alerts with various dedup keys (all prefixed for isolation)
         dedup_keys = [
@@ -415,7 +422,7 @@ class TestDedupCooldownBehavior:
         alert = Alert(
             event_id=test_event.id,
             dedup_key=dedup_key,
-            created_at=utc_now_naive() - timedelta(seconds=cooldown_seconds),
+            created_at=_utcnow() - timedelta(seconds=cooldown_seconds),
         )
         session.add(alert)
         await session.flush()
@@ -437,7 +444,7 @@ class TestDedupCooldownBehavior:
         alert = Alert(
             event_id=test_event.id,
             dedup_key=dedup_key,
-            created_at=utc_now_naive() - timedelta(seconds=cooldown_seconds - 10),
+            created_at=_utcnow() - timedelta(seconds=cooldown_seconds - 10),
         )
         session.add(alert)
         await session.flush()
@@ -460,7 +467,7 @@ class TestDedupCooldownBehavior:
         alert = Alert(
             event_id=test_event.id,
             dedup_key=dedup_key,
-            created_at=utc_now_naive(),
+            created_at=_utcnow(),
         )
         session.add(alert)
         await session.flush()
@@ -479,7 +486,7 @@ class TestDedupCooldownBehavior:
     ):
         """Test that check_duplicate returns the most recent alert."""
         dedup_key = f"{test_prefix}:multiple"
-        now = utc_now_naive()
+        now = _utcnow()
 
         # Create multiple alerts with same dedup_key at different times
         # The most recent alert (created last with smallest time offset) should be HIGH
@@ -526,7 +533,7 @@ class TestConcurrencyProtection:
         existing_alert = Alert(
             event_id=test_event.id,
             dedup_key=dedup_key,
-            created_at=utc_now_naive() - timedelta(minutes=2),
+            created_at=_utcnow() - timedelta(minutes=2),
         )
         session.add(existing_alert)
         await session.flush()
