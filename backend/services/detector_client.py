@@ -76,6 +76,9 @@ class DetectorClient:
 
     This client handles communication with the external detector service,
     including health checks, image submission, and response parsing.
+
+    Security: Supports API key authentication via X-API-Key header when
+    configured in settings (RTDETR_API_KEY environment variable).
     """
 
     def __init__(self) -> None:
@@ -83,6 +86,8 @@ class DetectorClient:
         settings = get_settings()
         self._detector_url = settings.rtdetr_url
         self._confidence_threshold = settings.detection_confidence_threshold
+        # Security: Store API key for authentication (None if not configured)
+        self._api_key = settings.rtdetr_api_key
         # Use httpx.Timeout for proper timeout configuration from Settings
         # connect: time to establish connection, read: time to wait for response
         self._timeout = httpx.Timeout(
@@ -98,6 +103,18 @@ class DetectorClient:
             pool=settings.ai_health_timeout,
         )
 
+    def _get_auth_headers(self) -> dict[str, str]:
+        """Get authentication headers for API requests.
+
+        Security: Returns X-API-Key header if API key is configured.
+
+        Returns:
+            Dictionary of headers to include in requests
+        """
+        if self._api_key:
+            return {"X-API-Key": self._api_key}
+        return {}
+
     async def health_check(self) -> bool:
         """Check if detector service is healthy and reachable.
 
@@ -106,17 +123,23 @@ class DetectorClient:
         """
         try:
             async with httpx.AsyncClient(timeout=self._health_timeout) as client:
-                response = await client.get(f"{self._detector_url}/health")
+                # Include auth headers in health check
+                response = await client.get(
+                    f"{self._detector_url}/health",
+                    headers=self._get_auth_headers(),
+                )
                 response.raise_for_status()
                 return True
         except (httpx.ConnectError, httpx.TimeoutException) as e:
-            logger.warning(f"Detector health check failed: {e}")
+            logger.warning(f"Detector health check failed: {e}", exc_info=True)
             return False
         except httpx.HTTPStatusError as e:
-            logger.warning(f"Detector health check returned error status: {e}")
+            logger.warning(f"Detector health check returned error status: {e}", exc_info=True)
             return False
         except Exception as e:
-            logger.error(f"Unexpected error during detector health check: {sanitize_error(e)}")
+            logger.error(
+                f"Unexpected error during detector health check: {sanitize_error(e)}", exc_info=True
+            )
             return False
 
     async def detect_objects(  # noqa: PLR0912
@@ -171,12 +194,13 @@ class DetectorClient:
             # Track AI request time separately
             ai_start_time = time.time()
 
-            # Send to detector
+            # Send to detector with authentication if configured
             async with httpx.AsyncClient(timeout=self._timeout) as client:
                 files = {"file": (image_file.name, image_data, "image/jpeg")}
                 response = await client.post(
                     f"{self._detector_url}/detect",
                     files=files,
+                    headers=self._get_auth_headers(),
                 )
                 response.raise_for_status()
 
@@ -271,7 +295,9 @@ class DetectorClient:
                     )
 
                 except Exception as e:
-                    logger.error(f"Error processing detection data: {sanitize_error(e)}")
+                    logger.error(
+                        f"Error processing detection data: {sanitize_error(e)}", exc_info=True
+                    )
                     record_pipeline_error("detection_processing_error")
                     continue
 
@@ -309,6 +335,7 @@ class DetectorClient:
             logger.error(
                 f"Failed to connect to detector service: {e}",
                 extra={"camera_id": camera_id, "file_path": image_path, "duration_ms": duration_ms},
+                exc_info=True,
             )
             # Raise exception to signal retry is needed
             raise DetectorUnavailableError(
@@ -322,6 +349,7 @@ class DetectorClient:
             logger.error(
                 f"Detector request timed out: {e}",
                 extra={"camera_id": camera_id, "file_path": image_path, "duration_ms": duration_ms},
+                exc_info=True,
             )
             # Raise exception to signal retry is needed
             raise DetectorUnavailableError(
@@ -344,6 +372,7 @@ class DetectorClient:
                         "duration_ms": duration_ms,
                         "status_code": status_code,
                     },
+                    exc_info=True,
                 )
                 raise DetectorUnavailableError(
                     f"Detector returned server error: {status_code}",
@@ -360,6 +389,7 @@ class DetectorClient:
                     "duration_ms": duration_ms,
                     "status_code": status_code,
                 },
+                exc_info=True,
             )
             return []
 
@@ -369,6 +399,7 @@ class DetectorClient:
             logger.error(
                 f"Unexpected error during object detection: {sanitize_error(e)}",
                 extra={"camera_id": camera_id, "duration_ms": duration_ms},
+                exc_info=True,
             )
             # For unexpected errors, also raise to allow retry
             # This could be network issues, DNS failures, etc.

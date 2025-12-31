@@ -18,30 +18,54 @@ Copy `.env.example` to `.env` and adjust values as needed. All variables have se
 | Nemotron    | 8091 | HTTP     | LLM risk analysis service (containerized with GPU) |
 | Redis       | 6379 | TCP      | Cache, queues, pub/sub                             |
 
-## Container vs Host Networking
+## AI Service Deployment Modes
 
-All services, including AI services (RT-DETRv2 and Nemotron), run in **Podman containers** with GPU passthrough via NVIDIA Container Toolkit. The backend can reach AI services directly within the container network or via localhost ports.
+This project supports two deployment modes for AI services (RT-DETRv2 and Nemotron):
 
-### macOS and Windows (Docker Desktop)
+1. **Development Mode (Host-run AI)**: AI services run directly on the host machine; backend runs in containers
+2. **Production Mode (Fully Containerized)**: All services including AI run in containers with GPU passthrough
 
-Use `host.docker.internal` which Docker Desktop provides automatically:
+### Development Mode: Host-Run AI Services
+
+In development mode (`docker-compose.yml`), AI services run directly on the host while the backend runs in a container. This is useful when:
+
+- You want to iterate on AI service code without rebuilding containers
+- You're running on a machine where GPU passthrough is difficult to configure
+- You need direct access to AI service logs and debugging
+
+The backend container reaches host-run AI services via `host.docker.internal` (Docker) or `host.containers.internal` (Podman).
+
+#### macOS with Docker Desktop
+
+Docker Desktop provides `host.docker.internal` automatically:
 
 ```bash
+# No additional configuration needed - this is the default in docker-compose.yml
 RTDETR_URL=http://host.docker.internal:8090
 NEMOTRON_URL=http://host.docker.internal:8091
 ```
 
-### Linux
+#### macOS with Podman
 
-Linux does not have `host.docker.internal` by default. Choose one of these approaches:
+Podman uses `host.containers.internal` instead:
 
-**Option 1: Add host entry manually (recommended)**
+```bash
+# Set AI_HOST before starting containers
+export AI_HOST=host.containers.internal
+podman-compose up -d
+```
+
+#### Linux with Docker
+
+Linux Docker does not have `host.docker.internal` by default. Choose one approach:
+
+**Option 1: Add host entry (recommended)**
 
 ```bash
 docker compose up --add-host=host.docker.internal:host-gateway
 ```
 
-Or add to your `docker-compose.yml`:
+Or add to your compose file:
 
 ```yaml
 services:
@@ -56,18 +80,62 @@ services:
 # Find your host IP
 ip route get 1 | awk '{print $7}'
 
-# Set in .env
-RTDETR_URL=http://192.168.1.100:8090
-NEMOTRON_URL=http://192.168.1.100:8091
+# Set in .env or export before compose
+export AI_HOST=192.168.1.100
+docker compose up -d
 ```
 
-**Option 3: Use host network mode (simplest but less isolated)**
+#### Linux with Podman
+
+Podman on Linux works similarly to Docker:
+
+```bash
+# Option 1: Use host-gateway (Podman 4.0+)
+podman-compose up --add-host=host.containers.internal:host-gateway
+
+# Option 2: Use host IP
+export AI_HOST=192.168.1.100
+podman-compose up -d
+```
+
+### Production Mode: Fully Containerized AI
+
+In production mode (`docker-compose.prod.yml`), all services including AI run in containers with NVIDIA GPU passthrough. This provides:
+
+- Reproducible deployments
+- Isolated GPU resource allocation
+- Container orchestration benefits (health checks, restart policies)
+
+```bash
+# Production deployment - all services containerized
+docker compose -f docker-compose.prod.yml up -d
+# or with Podman:
+podman-compose -f docker-compose.prod.yml up -d
+```
+
+In this mode, the backend reaches AI services via container network names:
 
 ```yaml
-services:
-  backend:
-    network_mode: host
+# Set automatically in docker-compose.prod.yml
+RTDETR_URL=http://ai-detector:8090
+NEMOTRON_URL=http://ai-llm:8091
 ```
+
+**GPU Requirements for Production Mode:**
+
+- NVIDIA GPU with CUDA support
+- nvidia-container-toolkit installed
+- Docker/Podman configured for GPU access
+
+### Quick Reference: AI_HOST by Platform
+
+| Platform | Runtime | Development (host AI)            | Production (container AI) |
+| -------- | ------- | -------------------------------- | ------------------------- |
+| macOS    | Docker  | `host.docker.internal` (default) | N/A (use Linux for GPU)   |
+| macOS    | Podman  | `host.containers.internal`       | N/A (use Linux for GPU)   |
+| Linux    | Docker  | Host IP or `host-gateway`        | `ai-detector`, `ai-llm`   |
+| Linux    | Podman  | Host IP or `host-gateway`        | `ai-detector`, `ai-llm`   |
+| Windows  | Docker  | `host.docker.internal`           | N/A (use Linux for GPU)   |
 
 ## Environment Variables
 
@@ -169,9 +237,8 @@ Lower intervals mean faster detection but increased CPU usage from directory sca
 
 **Notes:**
 
-- Both services run in Podman containers with NVIDIA GPU passthrough
 - RT-DETRv2 provides `/detect` endpoint for image analysis
-- Nemotron provides `/v1/chat/completions` endpoint for risk reasoning
+- Nemotron provides `/completion` endpoint for risk reasoning (llama.cpp server completion API)
 
 ### Detection Settings
 

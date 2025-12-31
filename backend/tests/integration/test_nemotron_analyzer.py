@@ -28,8 +28,10 @@ pytestmark = pytest.mark.integration
 
 @pytest.fixture
 def mock_redis_client():
-    """Mock Redis client for Nemotron analyzer tests."""
-    mock_client = MagicMock()
+    """Mock Redis client for Nemotron analyzer tests with spec to prevent mocking non-existent attributes."""
+    from backend.core.redis import RedisClient
+
+    mock_client = MagicMock(spec=RedisClient)
     mock_client.get = AsyncMock(return_value=None)
     mock_client.set = AsyncMock(return_value=True)
     mock_client.delete = AsyncMock(return_value=1)

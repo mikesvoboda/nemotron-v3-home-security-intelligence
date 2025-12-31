@@ -1921,7 +1921,7 @@ async def _get_batch_aggregator_status(
                     )
                 )
             except Exception as e:
-                logger.warning(f"Error processing batch key {key}: {e}")
+                logger.warning(f"Error processing batch key {key}: {e}", exc_info=True)
                 continue
 
         return BatchAggregatorStatusResponse(
@@ -1931,7 +1931,7 @@ async def _get_batch_aggregator_status(
             idle_timeout_seconds=settings.batch_idle_timeout_seconds,
         )
     except Exception as e:
-        logger.error(f"Error getting batch aggregator status: {e}")
+        logger.error(f"Error getting batch aggregator status: {e}", exc_info=True)
         return None
 
 
@@ -1979,7 +1979,7 @@ def _get_degradation_status() -> DegradationStatusResponse | None:
             available_features=status.get("available_features", []),
         )
     except Exception as e:
-        logger.error(f"Error getting degradation status: {e}")
+        logger.error(f"Error getting degradation status: {e}", exc_info=True)
         return None
 
 

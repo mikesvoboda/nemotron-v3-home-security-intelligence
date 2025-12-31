@@ -143,11 +143,28 @@ class BaselineService:
         the class baseline (per camera/class/hour). Uses exponential moving
         average with time decay.
 
+        Transaction Contract:
+            - If session is None: Creates a new session and commits automatically.
+            - If session is provided: Caller MUST commit the transaction.
+              Changes are added to the session but NOT committed, allowing
+              callers to batch multiple operations in a single transaction.
+
+        Example:
+            # Auto-commit mode (no session passed):
+            await service.update_baseline("cam1", "person", timestamp)
+
+            # Manual commit mode (session passed):
+            async with get_session() as session:
+                await service.update_baseline("cam1", "person", ts, session=session)
+                await service.update_baseline("cam1", "vehicle", ts, session=session)
+                await session.commit()  # Caller MUST commit!
+
         Args:
             camera_id: ID of the camera that captured the detection.
             detection_class: The detected object class (e.g., "person").
             timestamp: Timestamp of the detection.
-            session: Optional database session (creates new if not provided).
+            session: Optional database session. If provided, caller is
+                responsible for committing the transaction.
         """
         hour = timestamp.hour
         day_of_week = timestamp.weekday()
@@ -182,7 +199,11 @@ class BaselineService:
     ) -> None:
         """Update or create activity baseline entry.
 
-        Uses SQLite upsert (INSERT ... ON CONFLICT) for atomic updates.
+        Uses SELECT + UPDATE/INSERT pattern for updates.
+
+        Note:
+            This method does NOT commit the transaction. The caller
+            (update_baseline) is responsible for managing commits.
         """
         # Try to get existing baseline
         stmt = select(ActivityBaseline).where(
@@ -234,7 +255,11 @@ class BaselineService:
     ) -> None:
         """Update or create class baseline entry.
 
-        Uses SQLite upsert for atomic updates.
+        Uses SELECT + UPDATE/INSERT pattern for updates.
+
+        Note:
+            This method does NOT commit the transaction. The caller
+            (update_baseline) is responsible for managing commits.
         """
         # Try to get existing baseline
         stmt = select(ClassBaseline).where(

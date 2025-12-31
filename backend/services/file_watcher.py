@@ -474,8 +474,21 @@ class FileWatcher:
         task = asyncio.create_task(self._debounced_process(file_path))
         self._pending_tasks[file_path] = task
 
+        # Add done callback for cleanup to prevent memory leak
+        # The callback checks if the task in the dict is still this task before removing
+        def cleanup_task(t: asyncio.Task[None]) -> None:
+            # Only remove if this task is still the one in the dict
+            # (prevents removing a replacement task scheduled for the same file)
+            if self._pending_tasks.get(file_path) is t:
+                self._pending_tasks.pop(file_path, None)
+
+        task.add_done_callback(cleanup_task)
+
     async def _debounced_process(self, file_path: str) -> None:
         """Process file after debounce delay.
+
+        Note: Task cleanup is handled by the done callback in _schedule_file_processing
+        to prevent memory leaks and race conditions when tasks are replaced.
 
         Args:
             file_path: Path to the file to process
@@ -489,9 +502,6 @@ class FileWatcher:
 
         except asyncio.CancelledError:
             logger.debug(f"Processing cancelled for {file_path}")
-        finally:
-            # Clean up pending task
-            self._pending_tasks.pop(file_path, None)
 
     async def _process_file(self, file_path: str) -> None:
         """Process a file by validating and queuing for detection.
@@ -729,6 +739,7 @@ class FileWatcher:
         """Stop watching and cleanup resources.
 
         Cancels all pending debounce tasks and stops the observer.
+        Uses run_in_executor for blocking observer.join() to avoid blocking the event loop.
         """
         if not self.running:
             logger.debug("FileWatcher not running, nothing to stop")
@@ -749,7 +760,10 @@ class FileWatcher:
 
         # Stop observer
         self.observer.stop()
-        self.observer.join(timeout=5)
+
+        # Run blocking join() in thread pool to avoid blocking the event loop
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, lambda: self.observer.join(timeout=5))
 
         # Clear loop reference
         self._loop = None

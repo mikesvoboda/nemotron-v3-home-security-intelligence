@@ -89,15 +89,22 @@ class TestAuditService:
 
     @pytest.fixture
     def mock_db_session(self):
-        """Create a mock database session."""
-        mock_session = MagicMock()
+        """Create a mock database session with spec to prevent mocking non-existent attributes."""
+        from sqlalchemy.ext.asyncio import AsyncSession
+
+        mock_session = MagicMock(spec=AsyncSession)
         mock_session.add = MagicMock()
         mock_session.flush = MagicMock()
         return mock_session
 
     @pytest.fixture
     def mock_request(self):
-        """Create a mock FastAPI request."""
+        """Create a mock FastAPI request.
+
+        Note: We don't use spec=Request here because Request has complex nested
+        attributes (client.host, headers.get) that are difficult to mock with spec.
+        The test focuses on the AuditService behavior, not Request validation.
+        """
         mock_req = MagicMock()
         mock_req.client = MagicMock()
         mock_req.client.host = "127.0.0.1"

@@ -13,9 +13,16 @@ Service Management Flow:
 Implementations:
     - ShellServiceManager: Restart via shell scripts (asyncio subprocess)
     - DockerServiceManager: Restart via docker restart command
+
+Security:
+    - Restart commands are validated against an allowlist of safe scripts/containers
+    - Commands are executed with shell=False to prevent command injection
+    - Container names are validated to contain only alphanumeric characters, hyphens, and underscores
 """
 
 import asyncio
+import re
+import shlex
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
@@ -24,6 +31,71 @@ import httpx
 from backend.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+# Security: Allowlist of permitted restart scripts and container names
+# These are the only commands that can be executed for service restarts
+ALLOWED_RESTART_SCRIPTS = frozenset(
+    {
+        "ai/start_detector.sh",
+        "ai/start_llm.sh",
+        "scripts/restart_rtdetr.sh",
+        "scripts/restart_nemotron.sh",
+        "scripts/restart_redis.sh",
+    }
+)
+
+# Regex pattern for valid container names (alphanumeric, hyphens, underscores only)
+# Docker container names: only [a-zA-Z0-9][a-zA-Z0-9_.-]* are allowed
+CONTAINER_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]*$")
+
+
+def validate_restart_command(restart_cmd: str) -> bool:
+    """Validate that a restart command is in the allowlist.
+
+    Security: This prevents command injection by ensuring only
+    pre-approved commands can be executed.
+
+    Args:
+        restart_cmd: The restart command to validate
+
+    Returns:
+        True if the command is allowed, False otherwise
+    """
+    # Strip and normalize the command
+    cmd = restart_cmd.strip()
+
+    # Check against allowlist
+    if cmd in ALLOWED_RESTART_SCRIPTS:
+        return True
+
+    # Check if it's a valid docker restart command
+    if cmd.startswith("docker restart "):
+        container_name = cmd[len("docker restart ") :].strip()
+        return validate_container_name(container_name)
+
+    return False
+
+
+def validate_container_name(name: str) -> bool:
+    """Validate that a container name is safe.
+
+    Security: Container names must match Docker's naming convention
+    to prevent command injection through malicious container names.
+
+    Args:
+        name: The container name to validate
+
+    Returns:
+        True if the name is valid, False otherwise
+    """
+    if not name:
+        return False
+
+    # Must match Docker naming pattern and be reasonable length
+    if len(name) > 128:  # Docker limit is 128 chars
+        return False
+
+    return bool(CONTAINER_NAME_PATTERN.match(name))
 
 
 @dataclass
@@ -225,6 +297,10 @@ class ShellServiceManager(ServiceManager):
     async def restart(self, config: ServiceConfig) -> bool:
         """Restart service via shell command.
 
+        Security: This method validates the restart command against an allowlist
+        and executes using shell=False with proper argument parsing to prevent
+        command injection attacks.
+
         Executes the restart_cmd as a subprocess and waits for it to
         complete. If the subprocess takes longer than subprocess_timeout,
         it is killed and the restart is considered failed.
@@ -246,14 +322,30 @@ class ShellServiceManager(ServiceManager):
             )
             return False
 
+        # Security: Validate command against allowlist before execution
+        if not validate_restart_command(config.restart_cmd):
+            logger.error(
+                f"SECURITY: Restart command rejected for {config.name} - not in allowlist",
+                extra={
+                    "service": config.name,
+                    "command": config.restart_cmd,
+                    "allowed_commands": list(ALLOWED_RESTART_SCRIPTS),
+                },
+            )
+            return False
+
         logger.info(
             f"Attempting to restart {config.name} via shell",
             extra={"service": config.name, "command": config.restart_cmd},
         )
 
         try:
-            process = await asyncio.create_subprocess_shell(
-                config.restart_cmd,
+            # Security: Parse command into arguments and use shell=False
+            # This prevents command injection by not interpreting shell metacharacters
+            cmd_args = shlex.split(config.restart_cmd)
+
+            process = await asyncio.create_subprocess_exec(
+                *cmd_args,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -345,11 +437,13 @@ class DockerServiceManager(ServiceManager):
         Otherwise, use the service name as the container name.
         Returns None if restart_cmd is None.
 
+        Security: Returns None if the container name fails validation.
+
         Args:
             config: Service configuration
 
         Returns:
-            Docker container name to restart, or None if restart is disabled
+            Docker container name to restart, or None if restart is disabled or invalid
         """
         if config.restart_cmd is None:
             return None
@@ -362,13 +456,22 @@ class DockerServiceManager(ServiceManager):
             # Handle any flags by taking the last token
             parts = container_name.split()
             if parts:
-                return parts[-1]
+                name = parts[-1]
+                # Security: Validate container name
+                if validate_container_name(name):
+                    return name
+                return None
 
-        # Default to service name as container name
-        return config.name
+        # Default to service name as container name (validate it too)
+        if validate_container_name(config.name):
+            return config.name
+        return None
 
     async def restart(self, config: ServiceConfig) -> bool:
         """Restart service via docker restart command.
+
+        Security: This method validates the container name against Docker's
+        naming rules and uses shell=False to prevent command injection.
 
         Extracts the container name from config.restart_cmd or uses
         config.name as the container name. Executes `docker restart`
@@ -385,12 +488,21 @@ class DockerServiceManager(ServiceManager):
         """
         container_name = self._extract_container_name(config)
 
-        # Handle case where restart is disabled (no restart_cmd configured)
+        # Handle case where restart is disabled or container name is invalid
         if container_name is None:
-            logger.warning(
-                f"Restart disabled for {config.name}: no restart_cmd configured",
-                extra={"service": config.name},
-            )
+            if config.restart_cmd is None:
+                logger.warning(
+                    f"Restart disabled for {config.name}: no restart_cmd configured",
+                    extra={"service": config.name},
+                )
+            else:
+                logger.error(
+                    f"SECURITY: Invalid container name rejected for {config.name}",
+                    extra={
+                        "service": config.name,
+                        "restart_cmd": config.restart_cmd,
+                    },
+                )
             return False
 
         logger.info(
@@ -399,10 +511,12 @@ class DockerServiceManager(ServiceManager):
         )
 
         try:
-            docker_cmd = f"docker restart {container_name}"
-
-            process = await asyncio.create_subprocess_shell(
-                docker_cmd,
+            # Security: Use subprocess_exec with explicit arguments (shell=False)
+            # This prevents command injection through container names
+            process = await asyncio.create_subprocess_exec(
+                "docker",
+                "restart",
+                container_name,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )

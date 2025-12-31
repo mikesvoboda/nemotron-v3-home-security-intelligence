@@ -111,6 +111,17 @@ class Settings(BaseSettings):
         description="Nemotron reasoning service URL (llama.cpp server)",
     )
 
+    # AI service authentication
+    # Security: API keys for authenticating with AI services
+    rtdetr_api_key: str | None = Field(
+        default=None,
+        description="API key for RT-DETRv2 service authentication (optional, sent via X-API-Key header)",
+    )
+    nemotron_api_key: str | None = Field(
+        default=None,
+        description="API key for Nemotron service authentication (optional, sent via X-API-Key header)",
+    )
+
     # AI service timeout settings
     ai_connect_timeout: float = Field(
         default=10.0,

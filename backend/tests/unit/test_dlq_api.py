@@ -24,8 +24,10 @@ from backend.services.retry_handler import reset_retry_handler
 
 @pytest.fixture
 def mock_redis() -> MagicMock:
-    """Create a mock Redis client."""
-    redis = MagicMock()
+    """Create a mock Redis client with spec to prevent mocking non-existent attributes."""
+    from backend.core.redis import RedisClient
+
+    redis = MagicMock(spec=RedisClient)
     redis.add_to_queue = AsyncMock(return_value=1)
     redis.add_to_queue_safe = AsyncMock(return_value=QueueAddResult(success=True, queue_length=1))
     redis.get_from_queue = AsyncMock(return_value=None)

@@ -418,7 +418,7 @@ class CleanupService:
                 logger.debug(f"File not found or not a file: {file_path}")
                 return False
         except Exception as e:
-            logger.warning(f"Failed to delete file {file_path}: {e}")
+            logger.warning(f"Failed to delete file {file_path}: {e}", exc_info=True)
             return False
 
     def get_cleanup_stats(self) -> dict[str, Any]:
