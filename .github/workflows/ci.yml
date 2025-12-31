@@ -429,7 +429,7 @@ jobs:
       - name: Build backend image
         uses: docker/build-push-action@v5
         with:
-          context: ./backend
+          context: .
           file: ./backend/Dockerfile
           push: false
           tags: backend:${{ github.sha }}
@@ -463,7 +463,7 @@ jobs:
       matrix:
         include:
           - name: backend
-            context: ./backend
+            context: .
             dockerfile: ./backend/Dockerfile.prod
           - name: frontend
             context: ./frontend
