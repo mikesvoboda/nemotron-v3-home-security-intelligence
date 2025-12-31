@@ -770,6 +770,11 @@ async def client(integration_db: str, mock_redis: AsyncMock) -> AsyncGenerator[N
     mock_file_watcher = MagicMock()
     mock_file_watcher.start = AsyncMock()
     mock_file_watcher.stop = AsyncMock()
+    # Configure attributes accessed by /api/system/pipeline endpoint
+    mock_file_watcher.running = False
+    mock_file_watcher.camera_root = "/mock/foscam"
+    mock_file_watcher._use_polling = False
+    mock_file_watcher._pending_tasks = {}
 
     mock_pipeline_manager = MagicMock()
     mock_pipeline_manager.start = AsyncMock()
