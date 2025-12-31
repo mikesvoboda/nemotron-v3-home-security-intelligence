@@ -22,28 +22,30 @@ async def async_client(client):
 
 @pytest.fixture
 async def clean_events(integration_db):
-    """Truncate events and related tables before test runs for proper isolation.
+    """Delete events and related tables data before test runs for proper isolation.
 
     This ensures tests that expect specific event counts start with empty tables.
-    Uses direct database operations since there's no DELETE endpoint for events.
+    Uses DELETE instead of TRUNCATE to avoid AccessExclusiveLock deadlocks
+    when tests run in parallel with xdist.
     """
     from sqlalchemy import text
 
     from backend.core.database import get_engine
 
     async with get_engine().begin() as conn:
-        await conn.execute(
-            text("TRUNCATE TABLE detections, events, cameras RESTART IDENTITY CASCADE")
-        )
+        # Delete in order respecting foreign key constraints
+        await conn.execute(text("DELETE FROM detections"))
+        await conn.execute(text("DELETE FROM events"))
+        await conn.execute(text("DELETE FROM cameras"))
 
     yield
 
     # Cleanup after test too (best effort)
     try:
         async with get_engine().begin() as conn:
-            await conn.execute(
-                text("TRUNCATE TABLE detections, events, cameras RESTART IDENTITY CASCADE")
-            )
+            await conn.execute(text("DELETE FROM detections"))
+            await conn.execute(text("DELETE FROM events"))
+            await conn.execute(text("DELETE FROM cameras"))
     except Exception:  # noqa: S110 - ignore cleanup errors
         pass
 
@@ -125,6 +127,8 @@ async def sample_detection(integration_db, sample_camera):
 @pytest.fixture
 async def multiple_events(integration_db, sample_camera):
     """Create multiple events with different characteristics for filtering tests."""
+    from datetime import UTC
+
     from backend.core.database import get_session
 
     # Create a second camera
@@ -144,13 +148,14 @@ async def multiple_events(integration_db, sample_camera):
         await db.commit()
 
         # Create events with various characteristics
+        # All datetimes must be UTC-aware to ensure consistent filtering
         events = [
             # Low risk, reviewed
             Event(
                 batch_id=str(uuid.uuid4()),
                 camera_id=sample_camera.id,
-                started_at=datetime(2025, 12, 23, 10, 0, 0),
-                ended_at=datetime(2025, 12, 23, 10, 1, 30),
+                started_at=datetime(2025, 12, 23, 10, 0, 0, tzinfo=UTC),
+                ended_at=datetime(2025, 12, 23, 10, 1, 30, tzinfo=UTC),
                 risk_score=20,
                 risk_level="low",
                 summary="Package delivery detected",
@@ -161,8 +166,8 @@ async def multiple_events(integration_db, sample_camera):
             Event(
                 batch_id=str(uuid.uuid4()),
                 camera_id=sample_camera.id,
-                started_at=datetime(2025, 12, 23, 14, 0, 0),
-                ended_at=datetime(2025, 12, 23, 14, 3, 0),
+                started_at=datetime(2025, 12, 23, 14, 0, 0, tzinfo=UTC),
+                ended_at=datetime(2025, 12, 23, 14, 3, 0, tzinfo=UTC),
                 risk_score=60,
                 risk_level="medium",
                 summary="Multiple people detected",
@@ -173,8 +178,8 @@ async def multiple_events(integration_db, sample_camera):
             Event(
                 batch_id=str(uuid.uuid4()),
                 camera_id=camera2_id,
-                started_at=datetime(2025, 12, 23, 22, 0, 0),
-                ended_at=datetime(2025, 12, 23, 22, 5, 0),
+                started_at=datetime(2025, 12, 23, 22, 0, 0, tzinfo=UTC),
+                ended_at=datetime(2025, 12, 23, 22, 5, 0, tzinfo=UTC),
                 risk_score=90,
                 risk_level="high",
                 summary="Suspicious activity at night",
@@ -185,7 +190,7 @@ async def multiple_events(integration_db, sample_camera):
             Event(
                 batch_id=str(uuid.uuid4()),
                 camera_id=sample_camera.id,
-                started_at=datetime(2025, 12, 23, 15, 0, 0),
+                started_at=datetime(2025, 12, 23, 15, 0, 0, tzinfo=UTC),
                 ended_at=None,
                 risk_score=None,
                 risk_level=None,
@@ -291,19 +296,21 @@ class TestListEvents:
 
     async def test_list_events_filter_by_date_range(self, async_client, multiple_events):
         """Test filtering events by date range."""
-        start_date = "2025-12-23T13:00:00"
-        end_date = "2025-12-23T23:00:00"
+        # Use UTC timestamps (with Z suffix) to match the UTC-aware fixtures
+        start_date = "2025-12-23T13:00:00Z"
+        end_date = "2025-12-23T23:00:00Z"
         response = await async_client.get(
             f"/api/events?start_date={start_date}&end_date={end_date}"
         )
         assert response.status_code == 200
         data = response.json()
-        assert data["count"] >= 2  # Should get events at 14:00 and 22:00
+        # Should get events at 14:00, 15:00, and 22:00 UTC (3 events in range)
+        assert data["count"] >= 2
         for event in data["events"]:
             event_start = datetime.fromisoformat(event["started_at"].replace("Z", "+00:00"))
             # Add timezone for comparison (both must be tz-aware)
-            assert event_start >= datetime.fromisoformat(start_date + "+00:00")
-            assert event_start <= datetime.fromisoformat(end_date + "+00:00")
+            assert event_start >= datetime.fromisoformat(start_date.replace("Z", "+00:00"))
+            assert event_start <= datetime.fromisoformat(end_date.replace("Z", "+00:00"))
 
     async def test_list_events_pagination(self, async_client, multiple_events):
         """Test pagination parameters."""
@@ -725,9 +732,9 @@ class TestGetEventStats:
 
     async def test_get_event_stats_with_date_filter(self, async_client, multiple_events):
         """Test getting stats with date range filter."""
-        # Filter for events on 2025-12-23 between 13:00 and 23:00
-        start_date = "2025-12-23T13:00:00"
-        end_date = "2025-12-23T23:00:00"
+        # Filter for events on 2025-12-23 between 13:00 and 23:00 UTC
+        start_date = "2025-12-23T13:00:00Z"
+        end_date = "2025-12-23T23:00:00Z"
 
         response = await async_client.get(
             f"/api/events/stats?start_date={start_date}&end_date={end_date}"
@@ -735,7 +742,7 @@ class TestGetEventStats:
         assert response.status_code == 200
         data = response.json()
 
-        # Should get 3 events (at 14:00, 15:00, and 22:00)
+        # Should get 3 events (at 14:00, 15:00, and 22:00 UTC)
         assert data["total_events"] == 3
 
         # Risk level counts for filtered events
@@ -745,24 +752,24 @@ class TestGetEventStats:
 
     async def test_get_event_stats_with_start_date_only(self, async_client, multiple_events):
         """Test getting stats with only start_date filter."""
-        start_date = "2025-12-23T14:00:00"
+        start_date = "2025-12-23T14:00:00Z"
 
         response = await async_client.get(f"/api/events/stats?start_date={start_date}")
         assert response.status_code == 200
         data = response.json()
 
-        # Should get events at 14:00, 15:00, and 22:00 (3 events)
+        # Should get events at 14:00, 15:00, and 22:00 UTC (3 events)
         assert data["total_events"] == 3
 
     async def test_get_event_stats_with_end_date_only(self, async_client, multiple_events):
         """Test getting stats with only end_date filter."""
-        end_date = "2025-12-23T14:00:00"
+        end_date = "2025-12-23T14:00:00Z"
 
         response = await async_client.get(f"/api/events/stats?end_date={end_date}")
         assert response.status_code == 200
         data = response.json()
 
-        # Should get events at 10:00 and 14:00 (2 events)
+        # Should get events at 10:00 and 14:00 UTC (2 events)
         assert data["total_events"] == 2
 
     async def test_get_event_stats_invalid_date_format(self, async_client):

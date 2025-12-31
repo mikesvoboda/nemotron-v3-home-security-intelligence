@@ -33,6 +33,41 @@ For macOS with Podman, set the AI host:
 export AI_HOST=host.containers.internal
 ```
 
+## Python Dependencies (uv)
+
+This project uses **uv** for Python dependency management (10-100x faster than pip):
+
+```bash
+# Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# Or with Homebrew: brew install uv
+
+# Sync dependencies (creates .venv if needed)
+uv sync --extra dev
+
+# Add a new dependency
+uv add <package>           # Production dependency
+uv add --dev <package>     # Dev dependency
+
+# Update lock file after editing pyproject.toml
+uv lock
+
+# Run a command in the virtual environment
+uv run pytest              # Run pytest
+uv run ruff check backend  # Run linter
+uv run mypy backend        # Run type checker
+
+# The venv is automatically created at .venv/
+# Dependencies are defined in pyproject.toml
+# Lock file is uv.lock (commit this file)
+```
+
+**Key files:**
+
+- `pyproject.toml` - Dependencies and tool configuration
+- `uv.lock` - Locked dependency versions (commit this)
+- `.python-version` - Python version (3.14)
+
 ## Issue Tracking
 
 This project uses **bd** (beads) for issue tracking:
@@ -132,31 +167,41 @@ bd list --label tdd
 
 1. **Unit tests** - Test individual functions/components in isolation
 2. **Integration tests** - Test interactions between components
+3. **Property-based tests** - Use Hypothesis for model invariants
 
 ### Test Locations
 
 ```
 backend/tests/
-  unit/              # Python unit tests (pytest)
-  integration/       # API and service integration tests
+  unit/              # Python unit tests (pytest) - 2957 tests
+  integration/       # API and service integration tests - 626 tests
 frontend/
   src/**/*.test.ts   # Component and hook tests (Vitest)
-  tests/e2e/         # End-to-end tests
+  tests/e2e/         # Playwright E2E tests - 233 tests (multi-browser)
 ```
+
+### Test Parallelization
+
+- **Unit tests:** Run in parallel with `pytest-xdist` (`-n auto --dist=worksteal`)
+- **Integration tests:** Run serially (`-n0`) due to shared database state
+- **E2E tests:** Multi-browser (chromium, firefox, webkit) + mobile viewports
 
 ### Validation Workflow
 
 After implementing any feature, **dispatch a validation agent** to run tests:
 
 ```bash
-# Backend tests
-pytest backend/tests/ -v
+# Backend unit tests (parallel ~10s)
+uv run pytest backend/tests/unit/ -n auto --dist=worksteal
+
+# Backend integration tests (serial ~70s)
+uv run pytest backend/tests/integration/ -n0
 
 # Frontend tests
 cd frontend && npm test
 
-# Full validation
-pytest backend/tests/ -v && cd frontend && npm test
+# E2E tests (multi-browser)
+cd frontend && npx playwright test
 ```
 
 **CRITICAL:** Do not mark a task as complete until:
@@ -240,7 +285,7 @@ If pre-commit checks fail, fix the issues before committing. Run the full test s
 
 ```bash
 # Backend
-source .venv/bin/activate && python -m pytest backend/tests/ -v
+uv run pytest backend/tests/ -v
 
 # Frontend
 cd frontend && npm test

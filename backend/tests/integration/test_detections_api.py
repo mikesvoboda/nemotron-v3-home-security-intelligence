@@ -22,24 +22,30 @@ async def async_client(client):
 
 @pytest.fixture
 async def clean_detections(integration_db):
-    """Truncate detections and related tables before test runs for proper isolation.
+    """Delete detections and related tables data before test runs for proper isolation.
 
     This ensures tests that expect specific detection counts start with empty tables.
-    Uses direct database operations since there's no DELETE endpoint for detections.
+    Uses DELETE instead of TRUNCATE to avoid AccessExclusiveLock deadlocks
+    when tests run in parallel with xdist.
     """
     from sqlalchemy import text
 
     from backend.core.database import get_engine
 
     async with get_engine().begin() as conn:
-        await conn.execute(text("TRUNCATE TABLE detections, cameras RESTART IDENTITY CASCADE"))
+        # Delete in order respecting foreign key constraints
+        await conn.execute(text("DELETE FROM detections"))
+        await conn.execute(text("DELETE FROM events"))
+        await conn.execute(text("DELETE FROM cameras"))
 
     yield
 
     # Cleanup after test too (best effort)
     try:
         async with get_engine().begin() as conn:
-            await conn.execute(text("TRUNCATE TABLE detections, cameras RESTART IDENTITY CASCADE"))
+            await conn.execute(text("DELETE FROM detections"))
+            await conn.execute(text("DELETE FROM events"))
+            await conn.execute(text("DELETE FROM cameras"))
     except Exception:  # noqa: S110 - ignore cleanup errors
         pass
 
