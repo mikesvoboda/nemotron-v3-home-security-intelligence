@@ -81,7 +81,9 @@ class ThumbnailGenerator:
             self.output_dir.mkdir(parents=True, exist_ok=True)
             logger.debug(f"Thumbnail output directory ready: {self.output_dir}")
         except Exception as e:
-            logger.error(f"Failed to create thumbnail output directory {self.output_dir}: {e}")
+            logger.error(
+                f"Failed to create thumbnail output directory {self.output_dir}: {e}", exc_info=True
+            )
             raise
 
     def generate_thumbnail(
@@ -308,5 +310,5 @@ class ThumbnailGenerator:
                 logger.warning(f"Thumbnail not found: {thumbnail_path}")
                 return False
         except Exception as e:
-            logger.error(f"Failed to delete thumbnail for {detection_id}: {e}")
+            logger.error(f"Failed to delete thumbnail for {detection_id}: {e}", exc_info=True)
             return False

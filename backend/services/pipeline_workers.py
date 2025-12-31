@@ -32,6 +32,12 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
+from backend.api.schemas.queue import (
+    AnalysisQueuePayload,
+    DetectionQueuePayload,
+    validate_analysis_payload,
+    validate_detection_payload,
+)
 from backend.core.config import get_settings
 from backend.core.constants import ANALYSIS_QUEUE, DETECTION_QUEUE
 from backend.core.database import get_session
@@ -245,6 +251,9 @@ class DetectionQueueWorker:
     async def _process_detection_item(self, item: dict[str, Any]) -> None:
         """Process a single detection queue item.
 
+        Security: Validates the queue payload using Pydantic before processing
+        to prevent malicious data from reaching the AI pipeline.
+
         Handles both image and video files. For videos, extracts frames
         and runs detection on each frame.
 
@@ -258,12 +267,23 @@ class DetectionQueueWorker:
         import time
 
         start_time = time.time()
-        camera_id = item.get("camera_id")
-        file_path = item.get("file_path")
-        media_type = item.get("media_type", "image")
 
-        if not camera_id or not file_path:
-            logger.warning(f"Invalid detection queue item: {item}")
+        # Security: Validate payload using Pydantic schema
+        try:
+            validated: DetectionQueuePayload = validate_detection_payload(item)
+            camera_id = validated.camera_id
+            file_path = validated.file_path
+            media_type = validated.media_type
+        except ValueError as e:
+            self._stats.errors += 1
+            record_pipeline_error("invalid_detection_payload")
+            logger.error(
+                f"SECURITY: Rejecting invalid detection queue payload: {e}",
+                extra={
+                    "raw_item": str(item)[:500],  # Truncate to prevent log injection
+                    "error": str(e),
+                },
+            )
             return
 
         logger.debug(
@@ -634,17 +654,30 @@ class AnalysisQueueWorker:
     async def _process_analysis_item(self, item: dict[str, Any]) -> None:
         """Process a single analysis queue item.
 
+        Security: Validates the queue payload using Pydantic before processing
+        to prevent malicious data from reaching the LLM analyzer.
+
         Args:
             item: Queue item with batch_id, camera_id, detection_ids
         """
         import time
 
-        batch_id = item.get("batch_id")
-        camera_id = item.get("camera_id")
-        detection_ids = item.get("detection_ids")
-
-        if not batch_id:
-            logger.warning(f"Invalid analysis queue item: {item}")
+        # Security: Validate payload using Pydantic schema
+        try:
+            validated: AnalysisQueuePayload = validate_analysis_payload(item)
+            batch_id = validated.batch_id
+            camera_id = validated.camera_id
+            detection_ids = validated.detection_ids
+        except ValueError as e:
+            self._stats.errors += 1
+            record_pipeline_error("invalid_analysis_payload")
+            logger.error(
+                f"SECURITY: Rejecting invalid analysis queue payload: {e}",
+                extra={
+                    "raw_item": str(item)[:500],  # Truncate to prevent log injection
+                    "error": str(e),
+                },
+            )
             return
 
         logger.info(
@@ -1118,10 +1151,38 @@ class PipelineWorkerManager:
 
 # Global instance for singleton access
 _pipeline_manager: PipelineWorkerManager | None = None
+_pipeline_manager_lock: asyncio.Lock | None = None
+# Thread lock to protect initialization of _pipeline_manager_lock itself
+_pipeline_init_lock = __import__("threading").Lock()
+
+
+def _get_pipeline_manager_lock() -> asyncio.Lock:
+    """Get the pipeline manager initialization lock (lazy initialization).
+
+    This ensures the lock is created in a thread-safe manner and in the
+    correct event loop context. Uses a threading lock to protect the
+    initial creation of the asyncio lock, preventing race conditions
+    when multiple coroutines attempt to initialize concurrently.
+
+    Must be called from within an async context.
+
+    Returns:
+        asyncio.Lock for pipeline manager initialization
+    """
+    global _pipeline_manager_lock  # noqa: PLW0603
+    if _pipeline_manager_lock is None:
+        with _pipeline_init_lock:
+            # Double-check after acquiring thread lock
+            if _pipeline_manager_lock is None:
+                _pipeline_manager_lock = asyncio.Lock()
+    return _pipeline_manager_lock
 
 
 async def get_pipeline_manager(redis_client: RedisClient) -> PipelineWorkerManager:
     """Get or create the global pipeline worker manager.
+
+    This function is thread-safe and handles concurrent initialization
+    attempts using an async lock to prevent race conditions.
 
     Args:
         redis_client: Redis client for queue operations
@@ -1131,19 +1192,48 @@ async def get_pipeline_manager(redis_client: RedisClient) -> PipelineWorkerManag
     """
     global _pipeline_manager  # noqa: PLW0603
 
-    if _pipeline_manager is None:
-        _pipeline_manager = PipelineWorkerManager(redis_client=redis_client)
+    # Fast path: manager already exists
+    if _pipeline_manager is not None:
+        return _pipeline_manager
+
+    # Slow path: need to initialize with lock
+    lock = _get_pipeline_manager_lock()
+    async with lock:
+        # Double-check after acquiring lock (another coroutine may have initialized)
+        if _pipeline_manager is None:
+            _pipeline_manager = PipelineWorkerManager(redis_client=redis_client)
+            logger.info("Global pipeline worker manager initialized")
 
     return _pipeline_manager
 
 
 async def stop_pipeline_manager() -> None:
-    """Stop and cleanup the global pipeline worker manager."""
+    """Stop and cleanup the global pipeline worker manager.
+
+    This function is thread-safe and handles concurrent stop attempts.
+    """
     global _pipeline_manager  # noqa: PLW0603
 
-    if _pipeline_manager:
-        await _pipeline_manager.stop()
-        _pipeline_manager = None
+    lock = _get_pipeline_manager_lock()
+    async with lock:
+        if _pipeline_manager:
+            await _pipeline_manager.stop()
+            _pipeline_manager = None
+            logger.info("Global pipeline worker manager stopped")
+
+
+def reset_pipeline_manager_state() -> None:
+    """Reset the global pipeline manager state for testing purposes.
+
+    This function is NOT thread-safe and should only be used in test
+    fixtures to ensure clean state between tests. It resets both the
+    manager instance and the asyncio lock.
+
+    Warning: Only use this in test teardown, never in production code.
+    """
+    global _pipeline_manager, _pipeline_manager_lock  # noqa: PLW0603
+    _pipeline_manager = None
+    _pipeline_manager_lock = None
 
 
 if __name__ == "__main__":

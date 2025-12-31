@@ -21,6 +21,22 @@ from backend.services.health_monitor import ServiceHealthMonitor
 from backend.services.service_managers import ServiceConfig, ShellServiceManager
 
 
+@pytest.fixture(autouse=True)
+def allow_test_commands():
+    """Patch validate_restart_command to allow test commands.
+
+    Integration tests for subprocess execution need to run arbitrary
+    commands like 'echo' and 'exit'. The security validation is tested
+    separately in unit tests. This fixture allows test commands while
+    preserving the security validation in production code.
+    """
+    with patch(
+        "backend.services.service_managers.validate_restart_command",
+        return_value=True,
+    ):
+        yield
+
+
 @pytest.fixture
 def fast_sleep():
     """Mock asyncio.sleep to speed up tests by reducing the 2s post-restart pause.

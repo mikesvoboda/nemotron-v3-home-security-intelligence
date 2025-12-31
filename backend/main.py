@@ -29,6 +29,7 @@ from backend.api.routes.system import register_workers
 from backend.core import close_db, get_settings, init_db
 from backend.core.logging import setup_logging
 from backend.core.redis import close_redis, init_redis
+from backend.models.camera import Camera
 from backend.services.cleanup_service import CleanupService
 from backend.services.event_broadcaster import get_broadcaster, stop_broadcaster
 from backend.services.file_watcher import FileWatcher
@@ -37,6 +38,45 @@ from backend.services.health_monitor import ServiceHealthMonitor
 from backend.services.pipeline_workers import get_pipeline_manager, stop_pipeline_manager
 from backend.services.service_managers import ServiceConfig, ShellServiceManager
 from backend.services.system_broadcaster import get_system_broadcaster, stop_system_broadcaster
+
+
+async def create_camera_callback(camera: Camera) -> None:
+    """Callback to create a camera in the database (used by FileWatcher auto-create).
+
+    This callback is invoked when FileWatcher detects a new camera directory
+    and needs to create a corresponding Camera record in the database.
+    Uses get_or_create semantics to avoid duplicate camera errors.
+
+    Args:
+        camera: Camera instance to create (with id, name, folder_path populated)
+    """
+    from sqlalchemy import select
+
+    from backend.core.database import get_session
+    from backend.core.logging import get_logger
+
+    logger = get_logger(__name__)
+
+    async with get_session() as session:
+        # Check if camera already exists (by id or folder_path)
+        result = await session.execute(
+            select(Camera).where(
+                (Camera.id == camera.id) | (Camera.folder_path == camera.folder_path)
+            )
+        )
+        existing = result.scalar_one_or_none()
+
+        if existing:
+            logger.debug(f"Camera already exists: {existing.id} (folder: {existing.folder_path})")
+            return
+
+        # Create new camera
+        session.add(camera)
+        await session.commit()
+        logger.info(
+            f"Auto-created camera: {camera.id} ({camera.name})",
+            extra={"camera_id": camera.id, "folder_path": camera.folder_path},
+        )
 
 
 @asynccontextmanager
@@ -59,12 +99,19 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         redis_client = await init_redis()
         print(f"Redis initialized: {settings.redis_url}")
 
-        # Initialize event broadcaster
-        await get_broadcaster(redis_client)
-        print("Event broadcaster initialized")
+        # Initialize and start event broadcaster for WebSocket real-time events
+        # Note: get_broadcaster() both creates AND starts the broadcaster
+        # (subscribes to Redis pub/sub channel)
+        event_broadcaster = await get_broadcaster(redis_client)
+        channel = event_broadcaster.channel_name
+        print(f"Event broadcaster started, listening on channel: {channel}")
 
         # Initialize file watcher (monitors camera directories for new images)
-        file_watcher = FileWatcher(redis_client=redis_client)
+        # Pass camera_creator callback to enable auto-creation of camera records
+        file_watcher = FileWatcher(
+            redis_client=redis_client,
+            camera_creator=create_camera_callback,
+        )
         await file_watcher.start()
         print(f"File watcher started: {settings.foscam_base_path}")
 
@@ -197,11 +244,13 @@ app.add_middleware(AuthMiddleware)
 # Add request ID middleware for log correlation
 app.add_middleware(RequestIDMiddleware)
 
+# Security: Restrict CORS methods to only what's needed
+# Using explicit methods instead of wildcard "*" to follow least-privilege principle
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_settings().cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 

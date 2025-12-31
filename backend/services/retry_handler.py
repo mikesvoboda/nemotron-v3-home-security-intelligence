@@ -365,7 +365,7 @@ class RetryHandler:
             return False
 
         # Check circuit breaker state before attempting DLQ write
-        if not self._dlq_circuit_breaker.allow_call():
+        if not await self._dlq_circuit_breaker.allow_call():
             # CRITICAL: Job is being permanently lost due to open circuit breaker
             # Log at ERROR level with full job context for audit trail
             logger.error(

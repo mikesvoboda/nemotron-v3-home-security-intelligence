@@ -74,6 +74,31 @@ class TestUpdateBaseline:
         assert mock_session.add.call_count == 2
 
     @pytest.mark.asyncio
+    async def test_update_baseline_does_not_commit_when_session_passed(self, baseline_service):
+        """Test that update_baseline does NOT commit when caller passes session.
+
+        This verifies the transaction contract: when a session is provided,
+        the caller is responsible for committing. This allows batching
+        multiple operations in a single transaction.
+        """
+        mock_session = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+
+        timestamp = datetime(2025, 1, 15, 10, 30, 0, tzinfo=UTC)
+
+        await baseline_service.update_baseline(
+            camera_id="camera_1",
+            detection_class="person",
+            timestamp=timestamp,
+            session=mock_session,
+        )
+
+        # Verify commit was NOT called - caller is responsible
+        mock_session.commit.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_update_baseline_updates_existing(self, baseline_service):
         """Test that update_baseline updates existing baseline records."""
         mock_session = AsyncMock()

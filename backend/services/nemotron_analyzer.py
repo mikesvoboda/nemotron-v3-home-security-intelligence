@@ -63,6 +63,8 @@ class NemotronAnalyzer:
         self._redis = redis_client
         settings = get_settings()
         self._llm_url = settings.nemotron_url
+        # Security: Store API key for authentication (None if not configured)
+        self._api_key = settings.nemotron_api_key
         # Use httpx.Timeout for proper timeout configuration from Settings
         # connect: time to establish connection, read: time to wait for LLM response
         self._timeout = httpx.Timeout(
@@ -77,6 +79,18 @@ class NemotronAnalyzer:
             write=settings.ai_health_timeout,
             pool=settings.ai_health_timeout,
         )
+
+    def _get_auth_headers(self) -> dict[str, str]:
+        """Get authentication headers for API requests.
+
+        Security: Returns X-API-Key header if API key is configured.
+
+        Returns:
+            Dictionary of headers to include in requests
+        """
+        if self._api_key:
+            return {"X-API-Key": self._api_key}
+        return {}
 
     async def analyze_batch(
         self,
@@ -206,6 +220,7 @@ class NemotronAnalyzer:
                         "batch_id": batch_id,
                         "duration_ms": llm_duration_ms,
                     },
+                    exc_info=True,
                 )
                 # Create fallback risk data - use sanitized error for user-facing content
                 risk_data = {
@@ -257,7 +272,7 @@ class NemotronAnalyzer:
             try:
                 await self._broadcast_event(event)
             except Exception as e:
-                logger.warning(f"Failed to broadcast event {event.id}: {e}")
+                logger.warning(f"Failed to broadcast event {event.id}: {e}", exc_info=True)
 
             return event
 
@@ -359,6 +374,7 @@ class NemotronAnalyzer:
                         "detection_id": detection_id_int,
                         "duration_ms": llm_duration_ms,
                     },
+                    exc_info=True,
                 )
                 # Create fallback risk data - use generic message for user-facing content
                 risk_data = {
@@ -411,7 +427,9 @@ class NemotronAnalyzer:
             try:
                 await self._broadcast_event(event)
             except Exception as e:
-                logger.warning(f"Failed to broadcast fast path event {event.id}: {e}")
+                logger.warning(
+                    f"Failed to broadcast fast path event {event.id}: {e}", exc_info=True
+                )
 
             return event
 
@@ -425,10 +443,14 @@ class NemotronAnalyzer:
         """
         try:
             async with httpx.AsyncClient(timeout=self._health_timeout) as client:
-                response = await client.get(f"{self._llm_url}/health")
+                # Include auth headers in health check
+                response = await client.get(
+                    f"{self._llm_url}/health",
+                    headers=self._get_auth_headers(),
+                )
                 return bool(response.status_code == 200)
         except Exception as e:
-            logger.warning(f"LLM health check failed: {e}")
+            logger.warning(f"LLM health check failed: {e}", exc_info=True)
             return False
 
     def _format_detections(self, detections: list[Detection]) -> str:
@@ -487,10 +509,15 @@ class NemotronAnalyzer:
             "stop": ["\n\n"],
         }
 
+        # Merge auth headers with JSON content-type
+        headers = {"Content-Type": "application/json"}
+        headers.update(self._get_auth_headers())
+
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             response = await client.post(
                 f"{self._llm_url}/completion",
                 json=payload,
+                headers=headers,
             )
             response.raise_for_status()
             result = response.json()
@@ -625,4 +652,4 @@ class NemotronAnalyzer:
             await broadcaster.broadcast_event(message)
             logger.debug(f"Broadcasted event {event.id} via WebSocket")
         except Exception as e:  # pragma: no cover
-            logger.warning(f"Failed to broadcast event: {e}")  # pragma: no cover
+            logger.warning(f"Failed to broadcast event: {e}", exc_info=True)  # pragma: no cover

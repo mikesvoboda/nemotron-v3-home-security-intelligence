@@ -272,7 +272,11 @@ async def test_detection_worker_processes_item(
 
 @pytest.mark.asyncio
 async def test_detection_worker_handles_invalid_item(mock_redis_client, mock_detector_client):
-    """Test DetectionQueueWorker handles invalid queue items gracefully."""
+    """Test DetectionQueueWorker handles invalid queue items gracefully.
+
+    Security: With Pydantic payload validation, invalid items are rejected and
+    counted as errors to enable monitoring of potential attacks.
+    """
     call_count = 0
 
     async def mock_get_from_queue(*args, **kwargs):
@@ -297,8 +301,8 @@ async def test_detection_worker_handles_invalid_item(mock_redis_client, mock_det
 
     # Should not increment items_processed for invalid items
     assert worker.stats.items_processed == 0
-    # Should not count as error either (just skip)
-    assert worker.stats.errors == 0
+    # Security: Invalid payloads now count as errors for monitoring
+    assert worker.stats.errors == 1
 
 
 @pytest.mark.asyncio
