@@ -56,10 +56,10 @@ def sync_client(integration_env):
 
     Note: Uses integration_env (sync) instead of integration_db (async) because
     TestClient creates its own event loop, which conflicts with async fixtures.
-    The database is initialized by the app's lifespan inside the TestClient context.
+
+    All lifespan services are fully mocked to avoid slow startup. The database
+    is NOT actually initialized - tests use mocks for fast execution.
     """
-    from backend.core.database import close_db as _close_db
-    from backend.core.database import init_db as _init_db
     from backend.main import app
 
     # Create mock Redis client for this fixture
@@ -70,11 +70,10 @@ def sync_client(integration_env):
         "redis_version": "7.0.0",
     }
 
-    # Create mock init_db that handles prior state
+    # Create mock init_db that does nothing (avoids slow real DB init)
     async def mock_init_db():
-        """Initialize DB, first closing any existing connection."""
-        await _close_db()
-        await _init_db()
+        """Mock init_db to avoid slow real database initialization."""
+        pass
 
     # Mock background services that have 5-second intervals to avoid slow teardown
     mock_system_broadcaster = MagicMock()
@@ -109,7 +108,12 @@ def sync_client(integration_env):
     mock_event_broadcaster.CHANNEL_NAME = "security_events"
     mock_event_broadcaster.channel_name = "security_events"
 
-    # Patch Redis and background services - use custom init_db that handles prior state
+    # Mock ServiceHealthMonitor to avoid slow startup
+    mock_service_health_monitor = MagicMock()
+    mock_service_health_monitor.start = AsyncMock()
+    mock_service_health_monitor.stop = AsyncMock()
+
+    # Patch all lifespan services for fast startup
     with (
         patch("backend.core.redis._redis_client", mock_redis_client),
         patch("backend.core.redis.init_redis", return_value=mock_redis_client),
@@ -125,6 +129,7 @@ def sync_client(integration_env):
         patch("backend.main.stop_pipeline_manager", AsyncMock()),
         patch("backend.main.get_broadcaster", AsyncMock(return_value=mock_event_broadcaster)),
         patch("backend.main.stop_broadcaster", AsyncMock()),
+        patch("backend.main.ServiceHealthMonitor", return_value=mock_service_health_monitor),
         TestClient(app) as client,
     ):
         yield client
@@ -573,10 +578,11 @@ def sync_client_with_auth_enabled(integration_env, test_api_key):
 
     Note: Uses integration_env (sync) instead of integration_db (async) because
     TestClient creates its own event loop, which conflicts with async fixtures.
+
+    All lifespan services are fully mocked to avoid slow startup. The database
+    is NOT actually initialized - tests use mocks for fast execution.
     """
     from backend.core.config import get_settings
-    from backend.core.database import close_db as _close_db
-    from backend.core.database import init_db as _init_db
     from backend.main import app
 
     # Store original environment
@@ -598,11 +604,10 @@ def sync_client_with_auth_enabled(integration_env, test_api_key):
         "redis_version": "7.0.0",
     }
 
-    # Create mock init_db that handles prior state
+    # Create mock init_db that does nothing (avoids slow real DB init)
     async def mock_init_db():
-        """Initialize DB, first closing any existing connection."""
-        await _close_db()
-        await _init_db()
+        """Mock init_db to avoid slow real database initialization."""
+        pass
 
     # Mock background services that have 5-second intervals to avoid slow teardown
     mock_system_broadcaster = MagicMock()
@@ -637,7 +642,12 @@ def sync_client_with_auth_enabled(integration_env, test_api_key):
     mock_event_broadcaster.CHANNEL_NAME = "security_events"
     mock_event_broadcaster.channel_name = "security_events"
 
-    # Patch Redis and background services - use custom init_db that handles prior state
+    # Mock ServiceHealthMonitor to avoid slow startup
+    mock_service_health_monitor = MagicMock()
+    mock_service_health_monitor.start = AsyncMock()
+    mock_service_health_monitor.stop = AsyncMock()
+
+    # Patch all lifespan services for fast startup
     with (
         patch("backend.core.redis._redis_client", mock_redis_client),
         patch("backend.core.redis.init_redis", return_value=mock_redis_client),
@@ -653,6 +663,7 @@ def sync_client_with_auth_enabled(integration_env, test_api_key):
         patch("backend.main.stop_pipeline_manager", AsyncMock()),
         patch("backend.main.get_broadcaster", AsyncMock(return_value=mock_event_broadcaster)),
         patch("backend.main.stop_broadcaster", AsyncMock()),
+        patch("backend.main.ServiceHealthMonitor", return_value=mock_service_health_monitor),
         TestClient(app) as client,
     ):
         yield client
