@@ -18,10 +18,6 @@ from starlette.websockets import WebSocketDisconnect
 
 from backend.tests.conftest import unique_id
 
-# These tests start the full FastAPI app which includes lifespan initialization
-# (database, Redis, file watcher, etc.). This takes longer than 30s in CI.
-pytestmark = pytest.mark.timeout(60)
-
 
 @pytest.fixture
 async def async_client(integration_db, mock_redis):

@@ -13,10 +13,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-# These tests start the full FastAPI app which includes lifespan initialization
-# (database, Redis, file watcher, etc.). This takes longer than 30s in CI.
-pytestmark = pytest.mark.timeout(60)
-
 
 @pytest.fixture(scope="module")
 def module_temp_foscam_dir():
@@ -78,8 +74,9 @@ def client(module_temp_foscam_dir, module_thumbnail_dir):
     21 separate TestClient setup/teardown cycles.
 
     Patches both foscam_base_path and thumbnail directory to use temp directories.
+    All heavy lifespan services are mocked to avoid slow startup/teardown.
     """
-    # Mock background services that have 5-second intervals to avoid slow teardown
+    # Mock all background services to avoid slow startup
     mock_system_broadcaster = MagicMock()
     mock_system_broadcaster.start_broadcasting = AsyncMock()
     mock_system_broadcaster.stop_broadcasting = AsyncMock()
@@ -91,6 +88,20 @@ def client(module_temp_foscam_dir, module_thumbnail_dir):
     mock_cleanup_service = MagicMock()
     mock_cleanup_service.start = AsyncMock()
     mock_cleanup_service.stop = AsyncMock()
+
+    # Mock Redis and dependent services
+    mock_redis_client = MagicMock()
+
+    mock_event_broadcaster = MagicMock()
+    mock_event_broadcaster.channel_name = "test_channel"
+
+    mock_file_watcher = MagicMock()
+    mock_file_watcher.start = AsyncMock()
+    mock_file_watcher.stop = AsyncMock()
+
+    mock_pipeline_manager = MagicMock()
+    mock_pipeline_manager.start = AsyncMock()
+    mock_pipeline_manager.stop = AsyncMock()
 
     # Create mock settings that uses our temp directory
     from backend.core.config import Settings
@@ -129,11 +140,33 @@ def client(module_temp_foscam_dir, module_thumbnail_dir):
     # Import app lazily to avoid settings validation during test collection
     from backend.main import app
 
-    # Patch background services, settings, and thumbnail endpoint to avoid slow teardown
+    # Mock init_db to return immediately (async function)
+    async def mock_init_db():
+        pass
+
+    # Mock init_redis to return mock client (async function)
+    async def mock_init_redis():
+        return mock_redis_client
+
+    # Mock get_broadcaster to return mock broadcaster (async function)
+    async def mock_get_broadcaster(_redis_client):
+        return mock_event_broadcaster
+
+    # Mock get_pipeline_manager to return mock manager (async function)
+    async def mock_get_pipeline_manager(_redis_client):
+        return mock_pipeline_manager
+
+    # Patch all lifespan services for fast startup
     with (
+        patch("backend.main.init_db", mock_init_db),
+        patch("backend.main.init_redis", mock_init_redis),
+        patch("backend.main.get_broadcaster", mock_get_broadcaster),
+        patch("backend.main.FileWatcher", return_value=mock_file_watcher),
+        patch("backend.main.get_pipeline_manager", mock_get_pipeline_manager),
         patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
         patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor),
         patch("backend.main.CleanupService", return_value=mock_cleanup_service),
+        patch("backend.main.ServiceHealthMonitor", return_value=MagicMock()),
         patch("backend.api.routes.media.get_settings", mock_get_settings),
         patch.object(media_module, "serve_thumbnail", patched_serve_thumbnail),
         TestClient(app) as test_client,
