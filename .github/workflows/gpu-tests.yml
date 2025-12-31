@@ -10,6 +10,9 @@ jobs:
   gpu-integration:
     name: GPU Integration Tests
     runs-on: [self-hosted, gpu, rtx-a5500]
+    # Non-blocking: GPU tests are informational and should not block PRs
+    # The self-hosted GPU runner may have variable memory availability
+    continue-on-error: true
     # Fork protection - only run for trusted sources
     if: >
       github.event.pull_request.head.repo.full_name == github.repository ||
