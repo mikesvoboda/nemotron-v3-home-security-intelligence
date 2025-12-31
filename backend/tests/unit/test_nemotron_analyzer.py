@@ -582,3 +582,928 @@ async def test_analyze_detection_fast_path_invalid_detection_id(analyzer, mock_r
     """Test fast path analysis raises error for invalid detection ID."""
     with pytest.raises(ValueError, match="Invalid detection_id"):
         await analyzer.analyze_detection_fast_path("front_door", "not_a_number")
+
+
+# =============================================================================
+# Test: Full analyze_batch Integration (with mocked DB/LLM)
+# =============================================================================
+
+
+@pytest.fixture
+def mock_camera():
+    """Create a mock camera for testing."""
+    from backend.models.camera import Camera
+
+    return Camera(
+        id="front_door",
+        name="Front Door Camera",
+        folder_path="/export/foscam/front_door",
+        status="online",
+    )
+
+
+@pytest.fixture
+def mock_detections_for_batch():
+    """Create mock detections for batch analysis."""
+    from datetime import UTC
+
+    from backend.models.detection import Detection
+
+    base_time = datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC)
+    return [
+        Detection(
+            id=1,
+            camera_id="front_door",
+            file_path="/export/foscam/front_door/img1.jpg",
+            detected_at=base_time,
+            object_type="person",
+            confidence=0.95,
+        ),
+        Detection(
+            id=2,
+            camera_id="front_door",
+            file_path="/export/foscam/front_door/img2.jpg",
+            detected_at=datetime(2025, 12, 23, 14, 30, 15, tzinfo=UTC),
+            object_type="car",
+            confidence=0.88,
+        ),
+    ]
+
+
+@pytest.fixture
+def mock_llm_response():
+    """Create a mock LLM response."""
+    return {
+        "risk_score": 75,
+        "risk_level": "high",
+        "summary": "Suspicious activity detected near front door",
+        "reasoning": "Person detected at unusual time with vehicle present",
+    }
+
+
+@pytest.mark.asyncio
+async def test_analyze_batch_success(
+    analyzer, mock_redis_client, mock_camera, mock_detections_for_batch, mock_llm_response
+):
+    """Test successful batch analysis with mocked database and LLM."""
+    batch_id = "batch_test_123"
+    camera_id = "front_door"
+    detection_ids = [1, 2]
+
+    # Mock database session
+    mock_session = AsyncMock()
+
+    # Mock camera query result
+    mock_camera_result = MagicMock()
+    mock_camera_result.scalar_one_or_none.return_value = mock_camera
+
+    # Mock detections query result
+    mock_detections_result = MagicMock()
+    mock_detections_scalars = MagicMock()
+    mock_detections_scalars.all.return_value = mock_detections_for_batch
+    mock_detections_result.scalars.return_value = mock_detections_scalars
+
+    # Configure mock session to return appropriate results based on query
+    call_count = 0
+
+    async def mock_execute(query):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return mock_camera_result
+        else:
+            return mock_detections_result
+
+    mock_session.execute = mock_execute
+    mock_session.add = MagicMock()
+    mock_session.commit = AsyncMock()
+    mock_session.refresh = AsyncMock()
+
+    # Mock the event broadcaster
+    mock_broadcaster = MagicMock()
+    mock_broadcaster.broadcast_event = AsyncMock()
+
+    # Mock LLM call
+    async def mock_call_llm(*args, **kwargs):
+        return mock_llm_response
+
+    with (
+        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
+        patch(
+            "backend.services.event_broadcaster.get_broadcaster",
+            new=AsyncMock(return_value=mock_broadcaster),
+        ),
+    ):
+        # Create async context manager mock
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_session
+        mock_context.__aexit__.return_value = None
+        mock_get_session.return_value = mock_context
+
+        event = await analyzer.analyze_batch(
+            batch_id=batch_id, camera_id=camera_id, detection_ids=detection_ids
+        )
+
+    # Verify event was created with correct properties
+    assert event.batch_id == batch_id
+    assert event.camera_id == camera_id
+    assert event.risk_score == 75
+    assert event.risk_level == "high"
+    assert "Suspicious activity" in event.summary
+    assert event.reviewed is False
+
+    # Verify session operations were called
+    mock_session.add.assert_called_once()
+    mock_session.commit.assert_awaited_once()
+    mock_session.refresh.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_analyze_batch_llm_failure_fallback(
+    analyzer, mock_redis_client, mock_camera, mock_detections_for_batch
+):
+    """Test batch analysis falls back to default risk when LLM fails."""
+    batch_id = "batch_test_456"
+    camera_id = "front_door"
+    detection_ids = [1, 2]
+
+    # Mock database session
+    mock_session = AsyncMock()
+
+    # Mock camera query result
+    mock_camera_result = MagicMock()
+    mock_camera_result.scalar_one_or_none.return_value = mock_camera
+
+    # Mock detections query result
+    mock_detections_result = MagicMock()
+    mock_detections_scalars = MagicMock()
+    mock_detections_scalars.all.return_value = mock_detections_for_batch
+    mock_detections_result.scalars.return_value = mock_detections_scalars
+
+    call_count = 0
+
+    async def mock_execute(query):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return mock_camera_result
+        else:
+            return mock_detections_result
+
+    mock_session.execute = mock_execute
+    mock_session.add = MagicMock()
+    mock_session.commit = AsyncMock()
+    mock_session.refresh = AsyncMock()
+
+    # Mock the event broadcaster
+    mock_broadcaster = MagicMock()
+    mock_broadcaster.broadcast_event = AsyncMock()
+
+    # Mock LLM call to fail
+    async def mock_call_llm_fail(*args, **kwargs):
+        raise httpx.ConnectError("LLM service unavailable")
+
+    with (
+        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm_fail),
+        patch(
+            "backend.services.event_broadcaster.get_broadcaster",
+            new=AsyncMock(return_value=mock_broadcaster),
+        ),
+    ):
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_session
+        mock_context.__aexit__.return_value = None
+        mock_get_session.return_value = mock_context
+
+        event = await analyzer.analyze_batch(
+            batch_id=batch_id, camera_id=camera_id, detection_ids=detection_ids
+        )
+
+    # Verify fallback risk values were used
+    assert event.risk_score == 50
+    assert event.risk_level == "medium"
+    assert "Analysis unavailable" in event.summary
+    assert "service error" in event.reasoning
+
+
+@pytest.mark.asyncio
+async def test_analyze_batch_no_detections_in_db(analyzer, mock_redis_client, mock_camera):
+    """Test batch analysis raises error when no detections found in database."""
+    batch_id = "batch_no_detections"
+    camera_id = "front_door"
+    detection_ids = [99, 100]  # IDs that don't exist
+
+    # Mock database session
+    mock_session = AsyncMock()
+
+    # Mock camera query result
+    mock_camera_result = MagicMock()
+    mock_camera_result.scalar_one_or_none.return_value = mock_camera
+
+    # Mock detections query - return empty
+    mock_detections_result = MagicMock()
+    mock_detections_scalars = MagicMock()
+    mock_detections_scalars.all.return_value = []
+    mock_detections_result.scalars.return_value = mock_detections_scalars
+
+    call_count = 0
+
+    async def mock_execute(query):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return mock_camera_result
+        else:
+            return mock_detections_result
+
+    mock_session.execute = mock_execute
+
+    with patch("backend.services.nemotron_analyzer.get_session") as mock_get_session:
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_session
+        mock_context.__aexit__.return_value = None
+        mock_get_session.return_value = mock_context
+
+        with pytest.raises(ValueError, match="No detections found"):
+            await analyzer.analyze_batch(
+                batch_id=batch_id, camera_id=camera_id, detection_ids=detection_ids
+            )
+
+
+@pytest.mark.asyncio
+async def test_analyze_batch_invalid_detection_ids(analyzer, mock_redis_client, mock_camera):
+    """Test batch analysis raises error when detection IDs are invalid (non-numeric)."""
+    batch_id = "batch_invalid_ids"
+    camera_id = "front_door"
+    detection_ids = ["abc", "def"]  # Invalid non-numeric IDs
+
+    # Mock database session
+    mock_session = AsyncMock()
+
+    # Mock camera query result
+    mock_camera_result = MagicMock()
+    mock_camera_result.scalar_one_or_none.return_value = mock_camera
+
+    call_count = 0
+
+    async def mock_execute(query):
+        nonlocal call_count
+        call_count += 1
+        return mock_camera_result
+
+    mock_session.execute = mock_execute
+
+    with patch("backend.services.nemotron_analyzer.get_session") as mock_get_session:
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_session
+        mock_context.__aexit__.return_value = None
+        mock_get_session.return_value = mock_context
+
+        with pytest.raises(ValueError, match="Invalid detection_id"):
+            await analyzer.analyze_batch(
+                batch_id=batch_id, camera_id=camera_id, detection_ids=detection_ids
+            )
+
+
+@pytest.mark.asyncio
+async def test_analyze_batch_broadcast_failure_continues(
+    analyzer, mock_redis_client, mock_camera, mock_detections_for_batch, mock_llm_response
+):
+    """Test that broadcast failure does not prevent event creation."""
+    batch_id = "batch_broadcast_fail"
+    camera_id = "front_door"
+    detection_ids = [1, 2]
+
+    mock_session = AsyncMock()
+
+    mock_camera_result = MagicMock()
+    mock_camera_result.scalar_one_or_none.return_value = mock_camera
+
+    mock_detections_result = MagicMock()
+    mock_detections_scalars = MagicMock()
+    mock_detections_scalars.all.return_value = mock_detections_for_batch
+    mock_detections_result.scalars.return_value = mock_detections_scalars
+
+    call_count = 0
+
+    async def mock_execute(query):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return mock_camera_result
+        else:
+            return mock_detections_result
+
+    mock_session.execute = mock_execute
+    mock_session.add = MagicMock()
+    mock_session.commit = AsyncMock()
+    mock_session.refresh = AsyncMock()
+
+    # Mock broadcaster to fail
+    mock_broadcaster = MagicMock()
+    mock_broadcaster.broadcast_event = AsyncMock(side_effect=Exception("Broadcast failed"))
+
+    async def mock_call_llm(*args, **kwargs):
+        return mock_llm_response
+
+    with (
+        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
+        patch(
+            "backend.services.event_broadcaster.get_broadcaster",
+            new=AsyncMock(return_value=mock_broadcaster),
+        ),
+    ):
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_session
+        mock_context.__aexit__.return_value = None
+        mock_get_session.return_value = mock_context
+
+        # Should not raise exception even though broadcast fails
+        event = await analyzer.analyze_batch(
+            batch_id=batch_id, camera_id=camera_id, detection_ids=detection_ids
+        )
+
+    # Event should still be created successfully
+    assert event.batch_id == batch_id
+    assert event.risk_score == 75
+
+
+@pytest.mark.asyncio
+async def test_analyze_batch_redis_fallback_lookup(analyzer, mock_redis_client):
+    """Test batch analysis fetches camera_id from Redis when not provided."""
+    batch_id = "batch_redis_lookup"
+
+    # Setup Redis mock to return batch metadata
+    async def mock_redis_get(key):
+        if "camera_id" in key:
+            return "front_door"
+        elif "detections" in key:
+            return json.dumps([1, 2])
+        return None
+
+    mock_redis_client.get.side_effect = mock_redis_get
+
+    # Mock database session
+    mock_session = AsyncMock()
+
+    from backend.models.camera import Camera
+    from backend.models.detection import Detection
+
+    mock_camera = Camera(
+        id="front_door",
+        name="Front Door",
+        folder_path="/export/foscam/front_door",
+        status="online",
+    )
+
+    base_time = datetime(2025, 12, 23, 14, 30, 0)
+    mock_detections = [
+        Detection(
+            id=1,
+            camera_id="front_door",
+            file_path="/export/foscam/front_door/img1.jpg",
+            detected_at=base_time,
+            object_type="person",
+            confidence=0.95,
+        ),
+    ]
+
+    mock_camera_result = MagicMock()
+    mock_camera_result.scalar_one_or_none.return_value = mock_camera
+
+    mock_detections_result = MagicMock()
+    mock_detections_scalars = MagicMock()
+    mock_detections_scalars.all.return_value = mock_detections
+    mock_detections_result.scalars.return_value = mock_detections_scalars
+
+    call_count = 0
+
+    async def mock_execute(query):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return mock_camera_result
+        else:
+            return mock_detections_result
+
+    mock_session.execute = mock_execute
+    mock_session.add = MagicMock()
+    mock_session.commit = AsyncMock()
+    mock_session.refresh = AsyncMock()
+
+    mock_broadcaster = MagicMock()
+    mock_broadcaster.broadcast_event = AsyncMock()
+
+    mock_llm_response = {
+        "risk_score": 50,
+        "risk_level": "medium",
+        "summary": "Normal activity",
+        "reasoning": "No concerns",
+    }
+
+    async def mock_call_llm(*args, **kwargs):
+        return mock_llm_response
+
+    with (
+        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
+        patch(
+            "backend.services.event_broadcaster.get_broadcaster",
+            new=AsyncMock(return_value=mock_broadcaster),
+        ),
+    ):
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_session
+        mock_context.__aexit__.return_value = None
+        mock_get_session.return_value = mock_context
+
+        # Call without camera_id and detection_ids - should fetch from Redis
+        event = await analyzer.analyze_batch(batch_id=batch_id)
+
+    assert event.camera_id == "front_door"
+
+
+# =============================================================================
+# Test: Full analyze_detection_fast_path Integration (with mocked DB/LLM)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_analyze_detection_fast_path_success(
+    analyzer, mock_redis_client, mock_camera, mock_llm_response
+):
+    """Test successful fast path analysis with mocked database and LLM."""
+    camera_id = "front_door"
+    detection_id = 42
+
+    from datetime import UTC
+
+    from backend.models.detection import Detection
+
+    mock_detection = Detection(
+        id=42,
+        camera_id="front_door",
+        file_path="/export/foscam/front_door/alert_img.jpg",
+        detected_at=datetime(2025, 12, 23, 14, 45, 0, tzinfo=UTC),
+        object_type="person",
+        confidence=0.98,
+    )
+
+    mock_session = AsyncMock()
+
+    # Mock camera query result
+    mock_camera_result = MagicMock()
+    mock_camera_result.scalar_one_or_none.return_value = mock_camera
+
+    # Mock detection query result
+    mock_detection_result = MagicMock()
+    mock_detection_result.scalar_one_or_none.return_value = mock_detection
+
+    call_count = 0
+
+    async def mock_execute(query):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return mock_camera_result
+        else:
+            return mock_detection_result
+
+    mock_session.execute = mock_execute
+    mock_session.add = MagicMock()
+    mock_session.commit = AsyncMock()
+    mock_session.refresh = AsyncMock()
+
+    mock_broadcaster = MagicMock()
+    mock_broadcaster.broadcast_event = AsyncMock()
+
+    async def mock_call_llm(*args, **kwargs):
+        return mock_llm_response
+
+    with (
+        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
+        patch(
+            "backend.services.event_broadcaster.get_broadcaster",
+            new=AsyncMock(return_value=mock_broadcaster),
+        ),
+    ):
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_session
+        mock_context.__aexit__.return_value = None
+        mock_get_session.return_value = mock_context
+
+        event = await analyzer.analyze_detection_fast_path(camera_id, detection_id)
+
+    # Verify event was created with correct properties
+    assert event.batch_id == f"fast_path_{detection_id}"
+    assert event.camera_id == camera_id
+    assert event.risk_score == 75
+    assert event.risk_level == "high"
+    assert event.is_fast_path is True
+    assert event.reviewed is False
+
+
+@pytest.mark.asyncio
+async def test_analyze_detection_fast_path_detection_not_found(
+    analyzer, mock_redis_client, mock_camera
+):
+    """Test fast path analysis raises error when detection not found."""
+    camera_id = "front_door"
+    detection_id = 999  # Non-existent detection
+
+    mock_session = AsyncMock()
+
+    mock_camera_result = MagicMock()
+    mock_camera_result.scalar_one_or_none.return_value = mock_camera
+
+    # Detection not found
+    mock_detection_result = MagicMock()
+    mock_detection_result.scalar_one_or_none.return_value = None
+
+    call_count = 0
+
+    async def mock_execute(query):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return mock_camera_result
+        else:
+            return mock_detection_result
+
+    mock_session.execute = mock_execute
+
+    with patch("backend.services.nemotron_analyzer.get_session") as mock_get_session:
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_session
+        mock_context.__aexit__.return_value = None
+        mock_get_session.return_value = mock_context
+
+        with pytest.raises(ValueError, match="not found in database"):
+            await analyzer.analyze_detection_fast_path(camera_id, detection_id)
+
+
+@pytest.mark.asyncio
+async def test_analyze_detection_fast_path_llm_failure_fallback(
+    analyzer, mock_redis_client, mock_camera
+):
+    """Test fast path analysis falls back to default risk when LLM fails."""
+    camera_id = "front_door"
+    detection_id = 42
+
+    from datetime import UTC
+
+    from backend.models.detection import Detection
+
+    mock_detection = Detection(
+        id=42,
+        camera_id="front_door",
+        file_path="/export/foscam/front_door/alert_img.jpg",
+        detected_at=datetime(2025, 12, 23, 14, 45, 0, tzinfo=UTC),
+        object_type="person",
+        confidence=0.98,
+    )
+
+    mock_session = AsyncMock()
+
+    mock_camera_result = MagicMock()
+    mock_camera_result.scalar_one_or_none.return_value = mock_camera
+
+    mock_detection_result = MagicMock()
+    mock_detection_result.scalar_one_or_none.return_value = mock_detection
+
+    call_count = 0
+
+    async def mock_execute(query):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return mock_camera_result
+        else:
+            return mock_detection_result
+
+    mock_session.execute = mock_execute
+    mock_session.add = MagicMock()
+    mock_session.commit = AsyncMock()
+    mock_session.refresh = AsyncMock()
+
+    mock_broadcaster = MagicMock()
+    mock_broadcaster.broadcast_event = AsyncMock()
+
+    async def mock_call_llm_fail(*args, **kwargs):
+        raise httpx.TimeoutException("LLM timeout")
+
+    with (
+        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm_fail),
+        patch(
+            "backend.services.event_broadcaster.get_broadcaster",
+            new=AsyncMock(return_value=mock_broadcaster),
+        ),
+    ):
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_session
+        mock_context.__aexit__.return_value = None
+        mock_get_session.return_value = mock_context
+
+        event = await analyzer.analyze_detection_fast_path(camera_id, detection_id)
+
+    # Verify fallback risk values
+    assert event.risk_score == 50
+    assert event.risk_level == "medium"
+    assert "Analysis unavailable" in event.summary
+    assert event.is_fast_path is True
+
+
+@pytest.mark.asyncio
+async def test_analyze_detection_fast_path_broadcast_failure_continues(
+    analyzer, mock_redis_client, mock_camera, mock_llm_response
+):
+    """Test that broadcast failure does not prevent fast path event creation."""
+    camera_id = "front_door"
+    detection_id = 42
+
+    from datetime import UTC
+
+    from backend.models.detection import Detection
+
+    mock_detection = Detection(
+        id=42,
+        camera_id="front_door",
+        file_path="/export/foscam/front_door/alert_img.jpg",
+        detected_at=datetime(2025, 12, 23, 14, 45, 0, tzinfo=UTC),
+        object_type="person",
+        confidence=0.98,
+    )
+
+    mock_session = AsyncMock()
+
+    mock_camera_result = MagicMock()
+    mock_camera_result.scalar_one_or_none.return_value = mock_camera
+
+    mock_detection_result = MagicMock()
+    mock_detection_result.scalar_one_or_none.return_value = mock_detection
+
+    call_count = 0
+
+    async def mock_execute(query):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return mock_camera_result
+        else:
+            return mock_detection_result
+
+    mock_session.execute = mock_execute
+    mock_session.add = MagicMock()
+    mock_session.commit = AsyncMock()
+    mock_session.refresh = AsyncMock()
+
+    # Mock broadcaster to fail
+    mock_broadcaster = MagicMock()
+    mock_broadcaster.broadcast_event = AsyncMock(side_effect=Exception("Broadcast failed"))
+
+    async def mock_call_llm(*args, **kwargs):
+        return mock_llm_response
+
+    with (
+        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
+        patch(
+            "backend.services.event_broadcaster.get_broadcaster",
+            new=AsyncMock(return_value=mock_broadcaster),
+        ),
+    ):
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_session
+        mock_context.__aexit__.return_value = None
+        mock_get_session.return_value = mock_context
+
+        # Should not raise exception even though broadcast fails
+        event = await analyzer.analyze_detection_fast_path(camera_id, detection_id)
+
+    assert event.is_fast_path is True
+    assert event.risk_score == 75
+
+
+@pytest.mark.asyncio
+async def test_analyze_detection_fast_path_string_detection_id(
+    analyzer, mock_redis_client, mock_camera, mock_llm_response
+):
+    """Test fast path analysis handles string detection ID correctly."""
+    camera_id = "front_door"
+    detection_id = "42"  # String that should be converted to int
+
+    from datetime import UTC
+
+    from backend.models.detection import Detection
+
+    mock_detection = Detection(
+        id=42,
+        camera_id="front_door",
+        file_path="/export/foscam/front_door/alert_img.jpg",
+        detected_at=datetime(2025, 12, 23, 14, 45, 0, tzinfo=UTC),
+        object_type="person",
+        confidence=0.98,
+    )
+
+    mock_session = AsyncMock()
+
+    mock_camera_result = MagicMock()
+    mock_camera_result.scalar_one_or_none.return_value = mock_camera
+
+    mock_detection_result = MagicMock()
+    mock_detection_result.scalar_one_or_none.return_value = mock_detection
+
+    call_count = 0
+
+    async def mock_execute(query):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return mock_camera_result
+        else:
+            return mock_detection_result
+
+    mock_session.execute = mock_execute
+    mock_session.add = MagicMock()
+    mock_session.commit = AsyncMock()
+    mock_session.refresh = AsyncMock()
+
+    mock_broadcaster = MagicMock()
+    mock_broadcaster.broadcast_event = AsyncMock()
+
+    async def mock_call_llm(*args, **kwargs):
+        return mock_llm_response
+
+    with (
+        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch.object(analyzer, "_call_llm", side_effect=mock_call_llm),
+        patch(
+            "backend.services.event_broadcaster.get_broadcaster",
+            new=AsyncMock(return_value=mock_broadcaster),
+        ),
+    ):
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_session
+        mock_context.__aexit__.return_value = None
+        mock_get_session.return_value = mock_context
+
+        event = await analyzer.analyze_detection_fast_path(camera_id, detection_id)
+
+    assert event.batch_id == "fast_path_42"
+    assert event.is_fast_path is True
+
+
+# =============================================================================
+# Test: Additional _call_llm edge cases
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_call_llm_invalid_json_in_response(analyzer):
+    """Test _call_llm raises error when response contains invalid JSON."""
+    mock_response = {"content": "This is not valid JSON at all"}
+
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = mock_response
+        mock_post.return_value = mock_resp
+
+        with pytest.raises(ValueError, match="No JSON found"):
+            await analyzer._call_llm(
+                camera_name="Front Door",
+                start_time="2025-12-23T14:30:00",
+                end_time="2025-12-23T14:31:00",
+                detections_list="1. 14:30:00 - person",
+            )
+
+
+@pytest.mark.asyncio
+async def test_call_llm_timeout(analyzer):
+    """Test _call_llm raises timeout exception."""
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_post.side_effect = httpx.ReadTimeout("Read timeout exceeded")
+
+        with pytest.raises(httpx.ReadTimeout):
+            await analyzer._call_llm(
+                camera_name="Front Door",
+                start_time="2025-12-23T14:30:00",
+                end_time="2025-12-23T14:31:00",
+                detections_list="1. 14:30:00 - person",
+            )
+
+
+@pytest.mark.asyncio
+async def test_call_llm_connection_error(analyzer):
+    """Test _call_llm raises connection error."""
+    with patch("httpx.AsyncClient.post") as mock_post:
+        mock_post.side_effect = httpx.ConnectError("Connection refused")
+
+        with pytest.raises(httpx.ConnectError):
+            await analyzer._call_llm(
+                camera_name="Front Door",
+                start_time="2025-12-23T14:30:00",
+                end_time="2025-12-23T14:31:00",
+                detections_list="1. 14:30:00 - person",
+            )
+
+
+# =============================================================================
+# Test: Additional validation edge cases
+# =============================================================================
+
+
+def test_validate_risk_data_float_score(analyzer):
+    """Test validation handles float risk scores."""
+    data = {"risk_score": 75.5, "risk_level": "high"}
+    result = analyzer._validate_risk_data(data)
+    assert result["risk_score"] == 75  # Converted to int
+
+
+def test_validate_risk_data_string_score_valid(analyzer):
+    """Test validation handles valid string risk scores."""
+    data = {"risk_score": "80", "risk_level": "high"}
+    result = analyzer._validate_risk_data(data)
+    assert result["risk_score"] == 80
+
+
+def test_validate_risk_data_none_score(analyzer):
+    """Test validation handles None risk score."""
+    data = {"risk_score": None, "risk_level": "medium"}
+    result = analyzer._validate_risk_data(data)
+    assert result["risk_score"] == 50  # Default
+
+
+def test_validate_risk_data_uppercase_level(analyzer):
+    """Test validation handles uppercase risk levels."""
+    data = {"risk_score": 75, "risk_level": "HIGH"}
+    result = analyzer._validate_risk_data(data)
+    assert result["risk_level"] == "high"
+
+
+def test_validate_risk_data_critical_boundary(analyzer):
+    """Test risk level inference at critical boundary (85)."""
+    result = analyzer._validate_risk_data({"risk_score": 85, "risk_level": "invalid"})
+    assert result["risk_level"] == "critical"
+
+
+def test_validate_risk_data_low_boundary(analyzer):
+    """Test risk level inference at low boundary (29)."""
+    result = analyzer._validate_risk_data({"risk_score": 29, "risk_level": "invalid"})
+    assert result["risk_level"] == "low"
+
+
+def test_validate_risk_data_medium_boundary(analyzer):
+    """Test risk level inference at medium boundary (30)."""
+    result = analyzer._validate_risk_data({"risk_score": 30, "risk_level": "invalid"})
+    assert result["risk_level"] == "medium"
+
+
+def test_validate_risk_data_high_boundary(analyzer):
+    """Test risk level inference at high boundary (60)."""
+    result = analyzer._validate_risk_data({"risk_score": 60, "risk_level": "invalid"})
+    assert result["risk_level"] == "high"
+
+
+# =============================================================================
+# Test: Parse LLM Response edge cases
+# =============================================================================
+
+
+def test_parse_llm_response_multiple_json_objects(analyzer):
+    """Test parsing when multiple JSON objects are present (takes first valid one)."""
+    response_text = """
+    First some noise: {"other": "data"}
+
+    Then the real response:
+    {
+      "risk_score": 60,
+      "risk_level": "high",
+      "summary": "Test summary",
+      "reasoning": "Test reasoning"
+    }
+    """
+
+    result = analyzer._parse_llm_response(response_text)
+    assert result["risk_score"] == 60
+    assert result["risk_level"] == "high"
+
+
+def test_parse_llm_response_nested_json(analyzer):
+    """Test parsing handles simple nested JSON structures."""
+    response_text = """
+    {
+      "risk_score": 45,
+      "risk_level": "medium",
+      "summary": "Normal activity",
+      "reasoning": "Typical pattern"
+    }
+    """
+
+    result = analyzer._parse_llm_response(response_text)
+    assert result["risk_score"] == 45

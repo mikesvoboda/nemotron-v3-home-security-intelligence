@@ -113,8 +113,8 @@ jobs:
           exit 1
 
       - name: Run unit tests with coverage
-        # Unit tests have 80% coverage threshold (lowered from 92% after moving
-        # DB-dependent tests to integration/ directory for proper separation)
+        # Unit tests coverage threshold - 85% for unit tests alone
+        # Combined coverage (unit + integration) should reach 95%
         # -n0 disables xdist parallelization (CI already parallelizes via separate jobs)
         # --timeout=0 disables timeout (fixture import takes >1s in CI)
         run: |
@@ -125,7 +125,7 @@ jobs:
             --cov-config=pyproject.toml \
             --cov-report=xml:coverage-unit.xml \
             --cov-report=term-missing \
-            --cov-fail-under=80 \
+            --cov-fail-under=85 \
             --junit-xml=test-results-unit.xml \
             --durations=20 \
             -v
@@ -228,12 +228,8 @@ jobs:
           exit 1
 
       - name: Run integration tests with coverage
-        # Integration tests have 50% coverage threshold (vs 93% for unit tests)
-        # Integration tests cover cross-component interactions and have lower
-        # coverage due to:
-        # - Mocked external dependencies (DB, Redis, AI services)
-        # - Testing specific API endpoints rather than all code paths
-        # - Focus on end-to-end behavior verification
+        # Integration tests coverage threshold - 50% for integration tests alone
+        # Integration tests focus on API/service integration, not full code coverage
         # -n0 disables xdist parallelization (CI already parallelizes via separate jobs)
         # --timeout=30 gives tests 30s each (prevents hangs while allowing slow DB ops)
         run: |

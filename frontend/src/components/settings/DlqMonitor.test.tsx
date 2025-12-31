@@ -539,4 +539,127 @@ describe('DlqMonitor', () => {
       expect(card).toBeInTheDocument();
     });
   });
+
+  describe('auto-refresh', () => {
+    it('does not auto-refresh when refreshInterval is 0', async () => {
+      render(<DlqMonitor refreshInterval={0} />);
+
+      // Wait for initial load
+      await waitFor(() => {
+        expect(api.fetchDlqStats).toHaveBeenCalledTimes(1);
+      });
+
+      // Wait a bit to ensure no additional calls
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Should still only have the initial call
+      expect(api.fetchDlqStats).toHaveBeenCalledTimes(1);
+    });
+
+    it('sets up auto-refresh when refreshInterval is positive', async () => {
+      // Use a short interval for testing - 100ms
+      render(<DlqMonitor refreshInterval={100} />);
+
+      // Wait for initial load
+      await waitFor(() => {
+        expect(api.fetchDlqStats).toHaveBeenCalledTimes(1);
+      });
+
+      // Wait for the interval to trigger (add margin for test environment)
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
+      // Should have been called at least twice
+      await waitFor(() => {
+        expect(api.fetchDlqStats).toHaveBeenCalledTimes(2);
+      });
+    });
+  });
+
+  describe('formatTimestamp error handling', () => {
+    it('displays Invalid Date when timestamp cannot be parsed', async () => {
+      const statsWithInvalidTimestamps: api.DLQStatsResponse = {
+        detection_queue_count: 1,
+        analysis_queue_count: 0,
+        total_count: 1,
+      };
+
+      const invalidTimestampJobs: api.DLQJobsResponse = {
+        queue_name: 'dlq:detection_queue',
+        jobs: [
+          {
+            original_job: { camera_id: 'test' },
+            error: 'Test error with invalid timestamps',
+            attempt_count: 1,
+            first_failed_at: 'invalid-date-string',
+            last_failed_at: 'another-invalid-date',
+            queue_name: 'detection_queue',
+          },
+        ],
+        count: 1,
+      };
+
+      vi.mocked(api.fetchDlqStats).mockResolvedValue(statsWithInvalidTimestamps);
+      vi.mocked(api.fetchDlqJobs).mockResolvedValue(invalidTimestampJobs);
+
+      render(<DlqMonitor refreshInterval={0} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Detection Queue')).toBeInTheDocument();
+      });
+
+      const detectionQueueButton = screen.getByLabelText('Toggle Detection Queue details');
+      fireEvent.click(detectionQueueButton);
+
+      await waitFor(() => {
+        // Wait for the error message to appear which confirms jobs loaded
+        expect(screen.getByText('Test error with invalid timestamps')).toBeInTheDocument();
+      });
+
+      // Now check that invalid timestamps show "Invalid Date"
+      expect(screen.getByText(/Attempts: 1/)).toBeInTheDocument();
+      // new Date('invalid-string').toLocaleString() returns "Invalid Date"
+      expect(screen.getAllByText(/Invalid Date/i).length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('clear confirmation cancel button', () => {
+    it('cancels clear when clicking Cancel button', async () => {
+      render(<DlqMonitor refreshInterval={0} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Detection Queue')).toBeInTheDocument();
+      });
+
+      const detectionQueueButton = screen.getByLabelText('Toggle Detection Queue details');
+      fireEvent.click(detectionQueueButton);
+
+      await waitFor(() => {
+        expect(screen.getByText('Clear All')).toBeInTheDocument();
+      });
+
+      // Click Clear All to show confirmation
+      fireEvent.click(screen.getByText('Clear All'));
+
+      // Verify confirmation is shown
+      expect(screen.getByText(/Permanently delete all 2 jobs\?/)).toBeInTheDocument();
+
+      // Find and click the Cancel button within the clear confirmation
+      const cancelButtons = screen.getAllByText('Cancel');
+      const clearCancelButton = cancelButtons.find((button) => {
+        const parent = button.closest('div');
+        return parent?.textContent?.includes('Permanently delete');
+      });
+
+      expect(clearCancelButton).toBeDefined();
+      fireEvent.click(clearCancelButton!);
+
+      // Confirmation should be hidden
+      await waitFor(() => {
+        expect(screen.queryByText(/Permanently delete all 2 jobs\?/)).not.toBeInTheDocument();
+      });
+
+      // Clear API should NOT have been called
+      expect(api.clearDlq).not.toHaveBeenCalled();
+    });
+  });
 });

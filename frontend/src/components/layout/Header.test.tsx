@@ -952,4 +952,368 @@ describe('Header', () => {
       expect(screen.getByText('WebSocket Channels')).toBeInTheDocument();
     });
   });
+
+  describe('Status Label Edge Cases', () => {
+    it('shows Connecting... when not connected', () => {
+      // Already covered by existing test, but adding explicit coverage for line 32
+      vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(
+        createMockConnectionStatus('disconnected', 'disconnected', null)
+      );
+
+      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
+        health: null,
+        isLoading: false,
+        error: null,
+        overallStatus: null,
+        services: {},
+        refresh: vi.fn(),
+      });
+
+      render(<Header />);
+      expect(screen.getByText('Connecting...')).toBeInTheDocument();
+    });
+
+    it('shows Checking... when connected but health is unknown', () => {
+      const systemStatus = {
+        type: 'system_status' as const,
+        data: {
+          gpu: {
+            utilization: 45,
+            memory_used: 8192,
+            memory_total: 24576,
+            temperature: 65,
+            inference_fps: 30.5,
+          },
+          cameras: { active: 3, total: 5 },
+          queue: { pending: 0, processing: 0 },
+          health: undefined as unknown as 'healthy' | 'degraded' | 'unhealthy',
+        },
+        timestamp: '2025-12-23T10:00:00Z',
+      };
+
+      vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(
+        createMockConnectionStatus('connected', 'connected', systemStatus)
+      );
+
+      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
+        health: null,
+        isLoading: true,
+        error: null,
+        overallStatus: null,
+        services: {},
+        refresh: vi.fn(),
+      });
+
+      render(<Header />);
+      expect(screen.getByText('Checking...')).toBeInTheDocument();
+    });
+  });
+
+  describe('Tooltip Timeout Management', () => {
+    it('clears existing timeout when mouse re-enters before timeout completes', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+
+      const systemStatus = {
+        type: 'system_status' as const,
+        data: {
+          gpu: {
+            utilization: 45,
+            memory_used: 8192,
+            memory_total: 24576,
+            temperature: 65,
+            inference_fps: 30.5,
+          },
+          cameras: { active: 3, total: 5 },
+          queue: { pending: 0, processing: 0 },
+          health: 'healthy' as const,
+        },
+        timestamp: '2025-12-23T10:00:00Z',
+      };
+
+      vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(
+        createMockConnectionStatus('connected', 'connected', systemStatus)
+      );
+
+      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
+        health: {
+          status: 'healthy',
+          services: {
+            database: { status: 'healthy', message: 'OK' },
+          },
+          timestamp: '2025-12-23T10:00:00Z',
+        },
+        isLoading: false,
+        error: null,
+        overallStatus: 'healthy',
+        services: {
+          database: { status: 'healthy', message: 'OK' },
+        },
+        refresh: vi.fn(),
+      });
+
+      render(<Header />);
+
+      const healthIndicator = screen.getByTestId('health-indicator');
+
+      // Show tooltip
+      fireEvent.mouseEnter(healthIndicator);
+      expect(screen.getByTestId('health-tooltip')).toBeInTheDocument();
+
+      // Mouse leave (starts timeout)
+      fireEvent.mouseLeave(healthIndicator);
+
+      // Before timeout completes, mouse re-enters (should clear timeout)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(50); // Only advance 50ms of the 150ms delay
+      });
+
+      fireEvent.mouseEnter(healthIndicator);
+
+      // Tooltip should still be visible
+      expect(screen.getByTestId('health-tooltip')).toBeInTheDocument();
+
+      // Advance past the original timeout period
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(200);
+      });
+
+      // Tooltip should STILL be visible because the timeout was cleared
+      expect(screen.getByTestId('health-tooltip')).toBeInTheDocument();
+
+      vi.useRealTimers();
+    });
+
+    it('cleans up timeout on component unmount', () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+
+      const systemStatus = {
+        type: 'system_status' as const,
+        data: {
+          gpu: {
+            utilization: 45,
+            memory_used: 8192,
+            memory_total: 24576,
+            temperature: 65,
+            inference_fps: 30.5,
+          },
+          cameras: { active: 3, total: 5 },
+          queue: { pending: 0, processing: 0 },
+          health: 'healthy' as const,
+        },
+        timestamp: '2025-12-23T10:00:00Z',
+      };
+
+      vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(
+        createMockConnectionStatus('connected', 'connected', systemStatus)
+      );
+
+      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
+        health: {
+          status: 'healthy',
+          services: {
+            database: { status: 'healthy', message: 'OK' },
+          },
+          timestamp: '2025-12-23T10:00:00Z',
+        },
+        isLoading: false,
+        error: null,
+        overallStatus: 'healthy',
+        services: {
+          database: { status: 'healthy', message: 'OK' },
+        },
+        refresh: vi.fn(),
+      });
+
+      const { unmount } = render(<Header />);
+
+      const healthIndicator = screen.getByTestId('health-indicator');
+
+      // Show tooltip and start hide timer
+      fireEvent.mouseEnter(healthIndicator);
+      fireEvent.mouseLeave(healthIndicator);
+
+      // Unmount component before timeout completes
+      unmount();
+
+      // No errors should occur - the cleanup function should clear the timeout
+      expect(() => {
+        vi.advanceTimersByTime(200);
+      }).not.toThrow();
+
+      vi.useRealTimers();
+    });
+  });
+
+  describe('Polling Fallback Indicator', () => {
+    it('shows REST Fallback indicator when polling fallback is active', () => {
+      const mockStatus = createMockConnectionStatus('connected', 'connected', null);
+      mockStatus.isPollingFallback = true;
+
+      vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(mockStatus);
+
+      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
+        health: null,
+        isLoading: false,
+        error: null,
+        overallStatus: 'healthy',
+        services: {},
+        refresh: vi.fn(),
+      });
+
+      render(<Header />);
+
+      expect(screen.getByText('REST Fallback')).toBeInTheDocument();
+    });
+
+    it('does not show REST Fallback indicator when polling fallback is inactive', () => {
+      const systemStatus = {
+        type: 'system_status' as const,
+        data: {
+          gpu: {
+            utilization: 45,
+            memory_used: 8192,
+            memory_total: 24576,
+            temperature: 65,
+            inference_fps: 30.5,
+          },
+          cameras: { active: 3, total: 5 },
+          queue: { pending: 0, processing: 0 },
+          health: 'healthy' as const,
+        },
+        timestamp: '2025-12-23T10:00:00Z',
+      };
+
+      vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(
+        createMockConnectionStatus('connected', 'connected', systemStatus)
+      );
+
+      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
+        health: null,
+        isLoading: false,
+        error: null,
+        overallStatus: 'healthy',
+        services: {},
+        refresh: vi.fn(),
+      });
+
+      render(<Header />);
+
+      expect(screen.queryByText('REST Fallback')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Focus and Blur Events', () => {
+    it('shows tooltip on focus', () => {
+      const systemStatus = {
+        type: 'system_status' as const,
+        data: {
+          gpu: {
+            utilization: 45,
+            memory_used: 8192,
+            memory_total: 24576,
+            temperature: 65,
+            inference_fps: 30.5,
+          },
+          cameras: { active: 3, total: 5 },
+          queue: { pending: 0, processing: 0 },
+          health: 'healthy' as const,
+        },
+        timestamp: '2025-12-23T10:00:00Z',
+      };
+
+      vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(
+        createMockConnectionStatus('connected', 'connected', systemStatus)
+      );
+
+      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
+        health: {
+          status: 'healthy',
+          services: {
+            database: { status: 'healthy', message: 'OK' },
+          },
+          timestamp: '2025-12-23T10:00:00Z',
+        },
+        isLoading: false,
+        error: null,
+        overallStatus: 'healthy',
+        services: {
+          database: { status: 'healthy', message: 'OK' },
+        },
+        refresh: vi.fn(),
+      });
+
+      render(<Header />);
+
+      const healthIndicator = screen.getByTestId('health-indicator');
+
+      // Focus the element
+      fireEvent.focus(healthIndicator);
+
+      // Tooltip should appear
+      expect(screen.getByTestId('health-tooltip')).toBeInTheDocument();
+    });
+
+    it('hides tooltip on blur', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+
+      const systemStatus = {
+        type: 'system_status' as const,
+        data: {
+          gpu: {
+            utilization: 45,
+            memory_used: 8192,
+            memory_total: 24576,
+            temperature: 65,
+            inference_fps: 30.5,
+          },
+          cameras: { active: 3, total: 5 },
+          queue: { pending: 0, processing: 0 },
+          health: 'healthy' as const,
+        },
+        timestamp: '2025-12-23T10:00:00Z',
+      };
+
+      vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(
+        createMockConnectionStatus('connected', 'connected', systemStatus)
+      );
+
+      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
+        health: {
+          status: 'healthy',
+          services: {
+            database: { status: 'healthy', message: 'OK' },
+          },
+          timestamp: '2025-12-23T10:00:00Z',
+        },
+        isLoading: false,
+        error: null,
+        overallStatus: 'healthy',
+        services: {
+          database: { status: 'healthy', message: 'OK' },
+        },
+        refresh: vi.fn(),
+      });
+
+      render(<Header />);
+
+      const healthIndicator = screen.getByTestId('health-indicator');
+
+      // Focus to show tooltip
+      fireEvent.focus(healthIndicator);
+      expect(screen.getByTestId('health-tooltip')).toBeInTheDocument();
+
+      // Blur the element
+      fireEvent.blur(healthIndicator);
+
+      // Advance timers past the delay
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(200);
+      });
+
+      // Tooltip should be hidden
+      expect(screen.queryByTestId('health-tooltip')).not.toBeInTheDocument();
+
+      vi.useRealTimers();
+    });
+  });
 });

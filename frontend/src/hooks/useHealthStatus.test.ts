@@ -332,4 +332,31 @@ describe('useHealthStatus', () => {
       });
     });
   });
+
+  describe('polling interval execution', () => {
+    it('accepts pollingInterval option', () => {
+      const { result } = renderHook(() => useHealthStatus({ pollingInterval: 5000, enabled: false }));
+
+      // Hook should work with pollingInterval option
+      expect(result.current).toBeDefined();
+      expect(result.current.health).toBeNull();
+    });
+
+    it('respects enabled option', async () => {
+      const { result } = renderHook(() => useHealthStatus({ pollingInterval: 0, enabled: true }));
+
+      await waitFor(() => {
+        expect(api.fetchHealth).toHaveBeenCalled();
+      });
+
+      expect(result.current).toBeDefined();
+    });
+
+    it('does not fetch when enabled is false', () => {
+      renderHook(() => useHealthStatus({ enabled: false }));
+
+      // Should not fetch when disabled
+      expect(api.fetchHealth).not.toHaveBeenCalled();
+    });
+  });
 });
