@@ -9,14 +9,20 @@ This directory stores runtime data for the Home Security Intelligence applicatio
 ```
 data/
   AGENTS.md           # This file
-  logs/               # Application log files (runtime, currently empty)
+  clips/              # Video clips (runtime, created as needed)
+  logs/               # Application log files
+    security.log      # Current log file
+    security.log.N    # Rotated log files (1-6)
+    test.log          # Test log file
+  security.db         # Legacy SQLite database (see migration note below)
+  thumbnails/         # Cached image thumbnails (runtime, created as needed)
 ```
 
-Note: The `thumbnails/` directory is created at runtime when events are processed. Additional subdirectories may be created as needed.
+Note: The `thumbnails/` and `clips/` directories are created at runtime when events are processed. Additional subdirectories may be created as needed.
 
-**MIGRATED TO POSTGRESQL** - This directory no longer stores the database.
+**DATABASE MIGRATION NOTE**
 
-The application now uses PostgreSQL instead of SQLite:
+The application has been migrated from SQLite to PostgreSQL. The `security.db` file in this directory is a legacy file from before the migration. The primary database is now PostgreSQL:
 
 - **Database:** PostgreSQL (runs as Docker service or natively)
 - **Connection:** Configured via `DATABASE_URL` in `.env` (e.g., `postgresql+asyncpg://user:pass@localhost:5432/home_security`)
@@ -52,13 +58,15 @@ The application now uses PostgreSQL instead of SQLite:
 
 ### logs/
 
-**Purpose:** Application log files.
+**Purpose:** Application log files with rotation.
 
 **Contents:**
 
-- Backend server logs
-- Frontend build logs (if applicable)
-- Debug output
+- `security.log` - Current active log file
+- `security.log.1` through `security.log.6` - Rotated log files (oldest is .6)
+- `test.log` - Log file used during testing
+- Log rotation occurs when files reach approximately 10MB
+- Backend server logs in JSON format for structured logging
 
 ## Database Schema
 
@@ -204,7 +212,12 @@ await cleanup.cleanup_old_events()
 ```
 data/
 ├── AGENTS.md           # This file
-├── logs/               # Application log files (runtime)
+├── clips/              # Video clips (created at runtime)
+├── logs/               # Application log files
+│   ├── security.log    # Current log file
+│   ├── security.log.1  # Rotated logs
+│   └── test.log        # Test log file
+├── security.db         # Legacy SQLite database (pre-migration)
 └── thumbnails/         # Cached image thumbnails (created at runtime)
     ├── {event_id}.jpg
     └── ...

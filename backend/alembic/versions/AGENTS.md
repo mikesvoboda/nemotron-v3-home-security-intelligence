@@ -20,6 +20,10 @@ add_zones_001 (add_zones_table)
 add_audit_logs (audit_logs_table)
        |
 add_baselines (add_baseline_tables)
+       |
+add_clip_path (add_clip_path_column)
+       |
+fix_datetime_tz (fix_datetime_timezone)
 ```
 
 ## Migration Files
@@ -116,6 +120,25 @@ Creates baseline tables for anomaly detection:
 | `class_baselines`    | Detection class frequency by hour    |
 
 These tables support anomaly detection by comparing current detections against historical patterns with exponential decay.
+
+### `add_clip_path_column.py`
+
+**Revision ID:** `add_clip_path`
+**Parent:** `add_baselines`
+
+Adds clip_path column to events table:
+
+- `clip_path` column (VARCHAR) for storing video clip file paths
+
+### `fix_datetime_timezone.py`
+
+**Revision ID:** `fix_datetime_tz`
+**Parent:** `add_clip_path`
+
+Fixes datetime timezone awareness:
+
+- Updates datetime columns to use timezone-aware timestamps
+- Ensures consistent UTC handling across all timestamp fields
 
 ## Creating New Migrations
 

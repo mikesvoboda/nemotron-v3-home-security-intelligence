@@ -126,6 +126,53 @@ Pydantic schemas for dead-letter queue (DLQ) API endpoints.
 | `DLQRequeueResponse` | Response for requeue operation      |
 | `DLQClearResponse`   | Response for clear operation        |
 
+### `performance.py`
+
+Pydantic schemas for system performance metrics (System Performance Dashboard).
+
+**Schemas:**
+
+| Schema              | Purpose                                                   |
+| ------------------- | --------------------------------------------------------- |
+| `TimeRange`         | Enum for historical data time ranges (5m, 15m, 60m)       |
+| `GpuMetrics`        | GPU metrics (name, utilization, VRAM, temperature, power) |
+| `AiModelMetrics`    | RT-DETRv2 model metrics (status, VRAM, model, device)     |
+| `NemotronMetrics`   | Nemotron LLM metrics (status, slots, context size)        |
+| `InferenceMetrics`  | AI inference latency and throughput metrics               |
+| `DatabaseMetrics`   | PostgreSQL metrics (connections, cache hit, transactions) |
+| `RedisMetrics`      | Redis metrics (clients, memory, hit ratio)                |
+| `HostMetrics`       | Host system metrics (CPU, RAM, disk usage)                |
+| `ContainerMetrics`  | Container health status (name, status, health)            |
+| `PerformanceAlert`  | Alert when metric exceeds threshold                       |
+| `PerformanceUpdate` | Complete performance update sent via WebSocket            |
+
+### `queue.py`
+
+Pydantic schemas for queue message payload validation with security validation.
+
+**Schemas:**
+
+| Schema                  | Purpose                                     |
+| ----------------------- | ------------------------------------------- |
+| `DetectionQueuePayload` | Validated payload for detection queue items |
+| `AnalysisQueuePayload`  | Validated payload for analysis queue items  |
+
+**Functions:**
+
+| Function                     | Purpose                            |
+| ---------------------------- | ---------------------------------- |
+| `validate_detection_payload` | Validate a detection queue payload |
+| `validate_analysis_payload`  | Validate an analysis queue payload |
+
+**Security Features:**
+
+- Path traversal prevention via file_path validation
+- Camera ID character restrictions (alphanumeric, underscores, hyphens)
+- Media type restriction to known types
+- Timestamp format validation
+- Null byte injection prevention
+- DoS protection (max 10000 detection_ids)
+
 ---
 
 ## Schema Details

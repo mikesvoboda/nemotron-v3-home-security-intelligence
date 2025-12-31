@@ -32,14 +32,18 @@ ai/
 ├── AGENTS.md              # This file
 ├── rtdetr/                # RT-DETRv2 object detection server
 │   ├── AGENTS.md          # RT-DETRv2 documentation
+│   ├── Dockerfile         # Container build configuration
 │   ├── model.py           # FastAPI server (HuggingFace Transformers)
 │   ├── example_client.py  # Python client example
 │   ├── test_model.py      # Unit tests (some outdated)
-│   └── requirements.txt   # Python dependencies
+│   ├── requirements.txt   # Python dependencies
+│   ├── README.md          # Usage documentation
+│   └── __init__.py        # Package init (version 1.0.0)
 ├── nemotron/              # Nemotron LLM model files
 │   ├── AGENTS.md          # Nemotron documentation
+│   ├── Dockerfile         # Container build configuration
 │   ├── config.json        # llama.cpp config reference
-│   └── *.gguf             # Model file (not in git)
+│   └── .gitkeep           # Placeholder (GGUF models not in git)
 ├── download_models.sh     # Download AI models
 ├── start_detector.sh      # Start RT-DETRv2 (port 8090)
 ├── start_llm.sh           # Start Nemotron 4B (port 8091)
