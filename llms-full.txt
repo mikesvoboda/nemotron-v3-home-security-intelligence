@@ -320,6 +320,17 @@ podman exec nemotron-v3-home-security-intelligence_frontend_1 cat /etc/nginx/con
 
 Run containers as systemd services for automatic startup on boot.
 
+### Containers (6 total)
+
+| Service | Container Name | GPU |
+|---------|----------------|-----|
+| Frontend | `nemotron-v3-home-security-intelligence_frontend_1` | No |
+| Backend | `nemotron-v3-home-security-intelligence_backend_1` | No |
+| PostgreSQL | `nemotron-v3-home-security-intelligence_postgres_1` | No |
+| Redis | `nemotron-v3-home-security-intelligence_redis_1` | No |
+| RT-DETRv2 | `nemotron-v3-home-security-intelligence_ai-detector_1` | Yes |
+| Nemotron | `nemotron-v3-home-security-intelligence_ai-llm_1` | Yes |
+
 ### Generate Systemd Units (Podman)
 
 ```bash
@@ -354,9 +365,10 @@ Use the included setup script which handles everything automatically:
 ```
 
 The script automatically:
-- Generates systemd unit files for all containers
+- Generates systemd unit files for all 6 containers
+- Adds `ExecStartPre` cleanup (fixes orphaned container restart failures)
+- Adds frontend→backend `PartOf=` dependency (frontend restarts when backend restarts)
 - Enables auto-start on boot
-- Adds frontend→backend dependency (fixes DNS cache issues on restart)
 - Enables user lingering (services run without login)
 
 ### Manage Services

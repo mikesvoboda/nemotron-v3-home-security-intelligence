@@ -75,14 +75,16 @@ nvidia-smi
 ## Systemd Auto-Start (Linux)
 
 ```bash
-# Run setup script to enable boot startup
+# Run setup script to enable boot startup (all 6 containers)
 ./scripts/setup-systemd.sh
 
-# Or manually:
-mkdir -p ~/.config/systemd/user
-for c in $(podman ps --format "{{.Names}}" | grep nemotron); do
-    podman generate systemd --new --name "$c" > ~/.config/systemd/user/"$c".service
-    systemctl --user enable "$c".service
-done
-loginctl enable-linger $USER
+# Manage services
+systemctl --user restart nemotron-v3-home-security-intelligence_backend_1
+systemctl --user status 'nemotron-v3-home-security-intelligence_*'
+journalctl --user -u nemotron-v3-home-security-intelligence_backend_1 -f
 ```
+
+The setup script configures:
+- Auto-start on boot for all 6 containers
+- `ExecStartPre` cleanup (fixes orphaned container failures)
+- Frontend restarts automatically when backend restarts (`PartOf=`)
