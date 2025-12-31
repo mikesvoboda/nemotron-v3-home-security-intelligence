@@ -4,7 +4,7 @@ import csv
 import io
 import json
 from datetime import UTC, datetime
-from typing import Any, cast
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
@@ -53,7 +53,7 @@ def parse_detection_ids(detection_ids_str: str | None) -> list[int]:
 
 
 @router.get("", response_model=EventListResponse)
-async def list_events(  # noqa: PLR0912
+async def list_events(
     camera_id: str | None = Query(None, description="Filter by camera ID"),
     risk_level: str | None = Query(
         None, description="Filter by risk level (low, medium, high, critical)"
@@ -97,40 +97,22 @@ async def list_events(  # noqa: PLR0912
     if reviewed is not None:
         query = query.where(Event.reviewed == reviewed)
 
-    # Filter by object type - find events that have at least one detection with this type
-    # We use a subquery approach to find matching event IDs, avoiding fragile LIKE patterns
-    # that could incorrectly match partial IDs (e.g., "1" matching "10")
-    matching_event_ids_for_object_type: set[int] | None = None
+    # Filter by object type - use the cached object_types column on Event
+    # This column stores comma-separated object types from related detections
+    # We use SQL LIKE for efficient database-side filtering
     if object_type:
-        # Subquery to find detection IDs with matching object_type
-        detection_ids_subquery = select(Detection.id).where(Detection.object_type == object_type)
-        detection_ids_result = await db.execute(detection_ids_subquery)
-        matching_detection_ids = set(detection_ids_result.scalars().all())
-
-        if matching_detection_ids:
-            # Find events that contain at least one of the matching detection IDs
-            # We fetch all events and filter in Python to avoid fragile LIKE patterns
-            # LIKE patterns like "[1,%" incorrectly match "[10,..." when searching for ID 1
-            all_events_query = select(Event.id, Event.detection_ids)
-            all_events_result = await db.execute(all_events_query)
-            all_events = all_events_result.all()
-
-            matching_event_ids_for_object_type = set()
-            for event_id, detection_ids_str in all_events:
-                # Parse the JSON array of detection IDs
-                event_detection_ids = set(parse_detection_ids(detection_ids_str))
-                # Check if any of the event's detection IDs match our target detection IDs
-                if event_detection_ids & matching_detection_ids:
-                    matching_event_ids_for_object_type.add(event_id)
-
-            if matching_event_ids_for_object_type:
-                query = query.where(Event.id.in_(matching_event_ids_for_object_type))
-            else:
-                # No matching events found, return empty result
-                query = query.where(Event.id == -1)  # Impossible condition
-        else:
-            # No matching detections found, return empty result
-            query = query.where(Event.id == -1)  # Impossible condition
+        # Use SQL LIKE to find events with matching object types
+        # The object_types column is comma-separated, so we check for:
+        # - Exact match at start: "person,..."
+        # - Match in middle: "...,person,..."
+        # - Exact match at end: "...,person"
+        # - Exact single value: "person"
+        query = query.where(
+            (Event.object_types == object_type)
+            | (Event.object_types.like(f"{object_type},%"))
+            | (Event.object_types.like(f"%,{object_type},%"))
+            | (Event.object_types.like(f"%,{object_type}"))
+        )
 
     # Get total count (before pagination)
     count_query = select(func.count()).select_from(query.subquery())
@@ -199,54 +181,61 @@ async def get_event_stats(
     Returns:
         EventStatsResponse with aggregated statistics
     """
-    # Build base query with optional date filters
-    query = select(Event)
+    # Build date filter conditions (reused across queries)
+    date_filters = []
     if start_date:
-        query = query.where(Event.started_at >= start_date)
+        date_filters.append(Event.started_at >= start_date)
     if end_date:
-        query = query.where(Event.started_at <= end_date)
+        date_filters.append(Event.started_at <= end_date)
 
-    # Get all events matching filters
-    result = await db.execute(query)
-    events = result.scalars().all()
+    # Get total count using database aggregation
+    total_count_query = select(func.count()).select_from(Event)
+    for condition in date_filters:
+        total_count_query = total_count_query.where(condition)
+    total_count_result = await db.execute(total_count_query)
+    total_events = total_count_result.scalar() or 0
 
-    # Calculate total events
-    total_events = len(events)
+    # Get events by risk level using SQL GROUP BY
+    risk_level_query = select(Event.risk_level, func.count().label("count")).group_by(
+        Event.risk_level
+    )
+    for condition in date_filters:
+        risk_level_query = risk_level_query.where(condition)
+    risk_level_result = await db.execute(risk_level_query)
+    risk_level_rows = risk_level_result.all()
 
-    # Calculate events by risk level
+    # Initialize with zeros and populate from query results
     risk_level_counts = {
         "critical": 0,
         "high": 0,
         "medium": 0,
         "low": 0,
     }
-    for event in events:
-        if event.risk_level and event.risk_level in risk_level_counts:
-            risk_level_counts[event.risk_level] += 1
+    for risk_level, count in risk_level_rows:
+        if risk_level and risk_level in risk_level_counts:
+            risk_level_counts[risk_level] = count
 
-    # Calculate events by camera
-    camera_event_counts: dict[str, int] = {}
-    for event in events:
-        camera_event_counts[event.camera_id] = camera_event_counts.get(event.camera_id, 0) + 1
+    # Get events by camera using SQL GROUP BY with JOIN to get camera names
+    camera_stats_query = (
+        select(Event.camera_id, Camera.name.label("camera_name"), func.count().label("event_count"))
+        .join(Camera, Event.camera_id == Camera.id, isouter=True)
+        .group_by(Event.camera_id, Camera.name)
+        .order_by(func.count().desc())
+    )
+    for condition in date_filters:
+        camera_stats_query = camera_stats_query.where(condition)
+    camera_stats_result = await db.execute(camera_stats_query)
+    camera_stats_rows = camera_stats_result.all()
 
-    # Get camera names
-    camera_ids = list(camera_event_counts.keys())
-    camera_query = select(Camera).where(Camera.id.in_(camera_ids))
-    camera_result = await db.execute(camera_query)
-    cameras = {camera.id: camera.name for camera in camera_result.scalars().all()}
-
-    # Build events_by_camera list with camera names
+    # Build events_by_camera list from query results
     events_by_camera = [
         {
             "camera_id": camera_id,
-            "camera_name": cameras.get(camera_id, "Unknown"),
-            "event_count": count,
+            "camera_name": camera_name or "Unknown",
+            "event_count": event_count,
         }
-        for camera_id, count in camera_event_counts.items()
+        for camera_id, camera_name, event_count in camera_stats_rows
     ]
-
-    # Sort by event count descending
-    events_by_camera.sort(key=lambda x: cast("int", x["event_count"]), reverse=True)
 
     return {
         "total_events": total_events,
