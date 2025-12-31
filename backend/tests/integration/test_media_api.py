@@ -13,6 +13,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
+# These tests start the full FastAPI app which includes lifespan initialization
+# (database, Redis, file watcher, etc.). This takes longer than 30s in CI.
+pytestmark = pytest.mark.timeout(60)
+
 
 @pytest.fixture(scope="module")
 def module_temp_foscam_dir():
