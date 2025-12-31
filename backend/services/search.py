@@ -23,6 +23,7 @@ from sqlalchemy.dialects.postgresql import REGCONFIG
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.core.database import escape_ilike_pattern
 from backend.core.logging import get_logger
 from backend.models.camera import Camera
 from backend.models.event import Event
@@ -294,7 +295,10 @@ def _build_filter_conditions(filters: SearchFilters) -> list:
     if filters.reviewed is not None:
         conditions.append(Event.reviewed == filters.reviewed)
     if filters.object_types:
-        obj_conditions = [Event.object_types.ilike(f"%{t}%") for t in filters.object_types]
+        # Escape ILIKE special characters to prevent pattern injection
+        obj_conditions = [
+            Event.object_types.ilike(f"%{escape_ilike_pattern(t)}%") for t in filters.object_types
+        ]
         conditions.append(or_(*obj_conditions))
 
     return conditions

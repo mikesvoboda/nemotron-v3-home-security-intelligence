@@ -27,6 +27,34 @@ class Settings(BaseSettings):
         description="PostgreSQL database URL (format: postgresql+asyncpg://user:pass@host:port/db)",
     )
 
+    # Database connection pool settings
+    # Pool size should be tuned based on workload. Default 20 with 30 overflow = 50 max
+    # connections, suitable for moderate workloads with multiple background workers.
+    database_pool_size: int = Field(
+        default=20,
+        ge=5,
+        le=100,
+        description="Base number of database connections to maintain in pool",
+    )
+    database_pool_overflow: int = Field(
+        default=30,
+        ge=0,
+        le=100,
+        description="Additional connections beyond pool_size when under load",
+    )
+    database_pool_timeout: int = Field(
+        default=30,
+        ge=5,
+        le=120,
+        description="Seconds to wait for available connection before timeout error",
+    )
+    database_pool_recycle: int = Field(
+        default=1800,
+        ge=300,
+        le=7200,
+        description="Seconds after which connections are recycled (prevents stale connections)",
+    )
+
     # Redis configuration
     redis_url: str = Field(
         default="redis://localhost:6379/0",

@@ -10,6 +10,8 @@ from fastapi.testclient import TestClient
 
 # Import the model module
 from model import (
+    MAX_BASE64_SIZE_BYTES,
+    MAX_IMAGE_SIZE_BYTES,
     SECURITY_CLASSES,
     BoundingBox,
     Detection,
@@ -330,6 +332,118 @@ class TestAPIEndpoints:
         """Test batch detection with no files."""
         response = client.post("/detect/batch", files=[])
         assert response.status_code == 422  # Validation error
+
+
+class TestSizeLimits:
+    """Tests for image size limits to prevent DoS attacks."""
+
+    @pytest.fixture
+    def client(self):
+        """Create test client."""
+        return TestClient(app)
+
+    @pytest.fixture
+    def dummy_image_bytes(self):
+        """Create dummy image bytes for testing."""
+        img_array = np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8)
+        img = Image.fromarray(img_array)
+        img_bytes = io.BytesIO()
+        img.save(img_bytes, format="JPEG")
+        img_bytes.seek(0)
+        return img_bytes.getvalue()
+
+    @pytest.fixture(autouse=True)
+    def _mock_model(self):
+        """Mock the global model instance."""
+        with patch("model.model"):
+            mock_instance = MagicMock()
+            mock_instance.detect.return_value = ([], 10.0)
+            mock_instance.detect_batch.return_value = ([[]], 10.0)
+            import model as model_module
+
+            model_module.model = mock_instance
+            yield mock_instance
+
+    def test_size_limits_are_reasonable(self):
+        """Test that size limits are set to reasonable values."""
+        # 10MB is reasonable for security camera images
+        assert MAX_IMAGE_SIZE_BYTES == 10 * 1024 * 1024
+        # Base64 encoding adds ~33% overhead
+        assert MAX_BASE64_SIZE_BYTES > MAX_IMAGE_SIZE_BYTES
+        assert MAX_BASE64_SIZE_BYTES < MAX_IMAGE_SIZE_BYTES * 2
+
+    def test_detect_endpoint_rejects_oversized_file(self, client, _mock_model):
+        """Test that oversized file uploads are rejected with 413."""
+        # Create oversized data (just over 10MB)
+        oversized_data = b"x" * (MAX_IMAGE_SIZE_BYTES + 1)
+
+        response = client.post(
+            "/detect", files={"file": ("large.jpg", oversized_data, "image/jpeg")}
+        )
+
+        assert response.status_code == 413
+        assert "exceeds maximum" in response.json()["detail"]
+        assert "10MB" in response.json()["detail"]
+
+    def test_detect_endpoint_rejects_oversized_base64(self, client, _mock_model):
+        """Test that oversized base64 data is rejected with 413 BEFORE decoding."""
+        # Create oversized base64 string (just over the limit)
+        oversized_base64 = "A" * (MAX_BASE64_SIZE_BYTES + 1)
+
+        response = client.post("/detect", json={"image_base64": oversized_base64})
+
+        # Should be rejected at 413 (payload too large)
+        # Note: FastAPI may return 422 for JSON body parsing
+        assert response.status_code in [413, 422]
+        if response.status_code == 413:
+            assert "exceeds" in response.json()["detail"].lower()
+
+    def test_detect_endpoint_rejects_invalid_base64(self, client, _mock_model):
+        """Test that invalid base64 encoding is rejected with 400."""
+        # Invalid base64 (not properly padded, contains invalid chars)
+        invalid_base64 = "not-valid-base64!!!"
+
+        response = client.post("/detect", json={"image_base64": invalid_base64})
+
+        # Should be rejected with 400 or 422
+        assert response.status_code in [400, 422]
+
+    def test_detect_endpoint_accepts_valid_sized_file(self, client, _mock_model, dummy_image_bytes):
+        """Test that valid-sized files are accepted."""
+        response = client.post(
+            "/detect", files={"file": ("test.jpg", dummy_image_bytes, "image/jpeg")}
+        )
+
+        assert response.status_code == 200
+        assert "detections" in response.json()
+
+    def test_batch_detect_rejects_oversized_file(self, client, _mock_model, dummy_image_bytes):
+        """Test that batch detection rejects oversized files with 413."""
+        # Create one valid file and one oversized
+        oversized_data = b"x" * (MAX_IMAGE_SIZE_BYTES + 1)
+
+        files = [
+            ("files", ("small.jpg", dummy_image_bytes, "image/jpeg")),
+            ("files", ("large.jpg", oversized_data, "image/jpeg")),
+        ]
+
+        response = client.post("/detect/batch", files=files)
+
+        assert response.status_code == 413
+        assert "Image 1" in response.json()["detail"]  # Second file (index 1)
+        assert "large.jpg" in response.json()["detail"]
+
+    def test_batch_detect_accepts_valid_sized_files(self, client, _mock_model, dummy_image_bytes):
+        """Test that batch detection accepts valid-sized files."""
+        files = [
+            ("files", ("test1.jpg", dummy_image_bytes, "image/jpeg")),
+            ("files", ("test2.jpg", dummy_image_bytes, "image/jpeg")),
+        ]
+
+        response = client.post("/detect/batch", files=files)
+
+        assert response.status_code == 200
+        assert "results" in response.json()
 
 
 if __name__ == "__main__":
