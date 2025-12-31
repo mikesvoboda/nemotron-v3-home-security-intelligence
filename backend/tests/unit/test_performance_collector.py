@@ -4,13 +4,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from services.performance_collector import PerformanceCollector
+from backend.services.performance_collector import PerformanceCollector
 
 
 @pytest.fixture
 def collector():
     """Create a PerformanceCollector instance with mocked pynvml."""
-    with patch("services.performance_collector.PerformanceCollector._init_pynvml"):
+    with patch("backend.services.performance_collector.PerformanceCollector._init_pynvml"):
         collector = PerformanceCollector()
         collector._pynvml_available = False
         return collector
@@ -152,7 +152,7 @@ class TestHostMetrics:
     @pytest.mark.asyncio
     async def test_collect_host_metrics(self, collector):
         """Test host metrics collection via psutil."""
-        with patch("services.performance_collector.psutil") as mock_psutil:
+        with patch("backend.services.performance_collector.psutil") as mock_psutil:
             mock_psutil.cpu_percent.return_value = 12.5
 
             mock_mem = MagicMock()
@@ -173,7 +173,7 @@ class TestHostMetrics:
     @pytest.mark.asyncio
     async def test_collect_host_metrics_failure(self, collector):
         """Test host metrics returns None on failure."""
-        with patch("services.performance_collector.psutil") as mock_psutil:
+        with patch("backend.services.performance_collector.psutil") as mock_psutil:
             mock_psutil.cpu_percent.side_effect = Exception("psutil error")
 
             metrics = await collector.collect_host_metrics()
