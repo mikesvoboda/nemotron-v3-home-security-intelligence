@@ -18,12 +18,12 @@ from backend.tests.conftest import unique_id
 
 
 def _utcnow() -> datetime:
-    """Return current UTC time as a naive datetime.
+    """Return current UTC time as a timezone-aware datetime.
 
-    Uses timezone-aware approach internally to avoid deprecation warning
-    from datetime.utcnow(), then strips timezone for database compatibility.
+    Uses datetime.now(UTC) to avoid deprecation warning from datetime.utcnow().
+    Returns timezone-aware datetime to match SQLAlchemy DateTime(timezone=True) columns.
     """
-    return datetime.now(UTC).replace(tzinfo=None)
+    return datetime.now(UTC)
 
 
 # Note: The 'session' fixture is provided by conftest.py with transaction
@@ -387,7 +387,18 @@ class TestAlertDeduplicationService:
         # Should get all 5 alerts (all well within the 24 hour lookback)
         assert len(recent) == 5
         # Should be ordered by most recent first
-        assert recent[0].created_at > recent[-1].created_at
+        # Normalize to naive UTC for comparison (handles mixed timezone results from DB)
+        first_ts = (
+            recent[0].created_at.replace(tzinfo=None)
+            if recent[0].created_at.tzinfo
+            else recent[0].created_at
+        )
+        last_ts = (
+            recent[-1].created_at.replace(tzinfo=None)
+            if recent[-1].created_at.tzinfo
+            else recent[-1].created_at
+        )
+        assert first_ts > last_ts
 
     @pytest.mark.asyncio
     async def test_get_recent_alerts_for_key_limited(
