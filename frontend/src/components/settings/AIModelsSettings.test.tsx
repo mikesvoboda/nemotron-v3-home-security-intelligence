@@ -1,7 +1,33 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 
 import AIModelsSettings, { type ModelInfo } from './AIModelsSettings';
+
+import type { PerformanceUpdate, UsePerformanceMetricsReturn } from '../../hooks/usePerformanceMetrics';
+
+// Default mock return value
+const createMockReturn = (overrides: Partial<UsePerformanceMetricsReturn> = {}): UsePerformanceMetricsReturn => ({
+  current: null,
+  history: { '5m': [], '15m': [], '60m': [] },
+  alerts: [],
+  isConnected: true,
+  timeRange: '5m',
+  setTimeRange: vi.fn(),
+  ...overrides,
+});
+
+// Default mock for usePerformanceMetrics hook
+const mockUsePerformanceMetrics: Mock<() => UsePerformanceMetricsReturn> = vi.fn(() => createMockReturn());
+
+// Mock the usePerformanceMetrics hook to avoid WebSocket connection in tests
+vi.mock('../../hooks/usePerformanceMetrics', () => ({
+  usePerformanceMetrics: () => mockUsePerformanceMetrics(),
+}));
+
+beforeEach(() => {
+  // Reset mock to default state before each test
+  mockUsePerformanceMetrics.mockReturnValue(createMockReturn());
+});
 
 describe('AIModelsSettings', () => {
   const mockRTDETR: ModelInfo = {
@@ -418,6 +444,141 @@ describe('AIModelsSettings', () => {
       render(<AIModelsSettings rtdetrModel={preciseFps} />);
 
       expect(screen.getByText('30 FPS')).toBeInTheDocument();
+    });
+  });
+
+  describe('real-time data from WebSocket', () => {
+    it('shows models as loaded when backend reports healthy status', () => {
+      const mockPerformanceData: PerformanceUpdate = {
+        timestamp: new Date().toISOString(),
+        gpu: { name: 'RTX A5500', utilization: 45, vram_used_gb: 15, vram_total_gb: 24, temperature: 55, power_watts: 150 },
+        ai_models: {
+          rtdetr: { status: 'healthy', vram_gb: 0.65, model: 'rtdetr_v2_r101vd', device: 'cuda:0' },
+        },
+        nemotron: { status: 'healthy', slots_active: 1, slots_total: 2, context_size: 4096 },
+        inference: null,
+        databases: {},
+        host: null,
+        containers: [],
+        alerts: [],
+      };
+      mockUsePerformanceMetrics.mockReturnValue(createMockReturn({ current: mockPerformanceData }));
+
+      render(<AIModelsSettings />);
+
+      // Both models should show as "Loaded" when status is "healthy"
+      const loadedBadges = screen.getAllByText('Loaded');
+      expect(loadedBadges).toHaveLength(2);
+    });
+
+    it('shows models as error when backend reports unreachable', () => {
+      const mockPerformanceData: PerformanceUpdate = {
+        timestamp: new Date().toISOString(),
+        gpu: null,
+        ai_models: {
+          rtdetr: { status: 'unreachable', vram_gb: 0, model: 'rtdetr', device: 'unknown' },
+        },
+        nemotron: { status: 'unreachable', slots_active: 0, slots_total: 0, context_size: 0 },
+        inference: null,
+        databases: {},
+        host: null,
+        containers: [],
+        alerts: [],
+      };
+      mockUsePerformanceMetrics.mockReturnValue(createMockReturn({ current: mockPerformanceData }));
+
+      render(<AIModelsSettings />);
+
+      // Both models should show as "Error" when status is "unreachable"
+      const errorBadges = screen.getAllByText('Error');
+      expect(errorBadges).toHaveLength(2);
+    });
+
+    it('shows connecting badge when WebSocket is not connected', () => {
+      mockUsePerformanceMetrics.mockReturnValue(createMockReturn({ isConnected: false }));
+
+      render(<AIModelsSettings />);
+
+      expect(screen.getByText('Connecting...')).toBeInTheDocument();
+    });
+
+    it('displays dynamic description with model name from backend', () => {
+      const mockPerformanceData: PerformanceUpdate = {
+        timestamp: new Date().toISOString(),
+        gpu: null,
+        ai_models: {
+          rtdetr: { status: 'healthy', vram_gb: 0.65, model: 'rtdetr_v2_r101vd_custom', device: 'cuda:0' },
+        },
+        nemotron: { status: 'healthy', slots_active: 1, slots_total: 2, context_size: 8192 },
+        inference: null,
+        databases: {},
+        host: null,
+        containers: [],
+        alerts: [],
+      };
+      mockUsePerformanceMetrics.mockReturnValue(createMockReturn({ current: mockPerformanceData }));
+
+      render(<AIModelsSettings />);
+
+      // Should show dynamic description with model name
+      expect(screen.getByText(/rtdetr_v2_r101vd_custom/)).toBeInTheDocument();
+      // Should show context size in Nemotron description
+      expect(screen.getByText(/8,192 tokens/)).toBeInTheDocument();
+    });
+
+    it('displays GPU total memory from performance data', () => {
+      const mockPerformanceData: PerformanceUpdate = {
+        timestamp: new Date().toISOString(),
+        gpu: { name: 'RTX A5500', utilization: 45, vram_used_gb: 15, vram_total_gb: 24, temperature: 55, power_watts: 150 },
+        ai_models: {
+          rtdetr: { status: 'healthy', vram_gb: 0.65, model: 'rtdetr', device: 'cuda:0' },
+        },
+        nemotron: { status: 'healthy', slots_active: 1, slots_total: 2, context_size: 4096 },
+        inference: null,
+        databases: {},
+        host: null,
+        containers: [],
+        alerts: [],
+      };
+      mockUsePerformanceMetrics.mockReturnValue(createMockReturn({ current: mockPerformanceData }));
+
+      render(<AIModelsSettings />);
+
+      expect(screen.getByText('Total GPU Memory')).toBeInTheDocument();
+      expect(screen.getByText('24.0 GB')).toBeInTheDocument();
+    });
+
+    it('prioritizes props over fetched data', () => {
+      const mockPerformanceData: PerformanceUpdate = {
+        timestamp: new Date().toISOString(),
+        gpu: null,
+        ai_models: {
+          rtdetr: { status: 'healthy', vram_gb: 0.65, model: 'rtdetr', device: 'cuda:0' },
+        },
+        nemotron: { status: 'healthy', slots_active: 1, slots_total: 2, context_size: 4096 },
+        inference: null,
+        databases: {},
+        host: null,
+        containers: [],
+        alerts: [],
+      };
+      mockUsePerformanceMetrics.mockReturnValue(createMockReturn({ current: mockPerformanceData }));
+
+      // Provide props that override the fetched data
+      const customModel: ModelInfo = {
+        name: 'Custom RT-DETR',
+        status: 'error',
+        memoryUsed: 1024,
+        inferenceFps: 10,
+        description: 'Custom description',
+      };
+
+      render(<AIModelsSettings rtdetrModel={customModel} />);
+
+      // Should show the custom model from props, not the fetched "healthy" status
+      expect(screen.getByText('Custom RT-DETR')).toBeInTheDocument();
+      expect(screen.getByText('Error')).toBeInTheDocument();
+      expect(screen.getByText('Custom description')).toBeInTheDocument();
     });
   });
 });
