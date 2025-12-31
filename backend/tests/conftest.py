@@ -737,11 +737,14 @@ async def client(integration_db: str, mock_redis: AsyncMock) -> AsyncGenerator[N
     - The DB is pre-initialized by `integration_db`.
     - We patch app lifespan DB init/close to avoid double initialization.
     - We patch Redis init/close in `backend.main` so lifespan does not connect.
+    - All background services are mocked to avoid slow startup and cleanup issues.
     - Tests that need isolation should use clean_events, clean_cameras, or clean_logs
       fixtures which will truncate tables before data fixtures create their data.
 
     Use this fixture for testing API endpoints.
     """
+    from unittest.mock import MagicMock
+
     from httpx import ASGITransport, AsyncClient
 
     # Import the app only after env is set up.
@@ -751,11 +754,50 @@ async def client(integration_db: str, mock_redis: AsyncMock) -> AsyncGenerator[N
     # (sample_event, sample_camera, etc) created their data due to pytest fixture
     # ordering. Tests that need clean state should use clean_* fixtures explicitly.
 
+    # Mock all background services to avoid slow startup/cleanup
+    mock_system_broadcaster = MagicMock()
+    mock_system_broadcaster.start_broadcasting = AsyncMock()
+    mock_system_broadcaster.stop_broadcasting = AsyncMock()
+
+    mock_gpu_monitor = MagicMock()
+    mock_gpu_monitor.start = AsyncMock()
+    mock_gpu_monitor.stop = AsyncMock()
+
+    mock_cleanup_service = MagicMock()
+    mock_cleanup_service.start = AsyncMock()
+    mock_cleanup_service.stop = AsyncMock()
+
+    mock_file_watcher = MagicMock()
+    mock_file_watcher.start = AsyncMock()
+    mock_file_watcher.stop = AsyncMock()
+
+    mock_pipeline_manager = MagicMock()
+    mock_pipeline_manager.start = AsyncMock()
+    mock_pipeline_manager.stop = AsyncMock()
+
+    mock_event_broadcaster = MagicMock()
+    mock_event_broadcaster.start = AsyncMock()
+    mock_event_broadcaster.stop = AsyncMock()
+    mock_event_broadcaster.channel_name = "security_events"
+
+    mock_service_health_monitor = MagicMock()
+    mock_service_health_monitor.start = AsyncMock()
+    mock_service_health_monitor.stop = AsyncMock()
+
     with (
         patch("backend.main.init_db", return_value=None),
         patch("backend.main.close_db", return_value=None),
         patch("backend.main.init_redis", return_value=mock_redis),
         patch("backend.main.close_redis", return_value=None),
+        patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
+        patch("backend.main.GPUMonitor", return_value=mock_gpu_monitor),
+        patch("backend.main.CleanupService", return_value=mock_cleanup_service),
+        patch("backend.main.FileWatcher", return_value=mock_file_watcher),
+        patch("backend.main.get_pipeline_manager", AsyncMock(return_value=mock_pipeline_manager)),
+        patch("backend.main.stop_pipeline_manager", AsyncMock()),
+        patch("backend.main.get_broadcaster", AsyncMock(return_value=mock_event_broadcaster)),
+        patch("backend.main.stop_broadcaster", AsyncMock()),
+        patch("backend.main.ServiceHealthMonitor", return_value=mock_service_health_monitor),
     ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             yield ac
