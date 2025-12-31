@@ -10,14 +10,21 @@ RUN apk add --no-cache \
     musl-dev \
     libffi-dev \
     wget \
-    ffmpeg
+    ffmpeg \
+    curl
 
-# Install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install uv for fast dependency management
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Copy dependency files from project root (context is project root in CI)
+COPY pyproject.toml uv.lock ./
+
+# Install all dependencies including dev (for development container)
+RUN uv sync --frozen --no-install-project
 
 # Copy application code to backend subdirectory (for absolute imports)
-COPY . ./backend/
+# Context is project root, so we copy backend/ directory
+COPY backend/ ./backend/
 
 # Create data directory for logs and thumbnails
 RUN mkdir -p /app/data
@@ -28,6 +35,9 @@ RUN addgroup -g 1000 appgroup && \
 
 # Change ownership of app directory to non-root user
 RUN chown -R appuser:appgroup /app
+
+# Add venv to PATH
+ENV PATH=/app/.venv/bin:$PATH
 
 # Expose FastAPI port
 EXPOSE 8000

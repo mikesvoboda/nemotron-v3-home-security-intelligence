@@ -46,14 +46,17 @@ async def sample_camera(integration_db):
 @pytest.fixture
 async def sample_detections(integration_db, sample_camera):
     """Create sample detections in the database."""
+    from datetime import UTC
+
     from backend.core.database import get_session
 
     async with get_session() as db:
+        # All datetimes must be UTC-aware to ensure consistent behavior
         detection1 = Detection(
             camera_id=sample_camera.id,
             file_path="/export/foscam/front_door/img001.jpg",
             file_type="image/jpeg",
-            detected_at=datetime(2025, 12, 23, 14, 0, 0),
+            detected_at=datetime(2025, 12, 23, 14, 0, 0, tzinfo=UTC),
             object_type="person",
             confidence=0.95,
             bbox_x=100,
@@ -65,7 +68,7 @@ async def sample_detections(integration_db, sample_camera):
             camera_id=sample_camera.id,
             file_path="/export/foscam/front_door/img002.jpg",
             file_type="image/jpeg",
-            detected_at=datetime(2025, 12, 23, 14, 1, 0),
+            detected_at=datetime(2025, 12, 23, 14, 1, 0, tzinfo=UTC),
             object_type="car",
             confidence=0.88,
             bbox_x=300,
@@ -77,7 +80,7 @@ async def sample_detections(integration_db, sample_camera):
             camera_id=sample_camera.id,
             file_path="/export/foscam/front_door/img003.jpg",
             file_type="image/jpeg",
-            detected_at=datetime(2025, 12, 23, 14, 2, 0),
+            detected_at=datetime(2025, 12, 23, 14, 2, 0, tzinfo=UTC),
             object_type="person",
             confidence=0.92,
             bbox_x=150,

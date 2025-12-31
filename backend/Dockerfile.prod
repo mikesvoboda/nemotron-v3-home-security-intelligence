@@ -7,11 +7,18 @@ WORKDIR /app
 RUN apk add --no-cache \
     gcc \
     musl-dev \
-    libffi-dev
+    libffi-dev \
+    curl
 
-# Install production dependencies only (no test/CI deps)
-COPY requirements-prod.txt .
-RUN pip install --no-cache-dir --user -r requirements-prod.txt
+# Install uv for fast dependency management
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Copy dependency files from project root
+COPY pyproject.toml uv.lock ./
+
+# Install production dependencies only (no dev/test deps)
+# Use --no-dev to exclude dev dependencies
+RUN uv sync --frozen --no-dev --no-install-project
 
 
 # Production stage - minimal runtime image
@@ -25,20 +32,21 @@ RUN apk add --no-cache wget ffmpeg
 # Create non-root user for security
 RUN adduser -D -u 1000 appuser
 
-# Copy Python dependencies from builder to user's home
-COPY --from=builder /root/.local /home/appuser/.local
+# Copy Python virtual environment from builder
+COPY --from=builder /app/.venv /app/.venv
 
 # Copy application code to backend subdirectory (for absolute imports)
-COPY . ./backend/
+# Context is project root, so we copy backend/ directory
+COPY backend/ ./backend/
 
 # Create data directory for logs and thumbnails
 RUN mkdir -p /app/data
 
-# Set ownership of app and user directories
-RUN chown -R appuser:appuser /app /home/appuser/.local
+# Set ownership of app directories
+RUN chown -R appuser:appuser /app
 
-# Add .local/bin to PATH for installed packages
-ENV PATH=/home/appuser/.local/bin:$PATH
+# Add venv to PATH
+ENV PATH=/app/.venv/bin:$PATH
 
 # Switch to non-root user
 USER appuser

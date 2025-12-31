@@ -10,24 +10,25 @@ from backend.models.log import Log
 
 @pytest.fixture
 async def clean_logs(integration_db):
-    """Truncate logs table before test runs for proper isolation.
+    """Delete logs table data before test runs for proper isolation.
 
     This ensures tests that expect specific log counts start with empty tables.
-    Uses direct database operations since there's no DELETE endpoint for logs.
+    Uses DELETE instead of TRUNCATE to avoid AccessExclusiveLock deadlocks
+    when tests run in parallel with xdist.
     """
     from sqlalchemy import text
 
     from backend.core.database import get_engine
 
     async with get_engine().begin() as conn:
-        await conn.execute(text("TRUNCATE TABLE logs RESTART IDENTITY CASCADE"))
+        await conn.execute(text("DELETE FROM logs"))
 
     yield
 
     # Cleanup after test too (best effort)
     try:
         async with get_engine().begin() as conn:
-            await conn.execute(text("TRUNCATE TABLE logs RESTART IDENTITY CASCADE"))
+            await conn.execute(text("DELETE FROM logs"))
     except Exception:  # noqa: S110 - ignore cleanup errors
         pass
 

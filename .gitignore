@@ -5,7 +5,6 @@ __pycache__/
 .venv
 .venv/
 venv/
-uv.lock
 
 # Environment
 .env
@@ -58,3 +57,4 @@ coverage.json
 
 # Worktrees
 .worktrees/
+.hypothesis/

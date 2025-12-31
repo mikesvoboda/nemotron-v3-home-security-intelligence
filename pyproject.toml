@@ -3,6 +3,71 @@ name = "home-security-intelligence"
 version = "0.1.0"
 description = "AI-powered home security monitoring system"
 requires-python = ">=3.14"
+dependencies = [
+    # Core FastAPI
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "python-multipart>=0.0.12",
+    # Database (PostgreSQL)
+    "sqlalchemy>=2.0.36",
+    "asyncpg>=0.30.0",
+    "psycopg2-binary>=2.9.10",
+    "greenlet>=3.1.0",
+    "alembic>=1.13.0",
+    # Redis
+    "redis>=5.2.0",
+    # File watching
+    "watchdog>=6.0.0",
+    # Image processing
+    "pillow>=11.0.0",
+    # GPU monitoring
+    "pynvml>=11.5.0",
+    # Host system monitoring
+    "psutil>=5.9.0",
+    # HTTP client (for AI services)
+    "httpx>=0.28.0",
+    # Utilities
+    "python-dotenv>=1.0.1",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.6.0",
+    # Logging
+    "python-json-logger>=2.0.7",
+    # TLS/Cryptography
+    "cryptography>=44.0.0",
+    # Metrics
+    "prometheus-client>=0.21.0",
+    # Template engine (security patched)
+    "jinja2>=3.1.5",
+]
+
+[project.optional-dependencies]
+dev = [
+    # Linting & Formatting
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
+    # Testing
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "pytest-xdist>=3.5.0",
+    "pytest-timeout>=2.3.0",
+    "fakeredis>=2.20.0",
+    "testcontainers>=4.0.0",
+    "hypothesis>=6.100.0",  # Property-based testing
+    # CI/CD - Performance
+    "pytest-benchmark>=4.0.0",
+    "pytest-memray>=1.5.0",
+    # CI/CD - Security
+    "bandit>=1.7.0",
+    # CI/CD - Complexity
+    "wily>=1.25.0",
+    # CI/CD - Big-O analysis
+    "big-o>=0.11.0",
+    # Video processing
+    "ffmpeg-python>=0.2.0",
+    # XML parsing (secure)
+    "defusedxml>=0.7.0",
+]
 
 [tool.ruff]
 target-version = "py314"
@@ -95,15 +160,18 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-addopts = "-n auto --dist=loadgroup -v --strict-markers --tb=short --timeout=1"
+addopts = "-n auto --dist=worksteal -v --strict-markers --tb=short"
+timeout = 5
 timeout_method = "thread"
 markers = [
     "asyncio: mark test as an async test",
     "unit: mark test as a unit test",
     "integration: mark test as an integration test (5s timeout)",
-    "e2e: mark test as an end-to-end test",
-    "gpu: mark test as a GPU test (runs on self-hosted GPU runner)",
+    "e2e: mark test as an end-to-end pipeline test",
+    "gpu: mark test as a GPU test (runs on self-hosted GPU runner with RTX A5500)",
     "slow: mark test as legitimately slow (30s timeout)",
+    "benchmark: mark test as a benchmark test (requires pytest-benchmark)",
+    "serial: mark test as requiring serial execution (no parallel)",
 ]
 
 [tool.coverage.run]
@@ -139,3 +207,21 @@ precision = 2
 
 [tool.coverage.html]
 directory = "coverage/backend"
+
+[tool.hypothesis]
+# Default settings (applied to all profiles)
+# Profiles are loaded via HYPOTHESIS_PROFILE environment variable
+# or settings.load_profile() in conftest.py
+
+[tool.hypothesis.profiles.ci]
+# CI profile: deterministic, fast
+max_examples = 100
+deadline = 1000
+database = "none"
+print_blob = true  # Print failing examples for reproduction
+
+[tool.hypothesis.profiles.dev]
+# Local profile: exploratory, thorough
+max_examples = 500
+deadline = 5000
+database = "directory:.hypothesis"

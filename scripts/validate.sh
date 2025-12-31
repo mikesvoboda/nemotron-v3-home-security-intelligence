@@ -4,8 +4,7 @@
 # Runs linting, type checking, and tests for both backend and frontend
 #
 # This script is self-contained and will:
-# - Auto-activate .venv for backend tools
-# - Check for uv and use it if available
+# - Use uv for Python dependency management (10-100x faster than pip)
 # - Fail fast with actionable error messages
 #
 # Usage:
@@ -86,7 +85,7 @@ Examples:
     ./scripts/validate.sh --frontend    # Frontend only
 
 Requirements:
-    Backend:  Python 3.14+, .venv with ruff/mypy/pytest installed
+    Backend:  Python 3.14+, uv (https://docs.astral.sh/uv/)
     Frontend: Node.js 18+, npm, node_modules installed
 
 Setup:
@@ -134,99 +133,56 @@ done
 run_backend_validation() {
     print_header "Backend Validation"
 
-    # Check for virtual environment
-    VENV_DIR="$PROJECT_ROOT/.venv"
-    if [ ! -d "$VENV_DIR" ]; then
-        print_error "Virtual environment not found at $VENV_DIR"
+    # Check for uv
+    print_step "Checking for uv..."
+    if ! check_command uv; then
+        print_error "uv not found"
         echo ""
-        echo "To fix this, run:"
-        echo "  ./scripts/setup.sh"
+        echo "To install uv, run:"
+        echo "  curl -LsSf https://astral.sh/uv/install.sh | sh"
         echo ""
-        echo "Or create manually:"
-        if check_command uv; then
-            echo "  cd $PROJECT_ROOT && uv venv .venv && source .venv/bin/activate && uv pip install -r backend/requirements.txt"
-        else
-            echo "  cd $PROJECT_ROOT && python3 -m venv .venv && source .venv/bin/activate && pip install -r backend/requirements.txt"
-        fi
+        echo "Or with Homebrew:"
+        echo "  brew install uv"
         exit 1
     fi
+    print_success "uv $(uv --version | cut -d' ' -f2) found"
 
-    # Activate virtual environment
-    print_step "Activating virtual environment..."
-    if [ -f "$VENV_DIR/bin/activate" ]; then
-        # shellcheck disable=SC1091
-        . "$VENV_DIR/bin/activate"
-        print_success "Virtual environment activated"
-    else
-        print_error "Could not find $VENV_DIR/bin/activate"
-        echo "The virtual environment may be corrupted. Try:"
-        echo "  rm -rf $VENV_DIR && ./scripts/setup.sh"
+    # Sync dependencies (creates venv if needed)
+    print_step "Syncing dependencies with uv..."
+    if ! uv sync --extra dev --frozen; then
+        print_error "Failed to sync dependencies"
+        echo ""
+        echo "Try regenerating the lock file:"
+        echo "  uv lock && uv sync --extra dev"
         exit 1
     fi
-
-    # Verify required tools are installed in venv
-    print_step "Checking backend dependencies..."
-
-    MISSING_DEPS=""
-
-    if ! check_command ruff; then
-        MISSING_DEPS="$MISSING_DEPS ruff"
-    fi
-
-    if ! check_command mypy; then
-        MISSING_DEPS="$MISSING_DEPS mypy"
-    fi
-
-    if ! check_command pytest; then
-        MISSING_DEPS="$MISSING_DEPS pytest"
-    fi
-
-    if [ -n "$MISSING_DEPS" ]; then
-        print_error "Missing backend dependencies:$MISSING_DEPS"
-        echo ""
-        echo "To fix this, install the missing packages:"
-        if check_command uv; then
-            echo "  source $VENV_DIR/bin/activate && uv pip install$MISSING_DEPS"
-        else
-            echo "  source $VENV_DIR/bin/activate && pip install$MISSING_DEPS"
-        fi
-        echo ""
-        echo "Or reinstall all backend dependencies:"
-        if check_command uv; then
-            echo "  source $VENV_DIR/bin/activate && uv pip install -r backend/requirements.txt"
-        else
-            echo "  source $VENV_DIR/bin/activate && pip install -r backend/requirements.txt"
-        fi
-        exit 1
-    fi
-
-    print_success "All backend dependencies available"
+    print_success "Dependencies synced"
 
     # Run linting
     print_step "Running Ruff (Linting)..."
-    if ! ruff check "$PROJECT_ROOT/backend"; then
+    if ! uv run ruff check "$PROJECT_ROOT/backend"; then
         print_error "Ruff linting failed"
         echo ""
         echo "To auto-fix some issues, run:"
-        echo "  source $VENV_DIR/bin/activate && ruff check --fix $PROJECT_ROOT/backend"
+        echo "  uv run ruff check --fix $PROJECT_ROOT/backend"
         exit 1
     fi
     print_success "Ruff linting passed"
 
     # Run formatting check
     print_step "Running Ruff (Format Check)..."
-    if ! ruff format --check "$PROJECT_ROOT/backend"; then
+    if ! uv run ruff format --check "$PROJECT_ROOT/backend"; then
         print_error "Ruff format check failed"
         echo ""
         echo "To auto-format, run:"
-        echo "  source $VENV_DIR/bin/activate && ruff format $PROJECT_ROOT/backend"
+        echo "  uv run ruff format $PROJECT_ROOT/backend"
         exit 1
     fi
     print_success "Ruff format check passed"
 
     # Run type checking
     print_step "Running MyPy (Type Checking)..."
-    if ! mypy "$PROJECT_ROOT/backend"; then
+    if ! uv run mypy "$PROJECT_ROOT/backend"; then
         print_error "MyPy type checking failed"
         echo ""
         echo "Fix the type errors shown above, then re-run validation."
@@ -236,9 +192,9 @@ run_backend_validation() {
 
     # Run tests
     # Local validation uses 80% combined coverage (unit + integration)
-    # CI enforces per-test-type thresholds: unit=80%, integration=50%
+    # CI enforces per-test-type thresholds: unit=85%, integration=50%
     print_step "Running pytest (Tests & Coverage)..."
-    if ! pytest "$PROJECT_ROOT/backend" --cov="$PROJECT_ROOT/backend" --cov-report=term-missing --cov-fail-under=80; then
+    if ! uv run pytest "$PROJECT_ROOT/backend" --cov="$PROJECT_ROOT/backend" --cov-report=term-missing --cov-fail-under=80; then
         print_error "Backend tests failed or coverage below 80%"
         echo ""
         echo "Fix failing tests, then re-run validation."

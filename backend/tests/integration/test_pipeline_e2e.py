@@ -273,31 +273,36 @@ async def mock_redis() -> MockRedisClient:
 
 @pytest.fixture
 async def clean_pipeline(integration_db):
-    """Truncate all tables before test runs for proper isolation.
+    """Delete all tables data before test runs for proper isolation.
 
     These tests use hardcoded camera IDs, so they need clean state.
+    Uses DELETE instead of TRUNCATE to avoid AccessExclusiveLock deadlocks
+    when tests run in parallel with xdist.
     """
     from sqlalchemy import text
 
     from backend.core.database import get_engine
 
     async with get_engine().begin() as conn:
-        await conn.execute(
-            text(
-                "TRUNCATE TABLE logs, gpu_stats, api_keys, detections, events, cameras RESTART IDENTITY CASCADE"
-            )
-        )
+        # Delete in order respecting foreign key constraints
+        await conn.execute(text("DELETE FROM logs"))
+        await conn.execute(text("DELETE FROM gpu_stats"))
+        await conn.execute(text("DELETE FROM api_keys"))
+        await conn.execute(text("DELETE FROM detections"))
+        await conn.execute(text("DELETE FROM events"))
+        await conn.execute(text("DELETE FROM cameras"))
 
     yield
 
     # Cleanup after test too (best effort)
     try:
         async with get_engine().begin() as conn:
-            await conn.execute(
-                text(
-                    "TRUNCATE TABLE logs, gpu_stats, api_keys, detections, events, cameras RESTART IDENTITY CASCADE"
-                )
-            )
+            await conn.execute(text("DELETE FROM logs"))
+            await conn.execute(text("DELETE FROM gpu_stats"))
+            await conn.execute(text("DELETE FROM api_keys"))
+            await conn.execute(text("DELETE FROM detections"))
+            await conn.execute(text("DELETE FROM events"))
+            await conn.execute(text("DELETE FROM cameras"))
     except Exception:  # noqa: S110 - ignore cleanup errors
         pass
 

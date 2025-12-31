@@ -3,14 +3,32 @@ import { defineConfig, devices } from '@playwright/test';
 /**
  * Playwright E2E Test Configuration
  *
- * This configuration sets up minimal smoke tests for the Home Security Dashboard.
- * Tests run in headless Chromium for CI compatibility.
+ * This configuration sets up comprehensive E2E tests for the Home Security Dashboard.
+ * Tests run in multiple browsers: Chromium (default), Firefox, and WebKit.
+ *
+ * Browser Selection:
+ * - Default: Runs all browsers (chromium, firefox, webkit)
+ * - CI: Runs chromium only for speed
+ * - Local: Can specify browser with --project flag
+ *
+ * @example
+ * # Run all browsers
+ * npm run test:e2e
+ *
+ * # Run specific browser
+ * npm run test:e2e -- --project=chromium
+ * npm run test:e2e -- --project=firefox
+ * npm run test:e2e -- --project=webkit
+ *
+ * # Run mobile tests
+ * npm run test:e2e -- --project=mobile-chrome
+ * npm run test:e2e -- --project=mobile-safari
  *
  * @see https://playwright.dev/docs/test-configuration
  */
 export default defineConfig({
-  // Test directory
-  testDir: './tests/e2e',
+  // Test directory - use specs subdirectory for organized test files
+  testDir: './tests/e2e/specs',
 
   // Run tests in files in parallel
   fullyParallel: true,
@@ -25,7 +43,9 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
 
   // Reporter configuration
-  reporter: process.env.CI ? 'github' : 'list',
+  reporter: process.env.CI
+    ? [['github'], ['html', { outputFolder: 'playwright-report' }]]
+    : [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }]],
 
   // Output directory for test artifacts (screenshots, videos, traces)
   outputDir: './test-results',
@@ -56,13 +76,45 @@ export default defineConfig({
     navigationTimeout: 10000,
   },
 
-  // Projects - only Chromium for minimal smoke tests
-  projects: [
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-  ],
+  // Projects - Multi-browser testing configuration
+  // CI runs chromium only for speed; local runs all browsers
+  projects: process.env.CI
+    ? [
+        // CI: Chromium only for speed
+        {
+          name: 'chromium',
+          use: { ...devices['Desktop Chrome'] },
+        },
+      ]
+    : [
+        // Desktop browsers
+        {
+          name: 'chromium',
+          use: { ...devices['Desktop Chrome'] },
+        },
+        {
+          name: 'firefox',
+          use: { ...devices['Desktop Firefox'] },
+        },
+        {
+          name: 'webkit',
+          use: { ...devices['Desktop Safari'] },
+        },
+        // Mobile viewports
+        {
+          name: 'mobile-chrome',
+          use: { ...devices['Pixel 5'] },
+        },
+        {
+          name: 'mobile-safari',
+          use: { ...devices['iPhone 12'] },
+        },
+        // Tablet viewports
+        {
+          name: 'tablet',
+          use: { ...devices['iPad (gen 7)'] },
+        },
+      ],
 
   // Run your local dev server before starting the tests
   // Uses dev:e2e which runs Vite without the API proxy, allowing Playwright's
