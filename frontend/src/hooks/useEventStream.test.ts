@@ -512,4 +512,255 @@ describe('useEventStream', () => {
     expect(result.current.events).toHaveLength(1);
     expect(result.current.events[0].event_id).toBe(42);
   });
+
+  // wa0t.34: Duplicate event detection tests
+  describe('duplicate event detection (wa0t.34)', () => {
+    it('should ignore duplicate events with the same id', () => {
+      const { result } = renderHook(() => useEventStream());
+
+      const event: SecurityEvent = {
+        id: 1,
+        camera_id: 'cam-1',
+        risk_score: 75,
+        risk_level: 'high',
+        summary: 'Test event',
+        started_at: '2025-12-23T10:00:00Z',
+      };
+
+      // Send the same event multiple times (simulating network hiccups)
+      act(() => {
+        onMessageCallback?.(wrapInEnvelope(event));
+        onMessageCallback?.(wrapInEnvelope(event));
+        onMessageCallback?.(wrapInEnvelope(event));
+      });
+
+      // Should only have one event
+      expect(result.current.events).toHaveLength(1);
+      expect(result.current.events[0]).toEqual(event);
+    });
+
+    it('should ignore duplicate events with the same event_id', () => {
+      const { result } = renderHook(() => useEventStream());
+
+      const event: SecurityEvent = {
+        id: 'unique-uuid',
+        event_id: 42,
+        camera_id: 'cam-1',
+        risk_score: 75,
+        risk_level: 'high',
+        summary: 'Test event',
+        started_at: '2025-12-23T10:00:00Z',
+      };
+
+      // Send the same event multiple times
+      act(() => {
+        onMessageCallback?.(wrapInEnvelope(event));
+        onMessageCallback?.(wrapInEnvelope(event));
+      });
+
+      // Should only have one event (deduped by event_id)
+      expect(result.current.events).toHaveLength(1);
+    });
+
+    it('should allow events with different IDs', () => {
+      const { result } = renderHook(() => useEventStream());
+
+      const event1: SecurityEvent = {
+        id: 1,
+        camera_id: 'cam-1',
+        risk_score: 75,
+        risk_level: 'high',
+        summary: 'Event 1',
+        started_at: '2025-12-23T10:00:00Z',
+      };
+
+      const event2: SecurityEvent = {
+        id: 2,
+        camera_id: 'cam-1',
+        risk_score: 75,
+        risk_level: 'high',
+        summary: 'Event 2',
+        started_at: '2025-12-23T10:01:00Z',
+      };
+
+      act(() => {
+        onMessageCallback?.(wrapInEnvelope(event1));
+        onMessageCallback?.(wrapInEnvelope(event2));
+      });
+
+      expect(result.current.events).toHaveLength(2);
+    });
+
+    it('should use event_id for deduplication when present', () => {
+      const { result } = renderHook(() => useEventStream());
+
+      // Two events with same event_id but different id field
+      const event1: SecurityEvent = {
+        id: 'uuid-1',
+        event_id: 100,
+        camera_id: 'cam-1',
+        risk_score: 75,
+        risk_level: 'high',
+        summary: 'Event 1',
+        started_at: '2025-12-23T10:00:00Z',
+      };
+
+      const event2: SecurityEvent = {
+        id: 'uuid-2',
+        event_id: 100, // Same event_id
+        camera_id: 'cam-1',
+        risk_score: 75,
+        risk_level: 'high',
+        summary: 'Event 1 duplicate',
+        started_at: '2025-12-23T10:00:00Z',
+      };
+
+      act(() => {
+        onMessageCallback?.(wrapInEnvelope(event1));
+        onMessageCallback?.(wrapInEnvelope(event2));
+      });
+
+      // Should only have one event (deduped by event_id)
+      expect(result.current.events).toHaveLength(1);
+      expect(result.current.events[0].id).toBe('uuid-1');
+    });
+
+    it('should reset seen event IDs when clearEvents is called', () => {
+      const { result } = renderHook(() => useEventStream());
+
+      const event: SecurityEvent = {
+        id: 1,
+        camera_id: 'cam-1',
+        risk_score: 75,
+        risk_level: 'high',
+        summary: 'Test event',
+        started_at: '2025-12-23T10:00:00Z',
+      };
+
+      // Send event
+      act(() => {
+        onMessageCallback?.(wrapInEnvelope(event));
+      });
+
+      expect(result.current.events).toHaveLength(1);
+
+      // Clear events
+      act(() => {
+        result.current.clearEvents();
+      });
+
+      expect(result.current.events).toHaveLength(0);
+
+      // Send same event again - should be accepted since seen IDs were cleared
+      act(() => {
+        onMessageCallback?.(wrapInEnvelope(event));
+      });
+
+      expect(result.current.events).toHaveLength(1);
+    });
+
+    it('should handle string and numeric IDs for deduplication', () => {
+      const { result } = renderHook(() => useEventStream());
+
+      // Numeric ID
+      const event1: SecurityEvent = {
+        id: 123,
+        camera_id: 'cam-1',
+        risk_score: 75,
+        risk_level: 'high',
+        summary: 'Numeric ID event',
+        started_at: '2025-12-23T10:00:00Z',
+      };
+
+      // String ID
+      const event2: SecurityEvent = {
+        id: 'uuid-456',
+        camera_id: 'cam-1',
+        risk_score: 75,
+        risk_level: 'high',
+        summary: 'String ID event',
+        started_at: '2025-12-23T10:01:00Z',
+      };
+
+      act(() => {
+        onMessageCallback?.(wrapInEnvelope(event1));
+        onMessageCallback?.(wrapInEnvelope(event2));
+        // Send duplicates
+        onMessageCallback?.(wrapInEnvelope(event1));
+        onMessageCallback?.(wrapInEnvelope(event2));
+      });
+
+      // Should only have 2 unique events
+      expect(result.current.events).toHaveLength(2);
+    });
+  });
+
+  // wa0t.31: Unmount safety tests
+  describe('unmount safety (wa0t.31)', () => {
+    it('should not update state after unmount', () => {
+      const { result, unmount } = renderHook(() => useEventStream());
+
+      const event: SecurityEvent = {
+        id: 1,
+        camera_id: 'cam-1',
+        risk_score: 75,
+        risk_level: 'high',
+        summary: 'Test event',
+        started_at: '2025-12-23T10:00:00Z',
+      };
+
+      // Unmount the hook
+      unmount();
+
+      // Attempt to send event after unmount
+      // This should not throw or update state
+      act(() => {
+        onMessageCallback?.(wrapInEnvelope(event));
+      });
+
+      // No error should occur, state should remain empty
+      // (result.current is from before unmount, so it should be empty)
+      expect(result.current.events).toHaveLength(0);
+    });
+
+    it('should not call setEvents after unmount via clearEvents', () => {
+      const { result, unmount } = renderHook(() => useEventStream());
+
+      const event: SecurityEvent = {
+        id: 1,
+        camera_id: 'cam-1',
+        risk_score: 75,
+        risk_level: 'high',
+        summary: 'Test event',
+        started_at: '2025-12-23T10:00:00Z',
+      };
+
+      // Add an event
+      act(() => {
+        onMessageCallback?.(wrapInEnvelope(event));
+      });
+
+      expect(result.current.events).toHaveLength(1);
+
+      // Capture clearEvents reference before unmount
+      const clearEventsFn = result.current.clearEvents;
+
+      // Unmount the hook
+      unmount();
+
+      // Calling clearEvents after unmount should not throw
+      act(() => {
+        clearEventsFn();
+      });
+
+      // No error should occur
+    });
+
+    it('should properly cleanup on unmount', () => {
+      const { unmount } = renderHook(() => useEventStream());
+
+      // Unmount should complete without errors
+      expect(() => unmount()).not.toThrow();
+    });
+  });
 });

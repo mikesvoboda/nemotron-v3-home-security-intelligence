@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.api.middleware import AuthMiddleware
+from backend.api.middleware import AuthMiddleware, SecurityHeadersMiddleware
 from backend.api.middleware.request_id import RequestIDMiddleware
 from backend.api.routes import (
     admin,
@@ -263,6 +263,9 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+
+# Add security headers middleware for defense-in-depth
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Register routers
 app.include_router(admin.router)

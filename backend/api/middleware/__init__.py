@@ -10,11 +10,13 @@ from .rate_limit import (
     rate_limit_media,
     rate_limit_search,
 )
+from .security_headers import SecurityHeadersMiddleware
 
 __all__ = [
     "AuthMiddleware",
     "RateLimitTier",
     "RateLimiter",
+    "SecurityHeadersMiddleware",
     "authenticate_websocket",
     "check_websocket_rate_limit",
     "get_client_ip",
