@@ -772,7 +772,6 @@ async def client(integration_db: str, mock_redis: AsyncMock) -> AsyncGenerator[N
     mock_file_watcher.stop = AsyncMock()
     # Configure attributes accessed by /api/system/pipeline endpoint
     # NOTE: Must use configure_mock() to ensure attributes are set properly
-    # as return_value in patch may use a fresh MagicMock otherwise
     mock_file_watcher.configure_mock(
         running=False,
         camera_root="/mock/foscam",
@@ -782,6 +781,16 @@ async def client(integration_db: str, mock_redis: AsyncMock) -> AsyncGenerator[N
 
     # Create a mock class that returns our configured instance
     mock_file_watcher_class = MagicMock(return_value=mock_file_watcher)
+
+    # Create a mock that will be used for _file_watcher in system routes
+    # This ensures the pipeline endpoint gets properly configured attributes
+    mock_file_watcher_for_routes = MagicMock()
+    mock_file_watcher_for_routes.configure_mock(
+        running=False,
+        camera_root="/mock/foscam",
+        _use_polling=False,
+        _pending_tasks={},
+    )
 
     mock_pipeline_manager = MagicMock()
     mock_pipeline_manager.start = AsyncMock()
@@ -810,6 +819,8 @@ async def client(integration_db: str, mock_redis: AsyncMock) -> AsyncGenerator[N
         patch("backend.main.get_broadcaster", AsyncMock(return_value=mock_event_broadcaster)),
         patch("backend.main.stop_broadcaster", AsyncMock()),
         patch("backend.main.ServiceHealthMonitor", return_value=mock_service_health_monitor),
+        # Directly patch _file_watcher in system routes to ensure pipeline endpoint works
+        patch("backend.api.routes.system._file_watcher", mock_file_watcher_for_routes),
     ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             yield ac
