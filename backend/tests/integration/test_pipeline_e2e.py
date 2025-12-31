@@ -118,6 +118,22 @@ class MockRedisClient:
 
         return inner_client
 
+    def _create_scan_iter_mock(self, keys: list[str]) -> MagicMock:
+        """Create a mock scan_iter that returns specific keys.
+
+        Args:
+            keys: List of keys to yield from scan_iter
+
+        Returns:
+            MagicMock configured to return an async generator yielding the keys
+        """
+
+        async def _custom_scan_iter(match: str = "*", count: int = 100):
+            for key in keys:
+                yield key
+
+        return MagicMock(side_effect=lambda match="*", count=100: _custom_scan_iter(match, count))
+
     def _validate_json_serializable(self, value: Any) -> str:
         """Validate that a value is JSON-serializable and return the serialized string.
 
