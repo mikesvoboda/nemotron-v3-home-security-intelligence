@@ -4,6 +4,7 @@ from backend.core.config import Settings, get_settings
 from backend.core.database import (
     Base,
     close_db,
+    escape_ilike_pattern,
     get_db,
     get_engine,
     get_session,
@@ -80,6 +81,7 @@ __all__ = [
     "close_db",
     "close_redis",
     "create_ssl_context",
+    "escape_ilike_pattern",
     "generate_self_signed_cert",
     "generate_self_signed_certificate",
     "get_cert_info",

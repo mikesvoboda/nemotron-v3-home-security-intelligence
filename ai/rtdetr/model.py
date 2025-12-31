@@ -10,6 +10,7 @@ Expected VRAM: ~3GB
 """
 
 import base64
+import binascii
 import io
 import logging
 import os
@@ -33,6 +34,11 @@ logger = logging.getLogger(__name__)
 
 # Security-relevant classes for home monitoring
 SECURITY_CLASSES = {"person", "car", "truck", "dog", "cat", "bird", "bicycle", "motorcycle", "bus"}
+
+# Size limits for image uploads (10MB is reasonable for security camera images)
+MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024  # 10MB
+# Base64 encoding increases size by ~33%, so pre-decode limit is ~13.3MB
+MAX_BASE64_SIZE_BYTES = int(MAX_IMAGE_SIZE_BYTES * 4 / 3) + 100  # ~13.3MB + padding
 
 
 class BoundingBox(BaseModel):
@@ -338,12 +344,39 @@ async def detect_objects(
         raise HTTPException(status_code=503, detail="Model not loaded")
 
     try:
-        # Load image from file or base64
+        # Load image from file or base64 with size validation
         if file:
             image_bytes = await file.read()
+            # Validate decoded image size
+            if len(image_bytes) > MAX_IMAGE_SIZE_BYTES:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"Image size ({len(image_bytes)} bytes) exceeds maximum "
+                    f"allowed size ({MAX_IMAGE_SIZE_BYTES} bytes / "
+                    f"{MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB)",
+                )
             image = Image.open(io.BytesIO(image_bytes))
         elif image_base64:
-            image_bytes = base64.b64decode(image_base64)
+            # Validate base64 string size BEFORE decoding to prevent DoS
+            if len(image_base64) > MAX_BASE64_SIZE_BYTES:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"Base64 image data size ({len(image_base64)} bytes) exceeds "
+                    f"maximum allowed size ({MAX_BASE64_SIZE_BYTES} bytes). "
+                    f"Maximum decoded image size: {MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB",
+                )
+            try:
+                image_bytes = base64.b64decode(image_base64)
+            except binascii.Error as e:
+                raise HTTPException(status_code=400, detail=f"Invalid base64 encoding: {e}") from e
+            # Validate decoded image size (base64 can decode to larger or smaller)
+            if len(image_bytes) > MAX_IMAGE_SIZE_BYTES:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"Decoded image size ({len(image_bytes)} bytes) exceeds maximum "
+                    f"allowed size ({MAX_IMAGE_SIZE_BYTES} bytes / "
+                    f"{MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB)",
+                )
             image = Image.open(io.BytesIO(image_bytes))
         else:
             raise HTTPException(
@@ -387,10 +420,18 @@ async def detect_objects_batch(files: list[UploadFile] = File(...)) -> JSONRespo
         raise HTTPException(status_code=400, detail="No files provided")
 
     try:
-        # Load all images
+        # Load all images with size validation
         images = []
-        for file in files:
+        for idx, file in enumerate(files):
             image_bytes = await file.read()
+            # Validate each file's size
+            if len(image_bytes) > MAX_IMAGE_SIZE_BYTES:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"Image {idx} ({file.filename}) size ({len(image_bytes)} bytes) "
+                    f"exceeds maximum allowed size ({MAX_IMAGE_SIZE_BYTES} bytes / "
+                    f"{MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB)",
+                )
             image = Image.open(io.BytesIO(image_bytes))
             images.append(image)
 
