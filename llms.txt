@@ -1,44 +1,88 @@
 # Home Security Intelligence
 
-> AI-powered home security monitoring with real-time object detection and LLM-based risk analysis. Self-hosted, privacy-first.
+> AI-powered home security monitoring with real-time object detection and LLM-based risk analysis. Self-hosted, privacy-first. Fully containerized with GPU passthrough.
 
-## Quick Start
+## Quick Deploy (One Command)
 
-- [Quick Start Guide](llms-full.txt#tier-1-quick-start-no-ai): Run the stack in demo mode without GPU/AI services
-- Clone, run `docker compose -f docker-compose.ghcr.yml up -d`, access at http://localhost:8080
+```bash
+# Clone and start everything (requires NVIDIA GPU + nvidia-container-toolkit)
+git clone https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence.git
+cd nemotron-v3-home-security-intelligence
+podman-compose -f docker-compose.prod.yml up -d
+```
 
-## Full Deployment
+**Access:** http://localhost:5173 (Dashboard) | http://localhost:8000/docs (API)
 
-- [Production Deployment](llms-full.txt#tier-2-production-deployment): Full stack with camera integration
-- [Docker Compose (GHCR)](docker-compose.ghcr.yml): Pre-built container images from CI/CD
-- [Deployment Docs](docs/DOCKER_DEPLOYMENT.md): Comprehensive deployment documentation
-- [Runtime Config](docs/RUNTIME_CONFIG.md): All environment variables and configuration options
+## Services & Ports
 
-## AI Services
+| Service | Port | Description |
+|---------|------|-------------|
+| Frontend | 5173 | React dashboard (nginx) |
+| Backend | 8000 | FastAPI REST + WebSocket |
+| PostgreSQL | 5432 | Event/detection storage |
+| Redis | 6379 | Queues and pub/sub |
+| RT-DETRv2 | 8090 | Object detection (GPU) |
+| Nemotron | 8091 | Risk analysis LLM (GPU) |
 
-- [AI Setup Guide](llms-full.txt#tier-3-ai-services-setup): Configure GPU-based detection and analysis
-- [RT-DETRv2](ai/rtdetr/): Object detection server (port 8090)
-- [Nemotron](ai/nemotron/): Risk analysis LLM server (port 8091)
+## Requirements
 
-## Camera Setup
+- **Linux** with Podman 4.0+ or Docker 20.10+
+- **NVIDIA GPU** with 16GB+ VRAM (RTX 3090/4090, A4000, A5500)
+- **nvidia-container-toolkit** for GPU passthrough
+- 50GB disk for AI models
 
-- [Camera Configuration](llms-full.txt#camera-configuration): Generic IP camera and Foscam FTP setup
-- Cameras FTP images to `/export/foscam/{camera_name}/`
+## Full Documentation
 
-## Troubleshooting
-
-- [Troubleshooting Guide](llms-full.txt#troubleshooting): Container, database, AI, and network issues
-- [Health Check](llms-full.txt#verification): Verify all services are running correctly
+- [llms-full.txt](llms-full.txt): Complete deployment guide with troubleshooting
+- [docs/DOCKER_DEPLOYMENT.md](docs/DOCKER_DEPLOYMENT.md): Container configuration
+- [docs/RUNTIME_CONFIG.md](docs/RUNTIME_CONFIG.md): Environment variables
+- [CLAUDE.md](CLAUDE.md): Development setup
 
 ## Architecture
 
-- **Frontend**: React + TypeScript + Tailwind + Tremor
-- **Backend**: Python FastAPI + PostgreSQL + Redis
-- **AI**: RT-DETRv2 (detection) + Nemotron via llama.cpp (reasoning)
-- **Containers**: Pre-built on GitHub Container Registry (GHCR)
+```
+Cameras (FTP) --> FileWatcher --> RT-DETRv2 --> Batch Aggregator --> Nemotron --> Dashboard
+                                  (detection)                        (risk analysis)
+```
 
-## Optional
+- **Frontend:** React + TypeScript + Tailwind + Tremor
+- **Backend:** Python FastAPI + PostgreSQL + Redis
+- **AI:** RT-DETRv2 (detection) + Nemotron via llama.cpp (reasoning)
+- **Containers:** All services containerized with Podman/Docker
 
-- [Development Setup](CLAUDE.md): Contributing and local development
-- [API Documentation](http://localhost:8000/docs): OpenAPI/Swagger (when running)
-- [Project Roadmap](docs/ROADMAP.md): Post-MVP enhancements
+## Common Commands
+
+```bash
+# Start all services
+podman-compose -f docker-compose.prod.yml up -d
+
+# View logs
+podman-compose -f docker-compose.prod.yml logs -f backend
+
+# Check health
+curl http://localhost:8000/api/system/health/ready
+
+# Stop services
+podman-compose -f docker-compose.prod.yml down
+
+# GPU memory check
+nvidia-smi
+
+# Enable systemd auto-start (Linux only)
+./scripts/setup-systemd.sh
+```
+
+## Systemd Auto-Start (Linux)
+
+```bash
+# Run setup script to enable boot startup
+./scripts/setup-systemd.sh
+
+# Or manually:
+mkdir -p ~/.config/systemd/user
+for c in $(podman ps --format "{{.Names}}" | grep nemotron); do
+    podman generate systemd --new --name "$c" > ~/.config/systemd/user/"$c".service
+    systemctl --user enable "$c".service
+done
+loginctl enable-linger $USER
+```

@@ -1,325 +1,143 @@
-# Home Security Intelligence
+# Home Security Intelligence - Complete Deployment Guide
 
-> Complete deployment guide for AI-powered home security monitoring. Self-hosted, privacy-first, with real-time object detection and LLM-based risk analysis.
+> AI-powered home security monitoring. Self-hosted, privacy-first. Fully containerized with GPU passthrough.
 
 ## Overview
 
-Home Security Intelligence is a self-hosted security monitoring system that:
-
-- Watches IP camera FTP uploads for new images
-- Runs RT-DETRv2 object detection to identify people, vehicles, animals
-- Uses Nemotron LLM to analyze detections and assign risk scores (0-100)
-- Displays real-time alerts on a React dashboard
+Home Security Intelligence watches IP camera FTP uploads, runs RT-DETRv2 object detection, and uses Nemotron LLM to analyze detections and assign risk scores (0-100). Everything displays on a real-time React dashboard.
 
 **Architecture:**
 
-- Frontend: React + TypeScript + Tailwind + Tremor
+```
+Cameras (FTP) --> FileWatcher --> RT-DETRv2 --> Batch Aggregator --> Nemotron --> Dashboard
+     |                              (GPU)                            (GPU)           |
+     v                                                                               v
+/export/foscam/{camera}/     Detection Queue --> Analysis Queue        WebSocket events
+```
+
+**Stack:**
+
+- Frontend: React + TypeScript + Tailwind + Tremor (nginx in container)
 - Backend: Python FastAPI + PostgreSQL + Redis
-- AI: RT-DETRv2 (detection) + Nemotron (risk reasoning)
-- Containers: Pre-built images on GitHub Container Registry (GHCR)
+- AI: RT-DETRv2 (detection) + Nemotron via llama.cpp (risk reasoning)
+- Containers: Podman/Docker with NVIDIA GPU passthrough (CDI)
 
-**Deployment Tiers:**
+## Requirements
 
-| Tier | Description | Requirements |
-|------|-------------|--------------|
-| 1 | Quick Start (demo mode) | Docker/Podman, 4GB RAM |
-| 2 | Production (with cameras) | + IP cameras with FTP |
-| 3 | Full AI Processing | + NVIDIA GPU 16GB+ VRAM |
+### Hardware
 
-## Prerequisites
+| Component | Minimum | Recommended |
+|-----------|---------|-------------|
+| GPU | NVIDIA 16GB VRAM | RTX A5500 24GB |
+| RAM | 16GB | 32GB |
+| Storage | 50GB | 100GB+ |
+| CPU | 4 cores | 8+ cores |
 
-### For Quick Start (Tier 1)
+**Tested GPUs:** RTX 3090, RTX 4090, RTX A4000, RTX A5500
 
-- Linux: Docker Engine 20.10+ with Docker Compose, or Podman 4.0+ with podman-compose
-- macOS: Podman 4.0+ with podman-compose (Docker Desktop requires paid license for commercial use)
-  - Install: `brew install podman podman-compose`
-- 4GB RAM, 10GB disk space
+### Software
 
-### For Production (Tier 2)
+- Linux (Ubuntu 22.04+, Fedora 38+)
+- Podman 4.0+ with podman-compose, OR Docker 20.10+ with Docker Compose
+- nvidia-container-toolkit (for GPU passthrough)
+- CUDA 12.0+ drivers
 
-- All of the above, plus:
-- IP cameras that FTP images to a local directory
-- Network access to camera FTP uploads
-
-### For AI Processing (Tier 3)
-
-- NVIDIA GPU with 16GB+ VRAM (RTX 3090, 4090, A4000, A5500, etc.)
-- CUDA 12.0+ and cuDNN 8.0+
-- 50GB disk for AI models
-- Python 3.11+ for AI service scripts
-
-## Tier 1: Quick Start (No AI)
-
-Run the full stack in demo mode without GPU/AI services. Useful for evaluating the UI and API.
-
-### Linux (Docker)
+## Quick Start (5 Minutes)
 
 ```bash
-# Clone repository
-git clone https://github.com/mikesvoboda/home_security_intelligence.git
-cd home_security_intelligence
+# 1. Clone
+git clone https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence.git
+cd nemotron-v3-home-security-intelligence
 
-# Stop any existing containers using the same ports
-docker compose -f docker-compose.ghcr.yml down 2>/dev/null || true
+# 2. Verify GPU passthrough is available
+nvidia-smi
+podman run --rm --device nvidia.com/gpu=all nvidia/cuda:12.4-base nvidia-smi
 
-# Create camera directory (use temp for demo, real path for production)
+# 3. Create camera directory (or use existing)
 mkdir -p /tmp/cameras/demo_camera
 export CAMERA_PATH=/tmp/cameras
 
-# Start containers
-docker compose -f docker-compose.ghcr.yml up -d
+# 4. Start all services
+podman-compose -f docker-compose.prod.yml up -d
 
-# Verify (wait ~60 seconds for all services to be healthy)
-docker compose -f docker-compose.ghcr.yml ps
-curl http://localhost:8000/api/system/health
-```
+# 5. Wait for health (~2-3 minutes for AI model loading)
+watch -n 5 'podman ps --format "table {{.Names}}\t{{.Status}}"'
 
-### macOS (Podman)
-
-```bash
-# Install Podman if needed
-brew install podman podman-compose
-podman machine init
-podman machine start
-
-# Clone repository
-git clone https://github.com/mikesvoboda/home_security_intelligence.git
-cd home_security_intelligence
-
-# Stop any existing containers using the same ports
-podman-compose -f docker-compose.ghcr.yml down 2>/dev/null || true
-# Or stop ALL containers if port conflicts persist:
-# podman stop -a && podman rm -a
-
-# Create camera directory (use temp for demo, real path for production)
-mkdir -p /tmp/cameras/demo_camera
-export CAMERA_PATH=/tmp/cameras
-
-# Set host for AI services (required for macOS)
-export AI_HOST=host.containers.internal
-
-# Start containers
-podman-compose -f docker-compose.ghcr.yml up -d
-
-# Verify (wait ~60 seconds for all services to be healthy)
-podman-compose -f docker-compose.ghcr.yml ps
-curl http://localhost:8000/api/system/health
-```
-
-### Access Points
-
-| Service | URL |
-|---------|-----|
-| Dashboard | http://localhost:8080 |
-| API | http://localhost:8000 |
-| API Docs | http://localhost:8000/docs |
-
-**Note:** Without AI services, detection and risk analysis won't process. The UI will show the dashboard but no events will be generated.
-
-## Tier 2: Production Deployment
-
-Full stack with camera integration, but AI services on separate GPU host.
-
-### Environment Setup
-
-Create `.env` file in project root:
-
-```bash
-# Database
-POSTGRES_USER=security
-POSTGRES_PASSWORD=your_secure_password_here
-POSTGRES_DB=security
-
-# Camera path (where cameras FTP images)
-CAMERA_PATH=/path/to/camera/uploads
-
-# AI services (skip if not using AI yet)
-AI_HOST=192.168.1.100  # IP of GPU server running AI services
-
-# Frontend port
-FRONTEND_PORT=8080
-```
-
-### Linux (Docker)
-
-```bash
-# Start with environment
-docker compose -f docker-compose.ghcr.yml up -d
-
-# View logs
-docker compose -f docker-compose.ghcr.yml logs -f backend
-```
-
-### macOS (Podman)
-
-```bash
-export AI_HOST=host.containers.internal  # or GPU server IP
-podman-compose -f docker-compose.ghcr.yml up -d
-podman-compose -f docker-compose.ghcr.yml logs -f backend
-```
-
-### Pinning to Specific Version
-
-```bash
-# Use specific build instead of latest
-export IMAGE_TAG=abc1234  # Git SHA from CI
-docker compose -f docker-compose.ghcr.yml pull
-docker compose -f docker-compose.ghcr.yml up -d
-```
-
-### Data Persistence
-
-Data is stored in Docker volumes:
-
-- `postgres_data` - Database (events, detections, cameras)
-- `redis_data` - Cache and real-time state
-
-To backup:
-
-```bash
-docker run --rm -v home_security_intelligence_postgres_data:/data -v $(pwd):/backup alpine tar czf /backup/postgres_backup.tar.gz /data
-```
-
-## Tier 3: AI Services Setup
-
-AI services run natively on the host (not in containers) for GPU access.
-
-### Why Native?
-
-Docker/Podman GPU passthrough adds complexity and overhead. Running AI services natively provides:
-
-- Direct CUDA access
-- Easier debugging
-- Better performance
-
-### Prerequisites
-
-- NVIDIA GPU with 16GB+ VRAM (RTX 3090, 4090, A4000, A5500, etc.)
-- CUDA 12.0+ and cuDNN 8.0+
-- Python 3.11+
-- llama.cpp installed (`llama-server` command available)
-
-### Quick Start (Recommended)
-
-Use the helper scripts to download models and start services:
-
-```bash
-# 1. Download both AI models (~2.7GB total)
-./ai/download_models.sh
-
-# 2. Start RT-DETRv2 object detection (port 8090, ~4GB VRAM)
-./ai/start_detector.sh
-
-# 3. Start Nemotron LLM risk analysis (port 8091, ~16GB VRAM)
-./ai/start_nemotron.sh
-```
-
-### Manual Setup (Alternative)
-
-If you prefer manual control or need to customize:
-
-#### RT-DETRv2 (Object Detection) - Port 8090
-
-```bash
-cd ai/rtdetr
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate
-
-# Install dependencies
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
-pip install -r requirements.txt
-
-# Start server (model auto-downloads on first run)
-python model.py
-```
-
-#### Nemotron (Risk Analysis LLM) - Port 8091
-
-```bash
-# Download quantized model (~2.5GB)
-wget -O ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf \
-  https://huggingface.co/bartowski/nemotron-mini-4b-instruct-GGUF/resolve/main/nemotron-mini-4b-instruct-Q4_K_M.gguf
-
-# Start with llama.cpp
-llama-server \
-  -m ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf \
-  --host 0.0.0.0 --port 8091 \
-  -c 12288 -ngl 45 --parallel 2 --cont-batching
-```
-
-### Environment Variables
-
-Customize AI service behavior with these environment variables:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `RTDETR_PORT` | `8090` | RT-DETRv2 server port |
-| `NEMOTRON_PORT` | `8091` | Nemotron server port |
-| `NEMOTRON_MODEL_PATH` | (auto-detected) | Path to GGUF model file |
-| `LLAMA_SERVER_PATH` | (auto-detected) | Path to llama-server binary |
-| `NEMOTRON_GPU_LAYERS` | `45` | Number of layers to offload to GPU |
-| `NEMOTRON_CONTEXT_SIZE` | `12288` | Context window size |
-
-### Using Existing Models
-
-If you already have models downloaded elsewhere:
-
-```bash
-# Point to existing Nemotron GGUF
-export NEMOTRON_GGUF_PATH=/path/to/your/model.gguf
-./ai/download_models.sh  # Will copy instead of download
-
-# Point to existing RT-DETRv2 ONNX
-export RTDETR_ONNX_PATH=/path/to/rtdetrv2.onnx
-./ai/download_models.sh  # Will copy instead of download
-
-# Or set model directories for auto-discovery
-export NEMOTRON_MODELS_DIR=/export/ai_models/nemotron
-export RTDETR_MODELS_DIR=/export/ai_models/rt-detrv2
-./ai/download_models.sh  # Will search these directories
-```
-
-### Verify AI Services
-
-```bash
-# Test RT-DETRv2
-curl http://localhost:8090/health
-
-# Test Nemotron
-curl http://localhost:8091/health
-
-# Test full pipeline (requires backend running)
+# 6. Verify
 curl http://localhost:8000/api/system/health/ready
 ```
 
-### Connect Backend to AI
+**Access Points:**
 
-Update `.env` or environment:
+| Service | URL |
+|---------|-----|
+| Dashboard | http://localhost:5173 |
+| API | http://localhost:8000 |
+| API Docs | http://localhost:8000/docs |
+
+## Services & Ports
+
+| Service | Port | Container | GPU | Description |
+|---------|------|-----------|-----|-------------|
+| Frontend | 5173 | frontend | No | React dashboard (nginx) |
+| Backend | 8000 | backend | No | FastAPI REST + WebSocket |
+| PostgreSQL | 5432 | postgres | No | Event/detection storage |
+| Redis | 6379 | redis | No | Queues and pub/sub |
+| RT-DETRv2 | 8090 | ai-detector | Yes | Object detection (~650MB VRAM) |
+| Nemotron | 8091 | ai-llm | Yes | Risk analysis LLM (~21.6GB VRAM) |
+
+## Configuration
+
+### Environment Variables
+
+Create `.env` in project root (optional - defaults work for most setups):
 
 ```bash
-# If AI on same host as containers
-AI_HOST=host.docker.internal      # Docker on Linux
-AI_HOST=host.containers.internal  # Podman on macOS
+# Database (defaults are fine for local use)
+POSTGRES_USER=security
+POSTGRES_PASSWORD=security_dev_password
+POSTGRES_DB=security
 
-# If AI on separate GPU server
-AI_HOST=192.168.1.100  # GPU server IP
+# Camera path (where cameras FTP images)
+CAMERA_PATH=/export/foscam
+
+# AI model configuration
+GPU_LAYERS=45              # Layers on GPU (max 53 for Nemotron)
+CTX_SIZE=8192              # Context window size
+RTDETR_CONFIDENCE=0.5      # Detection confidence threshold
+
+# Ports (change if conflicts)
+FRONTEND_PORT=5173
 ```
 
-## Camera Configuration
+### GPU Memory Usage
 
-The system watches a directory for new images uploaded via FTP from IP cameras.
+With default settings (45 GPU layers, 8K context):
+
+| Service | VRAM Usage |
+|---------|------------|
+| RT-DETRv2 | ~650 MB |
+| Nemotron | ~21.6 GB |
+| **Total** | ~22.3 GB |
+
+**For 16GB GPU**, reduce settings:
+
+```bash
+# In docker-compose.prod.yml or .env
+GPU_LAYERS=30    # Offload fewer layers
+CTX_SIZE=4096    # Smaller context window
+```
+
+## Camera Setup
 
 ### Directory Structure
 
-Cameras must FTP images to subdirectories named by camera:
+Cameras FTP images to subdirectories named by camera:
 
 ```
-/path/to/cameras/
+/export/foscam/
 ├── front_door/
 │   ├── 20250115_143022.jpg
-│   ├── 20250115_143025.jpg
 │   └── ...
 ├── backyard/
 │   └── ...
@@ -327,322 +145,321 @@ Cameras must FTP images to subdirectories named by camera:
     └── ...
 ```
 
-### Generic Setup (Any IP Camera)
+### Generic IP Camera Setup
 
 1. Configure camera to upload via FTP on motion detection
 2. Set FTP destination to your server
 3. Use camera name as subdirectory
-4. Set `CAMERA_PATH` in `.env` to the upload directory
+4. Set `CAMERA_PATH` environment variable
 
-### Foscam Example
+### Foscam Configuration
 
-Foscam cameras have built-in FTP upload on motion/sound detection.
-
-**In Foscam Web UI:**
+In Foscam Web UI:
 
 1. **Settings > Network > FTP**
-   - FTP Server: `192.168.1.50` (your server IP)
-   - Port: `21`
-   - Username/Password: your FTP credentials
-   - Upload Path: `/front_door` (use camera location as name)
+   - Server: your server IP
+   - Upload Path: `/front_door` (camera location)
 
 2. **Settings > Alarm > Motion Detection**
    - Enable motion detection
-   - Set sensitivity (recommend 70-80%)
    - Check "FTP Upload"
-   - Set upload interval (recommend 1-2 seconds)
+   - Set interval: 1-2 seconds
 
-3. **Test** - Trigger motion, verify images appear in upload directory
+## Commands Reference
 
-### FTP Server Setup (if needed)
+### Start/Stop
 
 ```bash
-# Install vsftpd (Linux)
-sudo apt install vsftpd
+# Start all services
+podman-compose -f docker-compose.prod.yml up -d
 
-# Configure /etc/vsftpd.conf
-write_enable=YES
-local_root=/export/foscam
-chroot_local_user=YES
+# Stop all services
+podman-compose -f docker-compose.prod.yml down
 
-# Create upload directory
-sudo mkdir -p /export/foscam
-sudo chown $USER:$USER /export/foscam
+# Restart single service
+podman-compose -f docker-compose.prod.yml restart backend
 
-# Restart
-sudo systemctl restart vsftpd
+# View logs
+podman-compose -f docker-compose.prod.yml logs -f backend
+podman-compose -f docker-compose.prod.yml logs -f ai-llm
 ```
 
-### Verify Camera Integration
+### Health Checks
 
 ```bash
-# Watch for new files
-watch -n 1 'ls -lt /export/foscam/*/|head -20'
+# All services status
+podman ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
-# Check backend sees cameras
+# Backend health
+curl http://localhost:8000/api/system/health/ready
+
+# GPU memory
+nvidia-smi
+
+# Check cameras detected
 curl http://localhost:8000/api/cameras
+
+# Check recent events
+curl http://localhost:8000/api/events?limit=5
+```
+
+### Debugging
+
+```bash
+# Enter container shell
+podman exec -it nemotron-v3-home-security-intelligence_backend_1 /bin/sh
+
+# Check AI detector
+curl http://localhost:8090/health
+
+# Check Nemotron LLM
+curl http://localhost:8091/health
+
+# Database access
+podman exec -it nemotron-v3-home-security-intelligence_postgres_1 psql -U security -d security
+```
+
+### Data Management
+
+```bash
+# Reset database (WARNING: deletes all data)
+podman-compose -f docker-compose.prod.yml down -v
+podman-compose -f docker-compose.prod.yml up -d
+
+# Backup database
+podman exec nemotron-v3-home-security-intelligence_postgres_1 pg_dump -U security security > backup.sql
+
+# View disk usage
+podman system df
 ```
 
 ## Troubleshooting
 
-### Container Issues
+### Container Won't Start
 
-**Containers won't start**
-
+**Port in use:**
 ```bash
-# Check status and logs
-docker compose -f docker-compose.ghcr.yml ps
-docker compose -f docker-compose.ghcr.yml logs backend
+# Find what's using the port
+ss -tlnp | grep 8000
 
-# Common fix: ensure ports aren't in use
-lsof -i :8000  # Backend
-lsof -i :8080  # Frontend
-lsof -i :5432  # PostgreSQL
-lsof -i :6379  # Redis
+# Kill process or change port in docker-compose.prod.yml
 ```
 
-**Port conflicts from existing containers**
-
+**GPU not available:**
 ```bash
-# Stop containers from this project
-docker compose -f docker-compose.ghcr.yml down
+# Verify nvidia-container-toolkit
+nvidia-container-cli info
 
-# If ports still in use, stop ALL containers
-docker stop $(docker ps -aq)
-docker rm $(docker ps -aq)
+# Test GPU passthrough
+podman run --rm --device nvidia.com/gpu=all nvidia/cuda:12.4-base nvidia-smi
 
-# For Podman
-podman stop -a && podman rm -a
-
-# Then retry
-docker compose -f docker-compose.ghcr.yml up -d
+# If fails, reinstall nvidia-container-toolkit
 ```
 
-**Camera path doesn't exist**
-
-The default `CAMERA_PATH=/export/foscam` may not exist on your system.
-
+**Permission denied on camera path:**
 ```bash
-# For demo/testing, create a temp directory
-mkdir -p /tmp/cameras/demo_camera
+chmod -R 755 /export/foscam
+# Or use a writable temp path
 export CAMERA_PATH=/tmp/cameras
-
-# For production, create the real path
-sudo mkdir -p /export/foscam
-sudo chown $USER:$USER /export/foscam
-export CAMERA_PATH=/export/foscam
-
-# Then start containers
-docker compose -f docker-compose.ghcr.yml up -d
 ```
 
-**Permission denied on camera volume**
+### AI Services Issues
 
+**Out of VRAM:**
 ```bash
-# Linux: ensure directory is readable
-sudo chmod -R 755 /path/to/cameras
-# Or run container with user mapping
-docker compose -f docker-compose.ghcr.yml down
-DOCKER_UID=$(id -u) DOCKER_GID=$(id -g) docker compose -f docker-compose.ghcr.yml up -d
-```
-
-**Image pull fails (GHCR auth)**
-
-```bash
-# Public images shouldn't need auth, but if rate-limited:
-echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
-```
-
-### Database Issues
-
-**Backend crashes on startup - database connection**
-
-```bash
-# Wait for postgres to be healthy first
-docker compose -f docker-compose.ghcr.yml up -d postgres
-docker compose -f docker-compose.ghcr.yml exec postgres pg_isready
-# Then start rest
-docker compose -f docker-compose.ghcr.yml up -d
-```
-
-**Reset database**
-
-```bash
-docker compose -f docker-compose.ghcr.yml down -v  # -v removes volumes
-docker compose -f docker-compose.ghcr.yml up -d
-```
-
-### AI Service Issues
-
-**Backend can't reach AI services**
-
-```bash
-# Verify AI_HOST is set correctly
-echo $AI_HOST
-
-# Test connectivity from host
-curl http://$AI_HOST:8090/health  # RT-DETRv2
-curl http://$AI_HOST:8091/health  # Nemotron
-
-# Common fixes:
-# 1. Firewall blocking ports 8090/8091
-sudo ufw allow 8090/tcp
-sudo ufw allow 8091/tcp
-
-# 2. AI services not bound to 0.0.0.0
-# Restart with --host 0.0.0.0
-
-# 3. Wrong AI_HOST value
-# Linux Docker: host.docker.internal or 172.17.0.1
-# macOS Podman: host.containers.internal
-# Remote GPU: actual IP address
-```
-
-**CUDA out of memory**
-
-```bash
-# Check GPU memory
+# Check current usage
 nvidia-smi
 
-# Reduce batch size or use quantized model
-# For Nemotron, use Q4 quantization instead of full precision
+# Reduce GPU layers in docker-compose.prod.yml
+GPU_LAYERS=30  # Instead of 45
+
+# Restart AI container
+podman-compose -f docker-compose.prod.yml restart ai-llm
 ```
 
-### macOS + Podman Issues
+**Slow inference:**
+- Check if model is loaded: `curl http://localhost:8091/health`
+- First inference after start is slow (model loading)
+- Verify GPU layers: more layers = faster but more VRAM
 
-**podman-compose: command not found**
+### Backend Can't Connect to AI
 
 ```bash
-pip install podman-compose
-# Or
-brew install podman-compose
+# Test from host
+curl http://localhost:8090/health
+curl http://localhost:8091/health
+
+# Check container network
+podman network inspect nemotron-v3-home-security-intelligence_security-net
 ```
 
-**Podman machine not running**
+### Frontend Shows Blank Page
 
 ```bash
-podman machine list
-podman machine start
+# Check frontend container
+podman logs nemotron-v3-home-security-intelligence_frontend_1
+
+# Verify nginx config
+podman exec nemotron-v3-home-security-intelligence_frontend_1 cat /etc/nginx/conf.d/default.conf
 ```
 
-**host.containers.internal not resolving**
+## Expected Startup Times
 
-```bash
-# Ensure podman machine has host networking
-podman machine ssh
-cat /etc/hosts  # Should show host.containers.internal
-```
-
-### Network Issues
-
-**Frontend can't reach backend (CORS)**
-
-```bash
-# Check backend is accessible
-curl http://localhost:8000/api/system/health
-
-# Verify frontend env vars
-docker compose -f docker-compose.ghcr.yml exec frontend env | grep VITE
-```
-
-**WebSocket disconnects**
-
-```bash
-# Check WebSocket endpoint
-wscat -c ws://localhost:8000/api/ws/events
-
-# If behind reverse proxy, ensure WebSocket upgrade headers are passed
-```
-
-## Verification
-
-### Health Check Endpoints
-
-| Endpoint | Expected | Meaning |
-|----------|----------|---------|
-| `GET /api/system/health` | `{"status": "healthy"}` | Backend running |
-| `GET /api/system/health/ready` | `{"status": "ready", ...}` | All dependencies connected |
-| `GET /api/cameras` | `[...]` | Camera directories detected |
-| `GET /api/events?limit=5` | `[...]` | Events being processed |
-
-### End-to-End Test
-
-```bash
-# 1. Verify containers healthy
-docker compose -f docker-compose.ghcr.yml ps
-
-# 2. Check backend ready
-curl -s http://localhost:8000/api/system/health/ready | jq .
-
-# 3. Check cameras detected
-curl -s http://localhost:8000/api/cameras | jq .
-
-# 4. Open dashboard
-open http://localhost:8080  # macOS
-xdg-open http://localhost:8080  # Linux
-
-# 5. If AI running, verify processing
-curl -s http://localhost:8000/api/events?limit=1 | jq .
-```
-
-### Verification Commands Summary
-
-```bash
-# Full health check
-curl http://localhost:8000/api/system/health/ready
-
-# Check all services
-docker compose -f docker-compose.ghcr.yml ps
-
-# Service resource usage
-docker stats --no-stream
-
-# Backend logs (last 100 lines)
-docker compose -f docker-compose.ghcr.yml logs --tail=100 backend
-
-# Test full pipeline (with AI running)
-curl -X POST http://localhost:8000/api/debug/test-detection
-```
-
-### Expected Startup Time
-
-| Service | Healthy In |
-|---------|-----------|
+| Service | Time to Healthy |
+|---------|----------------|
 | PostgreSQL | ~10 seconds |
 | Redis | ~5 seconds |
 | Backend | ~30 seconds |
-| Frontend | ~40 seconds |
-| **Total** | ~1 minute |
+| Frontend | ~10 seconds |
+| RT-DETRv2 | ~60 seconds (model download on first run) |
+| Nemotron | ~120 seconds (model loading) |
 
-## Quick Reference
+**Total cold start:** ~3 minutes
 
-### Container Commands
+## Systemd Integration (Linux)
 
-| Action | Linux (Docker) | macOS (Podman) |
-|--------|---------------|----------------|
-| Start | `docker compose -f docker-compose.ghcr.yml up -d` | `podman-compose -f docker-compose.ghcr.yml up -d` |
-| Stop | `docker compose -f docker-compose.ghcr.yml down` | `podman-compose -f docker-compose.ghcr.yml down` |
-| Logs | `docker compose -f docker-compose.ghcr.yml logs -f` | `podman-compose -f docker-compose.ghcr.yml logs -f` |
-| Status | `docker compose -f docker-compose.ghcr.yml ps` | `podman-compose -f docker-compose.ghcr.yml ps` |
-| Reset | `docker compose -f docker-compose.ghcr.yml down -v` | `podman-compose -f docker-compose.ghcr.yml down -v` |
+Run containers as systemd services for automatic startup on boot.
 
-### Environment Variables
+### Generate Systemd Units (Podman)
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `AI_HOST` | `host.docker.internal` | Hostname/IP of AI services |
-| `CAMERA_PATH` | `/export/foscam` | Path to camera FTP uploads |
-| `IMAGE_TAG` | `latest` | Container image version |
-| `FRONTEND_PORT` | `8080` | Dashboard port |
-| `POSTGRES_PASSWORD` | `security_dev_password` | Database password |
+```bash
+# Create systemd user directory
+mkdir -p ~/.config/systemd/user
 
-### Ports
+# Generate systemd units for all containers
+cd ~/github/nemotron-v3-home-security-intelligence
+for container in $(podman ps --format "{{.Names}}"); do
+    podman generate systemd --new --name "$container" > ~/.config/systemd/user/"$container".service
+done
 
-| Port | Service |
-|------|---------|
-| 8080 | Frontend (Dashboard) |
-| 8000 | Backend (API) |
-| 5432 | PostgreSQL |
-| 6379 | Redis |
-| 8090 | RT-DETRv2 (AI - native) |
-| 8091 | Nemotron (AI - native) |
+# Reload systemd
+systemctl --user daemon-reload
+
+# Enable services to start on boot
+for container in $(podman ps --format "{{.Names}}"); do
+    systemctl --user enable "$container".service
+done
+
+# Enable lingering (allows user services to run without login)
+loginctl enable-linger $USER
+```
+
+### Quick Setup Script
+
+Use the included setup script which handles everything automatically:
+
+```bash
+# Run the setup script (generates units, enables services, configures dependencies)
+./scripts/setup-systemd.sh
+```
+
+The script automatically:
+- Generates systemd unit files for all containers
+- Enables auto-start on boot
+- Adds frontend→backend dependency (fixes DNS cache issues on restart)
+- Enables user lingering (services run without login)
+
+### Manage Services
+
+```bash
+# Check service status
+systemctl --user status nemotron-v3-home-security-intelligence_backend_1
+
+# Start/stop individual services
+systemctl --user start nemotron-v3-home-security-intelligence_backend_1
+systemctl --user stop nemotron-v3-home-security-intelligence_backend_1
+
+# View logs via journalctl
+journalctl --user -u nemotron-v3-home-security-intelligence_backend_1 -f
+
+# Disable auto-start
+systemctl --user disable nemotron-v3-home-security-intelligence_backend_1
+```
+
+### Alternative: Podman Pod with Systemd
+
+For simpler management, create a pod and generate a single service:
+
+```bash
+# Create pod from compose
+podman-compose -f docker-compose.prod.yml up -d
+
+# Generate pod service (manages all containers together)
+podman generate systemd --new --name nemotron-v3-home-security-intelligence_default > \
+    ~/.config/systemd/user/home-security.service
+
+systemctl --user daemon-reload
+systemctl --user enable home-security.service
+```
+
+## Upgrading
+
+```bash
+# Pull latest code
+git pull origin main
+
+# Stop services (if using systemd)
+systemctl --user stop 'nemotron-v3-home-security-intelligence_*'
+
+# Rebuild containers
+podman-compose -f docker-compose.prod.yml build
+
+# Restart
+podman-compose -f docker-compose.prod.yml up -d
+
+# Regenerate systemd units (if container names changed)
+# Re-run the setup script above
+```
+
+## Project Structure
+
+```
+nemotron-v3-home-security-intelligence/
+├── docker-compose.prod.yml   # Main deployment file
+├── backend/                  # FastAPI backend
+│   ├── Dockerfile.prod
+│   ├── api/routes/          # REST endpoints
+│   ├── services/            # AI pipeline, file watcher
+│   └── models/              # SQLAlchemy models
+├── frontend/                 # React frontend
+│   ├── Dockerfile.prod
+│   ├── nginx.conf           # Reverse proxy config
+│   └── src/
+├── ai/
+│   ├── rtdetr/              # RT-DETRv2 detector
+│   │   └── Dockerfile
+│   └── nemotron/            # Nemotron LLM server
+│       └── Dockerfile
+└── docs/                     # Additional documentation
+```
+
+## API Quick Reference
+
+```bash
+# Health
+GET /api/system/health
+GET /api/system/health/ready
+
+# Cameras
+GET /api/cameras
+GET /api/cameras/{id}
+
+# Events
+GET /api/events
+GET /api/events/{id}
+GET /api/events?limit=10&offset=0
+
+# Detections
+GET /api/detections
+GET /api/detections/{id}
+
+# WebSocket (real-time events)
+ws://localhost:8000/ws/events
+ws://localhost:8000/ws/system
+```
+
+## Support
+
+- GitHub Issues: https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/issues
+- CLAUDE.md: Development setup and contribution guide
+- docs/ROADMAP.md: Future enhancements
