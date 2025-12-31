@@ -72,17 +72,28 @@ nvidia-smi
 ./scripts/setup-systemd.sh
 ```
 
-## Systemd Auto-Start (Linux)
+## Auto-Start on Boot
+
+| Platform | Script | Service Manager |
+|----------|--------|-----------------|
+| Linux | `./scripts/setup-systemd.sh` | systemd |
+| macOS | `./scripts/setup-launchd.sh` | launchd |
+| Windows | `.\scripts\setup-windows.ps1` (Admin) | Task Scheduler |
 
 ```bash
-# Run setup script to enable boot startup
+# Linux
 ./scripts/setup-systemd.sh
+systemctl --user restart nemotron-v3-home-security-intelligence_backend_1
 
-# Or manually:
-mkdir -p ~/.config/systemd/user
-for c in $(podman ps --format "{{.Names}}" | grep nemotron); do
-    podman generate systemd --new --name "$c" > ~/.config/systemd/user/"$c".service
-    systemctl --user enable "$c".service
-done
-loginctl enable-linger $USER
+# macOS
+./scripts/setup-launchd.sh
+launchctl list | grep com.security
+
+# Windows (run as Administrator)
+powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
 ```
+
+All scripts configure:
+- Auto-start on boot for all 6 containers
+- Frontend dependency on backend (waits for healthy backend)
+- Orphaned container cleanup on restart
