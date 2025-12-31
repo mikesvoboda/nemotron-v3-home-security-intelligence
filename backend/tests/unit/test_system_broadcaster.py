@@ -7,6 +7,7 @@ and don't require a real database connection.
 import asyncio
 import contextlib
 import json
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -1079,3 +1080,438 @@ async def test_system_broadcaster_set_performance_collector_to_none():
 
     broadcaster.set_performance_collector(None)
     assert broadcaster._performance_collector is None
+
+
+# ============================================================================
+# Tests for consolidated database session handling (connection pool fix)
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_get_system_status_uses_single_session():
+    """Test that _get_system_status uses a single database session.
+
+    This is critical for preventing 'Too many connections' errors when
+    broadcasting status at high frequency (every 5 seconds).
+    """
+    broadcaster = SystemBroadcaster()
+
+    # Track how many times get_session is called
+    session_call_count = 0
+
+    # Mock session context manager
+    mock_session = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = None
+    mock_result.scalar_one.return_value = 0
+    mock_session.execute.return_value = mock_result
+
+    @asynccontextmanager
+    async def counting_session():
+        nonlocal session_call_count
+        session_call_count += 1
+        yield mock_session
+
+    with (
+        patch("backend.services.system_broadcaster.get_session", counting_session),
+        patch.object(broadcaster, "_get_queue_stats", return_value={"pending": 0, "processing": 0}),
+        patch.object(broadcaster, "_check_redis_health", return_value=True),
+        patch.object(
+            broadcaster,
+            "_check_ai_health",
+            return_value={
+                "all_healthy": True,
+                "any_healthy": True,
+                "rtdetr": True,
+                "nemotron": True,
+            },
+        ),
+    ):
+        status = await broadcaster._get_system_status()
+
+    # Should only open ONE session for both GPU and camera queries
+    assert session_call_count == 1, f"Expected 1 session, got {session_call_count}"
+
+    # Verify status structure
+    assert status["type"] == "system_status"
+    assert "gpu" in status["data"]
+    assert "cameras" in status["data"]
+    assert "health" in status["data"]
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_get_gpu_stats_with_session():
+    """Test _get_latest_gpu_stats_with_session uses provided session."""
+    broadcaster = SystemBroadcaster()
+
+    mock_session = AsyncMock()
+    mock_result = MagicMock()
+    mock_gpu_stat = MagicMock()
+    mock_gpu_stat.gpu_utilization = 75.5
+    mock_gpu_stat.memory_used = 8192
+    mock_gpu_stat.memory_total = 24576
+    mock_gpu_stat.temperature = 65.0
+    mock_gpu_stat.inference_fps = 30.5
+    mock_result.scalar_one_or_none.return_value = mock_gpu_stat
+    mock_session.execute.return_value = mock_result
+
+    gpu_stats = await broadcaster._get_latest_gpu_stats_with_session(mock_session)
+
+    # Should use the provided session
+    mock_session.execute.assert_called_once()
+
+    # Should return correct values
+    assert gpu_stats["utilization"] == 75.5
+    assert gpu_stats["memory_used"] == 8192
+    assert gpu_stats["memory_total"] == 24576
+    assert gpu_stats["temperature"] == 65.0
+    assert gpu_stats["inference_fps"] == 30.5
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_get_camera_stats_with_session():
+    """Test _get_camera_stats_with_session uses provided session."""
+    broadcaster = SystemBroadcaster()
+
+    mock_session = AsyncMock()
+
+    # First call returns total count, second returns active count
+    call_count = 0
+
+    def mock_execute(*args):
+        nonlocal call_count
+        call_count += 1
+        mock_result = MagicMock()
+        if call_count == 1:
+            mock_result.scalar_one.return_value = 5  # total
+        else:
+            mock_result.scalar_one.return_value = 3  # active
+        return mock_result
+
+    mock_session.execute.side_effect = mock_execute
+
+    camera_stats = await broadcaster._get_camera_stats_with_session(mock_session)
+
+    # Should call execute twice (total and active counts)
+    assert mock_session.execute.call_count == 2
+
+    # Should return correct counts
+    assert camera_stats["total"] == 5
+    assert camera_stats["active"] == 3
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_get_system_status_handles_db_error():
+    """Test _get_system_status handles database errors gracefully."""
+    broadcaster = SystemBroadcaster()
+
+    @asynccontextmanager
+    async def failing_session():
+        raise Exception("Database connection error")
+        yield  # Never reached
+
+    with (
+        patch("backend.services.system_broadcaster.get_session", failing_session),
+        patch.object(broadcaster, "_get_queue_stats", return_value={"pending": 0, "processing": 0}),
+        patch.object(broadcaster, "_check_redis_health", return_value=True),
+        patch.object(
+            broadcaster,
+            "_check_ai_health",
+            return_value={
+                "all_healthy": True,
+                "any_healthy": True,
+                "rtdetr": True,
+                "nemotron": True,
+            },
+        ),
+    ):
+        status = await broadcaster._get_system_status()
+
+    # Should still return a valid status with null GPU values
+    assert status["type"] == "system_status"
+    assert status["data"]["gpu"]["utilization"] is None
+    assert status["data"]["cameras"]["active"] == 0
+    assert status["data"]["health"] == "unhealthy"
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_check_redis_health_success():
+    """Test _check_redis_health returns True when Redis is healthy."""
+    mock_redis = AsyncMock()
+    mock_redis.health_check.return_value = True
+
+    broadcaster = SystemBroadcaster(redis_client=mock_redis)
+
+    result = await broadcaster._check_redis_health()
+
+    assert result is True
+    mock_redis.health_check.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_check_redis_health_failure():
+    """Test _check_redis_health returns False when Redis health check fails."""
+    mock_redis = AsyncMock()
+    mock_redis.health_check.side_effect = Exception("Redis not available")
+
+    broadcaster = SystemBroadcaster(redis_client=mock_redis)
+
+    result = await broadcaster._check_redis_health()
+
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_check_redis_health_no_client():
+    """Test _check_redis_health returns False when no Redis client."""
+    broadcaster = SystemBroadcaster()  # No Redis client
+
+    result = await broadcaster._check_redis_health()
+
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_get_system_status_degraded_when_redis_unhealthy():
+    """Test that health status is degraded when Redis is unhealthy."""
+    broadcaster = SystemBroadcaster()
+
+    mock_session = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = None
+    mock_result.scalar_one.return_value = 0
+    mock_session.execute.return_value = mock_result
+
+    @asynccontextmanager
+    async def mock_get_session():
+        yield mock_session
+
+    with (
+        patch("backend.services.system_broadcaster.get_session", mock_get_session),
+        patch.object(broadcaster, "_get_queue_stats", return_value={"pending": 0, "processing": 0}),
+        patch.object(broadcaster, "_check_redis_health", return_value=False),
+        patch.object(
+            broadcaster,
+            "_check_ai_health",
+            return_value={
+                "all_healthy": True,
+                "any_healthy": True,
+                "rtdetr": True,
+                "nemotron": True,
+            },
+        ),
+    ):
+        status = await broadcaster._get_system_status()
+
+    # Database is healthy, Redis is not - should be degraded
+    assert status["data"]["health"] == "degraded"
+
+
+# ============================================================================
+# Tests for AI health check (_check_ai_health method)
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_check_ai_health_both_healthy():
+    """Test _check_ai_health when both AI services respond with 200."""
+    broadcaster = SystemBroadcaster()
+
+    with patch("backend.services.system_broadcaster.httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_client.get.return_value = mock_response
+        mock_client_cls.return_value.__aenter__.return_value = mock_client
+        mock_client_cls.return_value.__aexit__.return_value = None
+
+        result = await broadcaster._check_ai_health()
+
+    assert result["rtdetr"] is True
+    assert result["nemotron"] is True
+    assert result["all_healthy"] is True
+    assert result["any_healthy"] is True
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_check_ai_health_both_unhealthy():
+    """Test _check_ai_health when both AI services fail."""
+    broadcaster = SystemBroadcaster()
+
+    with patch("backend.services.system_broadcaster.httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.get.side_effect = Exception("Connection refused")
+        mock_client_cls.return_value.__aenter__.return_value = mock_client
+        mock_client_cls.return_value.__aexit__.return_value = None
+
+        result = await broadcaster._check_ai_health()
+
+    assert result["rtdetr"] is False
+    assert result["nemotron"] is False
+    assert result["all_healthy"] is False
+    assert result["any_healthy"] is False
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_check_ai_health_non_200_status():
+    """Test _check_ai_health when services return non-200 status codes."""
+    broadcaster = SystemBroadcaster()
+
+    with patch("backend.services.system_broadcaster.httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 500  # Server error
+        mock_client.get.return_value = mock_response
+        mock_client_cls.return_value.__aenter__.return_value = mock_client
+        mock_client_cls.return_value.__aexit__.return_value = None
+
+        result = await broadcaster._check_ai_health()
+
+    # Non-200 status should be treated as unhealthy
+    assert result["rtdetr"] is False
+    assert result["nemotron"] is False
+    assert result["all_healthy"] is False
+    assert result["any_healthy"] is False
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_check_ai_health_timeout():
+    """Test _check_ai_health handles timeouts gracefully."""
+    import httpx as real_httpx
+
+    broadcaster = SystemBroadcaster()
+
+    with patch("backend.services.system_broadcaster.httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.get.side_effect = real_httpx.TimeoutException("Timeout")
+        mock_client_cls.return_value.__aenter__.return_value = mock_client
+        mock_client_cls.return_value.__aexit__.return_value = None
+
+        result = await broadcaster._check_ai_health()
+
+    # Timeout should be treated as unhealthy
+    assert result["rtdetr"] is False
+    assert result["nemotron"] is False
+    assert result["all_healthy"] is False
+    assert result["any_healthy"] is False
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_get_system_status_includes_ai_status():
+    """Test that _get_system_status includes AI health status in response."""
+    broadcaster = SystemBroadcaster()
+
+    mock_session = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = None
+    mock_result.scalar_one.return_value = 0
+    mock_session.execute.return_value = mock_result
+
+    @asynccontextmanager
+    async def mock_get_session():
+        yield mock_session
+
+    with (
+        patch("backend.services.system_broadcaster.get_session", mock_get_session),
+        patch.object(broadcaster, "_get_queue_stats", return_value={"pending": 0, "processing": 0}),
+        patch.object(broadcaster, "_check_redis_health", return_value=True),
+        patch.object(
+            broadcaster,
+            "_check_ai_health",
+            return_value={
+                "rtdetr": True,
+                "nemotron": True,
+                "all_healthy": True,
+                "any_healthy": True,
+            },
+        ),
+    ):
+        status = await broadcaster._get_system_status()
+
+    # Verify AI status is included in the response
+    assert "ai" in status["data"]
+    assert status["data"]["ai"]["status"] == "healthy"
+    assert status["data"]["ai"]["rtdetr"] == "healthy"
+    assert status["data"]["ai"]["nemotron"] == "healthy"
+    # Overall health should be healthy when all services are healthy
+    assert status["data"]["health"] == "healthy"
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_get_system_status_ai_degraded():
+    """Test that health is degraded when only one AI service is healthy."""
+    broadcaster = SystemBroadcaster()
+
+    mock_session = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = None
+    mock_result.scalar_one.return_value = 0
+    mock_session.execute.return_value = mock_result
+
+    @asynccontextmanager
+    async def mock_get_session():
+        yield mock_session
+
+    with (
+        patch("backend.services.system_broadcaster.get_session", mock_get_session),
+        patch.object(broadcaster, "_get_queue_stats", return_value={"pending": 0, "processing": 0}),
+        patch.object(broadcaster, "_check_redis_health", return_value=True),
+        patch.object(
+            broadcaster,
+            "_check_ai_health",
+            return_value={
+                "rtdetr": True,
+                "nemotron": False,  # Nemotron unhealthy - LLM service error scenario
+                "all_healthy": False,
+                "any_healthy": True,
+            },
+        ),
+    ):
+        status = await broadcaster._get_system_status()
+
+    # AI status should show degraded when one service is unhealthy
+    assert status["data"]["ai"]["status"] == "degraded"
+    assert status["data"]["ai"]["rtdetr"] == "healthy"
+    assert status["data"]["ai"]["nemotron"] == "unhealthy"
+    # Overall health should be degraded when AI is not all healthy
+    assert status["data"]["health"] == "degraded"
+
+
+@pytest.mark.asyncio
+async def test_system_broadcaster_get_system_status_ai_unhealthy():
+    """Test that AI status is unhealthy when all AI services are down."""
+    broadcaster = SystemBroadcaster()
+
+    mock_session = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = None
+    mock_result.scalar_one.return_value = 0
+    mock_session.execute.return_value = mock_result
+
+    @asynccontextmanager
+    async def mock_get_session():
+        yield mock_session
+
+    with (
+        patch("backend.services.system_broadcaster.get_session", mock_get_session),
+        patch.object(broadcaster, "_get_queue_stats", return_value={"pending": 0, "processing": 0}),
+        patch.object(broadcaster, "_check_redis_health", return_value=True),
+        patch.object(
+            broadcaster,
+            "_check_ai_health",
+            return_value={
+                "rtdetr": False,
+                "nemotron": False,
+                "all_healthy": False,
+                "any_healthy": False,
+            },
+        ),
+    ):
+        status = await broadcaster._get_system_status()
+
+    # AI status should show unhealthy when all services are down
+    assert status["data"]["ai"]["status"] == "unhealthy"
+    assert status["data"]["ai"]["rtdetr"] == "unhealthy"
+    assert status["data"]["ai"]["nemotron"] == "unhealthy"
+    # Overall health should be degraded (DB/Redis healthy, but AI is down)
+    assert status["data"]["health"] == "degraded"

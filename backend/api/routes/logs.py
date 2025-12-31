@@ -13,7 +13,7 @@ from backend.api.schemas.logs import (
     LogsResponse,
     LogStats,
 )
-from backend.core.database import get_db
+from backend.core.database import escape_ilike_pattern, get_db
 from backend.models.log import Log
 
 router = APIRouter(prefix="/api/logs", tags=["logs"])
@@ -45,7 +45,8 @@ async def list_logs(
     if source:
         query = query.where(Log.source == source)
     if search:
-        query = query.where(Log.message.ilike(f"%{search}%"))
+        # Escape ILIKE special characters to prevent pattern injection
+        query = query.where(Log.message.ilike(f"%{escape_ilike_pattern(search)}%"))
     if start_date:
         query = query.where(Log.timestamp >= start_date)
     if end_date:
