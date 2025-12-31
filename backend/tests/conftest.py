@@ -94,16 +94,11 @@ def pytest_configure(config: pytest.Config) -> None:
     """
     global _postgres_container, _redis_container  # noqa: PLW0603
 
-    # Configure xdist to use loadgroup scheduling if xdist is active
-    # This ensures tests with xdist_group markers run on the same worker
-    # Must be done after command line parsing but before test collection
-    if hasattr(config, "workerinput"):
-        # We're a worker, don't reconfigure
-        pass
-    elif hasattr(config.option, "dist"):
-        # Override to loadgroup to respect xdist_group markers
-        # This is necessary because -n X implicitly sets --dist=load
-        config.option.dist = "loadgroup"
+    # NOTE: loadgroup scheduling disabled due to xdist worker crash bug
+    # The loadscope scheduler crashes with KeyError when workers fail.
+    # Using default "load" distribution instead for stability.
+    # If xdist_group markers are needed, explicitly use --dist=loadgroup
+    pass
 
     # Start PostgreSQL container if needed
     if not os.environ.get("TEST_DATABASE_URL") and not _check_postgres_connection():

@@ -37,9 +37,35 @@ def mock_redis_client():
 
 
 @pytest.fixture
-def analyzer(mock_redis_client):
-    """Create NemotronAnalyzer instance with mocked Redis."""
-    return NemotronAnalyzer(redis_client=mock_redis_client)
+def mock_settings():
+    """Create mock settings for NemotronAnalyzer."""
+    mock = MagicMock()
+    mock.nemotron_url = "http://localhost:8091"
+    mock.ai_connect_timeout = 10.0
+    mock.nemotron_read_timeout = 120.0
+    mock.ai_health_timeout = 5.0
+    # Severity settings for tests that use _validate_risk_data
+    mock.severity_low_max = 29
+    mock.severity_medium_max = 59
+    mock.severity_high_max = 84
+    return mock
+
+
+@pytest.fixture
+def analyzer(mock_redis_client, mock_settings):
+    """Create NemotronAnalyzer instance with mocked Redis and settings."""
+    # Patch both get_settings locations: nemotron_analyzer and severity service
+    with (
+        patch("backend.services.nemotron_analyzer.get_settings", return_value=mock_settings),
+        patch("backend.services.severity.get_settings", return_value=mock_settings),
+    ):
+        # Also clear the severity service cache to ensure fresh service with mocked settings
+        from backend.services.severity import reset_severity_service
+
+        reset_severity_service()
+        yield NemotronAnalyzer(redis_client=mock_redis_client)
+        # Reset again after test to not affect other tests
+        reset_severity_service()
 
 
 @pytest.fixture

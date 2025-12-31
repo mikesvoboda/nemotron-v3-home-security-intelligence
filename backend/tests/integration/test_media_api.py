@@ -13,8 +13,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from backend.main import app
-
 
 @pytest.fixture(scope="module")
 def module_temp_foscam_dir():
@@ -114,6 +112,18 @@ def client(module_temp_foscam_dir, module_thumbnail_dir):
             media_type=content_type,
             filename=full_path.name,
         )
+
+    # Set DATABASE_URL before importing app to satisfy Settings validation
+    import os
+
+    original_db_url = os.environ.get("DATABASE_URL")
+    if not original_db_url:
+        os.environ["DATABASE_URL"] = (
+            "postgresql+asyncpg://security:security_dev_password@localhost:5432/security"
+        )
+
+    # Import app lazily to avoid settings validation during test collection
+    from backend.main import app
 
     # Patch background services, settings, and thumbnail endpoint to avoid slow teardown
     with (
