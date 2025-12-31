@@ -140,14 +140,22 @@ cd "$PROJECT_ROOT"
 print_step "Checking for Python environment..."
 VENV_DIR="$PROJECT_ROOT/.venv"
 
-# In CI, dependencies are installed system-wide, no venv needed
+# Determine the Python command to use
+# In CI with uv, we need to use "uv run python" to access dependencies
 if [ -n "$GITHUB_ACTIONS" ] || [ -n "$CI" ]; then
-    print_success "Running in CI environment - using system Python"
+    if check_command uv; then
+        PYTHON_CMD="uv run python"
+        print_success "Running in CI environment - using uv run python"
+    else
+        PYTHON_CMD="python"
+        print_success "Running in CI environment - using system Python"
+    fi
 elif [ -d "$VENV_DIR" ]; then
     # Local development - activate virtual environment
     if [ -f "$VENV_DIR/bin/activate" ]; then
         # shellcheck disable=SC1091
         . "$VENV_DIR/bin/activate"
+        PYTHON_CMD="python"
         print_success "Virtual environment activated"
     else
         print_error "Could not find $VENV_DIR/bin/activate"
@@ -179,7 +187,7 @@ print_success "Node.js and dependencies available"
 
 # Step 3: Generate OpenAPI spec from backend
 print_step "Generating OpenAPI specification from backend..."
-python -c "
+$PYTHON_CMD -c "
 from backend.main import app
 import json
 import sys
