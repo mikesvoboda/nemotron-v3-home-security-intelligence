@@ -20,6 +20,7 @@ backend/data/
 │   ├── backyard/         # Backyard camera sample images
 │   ├── driveway/         # Driveway camera sample images
 │   └── front_door/       # Front door camera sample images
+├── security.db           # SQLite database (legacy/development only)
 ├── thumbnails/           # Generated detection thumbnails (runtime)
 └── logs/                 # Log files (runtime, not in git)
     └── security.log      # Rotating application log

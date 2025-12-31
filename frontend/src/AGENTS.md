@@ -45,6 +45,7 @@ Components are organized by feature area. Each component directory contains:
 | Directory    | Description                      |
 | ------------ | -------------------------------- |
 | `alerts/`    | Alert management page            |
+| `audit/`     | Audit log viewer                 |
 | `common/`    | Reusable UI components           |
 | `dashboard/` | Main dashboard components        |
 | `detection/` | Object detection visualization   |
@@ -52,6 +53,7 @@ Components are organized by feature area. Each component directory contains:
 | `events/`    | Event list and detail components |
 | `layout/`    | Layout, header, and sidebar      |
 | `logs/`      | Application logs viewer          |
+| `search/`    | Global search components         |
 | `settings/`  | Settings pages and forms         |
 | `system/`    | System monitoring components     |
 | `video/`     | Video player component           |
@@ -61,7 +63,10 @@ Components are organized by feature area. Each component directory contains:
 Reusable UI components:
 
 - `RiskBadge.tsx` - Displays risk level badges (low/medium/high/critical)
+- `ConfidenceBadge.tsx` - Detection confidence score badge with color coding
 - `ObjectTypeBadge.tsx` - Displays object type badges (person/vehicle/animal/package)
+- `WebSocketStatus.tsx` - WebSocket connection status indicator with tooltip
+- `Lightbox.tsx` - Full-size image viewer with navigation
 - `ServiceStatusAlert.tsx` - Service status alert banner
 - `index.ts` - Barrel export
 
@@ -84,6 +89,7 @@ Main dashboard components:
 - `GpuStats.tsx` - GPU utilization and metrics display
 - `StatsRow.tsx` - Dashboard statistics row
 - `PipelineQueues.tsx` - Pipeline queue depths visualization
+- `PipelineTelemetry.tsx` - Pipeline performance telemetry display
 - `RiskGauge.example.tsx` - Interactive example for development
 
 #### `/components/detection/`
@@ -104,6 +110,7 @@ Event-related components:
 - `EventCard.tsx` - Individual event card with thumbnail and risk badge
 - `EventTimeline.tsx` - Chronological event list with filtering
 - `EventDetailModal.tsx` - Full event details modal
+- `ExportPanel.tsx` - Event data export functionality
 - `ThumbnailStrip.tsx` - Horizontal strip of event thumbnails
 - `index.ts` - Barrel export
 
@@ -125,9 +132,13 @@ Settings page components:
 - `CamerasSettings.tsx` - Camera management (add, edit, delete)
 - `AIModelsSettings.tsx` - AI model status and GPU memory
 - `ProcessingSettings.tsx` - Batch processing and retention config
+- `NotificationSettings.tsx` - Notification preferences
+- `StorageDashboard.tsx` - Storage management and cleanup
 - `DlqMonitor.tsx` - Dead letter queue monitoring
 - `index.ts` - Barrel export
 - `README.md` - Documentation
+- `AIModelsSettings.example.tsx` - Example usage
+- `ProcessingSettings.example.tsx` - Example usage
 
 #### `/components/system/`
 
@@ -135,6 +146,12 @@ System monitoring:
 
 - `SystemMonitoringPage.tsx` - System health and metrics page
 - `WorkerStatusPanel.tsx` - Background workers status display
+- `AiModelsPanel.tsx` - AI model status panel
+- `ContainersPanel.tsx` - Container status panel
+- `DatabasesPanel.tsx` - Database status panel
+- `HostSystemPanel.tsx` - Host system metrics panel
+- `PerformanceAlerts.tsx` - Performance alerts display
+- `TimeRangeSelector.tsx` - Time range selection component
 - `index.ts` - Barrel export
 
 #### `/components/alerts/`
@@ -156,19 +173,41 @@ Video playback:
 - `VideoPlayer.tsx` - Video player component with controls
 - `index.ts` - Barrel export
 
+#### `/components/audit/`
+
+Audit log components:
+
+- `AuditLogPage.tsx` - Main audit log page
+- `AuditTable.tsx` - Audit log entries table
+- `AuditFilters.tsx` - Audit log filtering controls
+- `AuditDetailModal.tsx` - Audit entry detail modal
+- `AuditStatsCards.tsx` - Audit statistics cards
+- `index.ts` - Barrel export
+
+#### `/components/search/`
+
+Global search components:
+
+- `SearchBar.tsx` - Main search bar with autocomplete
+- `SearchResultCard.tsx` - Individual search result card
+- `SearchResultsPanel.tsx` - Search results panel
+- `index.ts` - Barrel export
+
 ### `/hooks/` - Custom React Hooks
 
-| Hook                     | Purpose                                             |
-| ------------------------ | --------------------------------------------------- |
-| `useWebSocket.ts`        | WebSocket connection management with auto-reconnect |
-| `useWebSocketStatus.ts`  | Enhanced WebSocket with channel status tracking     |
-| `useConnectionStatus.ts` | Unified status for all WS channels (events/system)  |
-| `useEventStream.ts`      | Event stream subscription for `/ws/events`          |
-| `useSystemStatus.ts`     | System status monitoring via `/ws/system`           |
-| `useGpuHistory.ts`       | GPU metrics history with polling                    |
-| `useHealthStatus.ts`     | Health status polling                               |
-| `useStorageStats.ts`     | Storage/disk usage polling with cleanup preview     |
-| `index.ts`               | Barrel export for all hooks                         |
+| Hook                       | Purpose                                             |
+| -------------------------- | --------------------------------------------------- |
+| `useWebSocket.ts`          | WebSocket connection management with auto-reconnect |
+| `useWebSocketStatus.ts`    | Enhanced WebSocket with channel status tracking     |
+| `useConnectionStatus.ts`   | Unified status for all WS channels (events/system)  |
+| `useEventStream.ts`        | Event stream subscription for `/ws/events`          |
+| `useSystemStatus.ts`       | System status monitoring via `/ws/system`           |
+| `useServiceStatus.ts`      | Service health status tracking                      |
+| `useGpuHistory.ts`         | GPU metrics history with polling                    |
+| `useHealthStatus.ts`       | Health status polling                               |
+| `useStorageStats.ts`       | Storage/disk usage polling with cleanup preview     |
+| `usePerformanceMetrics.ts` | Performance metrics collection and tracking         |
+| `index.ts`                 | Barrel export for all hooks                         |
 
 Each hook has a co-located `.test.ts` file.
 
@@ -207,6 +246,7 @@ The `api.ts` file re-exports all types from `types/generated/` for convenience.
 - **`generated/`** - Auto-generated from backend OpenAPI
   - `api.ts` - Full OpenAPI types (DO NOT EDIT)
   - `index.ts` - Re-exports with convenient aliases
+- **`performance.ts`** - Performance metrics type definitions
 
 ### `/utils/` - Utility Functions
 
@@ -233,6 +273,7 @@ Defined in `App.tsx`:
   <Route path="/alerts" element={<AlertsPage />} />
   <Route path="/entities" element={<EntitiesPage />} />
   <Route path="/logs" element={<LogsDashboard />} />
+  <Route path="/audit" element={<AuditLogPage />} />
   <Route path="/system" element={<SystemMonitoringPage />} />
   <Route path="/settings" element={<SettingsPage />} />
 </Routes>
@@ -244,10 +285,10 @@ All test files use naming convention: `*.test.ts` or `*.test.tsx`
 
 ### Test Coverage Thresholds
 
-- Statements: 92%
-- Branches: 88%
-- Functions: 90%
-- Lines: 93%
+- Statements: 89%
+- Branches: 84%
+- Functions: 86%
+- Lines: 90%
 
 ### Test Setup
 

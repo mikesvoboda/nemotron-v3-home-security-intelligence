@@ -21,11 +21,27 @@ llama-server --model /models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf \
 
 ```
 ai/nemotron/
-├── AGENTS.md                                  # This file
-├── config.json                                # llama.cpp server config reference (informational)
-├── .gitkeep                                   # Placeholder for git
-└── nemotron-mini-4b-instruct-q4_k_m.gguf     # Downloaded model file (not in git)
+├── AGENTS.md       # This file
+├── Dockerfile      # Container build configuration for llama.cpp server
+├── config.json     # llama.cpp server config reference (informational)
+└── .gitkeep        # Placeholder (GGUF model files are downloaded, not in git)
 ```
+
+**Note**: GGUF model files (e.g., `nemotron-mini-4b-instruct-q4_k_m.gguf`) are downloaded at runtime via `../download_models.sh` and are not committed to the repository.
+
+## Dockerfile
+
+Multi-stage build for llama.cpp with CUDA support:
+
+- **Stage 1 (Builder)**: Compiles llama.cpp from source with CUDA support using NVIDIA CUDA 12.4 devel image
+- **Stage 2 (Runtime)**: Minimal CUDA runtime image with compiled llama-server binary
+
+**Key features:**
+
+- Non-root user (`llama`) for security
+- Health check with 120s start period for large model loading
+- Configurable via environment variables: `MODEL_PATH`, `PORT`, `GPU_LAYERS`, `CTX_SIZE`, `PARALLEL`
+- Model expected to be mounted at `/models/`
 
 ## config.json
 

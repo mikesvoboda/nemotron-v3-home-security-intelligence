@@ -9,11 +9,55 @@ TypeScript type definitions for the frontend application. Contains auto-generate
 ```
 frontend/src/types/
 ├── AGENTS.md           # This documentation file
+├── performance.ts      # Performance metrics type definitions
 └── generated/          # Auto-generated types from backend OpenAPI
     ├── AGENTS.md       # Generated types documentation
     ├── api.ts          # Full OpenAPI-generated types
     └── index.ts        # Re-exports with convenient type aliases
 ```
+
+## Key Files
+
+| File             | Purpose                                        |
+| ---------------- | ---------------------------------------------- |
+| `performance.ts` | Performance alert and AI model metrics types   |
+| `generated/`     | Auto-generated types from backend OpenAPI spec |
+
+## Performance Types (`performance.ts`)
+
+Manual type definitions for the System Performance Dashboard. These types correspond to backend schemas in `backend/api/schemas/performance.py`.
+
+```typescript
+// Performance alert for threshold breaches
+interface PerformanceAlert {
+  severity: 'warning' | 'critical';
+  metric: string;
+  value: number;
+  threshold: number;
+  message: string;
+}
+
+// RT-DETRv2 object detection model metrics
+interface AiModelMetrics {
+  status: string;
+  vram_gb: number;
+  model: string;
+  device: string;
+}
+
+// Nemotron LLM model metrics
+interface NemotronMetrics {
+  status: string;
+  slots_active: number;
+  slots_total: number;
+  context_size: number;
+}
+
+// Time range options for historical metrics
+type TimeRange = '5m' | '15m' | '60m';
+```
+
+**Note:** These types are manually maintained (not auto-generated) because they support the real-time WebSocket performance monitoring feature.
 
 ## Generated Types
 

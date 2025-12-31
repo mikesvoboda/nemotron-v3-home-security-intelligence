@@ -14,11 +14,15 @@ scripts/
   setup.sh                     # Main setup script (Linux/macOS)
   setup.ps1                    # Main setup script (Windows)
   setup-hooks.sh               # Legacy setup script
+  setup-systemd.sh             # Systemd service setup (Linux)
+  setup-launchd.sh             # launchd service setup (macOS)
+  setup-windows.ps1            # Windows Task Scheduler setup
   dev.sh                       # Development server management
   start-ai.sh                  # AI services management
   start_redis.sh               # Redis startup script
   validate.sh                  # Full validation (lint, type, test)
   test-runner.sh               # Test suite runner with coverage
+  test-fast.sh                 # Fast parallel test runner
   test-docker.sh               # Docker Compose deployment testing
   test-prod-connectivity.sh    # Production connectivity tests
   smoke-test.sh                # End-to-end pipeline smoke test
@@ -31,6 +35,7 @@ scripts/
   generate_certs.py            # SSL certificate generation
   setup-gpu-runner.sh          # GitHub Actions GPU runner setup
   find-slow-tests.sh           # Test performance debugging
+  audit-test-durations.py      # CI test duration auditing
   check-test-mocks.py          # Pre-commit: mock validation
   check-test-timeouts.py       # Pre-commit: timeout validation
   github-models-examples.py    # GitHub Models API examples
@@ -78,6 +83,78 @@ scripts/
 .\scripts\setup.ps1 -SkipGpu    # Skip NVIDIA GPU checks
 .\scripts\setup.ps1 -Clean      # Clean and reinstall
 ```
+
+### Service Auto-Start Setup
+
+#### setup-systemd.sh
+
+**Purpose:** Configure systemd user services for container auto-start on Linux boot.
+
+**What it does:**
+
+1. Generates systemd unit files for Podman containers
+2. Enables user-level lingering (allows services without login)
+3. Configures auto-restart policies
+
+**Usage:**
+
+```bash
+./scripts/setup-systemd.sh              # Setup auto-start
+./scripts/setup-systemd.sh --uninstall  # Remove services
+```
+
+**Requirements:**
+
+- Linux with systemd
+- Podman containers already running
+- User session (not root)
+
+#### setup-launchd.sh
+
+**Purpose:** Configure launchd user agents for container auto-start on macOS boot.
+
+**What it does:**
+
+1. Creates plist files for Podman containers
+2. Loads agents into launchd
+3. Enables auto-start on user login
+
+**Usage:**
+
+```bash
+./scripts/setup-launchd.sh              # Setup auto-start
+./scripts/setup-launchd.sh --uninstall  # Remove agents
+```
+
+**Requirements:**
+
+- macOS with launchd
+- Podman containers already running
+
+#### setup-windows.ps1
+
+**Purpose:** Configure Windows Task Scheduler for container auto-start on boot.
+
+**What it does:**
+
+1. Creates scheduled tasks for Podman containers
+2. Configures startup triggers
+3. Sets up appropriate user permissions
+
+**Usage:**
+
+```powershell
+# Run as Administrator
+powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
+.\scripts\setup-windows.ps1 -Uninstall  # Remove tasks
+.\scripts\setup-windows.ps1 -Help       # Show help
+```
+
+**Requirements:**
+
+- Windows 10/11 with Podman Desktop or WSL2 + Podman
+- Administrator privileges
+- Containers already running
 
 ### Development Services
 
@@ -176,6 +253,26 @@ scripts/
 - Backend: `coverage/backend/index.html`
 - Frontend: `frontend/coverage/index.html`
 
+#### test-fast.sh
+
+**Purpose:** Fast parallel test runner with timing report.
+
+**What it does:**
+
+1. Runs pytest with parallel workers (auto-detected or specified)
+2. Reports timing for each test
+3. Supports running unit, integration, or all tests
+
+**Usage:**
+
+```bash
+./scripts/test-fast.sh                    # Run all unit tests
+./scripts/test-fast.sh backend/tests/     # Run specific path
+./scripts/test-fast.sh unit 8             # Run unit tests with 8 workers
+./scripts/test-fast.sh integration        # Run integration tests
+./scripts/test-fast.sh all                # Run all tests
+```
+
 #### test-docker.sh
 
 **Purpose:** Test Docker Compose deployment.
@@ -234,6 +331,32 @@ scripts/
 - Unit tests: 15-second timeout
 - Integration tests: 30-second timeout
 - Reports TIMEOUT, FAILED, or OK for each file
+
+#### audit-test-durations.py
+
+**Purpose:** Analyze CI JUnit XML test results and flag slow tests.
+
+**What it does:**
+
+1. Parses JUnit XML files from CI test runs
+2. Identifies tests exceeding their category threshold
+3. Warns about tests approaching the threshold (>80%)
+4. Exits non-zero if any test exceeds its limit
+
+**Usage:**
+
+```bash
+python scripts/audit-test-durations.py <results-dir>
+```
+
+**Environment Variables:**
+
+| Variable                   | Default | Description                       |
+| -------------------------- | ------- | --------------------------------- |
+| UNIT_TEST_THRESHOLD        | 1.0     | Max seconds for unit tests        |
+| INTEGRATION_TEST_THRESHOLD | 5.0     | Max seconds for integration tests |
+| SLOW_TEST_THRESHOLD        | 60.0    | Max seconds for @pytest.mark.slow |
+| WARN_THRESHOLD_PERCENT     | 80      | Warn at this percentage of limit  |
 
 ### Database Seeding
 

@@ -63,6 +63,8 @@ Contains Pydantic models for request/response validation:
 | `websocket.py`    | WebSocket message validation schemas                     |
 | `search.py`       | Event full-text search schemas                           |
 | `notification.py` | Notification delivery and configuration schemas          |
+| `performance.py`  | System performance metrics schemas (GPU, AI, host)       |
+| `queue.py`        | Queue message payload validation (security-focused)      |
 
 ### Middleware (`middleware/`)
 
