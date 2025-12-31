@@ -877,15 +877,18 @@ class QueueMetricsWorker:
         self,
         redis_client: RedisClient,
         update_interval: float = 5.0,
+        stop_timeout: float = 5.0,
     ) -> None:
         """Initialize queue metrics worker.
 
         Args:
             redis_client: Redis client for queue length queries
             update_interval: How often to update metrics (seconds)
+            stop_timeout: How long to wait for graceful shutdown (seconds)
         """
         self._redis = redis_client
         self._update_interval = update_interval
+        self._stop_timeout = stop_timeout
         self._running = False
         self._task: asyncio.Task | None = None
 
@@ -917,7 +920,7 @@ class QueueMetricsWorker:
 
         if self._task:
             try:
-                await asyncio.wait_for(self._task, timeout=5.0)
+                await asyncio.wait_for(self._task, timeout=self._stop_timeout)
             except TimeoutError:
                 self._task.cancel()
                 try:
@@ -982,6 +985,7 @@ class PipelineWorkerManager:
         enable_analysis_worker: bool = True,
         enable_timeout_worker: bool = True,
         enable_metrics_worker: bool = True,
+        worker_stop_timeout: float | None = None,
     ) -> None:
         """Initialize pipeline worker manager.
 
@@ -993,6 +997,8 @@ class PipelineWorkerManager:
             enable_analysis_worker: Whether to start analysis queue worker
             enable_timeout_worker: Whether to start batch timeout worker
             enable_metrics_worker: Whether to start queue metrics worker
+            worker_stop_timeout: Override stop timeout for all workers (useful for tests).
+                If None, workers use their default timeouts (10-30s).
         """
         self._redis = redis_client
         settings = get_settings()
@@ -1006,33 +1012,66 @@ class PipelineWorkerManager:
         self._timeout_worker: BatchTimeoutWorker | None = None
         self._metrics_worker: QueueMetricsWorker | None = None
 
+        # Store stop timeout for workers (None means use default)
+        self._worker_stop_timeout = worker_stop_timeout
+
         if enable_detection_worker:
-            self._detection_worker = DetectionQueueWorker(
-                redis_client=redis_client,
-                detector_client=detector_client,
-                batch_aggregator=self._aggregator,
-            )
+            if worker_stop_timeout is not None:
+                self._detection_worker = DetectionQueueWorker(
+                    redis_client=redis_client,
+                    detector_client=detector_client,
+                    batch_aggregator=self._aggregator,
+                    stop_timeout=worker_stop_timeout,
+                )
+            else:
+                self._detection_worker = DetectionQueueWorker(
+                    redis_client=redis_client,
+                    detector_client=detector_client,
+                    batch_aggregator=self._aggregator,
+                )
 
         if enable_analysis_worker:
-            self._analysis_worker = AnalysisQueueWorker(
-                redis_client=redis_client,
-                analyzer=analyzer,
-            )
+            if worker_stop_timeout is not None:
+                self._analysis_worker = AnalysisQueueWorker(
+                    redis_client=redis_client,
+                    analyzer=analyzer,
+                    stop_timeout=worker_stop_timeout,
+                )
+            else:
+                self._analysis_worker = AnalysisQueueWorker(
+                    redis_client=redis_client,
+                    analyzer=analyzer,
+                )
 
         if enable_timeout_worker:
             # Use settings for batch check interval (default 10s)
             check_interval = getattr(settings, "batch_check_interval_seconds", 10.0)
-            self._timeout_worker = BatchTimeoutWorker(
-                redis_client=redis_client,
-                batch_aggregator=self._aggregator,
-                check_interval=check_interval,
-            )
+            if worker_stop_timeout is not None:
+                self._timeout_worker = BatchTimeoutWorker(
+                    redis_client=redis_client,
+                    batch_aggregator=self._aggregator,
+                    check_interval=check_interval,
+                    stop_timeout=worker_stop_timeout,
+                )
+            else:
+                self._timeout_worker = BatchTimeoutWorker(
+                    redis_client=redis_client,
+                    batch_aggregator=self._aggregator,
+                    check_interval=check_interval,
+                )
 
         if enable_metrics_worker:
-            self._metrics_worker = QueueMetricsWorker(
-                redis_client=redis_client,
-                update_interval=5.0,  # Update metrics every 5 seconds
-            )
+            if worker_stop_timeout is not None:
+                self._metrics_worker = QueueMetricsWorker(
+                    redis_client=redis_client,
+                    update_interval=5.0,  # Update metrics every 5 seconds
+                    stop_timeout=worker_stop_timeout,
+                )
+            else:
+                self._metrics_worker = QueueMetricsWorker(
+                    redis_client=redis_client,
+                    update_interval=5.0,  # Update metrics every 5 seconds
+                )
 
         self._running = False
         self._signal_handlers_installed = False
