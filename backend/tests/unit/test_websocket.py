@@ -146,11 +146,14 @@ class MockSystemBroadcaster:
     - _redis_getter: Callable | None attribute
     - _pubsub: PubSub | None attribute
     - _pubsub_listening: bool attribute
+    - _performance_collector: PerformanceCollector | None attribute
     - _get_redis() -> RedisClient | None
     - set_redis_client(redis_client) -> None
+    - set_performance_collector(collector) -> None
     - connect(websocket) -> None
     - disconnect(websocket) -> None
     - broadcast_status(status_data) -> None
+    - broadcast_performance() -> None
     - start_broadcasting(interval=5.0) -> None
     - stop_broadcasting() -> None
     """
@@ -174,6 +177,7 @@ class MockSystemBroadcaster:
         self._redis_getter = redis_getter
         self._pubsub: Any = None
         self._pubsub_listening = False
+        self._performance_collector: Any = None
         # Test-only attribute for capturing broadcast messages
         self.messages: list[dict[str, Any]] = []
 
@@ -199,6 +203,25 @@ class MockSystemBroadcaster:
             redis_client: Redis client instance or None
         """
         self._redis_client = redis_client
+
+    def set_performance_collector(self, collector: Any) -> None:
+        """Set the performance collector for metrics broadcasting.
+
+        Args:
+            collector: PerformanceCollector instance or None
+        """
+        self._performance_collector = collector
+
+    async def broadcast_performance(self) -> None:
+        """Broadcast performance metrics to all connected clients.
+
+        Collects metrics from PerformanceCollector and broadcasts them.
+        No-op if no collector is configured.
+        """
+        if self._performance_collector is None:
+            return
+        # In real impl, would collect and broadcast performance metrics
+        pass
 
     async def connect(self, websocket: Any) -> None:
         """Add a WebSocket connection."""

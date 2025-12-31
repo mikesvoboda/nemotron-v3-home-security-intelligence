@@ -18,7 +18,7 @@ from typing import Any
 import httpx
 import psutil
 
-from api.schemas.performance import (
+from backend.api.schemas.performance import (
     AiModelMetrics,
     ContainerMetrics,
     DatabaseMetrics,
