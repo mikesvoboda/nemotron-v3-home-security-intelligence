@@ -60,11 +60,16 @@ pytest backend/tests/benchmarks/ -v --benchmark-only
 ### Parallel execution
 
 ```bash
-# Run tests in parallel (4 workers)
-pytest backend/tests/ -v -n 4
+# Unit tests: parallel with worksteal scheduler (~10s for 2957 tests)
+uv run pytest backend/tests/unit/ -n auto --dist=worksteal
 
-# loadgroup scheduling is auto-enabled for xdist_group markers
+# Integration tests: serial due to shared database state (~70s for 626 tests)
+uv run pytest backend/tests/integration/ -n0
 ```
+
+**Note:** Integration tests must run serially (`-n0`) because they share database state
+through fixtures that clean tables. Use DELETE instead of TRUNCATE in test fixtures
+to avoid AccessExclusiveLock deadlocks.
 
 ## Shared Fixtures (conftest.py)
 
@@ -135,8 +140,11 @@ Tests use these strategies for parallel isolation:
 
 1. **Savepoint rollback**: Each test uses SAVEPOINT/ROLLBACK for transaction isolation
 2. **unique_id()**: Generate unique IDs to prevent primary key conflicts
-3. **Advisory locks**: Schema creation coordinated via `pg_advisory_lock(12345)`
-4. **xdist_group markers**: Tests requiring sequential execution grouped on same worker
+3. **DELETE over TRUNCATE**: Use `DELETE FROM` instead of `TRUNCATE TABLE` to avoid AccessExclusiveLock
+4. **Unit/Integration separation**: Unit tests run parallel, integration tests run serial
+
+**Important:** Integration tests share database state and cannot run in parallel. Full parallel
+execution would require module-scoped testcontainers (one container per test module).
 
 ## Test Timeout Configuration
 
@@ -157,22 +165,24 @@ Timeouts are applied automatically based on test location:
 
 ## Test Categories
 
-### Unit Tests (`unit/`) - 59 files
+### Unit Tests (`unit/`) - 2957 tests
 
 Tests for individual components in isolation with all external dependencies mocked.
+Includes property-based tests using **Hypothesis** for model invariants.
 
 Categories:
 
 - **Core**: config, database, redis, logging, metrics
-- **Models**: Camera, Detection, Event, GPUStats, Log
+- **Models**: Camera, Detection, Event, GPUStats, Log (with Hypothesis property tests)
 - **Services**: file_watcher, detector_client, batch_aggregator, nemotron_analyzer, broadcasters
 - **API Routes**: cameras, events, detections, system, logs, media, websocket, admin, zones
 - **Middleware**: auth, rate limiting, TLS
 - **Alert System**: engine, dedup, models, notification
 
-### Integration Tests (`integration/`) - 19 files
+### Integration Tests (`integration/`) - 626 tests
 
 Tests for multi-component workflows with real database and mocked Redis.
+**Must run serially** (`-n0`) due to shared database state.
 
 Categories:
 

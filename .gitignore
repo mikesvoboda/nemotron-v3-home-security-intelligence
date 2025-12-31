@@ -58,3 +58,4 @@ coverage.json
 
 # Worktrees
 .worktrees/
+.hypothesis/

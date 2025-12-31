@@ -26,21 +26,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: "pip"
-          cache-dependency-path: backend/requirements*.txt
+          version: "latest"
 
-      - name: Install Ruff
-        run: pip install ruff
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
 
       - name: Ruff check
-        run: ruff check backend/
+        run: uv run ruff check backend/
 
       - name: Ruff format check
-        run: ruff format --check backend/
+        run: uv run ruff format --check backend/
 
   typecheck:
     name: Backend Type Check (Mypy)
@@ -49,20 +50,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: "pip"
-          cache-dependency-path: backend/requirements*.txt
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
-        run: |
-          pip install -r backend/requirements.txt
-          pip install mypy pydantic sqlalchemy fastapi redis
+        run: uv sync --extra dev --frozen
 
       - name: Mypy
-        run: mypy backend/ --ignore-missing-imports
+        run: uv run mypy backend/ --ignore-missing-imports
 
   unit-tests:
     name: Backend Unit Tests
@@ -88,15 +88,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: "pip"
-          cache-dependency-path: backend/requirements*.txt
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
-        run: pip install -r backend/requirements.txt
+        run: uv sync --extra dev --frozen
 
       - name: Wait for PostgreSQL
         run: |
@@ -115,11 +116,11 @@ jobs:
       - name: Run unit tests with coverage
         # Unit tests coverage threshold - 85% for unit tests alone
         # Combined coverage (unit + integration) should reach 95%
-        # -n0 disables xdist parallelization (CI already parallelizes via separate jobs)
+        # -n auto enables xdist parallelization with worksteal scheduler
         # --timeout=0 disables timeout (fixture import takes >1s in CI)
         run: |
-          pytest backend/tests/unit/ \
-            -n0 \
+          uv run pytest backend/tests/unit/ \
+            -n auto --dist=worksteal \
             --timeout=0 \
             --cov=backend \
             --cov-config=pyproject.toml \
@@ -149,9 +150,6 @@ jobs:
     name: Backend Integration Tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # Non-blocking: Integration tests can be flaky due to async timing issues
-    # They should not block PR merges when other critical tests pass
-    continue-on-error: true
     services:
       postgres:
         image: postgres:16-alpine
@@ -185,15 +183,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: "pip"
-          cache-dependency-path: backend/requirements*.txt
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
-        run: pip install -r backend/requirements.txt
+        run: uv sync --extra dev --frozen
 
       - name: Install Redis CLI
         run: sudo apt-get update && sudo apt-get install -y redis-tools
@@ -230,10 +229,11 @@ jobs:
       - name: Run integration tests with coverage
         # Integration tests coverage threshold - 50% for integration tests alone
         # Integration tests focus on API/service integration, not full code coverage
-        # -n0 disables xdist parallelization (CI already parallelizes via separate jobs)
+        # -n0 disables xdist (integration tests share database state and cannot run in parallel)
+        # Future: Enable parallelization after refactoring tests to avoid shared state cleanup
         # --timeout=30 gives tests 30s each (prevents hangs while allowing slow DB ops)
         run: |
-          pytest backend/tests/integration/ \
+          uv run pytest backend/tests/integration/ \
             -n0 \
             --timeout=30 \
             --cov=backend \
@@ -272,15 +272,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: "pip"
-          cache-dependency-path: backend/requirements*.txt
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
 
       - name: Install backend dependencies
-        run: pip install -r backend/requirements.txt
+        run: uv sync --extra dev --frozen
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -525,15 +526,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: "pip"
-          cache-dependency-path: backend/requirements*.txt
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
-        run: pip install -r backend/requirements.txt
+        run: uv sync --extra dev --frozen
 
       - name: Wait for PostgreSQL
         run: |
@@ -571,9 +573,9 @@ jobs:
         run: |
           # Run specific tests that verify admin endpoints return 403 when DEBUG=false
           # These tests are critical security validation
-          # -n0 disables xdist parallelization
+          # -n0 disables xdist (security tests modify global settings)
           # --timeout=0 disables timeout (fixture import takes >1s in CI)
-          pytest backend/tests/integration/test_admin_api.py \
+          uv run pytest backend/tests/integration/test_admin_api.py \
             -n0 \
             --timeout=0 \
             -k "requires_debug_mode" \
@@ -583,7 +585,7 @@ jobs:
       - name: Verify DEBUG=false is enforced
         run: |
           # Double-check that DEBUG is actually false in this environment
-          python -c "
+          uv run python -c "
           import os
           from backend.core.config import get_settings
           settings = get_settings()
@@ -604,13 +606,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
-        run: pip install defusedxml
+        run: uv sync --extra dev --frozen
 
       - name: Download all test results
         uses: actions/download-artifact@v4
@@ -623,7 +628,7 @@ jobs:
         run: find test-results/ -type f -name "*.xml" | head -20
 
       - name: Analyze test durations
-        run: python scripts/audit-test-durations.py test-results/
+        run: uv run python scripts/audit-test-durations.py test-results/
         env:
           UNIT_TEST_THRESHOLD: "1.0"
           INTEGRATION_TEST_THRESHOLD: "5.0"
