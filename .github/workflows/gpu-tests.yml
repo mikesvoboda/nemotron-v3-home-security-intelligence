@@ -34,10 +34,12 @@ jobs:
         run: |
           source .venv/bin/activate
           # Exit code 5 means no tests collected - treat as success
-          # Ignore integration tests to avoid DATABASE_URL requirement during collection
+          # Ignore integration and e2e tests - they require DATABASE_URL and would
+          # conflict with production database on same host (causes TRUNCATE lock contention)
           pytest backend/tests/ \
             -m "gpu" \
             --ignore=backend/tests/integration/ \
+            --ignore=backend/tests/e2e/ \
             -v \
             --tb=short || [ $? -eq 5 ]
         env:
