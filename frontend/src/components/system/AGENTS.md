@@ -10,8 +10,6 @@ Contains React components for system observability and monitoring features. Thes
 | ------------------------------- | ----------------------------------- |
 | `SystemMonitoringPage.tsx`      | Main system monitoring page         |
 | `SystemMonitoringPage.test.tsx` | Test suite for SystemMonitoringPage |
-| `ObservabilityPanel.tsx`        | Observability dashboard section     |
-| `ObservabilityPanel.test.tsx`   | Test suite for ObservabilityPanel   |
 | `WorkerStatusPanel.tsx`         | Background workers status display   |
 | `WorkerStatusPanel.test.tsx`    | Test suite for WorkerStatusPanel    |
 | `index.ts`                      | Barrel exports                      |
@@ -60,57 +58,6 @@ Contains React components for system observability and monitoring features. Thes
 ```
 
 **No props** - Top-level page component
-
----
-
-### ObservabilityPanel.tsx
-
-Main component for the system observability dashboard section.
-
-**Features:**
-
-- GPU utilization over time (Tremor AreaChart)
-- GPU memory usage (Tremor DonutChart + ProgressBar)
-- GPU temperature gauge with color coding
-- Pipeline queue statistics (pending/processing)
-- System health status indicator
-- Grafana link for detailed metrics
-
-**Props:**
-
-- `gpuUtilization`: Current GPU utilization percentage (0-100)
-- `gpuMemoryUsed`: Current GPU memory used in MB
-- `gpuMemoryTotal`: Total GPU memory in MB
-- `gpuTemperature`: Current GPU temperature in Celsius
-- `gpuHistory`: Array of historical GPU metrics for charts
-- `queueStats`: Pipeline queue statistics (pending, processing)
-- `healthStatus`: System health status ('healthy', 'degraded', 'unhealthy', 'unknown')
-- `grafanaUrl`: URL for Grafana (default: 'http://localhost:3000')
-- `className`: Additional CSS classes
-
-**Usage:**
-
-```tsx
-import { ObservabilityPanel } from '@/components/system';
-import { useGpuHistory, useSystemStatus } from '@/hooks';
-
-function Dashboard() {
-  const { current, history } = useGpuHistory();
-  const { status } = useSystemStatus();
-
-  return (
-    <ObservabilityPanel
-      gpuUtilization={current?.utilization ?? null}
-      gpuMemoryUsed={current?.memory_used ?? null}
-      gpuMemoryTotal={current?.memory_total ?? null}
-      gpuTemperature={current?.temperature ?? null}
-      gpuHistory={history}
-      queueStats={{ pending: 0, processing: 0 }}
-      healthStatus={status?.health ?? 'unknown'}
-    />
-  );
-}
-```
 
 ## Types
 
@@ -175,20 +122,6 @@ See `/docs/decisions/grafana-integration.md` for full context. We chose native T
 
 Instead of embedding Grafana panels, we provide a simple link to standalone Grafana for users who want detailed historical analysis and custom queries.
 
-## Testing
-
-Test file: `ObservabilityPanel.test.tsx`
-
-Tests cover:
-
-- Component rendering
-- Health status display
-- GPU metrics display
-- Temperature color coding
-- Queue statistics
-- Grafana link behavior
-- Edge cases (null values, zeros)
-
 ## Styling
 
 - Dark theme with NVIDIA branding
@@ -196,10 +129,6 @@ Tests cover:
 - Primary accent: `#76B900` (NVIDIA Green)
 - Temperature colors: green (<70), yellow (70-80), red (>80)
 - Tremor chart colors: 'emerald' for positive metrics
-
-## Integration
-
-This component is designed to be added to the main dashboard page or as a dedicated observability section. It works alongside existing dashboard components like `GpuStats` and `RiskGauge`.
 
 ### WorkerStatusPanel.tsx
 
@@ -253,8 +182,7 @@ interface WorkerStatusPanelProps {
 ## Entry Points
 
 **Start here:** `SystemMonitoringPage.tsx` - Main page integrating all system monitoring features
-**Then explore:** `ObservabilityPanel.tsx` - Detailed observability metrics with charts
-**Next:** `WorkerStatusPanel.tsx` - Background worker status with critical worker highlighting
+**Then explore:** `WorkerStatusPanel.tsx` - Background worker status with critical worker highlighting
 
 ## Dependencies
 

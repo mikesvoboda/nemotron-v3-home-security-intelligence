@@ -134,7 +134,7 @@ Settings page components:
 System monitoring:
 
 - `SystemMonitoringPage.tsx` - System health and metrics page
-- `ObservabilityPanel.tsx` - Observability metrics panel
+- `WorkerStatusPanel.tsx` - Background workers status display
 - `index.ts` - Barrel export
 
 #### `/components/alerts/`

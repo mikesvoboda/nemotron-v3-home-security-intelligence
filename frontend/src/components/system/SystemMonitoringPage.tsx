@@ -12,8 +12,15 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import AiModelsPanel from './AiModelsPanel';
+import ContainersPanel from './ContainersPanel';
+import DatabasesPanel from './DatabasesPanel';
+import HostSystemPanel from './HostSystemPanel';
+import PerformanceAlerts from './PerformanceAlerts';
+import TimeRangeSelector from './TimeRangeSelector';
 import WorkerStatusPanel from './WorkerStatusPanel';
 import { useHealthStatus } from '../../hooks/useHealthStatus';
+import { usePerformanceMetrics } from '../../hooks/usePerformanceMetrics';
 import {
   fetchStats,
   fetchTelemetry,
@@ -24,6 +31,8 @@ import {
 } from '../../services/api';
 import GpuStats from '../dashboard/GpuStats';
 import PipelineQueues from '../dashboard/PipelineQueues';
+
+import type { GpuMetricDataPoint } from '../../hooks/useGpuHistory';
 
 /**
  * SystemStats from the /api/system/stats endpoint
@@ -117,6 +126,128 @@ export default function SystemMonitoringPage() {
     pollingInterval: 30000,
   });
 
+  // Use performance metrics hook for real-time dashboard data
+  const {
+    current: performanceData,
+    history: performanceHistory,
+    alerts: performanceAlerts,
+    timeRange,
+    setTimeRange,
+  } = usePerformanceMetrics();
+
+  // Transform performance history for GPU stats based on selected time range
+  const gpuHistoryData: GpuMetricDataPoint[] = (performanceHistory[timeRange] || [])
+    .filter((update) => update.gpu !== null)
+    .map((update) => ({
+      timestamp: update.timestamp,
+      utilization: update.gpu?.utilization ?? 0,
+      memory_used: (update.gpu?.vram_used_gb ?? 0) * 1024, // Convert GB to MB
+      temperature: update.gpu?.temperature ?? 0,
+    }));
+
+  // Transform alerts for PerformanceAlerts component
+  const transformedAlerts = performanceAlerts.map((alert) => ({
+    severity: alert.severity,
+    metric: alert.metric,
+    value: alert.value,
+    threshold: alert.threshold,
+    message: alert.message,
+  }));
+
+  // Extract AI model metrics
+  const rtdetrMetrics = performanceData?.ai_models?.rtdetr
+    ? {
+        status: (performanceData.ai_models.rtdetr as { status: string }).status,
+        vram_gb: (performanceData.ai_models.rtdetr as { vram_gb?: number }).vram_gb ?? 0,
+        model: (performanceData.ai_models.rtdetr as { model?: string }).model ?? 'rtdetr',
+        device: (performanceData.ai_models.rtdetr as { device?: string }).device ?? 'cuda:0',
+      }
+    : null;
+
+  const nemotronMetrics = performanceData?.nemotron ?? null;
+
+  // Extract database metrics
+  const postgresMetrics = performanceData?.databases?.postgresql
+    ? (performanceData.databases.postgresql as {
+        status: string;
+        connections_active: number;
+        connections_max: number;
+        cache_hit_ratio: number;
+        transactions_per_min: number;
+      })
+    : null;
+
+  const redisMetrics = performanceData?.databases?.redis
+    ? (performanceData.databases.redis as {
+        status: string;
+        connected_clients: number;
+        memory_mb: number;
+        hit_ratio: number;
+        blocked_clients: number;
+      })
+    : null;
+
+  // Create database history data from performance history
+  const databaseHistory = {
+    postgresql: {
+      connections: (performanceHistory[timeRange] || []).map((update) => ({
+        timestamp: update.timestamp,
+        value:
+          (update.databases?.postgresql as { connections_active?: number } | undefined)
+            ?.connections_active ?? 0,
+      })),
+      cache_hit_ratio: (performanceHistory[timeRange] || []).map((update) => ({
+        timestamp: update.timestamp,
+        value:
+          (update.databases?.postgresql as { cache_hit_ratio?: number } | undefined)
+            ?.cache_hit_ratio ?? 0,
+      })),
+    },
+    redis: {
+      memory: (performanceHistory[timeRange] || []).map((update) => ({
+        timestamp: update.timestamp,
+        value:
+          (update.databases?.redis as { memory_mb?: number } | undefined)?.memory_mb ?? 0,
+      })),
+      clients: (performanceHistory[timeRange] || []).map((update) => ({
+        timestamp: update.timestamp,
+        value:
+          (update.databases?.redis as { connected_clients?: number } | undefined)
+            ?.connected_clients ?? 0,
+      })),
+    },
+  };
+
+  // Extract host metrics
+  const hostMetrics = performanceData?.host ?? null;
+
+  // Create host history data
+  const hostHistory = {
+    cpu: (performanceHistory[timeRange] || []).map((update) => ({
+      timestamp: update.timestamp,
+      value: update.host?.cpu_percent ?? 0,
+    })),
+    ram: (performanceHistory[timeRange] || []).map((update) => ({
+      timestamp: update.timestamp,
+      value: update.host?.ram_used_gb ?? 0,
+    })),
+  };
+
+  // Extract container metrics
+  const containerMetrics = performanceData?.containers ?? [];
+
+  // Create container history data
+  const containerHistory: Record<string, { timestamp: string; health: string }[]> = {};
+  containerMetrics.forEach((container) => {
+    containerHistory[container.name] = (performanceHistory[timeRange] || []).map((update) => {
+      const containerData = update.containers?.find((c) => c.name === container.name);
+      return {
+        timestamp: update.timestamp,
+        health: containerData?.health ?? 'unknown',
+      };
+    });
+  });
+
   // Fetch initial data
   useEffect(() => {
     async function loadData() {
@@ -206,16 +337,32 @@ export default function SystemMonitoringPage() {
   return (
     <div className="min-h-screen bg-[#121212] p-8" data-testid="system-monitoring-page">
       <div className="mx-auto max-w-[1920px]">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3">
-            <Server className="h-8 w-8 text-[#76B900]" />
-            <h1 className="text-4xl font-bold text-white">System Monitoring</h1>
+        {/* Header with TimeRangeSelector */}
+        <div className="mb-8 flex items-start justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <Server className="h-8 w-8 text-[#76B900]" />
+              <h1 className="text-4xl font-bold text-white">System Monitoring</h1>
+            </div>
+            <p className="mt-2 text-sm text-gray-400">
+              Real-time system metrics, service health, and pipeline performance
+            </p>
           </div>
-          <p className="mt-2 text-sm text-gray-400">
-            Real-time system metrics, service health, and pipeline performance
-          </p>
+          <TimeRangeSelector
+            selectedRange={timeRange}
+            onRangeChange={setTimeRange}
+            data-testid="system-time-range-selector"
+          />
         </div>
+
+        {/* Performance Alerts - Only shown when there are alerts */}
+        {transformedAlerts.length > 0 && (
+          <PerformanceAlerts
+            alerts={transformedAlerts}
+            className="mb-6"
+            data-testid="system-performance-alerts"
+          />
+        )}
 
         {/* Main Grid */}
         <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
@@ -329,16 +476,27 @@ export default function SystemMonitoringPage() {
             warningThreshold={10}
           />
 
-          {/* GPU Stats Card - Reusing existing component (spans 2 columns on xl) */}
+          {/* GPU Stats Card - Enhanced with performance data (spans 2 columns on xl) */}
           <div className="xl:col-span-2">
             <GpuStats
-              gpuName={gpuStats?.gpu_name ?? null}
-              utilization={gpuStats?.utilization ?? null}
-              memoryUsed={gpuStats?.memory_used ?? null}
-              memoryTotal={gpuStats?.memory_total ?? null}
-              temperature={gpuStats?.temperature ?? null}
-              powerUsage={gpuStats?.power_usage ?? null}
+              gpuName={performanceData?.gpu?.name ?? gpuStats?.gpu_name ?? null}
+              utilization={performanceData?.gpu?.utilization ?? gpuStats?.utilization ?? null}
+              memoryUsed={
+                performanceData?.gpu?.vram_used_gb
+                  ? performanceData.gpu.vram_used_gb * 1024
+                  : gpuStats?.memory_used ?? null
+              }
+              memoryTotal={
+                performanceData?.gpu?.vram_total_gb
+                  ? performanceData.gpu.vram_total_gb * 1024
+                  : gpuStats?.memory_total ?? null
+              }
+              temperature={performanceData?.gpu?.temperature ?? gpuStats?.temperature ?? null}
+              powerUsage={performanceData?.gpu?.power_watts ?? gpuStats?.power_usage ?? null}
               inferenceFps={gpuStats?.inference_fps ?? null}
+              timeRange={timeRange}
+              historyData={gpuHistoryData.length > 0 ? gpuHistoryData : undefined}
+              showHistoryControls={gpuHistoryData.length === 0}
             />
           </div>
 
@@ -420,6 +578,45 @@ export default function SystemMonitoringPage() {
               )}
             </Card>
           )}
+        </div>
+
+        {/* AI Models Panel - RT-DETRv2 + Nemotron */}
+        <div className="mt-6">
+          <AiModelsPanel
+            rtdetr={rtdetrMetrics}
+            nemotron={nemotronMetrics}
+            data-testid="ai-models-panel-section"
+          />
+        </div>
+
+        {/* Databases Panel - PostgreSQL + Redis */}
+        <div className="mt-6">
+          <DatabasesPanel
+            postgresql={postgresMetrics}
+            redis={redisMetrics}
+            timeRange={timeRange}
+            history={databaseHistory}
+            data-testid="databases-panel-section"
+          />
+        </div>
+
+        {/* Host System Panel - CPU, RAM, Disk */}
+        <div className="mt-6">
+          <HostSystemPanel
+            host={hostMetrics}
+            timeRange={timeRange}
+            history={hostHistory}
+            data-testid="host-system-panel-section"
+          />
+        </div>
+
+        {/* Containers Panel - Health timeline */}
+        <div className="mt-6">
+          <ContainersPanel
+            containers={containerMetrics}
+            history={containerHistory}
+            data-testid="containers-panel-section"
+          />
         </div>
       </div>
     </div>

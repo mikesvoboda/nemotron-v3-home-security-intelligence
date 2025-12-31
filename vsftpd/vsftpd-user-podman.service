@@ -1,0 +1,18 @@
+[Unit]
+Description=vsftpd Container for Foscam Camera Uploads (Podman)
+After=network.target
+Documentation=https://github.com/your-repo/nemotron-v3-home-security-intelligence
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=%h/github/nemotron-v3-home-security-intelligence
+ExecStart=/usr/bin/podman-compose -f %h/github/nemotron-v3-home-security-intelligence/docker-compose.yml up -d vsftpd
+ExecStop=/usr/bin/podman-compose -f %h/github/nemotron-v3-home-security-intelligence/docker-compose.yml stop vsftpd
+ExecReload=/usr/bin/podman-compose -f %h/github/nemotron-v3-home-security-intelligence/docker-compose.yml restart vsftpd
+TimeoutStartSec=0
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target
