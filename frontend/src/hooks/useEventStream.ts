@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 
 import { useWebSocket } from './useWebSocket';
 import { buildWebSocketUrl } from '../services/api';
@@ -32,6 +32,15 @@ export interface UseEventStreamReturn {
 const MAX_EVENTS = 100;
 
 /**
+ * Get a unique identifier for an event for deduplication purposes.
+ * Uses event_id if available, falls back to id.
+ */
+function getEventKey(event: SecurityEvent): string {
+  const id = event.event_id ?? event.id;
+  return String(id);
+}
+
+/**
  * Type guard to check if data is a valid SecurityEvent
  */
 function isSecurityEvent(data: unknown): data is SecurityEvent {
@@ -62,10 +71,39 @@ function isBackendEventMessage(data: unknown): data is BackendEventMessage {
 export function useEventStream(): UseEventStreamReturn {
   const [events, setEvents] = useState<SecurityEvent[]>([]);
 
+  // Track mounted state to prevent state updates after unmount (wa0t.31)
+  const isMountedRef = useRef(true);
+
+  // Track seen event IDs to prevent duplicate events (wa0t.34)
+  const seenEventIdsRef = useRef<Set<string>>(new Set());
+
+  // Set mounted state on mount and cleanup on unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   const handleMessage = useCallback((data: unknown) => {
+    // Check if component is still mounted before updating state (wa0t.31)
+    if (!isMountedRef.current) {
+      return;
+    }
+
     // Check if message matches backend envelope structure: {type: "event", data: {...}}
     if (isBackendEventMessage(data)) {
       const event = data.data;
+      const eventKey = getEventKey(event);
+
+      // Check for duplicate events (wa0t.34)
+      if (seenEventIdsRef.current.has(eventKey)) {
+        return;
+      }
+
+      // Mark event as seen
+      seenEventIdsRef.current.add(eventKey);
 
       setEvents((prevEvents) => {
         // Add new event to the beginning of the array
@@ -87,7 +125,13 @@ export function useEventStream(): UseEventStreamReturn {
   });
 
   const clearEvents = useCallback(() => {
+    // Check if component is still mounted before updating state
+    if (!isMountedRef.current) {
+      return;
+    }
     setEvents([]);
+    // Also clear the seen event IDs set when events are cleared
+    seenEventIdsRef.current.clear();
   }, []);
 
   const latestEvent = useMemo(() => {

@@ -37,12 +37,12 @@ This is the root directory of the **Home Security Intelligence** project - an AI
 
 ### Documentation
 
-| File                   | Purpose                                 |
-| ---------------------- | --------------------------------------- |
-| `README.md`            | Project overview and quick start guide  |
-| `DOCKER_QUICKSTART.md` | Quick reference for Docker commands     |
-| `AUDIT_REPORT.md`      | Security audit findings and remediation |
-| `LICENSE`              | Mozilla Public License 2.0              |
+| File        | Purpose                                |
+| ----------- | -------------------------------------- |
+| `README.md` | Project overview and quick start guide |
+| `LICENSE`   | Mozilla Public License 2.0             |
+
+> **Note:** Detailed Docker deployment documentation is in `docs/DOCKER_DEPLOYMENT.md`.
 
 ### Build Files
 

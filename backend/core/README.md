@@ -26,6 +26,28 @@ settings = get_settings()
 print(settings.database_url)
 ```
 
+### redis.py
+
+Async Redis client for queues, pub/sub, and caching. See [README_REDIS.md](README_REDIS.md) for comprehensive documentation including:
+
+- Connection management and pooling
+- Queue operations (FIFO processing)
+- Pub/Sub for real-time events
+- Cache operations with TTL
+- FastAPI dependency injection
+- Common patterns and examples
+
+Quick usage:
+
+```python
+from backend.core.redis import RedisClient, get_redis
+
+# In FastAPI routes
+@router.post("/events")
+async def create_event(redis: RedisClient = Depends(get_redis)):
+    await redis.publish("events", {"type": "new_event"})
+```
+
 ### database.py
 
 Database connection and session management using SQLAlchemy 2.0 async patterns.

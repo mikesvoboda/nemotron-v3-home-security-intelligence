@@ -287,30 +287,33 @@ class ClipGenerator:
 
         logger.debug(f"FFmpeg command: {' '.join(cmd)}")
 
-        process = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        _stdout, stderr = await process.communicate()
-
-        # Clean up temp file
         try:
-            list_file_path.unlink()
-        except OSError:
-            logger.debug(f"Could not delete temp file: {list_file_path}")
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            _stdout, stderr = await process.communicate()
 
-        if process.returncode != 0:
-            error_msg = stderr.decode() if stderr else "Unknown error"
-            logger.error(f"FFmpeg failed for event {event_id}: {error_msg}")
-            raise ClipGenerationError(f"FFmpeg exited with code {process.returncode}: {error_msg}")
+            if process.returncode != 0:
+                error_msg = stderr.decode() if stderr else "Unknown error"
+                logger.error(f"FFmpeg failed for event {event_id}: {error_msg}")
+                raise ClipGenerationError(
+                    f"FFmpeg exited with code {process.returncode}: {error_msg}"
+                )
 
-        if output_path.exists():
-            logger.info(f"Generated clip: {output_path} ({output_path.stat().st_size} bytes)")
-            return output_path
+            if output_path.exists():
+                logger.info(f"Generated clip: {output_path} ({output_path.stat().st_size} bytes)")
+                return output_path
 
-        logger.error(f"Clip file not created: {output_path}")
-        return None
+            logger.error(f"Clip file not created: {output_path}")
+            return None
+        finally:
+            # Guaranteed cleanup of temp file even if exceptions occur
+            try:
+                list_file_path.unlink()
+            except OSError:
+                logger.debug(f"Could not delete temp file: {list_file_path}")
 
     async def generate_clip_from_images(
         self,

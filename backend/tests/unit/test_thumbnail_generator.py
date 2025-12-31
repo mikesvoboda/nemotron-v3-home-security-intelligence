@@ -1,15 +1,18 @@
 """Unit tests for thumbnail generator service."""
 
+import os
 import tempfile
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
-from PIL import Image
+from PIL import Image, ImageFont
 
 from backend.services.thumbnail_generator import (
+    FONT_PATHS,
     OBJECT_COLORS,
     ThumbnailGenerator,
+    get_system_font,
 )
 
 # Fixtures
@@ -61,6 +64,186 @@ def sample_detections():
             "bbox_height": 100,
         },
     ]
+
+
+# Test: get_system_font function (cross-platform font discovery)
+
+
+def test_get_system_font_returns_font():
+    """Test that get_system_font returns a usable font object."""
+    font = get_system_font(size=14)
+    # Should return some kind of font (TrueType or default)
+    assert font is not None
+
+
+def test_get_system_font_custom_size():
+    """Test get_system_font with custom font size."""
+    font = get_system_font(size=20)
+    assert font is not None
+
+
+def test_get_system_font_env_var_override(temp_output_dir):
+    """Test that THUMBNAIL_FONT_PATH environment variable is respected."""
+    # Create a mock font file (we'll mock the truetype call)
+    mock_font = MagicMock()
+
+    with (
+        patch.dict(os.environ, {"THUMBNAIL_FONT_PATH": "/custom/path/font.ttf"}),
+        patch(
+            "backend.services.thumbnail_generator.ImageFont.truetype",
+            return_value=mock_font,
+        ) as mock_truetype,
+    ):
+        font = get_system_font(size=14)
+
+        # Should have tried the env var path first
+        mock_truetype.assert_called_with("/custom/path/font.ttf", 14)
+        assert font == mock_font
+
+
+def test_get_system_font_env_var_invalid_falls_back():
+    """Test that invalid THUMBNAIL_FONT_PATH falls back to system fonts."""
+    default_font = ImageFont.load_default()
+
+    with (
+        patch.dict(os.environ, {"THUMBNAIL_FONT_PATH": "/nonexistent/font.ttf"}),
+        patch(
+            "backend.services.thumbnail_generator.ImageFont.truetype",
+            side_effect=Exception("Font not found"),
+        ),
+        patch(
+            "backend.services.thumbnail_generator.ImageFont.load_default",
+            return_value=default_font,
+        ),
+    ):
+        font = get_system_font(size=14)
+
+        # Should fall back to default font
+        assert font == default_font
+
+
+def test_get_system_font_platform_paths():
+    """Test that platform-specific font paths are defined."""
+    # Verify FONT_PATHS has entries for all major platforms
+    assert "Linux" in FONT_PATHS
+    assert "Darwin" in FONT_PATHS  # macOS
+    assert "Windows" in FONT_PATHS
+
+    # Each platform should have at least one font path
+    for platform_name, paths in FONT_PATHS.items():
+        assert len(paths) > 0, f"No font paths defined for {platform_name}"
+        for path in paths:
+            assert isinstance(path, str), f"Font path should be string: {path}"
+
+
+def test_get_system_font_tries_platform_fonts_first():
+    """Test that get_system_font tries platform-specific fonts before others."""
+    mock_font = MagicMock()
+    call_order = []
+
+    def track_calls(path, size):
+        call_order.append(path)
+        if path == "/System/Library/Fonts/Helvetica.ttc":
+            return mock_font
+        raise Exception("Font not found")
+
+    with (
+        patch.dict(os.environ, {}, clear=False),
+        patch("backend.services.thumbnail_generator.platform.system", return_value="Darwin"),
+        patch(
+            "backend.services.thumbnail_generator.ImageFont.truetype",
+            side_effect=track_calls,
+        ),
+    ):
+        # Clear env var if set
+        os.environ.pop("THUMBNAIL_FONT_PATH", None)
+        font = get_system_font(size=14)
+
+        # Should have tried Darwin paths first
+        assert call_order[0] in FONT_PATHS["Darwin"]
+        assert font == mock_font
+
+
+def test_get_system_font_fallback_to_default():
+    """Test that get_system_font falls back to default PIL font when no TrueType found."""
+    default_font = ImageFont.load_default()
+
+    with (
+        patch.dict(os.environ, {}, clear=False),
+        patch(
+            "backend.services.thumbnail_generator.ImageFont.truetype",
+            side_effect=Exception("Font not found"),
+        ),
+        patch(
+            "backend.services.thumbnail_generator.ImageFont.load_default",
+            return_value=default_font,
+        ) as mock_default,
+    ):
+        os.environ.pop("THUMBNAIL_FONT_PATH", None)
+        font = get_system_font(size=14)
+
+        # Should have called load_default
+        mock_default.assert_called_once()
+        assert font == default_font
+
+
+def test_get_system_font_tries_all_platforms_as_fallback():
+    """Test that get_system_font tries fonts from other platforms as fallback."""
+    call_count = {"count": 0}
+    total_paths = sum(len(paths) for paths in FONT_PATHS.values())
+
+    def count_calls(path, size):
+        call_count["count"] += 1
+        raise Exception("Font not found")
+
+    default_font = ImageFont.load_default()
+
+    with (
+        patch.dict(os.environ, {}, clear=False),
+        patch("backend.services.thumbnail_generator.platform.system", return_value="Linux"),
+        patch(
+            "backend.services.thumbnail_generator.ImageFont.truetype",
+            side_effect=count_calls,
+        ),
+        patch(
+            "backend.services.thumbnail_generator.ImageFont.load_default",
+            return_value=default_font,
+        ),
+    ):
+        os.environ.pop("THUMBNAIL_FONT_PATH", None)
+        get_system_font(size=14)
+
+        # Should have tried all font paths (current platform + others)
+        assert call_count["count"] == total_paths
+
+
+def test_get_system_font_unknown_platform():
+    """Test that get_system_font handles unknown platforms gracefully."""
+    default_font = ImageFont.load_default()
+
+    with (
+        patch.dict(os.environ, {}, clear=False),
+        patch(
+            "backend.services.thumbnail_generator.platform.system",
+            return_value="UnknownOS",
+        ),
+        patch(
+            "backend.services.thumbnail_generator.ImageFont.truetype",
+            side_effect=Exception("Font not found"),
+        ),
+        patch(
+            "backend.services.thumbnail_generator.ImageFont.load_default",
+            return_value=default_font,
+        ),
+    ):
+        os.environ.pop("THUMBNAIL_FONT_PATH", None)
+        font = get_system_font(size=14)
+
+        # Should fall back to default font on unknown platform
+        assert font == default_font
+
+
+# Test: Thumbnail Generator Initialization
 
 
 def test_thumbnail_generator_init_creates_output_dir(temp_output_dir):
@@ -337,6 +520,32 @@ def test_draw_bounding_boxes_font_fallback(thumbnail_generator):
 
     # Should work with whatever font is available
     assert isinstance(result, Image.Image)
+
+
+def test_draw_bounding_boxes_uses_get_system_font(thumbnail_generator):
+    """Test that draw_bounding_boxes uses get_system_font for font loading."""
+    img = Image.new("RGB", (640, 480), color=(100, 150, 200))
+    detections = [
+        {
+            "object_type": "person",
+            "confidence": 0.95,
+            "bbox_x": 100,
+            "bbox_y": 150,
+            "bbox_width": 200,
+            "bbox_height": 400,
+        }
+    ]
+
+    mock_font = ImageFont.load_default()
+
+    with patch(
+        "backend.services.thumbnail_generator.get_system_font", return_value=mock_font
+    ) as mock_get_font:
+        result = thumbnail_generator.draw_bounding_boxes(img, detections)
+
+        # Verify get_system_font was called with correct size
+        mock_get_font.assert_called_once_with(size=14)
+        assert isinstance(result, Image.Image)
 
 
 # Test: Resize with Padding
@@ -731,7 +940,7 @@ def test_ensure_output_dir_failure(temp_output_dir):
 
 
 def test_draw_bounding_boxes_with_alternative_font(thumbnail_generator):
-    """Test drawing bounding boxes when first font path fails but second succeeds."""
+    """Test drawing bounding boxes when all system font paths fail."""
     img = Image.new("RGB", (640, 480), color=(100, 150, 200))
     detections = [
         {
@@ -744,29 +953,14 @@ def test_draw_bounding_boxes_with_alternative_font(thumbnail_generator):
         }
     ]
 
-    # Mock first font path to fail, second to fail, forcing default
-    # Need to provide a return value for the default font loading
-    from PIL import ImageFont
-
+    # Mock get_system_font to return default font (simulating all font paths failing)
     default_font = ImageFont.load_default()
 
-    with (
-        patch("backend.services.thumbnail_generator.ImageFont.truetype") as mock_font,
-        patch(
-            "backend.services.thumbnail_generator.ImageFont.load_default", return_value=default_font
-        ),
-    ):
-        mock_font.side_effect = [
-            Exception("First font not found"),
-            Exception("Second font not found"),
-        ]
-
+    with patch("backend.services.thumbnail_generator.get_system_font", return_value=default_font):
         result = thumbnail_generator.draw_bounding_boxes(img, detections)
 
         # Should fall back to default font and still work
         assert isinstance(result, Image.Image)
-        # Verify both font paths were tried
-        assert mock_font.call_count == 2
 
 
 def test_draw_bounding_boxes_with_none_bbox_dimensions(thumbnail_generator):

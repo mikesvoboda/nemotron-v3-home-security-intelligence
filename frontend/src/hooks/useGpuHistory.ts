@@ -114,6 +114,13 @@ export function useGpuHistory(options: UseGpuHistoryOptions = {}): UseGpuHistory
 
   // Initial fetch and polling setup
   useEffect(() => {
+    // Always clear existing interval first to prevent orphaned intervals
+    // This guards against rapid toggles of isPolling
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+
     if (!isPolling) return;
 
     // Fetch immediately
