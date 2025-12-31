@@ -10,10 +10,7 @@ export type {
 } from './useWebSocketStatus';
 
 export { useConnectionStatus } from './useConnectionStatus';
-export type {
-  ConnectionStatusSummary,
-  UseConnectionStatusReturn,
-} from './useConnectionStatus';
+export type { ConnectionStatusSummary, UseConnectionStatusReturn } from './useConnectionStatus';
 
 export { useEventStream } from './useEventStream';
 export type { SecurityEvent, UseEventStreamReturn } from './useEventStream';
@@ -30,3 +27,20 @@ export type {
 
 export { useHealthStatus } from './useHealthStatus';
 export type { UseHealthStatusOptions, UseHealthStatusReturn } from './useHealthStatus';
+
+export { usePerformanceMetrics } from './usePerformanceMetrics';
+export type {
+  TimeRange,
+  GpuMetrics,
+  AiModelMetrics,
+  NemotronMetrics,
+  InferenceMetrics,
+  DatabaseMetrics,
+  RedisMetrics,
+  HostMetrics,
+  ContainerMetrics,
+  PerformanceAlert,
+  PerformanceUpdate,
+  PerformanceHistory,
+  UsePerformanceMetricsReturn,
+} from './usePerformanceMetrics';

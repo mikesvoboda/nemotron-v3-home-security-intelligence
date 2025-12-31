@@ -233,6 +233,38 @@ services:
     networks:
       - security-net
 
+  # vsftpd FTP server for Foscam camera file uploads
+  vsftpd:
+    build: ./vsftpd
+    ports:
+      # FTP control port
+      - "21:21"
+      # FTP data port (active mode)
+      - "20:20"
+      # Passive mode ports
+      - "21100-21110:21100-21110"
+    volumes:
+      - ${CAMERA_PATH:-/export/foscam}:/export/foscam
+    environment:
+      - FTP_PASSWORD=${FTP_PASSWORD:-foscamdump}
+    restart: unless-stopped
+    networks:
+      - security-net
+    cap_add:
+      - NET_BIND_SERVICE
+    # Security: Limit container capabilities and resources
+    security_opt:
+      - no-new-privileges:true
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 256M
+        reservations:
+          cpus: "0.25"
+          memory: 128M
+
 volumes:
   postgres_data:
   redis_data:

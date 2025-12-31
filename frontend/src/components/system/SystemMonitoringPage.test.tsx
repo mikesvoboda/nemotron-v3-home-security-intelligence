@@ -3,11 +3,13 @@ import { describe, expect, it, vi, beforeEach, type Mock } from 'vitest';
 
 import SystemMonitoringPage from './SystemMonitoringPage';
 import * as useHealthStatusHook from '../../hooks/useHealthStatus';
+import * as usePerformanceMetricsHook from '../../hooks/usePerformanceMetrics';
 import * as api from '../../services/api';
 
 // Mock the API and hooks
 vi.mock('../../services/api');
 vi.mock('../../hooks/useHealthStatus');
+vi.mock('../../hooks/usePerformanceMetrics');
 
 // Mock child components
 vi.mock('../dashboard/GpuStats', () => ({
@@ -55,6 +57,39 @@ vi.mock('../dashboard/PipelineQueues', () => ({
 // Mock WorkerStatusPanel to avoid API calls during tests
 vi.mock('./WorkerStatusPanel', () => ({
   default: () => <div data-testid="worker-status-panel">Worker Status Panel</div>,
+}));
+
+// Mock performance dashboard components
+vi.mock('./TimeRangeSelector', () => ({
+  default: ({ selectedRange }: { selectedRange: string }) => (
+    <div data-testid="time-range-selector" data-selected-range={selectedRange}>
+      Time Range Selector
+    </div>
+  ),
+}));
+
+vi.mock('./PerformanceAlerts', () => ({
+  default: ({ alerts }: { alerts: unknown[] }) => (
+    <div data-testid="performance-alerts" data-alert-count={alerts.length}>
+      Performance Alerts
+    </div>
+  ),
+}));
+
+vi.mock('./AiModelsPanel', () => ({
+  default: () => <div data-testid="ai-models-panel">AI Models Panel</div>,
+}));
+
+vi.mock('./DatabasesPanel', () => ({
+  default: () => <div data-testid="databases-panel">Databases Panel</div>,
+}));
+
+vi.mock('./HostSystemPanel', () => ({
+  default: () => <div data-testid="host-system-panel">Host System Panel</div>,
+}));
+
+vi.mock('./ContainersPanel', () => ({
+  default: () => <div data-testid="containers-panel">Containers Panel</div>,
 }));
 
 describe('SystemMonitoringPage', () => {
@@ -119,6 +154,37 @@ describe('SystemMonitoringPage', () => {
       isLoading: false,
       error: null,
       refresh: vi.fn(),
+    });
+
+    // Setup mock for usePerformanceMetrics
+    (usePerformanceMetricsHook.usePerformanceMetrics as Mock).mockReturnValue({
+      current: {
+        timestamp: '2025-01-01T12:00:00Z',
+        gpu: {
+          name: 'NVIDIA RTX A5500',
+          utilization: 75,
+          vram_used_gb: 8,
+          vram_total_gb: 24,
+          temperature: 65,
+          power_watts: 200,
+        },
+        ai_models: {},
+        nemotron: null,
+        inference: null,
+        databases: {},
+        host: null,
+        containers: [],
+        alerts: [],
+      },
+      history: {
+        '5m': [],
+        '15m': [],
+        '60m': [],
+      },
+      alerts: [],
+      isConnected: true,
+      timeRange: '5m',
+      setTimeRange: vi.fn(),
     });
   });
 
