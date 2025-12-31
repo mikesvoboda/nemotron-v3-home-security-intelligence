@@ -58,7 +58,7 @@ If all services show "healthy" and containers are running, proceed to the specif
 
 ```bash
 # Check if events exist in database
-curl -s http://localhost:8000/api/events?limit=5 | jq .total
+curl -s http://localhost:8000/api/events?limit=5 | jq .count
 
 # Check pipeline status
 curl -s http://localhost:8000/api/system/pipeline | jq .
@@ -118,7 +118,7 @@ See: [Connection Issues](connection-issues.md#file-watcher-issues), [AI Issues](
 
 ```bash
 # Check recent events for risk scores
-curl -s http://localhost:8000/api/events?limit=3 | jq '.[].risk_score'
+curl -s http://localhost:8000/api/events?limit=3 | jq '.events[].risk_score'
 
 # Check Nemotron health
 curl -s http://localhost:8091/health
@@ -179,7 +179,7 @@ See: [AI Issues - Analysis Failing](ai-issues.md#analysis-failing)
 
 ```bash
 # Check camera status in database
-curl -s http://localhost:8000/api/cameras | jq '.[] | {name, status, last_seen_at}'
+curl -s http://localhost:8000/api/cameras | jq '.cameras[] | {name, status, last_seen_at}'
 
 # Check if images exist in camera folder
 ls -lt /export/foscam/<camera_name>/ | head -5
@@ -204,7 +204,7 @@ watch -n 5 'ls -lt /export/foscam/<camera_name>/ | head -3'
 **2. Check folder path in camera settings:**
 
 ```bash
-curl -s http://localhost:8000/api/cameras | jq '.[] | {name, folder_path}'
+curl -s http://localhost:8000/api/cameras | jq '.cameras[] | {name, folder_path}'
 ```
 
 **3. Fix permissions:**

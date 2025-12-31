@@ -110,13 +110,13 @@ For detailed deployment guidance, see the [Operator Hub](docs/operator-hub.md).
 
 ## Tech Stack
 
-|                |                                |
-| -------------- | ------------------------------ |
-| **Detection**  | RT-DETRv2 (30-50ms/image)      |
-| **Analysis**   | Nemotron Mini 4B via llama.cpp |
-| **Storage**    | PostgreSQL + 30-day retention  |
-| **Interface**  | React + Tailwind + Tremor      |
-| **Target GPU** | NVIDIA RTX (8GB+ VRAM)         |
+|                |                                            |
+| -------------- | ------------------------------------------ |
+| **Detection**  | RT-DETRv2 (30-50ms/image)                  |
+| **Analysis**   | Nemotron via llama.cpp (4B dev / 30B prod) |
+| **Storage**    | PostgreSQL + 30-day retention              |
+| **Interface**  | React + Tailwind + Tremor                  |
+| **Target GPU** | NVIDIA RTX (8GB+ VRAM)                     |
 
 ---
 

@@ -71,6 +71,8 @@ Many list endpoints support:
 
 The API is organized into these resource groups:
 
+### Core APIs (Documented)
+
 | Group                       | Prefix            | Description                    |
 | --------------------------- | ----------------- | ------------------------------ |
 | [Cameras](cameras.md)       | `/api/cameras`    | Camera management              |
@@ -79,6 +81,19 @@ The API is organized into these resource groups:
 | [Alerts](alerts.md)         | `/api/alerts`     | Alert rule configuration       |
 | [System](system.md)         | `/api/system`     | Health, config, and monitoring |
 | [WebSocket](websocket.md)   | `/ws/`            | Real-time streaming            |
+
+### Additional APIs
+
+| Group        | Prefix              | Description                                |
+| ------------ | ------------------- | ------------------------------------------ |
+| Media        | `/api/media`        | Serve camera images/videos with protection |
+| Audit        | `/api/audit`        | Audit log access (admin operations)        |
+| DLQ          | `/api/dlq`          | Dead-letter queue inspection and requeue   |
+| Logs         | `/api/logs`         | Application log streaming                  |
+| Zones        | `/api/zones`        | Detection zone configuration               |
+| Notification | `/api/notification` | Push notification settings                 |
+| Metrics      | `/api/metrics`      | Prometheus-format metrics export           |
+| Admin        | `/api/admin`        | Administrative operations                  |
 
 ## Health Endpoints
 
