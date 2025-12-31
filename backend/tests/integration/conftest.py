@@ -239,6 +239,13 @@ def redis_container() -> Generator[RedisContainer | LocalRedisService]:
 def _get_postgres_url(container: PostgresContainer | LocalPostgresService) -> str:
     """Get PostgreSQL URL from container or local service."""
     if isinstance(container, LocalPostgresService):
+        # Check for explicit environment variable override (e.g., CI environment)
+        env_url = os.environ.get("TEST_DATABASE_URL")
+        if env_url:
+            # Ensure asyncpg driver
+            if "postgresql://" in env_url and "asyncpg" not in env_url:
+                env_url = env_url.replace("postgresql://", "postgresql+asyncpg://")
+            return env_url
         return DEFAULT_DEV_POSTGRES_URL
 
     url = container.get_connection_url()
@@ -249,6 +256,10 @@ def _get_postgres_url(container: PostgresContainer | LocalPostgresService) -> st
 def _get_redis_url(container: RedisContainer | LocalRedisService) -> str:
     """Get Redis URL from container or local service."""
     if isinstance(container, LocalRedisService):
+        # Check for explicit environment variable override (e.g., CI environment)
+        env_url = os.environ.get("TEST_REDIS_URL")
+        if env_url:
+            return env_url
         return DEFAULT_DEV_REDIS_URL
 
     host = container.get_container_host_ip()
