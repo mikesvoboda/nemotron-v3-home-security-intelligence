@@ -200,67 +200,65 @@ class EventBroadcaster:
         messages from the Redis pub/sub channel, then broadcasts them to all
         connected WebSocket clients.
 
-        Message handling is separated from broadcast to ensure:
-        1. Messages are received from Redis reliably
-        2. Broadcast failures don't cause message loss
-        3. No unbounded recursion on restart (uses while loop with bounded restarts)
+        Recovery from errors is bounded to MAX_RECOVERY_ATTEMPTS to prevent
+        unbounded recursion and stack overflow. Uses exponential backoff on retries.
         """
         if not self._pubsub:
             logger.error("Cannot listen for events: pubsub not initialized")
             return
 
         logger.info("Starting event listener loop")
-        restart_count = 0
-        max_restarts = 10  # Prevent unbounded restarts
 
-        while self._is_listening and restart_count < max_restarts:
-            try:
-                async for message in self._redis.listen(self._pubsub):
-                    if not self._is_listening:
-                        break
+        try:
+            async for message in self._redis.listen(self._pubsub):
+                if not self._is_listening:
+                    break
 
-                    # Extract the event data
-                    event_data = message.get("data")
-                    if not event_data:
-                        continue
+                # Reset recovery attempts on successful message processing
+                self._recovery_attempts = 0
 
-                    logger.debug(f"Received event from Redis: {event_data}")
+                # Extract the event data
+                event_data = message.get("data")
+                if not event_data:
+                    continue
 
-                    # Broadcast to all connected WebSocket clients
-                    # Wrapped in try/except to prevent message loss from broadcast failures
-                    try:
-                        await self._send_to_all_clients(event_data)
-                    except Exception as broadcast_error:
-                        # Log error but continue processing - don't lose future messages
-                        logger.error(
-                            f"Failed to broadcast event to WebSocket clients: {broadcast_error}",
-                            exc_info=True,
-                        )
+                logger.debug(f"Received event from Redis: {event_data}")
 
-                # If we exit the async for normally, break the while loop
-                break
+                # Broadcast to all connected WebSocket clients
+                # Wrapped in try/except to prevent message loss from broadcast failures
+                try:
+                    await self._send_to_all_clients(event_data)
+                except Exception as broadcast_error:
+                    # Log error but continue processing - don't lose future messages
+                    logger.error(
+                        f"Failed to broadcast event to WebSocket clients: {broadcast_error}",
+                        exc_info=True,
+                    )
 
-            except asyncio.CancelledError:
-                logger.info("Event listener cancelled")
-                break
-            except Exception as e:
-                restart_count += 1
-                logger.error(
-                    f"Error in event listener (restart {restart_count}/{max_restarts}): {e}",
-                    exc_info=True,
-                )
-                # Continue listening even after errors, but with backoff
-                if self._is_listening and restart_count < max_restarts:
+        except asyncio.CancelledError:
+            logger.info("Event listener cancelled")
+        except Exception as e:
+            logger.error(f"Error in event listener: {e}")
+            # Attempt to restart listener with bounded retry limit
+            if self._is_listening:
+                self._recovery_attempts += 1
+                if self._recovery_attempts <= self.MAX_RECOVERY_ATTEMPTS:
                     # Exponential backoff: 1s, 2s, 4s, 8s, up to 30s max
-                    backoff = min(2 ** (restart_count - 1), 30)
-                    logger.info(f"Restarting event listener in {backoff}s after error")
+                    backoff = min(2 ** (self._recovery_attempts - 1), 30)
+                    logger.info(
+                        f"Restarting event listener after error "
+                        f"(attempt {self._recovery_attempts}/{self.MAX_RECOVERY_ATTEMPTS}) "
+                        f"in {backoff}s"
+                    )
                     await asyncio.sleep(backoff)
-
-        if restart_count >= max_restarts:
-            logger.error(
-                f"Event listener stopped after {max_restarts} consecutive errors. "
-                "Manual restart required."
-            )
+                    if self._is_listening:
+                        self._listener_task = asyncio.create_task(self._listen_for_events())
+                else:
+                    logger.error(
+                        f"Event listener recovery failed after {self.MAX_RECOVERY_ATTEMPTS} "
+                        "attempts. Giving up - manual restart required."
+                    )
+                    self._is_listening = False
 
     async def _send_to_all_clients(self, event_data: Any) -> None:
         """Send event data to all connected WebSocket clients.

@@ -185,7 +185,10 @@ async def test_listen_for_events_processes_messages_and_sends() -> None:
 
 @pytest.mark.asyncio
 async def test_listen_for_events_restarts_after_error(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Test that _listen_for_events restarts listener after non-cancelled errors."""
+    """Test that _listen_for_events restarts listener after non-cancelled errors.
+
+    Uses exponential backoff: 1s on first retry, 2s on second, etc.
+    """
 
     class RedisThatErrors(_FakeRedis):
         async def listen(self, _pubsub: Any) -> AsyncIterator[dict[str, Any]]:
@@ -217,6 +220,7 @@ async def test_listen_for_events_restarts_after_error(monkeypatch: pytest.Monkey
     monkeypatch.setattr(asyncio, "create_task", _fake_create_task)
 
     await broadcaster._listen_for_events()
+    # First retry uses exponential backoff: 2^(1-1) = 1 second
     assert sleep_calls == [1]
     assert broadcaster._listener_task is not None
     assert created
