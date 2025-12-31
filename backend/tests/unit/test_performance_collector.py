@@ -416,7 +416,7 @@ class TestFullCollection:
     @pytest.mark.asyncio
     async def test_collect_all_with_metrics(self, collector):
         """Test collecting all metrics with real data."""
-        from api.schemas.performance import (
+        from backend.api.schemas.performance import (
             AiModelMetrics,
             ContainerMetrics,
             DatabaseMetrics,

@@ -30,7 +30,7 @@ from backend.api.schemas.performance import (
     PerformanceUpdate,
     RedisMetrics,
 )
-from core.config import get_settings
+from backend.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
