@@ -201,7 +201,7 @@ class EventBroadcaster:
         connected WebSocket clients.
 
         Recovery from errors is bounded to MAX_RECOVERY_ATTEMPTS to prevent
-        unbounded recursion and stack overflow.
+        unbounded recursion and stack overflow. Uses exponential backoff on retries.
         """
         if not self._pubsub:
             logger.error("Cannot listen for events: pubsub not initialized")
@@ -225,7 +225,15 @@ class EventBroadcaster:
                 logger.debug(f"Received event from Redis: {event_data}")
 
                 # Broadcast to all connected WebSocket clients
-                await self._send_to_all_clients(event_data)
+                # Wrapped in try/except to prevent message loss from broadcast failures
+                try:
+                    await self._send_to_all_clients(event_data)
+                except Exception as broadcast_error:
+                    # Log error but continue processing - don't lose future messages
+                    logger.error(
+                        f"Failed to broadcast event to WebSocket clients: {broadcast_error}",
+                        exc_info=True,
+                    )
 
         except asyncio.CancelledError:
             logger.info("Event listener cancelled")
@@ -235,11 +243,14 @@ class EventBroadcaster:
             if self._is_listening:
                 self._recovery_attempts += 1
                 if self._recovery_attempts <= self.MAX_RECOVERY_ATTEMPTS:
+                    # Exponential backoff: 1s, 2s, 4s, 8s, up to 30s max
+                    backoff = min(2 ** (self._recovery_attempts - 1), 30)
                     logger.info(
                         f"Restarting event listener after error "
-                        f"(attempt {self._recovery_attempts}/{self.MAX_RECOVERY_ATTEMPTS})"
+                        f"(attempt {self._recovery_attempts}/{self.MAX_RECOVERY_ATTEMPTS}) "
+                        f"in {backoff}s"
                     )
-                    await asyncio.sleep(1)
+                    await asyncio.sleep(backoff)
                     if self._is_listening:
                         self._listener_task = asyncio.create_task(self._listen_for_events())
                 else:
