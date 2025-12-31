@@ -6,10 +6,11 @@ operates on the entire database and parallel tests may create additional data.
 """
 
 import asyncio
+import contextlib
 import os
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from sqlalchemy import select
@@ -1476,3 +1477,859 @@ async def test_count_old_logs(test_db):
         )
         logs = result.scalars().all()
         assert len(logs) == 1, "Recent log should still exist"
+
+
+# =============================================================================
+# Additional Edge Cases
+# =============================================================================
+
+
+def test_parse_cleanup_time_edge_cases():
+    """Test parsing edge case times."""
+    # Exactly midnight
+    service = CleanupService(cleanup_time="00:00")
+    hours, minutes = service._parse_cleanup_time()
+    assert hours == 0
+    assert minutes == 0
+
+    # Last minute of day
+    service = CleanupService(cleanup_time="23:59")
+    hours, minutes = service._parse_cleanup_time()
+    assert hours == 23
+    assert minutes == 59
+
+
+def test_cleanup_stats_repr_all_fields():
+    """Test CleanupStats repr includes all fields."""
+    stats = CleanupStats()
+    stats.events_deleted = 100
+    stats.detections_deleted = 250
+    stats.gpu_stats_deleted = 500
+    stats.logs_deleted = 75
+    stats.thumbnails_deleted = 30
+    stats.images_deleted = 10
+    stats.space_reclaimed = 1024 * 1024 * 100  # 100 MB
+
+    repr_str = repr(stats)
+
+    assert "events=100" in repr_str
+    assert "detections=250" in repr_str
+
+
+def test_delete_images_setting():
+    """Test delete_images setting is respected."""
+    service_with_delete = CleanupService(delete_images=True)
+    service_without_delete = CleanupService(delete_images=False)
+
+    assert service_with_delete.delete_images is True
+    assert service_without_delete.delete_images is False
+
+
+def test_thumbnail_dir_custom():
+    """Test custom thumbnail directory."""
+    service = CleanupService(thumbnail_dir="/custom/path/thumbnails")
+
+    assert str(service.thumbnail_dir) == "/custom/path/thumbnails"
+
+
+# =============================================================================
+# run_cleanup tests (lines 188-259)
+# =============================================================================
+
+
+class MockDetection:
+    """Mock Detection object for testing."""
+
+    def __init__(
+        self,
+        id: int = 1,
+        thumbnail_path: str | None = None,
+        file_path: str | None = None,
+    ):
+        self.id = id
+        self.thumbnail_path = thumbnail_path
+        self.file_path = file_path
+
+
+@pytest.mark.asyncio
+async def test_run_cleanup_basic():
+    """Test run_cleanup deletes detections, events, GPU stats, and logs."""
+    service = CleanupService(retention_days=30)
+
+    # Mock session and database operations
+    mock_session = AsyncMock()
+
+    # Mock detection query result (no detections to delete)
+    # Use MagicMock for result objects to properly mock the scalars().all() chain
+    mock_scalars = MagicMock()
+    mock_scalars.all.return_value = []
+    mock_detections_result = MagicMock()
+    mock_detections_result.scalars.return_value = mock_scalars
+
+    # Mock delete results with rowcount
+    mock_delete_detections_result = MagicMock()
+    mock_delete_detections_result.rowcount = 5
+
+    mock_delete_events_result = MagicMock()
+    mock_delete_events_result.rowcount = 3
+
+    mock_delete_gpu_stats_result = MagicMock()
+    mock_delete_gpu_stats_result.rowcount = 100
+
+    # Set up execute to return different results for different calls
+    mock_session.execute = AsyncMock(
+        side_effect=[
+            mock_detections_result,  # select detections
+            mock_delete_detections_result,  # delete detections
+            mock_delete_events_result,  # delete events
+            mock_delete_gpu_stats_result,  # delete gpu stats
+        ]
+    )
+    mock_session.commit = AsyncMock()
+
+    # Mock get_session as async context manager
+    @contextlib.asynccontextmanager
+    async def mock_get_session():
+        yield mock_session
+
+    with (
+        patch("backend.services.cleanup_service.get_session", mock_get_session),
+        patch.object(service, "cleanup_old_logs", return_value=50),
+    ):
+        stats = await service.run_cleanup()
+
+    assert stats.detections_deleted == 5
+    assert stats.events_deleted == 3
+    assert stats.gpu_stats_deleted == 100
+    assert stats.logs_deleted == 50
+    mock_session.commit.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_run_cleanup_with_thumbnail_files(tmp_path):
+    """Test run_cleanup deletes thumbnail files for deleted detections."""
+    service = CleanupService(retention_days=30)
+
+    # Create test thumbnail files
+    thumbnail1 = tmp_path / "thumb1.jpg"
+    thumbnail2 = tmp_path / "thumb2.jpg"
+    thumbnail1.write_text("thumbnail 1")
+    thumbnail2.write_text("thumbnail 2")
+
+    # Mock detections with thumbnail paths
+    mock_detection1 = MockDetection(id=1, thumbnail_path=str(thumbnail1))
+    mock_detection2 = MockDetection(id=2, thumbnail_path=str(thumbnail2))
+
+    mock_session = AsyncMock()
+
+    # Use MagicMock to properly mock scalars().all() chain
+    mock_scalars = MagicMock()
+    mock_scalars.all.return_value = [mock_detection1, mock_detection2]
+    mock_detections_result = MagicMock()
+    mock_detections_result.scalars.return_value = mock_scalars
+
+    # Mock delete results
+    mock_delete_result = MagicMock()
+    mock_delete_result.rowcount = 2
+
+    mock_session.execute = AsyncMock(
+        side_effect=[
+            mock_detections_result,  # select detections
+            mock_delete_result,  # delete detections
+            mock_delete_result,  # delete events
+            mock_delete_result,  # delete gpu stats
+        ]
+    )
+    mock_session.commit = AsyncMock()
+
+    @contextlib.asynccontextmanager
+    async def mock_get_session():
+        yield mock_session
+
+    with (
+        patch("backend.services.cleanup_service.get_session", mock_get_session),
+        patch.object(service, "cleanup_old_logs", return_value=0),
+    ):
+        stats = await service.run_cleanup()
+
+    assert stats.thumbnails_deleted == 2
+    assert not thumbnail1.exists()
+    assert not thumbnail2.exists()
+
+
+@pytest.mark.asyncio
+async def test_run_cleanup_with_image_files_enabled(tmp_path):
+    """Test run_cleanup deletes image files when delete_images is True."""
+    service = CleanupService(retention_days=30, delete_images=True)
+
+    # Create test image and thumbnail files
+    image1 = tmp_path / "image1.jpg"
+    image2 = tmp_path / "image2.jpg"
+    thumbnail1 = tmp_path / "thumb1.jpg"
+    image1.write_text("image 1")
+    image2.write_text("image 2")
+    thumbnail1.write_text("thumbnail 1")
+
+    # Mock detections with both thumbnail and file paths
+    mock_detection1 = MockDetection(id=1, thumbnail_path=str(thumbnail1), file_path=str(image1))
+    mock_detection2 = MockDetection(id=2, thumbnail_path=None, file_path=str(image2))
+
+    mock_session = AsyncMock()
+
+    # Use MagicMock to properly mock scalars().all() chain
+    mock_scalars = MagicMock()
+    mock_scalars.all.return_value = [mock_detection1, mock_detection2]
+    mock_detections_result = MagicMock()
+    mock_detections_result.scalars.return_value = mock_scalars
+
+    mock_delete_result = MagicMock()
+    mock_delete_result.rowcount = 2
+
+    mock_session.execute = AsyncMock(
+        side_effect=[
+            mock_detections_result,
+            mock_delete_result,
+            mock_delete_result,
+            mock_delete_result,
+        ]
+    )
+    mock_session.commit = AsyncMock()
+
+    @contextlib.asynccontextmanager
+    async def mock_get_session():
+        yield mock_session
+
+    with (
+        patch("backend.services.cleanup_service.get_session", mock_get_session),
+        patch.object(service, "cleanup_old_logs", return_value=0),
+    ):
+        stats = await service.run_cleanup()
+
+    assert stats.thumbnails_deleted == 1  # Only mock_detection1 has thumbnail
+    assert stats.images_deleted == 2
+    assert not image1.exists()
+    assert not image2.exists()
+    assert not thumbnail1.exists()
+
+
+@pytest.mark.asyncio
+async def test_run_cleanup_exception_handling():
+    """Test run_cleanup re-raises exceptions after logging."""
+    service = CleanupService(retention_days=30)
+
+    mock_session = AsyncMock()
+    mock_session.execute = AsyncMock(side_effect=Exception("Database error"))
+
+    @contextlib.asynccontextmanager
+    async def mock_get_session():
+        yield mock_session
+
+    with (
+        patch("backend.services.cleanup_service.get_session", mock_get_session),
+        pytest.raises(Exception, match="Database error"),
+    ):
+        await service.run_cleanup()
+
+
+@pytest.mark.asyncio
+async def test_run_cleanup_with_none_rowcount():
+    """Test run_cleanup handles None rowcount from database."""
+    service = CleanupService(retention_days=30)
+
+    mock_session = AsyncMock()
+
+    # Use MagicMock to properly mock scalars().all() chain
+    mock_scalars = MagicMock()
+    mock_scalars.all.return_value = []
+    mock_detections_result = MagicMock()
+    mock_detections_result.scalars.return_value = mock_scalars
+
+    # Simulate None rowcount (can happen in some edge cases)
+    mock_delete_result = MagicMock()
+    mock_delete_result.rowcount = None
+
+    mock_session.execute = AsyncMock(
+        side_effect=[
+            mock_detections_result,
+            mock_delete_result,
+            mock_delete_result,
+            mock_delete_result,
+        ]
+    )
+    mock_session.commit = AsyncMock()
+
+    @contextlib.asynccontextmanager
+    async def mock_get_session():
+        yield mock_session
+
+    with (
+        patch("backend.services.cleanup_service.get_session", mock_get_session),
+        patch.object(service, "cleanup_old_logs", return_value=0),
+    ):
+        stats = await service.run_cleanup()
+
+    # Should handle None gracefully
+    assert stats.detections_deleted == 0
+    assert stats.events_deleted == 0
+    assert stats.gpu_stats_deleted == 0
+
+
+# =============================================================================
+# dry_run_cleanup tests (lines 274-353)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_dry_run_cleanup_basic():
+    """Test dry_run_cleanup counts records without deleting."""
+    service = CleanupService(retention_days=30)
+
+    mock_session = AsyncMock()
+
+    # Mock count queries - use MagicMock for sync result methods
+    mock_detection_count = MagicMock()
+    mock_detection_count.scalar_one.return_value = 10
+
+    # Mock detection query for file counting - scalars().all() is sync
+    mock_scalars = MagicMock()
+    mock_scalars.all.return_value = []
+    mock_detection_query = MagicMock()
+    mock_detection_query.scalars.return_value = mock_scalars
+
+    mock_event_count = MagicMock()
+    mock_event_count.scalar_one.return_value = 5
+
+    mock_gpu_stats_count = MagicMock()
+    mock_gpu_stats_count.scalar_one.return_value = 100
+
+    mock_session.execute = AsyncMock(
+        side_effect=[
+            mock_detection_count,  # count detections
+            mock_detection_query,  # select detections for file counting
+            mock_event_count,  # count events
+            mock_gpu_stats_count,  # count gpu stats
+        ]
+    )
+
+    @contextlib.asynccontextmanager
+    async def mock_get_session():
+        yield mock_session
+
+    with (
+        patch("backend.services.cleanup_service.get_session", mock_get_session),
+        patch.object(service, "_count_old_logs", return_value=25),
+    ):
+        stats = await service.dry_run_cleanup()
+
+    assert stats.detections_deleted == 10
+    assert stats.events_deleted == 5
+    assert stats.gpu_stats_deleted == 100
+    assert stats.logs_deleted == 25
+    # Verify commit was NOT called (dry run)
+    mock_session.commit.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_dry_run_cleanup_with_files(tmp_path):
+    """Test dry_run_cleanup counts files and space without deleting."""
+    service = CleanupService(retention_days=30, delete_images=True)
+
+    # Create test files
+    thumbnail1 = tmp_path / "thumb1.jpg"
+    thumbnail2 = tmp_path / "thumb2.jpg"
+    image1 = tmp_path / "image1.jpg"
+    thumbnail1.write_text("t" * 1000)  # 1000 bytes
+    thumbnail2.write_text("t" * 2000)  # 2000 bytes
+    image1.write_text("i" * 5000)  # 5000 bytes
+
+    mock_detection1 = MockDetection(id=1, thumbnail_path=str(thumbnail1), file_path=str(image1))
+    mock_detection2 = MockDetection(id=2, thumbnail_path=str(thumbnail2), file_path=None)
+
+    mock_session = AsyncMock()
+
+    # Use MagicMock for result objects
+    mock_detection_count = MagicMock()
+    mock_detection_count.scalar_one.return_value = 2
+
+    # Properly mock scalars().all() chain with MagicMock
+    mock_scalars = MagicMock()
+    mock_scalars.all.return_value = [mock_detection1, mock_detection2]
+    mock_detection_query = MagicMock()
+    mock_detection_query.scalars.return_value = mock_scalars
+
+    mock_event_count = MagicMock()
+    mock_event_count.scalar_one.return_value = 0
+
+    mock_gpu_stats_count = MagicMock()
+    mock_gpu_stats_count.scalar_one.return_value = 0
+
+    mock_session.execute = AsyncMock(
+        side_effect=[
+            mock_detection_count,
+            mock_detection_query,
+            mock_event_count,
+            mock_gpu_stats_count,
+        ]
+    )
+
+    @contextlib.asynccontextmanager
+    async def mock_get_session():
+        yield mock_session
+
+    with (
+        patch("backend.services.cleanup_service.get_session", mock_get_session),
+        patch.object(service, "_count_old_logs", return_value=0),
+    ):
+        stats = await service.dry_run_cleanup()
+
+    assert stats.thumbnails_deleted == 2
+    assert stats.images_deleted == 1
+    assert stats.space_reclaimed == 8000  # 1000 + 2000 + 5000
+    # Files should still exist (dry run)
+    assert thumbnail1.exists()
+    assert thumbnail2.exists()
+    assert image1.exists()
+
+
+@pytest.mark.asyncio
+async def test_dry_run_cleanup_file_stat_error(tmp_path):
+    """Test dry_run_cleanup handles nonexistent file paths."""
+    service = CleanupService(retention_days=30)
+
+    # Use a nonexistent file path to test the case where file doesn't exist
+    mock_detection = MockDetection(id=1, thumbnail_path="/nonexistent/path.jpg")
+
+    mock_session = AsyncMock()
+
+    # Use MagicMock for result objects
+    mock_detection_count = MagicMock()
+    mock_detection_count.scalar_one.return_value = 1
+
+    # Properly mock scalars().all() chain with MagicMock
+    mock_scalars = MagicMock()
+    mock_scalars.all.return_value = [mock_detection]
+    mock_detection_query = MagicMock()
+    mock_detection_query.scalars.return_value = mock_scalars
+
+    mock_event_count = MagicMock()
+    mock_event_count.scalar_one.return_value = 0
+
+    mock_gpu_stats_count = MagicMock()
+    mock_gpu_stats_count.scalar_one.return_value = 0
+
+    mock_session.execute = AsyncMock(
+        side_effect=[
+            mock_detection_count,
+            mock_detection_query,
+            mock_event_count,
+            mock_gpu_stats_count,
+        ]
+    )
+
+    @contextlib.asynccontextmanager
+    async def mock_get_session():
+        yield mock_session
+
+    with (
+        patch("backend.services.cleanup_service.get_session", mock_get_session),
+        patch.object(service, "_count_old_logs", return_value=0),
+    ):
+        stats = await service.dry_run_cleanup()
+
+    # File doesn't exist, so no space is counted and no thumbnails counted
+    assert stats.space_reclaimed == 0
+    assert stats.thumbnails_deleted == 0
+
+
+@pytest.mark.asyncio
+async def test_dry_run_cleanup_oserror_on_stat(tmp_path):
+    """Test dry_run_cleanup handles OSError when calling stat() on existing file."""
+    service = CleanupService(retention_days=30, delete_images=True)
+
+    # Create real files that we'll mock stat() errors on
+    thumbnail = tmp_path / "thumb.jpg"
+    image = tmp_path / "image.jpg"
+    thumbnail.write_text("thumb data")
+    image.write_text("image data")
+
+    mock_detection = MockDetection(id=1, thumbnail_path=str(thumbnail), file_path=str(image))
+
+    mock_session = AsyncMock()
+
+    mock_detection_count = MagicMock()
+    mock_detection_count.scalar_one.return_value = 1
+
+    mock_scalars = MagicMock()
+    mock_scalars.all.return_value = [mock_detection]
+    mock_detection_query = MagicMock()
+    mock_detection_query.scalars.return_value = mock_scalars
+
+    mock_event_count = MagicMock()
+    mock_event_count.scalar_one.return_value = 0
+
+    mock_gpu_stats_count = MagicMock()
+    mock_gpu_stats_count.scalar_one.return_value = 0
+
+    mock_session.execute = AsyncMock(
+        side_effect=[
+            mock_detection_count,
+            mock_detection_query,
+            mock_event_count,
+            mock_gpu_stats_count,
+        ]
+    )
+
+    @contextlib.asynccontextmanager
+    async def mock_get_session():
+        yield mock_session
+
+    # Create a mock Path class that raises OSError on stat()
+    original_path_stat = Path.stat
+
+    def mock_stat(self):
+        # Raise OSError for our specific test files
+        if str(self).endswith(".jpg"):
+            raise OSError("Permission denied")
+        return original_path_stat(self)
+
+    with (
+        patch("backend.services.cleanup_service.get_session", mock_get_session),
+        patch.object(service, "_count_old_logs", return_value=0),
+        patch.object(Path, "stat", mock_stat),
+    ):
+        stats = await service.dry_run_cleanup()
+
+    # Files exist and are counted, but space_reclaimed stays 0 due to OSError
+    assert stats.thumbnails_deleted == 1
+    assert stats.images_deleted == 1
+    assert stats.space_reclaimed == 0  # OSError caught, space not counted
+
+
+@pytest.mark.asyncio
+async def test_dry_run_cleanup_exception():
+    """Test dry_run_cleanup re-raises exceptions."""
+    service = CleanupService(retention_days=30)
+
+    mock_session = AsyncMock()
+    mock_session.execute = AsyncMock(side_effect=Exception("Database error"))
+
+    @contextlib.asynccontextmanager
+    async def mock_get_session():
+        yield mock_session
+
+    with (
+        patch("backend.services.cleanup_service.get_session", mock_get_session),
+        pytest.raises(Exception, match="Database error"),
+    ):
+        await service.dry_run_cleanup()
+
+
+@pytest.mark.asyncio
+async def test_dry_run_cleanup_delete_images_disabled(tmp_path):
+    """Test dry_run_cleanup respects delete_images=False."""
+    service = CleanupService(retention_days=30, delete_images=False)
+
+    image = tmp_path / "image.jpg"
+    image.write_text("image data")
+
+    mock_detection = MockDetection(id=1, thumbnail_path=None, file_path=str(image))
+
+    mock_session = AsyncMock()
+
+    # Use MagicMock for result objects
+    mock_detection_count = MagicMock()
+    mock_detection_count.scalar_one.return_value = 1
+
+    # Properly mock scalars().all() chain with MagicMock
+    mock_scalars = MagicMock()
+    mock_scalars.all.return_value = [mock_detection]
+    mock_detection_query = MagicMock()
+    mock_detection_query.scalars.return_value = mock_scalars
+
+    mock_event_count = MagicMock()
+    mock_event_count.scalar_one.return_value = 0
+
+    mock_gpu_stats_count = MagicMock()
+    mock_gpu_stats_count.scalar_one.return_value = 0
+
+    mock_session.execute = AsyncMock(
+        side_effect=[
+            mock_detection_count,
+            mock_detection_query,
+            mock_event_count,
+            mock_gpu_stats_count,
+        ]
+    )
+
+    @contextlib.asynccontextmanager
+    async def mock_get_session():
+        yield mock_session
+
+    with (
+        patch("backend.services.cleanup_service.get_session", mock_get_session),
+        patch.object(service, "_count_old_logs", return_value=0),
+    ):
+        stats = await service.dry_run_cleanup()
+
+    # Image should NOT be counted since delete_images is False
+    assert stats.images_deleted == 0
+
+
+# =============================================================================
+# _count_old_logs tests (lines 361-377)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_count_old_logs_with_logs():
+    """Test _count_old_logs returns count of old logs."""
+    service = CleanupService(retention_days=30)
+
+    mock_session = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalar_one.return_value = 42
+
+    mock_session.execute = AsyncMock(return_value=mock_result)
+
+    @contextlib.asynccontextmanager
+    async def mock_get_session():
+        yield mock_session
+
+    with patch("backend.services.cleanup_service.get_session", mock_get_session):
+        count = await service._count_old_logs()
+
+    assert count == 42
+
+
+@pytest.mark.asyncio
+async def test_count_old_logs_no_logs():
+    """Test _count_old_logs returns 0 when no old logs."""
+    service = CleanupService(retention_days=30)
+
+    mock_session = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalar_one.return_value = 0
+
+    mock_session.execute = AsyncMock(return_value=mock_result)
+
+    @contextlib.asynccontextmanager
+    async def mock_get_session():
+        yield mock_session
+
+    with patch("backend.services.cleanup_service.get_session", mock_get_session):
+        count = await service._count_old_logs()
+
+    assert count == 0
+
+
+@pytest.mark.asyncio
+async def test_count_old_logs_none_result():
+    """Test _count_old_logs handles None result."""
+    service = CleanupService(retention_days=30)
+
+    mock_session = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalar_one.return_value = None
+
+    mock_session.execute = AsyncMock(return_value=mock_result)
+
+    @contextlib.asynccontextmanager
+    async def mock_get_session():
+        yield mock_session
+
+    with patch("backend.services.cleanup_service.get_session", mock_get_session):
+        count = await service._count_old_logs()
+
+    assert count == 0
+
+
+# =============================================================================
+# cleanup_old_logs tests (lines 385-396)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_cleanup_old_logs_deletes_logs():
+    """Test cleanup_old_logs deletes old logs and returns count."""
+    service = CleanupService(retention_days=30)
+
+    mock_session = AsyncMock()
+    mock_result = AsyncMock()
+    mock_result.rowcount = 15
+
+    mock_session.execute = AsyncMock(return_value=mock_result)
+    mock_session.commit = AsyncMock()
+
+    @contextlib.asynccontextmanager
+    async def mock_get_session():
+        yield mock_session
+
+    with patch("backend.services.cleanup_service.get_session", mock_get_session):
+        deleted = await service.cleanup_old_logs()
+
+    assert deleted == 15
+    mock_session.commit.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_cleanup_old_logs_no_logs_to_delete():
+    """Test cleanup_old_logs when no logs need deletion."""
+    service = CleanupService(retention_days=30)
+
+    mock_session = AsyncMock()
+    mock_result = AsyncMock()
+    mock_result.rowcount = 0
+
+    mock_session.execute = AsyncMock(return_value=mock_result)
+    mock_session.commit = AsyncMock()
+
+    @contextlib.asynccontextmanager
+    async def mock_get_session():
+        yield mock_session
+
+    with patch("backend.services.cleanup_service.get_session", mock_get_session):
+        deleted = await service.cleanup_old_logs()
+
+    assert deleted == 0
+    mock_session.commit.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_cleanup_old_logs_none_rowcount():
+    """Test cleanup_old_logs handles None rowcount."""
+    service = CleanupService(retention_days=30)
+
+    mock_session = AsyncMock()
+    mock_result = AsyncMock()
+    mock_result.rowcount = None
+
+    mock_session.execute = AsyncMock(return_value=mock_result)
+    mock_session.commit = AsyncMock()
+
+    @contextlib.asynccontextmanager
+    async def mock_get_session():
+        yield mock_session
+
+    with patch("backend.services.cleanup_service.get_session", mock_get_session):
+        deleted = await service.cleanup_old_logs()
+
+    assert deleted == 0
+
+
+# =============================================================================
+# _cleanup_loop CancelledError tests (lines 452-453)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_cleanup_loop_cancelled():
+    """Test cleanup loop handles CancelledError gracefully."""
+    service = CleanupService()
+
+    call_count = 0
+
+    async def mock_wait():
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            # Simulate task cancellation during wait
+            raise asyncio.CancelledError()
+        await asyncio.sleep(0.01)
+
+    with patch.object(service, "_wait_until_next_cleanup", side_effect=mock_wait):
+        service.running = True
+        # Run the cleanup loop directly
+        await service._cleanup_loop()
+
+    # Loop should have exited cleanly
+    assert call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_cleanup_loop_stops_before_cleanup():
+    """Test cleanup loop checks running flag before running cleanup."""
+    service = CleanupService()
+
+    cleanup_called = False
+
+    async def mock_wait():
+        # Stop service during wait
+        service.running = False
+        await asyncio.sleep(0.01)
+
+    async def mock_cleanup():
+        nonlocal cleanup_called
+        cleanup_called = True
+        return CleanupStats()
+
+    with (
+        patch.object(service, "_wait_until_next_cleanup", side_effect=mock_wait),
+        patch.object(service, "run_cleanup", side_effect=mock_cleanup),
+    ):
+        service.running = True
+        await service._cleanup_loop()
+
+    # Cleanup should NOT have been called since service stopped during wait
+    assert not cleanup_called
+
+
+# =============================================================================
+# Additional edge case tests for better coverage
+# =============================================================================
+
+
+def test_delete_file_directory(tmp_path):
+    """Test _delete_file returns False for directories."""
+    service = CleanupService()
+
+    # Create a directory instead of file
+    test_dir = tmp_path / "test_dir"
+    test_dir.mkdir()
+
+    result = service._delete_file(str(test_dir))
+
+    assert result is False
+    assert test_dir.exists()
+
+
+@pytest.mark.asyncio
+async def test_run_cleanup_missing_thumbnail_file(tmp_path):
+    """Test run_cleanup handles missing thumbnail files gracefully."""
+    service = CleanupService(retention_days=30)
+
+    # Detection points to non-existent file
+    mock_detection = MockDetection(id=1, thumbnail_path="/nonexistent/path.jpg")
+
+    mock_session = AsyncMock()
+
+    # Use MagicMock to properly mock scalars().all() chain
+    mock_scalars = MagicMock()
+    mock_scalars.all.return_value = [mock_detection]
+    mock_detections_result = MagicMock()
+    mock_detections_result.scalars.return_value = mock_scalars
+
+    mock_delete_result = MagicMock()
+    mock_delete_result.rowcount = 1
+
+    mock_session.execute = AsyncMock(
+        side_effect=[
+            mock_detections_result,
+            mock_delete_result,
+            mock_delete_result,
+            mock_delete_result,
+        ]
+    )
+    mock_session.commit = AsyncMock()
+
+    @contextlib.asynccontextmanager
+    async def mock_get_session():
+        yield mock_session
+
+    with (
+        patch("backend.services.cleanup_service.get_session", mock_get_session),
+        patch.object(service, "cleanup_old_logs", return_value=0),
+    ):
+        stats = await service.run_cleanup()
+
+    # File didn't exist, so thumbnail count stays 0
+    assert stats.thumbnails_deleted == 0
