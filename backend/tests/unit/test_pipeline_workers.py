@@ -1152,10 +1152,13 @@ async def test_manager_selective_workers(mock_redis_client):
 
 
 @pytest.mark.asyncio
-@pytest.mark.slow  # Uses default worker timeouts (10-30s), skip in fast tests
+@pytest.mark.timeout(10)  # Manager tests need more time than the default 5s
 async def test_manager_start_stop(mock_redis_client):
     """Test PipelineWorkerManager start and stop."""
-    manager = PipelineWorkerManager(redis_client=mock_redis_client)
+    manager = PipelineWorkerManager(
+        redis_client=mock_redis_client,
+        worker_stop_timeout=TEST_STOP_TIMEOUT,
+    )
 
     await manager.start()
     assert manager.running is True
@@ -1195,10 +1198,13 @@ async def test_manager_get_status_with_metrics_worker(mock_redis_client):
 
 
 @pytest.mark.asyncio
-@pytest.mark.slow  # Uses default worker timeouts (10-30s), skip in fast tests
+@pytest.mark.timeout(10)  # Manager tests need more time than the default 5s
 async def test_manager_idempotent_start(mock_redis_client):
     """Test PipelineWorkerManager start is idempotent."""
-    manager = PipelineWorkerManager(redis_client=mock_redis_client)
+    manager = PipelineWorkerManager(
+        redis_client=mock_redis_client,
+        worker_stop_timeout=TEST_STOP_TIMEOUT,
+    )
 
     await manager.start()
     await manager.start()  # Should not raise
@@ -1209,10 +1215,13 @@ async def test_manager_idempotent_start(mock_redis_client):
 
 
 @pytest.mark.asyncio
-@pytest.mark.slow  # Uses default worker timeouts (10-30s), skip in fast tests
+@pytest.mark.timeout(10)  # Manager tests need more time than the default 5s
 async def test_manager_idempotent_stop(mock_redis_client):
     """Test PipelineWorkerManager stop is idempotent."""
-    manager = PipelineWorkerManager(redis_client=mock_redis_client)
+    manager = PipelineWorkerManager(
+        redis_client=mock_redis_client,
+        worker_stop_timeout=TEST_STOP_TIMEOUT,
+    )
 
     await manager.stop()  # Stop without starting
     assert manager.running is False
@@ -1224,10 +1233,13 @@ async def test_manager_idempotent_stop(mock_redis_client):
 
 
 @pytest.mark.asyncio
-@pytest.mark.slow  # Uses default worker timeouts (10-30s), skip in fast tests
+@pytest.mark.timeout(10)  # Manager tests need more time than the default 5s
 async def test_manager_signal_handler_installation(mock_redis_client):
     """Test PipelineWorkerManager installs signal handlers (lines 870-871)."""
-    manager = PipelineWorkerManager(redis_client=mock_redis_client)
+    manager = PipelineWorkerManager(
+        redis_client=mock_redis_client,
+        worker_stop_timeout=TEST_STOP_TIMEOUT,
+    )
 
     # Mock the signal handler installation
     with patch.object(asyncio, "get_running_loop") as mock_get_loop:
@@ -1247,10 +1259,13 @@ async def test_manager_signal_handler_installation(mock_redis_client):
 
 
 @pytest.mark.asyncio
-@pytest.mark.slow  # Uses default worker timeouts (10-30s), skip in fast tests
+@pytest.mark.timeout(10)  # Manager tests need more time than the default 5s
 async def test_manager_signal_handler_not_implemented(mock_redis_client):
     """Test PipelineWorkerManager handles NotImplementedError for signals (lines 879-881)."""
-    manager = PipelineWorkerManager(redis_client=mock_redis_client)
+    manager = PipelineWorkerManager(
+        redis_client=mock_redis_client,
+        worker_stop_timeout=TEST_STOP_TIMEOUT,
+    )
 
     # Mock the signal handler to raise NotImplementedError (like on Windows)
     with patch.object(asyncio, "get_running_loop") as mock_get_loop:
@@ -1266,10 +1281,13 @@ async def test_manager_signal_handler_not_implemented(mock_redis_client):
 
 
 @pytest.mark.asyncio
-@pytest.mark.slow  # Uses default worker timeouts (10-30s), skip in fast tests
+@pytest.mark.timeout(10)  # Manager tests need more time than the default 5s
 async def test_manager_signal_handler_runtime_error(mock_redis_client):
     """Test PipelineWorkerManager handles RuntimeError for signals (lines 879-881)."""
-    manager = PipelineWorkerManager(redis_client=mock_redis_client)
+    manager = PipelineWorkerManager(
+        redis_client=mock_redis_client,
+        worker_stop_timeout=TEST_STOP_TIMEOUT,
+    )
 
     # Mock the signal handler to raise RuntimeError (e.g., not in main thread)
     with patch.object(asyncio, "get_running_loop") as mock_get_loop:
@@ -1285,10 +1303,13 @@ async def test_manager_signal_handler_runtime_error(mock_redis_client):
 
 
 @pytest.mark.asyncio
-@pytest.mark.slow  # Uses default worker timeouts (10-30s), skip in fast tests
+@pytest.mark.timeout(10)  # Manager tests need more time than the default 5s
 async def test_manager_signal_handler_triggers_stop(mock_redis_client):
     """Test that signal handler actually triggers stop when invoked."""
-    manager = PipelineWorkerManager(redis_client=mock_redis_client)
+    manager = PipelineWorkerManager(
+        redis_client=mock_redis_client,
+        worker_stop_timeout=TEST_STOP_TIMEOUT,
+    )
 
     captured_handlers = {}
 
@@ -1324,7 +1345,7 @@ async def test_manager_signal_handler_triggers_stop(mock_redis_client):
 
 
 @pytest.mark.asyncio
-@pytest.mark.slow  # Uses default worker timeouts (10-30s), skip in fast tests
+@pytest.mark.timeout(10)  # Manager tests need more time than the default 5s
 async def test_get_pipeline_manager_singleton(mock_redis_client):
     """Test get_pipeline_manager returns singleton."""
     # Clear any existing singleton
@@ -1332,24 +1353,41 @@ async def test_get_pipeline_manager_singleton(mock_redis_client):
 
     module._pipeline_manager = None
 
+    # Create a fast manager directly and set as singleton to avoid slow default timeouts
+    fast_manager = PipelineWorkerManager(
+        redis_client=mock_redis_client,
+        worker_stop_timeout=TEST_STOP_TIMEOUT,
+    )
+    module._pipeline_manager = fast_manager
+
+    # Now get_pipeline_manager should return our fast manager
     manager1 = await get_pipeline_manager(mock_redis_client)
     manager2 = await get_pipeline_manager(mock_redis_client)
 
     assert manager1 is manager2
+    assert manager1 is fast_manager
 
     # Cleanup
     await stop_pipeline_manager()
 
 
 @pytest.mark.asyncio
-@pytest.mark.slow  # Uses default worker timeouts (10-30s), skip in fast tests
+@pytest.mark.timeout(10)  # Manager tests need more time than the default 5s
 async def test_stop_pipeline_manager_clears_singleton(mock_redis_client):
     """Test stop_pipeline_manager clears the singleton."""
     import backend.services.pipeline_workers as module
 
     module._pipeline_manager = None
 
+    # Create a fast manager directly to avoid slow default timeouts
+    fast_manager = PipelineWorkerManager(
+        redis_client=mock_redis_client,
+        worker_stop_timeout=TEST_STOP_TIMEOUT,
+    )
+    module._pipeline_manager = fast_manager
+
     manager = await get_pipeline_manager(mock_redis_client)
+    assert manager is fast_manager
     await manager.start()
 
     await stop_pipeline_manager()
@@ -1423,10 +1461,13 @@ async def test_worker_cancellation_during_processing(
 
 
 @pytest.mark.asyncio
-@pytest.mark.slow  # Uses default worker timeouts (10-30s), skip in fast tests
+@pytest.mark.timeout(10)  # Manager tests need more time than the default 5s
 async def test_manager_stops_all_workers_on_shutdown(mock_redis_client):
     """Test manager stops all workers during shutdown."""
-    manager = PipelineWorkerManager(redis_client=mock_redis_client)
+    manager = PipelineWorkerManager(
+        redis_client=mock_redis_client,
+        worker_stop_timeout=TEST_STOP_TIMEOUT,
+    )
 
     await manager.start()
     assert manager._detection_worker.running is True
