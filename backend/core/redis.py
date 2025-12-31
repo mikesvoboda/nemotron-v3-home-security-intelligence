@@ -182,7 +182,8 @@ class RedisClient:
 
         Args:
             queue_name: Name of the queue (Redis list key)
-            timeout: Timeout in seconds for BLPOP (0 = no timeout)
+            timeout: Timeout in seconds for BLPOP. If 0 or less than minimum (5s),
+                the minimum timeout is used to prevent indefinite blocking.
             max_retries: Maximum retry attempts (default: self._max_retries)
 
         Returns:
@@ -664,18 +665,29 @@ class RedisClient:
             overflow_policy=settings.queue_overflow_policy,
         )
 
+    # Minimum timeout for BLPOP to prevent indefinite blocking
+    # This ensures workers can check their shutdown flags periodically
+    _MIN_BLPOP_TIMEOUT: int = 5
+
     async def get_from_queue(self, queue_name: str, timeout: int = 0) -> Any | None:
         """Get item from the front of a queue (BLPOP).
 
         Args:
             queue_name: Name of the queue (Redis list key)
-            timeout: Timeout in seconds (0 = no timeout, blocks indefinitely)
+            timeout: Timeout in seconds. If 0 or less than minimum (5s),
+                the minimum timeout is used to prevent indefinite blocking.
+                This ensures workers can periodically check their shutdown flags.
 
         Returns:
             Deserialized item from the queue, or None if timeout
         """
         client = self._ensure_connected()
-        result = await client.blpop([queue_name], timeout=timeout)  # type: ignore[misc]
+        # Enforce minimum timeout to prevent indefinite blocking
+        # This is critical for graceful shutdown - workers need to periodically
+        # check their _running flag even when the queue is empty
+        effective_timeout = max(timeout, self._MIN_BLPOP_TIMEOUT) if timeout <= 0 else timeout
+        effective_timeout = max(effective_timeout, self._MIN_BLPOP_TIMEOUT)
+        result = await client.blpop([queue_name], timeout=effective_timeout)  # type: ignore[misc]
         if result:
             _, value = result
             try:
@@ -926,19 +938,50 @@ class RedisClient:
 
 # Global Redis client instance
 _redis_client: RedisClient | None = None
+# Lock for thread-safe initialization (prevents race conditions)
+_redis_init_lock: asyncio.Lock | None = None
+
+
+def _get_redis_init_lock() -> asyncio.Lock:
+    """Get the Redis initialization lock (lazy initialization).
+
+    Creates the asyncio.Lock lazily to ensure it's created in the correct
+    event loop context. This function is not itself thread-safe but the
+    lock usage pattern (double-check locking) ensures correct behavior.
+
+    Returns:
+        asyncio.Lock for Redis client initialization
+    """
+    global _redis_init_lock  # noqa: PLW0603
+    if _redis_init_lock is None:
+        _redis_init_lock = asyncio.Lock()
+    return _redis_init_lock
 
 
 async def get_redis() -> AsyncGenerator[RedisClient]:
     """FastAPI dependency for Redis client.
+
+    Uses double-check locking pattern to prevent race conditions when
+    multiple coroutines attempt to initialize the Redis client concurrently.
 
     Yields:
         RedisClient instance
     """
     global _redis_client  # noqa: PLW0603
 
-    if _redis_client is None:
-        _redis_client = RedisClient()
-        await _redis_client.connect()
+    # Fast path: client already initialized
+    if _redis_client is not None:
+        yield _redis_client
+        return
+
+    # Slow path: acquire lock and check again
+    lock = _get_redis_init_lock()
+    async with lock:
+        # Double-check after acquiring lock
+        if _redis_client is None:
+            client = RedisClient()
+            await client.connect()
+            _redis_client = client
 
     yield _redis_client
 
@@ -950,15 +993,28 @@ async def get_redis_optional() -> AsyncGenerator[RedisClient | None]:
     when Redis is unavailable. Use this for health check endpoints where you want
     to report Redis status rather than fail the request.
 
+    Uses double-check locking pattern to prevent race conditions.
+
     Yields:
         RedisClient instance if connected, None if Redis is unavailable
     """
     global _redis_client  # noqa: PLW0603
 
     try:
-        if _redis_client is None:
-            _redis_client = RedisClient()
-            await _redis_client.connect()
+        # Fast path: client already initialized
+        if _redis_client is not None:
+            yield _redis_client
+            return
+
+        # Slow path: acquire lock and check again
+        lock = _get_redis_init_lock()
+        async with lock:
+            # Double-check after acquiring lock
+            if _redis_client is None:
+                client = RedisClient()
+                await client.connect()
+                _redis_client = client
+
         yield _redis_client
     except (ConnectionError, TimeoutError) as e:
         logger.warning(f"Redis unavailable (will report degraded status): {e}")
@@ -972,22 +1028,36 @@ async def get_redis_optional() -> AsyncGenerator[RedisClient | None]:
 async def init_redis() -> RedisClient:
     """Initialize Redis client for application startup.
 
+    Uses double-check locking pattern to prevent race conditions when
+    multiple coroutines attempt to initialize the Redis client concurrently.
+
     Returns:
         Connected RedisClient instance
     """
     global _redis_client  # noqa: PLW0603
 
-    if _redis_client is None:
-        _redis_client = RedisClient()
-        await _redis_client.connect()
+    # Fast path: client already initialized
+    if _redis_client is not None:
+        return _redis_client
+
+    # Slow path: acquire lock and check again
+    lock = _get_redis_init_lock()
+    async with lock:
+        # Double-check after acquiring lock
+        if _redis_client is None:
+            client = RedisClient()
+            await client.connect()
+            _redis_client = client
 
     return _redis_client
 
 
 async def close_redis() -> None:
     """Close Redis client for application shutdown."""
-    global _redis_client  # noqa: PLW0603
+    global _redis_client, _redis_init_lock  # noqa: PLW0603
 
     if _redis_client:
         await _redis_client.disconnect()
         _redis_client = None
+    # Reset lock so it can be recreated in correct event loop on next startup
+    _redis_init_lock = None

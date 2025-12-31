@@ -1,5 +1,6 @@
 """Unit tests for Redis connection and operations."""
 
+import asyncio
 import contextlib
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -8,12 +9,15 @@ import pytest
 from redis.asyncio import Redis
 from redis.exceptions import ConnectionError
 
+import backend.core.redis as redis_module
 from backend.core.redis import (
     QueueAddResult,
     QueueOverflowPolicy,
     RedisClient,
+    _get_redis_init_lock,
     close_redis,
     get_redis,
+    get_redis_optional,
     init_redis,
 )
 from backend.tests.conftest import unique_id
@@ -1334,3 +1338,202 @@ async def test_backpressure_integration_drop_oldest_policy():
     # Cleanup
     await client.clear_queue(queue_name)
     await fake_server.aclose()
+
+
+# ==============================================================================
+# Bug Fix Tests - Redis Singleton Race Condition (wa0t.4)
+# ==============================================================================
+
+
+@pytest.fixture
+def reset_redis_global_state():
+    """Reset global Redis client state before and after each test."""
+    # Reset before test
+    redis_module._redis_client = None
+    redis_module._redis_init_lock = None
+    yield
+    # Reset after test
+    redis_module._redis_client = None
+    redis_module._redis_init_lock = None
+
+
+@pytest.mark.asyncio
+async def test_get_redis_init_lock_creates_lock():
+    """Test that _get_redis_init_lock creates an asyncio.Lock."""
+    # Reset lock state
+    redis_module._redis_init_lock = None
+
+    lock = _get_redis_init_lock()
+
+    assert lock is not None
+    assert isinstance(lock, asyncio.Lock)
+
+    # Cleanup
+    redis_module._redis_init_lock = None
+
+
+@pytest.mark.asyncio
+async def test_get_redis_init_lock_returns_same_lock():
+    """Test that _get_redis_init_lock returns the same lock instance."""
+    # Reset lock state
+    redis_module._redis_init_lock = None
+
+    lock1 = _get_redis_init_lock()
+    lock2 = _get_redis_init_lock()
+
+    assert lock1 is lock2
+
+    # Cleanup
+    redis_module._redis_init_lock = None
+
+
+@pytest.mark.asyncio
+async def test_init_redis_concurrent_initialization(
+    mock_redis_pool, mock_redis_client, reset_redis_global_state
+):
+    """Test that concurrent init_redis calls don't create multiple clients.
+
+    This tests the race condition fix (wa0t.4) by calling init_redis()
+    concurrently from multiple coroutines.
+    """
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+        # Call init_redis concurrently from multiple coroutines
+        results = await asyncio.gather(
+            init_redis(),
+            init_redis(),
+            init_redis(),
+            init_redis(),
+            init_redis(),
+        )
+
+        # All results should be the same instance
+        first_client = results[0]
+        for client in results[1:]:
+            assert client is first_client
+
+        # connect (ping) should only have been called once
+        # due to the double-check locking pattern
+        assert mock_redis_client.ping.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_get_redis_concurrent_initialization(
+    mock_redis_pool, mock_redis_client, reset_redis_global_state
+):
+    """Test that concurrent get_redis calls don't create multiple clients."""
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+        # Call get_redis concurrently
+        generators = [get_redis() for _ in range(5)]
+        clients = await asyncio.gather(*[anext(gen) for gen in generators])
+
+        # All clients should be the same instance
+        first_client = clients[0]
+        for client in clients[1:]:
+            assert client is first_client
+
+        # Cleanup generators
+        for gen in generators:
+            with contextlib.suppress(StopAsyncIteration):
+                await gen.asend(None)
+
+
+@pytest.mark.asyncio
+async def test_get_redis_optional_concurrent_initialization(
+    mock_redis_pool, mock_redis_client, reset_redis_global_state
+):
+    """Test that concurrent get_redis_optional calls don't create multiple clients."""
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+        # Call get_redis_optional concurrently
+        generators = [get_redis_optional() for _ in range(5)]
+        clients = await asyncio.gather(*[anext(gen) for gen in generators])
+
+        # All clients should be the same instance (not None)
+        first_client = clients[0]
+        assert first_client is not None
+        for client in clients[1:]:
+            assert client is first_client
+
+        # Cleanup generators
+        for gen in generators:
+            with contextlib.suppress(StopAsyncIteration):
+                await gen.asend(None)
+
+
+@pytest.mark.asyncio
+async def test_close_redis_resets_lock(
+    mock_redis_pool, mock_redis_client, reset_redis_global_state
+):
+    """Test that close_redis resets the initialization lock."""
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+        await init_redis()
+
+        # Lock should exist after initialization
+        assert redis_module._redis_init_lock is not None
+
+        await close_redis()
+
+        # Lock should be reset after close
+        assert redis_module._redis_init_lock is None
+        assert redis_module._redis_client is None
+
+
+# ==============================================================================
+# Bug Fix Tests - BLPOP Minimum Timeout (wa0t.5)
+# ==============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_from_queue_enforces_minimum_timeout(redis_client, mock_redis_client):
+    """Test that get_from_queue enforces minimum timeout of 5 seconds.
+
+    This tests the BLPOP timeout fix (wa0t.5) that prevents indefinite blocking.
+    """
+    mock_redis_client.blpop.return_value = None
+
+    # Call with timeout=0 (would block indefinitely without fix)
+    await redis_client.get_from_queue("test_queue", timeout=0)
+
+    # Should have been called with minimum timeout (5), not 0
+    mock_redis_client.blpop.assert_awaited_once_with(["test_queue"], timeout=5)
+
+
+@pytest.mark.asyncio
+async def test_get_from_queue_enforces_minimum_on_small_timeout(redis_client, mock_redis_client):
+    """Test that get_from_queue enforces minimum timeout for small values."""
+    mock_redis_client.blpop.return_value = None
+
+    # Call with timeout less than minimum
+    await redis_client.get_from_queue("test_queue", timeout=2)
+
+    # Should have been called with minimum timeout (5), not 2
+    mock_redis_client.blpop.assert_awaited_once_with(["test_queue"], timeout=5)
+
+
+@pytest.mark.asyncio
+async def test_get_from_queue_preserves_large_timeout(redis_client, mock_redis_client):
+    """Test that get_from_queue preserves timeout values >= minimum."""
+    mock_redis_client.blpop.return_value = None
+
+    # Call with timeout greater than minimum
+    await redis_client.get_from_queue("test_queue", timeout=30)
+
+    # Should use the provided timeout
+    mock_redis_client.blpop.assert_awaited_once_with(["test_queue"], timeout=30)
+
+
+@pytest.mark.asyncio
+async def test_get_from_queue_min_blpop_timeout_class_attribute():
+    """Test that RedisClient has _MIN_BLPOP_TIMEOUT class attribute set to 5."""
+    assert RedisClient._MIN_BLPOP_TIMEOUT == 5
+
+
+@pytest.mark.asyncio
+async def test_get_from_queue_with_retry_enforces_minimum_timeout(redis_client, mock_redis_client):
+    """Test that get_from_queue_with_retry also enforces minimum timeout."""
+    mock_redis_client.blpop.return_value = None
+
+    # Call with timeout=0
+    await redis_client.get_from_queue_with_retry("test_queue", timeout=0)
+
+    # Should have been called with minimum timeout
+    mock_redis_client.blpop.assert_awaited_once_with(["test_queue"], timeout=5)

@@ -34,12 +34,12 @@ from .camera import Base
 
 
 def _utc_now() -> datetime:
-    """Return current UTC time as a naive datetime (for DB compatibility).
+    """Return current UTC time as a timezone-aware datetime.
 
-    This replaces the deprecated datetime.utcnow() and ensures DB compatibility
-    by stripping timezone info since columns are TIMESTAMP WITHOUT TIME ZONE.
+    This replaces the deprecated datetime.utcnow() and returns a timezone-aware
+    datetime compatible with DateTime(timezone=True) columns.
     """
-    return datetime.now(UTC).replace(tzinfo=None)
+    return datetime.now(UTC)
 
 
 if TYPE_CHECKING:
@@ -102,17 +102,17 @@ class Alert(Base):
         nullable=False,
         default=AlertStatus.PENDING,
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utc_now, nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=_utc_now, onupdate=_utc_now, nullable=False
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utc_now, nullable=False
     )
-    delivered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    channels: Mapped[list | None] = mapped_column(JSON, nullable=True, default=list)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utc_now, onupdate=_utc_now, nullable=False
+    )
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    channels: Mapped[list | None] = mapped_column(JSON, nullable=True)
     dedup_key: Mapped[str] = mapped_column(String(255), nullable=False)
     # Note: Named alert_metadata to avoid collision with SQLAlchemy's reserved 'metadata'
-    alert_metadata: Mapped[dict | None] = mapped_column(
-        "metadata", JSON, nullable=True, default=dict
-    )
+    alert_metadata: Mapped[dict | None] = mapped_column("metadata", JSON, nullable=True)
 
     # Relationships
     event: Mapped[Event] = relationship("Event", back_populates="alerts")
@@ -195,7 +195,7 @@ class AlertRule(Base):
 
     # Legacy conditions field (for backward compatibility)
     # New rules should use explicit fields above
-    conditions: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=dict)
+    conditions: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     # Cooldown: Deduplication key template and cooldown period
     # Template variables: {camera_id}, {rule_id}, {object_type}
@@ -207,12 +207,14 @@ class AlertRule(Base):
     cooldown_seconds: Mapped[int] = mapped_column(Integer, default=300, nullable=False)
 
     # Notification channels (JSON array)
-    channels: Mapped[list | None] = mapped_column(JSON, nullable=True, default=list)
+    channels: Mapped[list | None] = mapped_column(JSON, nullable=True)
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utc_now, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utc_now, nullable=False
+    )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=_utc_now, onupdate=_utc_now, nullable=False
+        DateTime(timezone=True), default=_utc_now, onupdate=_utc_now, nullable=False
     )
 
     # Relationships
