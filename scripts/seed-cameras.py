@@ -1,5 +1,22 @@
 #!/usr/bin/env python3
-"""Seed the database with test cameras for development."""
+"""Seed the database with cameras from filesystem or config.
+
+Usage:
+    # Auto-discover cameras from /export/foscam (default)
+    uv run python scripts/seed-cameras.py --discover
+
+    # Auto-discover from custom path
+    uv run python scripts/seed-cameras.py --discover /path/to/cameras
+
+    # Use sample cameras (for testing)
+    uv run python scripts/seed-cameras.py --count 6
+
+    # List current cameras
+    uv run python scripts/seed-cameras.py --list
+
+    # Clear and re-seed from filesystem
+    uv run python scripts/seed-cameras.py --clear --discover
+"""
 
 import argparse
 import asyncio
@@ -10,10 +27,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from backend.core.database import get_session, init_db
-from backend.models.camera import Camera
+from backend.models.camera import Camera, normalize_camera_id
 from sqlalchemy import delete, select
 
-# Sample camera configurations
+# Default base path for Foscam cameras
+DEFAULT_FOSCAM_PATH = "/export/foscam"
+
+# Sample camera configurations (for testing when no real cameras available)
 SAMPLE_CAMERAS = [
     {
         "id": "front-door",
@@ -54,6 +74,41 @@ SAMPLE_CAMERAS = [
 ]
 
 
+def discover_cameras(base_path: str) -> list[dict]:
+    """Discover camera directories from filesystem.
+
+    Args:
+        base_path: Root directory containing camera subdirectories
+
+    Returns:
+        List of camera configurations discovered from filesystem
+    """
+    base = Path(base_path)
+    if not base.exists():
+        print(f"Warning: Base path {base_path} does not exist")
+        return []
+
+    cameras = []
+    for folder in sorted(base.iterdir()):
+        if folder.is_dir() and not folder.name.startswith("."):
+            # Normalize ID from folder name
+            camera_id = normalize_camera_id(folder.name)
+            # Create display name (replace underscores with spaces, title case)
+            display_name = folder.name.replace("_", " ").title()
+
+            cameras.append(
+                {
+                    "id": camera_id,
+                    "name": display_name,
+                    "folder_path": str(folder),
+                    "status": "online",
+                }
+            )
+            print(f"Discovered: {folder.name} -> {camera_id}")
+
+    return cameras
+
+
 async def clear_cameras() -> int:
     """Remove all cameras from the database.
 
@@ -75,21 +130,22 @@ async def clear_cameras() -> int:
         return count
 
 
-async def seed_cameras(count: int, create_folders: bool = True) -> int:
-    """Seed the database with test cameras.
+async def seed_cameras_from_list(
+    cameras_to_create: list[dict], create_folders: bool = False
+) -> int:
+    """Seed the database with cameras from a list.
 
     Args:
-        count: Number of cameras to create (1-6)
+        cameras_to_create: List of camera config dicts
         create_folders: Whether to create corresponding folders
 
     Returns:
         Number of cameras created.
     """
-    if count < 1 or count > len(SAMPLE_CAMERAS):
-        print(f"Error: count must be between 1 and {len(SAMPLE_CAMERAS)}")
+    if not cameras_to_create:
+        print("No cameras to create")
         return 0
 
-    cameras_to_create = SAMPLE_CAMERAS[:count]
     created_count = 0
 
     async with get_session() as session:
@@ -131,6 +187,24 @@ async def seed_cameras(count: int, create_folders: bool = True) -> int:
     return created_count
 
 
+async def seed_cameras(count: int, create_folders: bool = True) -> int:
+    """Seed the database with sample test cameras.
+
+    Args:
+        count: Number of cameras to create (1-6)
+        create_folders: Whether to create corresponding folders
+
+    Returns:
+        Number of cameras created.
+    """
+    if count < 1 or count > len(SAMPLE_CAMERAS):
+        print(f"Error: count must be between 1 and {len(SAMPLE_CAMERAS)}")
+        return 0
+
+    cameras_to_create = SAMPLE_CAMERAS[:count]
+    return await seed_cameras_from_list(cameras_to_create, create_folders)
+
+
 async def list_cameras() -> None:
     """List all cameras in the database."""
     async with get_session() as session:
@@ -155,7 +229,32 @@ async def list_cameras() -> None:
 async def main() -> int:
     """Main entry point for the seed script."""
     parser = argparse.ArgumentParser(
-        description="Seed the database with test cameras for development"
+        description="Seed the database with cameras from filesystem or samples",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Auto-discover cameras from /export/foscam
+  uv run python scripts/seed-cameras.py --discover
+
+  # Auto-discover from custom path
+  uv run python scripts/seed-cameras.py --discover /mnt/cameras
+
+  # Clear and re-seed from filesystem
+  uv run python scripts/seed-cameras.py --clear --discover
+
+  # Use sample cameras (for testing)
+  uv run python scripts/seed-cameras.py --count 6
+
+  # List current cameras
+  uv run python scripts/seed-cameras.py --list
+""",
+    )
+    parser.add_argument(
+        "--discover",
+        nargs="?",
+        const=DEFAULT_FOSCAM_PATH,
+        metavar="PATH",
+        help=f"Discover cameras from filesystem (default: {DEFAULT_FOSCAM_PATH})",
     )
     parser.add_argument(
         "--clear",
@@ -165,8 +264,8 @@ async def main() -> int:
     parser.add_argument(
         "--count",
         type=int,
-        default=6,
-        help=f"Number of cameras to create (1-{len(SAMPLE_CAMERAS)}, default: 6)",
+        default=None,
+        help=f"Number of sample cameras to create (1-{len(SAMPLE_CAMERAS)})",
     )
     parser.add_argument(
         "--no-folders",
@@ -195,13 +294,31 @@ async def main() -> int:
         await clear_cameras()
 
     # Seed cameras
-    print(f"\nSeeding {args.count} cameras...")
-    created = await seed_cameras(count=args.count, create_folders=not args.no_folders)
-
-    if created > 0:
-        print(f"\nSuccessfully created {created} cameras")
-    else:
-        print("\nNo cameras were created (they may already exist)")
+    if args.discover:
+        # Auto-discover from filesystem
+        print(f"\nDiscovering cameras from {args.discover}...")
+        discovered = discover_cameras(args.discover)
+        if discovered:
+            created = await seed_cameras_from_list(discovered, create_folders=False)
+            if created > 0:
+                print(f"\nSuccessfully created {created} cameras from filesystem")
+            else:
+                print("\nNo cameras were created (they may already exist)")
+        else:
+            print(f"\nNo camera directories found in {args.discover}")
+    elif args.count:
+        # Use sample cameras
+        print(f"\nSeeding {args.count} sample cameras...")
+        created = await seed_cameras(count=args.count, create_folders=not args.no_folders)
+        if created > 0:
+            print(f"\nSuccessfully created {created} cameras")
+        else:
+            print("\nNo cameras were created (they may already exist)")
+    elif not args.clear:
+        # No action specified
+        print("\nNo action specified. Use --discover, --count, or --list")
+        parser.print_help()
+        return 1
 
     # List final state
     await list_cameras()

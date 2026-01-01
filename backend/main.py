@@ -80,6 +80,68 @@ async def create_camera_callback(camera: Camera) -> None:
         )
 
 
+async def seed_cameras_if_empty() -> int:
+    """Seed cameras from filesystem if database is empty.
+
+    This function runs on startup to auto-discover and seed camera records
+    from the configured foscam_base_path. Only seeds if no cameras exist
+    in the database (safe for restarts).
+
+    Returns:
+        Number of cameras created (0 if database already had cameras)
+    """
+    from pathlib import Path
+
+    from sqlalchemy import func, select
+
+    from backend.core.database import get_session
+    from backend.core.logging import get_logger
+    from backend.models.camera import normalize_camera_id
+
+    logger = get_logger(__name__)
+    settings = get_settings()
+
+    async with get_session() as session:
+        # Check if cameras table is empty
+        result = await session.execute(select(func.count(Camera.id)))
+        count = result.scalar() or 0
+
+        if count > 0:
+            logger.debug(f"Database already has {count} cameras, skipping seed")
+            return 0
+
+        # Discover cameras from filesystem
+        base_path = Path(settings.foscam_base_path)
+        if not base_path.exists():
+            logger.warning(f"Camera base path does not exist: {base_path}")
+            return 0
+
+        created = 0
+        for folder in sorted(base_path.iterdir()):
+            if folder.is_dir() and not folder.name.startswith("."):
+                camera_id = normalize_camera_id(folder.name)
+                display_name = folder.name.replace("_", " ").title()
+
+                camera = Camera(
+                    id=camera_id,
+                    name=display_name,
+                    folder_path=str(folder),
+                    status="online",
+                )
+                session.add(camera)
+                created += 1
+                logger.info(
+                    f"Seeded camera: {camera_id} ({display_name})",
+                    extra={"camera_id": camera_id, "folder_path": str(folder)},
+                )
+
+        if created > 0:
+            await session.commit()
+            logger.info(f"Auto-seeded {created} cameras from {base_path}")
+
+        return created
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     """Manage application lifecycle - startup and shutdown events."""
@@ -90,6 +152,11 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     settings = get_settings()
     await init_db()
     print(f"Database initialized: {redact_url(settings.database_url)}")
+
+    # Auto-seed cameras from filesystem if database is empty
+    seeded = await seed_cameras_if_empty()
+    if seeded > 0:
+        print(f"Auto-seeded {seeded} cameras from {settings.foscam_base_path}")
 
     # Track whether Redis-dependent services were initialized
     redis_client = None
