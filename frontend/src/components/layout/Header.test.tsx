@@ -10,7 +10,7 @@ import type { ChannelStatus, ConnectionState } from '../../hooks/useWebSocketSta
 // Mock the useSidebarContext hook
 const mockToggleMobileMenu = vi.fn();
 
-vi.mock('./Layout', () => ({
+vi.mock('../../hooks/useSidebarContext', () => ({
   useSidebarContext: () => ({
     isMobileMenuOpen: false,
     setMobileMenuOpen: vi.fn(),

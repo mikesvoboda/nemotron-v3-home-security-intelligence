@@ -7,7 +7,7 @@ import Sidebar from './Sidebar';
 // Mock the useSidebarContext hook
 const mockSetMobileMenuOpen = vi.fn();
 
-vi.mock('./Layout', () => ({
+vi.mock('../../hooks/useSidebarContext', () => ({
   useSidebarContext: () => ({
     isMobileMenuOpen: false,
     setMobileMenuOpen: mockSetMobileMenuOpen,
