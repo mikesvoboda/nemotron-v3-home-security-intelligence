@@ -13,6 +13,7 @@ import io
 import logging
 import os
 import time
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -61,6 +62,65 @@ class ExtractResponse(BaseModel):
 
     result: str = Field(..., description="Florence-2 generated text response")
     prompt_used: str = Field(..., description="The prompt that was used")
+    inference_time_ms: float = Field(..., description="Inference time in milliseconds")
+
+
+class ImageRequest(BaseModel):
+    """Request format for endpoints that only need an image."""
+
+    image: str = Field(..., description="Base64 encoded image")
+
+
+class OCRResponse(BaseModel):
+    """Response format for OCR endpoint."""
+
+    text: str = Field(..., description="Extracted text from the image")
+    inference_time_ms: float = Field(..., description="Inference time in milliseconds")
+
+
+class OCRRegion(BaseModel):
+    """A text region with bounding box coordinates."""
+
+    text: str = Field(..., description="Text content in this region")
+    bbox: list[float] = Field(
+        ...,
+        description="Bounding box as [x1, y1, x2, y2, x3, y3, x4, y4] (quadrilateral corners)",
+    )
+
+
+class OCRWithRegionsResponse(BaseModel):
+    """Response format for OCR with regions endpoint."""
+
+    regions: list[OCRRegion] = Field(..., description="List of text regions with bounding boxes")
+    inference_time_ms: float = Field(..., description="Inference time in milliseconds")
+
+
+class Detection(BaseModel):
+    """A detected object with bounding box and confidence score."""
+
+    label: str = Field(..., description="Object label/class")
+    bbox: list[float] = Field(..., description="Bounding box as [x1, y1, x2, y2]")
+    score: float = Field(default=1.0, description="Confidence score (0-1)")
+
+
+class DetectResponse(BaseModel):
+    """Response format for object detection endpoint."""
+
+    detections: list[Detection] = Field(..., description="List of detected objects")
+    inference_time_ms: float = Field(..., description="Inference time in milliseconds")
+
+
+class CaptionedRegion(BaseModel):
+    """A region with its caption and bounding box."""
+
+    caption: str = Field(..., description="Caption describing this region")
+    bbox: list[float] = Field(..., description="Bounding box as [x1, y1, x2, y2]")
+
+
+class DenseCaptionResponse(BaseModel):
+    """Response format for dense region captioning endpoint."""
+
+    regions: list[CaptionedRegion] = Field(..., description="List of captioned regions")
     inference_time_ms: float = Field(..., description="Inference time in milliseconds")
 
 
@@ -234,6 +294,68 @@ class Florence2Model:
 
         return final_result, inference_time_ms
 
+    def extract_raw(self, image: Image.Image, prompt: str) -> tuple[Any, float]:
+        """Run Florence-2 inference and return raw parsed result.
+
+        This method returns the raw parsed output from Florence-2's post-processing,
+        which can be a dict, list, or string depending on the prompt type.
+
+        Args:
+            image: PIL Image to process
+            prompt: Florence-2 task prompt
+
+        Returns:
+            Tuple of (raw parsed result, inference_time_ms)
+        """
+        if self.model is None or self.processor is None:
+            raise RuntimeError("Model not loaded")
+
+        start_time = time.perf_counter()
+
+        # Convert to RGB if needed
+        if image.mode != "RGB":
+            image = image.convert("RGB")
+
+        # Preprocess image and prompt
+        inputs = self.processor(
+            text=prompt,
+            images=image,
+            return_tensors="pt",
+        )
+
+        # Move inputs to device with correct dtype
+        model_dtype = next(self.model.parameters()).dtype
+        inputs = inputs.to(self.device, model_dtype)
+
+        # Run inference
+        with torch.no_grad():
+            generated_ids = self.model.generate(
+                input_ids=inputs["input_ids"],
+                pixel_values=inputs["pixel_values"],
+                max_new_tokens=1024,
+                early_stopping=False,
+                do_sample=False,
+                num_beams=1,
+                use_cache=False,
+            )
+
+        # Decode the generated text
+        generated_text = self.processor.batch_decode(generated_ids, skip_special_tokens=False)[0]
+
+        # Post-process to extract the result
+        parsed_result = self.processor.post_process_generation(
+            generated_text,
+            task=prompt,
+            image_size=(image.width, image.height),
+        )
+
+        inference_time_ms = (time.perf_counter() - start_time) * 1000
+
+        # Return the raw parsed result for the given prompt
+        if prompt in parsed_result:
+            return parsed_result[prompt], inference_time_ms
+        return parsed_result, inference_time_ms
+
 
 # Global model instance
 model: Florence2Model | None = None
@@ -250,7 +372,7 @@ def get_vram_usage() -> float | None:
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI):
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     """Lifespan context manager for FastAPI app."""
     global model  # noqa: PLW0603
 
@@ -386,6 +508,211 @@ async def extract(request: ExtractRequest) -> ExtractResponse:
     except Exception as e:
         logger.error(f"Extraction failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Extraction failed: {e!s}") from e
+
+
+def _decode_image(image_b64: str) -> Image.Image:
+    """Decode a base64 image string to PIL Image.
+
+    Args:
+        image_b64: Base64 encoded image string
+
+    Returns:
+        PIL Image object
+
+    Raises:
+        HTTPException: If the image is invalid or too large
+    """
+    # Validate base64 string size BEFORE decoding to prevent DoS
+    if len(image_b64) > MAX_BASE64_SIZE_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Base64 image data size ({len(image_b64)} bytes) exceeds "
+            f"maximum allowed size ({MAX_BASE64_SIZE_BYTES} bytes). "
+            f"Maximum decoded image size: {MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB",
+        )
+
+    # Decode base64 image
+    try:
+        image_bytes = base64.b64decode(image_b64)
+    except binascii.Error as e:
+        raise HTTPException(status_code=400, detail=f"Invalid base64 encoding: {e}") from e
+
+    # Validate decoded image size
+    if len(image_bytes) > MAX_IMAGE_SIZE_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Decoded image size ({len(image_bytes)} bytes) exceeds maximum "
+            f"allowed size ({MAX_IMAGE_SIZE_BYTES} bytes / "
+            f"{MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB)",
+        )
+
+    # Open image
+    try:
+        return Image.open(io.BytesIO(image_bytes))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid image data: {e}") from e
+
+
+@app.post("/ocr", response_model=OCRResponse)
+async def ocr(request: ImageRequest) -> OCRResponse:
+    """Extract all text from an image using OCR.
+
+    Uses Florence-2's <OCR> prompt to extract text content from the image.
+
+    Returns:
+        OCR results with extracted text
+    """
+    if model is None or model.model is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+
+    try:
+        image = _decode_image(request.image)
+
+        # Run OCR extraction
+        result, inference_time_ms = model.extract(image, "<OCR>")
+
+        return OCRResponse(
+            text=result,
+            inference_time_ms=inference_time_ms,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"OCR extraction failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"OCR extraction failed: {e!s}") from e
+
+
+@app.post("/ocr-with-regions", response_model=OCRWithRegionsResponse)
+async def ocr_with_regions(request: ImageRequest) -> OCRWithRegionsResponse:
+    """Extract text with bounding box regions from an image.
+
+    Uses Florence-2's <OCR_WITH_REGION> prompt to extract text along with
+    quadrilateral bounding boxes for each text region.
+
+    Returns:
+        OCR results with text regions and their bounding boxes
+    """
+    if model is None or model.model is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+
+    try:
+        image = _decode_image(request.image)
+
+        # Run OCR with regions extraction
+        raw_result, inference_time_ms = model.extract_raw(image, "<OCR_WITH_REGION>")
+
+        # Parse the result - Florence-2 returns {'quad_boxes': [...], 'labels': [...]}
+        regions: list[OCRRegion] = []
+
+        if isinstance(raw_result, dict):
+            quad_boxes = raw_result.get("quad_boxes", [])
+            labels = raw_result.get("labels", [])
+
+            for i, label in enumerate(labels):
+                bbox = quad_boxes[i] if i < len(quad_boxes) else []
+                # Flatten the quad box if it's nested
+                if bbox and isinstance(bbox[0], list):
+                    bbox = [coord for point in bbox for coord in point]
+                regions.append(OCRRegion(text=label, bbox=bbox))
+
+        return OCRWithRegionsResponse(
+            regions=regions,
+            inference_time_ms=inference_time_ms,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"OCR with regions extraction failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"OCR with regions extraction failed: {e!s}"
+        ) from e
+
+
+@app.post("/detect", response_model=DetectResponse)
+async def detect(request: ImageRequest) -> DetectResponse:
+    """Detect objects with bounding boxes in an image.
+
+    Uses Florence-2's <OD> (Object Detection) prompt to detect objects
+    and return their labels with bounding boxes.
+
+    Returns:
+        Detection results with object labels and bounding boxes
+    """
+    if model is None or model.model is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+
+    try:
+        image = _decode_image(request.image)
+
+        # Run object detection
+        raw_result, inference_time_ms = model.extract_raw(image, "<OD>")
+
+        # Parse the result - Florence-2 returns {'bboxes': [...], 'labels': [...]}
+        detections: list[Detection] = []
+
+        if isinstance(raw_result, dict):
+            bboxes = raw_result.get("bboxes", [])
+            labels = raw_result.get("labels", [])
+
+            for i, label in enumerate(labels):
+                bbox = bboxes[i] if i < len(bboxes) else []
+                # Florence-2 OD doesn't return scores, so default to 1.0
+                detections.append(Detection(label=label, bbox=bbox, score=1.0))
+
+        return DetectResponse(
+            detections=detections,
+            inference_time_ms=inference_time_ms,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Object detection failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Object detection failed: {e!s}") from e
+
+
+@app.post("/dense-caption", response_model=DenseCaptionResponse)
+async def dense_caption(request: ImageRequest) -> DenseCaptionResponse:
+    """Generate captions for all regions in an image.
+
+    Uses Florence-2's <DENSE_REGION_CAPTION> prompt to identify regions
+    in the image and generate captions for each one.
+
+    Returns:
+        Dense captioning results with region captions and bounding boxes
+    """
+    if model is None or model.model is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+
+    try:
+        image = _decode_image(request.image)
+
+        # Run dense region captioning
+        raw_result, inference_time_ms = model.extract_raw(image, "<DENSE_REGION_CAPTION>")
+
+        # Parse the result - Florence-2 returns {'bboxes': [...], 'labels': [...]}
+        regions: list[CaptionedRegion] = []
+
+        if isinstance(raw_result, dict):
+            bboxes = raw_result.get("bboxes", [])
+            labels = raw_result.get("labels", [])
+
+            for i, label in enumerate(labels):
+                bbox = bboxes[i] if i < len(bboxes) else []
+                regions.append(CaptionedRegion(caption=label, bbox=bbox))
+
+        return DenseCaptionResponse(
+            regions=regions,
+            inference_time_ms=inference_time_ms,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Dense captioning failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Dense captioning failed: {e!s}") from e
 
 
 if __name__ == "__main__":
