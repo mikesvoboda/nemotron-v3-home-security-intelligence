@@ -139,6 +139,14 @@ MODEL_ZOO: list[ModelSpec] = [
         model_type="transformers",
     ),
     ModelSpec(
+        name="vehicle-damage-detection",
+        hf_repo="harpreetsahota/car-dd-segmentation-yolov11",
+        phase=3,
+        vram_mb=2000,
+        description="Vehicle damage segmentation (cracks, dents, glass_shatter)",
+        model_type="ultralytics",
+    ),
+    ModelSpec(
         name="pet-classifier",
         hf_repo="hilmansw/resnet18-catdog-classifier",
         phase=3,
