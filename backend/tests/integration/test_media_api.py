@@ -149,6 +149,10 @@ def client(module_temp_foscam_dir, module_thumbnail_dir):
     async def mock_init_db():
         pass
 
+    # Mock seed_cameras_if_empty to return immediately (called after init_db in lifespan)
+    async def mock_seed_cameras_if_empty():
+        return 0
+
     # Mock init_redis to return mock client (async function)
     async def mock_init_redis():
         return mock_redis_client
@@ -164,6 +168,7 @@ def client(module_temp_foscam_dir, module_thumbnail_dir):
     # Patch all lifespan services for fast startup
     with (
         patch("backend.main.init_db", mock_init_db),
+        patch("backend.main.seed_cameras_if_empty", mock_seed_cameras_if_empty),
         patch("backend.main.init_redis", mock_init_redis),
         patch("backend.main.get_broadcaster", mock_get_broadcaster),
         patch("backend.main.FileWatcher", return_value=mock_file_watcher),
