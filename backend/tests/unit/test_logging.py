@@ -14,6 +14,7 @@ from backend.core.logging import (
     get_request_id,
     redact_sensitive_value,
     redact_url,
+    sanitize_log_value,
     set_request_id,
     setup_logging,
 )
@@ -1088,3 +1089,111 @@ class TestSensitiveFieldNames:
     def test_is_frozenset(self):
         """Test that SENSITIVE_FIELD_NAMES is immutable."""
         assert isinstance(SENSITIVE_FIELD_NAMES, frozenset)
+
+
+class TestSanitizeLogValue:
+    """Tests for sanitize_log_value function (CWE-117 Log Injection prevention)."""
+
+    def test_sanitize_normal_string(self):
+        """Test that normal strings pass through unchanged."""
+        result = sanitize_log_value("normal value")
+        assert result == "normal value"
+
+    def test_sanitize_removes_newlines(self):
+        """Test that newline characters are replaced with spaces."""
+        result = sanitize_log_value("line1\nFAKE_LOG_ENTRY")
+        assert result == "line1 FAKE_LOG_ENTRY"
+        assert "\n" not in result
+
+    def test_sanitize_removes_carriage_returns(self):
+        """Test that carriage return characters are replaced with spaces."""
+        result = sanitize_log_value("line1\rFAKE_LOG_ENTRY")
+        assert result == "line1 FAKE_LOG_ENTRY"
+        assert "\r" not in result
+
+    def test_sanitize_removes_crlf(self):
+        """Test that CRLF sequences are replaced."""
+        result = sanitize_log_value("line1\r\nFAKE_LOG_ENTRY")
+        assert result == "line1  FAKE_LOG_ENTRY"
+        assert "\r" not in result
+        assert "\n" not in result
+
+    def test_sanitize_removes_null_bytes(self):
+        """Test that null bytes are removed."""
+        result = sanitize_log_value("before\x00after")
+        assert result == "beforeafter"
+        assert "\x00" not in result
+
+    def test_sanitize_removes_control_characters(self):
+        """Test that control characters (ASCII 0-31) are replaced."""
+        # Test various control characters
+        result = sanitize_log_value("text\x01\x02\x03more")
+        assert result == "text   more"
+        # Verify no control chars remain except tabs
+        for char in result:
+            assert ord(char) >= 32 or char == "\t"
+
+    def test_sanitize_preserves_tabs(self):
+        """Test that tab characters are preserved."""
+        result = sanitize_log_value("col1\tcol2\tcol3")
+        assert result == "col1\tcol2\tcol3"
+        assert "\t" in result
+
+    def test_sanitize_handles_none(self):
+        """Test that None is converted to string 'None'."""
+        result = sanitize_log_value(None)
+        assert result == "None"
+
+    def test_sanitize_handles_numbers(self):
+        """Test that numbers are converted to strings."""
+        result = sanitize_log_value(42)
+        assert result == "42"
+
+    def test_sanitize_handles_floats(self):
+        """Test that floats are converted to strings."""
+        result = sanitize_log_value(3.14)
+        assert result == "3.14"
+
+    def test_sanitize_handles_booleans(self):
+        """Test that booleans are converted to strings."""
+        assert sanitize_log_value(True) == "True"
+        assert sanitize_log_value(False) == "False"
+
+    def test_sanitize_handles_empty_string(self):
+        """Test that empty strings pass through unchanged."""
+        result = sanitize_log_value("")
+        assert result == ""
+
+    def test_sanitize_log_injection_attack_scenario(self):
+        """Test realistic log injection attack scenario."""
+        # An attacker might try to forge log entries
+        malicious_input = (
+            "status=online\n2026-01-01 12:00:00 | ERROR | FAKE ALERT: System compromised"
+        )
+        result = sanitize_log_value(malicious_input)
+
+        # The result should be a single line with the fake entry on the same line
+        assert "\n" not in result
+        assert "status=online" in result
+        assert "FAKE ALERT" in result  # Still in string but not on new line
+
+    def test_sanitize_handles_unicode(self):
+        """Test that unicode characters are preserved."""
+        result = sanitize_log_value("Hello, world!")
+        assert result == "Hello, world!"
+
+    def test_sanitize_handles_escape_sequences(self):
+        """Test that escape sequences in input are handled."""
+        # Form feed, vertical tab, and bell characters
+        result = sanitize_log_value("text\f\v\amore")
+        # These are control characters and should be replaced
+        assert "\f" not in result
+        assert "\v" not in result
+        assert "\a" not in result
+
+    def test_sanitize_preserves_printable_characters(self):
+        """Test that all standard printable ASCII characters are preserved."""
+        # All printable ASCII (32-126)
+        printable = "".join(chr(i) for i in range(32, 127))
+        result = sanitize_log_value(printable)
+        assert result == printable

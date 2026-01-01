@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 
 import { useWebSocketStatus, ConnectionState, ChannelStatus } from './useWebSocketStatus';
-import { buildWebSocketUrl, fetchHealth, fetchEvents } from '../services/api';
+import { buildWebSocketOptions, fetchHealth, fetchEvents } from '../services/api';
 
 import type { SecurityEvent } from './useEventStream';
 
@@ -245,14 +245,17 @@ export function useConnectionStatus(): UseConnectionStatusReturn {
   }, []);
   /* v8 ignore stop */
 
-  const eventsWsUrl = buildWebSocketUrl('/ws/events');
-  const systemWsUrl = buildWebSocketUrl('/ws/system');
+  // Build WebSocket options using helper (respects VITE_WS_BASE_URL)
+  // SECURITY: API key is passed via Sec-WebSocket-Protocol header, not URL query param
+  const eventsWsOptions = buildWebSocketOptions('/ws/events');
+  const systemWsOptions = buildWebSocketOptions('/ws/system');
 
   const {
     channelStatus: eventsChannel,
     connect: connectEvents,
   } = useWebSocketStatus({
-    url: eventsWsUrl,
+    url: eventsWsOptions.url,
+    protocols: eventsWsOptions.protocols,
     channelName: 'Events',
     onMessage: handleEventMessage,
     onMaxRetriesExhausted: startPolling,
@@ -262,7 +265,8 @@ export function useConnectionStatus(): UseConnectionStatusReturn {
     channelStatus: systemChannel,
     connect: connectSystem,
   } = useWebSocketStatus({
-    url: systemWsUrl,
+    url: systemWsOptions.url,
+    protocols: systemWsOptions.protocols,
     channelName: 'System',
     onMessage: handleSystemMessage,
     onMaxRetriesExhausted: startPolling,

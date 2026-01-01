@@ -11,6 +11,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.middleware import RateLimiter, RateLimitTier
 from backend.api.schemas.detections import DetectionListResponse, DetectionResponse
 from backend.core.database import get_db
 from backend.core.mime_types import DEFAULT_VIDEO_MIME, normalize_file_type
@@ -19,6 +20,10 @@ from backend.services.thumbnail_generator import ThumbnailGenerator
 from backend.services.video_processor import VideoProcessor
 
 router = APIRouter(prefix="/api/detections", tags=["detections"])
+
+# Rate limiter for detection media endpoints (images, videos, thumbnails)
+# These endpoints are exempt from auth but need rate limiting for abuse prevention
+detection_media_rate_limiter = RateLimiter(tier=RateLimitTier.MEDIA)
 
 # Initialize thumbnail generator and video processor
 thumbnail_generator = ThumbnailGenerator()
@@ -121,12 +126,27 @@ async def get_detection(
     return detection
 
 
-@router.get("/{detection_id}/image", response_class=Response)
+@router.get(
+    "/{detection_id}/image",
+    response_class=Response,
+    responses={
+        200: {"description": "Image served successfully"},
+        404: {"description": "Detection or image not found"},
+        429: {"description": "Too many requests"},
+        500: {"description": "Failed to generate thumbnail"},
+    },
+)
 async def get_detection_image(
     detection_id: int,
     db: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(detection_media_rate_limiter),
 ) -> Response:
     """Get detection image with bounding box overlay.
+
+    This endpoint is exempt from API key authentication because:
+    1. It serves static image content accessed directly by browsers via <img> tags
+    2. Detection IDs are not predictable (integer IDs require prior knowledge)
+    3. It has rate limiting to prevent abuse
 
     Returns the thumbnail image with bounding box drawn around the detected object.
     If thumbnail doesn't exist, generates it on the fly from the source image.
@@ -257,13 +277,30 @@ def _parse_range_header(range_header: str, file_size: int) -> tuple[int, int]:
     return start, end
 
 
-@router.get("/{detection_id}/video", response_class=StreamingResponse)
+@router.get(
+    "/{detection_id}/video",
+    response_class=StreamingResponse,
+    responses={
+        200: {"description": "Full video content"},
+        206: {"description": "Partial video content (range request)"},
+        400: {"description": "Detection is not a video"},
+        404: {"description": "Detection or video file not found"},
+        416: {"description": "Range not satisfiable"},
+        429: {"description": "Too many requests"},
+    },
+)
 async def stream_detection_video(
     detection_id: int,
     range_header: str | None = Header(None, alias="Range"),
     db: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(detection_media_rate_limiter),
 ) -> StreamingResponse:
     """Stream detection video with HTTP Range request support.
+
+    This endpoint is exempt from API key authentication because:
+    1. It serves video content accessed directly by browsers via <video> tags
+    2. Detection IDs are not predictable (integer IDs require prior knowledge)
+    3. It has rate limiting to prevent abuse
 
     Supports partial content requests for video seeking and efficient playback.
     Returns 206 Partial Content for range requests, 200 OK for full content.
@@ -370,12 +407,28 @@ async def stream_detection_video(
         )
 
 
-@router.get("/{detection_id}/video/thumbnail", response_class=Response)
+@router.get(
+    "/{detection_id}/video/thumbnail",
+    response_class=Response,
+    responses={
+        200: {"description": "Thumbnail served successfully"},
+        400: {"description": "Detection is not a video"},
+        404: {"description": "Detection or video not found"},
+        429: {"description": "Too many requests"},
+        500: {"description": "Failed to generate thumbnail"},
+    },
+)
 async def get_video_thumbnail(
     detection_id: int,
     db: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(detection_media_rate_limiter),
 ) -> Response:
     """Get thumbnail frame from a video detection.
+
+    This endpoint is exempt from API key authentication because:
+    1. It serves static image content accessed directly by browsers via <img> tags
+    2. Detection IDs are not predictable (integer IDs require prior knowledge)
+    3. It has rate limiting to prevent abuse
 
     Extracts and returns a thumbnail frame from the video. If thumbnail
     doesn't exist, generates it on the fly using ffmpeg.
