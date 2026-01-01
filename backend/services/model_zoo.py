@@ -302,7 +302,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         # Reported accuracy: 98.80%
         "violence-detection": ModelConfig(
             name="violence-detection",
-            path="/export/ai_models/model-zoo/violence-detection",
+            path="/models/model-zoo/violence-detection",
             category="classification",
             vram_mb=500,  # ~500MB
             load_fn=load_violence_model,
@@ -316,7 +316,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         # Weather context helps Nemotron calibrate risk assessments
         "weather-classification": ModelConfig(
             name="weather-classification",
-            path="/export/ai_models/model-zoo/weather-classification",
+            path="/models/model-zoo/weather-classification",
             category="classification",
             vram_mb=200,  # ~200MB
             load_fn=load_weather_model,
@@ -328,7 +328,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         # Enables clothing-based person identification and suspicious attire detection
         "segformer-b2-clothes": ModelConfig(
             name="segformer-b2-clothes",
-            path="/export/ai_models/model-zoo/segformer-b2-clothes",
+            path="/models/model-zoo/segformer-b2-clothes",
             category="segmentation",
             vram_mb=1500,  # ~1.5GB
             load_fn=load_segformer_model,
@@ -341,7 +341,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         # Based on microsoft/xclip-base-patch32 - extends CLIP for video understanding
         "xclip-base": ModelConfig(
             name="xclip-base",
-            path="/export/ai_models/model-zoo/xclip-base",
+            path="/models/model-zoo/xclip-base",
             category="action-recognition",
             vram_mb=2000,  # ~2GB with float16
             load_fn=load_xclip_model,
@@ -356,7 +356,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         # Runs on person crop bounding boxes from RT-DETRv2
         "fashion-clip": ModelConfig(
             name="fashion-clip",
-            path="/export/ai_models/model-zoo/fashion-clip",
+            path="/models/model-zoo/fashion-clip",
             category="classification",
             vram_mb=500,  # ~500MB
             load_fn=load_fashion_clip_model,
@@ -386,7 +386,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         # Trained on MIO-TCD Traffic Dataset (50K images)
         "vehicle-segment-classification": ModelConfig(
             name="vehicle-segment-classification",
-            path="/export/ai_models/model-zoo/vehicle-segment-classification",
+            path="/models/model-zoo/vehicle-segment-classification",
             category="classification",
             vram_mb=1500,  # ~1.5GB (conservative estimate for ResNet-50)
             load_fn=load_vehicle_classifier,
@@ -398,7 +398,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         # Security: glass_shatter + lamp_broken at night = suspicious (break-in)
         "vehicle-damage-detection": ModelConfig(
             name="vehicle-damage-detection",
-            path="/export/ai_models/model-zoo/vehicle-damage-detection",
+            path="/models/model-zoo/vehicle-damage-detection",
             category="detection",
             vram_mb=2000,  # ~2GB (yolo11x-seg architecture)
             load_fn=load_vehicle_damage_model,
@@ -411,7 +411,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         # Lightweight model for quick load/unload cycles
         "pet-classifier": ModelConfig(
             name="pet-classifier",
-            path="/export/ai_models/model-zoo/pet-classifier",
+            path="/models/model-zoo/pet-classifier",
             category="classification",
             vram_mb=200,  # ~200MB (very lightweight ResNet-18)
             load_fn=load_pet_classifier_model,

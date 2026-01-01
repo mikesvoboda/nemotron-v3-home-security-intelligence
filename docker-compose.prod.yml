@@ -119,6 +119,7 @@ services:
     volumes:
       - ./backend/data:/app/data
       - ${CAMERA_PATH:-/export/foscam}:/cameras:ro
+      - ${MODEL_ZOO_PATH:-/export/ai_models/model-zoo}:/models/model-zoo:ro,z
     environment:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-security}:${POSTGRES_PASSWORD:-security_dev_password}@postgres:5432/${POSTGRES_DB:-security}
       - REDIS_URL=redis://redis:6379
