@@ -249,9 +249,10 @@ class TestModelZooIntegration:
 
         zoo = get_model_zoo()
 
-        # VRAM estimates should be positive and within reasonable bounds
+        # VRAM estimates should be non-negative and within reasonable bounds
+        # Some models like BRISQUE are CPU-based (vram_mb=0)
         for name, config in zoo.items():
-            assert config.vram_mb > 0, f"{name} has invalid VRAM estimate"
+            assert config.vram_mb >= 0, f"{name} has invalid VRAM estimate"
             assert config.vram_mb < 10000, f"{name} has unreasonably high VRAM estimate"
 
     def test_total_vram_calculation(self):
