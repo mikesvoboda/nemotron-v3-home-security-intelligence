@@ -219,6 +219,6 @@ test.describe('Event Timeline Error State', () => {
   test('shows error message when API fails', async () => {
     await timelinePage.goto();
     await timelinePage.waitForTimelineLoad();
-    await expect(timelinePage.errorMessage).toBeVisible({ timeout: 15000 });
+    await expect(timelinePage.errorMessage).toBeVisible({ timeout: 8000 });
   });
 });

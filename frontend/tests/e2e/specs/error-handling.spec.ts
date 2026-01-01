@@ -31,14 +31,14 @@ test.describe('Dashboard Error Handling', () => {
     await setupApiMocks(page, errorMockConfig);
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
-    await expect(dashboardPage.errorHeading).toBeVisible({ timeout: 15000 });
+    await expect(dashboardPage.errorHeading).toBeVisible({ timeout: 8000 });
   });
 
   test('shows reload button on error', async ({ page }) => {
     await setupApiMocks(page, errorMockConfig);
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
-    await expect(dashboardPage.reloadButton).toBeVisible({ timeout: 15000 });
+    await expect(dashboardPage.reloadButton).toBeVisible({ timeout: 8000 });
   });
 
   test('error message is descriptive', async ({ page }) => {
@@ -55,7 +55,7 @@ test.describe('Timeline Error Handling', () => {
     const timelinePage = new TimelinePage(page);
     await timelinePage.goto();
     await timelinePage.waitForTimelineLoad();
-    await expect(timelinePage.errorMessage).toBeVisible({ timeout: 15000 });
+    await expect(timelinePage.errorMessage).toBeVisible({ timeout: 8000 });
   });
 
   test('error message mentions events', async ({ page }) => {
@@ -104,8 +104,10 @@ test.describe('System Page Error Handling', () => {
     await setupApiMocks(page, errorMockConfig);
     const systemPage = new SystemPage(page);
     await systemPage.goto();
-    // Page should still render, may show error or loading state
-    await page.waitForTimeout(3000);
+    // Wait for error state to render instead of hardcoded sleep
+    await page.waitForLoadState('domcontentloaded');
+    // Wait for error or content to appear
+    await expect(page.getByText(/error|failed|System Monitoring/i).first()).toBeVisible({ timeout: 5000 });
     // Just verify the page didn't crash
     await expect(page.locator('body')).toBeVisible();
   });
@@ -167,6 +169,6 @@ test.describe('Network Error Messages', () => {
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
     // Should show a friendly message, not a raw error
-    await expect(page.getByText(/Error/i).first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/Error/i).first()).toBeVisible({ timeout: 8000 });
   });
 });
