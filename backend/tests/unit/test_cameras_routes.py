@@ -288,6 +288,11 @@ class TestCreateCamera:
 
     def test_create_camera_success(self, client: TestClient, mock_db_session: AsyncMock) -> None:
         """Test successful camera creation."""
+        # Mock execute to return no existing cameras (no duplicates)
+        mock_results = [MagicMock(), MagicMock()]
+        mock_results[0].scalar_one_or_none.return_value = None  # No name match
+        mock_results[1].scalar_one_or_none.return_value = None  # No folder_path match
+        mock_db_session.execute = AsyncMock(side_effect=mock_results)
 
         async def mock_refresh(camera):
             # Simulate database refresh setting created_at
@@ -317,6 +322,11 @@ class TestCreateCamera:
         self, client: TestClient, mock_db_session: AsyncMock
     ) -> None:
         """Test camera creation with default status."""
+        # Mock execute to return no existing cameras (no duplicates)
+        mock_results = [MagicMock(), MagicMock()]
+        mock_results[0].scalar_one_or_none.return_value = None  # No name match
+        mock_results[1].scalar_one_or_none.return_value = None  # No folder_path match
+        mock_db_session.execute = AsyncMock(side_effect=mock_results)
 
         async def mock_refresh(camera):
             camera.created_at = datetime(2025, 12, 23, 10, 0, 0)
@@ -413,6 +423,11 @@ class TestCreateCamera:
         self, client: TestClient, mock_db_session: AsyncMock
     ) -> None:
         """Test that camera creation generates a valid UUID."""
+        # Mock execute to return no existing cameras (no duplicates)
+        mock_results = [MagicMock(), MagicMock()]
+        mock_results[0].scalar_one_or_none.return_value = None  # No name match
+        mock_results[1].scalar_one_or_none.return_value = None  # No folder_path match
+        mock_db_session.execute = AsyncMock(side_effect=mock_results)
 
         async def mock_refresh(camera):
             camera.created_at = datetime(2025, 12, 23, 10, 0, 0)
@@ -432,6 +447,93 @@ class TestCreateCamera:
         # Validate UUID format - this will raise if invalid
         parsed_uuid = uuid.UUID(data["id"])
         assert str(parsed_uuid) == data["id"]
+
+    def test_create_camera_duplicate_name_returns_409(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test creating a camera with a duplicate name returns 409 Conflict."""
+        # Mock the first execute call (name check) to return an existing camera
+        existing_camera = Camera(
+            id="existing-id-123",
+            name="Test Camera",
+            folder_path="/export/foscam/existing",
+            status="online",
+            created_at=datetime(2025, 12, 23, 10, 0, 0),
+            last_seen_at=None,
+        )
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = existing_camera
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+        camera_data = {
+            "name": "Test Camera",  # Same name as existing
+            "folder_path": "/export/foscam/new_path",
+        }
+
+        response = client.post("/api/cameras", json=camera_data)
+
+        assert response.status_code == 409
+        data = response.json()
+        assert "already exists" in data["detail"].lower()
+        assert "Test Camera" in data["detail"]
+
+    def test_create_camera_duplicate_folder_path_returns_409(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test creating a camera with a duplicate folder_path returns 409 Conflict."""
+        # Mock to return None for name check, then existing camera for folder check
+        existing_camera = Camera(
+            id="existing-id-456",
+            name="Existing Camera",
+            folder_path="/export/foscam/duplicate",
+            status="online",
+            created_at=datetime(2025, 12, 23, 10, 0, 0),
+            last_seen_at=None,
+        )
+        mock_results = [MagicMock(), MagicMock()]
+        mock_results[0].scalar_one_or_none.return_value = None  # No name match
+        mock_results[1].scalar_one_or_none.return_value = existing_camera  # folder_path match
+        mock_db_session.execute = AsyncMock(side_effect=mock_results)
+
+        camera_data = {
+            "name": "New Camera Name",
+            "folder_path": "/export/foscam/duplicate",  # Same folder_path as existing
+        }
+
+        response = client.post("/api/cameras", json=camera_data)
+
+        assert response.status_code == 409
+        data = response.json()
+        assert "already exists" in data["detail"].lower()
+        assert "/export/foscam/duplicate" in data["detail"]
+
+    def test_create_camera_no_duplicate_succeeds(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test creating a camera with unique name and folder_path succeeds."""
+        # Mock to return None for both checks (no duplicates)
+        mock_results = [MagicMock(), MagicMock()]
+        mock_results[0].scalar_one_or_none.return_value = None  # No name match
+        mock_results[1].scalar_one_or_none.return_value = None  # No folder_path match
+        mock_db_session.execute = AsyncMock(side_effect=mock_results)
+
+        async def mock_refresh(camera):
+            camera.created_at = datetime(2025, 12, 23, 10, 0, 0)
+            camera.last_seen_at = None
+
+        mock_db_session.refresh = mock_refresh
+
+        camera_data = {
+            "name": "Unique Camera",
+            "folder_path": "/export/foscam/unique",
+        }
+
+        response = client.post("/api/cameras", json=camera_data)
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["name"] == "Unique Camera"
+        assert data["folder_path"] == "/export/foscam/unique"
 
 
 # =============================================================================
