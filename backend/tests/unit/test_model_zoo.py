@@ -1096,3 +1096,1075 @@ class TestConcurrentModelLoading:
             # Both should be unloaded now
             assert not manager.is_loaded("yolo11-license-plate")
             assert not manager.is_loaded("yolo11-face")
+
+
+class TestYoloWorldLoader:
+    """Tests for YOLO-World model loader and detection functions."""
+
+    def setup_method(self) -> None:
+        """Reset model zoo before each test."""
+        reset_model_zoo()
+        reset_model_manager()
+
+    def teardown_method(self) -> None:
+        """Reset model zoo after each test."""
+        reset_model_zoo()
+        reset_model_manager()
+
+    def test_yolo_world_model_in_zoo(self) -> None:
+        """Test that yolo-world-s is registered in the model zoo."""
+        zoo = get_model_zoo()
+
+        assert "yolo-world-s" in zoo
+        config = zoo["yolo-world-s"]
+        assert config.name == "yolo-world-s"
+        assert config.path == "yolov8s-worldv2.pt"
+        assert config.category == "detection"
+        assert config.vram_mb == 1500
+        assert config.enabled is True
+        assert config.available is False
+
+    def test_yolo_world_in_enabled_models(self) -> None:
+        """Test that yolo-world-s appears in enabled models list."""
+        enabled = get_enabled_models()
+        enabled_names = [m.name for m in enabled]
+
+        assert "yolo-world-s" in enabled_names
+
+    def test_yolo_world_vram_calculation(self) -> None:
+        """Test VRAM calculation includes yolo-world-s."""
+        total = get_total_vram_if_loaded(["yolo-world-s"])
+        assert total == 1500
+
+        # Combined with other models
+        total = get_total_vram_if_loaded(["yolo-world-s", "yolo11-license-plate"])
+        assert total == 1800  # 1500 + 300
+
+    @pytest.mark.asyncio
+    async def test_load_yolo_world_import_error(self) -> None:
+        """Test that load_yolo_world_model raises ImportError when ultralytics missing."""
+        from backend.services.yolo_world_loader import load_yolo_world_model
+
+        # Mock the import to raise ImportError
+        with (
+            patch(
+                "builtins.__import__",
+                side_effect=ImportError("No module named 'ultralytics'"),
+            ),
+            pytest.raises(ImportError, match="YOLO-World requires ultralytics"),
+        ):
+            await load_yolo_world_model("yolov8s-worldv2.pt")
+
+    @pytest.mark.asyncio
+    async def test_load_yolo_world_runtime_error(self) -> None:
+        """Test that load_yolo_world_model raises RuntimeError on load failure."""
+        from backend.services.yolo_world_loader import load_yolo_world_model
+
+        mock_yolo_world = MagicMock()
+        mock_yolo_world.side_effect = ValueError("Invalid model path")
+
+        with (
+            patch.dict("sys.modules", {"ultralytics": MagicMock(YOLOWorld=mock_yolo_world)}),
+            pytest.raises(RuntimeError, match="Failed to load YOLO-World model"),
+        ):
+            await load_yolo_world_model("invalid/path")
+
+    @pytest.mark.asyncio
+    async def test_load_yolo_world_success(self) -> None:
+        """Test successful YOLO-World model loading."""
+        from backend.services.yolo_world_loader import (
+            SECURITY_PROMPTS,
+            load_yolo_world_model,
+        )
+
+        mock_model = MagicMock()
+        mock_yolo_world_class = MagicMock(return_value=mock_model)
+
+        mock_ultralytics = MagicMock()
+        mock_ultralytics.YOLOWorld = mock_yolo_world_class
+
+        with patch.dict("sys.modules", {"ultralytics": mock_ultralytics}):
+            result = await load_yolo_world_model("yolov8s-worldv2.pt")
+
+            assert result is mock_model
+            mock_yolo_world_class.assert_called_once_with("yolov8s-worldv2.pt")
+            # Verify default prompts are set
+            mock_model.set_classes.assert_called_once_with(SECURITY_PROMPTS)
+
+    @pytest.mark.asyncio
+    async def test_manager_load_yolo_world(self) -> None:
+        """Test loading yolo-world-s via ModelManager."""
+        manager = ModelManager()
+        mock_model = MagicMock()
+
+        async def mock_load(path: str) -> Any:
+            return mock_model
+
+        config = get_model_config("yolo-world-s")
+        assert config is not None
+
+        with patch.object(config, "load_fn", mock_load):
+            async with manager.load("yolo-world-s") as model:
+                assert model is mock_model
+                assert manager.is_loaded("yolo-world-s")
+                assert config.available is True
+
+            # After context exits, model should be unloaded
+            assert not manager.is_loaded("yolo-world-s")
+
+
+class TestYoloWorldPrompts:
+    """Tests for YOLO-World security prompts constants."""
+
+    def test_security_prompts_not_empty(self) -> None:
+        """Test that SECURITY_PROMPTS contains items."""
+        from backend.services.yolo_world_loader import SECURITY_PROMPTS
+
+        assert len(SECURITY_PROMPTS) > 0
+        assert isinstance(SECURITY_PROMPTS, list)
+        assert all(isinstance(p, str) for p in SECURITY_PROMPTS)
+
+    def test_security_prompts_contain_key_items(self) -> None:
+        """Test that SECURITY_PROMPTS contains expected security items."""
+        from backend.services.yolo_world_loader import SECURITY_PROMPTS
+
+        # Packages
+        assert "package" in SECURITY_PROMPTS
+        assert "cardboard box" in SECURITY_PROMPTS
+
+        # Threats
+        assert "knife" in SECURITY_PROMPTS
+        assert "crowbar" in SECURITY_PROMPTS
+
+        # Items of interest
+        assert "backpack" in SECURITY_PROMPTS
+        assert "ladder" in SECURITY_PROMPTS
+
+    def test_vehicle_security_prompts(self) -> None:
+        """Test VEHICLE_SECURITY_PROMPTS contains vehicle items."""
+        from backend.services.yolo_world_loader import VEHICLE_SECURITY_PROMPTS
+
+        assert "car" in VEHICLE_SECURITY_PROMPTS
+        assert "license plate" in VEHICLE_SECURITY_PROMPTS
+
+    def test_animal_prompts(self) -> None:
+        """Test ANIMAL_PROMPTS contains common animals."""
+        from backend.services.yolo_world_loader import ANIMAL_PROMPTS
+
+        assert "dog" in ANIMAL_PROMPTS
+        assert "cat" in ANIMAL_PROMPTS
+
+    def test_get_all_security_prompts(self) -> None:
+        """Test get_all_security_prompts combines all prompt lists."""
+        from backend.services.yolo_world_loader import (
+            ANIMAL_PROMPTS,
+            SECURITY_PROMPTS,
+            VEHICLE_SECURITY_PROMPTS,
+            get_all_security_prompts,
+        )
+
+        all_prompts = get_all_security_prompts()
+
+        expected_length = (
+            len(SECURITY_PROMPTS) + len(VEHICLE_SECURITY_PROMPTS) + len(ANIMAL_PROMPTS)
+        )
+        assert len(all_prompts) == expected_length
+
+    def test_get_threat_prompts(self) -> None:
+        """Test get_threat_prompts returns threat-focused prompts."""
+        from backend.services.yolo_world_loader import get_threat_prompts
+
+        threats = get_threat_prompts()
+
+        assert "knife" in threats
+        assert "crowbar" in threats
+        assert "bolt cutters" in threats
+        # Should not contain benign items
+        assert "package" not in threats
+        assert "dog" not in threats
+
+    def test_get_delivery_prompts(self) -> None:
+        """Test get_delivery_prompts returns delivery-focused prompts."""
+        from backend.services.yolo_world_loader import get_delivery_prompts
+
+        delivery = get_delivery_prompts()
+
+        assert "package" in delivery
+        assert "cardboard box" in delivery
+        assert "Amazon box" in delivery
+        # Should not contain threats
+        assert "knife" not in delivery
+
+
+class TestDetectWithPrompts:
+    """Tests for detect_with_prompts helper function."""
+
+    @pytest.mark.asyncio
+    async def test_detect_with_prompts_default_prompts(self) -> None:
+        """Test detect_with_prompts uses SECURITY_PROMPTS by default."""
+        from backend.services.yolo_world_loader import (
+            SECURITY_PROMPTS,
+            detect_with_prompts,
+        )
+
+        # Create mock model
+        mock_model = MagicMock()
+        mock_result = MagicMock()
+        mock_result.boxes = None  # No detections
+        mock_model.predict.return_value = [mock_result]
+
+        detections = await detect_with_prompts(mock_model, "test_image.jpg")
+
+        # Verify default prompts were set
+        mock_model.set_classes.assert_called_once_with(SECURITY_PROMPTS)
+        assert detections == []
+
+    @pytest.mark.asyncio
+    async def test_detect_with_prompts_custom_prompts(self) -> None:
+        """Test detect_with_prompts with custom prompts."""
+        from backend.services.yolo_world_loader import detect_with_prompts
+
+        mock_model = MagicMock()
+        mock_result = MagicMock()
+        mock_result.boxes = None
+        mock_model.predict.return_value = [mock_result]
+
+        custom_prompts = ["custom object", "another object"]
+        await detect_with_prompts(mock_model, "test.jpg", prompts=custom_prompts)
+
+        mock_model.set_classes.assert_called_once_with(custom_prompts)
+
+    @pytest.mark.asyncio
+    async def test_detect_with_prompts_returns_detections(self) -> None:
+        """Test detect_with_prompts returns properly formatted detections."""
+        from backend.services.yolo_world_loader import detect_with_prompts
+
+        # Create mock detection results
+        mock_model = MagicMock()
+        mock_result = MagicMock()
+
+        # Mock boxes with detection data
+        import numpy as np
+
+        mock_boxes = MagicMock()
+        mock_boxes.xyxy = [MagicMock()]
+        mock_boxes.xyxy[0].cpu.return_value.numpy.return_value = np.array(
+            [10.0, 20.0, 100.0, 150.0]
+        )
+        mock_boxes.conf = [MagicMock()]
+        mock_boxes.conf[0].cpu.return_value.numpy.return_value = 0.85
+        mock_boxes.cls = [MagicMock()]
+        mock_boxes.cls[0].cpu.return_value.numpy.return_value = 0
+
+        mock_result.boxes = mock_boxes
+        mock_result.names = {0: "package"}
+
+        # Make len() work on mock boxes
+        mock_boxes.__len__ = MagicMock(return_value=1)
+
+        mock_model.predict.return_value = [mock_result]
+
+        detections = await detect_with_prompts(
+            mock_model,
+            "test.jpg",
+            prompts=["package"],
+            confidence_threshold=0.5,
+        )
+
+        assert len(detections) == 1
+        assert detections[0]["class_name"] == "package"
+        assert detections[0]["confidence"] == 0.85
+        assert detections[0]["bbox"]["x1"] == 10.0
+        assert detections[0]["bbox"]["y1"] == 20.0
+        assert detections[0]["bbox"]["x2"] == 100.0
+        assert detections[0]["bbox"]["y2"] == 150.0
+        assert detections[0]["class_id"] == 0
+
+    @pytest.mark.asyncio
+    async def test_detect_with_prompts_respects_thresholds(self) -> None:
+        """Test detect_with_prompts passes confidence and IoU thresholds."""
+        from backend.services.yolo_world_loader import detect_with_prompts
+
+        mock_model = MagicMock()
+        mock_result = MagicMock()
+        mock_result.boxes = None
+        mock_model.predict.return_value = [mock_result]
+
+        await detect_with_prompts(
+            mock_model,
+            "test.jpg",
+            confidence_threshold=0.7,
+            iou_threshold=0.3,
+        )
+
+        mock_model.predict.assert_called_once()
+        call_kwargs = mock_model.predict.call_args[1]
+        assert call_kwargs["conf"] == 0.7
+        assert call_kwargs["iou"] == 0.3
+
+
+class TestDepthAnythingLoader:
+    """Tests for Depth Anything V2 model loader and helper functions."""
+
+    def setup_method(self) -> None:
+        """Reset model zoo before each test."""
+        reset_model_zoo()
+        reset_model_manager()
+
+    def teardown_method(self) -> None:
+        """Reset model zoo after each test."""
+        reset_model_zoo()
+        reset_model_manager()
+
+    def test_depth_model_in_zoo(self) -> None:
+        """Test that depth-anything-v2-small is registered in the model zoo."""
+        zoo = get_model_zoo()
+
+        assert "depth-anything-v2-small" in zoo
+        config = zoo["depth-anything-v2-small"]
+        assert config.name == "depth-anything-v2-small"
+        assert config.path == "depth-anything/Depth-Anything-V2-Small-hf"
+        assert config.category == "depth-estimation"
+        assert config.vram_mb == 150
+        assert config.enabled is True
+        assert config.available is False
+
+    def test_depth_model_in_enabled_models(self) -> None:
+        """Test that depth-anything-v2-small appears in enabled models list."""
+        enabled = get_enabled_models()
+        enabled_names = [m.name for m in enabled]
+
+        assert "depth-anything-v2-small" in enabled_names
+
+    def test_depth_model_vram_calculation(self) -> None:
+        """Test VRAM calculation includes depth-anything-v2-small."""
+        total = get_total_vram_if_loaded(["depth-anything-v2-small"])
+        assert total == 150
+
+        # Combined with other models
+        total_combined = get_total_vram_if_loaded(
+            ["depth-anything-v2-small", "yolo11-license-plate"]
+        )
+        assert total_combined == 450  # 150 + 300
+
+    @pytest.mark.asyncio
+    async def test_load_depth_model_import_error(self) -> None:
+        """Test that load_depth_model raises ImportError when dependencies missing."""
+        from backend.services.depth_anything_loader import load_depth_model
+
+        with (
+            patch(
+                "builtins.__import__",
+                side_effect=ImportError("No module named 'transformers'"),
+            ),
+            pytest.raises(ImportError),
+        ):
+            await load_depth_model("depth-anything/Depth-Anything-V2-Small-hf")
+
+    @pytest.mark.asyncio
+    async def test_load_depth_model_runtime_error(self) -> None:
+        """Test that load_depth_model raises RuntimeError on load failure."""
+        from backend.services.depth_anything_loader import load_depth_model
+
+        mock_pipeline = MagicMock()
+        mock_pipeline.side_effect = ValueError("Model loading failed")
+
+        mock_torch = MagicMock()
+        mock_torch.cuda.is_available.return_value = False
+
+        mock_transformers = MagicMock()
+        mock_transformers.pipeline = mock_pipeline
+
+        with (
+            patch.dict(
+                "sys.modules",
+                {
+                    "torch": mock_torch,
+                    "transformers": mock_transformers,
+                },
+            ),
+            pytest.raises(RuntimeError, match="Failed to load Depth Anything V2"),
+        ):
+            await load_depth_model("depth-anything/Depth-Anything-V2-Small-hf")
+
+
+class TestDepthHelperFunctions:
+    """Tests for depth estimation helper functions."""
+
+    def test_normalize_depth_map_basic(self) -> None:
+        """Test basic depth map normalization."""
+        import numpy as np
+
+        from backend.services.depth_anything_loader import normalize_depth_map
+
+        # Create a depth map with values 0-255
+        depth_map = np.array([[0, 128], [255, 64]], dtype=np.float32)
+
+        normalized = normalize_depth_map(depth_map)
+
+        # Should be normalized to [0, 1]
+        assert normalized.min() == 0.0
+        assert normalized.max() == 1.0
+        assert normalized.dtype == np.float32
+
+    def test_normalize_depth_map_uniform(self) -> None:
+        """Test normalization of uniform depth map."""
+        import numpy as np
+
+        from backend.services.depth_anything_loader import normalize_depth_map
+
+        # Uniform depth - all same value
+        depth_map = np.full((100, 100), 128.0, dtype=np.float32)
+
+        normalized = normalize_depth_map(depth_map)
+
+        # Should be all zeros when uniform (0 / 0 case handled)
+        assert np.allclose(normalized, 0.0)
+
+    def test_normalize_depth_map_dict_input(self) -> None:
+        """Test normalization with dict-like output from pipeline."""
+        import numpy as np
+
+        from backend.services.depth_anything_loader import normalize_depth_map
+
+        depth_array = np.array([[10.0, 50.0], [100.0, 25.0]], dtype=np.float32)
+        depth_output = {"depth": depth_array}
+
+        normalized = normalize_depth_map(depth_output)
+
+        assert normalized.shape == (2, 2)
+        assert normalized.min() == 0.0
+        assert normalized.max() == 1.0
+
+    def test_get_depth_at_bbox_center(self) -> None:
+        """Test getting depth at bbox center."""
+        import numpy as np
+
+        from backend.services.depth_anything_loader import get_depth_at_bbox
+
+        # Create a depth map where center has known value
+        depth_map = np.zeros((100, 100), dtype=np.float32)
+        depth_map[50, 50] = 0.75  # Center value
+
+        bbox = (40.0, 40.0, 60.0, 60.0)  # Center at (50, 50)
+        depth = get_depth_at_bbox(depth_map, bbox, method="center")
+
+        assert depth == 0.75
+
+    def test_get_depth_at_bbox_mean(self) -> None:
+        """Test getting average depth over bbox."""
+        import numpy as np
+
+        from backend.services.depth_anything_loader import get_depth_at_bbox
+
+        # Create a depth map where region has known values
+        depth_map = np.zeros((100, 100), dtype=np.float32)
+        depth_map[10:20, 10:20] = 0.5  # All 0.5 in region
+
+        bbox = (10.0, 10.0, 20.0, 20.0)
+        depth = get_depth_at_bbox(depth_map, bbox, method="mean")
+
+        assert abs(depth - 0.5) < 0.01
+
+    def test_get_depth_at_bbox_median(self) -> None:
+        """Test getting median depth over bbox."""
+        import numpy as np
+
+        from backend.services.depth_anything_loader import get_depth_at_bbox
+
+        # Create depth map with varied values
+        depth_map = np.zeros((100, 100), dtype=np.float32)
+        depth_map[10:15, 10:20] = 0.3
+        depth_map[15:20, 10:20] = 0.7
+
+        bbox = (10.0, 10.0, 20.0, 20.0)
+        depth = get_depth_at_bbox(depth_map, bbox, method="median")
+
+        # Median should be around 0.5 (between 0.3 and 0.7)
+        assert 0.3 <= depth <= 0.7
+
+    def test_get_depth_at_bbox_min(self) -> None:
+        """Test getting minimum depth in bbox (closest point)."""
+        import numpy as np
+
+        from backend.services.depth_anything_loader import get_depth_at_bbox
+
+        depth_map = np.ones((100, 100), dtype=np.float32) * 0.8
+        depth_map[15, 15] = 0.1  # Closest point
+
+        bbox = (10.0, 10.0, 20.0, 20.0)
+        depth = get_depth_at_bbox(depth_map, bbox, method="min")
+
+        assert abs(depth - 0.1) < 0.001
+
+    def test_get_depth_at_bbox_invalid_method(self) -> None:
+        """Test that invalid method raises ValueError."""
+        import numpy as np
+
+        from backend.services.depth_anything_loader import get_depth_at_bbox
+
+        depth_map = np.zeros((100, 100), dtype=np.float32)
+        bbox = (10.0, 10.0, 20.0, 20.0)
+
+        with pytest.raises(ValueError, match="Unknown depth sampling method"):
+            get_depth_at_bbox(depth_map, bbox, method="invalid")
+
+    def test_get_depth_at_bbox_invalid_bbox(self) -> None:
+        """Test handling of invalid bounding box."""
+        import numpy as np
+
+        from backend.services.depth_anything_loader import get_depth_at_bbox
+
+        depth_map = np.zeros((100, 100), dtype=np.float32)
+
+        # Invalid bbox (x2 <= x1)
+        bbox = (50.0, 50.0, 20.0, 20.0)
+        depth = get_depth_at_bbox(depth_map, bbox, method="center")
+
+        # Should return default 0.5
+        assert depth == 0.5
+
+    def test_get_depth_at_bbox_clamped_to_boundaries(self) -> None:
+        """Test that bbox is clamped to image boundaries."""
+        import numpy as np
+
+        from backend.services.depth_anything_loader import get_depth_at_bbox
+
+        depth_map = np.full((100, 100), 0.3, dtype=np.float32)
+
+        # Bbox extends beyond image
+        bbox = (-10.0, -10.0, 200.0, 200.0)
+        depth = get_depth_at_bbox(depth_map, bbox, method="mean")
+
+        # Should still work, using clamped coordinates
+        assert abs(depth - 0.3) < 0.01
+
+    def test_get_depth_at_point(self) -> None:
+        """Test getting depth at a specific point."""
+        import numpy as np
+
+        from backend.services.depth_anything_loader import get_depth_at_point
+
+        depth_map = np.zeros((100, 100), dtype=np.float32)
+        depth_map[25, 50] = 0.65
+
+        depth = get_depth_at_point(depth_map, 50, 25)
+        assert abs(depth - 0.65) < 0.001
+
+    def test_get_depth_at_point_clamped(self) -> None:
+        """Test that point coordinates are clamped to boundaries."""
+        import numpy as np
+
+        from backend.services.depth_anything_loader import get_depth_at_point
+
+        depth_map = np.full((100, 100), 0.42, dtype=np.float32)
+
+        # Point outside image
+        depth = get_depth_at_point(depth_map, 200, 150)
+
+        # Should be clamped to edge
+        assert abs(depth - 0.42) < 0.001
+
+    def test_estimate_relative_distances(self) -> None:
+        """Test estimating distances for multiple detections."""
+        import numpy as np
+
+        from backend.services.depth_anything_loader import estimate_relative_distances
+
+        depth_map = np.zeros((100, 100), dtype=np.float32)
+        depth_map[15, 15] = 0.2  # First bbox center
+        depth_map[55, 55] = 0.8  # Second bbox center
+
+        bboxes = [
+            (10.0, 10.0, 20.0, 20.0),  # Center at (15, 15)
+            (50.0, 50.0, 60.0, 60.0),  # Center at (55, 55)
+        ]
+
+        distances = estimate_relative_distances(depth_map, bboxes)
+
+        assert len(distances) == 2
+        assert abs(distances[0] - 0.2) < 0.001
+        assert abs(distances[1] - 0.8) < 0.001
+
+    def test_depth_to_proximity_label(self) -> None:
+        """Test converting depth to proximity labels."""
+        from backend.services.depth_anything_loader import depth_to_proximity_label
+
+        assert depth_to_proximity_label(0.1) == "very close"
+        assert depth_to_proximity_label(0.25) == "close"
+        assert depth_to_proximity_label(0.45) == "moderate distance"
+        assert depth_to_proximity_label(0.65) == "far"
+        assert depth_to_proximity_label(0.85) == "very far"
+
+    def test_format_depth_for_nemotron_empty(self) -> None:
+        """Test formatting with empty inputs."""
+        from backend.services.depth_anything_loader import format_depth_for_nemotron
+
+        result = format_depth_for_nemotron([], [])
+        assert result == "No spatial depth information available."
+
+    def test_format_depth_for_nemotron_with_data(self) -> None:
+        """Test formatting depth info for Nemotron."""
+        from backend.services.depth_anything_loader import format_depth_for_nemotron
+
+        detections = [
+            {"class_name": "person"},
+            {"class_name": "car"},
+        ]
+        depth_values = [0.12, 0.48]
+
+        result = format_depth_for_nemotron(detections, depth_values)
+
+        assert "Spatial context:" in result
+        assert "person is very close" in result
+        assert "car is moderate distance" in result
+        assert "0.12" in result
+        assert "0.48" in result
+
+    def test_format_depth_for_nemotron_mismatched_lengths(self) -> None:
+        """Test formatting handles mismatched list lengths."""
+        from backend.services.depth_anything_loader import format_depth_for_nemotron
+
+        detections = [
+            {"class_name": "person"},
+            {"class_name": "car"},
+            {"class_name": "truck"},
+        ]
+        depth_values = [0.2, 0.5]  # One fewer than detections
+
+        # Should use minimum length without error
+        result = format_depth_for_nemotron(detections, depth_values)
+
+        assert "person" in result
+        assert "car" in result
+        assert "truck" not in result  # Should be truncated
+
+    def test_format_depth_for_nemotron_label_key(self) -> None:
+        """Test formatting handles 'label' key as fallback."""
+        from backend.services.depth_anything_loader import format_depth_for_nemotron
+
+        detections = [{"label": "bicycle"}]  # Uses 'label' instead of 'class_name'
+        depth_values = [0.3]
+
+        result = format_depth_for_nemotron(detections, depth_values)
+
+        assert "bicycle" in result
+
+    def test_rank_detections_by_proximity(self) -> None:
+        """Test ranking detections by proximity."""
+        from backend.services.depth_anything_loader import rank_detections_by_proximity
+
+        detections = [
+            {"class_name": "far_object"},
+            {"class_name": "close_object"},
+            {"class_name": "medium_object"},
+        ]
+        depth_values = [0.9, 0.1, 0.5]
+
+        ranked = rank_detections_by_proximity(detections, depth_values)
+
+        # Should be sorted by depth (closest first)
+        assert len(ranked) == 3
+        assert ranked[0][0]["class_name"] == "close_object"
+        assert ranked[0][1] == 0.1
+        assert ranked[0][2] == 1  # Original index
+
+        assert ranked[1][0]["class_name"] == "medium_object"
+        assert ranked[1][1] == 0.5
+
+        assert ranked[2][0]["class_name"] == "far_object"
+        assert ranked[2][1] == 0.9
+
+    def test_rank_detections_by_proximity_mismatched(self) -> None:
+        """Test that mismatched lengths raise ValueError."""
+        from backend.services.depth_anything_loader import rank_detections_by_proximity
+
+        detections = [{"class_name": "a"}, {"class_name": "b"}]
+        depth_values = [0.5]  # One fewer
+
+        with pytest.raises(ValueError, match="Detection and depth value counts must match"):
+            rank_detections_by_proximity(detections, depth_values)
+
+
+class TestViTPoseLoader:
+    """Tests for ViTPose model loader and pose classification."""
+
+    def setup_method(self) -> None:
+        """Reset model zoo before each test."""
+        reset_model_zoo()
+
+    def teardown_method(self) -> None:
+        """Reset model zoo after each test."""
+        reset_model_zoo()
+
+    def test_vitpose_model_in_zoo(self) -> None:
+        """Test that vitpose-small is registered in the model zoo."""
+        config = get_model_config("vitpose-small")
+
+        assert config is not None
+        assert config.name == "vitpose-small"
+        assert config.path == "usyd-community/vitpose-plus-small"
+        assert config.category == "pose"
+        assert config.vram_mb == 1500
+        assert config.enabled is True
+
+    def test_keypoint_dataclass(self) -> None:
+        """Test Keypoint dataclass creation."""
+        from backend.services.vitpose_loader import Keypoint
+
+        kp = Keypoint(x=100.5, y=200.5, confidence=0.95, name="left_shoulder")
+
+        assert kp.x == 100.5
+        assert kp.y == 200.5
+        assert kp.confidence == 0.95
+        assert kp.name == "left_shoulder"
+
+    def test_pose_result_dataclass(self) -> None:
+        """Test PoseResult dataclass creation and to_dict."""
+        from backend.services.vitpose_loader import Keypoint, PoseResult
+
+        keypoints = {
+            "nose": Keypoint(x=50.0, y=30.0, confidence=0.9, name="nose"),
+            "left_shoulder": Keypoint(x=40.0, y=60.0, confidence=0.85, name="left_shoulder"),
+        }
+
+        result = PoseResult(
+            keypoints=keypoints,
+            pose_class="standing",
+            pose_confidence=0.8,
+            bbox=[10.0, 20.0, 100.0, 200.0],
+        )
+
+        assert result.pose_class == "standing"
+        assert result.pose_confidence == 0.8
+        assert "nose" in result.keypoints
+        assert result.bbox == [10.0, 20.0, 100.0, 200.0]
+
+        # Test to_dict
+        d = result.to_dict()
+        assert d["pose_class"] == "standing"
+        assert d["pose_confidence"] == 0.8
+        assert "nose" in d["keypoints"]
+        assert d["keypoints"]["nose"]["x"] == 50.0
+
+    def test_keypoint_index_enum(self) -> None:
+        """Test KeypointIndex enum values."""
+        from backend.services.vitpose_loader import KeypointIndex
+
+        assert KeypointIndex.NOSE.value == 0
+        assert KeypointIndex.LEFT_SHOULDER.value == 5
+        assert KeypointIndex.RIGHT_HIP.value == 12
+        assert KeypointIndex.LEFT_ANKLE.value == 15
+
+    def test_keypoint_names_list(self) -> None:
+        """Test KEYPOINT_NAMES list."""
+        from backend.services.vitpose_loader import KEYPOINT_NAMES
+
+        assert len(KEYPOINT_NAMES) == 17
+        assert KEYPOINT_NAMES[0] == "nose"
+        assert KEYPOINT_NAMES[5] == "left_shoulder"
+        assert KEYPOINT_NAMES[16] == "right_ankle"
+
+
+class TestPoseClassification:
+    """Tests for pose classification logic."""
+
+    def test_classify_pose_unknown_insufficient_keypoints(self) -> None:
+        """Test pose classification with insufficient keypoints."""
+        from backend.services.vitpose_loader import Keypoint, classify_pose
+
+        # Empty keypoints
+        keypoints: dict[str, Any] = {}
+        pose, confidence = classify_pose(keypoints)
+        assert pose == "unknown"
+        assert confidence == 0.0
+
+        # Only one keypoint
+        keypoints = {"nose": Keypoint(x=50.0, y=30.0, confidence=0.9, name="nose")}
+        pose, confidence = classify_pose(keypoints)
+        assert pose == "unknown"
+        assert confidence == 0.0
+
+    def test_classify_pose_standing(self) -> None:
+        """Test classification of standing pose."""
+        from backend.services.vitpose_loader import Keypoint, classify_pose
+
+        # Create keypoints for standing pose
+        # In image coordinates, Y increases downward
+        keypoints = {
+            "left_shoulder": Keypoint(x=45.0, y=100.0, confidence=0.9, name="left_shoulder"),
+            "right_shoulder": Keypoint(x=55.0, y=100.0, confidence=0.9, name="right_shoulder"),
+            "left_hip": Keypoint(x=45.0, y=200.0, confidence=0.9, name="left_hip"),
+            "right_hip": Keypoint(x=55.0, y=200.0, confidence=0.9, name="right_hip"),
+            "left_knee": Keypoint(x=45.0, y=300.0, confidence=0.9, name="left_knee"),
+            "right_knee": Keypoint(x=55.0, y=300.0, confidence=0.9, name="right_knee"),
+            "left_ankle": Keypoint(x=45.0, y=400.0, confidence=0.9, name="left_ankle"),
+            "right_ankle": Keypoint(x=55.0, y=400.0, confidence=0.9, name="right_ankle"),
+        }
+
+        pose, confidence = classify_pose(keypoints)
+        assert pose == "standing"
+        assert confidence > 0.5
+
+    def test_classify_pose_crouching(self) -> None:
+        """Test classification of crouching pose."""
+        from backend.services.vitpose_loader import Keypoint, classify_pose
+
+        # Create keypoints for crouching pose (bent knees, compressed torso)
+        # Crouching: hip is above knee (hip_y < knee_y in image coords)
+        # but torso is compressed (small shoulder-to-hip distance relative to hip-to-knee)
+        # Y increases downward in image coordinates
+        keypoints = {
+            "left_shoulder": Keypoint(x=45.0, y=160.0, confidence=0.9, name="left_shoulder"),
+            "right_shoulder": Keypoint(x=55.0, y=160.0, confidence=0.9, name="right_shoulder"),
+            "left_hip": Keypoint(x=45.0, y=180.0, confidence=0.9, name="left_hip"),
+            "right_hip": Keypoint(x=55.0, y=180.0, confidence=0.9, name="right_hip"),
+            "left_knee": Keypoint(x=45.0, y=220.0, confidence=0.9, name="left_knee"),
+            "right_knee": Keypoint(x=55.0, y=220.0, confidence=0.9, name="right_knee"),
+            "left_ankle": Keypoint(x=45.0, y=250.0, confidence=0.9, name="left_ankle"),
+            "right_ankle": Keypoint(x=55.0, y=250.0, confidence=0.9, name="right_ankle"),
+        }
+        # Torso length: 180 - 160 = 20
+        # Upper leg length: 220 - 180 = 40
+        # Ratio: 20/40 = 0.5 < 0.8 (compressed torso = crouching)
+
+        pose, confidence = classify_pose(keypoints)
+        assert pose == "crouching"
+        assert confidence > 0.5
+
+    def test_classify_pose_running(self) -> None:
+        """Test classification of running pose."""
+        from backend.services.vitpose_loader import Keypoint, classify_pose
+
+        # Create keypoints for running pose (wide leg spread, arm asymmetry)
+        keypoints = {
+            "left_shoulder": Keypoint(x=45.0, y=100.0, confidence=0.9, name="left_shoulder"),
+            "right_shoulder": Keypoint(x=55.0, y=100.0, confidence=0.9, name="right_shoulder"),
+            "left_hip": Keypoint(x=45.0, y=200.0, confidence=0.9, name="left_hip"),
+            "right_hip": Keypoint(x=55.0, y=200.0, confidence=0.9, name="right_hip"),
+            "left_knee": Keypoint(x=30.0, y=300.0, confidence=0.9, name="left_knee"),
+            "right_knee": Keypoint(x=70.0, y=300.0, confidence=0.9, name="right_knee"),
+            "left_ankle": Keypoint(x=20.0, y=400.0, confidence=0.9, name="left_ankle"),
+            "right_ankle": Keypoint(x=80.0, y=400.0, confidence=0.9, name="right_ankle"),
+            "left_wrist": Keypoint(x=30.0, y=80.0, confidence=0.9, name="left_wrist"),
+            "right_wrist": Keypoint(x=70.0, y=150.0, confidence=0.9, name="right_wrist"),
+            "left_elbow": Keypoint(x=35.0, y=120.0, confidence=0.9, name="left_elbow"),
+            "right_elbow": Keypoint(x=65.0, y=120.0, confidence=0.9, name="right_elbow"),
+        }
+
+        pose, confidence = classify_pose(keypoints)
+        assert pose == "running"
+        assert confidence > 0.5
+
+    def test_classify_pose_sitting(self) -> None:
+        """Test classification of sitting pose."""
+        from backend.services.vitpose_loader import Keypoint, classify_pose
+
+        # Create keypoints for sitting pose (hips at or below knee level)
+        keypoints = {
+            "left_shoulder": Keypoint(x=45.0, y=100.0, confidence=0.9, name="left_shoulder"),
+            "right_shoulder": Keypoint(x=55.0, y=100.0, confidence=0.9, name="right_shoulder"),
+            "left_hip": Keypoint(x=45.0, y=200.0, confidence=0.9, name="left_hip"),
+            "right_hip": Keypoint(x=55.0, y=200.0, confidence=0.9, name="right_hip"),
+            "left_knee": Keypoint(x=60.0, y=200.0, confidence=0.9, name="left_knee"),
+            "right_knee": Keypoint(x=70.0, y=200.0, confidence=0.9, name="right_knee"),
+            "left_ankle": Keypoint(x=70.0, y=250.0, confidence=0.9, name="left_ankle"),
+            "right_ankle": Keypoint(x=80.0, y=250.0, confidence=0.9, name="right_ankle"),
+        }
+
+        pose, confidence = classify_pose(keypoints)
+        assert pose == "sitting"
+        assert confidence > 0.5
+
+    def test_classify_pose_lying(self) -> None:
+        """Test classification of lying pose."""
+        from backend.services.vitpose_loader import Keypoint, classify_pose
+
+        # Create keypoints for lying pose (horizontal orientation)
+        keypoints = {
+            "left_shoulder": Keypoint(x=100.0, y=50.0, confidence=0.9, name="left_shoulder"),
+            "right_shoulder": Keypoint(x=150.0, y=50.0, confidence=0.9, name="right_shoulder"),
+            "left_hip": Keypoint(x=200.0, y=55.0, confidence=0.9, name="left_hip"),
+            "right_hip": Keypoint(x=250.0, y=55.0, confidence=0.9, name="right_hip"),
+            "left_knee": Keypoint(x=300.0, y=52.0, confidence=0.9, name="left_knee"),
+            "right_knee": Keypoint(x=350.0, y=52.0, confidence=0.9, name="right_knee"),
+            "left_ankle": Keypoint(x=400.0, y=50.0, confidence=0.9, name="left_ankle"),
+            "right_ankle": Keypoint(x=450.0, y=50.0, confidence=0.9, name="right_ankle"),
+        }
+
+        pose, confidence = classify_pose(keypoints)
+        assert pose == "lying"
+        assert confidence > 0.5
+
+
+class TestViTPoseLoaderFunctions:
+    """Tests for ViTPose model loading functions."""
+
+    @pytest.mark.asyncio
+    async def test_load_vitpose_model_import_error(self) -> None:
+        """Test that load_vitpose_model raises ImportError when transformers missing."""
+        from backend.services.vitpose_loader import load_vitpose_model
+
+        with patch.dict("sys.modules", {"transformers": None}):
+            import sys
+
+            if "transformers" in sys.modules:
+                del sys.modules["transformers"]
+
+            with (
+                patch(
+                    "builtins.__import__",
+                    side_effect=ImportError("No module named 'transformers'"),
+                ),
+                pytest.raises(ImportError),
+            ):
+                await load_vitpose_model("test/path")
+
+    @pytest.mark.asyncio
+    async def test_load_vitpose_model_runtime_error(self) -> None:
+        """Test that load_vitpose_model raises RuntimeError on load failure."""
+        from backend.services.vitpose_loader import load_vitpose_model
+
+        mock_processor = MagicMock()
+        mock_processor.from_pretrained.side_effect = ValueError("Model loading failed")
+
+        mock_transformers = MagicMock()
+        mock_transformers.AutoProcessor = mock_processor
+
+        with (
+            patch.dict(
+                "sys.modules",
+                {
+                    "transformers": mock_transformers,
+                    "torch": MagicMock(),
+                },
+            ),
+            pytest.raises(RuntimeError, match="Failed to load ViTPose model"),
+        ):
+            await load_vitpose_model("invalid/path")
+
+    @pytest.mark.asyncio
+    async def test_extract_pose_from_crop_error_handling(self) -> None:
+        """Test extract_pose_from_crop handles errors gracefully."""
+        from backend.services.vitpose_loader import PoseResult, extract_pose_from_crop
+
+        mock_model = MagicMock()
+        mock_model.parameters.return_value = iter([MagicMock(device="cpu")])
+        # Make the model raise an error during inference
+        mock_model.side_effect = ValueError("Inference failed")
+
+        mock_processor = MagicMock()
+        mock_processor.return_value = {"pixel_values": MagicMock()}
+
+        # Create a mock PIL Image
+        mock_image = MagicMock()
+        mock_image.height = 256
+        mock_image.width = 192
+
+        with patch.dict("sys.modules", {"torch": MagicMock()}):
+            result = await extract_pose_from_crop(
+                mock_model,
+                mock_processor,
+                mock_image,
+                bbox=[0, 0, 192, 256],
+            )
+
+            # Should return unknown pose on error
+            assert isinstance(result, PoseResult)
+            assert result.pose_class == "unknown"
+            assert result.pose_confidence == 0.0
+
+    @pytest.mark.asyncio
+    async def test_extract_poses_batch_empty_input(self) -> None:
+        """Test extract_poses_batch with empty input."""
+        from backend.services.vitpose_loader import extract_poses_batch
+
+        mock_model = MagicMock()
+        mock_processor = MagicMock()
+
+        results = await extract_poses_batch(mock_model, mock_processor, [])
+
+        assert results == []
+
+    @pytest.mark.asyncio
+    async def test_extract_poses_batch_error_handling(self) -> None:
+        """Test extract_poses_batch handles errors gracefully."""
+        from backend.services.vitpose_loader import PoseResult, extract_poses_batch
+
+        mock_model = MagicMock()
+        mock_model.parameters.return_value = iter([MagicMock(device="cpu")])
+
+        mock_processor = MagicMock()
+        mock_processor.side_effect = ValueError("Processing failed")
+
+        # Create mock PIL Images
+        mock_images = [MagicMock(height=256, width=192) for _ in range(3)]
+
+        with patch.dict("sys.modules", {"torch": MagicMock()}):
+            results = await extract_poses_batch(
+                mock_model,
+                mock_processor,
+                mock_images,
+                bboxes=[[0, 0, 192, 256]] * 3,
+            )
+
+            # Should return unknown poses on error
+            assert len(results) == 3
+            for result in results:
+                assert isinstance(result, PoseResult)
+                assert result.pose_class == "unknown"
+
+
+class TestViTPoseModelManager:
+    """Tests for ViTPose model loading via ModelManager."""
+
+    def setup_method(self) -> None:
+        """Reset managers before each test."""
+        reset_model_zoo()
+        reset_model_manager()
+
+    def teardown_method(self) -> None:
+        """Reset managers after each test."""
+        reset_model_zoo()
+        reset_model_manager()
+
+    @pytest.mark.asyncio
+    async def test_load_vitpose_via_manager(self) -> None:
+        """Test loading ViTPose model via ModelManager."""
+        manager = ModelManager()
+        mock_model = (MagicMock(), MagicMock())  # (model, processor) tuple
+
+        async def mock_load(path: str) -> Any:
+            return mock_model
+
+        config = get_model_config("vitpose-small")
+        assert config is not None
+
+        with patch.object(config, "load_fn", mock_load):
+            async with manager.load("vitpose-small") as model:
+                assert model is mock_model
+                assert manager.is_loaded("vitpose-small")
+
+            # After context exits, model should be unloaded
+            assert not manager.is_loaded("vitpose-small")
+
+    @pytest.mark.asyncio
+    async def test_vitpose_vram_tracking(self) -> None:
+        """Test that VRAM is properly tracked for ViTPose model."""
+        manager = ModelManager()
+        mock_model = (MagicMock(), MagicMock())
+
+        async def mock_load(path: str) -> Any:
+            return mock_model
+
+        config = get_model_config("vitpose-small")
+        assert config is not None
+
+        with patch.object(config, "load_fn", mock_load):
+            await manager.preload("vitpose-small")
+
+            # Should show 1500 MB VRAM usage
+            assert manager.total_loaded_vram == 1500
+
+            await manager.unload("vitpose-small")
+            assert manager.total_loaded_vram == 0

@@ -190,12 +190,14 @@ class NemotronAnalyzer:
         self,
         batch_id: str,
         detections: list[Detection],
+        camera_id: str | None = None,
     ) -> EnrichmentResult | None:
         """Get enrichment result (plates, faces) for detections if enabled.
 
         Args:
             batch_id: Batch identifier (for logging)
             detections: List of Detection objects
+            camera_id: Camera ID for scene change detection and re-id
 
         Returns:
             EnrichmentResult or None if enrichment is disabled or fails
@@ -204,7 +206,7 @@ class NemotronAnalyzer:
             return None
 
         try:
-            result = await self._run_enrichment_pipeline(detections)
+            result = await self._run_enrichment_pipeline(detections, camera_id=camera_id)
             if result:
                 logger.debug(
                     f"Enrichment pipeline for batch {batch_id}: "
@@ -332,7 +334,9 @@ class NemotronAnalyzer:
             )
 
             # Run enrichment pipeline for license plates, faces, OCR
-            enrichment_result = await self._get_enrichment_result(batch_id, detections)
+            enrichment_result = await self._get_enrichment_result(
+                batch_id, detections, camera_id=camera_id
+            )
 
             # Call LLM for risk analysis
             llm_start = time.time()
@@ -496,7 +500,9 @@ class NemotronAnalyzer:
             )
 
             # Run enrichment pipeline for license plates, faces, OCR
-            enrichment_result = await self._get_enrichment_result(batch_id, [detection])
+            enrichment_result = await self._get_enrichment_result(
+                batch_id, [detection], camera_id=camera_id
+            )
 
             # Call LLM for risk analysis
             llm_start = time.time()
@@ -633,7 +639,7 @@ class NemotronAnalyzer:
         return "\n".join(lines)
 
     async def _run_enrichment_pipeline(
-        self, detections: list[Detection]
+        self, detections: list[Detection], camera_id: str | None = None
     ) -> EnrichmentResult | None:
         """Run the enrichment pipeline on detections.
 
@@ -642,6 +648,7 @@ class NemotronAnalyzer:
 
         Args:
             detections: List of Detection models from the database
+            camera_id: Camera ID for scene change detection and re-id
 
         Returns:
             EnrichmentResult with plates and faces, or None if no enrichment
@@ -692,8 +699,13 @@ class NemotronAnalyzer:
         if not detection_inputs:
             return None
 
-        # Run the enrichment pipeline
-        result = await pipeline.enrich_batch(detection_inputs, images)
+        # Set shared image for full-frame analysis (use first detection's image)
+        # This enables vision extraction, scene change detection, and re-id
+        if detections and detections[0].file_path:
+            images[None] = detections[0].file_path
+
+        # Run the enrichment pipeline with camera_id for scene change and re-id
+        result = await pipeline.enrich_batch(detection_inputs, images, camera_id=camera_id)
 
         return result
 

@@ -23,6 +23,11 @@ from typing import Any
 from PIL import Image
 
 from backend.core.logging import get_logger
+from backend.services.fashion_clip_loader import (
+    ClothingClassification,
+    classify_clothing,
+    format_clothing_context,
+)
 from backend.services.model_zoo import (
     PERSON_CLASS,
     VEHICLE_CLASSES,
@@ -38,9 +43,19 @@ from backend.services.scene_change_detector import (
     SceneChangeResult,
     get_scene_change_detector,
 )
+from backend.services.segformer_loader import (
+    ClothingSegmentationResult,
+)
+from backend.services.violence_loader import (
+    ViolenceDetectionResult,
+    classify_violence,
+)
 from backend.services.vision_extractor import (
     BatchExtractionResult,
     get_vision_extractor,
+)
+from backend.services.weather_loader import (
+    WeatherResult,
 )
 
 logger = get_logger(__name__)
@@ -146,6 +161,10 @@ class EnrichmentResult:
     person_reid_matches: dict[str, list[EntityMatch]] = field(default_factory=dict)
     vehicle_reid_matches: dict[str, list[EntityMatch]] = field(default_factory=dict)
     scene_change: SceneChangeResult | None = None
+    violence_detection: ViolenceDetectionResult | None = None
+    weather_classification: WeatherResult | None = None
+    clothing_classifications: dict[str, ClothingClassification] = field(default_factory=dict)
+    clothing_segmentation: dict[str, ClothingSegmentationResult] = field(default_factory=dict)
     errors: list[str] = field(default_factory=list)
     processing_time_ms: float = 0.0
 
@@ -153,6 +172,11 @@ class EnrichmentResult:
     def has_license_plates(self) -> bool:
         """Check if any license plates were detected."""
         return len(self.license_plates) > 0
+
+    @property
+    def has_clothing_segmentation(self) -> bool:
+        """Check if any clothing segmentation results are available."""
+        return bool(self.clothing_segmentation)
 
     @property
     def has_readable_plates(self) -> bool:
@@ -184,7 +208,22 @@ class EnrichmentResult:
         """Check if scene change was detected."""
         return self.scene_change is not None and self.scene_change.change_detected
 
-    def to_context_string(self) -> str:
+    @property
+    def has_violence(self) -> bool:
+        """Check if violence was detected."""
+        return self.violence_detection is not None and self.violence_detection.is_violent
+
+    @property
+    def has_clothing_classifications(self) -> bool:
+        """Check if any clothing classifications are available."""
+        return bool(self.clothing_classifications)
+
+    @property
+    def has_suspicious_clothing(self) -> bool:
+        """Check if any suspicious clothing was detected."""
+        return any(c.is_suspicious for c in self.clothing_classifications.values())
+
+    def to_context_string(self) -> str:  # noqa: PLR0912
         """Generate context string for LLM prompt.
 
         Returns:
@@ -217,6 +256,27 @@ class EnrichmentResult:
             lines.append(
                 f"Scene change detected (similarity: {self.scene_change.similarity_score:.2f})"
             )
+
+        # Violence detection
+        if self.violence_detection:
+            lines.append("## Violence Detection")
+            if self.violence_detection.is_violent:
+                lines.append(
+                    f"**VIOLENCE DETECTED** (confidence: {self.violence_detection.confidence:.0%})"
+                )
+            else:
+                lines.append(
+                    f"No violence detected (confidence: {self.violence_detection.confidence:.0%})"
+                )
+
+        # Clothing Classifications (FashionCLIP)
+        if self.clothing_classifications:
+            lines.append(
+                f"## Clothing Classifications ({len(self.clothing_classifications)} persons)"
+            )
+            for det_id, classification in self.clothing_classifications.items():
+                lines.append(f"  Person {det_id}:")
+                lines.append(f"    {format_clothing_context(classification)}")
 
         # License plates
         if self.license_plates:
@@ -265,6 +325,9 @@ class EnrichmentResult:
                 }
                 for face in self.faces
             ],
+            "violence_detection": (
+                self.violence_detection.to_dict() if self.violence_detection else None
+            ),
             "errors": self.errors,
             "processing_time_ms": self.processing_time_ms,
         }
@@ -326,6 +389,9 @@ class EnrichmentPipeline:
         vision_extraction_enabled: bool = True,
         reid_enabled: bool = True,
         scene_change_enabled: bool = True,
+        violence_detection_enabled: bool = True,
+        clothing_classification_enabled: bool = True,
+        clothing_segmentation_enabled: bool = True,
         redis_client: Any | None = None,
     ) -> None:
         """Initialize the EnrichmentPipeline.
@@ -339,6 +405,9 @@ class EnrichmentPipeline:
             vision_extraction_enabled: Enable Florence-2 vision extraction
             reid_enabled: Enable CLIP re-identification
             scene_change_enabled: Enable scene change detection
+            violence_detection_enabled: Enable violence detection (runs when 2+ persons)
+            clothing_classification_enabled: Enable FashionCLIP clothing classification
+            clothing_segmentation_enabled: Enable SegFormer clothing segmentation
             redis_client: Redis client for re-id storage (optional)
         """
         self.model_manager = model_manager or get_model_manager()
@@ -349,6 +418,9 @@ class EnrichmentPipeline:
         self.vision_extraction_enabled = vision_extraction_enabled
         self.reid_enabled = reid_enabled
         self.scene_change_enabled = scene_change_enabled
+        self.violence_detection_enabled = violence_detection_enabled
+        self.clothing_classification_enabled = clothing_classification_enabled
+        self.clothing_segmentation_enabled = clothing_segmentation_enabled
         self.redis_client = redis_client
 
         # Initialize services
@@ -482,13 +554,52 @@ class EnrichmentPipeline:
                 logger.error(error_msg)
                 result.errors.append(error_msg)
 
+        # Run violence detection when 2+ persons are detected (optimization)
+        if self.violence_detection_enabled and pil_image:
+            persons = [d for d in high_conf_detections if d.class_name == PERSON_CLASS]
+            if len(persons) >= 2:
+                try:
+                    result.violence_detection = await self._detect_violence(pil_image)
+                except Exception as e:
+                    error_msg = f"Violence detection failed: {e}"
+                    logger.error(error_msg)
+                    result.errors.append(error_msg)
+
+        # Run clothing classification on person crops
+        if self.clothing_classification_enabled and pil_image:
+            persons = [d for d in high_conf_detections if d.class_name == PERSON_CLASS]
+            if persons:
+                try:
+                    result.clothing_classifications = await self._classify_person_clothing(
+                        persons, pil_image
+                    )
+                except Exception as e:
+                    error_msg = f"Clothing classification failed: {e}"
+                    logger.error(error_msg)
+                    result.errors.append(error_msg)
+
+        # Run SegFormer clothing segmentation on person crops
+        if self.clothing_segmentation_enabled and pil_image:
+            persons = [d for d in high_conf_detections if d.class_name == PERSON_CLASS]
+            if persons:
+                try:
+                    result.clothing_segmentation = await self._segment_person_clothing(
+                        persons, pil_image
+                    )
+                except Exception as e:
+                    error_msg = f"Clothing segmentation failed: {e}"
+                    logger.error(error_msg)
+                    result.errors.append(error_msg)
+
         result.processing_time_ms = (time.monotonic() - start_time) * 1000
         logger.info(
             f"Enrichment complete: {len(result.license_plates)} plates, "
             f"{len(result.faces)} faces, "
             f"vision={'yes' if result.vision_extraction else 'no'}, "
             f"reid={'yes' if result.has_reid_matches else 'no'}, "
-            f"scene_change={'yes' if result.has_scene_change else 'no'} "
+            f"scene_change={'yes' if result.has_scene_change else 'no'}, "
+            f"clothing_class={len(result.clothing_classifications)}, "
+            f"clothing_seg={len(result.clothing_segmentation)} "
             f"in {result.processing_time_ms:.1f}ms"
         )
 
@@ -908,6 +1019,144 @@ class EnrichmentPipeline:
         except Exception as e:
             logger.warning(f"OCR failed: {e}")
             return "", 0.0
+
+    async def _detect_violence(self, image: Image.Image) -> ViolenceDetectionResult:
+        """Run violence detection on a full frame image.
+
+        This method loads the violence detection model, runs inference,
+        and returns the classification result.
+
+        Args:
+            image: PIL Image (full frame) to classify
+
+        Returns:
+            ViolenceDetectionResult with classification
+
+        Raises:
+            RuntimeError: If violence detection fails
+        """
+        try:
+            async with self.model_manager.load("violence-detection") as model_data:
+                result = await classify_violence(model_data, image)
+                if result.is_violent:
+                    logger.warning(f"Violence detected with {result.confidence:.0%} confidence")
+                return result
+
+        except KeyError as e:
+            logger.warning("violence-detection model not available in MODEL_ZOO")
+            raise RuntimeError("violence-detection model not configured") from e
+        except Exception as e:
+            logger.error(f"Violence detection error: {e}")
+            raise
+
+    async def _classify_person_clothing(
+        self,
+        persons: list[DetectionInput],
+        image: Image.Image,
+    ) -> dict[str, ClothingClassification]:
+        """Classify clothing for each person detection using FashionCLIP.
+
+        Args:
+            persons: List of person detections to classify
+            image: Full frame image to crop persons from
+
+        Returns:
+            Dictionary mapping detection IDs to ClothingClassification results
+        """
+        results: dict[str, ClothingClassification] = {}
+
+        if not persons:
+            return results
+
+        try:
+            async with self.model_manager.load("fashion-clip") as model_data:
+                for i, person in enumerate(persons):
+                    det_id = str(person.id) if person.id else str(i)
+
+                    try:
+                        # Crop person from full frame
+                        person_crop = await self._crop_to_bbox(image, person.bbox)
+                        if person_crop is None:
+                            continue
+
+                        # Classify clothing
+                        classification = await classify_clothing(model_data, person_crop)
+                        results[det_id] = classification
+
+                        logger.debug(
+                            f"Person {det_id} clothing: {classification.raw_description} "
+                            f"({classification.confidence:.0%})"
+                        )
+
+                    except Exception as e:
+                        logger.warning(f"Clothing classification failed for person {det_id}: {e}")
+                        continue
+
+        except KeyError:
+            logger.warning("fashion-clip model not available in MODEL_ZOO")
+        except Exception as e:
+            logger.error(f"Clothing classification error: {e}")
+
+        return results
+
+    async def _segment_person_clothing(
+        self,
+        persons: list[DetectionInput],
+        image: Image.Image,
+    ) -> dict[str, ClothingSegmentationResult]:
+        """Segment clothing for each person detection using SegFormer.
+
+        Runs SegFormer B2 Clothes model on person crops to extract detailed
+        clothing segmentation including hats, sunglasses, upper clothes, pants,
+        dress, bags, shoes, and other apparel items.
+
+        Args:
+            persons: List of person detections to segment
+            image: Full frame image to crop persons from
+
+        Returns:
+            Dictionary mapping detection IDs to ClothingSegmentationResult
+        """
+        from backend.services.segformer_loader import segment_clothing
+
+        results: dict[str, ClothingSegmentationResult] = {}
+
+        if not persons:
+            return results
+
+        try:
+            async with self.model_manager.load("segformer-b2-clothes") as model_data:
+                model, processor = model_data
+
+                for i, person in enumerate(persons):
+                    det_id = str(person.id) if person.id else str(i)
+
+                    try:
+                        # Crop person from full frame
+                        person_crop = await self._crop_to_bbox(image, person.bbox)
+                        if person_crop is None:
+                            continue
+
+                        # Segment clothing
+                        segmentation = await segment_clothing(model, processor, person_crop)
+                        results[det_id] = segmentation
+
+                        logger.debug(
+                            f"Person {det_id} clothing items: {segmentation.clothing_items}, "
+                            f"face_covered={segmentation.has_face_covered}, "
+                            f"has_bag={segmentation.has_bag}"
+                        )
+
+                    except Exception as e:
+                        logger.warning(f"Clothing segmentation failed for person {det_id}: {e}")
+                        continue
+
+        except KeyError:
+            logger.warning("segformer-b2-clothes model not available in MODEL_ZOO")
+        except Exception as e:
+            logger.error(f"Clothing segmentation error: {e}")
+
+        return results
 
 
 # Global EnrichmentPipeline instance

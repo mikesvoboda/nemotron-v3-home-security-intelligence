@@ -1510,3 +1510,217 @@ def test_parse_llm_response_nested_json(analyzer):
 
     result = analyzer._parse_llm_response(response_text)
     assert result["risk_score"] == 45
+
+
+# =============================================================================
+# Test: _run_enrichment_pipeline shared image and camera_id fix
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_run_enrichment_pipeline_sets_shared_image(analyzer):
+    """Test that _run_enrichment_pipeline sets images[None] for full-frame analysis.
+
+    This verifies the fix for the enrichment pipeline missing shared image bug.
+    The shared image (images[None]) is required for:
+    - Vision extraction (Florence-2 attributes)
+    - Scene change detection
+    - CLIP re-identification
+    """
+    from datetime import UTC
+    from unittest.mock import AsyncMock, MagicMock
+
+    from backend.models.detection import Detection
+    from backend.services.enrichment_pipeline import EnrichmentResult
+
+    # Create detections with bounding boxes and file paths
+    detections = [
+        Detection(
+            id=1,
+            camera_id="front_door",
+            file_path="/export/foscam/front_door/img1.jpg",
+            detected_at=datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC),
+            object_type="person",
+            confidence=0.95,
+            bbox_x=100,
+            bbox_y=100,
+            bbox_width=50,
+            bbox_height=100,
+        ),
+        Detection(
+            id=2,
+            camera_id="front_door",
+            file_path="/export/foscam/front_door/img2.jpg",
+            detected_at=datetime(2025, 12, 23, 14, 30, 15, tzinfo=UTC),
+            object_type="car",
+            confidence=0.88,
+            bbox_x=200,
+            bbox_y=150,
+            bbox_width=100,
+            bbox_height=60,
+        ),
+    ]
+
+    # Mock the enrichment pipeline
+    mock_pipeline = MagicMock()
+    mock_result = EnrichmentResult()
+    mock_pipeline.enrich_batch = AsyncMock(return_value=mock_result)
+
+    # Replace the analyzer's pipeline getter
+    analyzer._enrichment_pipeline = mock_pipeline
+
+    # Call the method with camera_id
+    await analyzer._run_enrichment_pipeline(detections, camera_id="front_door")
+
+    # Verify enrich_batch was called
+    mock_pipeline.enrich_batch.assert_called_once()
+    call_args = mock_pipeline.enrich_batch.call_args
+
+    # Get the images dict that was passed
+    detection_inputs = call_args[0][0]
+    images = call_args[0][1]
+    kwargs = call_args[1]
+
+    # Verify images[None] is set to first detection's file_path
+    assert None in images, "images[None] should be set for shared full-frame image"
+    assert images[None] == "/export/foscam/front_door/img1.jpg"
+
+    # Verify individual detection images are also set
+    assert images[1] == "/export/foscam/front_door/img1.jpg"
+    assert images[2] == "/export/foscam/front_door/img2.jpg"
+
+    # Verify camera_id is passed
+    assert kwargs.get("camera_id") == "front_door"
+
+    # Verify detection inputs were created correctly
+    assert len(detection_inputs) == 2
+    assert detection_inputs[0].id == 1
+    assert detection_inputs[0].class_name == "person"
+    assert detection_inputs[1].id == 2
+    assert detection_inputs[1].class_name == "car"
+
+
+@pytest.mark.asyncio
+async def test_run_enrichment_pipeline_passes_camera_id(analyzer):
+    """Test that _run_enrichment_pipeline passes camera_id to enrich_batch.
+
+    This is required for scene change detection and re-identification to work.
+    """
+    from datetime import UTC
+    from unittest.mock import AsyncMock, MagicMock
+
+    from backend.models.detection import Detection
+    from backend.services.enrichment_pipeline import EnrichmentResult
+
+    detections = [
+        Detection(
+            id=1,
+            camera_id="backyard",
+            file_path="/export/foscam/backyard/img1.jpg",
+            detected_at=datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC),
+            object_type="person",
+            confidence=0.95,
+            bbox_x=100,
+            bbox_y=100,
+            bbox_width=50,
+            bbox_height=100,
+        ),
+    ]
+
+    mock_pipeline = MagicMock()
+    mock_result = EnrichmentResult()
+    mock_pipeline.enrich_batch = AsyncMock(return_value=mock_result)
+    analyzer._enrichment_pipeline = mock_pipeline
+
+    # Call with camera_id
+    await analyzer._run_enrichment_pipeline(detections, camera_id="backyard")
+
+    # Verify camera_id was passed as keyword argument
+    call_kwargs = mock_pipeline.enrich_batch.call_args[1]
+    assert call_kwargs["camera_id"] == "backyard"
+
+
+@pytest.mark.asyncio
+async def test_run_enrichment_pipeline_no_detections_with_bbox(analyzer):
+    """Test that pipeline returns None when no detections have bounding boxes."""
+    from datetime import UTC
+
+    from backend.models.detection import Detection
+
+    # Detections without bounding boxes
+    detections = [
+        Detection(
+            id=1,
+            camera_id="front_door",
+            file_path="/export/foscam/front_door/img1.jpg",
+            detected_at=datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC),
+            object_type="person",
+            confidence=0.95,
+            # No bbox_x, bbox_y, etc.
+        ),
+    ]
+
+    result = await analyzer._run_enrichment_pipeline(detections, camera_id="front_door")
+
+    # Should return None since no detections have valid bboxes
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_run_enrichment_pipeline_empty_detections(analyzer):
+    """Test that pipeline returns None for empty detection list."""
+    result = await analyzer._run_enrichment_pipeline([], camera_id="front_door")
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_run_enrichment_pipeline_no_file_path_for_shared_image(analyzer):
+    """Test handling when first detection has no file_path."""
+    from datetime import UTC
+    from unittest.mock import AsyncMock, MagicMock
+
+    from backend.models.detection import Detection
+    from backend.services.enrichment_pipeline import EnrichmentResult
+
+    detections = [
+        Detection(
+            id=1,
+            camera_id="front_door",
+            file_path=None,  # No file path!
+            detected_at=datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC),
+            object_type="person",
+            confidence=0.95,
+            bbox_x=100,
+            bbox_y=100,
+            bbox_width=50,
+            bbox_height=100,
+        ),
+        Detection(
+            id=2,
+            camera_id="front_door",
+            file_path="/export/foscam/front_door/img2.jpg",
+            detected_at=datetime(2025, 12, 23, 14, 30, 15, tzinfo=UTC),
+            object_type="car",
+            confidence=0.88,
+            bbox_x=200,
+            bbox_y=150,
+            bbox_width=100,
+            bbox_height=60,
+        ),
+    ]
+
+    mock_pipeline = MagicMock()
+    mock_result = EnrichmentResult()
+    mock_pipeline.enrich_batch = AsyncMock(return_value=mock_result)
+    analyzer._enrichment_pipeline = mock_pipeline
+
+    await analyzer._run_enrichment_pipeline(detections, camera_id="front_door")
+
+    # Get images dict
+    images = mock_pipeline.enrich_batch.call_args[0][1]
+
+    # images[None] should NOT be set since first detection has no file_path
+    assert None not in images or images.get(None) is None
+
+    # But the second detection's image should still be mapped
+    assert images.get(2) == "/export/foscam/front_door/img2.jpg"
