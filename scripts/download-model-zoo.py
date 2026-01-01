@@ -129,6 +129,22 @@ MODEL_ZOO: list[ModelSpec] = [
         description="Zero-shot clothing attributes",
         model_type="transformers",
     ),
+    ModelSpec(
+        name="florence-2-large",
+        hf_repo="microsoft/Florence-2-large",
+        phase=2,
+        vram_mb=1200,
+        description="Vision-language queries (attributes, behavior, scene)",
+        model_type="transformers",
+    ),
+    ModelSpec(
+        name="clip-vit-l",
+        hf_repo="openai/clip-vit-large-patch14",
+        phase=2,
+        vram_mb=800,
+        description="CLIP embeddings for re-identification",
+        model_type="transformers",
+    ),
     # Phase 3 - Specialized
     ModelSpec(
         name="vehicle-segment-classification",
