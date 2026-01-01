@@ -27,19 +27,23 @@ jobs:
           nvidia-smi
           echo "GPU Memory: $(nvidia-smi --query-gpu=memory.total --format=csv,noheader)"
 
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
       - name: Set up Python
-        run: |
-          python3 -m venv .venv
-          source .venv/bin/activate
-          pip install -r backend/requirements.txt
+        run: uv python install 3.14
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
 
       - name: Run GPU tests
         run: |
-          source .venv/bin/activate
           # Exit code 5 means no tests collected - treat as success
           # Ignore integration and e2e tests - they require DATABASE_URL and would
           # conflict with production database on same host (causes TRUNCATE lock contention)
-          pytest backend/tests/ \
+          uv run pytest backend/tests/ \
             -m "gpu" \
             --ignore=backend/tests/integration/ \
             --ignore=backend/tests/e2e/ \
@@ -52,10 +56,9 @@ jobs:
         # Optional: benchmarks require PostgreSQL which may not be on GPU runner
         continue-on-error: true
         run: |
-          source .venv/bin/activate
           # Disable xdist and override default opts to allow benchmarks
           # (xdist auto-disables benchmarking, and pytest.ini has xdist options)
-          pytest backend/tests/benchmarks/ \
+          uv run pytest backend/tests/benchmarks/ \
             -p no:xdist \
             -o "addopts=-v --strict-markers --tb=short --timeout=30" \
             --benchmark-only \

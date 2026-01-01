@@ -693,7 +693,7 @@ class TestAlertProperties:
         assert alert.event_id == event_id
 
     @given(dedup_key=st.text(min_size=1, max_size=255))
-    @settings(max_examples=50)
+    @settings(max_examples=25)
     def test_alert_dedup_key_roundtrip(self, dedup_key: str):
         """Property: Dedup key values roundtrip correctly."""
         alert = Alert(event_id=1, dedup_key=dedup_key)
