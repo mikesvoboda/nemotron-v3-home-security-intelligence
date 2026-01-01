@@ -19,7 +19,7 @@ from backend.api.schemas.events import (
     EventUpdate,
 )
 from backend.api.schemas.search import SearchResponse as SearchResponseSchema
-from backend.core.database import get_db
+from backend.core.database import escape_ilike_pattern, get_db
 from backend.core.logging import get_logger
 from backend.models.audit import AuditAction
 from backend.models.camera import Camera
@@ -137,6 +137,8 @@ async def list_events(
     # This column stores comma-separated object types from related detections
     # We use SQL LIKE for efficient database-side filtering
     if object_type:
+        # Escape LIKE wildcard characters to prevent pattern injection
+        safe_object_type = escape_ilike_pattern(object_type)
         # Use SQL LIKE to find events with matching object types
         # The object_types column is comma-separated, so we check for:
         # - Exact match at start: "person,..."
@@ -145,9 +147,9 @@ async def list_events(
         # - Exact single value: "person"
         query = query.where(
             (Event.object_types == object_type)
-            | (Event.object_types.like(f"{object_type},%"))
-            | (Event.object_types.like(f"%,{object_type},%"))
-            | (Event.object_types.like(f"%,{object_type}"))
+            | (Event.object_types.like(f"{safe_object_type},%"))
+            | (Event.object_types.like(f"%,{safe_object_type},%"))
+            | (Event.object_types.like(f"%,{safe_object_type}"))
         )
 
     # Get total count (before pagination)

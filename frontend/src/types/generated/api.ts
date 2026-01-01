@@ -1727,6 +1727,7 @@ export interface paths {
          *         CircuitBreakerResetResponse with reset confirmation
          *
          *     Raises:
+         *         HTTPException 400: If name is invalid (empty, too long, or contains invalid characters)
          *         HTTPException 404: If circuit breaker not found
          */
         post: operations["reset_circuit_breaker_api_system_circuit_breakers__name__reset_post"];
@@ -5441,30 +5442,6 @@ export interface components {
             timestamp: string;
         };
         /**
-         * TestNotificationRequest
-         * @description Schema for testing notification configuration.
-         * @example {
-         *       "channel": "email",
-         *       "email_recipients": [
-         *         "test@example.com"
-         *       ]
-         *     }
-         */
-        TestNotificationRequest: {
-            /** @description Channel to test */
-            channel: components["schemas"]["NotificationChannel"];
-            /**
-             * Email Recipients
-             * @description Email recipients for email test
-             */
-            email_recipients?: string[] | null;
-            /**
-             * Webhook Url
-             * @description Webhook URL for webhook test
-             */
-            webhook_url?: string | null;
-        };
-        /**
          * TestNotificationResponse
          * @description Schema for test notification result.
          * @example {
@@ -5500,6 +5477,30 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /**
+         * WebhookTestNotificationRequest
+         * @description Schema for testing notification configuration.
+         * @example {
+         *       "channel": "email",
+         *       "email_recipients": [
+         *         "test@example.com"
+         *       ]
+         *     }
+         */
+        WebhookTestNotificationRequest: {
+            /** @description Channel to test */
+            channel: components["schemas"]["NotificationChannel"];
+            /**
+             * Email Recipients
+             * @description Email recipients for email test
+             */
+            email_recipients?: string[] | null;
+            /**
+             * Webhook Url
+             * @description Webhook URL for webhook test. Must be HTTPS and not point to private IPs.
+             */
+            webhook_url?: string | null;
         };
         /**
          * WorkerStatus
@@ -7432,7 +7433,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["TestNotificationRequest"];
+                "application/json": components["schemas"]["WebhookTestNotificationRequest"];
             };
         };
         responses: {

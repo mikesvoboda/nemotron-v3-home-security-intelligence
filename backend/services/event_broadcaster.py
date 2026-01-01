@@ -43,6 +43,9 @@ class EventBroadcaster:
 
     Includes a supervision task that monitors listener health and automatically
     restarts dead listeners to ensure reliability.
+
+    When max recovery attempts are exhausted, the broadcaster enters degraded mode
+    where it continues to accept connections but cannot broadcast real-time events.
     """
 
     # Maximum number of consecutive recovery attempts before giving up
@@ -75,6 +78,7 @@ class EventBroadcaster:
         self._is_listening = False
         self._recovery_attempts = 0
         self._listener_healthy = False
+        self._is_degraded = False
 
     @property
     def channel_name(self) -> str:
@@ -95,6 +99,7 @@ class EventBroadcaster:
             self._pubsub = await self._redis.subscribe(self._channel_name)
             self._is_listening = True
             self._listener_healthy = True
+            self._is_degraded = False  # Clear degraded mode on successful start
             self._recovery_attempts = 0  # Reset recovery attempts on successful start
             self._listener_task = asyncio.create_task(self._listen_for_events())
             # Start supervision task to monitor listener health
@@ -216,6 +221,32 @@ class EventBroadcaster:
             logger.error(f"Failed to broadcast event: {e}")
             raise
 
+    def _enter_degraded_mode(self) -> None:
+        """Enter degraded mode after exhausting all recovery attempts.
+
+        This method is called when the broadcaster has failed to recover after
+        MAX_RECOVERY_ATTEMPTS. In degraded mode:
+        - A critical alert is logged for operator attention
+        - The degraded flag is set for health checks to detect
+        - The broadcaster stops trying to listen but remains available
+          for connection management
+
+        This ensures graceful degradation rather than silent failure.
+        """
+        self._is_degraded = True
+        self._is_listening = False
+        self._listener_healthy = False
+
+        # Log a CRITICAL alert to ensure operator visibility
+        logger.critical(
+            "CRITICAL: EventBroadcaster has entered DEGRADED MODE after exhausting "
+            f"all {self.MAX_RECOVERY_ATTEMPTS} recovery attempts. "
+            "Real-time event broadcasting is UNAVAILABLE. "
+            "WebSocket clients will not receive live updates. "
+            "Manual intervention required to restore functionality. "
+            "Check Redis connectivity and restart the service."
+        )
+
     async def _listen_for_events(self) -> None:
         """Listen for events from Redis pub/sub and broadcast to WebSocket clients.
 
@@ -225,6 +256,7 @@ class EventBroadcaster:
 
         Recovery from errors is bounded to MAX_RECOVERY_ATTEMPTS to prevent
         unbounded recursion and stack overflow. Uses exponential backoff on retries.
+        After exhausting all attempts, enters degraded mode for graceful failure.
         """
         if not self._pubsub:
             logger.error("Cannot listen for events: pubsub not initialized")
@@ -281,7 +313,7 @@ class EventBroadcaster:
                         f"Event listener recovery failed after {self.MAX_RECOVERY_ATTEMPTS} "
                         "attempts. Giving up - manual restart required."
                     )
-                    self._is_listening = False
+                    self._enter_degraded_mode()
 
     async def _send_to_all_clients(self, event_data: Any) -> None:
         """Send event data to all connected WebSocket clients.
@@ -319,7 +351,8 @@ class EventBroadcaster:
         proper flags, the supervisor will attempt to restart it.
 
         This provides an additional layer of reliability beyond the built-in
-        recovery logic in _listen_for_events.
+        recovery logic in _listen_for_events. After exhausting all recovery
+        attempts, enters degraded mode for graceful failure.
         """
         logger.info("Listener supervision task started")
 
@@ -361,8 +394,7 @@ class EventBroadcaster:
                             "Supervisor giving up - max recovery attempts reached. "
                             "Manual intervention required."
                         )
-                        self._is_listening = False
-                        self._listener_healthy = False
+                        self._enter_degraded_mode()
                         break
                 elif listener_alive:
                     # Listener is healthy
@@ -386,6 +418,18 @@ class EventBroadcaster:
             True if listener is running and healthy, False otherwise
         """
         return self._is_listening and self._listener_healthy
+
+    def is_degraded(self) -> bool:
+        """Check if the broadcaster is in degraded mode.
+
+        Degraded mode is entered when all recovery attempts have been exhausted.
+        In this state, the broadcaster cannot broadcast real-time events but
+        may still accept WebSocket connections.
+
+        Returns:
+            True if broadcaster is in degraded mode, False otherwise
+        """
+        return self._is_degraded
 
 
 # Global broadcaster instance and initialization lock

@@ -19,7 +19,7 @@ from sqlalchemy.orm import DeclarativeBase
 from backend.core.config import get_settings
 
 
-def escape_ilike_pattern(value: str) -> str:
+def escape_ilike_pattern(value: str | None) -> str:
     """Escape special characters in a string for safe use in ILIKE patterns.
 
     PostgreSQL ILIKE uses '%' and '_' as wildcards and '\\' as escape character.
@@ -27,7 +27,8 @@ def escape_ilike_pattern(value: str) -> str:
     where user input containing these characters could cause unexpected matching.
 
     Args:
-        value: The user-provided string to escape
+        value: The user-provided string to escape. If None, returns empty string.
+               If not a string, converts to string first.
 
     Returns:
         The escaped string safe for use in ILIKE patterns
@@ -39,7 +40,19 @@ def escape_ilike_pattern(value: str) -> str:
         'file\\\\_name'
         >>> escape_ilike_pattern("path\\\\to\\\\file")
         'path\\\\\\\\to\\\\\\\\file'
+        >>> escape_ilike_pattern(None)
+        ''
+        >>> escape_ilike_pattern(123)
+        '123'
     """
+    # Handle None input - return empty string
+    if value is None:
+        return ""
+
+    # Handle non-string input - convert to string
+    if not isinstance(value, str):
+        value = str(value)
+
     # Escape backslash first (it's the escape character itself)
     # Then escape % and _ wildcards
     return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
