@@ -317,6 +317,150 @@ async def test_classify_actions_empty_frames():
         await classify_actions(model_dict, frames=[])
 
 
+# Test load_xclip_model success path
+
+
+@pytest.mark.asyncio
+async def test_load_xclip_model_success_cpu(monkeypatch):
+    """Test load_xclip_model success path with CPU."""
+    import sys
+
+    # Create mock torch
+    mock_torch = MagicMock()
+    mock_torch.cuda.is_available.return_value = False
+
+    # Create mock model
+    mock_model = MagicMock()
+    mock_model.eval.return_value = None
+
+    # Create mock processor
+    mock_processor = MagicMock()
+
+    # Create mock transformers
+    mock_transformers = MagicMock()
+    mock_transformers.XCLIPProcessor.from_pretrained.return_value = mock_processor
+    mock_transformers.XCLIPModel.from_pretrained.return_value = mock_model
+
+    monkeypatch.setitem(sys.modules, "torch", mock_torch)
+    monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
+
+    result = await load_xclip_model("/test/model")
+
+    assert "model" in result
+    assert "processor" in result
+    mock_model.eval.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_load_xclip_model_success_cuda(monkeypatch):
+    """Test load_xclip_model success path with CUDA."""
+    import sys
+
+    # Create mock torch with CUDA
+    mock_torch = MagicMock()
+    mock_torch.cuda.is_available.return_value = True
+
+    # Create mock model that supports cuda().half()
+    mock_cuda_model = MagicMock()
+    mock_half_model = MagicMock()
+    mock_cuda_model.half.return_value = mock_half_model
+    mock_half_model.eval.return_value = None
+
+    mock_model = MagicMock()
+    mock_model.cuda.return_value = mock_cuda_model
+
+    # Create mock processor
+    mock_processor = MagicMock()
+
+    # Create mock transformers
+    mock_transformers = MagicMock()
+    mock_transformers.XCLIPProcessor.from_pretrained.return_value = mock_processor
+    mock_transformers.XCLIPModel.from_pretrained.return_value = mock_model
+
+    monkeypatch.setitem(sys.modules, "torch", mock_torch)
+    monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
+
+    result = await load_xclip_model("/test/model/cuda")
+
+    assert "model" in result
+    assert "processor" in result
+    mock_model.cuda.assert_called_once()
+
+
+# Test classify_actions callable
+
+
+def test_classify_actions_callable():
+    """Test classify_actions is an async function."""
+    import inspect
+
+    assert callable(classify_actions)
+    assert inspect.iscoroutinefunction(classify_actions)
+
+
+# Test classify_actions with custom prompts
+
+
+def test_classify_actions_accepts_prompts_parameter():
+    """Test classify_actions has prompts parameter."""
+    import inspect
+
+    sig = inspect.signature(classify_actions)
+    assert "prompts" in sig.parameters
+    assert sig.parameters["prompts"].default is None
+
+
+def test_classify_actions_accepts_frames_parameter():
+    """Test classify_actions has frames parameter."""
+    import inspect
+
+    sig = inspect.signature(classify_actions)
+    assert "frames" in sig.parameters
+
+
+@pytest.mark.asyncio
+async def test_classify_actions_runtime_error():
+    """Test classify_actions handles runtime errors."""
+    from PIL import Image
+
+    test_frames = [Image.new("RGB", (224, 224)) for _ in range(4)]
+
+    # Create model dict with model that raises error
+    mock_model = MagicMock()
+    mock_model.parameters.side_effect = RuntimeError("GPU OOM")
+
+    model_dict = {"model": mock_model, "processor": MagicMock()}
+
+    with pytest.raises(RuntimeError, match="X-CLIP classification failed"):
+        await classify_actions(model_dict, test_frames)
+
+
+# Test classify_actions top_k parameter
+
+
+@pytest.mark.asyncio
+async def test_classify_actions_top_k_validation():
+    """Test classify_actions top_k parameter."""
+    # Verify the default is 3
+    import inspect
+
+    sig = inspect.signature(classify_actions)
+    assert sig.parameters["top_k"].default == 3
+
+
+# Test security prompts completeness
+
+
+def test_security_prompts_minimum_count():
+    """Test that we have enough security prompts for coverage."""
+    assert len(SECURITY_ACTION_PROMPTS) >= 10
+
+
+def test_security_prompts_unique():
+    """Test that all security prompts are unique."""
+    assert len(SECURITY_ACTION_PROMPTS) == len(set(SECURITY_ACTION_PROMPTS))
+
+
 # Test model_zoo integration
 
 
