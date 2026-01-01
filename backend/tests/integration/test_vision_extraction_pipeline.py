@@ -584,6 +584,7 @@ class TestFullPipelineIntegration:
                     vision_extraction_enabled=True,
                     reid_enabled=True,
                     scene_change_enabled=True,
+                    image_quality_enabled=False,  # Disable - brisque-quality model not in CI
                     redis_client=real_redis._ensure_connected(),
                 )
 
