@@ -31,7 +31,7 @@ export class BasePage {
   readonly navSettings: Locator;
 
   // Common timeout for page loads
-  readonly pageLoadTimeout = 15000;
+  readonly pageLoadTimeout = 5000;
 
   constructor(page: Page) {
     this.page = page;
@@ -59,8 +59,8 @@ export class BasePage {
   /**
    * Navigate to this page (to be overridden by subclasses)
    */
-  async goto(): Promise<void> {
-    await this.page.goto('/');
+  async goto(path: string = '/'): Promise<void> {
+    await this.page.goto(path, { waitUntil: 'domcontentloaded' });
   }
 
   /**
@@ -68,6 +68,16 @@ export class BasePage {
    */
   async waitForPageLoad(): Promise<void> {
     await this.page.waitForLoadState('networkidle');
+  }
+
+  /**
+   * Block unnecessary resources to speed up page loads
+   * Call this before navigation to prevent loading images, analytics, and fonts
+   */
+  async blockUnnecessaryResources(): Promise<void> {
+    await this.page.route('**/*.{png,jpg,jpeg,gif,webp,svg}', route => route.abort());
+    await this.page.route('**/*analytics*', route => route.abort());
+    await this.page.route('**/fonts.googleapis.com/**', route => route.abort());
   }
 
   /**

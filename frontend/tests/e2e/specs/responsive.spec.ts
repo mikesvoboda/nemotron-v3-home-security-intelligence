@@ -258,7 +258,7 @@ test.describe('Viewport Transition Tests', () => {
 
     // Resize to desktop
     await page.setViewportSize(viewports.desktop);
-    await page.waitForTimeout(500); // Allow layout to adjust
+    await page.waitForLoadState('domcontentloaded');
 
     // Verify layout adapted
     await dashboardPage.expectLayoutLoaded();
@@ -273,7 +273,7 @@ test.describe('Viewport Transition Tests', () => {
 
     // Resize to mobile
     await page.setViewportSize(viewports.mobile);
-    await page.waitForTimeout(500); // Allow layout to adjust
+    await page.waitForLoadState('domcontentloaded');
 
     // Verify content still accessible
     await expect(dashboardPage.pageTitle).toBeVisible();
@@ -288,7 +288,7 @@ test.describe('Viewport Transition Tests', () => {
 
     // Switch to landscape
     await page.setViewportSize(viewports.tabletLandscape);
-    await page.waitForTimeout(500);
+    await page.waitForLoadState('domcontentloaded');
 
     // Verify content visible
     await expect(dashboardPage.pageTitle).toBeVisible();
@@ -333,8 +333,12 @@ test.describe('Mobile Interaction Tests', () => {
     // Scroll using mouse wheel (works on mobile viewport)
     await page.mouse.wheel(0, 500);
 
-    // Wait for scroll to happen
-    await page.waitForTimeout(500);
+    // Wait for scroll to complete
+    await page.waitForFunction(
+      (initialY) => window.scrollY > initialY,
+      initialScrollY,
+      { timeout: 5000 }
+    );
 
     // Verify scroll happened
     const newScrollY = await page.evaluate(() => window.scrollY);

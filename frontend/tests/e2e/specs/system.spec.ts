@@ -201,8 +201,10 @@ test.describe('System Error State', () => {
   test('page loads even with API errors', async () => {
     await systemPage.goto();
     // The page should still render even with errors
-    // It may show the loading state, error state, or partial content
-    await systemPage.page.waitForTimeout(2000);
+    // Wait for page to load instead of hardcoded sleep
+    await systemPage.page.waitForLoadState('domcontentloaded');
+    // Wait for error or content to appear
+    await expect(systemPage.page.getByText(/error|failed|System Monitoring/i).first()).toBeVisible({ timeout: 5000 });
   });
 });
 
