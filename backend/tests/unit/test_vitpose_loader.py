@@ -19,7 +19,6 @@ from backend.services.vitpose_loader import (
     load_vitpose_model,
 )
 
-
 # Test KeypointIndex enum
 
 
@@ -118,7 +117,7 @@ def test_keypoint_names_order():
         "left_ankle",
         "right_ankle",
     ]
-    assert KEYPOINT_NAMES == expected
+    assert expected == KEYPOINT_NAMES
 
 
 def test_keypoint_names_match_enum():
@@ -379,7 +378,7 @@ def test_classify_pose_unknown_low_score():
         "right_hip": Keypoint(x=100, y=100, confidence=0.9, name="right_hip"),
     }
 
-    pose_class, confidence = classify_pose(keypoints)
+    pose_class, _confidence = classify_pose(keypoints)
 
     # With only hips at same position, no clear pose pattern
     assert pose_class == "unknown"
@@ -395,7 +394,7 @@ def test_classify_pose_with_partial_keypoints():
         "left_ankle": Keypoint(x=105, y=350, confidence=0.9, name="left_ankle"),
     }
 
-    pose_class, confidence = classify_pose(keypoints)
+    pose_class, _confidence = classify_pose(keypoints)
 
     # Should still be able to classify based on available keypoints
     assert pose_class in ["standing", "crouching", "running", "sitting", "lying", "unknown"]
@@ -1007,7 +1006,7 @@ def test_classify_pose_with_negative_coordinates():
     }
 
     # Should not crash with negative coordinates
-    pose_class, confidence = classify_pose(keypoints)
+    pose_class, _confidence = classify_pose(keypoints)
     assert pose_class in ["standing", "crouching", "running", "sitting", "lying", "unknown"]
 
 
@@ -1021,7 +1020,7 @@ def test_classify_pose_with_zero_coordinates():
     }
 
     # Should handle division by zero gracefully
-    pose_class, confidence = classify_pose(keypoints)
+    pose_class, _confidence = classify_pose(keypoints)
     assert pose_class in ["standing", "crouching", "running", "sitting", "lying", "unknown"]
 
 
@@ -1096,7 +1095,7 @@ def test_classify_pose_body_height_from_hip():
         "right_ankle": Keypoint(x=145, y=350, confidence=0.9, name="right_ankle"),
     }
 
-    pose_class, confidence = classify_pose(keypoints)
+    pose_class, _confidence = classify_pose(keypoints)
 
     # Should still be able to classify (standing in this case)
     assert pose_class in ["standing", "crouching", "running", "sitting", "lying", "unknown"]

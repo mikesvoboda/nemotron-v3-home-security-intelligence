@@ -20,7 +20,6 @@ from backend.services.vehicle_classifier_loader import (
     load_vehicle_classifier,
 )
 
-
 # Test constants
 
 
@@ -44,18 +43,18 @@ def test_vehicle_segment_classes_content():
         "single_unit_truck",
         "work_van",
     ]
-    assert VEHICLE_SEGMENT_CLASSES == expected
+    assert expected == VEHICLE_SEGMENT_CLASSES
 
 
 def test_vehicle_segment_classes_sorted():
     """Test vehicle segment classes are sorted alphabetically."""
-    assert VEHICLE_SEGMENT_CLASSES == sorted(VEHICLE_SEGMENT_CLASSES)
+    assert sorted(VEHICLE_SEGMENT_CLASSES) == VEHICLE_SEGMENT_CLASSES
 
 
 def test_rtdetr_vehicle_classes():
     """Test RT-DETRv2 vehicle classes are defined."""
     expected = {"car", "truck", "bus", "motorcycle", "bicycle"}
-    assert RTDETR_VEHICLE_CLASSES == expected
+    assert expected == RTDETR_VEHICLE_CLASSES
 
 
 def test_rtdetr_classes_is_frozenset():
@@ -66,7 +65,7 @@ def test_rtdetr_classes_is_frozenset():
 def test_non_vehicle_classes():
     """Test non-vehicle classes are defined."""
     expected = {"background", "pedestrian"}
-    assert NON_VEHICLE_CLASSES == expected
+    assert expected == NON_VEHICLE_CLASSES
 
 
 def test_non_vehicle_classes_is_frozenset():
@@ -77,7 +76,7 @@ def test_non_vehicle_classes_is_frozenset():
 def test_commercial_vehicle_classes():
     """Test commercial vehicle classes are defined."""
     expected = {"articulated_truck", "single_unit_truck", "work_van"}
-    assert COMMERCIAL_VEHICLE_CLASSES == expected
+    assert expected == COMMERCIAL_VEHICLE_CLASSES
 
 
 def test_commercial_classes_is_frozenset():
@@ -668,7 +667,7 @@ async def test_classify_vehicle_success(monkeypatch):
     # Order: articulated_truck, background, bicycle, bus, car, motorcycle,
     # non_motorized_vehicle, pedestrian, pickup_truck, single_unit_truck, work_van
     mock_probs = MagicMock()
-    mock_probs.__iter__ = lambda self: iter([
+    mock_probs.__iter__ = lambda _self: iter([
         MagicMock(item=lambda: 0.02),  # articulated_truck
         MagicMock(item=lambda: 0.01),  # background
         MagicMock(item=lambda: 0.01),  # bicycle
@@ -688,10 +687,10 @@ async def test_classify_vehicle_success(monkeypatch):
         mock_item.item.return_value = items[idx]
         return mock_item
 
-    mock_probs.__getitem__ = lambda self, idx: mock_probs_getitem(mock_probs, idx)
+    mock_probs.__getitem__ = lambda _self, _idx: mock_probs_getitem(mock_probs, _idx)
 
     mock_softmax_output = MagicMock()
-    mock_softmax_output.__getitem__ = lambda self, idx: mock_probs
+    mock_softmax_output.__getitem__ = lambda _self, _idx: mock_probs
 
     mock_torch.nn.functional.softmax.return_value = mock_softmax_output
     mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
@@ -813,14 +812,14 @@ async def test_classify_vehicles_batch_success(monkeypatch):
             mock_item.item.return_value = items[idx]
             return mock_item
 
-        mock_probs.__getitem__ = lambda self, idx: mock_probs_getitem(mock_probs, idx)
+        mock_probs.__getitem__ = lambda _self, _idx: mock_probs_getitem(mock_probs, _idx)
         return mock_probs
 
     mock_probs_batch = [create_mock_probs(car_wins=True), create_mock_probs(car_wins=False)]
 
     # Make all_probs iterable
     mock_all_probs = MagicMock()
-    mock_all_probs.__iter__ = lambda self: iter(mock_probs_batch)
+    mock_all_probs.__iter__ = lambda _self: iter(mock_probs_batch)
 
     mock_torch.nn.functional.softmax.return_value = mock_all_probs
     mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)
@@ -881,10 +880,10 @@ async def test_classify_vehicles_batch_with_non_rgb_image(monkeypatch):
         mock_item.item.return_value = items[idx]
         return mock_item
 
-    mock_probs.__getitem__ = lambda self, idx: mock_probs_getitem(mock_probs, idx)
+    mock_probs.__getitem__ = lambda _self, _idx: mock_probs_getitem(mock_probs, _idx)
 
     mock_all_probs = MagicMock()
-    mock_all_probs.__iter__ = lambda self: iter([mock_probs])
+    mock_all_probs.__iter__ = lambda _self: iter([mock_probs])
 
     mock_torch.nn.functional.softmax.return_value = mock_all_probs
     mock_torch.no_grad.return_value.__enter__ = MagicMock(return_value=None)

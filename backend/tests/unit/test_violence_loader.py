@@ -417,7 +417,6 @@ class TestLoadViolenceModelMocked:
         original_import = builtins.__import__
 
         # Flag to track if we're in the _load function's torch import
-        in_load = False
 
         def mock_import(name, globals=None, locals=None, fromlist=(), level=0):
             # Only block torch import if it's a fresh import (not cached)
@@ -503,7 +502,7 @@ class TestClassifyViolenceMocked:
 
         # Mock softmax to return probabilities
         mock_probs = MagicMock()
-        mock_probs.__getitem__ = lambda self, idx: MagicMock(
+        mock_probs.__getitem__ = lambda _self, _idx: MagicMock(
             cpu=lambda: MagicMock(tolist=lambda: [0.2, 0.8])
         )
         mock_torch.nn.functional.softmax.return_value = mock_probs
@@ -554,7 +553,7 @@ class TestClassifyViolenceMocked:
 
         # Mock softmax to return probabilities
         mock_probs = MagicMock()
-        mock_probs.__getitem__ = lambda self, idx: MagicMock(
+        mock_probs.__getitem__ = lambda _self, _idx: MagicMock(
             cpu=lambda: MagicMock(tolist=lambda: [0.9, 0.1])
         )
         mock_torch.nn.functional.softmax.return_value = mock_probs
@@ -608,7 +607,7 @@ class TestClassifyViolenceMocked:
 
         # Mock softmax to return single probability (binary with single output)
         mock_probs = MagicMock()
-        mock_probs.__getitem__ = lambda self, idx: MagicMock(
+        mock_probs.__getitem__ = lambda _self, _idx: MagicMock(
             cpu=lambda: MagicMock(tolist=lambda: [0.75])  # Single output
         )
         mock_torch.nn.functional.softmax.return_value = mock_probs
@@ -659,7 +658,7 @@ class TestClassifyViolenceMocked:
 
         # Mock softmax to return probabilities
         mock_probs = MagicMock()
-        mock_probs.__getitem__ = lambda self, idx: MagicMock(
+        mock_probs.__getitem__ = lambda _self, _idx: MagicMock(
             cpu=lambda: MagicMock(tolist=lambda: [0.3, 0.7])
         )
         mock_torch.nn.functional.softmax.return_value = mock_probs
@@ -710,7 +709,7 @@ class TestClassifyViolenceMocked:
 
         # Mock softmax to return probabilities
         mock_probs = MagicMock()
-        mock_probs.__getitem__ = lambda self, idx: MagicMock(
+        mock_probs.__getitem__ = lambda _self, _idx: MagicMock(
             cpu=lambda: MagicMock(tolist=lambda: [0.6, 0.4])
         )
         mock_torch.nn.functional.softmax.return_value = mock_probs

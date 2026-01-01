@@ -19,7 +19,6 @@ from backend.services.segformer_loader import (
     segment_clothing_batch,
 )
 
-
 # =============================================================================
 # Test ClothingSegmentationResult dataclass
 # =============================================================================
@@ -146,7 +145,7 @@ def test_security_clothing_labels_content():
         "bag",
         "scarf",
     }
-    assert SECURITY_CLOTHING_LABELS == expected
+    assert expected == SECURITY_CLOTHING_LABELS
 
 
 def test_security_clothing_labels_is_frozenset():
@@ -162,7 +161,7 @@ def test_security_labels_exclude_body_parts():
 
 def test_shoe_labels_content():
     """Test shoe labels."""
-    assert SHOE_LABELS == frozenset({"left_shoe", "right_shoe"})
+    assert frozenset({"left_shoe", "right_shoe"}) == SHOE_LABELS
 
 
 def test_shoe_labels_is_frozenset():
@@ -1002,9 +1001,10 @@ async def test_segment_clothing_with_shoes(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_segment_clothing_face_covered_logic():
-    """Test segment_clothing face covered detection scenarios."""
-    # The face covered logic is:
-    # has_face_covered = has_sunglasses and (has_head_covering or face_coverage < 5.0)
+    """Test segment_clothing face covered detection scenarios.
+
+    Face covered logic: sunglasses AND (head_covering OR face_coverage < 5%)
+    """
 
     # Test case 1: sunglasses + hat = covered
     result1 = ClothingSegmentationResult(
@@ -1123,7 +1123,7 @@ def test_coverage_percentages_float_precision():
         coverage_percentages={"pants": 25.123456789},
     )
 
-    d = result.to_dict()
+    result.to_dict()
     # Value should be preserved as-is in the dataclass
     assert result.coverage_percentages["pants"] == 25.123456789
 
