@@ -1331,3 +1331,205 @@ async def test_listen_for_events_logs_error_on_max_retries(
     )
     # Should have set _is_listening to False
     assert broadcaster._is_listening is False
+
+
+# ==============================================================================
+# Tests for Listener Supervision (wa0t.40)
+# ==============================================================================
+
+
+@pytest.mark.asyncio
+async def test_supervise_listener_detects_dead_listener(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test that supervisor detects and restarts dead listener."""
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+    broadcaster._is_listening = True
+    broadcaster._listener_healthy = True
+    broadcaster._pubsub = _FakePubSub()
+
+    # Create a done task to simulate dead listener
+    async def immediate_done() -> None:
+        pass
+
+    broadcaster._listener_task = asyncio.create_task(immediate_done())
+    await broadcaster._listener_task  # Let it complete
+
+    sleep_calls: list[float] = []
+    check_count = 0
+
+    async def _fake_sleep(seconds: float) -> None:
+        nonlocal check_count
+        sleep_calls.append(seconds)
+        check_count += 1
+        # Allow one check cycle before stopping
+        if check_count >= 2:
+            broadcaster._is_listening = False
+
+    monkeypatch.setattr(asyncio, "sleep", _fake_sleep)
+
+    await broadcaster._supervise_listener()
+
+    # Should have detected dead listener and logged it, or successfully restarted
+    # (the restart creates a new task which also triggers another sleep)
+    assert len(sleep_calls) >= 1
+    # Either detected the problem or restarted
+    detected = any("died unexpectedly" in record.message for record in caplog.records)
+    restarted = any("restarting" in record.message.lower() for record in caplog.records)
+    assert detected or restarted
+
+
+@pytest.mark.asyncio
+async def test_supervise_listener_respects_max_attempts(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test that supervisor gives up after max recovery attempts."""
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+    broadcaster._is_listening = True
+    broadcaster._listener_healthy = True
+    broadcaster._pubsub = _FakePubSub()
+    broadcaster._recovery_attempts = broadcaster.MAX_RECOVERY_ATTEMPTS  # Already at max
+
+    # Create a done task to simulate dead listener
+    async def immediate_done() -> None:
+        pass
+
+    broadcaster._listener_task = asyncio.create_task(immediate_done())
+    await broadcaster._listener_task
+
+    async def _fake_sleep(seconds: float) -> None:
+        pass  # Just continue
+
+    monkeypatch.setattr(asyncio, "sleep", _fake_sleep)
+
+    await broadcaster._supervise_listener()
+
+    # Should have given up
+    assert any("giving up" in record.message.lower() for record in caplog.records)
+    assert broadcaster._is_listening is False
+
+
+@pytest.mark.asyncio
+async def test_supervise_listener_resets_recovery_on_healthy(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test that supervisor resets recovery counter when listener is healthy."""
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+    broadcaster._is_listening = True
+    broadcaster._listener_healthy = True
+    broadcaster._pubsub = _FakePubSub()
+    broadcaster._recovery_attempts = 3  # Some previous failures
+
+    # Create a running task that doesn't use asyncio.sleep (uses event wait instead)
+    done_event = asyncio.Event()
+
+    async def long_running() -> None:
+        await done_event.wait()
+
+    broadcaster._listener_task = asyncio.create_task(long_running())
+
+    sleep_count = 0
+
+    async def _fake_sleep(seconds: float) -> None:
+        nonlocal sleep_count
+        sleep_count += 1
+        # Allow 2 sleep cycles: one for supervision interval, then stop
+        # This gives the supervisor time to check the healthy listener
+        if sleep_count >= 2:
+            broadcaster._is_listening = False
+
+    monkeypatch.setattr(asyncio, "sleep", _fake_sleep)
+
+    await broadcaster._supervise_listener()
+
+    # Should have reset recovery attempts after seeing healthy listener
+    assert broadcaster._recovery_attempts == 0
+
+    # Cleanup
+    done_event.set()
+    broadcaster._listener_task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await broadcaster._listener_task
+
+
+@pytest.mark.asyncio
+async def test_is_listener_healthy() -> None:
+    """Test is_listener_healthy method returns correct status."""
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Initially not listening
+    assert broadcaster.is_listener_healthy() is False
+
+    # Listening but not healthy
+    broadcaster._is_listening = True
+    broadcaster._listener_healthy = False
+    assert broadcaster.is_listener_healthy() is False
+
+    # Both listening and healthy
+    broadcaster._listener_healthy = True
+    assert broadcaster.is_listener_healthy() is True
+
+
+@pytest.mark.asyncio
+async def test_start_creates_supervisor_task() -> None:
+    """Test that start() creates both listener and supervisor tasks."""
+    redis = _FakeRedis()
+
+    # Override listen to return immediately
+    async def quick_listen(_pubsub: Any) -> AsyncIterator[dict[str, Any]]:
+        if False:  # pragma: no cover
+            yield {}
+        return
+
+    redis.listen = quick_listen  # type: ignore[method-assign]
+
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+    await broadcaster.start()
+
+    assert broadcaster._listener_task is not None
+    assert broadcaster._supervisor_task is not None
+    assert broadcaster._is_listening is True
+    assert broadcaster._listener_healthy is True
+
+    # Cleanup
+    await broadcaster.stop()
+
+
+@pytest.mark.asyncio
+async def test_stop_cancels_supervisor_task() -> None:
+    """Test that stop() properly cancels the supervisor task."""
+    redis = _FakeRedis()
+
+    async def quick_listen(_pubsub: Any) -> AsyncIterator[dict[str, Any]]:
+        if False:  # pragma: no cover
+            yield {}
+        return
+
+    redis.listen = quick_listen  # type: ignore[method-assign]
+
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+    await broadcaster.start()
+
+    # Store reference before stop
+    supervisor_task = broadcaster._supervisor_task
+    assert supervisor_task is not None
+
+    await broadcaster.stop()
+
+    assert broadcaster._supervisor_task is None
+    assert broadcaster._listener_task is None
+
+
+@pytest.mark.asyncio
+async def test_supervision_interval_constant() -> None:
+    """Test that SUPERVISION_INTERVAL is properly defined."""
+    assert hasattr(EventBroadcaster, "SUPERVISION_INTERVAL")
+    assert EventBroadcaster.SUPERVISION_INTERVAL > 0
+    assert EventBroadcaster.SUPERVISION_INTERVAL <= 60  # Reasonable upper bound
