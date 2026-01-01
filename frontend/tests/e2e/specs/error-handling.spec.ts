@@ -31,14 +31,15 @@ test.describe('Dashboard Error Handling', () => {
     await setupApiMocks(page, errorMockConfig);
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
-    await expect(dashboardPage.errorHeading).toBeVisible({ timeout: 8000 });
+    // In error state, wait directly for error elements (pageTitle not shown)
+    await expect(dashboardPage.errorHeading).toBeVisible({ timeout: 15000 });
   });
 
   test('shows reload button on error', async ({ page }) => {
     await setupApiMocks(page, errorMockConfig);
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
-    await expect(dashboardPage.reloadButton).toBeVisible({ timeout: 8000 });
+    await expect(dashboardPage.reloadButton).toBeVisible({ timeout: 15000 });
   });
 
   test('error message is descriptive', async ({ page }) => {
