@@ -7,6 +7,9 @@ Tests the full pipeline flow:
 4. NemotronAnalyzer analyzes batch and creates Event
 
 External services (RT-DETRv2, Nemotron) are mocked to avoid real HTTP calls.
+
+NOTE: These tests are marked as slow because they test complex multi-step
+pipelines that require database setup and multiple service interactions.
 """
 
 import asyncio
@@ -30,6 +33,9 @@ from backend.services.detector_client import DetectorClient, DetectorUnavailable
 from backend.services.file_watcher import FileWatcher
 from backend.services.nemotron_analyzer import NemotronAnalyzer
 from backend.tests.conftest import unique_id
+
+# Mark all tests in this module as slow (get 30s timeout instead of 5s)
+pytestmark = pytest.mark.slow
 
 
 class MockQueueAddResult:
