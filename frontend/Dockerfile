@@ -1,6 +1,6 @@
 # Use specific Node.js LTS Alpine version for latest security patches
 # Node.js 20.19.6 with Alpine 3.23 (December 2025 security release)
-FROM node:20.19.6-alpine3.23
+FROM node:25.2.1-alpine3.23
 
 WORKDIR /app
 
