@@ -7,6 +7,22 @@
  * - Camera grid interactions
  * - Activity feed behavior
  * - Loading and error states
+ *
+ * Test Structure:
+ * ---------------
+ * This file is organized into 9 describe blocks, each testing a specific
+ * aspect of the dashboard. Each describe block has its own beforeEach hook
+ * that sets up API mocks with the appropriate configuration:
+ *
+ * - defaultMockConfig: Standard dashboard with cameras, events, stats
+ * - emptyMockConfig: Empty state testing (no events)
+ * - errorMockConfig: API failure scenarios
+ * - highAlertMockConfig: High risk/alert state testing
+ *
+ * Performance Notes:
+ * - Timeouts are tuned for CI environments (5-8 seconds max)
+ * - Uses waitForLoadState instead of fixed delays where possible
+ * - Each describe block is independent and can run in parallel
  */
 
 import { test, expect } from '@playwright/test';
@@ -128,19 +144,19 @@ test.describe('Dashboard GPU Stats', () => {
   test('GPU stats section shows utilization', async () => {
     await dashboardPage.goto();
     await dashboardPage.waitForDashboardLoad();
-    await expect(dashboardPage.gpuUtilization).toBeVisible({ timeout: 10000 });
+    await expect(dashboardPage.gpuUtilization).toBeVisible({ timeout: 5000 });
   });
 
   test('GPU stats section shows memory', async ({ page }) => {
     await dashboardPage.goto();
     await dashboardPage.waitForDashboardLoad();
-    await expect(page.getByText(/Memory/i).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/Memory/i).first()).toBeVisible({ timeout: 5000 });
   });
 
   test('GPU stats section shows temperature', async ({ page }) => {
     await dashboardPage.goto();
     await dashboardPage.waitForDashboardLoad();
-    await expect(page.getByText(/Temperature/i).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/Temperature/i).first()).toBeVisible({ timeout: 5000 });
   });
 });
 
@@ -199,14 +215,11 @@ test.describe('Dashboard Error State', () => {
     await expect(dashboardPage.reloadButton).toBeVisible({ timeout: 15000 });
   });
 
-  test('error state displays error elements', async ({ page }) => {
+  test('error state displays error elements', async () => {
     await dashboardPage.goto();
-    // Wait for either error state or page to render
-    await page.waitForTimeout(3000);
-    // Check that some error indication is visible
-    const errorVisible = await dashboardPage.errorHeading.isVisible().catch(() => false);
-    const reloadVisible = await dashboardPage.reloadButton.isVisible().catch(() => false);
-    // At least one error indicator should be visible with error config
+    // Wait for error state - either heading or reload button
+    const errorVisible = await dashboardPage.errorHeading.isVisible({ timeout: 10000 }).catch(() => false);
+    const reloadVisible = await dashboardPage.reloadButton.isVisible({ timeout: 10000 }).catch(() => false);
     expect(errorVisible || reloadVisible).toBe(true);
   });
 });

@@ -179,9 +179,7 @@ describe('EventTimeline', () => {
       await user.selectOptions(cameraSelect, 'camera-1');
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(
-          expect.objectContaining({ camera_id: 'camera-1', offset: 0 })
-        );
+        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ camera_id: 'camera-1', offset: 0 }), expect.anything());
       });
     });
 
@@ -199,9 +197,7 @@ describe('EventTimeline', () => {
       await user.selectOptions(riskSelect, 'high');
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(
-          expect.objectContaining({ risk_level: 'high', offset: 0 })
-        );
+        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ risk_level: 'high', offset: 0 }), expect.anything());
       });
     });
 
@@ -219,9 +215,7 @@ describe('EventTimeline', () => {
       await user.selectOptions(statusSelect, 'false');
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(
-          expect.objectContaining({ reviewed: false, offset: 0 })
-        );
+        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ reviewed: false, offset: 0 }), expect.anything());
       });
     });
 
@@ -242,13 +236,11 @@ describe('EventTimeline', () => {
       await user.type(endDateInput, '2024-01-31');
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(
-          expect.objectContaining({
+        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({
             start_date: '2024-01-01',
             end_date: '2024-01-31',
             offset: 0,
-          })
-        );
+          }), expect.anything());
       });
     });
 
@@ -267,9 +259,7 @@ describe('EventTimeline', () => {
       await user.selectOptions(cameraSelect, 'camera-1');
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(
-          expect.objectContaining({ camera_id: 'camera-1' })
-        );
+        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ camera_id: 'camera-1' }), expect.anything());
       });
 
       // Clear filters
@@ -277,7 +267,7 @@ describe('EventTimeline', () => {
       await user.click(clearButton);
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith({ limit: 20, offset: 0 });
+        expect(api.fetchEvents).toHaveBeenCalledWith({ limit: 20, offset: 0 }, expect.anything());
       });
     });
 
@@ -318,9 +308,7 @@ describe('EventTimeline', () => {
       await user.selectOptions(objectTypeSelect, 'person');
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(
-          expect.objectContaining({ object_type: 'person', offset: 0 })
-        );
+        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ object_type: 'person', offset: 0 }), expect.anything());
       });
     });
 
@@ -365,9 +353,7 @@ describe('EventTimeline', () => {
       await user.selectOptions(objectTypeSelect, 'vehicle');
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(
-          expect.objectContaining({ object_type: 'vehicle' })
-        );
+        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ object_type: 'vehicle' }), expect.anything());
       });
 
       // Clear filters
@@ -375,7 +361,7 @@ describe('EventTimeline', () => {
       await user.click(clearButton);
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith({ limit: 20, offset: 0 });
+        expect(api.fetchEvents).toHaveBeenCalledWith({ limit: 20, offset: 0 }, expect.anything());
       });
     });
 
@@ -398,13 +384,11 @@ describe('EventTimeline', () => {
       await user.selectOptions(objectTypeSelect, 'animal');
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(
-          expect.objectContaining({
+        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({
             camera_id: 'camera-1',
             object_type: 'animal',
             offset: 0,
-          })
-        );
+          }), expect.anything());
       });
     });
   });
@@ -512,7 +496,7 @@ describe('EventTimeline', () => {
       await user.click(nextButton);
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ offset: 20 }));
+        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ offset: 20 }), expect.anything());
       });
     });
 
@@ -563,7 +547,7 @@ describe('EventTimeline', () => {
       await user.click(prevButton);
 
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ offset: 0 }));
+        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ offset: 0 }), expect.anything());
       });
     });
 
@@ -683,9 +667,7 @@ describe('EventTimeline', () => {
 
       // Should reset to offset 0 when filters change
       await waitFor(() => {
-        expect(api.fetchEvents).toHaveBeenCalledWith(
-          expect.objectContaining({ camera_id: 'camera-1', offset: 0 })
-        );
+        expect(api.fetchEvents).toHaveBeenCalledWith(expect.objectContaining({ camera_id: 'camera-1', offset: 0 }), expect.anything());
       });
     });
   });

@@ -157,9 +157,10 @@ test.describe('Alerts Error State', () => {
 
   test('shows error message when API fails', async () => {
     await alertsPage.goto();
+    // Wait for page to stabilize (waitForAlertsLoad handles error state)
     await alertsPage.waitForAlertsLoad();
-    const hasError = await alertsPage.hasError();
-    expect(hasError).toBe(true);
+    // Verify error message is visible
+    await expect(alertsPage.errorMessage).toBeVisible({ timeout: 10000 });
   });
 });
 

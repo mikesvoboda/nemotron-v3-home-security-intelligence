@@ -86,10 +86,18 @@ export class AlertsPage extends BasePage {
   }
 
   /**
-   * Wait for the alerts page to fully load
+   * Wait for the alerts page to fully load (including data)
    */
   async waitForAlertsLoad(): Promise<void> {
     await expect(this.pageTitle).toBeVisible({ timeout: this.pageLoadTimeout });
+    // Wait for either alerts content OR no alerts message OR error state
+    await Promise.race([
+      this.alertCards.first().waitFor({ state: 'visible', timeout: this.pageLoadTimeout }),
+      this.noAlertsMessage.waitFor({ state: 'visible', timeout: this.pageLoadTimeout }),
+      this.errorMessage.waitFor({ state: 'visible', timeout: this.pageLoadTimeout }),
+    ]).catch(() => {
+      // One should appear, but continue anyway if neither does
+    });
   }
 
   /**
@@ -135,10 +143,19 @@ export class AlertsPage extends BasePage {
   }
 
   /**
-   * Check if error state is shown
+   * Check if error state is shown.
+   * Waits for either the error message or the loading to complete before checking.
    */
   async hasError(): Promise<boolean> {
-    return this.errorMessage.isVisible().catch(() => false);
+    // Wait for the page to finish loading (either error or content appears)
+    // The error should appear after API retries complete
+    try {
+      await this.errorMessage.waitFor({ state: 'visible', timeout: this.pageLoadTimeout });
+      return true;
+    } catch {
+      // Error message didn't appear within timeout
+      return false;
+    }
   }
 
   /**
