@@ -326,5 +326,68 @@ describe('CameraGrid', () => {
       expect(thumbnail).toHaveClass('transition-opacity');
       expect(thumbnail).toHaveClass('duration-300');
     });
+
+    it('should not attempt to load thumbnail for offline cameras even with thumbnail_url', () => {
+      const offlineCameraWithThumbnail: CameraStatus = {
+        id: 'cam-offline-thumb',
+        name: 'Offline With Thumbnail',
+        status: 'offline',
+        thumbnail_url: '/thumbnails/offline-cam.jpg',
+      };
+
+      render(<CameraGrid cameras={[offlineCameraWithThumbnail]} />);
+
+      // Should NOT have an img element - offline cameras shouldn't attempt to load thumbnails
+      expect(screen.queryByAltText('Offline With Thumbnail thumbnail')).not.toBeInTheDocument();
+
+      // Should render the camera name
+      expect(screen.getByText('Offline With Thumbnail')).toBeInTheDocument();
+      expect(screen.getByText('Offline')).toBeInTheDocument();
+    });
+
+    it('should not attempt to load thumbnail for error status cameras even with thumbnail_url', () => {
+      const errorCameraWithThumbnail: CameraStatus = {
+        id: 'cam-error-thumb',
+        name: 'Error With Thumbnail',
+        status: 'error',
+        thumbnail_url: '/thumbnails/error-cam.jpg',
+      };
+
+      render(<CameraGrid cameras={[errorCameraWithThumbnail]} />);
+
+      // Should NOT have an img element - error cameras shouldn't attempt to load thumbnails
+      expect(screen.queryByAltText('Error With Thumbnail thumbnail')).not.toBeInTheDocument();
+
+      // Should render the camera name and error status
+      expect(screen.getByText('Error With Thumbnail')).toBeInTheDocument();
+      expect(screen.getByText('Error')).toBeInTheDocument();
+    });
+
+    it('should not attempt to load thumbnail for unknown status cameras even with thumbnail_url', () => {
+      const unknownCameraWithThumbnail: CameraStatus = {
+        id: 'cam-unknown-thumb',
+        name: 'Unknown With Thumbnail',
+        status: 'unknown',
+        thumbnail_url: '/thumbnails/unknown-cam.jpg',
+      };
+
+      render(<CameraGrid cameras={[unknownCameraWithThumbnail]} />);
+
+      // Should NOT have an img element - unknown cameras shouldn't attempt to load thumbnails
+      expect(screen.queryByAltText('Unknown With Thumbnail thumbnail')).not.toBeInTheDocument();
+
+      // Should render the camera name and unknown status
+      expect(screen.getByText('Unknown With Thumbnail')).toBeInTheDocument();
+      expect(screen.getByText('Unknown')).toBeInTheDocument();
+    });
+
+    it('should attempt to load thumbnail for recording cameras with thumbnail_url', () => {
+      render(<CameraGrid cameras={[mockCameras[1]]} />);
+
+      // Recording camera should have thumbnail loaded
+      const thumbnail = screen.getByAltText('Backyard thumbnail');
+      expect(thumbnail).toBeInTheDocument();
+      expect(thumbnail).toHaveAttribute('src', '/thumbnails/cam2.jpg');
+    });
   });
 });

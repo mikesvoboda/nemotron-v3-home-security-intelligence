@@ -17,10 +17,17 @@ from backend.api.schemas.camera import (
 )
 from backend.core.config import get_settings
 from backend.core.database import get_db
+from backend.core.logging import get_logger
 from backend.models.audit import AuditAction
 from backend.models.camera import Camera
 from backend.services.audit import AuditService
+from backend.services.cache_service import (
+    SHORT_TTL,
+    CacheKeys,
+    get_cache_service,
+)
 
+logger = get_logger(__name__)
 router = APIRouter(prefix="/api/cameras", tags=["cameras"])
 
 # Allowed snapshot types
@@ -39,6 +46,9 @@ async def list_cameras(
 ) -> dict[str, Any]:
     """List all cameras with optional status filter.
 
+    Uses Redis cache with cache-aside pattern to improve performance
+    and generate cache hit metrics.
+
     Args:
         status_filter: Optional status to filter cameras by (online, offline, error)
         db: Database session
@@ -46,6 +56,20 @@ async def list_cameras(
     Returns:
         CameraListResponse containing list of cameras and total count
     """
+    # Generate cache key based on filter
+    cache_key = CacheKeys.cameras_list_by_status(status_filter)
+
+    try:
+        cache = await get_cache_service()
+        cached_data = await cache.get(cache_key)
+        if cached_data is not None:
+            logger.debug(f"Returning cached cameras for status={status_filter}")
+            # Cast to expected type - cache stores dict[str, Any]
+            return dict(cached_data)
+    except Exception as e:
+        logger.warning(f"Cache read failed, falling back to database: {e}")
+
+    # Cache miss - query database
     query = select(Camera)
 
     # Apply status filter if provided
@@ -55,10 +79,32 @@ async def list_cameras(
     result = await db.execute(query)
     cameras = result.scalars().all()
 
-    return {
-        "cameras": cameras,
-        "count": len(cameras),
+    # Serialize cameras for cache (SQLAlchemy objects can't be directly cached)
+    cameras_data = [
+        {
+            "id": c.id,
+            "name": c.name,
+            "folder_path": c.folder_path,
+            "status": c.status,
+            "created_at": c.created_at.isoformat() if c.created_at else None,
+            "last_seen_at": c.last_seen_at.isoformat() if c.last_seen_at else None,
+        }
+        for c in cameras
+    ]
+
+    response = {
+        "cameras": cameras_data,
+        "count": len(cameras_data),
     }
+
+    # Cache the result
+    try:
+        cache = await get_cache_service()
+        await cache.set(cache_key, response, ttl=SHORT_TTL)
+    except Exception as e:
+        logger.warning(f"Cache write failed: {e}")
+
+    return response
 
 
 @router.get("/{camera_id}", response_model=CameraResponse)
@@ -162,6 +208,13 @@ async def create_camera(
     await db.commit()
     await db.refresh(camera)
 
+    # Invalidate cameras cache
+    try:
+        cache = await get_cache_service()
+        await cache.invalidate_pattern("cameras:*")
+    except Exception as e:
+        logger.warning(f"Cache invalidation failed: {e}")
+
     return camera
 
 
@@ -229,6 +282,13 @@ async def update_camera(
     await db.commit()
     await db.refresh(camera)
 
+    # Invalidate cameras cache
+    try:
+        cache = await get_cache_service()
+        await cache.invalidate_pattern("cameras:*")
+    except Exception as e:
+        logger.warning(f"Cache invalidation failed: {e}")
+
     # Type is already narrowed by the None check above
     return camera
 
@@ -279,6 +339,13 @@ async def delete_camera(
     # Delete camera (cascade will handle related data)
     await db.delete(camera)
     await db.commit()
+
+    # Invalidate cameras cache
+    try:
+        cache = await get_cache_service()
+        await cache.invalidate_pattern("cameras:*")
+    except Exception as e:
+        logger.warning(f"Cache invalidation failed: {e}")
 
 
 @router.get("/{camera_id}/snapshot", response_class=FileResponse)

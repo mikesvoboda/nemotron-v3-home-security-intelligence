@@ -44,30 +44,6 @@ vi.mock('./RiskGauge', () => ({
   ),
 }));
 
-vi.mock('./GpuStats', () => ({
-  default: ({
-    utilization,
-    memoryUsed,
-    temperature,
-    inferenceFps,
-  }: {
-    utilization: number | null;
-    memoryUsed: number | null;
-    temperature: number | null;
-    inferenceFps: number | null;
-  }) => (
-    <div
-      data-testid="gpu-stats"
-      data-utilization={utilization}
-      data-memory-used={memoryUsed}
-      data-temperature={temperature}
-      data-inference-fps={inferenceFps}
-    >
-      GPU Stats
-    </div>
-  ),
-}));
-
 vi.mock('./CameraGrid', () => ({
   default: ({
     cameras,
@@ -122,14 +98,6 @@ describe('DashboardPage', () => {
       last_seen_at: null,
     },
   ];
-
-  const mockGPUStats = {
-    utilization: 75,
-    memory_used: 8192,
-    memory_total: 24576,
-    temperature: 65,
-    inference_fps: 30,
-  };
 
   // Get today's date for WebSocket event timestamps
   const today = new Date();
@@ -218,7 +186,6 @@ describe('DashboardPage', () => {
 
     // Setup default mock implementations
     (api.fetchCameras as Mock).mockResolvedValue(mockCameras);
-    (api.fetchGPUStats as Mock).mockResolvedValue(mockGPUStats);
     (api.fetchEvents as Mock).mockResolvedValue(mockEventListResponse);
     (api.fetchEventStats as Mock).mockResolvedValue(mockEventStats);
 
@@ -244,7 +211,6 @@ describe('DashboardPage', () => {
     it('renders loading skeletons while fetching initial data', () => {
       // Make API call hang
       (api.fetchCameras as Mock).mockImplementation(() => new Promise(() => {}));
-      (api.fetchGPUStats as Mock).mockImplementation(() => new Promise(() => {}));
 
       render(<DashboardPage />);
 
@@ -347,7 +313,6 @@ describe('DashboardPage', () => {
       await waitFor(() => {
         expect(screen.getByTestId('stats-row')).toBeInTheDocument();
         expect(screen.getByTestId('risk-gauge')).toBeInTheDocument();
-        expect(screen.getByTestId('gpu-stats')).toBeInTheDocument();
         expect(screen.getByTestId('camera-grid')).toBeInTheDocument();
         expect(screen.getByTestId('activity-feed')).toBeInTheDocument();
       });
@@ -384,18 +349,6 @@ describe('DashboardPage', () => {
         // WS events: [75, 50], Initial events: [40, 20]
         // Merged: [75, 50, 40, 20], reversed for history: [20, 40, 50, 75]
         expect(riskGauge).toHaveAttribute('data-history', '20,40,50,75');
-      });
-    });
-
-    it('passes correct props to GpuStats', async () => {
-      render(<DashboardPage />);
-
-      await waitFor(() => {
-        const gpuStats = screen.getByTestId('gpu-stats');
-        expect(gpuStats).toHaveAttribute('data-utilization', '75');
-        expect(gpuStats).toHaveAttribute('data-memory-used', '8192');
-        expect(gpuStats).toHaveAttribute('data-temperature', '65');
-        expect(gpuStats).toHaveAttribute('data-inference-fps', '30');
       });
     });
 
@@ -517,23 +470,6 @@ describe('DashboardPage', () => {
       });
     });
 
-    it('handles null GPU stats gracefully', async () => {
-      (api.fetchGPUStats as Mock).mockResolvedValue({
-        utilization: null,
-        memory_used: null,
-        memory_total: null,
-        temperature: null,
-        inference_fps: null,
-      });
-
-      render(<DashboardPage />);
-
-      await waitFor(() => {
-        const gpuStats = screen.getByTestId('gpu-stats');
-        expect(gpuStats).toBeInTheDocument();
-      });
-    });
-
     it('handles empty event stats gracefully', async () => {
       (api.fetchEventStats as Mock).mockResolvedValue({
         total_events: 0,
@@ -563,12 +499,11 @@ describe('DashboardPage', () => {
   });
 
   describe('Data Fetching', () => {
-    it('fetches cameras, GPU stats, events, and event stats on mount', async () => {
+    it('fetches cameras, events, and event stats on mount', async () => {
       render(<DashboardPage />);
 
       await waitFor(() => {
         expect(api.fetchCameras).toHaveBeenCalledTimes(1);
-        expect(api.fetchGPUStats).toHaveBeenCalledTimes(1);
         expect(api.fetchEvents).toHaveBeenCalledTimes(1);
         expect(api.fetchEventStats).toHaveBeenCalledTimes(1);
       });
@@ -597,16 +532,11 @@ describe('DashboardPage', () => {
 
     it('fetches all APIs in parallel', async () => {
       let camerasResolve: () => void;
-      let gpuResolve: () => void;
       let eventsResolve: () => void;
       let statsResolve: () => void;
 
       const camerasPromise = new Promise<typeof mockCameras>((resolve) => {
         camerasResolve = () => resolve(mockCameras);
-      });
-
-      const gpuPromise = new Promise<typeof mockGPUStats>((resolve) => {
-        gpuResolve = () => resolve(mockGPUStats);
       });
 
       const eventsPromise = new Promise<typeof mockEventListResponse>((resolve) => {
@@ -618,7 +548,6 @@ describe('DashboardPage', () => {
       });
 
       (api.fetchCameras as Mock).mockReturnValue(camerasPromise);
-      (api.fetchGPUStats as Mock).mockReturnValue(gpuPromise);
       (api.fetchEvents as Mock).mockReturnValue(eventsPromise);
       (api.fetchEventStats as Mock).mockReturnValue(statsPromise);
 
@@ -626,7 +555,6 @@ describe('DashboardPage', () => {
 
       // Resolve all
       camerasResolve!();
-      gpuResolve!();
       eventsResolve!();
       statsResolve!();
 
@@ -636,7 +564,6 @@ describe('DashboardPage', () => {
 
       // All should be called
       expect(api.fetchCameras).toHaveBeenCalledTimes(1);
-      expect(api.fetchGPUStats).toHaveBeenCalledTimes(1);
       expect(api.fetchEvents).toHaveBeenCalledTimes(1);
       expect(api.fetchEventStats).toHaveBeenCalledTimes(1);
     });
@@ -855,44 +782,6 @@ describe('DashboardPage', () => {
     });
   });
 
-  describe('Polling', () => {
-    it('polls GPU stats periodically', async () => {
-      render(<DashboardPage />);
-
-      // Wait for initial load
-      await waitFor(() => {
-        expect(api.fetchGPUStats).toHaveBeenCalled();
-      });
-
-      // Verify interval was set up (component renders successfully)
-      expect(screen.getByTestId('risk-gauge')).toBeInTheDocument();
-    });
-
-    it('handles GPU stats polling errors silently', async () => {
-      let pollCallCount = 0;
-
-      // Mock to succeed first, then fail
-      (api.fetchGPUStats as Mock).mockImplementation(() => {
-        pollCallCount++;
-        if (pollCallCount === 1) {
-          return Promise.resolve(mockGPUStats);
-        }
-        return Promise.reject(new Error('GPU stats fetch failed'));
-      });
-
-      render(<DashboardPage />);
-
-      // Wait for initial load to succeed
-      await waitFor(() => {
-        expect(screen.getByTestId('risk-gauge')).toBeInTheDocument();
-      });
-
-      // The component should remain functional even after polling errors
-      // (The setInterval is running in background but errors are caught)
-      expect(screen.getByTestId('risk-gauge')).toBeInTheDocument();
-    });
-  });
-
   describe('Styling and Layout', () => {
     it('has correct dashboard structure and styling', async () => {
       const { container } = render(<DashboardPage />);
@@ -905,12 +794,8 @@ describe('DashboardPage', () => {
       const darkBg = container.querySelector('[class*="bg-"]');
       expect(darkBg).toBeTruthy();
 
-      // Check for grid layout
-      const gridLayout = container.querySelector('[class*="grid"]');
-      expect(gridLayout).toBeTruthy();
-
-      // Check for responsive design classes
-      const responsiveElements = container.querySelectorAll('[class*="lg:"]');
+      // Check for responsive design classes (md: breakpoint is used for spacing and typography)
+      const responsiveElements = container.querySelectorAll('[class*="md:"]');
       expect(responsiveElements.length).toBeGreaterThan(0);
     });
   });

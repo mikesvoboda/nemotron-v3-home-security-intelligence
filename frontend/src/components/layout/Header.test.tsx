@@ -7,6 +7,17 @@ import * as useHealthStatusModule from '../../hooks/useHealthStatus';
 
 import type { ChannelStatus, ConnectionState } from '../../hooks/useWebSocketStatus';
 
+// Mock the useSidebarContext hook
+const mockToggleMobileMenu = vi.fn();
+
+vi.mock('./Layout', () => ({
+  useSidebarContext: () => ({
+    isMobileMenuOpen: false,
+    setMobileMenuOpen: vi.fn(),
+    toggleMobileMenu: mockToggleMobileMenu,
+  }),
+}));
+
 // Helper to create mock channel status
 function createMockChannel(
   name: string,
@@ -205,7 +216,9 @@ describe('Header', () => {
   it('renders title with correct styling', () => {
     render(<Header />);
     const title = screen.getByText('NVIDIA SECURITY');
-    expect(title).toHaveClass('text-lg', 'font-bold', 'text-white', 'tracking-wide');
+    expect(title).toHaveClass('font-bold', 'text-white', 'tracking-wide');
+    // Has responsive text size classes
+    expect(title).toHaveClass('text-base', 'md:text-lg');
   });
 
   it('renders subtitle with NVIDIA green color', () => {
@@ -1199,6 +1212,27 @@ describe('Header', () => {
       render(<Header />);
 
       expect(screen.queryByText('REST Fallback')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Mobile Hamburger Menu', () => {
+    it('renders hamburger menu button', () => {
+      render(<Header />);
+      expect(screen.getByTestId('hamburger-menu')).toBeInTheDocument();
+      expect(screen.getByLabelText('Open menu')).toBeInTheDocument();
+    });
+
+    it('calls toggleMobileMenu when hamburger button is clicked', () => {
+      render(<Header />);
+      const hamburgerButton = screen.getByTestId('hamburger-menu');
+      fireEvent.click(hamburgerButton);
+      expect(mockToggleMobileMenu).toHaveBeenCalled();
+    });
+
+    it('hamburger button has md:hidden class for mobile-only visibility', () => {
+      render(<Header />);
+      const hamburgerButton = screen.getByTestId('hamburger-menu');
+      expect(hamburgerButton).toHaveClass('md:hidden');
     });
   });
 

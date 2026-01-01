@@ -261,10 +261,10 @@ class AlertRuleResponse(BaseModel):
     camera_ids: list[str] | None = Field(None, description="Camera IDs to apply to")
     zone_ids: list[str] | None = Field(None, description="Zone IDs to match")
     min_confidence: float | None = Field(None, description="Minimum confidence")
-    schedule: dict | None = Field(None, description="Time-based conditions")
+    schedule: AlertRuleSchedule | None = Field(None, description="Time-based conditions")
 
     # Legacy conditions
-    conditions: dict | None = Field(None, description="Legacy conditions")
+    conditions: AlertRuleConditions | None = Field(None, description="Legacy conditions")
 
     # Deduplication settings
     dedup_key_template: str = Field(..., description="Template for dedup key")

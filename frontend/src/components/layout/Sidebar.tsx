@@ -1,5 +1,7 @@
-import { Home, Clock, Users, Bell, Settings, ScrollText, Server, Shield } from 'lucide-react';
+import { Home, Clock, Users, Bell, Settings, ScrollText, Server, Shield, X } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
+
+import { useSidebarContext } from '../../hooks/useSidebarContext';
 
 interface NavItem {
   id: string;
@@ -21,9 +23,38 @@ const navItems: NavItem[] = [
 ];
 
 export default function Sidebar() {
+  const { isMobileMenuOpen, setMobileMenuOpen } = useSidebarContext();
+
+  const handleNavClick = () => {
+    // Close mobile menu when a link is clicked
+    setMobileMenuOpen(false);
+  };
+
   return (
-    <aside className="flex w-64 flex-col border-r border-gray-800 bg-[#1A1A1A]">
-      <nav className="flex-1 space-y-2 p-4">
+    <aside
+      className={`
+        fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-gray-800 bg-[#1A1A1A]
+        transform transition-transform duration-300 ease-in-out
+        md:relative md:translate-x-0
+        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}
+      data-testid="sidebar"
+    >
+      {/* Mobile close button */}
+      <div className="flex items-center justify-between border-b border-gray-800 px-4 py-4 md:hidden">
+        <span className="text-lg font-semibold text-white">Menu</span>
+        <button
+          onClick={() => setMobileMenuOpen(false)}
+          className="rounded-lg p-2 text-gray-400 hover:bg-gray-800 hover:text-white"
+          aria-label="Close menu"
+          data-testid="close-menu-button"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 space-y-2 overflow-y-auto p-4">
         {navItems.map((item) => {
           const Icon = item.icon;
 
@@ -32,6 +63,7 @@ export default function Sidebar() {
               key={item.id}
               to={item.path}
               end={item.path === '/'}
+              onClick={handleNavClick}
               className={({ isActive }: { isActive: boolean }) => `
                 flex w-full items-center gap-3 rounded-lg px-4 py-3
                 transition-colors duration-200

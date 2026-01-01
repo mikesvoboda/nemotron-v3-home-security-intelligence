@@ -5,6 +5,15 @@ from .alert_engine import AlertRuleEngine, EvaluationResult, TriggeredRule, get_
 from .audit import AuditService, audit_service
 from .baseline import BaselineService, get_baseline_service, reset_baseline_service
 from .batch_aggregator import BatchAggregator
+from .cache_service import (
+    DEFAULT_TTL,
+    LONG_TTL,
+    SHORT_TTL,
+    CacheKeys,
+    CacheService,
+    get_cache_service,
+    reset_cache_service,
+)
 from .circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerConfig,
@@ -87,13 +96,18 @@ from .zone_service import (
 )
 
 __all__ = [
+    "DEFAULT_TTL",
+    "LONG_TTL",
     "SEVERITY_COLORS",
     "SEVERITY_PRIORITY",
+    "SHORT_TTL",
     "AlertDeduplicationService",
     "AlertRuleEngine",
     "AuditService",
     "BaselineService",
     "BatchAggregator",
+    "CacheKeys",
+    "CacheService",
     "CircuitBreaker",
     "CircuitBreakerConfig",
     "CircuitBreakerError",
@@ -141,6 +155,7 @@ __all__ = [
     "get_alert_engine",
     "get_baseline_service",
     "get_broadcaster",
+    "get_cache_service",
     "get_circuit_breaker",
     "get_clip_generator",
     "get_dedupe_service",
@@ -157,6 +172,7 @@ __all__ = [
     "point_in_zone",
     "refresh_event_search_vector",
     "reset_baseline_service",
+    "reset_cache_service",
     "reset_circuit_breaker_registry",
     "reset_clip_generator",
     "reset_dedupe_service",

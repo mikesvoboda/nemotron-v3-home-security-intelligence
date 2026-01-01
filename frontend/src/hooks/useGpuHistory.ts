@@ -90,7 +90,18 @@ export function useGpuHistory(options: UseGpuHistoryOptions = {}): UseGpuHistory
         });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch GPU stats');
+      // Provide more helpful error messages for common failure modes
+      let errorMessage = 'Failed to fetch GPU stats';
+      if (err instanceof Error) {
+        if (err.message === 'Failed to fetch') {
+          // Network error - could be CORS, server down, or network issue
+          errorMessage =
+            'Cannot reach GPU stats API. Check if backend is running and CORS is configured.';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }

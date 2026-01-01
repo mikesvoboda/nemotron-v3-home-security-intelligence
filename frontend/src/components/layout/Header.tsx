@@ -1,8 +1,9 @@
-import { Activity } from 'lucide-react';
+import { Activity, Menu } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { useConnectionStatus } from '../../hooks/useConnectionStatus';
 import { useHealthStatus } from '../../hooks/useHealthStatus';
+import { useSidebarContext } from '../../hooks/useSidebarContext';
 import { WebSocketStatus } from '../common';
 
 /**
@@ -101,6 +102,7 @@ function HealthTooltip({ services, isVisible }: HealthTooltipProps) {
 }
 
 export default function Header() {
+  const { toggleMobileMenu } = useSidebarContext();
   const { summary, systemStatus, isPollingFallback, retryConnection } = useConnectionStatus();
   const { overallStatus: apiHealth, services, isLoading: healthLoading } = useHealthStatus();
 
@@ -172,20 +174,30 @@ export default function Header() {
   const effectiveHealth = apiHealth ?? (isConnected ? status?.health : null) ?? null;
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-gray-800 bg-[#1A1A1A] px-6">
-      <div className="flex items-center gap-4">
+    <header className="flex h-16 items-center justify-between border-b border-gray-800 bg-[#1A1A1A] px-3 md:px-6">
+      <div className="flex items-center gap-2 md:gap-4">
+        {/* Mobile hamburger menu button */}
+        <button
+          onClick={toggleMobileMenu}
+          className="rounded-lg p-2 text-gray-400 hover:bg-gray-800 hover:text-white md:hidden"
+          aria-label="Open menu"
+          data-testid="hamburger-menu"
+        >
+          <Menu className="h-6 w-6" />
+        </button>
+
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded bg-[#76B900]">
             <Activity className="h-5 w-5 text-black" />
           </div>
           <div>
-            <h1 className="text-lg font-bold tracking-wide text-white">NVIDIA SECURITY</h1>
-            <p className="text-xs font-medium tracking-wider text-[#76B900]">POWERED BY NEMOTRON</p>
+            <h1 className="text-base font-bold tracking-wide text-white md:text-lg">NVIDIA SECURITY</h1>
+            <p className="hidden text-xs font-medium tracking-wider text-[#76B900] sm:block">POWERED BY NEMOTRON</p>
           </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-2 md:gap-6">
         {/* System Health Indicator with Tooltip */}
         <div
           ref={containerRef}
@@ -207,7 +219,7 @@ export default function Header() {
             }`}
             data-testid="health-dot"
           />
-          <span className="text-sm text-gray-400">
+          <span className="hidden text-sm text-gray-400 sm:inline">
             {!isConnected
               ? 'Connecting...'
               : healthLoading && !apiHealth
@@ -217,22 +229,24 @@ export default function Header() {
           <HealthTooltip services={services} isVisible={isTooltipVisible} />
         </div>
 
-        {/* WebSocket Connection Status */}
-        <WebSocketStatus
-          eventsChannel={summary.eventsChannel}
-          systemChannel={summary.systemChannel}
-          onRetry={retryConnection}
-        />
+        {/* WebSocket Connection Status - hidden on very small screens */}
+        <div className="hidden sm:block">
+          <WebSocketStatus
+            eventsChannel={summary.eventsChannel}
+            systemChannel={summary.systemChannel}
+            onRetry={retryConnection}
+          />
+        </div>
 
-        {/* Polling fallback indicator */}
+        {/* Polling fallback indicator - hidden on mobile */}
         {isPollingFallback && (
-          <div className="flex items-center gap-1 rounded bg-yellow-900/30 px-2 py-1">
+          <div className="hidden items-center gap-1 rounded bg-yellow-900/30 px-2 py-1 md:flex">
             <span className="text-xs text-yellow-400">REST Fallback</span>
           </div>
         )}
 
-        {/* GPU Quick Stats */}
-        <div className="flex items-center gap-2 rounded-lg bg-gray-800 px-3 py-1.5">
+        {/* GPU Quick Stats - hidden on mobile */}
+        <div className="hidden items-center gap-2 rounded-lg bg-gray-800 px-3 py-1.5 md:flex">
           <div className="text-xs text-gray-400">GPU:</div>
           <div className="text-xs font-semibold text-[#76B900]">{formatGpuStats()}</div>
         </div>

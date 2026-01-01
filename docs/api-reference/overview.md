@@ -196,7 +196,7 @@ See [detections.md](detections.md) for full documentation.
 | Method | Endpoint                       | Description                |
 | ------ | ------------------------------ | -------------------------- |
 | GET    | `/api/system/health`           | Detailed health check      |
-| GET    | `/api/system/health/live`      | Kubernetes liveness probe  |
+| GET    | `/health` (root level)         | Kubernetes liveness probe  |
 | GET    | `/api/system/health/ready`     | Kubernetes readiness probe |
 | GET    | `/api/system/gpu`              | Current GPU statistics     |
 | GET    | `/api/system/gpu/history`      | GPU stats time series      |

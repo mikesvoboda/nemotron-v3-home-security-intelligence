@@ -202,6 +202,7 @@ class TestWebSocketMessageType:
     def test_enum_values(self) -> None:
         """Test that enum has expected values."""
         assert WebSocketMessageType.PING.value == "ping"
+        assert WebSocketMessageType.PONG.value == "pong"
         assert WebSocketMessageType.SUBSCRIBE.value == "subscribe"
         assert WebSocketMessageType.UNSUBSCRIBE.value == "unsubscribe"
 
@@ -379,6 +380,32 @@ class TestHandleValidatedMessage:
         await handle_validated_message(mock_websocket, message)
 
         # Currently unsubscribe is just logged, no response sent
+        mock_websocket.send_text.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_pong_handled_silently(self, mock_websocket: MagicMock) -> None:
+        """Test that pong message is handled silently (no response sent).
+
+        Pong is a standard keepalive response from client to server-initiated ping.
+        The server should acknowledge it without sending any response.
+        """
+        from backend.api.routes.websocket import handle_validated_message
+
+        message = WebSocketMessage(type="pong")
+        await handle_validated_message(mock_websocket, message)
+
+        # Pong should be acknowledged silently with no response sent
+        mock_websocket.send_text.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_pong_case_insensitive(self, mock_websocket: MagicMock) -> None:
+        """Test that PONG (uppercase) also works."""
+        from backend.api.routes.websocket import handle_validated_message
+
+        message = WebSocketMessage(type="PONG")
+        await handle_validated_message(mock_websocket, message)
+
+        # Pong should be acknowledged silently with no response sent
         mock_websocket.send_text.assert_not_called()
 
 

@@ -43,6 +43,7 @@ class WebSocketMessageType(str, Enum):
     """Valid WebSocket message types."""
 
     PING = "ping"
+    PONG = "pong"
     SUBSCRIBE = "subscribe"
     UNSUBSCRIBE = "unsubscribe"
 

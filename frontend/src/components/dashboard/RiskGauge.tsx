@@ -6,11 +6,17 @@ import { getRiskColor, getRiskLabel, getRiskLevel } from '../../utils/risk';
 /**
  * Generates an SVG path for a sparkline chart
  * @param data - Array of data points (0-100)
- * @param height - Height of the SVG canvas
+ * @param width - Width of the SVG viewBox
+ * @param height - Height of the SVG viewBox
  * @param fillPath - Whether to generate a filled area path (true) or line path (false)
  * @returns SVG path string
  */
-function generateSparklinePath(data: number[], height: number, fillPath: boolean): string {
+function generateSparklinePath(
+  data: number[],
+  width: number,
+  height: number,
+  fillPath: boolean
+): string {
   /* c8 ignore next */ if (data.length === 0) return '';
 
   const maxValue = Math.max(...data, 100); // Ensure scale includes 100
@@ -19,17 +25,17 @@ function generateSparklinePath(data: number[], height: number, fillPath: boolean
   const padding = 2; // Padding from edges
   const availableHeight = height - padding * 2;
 
-  // Calculate points
+  // Calculate points using numeric coordinates within viewBox
   const points = data.map((value, index) => {
-    const x = (index / (data.length - 1 || 1)) * 100; // Percentage of width
+    const x = (index / (data.length - 1 || 1)) * width; // Numeric x within viewBox width
     const normalizedValue = (value - minValue) / range;
     const y = height - padding - normalizedValue * availableHeight; // Invert Y axis
-    return { x: `${x}%`, y };
+    return { x, y };
   });
 
   /* c8 ignore next */ if (points.length === 0) return '';
 
-  // Build path
+  // Build path with numeric coordinates
   let path = `M ${points[0].x} ${points[0].y}`;
 
   // Add line segments
@@ -259,19 +265,26 @@ export default function RiskGauge({
       {history && history.length > 0 && (
         <div className="mt-4 w-full max-w-xs">
           <div className="mb-1 text-center text-xs text-text-secondary">Risk History</div>
-          <svg width="100%" height="40" className="w-full" aria-hidden="true">
+          <svg
+            width="100%"
+            height="40"
+            viewBox="0 0 200 40"
+            preserveAspectRatio="none"
+            className="w-full"
+            aria-hidden="true"
+          >
             {/* Simple line sparkline */}
             {history.length > 1 && (
               <>
                 {/* Background area */}
                 <path
-                  d={generateSparklinePath(history, 40, true)}
+                  d={generateSparklinePath(history, 200, 40, true)}
                   fill={`${color}20`}
                   stroke="none"
                 />
                 {/* Line */}
                 <path
-                  d={generateSparklinePath(history, 40, false)}
+                  d={generateSparklinePath(history, 200, 40, false)}
                   fill="none"
                   stroke={color}
                   strokeWidth="2"
