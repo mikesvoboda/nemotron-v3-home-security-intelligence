@@ -92,6 +92,10 @@ vi.mock('./ContainersPanel', () => ({
   default: () => <div data-testid="containers-panel">Containers Panel</div>,
 }));
 
+vi.mock('../dashboard/PipelineTelemetry', () => ({
+  default: () => <div data-testid="pipeline-telemetry">Pipeline Telemetry</div>,
+}));
+
 describe('SystemMonitoringPage', () => {
   const mockSystemStats = {
     total_cameras: 4,
@@ -302,6 +306,7 @@ describe('SystemMonitoringPage', () => {
         expect(screen.getByTestId('service-health-card')).toBeInTheDocument();
         expect(screen.getByTestId('pipeline-queues')).toBeInTheDocument();
         expect(screen.getByTestId('gpu-stats')).toBeInTheDocument();
+        expect(screen.getByTestId('pipeline-telemetry')).toBeInTheDocument();
       });
     });
   });
