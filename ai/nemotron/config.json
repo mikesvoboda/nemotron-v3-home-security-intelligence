@@ -3,7 +3,7 @@
   "model": "ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf",
   "host": "0.0.0.0",
   "port": 8091,
-  "ctx_size": 8192,
+  "ctx_size": 16384,
   "n_gpu_layers": 99,
   "parallel": 2,
   "cont_batching": true
