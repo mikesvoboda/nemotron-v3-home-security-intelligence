@@ -42,6 +42,8 @@ SLOW_TEST_PATTERNS = [
     r"test_media_api.*test_compat_thumbnail",
     # Property-based tests with text generation overhead
     r"test_alert.*test_alert_dedup_key_roundtrip",
+    r"test_alert.*test_alert_event_id_roundtrip",
+    r"test_event.*test_risk_score_roundtrip",
     # E2E error state tests - wait for API retry exhaustion (~15s)
     r".*Error State.*shows error",
     r".*Error Handling.*shows error",
