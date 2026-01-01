@@ -365,7 +365,7 @@ jobs:
 
   # Primary E2E tests (Chromium) - required, blocks PRs
   frontend-e2e:
-    name: E2E Tests (Chromium)
+    name: Frontend E2E Tests (Playwright)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
