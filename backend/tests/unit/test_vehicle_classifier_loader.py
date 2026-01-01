@@ -344,7 +344,11 @@ async def test_load_vehicle_classifier_import_error(monkeypatch):
     original_import = builtins.__import__
 
     def mock_import(name, *args, **kwargs):
-        if name in ("torch", "torchvision") or name.startswith("torch.") or name.startswith("torchvision."):
+        if (
+            name in ("torch", "torchvision")
+            or name.startswith("torch.")
+            or name.startswith("torchvision.")
+        ):
             raise ImportError(f"No module named '{name}'")
         return original_import(name, *args, **kwargs)
 
@@ -667,19 +671,21 @@ async def test_classify_vehicle_success(monkeypatch):
     # Order: articulated_truck, background, bicycle, bus, car, motorcycle,
     # non_motorized_vehicle, pedestrian, pickup_truck, single_unit_truck, work_van
     mock_probs = MagicMock()
-    mock_probs.__iter__ = lambda _self: iter([
-        MagicMock(item=lambda: 0.02),  # articulated_truck
-        MagicMock(item=lambda: 0.01),  # background
-        MagicMock(item=lambda: 0.01),  # bicycle
-        MagicMock(item=lambda: 0.03),  # bus
-        MagicMock(item=lambda: 0.15),  # car
-        MagicMock(item=lambda: 0.02),  # motorcycle
-        MagicMock(item=lambda: 0.01),  # non_motorized_vehicle
-        MagicMock(item=lambda: 0.01),  # pedestrian
-        MagicMock(item=lambda: 0.70),  # pickup_truck (winner)
-        MagicMock(item=lambda: 0.03),  # single_unit_truck
-        MagicMock(item=lambda: 0.01),  # work_van
-    ])
+    mock_probs.__iter__ = lambda _self: iter(
+        [
+            MagicMock(item=lambda: 0.02),  # articulated_truck
+            MagicMock(item=lambda: 0.01),  # background
+            MagicMock(item=lambda: 0.01),  # bicycle
+            MagicMock(item=lambda: 0.03),  # bus
+            MagicMock(item=lambda: 0.15),  # car
+            MagicMock(item=lambda: 0.02),  # motorcycle
+            MagicMock(item=lambda: 0.01),  # non_motorized_vehicle
+            MagicMock(item=lambda: 0.01),  # pedestrian
+            MagicMock(item=lambda: 0.70),  # pickup_truck (winner)
+            MagicMock(item=lambda: 0.03),  # single_unit_truck
+            MagicMock(item=lambda: 0.01),  # work_van
+        ]
+    )
 
     def mock_probs_getitem(self, idx):
         items = [0.02, 0.01, 0.01, 0.03, 0.15, 0.02, 0.01, 0.01, 0.70, 0.03, 0.01]

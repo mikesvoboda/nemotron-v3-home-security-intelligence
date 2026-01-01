@@ -423,6 +423,7 @@ class TestLoadViolenceModelMocked:
             if name == "torch":
                 # Check if this is from within the _load function by looking at trace
                 import traceback
+
                 stack = traceback.extract_stack()
                 for frame in stack:
                     if "violence_loader.py" in frame.filename and "_load" in frame.name:

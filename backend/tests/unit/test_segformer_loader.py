@@ -1057,9 +1057,7 @@ async def test_segment_clothing_batch_with_multiple_images():
     mock_image2 = MagicMock()
     mock_image2.size = (224, 224)
 
-    results = await segment_clothing_batch(
-        mock_model, mock_processor, [mock_image1, mock_image2]
-    )
+    results = await segment_clothing_batch(mock_model, mock_processor, [mock_image1, mock_image2])
 
     # Should return a list of results (empty due to error handling)
     assert isinstance(results, list)

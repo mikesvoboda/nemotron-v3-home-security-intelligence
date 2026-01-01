@@ -410,7 +410,9 @@ def test_extract_keypoints_empty_result():
 
     mock_outputs = MagicMock()
 
-    result = extract_keypoints_from_output(mock_outputs, mock_processor, [(480, 640)], min_confidence=0.3)
+    result = extract_keypoints_from_output(
+        mock_outputs, mock_processor, [(480, 640)], min_confidence=0.3
+    )
 
     assert len(result) == 1
     assert result[0] == {}
@@ -423,7 +425,9 @@ def test_extract_keypoints_no_results():
 
     mock_outputs = MagicMock()
 
-    result = extract_keypoints_from_output(mock_outputs, mock_processor, [(480, 640)], min_confidence=0.3)
+    result = extract_keypoints_from_output(
+        mock_outputs, mock_processor, [(480, 640)], min_confidence=0.3
+    )
 
     assert len(result) == 1
     assert result[0] == {}
@@ -436,7 +440,9 @@ def test_extract_keypoints_missing_keypoints_tensor():
 
     mock_outputs = MagicMock()
 
-    result = extract_keypoints_from_output(mock_outputs, mock_processor, [(480, 640)], min_confidence=0.3)
+    result = extract_keypoints_from_output(
+        mock_outputs, mock_processor, [(480, 640)], min_confidence=0.3
+    )
 
     assert len(result) == 1
     assert result[0] == {}
@@ -449,7 +455,9 @@ def test_extract_keypoints_missing_scores_tensor():
 
     mock_outputs = MagicMock()
 
-    result = extract_keypoints_from_output(mock_outputs, mock_processor, [(480, 640)], min_confidence=0.3)
+    result = extract_keypoints_from_output(
+        mock_outputs, mock_processor, [(480, 640)], min_confidence=0.3
+    )
 
     assert len(result) == 1
     assert result[0] == {}
@@ -471,7 +479,9 @@ def test_extract_keypoints_with_numpy_arrays():
 
     mock_outputs = MagicMock()
 
-    result = extract_keypoints_from_output(mock_outputs, mock_processor, [(480, 640)], min_confidence=0.3)
+    result = extract_keypoints_from_output(
+        mock_outputs, mock_processor, [(480, 640)], min_confidence=0.3
+    )
 
     assert len(result) == 1
     assert len(result[0]) == 17  # All keypoints should pass 0.3 threshold
@@ -499,7 +509,9 @@ def test_extract_keypoints_with_tensor():
 
     mock_outputs = MagicMock()
 
-    result = extract_keypoints_from_output(mock_outputs, mock_processor, [(480, 640)], min_confidence=0.3)
+    result = extract_keypoints_from_output(
+        mock_outputs, mock_processor, [(480, 640)], min_confidence=0.3
+    )
 
     assert len(result) == 1
     assert len(result[0]) == 17
@@ -513,7 +525,9 @@ def test_extract_keypoints_confidence_filter():
 
     # Some keypoints above threshold, some below
     keypoints_array = np.array([[100.0, 50.0] for _ in range(17)])
-    scores_array = np.array([0.9, 0.8, 0.7, 0.1, 0.2, 0.9, 0.9, 0.1, 0.1, 0.1, 0.1, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9])
+    scores_array = np.array(
+        [0.9, 0.8, 0.7, 0.1, 0.2, 0.9, 0.9, 0.1, 0.1, 0.1, 0.1, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9]
+    )
 
     mock_processor.post_process_pose_estimation.return_value = [
         [{"keypoints": keypoints_array, "scores": scores_array}]
@@ -521,7 +535,9 @@ def test_extract_keypoints_confidence_filter():
 
     mock_outputs = MagicMock()
 
-    result = extract_keypoints_from_output(mock_outputs, mock_processor, [(480, 640)], min_confidence=0.5)
+    result = extract_keypoints_from_output(
+        mock_outputs, mock_processor, [(480, 640)], min_confidence=0.5
+    )
 
     # Only keypoints with confidence >= 0.5 should be included
     assert len(result) == 1
@@ -536,7 +552,9 @@ def test_extract_keypoints_exception_handling():
 
     mock_outputs = MagicMock()
 
-    result = extract_keypoints_from_output(mock_outputs, mock_processor, [(480, 640)], min_confidence=0.3)
+    result = extract_keypoints_from_output(
+        mock_outputs, mock_processor, [(480, 640)], min_confidence=0.3
+    )
 
     assert result == []
 
@@ -726,7 +744,9 @@ async def test_extract_pose_from_crop_exception():
 
     mock_processor = MagicMock()
 
-    result = await extract_pose_from_crop(mock_model, mock_processor, test_image, bbox=[0, 0, 224, 224])
+    result = await extract_pose_from_crop(
+        mock_model, mock_processor, test_image, bbox=[0, 0, 224, 224]
+    )
 
     # Should return unknown pose on error
     assert result.pose_class == "unknown"
@@ -773,7 +793,9 @@ async def test_extract_pose_from_crop_success(monkeypatch):
         [{"keypoints": keypoints_array, "scores": scores_array}]
     ]
 
-    result = await extract_pose_from_crop(mock_model, mock_processor, test_image, bbox=[0, 0, 224, 224])
+    result = await extract_pose_from_crop(
+        mock_model, mock_processor, test_image, bbox=[0, 0, 224, 224]
+    )
 
     assert isinstance(result, PoseResult)
     assert result.bbox == [0, 0, 224, 224]
@@ -1058,11 +1080,15 @@ def test_extract_keypoints_custom_confidence_threshold():
     mock_outputs = MagicMock()
 
     # With threshold 0.3, all should pass
-    result_low = extract_keypoints_from_output(mock_outputs, mock_processor, [(480, 640)], min_confidence=0.3)
+    result_low = extract_keypoints_from_output(
+        mock_outputs, mock_processor, [(480, 640)], min_confidence=0.3
+    )
     assert len(result_low[0]) == 17
 
     # With threshold 0.6, none should pass
-    result_high = extract_keypoints_from_output(mock_outputs, mock_processor, [(480, 640)], min_confidence=0.6)
+    result_high = extract_keypoints_from_output(
+        mock_outputs, mock_processor, [(480, 640)], min_confidence=0.6
+    )
     assert len(result_high[0]) == 0
 
 
@@ -1076,7 +1102,9 @@ def test_extract_keypoints_person_result_none():
 
     mock_outputs = MagicMock()
 
-    result = extract_keypoints_from_output(mock_outputs, mock_processor, [(480, 640)], min_confidence=0.3)
+    result = extract_keypoints_from_output(
+        mock_outputs, mock_processor, [(480, 640)], min_confidence=0.3
+    )
 
     assert len(result) == 1
     assert result[0] == {}
