@@ -258,13 +258,15 @@ class GPUMonitor:
                     logger.debug(f"Failed to query Nemotron metrics: {e}")
 
                 if total_vram_used_mb > 0:
+                    # RTX A5500 has 24GB VRAM - use this as default
+                    # These defaults ensure meaningful display rather than N/A
                     return {
                         "gpu_name": gpu_name,
-                        "gpu_utilization": None,
+                        "gpu_utilization": 0.0,  # Cannot determine from AI containers
                         "memory_used": int(total_vram_used_mb),
-                        "memory_total": None,
-                        "temperature": None,
-                        "power_usage": None,
+                        "memory_total": 24576,  # 24GB in MB (RTX A5500 default)
+                        "temperature": 0,  # Cannot determine from AI containers
+                        "power_usage": 0.0,  # Cannot determine from AI containers
                         "recorded_at": datetime.now(UTC),
                     }
 
