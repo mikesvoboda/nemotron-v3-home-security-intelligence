@@ -71,8 +71,8 @@ export default defineConfig({
     // Record video only on failure
     video: 'retain-on-failure',
 
-    // Navigation timeout
-    navigationTimeout: 10000,
+    // Navigation timeout (30s for slower browsers like Firefox/WebKit in CI)
+    navigationTimeout: 30000,
   },
 
   // Projects - Multi-browser testing configuration
