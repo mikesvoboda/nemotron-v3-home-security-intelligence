@@ -7,6 +7,7 @@ import AuditTable, { type AuditEntry } from './AuditTable';
 import {
   fetchAuditLogs,
   fetchAuditStats,
+  isAbortError,
   type AuditLogsQueryParams,
   type AuditLogStats,
 } from '../../services/api';
@@ -61,23 +62,33 @@ export default function AuditLogPage({ className = '' }: AuditLogPageProps) {
     void loadStats();
   }, []);
 
-  // Load logs whenever query parameters change
+  // Load logs whenever query parameters change (with AbortController to cancel stale requests)
   useEffect(() => {
+    const controller = new AbortController();
+
     const loadLogs = async () => {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetchAuditLogs(queryParams);
+        const response = await fetchAuditLogs(queryParams, { signal: controller.signal });
         // Cast logs to match AuditEntry type
         setLogs(response.logs as AuditEntry[]);
         setTotalCount(response.count);
       } catch (err) {
+        // Ignore aborted requests - user changed filters before request completed
+        if (isAbortError(err)) return;
         setError(err instanceof Error ? err.message : 'Failed to load audit logs');
       } finally {
-        setLoading(false);
+        // Only update loading state if request wasn't aborted
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
     void loadLogs();
+
+    // Cleanup: abort pending request when filters change or component unmounts
+    return () => controller.abort();
   }, [queryParams]);
 
   // Handle filter changes from AuditFilters component
