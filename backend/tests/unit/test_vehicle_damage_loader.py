@@ -217,7 +217,7 @@ class TestLoadVehicleDamageModel:
         """
         import os
 
-        model_path = "/export/ai_models/model-zoo/vehicle-damage-detection"
+        model_path = "/models/model-zoo/vehicle-damage-detection"
         if not os.path.exists(model_path):
             pytest.skip("Vehicle damage detection model not downloaded")
 
@@ -425,7 +425,7 @@ class TestVehicleDamageIntegration:
         assert config.category == "detection"
         assert config.vram_mb == 2000
         assert config.enabled is True
-        assert config.path == "/export/ai_models/model-zoo/vehicle-damage-detection"
+        assert config.path == "/models/model-zoo/vehicle-damage-detection"
 
         reset_model_zoo()
 

@@ -129,7 +129,7 @@ repos:
         name: Quick Backend Tests (Unit Only)
         # -n0 disables xdist parallelization (avoids scheduler race conditions)
         # Excludes slow and integration tests (integration tests require real database)
-        entry: bash -c 'redis-cli -n 15 FLUSHDB > /dev/null 2>&1; source .venv/bin/activate && pytest backend/tests/unit/ -m "not slow and not integration" -q --tb=no -x -n0'
+        entry: bash -c 'redis-cli -n 15 FLUSHDB > /dev/null 2>&1; uv run pytest backend/tests/unit/ -m "not slow and not integration" -q --tb=no -x -n0'
         language: system
         pass_filenames: false
         stages: [pre-push] # Changed from pre-commit to pre-push for faster commits

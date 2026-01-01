@@ -80,7 +80,7 @@ class TestLoadViolenceModel:
         """
         import os
 
-        model_path = "/export/ai_models/model-zoo/violence-detection"
+        model_path = "/models/model-zoo/violence-detection"
         if not os.path.exists(model_path):
             pytest.skip("Violence detection model not downloaded")
 
@@ -184,7 +184,7 @@ class TestViolenceDetectionIntegration:
         assert config.category == "classification"
         assert config.vram_mb == 500
         assert config.enabled is True
-        assert config.path == "/export/ai_models/model-zoo/violence-detection"
+        assert config.path == "/models/model-zoo/violence-detection"
 
         reset_model_zoo()
 
