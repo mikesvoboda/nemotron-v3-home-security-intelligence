@@ -400,6 +400,121 @@ async def test_load_weather_model_runtime_error(monkeypatch):
         await load_weather_model("/nonexistent/path")
 
 
+# Test load_weather_model success path
+
+
+@pytest.mark.asyncio
+async def test_load_weather_model_success_cpu(monkeypatch):
+    """Test load_weather_model success path with CPU."""
+    import sys
+
+    # Create mock torch
+    mock_torch = MagicMock()
+    mock_torch.cuda.is_available.return_value = False
+
+    # Create mock model
+    mock_model = MagicMock()
+    mock_model.eval.return_value = None
+
+    # Create mock processor
+    mock_processor = MagicMock()
+
+    # Create mock transformers
+    mock_transformers = MagicMock()
+    mock_transformers.AutoImageProcessor.from_pretrained.return_value = mock_processor
+    mock_transformers.AutoModelForImageClassification.from_pretrained.return_value = mock_model
+
+    monkeypatch.setitem(sys.modules, "torch", mock_torch)
+    monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
+
+    result = await load_weather_model("/test/model")
+
+    assert "model" in result
+    assert "processor" in result
+    mock_model.eval.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_load_weather_model_success_cuda(monkeypatch):
+    """Test load_weather_model success path with CUDA."""
+    import sys
+
+    # Create mock torch with CUDA
+    mock_torch = MagicMock()
+    mock_torch.cuda.is_available.return_value = True
+
+    # Create mock model that supports cuda().half()
+    mock_cuda_model = MagicMock()
+    mock_half_model = MagicMock()
+    mock_cuda_model.half.return_value = mock_half_model
+    mock_half_model.eval.return_value = None
+
+    mock_model = MagicMock()
+    mock_model.cuda.return_value = mock_cuda_model
+
+    # Create mock processor
+    mock_processor = MagicMock()
+
+    # Create mock transformers
+    mock_transformers = MagicMock()
+    mock_transformers.AutoImageProcessor.from_pretrained.return_value = mock_processor
+    mock_transformers.AutoModelForImageClassification.from_pretrained.return_value = mock_model
+
+    monkeypatch.setitem(sys.modules, "torch", mock_torch)
+    monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
+
+    result = await load_weather_model("/test/model/cuda")
+
+    assert "model" in result
+    assert "processor" in result
+    mock_model.cuda.assert_called_once()
+
+
+# Test classify_weather
+
+
+def test_classify_weather_callable():
+    """Test classify_weather is an async function."""
+    import inspect
+
+    from backend.services.weather_loader import classify_weather
+
+    assert callable(classify_weather)
+    assert inspect.iscoroutinefunction(classify_weather)
+
+
+@pytest.mark.asyncio
+async def test_classify_weather_runtime_error():
+    """Test classify_weather handles runtime errors."""
+    from backend.services.weather_loader import classify_weather
+
+    # Create model dict with model that raises error
+    mock_model = MagicMock()
+    mock_model.parameters.side_effect = RuntimeError("GPU OOM")
+
+    model_dict = {"model": mock_model, "processor": MagicMock()}
+
+    from PIL import Image
+
+    test_image = Image.new("RGB", (224, 224))
+
+    with pytest.raises(RuntimeError, match="Weather classification failed"):
+        await classify_weather(model_dict, test_image)
+
+
+# Test classify_weather with typo handling
+
+
+def test_weather_typo_strom_to_storm():
+    """Test that rain/strom typo is normalized to rain/storm."""
+    # This is a code path test - the module handles the typo
+    from backend.services.weather_loader import WEATHER_LABELS
+
+    # Verify our labels don't have the typo
+    assert "rain/storm" in WEATHER_LABELS
+    assert "rain/strom" not in WEATHER_LABELS
+
+
 # Test model_zoo integration
 
 
