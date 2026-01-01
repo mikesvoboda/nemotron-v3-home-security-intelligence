@@ -276,14 +276,30 @@ export default function SystemMonitoringPage() {
   }, []);
 
   // Poll for telemetry and GPU updates every 5 seconds
+  // Uses individual try-catch to prevent one failure from stopping all updates
   useEffect(() => {
     const interval = setInterval(async () => {
+      // Fetch telemetry separately from GPU stats to isolate failures
       try {
-        const [telemetryData, gpuData] = await Promise.all([fetchTelemetry(), fetchGPUStats()]);
+        const telemetryData = await fetchTelemetry();
         setTelemetry(telemetryData);
+      } catch (err) {
+        // Log but don't block GPU stats fetch
+        if (err instanceof Error && err.message !== 'Failed to fetch') {
+          console.error('Failed to update telemetry:', err);
+        }
+        // Silent for network errors to avoid console spam during connectivity issues
+      }
+
+      try {
+        const gpuData = await fetchGPUStats();
         setGpuStats(gpuData);
       } catch (err) {
-        console.error('Failed to update telemetry/GPU data:', err);
+        // Log but don't block other updates
+        if (err instanceof Error && err.message !== 'Failed to fetch') {
+          console.error('Failed to update GPU stats:', err);
+        }
+        // Silent for network errors to avoid console spam during connectivity issues
       }
     }, 5000);
 

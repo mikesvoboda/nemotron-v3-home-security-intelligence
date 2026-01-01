@@ -38,7 +38,7 @@ monitoring/
 | hsi-telemetry    | /api/system/telemetry via JSON exporter | 10s      | Pipeline queue depths and latencies |
 | hsi-stats        | /api/system/stats via JSON exporter     | 30s      | Camera, event, detection counts     |
 | hsi-gpu          | /api/system/gpu via JSON exporter       | 10s      | GPU utilization and memory          |
-| backend-liveness | /api/system/health/live                 | 10s      | Direct liveness probe               |
+| backend-liveness | /health                                 | 10s      | Direct liveness probe               |
 | redis            | redis-exporter:9121                     | 15s      | Redis metrics via redis_exporter    |
 | prometheus       | localhost:9090                          | Default  | Prometheus self-monitoring          |
 | json-exporter    | json-exporter:7979                      | Default  | JSON exporter health                |

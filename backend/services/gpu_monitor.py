@@ -3,8 +3,12 @@
 This service polls GPU statistics at a configurable interval, stores them in the
 database, and can expose them for real-time monitoring via WebSocket.
 
-When running in a container without GPU access, it queries the AI containers
-(RT-DETRv2 and Nemotron) for GPU statistics instead of using local pynvml.
+When running in a container without GPU access, it queries the RT-DETRv2
+AI container for GPU statistics instead of using local pynvml. The RT-DETRv2
+container reports VRAM usage via its /health endpoint.
+
+Note: Nemotron (llama.cpp server) does not expose GPU metrics, so GPU stats
+are obtained exclusively from RT-DETRv2 when pynvml is unavailable.
 """
 
 import asyncio
@@ -170,17 +174,49 @@ class GPUMonitor:
     def _get_gpu_stats_mock(self) -> dict[str, Any]:
         """Get mock GPU statistics when real GPU is unavailable.
 
+        Provides simulated values for development environments without a GPU.
+        Values are deterministic but vary slightly based on time to simulate
+        realistic GPU activity patterns.
+
         Returns:
-            Dictionary containing mock GPU statistics
+            Dictionary containing mock GPU statistics with simulated values
         """
+        import math
+
+        # Generate slightly varying values based on time for realism
+        # Uses seconds since epoch modulo to create small fluctuations
+        now = datetime.now(UTC)
+        time_factor = now.timestamp() % 100 / 100  # 0.0 to 1.0, cycling every ~100 seconds
+
+        # Simulate utilization between 15-45% (typical idle to light workload)
+        base_util = 25.0
+        util_variance = 10.0 * math.sin(time_factor * 2 * math.pi)
+        gpu_utilization = round(base_util + util_variance, 1)
+
+        # Simulate memory: 2-4 GB used of 24 GB total (RTX A5500 spec)
+        base_memory = 3072  # 3 GB base
+        memory_variance = int(512 * math.cos(time_factor * 2 * math.pi))
+        memory_used = base_memory + memory_variance
+        memory_total = 24576  # 24 GB in MB
+
+        # Simulate temperature: 35-55°C (idle to moderate)
+        base_temp = 42.0
+        temp_variance = 8.0 * math.sin(time_factor * 2 * math.pi + 0.5)
+        temperature = round(base_temp + temp_variance, 1)
+
+        # Simulate power usage: 30-80W (idle to light workload)
+        base_power = 50.0
+        power_variance = 20.0 * math.sin(time_factor * 2 * math.pi + 1.0)
+        power_usage = round(base_power + power_variance, 1)
+
         return {
-            "gpu_name": "Mock GPU (No NVIDIA GPU Available)",
-            "gpu_utilization": None,
-            "memory_used": None,
-            "memory_total": None,
-            "temperature": None,
-            "power_usage": None,
-            "recorded_at": datetime.now(UTC),
+            "gpu_name": "Mock GPU (Development Mode)",
+            "gpu_utilization": gpu_utilization,
+            "memory_used": memory_used,
+            "memory_total": memory_total,
+            "temperature": temperature,
+            "power_usage": power_usage,
+            "recorded_at": now,
         }
 
     def _parse_rtdetr_response(self, data: dict[str, Any]) -> tuple[float, str | None]:
@@ -222,8 +258,11 @@ class GPUMonitor:
     async def _get_gpu_stats_from_ai_containers(self) -> dict[str, Any] | None:
         """Query AI containers for GPU statistics.
 
-        Queries RT-DETRv2 and Nemotron health endpoints to aggregate GPU usage.
-        RT-DETRv2 reports vram_used_gb, Nemotron can report metrics if enabled.
+        Queries RT-DETRv2 health endpoint for GPU usage information.
+        RT-DETRv2 reports vram_used_gb which is used for memory tracking.
+
+        Note: Nemotron (llama.cpp server) does not expose a /metrics endpoint,
+        so GPU stats are obtained exclusively from RT-DETRv2.
 
         Returns:
             Dictionary containing aggregated GPU stats from AI containers, or None if unavailable.
@@ -246,16 +285,10 @@ class GPUMonitor:
                 except Exception as e:
                     logger.debug(f"Failed to query RT-DETRv2 health: {e}")
 
-                # Query Nemotron metrics endpoint (if enabled with --metrics flag)
-                try:
-                    resp = await client.get(f"{settings.nemotron_url}/metrics")
-                    if resp.status_code == 200:
-                        for line in resp.text.split("\n"):
-                            if "vram" in line.lower() and not line.startswith("#"):
-                                total_vram_used_mb += self._parse_vram_metric_line(line)
-                        logger.debug(f"Nemotron metrics: total VRAM {total_vram_used_mb:.0f} MB")
-                except Exception as e:
-                    logger.debug(f"Failed to query Nemotron metrics: {e}")
+                # Note: Nemotron (llama.cpp server) does not support a /metrics endpoint.
+                # The /slots endpoint is used elsewhere for active slot monitoring.
+                # GPU VRAM tracking is handled by the RT-DETRv2 container which has
+                # better visibility into GPU memory usage.
 
                 if total_vram_used_mb > 0:
                     # RTX A5500 has 24GB VRAM - use this as default

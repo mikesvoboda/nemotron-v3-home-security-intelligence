@@ -204,16 +204,25 @@ def test_get_current_stats_real_gpu(mock_pynvml):
 
 
 def test_get_current_stats_mock_gpu(mock_pynvml_not_available):
-    """Test getting current GPU stats when GPU is not available."""
+    """Test getting current GPU stats when GPU is not available.
+
+    The mock mode now provides simulated values (varying slightly over time)
+    instead of all nulls, to enable meaningful display in development environments.
+    """
     monitor = GPUMonitor()
     stats = monitor.get_current_stats()
 
-    assert stats["gpu_name"] == "Mock GPU (No NVIDIA GPU Available)"
-    assert stats["gpu_utilization"] is None
-    assert stats["memory_used"] is None
-    assert stats["memory_total"] is None
-    assert stats["temperature"] is None
-    assert stats["power_usage"] is None
+    assert stats["gpu_name"] == "Mock GPU (Development Mode)"
+    # Mock provides simulated values in reasonable ranges
+    assert isinstance(stats["gpu_utilization"], float)
+    assert 15.0 <= stats["gpu_utilization"] <= 35.0  # base_util +/- variance
+    assert isinstance(stats["memory_used"], int)
+    assert 2560 <= stats["memory_used"] <= 3584  # base_memory +/- variance
+    assert stats["memory_total"] == 24576  # 24 GB in MB
+    assert isinstance(stats["temperature"], float)
+    assert 34.0 <= stats["temperature"] <= 50.0  # base_temp +/- variance
+    assert isinstance(stats["power_usage"], float)
+    assert 30.0 <= stats["power_usage"] <= 70.0  # base_power +/- variance
     assert isinstance(stats["recorded_at"], datetime)
 
 
@@ -225,9 +234,9 @@ def test_get_current_stats_handles_pynvml_errors(mock_pynvml):
     with patch.object(monitor, "_get_gpu_stats_real", side_effect=Exception("GPU error")):
         stats = monitor.get_current_stats()
 
-        # Should fall back to mock data
-        assert stats["gpu_name"] == "Mock GPU (No NVIDIA GPU Available)"
-        assert stats["gpu_utilization"] is None
+        # Should fall back to mock data with simulated values
+        assert stats["gpu_name"] == "Mock GPU (Development Mode)"
+        assert isinstance(stats["gpu_utilization"], float)
 
 
 # Test Stats History
@@ -647,9 +656,9 @@ def test_get_stats_real_generic_exception(mock_pynvml):
     with patch.object(monitor, "_gpu_handle", None):
         monitor._gpu_available = True  # Force it to try real stats
 
-        # Should fall back to mock data in get_current_stats
+        # Should fall back to mock data with simulated values in get_current_stats
         stats = monitor.get_current_stats()
-        assert stats["gpu_name"] == "Mock GPU (No NVIDIA GPU Available)"
+        assert stats["gpu_name"] == "Mock GPU (Development Mode)"
 
 
 # Test _parse_rtdetr_response
@@ -758,7 +767,11 @@ def test_parse_vram_metric_line_invalid_value(mock_pynvml):
 
 @pytest.mark.asyncio
 async def test_get_gpu_stats_from_ai_containers_rtdetr_only(mock_pynvml):
-    """Test getting GPU stats from AI containers with RT-DETRv2 only."""
+    """Test getting GPU stats from AI containers (RT-DETRv2 only).
+
+    Note: Nemotron (llama.cpp server) does not expose GPU metrics,
+    so GPU stats are obtained exclusively from RT-DETRv2.
+    """
     monitor = GPUMonitor()
 
     rtdetr_response = {"vram_used_gb": 3.5, "device": "cuda:0"}
@@ -772,51 +785,13 @@ async def test_get_gpu_stats_from_ai_containers_rtdetr_only(mock_pynvml):
         mock_rtdetr_resp.status_code = 200
         mock_rtdetr_resp.json.return_value = rtdetr_response
 
-        # Nemotron fails
-        mock_nemotron_resp = MagicMock()
-        mock_nemotron_resp.status_code = 500
-
-        mock_client.get.side_effect = [mock_rtdetr_resp, mock_nemotron_resp]
+        mock_client.get.return_value = mock_rtdetr_resp
 
         stats = await monitor._get_gpu_stats_from_ai_containers()
 
         assert stats is not None
         assert stats["memory_used"] == int(3.5 * 1024)
         assert "cuda:0" in stats["gpu_name"]
-        # Verify default values are set instead of None
-        assert stats["gpu_utilization"] == 0.0
-        assert stats["memory_total"] == 24576  # 24GB in MB
-        assert stats["temperature"] == 0
-        assert stats["power_usage"] == 0.0
-
-
-@pytest.mark.asyncio
-async def test_get_gpu_stats_from_ai_containers_nemotron_metrics(mock_pynvml):
-    """Test getting GPU stats from AI containers with Nemotron metrics."""
-    monitor = GPUMonitor()
-
-    with patch("httpx.AsyncClient") as mock_client_class:
-        mock_client = AsyncMock()
-        mock_client_class.return_value.__aenter__.return_value = mock_client
-
-        # RT-DETRv2 succeeds
-        mock_rtdetr_resp = MagicMock()
-        mock_rtdetr_resp.status_code = 200
-        mock_rtdetr_resp.json.return_value = {"vram_used_gb": 2.0}
-
-        # Nemotron metrics
-        mock_nemotron_resp = MagicMock()
-        mock_nemotron_resp.status_code = 200
-        mock_nemotron_resp.text = "# HELP vram\nvram_used_bytes 1073741824\n"
-
-        mock_client.get.side_effect = [mock_rtdetr_resp, mock_nemotron_resp]
-
-        stats = await monitor._get_gpu_stats_from_ai_containers()
-
-        assert stats is not None
-        # 2.0 GB from RT-DETRv2 + 1 GB from Nemotron
-        expected_total = int(2.0 * 1024 + 1073741824 / (1024 * 1024))
-        assert stats["memory_used"] == expected_total
         # Verify default values are set instead of None
         assert stats["gpu_utilization"] == 0.0
         assert stats["memory_total"] == 24576  # 24GB in MB
@@ -843,24 +818,22 @@ async def test_get_gpu_stats_from_ai_containers_all_fail(mock_pynvml):
 
 @pytest.mark.asyncio
 async def test_get_gpu_stats_from_ai_containers_no_vram(mock_pynvml):
-    """Test getting GPU stats when AI containers return no VRAM data."""
+    """Test getting GPU stats when AI containers return no VRAM data.
+
+    Note: Only RT-DETRv2 is queried for GPU metrics (Nemotron doesn't expose them).
+    """
     monitor = GPUMonitor()
 
     with patch("httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
         mock_client_class.return_value.__aenter__.return_value = mock_client
 
-        # RT-DETRv2 returns empty
+        # RT-DETRv2 returns empty (no vram_used_gb field)
         mock_rtdetr_resp = MagicMock()
         mock_rtdetr_resp.status_code = 200
         mock_rtdetr_resp.json.return_value = {}
 
-        # Nemotron returns no metrics
-        mock_nemotron_resp = MagicMock()
-        mock_nemotron_resp.status_code = 200
-        mock_nemotron_resp.text = "# No vram metrics"
-
-        mock_client.get.side_effect = [mock_rtdetr_resp, mock_nemotron_resp]
+        mock_client.get.return_value = mock_rtdetr_resp
 
         stats = await monitor._get_gpu_stats_from_ai_containers()
 
@@ -924,8 +897,9 @@ async def test_get_current_stats_async_mock_fallback(mock_pynvml_not_available):
     with patch.object(monitor, "_get_gpu_stats_from_ai_containers", return_value=None):
         stats = await monitor.get_current_stats_async()
 
-        assert stats["gpu_name"] == "Mock GPU (No NVIDIA GPU Available)"
-        assert stats["gpu_utilization"] is None
+        # Mock provides simulated values now
+        assert stats["gpu_name"] == "Mock GPU (Development Mode)"
+        assert isinstance(stats["gpu_utilization"], float)
 
 
 @pytest.mark.asyncio
@@ -937,7 +911,8 @@ async def test_get_current_stats_async_exception_fallback(mock_pynvml):
     with patch.object(monitor, "_get_gpu_stats_real", side_effect=Exception("GPU error")):
         stats = await monitor.get_current_stats_async()
 
-        assert stats["gpu_name"] == "Mock GPU (No NVIDIA GPU Available)"
+        # Mock provides simulated values now
+        assert stats["gpu_name"] == "Mock GPU (Development Mode)"
 
 
 # Test poll loop exception handling

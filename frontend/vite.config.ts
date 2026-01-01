@@ -7,6 +7,9 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    // Listen on all network interfaces to allow access from other machines on the network
+    // This is needed for WebSocket connections when accessing via network IP (e.g., 192.168.x.x)
+    host: true,
     proxy: {
       '/api': {
         target: 'http://localhost:8000',

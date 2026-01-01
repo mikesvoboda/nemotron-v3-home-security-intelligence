@@ -256,10 +256,14 @@ app.add_middleware(RequestIDMiddleware)
 
 # Security: Restrict CORS methods to only what's needed
 # Using explicit methods instead of wildcard "*" to follow least-privilege principle
+# Note: When allow_credentials=True, allow_origins cannot be ["*"]
+# If "*" is in origins, we disable credentials to allow any origin
+_cors_origins = get_settings().cors_origins
+_allow_credentials = "*" not in _cors_origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=get_settings().cors_origins,
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_credentials=_allow_credentials,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )

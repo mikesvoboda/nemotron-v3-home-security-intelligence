@@ -3,10 +3,11 @@
  *
  * Provides selectors and interactions for:
  * - Risk Gauge
- * - GPU Stats
  * - Camera Grid
  * - Activity Feed
  * - Stats Row
+ *
+ * Note: GPU Statistics are displayed on the System page, not the main Dashboard.
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -29,12 +30,6 @@ export class DashboardPage extends BasePage {
   readonly riskGaugeSection: Locator;
   readonly riskGaugeHeading: Locator;
   readonly riskGauge: Locator;
-
-  // GPU Stats Section
-  readonly gpuStatsSection: Locator;
-  readonly gpuUtilization: Locator;
-  readonly gpuMemory: Locator;
-  readonly gpuTemperature: Locator;
 
   // Camera Grid Section
   readonly cameraGridSection: Locator;
@@ -66,36 +61,41 @@ export class DashboardPage extends BasePage {
     this.pageSubtitle = page.getByText(/Real-time AI-powered home security monitoring/i);
 
     // Stats Row - look for the stats cards container
-    this.statsRow = page.locator('[class*="grid"]').filter({ has: page.getByText(/Active Cameras/i) });
+    this.statsRow = page
+      .locator('[class*="grid"]')
+      .filter({ has: page.getByText(/Active Cameras/i) });
     this.activeCamerasStat = page.getByText(/Active Cameras/i);
     this.eventsTodayStat = page.getByText(/Events Today/i);
     this.riskScoreStat = page.getByText(/Current Risk/i);
     this.systemStatusStat = page.getByText(/System Status/i);
 
     // Risk Gauge Section
-    this.riskGaugeSection = page.locator('div').filter({ has: page.getByRole('heading', { name: /Current Risk Level/i }) }).first();
+    this.riskGaugeSection = page
+      .locator('div')
+      .filter({ has: page.getByRole('heading', { name: /Current Risk Level/i }) })
+      .first();
     this.riskGaugeHeading = page.getByRole('heading', { name: /Current Risk Level/i });
     this.riskGauge = page.locator('[class*="RiskGauge"], [data-testid="risk-gauge"]').first();
 
-    // GPU Stats Section
-    this.gpuStatsSection = page.locator('div').filter({ has: page.getByText(/GPU Status/i) }).first();
-    this.gpuUtilization = page.getByText(/Utilization/i).first();
-    this.gpuMemory = page.getByText(/Memory/i).first();
-    this.gpuTemperature = page.getByText(/Temperature/i).first();
-
     // Camera Grid Section
-    this.cameraGridSection = page.locator('div').filter({ has: page.getByRole('heading', { name: /Camera Status/i }) });
+    this.cameraGridSection = page
+      .locator('div')
+      .filter({ has: page.getByRole('heading', { name: /Camera Status/i }) });
     this.cameraGridHeading = page.getByRole('heading', { name: /Camera Status/i });
     this.cameraCards = page.locator('[class*="CameraCard"], [data-testid^="camera-"]');
 
     // Activity Feed Section
-    this.activityFeedSection = page.locator('div').filter({ has: page.getByRole('heading', { name: /Live Activity/i }) });
+    this.activityFeedSection = page
+      .locator('div')
+      .filter({ has: page.getByRole('heading', { name: /Live Activity/i }) });
     this.activityFeedHeading = page.getByRole('heading', { name: /Live Activity/i }).first();
     this.activityItems = page.locator('[class*="ActivityItem"], [data-testid^="activity-"]');
     this.noActivityMessage = page.getByText(/No activity/i);
 
     // Error State
-    this.errorContainer = page.locator('div').filter({ has: page.getByRole('heading', { name: /Error Loading Dashboard/i }) });
+    this.errorContainer = page
+      .locator('div')
+      .filter({ has: page.getByRole('heading', { name: /Error Loading Dashboard/i }) });
     this.errorHeading = page.getByRole('heading', { name: /Error Loading Dashboard/i });
     this.reloadButton = page.getByRole('button', { name: /Reload Page/i });
 
@@ -183,13 +183,6 @@ export class DashboardPage extends BasePage {
   }
 
   /**
-   * Check if GPU stats are displayed
-   */
-  async expectGpuStatsVisible(): Promise<void> {
-    await expect(this.gpuUtilization).toBeVisible({ timeout: 10000 });
-  }
-
-  /**
    * Check if disconnected indicator is shown
    */
   async expectDisconnected(): Promise<void> {
@@ -216,7 +209,10 @@ export class DashboardPage extends BasePage {
   async hasCameraByName(name: string): Promise<boolean> {
     // Look for the camera name in any text element
     const element = this.page.getByText(name, { exact: false });
-    return element.first().isVisible().catch(() => false);
+    return element
+      .first()
+      .isVisible()
+      .catch(() => false);
   }
 
   /**
@@ -225,5 +221,24 @@ export class DashboardPage extends BasePage {
   async getRiskScoreText(): Promise<string | null> {
     const riskElement = this.page.locator('[class*="risk"], [data-testid*="risk"]').first();
     return riskElement.textContent();
+  }
+
+  /**
+   * Check if GPU Statistics section is visible on the dashboard
+   * Note: GPU stats are shown in the GPU Statistics card on the dashboard
+   */
+  async expectGpuStatsVisible(): Promise<void> {
+    // Look for the GPU Statistics heading or section
+    const gpuSection = this.page.getByText(/GPU Statistics/i);
+    await expect(gpuSection).toBeVisible({ timeout: 5000 });
+  }
+
+  /**
+   * Verify header is visible with navigation elements
+   */
+  async expectHeaderVisible(): Promise<void> {
+    // Check for the header's brand/logo element
+    const header = this.page.getByRole('banner');
+    await expect(header).toBeVisible({ timeout: 5000 });
   }
 }

@@ -810,3 +810,397 @@ class TestZoneListResponseSchema:
         schema = ZoneListResponse(**data)
         assert schema.zones == []
         assert schema.count == 0
+
+
+# =============================================================================
+# Geometric Validation Tests
+# =============================================================================
+
+
+class TestGeometricValidation:
+    """Tests for polygon geometric validation in zone coordinates."""
+
+    def test_valid_rectangle(self) -> None:
+        """Test valid rectangle coordinates."""
+        data = {
+            "name": "Test Zone",
+            "coordinates": [[0.1, 0.1], [0.4, 0.1], [0.4, 0.4], [0.1, 0.4]],
+        }
+        schema = ZoneCreate(**data)
+        assert len(schema.coordinates) == 4
+
+    def test_valid_triangle(self) -> None:
+        """Test valid triangle coordinates (minimum 3 points)."""
+        data = {
+            "name": "Triangle Zone",
+            "coordinates": [[0.1, 0.1], [0.5, 0.9], [0.9, 0.1]],
+        }
+        schema = ZoneCreate(**data)
+        assert len(schema.coordinates) == 3
+
+    def test_valid_pentagon(self) -> None:
+        """Test valid pentagon (5 points)."""
+        data = {
+            "name": "Pentagon Zone",
+            "coordinates": [
+                [0.5, 0.1],
+                [0.8, 0.4],
+                [0.7, 0.8],
+                [0.3, 0.8],
+                [0.2, 0.4],
+            ],
+        }
+        schema = ZoneCreate(**data)
+        assert len(schema.coordinates) == 5
+
+    def test_self_intersecting_bowtie_rejected(self) -> None:
+        """Test that self-intersecting bowtie shape is rejected.
+
+        Note: The bowtie shape has near-zero signed area (positive and negative
+        regions cancel out), so it may be rejected by either the area check
+        or the self-intersection check.
+        """
+        from pydantic import ValidationError
+
+        # Bowtie shape: edges cross in the middle
+        data = {
+            "name": "Bowtie Zone",
+            "coordinates": [[0.1, 0.1], [0.9, 0.9], [0.9, 0.1], [0.1, 0.9]],
+        }
+        with pytest.raises(ValidationError):
+            ZoneCreate(**data)
+        # Shape is invalid - rejected by geometric validation
+
+    def test_self_intersecting_figure_eight_rejected(self) -> None:
+        """Test that self-intersecting figure-8 shape is rejected.
+
+        Note: The figure-8 shape has near-zero signed area, so it may be
+        rejected by either the area check or the self-intersection check.
+        """
+        from pydantic import ValidationError
+
+        # Figure-8 shape with crossing edges
+        data = {
+            "name": "Figure 8 Zone",
+            "coordinates": [
+                [0.2, 0.2],
+                [0.8, 0.2],
+                [0.2, 0.8],
+                [0.8, 0.8],
+            ],
+        }
+        with pytest.raises(ValidationError):
+            ZoneCreate(**data)
+        # Shape is invalid - rejected by geometric validation
+
+    def test_self_intersecting_star_rejected(self) -> None:
+        """Test that self-intersecting star shape is rejected.
+
+        This is a non-degenerate self-intersecting polygon that has
+        positive area but still self-intersects.
+        """
+        from pydantic import ValidationError
+
+        # 5-pointed star (decagon with self-intersecting edges)
+        # Drawing a star by connecting every other vertex
+        data = {
+            "name": "Star Zone",
+            "coordinates": [
+                [0.5, 0.1],  # Top
+                [0.3, 0.9],  # Bottom left
+                [0.9, 0.35],  # Right
+                [0.1, 0.35],  # Left
+                [0.7, 0.9],  # Bottom right
+            ],
+        }
+        with pytest.raises(ValidationError) as exc_info:
+            ZoneCreate(**data)
+        assert "self-intersecting" in str(exc_info.value).lower()
+
+    def test_duplicate_consecutive_points_rejected(self) -> None:
+        """Test that duplicate consecutive points are rejected."""
+        from pydantic import ValidationError
+
+        data = {
+            "name": "Duplicate Points Zone",
+            "coordinates": [[0.1, 0.1], [0.1, 0.1], [0.5, 0.5], [0.1, 0.5]],
+        }
+        with pytest.raises(ValidationError) as exc_info:
+            ZoneCreate(**data)
+        assert "duplicate consecutive points" in str(exc_info.value).lower()
+
+    def test_degenerate_collinear_points_rejected(self) -> None:
+        """Test that collinear points (zero area) are rejected."""
+        from pydantic import ValidationError
+
+        # All points on a line - zero area polygon
+        data = {
+            "name": "Collinear Zone",
+            "coordinates": [[0.1, 0.1], [0.5, 0.5], [0.9, 0.9]],
+        }
+        with pytest.raises(ValidationError) as exc_info:
+            ZoneCreate(**data)
+        assert "zero" in str(exc_info.value).lower() or "area" in str(exc_info.value).lower()
+
+    def test_very_small_area_rejected(self) -> None:
+        """Test that extremely small area polygons are rejected.
+
+        Note: Points this close together may also trigger duplicate detection
+        due to floating point tolerance, which is also a valid rejection.
+        """
+        from pydantic import ValidationError
+
+        # Near-zero area triangle (slightly more spread out to avoid duplicate detection)
+        data = {
+            "name": "Tiny Zone",
+            "coordinates": [[0.5, 0.5], [0.50001, 0.5], [0.50001, 0.50001]],
+        }
+        with pytest.raises(ValidationError) as exc_info:
+            ZoneCreate(**data)
+        # Should be rejected for zero/near-zero area
+        error_msg = str(exc_info.value).lower()
+        assert "zero" in error_msg or "area" in error_msg
+
+    def test_coordinates_out_of_range_rejected(self) -> None:
+        """Test that coordinates outside 0-1 range are rejected."""
+        from pydantic import ValidationError
+
+        data = {
+            "name": "Out of Range Zone",
+            "coordinates": [[0.1, 0.1], [1.5, 0.1], [1.5, 0.5], [0.1, 0.5]],
+        }
+        with pytest.raises(ValidationError):
+            ZoneCreate(**data)
+
+    def test_negative_coordinates_rejected(self) -> None:
+        """Test that negative coordinates are rejected."""
+        from pydantic import ValidationError
+
+        data = {
+            "name": "Negative Zone",
+            "coordinates": [[-0.1, 0.1], [0.5, 0.1], [0.5, 0.5], [-0.1, 0.5]],
+        }
+        with pytest.raises(ValidationError):
+            ZoneCreate(**data)
+
+    def test_fewer_than_3_points_rejected(self) -> None:
+        """Test that fewer than 3 points is rejected by min_length."""
+        from pydantic import ValidationError
+
+        data = {
+            "name": "Too Few Points Zone",
+            "coordinates": [[0.1, 0.1], [0.5, 0.5]],
+        }
+        with pytest.raises(ValidationError):
+            ZoneCreate(**data)
+
+    def test_wrong_point_format_rejected(self) -> None:
+        """Test that wrong point format (not [x, y]) is rejected."""
+        from pydantic import ValidationError
+
+        data = {
+            "name": "Wrong Format Zone",
+            "coordinates": [[0.1, 0.1, 0.1], [0.5, 0.1], [0.5, 0.5]],
+        }
+        with pytest.raises(ValidationError):
+            ZoneCreate(**data)
+
+    def test_valid_concave_polygon(self) -> None:
+        """Test valid concave (non-convex) polygon is accepted."""
+        # L-shaped polygon (concave but valid)
+        data = {
+            "name": "L-Shape Zone",
+            "coordinates": [
+                [0.1, 0.1],
+                [0.5, 0.1],
+                [0.5, 0.5],
+                [0.3, 0.5],
+                [0.3, 0.9],
+                [0.1, 0.9],
+            ],
+        }
+        schema = ZoneCreate(**data)
+        assert len(schema.coordinates) == 6
+
+    def test_update_schema_validates_coordinates(self) -> None:
+        """Test that ZoneUpdate also validates coordinates.
+
+        Uses a 5-pointed star shape which is self-intersecting but has
+        positive area, ensuring the self-intersection check is triggered.
+        """
+        from pydantic import ValidationError
+
+        # 5-pointed star (self-intersecting)
+        data = {
+            "coordinates": [
+                [0.5, 0.1],  # Top
+                [0.3, 0.9],  # Bottom left
+                [0.9, 0.35],  # Right
+                [0.1, 0.35],  # Left
+                [0.7, 0.9],  # Bottom right
+            ],
+        }
+        with pytest.raises(ValidationError) as exc_info:
+            ZoneUpdate(**data)
+        assert "self-intersecting" in str(exc_info.value).lower()
+
+    def test_update_schema_allows_none_coordinates(self) -> None:
+        """Test that ZoneUpdate allows None for coordinates (partial update)."""
+        data = {"name": "New Name"}
+        schema = ZoneUpdate(**data)
+        assert schema.coordinates is None
+
+    def test_complex_valid_polygon(self) -> None:
+        """Test complex but valid polygon with many points."""
+        data = {
+            "name": "Complex Zone",
+            "coordinates": [
+                [0.1, 0.5],
+                [0.3, 0.2],
+                [0.5, 0.1],
+                [0.7, 0.2],
+                [0.9, 0.5],
+                [0.7, 0.8],
+                [0.5, 0.9],
+                [0.3, 0.8],
+            ],
+        }
+        schema = ZoneCreate(**data)
+        assert len(schema.coordinates) == 8
+
+    def test_clockwise_and_counterclockwise_valid(self) -> None:
+        """Test that both clockwise and counter-clockwise polygons are valid."""
+        # Counter-clockwise rectangle
+        ccw_data = {
+            "name": "CCW Zone",
+            "coordinates": [[0.1, 0.1], [0.4, 0.1], [0.4, 0.4], [0.1, 0.4]],
+        }
+        ccw_schema = ZoneCreate(**ccw_data)
+        assert len(ccw_schema.coordinates) == 4
+
+        # Clockwise rectangle (reverse order)
+        cw_data = {
+            "name": "CW Zone",
+            "coordinates": [[0.1, 0.1], [0.1, 0.4], [0.4, 0.4], [0.4, 0.1]],
+        }
+        cw_schema = ZoneCreate(**cw_data)
+        assert len(cw_schema.coordinates) == 4
+
+
+class TestGeometricHelperFunctions:
+    """Tests for internal geometric helper functions."""
+
+    def test_polygon_area_positive_for_ccw(self) -> None:
+        """Test that shoelace formula gives positive area for CCW polygon."""
+        from backend.api.schemas.zone import _polygon_area
+
+        # Counter-clockwise unit square
+        coords = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
+        area = _polygon_area(coords)
+        assert area > 0
+        assert abs(area - 1.0) < 1e-9
+
+    def test_polygon_area_negative_for_cw(self) -> None:
+        """Test that shoelace formula gives negative area for CW polygon."""
+        from backend.api.schemas.zone import _polygon_area
+
+        # Clockwise unit square
+        coords = [[0.0, 0.0], [0.0, 1.0], [1.0, 1.0], [1.0, 0.0]]
+        area = _polygon_area(coords)
+        assert area < 0
+        assert abs(area + 1.0) < 1e-9
+
+    def test_polygon_area_triangle(self) -> None:
+        """Test area calculation for triangle."""
+        from backend.api.schemas.zone import _polygon_area
+
+        # Right triangle with base 0.5 and height 0.5 -> area = 0.125
+        coords = [[0.0, 0.0], [0.5, 0.0], [0.5, 0.5]]
+        area = abs(_polygon_area(coords))
+        assert abs(area - 0.125) < 1e-9
+
+    def test_is_self_intersecting_simple_polygon(self) -> None:
+        """Test that simple polygon is not self-intersecting."""
+        from backend.api.schemas.zone import _is_self_intersecting
+
+        coords = [[0.1, 0.1], [0.4, 0.1], [0.4, 0.4], [0.1, 0.4]]
+        assert _is_self_intersecting(coords) is False
+
+    def test_is_self_intersecting_bowtie(self) -> None:
+        """Test that bowtie is self-intersecting."""
+        from backend.api.schemas.zone import _is_self_intersecting
+
+        coords = [[0.1, 0.1], [0.9, 0.9], [0.9, 0.1], [0.1, 0.9]]
+        assert _is_self_intersecting(coords) is True
+
+    def test_is_self_intersecting_triangle(self) -> None:
+        """Test that triangle cannot be self-intersecting."""
+        from backend.api.schemas.zone import _is_self_intersecting
+
+        coords = [[0.1, 0.1], [0.5, 0.9], [0.9, 0.1]]
+        assert _is_self_intersecting(coords) is False
+
+    def test_has_duplicate_consecutive_points_true(self) -> None:
+        """Test detection of duplicate consecutive points."""
+        from backend.api.schemas.zone import _has_duplicate_consecutive_points
+
+        coords = [[0.1, 0.1], [0.1, 0.1], [0.5, 0.5], [0.1, 0.5]]
+        assert _has_duplicate_consecutive_points(coords) is True
+
+    def test_has_duplicate_consecutive_points_false(self) -> None:
+        """Test no false positive for distinct points."""
+        from backend.api.schemas.zone import _has_duplicate_consecutive_points
+
+        coords = [[0.1, 0.1], [0.4, 0.1], [0.4, 0.4], [0.1, 0.4]]
+        assert _has_duplicate_consecutive_points(coords) is False
+
+    def test_has_duplicate_consecutive_points_wrap_around(self) -> None:
+        """Test duplicate detection wraps around from last to first point."""
+        from backend.api.schemas.zone import _has_duplicate_consecutive_points
+
+        # Last point equals first point
+        coords = [[0.1, 0.1], [0.4, 0.1], [0.4, 0.4], [0.1, 0.1]]
+        assert _has_duplicate_consecutive_points(coords) is True
+
+    def test_validate_polygon_geometry_valid(self) -> None:
+        """Test full validation passes for valid polygon."""
+        from backend.api.schemas.zone import _validate_polygon_geometry
+
+        coords = [[0.1, 0.1], [0.4, 0.1], [0.4, 0.4], [0.1, 0.4]]
+        result = _validate_polygon_geometry(coords)
+        assert result == coords
+
+    def test_validate_polygon_geometry_self_intersecting(self) -> None:
+        """Test validation fails for self-intersecting polygon.
+
+        Uses a 5-pointed star which has positive area but self-intersects.
+        """
+        from backend.api.schemas.zone import _validate_polygon_geometry
+
+        # 5-pointed star (self-intersecting but positive area)
+        coords = [
+            [0.5, 0.1],  # Top
+            [0.3, 0.9],  # Bottom left
+            [0.9, 0.35],  # Right
+            [0.1, 0.35],  # Left
+            [0.7, 0.9],  # Bottom right
+        ]
+        with pytest.raises(ValueError, match="self-intersecting"):
+            _validate_polygon_geometry(coords)
+
+    def test_validate_polygon_geometry_degenerate(self) -> None:
+        """Test validation fails for degenerate polygon."""
+        from backend.api.schemas.zone import _validate_polygon_geometry
+
+        # Collinear points
+        coords = [[0.1, 0.1], [0.5, 0.5], [0.9, 0.9]]
+        with pytest.raises(ValueError, match="zero"):
+            _validate_polygon_geometry(coords)
+
+    def test_validate_polygon_geometry_out_of_range(self) -> None:
+        """Test validation fails for coordinates out of range."""
+        from backend.api.schemas.zone import _validate_polygon_geometry
+
+        coords = [[0.1, 0.1], [1.5, 0.1], [1.5, 0.5], [0.1, 0.5]]
+        with pytest.raises(ValueError, match="normalized"):
+            _validate_polygon_geometry(coords)

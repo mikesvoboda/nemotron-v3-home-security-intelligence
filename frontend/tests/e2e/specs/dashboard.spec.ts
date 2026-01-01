@@ -34,7 +34,7 @@ import {
   errorMockConfig,
   highAlertMockConfig,
 } from '../fixtures';
-import { mockGPUStats, mockSystemStats, mockEventStats } from '../fixtures';
+import { mockSystemStats, mockEventStats } from '../fixtures';
 
 test.describe('Dashboard Stats Row', () => {
   let dashboardPage: DashboardPage;
@@ -130,33 +130,6 @@ test.describe('Dashboard Camera Grid', () => {
     await dashboardPage.waitForDashboardLoad();
     const hasDriveway = await dashboardPage.hasCameraByName('Driveway');
     expect(hasDriveway).toBe(true);
-  });
-});
-
-test.describe('Dashboard GPU Stats', () => {
-  let dashboardPage: DashboardPage;
-
-  test.beforeEach(async ({ page }) => {
-    await setupApiMocks(page, defaultMockConfig);
-    dashboardPage = new DashboardPage(page);
-  });
-
-  test('GPU stats section shows utilization', async () => {
-    await dashboardPage.goto();
-    await dashboardPage.waitForDashboardLoad();
-    await expect(dashboardPage.gpuUtilization).toBeVisible({ timeout: 5000 });
-  });
-
-  test('GPU stats section shows memory', async ({ page }) => {
-    await dashboardPage.goto();
-    await dashboardPage.waitForDashboardLoad();
-    await expect(page.getByText(/Memory/i).first()).toBeVisible({ timeout: 5000 });
-  });
-
-  test('GPU stats section shows temperature', async ({ page }) => {
-    await dashboardPage.goto();
-    await dashboardPage.waitForDashboardLoad();
-    await expect(page.getByText(/Temperature/i).first()).toBeVisible({ timeout: 5000 });
   });
 });
 

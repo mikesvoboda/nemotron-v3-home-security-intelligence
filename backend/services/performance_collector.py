@@ -332,10 +332,19 @@ class PerformanceCollector:
             )
 
     async def collect_container_health(self) -> list[ContainerMetrics]:
-        """Collect health status of all containers."""
+        """Collect health status of all containers.
+
+        Uses the following health check endpoints:
+        - backend: GET /health (simple liveness probe)
+        - frontend: GET /health (nginx health endpoint, port 80 in prod)
+        - postgres: None (checked via database metrics)
+        - redis: None (checked via redis ping)
+        - ai-detector: GET /health (RT-DETRv2 health endpoint)
+        - ai-llm: GET /health (Nemotron/llama.cpp health endpoint)
+        """
         containers = [
-            ("backend", "http://localhost:8000/api/system/health/live"),
-            ("frontend", "http://localhost:5173"),
+            ("backend", "http://localhost:8000/health"),
+            ("frontend", "http://localhost:80/health"),
             ("postgres", None),  # Check via psql
             ("redis", None),  # Check via ping
             ("ai-detector", f"{self._settings.rtdetr_url}/health"),

@@ -15,7 +15,7 @@ WebSocket Authentication:
 WebSocket Message Validation:
     All incoming messages are validated for proper JSON structure and schema.
     Invalid messages receive an error response with details about the issue.
-    Supported message types: ping, subscribe, unsubscribe.
+    Supported message types: ping, pong, subscribe, unsubscribe.
 
 WebSocket Idle Timeout:
     Connections that do not send any messages within the configured idle
@@ -126,6 +126,11 @@ async def handle_validated_message(websocket: WebSocket, message: WebSocketMessa
         # Future: handle unsubscription
         logger.debug(f"Received unsubscribe message: {message.data}")
         # For now, just acknowledge (unsubscription logic TBD)
+
+    elif message_type == WebSocketMessageType.PONG.value:
+        # Pong is a standard keepalive response from client to server-initiated ping
+        # Just acknowledge silently - no response needed
+        logger.debug("Received pong response from WebSocket client")
 
     else:
         # Unknown message type

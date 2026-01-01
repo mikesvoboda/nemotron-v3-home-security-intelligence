@@ -347,6 +347,9 @@ export interface paths {
          * List Cameras
          * @description List all cameras with optional status filter.
          *
+         *     Uses Redis cache with cache-aside pattern to improve performance
+         *     and generate cache hit metrics.
+         *
          *     Args:
          *         status_filter: Optional status to filter cameras by (online, offline, error)
          *         db: Database session
@@ -824,6 +827,9 @@ export interface paths {
          *     - Total event count
          *     - Events grouped by risk level (critical, high, medium, low)
          *     - Events grouped by camera with camera names
+         *
+         *     Uses Redis cache with cache-aside pattern to improve performance
+         *     and generate cache hit metrics.
          *
          *     Args:
          *         start_date: Optional start date for date range filter
@@ -2269,20 +2275,10 @@ export interface components {
              * @description Minimum confidence
              */
             min_confidence?: number | null;
-            /**
-             * Schedule
-             * @description Time-based conditions
-             */
-            schedule?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Conditions
-             * @description Legacy conditions
-             */
-            conditions?: {
-                [key: string]: unknown;
-            } | null;
+            /** @description Time-based conditions */
+            schedule?: components["schemas"]["AlertRuleSchedule"] | null;
+            /** @description Legacy conditions */
+            conditions?: components["schemas"]["AlertRuleConditions"] | null;
             /**
              * Dedup Key Template
              * @description Template for dedup key

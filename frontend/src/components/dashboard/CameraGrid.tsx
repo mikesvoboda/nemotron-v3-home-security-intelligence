@@ -81,11 +81,14 @@ function CameraCard({
   onClick?: () => void;
 }) {
   const StatusIcon = getStatusIcon(camera.status);
-  const hasThumbnail = Boolean(camera.thumbnail_url);
+  // Only attempt to load thumbnail for online or recording cameras
+  // Offline/error/unknown cameras won't have accessible snapshots
+  const canLoadThumbnail = camera.status === 'online' || camera.status === 'recording';
+  const hasThumbnail = Boolean(camera.thumbnail_url) && canLoadThumbnail;
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
 
-  // Show placeholder if no thumbnail URL or if image failed to load
+  // Show placeholder if no thumbnail URL, camera is not active, or if image failed to load
   const showPlaceholder = !hasThumbnail || imageError;
 
   return (

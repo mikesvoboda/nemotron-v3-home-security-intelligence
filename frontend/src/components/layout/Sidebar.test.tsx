@@ -1,8 +1,19 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import Sidebar from './Sidebar';
+
+// Mock the useSidebarContext hook
+const mockSetMobileMenuOpen = vi.fn();
+
+vi.mock('../../hooks/useSidebarContext', () => ({
+  useSidebarContext: () => ({
+    isMobileMenuOpen: false,
+    setMobileMenuOpen: mockSetMobileMenuOpen,
+    toggleMobileMenu: vi.fn(),
+  }),
+}));
 
 // Helper to render with router
 const renderWithRouter = (initialEntries: string[] = ['/']) => {
@@ -85,7 +96,7 @@ describe('Sidebar', () => {
   it('has correct sidebar styling', () => {
     renderWithRouter();
     const sidebar = screen.getByRole('complementary');
-    expect(sidebar).toHaveClass('w-64', 'bg-[#1A1A1A]', 'border-r', 'border-gray-800');
+    expect(sidebar).toHaveClass('w-64', 'bg-[#1A1A1A]', 'border-r', 'border-gray-800', 'fixed');
   });
 
   it('navigation links have full width', () => {
@@ -139,5 +150,45 @@ describe('Sidebar', () => {
     renderWithRouter(['/']);
     const timelineLink = screen.getByRole('link', { name: /timeline/i });
     expect(timelineLink).toHaveClass('hover:bg-gray-800', 'hover:text-white');
+  });
+
+  describe('mobile responsiveness', () => {
+    it('has data-testid for sidebar', () => {
+      renderWithRouter();
+      expect(screen.getByTestId('sidebar')).toBeInTheDocument();
+    });
+
+    it('has close menu button for mobile', () => {
+      renderWithRouter();
+      expect(screen.getByTestId('close-menu-button')).toBeInTheDocument();
+      expect(screen.getByLabelText('Close menu')).toBeInTheDocument();
+    });
+
+    it('calls setMobileMenuOpen when close button is clicked', () => {
+      renderWithRouter();
+      const closeButton = screen.getByTestId('close-menu-button');
+      fireEvent.click(closeButton);
+      expect(mockSetMobileMenuOpen).toHaveBeenCalledWith(false);
+    });
+
+    it('closes menu when nav link is clicked', () => {
+      renderWithRouter();
+      const timelineLink = screen.getByRole('link', { name: /timeline/i });
+      fireEvent.click(timelineLink);
+      expect(mockSetMobileMenuOpen).toHaveBeenCalledWith(false);
+    });
+
+    it('has responsive transform classes', () => {
+      renderWithRouter();
+      const sidebar = screen.getByTestId('sidebar');
+      expect(sidebar).toHaveClass('transform', 'transition-transform', 'duration-300');
+      expect(sidebar).toHaveClass('md:relative', 'md:translate-x-0');
+    });
+
+    it('is hidden by default on mobile (translate-x-full)', () => {
+      renderWithRouter();
+      const sidebar = screen.getByTestId('sidebar');
+      expect(sidebar).toHaveClass('-translate-x-full');
+    });
   });
 });

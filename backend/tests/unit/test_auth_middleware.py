@@ -279,6 +279,45 @@ def test_is_exempt_path():
     assert middleware._is_exempt_path("/api/protected") is False
 
 
+def test_media_endpoints_bypass_auth():
+    """Test that media endpoints bypass authentication.
+
+    Media endpoints serve static files (images/videos) that browsers request
+    directly via <img>/<video> tags. These have their own security controls:
+    - Path traversal protection
+    - Allowed file type allowlist
+    - Rate limiting
+    """
+    app = FastAPI()
+    middleware = AuthMiddleware(app, valid_key_hashes=set())
+
+    # Test /api/media/* endpoints are exempt
+    assert middleware._is_exempt_path("/api/media/cameras/front_door/image.jpg") is True
+    assert middleware._is_exempt_path("/api/media/thumbnails/thumb_123.jpg") is True
+    assert middleware._is_exempt_path("/api/media/thumbnails/detection.png") is True
+
+    # Test /api/detections/{id}/image endpoints are exempt
+    assert middleware._is_exempt_path("/api/detections/123/image") is True
+    assert middleware._is_exempt_path("/api/detections/456/video") is True
+    assert middleware._is_exempt_path("/api/detections/789/video/thumbnail") is True
+
+    # Test /api/cameras/{id}/snapshot endpoints are exempt
+    assert middleware._is_exempt_path("/api/cameras/front_door/snapshot") is True
+    assert middleware._is_exempt_path("/api/cameras/abc-123/snapshot") is True
+
+    # Ensure other camera endpoints are NOT exempt
+    assert middleware._is_exempt_path("/api/cameras") is False
+    assert middleware._is_exempt_path("/api/cameras/front_door") is False
+    assert middleware._is_exempt_path("/api/cameras/front_door/settings") is False
+
+    # Ensure other detection endpoints are NOT exempt
+    assert middleware._is_exempt_path("/api/detections") is False
+    assert middleware._is_exempt_path("/api/detections/123") is False
+
+    # Ensure /api/media without trailing slash is not exempt (must be /api/media/)
+    assert middleware._is_exempt_path("/api/media") is False
+
+
 def test_multiple_valid_keys():
     """Test that multiple valid API keys work correctly."""
     key1 = "key_one"

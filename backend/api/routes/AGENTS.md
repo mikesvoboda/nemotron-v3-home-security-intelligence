@@ -184,7 +184,7 @@ System monitoring, health checks, GPU stats, configuration, and telemetry.
 | Method | Path                           | Purpose                                          |
 | ------ | ------------------------------ | ------------------------------------------------ |
 | GET    | `/api/system/health`           | Detailed system health check                     |
-| GET    | `/api/system/health/live`      | Liveness probe (always returns "alive")          |
+| GET    | `/health` (root level)         | Liveness probe (always returns "alive")          |
 | GET    | `/api/system/health/ready`     | Readiness probe (checks all dependencies)        |
 | GET    | `/api/system/gpu`              | Current GPU statistics                           |
 | GET    | `/api/system/gpu/history`      | GPU stats time series                            |
