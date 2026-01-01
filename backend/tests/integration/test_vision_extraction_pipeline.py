@@ -566,7 +566,8 @@ class TestFullPipelineIntegration:
         reid_service = get_reid_service()
         original_generate = reid_service.generate_embedding
 
-        async def mock_generate_embedding(model, image, bbox=None):
+        async def mock_generate_embedding(image, bbox=None, model=None):
+            """Mock that matches new API: generate_embedding(image, bbox=None, model=None)."""
             return test_embedding
 
         reid_service.generate_embedding = mock_generate_embedding
@@ -583,6 +584,7 @@ class TestFullPipelineIntegration:
                     vision_extraction_enabled=True,
                     reid_enabled=True,
                     scene_change_enabled=True,
+                    image_quality_enabled=False,  # Disable - brisque-quality model not in CI
                     redis_client=real_redis._ensure_connected(),
                 )
 

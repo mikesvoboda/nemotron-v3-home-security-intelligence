@@ -747,15 +747,20 @@ class TestFlorenceModelZooRegistration:
         assert "florence-2-large" in zoo
 
     def test_florence_2_config(self) -> None:
-        """Test Florence-2-large configuration."""
+        """Test Florence-2-large configuration.
+
+        Note: Florence-2 is now disabled in model_zoo because it runs as a
+        dedicated service (ai-florence) instead of being loaded on-demand.
+        """
         config = get_model_config("florence-2-large")
 
         assert config is not None
         assert config.name == "florence-2-large"
-        assert config.path == "microsoft/Florence-2-large"
+        assert config.path == "/models/model-zoo/florence-2-large"
         assert config.category == "vision-language"
         assert config.vram_mb == 1200
-        assert config.enabled is True
+        # Disabled because Florence-2 runs as dedicated ai-florence service
+        assert config.enabled is False
         assert config.available is False
 
     def test_florence_2_load_fn(self) -> None:

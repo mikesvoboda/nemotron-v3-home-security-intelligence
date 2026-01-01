@@ -1510,3 +1510,735 @@ def test_parse_llm_response_nested_json(analyzer):
 
     result = analyzer._parse_llm_response(response_text)
     assert result["risk_score"] == 45
+
+
+# =============================================================================
+# Test: _run_enrichment_pipeline shared image and camera_id fix
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_run_enrichment_pipeline_sets_shared_image(analyzer):
+    """Test that _run_enrichment_pipeline sets images[None] for full-frame analysis.
+
+    This verifies the fix for the enrichment pipeline missing shared image bug.
+    The shared image (images[None]) is required for:
+    - Vision extraction (Florence-2 attributes)
+    - Scene change detection
+    - CLIP re-identification
+    """
+    from datetime import UTC
+    from unittest.mock import AsyncMock, MagicMock
+
+    from backend.models.detection import Detection
+    from backend.services.enrichment_pipeline import EnrichmentResult
+
+    # Create detections with bounding boxes and file paths
+    detections = [
+        Detection(
+            id=1,
+            camera_id="front_door",
+            file_path="/export/foscam/front_door/img1.jpg",
+            detected_at=datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC),
+            object_type="person",
+            confidence=0.95,
+            bbox_x=100,
+            bbox_y=100,
+            bbox_width=50,
+            bbox_height=100,
+        ),
+        Detection(
+            id=2,
+            camera_id="front_door",
+            file_path="/export/foscam/front_door/img2.jpg",
+            detected_at=datetime(2025, 12, 23, 14, 30, 15, tzinfo=UTC),
+            object_type="car",
+            confidence=0.88,
+            bbox_x=200,
+            bbox_y=150,
+            bbox_width=100,
+            bbox_height=60,
+        ),
+    ]
+
+    # Mock the enrichment pipeline
+    mock_pipeline = MagicMock()
+    mock_result = EnrichmentResult()
+    mock_pipeline.enrich_batch = AsyncMock(return_value=mock_result)
+
+    # Replace the analyzer's pipeline getter
+    analyzer._enrichment_pipeline = mock_pipeline
+
+    # Call the method with camera_id
+    await analyzer._run_enrichment_pipeline(detections, camera_id="front_door")
+
+    # Verify enrich_batch was called
+    mock_pipeline.enrich_batch.assert_called_once()
+    call_args = mock_pipeline.enrich_batch.call_args
+
+    # Get the images dict that was passed
+    detection_inputs = call_args[0][0]
+    images = call_args[0][1]
+    kwargs = call_args[1]
+
+    # Verify images[None] is set to first detection's file_path
+    assert None in images, "images[None] should be set for shared full-frame image"
+    assert images[None] == "/export/foscam/front_door/img1.jpg"
+
+    # Verify individual detection images are also set
+    assert images[1] == "/export/foscam/front_door/img1.jpg"
+    assert images[2] == "/export/foscam/front_door/img2.jpg"
+
+    # Verify camera_id is passed
+    assert kwargs.get("camera_id") == "front_door"
+
+    # Verify detection inputs were created correctly
+    assert len(detection_inputs) == 2
+    assert detection_inputs[0].id == 1
+    assert detection_inputs[0].class_name == "person"
+    assert detection_inputs[1].id == 2
+    assert detection_inputs[1].class_name == "car"
+
+
+@pytest.mark.asyncio
+async def test_run_enrichment_pipeline_passes_camera_id(analyzer):
+    """Test that _run_enrichment_pipeline passes camera_id to enrich_batch.
+
+    This is required for scene change detection and re-identification to work.
+    """
+    from datetime import UTC
+    from unittest.mock import AsyncMock, MagicMock
+
+    from backend.models.detection import Detection
+    from backend.services.enrichment_pipeline import EnrichmentResult
+
+    detections = [
+        Detection(
+            id=1,
+            camera_id="backyard",
+            file_path="/export/foscam/backyard/img1.jpg",
+            detected_at=datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC),
+            object_type="person",
+            confidence=0.95,
+            bbox_x=100,
+            bbox_y=100,
+            bbox_width=50,
+            bbox_height=100,
+        ),
+    ]
+
+    mock_pipeline = MagicMock()
+    mock_result = EnrichmentResult()
+    mock_pipeline.enrich_batch = AsyncMock(return_value=mock_result)
+    analyzer._enrichment_pipeline = mock_pipeline
+
+    # Call with camera_id
+    await analyzer._run_enrichment_pipeline(detections, camera_id="backyard")
+
+    # Verify camera_id was passed as keyword argument
+    call_kwargs = mock_pipeline.enrich_batch.call_args[1]
+    assert call_kwargs["camera_id"] == "backyard"
+
+
+@pytest.mark.asyncio
+async def test_run_enrichment_pipeline_no_detections_with_bbox(analyzer):
+    """Test that pipeline returns None when no detections have bounding boxes."""
+    from datetime import UTC
+
+    from backend.models.detection import Detection
+
+    # Detections without bounding boxes
+    detections = [
+        Detection(
+            id=1,
+            camera_id="front_door",
+            file_path="/export/foscam/front_door/img1.jpg",
+            detected_at=datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC),
+            object_type="person",
+            confidence=0.95,
+            # No bbox_x, bbox_y, etc.
+        ),
+    ]
+
+    result = await analyzer._run_enrichment_pipeline(detections, camera_id="front_door")
+
+    # Should return None since no detections have valid bboxes
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_run_enrichment_pipeline_empty_detections(analyzer):
+    """Test that pipeline returns None for empty detection list."""
+    result = await analyzer._run_enrichment_pipeline([], camera_id="front_door")
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_run_enrichment_pipeline_no_file_path_for_shared_image(analyzer):
+    """Test handling when first detection has no file_path."""
+    from datetime import UTC
+    from unittest.mock import AsyncMock, MagicMock
+
+    from backend.models.detection import Detection
+    from backend.services.enrichment_pipeline import EnrichmentResult
+
+    detections = [
+        Detection(
+            id=1,
+            camera_id="front_door",
+            file_path=None,  # No file path!
+            detected_at=datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC),
+            object_type="person",
+            confidence=0.95,
+            bbox_x=100,
+            bbox_y=100,
+            bbox_width=50,
+            bbox_height=100,
+        ),
+        Detection(
+            id=2,
+            camera_id="front_door",
+            file_path="/export/foscam/front_door/img2.jpg",
+            detected_at=datetime(2025, 12, 23, 14, 30, 15, tzinfo=UTC),
+            object_type="car",
+            confidence=0.88,
+            bbox_x=200,
+            bbox_y=150,
+            bbox_width=100,
+            bbox_height=60,
+        ),
+    ]
+
+    mock_pipeline = MagicMock()
+    mock_result = EnrichmentResult()
+    mock_pipeline.enrich_batch = AsyncMock(return_value=mock_result)
+    analyzer._enrichment_pipeline = mock_pipeline
+
+    await analyzer._run_enrichment_pipeline(detections, camera_id="front_door")
+
+    # Get images dict
+    images = mock_pipeline.enrich_batch.call_args[0][1]
+
+    # images[None] should NOT be set since first detection has no file_path
+    assert None not in images or images.get(None) is None
+
+    # But the second detection's image should still be mapped
+    assert images.get(2) == "/export/foscam/front_door/img2.jpg"
+
+
+# =============================================================================
+# Test: EnrichmentPipeline Integration in analyze_batch (bead z1zt)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_analyze_batch_calls_enrichment_pipeline(analyzer, mock_redis_client, mock_camera):
+    """Test that analyze_batch calls _get_enrichment_result with correct parameters.
+
+    This verifies the EnrichmentPipeline is wired into the batch processing flow.
+    """
+    import json
+    from datetime import UTC
+    from unittest.mock import AsyncMock, patch
+
+    from backend.models.detection import Detection
+    from backend.services.enrichment_pipeline import EnrichmentResult
+
+    batch_id = "test_batch_enrichment"
+    camera_id = mock_camera.id
+    detection_ids = [1001, 1002]
+
+    # Create sample detections
+    detections = [
+        Detection(
+            id=1001,
+            camera_id=camera_id,
+            file_path=f"/export/foscam/{camera_id}/img1.jpg",
+            detected_at=datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC),
+            object_type="person",
+            confidence=0.95,
+            bbox_x=100,
+            bbox_y=100,
+            bbox_width=50,
+            bbox_height=100,
+        ),
+        Detection(
+            id=1002,
+            camera_id=camera_id,
+            file_path=f"/export/foscam/{camera_id}/img2.jpg",
+            detected_at=datetime(2025, 12, 23, 14, 30, 15, tzinfo=UTC),
+            object_type="car",
+            confidence=0.88,
+            bbox_x=200,
+            bbox_y=150,
+            bbox_width=100,
+            bbox_height=60,
+        ),
+    ]
+
+    # Mock enrichment result
+    mock_enrichment_result = EnrichmentResult(
+        license_plates=[],
+        faces=[],
+        processing_time_ms=50.0,
+    )
+
+    # Track calls to _get_enrichment_result
+    enrichment_calls = []
+
+    async def tracked_get_enrichment(*args, **kwargs):
+        enrichment_calls.append((args, kwargs))
+        return mock_enrichment_result
+
+    analyzer._get_enrichment_result = tracked_get_enrichment
+
+    # Mock database and LLM
+    mock_llm_response = {
+        "content": json.dumps(
+            {
+                "risk_score": 50,
+                "risk_level": "medium",
+                "summary": "Test summary",
+                "reasoning": "Test reasoning",
+            }
+        )
+    }
+
+    with (
+        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch("httpx.AsyncClient.post") as mock_post,
+        patch.object(analyzer, "_get_enriched_context", return_value=None),
+        patch.object(analyzer, "_broadcast_event", return_value=None),
+    ):
+        # Mock database session
+        mock_session = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_get_session.return_value = mock_session
+
+        # Mock camera query
+        mock_camera_result = MagicMock()
+        mock_camera_result.scalar_one_or_none.return_value = mock_camera
+
+        # Mock detections query
+        mock_det_result = MagicMock()
+        mock_det_scalars = MagicMock()
+        mock_det_scalars.all.return_value = detections
+        mock_det_result.scalars.return_value = mock_det_scalars
+
+        # Setup execute to return camera first, then detections
+        mock_session.execute = AsyncMock(side_effect=[mock_camera_result, mock_det_result])
+        mock_session.add = MagicMock()
+        mock_session.commit = AsyncMock()
+        mock_session.refresh = AsyncMock()
+
+        # Mock LLM response
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = mock_llm_response
+        mock_resp.raise_for_status = MagicMock()
+        mock_post.return_value = mock_resp
+
+        # Call analyze_batch
+        event = await analyzer.analyze_batch(
+            batch_id=batch_id,
+            camera_id=camera_id,
+            detection_ids=detection_ids,
+        )
+
+    # Verify _get_enrichment_result was called
+    assert len(enrichment_calls) == 1, "_get_enrichment_result should be called once"
+    call_args, call_kwargs = enrichment_calls[0]
+
+    # Verify batch_id was passed
+    assert call_args[0] == batch_id
+
+    # Verify detections were passed
+    assert len(call_args[1]) == 2
+
+    # Verify camera_id was passed
+    assert call_kwargs.get("camera_id") == camera_id
+
+    # Verify event was created
+    assert event is not None
+    assert event.risk_score == 50
+
+
+@pytest.mark.asyncio
+async def test_analyze_batch_handles_enrichment_failure_gracefully(
+    analyzer, mock_redis_client, mock_camera
+):
+    """Test that analyze_batch continues when enrichment pipeline fails.
+
+    If enrichment fails, the analyzer should still send to Nemotron with None
+    enrichment and complete successfully. The _get_enrichment_result method
+    catches exceptions from _run_enrichment_pipeline and returns None.
+    """
+    import json
+    from datetime import UTC
+    from unittest.mock import AsyncMock, patch
+
+    from backend.models.detection import Detection
+
+    batch_id = "test_batch_enrichment_fail"
+    camera_id = mock_camera.id
+    detection_ids = [2001, 2002]
+
+    detections = [
+        Detection(
+            id=2001,
+            camera_id=camera_id,
+            file_path=f"/export/foscam/{camera_id}/img1.jpg",
+            detected_at=datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC),
+            object_type="person",
+            confidence=0.95,
+        ),
+        Detection(
+            id=2002,
+            camera_id=camera_id,
+            file_path=f"/export/foscam/{camera_id}/img2.jpg",
+            detected_at=datetime(2025, 12, 23, 14, 30, 15, tzinfo=UTC),
+            object_type="car",
+            confidence=0.88,
+        ),
+    ]
+
+    # Make _run_enrichment_pipeline fail - _get_enrichment_result should catch it
+    async def failing_pipeline(*args, **kwargs):
+        raise RuntimeError("Enrichment pipeline failed")
+
+    analyzer._run_enrichment_pipeline = failing_pipeline
+
+    mock_llm_response = {
+        "content": json.dumps(
+            {
+                "risk_score": 45,
+                "risk_level": "medium",
+                "summary": "Test without enrichment",
+                "reasoning": "Enrichment failed but analysis continues",
+            }
+        )
+    }
+
+    with (
+        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch("httpx.AsyncClient.post") as mock_post,
+        patch.object(analyzer, "_get_enriched_context", return_value=None),
+        patch.object(analyzer, "_broadcast_event", return_value=None),
+    ):
+        mock_session = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_get_session.return_value = mock_session
+
+        mock_camera_result = MagicMock()
+        mock_camera_result.scalar_one_or_none.return_value = mock_camera
+
+        mock_det_result = MagicMock()
+        mock_det_scalars = MagicMock()
+        mock_det_scalars.all.return_value = detections
+        mock_det_result.scalars.return_value = mock_det_scalars
+
+        mock_session.execute = AsyncMock(side_effect=[mock_camera_result, mock_det_result])
+        mock_session.add = MagicMock()
+        mock_session.commit = AsyncMock()
+        mock_session.refresh = AsyncMock()
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = mock_llm_response
+        mock_resp.raise_for_status = MagicMock()
+        mock_post.return_value = mock_resp
+
+        # Should complete successfully despite enrichment failure
+        event = await analyzer.analyze_batch(
+            batch_id=batch_id,
+            camera_id=camera_id,
+            detection_ids=detection_ids,
+        )
+
+    # Event should still be created
+    assert event is not None
+    assert event.risk_score == 45
+
+
+@pytest.mark.asyncio
+async def test_analyze_batch_skips_enrichment_when_disabled(mock_redis_client, mock_settings):
+    """Test that analyze_batch skips enrichment when use_enrichment_pipeline=False."""
+    import json
+    from datetime import UTC
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from backend.models.camera import Camera
+    from backend.models.detection import Detection
+
+    # Create analyzer with enrichment disabled
+    with (
+        patch("backend.services.nemotron_analyzer.get_settings", return_value=mock_settings),
+        patch("backend.services.severity.get_settings", return_value=mock_settings),
+    ):
+        from backend.services.severity import reset_severity_service
+
+        reset_severity_service()
+        analyzer = NemotronAnalyzer(
+            redis_client=mock_redis_client,
+            use_enrichment_pipeline=False,  # Disabled!
+        )
+
+    batch_id = "test_batch_no_enrichment"
+    camera_id = "test_camera_no_enrich"
+    detection_ids = [3001, 3002]
+
+    mock_camera = Camera(id=camera_id, name="Test Camera", folder_path="/export/foscam/test")
+
+    detections = [
+        Detection(
+            id=3001,
+            camera_id=camera_id,
+            file_path=f"/export/foscam/{camera_id}/img1.jpg",
+            detected_at=datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC),
+            object_type="person",
+            confidence=0.95,
+        ),
+        Detection(
+            id=3002,
+            camera_id=camera_id,
+            file_path=f"/export/foscam/{camera_id}/img2.jpg",
+            detected_at=datetime(2025, 12, 23, 14, 30, 15, tzinfo=UTC),
+            object_type="car",
+            confidence=0.88,
+        ),
+    ]
+
+    # Track if _run_enrichment_pipeline is called
+    pipeline_called = []
+
+    async def tracked_pipeline(*args, **kwargs):
+        pipeline_called.append(True)
+
+    analyzer._run_enrichment_pipeline = tracked_pipeline
+
+    mock_llm_response = {
+        "content": json.dumps(
+            {
+                "risk_score": 40,
+                "risk_level": "medium",
+                "summary": "Test without enrichment",
+                "reasoning": "Enrichment disabled",
+            }
+        )
+    }
+
+    with (
+        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch("httpx.AsyncClient.post") as mock_post,
+        patch.object(analyzer, "_get_enriched_context", return_value=None),
+        patch.object(analyzer, "_broadcast_event", return_value=None),
+    ):
+        mock_session = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_get_session.return_value = mock_session
+
+        mock_camera_result = MagicMock()
+        mock_camera_result.scalar_one_or_none.return_value = mock_camera
+
+        mock_det_result = MagicMock()
+        mock_det_scalars = MagicMock()
+        mock_det_scalars.all.return_value = detections
+        mock_det_result.scalars.return_value = mock_det_scalars
+
+        mock_session.execute = AsyncMock(side_effect=[mock_camera_result, mock_det_result])
+        mock_session.add = MagicMock()
+        mock_session.commit = AsyncMock()
+        mock_session.refresh = AsyncMock()
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = mock_llm_response
+        mock_resp.raise_for_status = MagicMock()
+        mock_post.return_value = mock_resp
+
+        event = await analyzer.analyze_batch(
+            batch_id=batch_id,
+            camera_id=camera_id,
+            detection_ids=detection_ids,
+        )
+
+    # Enrichment pipeline should NOT have been called
+    assert len(pipeline_called) == 0, "Enrichment pipeline should not be called when disabled"
+
+    # Event should still be created
+    assert event is not None
+
+
+@pytest.mark.asyncio
+async def test_get_enrichment_result_returns_none_on_failure(analyzer):
+    """Test that _get_enrichment_result returns None on pipeline failure."""
+    from datetime import UTC
+
+    from backend.models.detection import Detection
+
+    detections = [
+        Detection(
+            id=4001,
+            camera_id="test",
+            file_path="/export/foscam/test/img1.jpg",
+            detected_at=datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC),
+            object_type="person",
+            confidence=0.95,
+        ),
+    ]
+
+    # Make _run_enrichment_pipeline raise an exception
+    async def failing_pipeline(*args, **kwargs):
+        raise RuntimeError("Pipeline failed")
+
+    analyzer._run_enrichment_pipeline = failing_pipeline
+
+    # Should return None, not raise
+    result = await analyzer._get_enrichment_result(
+        batch_id="test",
+        detections=detections,
+        camera_id="test",
+    )
+
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_get_enrichment_result_returns_none_when_disabled(analyzer):
+    """Test that _get_enrichment_result returns None when enrichment is disabled."""
+    from datetime import UTC
+
+    from backend.models.detection import Detection
+
+    # Disable enrichment
+    analyzer._use_enrichment_pipeline = False
+
+    detections = [
+        Detection(
+            id=5001,
+            camera_id="test",
+            file_path="/export/foscam/test/img1.jpg",
+            detected_at=datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC),
+            object_type="person",
+            confidence=0.95,
+        ),
+    ]
+
+    result = await analyzer._get_enrichment_result(
+        batch_id="test",
+        detections=detections,
+        camera_id="test",
+    )
+
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_analyze_batch_passes_enrichment_to_call_llm(
+    analyzer, mock_redis_client, mock_camera
+):
+    """Test that analyze_batch passes enrichment result to _call_llm."""
+    from datetime import UTC
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from backend.models.detection import Detection
+    from backend.services.enrichment_pipeline import (
+        BoundingBox,
+        EnrichmentResult,
+        LicensePlateResult,
+    )
+
+    batch_id = "test_batch_enrichment_to_llm"
+    camera_id = mock_camera.id
+    detection_ids = [6001, 6002]
+
+    detections = [
+        Detection(
+            id=6001,
+            camera_id=camera_id,
+            file_path=f"/export/foscam/{camera_id}/img1.jpg",
+            detected_at=datetime(2025, 12, 23, 14, 30, 0, tzinfo=UTC),
+            object_type="person",
+            confidence=0.95,
+        ),
+        Detection(
+            id=6002,
+            camera_id=camera_id,
+            file_path=f"/export/foscam/{camera_id}/img2.jpg",
+            detected_at=datetime(2025, 12, 23, 14, 30, 15, tzinfo=UTC),
+            object_type="car",
+            confidence=0.88,
+        ),
+    ]
+
+    # Create enrichment result with license plate
+    mock_enrichment_result = EnrichmentResult(
+        license_plates=[
+            LicensePlateResult(
+                bbox=BoundingBox(x1=100, y1=100, x2=200, y2=150),
+                text="ABC123",
+                confidence=0.95,
+                ocr_confidence=0.90,
+            )
+        ],
+        faces=[],
+        processing_time_ms=75.0,
+    )
+
+    # Track _call_llm calls
+    call_llm_calls = []
+
+    async def tracked_call_llm(*args, **kwargs):
+        call_llm_calls.append(kwargs)
+        return {
+            "risk_score": 55,
+            "risk_level": "medium",
+            "summary": "Vehicle with plate detected",
+            "reasoning": "License plate ABC123 identified",
+        }
+
+    analyzer._call_llm = tracked_call_llm
+    analyzer._get_enrichment_result = AsyncMock(return_value=mock_enrichment_result)
+
+    with (
+        patch("backend.services.nemotron_analyzer.get_session") as mock_get_session,
+        patch.object(analyzer, "_get_enriched_context", return_value=None),
+        patch.object(analyzer, "_broadcast_event", return_value=None),
+    ):
+        mock_session = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        mock_get_session.return_value = mock_session
+
+        mock_camera_result = MagicMock()
+        mock_camera_result.scalar_one_or_none.return_value = mock_camera
+
+        mock_det_result = MagicMock()
+        mock_det_scalars = MagicMock()
+        mock_det_scalars.all.return_value = detections
+        mock_det_result.scalars.return_value = mock_det_scalars
+
+        mock_session.execute = AsyncMock(side_effect=[mock_camera_result, mock_det_result])
+        mock_session.add = MagicMock()
+        mock_session.commit = AsyncMock()
+        mock_session.refresh = AsyncMock()
+
+        event = await analyzer.analyze_batch(
+            batch_id=batch_id,
+            camera_id=camera_id,
+            detection_ids=detection_ids,
+        )
+
+    # Verify _call_llm was called with enrichment_result
+    assert len(call_llm_calls) == 1
+    llm_kwargs = call_llm_calls[0]
+    assert "enrichment_result" in llm_kwargs
+    assert llm_kwargs["enrichment_result"] is mock_enrichment_result
+    assert llm_kwargs["enrichment_result"].has_license_plates
+
+    # Event should be created with correct risk score
+    assert event is not None
+    assert event.risk_score == 55

@@ -240,8 +240,8 @@ class TestModelZooIntegration:
 
         # These should be enabled by default
         assert "clip-vit-l" in enabled_names
-        assert "florence-2-large" in enabled_names
         assert "paddleocr" in enabled_names
+        # Note: florence-2-large now runs as dedicated ai-florence service (disabled in model zoo)
 
     def test_model_vram_estimates(self):
         """Test that model VRAM estimates are reasonable."""
@@ -249,9 +249,10 @@ class TestModelZooIntegration:
 
         zoo = get_model_zoo()
 
-        # VRAM estimates should be positive and within reasonable bounds
+        # VRAM estimates should be non-negative and within reasonable bounds
+        # Some models like BRISQUE are CPU-based (vram_mb=0)
         for name, config in zoo.items():
-            assert config.vram_mb > 0, f"{name} has invalid VRAM estimate"
+            assert config.vram_mb >= 0, f"{name} has invalid VRAM estimate"
             assert config.vram_mb < 10000, f"{name} has unreasonably high VRAM estimate"
 
     def test_total_vram_calculation(self):

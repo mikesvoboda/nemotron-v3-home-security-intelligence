@@ -59,8 +59,8 @@ def _create_empty_async_generator():
     """Create an empty async generator for scan_iter mocking."""
 
     async def _generator():
-        return
-        yield  # Makes this an async generator
+        for _ in []:  # Empty async generator pattern
+            yield
 
     return _generator()
 
@@ -594,8 +594,9 @@ class TestErrorHandling:
 
         # Create async generator that raises an error when iterated
         async def error_scan_iter(match="*", count=100):
+            for _ in []:  # Makes this an async generator
+                yield
             raise Exception("Redis connection error")
-            yield  # Makes this an async generator
 
         # Simulate Redis error during batch timeout check (scan_iter iteration)
         mock_redis_client._client.scan_iter = MagicMock(return_value=error_scan_iter())

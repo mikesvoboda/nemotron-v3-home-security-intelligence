@@ -1,14 +1,16 @@
-# Multi-stage production build using Alpine for smaller image and fewer CVEs
-FROM python:3.14-alpine AS builder
+# Multi-stage production build using Debian for PyTorch/ultralytics compatibility
+# Note: Alpine uses musl libc which is incompatible with PyTorch and OpenCV
+FROM python:3.14-slim-bookworm AS builder
 
 WORKDIR /app
 
 # Install build dependencies for Python packages with C extensions
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
-    musl-dev \
+    libc6-dev \
     libffi-dev \
-    curl
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install uv for fast dependency management
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
@@ -22,15 +24,21 @@ RUN uv sync --frozen --no-dev --no-install-project
 
 
 # Production stage - minimal runtime image
-FROM python:3.14-alpine
+FROM python:3.14-slim-bookworm
 
 WORKDIR /app
 
-# Install runtime dependencies (wget for healthcheck, ffmpeg for video processing)
-RUN apk add --no-cache wget ffmpeg
+# Install runtime dependencies (wget for healthcheck, ffmpeg for video processing,
+# libgl1 and libglib2.0-0 for OpenCV which is required by ultralytics)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget \
+    ffmpeg \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user for security
-RUN adduser -D -u 1000 appuser
+RUN useradd -m -u 1000 appuser
 
 # Copy Python virtual environment from builder
 COPY --from=builder /app/.venv /app/.venv

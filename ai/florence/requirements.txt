@@ -1,0 +1,24 @@
+# Florence-2 Vision-Language Server Dependencies
+
+# Web framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+
+# Deep learning frameworks
+torch>=2.0.0
+transformers>=4.35.0
+
+# Florence-2 specific dependencies (required by model)
+einops>=0.7.0
+timm>=0.9.0
+
+# Image processing
+pillow>=10.0.0
+numpy>=1.24.0
+
+# Utilities
+pydantic>=2.4.0
+
+# Monitoring
+pynvml>=11.5.0
