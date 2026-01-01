@@ -6,6 +6,7 @@ import { useConnectionStatus } from './useConnectionStatus';
 // Mock the api module
 vi.mock('../services/api', () => ({
   buildWebSocketUrl: (path: string) => `ws://localhost${path}`,
+  buildWebSocketOptions: (path: string) => ({ url: `ws://localhost${path}`, protocols: undefined }),
   fetchHealth: vi.fn().mockResolvedValue({
     status: 'healthy',
     services: { gpu: { status: 'healthy' } },

@@ -4,10 +4,12 @@ import asyncio
 import contextlib
 import json
 import random
+import ssl
 import warnings
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 from typing import Any, TypeVar, cast
 
 from redis.asyncio import ConnectionPool, Redis
@@ -68,13 +70,30 @@ class QueuePressureMetrics:
 
 
 class RedisClient:
-    """Async Redis client with connection pooling and helper methods."""
+    """Async Redis client with connection pooling, SSL/TLS support, and helper methods."""
 
-    def __init__(self, redis_url: str | None = None):
-        """Initialize Redis client with connection pool.
+    def __init__(
+        self,
+        redis_url: str | None = None,
+        ssl_enabled: bool | None = None,
+        ssl_cert_reqs: str | None = None,
+        ssl_ca_certs: str | None = None,
+        ssl_certfile: str | None = None,
+        ssl_keyfile: str | None = None,
+        ssl_check_hostname: bool | None = None,
+    ):
+        """Initialize Redis client with connection pool and optional SSL/TLS.
 
         Args:
             redis_url: Redis connection URL. If not provided, uses settings.
+            ssl_enabled: Enable SSL/TLS encryption. If None, uses settings.
+            ssl_cert_reqs: SSL certificate verification mode ('none', 'optional', 'required').
+                If None, uses settings.
+            ssl_ca_certs: Path to CA certificate file for server verification.
+                If None, uses settings.
+            ssl_certfile: Path to client certificate file for mTLS. If None, uses settings.
+            ssl_keyfile: Path to client key file for mTLS. If None, uses settings.
+            ssl_check_hostname: Verify server certificate hostname. If None, uses settings.
         """
         settings = get_settings()
         self._redis_url = redis_url or settings.redis_url
@@ -86,6 +105,89 @@ class RedisClient:
         self._base_delay = 1.0  # Base delay in seconds
         self._max_delay = 30.0  # Maximum delay cap in seconds
         self._jitter_factor = 0.25  # Random jitter 0-25% of delay
+
+        # SSL/TLS settings - use provided values or fall back to settings
+        self._ssl_enabled = ssl_enabled if ssl_enabled is not None else settings.redis_ssl_enabled
+        self._ssl_cert_reqs = (
+            ssl_cert_reqs if ssl_cert_reqs is not None else settings.redis_ssl_cert_reqs
+        )
+        self._ssl_ca_certs = (
+            ssl_ca_certs if ssl_ca_certs is not None else settings.redis_ssl_ca_certs
+        )
+        self._ssl_certfile = (
+            ssl_certfile if ssl_certfile is not None else settings.redis_ssl_certfile
+        )
+        self._ssl_keyfile = ssl_keyfile if ssl_keyfile is not None else settings.redis_ssl_keyfile
+        self._ssl_check_hostname = (
+            ssl_check_hostname
+            if ssl_check_hostname is not None
+            else settings.redis_ssl_check_hostname
+        )
+
+    def _create_ssl_context(self) -> ssl.SSLContext | None:
+        """Create an SSL context for Redis connection if SSL is enabled.
+
+        Returns:
+            ssl.SSLContext if SSL is enabled, None otherwise.
+
+        Raises:
+            FileNotFoundError: If specified certificate files don't exist.
+            ssl.SSLError: If there's an error creating the SSL context.
+        """
+        if not self._ssl_enabled:
+            return None
+
+        # Map cert_reqs string to ssl constant
+        cert_reqs_map = {
+            "none": ssl.CERT_NONE,
+            "optional": ssl.CERT_OPTIONAL,
+            "required": ssl.CERT_REQUIRED,
+        }
+        cert_reqs = cert_reqs_map.get(self._ssl_cert_reqs, ssl.CERT_REQUIRED)
+
+        # Create SSL context
+        ssl_context = ssl.create_default_context()
+
+        # Important: check_hostname must be set before verify_mode when using CERT_NONE
+        # because Python's ssl module doesn't allow check_hostname=True with CERT_NONE
+        if cert_reqs == ssl.CERT_NONE:
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = cert_reqs
+        else:
+            ssl_context.check_hostname = self._ssl_check_hostname
+            ssl_context.verify_mode = cert_reqs
+
+        # Load CA certificates for server verification
+        if self._ssl_ca_certs:
+            ca_path = Path(self._ssl_ca_certs)
+            if not ca_path.exists():
+                raise FileNotFoundError(
+                    f"Redis SSL CA certificate file not found: {self._ssl_ca_certs}"
+                )
+            ssl_context.load_verify_locations(cafile=str(ca_path))
+            logger.debug(f"Loaded Redis SSL CA certificate from: {self._ssl_ca_certs}")
+
+        # Load client certificate for mutual TLS (mTLS)
+        if self._ssl_certfile:
+            cert_path = Path(self._ssl_certfile)
+            if not cert_path.exists():
+                raise FileNotFoundError(
+                    f"Redis SSL client certificate file not found: {self._ssl_certfile}"
+                )
+
+            key_path = None
+            if self._ssl_keyfile:
+                key_path_obj = Path(self._ssl_keyfile)
+                if not key_path_obj.exists():
+                    raise FileNotFoundError(
+                        f"Redis SSL client key file not found: {self._ssl_keyfile}"
+                    )
+                key_path = str(key_path_obj)
+
+            ssl_context.load_cert_chain(certfile=str(cert_path), keyfile=key_path)
+            logger.debug(f"Loaded Redis SSL client certificate from: {self._ssl_certfile}")
+
+        return ssl_context
 
     def _calculate_backoff_delay(self, attempt: int) -> float:
         """Calculate exponential backoff delay with jitter.
@@ -327,22 +429,47 @@ class RedisClient:
         )
 
     async def connect(self) -> None:
-        """Establish Redis connection with exponential backoff retry logic."""
+        """Establish Redis connection with exponential backoff retry logic and optional SSL/TLS."""
+        # Create SSL context if SSL is enabled
+        ssl_context = self._create_ssl_context()
+
+        # Log SSL status
+        if ssl_context:
+            logger.info(
+                "Redis SSL/TLS enabled",
+                extra={
+                    "ssl_cert_reqs": self._ssl_cert_reqs,
+                    "ssl_check_hostname": self._ssl_check_hostname,
+                    "ssl_ca_certs": self._ssl_ca_certs is not None,
+                    "ssl_client_cert": self._ssl_certfile is not None,
+                },
+            )
+
         for attempt in range(1, self._max_retries + 1):
             try:
+                # Build connection pool kwargs
+                pool_kwargs: dict[str, Any] = {
+                    "encoding": "utf-8",
+                    "decode_responses": True,
+                    "socket_connect_timeout": 5,
+                    "socket_keepalive": True,
+                    "health_check_interval": 30,
+                    "max_connections": 10,
+                }
+
+                # Add SSL context if enabled
+                if ssl_context:
+                    pool_kwargs["ssl"] = ssl_context
+
                 self._pool = ConnectionPool.from_url(
                     self._redis_url,
-                    encoding="utf-8",
-                    decode_responses=True,
-                    socket_connect_timeout=5,
-                    socket_keepalive=True,
-                    health_check_interval=30,
-                    max_connections=10,
+                    **pool_kwargs,
                 )
                 self._client = Redis(connection_pool=self._pool)
                 # Test connection
                 await self._client.ping()  # type: ignore
-                logger.info("Successfully connected to Redis")
+                ssl_msg = " with SSL/TLS" if ssl_context else ""
+                logger.info(f"Successfully connected to Redis{ssl_msg}")
                 return
             except (ConnectionError, TimeoutError) as e:
                 logger.warning(

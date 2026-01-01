@@ -144,6 +144,38 @@ class TestIsIPTrusted:
         trusted = ["invalid", "127.0.0.1"]
         assert _is_ip_trusted("127.0.0.1", trusted) is True
 
+    def test_invalid_trusted_ip_logs_warning(self):
+        """Test that invalid trusted IP entries log a warning."""
+        trusted = ["invalid_cidr", "also-not-valid", "127.0.0.1"]
+
+        with patch("backend.api.middleware.rate_limit.logger") as mock_logger:
+            result = _is_ip_trusted("127.0.0.1", trusted)
+
+            # Function should still return True (valid IP found)
+            assert result is True
+
+            # Should have logged two warnings for the invalid entries
+            assert mock_logger.warning.call_count == 2
+
+            # Verify warning messages contain the invalid CIDR values
+            warning_calls = mock_logger.warning.call_args_list
+            assert "invalid_cidr" in warning_calls[0][0][0]
+            assert "also-not-valid" in warning_calls[1][0][0]
+
+    def test_invalid_cidr_notation_logs_warning(self):
+        """Test that malformed CIDR notation logs a warning."""
+        trusted = ["192.168.1.0/33", "10.0.0.0/8"]  # /33 is invalid
+
+        with patch("backend.api.middleware.rate_limit.logger") as mock_logger:
+            result = _is_ip_trusted("10.0.0.1", trusted)
+
+            # Function should still return True (valid IP found in second entry)
+            assert result is True
+
+            # Should have logged a warning for the invalid CIDR
+            mock_logger.warning.assert_called_once()
+            assert "192.168.1.0/33" in mock_logger.warning.call_args[0][0]
+
     def test_empty_trusted_list(self):
         """Test with empty trusted list."""
         assert _is_ip_trusted("127.0.0.1", []) is False

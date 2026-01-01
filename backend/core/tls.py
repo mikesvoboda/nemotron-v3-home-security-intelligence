@@ -719,6 +719,7 @@ def _get_local_ips() -> list[str]:
                 if ip not in local_ips and not ip.startswith("127."):
                     local_ips.append(ip)
         except Exception:  # noqa: S110
+            # Network interface lookup failed - non-critical, continue with other interfaces
             pass
 
     except Exception as e:

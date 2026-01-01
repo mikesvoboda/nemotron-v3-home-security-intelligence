@@ -26,6 +26,11 @@ from backend.services.video_processor import (
     DEFAULT_THUMBNAIL_SIZE,
     VideoProcessingError,
     VideoProcessor,
+    _validate_interval_seconds,
+    _validate_max_frames,
+    _validate_size,
+    _validate_timestamp,
+    _validate_video_path,
 )
 
 # =============================================================================
@@ -937,3 +942,194 @@ class TestMimeType:
         # Should return default video MIME type
         mime_type = video_processor._get_mime_type("/path/to/video.xyz")
         assert mime_type == "video/mp4"  # Default video MIME
+
+
+# =============================================================================
+# Security Validation Tests - Command Injection Prevention
+# =============================================================================
+
+
+class TestSecurityValidation:
+    """Test input validation functions that prevent command injection."""
+
+    def test_validate_video_path_rejects_nonexistent(self) -> None:
+        """Test that nonexistent paths are rejected."""
+        with pytest.raises(ValueError, match="Video file not found"):
+            _validate_video_path("/nonexistent/path/to/video.mp4")
+
+    def test_validate_video_path_rejects_directory(self, tmp_path: Path) -> None:
+        """Test that directories are rejected."""
+        with pytest.raises(ValueError, match="Path is not a file"):
+            _validate_video_path(str(tmp_path))
+
+    def test_validate_video_path_rejects_dash_prefix(self) -> None:
+        """Test that paths starting with dash are rejected (command option injection)."""
+        # The real protection is that resolved paths don't start with dash
+        with pytest.raises(ValueError, match="Video file not found"):
+            _validate_video_path("-malicious_file.mp4")
+
+    def test_validate_video_path_accepts_valid_file(self, tmp_path: Path) -> None:
+        """Test that valid video files are accepted."""
+        video_file = tmp_path / "valid_video.mp4"
+        video_file.write_bytes(b"fake video content")
+        result = _validate_video_path(str(video_file))
+        assert result == video_file.resolve()
+
+    def test_validate_timestamp_rejects_non_numeric(self) -> None:
+        """Test that non-numeric timestamps are rejected."""
+        with pytest.raises(ValueError, match="Timestamp must be a number"):
+            _validate_timestamp("10; rm -rf /")  # type: ignore[arg-type]
+
+    def test_validate_timestamp_rejects_negative(self) -> None:
+        """Test that negative timestamps are rejected."""
+        with pytest.raises(ValueError, match="Timestamp must be between 0 and 86400"):
+            _validate_timestamp(-1.0)
+
+    def test_validate_timestamp_rejects_too_large(self) -> None:
+        """Test that timestamps over 24 hours are rejected."""
+        with pytest.raises(ValueError, match="Timestamp must be between 0 and 86400"):
+            _validate_timestamp(100000.0)
+
+    def test_validate_timestamp_accepts_valid_values(self) -> None:
+        """Test that valid timestamps are accepted."""
+        assert _validate_timestamp(0.0) == 0.0
+        assert _validate_timestamp(1.5) == 1.5
+        assert _validate_timestamp(3600) == 3600.0
+        assert _validate_timestamp(86400) == 86400.0
+
+    def test_validate_size_rejects_non_tuple(self) -> None:
+        """Test that non-tuple sizes are rejected."""
+        with pytest.raises(ValueError, match="Size must be a tuple"):
+            _validate_size([320, 240])  # type: ignore[arg-type]
+
+    def test_validate_size_rejects_wrong_length(self) -> None:
+        """Test that tuples with wrong length are rejected."""
+        with pytest.raises(ValueError, match="Size must be a tuple"):
+            _validate_size((320, 240, 100))  # type: ignore[arg-type]
+
+    def test_validate_size_rejects_non_integer_dimensions(self) -> None:
+        """Test that non-integer dimensions are rejected."""
+        with pytest.raises(ValueError, match="Size dimensions must be integers"):
+            _validate_size((320.5, 240))  # type: ignore[arg-type]
+        with pytest.raises(ValueError, match="Size dimensions must be integers"):
+            _validate_size(("320", 240))  # type: ignore[arg-type]
+
+    def test_validate_size_rejects_out_of_bounds(self) -> None:
+        """Test that out-of-bounds sizes are rejected."""
+        with pytest.raises(ValueError, match="Size dimensions must be between"):
+            _validate_size((0, 240))
+        with pytest.raises(ValueError, match="Size dimensions must be between"):
+            _validate_size((320, 0))
+        with pytest.raises(ValueError, match="Size dimensions must be between"):
+            _validate_size((10000, 240))
+        with pytest.raises(ValueError, match="Size dimensions must be between"):
+            _validate_size((320, 5000))
+
+    def test_validate_size_accepts_valid_values(self) -> None:
+        """Test that valid sizes are accepted."""
+        assert _validate_size((320, 240)) == (320, 240)
+        assert _validate_size((1920, 1080)) == (1920, 1080)
+        assert _validate_size((7680, 4320)) == (7680, 4320)
+        assert _validate_size((1, 1)) == (1, 1)
+
+    def test_validate_interval_seconds_rejects_non_numeric(self) -> None:
+        """Test that non-numeric intervals are rejected."""
+        with pytest.raises(ValueError, match="Interval must be a number"):
+            _validate_interval_seconds("2; rm -rf /")  # type: ignore[arg-type]
+
+    def test_validate_interval_seconds_rejects_too_small(self) -> None:
+        """Test that intervals less than 0.1 are rejected."""
+        with pytest.raises(ValueError, match=r"Interval must be between 0\.1 and 3600"):
+            _validate_interval_seconds(0.05)
+
+    def test_validate_interval_seconds_rejects_too_large(self) -> None:
+        """Test that intervals over 1 hour are rejected."""
+        with pytest.raises(ValueError, match=r"Interval must be between 0\.1 and 3600"):
+            _validate_interval_seconds(4000.0)
+
+    def test_validate_interval_seconds_accepts_valid_values(self) -> None:
+        """Test that valid intervals are accepted."""
+        assert _validate_interval_seconds(0.1) == 0.1
+        assert _validate_interval_seconds(2.0) == 2.0
+        assert _validate_interval_seconds(3600) == 3600.0
+
+    def test_validate_max_frames_rejects_non_integer(self) -> None:
+        """Test that non-integer max_frames are rejected."""
+        with pytest.raises(ValueError, match="max_frames must be an integer"):
+            _validate_max_frames(30.5)  # type: ignore[arg-type]
+        with pytest.raises(ValueError, match="max_frames must be an integer"):
+            _validate_max_frames("30")  # type: ignore[arg-type]
+
+    def test_validate_max_frames_rejects_out_of_bounds(self) -> None:
+        """Test that out-of-bounds max_frames are rejected."""
+        with pytest.raises(ValueError, match="max_frames must be between 1 and 1000"):
+            _validate_max_frames(0)
+        with pytest.raises(ValueError, match="max_frames must be between 1 and 1000"):
+            _validate_max_frames(1001)
+
+    def test_validate_max_frames_accepts_valid_values(self) -> None:
+        """Test that valid max_frames are accepted."""
+        assert _validate_max_frames(1) == 1
+        assert _validate_max_frames(30) == 30
+        assert _validate_max_frames(1000) == 1000
+
+
+class TestVideoProcessorSecurityIntegration:
+    """Integration tests for security validation in VideoProcessor methods."""
+
+    @pytest.fixture
+    def video_processor(self, tmp_path: Path) -> VideoProcessor:
+        """Create VideoProcessor with mocked ffmpeg check."""
+        with patch.object(VideoProcessor, "_check_ffmpeg_available"):
+            return VideoProcessor(output_dir=str(tmp_path))
+
+    @pytest.mark.asyncio
+    async def test_extract_thumbnail_rejects_invalid_size(
+        self, video_processor: VideoProcessor, tmp_path: Path
+    ) -> None:
+        """Test that extract_thumbnail rejects invalid size parameter."""
+        video_path = tmp_path / "test.mp4"
+        video_path.write_bytes(b"fake video content")
+
+        # Invalid size - non-integer values
+        result = await video_processor.extract_thumbnail(
+            str(video_path),
+            size=(320.5, 240),  # type: ignore[arg-type]
+        )
+        assert result is None
+
+        # Invalid size - out of bounds
+        result = await video_processor.extract_thumbnail(str(video_path), size=(0, 240))
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_extract_frames_rejects_invalid_interval(
+        self, video_processor: VideoProcessor, tmp_path: Path
+    ) -> None:
+        """Test that extract_frames_for_detection rejects invalid interval."""
+        video_path = tmp_path / "test.mp4"
+        video_path.write_bytes(b"fake video content")
+
+        # Invalid interval - too small
+        result = await video_processor.extract_frames_for_detection(
+            str(video_path), interval_seconds=0.01
+        )
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_extract_frames_rejects_invalid_max_frames(
+        self, video_processor: VideoProcessor, tmp_path: Path
+    ) -> None:
+        """Test that extract_frames_for_detection rejects invalid max_frames."""
+        video_path = tmp_path / "test.mp4"
+        video_path.write_bytes(b"fake video content")
+
+        # Invalid max_frames - zero
+        result = await video_processor.extract_frames_for_detection(str(video_path), max_frames=0)
+        assert result == []
+
+        # Invalid max_frames - too large
+        result = await video_processor.extract_frames_for_detection(
+            str(video_path), max_frames=2000
+        )
+        assert result == []

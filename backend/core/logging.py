@@ -394,6 +394,48 @@ def sanitize_error(error: Exception, max_length: int = 500) -> str:
     return msg
 
 
+def sanitize_log_value(value: Any) -> str:
+    """Sanitize a value for safe inclusion in log messages.
+
+    Removes or escapes characters that could enable log injection attacks:
+    - Newline characters (\\n, \\r) that could forge log entries
+    - Control characters that could manipulate terminal output
+    - Null bytes that could truncate logs
+
+    This function helps prevent CWE-117 (Log Injection) vulnerabilities.
+
+    Args:
+        value: The value to sanitize for logging
+
+    Returns:
+        String representation safe for inclusion in log messages
+
+    Examples:
+        >>> sanitize_log_value("normal value")
+        'normal value'
+        >>> sanitize_log_value("line1\\nFAKE_LOG_ENTRY")
+        'line1 FAKE_LOG_ENTRY'
+        >>> sanitize_log_value(None)
+        'None'
+    """
+    if value is None:
+        return "None"
+
+    # Convert to string
+    str_value = str(value)
+
+    # Remove or replace dangerous characters:
+    # - Newlines and carriage returns (log injection)
+    # - Null bytes (log truncation)
+    # - Other control characters (terminal manipulation)
+    sanitized = str_value.replace("\n", " ").replace("\r", " ").replace("\x00", "")
+
+    # Remove other control characters (ASCII 0-31 except tab and space)
+    sanitized = "".join(char if ord(char) >= 32 or char == "\t" else " " for char in sanitized)
+
+    return sanitized
+
+
 def get_logger(name: str) -> logging.Logger:
     """Get a logger with the given name.
 

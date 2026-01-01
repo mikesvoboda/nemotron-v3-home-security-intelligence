@@ -309,6 +309,7 @@ class CleanupService:
                             try:
                                 stats.space_reclaimed += path.stat().st_size
                             except OSError:
+                                # File inaccessible during dry run - skip size estimation
                                 pass
                     if self.delete_images and detection.file_path:
                         path = Path(detection.file_path)
@@ -318,6 +319,7 @@ class CleanupService:
                             try:
                                 stats.space_reclaimed += path.stat().st_size
                             except OSError:
+                                # File inaccessible during dry run - skip size estimation
                                 pass
 
                 logger.info(f"Dry run: would delete {stats.thumbnails_deleted} thumbnail files")

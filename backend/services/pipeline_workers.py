@@ -253,6 +253,7 @@ class DetectionQueueWorker:
                 try:
                     await self._task
                 except asyncio.CancelledError:
+                    # Expected after cancel() - task cleanup completed successfully
                     pass
             self._task = None
 
@@ -660,6 +661,7 @@ class AnalysisQueueWorker:
                 try:
                     await self._task
                 except asyncio.CancelledError:
+                    # Expected after cancel() - task cleanup completed successfully
                     pass
             self._task = None
 
@@ -858,6 +860,7 @@ class BatchTimeoutWorker:
                 try:
                     await self._task
                 except asyncio.CancelledError:
+                    # Expected after cancel() - task cleanup completed successfully
                     pass
             self._task = None
 
@@ -993,6 +996,7 @@ class QueueMetricsWorker:
                 try:
                     await self._task
                 except asyncio.CancelledError:
+                    # Expected after cancel() - task cleanup completed successfully
                     pass
             self._task = None
 

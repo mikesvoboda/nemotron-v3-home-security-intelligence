@@ -2,6 +2,12 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 
 export interface WebSocketOptions {
   url: string;
+  /**
+   * Sec-WebSocket-Protocol header values for authentication.
+   * When API key authentication is enabled, use ["api-key.{key}"] format.
+   * This is more secure than passing the API key in the URL query string.
+   */
+  protocols?: string[];
   onMessage?: (data: unknown) => void;
   onOpen?: () => void;
   onClose?: () => void;
@@ -86,6 +92,7 @@ function isHeartbeatMessage(data: unknown): data is HeartbeatMessage {
 export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
   const {
     url,
+    protocols,
     onMessage,
     onOpen,
     onClose,
@@ -167,7 +174,9 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
     setHasExhaustedRetries(false);
 
     try {
-      const ws = new WebSocket(url);
+      // Pass protocols to WebSocket constructor for Sec-WebSocket-Protocol header
+      // This is used for API key authentication without exposing the key in the URL
+      const ws = protocols ? new WebSocket(url, protocols) : new WebSocket(url);
       wsRef.current = ws;
 
       // Set connection timeout - if we don't connect within timeout, close and retry
@@ -276,7 +285,9 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
       console.error('WebSocket connection error:', error);
     }
     // Reduced dependencies - callbacks are accessed via refs to avoid stale closures
-  }, [url, reconnect, reconnectInterval, reconnectAttempts, connectionTimeout, autoRespondToHeartbeat]);
+    // protocols is joined for stable comparison (array contents vs reference)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url, protocols?.join(','), reconnect, reconnectInterval, reconnectAttempts, connectionTimeout, autoRespondToHeartbeat]);
 
   const send = useCallback((data: unknown) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {

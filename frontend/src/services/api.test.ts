@@ -4,6 +4,8 @@ import {
   ApiError,
   buildWebSocketUrl,
   buildWebSocketUrlInternal,
+  buildWebSocketOptions,
+  buildWebSocketOptionsInternal,
   getApiKey,
   fetchCameras,
   fetchCamera,
@@ -387,6 +389,100 @@ describe('buildWebSocketUrl', () => {
     const url = buildWebSocketUrl('/ws/system');
     // Should have protocol, host, and endpoint
     expect(url).toMatch(/^wss?:\/\/[^/]+\/ws\/system$/);
+  });
+});
+
+describe('buildWebSocketOptionsInternal (secure API key handling)', () => {
+  describe('without API key', () => {
+    it('returns url without protocols when no apiKey is set', () => {
+      const options = buildWebSocketOptionsInternal('/ws/events', undefined, undefined, {
+        protocol: 'http:',
+        host: 'localhost:5173',
+      });
+      expect(options.url).toBe('ws://localhost:5173/ws/events');
+      expect(options.protocols).toBeUndefined();
+    });
+
+    it('uses wss: protocol for https: pages', () => {
+      const options = buildWebSocketOptionsInternal('/ws/events', undefined, undefined, {
+        protocol: 'https:',
+        host: 'secure.example.com',
+      });
+      expect(options.url).toBe('wss://secure.example.com/ws/events');
+      expect(options.protocols).toBeUndefined();
+    });
+  });
+
+  describe('with VITE_WS_BASE_URL', () => {
+    it('uses configured WS base URL', () => {
+      const options = buildWebSocketOptionsInternal('/ws/events', 'ws://backend:8000', undefined, {
+        protocol: 'http:',
+        host: 'localhost:5173',
+      });
+      expect(options.url).toBe('ws://backend:8000/ws/events');
+    });
+
+    it('strips trailing slash from WS base URL', () => {
+      const options = buildWebSocketOptionsInternal('/ws/events', 'wss://api.example.com/', undefined, {
+        protocol: 'http:',
+        host: 'localhost:5173',
+      });
+      expect(options.url).toBe('wss://api.example.com/ws/events');
+    });
+  });
+
+  describe('with API key (secure protocol-based auth)', () => {
+    it('returns protocols array with api-key prefix instead of query param', () => {
+      const options = buildWebSocketOptionsInternal('/ws/events', undefined, 'secret-key-123', {
+        protocol: 'http:',
+        host: 'localhost:5173',
+      });
+      // URL should NOT contain api_key query param
+      expect(options.url).toBe('ws://localhost:5173/ws/events');
+      expect(options.url).not.toContain('api_key');
+      // Protocols array should contain api-key.{key} format
+      expect(options.protocols).toEqual(['api-key.secret-key-123']);
+    });
+
+    it('works with both WS base URL and API key', () => {
+      const options = buildWebSocketOptionsInternal('/ws/events', 'wss://api.example.com', 'secure-token', {
+        protocol: 'http:',
+        host: 'localhost:5173',
+      });
+      expect(options.url).toBe('wss://api.example.com/ws/events');
+      expect(options.url).not.toContain('api_key');
+      expect(options.protocols).toEqual(['api-key.secure-token']);
+    });
+
+    it('does not set protocols when apiKey is undefined', () => {
+      const options = buildWebSocketOptionsInternal('/ws/events', undefined, undefined, {
+        protocol: 'http:',
+        host: 'localhost:5173',
+      });
+      expect(options.protocols).toBeUndefined();
+    });
+
+    it('does not set protocols when apiKey is empty string', () => {
+      const options = buildWebSocketOptionsInternal('/ws/events', undefined, '', {
+        protocol: 'http:',
+        host: 'localhost:5173',
+      });
+      expect(options.protocols).toBeUndefined();
+    });
+  });
+});
+
+describe('buildWebSocketOptions', () => {
+  it('builds WebSocket options using window.location in browser environment', () => {
+    const options = buildWebSocketOptions('/ws/events');
+    expect(options.url).toContain('/ws/events');
+    expect(options.url).toMatch(/^wss?:\/\//);
+  });
+
+  it('returns options with correct url structure', () => {
+    const options = buildWebSocketOptions('/ws/system');
+    // Should have protocol, host, and endpoint
+    expect(options.url).toMatch(/^wss?:\/\/[^/]+\/ws\/system$/);
   });
 });
 
@@ -1432,6 +1528,17 @@ describe('Media URLs', () => {
     const url = getThumbnailUrl('image%20encoded.jpg');
     expect(url).toBe('/api/media/thumbnails/image%20encoded.jpg');
   });
+
+  // SECURITY: Media endpoints are exempt from API key auth, so no keys should be in URLs
+  it('does not include api_key in media URLs (security: exempt endpoints)', () => {
+    const mediaUrl = getMediaUrl('cam-1', 'test.jpg');
+    const thumbnailUrl = getThumbnailUrl('thumb.jpg');
+    const detectionImageUrl = getDetectionImageUrl(123);
+
+    expect(mediaUrl).not.toContain('api_key');
+    expect(thumbnailUrl).not.toContain('api_key');
+    expect(detectionImageUrl).not.toContain('api_key');
+  });
 });
 
 describe('Camera Snapshot URL', () => {
@@ -1453,6 +1560,12 @@ describe('Camera Snapshot URL', () => {
   it('handles camera IDs with special URL characters', () => {
     const url = getCameraSnapshotUrl('camera/path');
     expect(url).toBe('/api/cameras/camera%2Fpath/snapshot');
+  });
+
+  // SECURITY: Camera snapshot endpoints are exempt from API key auth, so no keys should be in URLs
+  it('does not include api_key in snapshot URL (security: exempt endpoint)', () => {
+    const url = getCameraSnapshotUrl('cam-123');
+    expect(url).not.toContain('api_key');
   });
 });
 

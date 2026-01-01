@@ -725,3 +725,101 @@ class TestRedisUrlValidation:
         clean_env.setenv("REDIS_URL", "ftp://localhost:6379/0")
         with pytest.raises(ValueError, match="must start with 'redis://'"):
             Settings()
+
+
+class TestRedisSSLSettings:
+    """Test Redis SSL/TLS configuration settings."""
+
+    def test_default_redis_ssl_disabled(self, clean_env):
+        """Test that Redis SSL is disabled by default."""
+        settings = Settings()
+        assert settings.redis_ssl_enabled is False
+
+    def test_default_redis_ssl_cert_reqs(self, clean_env):
+        """Test that default Redis SSL cert_reqs is 'required'."""
+        settings = Settings()
+        assert settings.redis_ssl_cert_reqs == "required"
+
+    def test_default_redis_ssl_check_hostname(self, clean_env):
+        """Test that default Redis SSL check_hostname is True."""
+        settings = Settings()
+        assert settings.redis_ssl_check_hostname is True
+
+    def test_default_redis_ssl_paths_are_none(self, clean_env):
+        """Test that default Redis SSL certificate paths are None."""
+        settings = Settings()
+        assert settings.redis_ssl_ca_certs is None
+        assert settings.redis_ssl_certfile is None
+        assert settings.redis_ssl_keyfile is None
+
+    def test_redis_ssl_enabled_from_env(self, clean_env):
+        """Test that REDIS_SSL_ENABLED can be set via environment."""
+        clean_env.setenv("REDIS_SSL_ENABLED", "true")
+        settings = Settings()
+        assert settings.redis_ssl_enabled is True
+
+    def test_redis_ssl_cert_reqs_from_env(self, clean_env):
+        """Test that REDIS_SSL_CERT_REQS can be set via environment."""
+        clean_env.setenv("REDIS_SSL_CERT_REQS", "none")
+        settings = Settings()
+        assert settings.redis_ssl_cert_reqs == "none"
+
+    def test_redis_ssl_cert_reqs_optional(self, clean_env):
+        """Test that REDIS_SSL_CERT_REQS accepts 'optional'."""
+        clean_env.setenv("REDIS_SSL_CERT_REQS", "optional")
+        settings = Settings()
+        assert settings.redis_ssl_cert_reqs == "optional"
+
+    def test_redis_ssl_cert_reqs_required(self, clean_env):
+        """Test that REDIS_SSL_CERT_REQS accepts 'required'."""
+        clean_env.setenv("REDIS_SSL_CERT_REQS", "REQUIRED")  # Test case-insensitive
+        settings = Settings()
+        assert settings.redis_ssl_cert_reqs == "required"
+
+    def test_redis_ssl_cert_reqs_invalid(self, clean_env):
+        """Test that invalid REDIS_SSL_CERT_REQS is rejected."""
+        clean_env.setenv("REDIS_SSL_CERT_REQS", "invalid_mode")
+        with pytest.raises(ValueError, match="redis_ssl_cert_reqs must be one of"):
+            Settings()
+
+    def test_redis_ssl_ca_certs_from_env(self, clean_env):
+        """Test that REDIS_SSL_CA_CERTS can be set via environment."""
+        clean_env.setenv("REDIS_SSL_CA_CERTS", "/path/to/ca.crt")
+        settings = Settings()
+        assert settings.redis_ssl_ca_certs == "/path/to/ca.crt"
+
+    def test_redis_ssl_certfile_from_env(self, clean_env):
+        """Test that REDIS_SSL_CERTFILE can be set via environment."""
+        clean_env.setenv("REDIS_SSL_CERTFILE", "/path/to/client.crt")
+        settings = Settings()
+        assert settings.redis_ssl_certfile == "/path/to/client.crt"
+
+    def test_redis_ssl_keyfile_from_env(self, clean_env):
+        """Test that REDIS_SSL_KEYFILE can be set via environment."""
+        clean_env.setenv("REDIS_SSL_KEYFILE", "/path/to/client.key")
+        settings = Settings()
+        assert settings.redis_ssl_keyfile == "/path/to/client.key"
+
+    def test_redis_ssl_check_hostname_from_env(self, clean_env):
+        """Test that REDIS_SSL_CHECK_HOSTNAME can be set via environment."""
+        clean_env.setenv("REDIS_SSL_CHECK_HOSTNAME", "false")
+        settings = Settings()
+        assert settings.redis_ssl_check_hostname is False
+
+    def test_redis_ssl_full_config(self, clean_env):
+        """Test that all Redis SSL settings can be configured together."""
+        clean_env.setenv("REDIS_SSL_ENABLED", "true")
+        clean_env.setenv("REDIS_SSL_CERT_REQS", "required")
+        clean_env.setenv("REDIS_SSL_CA_CERTS", "/path/to/ca.crt")
+        clean_env.setenv("REDIS_SSL_CERTFILE", "/path/to/client.crt")
+        clean_env.setenv("REDIS_SSL_KEYFILE", "/path/to/client.key")
+        clean_env.setenv("REDIS_SSL_CHECK_HOSTNAME", "true")
+
+        settings = Settings()
+
+        assert settings.redis_ssl_enabled is True
+        assert settings.redis_ssl_cert_reqs == "required"
+        assert settings.redis_ssl_ca_certs == "/path/to/ca.crt"
+        assert settings.redis_ssl_certfile == "/path/to/client.crt"
+        assert settings.redis_ssl_keyfile == "/path/to/client.key"
+        assert settings.redis_ssl_check_hostname is True
