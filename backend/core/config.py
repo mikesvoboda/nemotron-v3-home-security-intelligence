@@ -227,6 +227,38 @@ class Settings(BaseSettings):
                 f"Example: 'http://localhost:8090'. Error: {e}"
             ) from None
 
+    # Vision extraction settings (Florence-2, CLIP re-id, scene analysis)
+    vision_extraction_enabled: bool = Field(
+        default=True,
+        description="Enable Florence-2 vision extraction for vehicle/person attributes",
+    )
+    reid_enabled: bool = Field(
+        default=True,
+        description="Enable CLIP re-identification for tracking entities across cameras",
+    )
+    scene_change_enabled: bool = Field(
+        default=True,
+        description="Enable SSIM-based scene change detection",
+    )
+    reid_similarity_threshold: float = Field(
+        default=0.85,
+        ge=0.5,
+        le=1.0,
+        description="Cosine similarity threshold for re-identification matching (0.5-1.0)",
+    )
+    reid_ttl_hours: int = Field(
+        default=24,
+        ge=1,
+        le=168,
+        description="Time-to-live for re-identification embeddings in Redis (hours)",
+    )
+    scene_change_threshold: float = Field(
+        default=0.90,
+        ge=0.5,
+        le=1.0,
+        description="SSIM threshold for scene change detection (below = change detected)",
+    )
+
     # Detection settings
     detection_confidence_threshold: float = Field(
         default=0.5,
