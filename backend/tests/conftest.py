@@ -35,6 +35,17 @@ if str(backend_path) not in sys.path:
     sys.path.insert(0, str(backend_path))
 
 
+def pytest_configure(config: pytest.Config) -> None:
+    """Configure pytest before test collection.
+
+    Sets environment variables needed before any test modules are imported.
+    """
+    # Force pure-Python protobuf implementation for Python 3.14+ compatibility.
+    # The C++ extension fails with "Metaclasses with custom tp_new are not supported."
+    # See: https://bugzilla.redhat.com/show_bug.cgi?id=2356165
+    os.environ.setdefault("PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION", "python")
+
+
 # Default development PostgreSQL URL (matches docker-compose.yml)
 DEFAULT_DEV_POSTGRES_URL = (
     "postgresql+asyncpg://security:security_dev_password@localhost:5432/security"
