@@ -191,7 +191,7 @@ Full-text search events using PostgreSQL full-text search.
       "reviewed": false,
       "detection_count": 5,
       "detection_ids": [1, 2, 3, 4, 5],
-      "object_types": ["person"],
+      "object_types": "person, vehicle",
       "relevance_score": 0.85
     }
   ],

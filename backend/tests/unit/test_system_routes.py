@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 from fastapi import HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import Response
 
 from backend.api.routes import system as system_routes
@@ -30,11 +31,12 @@ from backend.api.schemas.system import (
     TelemetryResponse,
     WorkerStatus,
 )
+from backend.core.redis import RedisClient
 
 
 @pytest.mark.asyncio
 async def test_check_database_health_unhealthy_on_exception() -> None:
-    db = AsyncMock()
+    db = AsyncMock(spec=AsyncSession)
     db.execute = AsyncMock(side_effect=RuntimeError("db down"))
 
     status = await system_routes.check_database_health(db)  # type: ignore[arg-type]
@@ -44,7 +46,7 @@ async def test_check_database_health_unhealthy_on_exception() -> None:
 
 @pytest.mark.asyncio
 async def test_check_redis_health_unhealthy_on_error_payload() -> None:
-    redis = AsyncMock()
+    redis = AsyncMock(spec=RedisClient)
     redis.health_check = AsyncMock(return_value={"status": "unhealthy", "error": "nope"})
 
     status = await system_routes.check_redis_health(redis)  # type: ignore[arg-type]

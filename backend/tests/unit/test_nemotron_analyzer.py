@@ -39,8 +39,11 @@ def mock_redis_client():
 @pytest.fixture
 def mock_settings():
     """Create mock settings for NemotronAnalyzer."""
-    mock = MagicMock()
+    from backend.core.config import Settings
+
+    mock = MagicMock(spec=Settings)
     mock.nemotron_url = "http://localhost:8091"
+    mock.nemotron_api_key = None  # Optional API key
     mock.ai_connect_timeout = 10.0
     mock.nemotron_read_timeout = 120.0
     mock.ai_health_timeout = 5.0
@@ -124,7 +127,7 @@ def sample_detections(sample_detections_factory):
 async def test_health_check_success(analyzer):
     """Test health check returns True when LLM server is available."""
     with patch("httpx.AsyncClient.get") as mock_get:
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
         mock_get.return_value = mock_response
 
@@ -361,7 +364,7 @@ async def test_call_llm_success(analyzer):
     }
 
     with patch("httpx.AsyncClient.post") as mock_post:
-        mock_resp = MagicMock()
+        mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 200
         mock_resp.json.return_value = mock_response
         mock_post.return_value = mock_resp
@@ -398,7 +401,7 @@ async def test_call_llm_uses_completion_endpoint(analyzer):
     }
 
     with patch("httpx.AsyncClient.post") as mock_post:
-        mock_resp = MagicMock()
+        mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 200
         mock_resp.json.return_value = mock_response
         mock_post.return_value = mock_resp
@@ -426,7 +429,7 @@ async def test_call_llm_empty_content(analyzer):
     mock_response = {"content": ""}
 
     with patch("httpx.AsyncClient.post") as mock_post:
-        mock_resp = MagicMock()
+        mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 200
         mock_resp.json.return_value = mock_response
         mock_post.return_value = mock_resp
@@ -444,10 +447,10 @@ async def test_call_llm_empty_content(analyzer):
 async def test_call_llm_http_error(analyzer):
     """Test LLM call raises exception on HTTP error."""
     with patch("httpx.AsyncClient.post") as mock_post:
-        mock_resp = MagicMock()
+        mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 500
         mock_resp.raise_for_status.side_effect = httpx.HTTPStatusError(
-            "Internal Server Error", request=MagicMock(), response=mock_resp
+            "Internal Server Error", request=MagicMock(spec=httpx.Request), response=mock_resp
         )
         mock_post.return_value = mock_resp
 
@@ -1369,7 +1372,7 @@ async def test_call_llm_invalid_json_in_response(analyzer):
     mock_response = {"content": "This is not valid JSON at all"}
 
     with patch("httpx.AsyncClient.post") as mock_post:
-        mock_resp = MagicMock()
+        mock_resp = MagicMock(spec=httpx.Response)
         mock_resp.status_code = 200
         mock_resp.json.return_value = mock_response
         mock_post.return_value = mock_resp

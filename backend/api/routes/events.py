@@ -29,6 +29,9 @@ from backend.services.search import SearchFilters, search_events
 
 router = APIRouter(prefix="/api/events", tags=["events"])
 
+# Valid severity values for search filter
+VALID_SEVERITY_VALUES = frozenset({"low", "medium", "high", "critical"})
+
 
 def parse_detection_ids(detection_ids_str: str | None) -> list[int]:
     """Parse detection IDs stored as JSON array to list of integers.
@@ -50,6 +53,36 @@ def parse_detection_ids(detection_ids_str: str | None) -> list[int]:
     except (json.JSONDecodeError, ValueError):
         # Fallback for legacy comma-separated format
         return [int(d.strip()) for d in detection_ids_str.split(",") if d.strip()]
+
+
+def parse_severity_filter(severity_str: str | None) -> list[str]:
+    """Parse and validate severity filter parameter.
+
+    Args:
+        severity_str: Comma-separated severity values (e.g., "high,critical")
+                      or None for no filter
+
+    Returns:
+        List of validated severity values
+
+    Raises:
+        HTTPException: 400 if any severity value is invalid
+    """
+    if not severity_str:
+        return []
+
+    severity_levels = [s.strip().lower() for s in severity_str.split(",") if s.strip()]
+
+    # Validate all severity values
+    invalid_values = [s for s in severity_levels if s not in VALID_SEVERITY_VALUES]
+    if invalid_values:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid severity value(s): {', '.join(invalid_values)}. "
+            f"Valid values are: {', '.join(sorted(VALID_SEVERITY_VALUES))}",
+        )
+
+    return severity_levels
 
 
 @router.get("", response_model=EventListResponse)
@@ -289,10 +322,13 @@ async def search_events_endpoint(
 
     Returns:
         SearchResponse with ranked results and pagination info
+
+    Raises:
+        HTTPException: 400 if any severity value is invalid
     """
-    # Parse comma-separated filter values
+    # Parse comma-separated filter values with validation
     camera_ids = [c.strip() for c in camera_id.split(",")] if camera_id else []
-    severity_levels = [s.strip() for s in severity.split(",")] if severity else []
+    severity_levels = parse_severity_filter(severity)  # Validates severity values
     object_types = [o.strip() for o in object_type.split(",")] if object_type else []
 
     # Build filters

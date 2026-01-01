@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from backend.api.routes import events as events_routes
-from backend.api.routes.events import parse_detection_ids
+from backend.api.routes.events import parse_detection_ids, parse_severity_filter
 from backend.api.schemas.events import EventUpdate
 
 # =============================================================================
@@ -94,6 +94,102 @@ def test_parse_detection_ids_large_numbers() -> None:
     """Test parsing large detection IDs."""
     result = parse_detection_ids("1000000,2000000,3000000")
     assert result == [1000000, 2000000, 3000000]
+
+
+# =============================================================================
+# parse_severity_filter Function Tests
+# =============================================================================
+
+
+def test_parse_severity_filter_none() -> None:
+    """Test parsing None severity returns empty list."""
+    result = parse_severity_filter(None)
+    assert result == []
+
+
+def test_parse_severity_filter_empty_string() -> None:
+    """Test parsing empty string severity returns empty list."""
+    result = parse_severity_filter("")
+    assert result == []
+
+
+def test_parse_severity_filter_single_value() -> None:
+    """Test parsing single severity value."""
+    result = parse_severity_filter("high")
+    assert result == ["high"]
+
+
+def test_parse_severity_filter_multiple_values() -> None:
+    """Test parsing comma-separated severity values."""
+    result = parse_severity_filter("high,critical")
+    assert result == ["high", "critical"]
+
+
+def test_parse_severity_filter_all_values() -> None:
+    """Test parsing all valid severity values."""
+    result = parse_severity_filter("low,medium,high,critical")
+    assert result == ["low", "medium", "high", "critical"]
+
+
+def test_parse_severity_filter_with_whitespace() -> None:
+    """Test parsing severity values with whitespace."""
+    result = parse_severity_filter("high , critical")
+    assert result == ["high", "critical"]
+
+
+def test_parse_severity_filter_case_insensitive() -> None:
+    """Test parsing severity values with mixed case (normalized to lowercase)."""
+    result = parse_severity_filter("HIGH,Critical,MEDIUM")
+    assert result == ["high", "critical", "medium"]
+
+
+def test_parse_severity_filter_invalid_value_raises_error() -> None:
+    """Test parsing invalid severity value raises HTTPException."""
+    from fastapi import HTTPException
+
+    with pytest.raises(HTTPException) as exc_info:
+        parse_severity_filter("invalid")
+
+    assert exc_info.value.status_code == 400
+    assert "invalid" in exc_info.value.detail.lower()
+
+
+def test_parse_severity_filter_invalid_with_valid_raises_error() -> None:
+    """Test parsing mix of valid and invalid values raises HTTPException."""
+    from fastapi import HTTPException
+
+    with pytest.raises(HTTPException) as exc_info:
+        parse_severity_filter("high,invalid,critical")
+
+    assert exc_info.value.status_code == 400
+    assert "invalid" in exc_info.value.detail.lower()
+
+
+def test_parse_severity_filter_multiple_invalid_values() -> None:
+    """Test parsing multiple invalid values lists all invalid."""
+    from fastapi import HTTPException
+
+    with pytest.raises(HTTPException) as exc_info:
+        parse_severity_filter("foo,bar,baz")
+
+    assert exc_info.value.status_code == 400
+    # Should mention all invalid values
+    detail = exc_info.value.detail.lower()
+    assert "foo" in detail
+    assert "bar" in detail
+    assert "baz" in detail
+
+
+def test_parse_severity_filter_empty_parts_ignored() -> None:
+    """Test parsing with trailing/leading commas ignores empty parts."""
+    result = parse_severity_filter(",high,critical,")
+    assert result == ["high", "critical"]
+
+
+def test_parse_severity_filter_whitespace_only_parts_ignored() -> None:
+    """Test parsing with whitespace-only parts ignores them."""
+    result = parse_severity_filter("high,,  ,critical")
+    assert result == ["high", "critical"]
 
 
 # =============================================================================
