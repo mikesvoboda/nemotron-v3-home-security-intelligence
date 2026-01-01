@@ -2651,11 +2651,10 @@ export interface components {
              */
             folder_path: string;
             /**
-             * Status
-             * @description Camera status (online, offline, error)
+             * @description Camera status (online, offline, error, unknown)
              * @default online
              */
-            status: string;
+            status: components["schemas"]["CameraStatus"];
         };
         /**
          * CameraListResponse
@@ -2714,11 +2713,8 @@ export interface components {
              * @description File system path for camera uploads
              */
             folder_path: string;
-            /**
-             * Status
-             * @description Camera status
-             */
-            status: string;
+            /** @description Camera status (online, offline, error, unknown) */
+            status: components["schemas"]["CameraStatus"];
             /**
              * Created At
              * Format: date-time
@@ -2731,6 +2727,18 @@ export interface components {
              */
             last_seen_at?: string | null;
         };
+        /**
+         * CameraStatus
+         * @description Camera status values.
+         *
+         *     Indicates the operational state of a camera:
+         *     - ONLINE: Camera is active and receiving images
+         *     - OFFLINE: Camera is not currently active (e.g., disconnected)
+         *     - ERROR: Camera is experiencing an error condition
+         *     - UNKNOWN: Camera status cannot be determined
+         * @enum {string}
+         */
+        CameraStatus: "online" | "offline" | "error" | "unknown";
         /**
          * CameraUpdate
          * @description Schema for updating an existing camera.
@@ -2750,11 +2758,8 @@ export interface components {
              * @description File system path for camera uploads
              */
             folder_path?: string | null;
-            /**
-             * Status
-             * @description Camera status (online, offline, error)
-             */
-            status?: string | null;
+            /** @description Camera status (online, offline, error, unknown) */
+            status?: components["schemas"]["CameraStatus"] | null;
         };
         /**
          * CircuitBreakerConfigResponse

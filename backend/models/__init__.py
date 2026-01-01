@@ -6,7 +6,7 @@ from .audit import AuditAction, AuditLog, AuditStatus
 from .baseline import ActivityBaseline, ClassBaseline
 from .camera import Base, Camera
 from .detection import Detection
-from .enums import Severity
+from .enums import CameraStatus, Severity
 from .event import Event
 from .gpu_stats import GPUStats
 from .log import Log
@@ -24,6 +24,7 @@ __all__ = [
     "AuditStatus",
     "Base",
     "Camera",
+    "CameraStatus",
     "ClassBaseline",
     "Detection",
     "Event",

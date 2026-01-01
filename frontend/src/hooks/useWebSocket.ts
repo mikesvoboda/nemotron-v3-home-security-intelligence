@@ -8,12 +8,16 @@ export interface WebSocketOptions {
   onError?: (error: Event) => void;
   /** Called when max reconnection attempts are exhausted */
   onMaxRetriesExhausted?: () => void;
+  /** Called when a heartbeat (ping) message is received from the server */
+  onHeartbeat?: () => void;
   reconnect?: boolean;
   /** Base reconnection interval in ms (will be used with exponential backoff) */
   reconnectInterval?: number;
   reconnectAttempts?: number;
   /** Connection timeout in ms - close and retry if connection hangs */
   connectionTimeout?: number;
+  /** Whether to automatically respond to server heartbeats with pong (default: true) */
+  autoRespondToHeartbeat?: boolean;
 }
 
 export interface UseWebSocketReturn {
@@ -26,6 +30,8 @@ export interface UseWebSocketReturn {
   hasExhaustedRetries: boolean;
   /** Current reconnection attempt count */
   reconnectCount: number;
+  /** Timestamp of the last heartbeat received from the server */
+  lastHeartbeat: Date | null;
 }
 
 /**
@@ -49,6 +55,34 @@ function calculateBackoffDelay(
   return Math.floor(cappedDelay + jitter);
 }
 
+/**
+ * Heartbeat message structure from the server.
+ * The server sends {"type": "ping"} as heartbeat messages.
+ */
+interface HeartbeatMessage {
+  type: 'ping';
+}
+
+/**
+ * Pong response structure to send back to server.
+ */
+interface PongMessage {
+  type: 'pong';
+}
+
+/**
+ * Check if a message is a server heartbeat (ping) message.
+ * @param data - The parsed message data
+ * @returns True if the message is a heartbeat
+ */
+function isHeartbeatMessage(data: unknown): data is HeartbeatMessage {
+  if (!data || typeof data !== 'object') {
+    return false;
+  }
+  const msg = data as Record<string, unknown>;
+  return msg.type === 'ping';
+}
+
 export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
   const {
     url,
@@ -57,16 +91,19 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
     onClose,
     onError,
     onMaxRetriesExhausted,
+    onHeartbeat,
     reconnect = true,
     reconnectInterval = 1000, // Base interval for exponential backoff
     reconnectAttempts = 5,
     connectionTimeout = 10000, // 10 second connection timeout
+    autoRespondToHeartbeat = true,
   } = options;
 
   const [isConnected, setIsConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState<unknown>(null);
   const [hasExhaustedRetries, setHasExhaustedRetries] = useState(false);
   const [reconnectCount, setReconnectCount] = useState(0);
+  const [lastHeartbeat, setLastHeartbeat] = useState<Date | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectCountRef = useRef(0);
@@ -80,6 +117,7 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
   const onCloseRef = useRef(onClose);
   const onErrorRef = useRef(onError);
   const onMaxRetriesExhaustedRef = useRef(onMaxRetriesExhausted);
+  const onHeartbeatRef = useRef(onHeartbeat);
 
   // Update refs when callbacks change
   onMessageRef.current = onMessage;
@@ -87,6 +125,7 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
   onCloseRef.current = onClose;
   onErrorRef.current = onError;
   onMaxRetriesExhaustedRef.current = onMaxRetriesExhausted;
+  onHeartbeatRef.current = onHeartbeat;
 
   const clearAllTimeouts = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -203,6 +242,26 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
       ws.onmessage = (event: MessageEvent) => {
         try {
           const data = JSON.parse(event.data as string) as unknown;
+
+          // Check if this is a server heartbeat message
+          if (isHeartbeatMessage(data)) {
+            // Update last heartbeat timestamp
+            setLastHeartbeat(new Date());
+
+            // Optionally respond with pong
+            if (autoRespondToHeartbeat && ws.readyState === WebSocket.OPEN) {
+              const pongMessage: PongMessage = { type: 'pong' };
+              ws.send(JSON.stringify(pongMessage));
+            }
+
+            // Call heartbeat callback if provided
+            onHeartbeatRef.current?.();
+
+            // Don't set lastMessage or call onMessage for heartbeat messages
+            // This prevents unnecessary re-renders in consuming components
+            return;
+          }
+
           setLastMessage(data);
           // Use ref to get latest callback
           onMessageRef.current?.(data);
@@ -217,7 +276,7 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
       console.error('WebSocket connection error:', error);
     }
     // Reduced dependencies - callbacks are accessed via refs to avoid stale closures
-  }, [url, reconnect, reconnectInterval, reconnectAttempts, connectionTimeout]);
+  }, [url, reconnect, reconnectInterval, reconnectAttempts, connectionTimeout, autoRespondToHeartbeat]);
 
   const send = useCallback((data: unknown) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -244,5 +303,9 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
     disconnect,
     hasExhaustedRetries,
     reconnectCount,
+    lastHeartbeat,
   };
 }
+
+// Export type guard for testing
+export { isHeartbeatMessage };

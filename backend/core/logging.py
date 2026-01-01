@@ -6,6 +6,7 @@ This module provides:
 - Request ID context propagation via contextvars
 - Helper functions for getting configured loggers
 - Error message sanitization for secure logging
+- URL redaction utilities for safe logging of connection strings
 """
 
 import logging
@@ -16,6 +17,7 @@ from datetime import UTC, datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse, urlunparse
 
 from pythonjsonlogger.json import JsonFormatter
 
@@ -28,8 +30,123 @@ _CREDENTIAL_PATTERNS = [
     re.compile(r"Bearer\s+\S+", re.IGNORECASE),
 ]
 
+# List of sensitive field names (for Settings redaction)
+SENSITIVE_FIELD_NAMES = frozenset(
+    {
+        "password",
+        "secret",
+        "key",
+        "token",
+        "credential",
+        "api_key",
+        "api_keys",
+        "admin_api_key",
+        "rtdetr_api_key",
+        "nemotron_api_key",
+        "smtp_password",
+        "database_url",
+        "redis_url",
+    }
+)
+
 # Context variable for request ID propagation
 _request_id: ContextVar[str | None] = ContextVar("request_id", default=None)
+
+
+def redact_url(url: str) -> str:
+    """Redact sensitive information from a URL for safe logging.
+
+    Masks the password component of URLs while preserving the structure
+    for debugging purposes. Works with database URLs, Redis URLs, and
+    general HTTP URLs with authentication.
+
+    Args:
+        url: The URL to redact (e.g., postgresql://user:password@host:port/db)
+
+    Returns:
+        The URL with password replaced by [REDACTED], or the original URL
+        if parsing fails or no password is present.
+
+    Examples:
+        >>> redact_url("postgresql+asyncpg://user:secret123@localhost:5432/db")
+        'postgresql+asyncpg://user:[REDACTED]@localhost:5432/db'
+        >>> redact_url("redis://default:mypassword@redis-host:6379/0")
+        'redis://default:[REDACTED]@redis-host:6379/0'
+        >>> redact_url("http://localhost:8000")
+        'http://localhost:8000'
+    """
+    if not url:
+        return url
+
+    try:
+        parsed = urlparse(url)
+
+        # If there's no password, return as-is
+        if not parsed.password:
+            return url
+
+        # Reconstruct netloc with redacted password
+        # Format: [user[:password]@]host[:port]
+        if parsed.username:
+            redacted_netloc = f"{parsed.username}:[REDACTED]@{parsed.hostname}"
+        else:
+            redacted_netloc = f"[REDACTED]@{parsed.hostname}"
+
+        if parsed.port:
+            redacted_netloc = f"{redacted_netloc}:{parsed.port}"
+
+        # Rebuild the URL with redacted netloc
+        redacted = urlunparse(
+            (
+                parsed.scheme,
+                redacted_netloc,
+                parsed.path,
+                parsed.params,
+                parsed.query,
+                parsed.fragment,
+            )
+        )
+        return redacted
+    except Exception:
+        # If parsing fails, return a safe fallback
+        return "[URL REDACTED - PARSE ERROR]"
+
+
+def redact_sensitive_value(field_name: str, value: Any) -> Any:
+    """Redact a value if the field name indicates it's sensitive.
+
+    This function checks if a field name matches known sensitive patterns
+    and returns a redacted version of the value if so.
+
+    Args:
+        field_name: The name of the field (e.g., 'database_url', 'api_key')
+        value: The value to potentially redact
+
+    Returns:
+        '[REDACTED]' if the field is sensitive, or the original value otherwise.
+        For URL fields (database_url, redis_url), returns redacted URL preserving structure.
+    """
+    field_lower = field_name.lower()
+
+    # Check if field name matches sensitive patterns
+    is_sensitive = field_lower in SENSITIVE_FIELD_NAMES or any(
+        pattern in field_lower for pattern in ("password", "secret", "key", "token", "credential")
+    )
+
+    if not is_sensitive:
+        return value
+
+    # For URL fields, use redact_url to preserve structure
+    if field_lower in ("database_url", "redis_url") and isinstance(value, str):
+        return redact_url(value)
+
+    # For list values (like api_keys), redact each item
+    if isinstance(value, list):
+        return ["[REDACTED]"] * len(value) if value else []
+
+    # For other sensitive values, fully redact
+    return "[REDACTED]"
+
 
 # Standard log format for console/file
 CONSOLE_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"

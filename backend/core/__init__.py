@@ -12,8 +12,11 @@ from backend.core.database import (
     init_db,
 )
 from backend.core.logging import (
+    SENSITIVE_FIELD_NAMES,
     get_logger,
     get_request_id,
+    redact_sensitive_value,
+    redact_url,
     sanitize_error,
     set_request_id,
     setup_logging,
@@ -68,6 +71,7 @@ __all__ = [
     "DEFAULT_IMAGE_MIME",
     "DEFAULT_VIDEO_MIME",
     "EXTENSION_TO_MIME",
+    "SENSITIVE_FIELD_NAMES",
     "Base",
     "CertificateNotFoundError",
     "CertificateValidationError",
@@ -111,6 +115,8 @@ __all__ = [
     "record_detection_processed",
     "record_event_created",
     "record_pipeline_error",
+    "redact_sensitive_value",
+    "redact_url",
     "sanitize_error",
     "set_queue_depth",
     "set_request_id",

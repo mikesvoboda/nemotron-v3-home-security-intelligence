@@ -15,7 +15,7 @@ from .alerts import (
     DedupCheckRequest,
     DedupCheckResponse,
 )
-from .camera import CameraCreate, CameraListResponse, CameraResponse, CameraUpdate
+from .camera import CameraCreate, CameraListResponse, CameraResponse, CameraStatus, CameraUpdate
 from .notification import (
     DeliveryResultResponse,
     NotificationChannel,
@@ -61,6 +61,7 @@ __all__ = [
     "CameraCreate",
     "CameraListResponse",
     "CameraResponse",
+    "CameraStatus",
     "CameraUpdate",
     "DedupCheckRequest",
     "DedupCheckResponse",

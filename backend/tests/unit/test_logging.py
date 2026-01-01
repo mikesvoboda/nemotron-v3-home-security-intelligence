@@ -6,11 +6,14 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from backend.core.logging import (
+    SENSITIVE_FIELD_NAMES,
     ContextFilter,
     CustomJsonFormatter,
     SQLiteHandler,
     get_logger,
     get_request_id,
+    redact_sensitive_value,
+    redact_url,
     set_request_id,
     setup_logging,
 )
@@ -886,3 +889,202 @@ class TestSetupLoggingIntegration:
             finally:
                 root.handlers = original_handlers
                 root.level = original_level
+
+
+class TestRedactUrl:
+    """Tests for URL redaction functionality."""
+
+    def test_redact_postgres_url_with_password(self):
+        """Test redacting PostgreSQL URL with password."""
+        url = "postgresql+asyncpg://security:secret123@localhost:5432/security"
+        result = redact_url(url)
+        assert result == "postgresql+asyncpg://security:[REDACTED]@localhost:5432/security"
+        assert "secret123" not in result
+
+    def test_redact_redis_url_with_password(self):
+        """Test redacting Redis URL with password."""
+        url = "redis://default:mypassword@redis-host:6379/0"
+        result = redact_url(url)
+        assert result == "redis://default:[REDACTED]@redis-host:6379/0"
+        assert "mypassword" not in result
+
+    def test_redact_rediss_url_with_password(self):
+        """Test redacting Redis TLS URL with password."""
+        url = "rediss://user:supersecret@secure-redis:6380/1"
+        result = redact_url(url)
+        assert result == "rediss://user:[REDACTED]@secure-redis:6380/1"
+        assert "supersecret" not in result
+
+    def test_url_without_password_unchanged(self):
+        """Test that URLs without password are returned unchanged."""
+        url = "http://localhost:8000"
+        result = redact_url(url)
+        assert result == url
+
+    def test_url_with_username_only_unchanged(self):
+        """Test that URLs with username but no password are returned unchanged."""
+        url = "redis://user@localhost:6379/0"
+        result = redact_url(url)
+        assert result == url
+
+    def test_empty_url_returns_empty(self):
+        """Test that empty string is returned as-is."""
+        assert redact_url("") == ""
+
+    def test_none_url_returns_none(self):
+        """Test that None-like falsy values are handled."""
+        # Empty string is falsy and should return as-is
+        assert redact_url("") == ""
+
+    def test_preserves_database_path(self):
+        """Test that database path is preserved in redacted URL."""
+        url = "postgresql://admin:pass123@db.example.com:5432/myapp"
+        result = redact_url(url)
+        assert "/myapp" in result
+        assert "db.example.com" in result
+        assert "5432" in result
+        assert "pass123" not in result
+
+    def test_preserves_query_params(self):
+        """Test that query parameters are preserved."""
+        url = "postgresql://user:secret@localhost:5432/db?sslmode=require"
+        result = redact_url(url)
+        assert "sslmode=require" in result
+        assert "secret" not in result
+
+    def test_complex_password_characters(self):
+        """Test redacting URLs with complex password characters."""
+        # URL-encoded special characters
+        url = "postgresql://user:p%40ssw0rd%21@localhost:5432/db"
+        result = redact_url(url)
+        assert "[REDACTED]" in result
+        assert "p%40ssw0rd%21" not in result
+
+    def test_url_with_ipv4_host(self):
+        """Test redacting URL with IPv4 address."""
+        url = "redis://admin:password@192.168.1.100:6379/0"
+        result = redact_url(url)
+        assert "192.168.1.100" in result
+        assert "[REDACTED]" in result
+        assert "password" not in result
+
+
+class TestRedactSensitiveValue:
+    """Tests for sensitive value redaction."""
+
+    def test_database_url_uses_url_redaction(self):
+        """Test that database_url field uses URL-aware redaction."""
+        url = "postgresql+asyncpg://user:pass@host:5432/db"
+        result = redact_sensitive_value("database_url", url)
+        # Should preserve structure while redacting password
+        assert "postgresql+asyncpg://" in result
+        assert "user:" in result
+        assert "[REDACTED]" in result
+        assert "host:5432/db" in result
+        assert "pass" not in result
+
+    def test_redis_url_uses_url_redaction(self):
+        """Test that redis_url field uses URL-aware redaction."""
+        url = "redis://default:secret@localhost:6379/0"
+        result = redact_sensitive_value("redis_url", url)
+        assert "redis://" in result
+        assert "[REDACTED]" in result
+        assert "secret" not in result
+
+    def test_api_key_fully_redacted(self):
+        """Test that api_key values are fully redacted."""
+        result = redact_sensitive_value("api_key", "sk-1234567890")
+        assert result == "[REDACTED]"
+
+    def test_password_field_fully_redacted(self):
+        """Test that password fields are fully redacted."""
+        result = redact_sensitive_value("smtp_password", "mailsecret")
+        assert result == "[REDACTED]"
+
+    def test_api_keys_list_redacted(self):
+        """Test that api_keys list is redacted."""
+        keys = ["key1", "key2", "key3"]
+        result = redact_sensitive_value("api_keys", keys)
+        assert result == ["[REDACTED]", "[REDACTED]", "[REDACTED]"]
+
+    def test_empty_api_keys_list(self):
+        """Test that empty api_keys list is handled."""
+        result = redact_sensitive_value("api_keys", [])
+        assert result == []
+
+    def test_non_sensitive_field_unchanged(self):
+        """Test that non-sensitive fields are unchanged."""
+        result = redact_sensitive_value("app_name", "My App")
+        assert result == "My App"
+
+    def test_debug_flag_unchanged(self):
+        """Test that boolean flags are unchanged for non-sensitive fields."""
+        result = redact_sensitive_value("debug", True)
+        assert result is True
+
+    def test_case_insensitive_field_matching(self):
+        """Test that field name matching is case-insensitive."""
+        result = redact_sensitive_value("DATABASE_URL", "postgresql://x:pass@h/d")
+        assert "[REDACTED]" in result
+
+    def test_partial_field_name_matching(self):
+        """Test that partial patterns like 'password' in field names are matched."""
+        result = redact_sensitive_value("my_custom_password", "secret123")
+        assert result == "[REDACTED]"
+
+    def test_token_field_redacted(self):
+        """Test that fields containing 'token' are redacted."""
+        result = redact_sensitive_value("auth_token", "bearer_xyz123")
+        assert result == "[REDACTED]"
+
+    def test_secret_field_redacted(self):
+        """Test that fields containing 'secret' are redacted."""
+        result = redact_sensitive_value("client_secret", "abcd1234")
+        assert result == "[REDACTED]"
+
+    def test_credential_field_redacted(self):
+        """Test that fields containing 'credential' are redacted."""
+        result = redact_sensitive_value("service_credential", "cred_value")
+        assert result == "[REDACTED]"
+
+    def test_admin_api_key_redacted(self):
+        """Test that admin_api_key is fully redacted."""
+        result = redact_sensitive_value("admin_api_key", "admin-secret-key")
+        assert result == "[REDACTED]"
+
+    def test_rtdetr_api_key_redacted(self):
+        """Test that rtdetr_api_key is fully redacted."""
+        result = redact_sensitive_value("rtdetr_api_key", "rtdetr-key-123")
+        assert result == "[REDACTED]"
+
+    def test_nemotron_api_key_redacted(self):
+        """Test that nemotron_api_key is fully redacted."""
+        result = redact_sensitive_value("nemotron_api_key", "nemotron-key-abc")
+        assert result == "[REDACTED]"
+
+
+class TestSensitiveFieldNames:
+    """Tests for SENSITIVE_FIELD_NAMES constant."""
+
+    def test_contains_expected_fields(self):
+        """Test that SENSITIVE_FIELD_NAMES contains all expected fields."""
+        expected_fields = {
+            "password",
+            "secret",
+            "key",
+            "token",
+            "credential",
+            "api_key",
+            "api_keys",
+            "admin_api_key",
+            "rtdetr_api_key",
+            "nemotron_api_key",
+            "smtp_password",
+            "database_url",
+            "redis_url",
+        }
+        assert expected_fields == SENSITIVE_FIELD_NAMES
+
+    def test_is_frozenset(self):
+        """Test that SENSITIVE_FIELD_NAMES is immutable."""
+        assert isinstance(SENSITIVE_FIELD_NAMES, frozenset)

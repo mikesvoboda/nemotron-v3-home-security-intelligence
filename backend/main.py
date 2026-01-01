@@ -27,7 +27,7 @@ from backend.api.routes import (
 from backend.api.routes.logs import router as logs_router
 from backend.api.routes.system import register_workers
 from backend.core import close_db, get_settings, init_db
-from backend.core.logging import setup_logging
+from backend.core.logging import redact_url, setup_logging
 from backend.core.redis import close_redis, init_redis
 from backend.models.camera import Camera
 from backend.services.cleanup_service import CleanupService
@@ -89,7 +89,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     # Startup
     settings = get_settings()
     await init_db()
-    print(f"Database initialized: {settings.database_url}")
+    print(f"Database initialized: {redact_url(settings.database_url)}")
 
     # Track whether Redis-dependent services were initialized
     redis_client = None
@@ -98,7 +98,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
 
     try:
         redis_client = await init_redis()
-        print(f"Redis initialized: {settings.redis_url}")
+        print(f"Redis initialized: {redact_url(settings.redis_url)}")
 
         # Initialize and start event broadcaster for WebSocket real-time events
         # Note: get_broadcaster() both creates AND starts the broadcaster
