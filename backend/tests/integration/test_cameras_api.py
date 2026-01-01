@@ -245,7 +245,7 @@ async def test_get_camera_snapshot_returns_latest_image(client, integration_env,
 
 @pytest.mark.asyncio
 async def test_get_camera_snapshot_folder_outside_root_forbidden(client, integration_env, tmp_path):
-    """Snapshot endpoint refuses cameras whose folder_path is outside foscam_base_path."""
+    """Snapshot endpoint returns 404 for cameras whose folder_path is outside foscam_base_path."""
     import uuid
 
     from backend.core.config import get_settings
@@ -268,7 +268,7 @@ async def test_get_camera_snapshot_folder_outside_root_forbidden(client, integra
     camera_id = create_resp.json()["id"]
 
     resp = await client.get(f"/api/cameras/{camera_id}/snapshot")
-    assert resp.status_code == 403
+    assert resp.status_code == 404
 
 
 # === UPDATE Tests ===
