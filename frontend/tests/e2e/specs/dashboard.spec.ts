@@ -215,14 +215,12 @@ test.describe('Dashboard Error State', () => {
     await expect(dashboardPage.reloadButton).toBeVisible({ timeout: 8000 });
   });
 
-  test('error state displays error elements', async () => {
+  test('error state displays error elements', async ({ page }) => {
     await dashboardPage.goto();
     // Wait for page to finish loading instead of arbitrary delay
     await page.waitForLoadState('domcontentloaded');
-    // Check that some error indication is visible
-    const errorVisible = await dashboardPage.errorHeading.isVisible().catch(() => false);
-    const reloadVisible = await dashboardPage.reloadButton.isVisible().catch(() => false);
-    expect(errorVisible || reloadVisible).toBe(true);
+    // Wait for error state to propagate - use explicit wait
+    await expect(page.getByText(/error|failed|Something went wrong/i).first()).toBeVisible({ timeout: 8000 });
   });
 });
 
