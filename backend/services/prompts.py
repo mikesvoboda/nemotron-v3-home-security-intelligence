@@ -8,7 +8,7 @@ The model outputs <think>...</think> reasoning blocks before the response.
 """
 
 RISK_ANALYSIS_PROMPT = """<|im_start|>system
-You are a home security risk analyzer. Output valid JSON only.<|im_end|>
+You are a home security risk analyzer. Provide detailed reasoning. Output valid JSON only.<|im_end|>
 <|im_start|>user
 Analyze these detections and output a JSON risk assessment.
 
@@ -17,8 +17,16 @@ Time: {start_time} to {end_time}
 Detections:
 {detections_list}
 
+Consider in your analysis:
+- Time of day context (late night activity is more concerning)
+- Object combinations (person + vehicle vs person alone)
+- Detection confidence levels
+- Number and frequency of detections
+- Potential benign explanations (delivery, neighbor, wildlife)
+
 Risk levels: low (0-29), medium (30-59), high (60-84), critical (85-100)
 
-Output format: {{"risk_score": N, "risk_level": "level", "summary": "text", "reasoning": "text"}}<|im_end|>
+Output JSON with detailed reasoning that explains your risk assessment:
+{{"risk_score": N, "risk_level": "level", "summary": "1-2 sentence summary", "reasoning": "detailed multi-sentence explanation of factors considered and why this risk level was assigned"}}<|im_end|>
 <|im_start|>assistant
 """

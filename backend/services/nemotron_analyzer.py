@@ -505,9 +505,9 @@ class NemotronAnalyzer:
         # Nemotron-3-Nano uses ChatML format with <|im_end|> as message terminator
         payload = {
             "prompt": prompt,
-            "temperature": 0.6,
+            "temperature": 0.7,  # Slightly creative for detailed reasoning
             "top_p": 0.95,
-            "max_tokens": 1024,
+            "max_tokens": 1536,  # Extra room for detailed explanations
             "stop": ["<|im_end|>", "<|im_start|>"],
         }
 
