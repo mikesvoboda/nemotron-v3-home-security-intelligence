@@ -2,26 +2,23 @@
 
 This module contains prompt templates used by the Nemotron analyzer
 to generate risk assessments from security camera detections.
+
+Nemotron-3-Nano uses ChatML format with <|im_start|> and <|im_end|> tags.
+The model outputs <think>...</think> reasoning blocks before the response.
 """
 
-RISK_ANALYSIS_PROMPT = """You are a home security AI analyst. Analyze the following detections from security cameras and provide a risk assessment.
+RISK_ANALYSIS_PROMPT = """<|im_start|>system
+You are a home security risk analyzer. Output valid JSON only.<|im_end|>
+<|im_start|>user
+Analyze these detections and output a JSON risk assessment.
 
 Camera: {camera_name}
-Time Window: {start_time} to {end_time}
+Time: {start_time} to {end_time}
 Detections:
 {detections_list}
 
-Respond in JSON format:
-{{
-  "risk_score": <0-100>,
-  "risk_level": "<low|medium|high|critical>",
-  "summary": "<brief 1-2 sentence summary>",
-  "reasoning": "<detailed explanation>"
-}}
+Risk levels: low (0-29), medium (30-59), high (60-84), critical (85-100)
 
-Risk guidelines:
-- Low (0-29): Normal activity (pets, known vehicles, delivery persons)
-- Medium (30-59): Unusual but not alarming (unknown person during day, unfamiliar vehicle)
-- High (60-84): Concerning activity (person at odd hours, multiple unknowns, loitering)
-- Critical (85-100): Immediate attention (forced entry attempt, multiple persons at night, suspicious behavior)
+Output format: {{"risk_score": N, "risk_level": "level", "summary": "text", "reasoning": "text"}}<|im_end|>
+<|im_start|>assistant
 """

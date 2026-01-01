@@ -502,11 +502,13 @@ class NemotronAnalyzer:
         )
 
         # Call llama.cpp completion endpoint
+        # Nemotron-3-Nano uses ChatML format with <|im_end|> as message terminator
         payload = {
             "prompt": prompt,
-            "temperature": 0.7,
-            "max_tokens": 500,
-            "stop": ["\n\n"],
+            "temperature": 0.6,
+            "top_p": 0.95,
+            "max_tokens": 1024,
+            "stop": ["<|im_end|>", "<|im_start|>"],
         }
 
         # Merge auth headers with JSON content-type
@@ -538,7 +540,8 @@ class NemotronAnalyzer:
     def _parse_llm_response(self, text: str) -> dict[str, Any]:
         """Parse JSON response from LLM completion.
 
-        Handles cases where LLM output may include extra text or formatting.
+        Handles Nemotron-3-Nano output which includes <think>...</think> reasoning
+        blocks before the actual JSON response.
 
         Args:
             text: LLM completion text
@@ -549,10 +552,33 @@ class NemotronAnalyzer:
         Raises:
             ValueError: If JSON cannot be extracted or parsed
         """
-        # Try to extract JSON from the text
+        # Strip <think>...</think> reasoning blocks (Nemotron-3-Nano format)
+        # The model outputs reasoning in <think> tags before the JSON
+        think_pattern = r"<think>.*?</think>"
+        cleaned_text = re.sub(think_pattern, "", text, flags=re.DOTALL).strip()
+
+        # Also handle incomplete think blocks (model may not close the tag)
+        if "<think>" in cleaned_text:
+            # Find content after the last </think> or after <think>...
+            parts = cleaned_text.split("</think>")
+            if len(parts) > 1:
+                cleaned_text = parts[-1].strip()
+            else:
+                # No closing tag, try to find JSON after <think> block
+                think_start = cleaned_text.find("<think>")
+                # Look for JSON start after think
+                json_start = cleaned_text.find("{", think_start)
+                if json_start != -1:
+                    cleaned_text = cleaned_text[json_start:]
+
+        # Try to extract JSON from the cleaned text
         # Look for JSON object pattern
         json_pattern = r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}"
-        matches = re.findall(json_pattern, text, re.DOTALL)
+        matches = re.findall(json_pattern, cleaned_text, re.DOTALL)
+
+        # If no matches in cleaned text, try original text as fallback
+        if not matches:
+            matches = re.findall(json_pattern, text, re.DOTALL)
 
         if not matches:
             raise ValueError(f"No JSON found in LLM response: {text[:200]}")
