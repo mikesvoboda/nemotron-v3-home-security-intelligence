@@ -42,8 +42,13 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
 
   // Reporter configuration
+  // CI: github (for annotations), html (for artifacts), junit (for duration auditing)
   reporter: process.env.CI
-    ? [['github'], ['html', { outputFolder: 'playwright-report' }]]
+    ? [
+        ['github'],
+        ['html', { outputFolder: 'playwright-report' }],
+        ['junit', { outputFile: 'test-results/e2e-results.xml' }],
+      ]
     : [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }]],
 
   // Output directory for test artifacts (screenshots, videos, traces)
