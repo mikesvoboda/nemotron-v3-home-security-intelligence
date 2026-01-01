@@ -157,10 +157,13 @@ class TestIsIPTrusted:
             # Should have logged two warnings for the invalid entries
             assert mock_logger.warning.call_count == 2
 
-            # Verify warning messages contain the invalid CIDR values
+            # Verify warning messages (IPs are masked for security)
             warning_calls = mock_logger.warning.call_args_list
-            assert "invalid_cidr" in warning_calls[0][0][0]
-            assert "also-not-valid" in warning_calls[1][0][0]
+            assert "Invalid CIDR" in warning_calls[0][0][0]
+            assert "Invalid CIDR" in warning_calls[1][0][0]
+            # Verify masked IPs are in extra dict
+            assert "invalid_trusted_ip_masked" in warning_calls[0][1]["extra"]
+            assert "invalid_trusted_ip_masked" in warning_calls[1][1]["extra"]
 
     def test_invalid_cidr_notation_logs_warning(self):
         """Test that malformed CIDR notation logs a warning."""
@@ -172,9 +175,16 @@ class TestIsIPTrusted:
             # Function should still return True (valid IP found in second entry)
             assert result is True
 
-            # Should have logged a warning for the invalid CIDR
+            # Should have logged a warning for the invalid CIDR (IP masked for security)
             mock_logger.warning.assert_called_once()
-            assert "192.168.1.0/33" in mock_logger.warning.call_args[0][0]
+            assert "Invalid CIDR" in mock_logger.warning.call_args[0][0]
+            # Masked IP should be in extra dict
+            assert "invalid_trusted_ip_masked" in mock_logger.warning.call_args[1]["extra"]
+            # Verify the IP is masked (first octet preserved)
+            assert (
+                mock_logger.warning.call_args[1]["extra"]["invalid_trusted_ip_masked"]
+                == "192.xxx.xxx.xxx"
+            )
 
     def test_empty_trusted_list(self):
         """Test with empty trusted list."""
