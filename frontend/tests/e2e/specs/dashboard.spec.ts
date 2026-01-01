@@ -199,14 +199,17 @@ test.describe('Dashboard Error State', () => {
     await expect(dashboardPage.reloadButton).toBeVisible({ timeout: 15000 });
   });
 
-  test('error state displays error elements', async ({ page }) => {
+  test('error state displays error elements', async () => {
     await dashboardPage.goto();
-    // Wait for either error state or page to render
-    await page.waitForTimeout(3000);
-    // Check that some error indication is visible
+    // Wait for error state to appear - needs sufficient timeout for API retries to exhaust
+    // Use Promise.race to wait for either error element to become visible
+    await Promise.race([
+      expect(dashboardPage.errorHeading).toBeVisible({ timeout: 15000 }),
+      expect(dashboardPage.reloadButton).toBeVisible({ timeout: 15000 }),
+    ]);
+    // Verify at least one error indicator is visible
     const errorVisible = await dashboardPage.errorHeading.isVisible().catch(() => false);
     const reloadVisible = await dashboardPage.reloadButton.isVisible().catch(() => false);
-    // At least one error indicator should be visible with error config
     expect(errorVisible || reloadVisible).toBe(true);
   });
 });
