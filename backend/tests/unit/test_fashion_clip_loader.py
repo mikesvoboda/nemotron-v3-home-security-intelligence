@@ -353,6 +353,58 @@ def test_enrichment_pipeline_can_disable_clothing():
     assert pipeline.clothing_classification_enabled is False
 
 
+# Test load_fashion_clip_model error handling
+
+
+@pytest.mark.asyncio
+async def test_load_fashion_clip_model_import_error(monkeypatch):
+    """Test load_fashion_clip_model handles ImportError."""
+    import builtins
+    import sys
+
+    # Remove transformers from imports if present
+    modules_to_hide = ["transformers", "torch"]
+    hidden_modules = {}
+    for mod in modules_to_hide:
+        if mod in sys.modules:
+            hidden_modules[mod] = sys.modules.pop(mod)
+
+    # Mock import to raise ImportError
+    original_import = builtins.__import__
+
+    def mock_import(name, *args, **kwargs):
+        if name in ("transformers", "torch"):
+            raise ImportError(f"No module named '{name}'")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", mock_import)
+
+    try:
+        with pytest.raises(ImportError):
+            await load_fashion_clip_model("/fake/path")
+    finally:
+        # Restore hidden modules
+        sys.modules.update(hidden_modules)
+
+
+@pytest.mark.asyncio
+async def test_load_fashion_clip_model_runtime_error(monkeypatch):
+    """Test load_fashion_clip_model handles RuntimeError for failed loading."""
+    import sys
+
+    # Mock torch and transformers to exist but fail on model load
+    mock_torch = MagicMock()
+    mock_torch.cuda.is_available.return_value = False
+    mock_transformers = MagicMock()
+    mock_transformers.AutoProcessor.from_pretrained.side_effect = RuntimeError("Model not found")
+
+    monkeypatch.setitem(sys.modules, "torch", mock_torch)
+    monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
+
+    with pytest.raises(RuntimeError, match="Failed to load FashionCLIP"):
+        await load_fashion_clip_model("/nonexistent/path")
+
+
 # Test model_zoo integration
 
 

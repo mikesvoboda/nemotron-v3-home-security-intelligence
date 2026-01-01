@@ -65,10 +65,13 @@ async def load_florence_model(model_path: str) -> Any:
                 dtype = torch.float32
 
             # Load model with appropriate settings
+            # Use eager attention implementation to avoid SDPA compatibility issues
+            # with Florence-2's custom model code
             model = AutoModelForCausalLM.from_pretrained(
                 model_path,
                 torch_dtype=dtype,
                 trust_remote_code=True,
+                attn_implementation="eager",
             )
 
             # Move to device

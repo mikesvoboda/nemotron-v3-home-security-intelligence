@@ -207,7 +207,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
     return {
         "yolo11-license-plate": ModelConfig(
             name="yolo11-license-plate",
-            path="/models/model-zoo/yolo11-license-plate",
+            path="/models/model-zoo/yolo11-license-plate/license-plate-finetune-v1n.pt",
             category="detection",
             vram_mb=300,
             load_fn=load_yolo_model,
@@ -216,7 +216,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         ),
         "yolo11-face": ModelConfig(
             name="yolo11-face",
-            path="/models/model-zoo/yolo11-face-detection",
+            path="/models/model-zoo/yolo11-face-detection/model.pt",
             category="detection",
             vram_mb=200,
             load_fn=load_yolo_model,
@@ -377,7 +377,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
             category="quality-assessment",
             vram_mb=0,  # CPU-based, no VRAM needed
             load_fn=load_brisque_model,
-            enabled=True,
+            enabled=False,  # Disabled: pyiqa incompatible with NumPy 2.0 (np.sctypes removed)
             available=False,
         ),
         # ResNet-50 Vehicle Segment Classification for detailed vehicle type ID
