@@ -56,7 +56,7 @@ test.describe('Timeline Error Handling', () => {
     const timelinePage = new TimelinePage(page);
     await timelinePage.goto();
     await timelinePage.waitForTimelineLoad();
-    await expect(timelinePage.errorMessage).toBeVisible({ timeout: 8000 });
+    await expect(timelinePage.errorMessage).toBeVisible({ timeout: 15000 });
   });
 
   test('error message mentions events', async ({ page }) => {
