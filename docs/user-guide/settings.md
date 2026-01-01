@@ -17,6 +17,16 @@ source_refs:
 
 The Settings page allows you to configure your security system, manage cameras, adjust processing parameters, monitor AI models, and set up notifications.
 
+<!-- SCREENSHOT: Settings Page Overview
+Location: Settings page (click Settings in sidebar)
+Shows: Complete Settings page with: four tabs (CAMERAS selected with green background, PROCESSING, AI MODELS, NOTIFICATIONS), camera list table showing cameras with name, folder path, status badges, last seen timestamps, and Edit/Delete action buttons
+Size: 1200x700 pixels (12:7 aspect ratio)
+Alt text: Settings page with tabbed navigation showing Cameras tab selected and camera configuration table
+-->
+
+![Settings Page](../images/placeholder-settings-full-overview.png)
+_Caption: The Settings page lets you configure cameras, processing, AI models, and notifications._
+
 ## Accessing Settings
 
 Click **Settings** in the left sidebar to open the Settings page.
@@ -50,6 +60,16 @@ Click any tab to switch between settings sections. The active tab appears with a
 ## Cameras Tab
 
 The Cameras tab lets you add, edit, and remove security cameras from your system.
+
+<!-- SCREENSHOT: Cameras Tab Detail
+Location: Settings page > CAMERAS tab
+Shows: Camera configuration table with columns: Name, Folder Path, Status (with colored badges), Last Seen (timestamps), Actions (Edit pencil and Delete trash icons). Show "Add Camera" button at top right
+Size: 1100x400 pixels (~2.75:1 aspect ratio)
+Alt text: Camera settings table showing configured cameras with status indicators and action buttons
+-->
+
+![Cameras Tab](../images/placeholder-settings-cameras-tab.png)
+_Caption: The Cameras tab shows all your connected cameras and lets you manage them._
 
 ### Camera List
 
@@ -141,6 +161,16 @@ At the bottom, you will see:
 ## AI Models Tab
 
 The AI Models tab displays status information for the AI components.
+
+<!-- SCREENSHOT: AI Models Tab
+Location: Settings page > AI MODELS tab
+Shows: Two model status cards side by side: RT-DETRv2 (Object Detection) and Nemotron (Risk Analysis). Each card shows: status badge (Loaded/green), memory usage, inference speed/FPS. Bottom shows total GPU memory usage bar
+Size: 1000x500 pixels (2:1 aspect ratio)
+Alt text: AI Models settings showing RT-DETRv2 and Nemotron model cards with status, memory, and performance metrics
+-->
+
+![AI Models Tab](../images/placeholder-settings-ai-models-tab.png)
+_Caption: The AI Models tab shows the status of your AI detection and analysis models._
 
 ### Model Cards
 

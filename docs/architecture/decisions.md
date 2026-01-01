@@ -218,8 +218,8 @@ The system requires:
 - Frontend application (React)
 - PostgreSQL database
 - Redis for queues/pub/sub
-- RT-DETRv2 object detection (~650 MiB VRAM)
-- Nemotron LLM risk analysis (~14.7 GB VRAM with 30B model)
+- RT-DETRv2 object detection (~4GB VRAM)
+- Nemotron Mini 4B risk analysis (~3GB VRAM, Q4_K_M quantization)
 
 Originally, a hybrid deployment was planned with native AI services. However, NVIDIA Container Toolkit (CDI) has matured significantly, enabling reliable GPU passthrough in Podman containers.
 
@@ -425,7 +425,7 @@ Use **Nemotron Mini 4B Instruct** via **llama.cpp** for local LLM inference.
 - Lower quality than GPT-4 or Claude for complex reasoning
 - Q4_K_M quantization trades some accuracy for speed
 - Limited context window (4096 tokens)
-- Requires ~3-16GB VRAM depending on model variant
+- Requires ~3GB VRAM (Nemotron Mini 4B Q4_K_M)
 
 **Why Local over Cloud:**
 
@@ -592,11 +592,13 @@ Let the **LLM determine risk scores** based on context, rather than using algori
 
 **Risk Scoring Guidelines (in LLM prompt):**
 
+> See [Risk Levels Reference](../reference/config/risk-levels.md) for the canonical definition.
+
 ```
-- 0-25 (low): Normal activity, no concern
-- 26-50 (medium): Unusual but not threatening
-- 51-75 (high): Suspicious activity requiring attention
-- 76-100 (critical): Potential security threat, immediate action needed
+- 0-29 (low): Normal activity, no concern
+- 30-59 (medium): Unusual but not threatening
+- 60-84 (high): Suspicious activity requiring attention
+- 85-100 (critical): Potential security threat, immediate action needed
 ```
 
 ---
@@ -782,7 +784,7 @@ Left side "Docker Containers" (blue container icons):
 
 Right side "Native GPU Processes" (green GPU icons):
 - RT-DETRv2 process (:8090) - "Object detection ~4GB VRAM"
-- Nemotron process (:8091) - "Risk analysis ~3-16GB VRAM"
+- Nemotron process (:8091) - "Risk analysis ~3GB VRAM"
 - GPU hardware icon - "RTX A5500 24GB"
 - Label: "Direct GPU access, optimal performance"
 

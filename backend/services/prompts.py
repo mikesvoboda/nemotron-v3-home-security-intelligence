@@ -20,8 +20,8 @@ Respond in JSON format:
 }}
 
 Risk guidelines:
-- Low (0-25): Normal activity (pets, known vehicles, delivery persons)
-- Medium (26-50): Unusual but not alarming (unknown person during day, unfamiliar vehicle)
-- High (51-75): Concerning activity (person at odd hours, multiple unknowns, loitering)
-- Critical (76-100): Immediate attention (forced entry attempt, multiple persons at night, suspicious behavior)
+- Low (0-29): Normal activity (pets, known vehicles, delivery persons)
+- Medium (30-59): Unusual but not alarming (unknown person during day, unfamiliar vehicle)
+- High (60-84): Concerning activity (person at odd hours, multiple unknowns, loitering)
+- Critical (85-100): Immediate attention (forced entry attempt, multiple persons at night, suspicious behavior)
 """

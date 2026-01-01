@@ -107,7 +107,7 @@ Navigation hub that routes readers by audience:
 
 ### understanding-alerts.md
 
-- Risk levels: Low (0-30), Medium (31-60), High (61-80), Critical (81-100)
+- Risk levels: Low (0-29), Medium (30-59), High (60-84), Critical (85-100) - see docs/reference/config/risk-levels.md
 - Example scenarios at each level
 - What "reasoning" tells you
 - When to check vs. ignore

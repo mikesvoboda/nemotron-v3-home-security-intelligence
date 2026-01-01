@@ -74,6 +74,16 @@ That's it! The dashboard should appear automatically.
 
 When you open the dashboard, you'll see several sections:
 
+<!-- SCREENSHOT: First Look at Dashboard
+Location: Main dashboard page after first login
+Shows: Complete dashboard view with all main sections visible - header bar with status, left sidebar navigation, quick stats row, risk gauge, camera grid, and activity feed
+Size: 1400x900 pixels (16:9 aspect ratio)
+Alt text: The main security dashboard showing the complete interface a new user will see when first opening the application
+-->
+<!-- Image placeholder - screenshot would go here -->
+
+_Caption: This is what you will see when you first open the dashboard._
+
 ### The Main Dashboard
 
 This is your home base. Here's what each part shows you:
@@ -119,7 +129,17 @@ Once your cameras are connected and active, real events will start appearing aut
 
 ## Quick Tips for Getting Started
 
-1. **Check the Risk Gauge first** - If it's green (0-30), everything is calm. Yellow (31-60) means take a look. Red (61-100) deserves immediate attention.
+<!-- SCREENSHOT: Risk Gauge Quick Reference
+Location: Risk gauge component on main dashboard
+Shows: The risk gauge in a calm (green/low) state with score around 15-20, showing "Low" label
+Size: 300x300 pixels (1:1 aspect ratio)
+Alt text: Risk gauge showing a low risk score with green coloring, indicating normal activity
+-->
+<!-- Image placeholder - screenshot would go here -->
+
+_Caption: The Risk Gauge shows your current security status at a glance._
+
+1. **Check the Risk Gauge first** - If it's green (0-29), everything is calm. Yellow (30-59) means take a look. Orange/Red (60-100) deserves prompt attention. See [Risk Levels Reference](../reference/config/risk-levels.md) for details.
 
 2. **Click on events to see details** - Each event in the activity feed can be clicked to see the full AI analysis, including the original image and reasoning.
 

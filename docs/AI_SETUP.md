@@ -21,24 +21,24 @@ Comprehensive guide for setting up and running the AI inference services for the
 
 ## Overview
 
-The AI pipeline consists of two independent services running in **Podman containers with GPU passthrough**:
+The AI pipeline consists of two independent services running in **containers (Docker or Podman) with GPU passthrough**:
 
 1. **RT-DETRv2 Detection Server** (Port 8090)
 
    - Real-time object detection from camera images
-   - HuggingFace Transformers with PyTorch CUDA
-   - ~650 MiB VRAM usage
+   - ONNX Runtime with GPU acceleration
+   - ~4GB VRAM usage
    - 30-50ms inference per image
 
 2. **Nemotron LLM Server** (Port 8091)
    - Risk reasoning and natural language generation
    - llama.cpp with quantized GGUF model
-   - ~14.7 GB VRAM usage (30B Q4_K_M model)
+   - ~3GB VRAM usage (Nemotron Mini 4B Q4_K_M quantization)
    - 2-5 seconds per risk analysis
 
-**Total VRAM requirement**: ~15.5 GB (both services running with 30B model)
+**Total VRAM requirement**: ~7GB (both services running concurrently)
 
-**Production Deployment**: Both services run in Podman containers (`ai-detector_1` and `ai-llm_1`) with NVIDIA GPU passthrough via Container Device Interface (CDI).
+**Production Deployment**: Both services run in OCI containers (Docker or Podman) with NVIDIA GPU passthrough via Container Device Interface (CDI).
 
 ## Architecture
 
@@ -83,14 +83,50 @@ The following environment variables are used by the AI services. Set these in yo
 
 ### Optional Variables
 
-| Variable              | Description                         | Default                                                           |
-| --------------------- | ----------------------------------- | ----------------------------------------------------------------- |
-| `AI_RTDETR_PORT`      | Port for RT-DETRv2 detection server | `8090`                                                            |
-| `AI_NEMOTRON_PORT`    | Port for Nemotron LLM server        | `8091`                                                            |
-| `AI_RTDETR_LOG`       | Log file for RT-DETRv2              | `/tmp/rtdetr-detector.log`                                        |
-| `AI_NEMOTRON_LOG`     | Log file for Nemotron               | `/tmp/nemotron-llm.log`                                           |
-| `NEMOTRON_MODEL_PATH` | Path to Nemotron GGUF model         | `$PROJECT_ROOT/ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf` |
-| `AI_SERVICE_USER`     | User to run systemd services as     | Current user                                                      |
+#### AI Service Startup (scripts/start-ai.sh)
+
+| Variable        | Description                         | Default |
+| --------------- | ----------------------------------- | ------- |
+| `RTDETR_PORT`   | Port for RT-DETRv2 detection server | `8090`  |
+| `NEMOTRON_PORT` | Port for Nemotron LLM server        | `8091`  |
+
+**Note:** Log file paths are hardcoded and cannot be overridden:
+
+- RT-DETRv2: `/tmp/rtdetr-detector.log`
+- Nemotron: `/tmp/nemotron-llm.log`
+
+#### RT-DETRv2 Detection Server (ai/rtdetr/model.py)
+
+| Variable            | Description                     | Default                                        |
+| ------------------- | ------------------------------- | ---------------------------------------------- |
+| `RTDETR_MODEL_PATH` | HuggingFace model path          | `/export/ai_models/rt-detrv2/rtdetr_v2_r101vd` |
+| `RTDETR_CONFIDENCE` | Detection confidence threshold  | `0.5`                                          |
+| `PORT`              | Server port (direct execution)  | `8090`                                         |
+| `HOST`              | Bind address (direct execution) | `0.0.0.0`                                      |
+
+#### Nemotron LLM Server (ai/start_llm.sh)
+
+| Variable              | Description             | Default                                                           |
+| --------------------- | ----------------------- | ----------------------------------------------------------------- |
+| `NEMOTRON_MODEL_PATH` | Path to GGUF model file | `$PROJECT_ROOT/ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf` |
+| `NEMOTRON_PORT`       | Server port             | `8091`                                                            |
+
+#### Backend Configuration (backend/core/config.py)
+
+These variables configure how the backend connects to AI services:
+
+| Variable           | Description                          | Default                 |
+| ------------------ | ------------------------------------ | ----------------------- |
+| `RTDETR_URL`       | Full URL to RT-DETRv2 service        | `http://localhost:8090` |
+| `NEMOTRON_URL`     | Full URL to Nemotron service         | `http://localhost:8091` |
+| `RTDETR_API_KEY`   | API key for RT-DETRv2 authentication | (none)                  |
+| `NEMOTRON_API_KEY` | API key for Nemotron authentication  | (none)                  |
+
+#### Systemd Services
+
+| Variable          | Description                     | Default      |
+| ----------------- | ------------------------------- | ------------ |
+| `AI_SERVICE_USER` | User to run systemd services as | Current user |
 
 ### Setting Up Environment Variables
 
@@ -111,8 +147,10 @@ export PROJECT_ROOT="/path/to/your/project"
 
 ### Minimum
 
-- **GPU**: NVIDIA RTX 3060 (12GB VRAM) or equivalent
-- **VRAM**: 8GB minimum (7GB used + 1GB buffer)
+- **GPU**: NVIDIA RTX 3060 (8GB+ VRAM) or equivalent
+- **VRAM**: 8GB minimum (~7GB used + buffer)
+  - RT-DETRv2: ~4GB
+  - Nemotron Mini 4B: ~3GB
 - **CUDA**: Version 11.8 or later
 - **System RAM**: 16GB
 - **Storage**: 10GB free space for models and cache
@@ -120,7 +158,7 @@ export PROJECT_ROOT="/path/to/your/project"
 ### Recommended (Tested Configuration)
 
 - **GPU**: NVIDIA RTX A5500 (24GB VRAM)
-- **VRAM**: 24GB (comfortable headroom for both services)
+- **VRAM**: 12GB+ (comfortable headroom for both services)
 - **CUDA**: Version 12.x
 - **System RAM**: 32GB
 - **Storage**: 20GB free space

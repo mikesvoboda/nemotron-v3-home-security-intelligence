@@ -10,9 +10,15 @@ source_refs:
 
 The Alerts page focuses on high-priority security events that require your immediate attention. The notification system can send you alerts through email or webhooks when critical events occur.
 
-<!-- Nano Banana Pro Prompt:
-"Dark mode alerts dashboard showing high and critical risk security events with orange and red badges, vertical crop, NVIDIA aesthetic"
+<!-- SCREENSHOT: Alerts Page Full View
+Location: Alerts page (click Alerts in sidebar)
+Shows: Complete Alerts page with: page title with warning triangle icon, severity filter dropdown, refresh button, results summary showing counts of Critical and High alerts, and event cards grid with orange and red left borders
+Size: 1200x800 pixels (3:2 aspect ratio)
+Alt text: Alerts page showing high and critical risk events with severity filter, refresh button, and color-coded event cards
 -->
+<!-- Image placeholder -->
+
+_Caption: The Alerts page shows only high-priority events that need your attention._
 
 ## Accessing Alerts
 
@@ -248,6 +254,16 @@ See the Alert Rules documentation for configuration details.
 ---
 
 ## Notification System
+
+<!-- SCREENSHOT: Notification Settings Tab
+Location: Settings page > NOTIFICATIONS tab
+Shows: Notifications tab showing: Email configuration section (status badge, SMTP host, port, from address, TLS status, recipients, "Send Test Email" button), Webhook configuration section (status badge, URL, timeout, "Send Test Webhook" button), and Available Channels summary at bottom
+Size: 1000x600 pixels (5:3 aspect ratio)
+Alt text: Notification settings showing email and webhook configuration status with test buttons and available channels summary
+-->
+<!-- Image placeholder -->
+
+_Caption: The Notifications tab shows your email and webhook configuration status._
 
 ### Overview
 
