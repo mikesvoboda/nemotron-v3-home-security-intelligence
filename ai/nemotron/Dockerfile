@@ -60,8 +60,8 @@ RUN mkdir -p /models && chown llama:llama /models
 ENV MODEL_PATH=/models/Nemotron-3-Nano-30B-A3B-Q4_K_M.gguf
 ENV PORT=8091
 ENV GPU_LAYERS=30
-ENV CTX_SIZE=16384
-ENV PARALLEL=2
+ENV CTX_SIZE=131072
+ENV PARALLEL=1
 
 # Expose the service port
 EXPOSE 8091
