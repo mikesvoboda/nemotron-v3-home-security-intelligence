@@ -3,6 +3,26 @@
 from enum import Enum
 
 
+class CameraStatus(str, Enum):
+    """Camera status values.
+
+    Indicates the operational state of a camera:
+    - ONLINE: Camera is active and receiving images
+    - OFFLINE: Camera is not currently active (e.g., disconnected)
+    - ERROR: Camera is experiencing an error condition
+    - UNKNOWN: Camera status cannot be determined
+    """
+
+    ONLINE = "online"
+    OFFLINE = "offline"
+    ERROR = "error"
+    UNKNOWN = "unknown"
+
+    def __str__(self) -> str:
+        """Return string representation of camera status."""
+        return self.value
+
+
 class Severity(str, Enum):
     """Severity levels for security events.
 

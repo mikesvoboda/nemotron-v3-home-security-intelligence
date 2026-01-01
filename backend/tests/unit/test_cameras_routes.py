@@ -23,6 +23,7 @@ from backend.api.schemas.camera import (
     CameraCreate,
     CameraListResponse,
     CameraResponse,
+    CameraStatus,
     CameraUpdate,
 )
 from backend.core.database import get_db
@@ -1093,3 +1094,214 @@ class TestCameraListResponseSchema:
         }
         with pytest.raises(ValidationError):
             CameraListResponse(**data)
+
+
+# =============================================================================
+# Camera Status Enum Validation Tests
+# =============================================================================
+
+
+class TestCameraStatusValidation:
+    """Tests for CameraStatus enum validation."""
+
+    def test_camera_status_enum_values(self) -> None:
+        """Test CameraStatus enum has expected values."""
+        assert CameraStatus.ONLINE.value == "online"
+        assert CameraStatus.OFFLINE.value == "offline"
+        assert CameraStatus.ERROR.value == "error"
+        assert CameraStatus.UNKNOWN.value == "unknown"
+
+    def test_camera_status_str_representation(self) -> None:
+        """Test CameraStatus string representation."""
+        assert str(CameraStatus.ONLINE) == "online"
+        assert str(CameraStatus.OFFLINE) == "offline"
+        assert str(CameraStatus.ERROR) == "error"
+        assert str(CameraStatus.UNKNOWN) == "unknown"
+
+    def test_camera_create_valid_status_online(self) -> None:
+        """Test CameraCreate accepts 'online' status."""
+        data = {
+            "name": "Test Camera",
+            "folder_path": "/export/foscam/test",
+            "status": "online",
+        }
+        schema = CameraCreate(**data)
+        assert schema.status == CameraStatus.ONLINE
+
+    def test_camera_create_valid_status_offline(self) -> None:
+        """Test CameraCreate accepts 'offline' status."""
+        data = {
+            "name": "Test Camera",
+            "folder_path": "/export/foscam/test",
+            "status": "offline",
+        }
+        schema = CameraCreate(**data)
+        assert schema.status == CameraStatus.OFFLINE
+
+    def test_camera_create_valid_status_error(self) -> None:
+        """Test CameraCreate accepts 'error' status."""
+        data = {
+            "name": "Test Camera",
+            "folder_path": "/export/foscam/test",
+            "status": "error",
+        }
+        schema = CameraCreate(**data)
+        assert schema.status == CameraStatus.ERROR
+
+    def test_camera_create_valid_status_unknown(self) -> None:
+        """Test CameraCreate accepts 'unknown' status."""
+        data = {
+            "name": "Test Camera",
+            "folder_path": "/export/foscam/test",
+            "status": "unknown",
+        }
+        schema = CameraCreate(**data)
+        assert schema.status == CameraStatus.UNKNOWN
+
+    def test_camera_create_invalid_status_raises(self) -> None:
+        """Test CameraCreate rejects invalid status values."""
+        from pydantic import ValidationError
+
+        data = {
+            "name": "Test Camera",
+            "folder_path": "/export/foscam/test",
+            "status": "invalid_status",
+        }
+        with pytest.raises(ValidationError) as exc_info:
+            CameraCreate(**data)
+
+        # Verify the error is about the status field
+        errors = exc_info.value.errors()
+        assert any(err["loc"] == ("status",) for err in errors)
+
+    def test_camera_create_invalid_status_nonexistent(self) -> None:
+        """Test CameraCreate rejects non-existent status values."""
+        from pydantic import ValidationError
+
+        data = {
+            "name": "Test Camera",
+            "folder_path": "/export/foscam/test",
+            "status": "active",  # Not a valid status
+        }
+        with pytest.raises(ValidationError):
+            CameraCreate(**data)
+
+    def test_camera_create_invalid_status_empty(self) -> None:
+        """Test CameraCreate rejects empty string status."""
+        from pydantic import ValidationError
+
+        data = {
+            "name": "Test Camera",
+            "folder_path": "/export/foscam/test",
+            "status": "",
+        }
+        with pytest.raises(ValidationError):
+            CameraCreate(**data)
+
+    def test_camera_create_invalid_status_case_sensitive(self) -> None:
+        """Test CameraCreate status validation is case-sensitive."""
+        from pydantic import ValidationError
+
+        data = {
+            "name": "Test Camera",
+            "folder_path": "/export/foscam/test",
+            "status": "ONLINE",  # Should be lowercase
+        }
+        with pytest.raises(ValidationError):
+            CameraCreate(**data)
+
+    def test_camera_update_valid_status(self) -> None:
+        """Test CameraUpdate accepts valid status values."""
+        schema = CameraUpdate(status="offline")
+        assert schema.status == CameraStatus.OFFLINE
+
+    def test_camera_update_invalid_status_raises(self) -> None:
+        """Test CameraUpdate rejects invalid status values."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            CameraUpdate(status="invalid_status")
+
+    def test_camera_update_null_status_allowed(self) -> None:
+        """Test CameraUpdate allows null status for partial updates."""
+        schema = CameraUpdate()
+        assert schema.status is None
+
+    def test_camera_response_valid_status(self) -> None:
+        """Test CameraResponse with valid status."""
+        data = {
+            "id": "123e4567-e89b-12d3-a456-426614174000",
+            "name": "Test Camera",
+            "folder_path": "/export/foscam/test",
+            "status": "online",
+            "created_at": datetime(2025, 12, 23, 10, 0, 0),
+            "last_seen_at": None,
+        }
+        schema = CameraResponse(**data)
+        assert schema.status == CameraStatus.ONLINE
+
+    def test_camera_response_invalid_status_raises(self) -> None:
+        """Test CameraResponse rejects invalid status values."""
+        from pydantic import ValidationError
+
+        data = {
+            "id": "123e4567-e89b-12d3-a456-426614174000",
+            "name": "Test Camera",
+            "folder_path": "/export/foscam/test",
+            "status": "invalid_status",
+            "created_at": datetime(2025, 12, 23, 10, 0, 0),
+            "last_seen_at": None,
+        }
+        with pytest.raises(ValidationError):
+            CameraResponse(**data)
+
+
+class TestCameraStatusAPIValidation:
+    """Tests for camera status validation via API endpoints."""
+
+    def test_create_camera_invalid_status_returns_422(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test creating a camera with invalid status returns 422."""
+        camera_data = {
+            "name": "Test Camera",
+            "folder_path": "/export/foscam/test",
+            "status": "invalid_status",
+        }
+
+        response = client.post("/api/cameras", json=camera_data)
+
+        assert response.status_code == 422
+        data = response.json()
+        assert "detail" in data
+        # Verify error mentions status field
+        assert any("status" in str(err.get("loc", [])) for err in data["detail"])
+
+    def test_update_camera_invalid_status_returns_422(
+        self, client: TestClient, mock_db_session: AsyncMock, sample_camera: Camera
+    ) -> None:
+        """Test updating a camera with invalid status returns 422."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = sample_camera
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+        response = client.patch(
+            f"/api/cameras/{sample_camera.id}",
+            json={"status": "invalid_status"},
+        )
+
+        assert response.status_code == 422
+
+    def test_create_camera_case_insensitive_fails(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test creating a camera with uppercase status fails."""
+        camera_data = {
+            "name": "Test Camera",
+            "folder_path": "/export/foscam/test",
+            "status": "ONLINE",  # Uppercase - should fail
+        }
+
+        response = client.post("/api/cameras", json=camera_data)
+
+        assert response.status_code == 422

@@ -47,9 +47,11 @@ Low-level WebSocket connection manager with automatic reconnection logic.
 - Message serialization (JSON) and deserialization with fallback to raw data
 - Connection state tracking (`isConnected`)
 - Manual connect/disconnect controls
-- Lifecycle callbacks: `onOpen`, `onClose`, `onError`, `onMessage`
+- Lifecycle callbacks: `onOpen`, `onClose`, `onError`, `onMessage`, `onHeartbeat`
 - SSR-safe: checks for `window.WebSocket` availability
 - Prevents duplicate connections (checks OPEN/CONNECTING states)
+- Handles server heartbeat (ping) messages automatically
+- Tracks last heartbeat timestamp for connection health monitoring
 
 **Options Interface:**
 
@@ -60,9 +62,13 @@ interface WebSocketOptions {
   onOpen?: () => void;
   onClose?: () => void;
   onError?: (error: Event) => void;
+  onMaxRetriesExhausted?: () => void;
+  onHeartbeat?: () => void; // Called when server heartbeat received
   reconnect?: boolean; // default: true
-  reconnectInterval?: number; // default: 3000ms
+  reconnectInterval?: number; // default: 1000ms (base for exponential backoff)
   reconnectAttempts?: number; // default: 5
+  connectionTimeout?: number; // default: 10000ms
+  autoRespondToHeartbeat?: boolean; // default: true - auto-send pong response
 }
 ```
 
@@ -75,8 +81,21 @@ interface UseWebSocketReturn {
   send: (data: unknown) => void;
   connect: () => void;
   disconnect: () => void;
+  hasExhaustedRetries: boolean;
+  reconnectCount: number;
+  lastHeartbeat: Date | null; // Timestamp of last server heartbeat
 }
 ```
+
+**Server Heartbeat Handling:**
+
+The backend sends periodic heartbeat messages in the format `{"type": "ping"}` to keep connections alive (default: every 30 seconds). The hook:
+
+- Automatically detects these heartbeat messages
+- Updates `lastHeartbeat` timestamp for connection health tracking
+- Sends `{"type": "pong"}` response by default (controlled by `autoRespondToHeartbeat`)
+- Calls the optional `onHeartbeat` callback
+- Does NOT update `lastMessage` or call `onMessage` for heartbeats to prevent unnecessary re-renders
 
 ### `useEventStream.ts`
 

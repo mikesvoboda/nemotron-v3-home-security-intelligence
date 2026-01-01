@@ -13,10 +13,13 @@ import {
   type CameraUpdate,
 } from '../../services/api';
 
+/** Valid camera status values matching backend CameraStatus enum */
+type CameraStatusValue = 'online' | 'offline' | 'error' | 'unknown';
+
 interface CameraFormData {
   name: string;
   folder_path: string;
-  status?: string;
+  status?: CameraStatusValue;
 }
 
 interface CameraFormErrors {
@@ -435,7 +438,7 @@ export default function CamerasSettings() {
                       <select
                         id="status"
                         value={formData.status}
-                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                        onChange={(e) => setFormData({ ...formData, status: e.target.value as CameraStatusValue })}
                         className="mt-1 block w-full rounded-lg border border-gray-800 bg-card px-3 py-2 text-text-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary"
                       >
                         <option value="online">Online</option>

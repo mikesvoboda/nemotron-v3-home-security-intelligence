@@ -4,6 +4,11 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.models.enums import CameraStatus
+
+# Re-export CameraStatus for convenient imports from this module
+__all__ = ["CameraCreate", "CameraListResponse", "CameraResponse", "CameraStatus", "CameraUpdate"]
+
 
 class CameraCreate(BaseModel):
     """Schema for creating a new camera."""
@@ -22,7 +27,10 @@ class CameraCreate(BaseModel):
     folder_path: str = Field(
         ..., min_length=1, max_length=500, description="File system path for camera uploads"
     )
-    status: str = Field(default="online", description="Camera status (online, offline, error)")
+    status: CameraStatus = Field(
+        default=CameraStatus.ONLINE,
+        description="Camera status (online, offline, error, unknown)",
+    )
 
 
 class CameraUpdate(BaseModel):
@@ -41,7 +49,9 @@ class CameraUpdate(BaseModel):
     folder_path: str | None = Field(
         None, min_length=1, max_length=500, description="File system path for camera uploads"
     )
-    status: str | None = Field(None, description="Camera status (online, offline, error)")
+    status: CameraStatus | None = Field(
+        None, description="Camera status (online, offline, error, unknown)"
+    )
 
 
 class CameraResponse(BaseModel):
@@ -64,7 +74,7 @@ class CameraResponse(BaseModel):
     id: str = Field(..., description="Camera UUID")
     name: str = Field(..., description="Camera name")
     folder_path: str = Field(..., description="File system path for camera uploads")
-    status: str = Field(..., description="Camera status")
+    status: CameraStatus = Field(..., description="Camera status (online, offline, error, unknown)")
     created_at: datetime = Field(..., description="Timestamp when camera was created")
     last_seen_at: datetime | None = Field(None, description="Last time camera was active")
 
