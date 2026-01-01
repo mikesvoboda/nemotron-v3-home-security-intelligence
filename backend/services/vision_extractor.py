@@ -7,8 +7,9 @@ using Florence-2, a vision-language model that supports:
 - Scene analysis (unusual objects, tools, abandoned items)
 - Environment context (time of day, lighting, weather)
 
-The VisionExtractor loads Florence-2 on-demand via ModelManager and extracts
-rich contextual information to enhance Nemotron LLM risk analysis.
+The VisionExtractor calls the ai-florence HTTP service for Florence-2 inference,
+which runs as a dedicated service at http://ai-florence:8092. This architecture
+improves VRAM management by keeping Florence-2 in a separate container.
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from backend.core.logging import get_logger
-from backend.services.model_zoo import get_model_manager
+from backend.services.florence_client import FlorenceUnavailableError, get_florence_client
 
 if TYPE_CHECKING:
     from PIL import Image
@@ -165,9 +166,12 @@ ENVIRONMENT_QUERIES = {
 class VisionExtractor:
     """Service for extracting visual attributes using Florence-2.
 
-    This service loads Florence-2 on-demand via ModelManager and provides
-    methods for extracting vehicle attributes, person attributes, and
-    scene analysis from cropped detection images.
+    This service calls the ai-florence HTTP service for Florence-2 inference
+    and provides methods for extracting vehicle attributes, person attributes,
+    and scene analysis from cropped detection images.
+
+    The ai-florence service runs Florence-2 as a dedicated container, which
+    improves VRAM management by keeping the model separate from the backend.
 
     Usage:
         extractor = VisionExtractor()
@@ -188,59 +192,34 @@ class VisionExtractor:
 
     def __init__(self) -> None:
         """Initialize the VisionExtractor."""
-        self._model_manager = get_model_manager()
-        logger.info("VisionExtractor initialized")
+        self._florence_client = get_florence_client()
+        logger.info("VisionExtractor initialized with Florence HTTP client")
 
     async def _query_florence(
         self,
-        model_tuple: tuple[Any, Any],
         image: Image.Image,
         task: str,
         text_input: str = "",
     ) -> str:
-        """Run a query on Florence-2.
+        """Run a query on Florence-2 via the HTTP service.
 
         Args:
-            model_tuple: Tuple of (model, processor) from Florence-2 loader
             image: PIL Image to analyze
             task: Florence-2 task prompt (e.g., "<CAPTION>", "<VQA>")
             text_input: Additional text input for VQA tasks
 
         Returns:
-            Model response as string
+            Model response as string, or empty string on error
         """
-        import torch
-
-        model, processor = model_tuple
-
         # Construct the prompt
         prompt = f"{task}{text_input}" if task == VQA_TASK and text_input else task
 
-        # Process inputs
-        inputs = processor(text=prompt, images=image, return_tensors="pt")
-
-        # Move to device
-        device = next(model.parameters()).device
-        inputs = {k: v.to(device) for k, v in inputs.items()}
-
-        # Generate
-        with torch.no_grad():
-            generated_ids = model.generate(
-                input_ids=inputs["input_ids"],
-                pixel_values=inputs["pixel_values"],
-                max_new_tokens=256,
-                num_beams=3,
-                do_sample=False,
-            )
-
-        # Decode response
-        generated_text: str = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
-
-        # Post-process to extract answer (remove prompt echo if present)
-        if generated_text.startswith(prompt):
-            generated_text = generated_text[len(prompt) :].strip()
-
-        return generated_text
+        try:
+            result = await self._florence_client.extract(image, prompt)
+            return result
+        except FlorenceUnavailableError as e:
+            logger.warning(f"Florence service unavailable: {e}")
+            return ""
 
     def _crop_image(self, image: Image.Image, bbox: tuple[int, int, int, int]) -> Image.Image:
         """Crop image to bounding box with padding.
@@ -324,27 +303,24 @@ class VisionExtractor:
         if bbox is not None:
             image = self._crop_image(image, bbox)
 
-        async with self._model_manager.load("florence-2-large") as model:
-            # Get caption first
-            caption = await self._query_florence(model, image, CAPTION_TASK)
+        # Get caption first
+        caption = await self._query_florence(image, CAPTION_TASK)
 
-            # Query for specific attributes
-            color = await self._query_florence(model, image, VQA_TASK, VEHICLE_QUERIES["color"])
-            vehicle_type = await self._query_florence(
-                model, image, VQA_TASK, VEHICLE_QUERIES["type"]
+        # Query for specific attributes
+        color = await self._query_florence(image, VQA_TASK, VEHICLE_QUERIES["color"])
+        vehicle_type = await self._query_florence(image, VQA_TASK, VEHICLE_QUERIES["type"])
+        commercial_response = await self._query_florence(
+            image, VQA_TASK, VEHICLE_QUERIES["commercial"]
+        )
+
+        is_commercial = self._parse_yes_no(commercial_response)
+
+        commercial_text = None
+        if is_commercial:
+            commercial_text = await self._query_florence(
+                image, VQA_TASK, VEHICLE_QUERIES["commercial_text"]
             )
-            commercial_response = await self._query_florence(
-                model, image, VQA_TASK, VEHICLE_QUERIES["commercial"]
-            )
-
-            is_commercial = self._parse_yes_no(commercial_response)
-
-            commercial_text = None
-            if is_commercial:
-                commercial_text = await self._query_florence(
-                    model, image, VQA_TASK, VEHICLE_QUERIES["commercial_text"]
-                )
-                commercial_text = self._parse_none_response(commercial_text)
+            commercial_text = self._parse_none_response(commercial_text)
 
         return VehicleAttributes(
             color=color.strip() if color else None,
@@ -371,21 +347,16 @@ class VisionExtractor:
         if bbox is not None:
             image = self._crop_image(image, bbox)
 
-        async with self._model_manager.load("florence-2-large") as model:
-            # Get caption first
-            caption = await self._query_florence(model, image, CAPTION_TASK)
+        # Get caption first
+        caption = await self._query_florence(image, CAPTION_TASK)
 
-            # Query for specific attributes
-            clothing = await self._query_florence(
-                model, image, VQA_TASK, PERSON_QUERIES["clothing"]
-            )
-            carrying_response = await self._query_florence(
-                model, image, VQA_TASK, PERSON_QUERIES["carrying"]
-            )
-            service_response = await self._query_florence(
-                model, image, VQA_TASK, PERSON_QUERIES["service_worker"]
-            )
-            action = await self._query_florence(model, image, VQA_TASK, PERSON_QUERIES["action"])
+        # Query for specific attributes
+        clothing = await self._query_florence(image, VQA_TASK, PERSON_QUERIES["clothing"])
+        carrying_response = await self._query_florence(image, VQA_TASK, PERSON_QUERIES["carrying"])
+        service_response = await self._query_florence(
+            image, VQA_TASK, PERSON_QUERIES["service_worker"]
+        )
+        action = await self._query_florence(image, VQA_TASK, PERSON_QUERIES["action"])
 
         return PersonAttributes(
             clothing=clothing.strip() if clothing else None,
@@ -407,20 +378,13 @@ class VisionExtractor:
         Returns:
             SceneAnalysis with detected unusual elements
         """
-        async with self._model_manager.load("florence-2-large") as model:
-            # Get scene description
-            description = await self._query_florence(model, image, CAPTION_TASK)
+        # Get scene description
+        description = await self._query_florence(image, CAPTION_TASK)
 
-            # Query for unusual elements
-            unusual_response = await self._query_florence(
-                model, image, VQA_TASK, SCENE_QUERIES["unusual"]
-            )
-            tools_response = await self._query_florence(
-                model, image, VQA_TASK, SCENE_QUERIES["tools"]
-            )
-            abandoned_response = await self._query_florence(
-                model, image, VQA_TASK, SCENE_QUERIES["abandoned"]
-            )
+        # Query for unusual elements
+        unusual_response = await self._query_florence(image, VQA_TASK, SCENE_QUERIES["unusual"])
+        tools_response = await self._query_florence(image, VQA_TASK, SCENE_QUERIES["tools"])
+        abandoned_response = await self._query_florence(image, VQA_TASK, SCENE_QUERIES["abandoned"])
 
         # Parse responses into lists
         unusual_objects: list[str] = []
@@ -455,16 +419,15 @@ class VisionExtractor:
         Returns:
             EnvironmentContext with time, lighting, and weather info
         """
-        async with self._model_manager.load("florence-2-large") as model:
-            time_response = await self._query_florence(
-                model, image, VQA_TASK, ENVIRONMENT_QUERIES["time_of_day"]
-            )
-            light_response = await self._query_florence(
-                model, image, VQA_TASK, ENVIRONMENT_QUERIES["artificial_light"]
-            )
-            weather_response = await self._query_florence(
-                model, image, VQA_TASK, ENVIRONMENT_QUERIES["weather"]
-            )
+        time_response = await self._query_florence(
+            image, VQA_TASK, ENVIRONMENT_QUERIES["time_of_day"]
+        )
+        light_response = await self._query_florence(
+            image, VQA_TASK, ENVIRONMENT_QUERIES["artificial_light"]
+        )
+        weather_response = await self._query_florence(
+            image, VQA_TASK, ENVIRONMENT_QUERIES["weather"]
+        )
 
         # Parse time of day
         time_lower = time_response.lower() if time_response else ""
@@ -514,8 +477,8 @@ class VisionExtractor:
     ) -> BatchExtractionResult:
         """Extract attributes from all detections in a batch.
 
-        This method loads Florence-2 once and processes all detections,
-        making it more efficient than calling individual extraction methods.
+        This method processes all detections via the ai-florence HTTP service,
+        which keeps the Florence-2 model loaded and ready for inference.
 
         Args:
             image: Full frame image
@@ -540,39 +503,37 @@ class VisionExtractor:
             elif class_name == PERSON_CLASS:
                 person_dets.append(det)
 
-        # Load model once for all extractions
-        async with self._model_manager.load("florence-2-large") as model:
-            # Extract vehicle attributes
-            for det in vehicle_dets:
-                bbox = det.get("bbox")
-                if bbox:
-                    bbox = tuple(bbox) if isinstance(bbox, list) else bbox
-                    cropped = self._crop_image(image, bbox)
-                else:
-                    cropped = image
+        # Extract vehicle attributes
+        for det in vehicle_dets:
+            bbox = det.get("bbox")
+            if bbox:
+                bbox = tuple(bbox) if isinstance(bbox, list) else bbox
+                cropped = self._crop_image(image, bbox)
+            else:
+                cropped = image
 
-                vehicle_attrs = await self._extract_vehicle_with_model(model, cropped)
-                det_id = det.get("detection_id", str(len(result.vehicle_attributes)))
-                result.vehicle_attributes[det_id] = vehicle_attrs
+            vehicle_attrs = await self._extract_vehicle_internal(cropped)
+            det_id = det.get("detection_id", str(len(result.vehicle_attributes)))
+            result.vehicle_attributes[det_id] = vehicle_attrs
 
-            # Extract person attributes
-            for det in person_dets:
-                bbox = det.get("bbox")
-                if bbox:
-                    bbox = tuple(bbox) if isinstance(bbox, list) else bbox
-                    cropped = self._crop_image(image, bbox)
-                else:
-                    cropped = image
+        # Extract person attributes
+        for det in person_dets:
+            bbox = det.get("bbox")
+            if bbox:
+                bbox = tuple(bbox) if isinstance(bbox, list) else bbox
+                cropped = self._crop_image(image, bbox)
+            else:
+                cropped = image
 
-                person_attrs = await self._extract_person_with_model(model, cropped)
-                det_id = det.get("detection_id", str(len(result.person_attributes)))
-                result.person_attributes[det_id] = person_attrs
+            person_attrs = await self._extract_person_internal(cropped)
+            det_id = det.get("detection_id", str(len(result.person_attributes)))
+            result.person_attributes[det_id] = person_attrs
 
-            # Extract scene analysis (full frame)
-            result.scene_analysis = await self._extract_scene_with_model(model, image)
+        # Extract scene analysis (full frame)
+        result.scene_analysis = await self._extract_scene_internal(image)
 
-            # Extract environment context (full frame)
-            result.environment_context = await self._extract_environment_with_model(model, image)
+        # Extract environment context (full frame)
+        result.environment_context = await self._extract_environment_internal(image)
 
         logger.info(
             f"Extracted attributes: {len(result.vehicle_attributes)} vehicles, "
@@ -580,25 +541,23 @@ class VisionExtractor:
         )
         return result
 
-    async def _extract_vehicle_with_model(
+    async def _extract_vehicle_internal(
         self,
-        model: tuple[Any, Any],
         image: Image.Image,
     ) -> VehicleAttributes:
-        """Extract vehicle attributes with already-loaded model.
+        """Extract vehicle attributes via HTTP service.
 
         Args:
-            model: Tuple of (model, processor) from Florence-2 loader
             image: Cropped vehicle image
 
         Returns:
             VehicleAttributes with extracted information
         """
-        caption = await self._query_florence(model, image, CAPTION_TASK)
-        color = await self._query_florence(model, image, VQA_TASK, VEHICLE_QUERIES["color"])
-        vehicle_type = await self._query_florence(model, image, VQA_TASK, VEHICLE_QUERIES["type"])
+        caption = await self._query_florence(image, CAPTION_TASK)
+        color = await self._query_florence(image, VQA_TASK, VEHICLE_QUERIES["color"])
+        vehicle_type = await self._query_florence(image, VQA_TASK, VEHICLE_QUERIES["type"])
         commercial_response = await self._query_florence(
-            model, image, VQA_TASK, VEHICLE_QUERIES["commercial"]
+            image, VQA_TASK, VEHICLE_QUERIES["commercial"]
         )
 
         is_commercial = self._parse_yes_no(commercial_response)
@@ -606,7 +565,7 @@ class VisionExtractor:
         commercial_text = None
         if is_commercial:
             commercial_text = await self._query_florence(
-                model, image, VQA_TASK, VEHICLE_QUERIES["commercial_text"]
+                image, VQA_TASK, VEHICLE_QUERIES["commercial_text"]
             )
             commercial_text = self._parse_none_response(commercial_text)
 
@@ -618,29 +577,25 @@ class VisionExtractor:
             caption=caption,
         )
 
-    async def _extract_person_with_model(
+    async def _extract_person_internal(
         self,
-        model: tuple[Any, Any],
         image: Image.Image,
     ) -> PersonAttributes:
-        """Extract person attributes with already-loaded model.
+        """Extract person attributes via HTTP service.
 
         Args:
-            model: Tuple of (model, processor) from Florence-2 loader
             image: Cropped person image
 
         Returns:
             PersonAttributes with extracted information
         """
-        caption = await self._query_florence(model, image, CAPTION_TASK)
-        clothing = await self._query_florence(model, image, VQA_TASK, PERSON_QUERIES["clothing"])
-        carrying_response = await self._query_florence(
-            model, image, VQA_TASK, PERSON_QUERIES["carrying"]
-        )
+        caption = await self._query_florence(image, CAPTION_TASK)
+        clothing = await self._query_florence(image, VQA_TASK, PERSON_QUERIES["clothing"])
+        carrying_response = await self._query_florence(image, VQA_TASK, PERSON_QUERIES["carrying"])
         service_response = await self._query_florence(
-            model, image, VQA_TASK, PERSON_QUERIES["service_worker"]
+            image, VQA_TASK, PERSON_QUERIES["service_worker"]
         )
-        action = await self._query_florence(model, image, VQA_TASK, PERSON_QUERIES["action"])
+        action = await self._query_florence(image, VQA_TASK, PERSON_QUERIES["action"])
 
         return PersonAttributes(
             clothing=clothing.strip() if clothing else None,
@@ -650,28 +605,22 @@ class VisionExtractor:
             caption=caption,
         )
 
-    async def _extract_scene_with_model(
+    async def _extract_scene_internal(
         self,
-        model: tuple[Any, Any],
         image: Image.Image,
     ) -> SceneAnalysis:
-        """Extract scene analysis with already-loaded model.
+        """Extract scene analysis via HTTP service.
 
         Args:
-            model: Tuple of (model, processor) from Florence-2 loader
             image: Full frame image
 
         Returns:
             SceneAnalysis with detected unusual elements
         """
-        description = await self._query_florence(model, image, CAPTION_TASK)
-        unusual_response = await self._query_florence(
-            model, image, VQA_TASK, SCENE_QUERIES["unusual"]
-        )
-        tools_response = await self._query_florence(model, image, VQA_TASK, SCENE_QUERIES["tools"])
-        abandoned_response = await self._query_florence(
-            model, image, VQA_TASK, SCENE_QUERIES["abandoned"]
-        )
+        description = await self._query_florence(image, CAPTION_TASK)
+        unusual_response = await self._query_florence(image, VQA_TASK, SCENE_QUERIES["unusual"])
+        tools_response = await self._query_florence(image, VQA_TASK, SCENE_QUERIES["tools"])
+        abandoned_response = await self._query_florence(image, VQA_TASK, SCENE_QUERIES["abandoned"])
 
         unusual_objects: list[str] = []
         if unusual_response and not self._is_negative_response(unusual_response):
@@ -692,28 +641,26 @@ class VisionExtractor:
             scene_description=description,
         )
 
-    async def _extract_environment_with_model(
+    async def _extract_environment_internal(
         self,
-        model: tuple[Any, Any],
         image: Image.Image,
     ) -> EnvironmentContext:
-        """Extract environment context with already-loaded model.
+        """Extract environment context via HTTP service.
 
         Args:
-            model: Tuple of (model, processor) from Florence-2 loader
             image: Full frame image
 
         Returns:
             EnvironmentContext with time, lighting, and weather info
         """
         time_response = await self._query_florence(
-            model, image, VQA_TASK, ENVIRONMENT_QUERIES["time_of_day"]
+            image, VQA_TASK, ENVIRONMENT_QUERIES["time_of_day"]
         )
         light_response = await self._query_florence(
-            model, image, VQA_TASK, ENVIRONMENT_QUERIES["artificial_light"]
+            image, VQA_TASK, ENVIRONMENT_QUERIES["artificial_light"]
         )
         weather_response = await self._query_florence(
-            model, image, VQA_TASK, ENVIRONMENT_QUERIES["weather"]
+            image, VQA_TASK, ENVIRONMENT_QUERIES["weather"]
         )
 
         time_lower = time_response.lower() if time_response else ""

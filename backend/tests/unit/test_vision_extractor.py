@@ -9,8 +9,6 @@ Tests cover:
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
-
 import pytest
 
 from backend.services.vision_extractor import (
@@ -655,10 +653,8 @@ class TestVisionExtractorExtraction:
 
         extractor = VisionExtractor()
 
-        # Mock the model manager
-        mock_model = (MagicMock(), MagicMock())
-
-        async def mock_query(model, image, task, text_input=""):
+        async def mock_query(image, task, text_input=""):
+            """Mock _query_florence - now uses HTTP client, no model parameter."""
             if task == "<CAPTION>":
                 return "White delivery van"
             elif "color" in text_input.lower():
@@ -672,13 +668,6 @@ class TestVisionExtractorExtraction:
             return ""
 
         extractor._query_florence = mock_query
-
-        # Mock model manager
-        mock_cm = MagicMock()
-        mock_cm.__aenter__ = AsyncMock(return_value=mock_model)
-        mock_cm.__aexit__ = AsyncMock(return_value=None)
-        extractor._model_manager = MagicMock()
-        extractor._model_manager.load = MagicMock(return_value=mock_cm)
 
         img = Image.new("RGB", (100, 100), color="white")
         result = await extractor.extract_vehicle_attributes(img)
@@ -696,9 +685,8 @@ class TestVisionExtractorExtraction:
 
         extractor = VisionExtractor()
 
-        mock_model = (MagicMock(), MagicMock())
-
-        async def mock_query(model, image, task, text_input=""):
+        async def mock_query(image, task, text_input=""):
+            """Mock _query_florence - now uses HTTP client, no model parameter."""
             if task == "<CAPTION>":
                 return "Person walking towards door"
             elif "wearing" in text_input.lower():
@@ -712,12 +700,6 @@ class TestVisionExtractorExtraction:
             return ""
 
         extractor._query_florence = mock_query
-
-        mock_cm = MagicMock()
-        mock_cm.__aenter__ = AsyncMock(return_value=mock_model)
-        mock_cm.__aexit__ = AsyncMock(return_value=None)
-        extractor._model_manager = MagicMock()
-        extractor._model_manager.load = MagicMock(return_value=mock_cm)
 
         img = Image.new("RGB", (100, 100), color="blue")
         result = await extractor.extract_person_attributes(img)
@@ -735,9 +717,8 @@ class TestVisionExtractorExtraction:
 
         extractor = VisionExtractor()
 
-        mock_model = (MagicMock(), MagicMock())
-
-        async def mock_query(model, image, task, text_input=""):
+        async def mock_query(image, task, text_input=""):
+            """Mock _query_florence - now uses HTTP client, no model parameter."""
             if task == "<CAPTION>":
                 return "Night scene with driveway"
             elif "unusual" in text_input.lower():
@@ -749,12 +730,6 @@ class TestVisionExtractorExtraction:
             return ""
 
         extractor._query_florence = mock_query
-
-        mock_cm = MagicMock()
-        mock_cm.__aenter__ = AsyncMock(return_value=mock_model)
-        mock_cm.__aexit__ = AsyncMock(return_value=None)
-        extractor._model_manager = MagicMock()
-        extractor._model_manager.load = MagicMock(return_value=mock_cm)
 
         img = Image.new("RGB", (200, 200), color="black")
         result = await extractor.extract_scene_analysis(img)
@@ -770,9 +745,8 @@ class TestVisionExtractorExtraction:
 
         extractor = VisionExtractor()
 
-        mock_model = (MagicMock(), MagicMock())
-
-        async def mock_query(model, image, task, text_input=""):
+        async def mock_query(image, task, text_input=""):
+            """Mock _query_florence - now uses HTTP client, no model parameter."""
             if "time of day" in text_input.lower():
                 return "night"
             elif "flashlight" in text_input.lower():
@@ -782,12 +756,6 @@ class TestVisionExtractorExtraction:
             return ""
 
         extractor._query_florence = mock_query
-
-        mock_cm = MagicMock()
-        mock_cm.__aenter__ = AsyncMock(return_value=mock_model)
-        mock_cm.__aexit__ = AsyncMock(return_value=None)
-        extractor._model_manager = MagicMock()
-        extractor._model_manager.load = MagicMock(return_value=mock_cm)
 
         img = Image.new("RGB", (200, 200), color="black")
         result = await extractor.extract_environment_context(img)
@@ -803,12 +771,11 @@ class TestVisionExtractorExtraction:
 
         extractor = VisionExtractor()
 
-        mock_model = (MagicMock(), MagicMock())
-
         # Track calls to identify context
         call_count = {"vehicle": 0, "person": 0}
 
-        async def mock_extract_vehicle(model, image):
+        async def mock_extract_vehicle(image):
+            """Mock _extract_vehicle_internal - uses HTTP client."""
             call_count["vehicle"] += 1
             return VehicleAttributes(
                 color="white",
@@ -818,7 +785,8 @@ class TestVisionExtractorExtraction:
                 caption="White sedan",
             )
 
-        async def mock_extract_person(model, image):
+        async def mock_extract_person(image):
+            """Mock _extract_person_internal - uses HTTP client."""
             call_count["person"] += 1
             return PersonAttributes(
                 clothing="blue shirt",
@@ -828,26 +796,22 @@ class TestVisionExtractorExtraction:
                 caption="Person walking",
             )
 
-        async def mock_extract_scene(model, image):
+        async def mock_extract_scene(image):
+            """Mock _extract_scene_internal - uses HTTP client."""
             return SceneAnalysis(scene_description="Test scene")
 
-        async def mock_extract_env(model, image):
+        async def mock_extract_env(image):
+            """Mock _extract_environment_internal - uses HTTP client."""
             return EnvironmentContext(
                 time_of_day="day",
                 artificial_light=False,
                 weather=None,
             )
 
-        extractor._extract_vehicle_with_model = mock_extract_vehicle
-        extractor._extract_person_with_model = mock_extract_person
-        extractor._extract_scene_with_model = mock_extract_scene
-        extractor._extract_environment_with_model = mock_extract_env
-
-        mock_cm = MagicMock()
-        mock_cm.__aenter__ = AsyncMock(return_value=mock_model)
-        mock_cm.__aexit__ = AsyncMock(return_value=None)
-        extractor._model_manager = MagicMock()
-        extractor._model_manager.load = MagicMock(return_value=mock_cm)
+        extractor._extract_vehicle_internal = mock_extract_vehicle
+        extractor._extract_person_internal = mock_extract_person
+        extractor._extract_scene_internal = mock_extract_scene
+        extractor._extract_environment_internal = mock_extract_env
 
         img = Image.new("RGB", (400, 400), color="gray")
 
