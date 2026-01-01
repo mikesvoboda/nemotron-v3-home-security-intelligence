@@ -264,6 +264,55 @@ class Settings(BaseSettings):
                 f"Example: 'http://localhost:8090'. Error: {e}"
             ) from None
 
+    # Florence-2, CLIP, and Enrichment service URLs
+    florence_url: str = Field(
+        default="http://localhost:8092",
+        description="Florence-2 vision-language service URL",
+    )
+    clip_url: str = Field(
+        default="http://localhost:8093",
+        description="CLIP embedding service URL for re-identification",
+    )
+    enrichment_url: str = Field(
+        default="http://localhost:8094",
+        description="Combined enrichment service URL for vehicle, pet, and clothing classification",
+    )
+
+    @field_validator("florence_url", "clip_url", "enrichment_url", mode="before")
+    @classmethod
+    def validate_vision_service_urls(cls, v: Any) -> str:
+        """Validate vision service URLs using Pydantic's AnyHttpUrl validator.
+
+        This ensures URLs are well-formed HTTP/HTTPS URLs while returning
+        a string for compatibility with httpx clients.
+
+        Args:
+            v: The URL value to validate
+
+        Returns:
+            The validated URL as a string
+
+        Raises:
+            ValueError: If the URL is not a valid HTTP/HTTPS URL
+        """
+        if v is None:
+            raise ValueError("Vision service URL cannot be None")
+
+        # Convert to string if needed
+        url_str = str(v)
+
+        # Use AnyHttpUrl for validation (supports http and https)
+        try:
+            validated_url = AnyHttpUrl(url_str)
+            # Return as string for httpx compatibility
+            # Strip trailing slash to avoid double-slash when appending paths like /health
+            return str(validated_url).rstrip("/")
+        except Exception as e:
+            raise ValueError(
+                f"Invalid vision service URL '{url_str}': must be a valid HTTP/HTTPS URL. "
+                f"Example: 'http://localhost:8092'. Error: {e}"
+            ) from None
+
     # Vision extraction settings (Florence-2, CLIP re-id, scene analysis)
     vision_extraction_enabled: bool = Field(
         default=True,

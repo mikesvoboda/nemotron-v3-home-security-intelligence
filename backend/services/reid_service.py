@@ -6,6 +6,9 @@ entities and matching them across different camera views using CLIP ViT-L.
 Re-identification enables tracking the same person or vehicle as they move
 between different cameras, providing valuable context for risk analysis.
 
+The service now uses the ai-clip HTTP service for embedding generation,
+keeping the CLIP model in a dedicated container for better VRAM management.
+
 Redis Storage Pattern:
     Key: entity_embeddings:{date}
     TTL: 24 hours (86400 seconds)
@@ -21,6 +24,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 from backend.core.logging import get_logger
+from backend.services.clip_client import CLIPClient, CLIPUnavailableError, get_clip_client
 
 if TYPE_CHECKING:
     from PIL import Image
@@ -144,17 +148,19 @@ def cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
 class ReIdentificationService:
     """Service for entity re-identification across cameras.
 
-    This service generates embeddings from detected entities using CLIP ViT-L,
-    stores them in Redis with 24-hour TTL, and provides matching functionality
-    to identify the same entity across different camera views.
+    This service generates embeddings from detected entities using the ai-clip
+    HTTP service, stores them in Redis with 24-hour TTL, and provides matching
+    functionality to identify the same entity across different camera views.
+
+    The service uses an HTTP client to communicate with the ai-clip service,
+    which runs the CLIP ViT-L model in a dedicated container for better VRAM
+    management.
 
     Usage:
         service = ReIdentificationService()
 
-        # Generate embedding from detected entity
-        embedding = await service.generate_embedding(
-            model, image, bbox=(100, 100, 200, 200)
-        )
+        # Generate embedding from detected entity (using HTTP client)
+        embedding = await service.generate_embedding(image, bbox=(100, 100, 200, 200))
 
         # Store embedding
         entity = EntityEmbedding(
@@ -173,60 +179,71 @@ class ReIdentificationService:
         )
     """
 
-    def __init__(self) -> None:
-        """Initialize the ReIdentificationService."""
+    def __init__(self, clip_client: CLIPClient | None = None) -> None:
+        """Initialize the ReIdentificationService.
+
+        Args:
+            clip_client: Optional CLIPClient instance. If not provided,
+                        the global client will be used.
+        """
+        self._clip_client = clip_client
         logger.info("ReIdentificationService initialized")
+
+    @property
+    def clip_client(self) -> CLIPClient:
+        """Get the CLIP client instance.
+
+        Returns:
+            CLIPClient instance (uses global client if not provided in constructor)
+        """
+        if self._clip_client is None:
+            return get_clip_client()
+        return self._clip_client
 
     async def generate_embedding(
         self,
-        model: dict[str, Any],
         image: Image.Image,
         bbox: tuple[int, int, int, int] | None = None,
+        model: dict[str, Any] | None = None,  # Deprecated, kept for backward compatibility
     ) -> list[float]:
         """Generate a 768-dimensional embedding from an image.
 
+        Uses the ai-clip HTTP service to generate embeddings, keeping the
+        CLIP model in a dedicated container for better VRAM management.
+
         Args:
-            model: Dictionary containing CLIP model and processor
             image: PIL Image to generate embedding from
             bbox: Optional bounding box (x1, y1, x2, y2) to crop before embedding
+            model: DEPRECATED - no longer used, kept for backward compatibility
 
         Returns:
             768-dimensional embedding vector
 
         Raises:
             RuntimeError: If embedding generation fails
+            CLIPUnavailableError: If the CLIP service is unavailable
         """
+        if model is not None:
+            logger.warning(
+                "The 'model' parameter is deprecated and ignored. "
+                "ReIdentificationService now uses the ai-clip HTTP service."
+            )
+
         try:
-            import torch
-
-            clip_model = model["model"]
-            processor = model["processor"]
-
             # Crop to bounding box if provided
             if bbox is not None:
                 x1, y1, x2, y2 = bbox
                 image = image.crop((x1, y1, x2, y2))
 
-            # Preprocess image
-            inputs = processor(images=image, return_tensors="pt")
-
-            # Move to same device as model
-            device = next(clip_model.parameters()).device
-            inputs = {k: v.to(device) for k, v in inputs.items()}
-
-            # Generate embedding
-            with torch.no_grad():
-                image_features = clip_model.get_image_features(**inputs)
-
-                # Normalize embedding
-                image_features = image_features / image_features.norm(p=2, dim=-1, keepdim=True)
-
-            # Convert to list
-            embedding: list[float] = image_features[0].cpu().numpy().tolist()
+            # Generate embedding via HTTP client
+            embedding = await self.clip_client.embed(image)
 
             logger.debug(f"Generated embedding with dimension {len(embedding)}")
             return embedding
 
+        except CLIPUnavailableError:
+            # Re-raise CLIP unavailable errors as-is
+            raise
         except Exception as e:
             logger.error(f"Failed to generate embedding: {e}")
             raise RuntimeError(f"Embedding generation failed: {e}") from e
