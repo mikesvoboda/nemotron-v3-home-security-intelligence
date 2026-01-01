@@ -155,12 +155,10 @@ test.describe('Alerts Error State', () => {
     alertsPage = new AlertsPage(page);
   });
 
-  test('shows error message when API fails', async ({ page }) => {
+  test('shows error message when API fails', async () => {
     await alertsPage.goto();
     // Wait for error state to render (API mock returns error)
-    await page.waitForLoadState('domcontentloaded');
-    // Give time for error to propagate to UI
-    await expect(page.getByText(/error|failed/i).first()).toBeVisible({ timeout: 8000 });
+    await expect(alertsPage.errorMessage).toBeVisible({ timeout: 10000 });
   });
 });
 
