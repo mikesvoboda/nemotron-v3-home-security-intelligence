@@ -118,9 +118,12 @@ export class DashboardPage extends BasePage {
    */
   async waitForDashboardLoad(): Promise<void> {
     await expect(this.pageTitle).toBeVisible({ timeout: this.pageLoadTimeout });
-    // Wait for loading skeleton to disappear (data loaded)
-    await this.loadingSkeleton.waitFor({ state: 'hidden', timeout: this.pageLoadTimeout }).catch(() => {
-      // Loading skeleton might not appear if data loads quickly, that's fine
+    // Wait for either dashboard content OR error state to appear
+    await Promise.race([
+      this.riskGauge.waitFor({ state: 'visible', timeout: this.pageLoadTimeout }),
+      this.errorHeading.waitFor({ state: 'visible', timeout: this.pageLoadTimeout }),
+    ]).catch(() => {
+      // One should appear, but continue anyway if neither does
     });
   }
 
