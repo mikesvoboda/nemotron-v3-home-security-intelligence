@@ -461,6 +461,190 @@ class EnrichmentResult:
             "processing_time_ms": self.processing_time_ms,
         }
 
+    def to_prompt_context(self, time_of_day: str | None = None) -> dict[str, str]:
+        """Generate all prompt context sections for MODEL_ZOO_ENHANCED template.
+
+        Returns a dictionary of formatted context strings for each enrichment
+        category, suitable for direct insertion into the prompt template.
+
+        Args:
+            time_of_day: Optional time context for risk assessment
+
+        Returns:
+            Dictionary mapping prompt field names to formatted context strings
+        """
+        from backend.services.prompts import (
+            format_action_recognition_context,
+            format_clothing_analysis_context,
+            format_depth_context,
+            format_image_quality_context,
+            format_pet_classification_context,
+            format_pose_analysis_context,
+            format_vehicle_classification_context,
+            format_vehicle_damage_context,
+            format_violence_context,
+            format_weather_context,
+        )
+
+        return {
+            # Violence analysis
+            "violence_context": format_violence_context(self.violence_detection),
+            # Weather context
+            "weather_context": format_weather_context(self.weather_classification),
+            # Image quality
+            "image_quality_context": format_image_quality_context(
+                self.image_quality,
+                self.quality_change_detected,
+                self.quality_change_description,
+            ),
+            # Clothing analysis
+            "clothing_analysis_context": format_clothing_analysis_context(
+                self.clothing_classifications,
+                self.clothing_segmentation,
+            ),
+            # Vehicle classification
+            "vehicle_classification_context": format_vehicle_classification_context(
+                self.vehicle_classifications
+            ),
+            # Vehicle damage
+            "vehicle_damage_context": format_vehicle_damage_context(
+                self.vehicle_damage,
+                time_of_day=time_of_day,
+            ),
+            # Pet classification
+            "pet_classification_context": format_pet_classification_context(
+                self.pet_classifications
+            ),
+            # Pose analysis (placeholder for future ViTPose integration)
+            "pose_analysis": format_pose_analysis_context(None),
+            # Action recognition (placeholder for future X-CLIP integration)
+            "action_recognition": format_action_recognition_context(None),
+            # Depth context (placeholder for future Depth Anything V2 integration)
+            "depth_context": format_depth_context(None),
+        }
+
+    def get_risk_modifiers(self) -> dict[str, float]:
+        """Calculate risk score modifiers based on enrichment results.
+
+        Returns a dictionary of named risk modifiers that can be used to
+        adjust the base risk score from Nemotron.
+
+        Positive values increase risk, negative values decrease risk.
+
+        Returns:
+            Dictionary mapping modifier names to float values (-1.0 to 1.0)
+        """
+        modifiers: dict[str, float] = {}
+
+        # Violence detection - major risk increase
+        if self.has_violence:
+            assert self.violence_detection is not None
+            modifiers["violence"] = 0.5 + (0.5 * self.violence_detection.confidence)
+
+        # Pet-only event - significant risk decrease
+        if self.pet_only_event:
+            modifiers["pet_only"] = -0.7
+
+        # High-confidence pets without other threats - moderate risk decrease
+        elif self.has_confirmed_pets and not self.has_violence:
+            modifiers["confirmed_pet"] = -0.3
+
+        # Suspicious clothing - moderate risk increase
+        if self.has_suspicious_clothing:
+            modifiers["suspicious_attire"] = 0.3
+
+        # Service uniform - moderate risk decrease (legitimate presence)
+        service_uniforms = [
+            c for c in self.clothing_classifications.values() if c.is_service_uniform
+        ]
+        if service_uniforms:
+            modifiers["service_uniform"] = -0.2
+
+        # High-security vehicle damage - major risk increase
+        if self.has_high_security_damage:
+            modifiers["vehicle_damage_high"] = 0.4
+        elif self.has_vehicle_damage:
+            modifiers["vehicle_damage"] = 0.15
+
+        # Commercial vehicles during day - slight risk decrease
+        if self.has_commercial_vehicles:
+            modifiers["commercial_vehicle"] = -0.1
+
+        # Image quality issues - slight uncertainty increase
+        if self.has_quality_issues:
+            modifiers["quality_issues"] = 0.1
+        if self.quality_change_detected:
+            modifiers["quality_change"] = 0.2
+
+        return modifiers
+
+    def get_summary_flags(self) -> list[dict[str, str]]:
+        """Generate summary flags for the risk assessment output.
+
+        Creates a list of flag dictionaries suitable for inclusion in
+        the Nemotron JSON output format.
+
+        Returns:
+            List of flag dictionaries with type, description, and severity
+        """
+        flags: list[dict[str, str]] = []
+
+        # Violence flag
+        if self.has_violence:
+            assert self.violence_detection is not None
+            flags.append(
+                {
+                    "type": "violence",
+                    "description": f"Violence detected ({self.violence_detection.confidence:.0%} confidence)",
+                    "severity": "critical",
+                }
+            )
+
+        # Suspicious attire flags
+        for det_id, clothing in self.clothing_classifications.items():
+            if clothing.is_suspicious:
+                flags.append(
+                    {
+                        "type": "suspicious_attire",
+                        "description": f"Person {det_id}: {clothing.top_category}",
+                        "severity": "alert",
+                    }
+                )
+
+        # Face covering flags from SegFormer
+        for det_id, seg in self.clothing_segmentation.items():
+            if seg.has_face_covered:
+                flags.append(
+                    {
+                        "type": "face_covered",
+                        "description": f"Person {det_id}: Face obscured by hat/sunglasses/scarf",
+                        "severity": "alert",
+                    }
+                )
+
+        # Vehicle damage flags
+        for det_id, damage in self.vehicle_damage.items():
+            if damage.has_high_security_damage:
+                flags.append(
+                    {
+                        "type": "vehicle_damage",
+                        "description": f"Vehicle {det_id}: {', '.join(damage.damage_types)}",
+                        "severity": "critical" if damage.has_high_security_damage else "warning",
+                    }
+                )
+
+        # Quality change flag
+        if self.quality_change_detected:
+            flags.append(
+                {
+                    "type": "quality_issue",
+                    "description": self.quality_change_description,
+                    "severity": "alert",
+                }
+            )
+
+        return flags
+
 
 @dataclass
 class DetectionInput:
