@@ -21,6 +21,9 @@ Models:
     - segformer-b2-clothes: Clothing segmentation on person detections
     - xclip-base: Temporal action recognition in video sequences
     - fashion-clip: Zero-shot clothing classification for security context
+    - brisque-quality: Image quality assessment (CPU-based, 0 VRAM)
+    - vehicle-segment-classification: Detailed vehicle type classification (11 types)
+    - pet-classifier: Cat/dog classification for false positive reduction
 
 VRAM Budget:
     - Nemotron LLM: 21,700 MB (always loaded)
@@ -42,7 +45,11 @@ from backend.services.clip_loader import load_clip_model
 from backend.services.depth_anything_loader import load_depth_model
 from backend.services.fashion_clip_loader import load_fashion_clip_model
 from backend.services.florence_loader import load_florence_model
+from backend.services.image_quality_loader import load_brisque_model
+from backend.services.pet_classifier_loader import load_pet_classifier_model
 from backend.services.segformer_loader import load_segformer_model
+from backend.services.vehicle_classifier_loader import load_vehicle_classifier
+from backend.services.vehicle_damage_loader import load_vehicle_damage_model
 from backend.services.violence_loader import load_violence_model
 from backend.services.vitpose_loader import load_vitpose_model
 from backend.services.weather_loader import load_weather_model
@@ -67,6 +74,15 @@ VEHICLE_CLASSES = frozenset(
 
 # Person class that should trigger face detection
 PERSON_CLASS = "person"
+
+# Animal classes that should trigger pet classification
+# These are common animal classes from COCO/RT-DETRv2 that might be pets
+ANIMAL_CLASSES = frozenset(
+    {
+        "cat",
+        "dog",
+    }
+)
 
 
 @dataclass
@@ -344,6 +360,61 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
             category="classification",
             vram_mb=500,  # ~500MB
             load_fn=load_fashion_clip_model,
+            enabled=True,
+            available=False,
+        ),
+        # BRISQUE image quality assessment via PyIQA
+        # No-reference image quality metric for detecting:
+        # - Camera obstruction/tampering (sudden quality drop)
+        # - Motion blur (fast movement detection)
+        # - General quality degradation (noise, artifacts)
+        # CPU-based, no VRAM required
+        "brisque-quality": ModelConfig(
+            name="brisque-quality",
+            path="pyiqa",  # Uses pyiqa library, not a model path
+            category="quality-assessment",
+            vram_mb=0,  # CPU-based, no VRAM needed
+            load_fn=load_brisque_model,
+            enabled=True,
+            available=False,
+        ),
+        # ResNet-50 Vehicle Segment Classification for detailed vehicle type ID
+        # Classifies vehicles into 11 categories beyond RT-DETRv2's generic types:
+        # car, pickup_truck, single_unit_truck, articulated_truck, bus,
+        # motorcycle, bicycle, work_van, non_motorized_vehicle, pedestrian, background
+        # Helps distinguish delivery vehicles (work_van) from personal vehicles
+        # Trained on MIO-TCD Traffic Dataset (50K images)
+        "vehicle-segment-classification": ModelConfig(
+            name="vehicle-segment-classification",
+            path="/export/ai_models/model-zoo/vehicle-segment-classification",
+            category="classification",
+            vram_mb=1500,  # ~1.5GB (conservative estimate for ResNet-50)
+            load_fn=load_vehicle_classifier,
+            enabled=True,
+            available=False,
+        ),
+        # YOLOv11 Vehicle Damage Segmentation
+        # Classes: cracks, dents, glass_shatter, lamp_broken, scratches, tire_flat
+        # Security: glass_shatter + lamp_broken at night = suspicious (break-in)
+        "vehicle-damage-detection": ModelConfig(
+            name="vehicle-damage-detection",
+            path="/export/ai_models/model-zoo/vehicle-damage-detection",
+            category="detection",
+            vram_mb=2000,  # ~2GB (yolo11x-seg architecture)
+            load_fn=load_vehicle_damage_model,
+            enabled=True,
+            available=False,
+        ),
+        # ResNet-18 Pet Classifier for false positive reduction
+        # Classifies dog vs cat from animal crop detections
+        # High-confidence pet detections can skip Nemotron analysis
+        # Lightweight model for quick load/unload cycles
+        "pet-classifier": ModelConfig(
+            name="pet-classifier",
+            path="/export/ai_models/model-zoo/pet-classifier",
+            category="classification",
+            vram_mb=200,  # ~200MB (very lightweight ResNet-18)
+            load_fn=load_pet_classifier_model,
             enabled=True,
             available=False,
         ),

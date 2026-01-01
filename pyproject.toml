@@ -44,6 +44,7 @@ dependencies = [
     "transformers>=4.57.3",
     "torchreid>=0.2.5",
     "gdown>=5.2.0",
+    "pyiqa>=0.1.10",
 ]
 
 [project.optional-dependencies]
