@@ -17,7 +17,7 @@ The System API provides endpoints for monitoring system health, GPU statistics, 
 | Method | Endpoint                       | Description                |
 | ------ | ------------------------------ | -------------------------- |
 | GET    | `/api/system/health`           | Detailed health check      |
-| GET    | `/api/system/health/live`      | Kubernetes liveness probe  |
+| GET    | `/health` (root level)         | Kubernetes liveness probe  |
 | GET    | `/api/system/health/ready`     | Kubernetes readiness probe |
 | GET    | `/api/system/gpu`              | Current GPU statistics     |
 | GET    | `/api/system/gpu/history`      | GPU stats time series      |
@@ -109,11 +109,11 @@ sequenceDiagram
 
 ---
 
-## GET /api/system/health/live
+## GET /health (Root Level)
 
 Kubernetes-style liveness probe.
 
-**Source:** [`get_liveness`](../../backend/api/routes/system.py:753)
+**Source:** [`health`](../../backend/main.py:297)
 
 **Response:** `200 OK`
 
@@ -124,6 +124,8 @@ Kubernetes-style liveness probe.
 ```
 
 **Purpose:** Indicates whether the process is running. Always returns 200 if the HTTP server is responding. Used by container orchestrators to determine if the process needs to be restarted.
+
+**Note:** This is a root-level endpoint (not under `/api/system/`). The previous `/api/system/health/live` endpoint was removed to consolidate duplicate functionality.
 
 ---
 

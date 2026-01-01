@@ -75,8 +75,9 @@ scrape_configs:
         replacement: json-exporter:7979
 
   # Direct backend liveness check (for up/down status)
+  # NOTE: /api/system/health/live was removed. Use /health instead.
   - job_name: "backend-liveness"
-    metrics_path: /api/system/health/live
+    metrics_path: /health
     scrape_interval: 10s
     static_configs:
       - targets:

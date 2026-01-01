@@ -142,7 +142,33 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "/redoc",
             "/openapi.json",
         ]
-        return path in exempt_paths or path.startswith("/docs") or path.startswith("/redoc")
+
+        # Exempt prefix paths (for dynamic routes)
+        exempt_prefixes = [
+            "/docs",
+            "/redoc",
+            # Media endpoints are exempt because they:
+            # 1. Are accessed directly by browsers via <img>/<video> tags
+            # 2. Have their own security (path traversal protection, file type allowlist, rate limiting)
+            # 3. Would require api_key in every image URL otherwise
+            "/api/media/",
+        ]
+
+        if path in exempt_paths:
+            return True
+
+        for prefix in exempt_prefixes:
+            if path.startswith(prefix):
+                return True
+
+        # Exempt detection media endpoints (images, videos, thumbnails)
+        # Pattern: /api/detections/{id}/image, /api/detections/{id}/video, /api/detections/{id}/video/thumbnail
+        if path.startswith("/api/detections/") and ("/image" in path or "/video" in path):
+            return True
+
+        # Exempt camera snapshot endpoints
+        # Pattern: /api/cameras/{id}/snapshot
+        return path.startswith("/api/cameras/") and path.endswith("/snapshot")
 
     async def dispatch(
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]

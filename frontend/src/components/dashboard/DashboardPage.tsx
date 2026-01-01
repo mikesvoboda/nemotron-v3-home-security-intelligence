@@ -2,7 +2,6 @@ import { useEffect, useState, useMemo } from 'react';
 
 import ActivityFeed, { type ActivityEvent } from './ActivityFeed';
 import CameraGrid, { type CameraStatus } from './CameraGrid';
-import GpuStats from './GpuStats';
 import PipelineTelemetry from './PipelineTelemetry';
 import RiskGauge from './RiskGauge';
 import StatsRow from './StatsRow';
@@ -10,12 +9,10 @@ import { useEventStream, type SecurityEvent } from '../../hooks/useEventStream';
 import { useSystemStatus } from '../../hooks/useSystemStatus';
 import {
   fetchCameras,
-  fetchGPUStats,
   fetchEvents,
   fetchEventStats,
   getCameraSnapshotUrl,
   type Camera,
-  type GPUStats,
   type Event,
   type EventStatsResponse,
 } from '../../services/api';
@@ -24,9 +21,13 @@ import {
  * Main Dashboard Page Component
  *
  * Assembles Phase 6 components into a cohesive dashboard layout:
- * - Top row: RiskGauge (left), GpuStats (right)
+ * - Top row: RiskGauge (full width)
+ * - Pipeline Telemetry (full width)
  * - Middle: CameraGrid (full width)
  * - Bottom: ActivityFeed (full width)
+ *
+ * Note: GPU Statistics are available on the System page which provides
+ * better context with RT-DETRv2/Nemotron model cards and pipeline metrics.
  *
  * Features:
  * - Real-time updates via WebSocket
@@ -37,7 +38,6 @@ import {
 export default function DashboardPage() {
   // State for REST API data
   const [cameras, setCameras] = useState<Camera[]>([]);
-  const [gpuStats, setGpuStats] = useState<GPUStats | null>(null);
   const [initialEvents, setInitialEvents] = useState<Event[]>([]);
   const [eventStats, setEventStats] = useState<EventStatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -59,16 +59,14 @@ export default function DashboardPage() {
         const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
         const startDate = startOfDay.toISOString();
 
-        // Fetch cameras, GPU stats, events, and event stats in parallel
-        const [camerasData, gpuData, eventsData, statsData] = await Promise.all([
+        // Fetch cameras, events, and event stats in parallel
+        const [camerasData, eventsData, statsData] = await Promise.all([
           fetchCameras(),
-          fetchGPUStats(),
           fetchEvents({ limit: 50 }),
           fetchEventStats({ start_date: startDate }),
         ]);
 
         setCameras(camerasData);
-        setGpuStats(gpuData);
         setInitialEvents(eventsData.events);
         setEventStats(statsData);
       } catch (err) {
@@ -80,22 +78,6 @@ export default function DashboardPage() {
     }
 
     void loadInitialData();
-  }, []);
-
-  // Poll GPU stats periodically (every 5 seconds)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      void (async () => {
-        try {
-          const gpuData = await fetchGPUStats();
-          setGpuStats(gpuData);
-        } catch (err) {
-          console.error('Failed to update GPU stats:', err);
-        }
-      })();
-    }, 5000);
-
-    return () => clearInterval(interval);
   }, []);
 
   // Merge WebSocket events with initial events, avoiding duplicates
@@ -196,7 +178,7 @@ export default function DashboardPage() {
   // Error state
   if (error && !loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#121212] p-8">
+      <div className="flex min-h-screen items-center justify-center bg-[#121212] p-4 md:p-8">
         <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-6 text-center">
           <h2 className="mb-2 text-xl font-bold text-red-500">Error Loading Dashboard</h2>
           <p className="text-sm text-gray-300">{error}</p>
@@ -214,32 +196,31 @@ export default function DashboardPage() {
   // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#121212] p-8">
+      <div className="min-h-screen bg-[#121212] p-4 md:p-8">
         <div className="mx-auto max-w-[1920px]">
           {/* Header skeleton */}
-          <div className="mb-8">
-            <div className="h-10 w-64 animate-pulse rounded-lg bg-gray-800"></div>
+          <div className="mb-6 md:mb-8">
+            <div className="h-8 w-48 animate-pulse rounded-lg bg-gray-800 md:h-10 md:w-64"></div>
           </div>
 
-          {/* Top row skeleton */}
-          <div className="mb-8 grid gap-6 lg:grid-cols-2">
-            <div className="h-64 animate-pulse rounded-lg bg-gray-800"></div>
-            <div className="h-64 animate-pulse rounded-lg bg-gray-800"></div>
+          {/* Risk Gauge skeleton */}
+          <div className="mb-6 md:mb-8">
+            <div className="h-48 animate-pulse rounded-lg bg-gray-800 md:h-64"></div>
           </div>
 
           {/* Camera grid skeleton */}
-          <div className="mb-8">
-            <div className="mb-4 h-8 w-48 animate-pulse rounded-lg bg-gray-800"></div>
+          <div className="mb-6 md:mb-8">
+            <div className="mb-4 h-6 w-32 animate-pulse rounded-lg bg-gray-800 md:h-8 md:w-48"></div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {Array.from({ length: 4 }, (_, i) => (
-                <div key={i} className="h-48 animate-pulse rounded-lg bg-gray-800"></div>
+                <div key={i} className="h-40 animate-pulse rounded-lg bg-gray-800 md:h-48"></div>
               ))}
             </div>
           </div>
 
           {/* Activity feed skeleton */}
-          <div className="mb-4 h-8 w-48 animate-pulse rounded-lg bg-gray-800"></div>
-          <div className="h-96 animate-pulse rounded-lg bg-gray-800"></div>
+          <div className="mb-4 h-6 w-32 animate-pulse rounded-lg bg-gray-800 md:h-8 md:w-48"></div>
+          <div className="h-72 animate-pulse rounded-lg bg-gray-800 md:h-96"></div>
         </div>
       </div>
     );
@@ -247,12 +228,12 @@ export default function DashboardPage() {
 
   // Main dashboard
   return (
-    <div className="min-h-screen bg-[#121212] p-8">
+    <div className="min-h-screen bg-[#121212] p-4 md:p-8">
       <div className="mx-auto max-w-[1920px]">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white">Security Dashboard</h1>
-          <p className="mt-2 text-sm text-gray-400">
+        <div className="mb-6 md:mb-8">
+          <h1 className="text-2xl font-bold text-white sm:text-3xl md:text-4xl">Security Dashboard</h1>
+          <p className="mt-1 text-xs text-gray-400 sm:mt-2 sm:text-sm">
             Real-time AI-powered home security monitoring
             {!eventsConnected && !systemConnected && (
               <span className="ml-2 text-yellow-500">(Disconnected)</span>
@@ -261,7 +242,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Stats Row */}
-        <div className="mb-8">
+        <div className="mb-6 md:mb-8">
           <StatsRow
             activeCameras={activeCamerasCount}
             eventsToday={eventsToday}
@@ -270,14 +251,13 @@ export default function DashboardPage() {
           />
         </div>
 
-        {/* Top Row: RiskGauge + GpuStats */}
-        <div className="mb-8 grid gap-6 lg:grid-cols-2">
-          {/* Risk Gauge */}
+        {/* Risk Gauge - full width */}
+        <div className="mb-6 md:mb-8">
           <div className="rounded-lg border border-gray-800 bg-[#1A1A1A] shadow-lg">
-            <div className="border-b border-gray-800 px-6 py-4">
-              <h2 className="text-xl font-semibold text-white">Current Risk Level</h2>
+            <div className="border-b border-gray-800 px-4 py-3 md:px-6 md:py-4">
+              <h2 className="text-lg font-semibold text-white md:text-xl">Current Risk Level</h2>
             </div>
-            <div className="flex items-center justify-center py-8">
+            <div className="flex items-center justify-center py-6 md:py-8">
               <RiskGauge
                 value={currentRiskScore}
                 history={riskHistory.length > 0 ? riskHistory : undefined}
@@ -286,38 +266,27 @@ export default function DashboardPage() {
               />
             </div>
           </div>
-
-          {/* GPU Stats */}
-          <GpuStats
-            gpuName={gpuStats?.gpu_name ?? null}
-            utilization={gpuStats?.utilization ?? null}
-            memoryUsed={gpuStats?.memory_used ?? null}
-            memoryTotal={gpuStats?.memory_total ?? null}
-            temperature={gpuStats?.temperature ?? null}
-            powerUsage={gpuStats?.power_usage ?? null}
-            inferenceFps={gpuStats?.inference_fps ?? null}
-          />
         </div>
 
         {/* Pipeline Telemetry - full width */}
-        <div className="mb-8">
+        <div className="mb-6 md:mb-8">
           <PipelineTelemetry />
         </div>
 
         {/* Camera Grid */}
-        <div className="mb-8">
-          <h2 className="mb-4 text-2xl font-semibold text-white">Camera Status</h2>
+        <div className="mb-6 md:mb-8">
+          <h2 className="mb-3 text-xl font-semibold text-white md:mb-4 md:text-2xl">Camera Status</h2>
           <CameraGrid cameras={cameraStatuses} />
         </div>
 
         {/* Activity Feed */}
-        <div className="mb-8">
-          <h2 className="mb-4 text-2xl font-semibold text-white">Live Activity</h2>
+        <div className="mb-6 md:mb-8">
+          <h2 className="mb-3 text-xl font-semibold text-white md:mb-4 md:text-2xl">Live Activity</h2>
           <ActivityFeed
             events={activityEvents}
             maxItems={10}
             autoScroll={true}
-            className="h-[600px]"
+            className="h-[400px] md:h-[600px]"
           />
         </div>
       </div>

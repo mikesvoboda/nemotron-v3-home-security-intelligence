@@ -75,11 +75,15 @@ class TestSettingsDefaults:
         assert settings.api_port == 8000
 
     def test_default_cors_origins(self, clean_env):
-        """Test default CORS origins include localhost development URLs."""
+        """Test default CORS origins include localhost and 127.0.0.1 development URLs."""
         settings = Settings()
         assert settings.cors_origins == [
             "http://localhost:3000",
             "http://localhost:5173",
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:5173",
+            "http://0.0.0.0:3000",
+            "http://0.0.0.0:5173",
         ]
         assert isinstance(settings.cors_origins, list)
 

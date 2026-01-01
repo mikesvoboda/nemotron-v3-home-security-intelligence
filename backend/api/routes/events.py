@@ -20,13 +20,16 @@ from backend.api.schemas.events import (
 )
 from backend.api.schemas.search import SearchResponse as SearchResponseSchema
 from backend.core.database import get_db
+from backend.core.logging import get_logger
 from backend.models.audit import AuditAction
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
 from backend.services.audit import AuditService
+from backend.services.cache_service import SHORT_TTL, CacheKeys, get_cache_service
 from backend.services.search import SearchFilters, search_events
 
+logger = get_logger(__name__)
 router = APIRouter(prefix="/api/events", tags=["events"])
 
 # Valid severity values for search filter
@@ -206,6 +209,9 @@ async def get_event_stats(
     - Events grouped by risk level (critical, high, medium, low)
     - Events grouped by camera with camera names
 
+    Uses Redis cache with cache-aside pattern to improve performance
+    and generate cache hit metrics.
+
     Args:
         start_date: Optional start date for date range filter
         end_date: Optional end date for date range filter
@@ -214,6 +220,23 @@ async def get_event_stats(
     Returns:
         EventStatsResponse with aggregated statistics
     """
+    # Generate cache key based on date filters
+    # Check isinstance() to handle case when tests pass Query objects directly
+    start_str = start_date.isoformat() if isinstance(start_date, datetime) else None
+    end_str = end_date.isoformat() if isinstance(end_date, datetime) else None
+    cache_key = CacheKeys.event_stats(start_str, end_str)
+
+    # Try cache first
+    try:
+        cache = await get_cache_service()
+        cached_data = await cache.get(cache_key)
+        if cached_data is not None:
+            logger.debug(f"Returning cached event stats for dates={start_str}:{end_str}")
+            # Cast to expected type - cache stores dict[str, Any]
+            return dict(cached_data)
+    except Exception as e:
+        logger.warning(f"Cache read failed, falling back to database: {e}")
+
     # Build date filter conditions (reused across queries)
     date_filters = []
     if start_date:
@@ -270,11 +293,20 @@ async def get_event_stats(
         for camera_id, camera_name, event_count in camera_stats_rows
     ]
 
-    return {
+    response = {
         "total_events": total_events,
         "events_by_risk_level": risk_level_counts,
         "events_by_camera": events_by_camera,
     }
+
+    # Cache the result
+    try:
+        cache = await get_cache_service()
+        await cache.set(cache_key, response, ttl=SHORT_TTL)
+    except Exception as e:
+        logger.warning(f"Cache write failed: {e}")
+
+    return response
 
 
 @router.get("/search", response_model=SearchResponseSchema)

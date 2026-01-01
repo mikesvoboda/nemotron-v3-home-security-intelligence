@@ -3,6 +3,7 @@ import { clsx } from 'clsx';
 import { Bell, Camera, Cpu, Settings as SettingsIcon } from 'lucide-react';
 import { Fragment } from 'react';
 
+import { SecureContextWarning } from '../common';
 import AIModelsSettings from './AIModelsSettings';
 import CamerasSettings from './CamerasSettings';
 import NotificationSettings from './NotificationSettings';
@@ -59,6 +60,9 @@ export default function SettingsPage() {
           <h1 className="text-4xl font-bold text-white">Settings</h1>
           <p className="mt-2 text-sm text-gray-400">Configure your security monitoring system</p>
         </div>
+
+        {/* Secure Context Warning - shown when not using HTTPS */}
+        <SecureContextWarning className="mb-6" />
 
         {/* Tabs */}
         <Tab.Group>

@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach, Mock } from 'vitest';
 
 import Layout from './Layout';
 import { useServiceStatus } from '../../hooks/useServiceStatus';
+import { useSidebarContext } from '../../hooks/useSidebarContext';
 import { ServiceName, ServiceStatus } from '../common/ServiceStatusAlert';
 
 // Mock the child components
@@ -323,6 +324,80 @@ describe('Layout', () => {
       // Should show 'Service Failed' as it's the worst status
       expect(screen.getByRole('alert')).toBeInTheDocument();
       expect(screen.getByText('Service Failed')).toBeInTheDocument();
+    });
+  });
+
+  describe('mobile sidebar context', () => {
+    it('provides sidebar context to children', () => {
+      // Test component that consumes the context
+      function TestConsumer() {
+        const { isMobileMenuOpen, toggleMobileMenu } = useSidebarContext();
+        return (
+          <div>
+            <span data-testid="menu-state">{isMobileMenuOpen ? 'open' : 'closed'}</span>
+            <button onClick={toggleMobileMenu} data-testid="toggle-button">
+              Toggle
+            </button>
+          </div>
+        );
+      }
+
+      render(
+        <Layout>
+          <TestConsumer />
+        </Layout>
+      );
+
+      // Initially closed
+      expect(screen.getByTestId('menu-state')).toHaveTextContent('closed');
+
+      // Click toggle
+      fireEvent.click(screen.getByTestId('toggle-button'));
+      expect(screen.getByTestId('menu-state')).toHaveTextContent('open');
+
+      // Click toggle again
+      fireEvent.click(screen.getByTestId('toggle-button'));
+      expect(screen.getByTestId('menu-state')).toHaveTextContent('closed');
+    });
+
+    it('shows mobile overlay when menu is open', () => {
+      function TestConsumer() {
+        const { toggleMobileMenu } = useSidebarContext();
+        return (
+          <button onClick={toggleMobileMenu} data-testid="toggle-button">
+            Toggle
+          </button>
+        );
+      }
+
+      render(
+        <Layout>
+          <TestConsumer />
+        </Layout>
+      );
+
+      // Initially no overlay
+      expect(screen.queryByTestId('mobile-overlay')).not.toBeInTheDocument();
+
+      // Open menu
+      fireEvent.click(screen.getByTestId('toggle-button'));
+      expect(screen.getByTestId('mobile-overlay')).toBeInTheDocument();
+
+      // Click overlay to close
+      fireEvent.click(screen.getByTestId('mobile-overlay'));
+      expect(screen.queryByTestId('mobile-overlay')).not.toBeInTheDocument();
+    });
+
+    it('throws error when useSidebarContext used outside Layout', () => {
+      function TestOutsideLayout() {
+        useSidebarContext();
+        return null;
+      }
+
+      // Should throw an error
+      expect(() => render(<TestOutsideLayout />)).toThrow(
+        'useSidebarContext must be used within Layout'
+      );
     });
   });
 });
