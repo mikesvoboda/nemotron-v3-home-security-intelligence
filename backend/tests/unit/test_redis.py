@@ -1584,3 +1584,192 @@ async def test_get_from_queue_with_retry_enforces_minimum_timeout(redis_client, 
 
     # Should have been called with minimum timeout
     mock_redis_client.blpop.assert_awaited_once_with(["test_queue"], timeout=5)
+
+
+# ==============================================================================
+# SSL/TLS Tests
+# ==============================================================================
+
+
+def test_redis_client_ssl_settings_from_constructor():
+    """Test that RedisClient accepts SSL settings via constructor."""
+    client = RedisClient(
+        redis_url="redis://localhost:6379/0",
+        ssl_enabled=True,
+        ssl_cert_reqs="required",
+        ssl_ca_certs="/path/to/ca.crt",
+        ssl_certfile="/path/to/client.crt",
+        ssl_keyfile="/path/to/client.key",
+        ssl_check_hostname=True,
+    )
+
+    assert client._ssl_enabled is True
+    assert client._ssl_cert_reqs == "required"
+    assert client._ssl_ca_certs == "/path/to/ca.crt"
+    assert client._ssl_certfile == "/path/to/client.crt"
+    assert client._ssl_keyfile == "/path/to/client.key"
+    assert client._ssl_check_hostname is True
+
+
+def test_redis_client_ssl_defaults_from_settings():
+    """Test that RedisClient uses settings defaults when constructor values are None."""
+    # Create client without explicit SSL settings
+    client = RedisClient(redis_url="redis://localhost:6379/0")
+
+    # Should use defaults from settings (ssl_enabled defaults to False)
+    assert client._ssl_enabled is False
+
+
+def test_redis_client_create_ssl_context_returns_none_when_disabled():
+    """Test that _create_ssl_context returns None when SSL is disabled."""
+    client = RedisClient(redis_url="redis://localhost:6379/0", ssl_enabled=False)
+
+    ssl_context = client._create_ssl_context()
+
+    assert ssl_context is None
+
+
+def test_redis_client_create_ssl_context_creates_context_when_enabled():
+    """Test that _create_ssl_context creates context when SSL is enabled."""
+    import ssl
+
+    client = RedisClient(
+        redis_url="redis://localhost:6379/0",
+        ssl_enabled=True,
+        ssl_cert_reqs="none",  # Use 'none' to avoid needing actual certs
+        ssl_check_hostname=False,
+    )
+
+    ssl_context = client._create_ssl_context()
+
+    assert ssl_context is not None
+    assert isinstance(ssl_context, ssl.SSLContext)
+    assert ssl_context.verify_mode == ssl.CERT_NONE
+    assert ssl_context.check_hostname is False
+
+
+def test_redis_client_create_ssl_context_with_cert_required():
+    """Test SSL context creation with certificate required mode."""
+    import ssl
+
+    client = RedisClient(
+        redis_url="redis://localhost:6379/0",
+        ssl_enabled=True,
+        ssl_cert_reqs="required",
+        ssl_check_hostname=True,
+    )
+
+    ssl_context = client._create_ssl_context()
+
+    assert ssl_context is not None
+    assert ssl_context.verify_mode == ssl.CERT_REQUIRED
+    assert ssl_context.check_hostname is True
+
+
+def test_redis_client_create_ssl_context_with_cert_optional():
+    """Test SSL context creation with certificate optional mode."""
+    import ssl
+
+    client = RedisClient(
+        redis_url="redis://localhost:6379/0",
+        ssl_enabled=True,
+        ssl_cert_reqs="optional",
+        ssl_check_hostname=False,
+    )
+
+    ssl_context = client._create_ssl_context()
+
+    assert ssl_context is not None
+    assert ssl_context.verify_mode == ssl.CERT_OPTIONAL
+
+
+def test_redis_client_create_ssl_context_missing_ca_cert_raises():
+    """Test that missing CA certificate file raises FileNotFoundError."""
+    client = RedisClient(
+        redis_url="redis://localhost:6379/0",
+        ssl_enabled=True,
+        ssl_cert_reqs="required",
+        ssl_ca_certs="/nonexistent/path/to/ca.crt",
+    )
+
+    with pytest.raises(FileNotFoundError, match="Redis SSL CA certificate file not found"):
+        client._create_ssl_context()
+
+
+def test_redis_client_create_ssl_context_missing_client_cert_raises():
+    """Test that missing client certificate file raises FileNotFoundError."""
+    client = RedisClient(
+        redis_url="redis://localhost:6379/0",
+        ssl_enabled=True,
+        ssl_cert_reqs="none",
+        ssl_check_hostname=False,  # Required when cert_reqs is 'none'
+        ssl_certfile="/nonexistent/path/to/client.crt",
+    )
+
+    with pytest.raises(FileNotFoundError, match="Redis SSL client certificate file not found"):
+        client._create_ssl_context()
+
+
+def test_redis_client_create_ssl_context_missing_client_key_raises():
+    """Test that missing client key file raises FileNotFoundError."""
+    import tempfile
+    from pathlib import Path
+
+    # Create a temporary certificate file (content doesn't matter for this test)
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".crt", delete=False) as f:
+        f.write("dummy cert")
+        temp_cert = f.name
+
+    try:
+        client = RedisClient(
+            redis_url="redis://localhost:6379/0",
+            ssl_enabled=True,
+            ssl_cert_reqs="none",
+            ssl_check_hostname=False,  # Required when cert_reqs is 'none'
+            ssl_certfile=temp_cert,
+            ssl_keyfile="/nonexistent/path/to/client.key",
+        )
+
+        with pytest.raises(FileNotFoundError, match="Redis SSL client key file not found"):
+            client._create_ssl_context()
+    finally:
+        Path(temp_cert).unlink()
+
+
+@pytest.mark.asyncio
+async def test_redis_connect_with_ssl_enabled(mock_redis_pool, mock_redis_client):
+    """Test that connect() passes SSL context to ConnectionPool when enabled."""
+    import ssl
+
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+        client = RedisClient(
+            redis_url="redis://localhost:6379/0",
+            ssl_enabled=True,
+            ssl_cert_reqs="none",
+            ssl_check_hostname=False,
+        )
+        await client.connect()
+
+        # Verify ConnectionPool.from_url was called with ssl parameter
+        call_kwargs = mock_redis_pool.from_url.call_args[1]
+        assert "ssl" in call_kwargs
+        assert isinstance(call_kwargs["ssl"], ssl.SSLContext)
+
+        await client.disconnect()
+
+
+@pytest.mark.asyncio
+async def test_redis_connect_without_ssl(mock_redis_pool, mock_redis_client):
+    """Test that connect() does not pass SSL context when disabled."""
+    with patch("backend.core.redis.Redis", return_value=mock_redis_client):
+        client = RedisClient(
+            redis_url="redis://localhost:6379/0",
+            ssl_enabled=False,
+        )
+        await client.connect()
+
+        # Verify ConnectionPool.from_url was called without ssl parameter
+        call_kwargs = mock_redis_pool.from_url.call_args[1]
+        assert "ssl" not in call_kwargs
+
+        await client.disconnect()

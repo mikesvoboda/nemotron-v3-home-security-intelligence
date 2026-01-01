@@ -65,6 +65,40 @@ class Settings(BaseSettings):
         description="Redis pub/sub channel for security events",
     )
 
+    # Redis SSL/TLS settings
+    redis_ssl_enabled: bool = Field(
+        default=False,
+        description="Enable SSL/TLS encryption for Redis connections. "
+        "When True, uses 'rediss://' scheme or adds SSL context to connection. "
+        "Set to True for production environments to encrypt data in transit.",
+    )
+    redis_ssl_cert_reqs: str = Field(
+        default="required",
+        description="SSL certificate verification mode: 'none' (no verification), "
+        "'optional' (verify if cert provided), 'required' (always verify). "
+        "Use 'required' for production with proper CA certificates.",
+    )
+    redis_ssl_ca_certs: str | None = Field(
+        default=None,
+        description="Path to CA certificate file (PEM format) for verifying Redis server certificate. "
+        "Required when redis_ssl_cert_reqs is 'required' or 'optional'.",
+    )
+    redis_ssl_certfile: str | None = Field(
+        default=None,
+        description="Path to client certificate file (PEM format) for mutual TLS (mTLS) authentication. "
+        "Optional - only needed if Redis server requires client certificates.",
+    )
+    redis_ssl_keyfile: str | None = Field(
+        default=None,
+        description="Path to client private key file (PEM format) for mutual TLS (mTLS) authentication. "
+        "Required if redis_ssl_certfile is provided.",
+    )
+    redis_ssl_check_hostname: bool = Field(
+        default=True,
+        description="Verify that the Redis server's certificate hostname matches. "
+        "Should be True for production. Set to False only for testing with self-signed certs.",
+    )
+
     # Application settings
     app_name: str = "Home Security Intelligence"
     app_version: str = "0.1.0"
@@ -727,6 +761,18 @@ class Settings(BaseSettings):
             )
 
         return url_str
+
+    @field_validator("redis_ssl_cert_reqs")
+    @classmethod
+    def validate_redis_ssl_cert_reqs(cls, v: str) -> str:
+        """Validate Redis SSL certificate verification mode."""
+        valid_modes = {"none", "optional", "required"}
+        v_lower = v.lower()
+        if v_lower not in valid_modes:
+            raise ValueError(
+                f"redis_ssl_cert_reqs must be one of: {', '.join(valid_modes)}. Got: '{v}'"
+            )
+        return v_lower
 
     @field_validator("database_url")
     @classmethod

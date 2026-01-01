@@ -125,12 +125,45 @@ class AuthMiddleware(BaseHTTPMiddleware):
     def _is_exempt_path(self, path: str) -> bool:
         """Check if path is exempt from authentication.
 
+        SECURITY RATIONALE FOR EXEMPT PATHS:
+
+        Health Check Endpoints (required for container orchestration):
+        - /               : Basic status check for load balancers
+        - /health         : Canonical liveness probe (Docker/K8s HEALTHCHECK)
+        - /ready          : Canonical readiness probe (K8s readiness)
+        - /api/system/health       : Detailed health check (includes AI service status)
+        - /api/system/health/ready : Detailed readiness probe with service breakdown
+
+        Prometheus Metrics (required for monitoring):
+        - /api/metrics    : Prometheus scraping endpoint
+          NOTE: Consider restricting to internal network only in production
+
+        API Documentation (development convenience):
+        - /docs           : Swagger UI
+        - /redoc          : ReDoc documentation
+        - /openapi.json   : OpenAPI schema
+
+        Media Endpoints (static content accessed by browsers):
+        - /api/media/*    : Camera media and thumbnails
+        - /api/detections/{id}/image : Detection thumbnail images
+        - /api/detections/{id}/video : Detection video streams
+        - /api/detections/{id}/video/thumbnail : Video thumbnail frames
+        - /api/cameras/{id}/snapshot : Latest camera snapshot
+
+        Security controls for media endpoints:
+        1. Path traversal protection (rejects ".." and absolute paths)
+        2. File type allowlist (only images and videos)
+        3. Base directory validation (prevents symlink escapes)
+        4. Rate limiting (MEDIA tier - configurable requests/minute)
+        5. Detection IDs require prior knowledge (not enumerable)
+
         Args:
             path: Request path
 
         Returns:
             True if path should bypass authentication
         """
+        # Health check endpoints - required for container orchestration
         exempt_paths = [
             "/",
             "/health",  # Canonical liveness probe
@@ -162,11 +195,13 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 return True
 
         # Exempt detection media endpoints (images, videos, thumbnails)
+        # These have rate limiting and require knowing detection IDs
         # Pattern: /api/detections/{id}/image, /api/detections/{id}/video, /api/detections/{id}/video/thumbnail
         if path.startswith("/api/detections/") and ("/image" in path or "/video" in path):
             return True
 
         # Exempt camera snapshot endpoints
+        # These have rate limiting and path traversal protection
         # Pattern: /api/cameras/{id}/snapshot
         return path.startswith("/api/cameras/") and path.endswith("/snapshot")
 

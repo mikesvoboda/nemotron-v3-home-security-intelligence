@@ -15,6 +15,11 @@ Output Format:
     - File: {clips_directory}/{event_id}_clip.mp4
     - Codec: libx264 (H.264)
     - Audio: copy (if present) or none
+
+Security:
+    - All user inputs are validated before use in subprocess calls
+    - Uses subprocess with list arguments (never shell=True)
+    - Paths are validated to prevent command-line option injection
 """
 
 from __future__ import annotations
@@ -30,6 +35,92 @@ if TYPE_CHECKING:
     from backend.models import Event
 
 logger = get_logger(__name__)
+
+# Allowed output formats for clip generation
+ALLOWED_OUTPUT_FORMATS = frozenset({"mp4", "gif"})
+
+
+def _validate_video_path(video_path: str | Path) -> Path:
+    """Validate video path for safe use in subprocess calls.
+
+    Args:
+        video_path: Path to validate
+
+    Returns:
+        Resolved Path object
+
+    Raises:
+        ValueError: If path validation fails
+    """
+    video_path_obj = Path(video_path).resolve()
+    if not video_path_obj.exists():
+        raise ValueError(f"Video file not found: {video_path}")
+    if not video_path_obj.is_file():
+        raise ValueError(f"Path is not a file: {video_path}")
+    # Prevent paths that look like command-line options
+    if str(video_path_obj).startswith("-"):
+        raise ValueError(f"Invalid video path: {video_path}")
+    return video_path_obj
+
+
+def _validate_roll_seconds(seconds: int, param_name: str) -> int:
+    """Validate pre/post roll seconds parameter.
+
+    Args:
+        seconds: Number of seconds
+        param_name: Name of parameter for error messages
+
+    Returns:
+        Validated seconds as int
+
+    Raises:
+        ValueError: If value is invalid
+    """
+    if not isinstance(seconds, int):
+        raise ValueError(f"{param_name} must be an integer, got {type(seconds).__name__}")
+    # Reasonable bounds: 0 to 5 minutes (300 seconds)
+    if seconds < 0 or seconds > 300:
+        raise ValueError(f"{param_name} must be between 0 and 300 seconds, got {seconds}")
+    return seconds
+
+
+def _validate_output_format(output_format: str) -> str:
+    """Validate output format for safe use.
+
+    Args:
+        output_format: Format string to validate
+
+    Returns:
+        Validated format string (lowercase)
+
+    Raises:
+        ValueError: If format is not allowed
+    """
+    normalized = output_format.lower().strip()
+    if normalized not in ALLOWED_OUTPUT_FORMATS:
+        raise ValueError(
+            f"Output format must be one of {sorted(ALLOWED_OUTPUT_FORMATS)}, got '{output_format}'"
+        )
+    return normalized
+
+
+def _validate_fps(fps: int) -> int:
+    """Validate frames per second parameter.
+
+    Args:
+        fps: Frames per second value
+
+    Returns:
+        Validated fps as int
+
+    Raises:
+        ValueError: If fps is invalid or out of bounds
+    """
+    if not isinstance(fps, int):
+        raise ValueError(f"fps must be an integer, got {type(fps).__name__}")
+    if not (1 <= fps <= 60):
+        raise ValueError(f"fps must be between 1 and 60, got {fps}")
+    return fps
 
 
 class ClipGenerationError(Exception):
@@ -113,7 +204,7 @@ class ClipGenerator:
         """Get the clips output directory."""
         return self._clips_directory
 
-    async def generate_clip_from_video(
+    async def generate_clip_from_video(  # noqa: PLR0911
         self,
         event: Event,
         video_path: str | Path,
@@ -141,13 +232,23 @@ class ClipGenerator:
             logger.debug("Clip generation is disabled")
             return None
 
-        video_path = Path(video_path)
-        if not video_path.exists():
-            logger.error(f"Video file not found: {video_path}")
+        # Validate video path to prevent command injection
+        try:
+            validated_path = _validate_video_path(video_path)
+        except ValueError as e:
+            logger.error(f"Video path validation failed: {e}")
             return None
 
+        # Get and validate pre/post roll seconds
         pre_seconds = pre_seconds if pre_seconds is not None else self._pre_roll_seconds
         post_seconds = post_seconds if post_seconds is not None else self._post_roll_seconds
+
+        try:
+            validated_pre = _validate_roll_seconds(pre_seconds, "pre_seconds")
+            validated_post = _validate_roll_seconds(post_seconds, "post_seconds")
+        except ValueError as e:
+            logger.error(f"Roll seconds validation failed: {e}")
+            return None
 
         # Calculate start and end times
         start_time = event.started_at
@@ -156,7 +257,12 @@ class ClipGenerator:
         # Apply pre/post roll
         # Convert to seconds from video start (assuming video starts at midnight of the same day)
         # For simplicity, we'll use the event times directly and calculate duration
-        duration = (end_time - start_time).total_seconds() + pre_seconds + post_seconds
+        duration = (end_time - start_time).total_seconds() + validated_pre + validated_post
+
+        # Validate duration is reasonable (max 1 hour)
+        if duration < 0 or duration > 3600:
+            logger.error(f"Invalid clip duration: {duration}s (must be 0-3600)")
+            return None
 
         # Generate output filename
         output_path = self._get_clip_path_for_event(event.id)
@@ -172,11 +278,11 @@ class ClipGenerator:
             "ffmpeg",
             "-y",  # Overwrite output file
             "-ss",
-            str(pre_seconds),  # Seek offset (relative)
+            str(validated_pre),  # Seek offset (relative, validated)
             "-i",
-            str(video_path),
+            str(validated_path),  # Input file (validated)
             "-t",
-            str(duration),
+            str(duration),  # Duration (validated)
             "-c:v",
             "libx264",
             "-preset",
@@ -345,8 +451,10 @@ class ClipGenerator:
             return None
 
         # Validate fps parameter to prevent command injection
-        if not isinstance(fps, int) or not (1 <= fps <= 60):
-            raise ValueError(f"fps must be an integer between 1 and 60, got {fps}")
+        validated_fps = _validate_fps(fps)
+
+        # Validate output format to prevent injection
+        validated_format = _validate_output_format(output_format)
 
         if not image_paths:
             logger.warning(f"No images provided for event {event.id}")
@@ -358,21 +466,20 @@ class ClipGenerator:
             logger.error(f"No valid images found for event {event.id}")
             return None
 
-        # Generate output filename
-        extension = "gif" if output_format.lower() == "gif" else "mp4"
-        output_path = self._clips_directory / f"{event.id}_clip.{extension}"
+        # Generate output filename using validated format
+        output_path = self._clips_directory / f"{event.id}_clip.{validated_format}"
 
         try:
             # Create temporary file list for ffmpeg concat demuxer
-            list_file_path = self._create_concat_file(valid_paths, fps)
+            list_file_path = self._create_concat_file(valid_paths, validated_fps)
 
             logger.info(
-                f"Generating {output_format} clip for event {event.id} "
+                f"Generating {validated_format} clip for event {event.id} "
                 f"from {len(valid_paths)} images"
             )
 
             return await self._run_ffmpeg_for_images(
-                event.id, list_file_path, output_path, output_format, fps
+                event.id, list_file_path, output_path, validated_format, validated_fps
             )
 
         except FileNotFoundError:
@@ -385,14 +492,24 @@ class ClipGenerator:
             return None
 
     def _validate_image_paths(self, image_paths: list[str | Path]) -> list[Path]:
-        """Validate image paths and return list of existing files."""
+        """Validate image paths and return list of existing files.
+
+        Performs security validation to prevent path injection attacks.
+        """
         valid_paths = []
         for img_path in image_paths:
-            path = Path(img_path)
-            if path.exists():
-                valid_paths.append(path)
-            else:
+            path = Path(img_path).resolve()
+            if not path.exists():
                 logger.warning(f"Image not found, skipping: {img_path}")
+                continue
+            if not path.is_file():
+                logger.warning(f"Path is not a file, skipping: {img_path}")
+                continue
+            # Prevent paths that look like command-line options
+            if str(path).startswith("-"):
+                logger.warning(f"Invalid image path (starts with '-'), skipping: {img_path}")
+                continue
+            valid_paths.append(path)
         return valid_paths
 
     def _create_concat_file(self, valid_paths: list[Path], fps: int) -> Path:
@@ -507,13 +624,12 @@ class ClipGenerator:
             return None
 
         # Validate fps parameter to prevent command injection
-        if not isinstance(fps, int) or not (1 <= fps <= 60):
-            raise ValueError(f"fps must be an integer between 1 and 60, got {fps}")
+        validated_fps = _validate_fps(fps)
 
         if video_path:
             return await self.generate_clip_from_video(event, video_path)
         elif image_paths:
-            return await self.generate_clip_from_images(event, image_paths, fps=fps)
+            return await self.generate_clip_from_images(event, image_paths, fps=validated_fps)
         else:
             logger.warning(f"No source provided for event {event.id} clip generation")
             return None

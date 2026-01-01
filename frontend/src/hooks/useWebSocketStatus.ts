@@ -14,6 +14,12 @@ export interface ChannelStatus {
 
 export interface WebSocketStatusOptions {
   url: string;
+  /**
+   * Sec-WebSocket-Protocol header values for authentication.
+   * When API key authentication is enabled, use ["api-key.{key}"] format.
+   * This is more secure than passing the API key in the URL query string.
+   */
+  protocols?: string[];
   channelName: string;
   onMessage?: (data: unknown) => void;
   onOpen?: () => void;
@@ -56,6 +62,7 @@ export function useWebSocketStatus(
 ): UseWebSocketStatusReturn {
   const {
     url,
+    protocols,
     channelName,
     onMessage,
     onOpen,
@@ -120,7 +127,9 @@ export function useWebSocketStatus(
     setHasExhaustedRetries(false);
 
     try {
-      const ws = new WebSocket(url);
+      // Pass protocols to WebSocket constructor for Sec-WebSocket-Protocol header
+      // This is used for API key authentication without exposing the key in the URL
+      const ws = protocols ? new WebSocket(url, protocols) : new WebSocket(url);
       wsRef.current = ws;
 
       // Set connection timeout - if we don't connect within timeout, close and retry
@@ -200,7 +209,9 @@ export function useWebSocketStatus(
       console.error(`[${channelName}] WebSocket connection error:`, error);
       setConnectionState('disconnected');
     }
-  }, [url, channelName, onMessage, onOpen, onClose, onError, onMaxRetriesExhausted, reconnect, reconnectInterval, reconnectAttempts, connectionTimeout]);
+    // protocols is joined for stable comparison (array contents vs reference)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url, protocols?.join(','), channelName, onMessage, onOpen, onClose, onError, onMaxRetriesExhausted, reconnect, reconnectInterval, reconnectAttempts, connectionTimeout]);
 
   const send = useCallback((data: unknown) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {

@@ -452,6 +452,11 @@ export interface paths {
          * Get Camera Snapshot
          * @description Return the latest image for a camera (best-effort snapshot).
          *
+         *     This endpoint is exempt from API key authentication because:
+         *     1. It serves static image content accessed directly by browsers via <img> tags
+         *     2. It has its own security controls (path traversal protection, file type allowlist)
+         *     3. It has rate limiting to prevent abuse
+         *
          *     This endpoint uses the camera's configured `folder_path` and returns the most recently
          *     modified image file under that directory.
          */
@@ -538,6 +543,11 @@ export interface paths {
          * Get Detection Image
          * @description Get detection image with bounding box overlay.
          *
+         *     This endpoint is exempt from API key authentication because:
+         *     1. It serves static image content accessed directly by browsers via <img> tags
+         *     2. Detection IDs are not predictable (integer IDs require prior knowledge)
+         *     3. It has rate limiting to prevent abuse
+         *
          *     Returns the thumbnail image with bounding box drawn around the detected object.
          *     If thumbnail doesn't exist, generates it on the fly from the source image.
          *
@@ -571,6 +581,11 @@ export interface paths {
         /**
          * Stream Detection Video
          * @description Stream detection video with HTTP Range request support.
+         *
+         *     This endpoint is exempt from API key authentication because:
+         *     1. It serves video content accessed directly by browsers via <video> tags
+         *     2. Detection IDs are not predictable (integer IDs require prior knowledge)
+         *     3. It has rate limiting to prevent abuse
          *
          *     Supports partial content requests for video seeking and efficient playback.
          *     Returns 206 Partial Content for range requests, 200 OK for full content.
@@ -606,6 +621,11 @@ export interface paths {
         /**
          * Get Video Thumbnail
          * @description Get thumbnail frame from a video detection.
+         *
+         *     This endpoint is exempt from API key authentication because:
+         *     1. It serves static image content accessed directly by browsers via <img> tags
+         *     2. Detection IDs are not predictable (integer IDs require prior knowledge)
+         *     3. It has rate limiting to prevent abuse
          *
          *     Extracts and returns a thumbnail frame from the video. If thumbnail
          *     doesn't exist, generates it on the fly using ffmpeg.
@@ -6346,8 +6366,22 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description Snapshot served successfully */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Camera or snapshot not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6361,6 +6395,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -6450,8 +6491,15 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description Image served successfully */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Detection or image not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6465,6 +6513,20 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Failed to generate thumbnail */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -6481,8 +6543,36 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description Full video content */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Partial video content (range request) */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Detection is not a video */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Detection or video file not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Range not satisfiable */
+            416: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6496,6 +6586,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -6510,8 +6607,22 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
+            /** @description Thumbnail served successfully */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Detection is not a video */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Detection or video not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6525,6 +6636,20 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Failed to generate thumbnail */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

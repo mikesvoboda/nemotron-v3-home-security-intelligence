@@ -224,19 +224,35 @@ export function clearInFlightRequests(): void {
 }
 
 // ============================================================================
-// WebSocket URL Helper
+// WebSocket URL and Protocol Helper
 // ============================================================================
 
 /**
- * Internal function for building WebSocket URLs. Exported for testing.
+ * WebSocket connection options including URL and optional protocol for authentication.
+ */
+export interface WebSocketConnectionOptions {
+  /** The WebSocket URL to connect to */
+  url: string;
+  /** Optional Sec-WebSocket-Protocol header value for API key authentication */
+  protocols?: string[];
+}
+
+/**
+ * Internal function for building WebSocket connection options. Exported for testing.
+ *
+ * SECURITY: API keys are passed via the Sec-WebSocket-Protocol header instead of
+ * query parameters to prevent exposure in browser history, server logs, and referrer headers.
+ * The backend supports both "api-key.{key}" protocol format and query parameters for
+ * backward compatibility, but the protocol header is preferred.
+ *
  * @internal
  */
-export function buildWebSocketUrlInternal(
+export function buildWebSocketOptionsInternal(
   endpoint: string,
   wsBaseUrl: string | undefined,
   apiKey: string | undefined,
   windowLocation: { protocol: string; host: string } | undefined
-): string {
+): WebSocketConnectionOptions {
   let wsUrl: string;
 
   if (wsBaseUrl) {
@@ -249,16 +265,64 @@ export function buildWebSocketUrlInternal(
     wsUrl = `${protocol}//${host}${endpoint}`;
   }
 
-  // Append API key if configured
+  // Build connection options with optional API key protocol
+  const options: WebSocketConnectionOptions = { url: wsUrl };
+
   if (apiKey) {
-    const separator = wsUrl.includes('?') ? '&' : '?';
-    wsUrl = `${wsUrl}${separator}api_key=${encodeURIComponent(apiKey)}`;
+    // Use Sec-WebSocket-Protocol header for API key authentication
+    // Format: "api-key.{key}" - the backend extracts the key after the prefix
+    options.protocols = [`api-key.${apiKey}`];
   }
 
-  return wsUrl;
+  return options;
 }
 
 /**
+ * Constructs WebSocket connection options for the given endpoint.
+ * Uses VITE_WS_BASE_URL if set, otherwise falls back to window.location.host.
+ *
+ * SECURITY: If VITE_API_KEY is set, returns a protocols array with "api-key.{key}"
+ * for the Sec-WebSocket-Protocol header. This is more secure than query parameters
+ * because it doesn't expose the API key in URLs.
+ *
+ * @param endpoint - The WebSocket endpoint path (e.g., '/ws/events')
+ * @returns WebSocket connection options with URL and optional protocols
+ */
+export function buildWebSocketOptions(endpoint: string): WebSocketConnectionOptions {
+  const windowLocation =
+    typeof window !== 'undefined'
+      ? { protocol: window.location.protocol, host: window.location.host }
+      : undefined;
+  return buildWebSocketOptionsInternal(endpoint, WS_BASE_URL, API_KEY, windowLocation);
+}
+
+/**
+ * @deprecated Use buildWebSocketOptions instead. This function exposes API keys in URLs.
+ * Kept for backward compatibility but will be removed in a future version.
+ *
+ * Internal function for building WebSocket URLs. Exported for testing.
+ * @internal
+ */
+export function buildWebSocketUrlInternal(
+  endpoint: string,
+  wsBaseUrl: string | undefined,
+  apiKey: string | undefined,
+  windowLocation: { protocol: string; host: string } | undefined
+): string {
+  const options = buildWebSocketOptionsInternal(endpoint, wsBaseUrl, apiKey, windowLocation);
+  // For backward compatibility, still append api_key to URL if configured
+  // This maintains existing behavior but is deprecated
+  if (apiKey) {
+    const separator = options.url.includes('?') ? '&' : '?';
+    return `${options.url}${separator}api_key=${encodeURIComponent(apiKey)}`;
+  }
+  return options.url;
+}
+
+/**
+ * @deprecated Use buildWebSocketOptions instead. This function exposes API keys in URLs.
+ * Kept for backward compatibility but will be removed in a future version.
+ *
  * Constructs a WebSocket URL for the given endpoint.
  * Uses VITE_WS_BASE_URL if set, otherwise falls back to window.location.host.
  * Appends api_key query parameter if VITE_API_KEY is set.
@@ -456,17 +520,15 @@ export async function deleteCamera(id: string): Promise<void> {
 /**
  * Get the URL for a camera's latest snapshot.
  * This URL can be used directly in an img src attribute.
- * When API key authentication is enabled, the key is appended as a query parameter.
+ *
+ * Note: Camera snapshot endpoints are exempt from API key authentication
+ * in the backend middleware, so no API key is needed in the URL.
  *
  * @param cameraId - The camera UUID
  * @returns The full URL to the camera's snapshot endpoint
  */
 export function getCameraSnapshotUrl(cameraId: string): string {
-  const baseUrl = `${BASE_URL}/api/cameras/${encodeURIComponent(cameraId)}/snapshot`;
-  if (API_KEY) {
-    return `${baseUrl}?api_key=${encodeURIComponent(API_KEY)}`;
-  }
-  return baseUrl;
+  return `${BASE_URL}/api/cameras/${encodeURIComponent(cameraId)}/snapshot`;
 }
 
 // ============================================================================
@@ -645,25 +707,25 @@ export async function fetchEventDetections(
 // ============================================================================
 
 /**
- * Helper function to append API key to a URL if configured.
- * Used by URL functions that return URLs for direct use in img/video src attributes.
+ * Note: All media endpoints are exempt from API key authentication in the
+ * backend middleware. Exempt endpoints include:
+ * - /api/media/{path}
+ * - /api/detections/{id}/image
+ * - /api/detections/{id}/video
+ * - /api/cameras/{id}/snapshot
+ *
+ * This is because:
+ * 1. They are accessed directly by browsers via img/video tags
+ * 2. They have their own security (path traversal protection, file type allowlist, rate limiting)
+ * 3. Putting API keys in URLs exposes them in browser history, server logs, and referrer headers
  */
-function appendApiKeyIfConfigured(url: string): string {
-  if (API_KEY) {
-    const separator = url.includes('?') ? '&' : '?';
-    return `${url}${separator}api_key=${encodeURIComponent(API_KEY)}`;
-  }
-  return url;
-}
 
 export function getMediaUrl(cameraId: string, filename: string): string {
-  const baseUrl = `${BASE_URL}/api/media/cameras/${cameraId}/${filename}`;
-  return appendApiKeyIfConfigured(baseUrl);
+  return `${BASE_URL}/api/media/cameras/${cameraId}/${filename}`;
 }
 
 export function getThumbnailUrl(filename: string): string {
-  const baseUrl = `${BASE_URL}/api/media/thumbnails/${filename}`;
-  return appendApiKeyIfConfigured(baseUrl);
+  return `${BASE_URL}/api/media/thumbnails/${filename}`;
 }
 
 // ============================================================================
@@ -708,35 +770,34 @@ export async function fetchLogs(params?: LogsQueryParams): Promise<GeneratedLogs
 }
 
 export function getDetectionImageUrl(detectionId: number): string {
-  const baseUrl = `${BASE_URL}/api/detections/${detectionId}/image`;
-  return appendApiKeyIfConfigured(baseUrl);
+  return `${BASE_URL}/api/detections/${detectionId}/image`;
 }
 
 /**
  * Get the URL for streaming a detection video.
  * This URL can be used directly in a video src attribute.
  * The backend supports HTTP Range requests for efficient video streaming.
- * When API key authentication is enabled, the key is appended as a query parameter.
+ *
+ * Note: Detection media endpoints are exempt from API key authentication.
  *
  * @param detectionId - The detection ID
  * @returns The full URL to the detection's video stream endpoint
  */
 export function getDetectionVideoUrl(detectionId: number): string {
-  const baseUrl = `${BASE_URL}/api/detections/${detectionId}/video`;
-  return appendApiKeyIfConfigured(baseUrl);
+  return `${BASE_URL}/api/detections/${detectionId}/video`;
 }
 
 /**
  * Get the URL for a detection video's thumbnail.
  * Returns a poster image for the video player.
- * When API key authentication is enabled, the key is appended as a query parameter.
+ *
+ * Note: Detection media endpoints are exempt from API key authentication.
  *
  * @param detectionId - The detection ID
  * @returns The full URL to the detection's video thumbnail endpoint
  */
 export function getDetectionVideoThumbnailUrl(detectionId: number): string {
-  const baseUrl = `${BASE_URL}/api/detections/${detectionId}/video/thumbnail`;
-  return appendApiKeyIfConfigured(baseUrl);
+  return `${BASE_URL}/api/detections/${detectionId}/video/thumbnail`;
 }
 
 // ============================================================================
