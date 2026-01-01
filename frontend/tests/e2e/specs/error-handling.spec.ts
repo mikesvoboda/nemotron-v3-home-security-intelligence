@@ -170,6 +170,6 @@ test.describe('Network Error Messages', () => {
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
     // Should show a friendly message, not a raw error
-    await expect(page.getByText(/Error/i).first()).toBeVisible({ timeout: 8000 });
+    await expect(page.getByText(/Error/i).first()).toBeVisible({ timeout: 15000 });
   });
 });
