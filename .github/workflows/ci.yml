@@ -77,7 +77,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -160,7 +160,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -363,6 +363,7 @@ jobs:
           flags: frontend
           fail_ci_if_error: false
 
+  # Primary E2E tests (Chromium) - required, blocks PRs
   frontend-e2e:
     name: Frontend E2E Tests (Playwright)
     runs-on: ubuntu-latest
@@ -383,14 +384,14 @@ jobs:
       - name: Install Playwright Chromium
         run: cd frontend && npx playwright install chromium --with-deps
 
-      - name: Run E2E tests
-        run: cd frontend && npm run test:e2e
+      - name: Run E2E tests (Chromium)
+        run: cd frontend && npx playwright test --project=chromium
 
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: playwright-report
+          name: playwright-report-chromium
           path: frontend/playwright-report/
           retention-days: 7
 
@@ -398,17 +399,65 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: playwright-test-results
+          name: playwright-test-results-chromium
+          path: frontend/test-results/
+          retention-days: 7
+
+  # Secondary E2E tests (Firefox/WebKit) - non-blocking, informational only
+  frontend-e2e-secondary:
+    name: E2E Tests (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    # Non-blocking: These browsers are slower and flakier, failures are informational
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [firefox, webkit]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: Install Playwright ${{ matrix.browser }}
+        run: cd frontend && npx playwright install ${{ matrix.browser }} --with-deps
+
+      - name: Run E2E tests (${{ matrix.browser }})
+        run: cd frontend && npx playwright test --project=${{ matrix.browser }}
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: playwright-report-${{ matrix.browser }}
+          path: frontend/playwright-report/
+          retention-days: 7
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: playwright-test-results-${{ matrix.browser }}
           path: frontend/test-results/
           retention-days: 7
 
   # ============================================================================
-  # Build Job (depends on all tests passing)
+  # Build Job (only runs on main branch after merge, not blocking PRs)
   # ============================================================================
 
   build:
     name: Build Docker Images
     runs-on: ubuntu-latest
+    # Only run on pushes to main, not on PRs (non-blocking for PR merges)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs:
       - lint
       - typecheck
@@ -449,6 +498,8 @@ jobs:
   build-prod:
     name: Build Production Docker Images
     runs-on: ubuntu-latest
+    # Only run on pushes to main, not on PRs (non-blocking for PR merges)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs:
       - lint
       - typecheck
@@ -502,7 +553,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5

@@ -6,7 +6,8 @@ import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from redis.asyncio import Redis
+from redis.asyncio import ConnectionPool, Redis
+from redis.asyncio.client import PubSub
 from redis.exceptions import ConnectionError
 
 import backend.core.redis as redis_module
@@ -38,7 +39,7 @@ def mock_redis_pool():
     """Mock Redis connection pool."""
     with patch("backend.core.redis.ConnectionPool") as mock_pool_class:
         # Create a mock instance that will be returned by from_url()
-        mock_pool_instance = AsyncMock()
+        mock_pool_instance = AsyncMock(spec=ConnectionPool)
         mock_pool_instance.disconnect = AsyncMock()
         mock_pool_class.from_url.return_value = mock_pool_instance
         yield mock_pool_class
@@ -64,7 +65,7 @@ def mock_redis_client():
     mock_client.get = AsyncMock(return_value=None)
     mock_client.set = AsyncMock(return_value=True)
     mock_client.exists = AsyncMock(return_value=0)
-    mock_client.pubsub = MagicMock()
+    mock_client.pubsub = MagicMock(spec=PubSub)
     return mock_client
 
 
@@ -589,8 +590,8 @@ async def test_subscribe_to_channel(redis_client, mock_redis_client):
 @pytest.mark.asyncio
 async def test_create_pubsub_returns_new_instance(redis_client, mock_redis_client):
     """Test create_pubsub returns a new PubSub instance each time."""
-    mock_pubsub1 = MagicMock()
-    mock_pubsub2 = MagicMock()
+    mock_pubsub1 = MagicMock(spec=PubSub)
+    mock_pubsub2 = MagicMock(spec=PubSub)
     mock_redis_client.pubsub.side_effect = [mock_pubsub1, mock_pubsub2]
 
     pubsub1 = redis_client.create_pubsub()
@@ -851,7 +852,7 @@ async def test_redis_integration_queue_operations():
     # Create our RedisClient and inject the fake client
     client = RedisClient(redis_url="redis://localhost:6379/15")
     client._client = fake_server
-    client._pool = MagicMock()  # Mock pool to avoid None checks
+    client._pool = MagicMock(spec=ConnectionPool)  # Mock pool to avoid None checks
 
     # Test queue operations - use unique key to prevent parallel test conflicts
     queue_name = unique_id("test_integration_queue")
@@ -902,7 +903,7 @@ async def test_redis_integration_cache_operations():
     # Create our RedisClient and inject the fake client
     client = RedisClient(redis_url="redis://localhost:6379/15")
     client._client = fake_server
-    client._pool = MagicMock()  # Mock pool to avoid None checks
+    client._pool = MagicMock(spec=ConnectionPool)  # Mock pool to avoid None checks
 
     # Test cache operations - use unique key to prevent parallel test conflicts
     key = unique_id("test_integration_cache_key")
@@ -1158,6 +1159,52 @@ async def test_get_queue_pressure_full(redis_client, mock_redis_client):
 
 
 @pytest.mark.asyncio
+async def test_get_queue_pressure_with_timeout(redis_client, mock_redis_client):
+    """Test get_queue_pressure respects timeout parameter."""
+    mock_redis_client.llen.return_value = 50
+
+    from backend.core.redis import QueuePressureMetrics
+
+    # Should work with explicit timeout
+    metrics = await redis_client.get_queue_pressure("test_queue", max_size=100, timeout=10.0)
+
+    assert isinstance(metrics, QueuePressureMetrics)
+    assert metrics.current_length == 50
+
+
+@pytest.mark.asyncio
+async def test_get_queue_pressure_timeout_on_slow_redis(redis_client, mock_redis_client):
+    """Test get_queue_pressure raises TimeoutError when Redis is slow."""
+
+    async def slow_llen(*args, **kwargs):
+        await asyncio.sleep(1.0)  # Simulate slow Redis
+        return 50
+
+    mock_redis_client.llen = slow_llen
+
+    with pytest.raises(asyncio.TimeoutError):
+        # Use very short timeout to trigger timeout
+        await redis_client.get_queue_pressure("test_queue", max_size=100, timeout=0.01)
+
+
+@pytest.mark.asyncio
+async def test_get_queue_pressure_uses_default_timeout(redis_client, mock_redis_client):
+    """Test get_queue_pressure uses default _MONITORING_TIMEOUT when not specified."""
+    mock_redis_client.llen.return_value = 50
+
+    # Verify the default timeout constant exists
+    assert hasattr(redis_client, "_MONITORING_TIMEOUT")
+    assert redis_client._MONITORING_TIMEOUT == 5.0
+
+    from backend.core.redis import QueuePressureMetrics
+
+    # Should work with default timeout
+    metrics = await redis_client.get_queue_pressure("test_queue", max_size=100)
+
+    assert isinstance(metrics, QueuePressureMetrics)
+
+
+@pytest.mark.asyncio
 async def test_queue_add_result_had_backpressure_property():
     """Test QueueAddResult.had_backpressure property."""
     from backend.core.redis import QueueAddResult
@@ -1187,7 +1234,7 @@ async def test_backpressure_integration_reject_policy():
 
     client = RedisClient(redis_url="redis://localhost:6379/15")
     client._client = fake_server
-    client._pool = MagicMock()
+    client._pool = MagicMock(spec=ConnectionPool)
 
     # Use unique key to prevent parallel test conflicts
     queue_name = unique_id("test_backpressure_reject")
@@ -1239,7 +1286,7 @@ async def test_backpressure_integration_dlq_policy():
 
     client = RedisClient(redis_url="redis://localhost:6379/15")
     client._client = fake_server
-    client._pool = MagicMock()
+    client._pool = MagicMock(spec=ConnectionPool)
 
     # Use unique key to prevent parallel test conflicts
     queue_name = unique_id("test_backpressure_dlq")
@@ -1294,7 +1341,7 @@ async def test_backpressure_integration_drop_oldest_policy():
 
     client = RedisClient(redis_url="redis://localhost:6379/15")
     client._client = fake_server
-    client._pool = MagicMock()
+    client._pool = MagicMock(spec=ConnectionPool)
 
     # Use unique key to prevent parallel test conflicts
     queue_name = unique_id("test_backpressure_drop")

@@ -288,6 +288,11 @@ async def search_events_endpoint(
     severity: str | None = Query(
         None, description="Filter by risk levels (comma-separated: low,medium,high,critical)"
     ),
+    risk_level: str | None = Query(
+        None,
+        description="Alias for severity - filter by risk levels "
+        "(comma-separated: low,medium,high,critical)",
+    ),
     object_type: str | None = Query(
         None, description="Filter by object types (comma-separated: person,vehicle,animal)"
     ),
@@ -314,6 +319,7 @@ async def search_events_endpoint(
         start_date: Optional start date for date range filter
         end_date: Optional end date for date range filter
         severity: Optional comma-separated risk levels (low, medium, high, critical)
+        risk_level: Alias for severity - accepts same format
         object_type: Optional comma-separated object types (person, vehicle, animal)
         reviewed: Optional filter by reviewed status
         limit: Maximum number of results to return (1-1000, default 50)
@@ -328,7 +334,10 @@ async def search_events_endpoint(
     """
     # Parse comma-separated filter values with validation
     camera_ids = [c.strip() for c in camera_id.split(",")] if camera_id else []
-    severity_levels = parse_severity_filter(severity)  # Validates severity values
+    # Support both 'severity' and 'risk_level' parameters for consistency with list_events
+    # If both are provided, 'severity' takes precedence (maintains backward compatibility)
+    severity_param = severity or risk_level
+    severity_levels = parse_severity_filter(severity_param)  # Validates severity values
     object_types = [o.strip() for o in object_type.split(",")] if object_type else []
 
     # Build filters

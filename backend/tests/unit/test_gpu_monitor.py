@@ -783,6 +783,11 @@ async def test_get_gpu_stats_from_ai_containers_rtdetr_only(mock_pynvml):
         assert stats is not None
         assert stats["memory_used"] == int(3.5 * 1024)
         assert "cuda:0" in stats["gpu_name"]
+        # Verify default values are set instead of None
+        assert stats["gpu_utilization"] == 0.0
+        assert stats["memory_total"] == 24576  # 24GB in MB
+        assert stats["temperature"] == 0
+        assert stats["power_usage"] == 0.0
 
 
 @pytest.mark.asyncio
@@ -812,6 +817,11 @@ async def test_get_gpu_stats_from_ai_containers_nemotron_metrics(mock_pynvml):
         # 2.0 GB from RT-DETRv2 + 1 GB from Nemotron
         expected_total = int(2.0 * 1024 + 1073741824 / (1024 * 1024))
         assert stats["memory_used"] == expected_total
+        # Verify default values are set instead of None
+        assert stats["gpu_utilization"] == 0.0
+        assert stats["memory_total"] == 24576  # 24GB in MB
+        assert stats["temperature"] == 0
+        assert stats["power_usage"] == 0.0
 
 
 @pytest.mark.asyncio

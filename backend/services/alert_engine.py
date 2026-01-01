@@ -204,6 +204,63 @@ class AlertRuleEngine:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
+    async def _batch_load_detections_for_events(
+        self,
+        events: list[Event],
+    ) -> dict[int, list[Detection]]:
+        """Batch load detections for multiple events in a single query.
+
+        This prevents N+1 queries when testing rules against multiple events.
+        Uses selectinload pattern: collect all detection IDs, load in one query,
+        then map back to events.
+
+        Args:
+            events: List of events to load detections for
+
+        Returns:
+            Dictionary mapping event.id to list of Detection objects
+        """
+        # Collect all detection IDs from all events
+        all_detection_ids: list[int] = []
+        event_detection_map: dict[int, list[int]] = {}
+
+        for event in events:
+            if not event.detection_ids:
+                event_detection_map[event.id] = []
+                continue
+
+            try:
+                detection_id_list = json.loads(event.detection_ids)
+                if isinstance(detection_id_list, list):
+                    int_ids = [int(d) for d in detection_id_list]
+                    event_detection_map[event.id] = int_ids
+                    all_detection_ids.extend(int_ids)
+                else:
+                    event_detection_map[event.id] = []
+            except (json.JSONDecodeError, TypeError, ValueError):
+                event_detection_map[event.id] = []
+
+        if not all_detection_ids:
+            return {event.id: [] for event in events}
+
+        # Single query to load all detections
+        stmt = select(Detection).where(Detection.id.in_(all_detection_ids))
+        result = await self.session.execute(stmt)
+        all_detections = list(result.scalars().all())
+
+        # Create lookup by detection ID
+        detection_by_id = {d.id: d for d in all_detections}
+
+        # Map detections back to events
+        result_map: dict[int, list[Detection]] = {}
+        for event in events:
+            detection_ids = event_detection_map.get(event.id, [])
+            result_map[event.id] = [
+                detection_by_id[did] for did in detection_ids if did in detection_by_id
+            ]
+
+        return result_map
+
     async def _evaluate_rule(
         self,
         rule: AlertRule,
@@ -455,6 +512,7 @@ class AlertRuleEngine:
         """Test a rule against a list of historical events.
 
         This is useful for testing rule configuration before enabling.
+        Uses batch loading to prevent N+1 queries when loading detections.
 
         Args:
             rule: The rule to test
@@ -467,10 +525,12 @@ class AlertRuleEngine:
         if current_time is None:
             current_time = _utc_now_naive()
 
-        results = []
+        # Batch load all detections in a single query to prevent N+1
+        detections_by_event = await self._batch_load_detections_for_events(events)
 
+        results = []
         for event in events:
-            detections = await self._load_event_detections(event)
+            detections = detections_by_event.get(event.id, [])
             matches, conditions = await self._evaluate_rule(rule, event, detections, current_time)
 
             results.append(

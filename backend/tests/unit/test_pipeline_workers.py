@@ -20,6 +20,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from backend.core.redis import RedisClient
+from backend.services.batch_aggregator import BatchAggregator
+from backend.services.detector_client import DetectorClient
+from backend.services.nemotron_analyzer import NemotronAnalyzer
 from backend.services.pipeline_workers import (
     AnalysisQueueWorker,
     BatchTimeoutWorker,
@@ -28,6 +32,7 @@ from backend.services.pipeline_workers import (
     QueueMetricsWorker,
     WorkerState,
     WorkerStats,
+    categorize_exception,
     get_pipeline_manager,
     stop_pipeline_manager,
 )
@@ -174,7 +179,7 @@ def mock_redis_client():
     IMPORTANT: get_from_queue must yield control to the event loop,
     otherwise the worker loop will spin without checking _running flag.
     """
-    client = MagicMock()
+    client = MagicMock(spec=RedisClient)
 
     async def mock_get_from_queue(*args, **kwargs):
         """Mock that yields control like real BLPOP would."""
@@ -194,7 +199,7 @@ def mock_redis_client():
 @pytest.fixture
 def mock_detector_client():
     """Create a mock detector client."""
-    client = MagicMock()
+    client = MagicMock(spec=DetectorClient)
     client.detect_objects = AsyncMock(return_value=[])
     client.health_check = AsyncMock(return_value=True)
     return client
@@ -203,7 +208,7 @@ def mock_detector_client():
 @pytest.fixture
 def mock_batch_aggregator():
     """Create a mock batch aggregator."""
-    aggregator = MagicMock()
+    aggregator = MagicMock(spec=BatchAggregator)
     aggregator.add_detection = AsyncMock(return_value="batch_123")
     aggregator.check_batch_timeouts = AsyncMock(return_value=[])
     aggregator.close_batch = AsyncMock(return_value={"batch_id": "test"})
@@ -213,7 +218,7 @@ def mock_batch_aggregator():
 @pytest.fixture
 def mock_analyzer():
     """Create a mock Nemotron analyzer."""
-    analyzer = MagicMock()
+    analyzer = MagicMock(spec=NemotronAnalyzer)
     event = MagicMock()
     event.id = 1
     event.risk_score = 50
@@ -261,6 +266,76 @@ def test_worker_state_values():
     assert WorkerState.RUNNING.value == "running"
     assert WorkerState.STOPPING.value == "stopping"
     assert WorkerState.ERROR.value == "error"
+
+
+# categorize_exception tests
+
+
+class TestCategorizeException:
+    """Test exception categorization for fine-grained error metrics."""
+
+    def test_connection_error_by_type_name(self):
+        """Test that ConnectionError is categorized as connection error."""
+        result = categorize_exception(ConnectionError("connection failed"), "detection")
+        assert result == "detection_connection_error"
+
+    def test_connection_refused_error(self):
+        """Test that ConnectionRefusedError is categorized as connection error."""
+        result = categorize_exception(ConnectionRefusedError("refused"), "analysis")
+        assert result == "analysis_connection_error"
+
+    def test_timeout_error(self):
+        """Test that TimeoutError is categorized as timeout error."""
+        result = categorize_exception(TimeoutError("timed out"), "detection")
+        assert result == "detection_timeout_error"
+
+    def test_memory_error(self):
+        """Test that MemoryError is categorized as memory error."""
+        result = categorize_exception(MemoryError("out of memory"), "batch_timeout")
+        assert result == "batch_timeout_memory_error"
+
+    def test_value_error_as_validation(self):
+        """Test that ValueError is categorized as validation error."""
+        result = categorize_exception(ValueError("invalid value"), "detection")
+        assert result == "detection_validation_error"
+
+    def test_type_error_as_validation(self):
+        """Test that TypeError is categorized as validation error."""
+        result = categorize_exception(TypeError("wrong type"), "analysis")
+        assert result == "analysis_validation_error"
+
+    def test_key_error_as_validation(self):
+        """Test that KeyError is categorized as validation error."""
+        result = categorize_exception(KeyError("missing key"), "detection")
+        assert result == "detection_validation_error"
+
+    def test_generic_exception_as_processing_error(self):
+        """Test that generic exceptions are categorized as processing error."""
+        result = categorize_exception(RuntimeError("something went wrong"), "detection")
+        assert result == "detection_processing_error"
+
+    def test_exception_with_connect_in_message(self):
+        """Test that exceptions mentioning 'connect' are categorized as connection error."""
+
+        class CustomError(Exception):
+            pass
+
+        result = categorize_exception(CustomError("failed to connect to server"), "analysis")
+        assert result == "analysis_connection_error"
+
+    def test_different_worker_names(self):
+        """Test that worker name is correctly included in error type."""
+        # Detection worker
+        result = categorize_exception(ValueError("test"), "detection")
+        assert result == "detection_validation_error"
+
+        # Analysis worker
+        result = categorize_exception(ValueError("test"), "analysis")
+        assert result == "analysis_validation_error"
+
+        # Batch timeout worker
+        result = categorize_exception(ValueError("test"), "batch_timeout")
+        assert result == "batch_timeout_validation_error"
 
 
 # DetectionQueueWorker tests
@@ -602,7 +677,8 @@ async def test_detection_worker_loop_general_exception_recovery(
         nonlocal call_count
         call_count += 1
         if call_count == 1:
-            raise RuntimeError("Simulated Redis connection error")
+            # Use error message without "connect" to avoid connection error categorization
+            raise RuntimeError("Simulated processing failure")
         await asyncio.sleep(0.01)
 
     mock_redis_client.get_from_queue = mock_get_from_queue_that_raises
@@ -620,8 +696,9 @@ async def test_detection_worker_loop_general_exception_recovery(
         await wait_for_errors(worker, min_count=1)
         await worker.stop()
 
-        # Should have recorded the error
-        mock_record.assert_called_with("detection_worker_error")
+        # Should have recorded the error with categorized error type
+        # RuntimeError -> processing_error category
+        mock_record.assert_called_with("detection_processing_error")
 
     # Worker should have recovered and be in stopped state
     assert worker.stats.errors >= 1
@@ -924,7 +1001,8 @@ async def test_analysis_worker_loop_general_exception_recovery(mock_redis_client
         nonlocal call_count
         call_count += 1
         if call_count == 1:
-            raise RuntimeError("Simulated Redis connection error")
+            # Use error message without "connect" to avoid connection error categorization
+            raise RuntimeError("Simulated processing failure")
         await asyncio.sleep(0.01)
 
     mock_redis_client.get_from_queue = mock_get_from_queue_that_raises
@@ -942,7 +1020,9 @@ async def test_analysis_worker_loop_general_exception_recovery(mock_redis_client
         await wait_for_errors(worker, min_count=1)
         await worker.stop()
 
-        mock_record.assert_called_with("analysis_worker_error")
+        # Should have recorded the error with categorized error type
+        # RuntimeError -> processing_error category
+        mock_record.assert_called_with("analysis_processing_error")
 
     assert worker.stats.errors >= 1
     assert worker.stats.state == WorkerState.STOPPED

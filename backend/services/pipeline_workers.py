@@ -57,6 +57,57 @@ from backend.services.video_processor import VideoProcessor
 logger = get_logger(__name__)
 
 
+def categorize_exception(e: Exception, worker_name: str) -> str:
+    """Categorize an exception into a specific error type for metrics.
+
+    This provides fine-grained error tracking for observability, allowing
+    operators to distinguish between connection issues, timeouts, and
+    processing failures.
+
+    Args:
+        e: The exception to categorize
+        worker_name: Name of the worker (e.g., "detection", "analysis", "timeout")
+
+    Returns:
+        Error type string suitable for metrics labels (e.g., "detection_connection_error")
+    """
+    # Connection-related errors (Redis, network)
+    connection_error_types = (
+        "ConnectionError",
+        "ConnectionRefusedError",
+        "ConnectionResetError",
+        "BrokenPipeError",
+        "OSError",
+    )
+    if type(e).__name__ in connection_error_types or (
+        hasattr(e, "args") and e.args and "connect" in str(e.args[0]).lower()
+    ):
+        return f"{worker_name}_connection_error"
+
+    # Timeout errors
+    if isinstance(e, TimeoutError) or type(e).__name__ in (
+        "TimeoutError",
+        "TimeoutExpired",
+        "asyncio.TimeoutError",
+    ):
+        return f"{worker_name}_timeout_error"
+
+    # Memory/resource errors
+    if isinstance(e, MemoryError):
+        return f"{worker_name}_memory_error"
+
+    # Validation/data errors
+    if isinstance(e, (ValueError, TypeError, KeyError)):
+        return f"{worker_name}_validation_error"
+
+    # Redis-specific errors (check by module name)
+    if type(e).__module__ and "redis" in type(e).__module__.lower():
+        return f"{worker_name}_redis_error"
+
+    # Default: generic processing error
+    return f"{worker_name}_processing_error"
+
+
 class WorkerState(Enum):
     """Worker lifecycle states."""
 
@@ -233,11 +284,13 @@ class DetectionQueueWorker:
             except Exception as e:
                 self._stats.errors += 1
                 self._stats.state = WorkerState.ERROR
-                record_pipeline_error("detection_worker_error")
+                # Categorize exception for fine-grained metrics
+                error_type = categorize_exception(e, "detection")
+                record_pipeline_error(error_type)
                 logger.error(
                     f"Error in DetectionQueueWorker loop: {e}",
                     exc_info=True,
-                    extra={"error_count": self._stats.errors},
+                    extra={"error_count": self._stats.errors, "error_type": error_type},
                 )
                 # Brief delay before retrying to prevent tight error loop
                 await asyncio.sleep(1.0)
@@ -637,11 +690,13 @@ class AnalysisQueueWorker:
             except Exception as e:
                 self._stats.errors += 1
                 self._stats.state = WorkerState.ERROR
-                record_pipeline_error("analysis_worker_error")
+                # Categorize exception for fine-grained metrics
+                error_type = categorize_exception(e, "analysis")
+                record_pipeline_error(error_type)
                 logger.error(
                     f"Error in AnalysisQueueWorker loop: {e}",
                     exc_info=True,
-                    extra={"error_count": self._stats.errors},
+                    extra={"error_count": self._stats.errors, "error_type": error_type},
                 )
                 await asyncio.sleep(1.0)
                 self._stats.state = WorkerState.RUNNING
@@ -823,7 +878,9 @@ class BatchTimeoutWorker:
             try:
                 start_time = time.time()
 
-                # Check for batch timeouts
+                # Check for batch timeouts FIRST (before sleeping)
+                # This catches batches that may have timed out during startup
+                # or during the previous sleep interval
                 closed_batches = await self._aggregator.check_batch_timeouts()
 
                 if closed_batches:
@@ -855,11 +912,13 @@ class BatchTimeoutWorker:
             except Exception as e:
                 self._stats.errors += 1
                 self._stats.state = WorkerState.ERROR
-                record_pipeline_error("batch_timeout_error")
+                # Categorize exception for fine-grained metrics
+                error_type = categorize_exception(e, "batch_timeout")
+                record_pipeline_error(error_type)
                 logger.error(
                     f"Error in BatchTimeoutWorker loop: {e}",
                     exc_info=True,
-                    extra={"error_count": self._stats.errors},
+                    extra={"error_count": self._stats.errors, "error_type": error_type},
                 )
                 await asyncio.sleep(self._check_interval)
                 self._stats.state = WorkerState.RUNNING
@@ -1052,8 +1111,8 @@ class PipelineWorkerManager:
                 )
 
         if enable_timeout_worker:
-            # Use settings for batch check interval (default 10s)
-            check_interval = getattr(settings, "batch_check_interval_seconds", 10.0)
+            # Use settings for batch check interval (default 5s for reduced latency)
+            check_interval = settings.batch_check_interval_seconds
             if worker_stop_timeout is not None:
                 self._timeout_worker = BatchTimeoutWorker(
                     redis_client=redis_client,

@@ -252,7 +252,7 @@ export default function WorkerStatusPanel({
             size="sm"
             data-testid="critical-summary-badge"
           >
-            {criticalRunning}/{criticalTotal} Critical
+            Critical: {criticalRunning}/{criticalTotal} Running
           </Badge>
         </div>
       </div>
