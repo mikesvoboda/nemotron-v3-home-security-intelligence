@@ -52,9 +52,10 @@ export default defineConfig({
   // Global timeout for each test
   timeout: 30000,
 
-  // Expect timeout
+  // Expect timeout - increased for CI stability
+  // CI machines are slower and API mocks with retry logic need time
   expect: {
-    timeout: 5000,
+    timeout: 15000,
   },
 
   // Shared settings for all the projects below

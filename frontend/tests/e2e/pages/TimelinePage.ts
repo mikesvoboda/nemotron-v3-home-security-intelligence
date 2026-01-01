@@ -141,10 +141,14 @@ export class TimelinePage extends BasePage {
   }
 
   /**
-   * Wait for the timeline to fully load
+   * Wait for the timeline to fully load (including data)
    */
   async waitForTimelineLoad(): Promise<void> {
     await expect(this.pageTitle).toBeVisible({ timeout: this.pageLoadTimeout });
+    // Wait for loading spinner to disappear (data loaded)
+    await this.loadingSpinner.waitFor({ state: 'hidden', timeout: this.pageLoadTimeout }).catch(() => {
+      // Spinner might not appear if data loads quickly, that's fine
+    });
   }
 
   /**

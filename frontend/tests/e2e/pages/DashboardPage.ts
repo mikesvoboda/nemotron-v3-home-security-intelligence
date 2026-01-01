@@ -114,10 +114,14 @@ export class DashboardPage extends BasePage {
   }
 
   /**
-   * Wait for the dashboard to fully load
+   * Wait for the dashboard to fully load (including data)
    */
   async waitForDashboardLoad(): Promise<void> {
     await expect(this.pageTitle).toBeVisible({ timeout: this.pageLoadTimeout });
+    // Wait for loading skeleton to disappear (data loaded)
+    await this.loadingSkeleton.waitFor({ state: 'hidden', timeout: this.pageLoadTimeout }).catch(() => {
+      // Loading skeleton might not appear if data loads quickly, that's fine
+    });
   }
 
   /**

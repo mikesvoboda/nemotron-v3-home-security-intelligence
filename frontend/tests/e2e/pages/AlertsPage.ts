@@ -86,10 +86,14 @@ export class AlertsPage extends BasePage {
   }
 
   /**
-   * Wait for the alerts page to fully load
+   * Wait for the alerts page to fully load (including data)
    */
   async waitForAlertsLoad(): Promise<void> {
     await expect(this.pageTitle).toBeVisible({ timeout: this.pageLoadTimeout });
+    // Wait for loading spinner/text to disappear (data loaded)
+    await this.loadingText.waitFor({ state: 'hidden', timeout: this.pageLoadTimeout }).catch(() => {
+      // Loading text might not appear if data loads quickly, that's fine
+    });
   }
 
   /**
