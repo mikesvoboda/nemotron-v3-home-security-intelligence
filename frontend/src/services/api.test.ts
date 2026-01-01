@@ -31,6 +31,13 @@ import {
   getDetectionImageUrl,
   exportEventsCSV,
   searchEvents,
+  // Retry and deduplication utilities
+  shouldRetry,
+  getRetryDelay,
+  sleep,
+  getRequestKey,
+  getInFlightRequestCount,
+  clearInFlightRequests,
   type Camera,
   type CameraCreate,
   type CameraUpdate,
@@ -997,15 +1004,13 @@ describe('System API', () => {
     });
 
     it('throws ApiError on server error', async () => {
-      vi.mocked(fetch).mockResolvedValueOnce(
+      // Use mockResolvedValue (not Once) because retry logic makes multiple fetch calls
+      vi.mocked(fetch).mockResolvedValue(
         createMockErrorResponse(500, 'Internal Server Error', 'Redis unavailable')
       );
 
       await expect(fetchTelemetry()).rejects.toThrow(ApiError);
 
-      vi.mocked(fetch).mockResolvedValueOnce(
-        createMockErrorResponse(500, 'Internal Server Error', 'Redis unavailable')
-      );
       await expect(fetchTelemetry()).rejects.toMatchObject({
         status: 500,
         message: 'Redis unavailable',
@@ -1258,9 +1263,15 @@ describe('Events API', () => {
     });
 
     it('handles non-Error failures', async () => {
-      vi.mocked(fetch)
-        .mockResolvedValueOnce(createMockResponse({ ...mockEvent, reviewed: true }))
-        .mockRejectedValueOnce('string error');
+      // First call succeeds, subsequent calls fail with retries
+      let callCount = 0;
+      vi.mocked(fetch).mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          return Promise.resolve(createMockResponse({ ...mockEvent, reviewed: true }));
+        }
+        return Promise.reject(new Error('string error'));
+      });
 
       const result = await bulkUpdateEvents([1, 2], { reviewed: true });
 
@@ -1944,15 +1955,13 @@ describe('searchEvents', () => {
   });
 
   it('throws ApiError on server error', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(
+    // Use mockResolvedValue (not Once) because retry logic makes multiple fetch calls
+    vi.mocked(fetch).mockResolvedValue(
       createMockErrorResponse(500, 'Internal Server Error', 'Search service unavailable')
     );
 
     await expect(searchEvents({ q: 'test' })).rejects.toThrow(ApiError);
 
-    vi.mocked(fetch).mockResolvedValueOnce(
-      createMockErrorResponse(500, 'Internal Server Error', 'Search service unavailable')
-    );
     await expect(searchEvents({ q: 'test' })).rejects.toMatchObject({
       status: 500,
       message: 'Search service unavailable',
@@ -1986,5 +1995,220 @@ describe('searchEvents', () => {
 
     const calledUrl = (fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
     expect(calledUrl).toContain('q=person+%26+vehicle');
+  });
+});
+
+// ============================================================================
+// Retry Logic Tests
+// ============================================================================
+
+describe('Retry Logic', () => {
+  describe('shouldRetry', () => {
+    it('returns true for network errors (status 0)', () => {
+      expect(shouldRetry(0)).toBe(true);
+    });
+
+    it('returns true for 5xx server errors', () => {
+      expect(shouldRetry(500)).toBe(true);
+      expect(shouldRetry(502)).toBe(true);
+      expect(shouldRetry(503)).toBe(true);
+      expect(shouldRetry(599)).toBe(true);
+    });
+
+    it('returns false for successful responses', () => {
+      expect(shouldRetry(200)).toBe(false);
+      expect(shouldRetry(201)).toBe(false);
+      expect(shouldRetry(204)).toBe(false);
+    });
+
+    it('returns false for redirect responses', () => {
+      expect(shouldRetry(301)).toBe(false);
+      expect(shouldRetry(302)).toBe(false);
+      expect(shouldRetry(304)).toBe(false);
+    });
+
+    it('returns false for client errors (4xx)', () => {
+      expect(shouldRetry(400)).toBe(false);
+      expect(shouldRetry(401)).toBe(false);
+      expect(shouldRetry(403)).toBe(false);
+      expect(shouldRetry(404)).toBe(false);
+      expect(shouldRetry(422)).toBe(false);
+      expect(shouldRetry(429)).toBe(false);
+    });
+  });
+
+  describe('getRetryDelay', () => {
+    it('returns 1000ms for first retry attempt (0)', () => {
+      expect(getRetryDelay(0)).toBe(1000);
+    });
+
+    it('returns 2000ms for second retry attempt (1)', () => {
+      expect(getRetryDelay(1)).toBe(2000);
+    });
+
+    it('returns 4000ms for third retry attempt (2)', () => {
+      expect(getRetryDelay(2)).toBe(4000);
+    });
+
+    it('follows exponential backoff pattern', () => {
+      expect(getRetryDelay(3)).toBe(8000);
+      expect(getRetryDelay(4)).toBe(16000);
+    });
+  });
+
+  describe('sleep', () => {
+    it('resolves after specified milliseconds', async () => {
+      vi.useFakeTimers();
+
+      const sleepPromise = sleep(100);
+
+      let resolved = false;
+      void sleepPromise.then(() => {
+        resolved = true;
+      });
+
+      // Should not be resolved immediately
+      expect(resolved).toBe(false);
+
+      // Advance timers
+      await vi.advanceTimersByTimeAsync(100);
+
+      expect(resolved).toBe(true);
+      vi.useRealTimers();
+    });
+  });
+});
+
+// ============================================================================
+// Request Deduplication Tests
+// ============================================================================
+
+describe('Request Deduplication', () => {
+  describe('getRequestKey', () => {
+    it('returns key for GET requests', () => {
+      expect(getRequestKey('GET', '/api/cameras')).toBe('GET:/api/cameras');
+      expect(getRequestKey('get', '/api/events')).toBe('GET:/api/events');
+    });
+
+    it('returns null for POST requests', () => {
+      expect(getRequestKey('POST', '/api/cameras')).toBeNull();
+    });
+
+    it('returns null for PATCH requests', () => {
+      expect(getRequestKey('PATCH', '/api/cameras/1')).toBeNull();
+    });
+
+    it('returns null for PUT requests', () => {
+      expect(getRequestKey('PUT', '/api/cameras/1')).toBeNull();
+    });
+
+    it('returns null for DELETE requests', () => {
+      expect(getRequestKey('DELETE', '/api/cameras/1')).toBeNull();
+    });
+
+    it('handles case-insensitive method names', () => {
+      expect(getRequestKey('Get', '/api/test')).toBe('GET:/api/test');
+      expect(getRequestKey('gET', '/api/test')).toBe('GET:/api/test');
+    });
+  });
+
+  describe('getInFlightRequestCount', () => {
+    beforeEach(() => {
+      clearInFlightRequests();
+    });
+
+    it('returns 0 when no requests are in flight', () => {
+      expect(getInFlightRequestCount()).toBe(0);
+    });
+  });
+
+  describe('clearInFlightRequests', () => {
+    it('clears all tracked requests', () => {
+      // Start with clean state
+      clearInFlightRequests();
+      expect(getInFlightRequestCount()).toBe(0);
+    });
+  });
+});
+
+describe('Request Deduplication Integration', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+    clearInFlightRequests();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    clearInFlightRequests();
+  });
+
+  it('deduplicates concurrent GET requests to same URL', async () => {
+    let resolveResponse: (value: Response) => void;
+    const responsePromise = new Promise<Response>((resolve) => {
+      resolveResponse = resolve;
+    });
+
+    vi.mocked(fetch).mockReturnValue(responsePromise);
+
+    // Start two concurrent GET requests
+    const promise1 = fetchCameras();
+    const promise2 = fetchCameras();
+
+    // Fetch should only be called once
+    expect(fetch).toHaveBeenCalledTimes(1);
+
+    // Resolve the response
+    resolveResponse!(createMockResponse({ cameras: [] }));
+
+    // Both promises should resolve to the same result
+    const [result1, result2] = await Promise.all([promise1, promise2]);
+    expect(result1).toEqual(result2);
+  });
+
+  it('does not deduplicate POST requests', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      createMockResponse({ id: '1', name: 'Camera 1', folder_path: '/cam1', status: 'online' })
+    );
+
+    // Start two concurrent POST requests
+    const promise1 = createCamera({ name: 'Camera 1', folder_path: '/cam1', status: 'online' });
+    const promise2 = createCamera({ name: 'Camera 2', folder_path: '/cam2', status: 'online' });
+
+    await Promise.all([promise1, promise2]);
+
+    // Both POST requests should be made
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('allows sequential GET requests to same URL', async () => {
+    vi.mocked(fetch).mockResolvedValue(createMockResponse({ cameras: [] }));
+
+    // First request
+    await fetchCameras();
+
+    // Second request (after first completes)
+    await fetchCameras();
+
+    // Both requests should be made since they're sequential
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('clears in-flight tracking on error', async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error('Network error'));
+
+    // Start a request that will fail after retries
+    vi.useFakeTimers();
+    const promise = fetchCameras().catch(() => {});
+
+    // Advance through all retries
+    await vi.advanceTimersByTimeAsync(1000); // First retry delay
+    await vi.advanceTimersByTimeAsync(2000); // Second retry delay
+    await vi.advanceTimersByTimeAsync(4000); // Third retry delay
+
+    await promise;
+    vi.useRealTimers();
+
+    // In-flight requests should be cleared
+    expect(getInFlightRequestCount()).toBe(0);
   });
 });

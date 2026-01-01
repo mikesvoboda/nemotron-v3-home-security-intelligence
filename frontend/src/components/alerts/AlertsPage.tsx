@@ -1,7 +1,7 @@
 import { AlertTriangle, Bell, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { fetchCameras, fetchEvents } from '../../services/api';
+import { fetchCameras, fetchEvents, isAbortError } from '../../services/api';
 import { getRiskLevel } from '../../utils/risk';
 import RiskBadge from '../common/RiskBadge';
 import EventCard from '../events/EventCard';
@@ -51,8 +51,10 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
     void loadCameras();
   }, []);
 
-  // Load high/critical risk events
+  // Load high/critical risk events (with AbortController to cancel stale requests)
   useEffect(() => {
+    const controller = new AbortController();
+
     const loadAlerts = async () => {
       setLoading(true);
       setError(null);
@@ -63,7 +65,7 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
           limit: pagination.limit,
           offset: pagination.offset,
         };
-        const highResponse = await fetchEvents(highParams);
+        const highResponse = await fetchEvents(highParams, { signal: controller.signal });
 
         // Fetch critical risk events
         const criticalParams: EventsQueryParams = {
@@ -71,7 +73,7 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
           limit: pagination.limit,
           offset: pagination.offset,
         };
-        const criticalResponse = await fetchEvents(criticalParams);
+        const criticalResponse = await fetchEvents(criticalParams, { signal: controller.signal });
 
         // Combine and sort by timestamp (most recent first)
         let allAlerts = [...highResponse.events, ...criticalResponse.events];
@@ -94,12 +96,20 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
         setEvents(paginatedAlerts);
         setTotalCount(totalCombined);
       } catch (err) {
+        // Ignore aborted requests - user changed filters before request completed
+        if (isAbortError(err)) return;
         setError(err instanceof Error ? err.message : 'Failed to load alerts');
       } finally {
-        setLoading(false);
+        // Only update loading state if request wasn't aborted
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
     void loadAlerts();
+
+    // Cleanup: abort pending request when filters change or component unmounts
+    return () => controller.abort();
   }, [pagination, riskFilter]);
 
   // Handle pagination

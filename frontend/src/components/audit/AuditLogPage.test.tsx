@@ -260,9 +260,7 @@ describe('AuditLogPage', () => {
 
       // Verify the API was called with the filter
       await waitFor(() => {
-        expect(api.fetchAuditLogs).toHaveBeenCalledWith(
-          expect.objectContaining({ action: 'event_reviewed' })
-        );
+        expect(api.fetchAuditLogs).toHaveBeenCalledWith(expect.objectContaining({ action: 'event_reviewed' }), expect.anything());
       });
     });
 
@@ -283,9 +281,7 @@ describe('AuditLogPage', () => {
 
       // Verify the API was called with the filter
       await waitFor(() => {
-        expect(api.fetchAuditLogs).toHaveBeenCalledWith(
-          expect.objectContaining({ status: 'failure' })
-        );
+        expect(api.fetchAuditLogs).toHaveBeenCalledWith(expect.objectContaining({ status: 'failure' }), expect.anything());
       });
     });
 
@@ -311,7 +307,8 @@ describe('AuditLogPage', () => {
           expect.objectContaining({
             action: undefined,
             status: undefined,
-          })
+          }),
+          expect.anything()
         );
       });
     });
@@ -351,9 +348,7 @@ describe('AuditLogPage', () => {
       await user.click(screen.getByLabelText('Next page'));
 
       await waitFor(() => {
-        expect(api.fetchAuditLogs).toHaveBeenCalledWith(
-          expect.objectContaining({ offset: 50 })
-        );
+        expect(api.fetchAuditLogs).toHaveBeenCalledWith(expect.objectContaining({ offset: 50 }), expect.anything());
       });
     });
 
@@ -457,7 +452,7 @@ describe('AuditLogPage', () => {
         expect(api.fetchAuditLogs).toHaveBeenCalledWith({
           limit: 50,
           offset: 0,
-        });
+        }, expect.anything());
       });
     });
 
