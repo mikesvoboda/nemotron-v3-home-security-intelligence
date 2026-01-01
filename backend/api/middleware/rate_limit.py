@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING
 from fastapi import Depends, HTTPException, Request, WebSocket, status
 
 from backend.core.config import get_settings
-from backend.core.logging import get_logger
+from backend.core.logging import get_logger, mask_ip
 from backend.core.redis import RedisClient, get_redis
 
 if TYPE_CHECKING:
@@ -70,9 +70,13 @@ def _is_ip_trusted(client_ip: str, trusted_ips: list[str]) -> bool:
                 if ip_obj == trusted_ip:
                     return True
         except ValueError:
+            # Log with masked IPs to avoid exposing sensitive data (CodeQL CWE-532)
             logger.warning(
-                f"Invalid CIDR in trusted_proxy_ips: {trusted}, skipping",
-                extra={"invalid_trusted_ip": trusted, "client_ip": client_ip},
+                "Invalid CIDR in trusted_proxy_ips, skipping",
+                extra={
+                    "invalid_trusted_ip_masked": mask_ip(trusted),
+                    "client_ip_masked": mask_ip(client_ip),
+                },
             )
             continue
 

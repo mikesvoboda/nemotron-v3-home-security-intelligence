@@ -394,6 +394,45 @@ def sanitize_error(error: Exception, max_length: int = 500) -> str:
     return msg
 
 
+def mask_ip(ip: str) -> str:
+    """Mask an IP address for safe logging.
+
+    Preserves the first octet (IPv4) or first segment (IPv6) for debugging
+    while protecting user privacy by masking the rest.
+
+    Args:
+        ip: IP address string to mask
+
+    Returns:
+        Masked IP address safe for logging
+
+    Examples:
+        >>> mask_ip("192.168.1.100")
+        '192.xxx.xxx.xxx'
+        >>> mask_ip("2001:0db8:85a3::8a2e")
+        '2001:xxxx:xxxx:xxxx'
+        >>> mask_ip("unknown")
+        'unknown'
+    """
+    if not ip or ip == "unknown":
+        return ip or "unknown"
+
+    # IPv6 detection
+    if ":" in ip:
+        parts = ip.split(":")
+        if len(parts) >= 2:
+            return f"{parts[0]}:xxxx:xxxx:xxxx"
+        return "xxxx:xxxx:xxxx:xxxx"
+
+    # IPv4
+    parts = ip.split(".")
+    if len(parts) == 4:
+        return f"{parts[0]}.xxx.xxx.xxx"
+
+    # Fallback for invalid format
+    return "xxx.xxx.xxx.xxx"
+
+
 def sanitize_log_value(value: Any) -> str:
     """Sanitize a value for safe inclusion in log messages.
 

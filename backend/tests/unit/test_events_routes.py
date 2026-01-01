@@ -11,13 +11,40 @@ These tests cover all event-related API endpoints including:
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from backend.api.routes import events as events_routes
 from backend.api.routes.events import parse_detection_ids, parse_severity_filter
 from backend.api.schemas.events import EventUpdate
+
+# =============================================================================
+# Module-level Fixtures
+# =============================================================================
+
+
+@pytest.fixture(autouse=True)
+def mock_cache_service():
+    """Mock the cache service to avoid Redis connection attempts in unit tests.
+
+    This fixture is automatically applied to all tests in this module.
+    It ensures that tests don't try to connect to Redis for caching operations.
+    """
+    mock_cache = MagicMock()
+    mock_cache.get = AsyncMock(return_value=None)  # Cache miss
+    mock_cache.set = AsyncMock(return_value=True)
+    mock_cache.invalidate_pattern = AsyncMock(return_value=0)
+
+    async def mock_get_cache_service():
+        return mock_cache
+
+    with patch(
+        "backend.api.routes.events.get_cache_service",
+        mock_get_cache_service,
+    ):
+        yield mock_cache
+
 
 # =============================================================================
 # parse_detection_ids Function Tests

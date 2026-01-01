@@ -190,9 +190,17 @@ test.describe('Dashboard Error State', () => {
 
   test('error state displays error elements', async () => {
     await dashboardPage.goto();
-    // Wait for error state - either heading or reload button
-    const errorVisible = await dashboardPage.errorHeading.isVisible({ timeout: 10000 }).catch(() => false);
-    const reloadVisible = await dashboardPage.reloadButton.isVisible({ timeout: 10000 }).catch(() => false);
+    // Wait for error state to appear - use waitFor which properly polls for element
+    // The error state shows after API calls fail, which may take a few retries
+    await Promise.race([
+      dashboardPage.errorHeading.waitFor({ state: 'visible', timeout: 15000 }),
+      dashboardPage.reloadButton.waitFor({ state: 'visible', timeout: 15000 }),
+    ]).catch(() => {
+      // Ignore errors - we check visibility below
+    });
+    // Now check if either is visible
+    const errorVisible = await dashboardPage.errorHeading.isVisible().catch(() => false);
+    const reloadVisible = await dashboardPage.reloadButton.isVisible().catch(() => false);
     expect(errorVisible || reloadVisible).toBe(true);
   });
 });
