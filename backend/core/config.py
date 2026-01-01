@@ -127,6 +127,13 @@ class Settings(BaseSettings):
         default=30,
         description="Idle timeout before processing incomplete batch",
     )
+    batch_check_interval_seconds: float = Field(
+        default=5.0,
+        ge=1.0,
+        le=60.0,
+        description="Interval (seconds) between batch timeout checks. "
+        "Lower values reduce latency between timeout and batch close but increase CPU usage.",
+    )
 
     # AI service endpoints (validated as URLs using Pydantic AnyHttpUrl)
     # Stored as str after validation for compatibility with httpx clients
