@@ -90,9 +90,13 @@ export class AlertsPage extends BasePage {
    */
   async waitForAlertsLoad(): Promise<void> {
     await expect(this.pageTitle).toBeVisible({ timeout: this.pageLoadTimeout });
-    // Wait for loading spinner/text to disappear (data loaded)
-    await this.loadingText.waitFor({ state: 'hidden', timeout: this.pageLoadTimeout }).catch(() => {
-      // Loading text might not appear if data loads quickly, that's fine
+    // Wait for either alerts content OR no alerts message OR error state
+    await Promise.race([
+      this.alertCards.first().waitFor({ state: 'visible', timeout: this.pageLoadTimeout }),
+      this.noAlertsMessage.waitFor({ state: 'visible', timeout: this.pageLoadTimeout }),
+      this.errorMessage.waitFor({ state: 'visible', timeout: this.pageLoadTimeout }),
+    ]).catch(() => {
+      // One should appear, but continue anyway if neither does
     });
   }
 
