@@ -8,6 +8,9 @@ from typing import Any
 from pydantic import AnyHttpUrl, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from backend.core.url_validation import SSRFValidationError
+from backend.core.url_validation import validate_webhook_url as validate_webhook_url_ssrf
+
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
@@ -558,8 +561,14 @@ class Settings(BaseSettings):
 
     @field_validator("default_webhook_url", mode="before")
     @classmethod
-    def validate_webhook_url(cls, v: Any) -> str | None:
-        """Validate webhook URL using Pydantic's AnyHttpUrl validator.
+    def validate_default_webhook_url(cls, v: Any) -> str | None:
+        """Validate webhook URL with SSRF protection.
+
+        This validates that the default webhook URL:
+        1. Is a valid HTTP/HTTPS URL
+        2. Does not point to private IP ranges
+        3. Does not point to cloud metadata endpoints
+        4. Uses HTTPS (or HTTP for localhost in dev mode)
 
         Args:
             v: The URL value to validate (can be None)
@@ -568,7 +577,7 @@ class Settings(BaseSettings):
             The validated URL as a string, or None if not provided
 
         Raises:
-            ValueError: If the URL is provided but not a valid HTTP/HTTPS URL
+            ValueError: If the URL fails SSRF validation
         """
         if v is None or v == "":
             return None
@@ -576,15 +585,23 @@ class Settings(BaseSettings):
         # Convert to string if needed
         url_str = str(v)
 
-        # Use AnyHttpUrl for validation
+        # First validate it's a valid URL format
         try:
             validated_url = AnyHttpUrl(url_str)
-            return str(validated_url)
+            url_str = str(validated_url)
         except Exception as e:
             raise ValueError(
                 f"Invalid webhook URL '{url_str}': must be a valid HTTP/HTTPS URL. "
                 f"Example: 'https://hooks.example.com/webhook'. Error: {e}"
             ) from None
+
+        # Now validate SSRF protection (allow localhost HTTP in dev, skip DNS for config)
+        try:
+            validate_webhook_url_ssrf(url_str, allow_dev_http=True, resolve_dns=False)
+        except SSRFValidationError as e:
+            raise ValueError(f"Webhook URL blocked for security: {e}") from None
+
+        return url_str
 
     webhook_timeout_seconds: int = Field(
         default=30,

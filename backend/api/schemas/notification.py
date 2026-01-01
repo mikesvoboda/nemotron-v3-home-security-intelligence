@@ -2,8 +2,11 @@
 
 from datetime import datetime
 from enum import Enum
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from backend.core.url_validation import SSRFValidationError, validate_webhook_url
 
 
 class NotificationChannel(str, Enum):
@@ -109,12 +112,39 @@ class SendNotificationRequest(BaseModel):
     )
     webhook_url: str | None = Field(
         None,
-        pattern=r"^https?://.*",
-        description="Webhook URL (overrides default webhook URL)",
+        description="Webhook URL (overrides default webhook URL). Must be HTTPS and not point to private IPs.",
     )
 
+    @field_validator("webhook_url", mode="before")
+    @classmethod
+    def validate_webhook_url_ssrf(cls, v: Any) -> str | None:
+        """Validate webhook URL for SSRF protection.
 
-class TestNotificationRequest(BaseModel):
+        Args:
+            v: The URL value to validate (can be None)
+
+        Returns:
+            The validated URL as a string, or None if not provided
+
+        Raises:
+            ValueError: If the URL fails SSRF validation
+        """
+        if v is None or v == "":
+            return None
+
+        url_str = str(v)
+
+        try:
+            # Use SSRF-safe validation (allow localhost HTTP in dev for testing)
+            # In production, resolve_dns=False for schema validation,
+            # full DNS validation happens at request time
+            return validate_webhook_url(url_str, allow_dev_http=True, resolve_dns=False)
+        except SSRFValidationError as e:
+            # Convert to ValueError for Pydantic
+            raise ValueError(str(e)) from None
+
+
+class WebhookTestNotificationRequest(BaseModel):
     """Schema for testing notification configuration."""
 
     model_config = ConfigDict(
@@ -131,9 +161,38 @@ class TestNotificationRequest(BaseModel):
     email_recipients: list[str] | None = Field(None, description="Email recipients for email test")
     webhook_url: str | None = Field(
         None,
-        pattern=r"^https?://.*",
-        description="Webhook URL for webhook test",
+        description="Webhook URL for webhook test. Must be HTTPS and not point to private IPs.",
     )
+
+    @field_validator("webhook_url", mode="before")
+    @classmethod
+    def validate_webhook_url_ssrf(cls, v: Any) -> str | None:
+        """Validate webhook URL for SSRF protection.
+
+        Args:
+            v: The URL value to validate (can be None)
+
+        Returns:
+            The validated URL as a string, or None if not provided
+
+        Raises:
+            ValueError: If the URL fails SSRF validation
+        """
+        if v is None or v == "":
+            return None
+
+        url_str = str(v)
+
+        try:
+            # Use SSRF-safe validation (allow localhost HTTP in dev for testing)
+            return validate_webhook_url(url_str, allow_dev_http=True, resolve_dns=False)
+        except SSRFValidationError as e:
+            # Convert to ValueError for Pydantic
+            raise ValueError(str(e)) from None
+
+
+# Keep original name for backward compatibility
+TestNotificationRequest = WebhookTestNotificationRequest
 
 
 class TestNotificationResponse(BaseModel):

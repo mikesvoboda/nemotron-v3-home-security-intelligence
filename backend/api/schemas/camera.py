@@ -1,13 +1,48 @@
 """Pydantic schemas for camera API endpoints."""
 
+import re
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from backend.models.enums import CameraStatus
 
 # Re-export CameraStatus for convenient imports from this module
 __all__ = ["CameraCreate", "CameraListResponse", "CameraResponse", "CameraStatus", "CameraUpdate"]
+
+# Regex pattern for forbidden path characters (beyond path traversal)
+# Allow alphanumeric, underscore, hyphen, slash, and dots (but not ..)
+_FORBIDDEN_PATH_CHARS = re.compile(r'[<>:"|?*\x00-\x1f]')
+
+
+def _validate_folder_path(v: str) -> str:
+    """Validate folder_path for security and correctness.
+
+    Args:
+        v: The folder path string to validate
+
+    Returns:
+        The validated folder path
+
+    Raises:
+        ValueError: If path traversal is detected, path is empty/too long,
+                   or contains forbidden characters
+    """
+    # Check for path traversal attempts
+    if ".." in v:
+        raise ValueError("Path traversal (..) not allowed in folder_path")
+
+    # Check path length (already enforced by Field max_length, but explicit check)
+    if not v or len(v) > 500:
+        raise ValueError("folder_path must be between 1 and 500 characters")
+
+    # Check for forbidden characters
+    if _FORBIDDEN_PATH_CHARS.search(v):
+        raise ValueError(
+            'folder_path contains forbidden characters (< > : " | ? * or control characters)'
+        )
+
+    return v
 
 
 class CameraCreate(BaseModel):
@@ -32,6 +67,12 @@ class CameraCreate(BaseModel):
         description="Camera status (online, offline, error, unknown)",
     )
 
+    @field_validator("folder_path")
+    @classmethod
+    def validate_folder_path(cls, v: str) -> str:
+        """Validate folder_path for security."""
+        return _validate_folder_path(v)
+
 
 class CameraUpdate(BaseModel):
     """Schema for updating an existing camera."""
@@ -52,6 +93,14 @@ class CameraUpdate(BaseModel):
     status: CameraStatus | None = Field(
         None, description="Camera status (online, offline, error, unknown)"
     )
+
+    @field_validator("folder_path")
+    @classmethod
+    def validate_folder_path(cls, v: str | None) -> str | None:
+        """Validate folder_path for security."""
+        if v is None:
+            return v
+        return _validate_folder_path(v)
 
 
 class CameraResponse(BaseModel):

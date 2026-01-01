@@ -1436,3 +1436,193 @@ class TestCameraStatusAPIValidation:
         response = client.post("/api/cameras", json=camera_data)
 
         assert response.status_code == 422
+
+
+# =============================================================================
+# Folder Path Validation Tests
+# =============================================================================
+
+
+class TestFolderPathValidation:
+    """Tests for folder_path validation in camera schemas."""
+
+    def test_folder_path_path_traversal_rejected(self) -> None:
+        """Test that path traversal attempts are rejected."""
+        from pydantic import ValidationError
+
+        # Test with ..
+        with pytest.raises(ValidationError) as exc_info:
+            CameraCreate(
+                name="Test Camera",
+                folder_path="/export/foscam/../../../etc/passwd",
+            )
+        errors = exc_info.value.errors()
+        assert any("Path traversal" in str(err.get("msg", "")) for err in errors)
+
+    def test_folder_path_path_traversal_middle_rejected(self) -> None:
+        """Test that path traversal in the middle of the path is rejected."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError) as exc_info:
+            CameraCreate(
+                name="Test Camera",
+                folder_path="/export/foscam/front_door/../back_door",
+            )
+        errors = exc_info.value.errors()
+        assert any("Path traversal" in str(err.get("msg", "")) for err in errors)
+
+    def test_folder_path_dotdot_only_rejected(self) -> None:
+        """Test that just .. is rejected."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            CameraCreate(
+                name="Test Camera",
+                folder_path="..",
+            )
+
+    def test_folder_path_forbidden_characters_rejected(self) -> None:
+        """Test that forbidden characters are rejected."""
+        from pydantic import ValidationError
+
+        forbidden_paths = [
+            "/export/foscam/test<bad",
+            "/export/foscam/test>bad",
+            "/export/foscam/test:bad",
+            '/export/foscam/test"bad',
+            "/export/foscam/test|bad",
+            "/export/foscam/test?bad",
+            "/export/foscam/test*bad",
+            "/export/foscam/test\x00bad",  # Null character
+        ]
+
+        for bad_path in forbidden_paths:
+            with pytest.raises(ValidationError) as exc_info:
+                CameraCreate(
+                    name="Test Camera",
+                    folder_path=bad_path,
+                )
+            errors = exc_info.value.errors()
+            assert any("forbidden characters" in str(err.get("msg", "")) for err in errors), (
+                f"Expected validation error for path: {bad_path!r}"
+            )
+
+    def test_folder_path_valid_paths_accepted(self) -> None:
+        """Test that valid paths are accepted."""
+        valid_paths = [
+            "/export/foscam/front_door",
+            "/export/foscam/back-door",
+            "/export/foscam/camera_1",
+            "/home/user/cameras/cam.test",
+            "/var/lib/cameras/2025/01/01",
+            "cameras/local",
+        ]
+
+        for valid_path in valid_paths:
+            camera = CameraCreate(
+                name="Test Camera",
+                folder_path=valid_path,
+            )
+            assert camera.folder_path == valid_path
+
+    def test_folder_path_single_dot_allowed(self) -> None:
+        """Test that a single dot in path is allowed (current directory reference)."""
+        camera = CameraCreate(
+            name="Test Camera",
+            folder_path="/export/foscam/./front_door",
+        )
+        assert camera.folder_path == "/export/foscam/./front_door"
+
+    def test_folder_path_dots_in_filename_allowed(self) -> None:
+        """Test that dots in filenames/folder names are allowed."""
+        camera = CameraCreate(
+            name="Test Camera",
+            folder_path="/export/foscam/camera.v2.backup",
+        )
+        assert camera.folder_path == "/export/foscam/camera.v2.backup"
+
+    def test_update_folder_path_path_traversal_rejected(self) -> None:
+        """Test that path traversal is rejected in update schema."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError) as exc_info:
+            CameraUpdate(
+                folder_path="/export/foscam/../../../etc/passwd",
+            )
+        errors = exc_info.value.errors()
+        assert any("Path traversal" in str(err.get("msg", "")) for err in errors)
+
+    def test_update_folder_path_null_allowed(self) -> None:
+        """Test that null folder_path is allowed in update schema."""
+        update = CameraUpdate(folder_path=None)
+        assert update.folder_path is None
+
+    def test_update_folder_path_valid_accepted(self) -> None:
+        """Test that valid folder_path is accepted in update schema."""
+        update = CameraUpdate(folder_path="/export/foscam/new_location")
+        assert update.folder_path == "/export/foscam/new_location"
+
+
+class TestFolderPathAPIValidation:
+    """Tests for folder_path validation via API endpoints."""
+
+    def test_create_camera_path_traversal_returns_422(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test creating a camera with path traversal returns 422."""
+        camera_data = {
+            "name": "Test Camera",
+            "folder_path": "/export/foscam/../../../etc/passwd",
+        }
+
+        response = client.post("/api/cameras", json=camera_data)
+
+        assert response.status_code == 422
+        data = response.json()
+        assert "detail" in data
+        # Verify error mentions folder_path
+        assert any("folder_path" in str(err.get("loc", [])) for err in data["detail"])
+
+    def test_create_camera_forbidden_chars_returns_422(
+        self, client: TestClient, mock_db_session: AsyncMock
+    ) -> None:
+        """Test creating a camera with forbidden characters returns 422."""
+        camera_data = {
+            "name": "Test Camera",
+            "folder_path": "/export/foscam/test<script>",
+        }
+
+        response = client.post("/api/cameras", json=camera_data)
+
+        assert response.status_code == 422
+
+    def test_update_camera_path_traversal_returns_422(
+        self, client: TestClient, mock_db_session: AsyncMock, sample_camera: Camera
+    ) -> None:
+        """Test updating a camera with path traversal returns 422."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = sample_camera
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+        response = client.patch(
+            f"/api/cameras/{sample_camera.id}",
+            json={"folder_path": "/export/foscam/../../../etc/passwd"},
+        )
+
+        assert response.status_code == 422
+
+    def test_update_camera_valid_path_accepted(
+        self, client: TestClient, mock_db_session: AsyncMock, sample_camera: Camera
+    ) -> None:
+        """Test updating a camera with valid path succeeds."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = sample_camera
+        mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+        response = client.patch(
+            f"/api/cameras/{sample_camera.id}",
+            json={"folder_path": "/export/foscam/valid_path"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["folder_path"] == "/export/foscam/valid_path"
