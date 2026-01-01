@@ -274,11 +274,13 @@ async def test_get_camera_snapshot_folder_outside_root_forbidden(client, integra
 @pytest.mark.asyncio
 async def test_update_camera_name(client):
     """Test updating camera name."""
-    # Create a camera
+    # Create a camera with unique name/path to avoid conflicts
+    unique_id = str(uuid.uuid4())[:8]
     create_response = await client.post(
         "/api/cameras",
-        json={"name": "Old Name", "folder_path": "/export/foscam/test"},
+        json={"name": f"Old Name {unique_id}", "folder_path": f"/export/foscam/test_{unique_id}"},
     )
+    assert create_response.status_code == 201, f"Failed to create camera: {create_response.json()}"
     camera_id = create_response.json()["id"]
 
     # Update the name
@@ -290,17 +292,22 @@ async def test_update_camera_name(client):
     assert response.status_code == 200
     data = response.json()
     assert data["name"] == "New Name"
-    assert data["folder_path"] == "/export/foscam/test"  # Unchanged
+    assert "/export/foscam/test_" in data["folder_path"]  # Unchanged (with unique suffix)
 
 
 @pytest.mark.asyncio
 async def test_update_camera_status(client):
     """Test updating camera status."""
-    # Create a camera
+    # Create a camera with unique name/path to avoid conflicts
+    unique_id = str(uuid.uuid4())[:8]
     create_response = await client.post(
         "/api/cameras",
-        json={"name": "Test Camera", "folder_path": "/export/foscam/test"},
+        json={
+            "name": f"Test Camera {unique_id}",
+            "folder_path": f"/export/foscam/test_{unique_id}",
+        },
     )
+    assert create_response.status_code == 201, f"Failed to create camera: {create_response.json()}"
     camera_id = create_response.json()["id"]
 
     # Update the status
@@ -317,11 +324,13 @@ async def test_update_camera_status(client):
 @pytest.mark.asyncio
 async def test_update_camera_folder_path(client):
     """Test updating camera folder path."""
-    # Create a camera
+    # Create a camera with unique name/path to avoid conflicts
+    unique_id = str(uuid.uuid4())[:8]
     create_response = await client.post(
         "/api/cameras",
-        json={"name": "Test Camera", "folder_path": "/export/foscam/old"},
+        json={"name": f"Test Camera {unique_id}", "folder_path": f"/export/foscam/old_{unique_id}"},
     )
+    assert create_response.status_code == 201, f"Failed to create camera: {create_response.json()}"
     camera_id = create_response.json()["id"]
 
     # Update the folder path
@@ -338,11 +347,17 @@ async def test_update_camera_folder_path(client):
 @pytest.mark.asyncio
 async def test_update_camera_multiple_fields(client):
     """Test updating multiple camera fields at once."""
-    # Create a camera
+    # Create a camera with unique name/path to avoid conflicts
+    unique_id = str(uuid.uuid4())[:8]
     create_response = await client.post(
         "/api/cameras",
-        json={"name": "Old Name", "folder_path": "/export/foscam/old", "status": "online"},
+        json={
+            "name": f"Old Name {unique_id}",
+            "folder_path": f"/export/foscam/old_{unique_id}",
+            "status": "online",
+        },
     )
+    assert create_response.status_code == 201, f"Failed to create camera: {create_response.json()}"
     camera_id = create_response.json()["id"]
 
     # Update multiple fields
@@ -373,11 +388,14 @@ async def test_update_camera_not_found(client):
 @pytest.mark.asyncio
 async def test_update_camera_empty_payload(client):
     """Test updating camera with empty payload."""
-    # Create a camera
+    # Create a camera with unique name/path to avoid conflicts
+    unique_id = str(uuid.uuid4())[:8]
+    camera_name = f"Test Camera {unique_id}"
     create_response = await client.post(
         "/api/cameras",
-        json={"name": "Test Camera", "folder_path": "/export/foscam/test"},
+        json={"name": camera_name, "folder_path": f"/export/foscam/test_{unique_id}"},
     )
+    assert create_response.status_code == 201, f"Failed to create camera: {create_response.json()}"
     camera_id = create_response.json()["id"]
 
     # Update with empty payload
@@ -386,17 +404,22 @@ async def test_update_camera_empty_payload(client):
     assert response.status_code == 200
     data = response.json()
     # Nothing should change
-    assert data["name"] == "Test Camera"
+    assert data["name"] == camera_name
 
 
 @pytest.mark.asyncio
 async def test_update_camera_invalid_empty_name(client):
     """Test updating camera with empty name fails validation."""
-    # Create a camera
+    # Create a camera with unique name/path to avoid conflicts
+    unique_id = str(uuid.uuid4())[:8]
     create_response = await client.post(
         "/api/cameras",
-        json={"name": "Test Camera", "folder_path": "/export/foscam/test"},
+        json={
+            "name": f"Test Camera {unique_id}",
+            "folder_path": f"/export/foscam/test_{unique_id}",
+        },
     )
+    assert create_response.status_code == 201, f"Failed to create camera: {create_response.json()}"
     camera_id = create_response.json()["id"]
 
     # Try to update with empty name
@@ -414,11 +437,16 @@ async def test_update_camera_invalid_empty_name(client):
 @pytest.mark.asyncio
 async def test_delete_camera_success(client):
     """Test successful camera deletion."""
-    # Create a camera
+    # Create a camera with unique name/path to avoid conflicts
+    unique_id = str(uuid.uuid4())[:8]
     create_response = await client.post(
         "/api/cameras",
-        json={"name": "Test Camera", "folder_path": "/export/foscam/test"},
+        json={
+            "name": f"Test Camera {unique_id}",
+            "folder_path": f"/export/foscam/test_{unique_id}",
+        },
     )
+    assert create_response.status_code == 201, f"Failed to create camera: {create_response.json()}"
     camera_id = create_response.json()["id"]
 
     # Delete the camera
@@ -446,11 +474,16 @@ async def test_delete_camera_cascades_to_related_data(client):
     from backend.models.detection import Detection
     from backend.models.event import Event
 
-    # Create a camera
+    # Create a camera with unique name/path to avoid conflicts
+    unique_id = str(uuid.uuid4())[:8]
     create_response = await client.post(
         "/api/cameras",
-        json={"name": "Test Camera", "folder_path": "/export/foscam/test"},
+        json={
+            "name": f"Test Camera {unique_id}",
+            "folder_path": f"/export/foscam/test_{unique_id}",
+        },
     )
+    assert create_response.status_code == 201, f"Failed to create camera: {create_response.json()}"
     camera_id = create_response.json()["id"]
 
     # Add related data directly to database
@@ -531,11 +564,16 @@ async def test_create_camera_with_very_long_folder_path(client):
 @pytest.mark.asyncio
 async def test_list_cameras_returns_correct_schema(client):
     """Test that list cameras endpoint returns correct response schema."""
-    # Create a camera
-    await client.post(
+    # Create a camera with unique name/path to avoid conflicts
+    unique_id = str(uuid.uuid4())[:8]
+    create_response = await client.post(
         "/api/cameras",
-        json={"name": "Test Camera", "folder_path": "/export/foscam/test"},
+        json={
+            "name": f"Test Camera {unique_id}",
+            "folder_path": f"/export/foscam/test_{unique_id}",
+        },
     )
+    assert create_response.status_code == 201, f"Failed to create camera: {create_response.json()}"
 
     response = await client.get("/api/cameras")
 
@@ -558,12 +596,17 @@ async def test_list_cameras_returns_correct_schema(client):
 @pytest.mark.asyncio
 async def test_camera_response_includes_all_fields(client):
     """Test that camera response includes all expected fields."""
+    # Create a camera with unique name/path to avoid conflicts
+    unique_id = str(uuid.uuid4())[:8]
     create_response = await client.post(
         "/api/cameras",
-        json={"name": "Test Camera", "folder_path": "/export/foscam/test"},
+        json={
+            "name": f"Test Camera {unique_id}",
+            "folder_path": f"/export/foscam/test_{unique_id}",
+        },
     )
 
-    assert create_response.status_code == 201
+    assert create_response.status_code == 201, f"Failed to create camera: {create_response.json()}"
     data = create_response.json()
 
     required_fields = ["id", "name", "folder_path", "status", "created_at", "last_seen_at"]

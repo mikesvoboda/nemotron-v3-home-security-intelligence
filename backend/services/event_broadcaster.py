@@ -40,11 +40,17 @@ class EventBroadcaster:
 
     This class acts as a bridge between Redis pub/sub events and WebSocket
     connections, allowing multiple backend instances to share event notifications.
+
+    Includes a supervision task that monitors listener health and automatically
+    restarts dead listeners to ensure reliability.
     """
 
     # Maximum number of consecutive recovery attempts before giving up
     # Prevents unbounded recursion / stack overflow on repeated failures
     MAX_RECOVERY_ATTEMPTS = 5
+
+    # Interval for supervision checks (seconds)
+    SUPERVISION_INTERVAL = 30.0
 
     # Kept for backward compatibility - fetches from settings dynamically
     # Note: This is a property that returns the current settings value each time
@@ -65,8 +71,10 @@ class EventBroadcaster:
         self._connections: set[WebSocket] = set()
         self._pubsub: PubSub | None = None
         self._listener_task: asyncio.Task[None] | None = None
+        self._supervisor_task: asyncio.Task[None] | None = None
         self._is_listening = False
         self._recovery_attempts = 0
+        self._listener_healthy = False
 
     @property
     def channel_name(self) -> str:
@@ -74,7 +82,11 @@ class EventBroadcaster:
         return self._channel_name
 
     async def start(self) -> None:
-        """Start listening for events from Redis pub/sub."""
+        """Start listening for events from Redis pub/sub.
+
+        Also starts a supervision task that monitors listener health and
+        automatically restarts dead listeners.
+        """
         if self._is_listening:
             logger.warning("Event broadcaster already started")
             return
@@ -82,8 +94,11 @@ class EventBroadcaster:
         try:
             self._pubsub = await self._redis.subscribe(self._channel_name)
             self._is_listening = True
+            self._listener_healthy = True
             self._recovery_attempts = 0  # Reset recovery attempts on successful start
             self._listener_task = asyncio.create_task(self._listen_for_events())
+            # Start supervision task to monitor listener health
+            self._supervisor_task = asyncio.create_task(self._supervise_listener())
             logger.info(f"Event broadcaster started, listening on channel: {self._channel_name}")
         except Exception as e:
             logger.error(f"Failed to start event broadcaster: {e}")
@@ -92,6 +107,14 @@ class EventBroadcaster:
     async def stop(self) -> None:
         """Stop listening for events and cleanup resources."""
         self._is_listening = False
+        self._listener_healthy = False
+
+        # Stop supervisor first
+        if self._supervisor_task:
+            self._supervisor_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._supervisor_task
+            self._supervisor_task = None
 
         if self._listener_task:
             self._listener_task.cancel()
@@ -287,6 +310,82 @@ class EventBroadcaster:
 
         if disconnected:
             logger.info(f"Cleaned up {len(disconnected)} disconnected clients")
+
+    async def _supervise_listener(self) -> None:
+        """Supervision task that monitors listener health and restarts if needed.
+
+        This task runs periodically to check if the listener task is alive and
+        functioning. If the listener has died unexpectedly without setting the
+        proper flags, the supervisor will attempt to restart it.
+
+        This provides an additional layer of reliability beyond the built-in
+        recovery logic in _listen_for_events.
+        """
+        logger.info("Listener supervision task started")
+
+        try:
+            while self._is_listening:
+                await asyncio.sleep(self.SUPERVISION_INTERVAL)
+
+                if not self._is_listening:
+                    break
+
+                # Check if listener task is still alive
+                listener_alive = self._listener_task is not None and not self._listener_task.done()
+
+                if not listener_alive and self._is_listening:
+                    # Listener died unexpectedly - attempt to restart
+                    logger.warning(
+                        "Listener task died unexpectedly. "
+                        f"Recovery attempts: {self._recovery_attempts}/{self.MAX_RECOVERY_ATTEMPTS}"
+                    )
+
+                    if self._recovery_attempts < self.MAX_RECOVERY_ATTEMPTS:
+                        self._recovery_attempts += 1
+                        logger.info(
+                            f"Supervisor restarting listener (attempt {self._recovery_attempts})"
+                        )
+                        # Re-subscribe if needed
+                        if self._pubsub is None:
+                            try:
+                                self._pubsub = await self._redis.subscribe(self._channel_name)
+                            except Exception as sub_error:
+                                logger.error(f"Failed to re-subscribe: {sub_error}")
+                                continue
+                        # Create new listener task
+                        self._listener_task = asyncio.create_task(self._listen_for_events())
+                        self._listener_healthy = True
+                        logger.info("Supervisor successfully restarted listener")
+                    else:
+                        logger.error(
+                            "Supervisor giving up - max recovery attempts reached. "
+                            "Manual intervention required."
+                        )
+                        self._is_listening = False
+                        self._listener_healthy = False
+                        break
+                elif listener_alive:
+                    # Listener is healthy
+                    self._listener_healthy = True
+                    # Reset recovery attempts on healthy check
+                    if self._recovery_attempts > 0:
+                        logger.info("Listener recovered successfully, resetting recovery counter")
+                        self._recovery_attempts = 0
+
+        except asyncio.CancelledError:
+            logger.info("Listener supervision task cancelled")
+        except Exception as e:
+            logger.error(f"Unexpected error in supervisor task: {e}", exc_info=True)
+        finally:
+            logger.info("Listener supervision task stopped")
+
+    def is_listener_healthy(self) -> bool:
+        """Check if the listener is currently healthy.
+
+        Returns:
+            True if listener is running and healthy, False otherwise
+        """
+        return self._is_listening and self._listener_healthy
 
 
 # Global broadcaster instance and initialization lock

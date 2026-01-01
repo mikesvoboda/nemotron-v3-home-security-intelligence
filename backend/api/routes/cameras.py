@@ -106,7 +106,34 @@ async def create_camera(
 
     Returns:
         Created camera object with generated ID
+
+    Raises:
+        HTTPException: 409 if camera with same name or folder_path already exists
     """
+    # Check if a camera with the same name already exists
+    existing_name_result = await db.execute(select(Camera).where(Camera.name == camera_data.name))
+    existing_name_camera = existing_name_result.scalar_one_or_none()
+
+    if existing_name_camera:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Camera with name '{camera_data.name}' already exists "
+            f"(id: {existing_name_camera.id})",
+        )
+
+    # Check if a camera with the same folder_path already exists
+    existing_path_result = await db.execute(
+        select(Camera).where(Camera.folder_path == camera_data.folder_path)
+    )
+    existing_path_camera = existing_path_result.scalar_one_or_none()
+
+    if existing_path_camera:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Camera with folder_path '{camera_data.folder_path}' already exists "
+            f"(id: {existing_path_camera.id})",
+        )
+
     # Create camera with generated UUID
     camera = Camera(
         id=str(uuid.uuid4()),

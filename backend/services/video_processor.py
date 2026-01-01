@@ -6,6 +6,37 @@ This service handles video file processing including:
 - Validating video file integrity
 
 Uses ffmpeg subprocess for reliable cross-platform video processing.
+
+Error Handling Pattern:
+    This module uses a consistent error handling strategy based on operation criticality:
+
+    1. REQUIRED operations (data must be available) -> raise VideoProcessingError
+       - get_video_metadata(): Raises VideoProcessingError if extraction fails
+       These are operations where callers cannot proceed without the result.
+
+    2. OPTIONAL operations (best-effort) -> return None/False/empty list
+       - extract_thumbnail() -> str | None
+       - extract_thumbnail_for_detection() -> str | None
+       - extract_frames_for_detection() -> list[str] (empty on failure)
+       - cleanup_extracted_frames() -> bool
+       - delete_thumbnail() -> bool
+       These are operations where callers can proceed with a fallback behavior.
+
+    Callers should:
+    - Use try/except for get_video_metadata()
+    - Check return values for other methods (if result is None/False/empty: handle gracefully)
+
+Example:
+    try:
+        metadata = await processor.get_video_metadata(video_path)
+    except VideoProcessingError as e:
+        logger.error(f"Cannot get metadata: {e}")
+        return
+
+    thumbnail = await processor.extract_thumbnail(video_path)
+    if thumbnail is None:
+        logger.warning("Using fallback thumbnail")
+        thumbnail = DEFAULT_THUMBNAIL
 """
 
 import asyncio
@@ -75,6 +106,11 @@ class VideoProcessor:
     - Extract video metadata (duration, codec, resolution)
     - Generate thumbnail frames at configurable timestamps
     - Async-compatible subprocess execution
+
+    Error Handling:
+        See module docstring for the error handling pattern. In summary:
+        - get_video_metadata() raises VideoProcessingError on failure
+        - All other methods return None/False/empty list on failure
     """
 
     def __init__(self, output_dir: str = "data/thumbnails"):
@@ -224,10 +260,13 @@ class VideoProcessor:
         timestamp: float | None = None,
         size: tuple[int, int] = DEFAULT_THUMBNAIL_SIZE,
     ) -> str | None:
-        """Extract a thumbnail frame from a video.
+        """Extract a thumbnail frame from a video (best-effort, returns None on failure).
 
         By default, extracts frame at 1 second or 10% into the video, whichever
         is smaller. This helps avoid black/blank frames at the start.
+
+        This is an OPTIONAL operation that returns None on failure rather than
+        raising an exception. Callers should check for None and handle gracefully.
 
         Args:
             video_path: Path to the video file
@@ -236,7 +275,8 @@ class VideoProcessor:
             size: Thumbnail dimensions as (width, height). Default: (320, 240)
 
         Returns:
-            Path to the saved thumbnail, or None if extraction failed
+            Path to the saved thumbnail, or None if extraction failed.
+            Returns None for: invalid path, ffmpeg failure, timeout, or file not created.
         """
         try:
             validated_path = _validate_video_path(video_path)
@@ -317,6 +357,9 @@ class VideoProcessor:
         This method extracts frames at specified intervals throughout the video
         for use in object detection. Frames are saved as temporary JPEG files.
 
+        This is an OPTIONAL operation that returns an empty list on failure rather
+        than raising an exception. Callers should handle empty results gracefully.
+
         Args:
             video_path: Path to the video file
             interval_seconds: Time between frame extractions (default: 2.0 seconds)
@@ -324,7 +367,9 @@ class VideoProcessor:
             size: Optional frame dimensions. If None, uses original resolution.
 
         Returns:
-            List of paths to extracted frame images
+            List of paths to extracted frame images.
+            Returns empty list for: invalid path, metadata extraction failure,
+            invalid duration, ffmpeg failures, or timeouts.
         """
         try:
             validated_path = _validate_video_path(video_path)

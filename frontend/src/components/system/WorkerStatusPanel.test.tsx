@@ -281,7 +281,7 @@ describe('WorkerStatusPanel', () => {
         expect(screen.getByTestId('critical-summary-badge')).toBeInTheDocument();
       });
 
-      expect(screen.getByTestId('critical-summary-badge')).toHaveTextContent('2/2 Critical');
+      expect(screen.getByTestId('critical-summary-badge')).toHaveTextContent('Critical: 2/2 Running');
     });
 
     it('displays stopped count badge when workers are stopped', async () => {

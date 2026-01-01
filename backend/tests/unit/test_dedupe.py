@@ -1,7 +1,7 @@
 """Unit tests for file deduplication service."""
 
 import hashlib
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from PIL import Image
@@ -9,6 +9,7 @@ from PIL import Image
 from backend.services.dedupe import (
     DEDUPE_KEY_PREFIX,
     DEFAULT_DEDUPE_TTL_SECONDS,
+    ORPHAN_CLEANUP_MAX_AGE_SECONDS,
     DedupeService,
     compute_file_hash,
     get_dedupe_service,
@@ -484,3 +485,175 @@ async def test_binary_file_hashing(tmp_path):
     file_hash = compute_file_hash(str(binary_file))
 
     assert file_hash is not None
+
+
+# TTL Enforcement and Orphan Cleanup Tests
+
+
+@pytest.fixture
+def mock_redis_client_with_internal():
+    """Create a mock Redis client with internal _client for TTL operations."""
+    mock = AsyncMock()
+    mock.exists = AsyncMock(return_value=0)
+    mock.set = AsyncMock(return_value=True)
+    mock.delete = AsyncMock(return_value=1)
+
+    # Mock the internal client for TTL operations
+    mock_internal = AsyncMock()
+    mock_internal.ttl = AsyncMock(return_value=300)  # Key has TTL
+    mock_internal.expire = AsyncMock(return_value=True)
+    mock_internal.scan_iter = MagicMock()
+    mock._client = mock_internal
+
+    return mock
+
+
+@pytest.mark.asyncio
+async def test_ensure_key_has_ttl_sets_ttl_when_missing(mock_redis_client_with_internal):
+    """Test that ensure_key_has_ttl sets TTL when key has no TTL."""
+    service = DedupeService(redis_client=mock_redis_client_with_internal)
+
+    # Simulate key with no TTL (-1)
+    mock_redis_client_with_internal._client.ttl.return_value = -1
+
+    result = await service.ensure_key_has_ttl("abc123")
+
+    assert result is True
+    mock_redis_client_with_internal._client.expire.assert_called_once()
+    call_args = mock_redis_client_with_internal._client.expire.call_args[0]
+    assert call_args[0] == f"{DEDUPE_KEY_PREFIX}abc123"
+    assert call_args[1] == service._ttl_seconds
+
+
+@pytest.mark.asyncio
+async def test_ensure_key_has_ttl_skips_when_ttl_exists(mock_redis_client_with_internal):
+    """Test that ensure_key_has_ttl does not modify TTL when already set."""
+    service = DedupeService(redis_client=mock_redis_client_with_internal)
+
+    # Simulate key with TTL (300 seconds)
+    mock_redis_client_with_internal._client.ttl.return_value = 300
+
+    result = await service.ensure_key_has_ttl("abc123")
+
+    assert result is True
+    # expire should NOT be called since TTL exists
+    mock_redis_client_with_internal._client.expire.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_ensure_key_has_ttl_without_redis():
+    """Test that ensure_key_has_ttl returns False without Redis."""
+    service = DedupeService(redis_client=None)
+
+    result = await service.ensure_key_has_ttl("abc123")
+
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_ensure_key_has_ttl_handles_error(mock_redis_client_with_internal):
+    """Test that ensure_key_has_ttl handles errors gracefully."""
+    service = DedupeService(redis_client=mock_redis_client_with_internal)
+
+    mock_redis_client_with_internal._client.ttl.side_effect = Exception("Redis error")
+
+    result = await service.ensure_key_has_ttl("abc123")
+
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_check_redis_ensures_ttl_on_duplicate(mock_redis_client_with_internal):
+    """Test that _check_redis calls ensure_key_has_ttl when duplicate is found."""
+    service = DedupeService(redis_client=mock_redis_client_with_internal)
+
+    # Mock exists to return True (key exists)
+    mock_redis_client_with_internal.exists.return_value = 1
+    # Mock TTL to return -1 (no TTL set)
+    mock_redis_client_with_internal._client.ttl.return_value = -1
+
+    result = await service._check_redis("abc123")
+
+    assert result is True
+    # Should have checked and set TTL
+    mock_redis_client_with_internal._client.ttl.assert_called_once()
+    mock_redis_client_with_internal._client.expire.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_cleanup_orphaned_keys_sets_ttl(mock_redis_client_with_internal):
+    """Test that cleanup_orphaned_keys sets TTL on orphaned keys."""
+    service = DedupeService(redis_client=mock_redis_client_with_internal)
+
+    # Mock scan_iter to return orphaned keys
+    async def mock_scan_iter(match, count):
+        yield f"{DEDUPE_KEY_PREFIX}orphan1"
+        yield f"{DEDUPE_KEY_PREFIX}orphan2"
+
+    mock_redis_client_with_internal._client.scan_iter = mock_scan_iter
+    # First key has no TTL, second key has TTL
+    mock_redis_client_with_internal._client.ttl.side_effect = [-1, 300]
+
+    cleaned = await service.cleanup_orphaned_keys()
+
+    # Should have cleaned 1 orphaned key (the one with TTL=-1)
+    assert cleaned == 1
+    # expire should have been called once for the orphaned key
+    mock_redis_client_with_internal._client.expire.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_cleanup_orphaned_keys_without_redis():
+    """Test that cleanup_orphaned_keys returns 0 without Redis."""
+    service = DedupeService(redis_client=None)
+
+    result = await service.cleanup_orphaned_keys()
+
+    assert result == 0
+
+
+@pytest.mark.asyncio
+async def test_cleanup_orphaned_keys_handles_scan_error(mock_redis_client_with_internal):
+    """Test that cleanup_orphaned_keys handles scan errors gracefully."""
+    service = DedupeService(redis_client=mock_redis_client_with_internal)
+
+    # Mock scan_iter to raise an exception
+    async def mock_scan_iter_error(match, count):
+        raise Exception("Scan failed")
+        yield  # Make it an async generator
+
+    mock_redis_client_with_internal._client.scan_iter = mock_scan_iter_error
+
+    result = await service.cleanup_orphaned_keys()
+
+    assert result == 0
+
+
+@pytest.mark.asyncio
+async def test_cleanup_orphaned_keys_handles_key_error(mock_redis_client_with_internal):
+    """Test that cleanup_orphaned_keys continues on individual key errors."""
+    service = DedupeService(redis_client=mock_redis_client_with_internal)
+
+    # Mock scan_iter to return keys
+    async def mock_scan_iter(match, count):
+        yield f"{DEDUPE_KEY_PREFIX}key1"
+        yield f"{DEDUPE_KEY_PREFIX}key2"
+
+    mock_redis_client_with_internal._client.scan_iter = mock_scan_iter
+    # First key fails, second key is orphaned
+    mock_redis_client_with_internal._client.ttl.side_effect = [
+        Exception("TTL check failed"),
+        -1,
+    ]
+
+    cleaned = await service.cleanup_orphaned_keys()
+
+    # Should have cleaned 1 key (the second one)
+    assert cleaned == 1
+
+
+@pytest.mark.asyncio
+async def test_orphan_cleanup_max_age_constant():
+    """Test that ORPHAN_CLEANUP_MAX_AGE_SECONDS is properly defined."""
+    assert ORPHAN_CLEANUP_MAX_AGE_SECONDS > 0
+    assert ORPHAN_CLEANUP_MAX_AGE_SECONDS <= 7200  # Max 2 hours is reasonable

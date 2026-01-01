@@ -200,6 +200,7 @@ async def websocket_events_endpoint(  # noqa: PLR0912
                "risk_score": 75,
                "risk_level": "high",
                "summary": "Person detected at front door",
+               "reasoning": "Unknown individual approaching entrance during nighttime hours",
                "started_at": "2025-12-23T12:00:00"
            }
        }
@@ -212,6 +213,7 @@ async def websocket_events_endpoint(  # noqa: PLR0912
        - risk_score: Risk assessment score (0-100)
        - risk_level: Risk classification ("low", "medium", "high", "critical")
        - summary: Human-readable description of the event
+       - reasoning: LLM reasoning for the risk assessment
        - started_at: ISO 8601 timestamp when the event started
 
     4. Connection is maintained until client disconnects

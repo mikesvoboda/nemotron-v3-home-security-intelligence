@@ -229,13 +229,15 @@ class BatchAggregator:
                 )
 
                 # Set batch metadata with TTL for orphan cleanup
-                # Uses retry with exponential backoff for Redis connection failures
+                # Uses asyncio.gather to parallelize Redis SET operations for performance
                 ttl = self.BATCH_KEY_TTL_SECONDS
-                await self._redis.set(batch_key, batch_id, expire=ttl)
-                await self._redis.set(f"batch:{batch_id}:camera_id", camera_id, expire=ttl)
-                await self._redis.set(f"batch:{batch_id}:started_at", str(current_time), expire=ttl)
-                await self._redis.set(
-                    f"batch:{batch_id}:last_activity", str(current_time), expire=ttl
+                await asyncio.gather(
+                    self._redis.set(batch_key, batch_id, expire=ttl),
+                    self._redis.set(f"batch:{batch_id}:camera_id", camera_id, expire=ttl),
+                    self._redis.set(f"batch:{batch_id}:started_at", str(current_time), expire=ttl),
+                    self._redis.set(
+                        f"batch:{batch_id}:last_activity", str(current_time), expire=ttl
+                    ),
                 )
                 # Note: No need to initialize empty list - RPUSH creates it automatically
 
@@ -399,10 +401,12 @@ class BatchAggregator:
                         "already_closed": True,
                     }
 
-                # Get detections using atomic list read
-                detections = await self._atomic_list_get_all(f"batch:{batch_id}:detections")
-
-                started_at_str = await self._redis.get(f"batch:{batch_id}:started_at")
+                # Get batch data in parallel for performance
+                detections_result, started_at_str = await asyncio.gather(
+                    self._atomic_list_get_all(f"batch:{batch_id}:detections"),
+                    self._redis.get(f"batch:{batch_id}:started_at"),
+                )
+                detections = detections_result
                 started_at = float(started_at_str) if started_at_str else time.time()
 
                 # Create summary
