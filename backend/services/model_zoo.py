@@ -1,7 +1,8 @@
 """Model Zoo for on-demand model loading.
 
 This module provides a registry of AI models that can be loaded on-demand during
-batch processing to extract additional context (license plates, faces, OCR text).
+batch processing to extract additional context (license plates, faces, OCR text,
+pose estimation).
 
 The ModelManager handles VRAM-efficient loading and unloading of models using
 async context managers that automatically release GPU memory when done.
@@ -10,6 +11,16 @@ Models:
     - yolo11-license-plate: License plate detection on vehicles
     - yolo11-face: Face detection on persons
     - paddleocr: OCR text extraction from detected plates
+    - clip-vit-l: CLIP embeddings for re-identification
+    - florence-2-large: Vision-language queries for attribute extraction
+    - yolo-world-s: Open-vocabulary zero-shot detection
+    - vitpose-small: Human pose keypoint detection (17 COCO keypoints)
+    - depth-anything-v2-small: Monocular depth estimation for distance context
+    - violence-detection: Binary violence classification on full frame
+    - weather-classification: Weather condition classification (5 classes)
+    - segformer-b2-clothes: Clothing segmentation on person detections
+    - xclip-base: Temporal action recognition in video sequences
+    - fashion-clip: Zero-shot clothing classification for security context
 
 VRAM Budget:
     - Nemotron LLM: 21,700 MB (always loaded)
@@ -28,7 +39,15 @@ from typing import TYPE_CHECKING, Any
 
 from backend.core.logging import get_logger
 from backend.services.clip_loader import load_clip_model
+from backend.services.depth_anything_loader import load_depth_model
+from backend.services.fashion_clip_loader import load_fashion_clip_model
 from backend.services.florence_loader import load_florence_model
+from backend.services.segformer_loader import load_segformer_model
+from backend.services.violence_loader import load_violence_model
+from backend.services.vitpose_loader import load_vitpose_model
+from backend.services.weather_loader import load_weather_model
+from backend.services.xclip_loader import load_xclip_model
+from backend.services.yolo_world_loader import load_yolo_world_model
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -224,6 +243,107 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
             category="vision-language",
             vram_mb=1200,  # ~1.2GB with float16
             load_fn=load_florence_model,
+            enabled=True,
+            available=False,
+        ),
+        # YOLO-World-S for open-vocabulary detection via text prompts
+        # Enables zero-shot detection of security-relevant objects (knives, packages, etc.)
+        "yolo-world-s": ModelConfig(
+            name="yolo-world-s",
+            path="yolov8s-worldv2.pt",
+            category="detection",
+            vram_mb=1500,  # ~1.5GB
+            load_fn=load_yolo_world_model,
+            enabled=True,
+            available=False,
+        ),
+        # ViTPose+ Small for human pose keypoint detection
+        # Detects 17 COCO keypoints for pose classification (standing, crouching, running)
+        "vitpose-small": ModelConfig(
+            name="vitpose-small",
+            path="usyd-community/vitpose-plus-small",
+            category="pose",
+            vram_mb=1500,  # ~1.5GB with float16
+            load_fn=load_vitpose_model,
+            enabled=True,
+            available=False,
+        ),
+        # Depth Anything V2 Small for monocular depth estimation
+        # Provides relative distance estimation for detected objects
+        # Output: depth map where lower values = closer to camera
+        "depth-anything-v2-small": ModelConfig(
+            name="depth-anything-v2-small",
+            path="depth-anything/Depth-Anything-V2-Small-hf",
+            category="depth-estimation",
+            vram_mb=150,  # ~100-200MB (very lightweight)
+            load_fn=load_depth_model,
+            enabled=True,
+            available=False,
+        ),
+        # ViT Violence Detection for identifying violent content
+        # Binary classification: violent vs non-violent
+        # Runs on full frame when 2+ persons detected (optimization)
+        # Reported accuracy: 98.80%
+        "violence-detection": ModelConfig(
+            name="violence-detection",
+            path="/export/ai_models/model-zoo/violence-detection",
+            category="classification",
+            vram_mb=500,  # ~500MB
+            load_fn=load_violence_model,
+            enabled=True,
+            available=False,
+        ),
+        # Weather Classification for environmental context
+        # SigLIP-based model fine-tuned for weather classification
+        # Classes: cloudy/overcast, foggy/hazy, rain/storm, snow/frosty, sun/clear
+        # Runs once per batch on full frame (not per detection)
+        # Weather context helps Nemotron calibrate risk assessments
+        "weather-classification": ModelConfig(
+            name="weather-classification",
+            path="/export/ai_models/model-zoo/weather-classification",
+            category="classification",
+            vram_mb=200,  # ~200MB
+            load_fn=load_weather_model,
+            enabled=True,
+            available=False,
+        ),
+        # SegFormer B2 Clothes for clothing segmentation on person detections
+        # Segments 18 clothing/body part categories for re-identification
+        # Enables clothing-based person identification and suspicious attire detection
+        "segformer-b2-clothes": ModelConfig(
+            name="segformer-b2-clothes",
+            path="/export/ai_models/model-zoo/segformer-b2-clothes",
+            category="segmentation",
+            vram_mb=1500,  # ~1.5GB
+            load_fn=load_segformer_model,
+            enabled=True,
+            available=False,
+        ),
+        # X-CLIP for temporal action recognition in video sequences
+        # Analyzes multiple frames to classify security-relevant actions:
+        # loitering, approaching door, running away, suspicious behavior, etc.
+        # Based on microsoft/xclip-base-patch32 - extends CLIP for video understanding
+        "xclip-base": ModelConfig(
+            name="xclip-base",
+            path="/export/ai_models/model-zoo/xclip-base",
+            category="action-recognition",
+            vram_mb=2000,  # ~2GB with float16
+            load_fn=load_xclip_model,
+            enabled=True,
+            available=False,
+        ),
+        # Marqo-FashionCLIP for zero-shot clothing classification
+        # Identifies security-relevant clothing attributes on person crops:
+        # - Suspicious attire (dark hoodie, face mask, gloves, all black)
+        # - Service uniforms (Amazon, FedEx, UPS, high-vis vest)
+        # - General clothing categories (casual, business, athletic)
+        # Runs on person crop bounding boxes from RT-DETRv2
+        "fashion-clip": ModelConfig(
+            name="fashion-clip",
+            path="/export/ai_models/model-zoo/fashion-clip",
+            category="classification",
+            vram_mb=500,  # ~500MB
+            load_fn=load_fashion_clip_model,
             enabled=True,
             available=False,
         ),
