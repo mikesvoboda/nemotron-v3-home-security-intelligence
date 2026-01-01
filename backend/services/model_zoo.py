@@ -246,22 +246,22 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         # DISABLED: Not downloaded to local model zoo
         "clip-vit-l": ModelConfig(
             name="clip-vit-l",
-            path="openai/clip-vit-large-patch14",
+            path="/models/model-zoo/clip-vit-l",
             category="embedding",
             vram_mb=800,
             load_fn=load_clip_model,
-            enabled=False,  # Not in local model zoo
+            enabled=True,
             available=False,
         ),
         # Florence-2-large for vision-language queries (attributes, behavior, scene)
         # DISABLED: Not downloaded to local model zoo
         "florence-2-large": ModelConfig(
             name="florence-2-large",
-            path="microsoft/Florence-2-large",
+            path="/models/model-zoo/florence-2-large",
             category="vision-language",
             vram_mb=1200,  # ~1.2GB with float16
             load_fn=load_florence_model,
-            enabled=False,  # Not in local model zoo
+            enabled=True,
             available=False,
         ),
         # YOLO-World-S for open-vocabulary detection via text prompts

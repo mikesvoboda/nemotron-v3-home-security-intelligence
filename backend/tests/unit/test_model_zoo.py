@@ -1118,7 +1118,7 @@ class TestYoloWorldLoader:
         assert "yolo-world-s" in zoo
         config = zoo["yolo-world-s"]
         assert config.name == "yolo-world-s"
-        assert config.path == "yolov8s-worldv2.pt"
+        assert config.path == "/models/model-zoo/yolo-world-s"
         assert config.category == "detection"
         assert config.vram_mb == 1500
         assert config.enabled is True
@@ -1423,7 +1423,7 @@ class TestDepthAnythingLoader:
         assert "depth-anything-v2-small" in zoo
         config = zoo["depth-anything-v2-small"]
         assert config.name == "depth-anything-v2-small"
-        assert config.path == "depth-anything/Depth-Anything-V2-Small-hf"
+        assert config.path == "/models/model-zoo/depth-anything-v2-small"
         assert config.category == "depth-estimation"
         assert config.vram_mb == 150
         assert config.enabled is True
@@ -1803,7 +1803,7 @@ class TestViTPoseLoader:
 
         assert config is not None
         assert config.name == "vitpose-small"
-        assert config.path == "usyd-community/vitpose-plus-small"
+        assert config.path == "/models/model-zoo/vitpose-small"
         assert config.category == "pose"
         assert config.vram_mb == 1500
         assert config.enabled is True
