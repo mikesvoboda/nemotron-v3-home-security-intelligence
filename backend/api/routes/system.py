@@ -641,22 +641,30 @@ async def _check_nemotron_health_with_circuit_breaker(
 async def _bounded_health_check(
     check_func: Any,
     *args: Any,
+    timeout_seconds: float = 30.0,
 ) -> tuple[bool, str | None]:
-    """Run a health check with semaphore-bounded concurrency.
+    """Run a health check with semaphore-bounded concurrency and timeout.
 
     Limits concurrent health checks across all requests to prevent
     thundering herd when multiple clients check health simultaneously.
+    Uses a timeout to prevent indefinite queuing under high load.
 
     Args:
         check_func: Async function to call for health check
         *args: Arguments to pass to the check function
+        timeout_seconds: Maximum time to wait for semaphore acquisition
+            and health check execution (default: 30 seconds)
 
     Returns:
         Tuple of (is_healthy, error_message)
     """
-    async with _health_check_semaphore:
-        result: tuple[bool, str | None] = await check_func(*args)
-        return result
+    try:
+        async with asyncio.timeout(timeout_seconds):
+            async with _health_check_semaphore:
+                result: tuple[bool, str | None] = await check_func(*args)
+                return result
+    except TimeoutError:
+        return (False, "Health check timed out waiting for available slot")
 
 
 async def check_ai_services_health() -> ServiceStatus:
@@ -1819,13 +1827,43 @@ async def reset_circuit_breaker(name: str) -> CircuitBreakerResetResponse:
         CircuitBreakerResetResponse with reset confirmation
 
     Raises:
+        HTTPException 400: If name is invalid (empty, too long, or contains invalid characters)
         HTTPException 404: If circuit breaker not found
     """
     from backend.services.circuit_breaker import _get_registry
 
+    # Validate name parameter: must be non-empty and reasonable length
+    if not name or len(name) > 64:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid circuit breaker name: must be 1-64 characters",
+        )
+
+    # Only allow alphanumeric characters, underscores, and hyphens (defense in depth)
+    if not all(c.isalnum() or c in "_-" for c in name):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid circuit breaker name: must contain only alphanumeric characters, underscores, or hyphens",
+        )
+
     registry = _get_registry()
+
+    # Validate against registered circuit breaker names
+    valid_names = registry.list_names()
+    if name not in valid_names:
+        if not valid_names:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Circuit breaker '{name}' not found. No circuit breakers are currently registered.",
+            )
+        raise HTTPException(
+            status_code=404,
+            detail=f"Circuit breaker '{name}' not found. Valid names: {', '.join(sorted(valid_names))}",
+        )
+
     breaker = registry.get(name)
 
+    # This should never be None due to the validation above, but check for safety
     if breaker is None:
         raise HTTPException(
             status_code=404,

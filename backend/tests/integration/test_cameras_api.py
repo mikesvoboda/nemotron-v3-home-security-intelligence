@@ -3,7 +3,6 @@
 import asyncio
 import uuid
 from datetime import UTC, datetime
-from pathlib import Path
 
 import pytest
 from sqlalchemy import select
@@ -204,14 +203,16 @@ async def test_get_camera_by_id_not_found(client):
 
 
 @pytest.mark.asyncio
-async def test_get_camera_snapshot_returns_latest_image(client, integration_env):
+async def test_get_camera_snapshot_returns_latest_image(client, integration_env, tmp_path):
     """GET /api/cameras/{id}/snapshot returns the most recently modified image."""
+    import uuid
+
     from backend.core.config import get_settings
 
-    # Arrange a fake foscam root and camera directory under the integration tmpdir.
-    tmpdir = Path(integration_env.split("///", 1)[-1]).parent
-    foscam_root = tmpdir / "foscam"
-    cam_dir = foscam_root / "front_door"
+    # Arrange a fake foscam root and camera directory using pytest's tmp_path fixture.
+    unique_id = str(uuid.uuid4())[:8]
+    foscam_root = tmp_path / "foscam"
+    cam_dir = foscam_root / f"front_door_{unique_id}"
     cam_dir.mkdir(parents=True, exist_ok=True)
 
     # Create two images with different mtimes.
@@ -230,7 +231,7 @@ async def test_get_camera_snapshot_returns_latest_image(client, integration_env)
     # Create camera pointing at cam_dir
     create_resp = await client.post(
         "/api/cameras",
-        json={"name": "Front Door", "folder_path": str(cam_dir), "status": "online"},
+        json={"name": f"Front Door {unique_id}", "folder_path": str(cam_dir), "status": "online"},
     )
     assert create_resp.status_code == 201
     camera_id = create_resp.json()["id"]
@@ -243,14 +244,16 @@ async def test_get_camera_snapshot_returns_latest_image(client, integration_env)
 
 
 @pytest.mark.asyncio
-async def test_get_camera_snapshot_folder_outside_root_forbidden(client, integration_env):
+async def test_get_camera_snapshot_folder_outside_root_forbidden(client, integration_env, tmp_path):
     """Snapshot endpoint refuses cameras whose folder_path is outside foscam_base_path."""
+    import uuid
+
     from backend.core.config import get_settings
 
-    tmpdir = Path(integration_env.split("///", 1)[-1]).parent
-    foscam_root = tmpdir / "foscam"
+    unique_id = str(uuid.uuid4())[:8]
+    foscam_root = tmp_path / "foscam"
     foscam_root.mkdir(parents=True, exist_ok=True)
-    outside_dir = tmpdir / "outside"
+    outside_dir = tmp_path / f"outside_{unique_id}"
     outside_dir.mkdir(parents=True, exist_ok=True)
 
     import os
@@ -260,7 +263,7 @@ async def test_get_camera_snapshot_folder_outside_root_forbidden(client, integra
 
     create_resp = await client.post(
         "/api/cameras",
-        json={"name": "Bad Cam", "folder_path": str(outside_dir), "status": "online"},
+        json={"name": f"Bad Cam {unique_id}", "folder_path": str(outside_dir), "status": "online"},
     )
     camera_id = create_resp.json()["id"]
 

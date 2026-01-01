@@ -113,6 +113,14 @@ class MockEventBroadcaster:
         """
         return self._is_listening and self._listener_healthy
 
+    def is_degraded(self) -> bool:
+        """Check if the broadcaster is in degraded mode.
+
+        Returns:
+            True if broadcaster is in degraded mode, False otherwise
+        """
+        return getattr(self, "_is_degraded", False)
+
     # Legacy test-only methods - NOT part of real EventBroadcaster interface
     # These are convenience methods used by existing tests in this file
     async def broadcast_new_event(self, event: dict[str, Any]) -> int:

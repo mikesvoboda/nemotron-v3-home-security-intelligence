@@ -121,6 +121,67 @@ class TestEscapeIlikePatternEdgeCases:
         assert escape_ilike_pattern(long_with_special) == expected
 
 
+class TestEscapeIlikePatternNoneAndNonString:
+    """Tests for None and non-string input handling."""
+
+    def test_none_returns_empty_string(self):
+        """None input returns empty string."""
+        assert escape_ilike_pattern(None) == ""
+
+    def test_integer_converted_to_string(self):
+        """Integer input is converted to string."""
+        assert escape_ilike_pattern(123) == "123"
+        assert escape_ilike_pattern(0) == "0"
+        assert escape_ilike_pattern(-42) == "-42"
+
+    def test_float_converted_to_string(self):
+        """Float input is converted to string."""
+        assert escape_ilike_pattern(3.14) == "3.14"
+        assert escape_ilike_pattern(0.0) == "0.0"
+        assert escape_ilike_pattern(-2.5) == "-2.5"
+
+    def test_boolean_converted_to_string(self):
+        """Boolean input is converted to string."""
+        assert escape_ilike_pattern(True) == "True"
+        assert escape_ilike_pattern(False) == "False"
+
+    def test_list_converted_to_string(self):
+        """List input is converted to string representation."""
+        result = escape_ilike_pattern([1, 2, 3])
+        assert result == "[1, 2, 3]"
+
+    def test_dict_converted_to_string(self):
+        """Dict input is converted to string representation."""
+        result = escape_ilike_pattern({"a": 1})
+        assert result == "{'a': 1}"
+
+    def test_non_string_with_special_chars(self):
+        """Non-string that contains special chars when stringified."""
+        # Float with percentage-like appearance won't have %, but test conversion
+        result = escape_ilike_pattern(100)
+        assert result == "100"
+
+    def test_object_with_custom_str(self):
+        """Object with custom __str__ is handled correctly."""
+
+        class CustomObj:
+            def __str__(self):
+                return "custom_value%"
+
+        result = escape_ilike_pattern(CustomObj())
+        assert result == r"custom\_value\%"
+
+    def test_object_with_special_chars_in_str(self):
+        """Object whose __str__ returns special ILIKE characters."""
+
+        class SpecialObj:
+            def __str__(self):
+                return r"path\file_name%"
+
+        result = escape_ilike_pattern(SpecialObj())
+        assert result == r"path\\file\_name\%"
+
+
 class TestDatabasePoolConfiguration:
     """Tests for database connection pool configuration settings."""
 
