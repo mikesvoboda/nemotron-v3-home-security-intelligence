@@ -195,28 +195,28 @@ describe('WorkerStatusPanel', () => {
     });
   });
 
-  describe('critical workers highlighting', () => {
-    it('displays Critical badge for detection_worker', async () => {
+  describe('essential workers highlighting', () => {
+    it('displays essential icon for detection_worker', async () => {
       mockFetchReadiness.mockResolvedValue(mockReadinessResponse);
 
       render(<WorkerStatusPanel />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('critical-badge-detection_worker')).toBeInTheDocument();
+        expect(screen.getByTestId('essential-icon-detection_worker')).toBeInTheDocument();
       });
     });
 
-    it('displays Critical badge for analysis_worker', async () => {
+    it('displays essential icon for analysis_worker', async () => {
       mockFetchReadiness.mockResolvedValue(mockReadinessResponse);
 
       render(<WorkerStatusPanel />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('critical-badge-analysis_worker')).toBeInTheDocument();
+        expect(screen.getByTestId('essential-icon-analysis_worker')).toBeInTheDocument();
       });
     });
 
-    it('does not display Critical badge for non-critical workers', async () => {
+    it('does not display essential icon for non-essential workers', async () => {
       mockFetchReadiness.mockResolvedValue(mockReadinessResponse);
 
       render(<WorkerStatusPanel />);
@@ -225,11 +225,11 @@ describe('WorkerStatusPanel', () => {
         expect(screen.getByTestId('worker-row-gpu_monitor')).toBeInTheDocument();
       });
 
-      expect(screen.queryByTestId('critical-badge-gpu_monitor')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('critical-badge-cleanup_service')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('essential-icon-gpu_monitor')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('essential-icon-cleanup_service')).not.toBeInTheDocument();
     });
 
-    it('sorts critical workers first in the list', async () => {
+    it('sorts essential workers first in the list', async () => {
       mockFetchReadiness.mockResolvedValue(mockReadinessResponse);
 
       render(<WorkerStatusPanel />);
@@ -241,7 +241,7 @@ describe('WorkerStatusPanel', () => {
       const workersList = screen.getByTestId('workers-list');
       const workerRows = workersList.querySelectorAll('[data-testid^="worker-row-"]');
 
-      // First two workers should be critical (analysis_worker and detection_worker alphabetically)
+      // First two workers should be essential (analysis_worker and detection_worker alphabetically)
       const firstWorkerName = workerRows[0].getAttribute('data-testid');
       const secondWorkerName = workerRows[1].getAttribute('data-testid');
 
@@ -272,16 +272,16 @@ describe('WorkerStatusPanel', () => {
       expect(screen.getByText('3')).toBeInTheDocument(); // 3 stopped
     });
 
-    it('displays critical workers summary badge', async () => {
+    it('displays running count summary badge', async () => {
       mockFetchReadiness.mockResolvedValue(mockReadinessResponse);
 
       render(<WorkerStatusPanel />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('critical-summary-badge')).toBeInTheDocument();
+        expect(screen.getByTestId('running-count-badge')).toBeInTheDocument();
       });
 
-      expect(screen.getByTestId('critical-summary-badge')).toHaveTextContent('Critical: 2/2 Running');
+      expect(screen.getByTestId('running-count-badge')).toHaveTextContent('8/8 Running');
     });
 
     it('displays stopped count badge when workers are stopped', async () => {

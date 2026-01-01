@@ -1,6 +1,6 @@
 import { Card, Title, Text, Badge } from '@tremor/react';
 import { clsx } from 'clsx';
-import { CheckCircle, XCircle, Cpu, AlertTriangle } from 'lucide-react';
+import { CheckCircle, XCircle, Cpu, AlertTriangle, Star } from 'lucide-react';
 import { useEffect, useState, useCallback } from 'react';
 
 import { fetchReadiness, type WorkerStatus } from '../../services/api';
@@ -16,10 +16,10 @@ export interface WorkerStatusPanelProps {
 }
 
 /**
- * List of critical workers that require special highlighting.
+ * List of essential workers that require special highlighting.
  * These workers are essential for the AI processing pipeline.
  */
-const CRITICAL_WORKERS = ['detection_worker', 'analysis_worker'];
+const ESSENTIAL_WORKERS = ['detection_worker', 'analysis_worker'];
 
 /**
  * Human-readable names for workers
@@ -64,10 +64,10 @@ function getWorkerDescription(name: string): string {
 }
 
 /**
- * Checks if a worker is critical
+ * Checks if a worker is essential for the AI pipeline
  */
-function isCriticalWorker(name: string): boolean {
-  return CRITICAL_WORKERS.includes(name);
+function isEssentialWorker(name: string): boolean {
+  return ESSENTIAL_WORKERS.includes(name);
 }
 
 /**
@@ -78,7 +78,7 @@ interface WorkerStatusRowProps {
 }
 
 function WorkerStatusRow({ worker }: WorkerStatusRowProps) {
-  const isCritical = isCriticalWorker(worker.name);
+  const isEssential = isEssentialWorker(worker.name);
   const displayName = getWorkerDisplayName(worker.name);
   const description = getWorkerDescription(worker.name);
 
@@ -87,7 +87,7 @@ function WorkerStatusRow({ worker }: WorkerStatusRowProps) {
       className={clsx(
         'flex items-center justify-between rounded-lg p-3 transition-colors',
         worker.running
-          ? isCritical
+          ? isEssential
             ? 'border border-[#76B900]/30 bg-[#76B900]/10'
             : 'bg-gray-800/50'
           : 'border border-red-500/30 bg-red-500/10'
@@ -98,7 +98,7 @@ function WorkerStatusRow({ worker }: WorkerStatusRowProps) {
         {/* Status Icon */}
         {worker.running ? (
           <CheckCircle
-            className={clsx('h-5 w-5', isCritical ? 'text-[#76B900]' : 'text-green-500')}
+            className={clsx('h-5 w-5', isEssential ? 'text-[#76B900]' : 'text-green-500')}
             data-testid={`worker-icon-running-${worker.name}`}
           />
         ) : (
@@ -109,10 +109,14 @@ function WorkerStatusRow({ worker }: WorkerStatusRowProps) {
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
             <Text className="text-sm font-medium text-gray-300">{displayName}</Text>
-            {isCritical && (
-              <Badge color="amber" size="xs" data-testid={`critical-badge-${worker.name}`}>
-                Critical
-              </Badge>
+            {isEssential && (
+              <span title="Essential for AI pipeline">
+                <Star
+                  className="h-3.5 w-3.5 fill-[#76B900] text-[#76B900]"
+                  data-testid={`essential-icon-${worker.name}`}
+                  aria-label="Essential for AI pipeline"
+                />
+              </span>
             )}
           </div>
           <Text className="text-xs text-gray-500">{description}</Text>
@@ -135,7 +139,7 @@ function WorkerStatusRow({ worker }: WorkerStatusRowProps) {
  *
  * Shows:
  * - All 8 background workers with their current status
- * - Critical workers (detection_worker, analysis_worker) with special highlighting
+ * - Essential workers (detection_worker, analysis_worker) with special highlighting
  * - Running/stopped indicators with appropriate icons
  * - Error messages for stopped workers
  *
@@ -183,15 +187,13 @@ export default function WorkerStatusPanel({
   // Calculate summary stats
   const runningCount = workers.filter((w) => w.running).length;
   const stoppedCount = workers.filter((w) => !w.running).length;
-  const criticalRunning = workers.filter((w) => isCriticalWorker(w.name) && w.running).length;
-  const criticalTotal = workers.filter((w) => isCriticalWorker(w.name)).length;
 
-  // Sort workers: critical first, then alphabetical
+  // Sort workers: essential first, then alphabetical
   const sortedWorkers = [...workers].sort((a, b) => {
-    const aCritical = isCriticalWorker(a.name);
-    const bCritical = isCriticalWorker(b.name);
-    if (aCritical && !bCritical) return -1;
-    if (!aCritical && bCritical) return 1;
+    const aEssential = isEssentialWorker(a.name);
+    const bEssential = isEssentialWorker(b.name);
+    if (aEssential && !bEssential) return -1;
+    if (!aEssential && bEssential) return 1;
     return a.name.localeCompare(b.name);
   });
 
@@ -248,11 +250,11 @@ export default function WorkerStatusPanel({
             </Badge>
           )}
           <Badge
-            color={criticalRunning === criticalTotal ? 'green' : 'red'}
+            color={runningCount === workers.length ? 'green' : 'amber'}
             size="sm"
-            data-testid="critical-summary-badge"
+            data-testid="running-count-badge"
           >
-            Critical: {criticalRunning}/{criticalTotal} Running
+            {runningCount}/{workers.length} Running
           </Badge>
         </div>
       </div>
