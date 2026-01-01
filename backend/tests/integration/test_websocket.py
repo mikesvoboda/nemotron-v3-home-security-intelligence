@@ -75,6 +75,11 @@ def sync_client(integration_env):
         """Mock init_db to avoid slow real database initialization."""
         pass
 
+    # Create mock seed_cameras_if_empty (called after init_db in lifespan)
+    async def mock_seed_cameras_if_empty():
+        """Mock seed_cameras_if_empty to avoid database access."""
+        return 0
+
     # Mock background services that have 5-second intervals to avoid slow teardown
     mock_system_broadcaster = MagicMock()
     mock_system_broadcaster.start_broadcasting = AsyncMock()
@@ -129,6 +134,7 @@ def sync_client(integration_env):
         patch("backend.core.redis.init_redis", return_value=mock_redis_client),
         patch("backend.core.redis.close_redis", return_value=None),
         patch("backend.main.init_db", mock_init_db),
+        patch("backend.main.seed_cameras_if_empty", mock_seed_cameras_if_empty),
         patch("backend.main.init_redis", return_value=mock_redis_client),
         patch("backend.main.close_redis", return_value=None),
         patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
@@ -622,6 +628,11 @@ def sync_client_with_auth_enabled(integration_env, test_api_key):
         """Mock init_db to avoid slow real database initialization."""
         pass
 
+    # Create mock seed_cameras_if_empty (called after init_db in lifespan)
+    async def mock_seed_cameras_if_empty():
+        """Mock seed_cameras_if_empty to avoid database access."""
+        return 0
+
     # Mock background services that have 5-second intervals to avoid slow teardown
     mock_system_broadcaster = MagicMock()
     mock_system_broadcaster.start_broadcasting = AsyncMock()
@@ -676,6 +687,7 @@ def sync_client_with_auth_enabled(integration_env, test_api_key):
         patch("backend.core.redis.init_redis", return_value=mock_redis_client),
         patch("backend.core.redis.close_redis", return_value=None),
         patch("backend.main.init_db", mock_init_db),
+        patch("backend.main.seed_cameras_if_empty", mock_seed_cameras_if_empty),
         patch("backend.main.init_redis", return_value=mock_redis_client),
         patch("backend.main.close_redis", return_value=None),
         patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
