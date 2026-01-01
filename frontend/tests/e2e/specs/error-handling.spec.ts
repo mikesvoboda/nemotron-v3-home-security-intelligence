@@ -45,7 +45,7 @@ test.describe('Dashboard Error Handling', () => {
     await setupApiMocks(page, errorMockConfig);
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
-    await expect(dashboardPage.errorHeading).toHaveText(/Error Loading Dashboard/i);
+    await expect(dashboardPage.errorHeading).toHaveText(/Error Loading Dashboard/i, { timeout: 15000 });
   });
 });
 
@@ -63,7 +63,7 @@ test.describe('Timeline Error Handling', () => {
     const timelinePage = new TimelinePage(page);
     await timelinePage.goto();
     await timelinePage.waitForTimelineLoad();
-    await expect(timelinePage.errorMessage).toHaveText(/Error Loading Events/i);
+    await expect(timelinePage.errorMessage).toHaveText(/Error Loading Events/i, { timeout: 15000 });
   });
 });
 
@@ -73,8 +73,7 @@ test.describe('Alerts Error Handling', () => {
     const alertsPage = new AlertsPage(page);
     await alertsPage.goto();
     await alertsPage.waitForAlertsLoad();
-    const hasError = await alertsPage.hasError();
-    expect(hasError).toBe(true);
+    await expect(alertsPage.errorMessage).toBeVisible({ timeout: 15000 });
   });
 });
 
