@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING
 from fastapi import Depends, HTTPException, Request, WebSocket, status
 
 from backend.core.config import get_settings
-from backend.core.logging import get_logger, mask_ip
+from backend.core.logging import get_logger
 from backend.core.redis import RedisClient, get_redis
 
 if TYPE_CHECKING:
@@ -49,6 +49,35 @@ _trusted_proxy_cache: dict[
         list[ipaddress.IPv4Address | ipaddress.IPv6Address],
     ],
 ] = {}
+
+
+def _mask_ip_for_logging(ip_string: str) -> str:
+    """Mask an IP address for secure logging.
+
+    Preserves the first octet/segment for debugging while masking
+    the rest to protect potentially sensitive network topology.
+
+    Args:
+        ip_string: IP address or CIDR notation string
+
+    Returns:
+        Masked string like "192.xxx.xxx.xxx" or "2001:xxx:..."
+    """
+    # Strip CIDR suffix if present
+    ip_part = ip_string.split("/")[0]
+
+    if ":" in ip_part:
+        # IPv6: mask all but first segment
+        parts = ip_part.split(":")
+        if parts:
+            return f"{parts[0]}:xxx:..."
+        return "xxx:..."
+    else:
+        # IPv4: mask all but first octet
+        parts = ip_part.split(".")
+        if parts:
+            return f"{parts[0]}.xxx.xxx.xxx"
+        return "xxx.xxx.xxx.xxx"
 
 
 def _get_compiled_trusted_proxies(
@@ -87,8 +116,12 @@ def _get_compiled_trusted_proxies(
                 # Individual IP - compile as address
                 ips.append(ipaddress.ip_address(trusted))
         except ValueError:
-            # Invalid entry, log and skip
-            logger.warning(f"Invalid trusted proxy IP/CIDR: {trusted}")
+            # Invalid entry, log and skip (mask IP for security)
+            masked_ip = _mask_ip_for_logging(trusted)
+            logger.warning(
+                "Invalid CIDR notation in trusted proxy configuration",
+                extra={"invalid_trusted_ip_masked": masked_ip},
+            )
             continue
 
     _trusted_proxy_cache[cache_key] = (networks, ips)
