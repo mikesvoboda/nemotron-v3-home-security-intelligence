@@ -72,7 +72,7 @@ async def load_florence_model(model_path: str) -> Any:
             )
 
             # Move to device
-            model = model.to(device)
+            model = model.to(device)  # type: ignore[arg-type]
             model.eval()
 
             return model, processor

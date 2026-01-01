@@ -189,10 +189,10 @@ async def classify_actions(
             # Get similarity scores (logits per video)
             logits_per_video = outputs.logits_per_video
             probs = torch.softmax(logits_per_video, dim=-1)
-            probs = probs.squeeze(0).cpu().numpy()
+            probs_np = probs.squeeze(0).cpu().numpy()
 
             # Build results
-            scores = {prompt: float(prob) for prompt, prob in zip(prompts, probs, strict=True)}
+            scores = {prompt: float(prob) for prompt, prob in zip(prompts, probs_np, strict=True)}
 
             # Sort by confidence
             sorted_actions = sorted(scores.items(), key=lambda x: x[1], reverse=True)
