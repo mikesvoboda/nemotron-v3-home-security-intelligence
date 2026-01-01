@@ -110,6 +110,34 @@ services:
               count: 1
               capabilities: [gpu]
 
+  # Florence-2 vision-language model for dense captioning and visual understanding
+  ai-florence:
+    build:
+      context: ./ai/florence
+      dockerfile: Dockerfile
+    ports:
+      - "8092:8092"
+    volumes:
+      - /export/ai_models/model-zoo/florence-2-large:/models/florence-2-large:ro
+    environment:
+      - MODEL_PATH=/models/florence-2-large
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8092/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
   backend:
     build:
       context: .
@@ -125,6 +153,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - RTDETR_URL=http://ai-detector:8090
       - NEMOTRON_URL=http://ai-llm:8091
+      - FLORENCE_URL=http://ai-florence:8092
       - FOSCAM_BASE_PATH=/cameras
       - DEBUG=false
       - FAST_PATH_CONFIDENCE_THRESHOLD=1.0 # Disabled: requires 100% confidence
@@ -136,6 +165,8 @@ services:
       # ai-detector:
       #   condition: service_healthy
       # ai-llm:
+      #   condition: service_healthy
+      # ai-florence:
       #   condition: service_healthy
     healthcheck:
       test:

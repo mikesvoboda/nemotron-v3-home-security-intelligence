@@ -254,14 +254,16 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
             available=False,
         ),
         # Florence-2-large for vision-language queries (attributes, behavior, scene)
-        # Re-enabled: Reduced Nemotron GPU layers from 45 to 35 to free ~2GB VRAM
+        # DISABLED: Florence-2 now runs as a dedicated HTTP service at http://ai-florence:8092
+        # The backend calls the service via florence_client.py instead of loading the model directly.
+        # This improves VRAM management by keeping Florence-2 in a separate container.
         "florence-2-large": ModelConfig(
             name="florence-2-large",
             path="/models/model-zoo/florence-2-large",
             category="vision-language",
             vram_mb=1200,  # ~1.2GB with float16
             load_fn=load_florence_model,
-            enabled=True,
+            enabled=False,  # Disabled - now runs as dedicated ai-florence service
             available=False,
         ),
         # YOLO-World-S for open-vocabulary detection via text prompts
