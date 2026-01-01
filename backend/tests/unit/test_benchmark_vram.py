@@ -240,8 +240,8 @@ class TestModelZooIntegration:
 
         # These should be enabled by default
         assert "clip-vit-l" in enabled_names
-        assert "florence-2-large" in enabled_names
         assert "paddleocr" in enabled_names
+        # Note: florence-2-large now runs as dedicated ai-florence service (disabled in model zoo)
 
     def test_model_vram_estimates(self):
         """Test that model VRAM estimates are reasonable."""
