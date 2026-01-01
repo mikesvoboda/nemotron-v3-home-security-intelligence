@@ -1276,7 +1276,7 @@ describe('Events API', () => {
       const result = await bulkUpdateEvents([1, 2], { reviewed: true });
 
       expect(result.successful).toContain(1);
-      expect(result.failed[0].error).toBe('Network request failed');
+      expect(result.failed[0].error).toBe('string error');
     });
   });
 });
