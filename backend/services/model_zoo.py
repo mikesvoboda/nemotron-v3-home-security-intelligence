@@ -207,7 +207,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
     return {
         "yolo11-license-plate": ModelConfig(
             name="yolo11-license-plate",
-            path="keremberke/yolov11-license-plate-detection",
+            path="/models/model-zoo/yolo11-license-plate",
             category="detection",
             vram_mb=300,
             load_fn=load_yolo_model,
@@ -216,7 +216,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         ),
         "yolo11-face": ModelConfig(
             name="yolo11-face",
-            path="keremberke/yolov11n-face-detection",
+            path="/models/model-zoo/yolo11-face-detection",
             category="detection",
             vram_mb=200,
             load_fn=load_yolo_model,
@@ -225,7 +225,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         ),
         "paddleocr": ModelConfig(
             name="paddleocr",
-            path="PaddlePaddle/PaddleOCR",
+            path="/models/model-zoo/paddleocr",
             category="ocr",
             vram_mb=100,
             load_fn=load_paddle_ocr,
@@ -243,30 +243,32 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
             available=False,
         ),
         # CLIP ViT-L for re-identification embeddings
+        # DISABLED: Not downloaded to local model zoo
         "clip-vit-l": ModelConfig(
             name="clip-vit-l",
             path="openai/clip-vit-large-patch14",
             category="embedding",
             vram_mb=800,
             load_fn=load_clip_model,
-            enabled=True,
+            enabled=False,  # Not in local model zoo
             available=False,
         ),
         # Florence-2-large for vision-language queries (attributes, behavior, scene)
+        # DISABLED: Not downloaded to local model zoo
         "florence-2-large": ModelConfig(
             name="florence-2-large",
             path="microsoft/Florence-2-large",
             category="vision-language",
             vram_mb=1200,  # ~1.2GB with float16
             load_fn=load_florence_model,
-            enabled=True,
+            enabled=False,  # Not in local model zoo
             available=False,
         ),
         # YOLO-World-S for open-vocabulary detection via text prompts
         # Enables zero-shot detection of security-relevant objects (knives, packages, etc.)
         "yolo-world-s": ModelConfig(
             name="yolo-world-s",
-            path="yolov8s-worldv2.pt",
+            path="/models/model-zoo/yolo-world-s",
             category="detection",
             vram_mb=1500,  # ~1.5GB
             load_fn=load_yolo_world_model,
@@ -277,7 +279,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         # Detects 17 COCO keypoints for pose classification (standing, crouching, running)
         "vitpose-small": ModelConfig(
             name="vitpose-small",
-            path="usyd-community/vitpose-plus-small",
+            path="/models/model-zoo/vitpose-small",
             category="pose",
             vram_mb=1500,  # ~1.5GB with float16
             load_fn=load_vitpose_model,
@@ -289,7 +291,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         # Output: depth map where lower values = closer to camera
         "depth-anything-v2-small": ModelConfig(
             name="depth-anything-v2-small",
-            path="depth-anything/Depth-Anything-V2-Small-hf",
+            path="/models/model-zoo/depth-anything-v2-small",
             category="depth-estimation",
             vram_mb=150,  # ~100-200MB (very lightweight)
             load_fn=load_depth_model,
