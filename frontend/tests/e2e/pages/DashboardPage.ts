@@ -114,10 +114,17 @@ export class DashboardPage extends BasePage {
   }
 
   /**
-   * Wait for the dashboard to fully load
+   * Wait for the dashboard to fully load (including data)
    */
   async waitForDashboardLoad(): Promise<void> {
     await expect(this.pageTitle).toBeVisible({ timeout: this.pageLoadTimeout });
+    // Wait for either dashboard content OR error state to appear
+    await Promise.race([
+      this.riskGauge.waitFor({ state: 'visible', timeout: this.pageLoadTimeout }),
+      this.errorHeading.waitFor({ state: 'visible', timeout: this.pageLoadTimeout }),
+    ]).catch(() => {
+      // One should appear, but continue anyway if neither does
+    });
   }
 
   /**

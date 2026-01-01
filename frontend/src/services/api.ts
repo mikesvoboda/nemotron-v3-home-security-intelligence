@@ -119,6 +119,33 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Check if an error is an AbortError (request was cancelled via AbortController).
+ * Used to gracefully handle cancelled requests when filters change rapidly.
+ *
+ * @param error - The error to check
+ * @returns true if the error is an AbortError
+ */
+export function isAbortError(error: unknown): boolean {
+  // Check both Error and DOMException (for cross-environment compatibility)
+  if (error instanceof DOMException && error.name === 'AbortError') {
+    return true;
+  }
+  if (error instanceof Error && error.name === 'AbortError') {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Extended RequestInit that includes AbortSignal for request cancellation.
+ * Used to cancel stale requests when filters change rapidly.
+ */
+export interface FetchOptions extends Omit<RequestInit, 'signal'> {
+  /** AbortSignal for request cancellation */
+  signal?: AbortSignal;
+}
+
 // ============================================================================
 // Configuration
 // ============================================================================
@@ -126,6 +153,75 @@ export class ApiError extends Error {
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) || '';
 const API_KEY = import.meta.env.VITE_API_KEY as string | undefined;
 const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL as string | undefined;
+
+// ============================================================================
+// Retry Configuration
+// ============================================================================
+
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 1000;
+
+/**
+ * Determines if a request should be retried based on the HTTP status code.
+ * Retries on network errors (status 0) and server errors (5xx).
+ * Does not retry on client errors (4xx).
+ */
+export function shouldRetry(status: number): boolean {
+  return status === 0 || (status >= 500 && status < 600);
+}
+
+/**
+ * Calculates the delay for a retry attempt using exponential backoff.
+ * @param attempt - The retry attempt number (0-indexed)
+ * @returns Delay in milliseconds
+ */
+export function getRetryDelay(attempt: number): number {
+  return BASE_DELAY_MS * Math.pow(2, attempt);
+}
+
+/**
+ * Returns a promise that resolves after the specified delay.
+ * @param ms - Delay in milliseconds
+ */
+export function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// ============================================================================
+// Request Deduplication
+// ============================================================================
+
+const inFlightRequests = new Map<string, Promise<unknown>>();
+
+/**
+ * Generates a unique key for request deduplication.
+ * Only GET requests are deduplicated; mutation requests always execute.
+ * @param method - HTTP method
+ * @param url - Full request URL
+ * @returns Key string for GET requests, null for other methods
+ */
+export function getRequestKey(method: string, url: string): string | null {
+  if (method.toUpperCase() !== 'GET') {
+    return null;
+  }
+  return `${method.toUpperCase()}:${url}`;
+}
+
+/**
+ * Returns the number of in-flight requests being tracked for deduplication.
+ * Useful for testing and debugging.
+ */
+export function getInFlightRequestCount(): number {
+  return inFlightRequests.size;
+}
+
+/**
+ * Clears all tracked in-flight requests.
+ * Primarily used for testing to reset state between tests.
+ */
+export function clearInFlightRequests(): void {
+  inFlightRequests.clear();
+}
 
 // ============================================================================
 // WebSocket URL Helper
@@ -224,8 +320,62 @@ async function handleResponse<T>(response: Response): Promise<T> {
   }
 }
 
-async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
+/**
+ * Performs a fetch request with automatic retry on failure.
+ * Uses exponential backoff for retry delays.
+ * @param url - Full URL to fetch
+ * @param options - Fetch options
+ * @param retriesLeft - Number of retries remaining
+ */
+async function fetchWithRetry<T>(
+  url: string,
+  options: RequestInit,
+  retriesLeft: number = MAX_RETRIES
+): Promise<T> {
+  try {
+    const response = await fetch(url, options);
+
+    // Check if we should retry based on status code
+    if (!response.ok && shouldRetry(response.status) && retriesLeft > 0) {
+      const delay = getRetryDelay(MAX_RETRIES - retriesLeft);
+      await sleep(delay);
+      return fetchWithRetry<T>(url, options, retriesLeft - 1);
+    }
+
+    return handleResponse<T>(response);
+  } catch (error) {
+    // Re-throw AbortError without wrapping - request was intentionally cancelled
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw error;
+    }
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw error;
+    }
+
+    // For ApiErrors that are retryable, retry
+    if (error instanceof ApiError) {
+      if (shouldRetry(error.status) && retriesLeft > 0) {
+        const delay = getRetryDelay(MAX_RETRIES - retriesLeft);
+        await sleep(delay);
+        return fetchWithRetry<T>(url, options, retriesLeft - 1);
+      }
+      throw error;
+    }
+
+    // Network errors - retry if we have retries left
+    if (retriesLeft > 0) {
+      const delay = getRetryDelay(MAX_RETRIES - retriesLeft);
+      await sleep(delay);
+      return fetchWithRetry<T>(url, options, retriesLeft - 1);
+    }
+
+    throw new ApiError(0, error instanceof Error ? error.message : 'Network request failed');
+  }
+}
+
+async function fetchApi<T>(endpoint: string, options?: FetchOptions): Promise<T> {
   const url = `${BASE_URL}${endpoint}`;
+  const method = options?.method || 'GET';
 
   // Build headers with optional API key
   const headers: HeadersInit = {
@@ -238,21 +388,36 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
     (headers as Record<string, string>)['X-API-Key'] = API_KEY;
   }
 
-  try {
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    });
+  const fetchOptions: RequestInit = {
+    ...options,
+    headers,
+  };
 
-    return handleResponse<T>(response);
-  } catch (error) {
-    if (error instanceof ApiError) {
-      throw error;
+  // Check for request deduplication (only for GET requests)
+  const requestKey = getRequestKey(method, url);
+
+  if (requestKey) {
+    // Check if there's already an in-flight request for this key
+    const existingPromise = inFlightRequests.get(requestKey);
+    if (existingPromise) {
+      // Return the existing promise for duplicate requests
+      return existingPromise as Promise<T>;
     }
 
-    // Network or other errors
-    throw new ApiError(0, error instanceof Error ? error.message : 'Network request failed');
+    // Create a new request promise with cleanup
+    const requestPromise = fetchWithRetry<T>(url, fetchOptions).finally(() => {
+      // Clean up the in-flight request tracking when complete
+      inFlightRequests.delete(requestKey);
+    });
+
+    // Track the in-flight request
+    inFlightRequests.set(requestKey, requestPromise);
+
+    return requestPromise;
   }
+
+  // For non-GET requests, just execute with retry (no deduplication)
+  return fetchWithRetry<T>(url, fetchOptions);
 }
 
 // ============================================================================
@@ -361,7 +526,10 @@ export async function fetchReadiness(): Promise<ReadinessResponse> {
 // Event Endpoints
 // ============================================================================
 
-export async function fetchEvents(params?: EventsQueryParams): Promise<GeneratedEventListResponse> {
+export async function fetchEvents(
+  params?: EventsQueryParams,
+  options?: FetchOptions
+): Promise<GeneratedEventListResponse> {
   const queryParams = new URLSearchParams();
 
   if (params) {
@@ -378,7 +546,7 @@ export async function fetchEvents(params?: EventsQueryParams): Promise<Generated
   const queryString = queryParams.toString();
   const endpoint = queryString ? `/api/events?${queryString}` : '/api/events';
 
-  return fetchApi<GeneratedEventListResponse>(endpoint);
+  return fetchApi<GeneratedEventListResponse>(endpoint, options);
 }
 
 export async function fetchEvent(id: number): Promise<Event> {
@@ -781,7 +949,10 @@ export interface EventSearchParams {
  * @param params - Search parameters including query and optional filters
  * @returns SearchResponse with relevance-ranked results and pagination info
  */
-export async function searchEvents(params: EventSearchParams): Promise<GeneratedSearchResponse> {
+export async function searchEvents(
+  params: EventSearchParams,
+  options?: FetchOptions
+): Promise<GeneratedSearchResponse> {
   const queryParams = new URLSearchParams();
 
   // Query is required
@@ -797,7 +968,7 @@ export async function searchEvents(params: EventSearchParams): Promise<Generated
   if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
   if (params.offset !== undefined) queryParams.append('offset', String(params.offset));
 
-  return fetchApi<GeneratedSearchResponse>(`/api/events/search?${queryParams.toString()}`);
+  return fetchApi<GeneratedSearchResponse>(`/api/events/search?${queryParams.toString()}`, options);
 }
 
 // ============================================================================
@@ -981,7 +1152,8 @@ export interface AuditLogsQueryParams {
  * @returns AuditLogListResponse with logs and pagination info
  */
 export async function fetchAuditLogs(
-  params?: AuditLogsQueryParams
+  params?: AuditLogsQueryParams,
+  options?: FetchOptions
 ): Promise<GeneratedAuditLogListResponse> {
   const queryParams = new URLSearchParams();
 
@@ -1000,7 +1172,7 @@ export async function fetchAuditLogs(
   const queryString = queryParams.toString();
   const endpoint = queryString ? `/api/audit?${queryString}` : '/api/audit';
 
-  return fetchApi<GeneratedAuditLogListResponse>(endpoint);
+  return fetchApi<GeneratedAuditLogListResponse>(endpoint, options);
 }
 
 /**

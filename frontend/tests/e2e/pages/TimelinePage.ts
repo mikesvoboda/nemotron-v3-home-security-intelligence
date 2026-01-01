@@ -141,10 +141,19 @@ export class TimelinePage extends BasePage {
   }
 
   /**
-   * Wait for the timeline to fully load
+   * Wait for the timeline to fully load (including data)
    */
   async waitForTimelineLoad(): Promise<void> {
     await expect(this.pageTitle).toBeVisible({ timeout: this.pageLoadTimeout });
+    // Wait for either events to load OR no events message OR error state
+    // This ensures we don't proceed until actual content is rendered
+    await Promise.race([
+      this.eventCards.first().waitFor({ state: 'visible', timeout: this.pageLoadTimeout }),
+      this.noEventsMessage.waitFor({ state: 'visible', timeout: this.pageLoadTimeout }),
+      this.errorMessage.waitFor({ state: 'visible', timeout: this.pageLoadTimeout }),
+    ]).catch(() => {
+      // One of them should appear, but if none do within timeout, continue anyway
+    });
   }
 
   /**

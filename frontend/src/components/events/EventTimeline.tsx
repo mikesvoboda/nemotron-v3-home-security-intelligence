@@ -20,6 +20,7 @@ import {
   exportEventsCSV,
   fetchCameras,
   fetchEvents,
+  isAbortError,
   searchEvents,
   updateEvent,
 } from '../../services/api';
@@ -105,22 +106,32 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
     void loadCameras();
   }, []);
 
-  // Load events whenever filters change
+  // Load events whenever filters change (with AbortController to cancel stale requests)
   useEffect(() => {
+    const controller = new AbortController();
+
     const loadEvents = async () => {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetchEvents(filters);
+        const response = await fetchEvents(filters, { signal: controller.signal });
         setEvents(response.events);
         setTotalCount(response.count);
       } catch (err) {
+        // Ignore aborted requests - user changed filters before request completed
+        if (isAbortError(err)) return;
         setError(err instanceof Error ? err.message : 'Failed to load events');
       } finally {
-        setLoading(false);
+        // Only update loading state if request wasn't aborted
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
     void loadEvents();
+
+    // Cleanup: abort pending request when filters change or component unmounts
+    return () => controller.abort();
   }, [filters]);
 
   // Handle filter changes

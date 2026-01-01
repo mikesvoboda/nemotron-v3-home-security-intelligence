@@ -12,6 +12,7 @@ Usage:
 Environment variables:
     UNIT_TEST_THRESHOLD: Max seconds for unit tests (default: 1.0)
     INTEGRATION_TEST_THRESHOLD: Max seconds for integration tests (default: 5.0)
+    E2E_TEST_THRESHOLD: Max seconds for E2E/Playwright tests (default: 5.0)
     SLOW_TEST_THRESHOLD: Max seconds for known slow tests (default: 60.0)
     WARN_THRESHOLD_PERCENT: Warn at this % of limit (default: 80)
 """
@@ -41,16 +42,25 @@ SLOW_TEST_PATTERNS = [
     r"test_media_api.*test_compat_thumbnail",
     # Property-based tests with text generation overhead
     r"test_alert.*test_alert_dedup_key_roundtrip",
+    r"test_alert.*test_alert_event_id_roundtrip",
+    r"test_event.*test_risk_score_roundtrip",
+    # E2E error state tests - wait for API retry exhaustion (~15s)
+    r".*Error State.*shows error",
+    r".*Error Handling.*shows error",
+    r".*Error Handling.*error message",
+    r".*Partial API Failure",
+    r".*Empty State.*dashboard",
 ]
 
 
-def get_thresholds() -> tuple[float, float, float, float]:
+def get_thresholds() -> tuple[float, float, float, float, float]:
     """Get threshold values from environment or defaults."""
     unit = float(os.environ.get("UNIT_TEST_THRESHOLD", "1.0"))
     integration = float(os.environ.get("INTEGRATION_TEST_THRESHOLD", "5.0"))
+    e2e = float(os.environ.get("E2E_TEST_THRESHOLD", "5.0"))
     slow = float(os.environ.get("SLOW_TEST_THRESHOLD", "60.0"))
     warn_pct = float(os.environ.get("WARN_THRESHOLD_PERCENT", "80")) / 100
-    return unit, integration, slow, warn_pct
+    return unit, integration, e2e, slow, warn_pct
 
 
 def is_known_slow_test(classname: str, name: str) -> bool:
@@ -59,13 +69,18 @@ def is_known_slow_test(classname: str, name: str) -> bool:
     return any(re.search(pattern, full_path, re.IGNORECASE) for pattern in SLOW_TEST_PATTERNS)
 
 
-def categorize_test(classname: str, name: str) -> str:
-    """Determine if a test is unit, integration, or slow based on path/patterns."""
+def categorize_test(classname: str, name: str, filepath: str = "") -> str:
+    """Determine if a test is unit, integration, e2e, or slow based on path/patterns."""
     full_path = f"{classname}.{name}".lower()
+    file_lower = filepath.lower()
 
     # Check if it matches known slow test patterns
     if is_known_slow_test(classname, name):
         return "slow"
+
+    # E2E/Playwright tests (from e2e-results.xml or .spec.ts patterns)
+    if "e2e" in file_lower or ".spec." in full_path or "playwright" in file_lower:
+        return "e2e"
 
     if "integration" in full_path:
         return "integration"
@@ -100,7 +115,7 @@ def parse_junit_xml(filepath: Path) -> list[dict]:
                             "classname": classname,
                             "name": name,
                             "duration": duration,
-                            "category": categorize_test(classname, name),
+                            "category": categorize_test(classname, name, str(filepath)),
                             "file": str(filepath),
                         }
                     )
@@ -112,7 +127,9 @@ def parse_junit_xml(filepath: Path) -> list[dict]:
 
 def analyze_tests(results_dir: Path) -> tuple[list[dict], list[dict], list[dict]]:
     """Analyze all JUnit XML files in directory."""
-    unit_threshold, integration_threshold, slow_threshold, warn_pct = get_thresholds()
+    unit_threshold, integration_threshold, e2e_threshold, slow_threshold, warn_pct = (
+        get_thresholds()
+    )
 
     failures = []
     warnings = []
@@ -134,6 +151,8 @@ def analyze_tests(results_dir: Path) -> tuple[list[dict], list[dict], list[dict]
                 slow_tests.append(test)
             elif test["category"] == "integration":
                 threshold = integration_threshold
+            elif test["category"] == "e2e":
+                threshold = e2e_threshold
             else:
                 threshold = unit_threshold
 
@@ -177,9 +196,12 @@ def main() -> int:
     print("=" * 70)
     print()
 
-    unit_threshold, integration_threshold, slow_threshold, warn_pct = get_thresholds()
+    unit_threshold, integration_threshold, e2e_threshold, slow_threshold, warn_pct = (
+        get_thresholds()
+    )
     print(
-        f"Thresholds: unit={unit_threshold}s, integration={integration_threshold}s, slow={slow_threshold}s"
+        f"Thresholds: unit={unit_threshold}s, integration={integration_threshold}s, "
+        f"e2e={e2e_threshold}s, slow={slow_threshold}s"
     )
     print(f"Warning at: {warn_pct * 100:.0f}% of threshold")
     print()

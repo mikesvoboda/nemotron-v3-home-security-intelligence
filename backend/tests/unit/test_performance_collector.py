@@ -550,3 +550,381 @@ class TestResourceCleanup:
         await collector.close()
 
         mock_client.aclose.assert_awaited_once()
+
+
+class TestInitPynvml:
+    """Tests for pynvml initialization."""
+
+    def test_init_pynvml_success(self):
+        """Test successful pynvml initialization."""
+        mock_pynvml = MagicMock()
+
+        with (
+            patch("backend.services.performance_collector.get_settings") as mock_settings,
+            patch.dict("sys.modules", {"pynvml": mock_pynvml}),
+        ):
+            mock_settings.return_value = MagicMock()
+
+            _collector = PerformanceCollector()
+            # pynvml.nvmlInit() should have been called
+            mock_pynvml.nvmlInit.assert_called_once()
+
+    def test_init_pynvml_failure(self):
+        """Test pynvml initialization failure."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            # Create collector without pynvml available
+            collector = PerformanceCollector()
+            assert collector._pynvml_available is False
+
+
+class TestCollectGpuPynvml:
+    """Tests for direct pynvml collection."""
+
+    def test_collect_gpu_pynvml_not_available(self, collector):
+        """Test GPU collection when pynvml not available."""
+        collector._pynvml_available = False
+        result = collector._collect_gpu_pynvml()
+        assert result is None
+
+    def test_collect_gpu_pynvml_exception(self, collector):
+        """Test GPU collection handles pynvml exceptions."""
+        collector._pynvml_available = True
+
+        with patch.dict("sys.modules", {"pynvml": MagicMock()}):
+            import sys
+
+            mock_pynvml = sys.modules["pynvml"]
+            mock_pynvml.nvmlDeviceGetHandleByIndex.side_effect = Exception("Device not found")
+
+            result = collector._collect_gpu_pynvml()
+            assert result is None
+
+
+class TestCollectGpuFallback:
+    """Tests for GPU fallback collection."""
+
+    @pytest.mark.asyncio
+    async def test_collect_gpu_fallback_success(self, collector):
+        """Test successful GPU fallback collection."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "device": "NVIDIA RTX A5500",
+            "vram_used_gb": 12.0,
+        }
+
+        with patch.object(collector, "_get_http_client") as mock_client:
+            mock_client_instance = AsyncMock()
+            mock_client_instance.get.return_value = mock_response
+            mock_client.return_value = mock_client_instance
+
+            result = await collector._collect_gpu_fallback()
+            assert result is not None
+            assert result["name"] == "NVIDIA RTX A5500"
+
+    @pytest.mark.asyncio
+    async def test_collect_gpu_fallback_non_200(self, collector):
+        """Test GPU fallback with non-200 response."""
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+
+        with patch.object(collector, "_get_http_client") as mock_client:
+            mock_client_instance = AsyncMock()
+            mock_client_instance.get.return_value = mock_response
+            mock_client.return_value = mock_client_instance
+
+            result = await collector._collect_gpu_fallback()
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_collect_gpu_fallback_exception(self, collector):
+        """Test GPU fallback handles exceptions."""
+        with patch.object(collector, "_get_http_client") as mock_client:
+            mock_client_instance = AsyncMock()
+            mock_client_instance.get.side_effect = Exception("Connection refused")
+            mock_client.return_value = mock_client_instance
+
+            result = await collector._collect_gpu_fallback()
+            assert result is None
+
+
+class TestCollectContainerHealth:
+    """Tests for container health collection."""
+
+    @pytest.mark.asyncio
+    async def test_collect_container_health(self, collector):
+        """Test container health collection."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+
+        with patch.object(collector, "_get_http_client") as mock_client:
+            mock_client_instance = AsyncMock()
+            mock_client_instance.get.return_value = mock_response
+            mock_client.return_value = mock_client_instance
+
+            containers = await collector.collect_container_health()
+            assert len(containers) == 6
+            assert containers[0].status == "running"
+            assert containers[0].health == "healthy"
+
+    @pytest.mark.asyncio
+    async def test_collect_container_health_unhealthy(self, collector):
+        """Test container health with unhealthy containers."""
+        mock_response = MagicMock()
+        mock_response.status_code = 500  # Unhealthy
+
+        with patch.object(collector, "_get_http_client") as mock_client:
+            mock_client_instance = AsyncMock()
+            mock_client_instance.get.return_value = mock_response
+            mock_client.return_value = mock_client_instance
+
+            containers = await collector.collect_container_health()
+            # Containers with URLs should be unhealthy
+            unhealthy = [c for c in containers if c.health == "unhealthy"]
+            assert len(unhealthy) > 0
+
+    @pytest.mark.asyncio
+    async def test_collect_container_health_exception(self, collector):
+        """Test container health handles exceptions."""
+        with patch.object(collector, "_get_http_client") as mock_client:
+            mock_client_instance = AsyncMock()
+            mock_client_instance.get.side_effect = Exception("Connection refused")
+            mock_client.return_value = mock_client_instance
+
+            containers = await collector.collect_container_health()
+            # Should still return containers, but unhealthy
+            assert len(containers) == 6
+
+
+class TestCollectInferenceMetrics:
+    """Tests for inference metrics collection."""
+
+    @pytest.mark.asyncio
+    async def test_collect_inference_metrics_success(self, collector):
+        """Test inference metrics collection."""
+        mock_tracker = MagicMock()
+        mock_tracker.get_stage_stats.return_value = {
+            "avg_ms": 100.0,
+            "p95_ms": 150.0,
+            "p99_ms": 200.0,
+        }
+
+        with patch(
+            "backend.core.metrics.get_pipeline_latency_tracker",
+            return_value=mock_tracker,
+        ):
+            metrics = await collector.collect_inference_metrics()
+            assert metrics is not None
+            assert metrics.rtdetr_latency_ms["avg"] == 100.0
+            assert metrics.rtdetr_latency_ms["p95"] == 150.0
+
+    @pytest.mark.asyncio
+    async def test_collect_inference_metrics_none_values(self, collector):
+        """Test inference metrics with None values from tracker."""
+        mock_tracker = MagicMock()
+        mock_tracker.get_stage_stats.return_value = {
+            "avg_ms": None,
+            "p95_ms": None,
+            "p99_ms": None,
+        }
+
+        with patch(
+            "backend.core.metrics.get_pipeline_latency_tracker",
+            return_value=mock_tracker,
+        ):
+            metrics = await collector.collect_inference_metrics()
+            assert metrics is not None
+            assert metrics.rtdetr_latency_ms["avg"] == 0
+
+    @pytest.mark.asyncio
+    async def test_collect_inference_metrics_exception(self, collector):
+        """Test inference metrics handles exceptions."""
+        with patch(
+            "backend.core.metrics.get_pipeline_latency_tracker",
+            side_effect=Exception("Tracker not available"),
+        ):
+            metrics = await collector.collect_inference_metrics()
+            assert metrics is None
+
+
+class TestPostgreSQLAlerts:
+    """Tests for PostgreSQL alert checking."""
+
+    def test_postgresql_connection_critical(self, collector):
+        """Test PostgreSQL connection critical alert."""
+        from backend.api.schemas.performance import DatabaseMetrics
+
+        db = DatabaseMetrics(
+            status="healthy",
+            connections_active=29,  # 97% of 30
+            connections_max=30,
+            cache_hit_ratio=99.0,
+            transactions_per_min=1000,
+        )
+        alerts = collector.check_postgresql_alerts(db)
+        assert len(alerts) == 1
+        assert alerts[0].severity == "critical"
+        assert "connections" in alerts[0].metric
+
+    def test_postgresql_cache_hit_critical(self, collector):
+        """Test PostgreSQL cache hit ratio critical alert."""
+        from backend.api.schemas.performance import DatabaseMetrics
+
+        db = DatabaseMetrics(
+            status="healthy",
+            connections_active=5,
+            connections_max=30,
+            cache_hit_ratio=75.0,  # Below 80% critical threshold
+            transactions_per_min=1000,
+        )
+        alerts = collector.check_postgresql_alerts(db)
+        assert len(alerts) == 1
+        assert alerts[0].severity == "critical"
+        assert "cache" in alerts[0].metric
+
+
+class TestRedisAlerts:
+    """Tests for Redis alert checking."""
+
+    def test_redis_memory_critical(self, collector):
+        """Test Redis memory critical alert."""
+        from backend.api.schemas.performance import RedisMetrics
+
+        redis = RedisMetrics(
+            status="healthy",
+            connected_clients=10,
+            memory_mb=600,  # Above 500MB critical
+            hit_ratio=99.0,
+            blocked_clients=0,
+        )
+        alerts = collector.check_redis_alerts(redis)
+        assert len(alerts) == 1
+        assert alerts[0].severity == "critical"
+        assert "memory" in alerts[0].metric
+
+    def test_redis_hit_ratio_critical(self, collector):
+        """Test Redis hit ratio critical alert."""
+        from backend.api.schemas.performance import RedisMetrics
+
+        redis = RedisMetrics(
+            status="healthy",
+            connected_clients=10,
+            memory_mb=50,
+            hit_ratio=5.0,  # Below 10% critical
+            blocked_clients=0,
+        )
+        alerts = collector.check_redis_alerts(redis)
+        assert len(alerts) == 1
+        assert alerts[0].severity == "critical"
+        assert "hit_ratio" in alerts[0].metric
+
+
+class TestHostAlerts:
+    """Additional host alert tests."""
+
+    def test_host_cpu_critical(self, collector):
+        """Test host CPU critical alert."""
+        from backend.api.schemas.performance import HostMetrics
+
+        host = HostMetrics(
+            cpu_percent=96,  # Above 95% critical
+            ram_used_gb=8,
+            ram_total_gb=32,
+            disk_used_gb=100,
+            disk_total_gb=500,
+        )
+        alerts = collector.check_host_alerts(host)
+        assert len(alerts) == 1
+        assert alerts[0].severity == "critical"
+        assert "cpu" in alerts[0].metric
+
+    def test_host_disk_critical(self, collector):
+        """Test host disk critical alert."""
+        from backend.api.schemas.performance import HostMetrics
+
+        host = HostMetrics(
+            cpu_percent=50,
+            ram_used_gb=8,
+            ram_total_gb=32,
+            disk_used_gb=460,  # 92%
+            disk_total_gb=500,
+        )
+        alerts = collector.check_host_alerts(host)
+        assert len(alerts) == 1
+        assert alerts[0].severity == "critical"
+        assert "disk" in alerts[0].metric
+
+
+class TestGpuVramAlerts:
+    """Tests for GPU VRAM critical alerts."""
+
+    def test_gpu_vram_critical(self, collector):
+        """Test GPU VRAM critical alert."""
+        from backend.api.schemas.performance import GpuMetrics
+
+        gpu = GpuMetrics(
+            name="RTX",
+            utilization=50,
+            vram_used_gb=23.5,  # 97.9% of 24GB
+            vram_total_gb=24,
+            temperature=40,
+            power_watts=200,
+        )
+        alerts = collector.check_gpu_alerts(gpu)
+        assert len(alerts) == 1
+        assert alerts[0].severity == "critical"
+        assert "vram" in alerts[0].metric
+
+
+class TestHttpClientManagement:
+    """Tests for HTTP client management."""
+
+    @pytest.mark.asyncio
+    async def test_get_http_client_creates_client(self, collector):
+        """Test HTTP client creation."""
+        collector._http_client = None
+        client = await collector._get_http_client()
+        assert client is not None
+        await client.aclose()
+
+    @pytest.mark.asyncio
+    async def test_get_http_client_reuses_client(self, collector):
+        """Test HTTP client reuse."""
+        collector._http_client = None
+        client1 = await collector._get_http_client()
+        client2 = await collector._get_http_client()
+        assert client1 is client2
+        await client1.aclose()
+
+    @pytest.mark.asyncio
+    async def test_get_http_client_recreates_closed(self, collector):
+        """Test HTTP client recreates when closed."""
+        collector._http_client = None
+        client1 = await collector._get_http_client()
+        await client1.aclose()
+        client2 = await collector._get_http_client()
+        assert client1 is not client2
+        await client2.aclose()
+
+
+class TestNemotronEmptySlots:
+    """Tests for Nemotron with edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_collect_nemotron_empty_slots(self, collector):
+        """Test Nemotron with empty slots list."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = []
+
+        with patch.object(collector, "_get_http_client") as mock_client:
+            mock_client_instance = AsyncMock()
+            mock_client_instance.get.return_value = mock_response
+            mock_client.return_value = mock_client_instance
+
+            metrics = await collector.collect_nemotron_metrics()
+            assert metrics is not None
+            assert metrics.slots_total == 0
+            assert metrics.context_size == 4096  # Default

@@ -35,26 +35,33 @@ export default defineConfig({
   // Fail the build on CI if you accidentally left test.only in the source code
   forbidOnly: !!process.env.CI,
 
-  // Retry on CI only
-  retries: process.env.CI ? 2 : 0,
+  // Retry on CI only (1 retry to catch flaky tests without excessive time)
+  retries: process.env.CI ? 1 : 0,
 
-  // Limit workers on CI for stability
-  workers: process.env.CI ? 1 : undefined,
+  // Parallel workers: use 4 in CI for speed
+  // For CI sharding, run: npx playwright test --shard=1/4
+  workers: process.env.CI ? 4 : undefined,
 
   // Reporter configuration
+  // CI: github (for annotations), html (for artifacts), junit (for duration auditing)
   reporter: process.env.CI
-    ? [['github'], ['html', { outputFolder: 'playwright-report' }]]
+    ? [
+        ['github'],
+        ['html', { outputFolder: 'playwright-report' }],
+        ['junit', { outputFile: 'test-results/e2e-results.xml' }],
+      ]
     : [['list'], ['html', { outputFolder: 'playwright-report', open: 'never' }]],
 
   // Output directory for test artifacts (screenshots, videos, traces)
   outputDir: './test-results',
 
   // Global timeout for each test
-  timeout: 30000,
+  timeout: 15000,
 
-  // Expect timeout
+  // Expect timeout - keep short for fast feedback
+  // Error state tests use explicit longer timeouts where needed
   expect: {
-    timeout: 5000,
+    timeout: 3000,
   },
 
   // Shared settings for all the projects below
@@ -71,8 +78,11 @@ export default defineConfig({
     // Record video only on failure
     video: 'retain-on-failure',
 
-    // Navigation timeout (30s for slower browsers like Firefox/WebKit in CI)
-    navigationTimeout: 30000,
+    // Navigation timeout
+    navigationTimeout: 10000,
+
+    // Action timeout (clicks, fills, etc.)
+    actionTimeout: 5000,
   },
 
   // Projects - Multi-browser testing configuration
