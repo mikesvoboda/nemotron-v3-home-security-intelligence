@@ -1533,3 +1533,236 @@ async def test_supervision_interval_constant() -> None:
     assert hasattr(EventBroadcaster, "SUPERVISION_INTERVAL")
     assert EventBroadcaster.SUPERVISION_INTERVAL > 0
     assert EventBroadcaster.SUPERVISION_INTERVAL <= 60  # Reasonable upper bound
+
+
+# ==============================================================================
+# Tests for Degraded Mode Fallback (bead 5smq)
+# ==============================================================================
+
+
+@pytest.mark.asyncio
+async def test_broadcaster_initializes_with_degraded_false() -> None:
+    """Test that broadcaster initializes with _is_degraded set to False."""
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    assert broadcaster._is_degraded is False
+    assert broadcaster.is_degraded() is False
+
+
+@pytest.mark.asyncio
+async def test_is_degraded_method() -> None:
+    """Test the is_degraded() public method."""
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Initially not degraded
+    assert broadcaster.is_degraded() is False
+
+    # Manually set degraded
+    broadcaster._is_degraded = True
+    assert broadcaster.is_degraded() is True
+
+    # Reset
+    broadcaster._is_degraded = False
+    assert broadcaster.is_degraded() is False
+
+
+@pytest.mark.asyncio
+async def test_enter_degraded_mode_sets_flags(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test that _enter_degraded_mode sets appropriate flags."""
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+    broadcaster._is_listening = True
+    broadcaster._listener_healthy = True
+    broadcaster._is_degraded = False
+
+    broadcaster._enter_degraded_mode()
+
+    # Check all flags are set correctly
+    assert broadcaster._is_degraded is True
+    assert broadcaster._is_listening is False
+    assert broadcaster._listener_healthy is False
+
+
+@pytest.mark.asyncio
+async def test_enter_degraded_mode_logs_critical_alert(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test that _enter_degraded_mode logs a CRITICAL level alert."""
+    caplog.set_level(logging.CRITICAL)
+
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    broadcaster._enter_degraded_mode()
+
+    # Check for CRITICAL log level
+    critical_logs = [r for r in caplog.records if r.levelno == logging.CRITICAL]
+    assert len(critical_logs) >= 1
+
+    # Check for key phrases in the critical message
+    critical_message = critical_logs[0].message
+    assert "CRITICAL" in critical_message
+    assert "DEGRADED MODE" in critical_message
+    assert "recovery attempts" in critical_message.lower()
+    assert "Manual intervention required" in critical_message
+
+
+@pytest.mark.asyncio
+async def test_listen_for_events_enters_degraded_mode_after_max_retries(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test that _listen_for_events enters degraded mode after max retries."""
+    caplog.set_level(logging.CRITICAL)
+
+    class RedisAlwaysErrors(_FakeRedis):
+        async def listen(self, _pubsub: Any) -> AsyncIterator[dict[str, Any]]:
+            raise RuntimeError("redis connection failed")
+            if False:  # pragma: no cover
+                yield {}
+
+    redis = RedisAlwaysErrors()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+    broadcaster._pubsub = _FakePubSub()
+    broadcaster._is_listening = True
+    # Set to one below max so next error triggers degraded mode
+    broadcaster._recovery_attempts = broadcaster.MAX_RECOVERY_ATTEMPTS
+
+    async def _fake_sleep(seconds: float) -> None:
+        pass
+
+    monkeypatch.setattr(asyncio, "sleep", _fake_sleep)
+
+    await broadcaster._listen_for_events()
+
+    # Should have entered degraded mode
+    assert broadcaster.is_degraded() is True
+    assert broadcaster._is_listening is False
+    assert broadcaster._listener_healthy is False
+
+    # Check for CRITICAL log
+    critical_logs = [r for r in caplog.records if r.levelno == logging.CRITICAL]
+    assert len(critical_logs) >= 1
+
+
+@pytest.mark.asyncio
+async def test_supervise_listener_enters_degraded_mode_after_max_retries(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test that supervisor enters degraded mode after max recovery attempts."""
+    caplog.set_level(logging.CRITICAL)
+
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+    broadcaster._is_listening = True
+    broadcaster._listener_healthy = True
+    broadcaster._pubsub = _FakePubSub()
+    broadcaster._recovery_attempts = broadcaster.MAX_RECOVERY_ATTEMPTS  # Already at max
+
+    # Create a done task to simulate dead listener
+    async def immediate_done() -> None:
+        pass
+
+    broadcaster._listener_task = asyncio.create_task(immediate_done())
+    await broadcaster._listener_task
+
+    async def _fake_sleep(seconds: float) -> None:
+        pass
+
+    monkeypatch.setattr(asyncio, "sleep", _fake_sleep)
+
+    await broadcaster._supervise_listener()
+
+    # Should have entered degraded mode
+    assert broadcaster.is_degraded() is True
+    assert broadcaster._is_listening is False
+
+    # Check for CRITICAL log
+    critical_logs = [r for r in caplog.records if r.levelno == logging.CRITICAL]
+    assert len(critical_logs) >= 1
+
+
+@pytest.mark.asyncio
+async def test_start_clears_degraded_mode() -> None:
+    """Test that start() clears degraded mode on successful start."""
+    redis = _FakeRedis()
+
+    async def quick_listen(_pubsub: Any) -> AsyncIterator[dict[str, Any]]:
+        if False:  # pragma: no cover
+            yield {}
+        return
+
+    redis.listen = quick_listen  # type: ignore[method-assign]
+
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+    # Simulate previous degraded state
+    broadcaster._is_degraded = True
+
+    await broadcaster.start()
+
+    # Degraded mode should be cleared
+    assert broadcaster.is_degraded() is False
+    assert broadcaster._is_listening is True
+
+    # Cleanup
+    await broadcaster.stop()
+
+
+@pytest.mark.asyncio
+async def test_degraded_mode_does_not_prevent_stop() -> None:
+    """Test that stop() works correctly when in degraded mode."""
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Manually set degraded state
+    broadcaster._is_degraded = True
+    broadcaster._is_listening = False
+    broadcaster._listener_healthy = False
+
+    # Stop should work without error
+    await broadcaster.stop()
+
+    # Degraded flag is not cleared by stop (intentional - for debugging)
+    # The important thing is no exception is raised
+    assert broadcaster._listener_task is None
+    assert broadcaster._supervisor_task is None
+
+
+@pytest.mark.asyncio
+async def test_enter_degraded_mode_is_idempotent() -> None:
+    """Test that calling _enter_degraded_mode multiple times is safe."""
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+    broadcaster._is_listening = True
+
+    # Call multiple times
+    broadcaster._enter_degraded_mode()
+    broadcaster._enter_degraded_mode()
+    broadcaster._enter_degraded_mode()
+
+    # Should still be in degraded mode
+    assert broadcaster.is_degraded() is True
+    assert broadcaster._is_listening is False
+
+
+@pytest.mark.asyncio
+async def test_degraded_mode_health_check_integration() -> None:
+    """Test that is_degraded and is_listener_healthy work together correctly."""
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Initial state
+    assert broadcaster.is_degraded() is False
+    assert broadcaster.is_listener_healthy() is False  # Not started yet
+
+    # Enter degraded mode
+    broadcaster._enter_degraded_mode()
+
+    # Both should reflect the degraded state
+    assert broadcaster.is_degraded() is True
+    assert broadcaster.is_listener_healthy() is False

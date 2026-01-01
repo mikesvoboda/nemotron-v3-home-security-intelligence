@@ -6,6 +6,7 @@ Tests cover:
 - WebSocket rate limiting
 - Client IP extraction
 - Redis failure handling (fail-open)
+- CIDR network caching for performance
 """
 
 from __future__ import annotations
@@ -19,8 +20,11 @@ from fastapi import FastAPI, HTTPException, status
 from backend.api.middleware.rate_limit import (
     RateLimiter,
     RateLimitTier,
+    _get_compiled_trusted_proxies,
     _is_ip_trusted,
+    _trusted_proxy_cache,
     check_websocket_rate_limit,
+    clear_trusted_proxy_cache,
     get_client_ip,
     get_tier_limits,
     rate_limit_default,
@@ -39,8 +43,11 @@ def reset_settings_cache():
     from backend.core.config import get_settings
 
     get_settings.cache_clear()
+    # Also clear the trusted proxy cache
+    clear_trusted_proxy_cache()
     yield
     get_settings.cache_clear()
+    clear_trusted_proxy_cache()
 
 
 @pytest.fixture
@@ -84,6 +91,94 @@ def mock_websocket():
     websocket.headers = {}
     websocket.close = AsyncMock()
     return websocket
+
+
+# =============================================================================
+# CIDR Cache Tests
+# =============================================================================
+
+
+class TestCIDRCache:
+    """Tests for the CIDR network caching functionality."""
+
+    def test_cache_is_populated_on_first_call(self):
+        """Test that the cache is populated on first call."""
+        trusted = ["10.0.0.0/8", "127.0.0.1"]
+
+        # Cache should be empty initially (cleared by fixture)
+        assert len(_trusted_proxy_cache) == 0
+
+        # Call the function
+        networks, ips = _get_compiled_trusted_proxies(trusted)
+
+        # Cache should now have one entry
+        assert len(_trusted_proxy_cache) == 1
+        assert tuple(trusted) in _trusted_proxy_cache
+
+        # Should return correct data
+        assert len(networks) == 1
+        assert len(ips) == 1
+
+    def test_cache_is_used_on_subsequent_calls(self):
+        """Test that cached values are returned on subsequent calls."""
+        trusted = ["192.168.0.0/16", "::1"]
+
+        # First call
+        networks1, ips1 = _get_compiled_trusted_proxies(trusted)
+
+        # Second call
+        networks2, ips2 = _get_compiled_trusted_proxies(trusted)
+
+        # Should return the same objects (from cache)
+        assert networks1 is networks2
+        assert ips1 is ips2
+
+    def test_cache_invalidates_on_config_change(self):
+        """Test that cache produces new entry when config changes."""
+        trusted1 = ["10.0.0.0/8"]
+        trusted2 = ["192.168.0.0/16"]
+
+        # First call with trusted1
+        networks1, _ips1 = _get_compiled_trusted_proxies(trusted1)
+        assert len(_trusted_proxy_cache) == 1
+
+        # Second call with trusted2 (different config)
+        networks2, _ips2 = _get_compiled_trusted_proxies(trusted2)
+        assert len(_trusted_proxy_cache) == 2
+
+        # Should be different networks
+        assert networks1 is not networks2
+
+    def test_clear_cache_function(self):
+        """Test that clear_trusted_proxy_cache clears the cache."""
+        trusted = ["10.0.0.0/8"]
+
+        # Populate cache
+        _get_compiled_trusted_proxies(trusted)
+        assert len(_trusted_proxy_cache) == 1
+
+        # Clear cache
+        clear_trusted_proxy_cache()
+        assert len(_trusted_proxy_cache) == 0
+
+    def test_invalid_entries_are_skipped(self):
+        """Test that invalid CIDR entries are skipped but don't break caching."""
+        trusted = ["invalid_cidr", "10.0.0.0/8", "also_invalid"]
+
+        networks, ips = _get_compiled_trusted_proxies(trusted)
+
+        # Should only have the valid network
+        assert len(networks) == 1
+        assert len(ips) == 0
+
+    def test_mixed_ipv4_and_ipv6(self):
+        """Test caching of mixed IPv4 and IPv6 networks and IPs."""
+        trusted = ["10.0.0.0/8", "fe80::/10", "127.0.0.1", "::1"]
+
+        networks, ips = _get_compiled_trusted_proxies(trusted)
+
+        assert len(networks) == 2  # Two CIDR networks
+        assert len(ips) == 2  # Two individual IPs
 
 
 # =============================================================================
@@ -202,6 +297,22 @@ class TestIsIPTrusted:
         assert _is_ip_trusted("192.168.0.1", trusted) is True
         # Public IP
         assert _is_ip_trusted("8.8.8.8", trusted) is False
+
+    def test_uses_cache_for_performance(self):
+        """Test that _is_ip_trusted uses the cache."""
+        trusted = ["10.0.0.0/8"]
+
+        # Clear cache
+        clear_trusted_proxy_cache()
+
+        # First call should populate cache
+        _is_ip_trusted("10.0.0.1", trusted)
+        assert len(_trusted_proxy_cache) == 1
+
+        # Second call with same trusted list should reuse cache
+        initial_cache_size = len(_trusted_proxy_cache)
+        _is_ip_trusted("10.0.0.2", trusted)
+        assert len(_trusted_proxy_cache) == initial_cache_size
 
 
 # =============================================================================

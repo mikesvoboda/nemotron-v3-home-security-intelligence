@@ -3503,6 +3503,7 @@ async def test_reset_circuit_breaker_success() -> None:
 
     mock_registry = MagicMock()
     mock_registry.get.return_value = mock_breaker
+    mock_registry.list_names.return_value = ["rtdetr", "nemotron"]
 
     # After reset, state should be closed
     def reset_side_effect():
@@ -3524,7 +3525,7 @@ async def test_reset_circuit_breaker_success() -> None:
 async def test_reset_circuit_breaker_not_found() -> None:
     """Test resetting a circuit breaker that doesn't exist."""
     mock_registry = MagicMock()
-    mock_registry.get.return_value = None
+    mock_registry.list_names.return_value = ["rtdetr", "nemotron"]
 
     with (
         patch("backend.services.circuit_breaker._get_registry", return_value=mock_registry),
@@ -3534,6 +3535,95 @@ async def test_reset_circuit_breaker_not_found() -> None:
 
     assert exc_info.value.status_code == 404
     assert "not found" in str(exc_info.value.detail)
+    assert "Valid names:" in str(exc_info.value.detail)
+
+
+@pytest.mark.asyncio
+async def test_reset_circuit_breaker_empty_name() -> None:
+    """Test resetting a circuit breaker with empty name returns 400."""
+    with pytest.raises(HTTPException) as exc_info:
+        await system_routes.reset_circuit_breaker("")
+
+    assert exc_info.value.status_code == 400
+    assert "must be 1-64 characters" in str(exc_info.value.detail)
+
+
+@pytest.mark.asyncio
+async def test_reset_circuit_breaker_name_too_long() -> None:
+    """Test resetting a circuit breaker with name longer than 64 characters returns 400."""
+    long_name = "a" * 65
+
+    with pytest.raises(HTTPException) as exc_info:
+        await system_routes.reset_circuit_breaker(long_name)
+
+    assert exc_info.value.status_code == 400
+    assert "must be 1-64 characters" in str(exc_info.value.detail)
+
+
+@pytest.mark.asyncio
+async def test_reset_circuit_breaker_invalid_characters() -> None:
+    """Test resetting a circuit breaker with invalid characters returns 400."""
+    invalid_names = [
+        "test@name",
+        "test/name",
+        "test name",
+        "test.name",
+        "test<script>",
+        "../etc/passwd",
+    ]
+
+    for name in invalid_names:
+        with pytest.raises(HTTPException) as exc_info:
+            await system_routes.reset_circuit_breaker(name)
+
+        assert exc_info.value.status_code == 400
+        assert "alphanumeric characters, underscores, or hyphens" in str(exc_info.value.detail)
+
+
+@pytest.mark.asyncio
+async def test_reset_circuit_breaker_valid_name_formats() -> None:
+    """Test that valid name formats are accepted."""
+    mock_breaker = MagicMock()
+    mock_breaker.state.value = "closed"
+
+    mock_registry = MagicMock()
+    mock_registry.get.return_value = mock_breaker
+
+    valid_names = [
+        "rtdetr",
+        "nemotron",
+        "ai_detector",
+        "service-1",
+        "test_service_name",
+        "Service123",
+        "TEST-SERVICE-01",
+    ]
+
+    for name in valid_names:
+        mock_registry.list_names.return_value = [name]
+        mock_breaker.reset.reset_mock()
+
+        with patch("backend.services.circuit_breaker._get_registry", return_value=mock_registry):
+            response = await system_routes.reset_circuit_breaker(name)
+
+        assert response.name == name
+        mock_breaker.reset.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_reset_circuit_breaker_no_registered_breakers() -> None:
+    """Test resetting when no circuit breakers are registered."""
+    mock_registry = MagicMock()
+    mock_registry.list_names.return_value = []
+
+    with (
+        patch("backend.services.circuit_breaker._get_registry", return_value=mock_registry),
+        pytest.raises(HTTPException) as exc_info,
+    ):
+        await system_routes.reset_circuit_breaker("rtdetr")
+
+    assert exc_info.value.status_code == 404
+    assert "No circuit breakers are currently registered" in str(exc_info.value.detail)
 
 
 # =============================================================================
@@ -3721,3 +3811,119 @@ async def test_health_check_semaphore_exists() -> None:
     """Test that _health_check_semaphore is defined."""
     assert hasattr(system_routes, "_health_check_semaphore")
     assert isinstance(system_routes._health_check_semaphore, asyncio.Semaphore)
+
+
+# =============================================================================
+# Bounded Health Check Timeout Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_bounded_health_check_timeout_returns_degraded_status() -> None:
+    """Test that _bounded_health_check returns degraded status on timeout."""
+
+    async def slow_check(*args):
+        # This check takes longer than the timeout
+        await asyncio.sleep(2.0)
+        return (True, None)
+
+    # Use a very short timeout to trigger timeout behavior
+    is_healthy, error = await system_routes._bounded_health_check(slow_check, timeout_seconds=0.1)
+
+    assert is_healthy is False
+    assert error == "Health check timed out waiting for available slot"
+
+
+@pytest.mark.asyncio
+async def test_bounded_health_check_timeout_under_high_load() -> None:
+    """Test that _bounded_health_check times out when semaphore is exhausted."""
+
+    # Create a semaphore that allows only 1 concurrent check for testing
+    original_semaphore = system_routes._health_check_semaphore
+    system_routes._health_check_semaphore = asyncio.Semaphore(1)
+
+    try:
+        blocking_event = asyncio.Event()
+
+        async def blocking_check(*args):
+            # Wait until we tell it to complete
+            await blocking_event.wait()
+            return (True, None)
+
+        async def fast_check(*args):
+            return (True, None)
+
+        # Start a blocking task that holds the semaphore
+        blocking_task = asyncio.create_task(
+            system_routes._bounded_health_check(blocking_check, timeout_seconds=5.0)
+        )
+
+        # Give the blocking task time to acquire the semaphore
+        await asyncio.sleep(0.05)
+
+        # Try to run another check with a short timeout - should timeout waiting for semaphore
+        is_healthy, error = await system_routes._bounded_health_check(
+            fast_check, timeout_seconds=0.1
+        )
+
+        # Release the blocking task
+        blocking_event.set()
+        await blocking_task
+
+        assert is_healthy is False
+        assert error == "Health check timed out waiting for available slot"
+
+    finally:
+        # Restore original semaphore
+        system_routes._health_check_semaphore = original_semaphore
+
+
+@pytest.mark.asyncio
+async def test_bounded_health_check_completes_within_timeout() -> None:
+    """Test that _bounded_health_check completes normally when within timeout."""
+
+    async def quick_check(*args):
+        await asyncio.sleep(0.01)
+        return (True, None)
+
+    is_healthy, error = await system_routes._bounded_health_check(quick_check, timeout_seconds=1.0)
+
+    assert is_healthy is True
+    assert error is None
+
+
+@pytest.mark.asyncio
+async def test_bounded_health_check_default_timeout_is_30_seconds() -> None:
+    """Test that the default timeout is 30 seconds."""
+    import inspect
+
+    sig = inspect.signature(system_routes._bounded_health_check)
+    timeout_param = sig.parameters.get("timeout_seconds")
+
+    assert timeout_param is not None
+    assert timeout_param.default == 30.0
+
+
+@pytest.mark.asyncio
+async def test_bounded_health_check_timeout_with_custom_value() -> None:
+    """Test that custom timeout values are respected."""
+
+    async def check_with_delay(*args):
+        await asyncio.sleep(0.5)
+        return (True, None)
+
+    # Test with 0.2 second timeout (should timeout)
+    is_healthy, error = await system_routes._bounded_health_check(
+        check_with_delay, timeout_seconds=0.2
+    )
+
+    assert is_healthy is False
+    assert "timed out" in error.lower()
+
+    # Test with 1.0 second timeout (should succeed)
+    is_healthy, error = await system_routes._bounded_health_check(
+        check_with_delay, timeout_seconds=1.0
+    )
+
+    assert is_healthy is True
+    assert error is None

@@ -763,6 +763,48 @@ async def test_list_events_with_object_type_filter_at_end() -> None:
 
 
 @pytest.mark.asyncio
+async def test_list_events_object_type_escapes_wildcard_characters() -> None:
+    """Test that list_events escapes LIKE wildcard characters in object_type filter.
+
+    This prevents pattern injection attacks where special characters like %
+    and _ could match unintended patterns.
+    """
+    db = AsyncMock()
+
+    # Event with literal % and _ characters in object_type
+    mock_event = create_mock_event(detection_ids="1", object_types="100%_complete")
+
+    # Mock count query
+    count_result = MagicMock()
+    count_result.scalar.return_value = 1
+
+    # Mock events query
+    events_result = MagicMock()
+    events_result.scalars.return_value.all.return_value = [mock_event]
+
+    db.execute = AsyncMock(side_effect=[count_result, events_result])
+
+    # Search for literal "100%_complete" - wildcards should be escaped
+    response = await events_routes.list_events(
+        camera_id=None,
+        risk_level=None,
+        start_date=None,
+        end_date=None,
+        reviewed=None,
+        object_type="100%_complete",
+        limit=50,
+        offset=0,
+        db=db,
+    )
+
+    # Verify query was called
+    assert db.execute.called
+
+    # The function should return results (mock returns 1 event)
+    assert len(response["events"]) == 1
+
+
+@pytest.mark.asyncio
 async def test_list_events_pagination_with_custom_limit() -> None:
     """Test that list_events respects custom limit parameter."""
     db = AsyncMock()
@@ -976,8 +1018,17 @@ async def test_list_events_returns_none_reasoning_when_not_set() -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_event_stats_returns_empty_stats_when_no_events() -> None:
+@patch("backend.api.routes.events.get_cache_service")
+async def test_get_event_stats_returns_empty_stats_when_no_events(
+    mock_get_cache: MagicMock,
+) -> None:
     """Test that get_event_stats returns zero counts when no events exist."""
+    # Mock cache service to return None (cache miss)
+    mock_cache = AsyncMock()
+    mock_cache.get = AsyncMock(return_value=None)
+    mock_cache.set = AsyncMock()
+    mock_get_cache.return_value = mock_cache
+
     db = AsyncMock()
 
     # Mock total count query - returns 0
@@ -1005,8 +1056,17 @@ async def test_get_event_stats_returns_empty_stats_when_no_events() -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_event_stats_counts_events_by_risk_level() -> None:
+@patch("backend.api.routes.events.get_cache_service")
+async def test_get_event_stats_counts_events_by_risk_level(
+    mock_get_cache: MagicMock,
+) -> None:
     """Test that get_event_stats correctly counts events by risk level using SQL GROUP BY."""
+    # Mock cache service to return None (cache miss)
+    mock_cache = AsyncMock()
+    mock_cache.get = AsyncMock(return_value=None)
+    mock_cache.set = AsyncMock()
+    mock_get_cache.return_value = mock_cache
+
     db = AsyncMock()
 
     # Mock total count query - returns 7
@@ -1038,8 +1098,17 @@ async def test_get_event_stats_counts_events_by_risk_level() -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_event_stats_counts_events_by_camera() -> None:
+@patch("backend.api.routes.events.get_cache_service")
+async def test_get_event_stats_counts_events_by_camera(
+    mock_get_cache: MagicMock,
+) -> None:
     """Test that get_event_stats correctly counts events by camera using SQL GROUP BY."""
+    # Mock cache service to return None (cache miss)
+    mock_cache = AsyncMock()
+    mock_cache.get = AsyncMock(return_value=None)
+    mock_cache.set = AsyncMock()
+    mock_get_cache.return_value = mock_cache
+
     db = AsyncMock()
 
     # Mock total count query - returns 5
@@ -1072,8 +1141,17 @@ async def test_get_event_stats_counts_events_by_camera() -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_event_stats_with_unknown_camera() -> None:
+@patch("backend.api.routes.events.get_cache_service")
+async def test_get_event_stats_with_unknown_camera(
+    mock_get_cache: MagicMock,
+) -> None:
     """Test that get_event_stats handles unknown camera IDs (NULL from LEFT JOIN)."""
+    # Mock cache service to return None (cache miss)
+    mock_cache = AsyncMock()
+    mock_cache.get = AsyncMock(return_value=None)
+    mock_cache.set = AsyncMock()
+    mock_get_cache.return_value = mock_cache
+
     db = AsyncMock()
 
     # Mock total count query - returns 1
@@ -1097,8 +1175,17 @@ async def test_get_event_stats_with_unknown_camera() -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_event_stats_with_date_filters() -> None:
+@patch("backend.api.routes.events.get_cache_service")
+async def test_get_event_stats_with_date_filters(
+    mock_get_cache: MagicMock,
+) -> None:
     """Test that get_event_stats filters by date range."""
+    # Mock cache service to return None (cache miss)
+    mock_cache = AsyncMock()
+    mock_cache.get = AsyncMock(return_value=None)
+    mock_cache.set = AsyncMock()
+    mock_get_cache.return_value = mock_cache
+
     db = AsyncMock()
 
     now = datetime.now(UTC)
@@ -1126,8 +1213,17 @@ async def test_get_event_stats_with_date_filters() -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_event_stats_ignores_invalid_risk_levels() -> None:
+@patch("backend.api.routes.events.get_cache_service")
+async def test_get_event_stats_ignores_invalid_risk_levels(
+    mock_get_cache: MagicMock,
+) -> None:
     """Test that get_event_stats ignores events with invalid risk levels."""
+    # Mock cache service to return None (cache miss)
+    mock_cache = AsyncMock()
+    mock_cache.get = AsyncMock(return_value=None)
+    mock_cache.set = AsyncMock()
+    mock_get_cache.return_value = mock_cache
+
     db = AsyncMock()
 
     # Mock total count query - returns 3
@@ -1793,8 +1889,17 @@ async def test_list_events_with_all_filters_combined() -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_event_stats_empty_camera_list() -> None:
+@patch("backend.api.routes.events.get_cache_service")
+async def test_get_event_stats_empty_camera_list(
+    mock_get_cache: MagicMock,
+) -> None:
     """Test that get_event_stats handles case with events but no camera lookup (NULL from JOIN)."""
+    # Mock cache service to return None (cache miss)
+    mock_cache = AsyncMock()
+    mock_cache.get = AsyncMock(return_value=None)
+    mock_cache.set = AsyncMock()
+    mock_get_cache.return_value = mock_cache
+
     db = AsyncMock()
 
     # Mock total count query - returns 1

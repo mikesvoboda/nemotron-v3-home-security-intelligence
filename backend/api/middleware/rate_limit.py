@@ -39,10 +39,76 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+# Cache for pre-compiled trusted proxy networks
+# Key: tuple of trusted IPs (for cache invalidation on config change)
+# Value: tuple of (compiled_networks, compiled_ips)
+_trusted_proxy_cache: dict[
+    tuple[str, ...],
+    tuple[
+        list[ipaddress.IPv4Network | ipaddress.IPv6Network],
+        list[ipaddress.IPv4Address | ipaddress.IPv6Address],
+    ],
+] = {}
+
+
+def _get_compiled_trusted_proxies(
+    trusted_ips: list[str],
+) -> tuple[
+    list[ipaddress.IPv4Network | ipaddress.IPv6Network],
+    list[ipaddress.IPv4Address | ipaddress.IPv6Address],
+]:
+    """Get pre-compiled trusted proxy networks and IPs.
+
+    This function caches the compiled IP networks and addresses to avoid
+    re-parsing CIDR notation on every request. The cache is keyed by the
+    tuple of trusted IPs, so it automatically invalidates when the
+    configuration changes.
+
+    Args:
+        trusted_ips: List of trusted IPs or CIDR ranges
+
+    Returns:
+        Tuple of (compiled_networks, compiled_ips) for efficient lookup
+    """
+    cache_key = tuple(trusted_ips)
+
+    if cache_key in _trusted_proxy_cache:
+        return _trusted_proxy_cache[cache_key]
+
+    networks: list[ipaddress.IPv4Network | ipaddress.IPv6Network] = []
+    ips: list[ipaddress.IPv4Address | ipaddress.IPv6Address] = []
+
+    for trusted in trusted_ips:
+        try:
+            if "/" in trusted:
+                # CIDR notation - compile as network
+                networks.append(ipaddress.ip_network(trusted, strict=False))
+            else:
+                # Individual IP - compile as address
+                ips.append(ipaddress.ip_address(trusted))
+        except ValueError:
+            # Invalid entry, log and skip
+            logger.warning(f"Invalid trusted proxy IP/CIDR: {trusted}")
+            continue
+
+    _trusted_proxy_cache[cache_key] = (networks, ips)
+    return networks, ips
+
+
+def clear_trusted_proxy_cache() -> None:
+    """Clear the trusted proxy cache.
+
+    Useful for testing or when configuration changes at runtime.
+    """
+    _trusted_proxy_cache.clear()
+
+
 def _is_ip_trusted(client_ip: str, trusted_ips: list[str]) -> bool:
     """Check if an IP address is in the trusted proxy list.
 
     Supports both individual IPs and CIDR notation (e.g., '10.0.0.0/8').
+    Uses pre-compiled networks for performance - CIDR parsing is done once
+    and cached, not on every request.
 
     Args:
         client_ip: The IP address to check
@@ -57,30 +123,15 @@ def _is_ip_trusted(client_ip: str, trusted_ips: list[str]) -> bool:
         # Invalid IP, not trusted
         return False
 
-    for trusted in trusted_ips:
-        try:
-            # Check if it's a network (CIDR notation)
-            if "/" in trusted:
-                network = ipaddress.ip_network(trusted, strict=False)
-                if ip_obj in network:
-                    return True
-            else:
-                # Individual IP
-                trusted_ip = ipaddress.ip_address(trusted)
-                if ip_obj == trusted_ip:
-                    return True
-        except ValueError:
-            # Log with masked IPs to avoid exposing sensitive data (CodeQL CWE-532)
-            logger.warning(
-                "Invalid CIDR in trusted_proxy_ips, skipping",
-                extra={
-                    "invalid_trusted_ip_masked": mask_ip(trusted),
-                    "client_ip_masked": mask_ip(client_ip),
-                },
-            )
-            continue
+    # Get pre-compiled networks and IPs from cache
+    networks, ips = _get_compiled_trusted_proxies(trusted_ips)
 
-    return False
+    # Check against individual IPs first (faster)
+    if ip_obj in ips:
+        return True
+
+    # Check against CIDR networks
+    return any(ip_obj in network for network in networks)
 
 
 class RateLimitTier(str, Enum):
