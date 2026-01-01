@@ -88,7 +88,16 @@ class SearchResponse(BaseModel):
 
 
 class SearchRequest(BaseModel):
-    """Schema for search request body (alternative to query params)."""
+    """Schema for search request body (alternative to query params).
+
+    Note: For GET requests, use comma-separated strings for multi-value parameters:
+    - severity: "high,critical" (not ["high", "critical"])
+    - camera_ids: "front_door,back_door" (not ["front_door", "back_door"])
+    - object_types: "person,vehicle" (not ["person", "vehicle"])
+
+    This schema documents the POST request body format if a POST endpoint is added.
+    The GET endpoint at /api/events/search uses query parameters with comma-separated values.
+    """
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -96,9 +105,9 @@ class SearchRequest(BaseModel):
                 "query": "suspicious person near entrance",
                 "start_date": "2025-12-01T00:00:00Z",
                 "end_date": "2025-12-28T23:59:59Z",
-                "camera_ids": ["front_door", "back_door"],
-                "severity": ["high", "critical"],
-                "object_types": ["person"],
+                "camera_ids": "front_door,back_door",
+                "severity": "high,critical",
+                "object_types": "person",
                 "reviewed": False,
                 "limit": 50,
                 "offset": 0,
@@ -109,12 +118,14 @@ class SearchRequest(BaseModel):
     query: str = Field(..., min_length=1, description="Search query string")
     start_date: datetime | None = Field(None, description="Filter by start date (ISO format)")
     end_date: datetime | None = Field(None, description="Filter by end date (ISO format)")
-    camera_ids: list[str] | None = Field(None, description="Filter by camera IDs")
-    severity: list[str] | None = Field(
-        None, description="Filter by risk levels (low, medium, high, critical)"
+    camera_ids: str | None = Field(
+        None, description="Filter by camera IDs (comma-separated for multiple)"
     )
-    object_types: list[str] | None = Field(
-        None, description="Filter by detected object types (person, vehicle, animal)"
+    severity: str | None = Field(
+        None, description="Filter by risk levels (comma-separated: low,medium,high,critical)"
+    )
+    object_types: str | None = Field(
+        None, description="Filter by detected object types (comma-separated: person,vehicle,animal)"
     )
     reviewed: bool | None = Field(None, description="Filter by reviewed status")
     limit: int = Field(50, ge=1, le=1000, description="Maximum number of results")
