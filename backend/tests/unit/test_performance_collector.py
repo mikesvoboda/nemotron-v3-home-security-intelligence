@@ -571,7 +571,10 @@ class TestInitPynvml:
 
     def test_init_pynvml_failure(self):
         """Test pynvml initialization failure."""
-        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+        with (
+            patch("backend.services.performance_collector.get_settings") as mock_settings,
+            patch.dict("sys.modules", {"pynvml": None}),
+        ):
             mock_settings.return_value = MagicMock()
 
             # Create collector without pynvml available

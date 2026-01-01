@@ -38,6 +38,7 @@ dependencies = [
     "prometheus-client>=0.21.0",
     # Template engine (security patched)
     "jinja2>=3.1.5",
+    "scikit-image>=0.26.0",
 ]
 
 [project.optional-dependencies]
