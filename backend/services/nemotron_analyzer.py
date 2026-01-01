@@ -5,12 +5,14 @@ via llama.cpp server to generate risk scores and natural language summaries.
 
 Analysis Flow:
     1. Fetch batch detections from Redis/database
-    2. Format prompt with detection details
-    3. POST to llama.cpp completion endpoint
-    4. Parse JSON response
-    5. Create Event with risk assessment
-    6. Store Event in database
-    7. Broadcast via WebSocket (if available)
+    2. Enrich context with zones, baselines, and cross-camera activity
+    3. Run enrichment pipeline for license plates, faces, OCR (optional)
+    4. Format prompt with enriched detection details
+    5. POST to llama.cpp completion endpoint
+    6. Parse JSON response
+    7. Create Event with risk assessment
+    8. Store Event in database
+    9. Broadcast via WebSocket (if available)
 """
 
 import json
@@ -34,7 +36,20 @@ from backend.core.redis import RedisClient
 from backend.models.camera import Camera
 from backend.models.detection import Detection
 from backend.models.event import Event
-from backend.services.prompts import RISK_ANALYSIS_PROMPT
+from backend.services.context_enricher import ContextEnricher, EnrichedContext, get_context_enricher
+from backend.services.enrichment_pipeline import (
+    BoundingBox,
+    DetectionInput,
+    EnrichmentPipeline,
+    EnrichmentResult,
+    get_enrichment_pipeline,
+)
+from backend.services.prompts import (
+    ENRICHED_RISK_ANALYSIS_PROMPT,
+    FULL_ENRICHED_RISK_ANALYSIS_PROMPT,
+    RISK_ANALYSIS_PROMPT,
+    VISION_ENHANCED_RISK_ANALYSIS_PROMPT,
+)
 
 logger = get_logger(__name__)
 
@@ -52,13 +67,37 @@ class NemotronAnalyzer:
     This service coordinates with the batch aggregator to receive completed
     batches, queries the database for detection details, formats a prompt
     for the LLM, and creates Events with risk scores and summaries.
+
+    With context enrichment enabled, the analyzer will include zone information,
+    baseline deviation data, and cross-camera activity in the prompt.
+
+    With the enrichment pipeline enabled, the analyzer will also extract:
+    - License plates from vehicle detections (with OCR)
+    - Faces from person detections
     """
 
-    def __init__(self, redis_client: RedisClient | None = None):
+    def __init__(
+        self,
+        redis_client: RedisClient | None = None,
+        context_enricher: ContextEnricher | None = None,
+        enrichment_pipeline: EnrichmentPipeline | None = None,
+        use_enriched_context: bool = True,
+        use_enrichment_pipeline: bool = True,
+    ):
         """Initialize Nemotron analyzer with Redis client.
 
         Args:
             redis_client: Redis client instance for queue and cache operations.
+            context_enricher: Optional context enricher for enhanced prompts.
+                If not provided and use_enriched_context is True, will use the
+                global singleton.
+            enrichment_pipeline: Optional enrichment pipeline for license plates,
+                faces, and OCR. If not provided and use_enrichment_pipeline is True,
+                will use the global singleton.
+            use_enriched_context: Whether to use enriched context in prompts.
+                Set to False for basic analysis without zone/baseline data.
+            use_enrichment_pipeline: Whether to run the enrichment pipeline for
+                license plates and faces. Set to False to skip this step.
         """
         self._redis = redis_client
         settings = get_settings()
@@ -79,6 +118,108 @@ class NemotronAnalyzer:
             write=settings.ai_health_timeout,
             pool=settings.ai_health_timeout,
         )
+        self._use_enriched_context = use_enriched_context
+        self._use_enrichment_pipeline = use_enrichment_pipeline
+        self._context_enricher = context_enricher
+        self._enrichment_pipeline = enrichment_pipeline
+
+    def _get_context_enricher(self) -> ContextEnricher:
+        """Get the context enricher, creating global singleton if needed.
+
+        Returns:
+            ContextEnricher instance
+        """
+        if self._context_enricher is None:
+            self._context_enricher = get_context_enricher()
+        return self._context_enricher
+
+    def _get_enrichment_pipeline(self) -> EnrichmentPipeline:
+        """Get the enrichment pipeline, creating global singleton if needed.
+
+        Returns:
+            EnrichmentPipeline instance
+        """
+        if self._enrichment_pipeline is None:
+            self._enrichment_pipeline = get_enrichment_pipeline()
+        return self._enrichment_pipeline
+
+    async def _get_enriched_context(
+        self,
+        batch_id: str,
+        camera_id: str,
+        detection_ids: list[int],
+        session: Any,
+    ) -> EnrichedContext | None:
+        """Get enriched context for a batch if enabled.
+
+        Args:
+            batch_id: Batch identifier
+            camera_id: Camera identifier
+            detection_ids: List of detection IDs
+            session: Database session
+
+        Returns:
+            EnrichedContext or None if enrichment is disabled or fails
+        """
+        if not self._use_enriched_context:
+            return None
+
+        try:
+            enricher = self._get_context_enricher()
+            context = await enricher.enrich(
+                batch_id=batch_id,
+                camera_id=camera_id,
+                detection_ids=detection_ids,
+                session=session,
+            )
+            logger.debug(
+                f"Context enriched for batch {batch_id}: "
+                f"{len(context.zones)} zones, "
+                f"{len(context.cross_camera)} cross-camera activities"
+            )
+            return context
+        except Exception as e:
+            logger.warning(
+                f"Context enrichment failed for batch {batch_id}, "
+                f"falling back to basic prompt: {e}",
+                exc_info=True,
+            )
+            return None
+
+    async def _get_enrichment_result(
+        self,
+        batch_id: str,
+        detections: list[Detection],
+    ) -> EnrichmentResult | None:
+        """Get enrichment result (plates, faces) for detections if enabled.
+
+        Args:
+            batch_id: Batch identifier (for logging)
+            detections: List of Detection objects
+
+        Returns:
+            EnrichmentResult or None if enrichment is disabled or fails
+        """
+        if not self._use_enrichment_pipeline:
+            return None
+
+        try:
+            result = await self._run_enrichment_pipeline(detections)
+            if result:
+                logger.debug(
+                    f"Enrichment pipeline for batch {batch_id}: "
+                    f"{len(result.license_plates)} plates, "
+                    f"{len(result.faces)} faces, "
+                    f"{result.processing_time_ms:.1f}ms"
+                )
+            return result
+        except Exception as e:
+            logger.warning(
+                f"Enrichment pipeline failed for batch {batch_id}, "
+                f"continuing without enrichment: {e}",
+                exc_info=True,
+            )
+            return None
 
     def _get_auth_headers(self) -> dict[str, str]:
         """Get authentication headers for API requests.
@@ -185,6 +326,14 @@ class NemotronAnalyzer:
             # Format detections for prompt
             detections_list = self._format_detections(detections)
 
+            # Enrich context if enabled (zone, baseline, cross-camera)
+            enriched_context = await self._get_enriched_context(
+                batch_id, camera_id, int_detection_ids, session
+            )
+
+            # Run enrichment pipeline for license plates, faces, OCR
+            enrichment_result = await self._get_enrichment_result(batch_id, detections)
+
             # Call LLM for risk analysis
             llm_start = time.time()
             try:
@@ -193,6 +342,8 @@ class NemotronAnalyzer:
                     start_time=start_time.isoformat(),
                     end_time=end_time.isoformat(),
                     detections_list=detections_list,
+                    enriched_context=enriched_context,
+                    enrichment_result=enrichment_result,
                 )
                 llm_duration_ms = int((time.time() - llm_start) * 1000)
                 llm_duration_seconds = time.time() - llm_start
@@ -339,6 +490,14 @@ class NemotronAnalyzer:
             # Generate batch ID for fast path
             batch_id = f"fast_path_{detection_id}"
 
+            # Enrich context if enabled (zone, baseline, cross-camera)
+            enriched_context = await self._get_enriched_context(
+                batch_id, camera_id, [detection_id_int], session
+            )
+
+            # Run enrichment pipeline for license plates, faces, OCR
+            enrichment_result = await self._get_enrichment_result(batch_id, [detection])
+
             # Call LLM for risk analysis
             llm_start = time.time()
             try:
@@ -347,6 +506,8 @@ class NemotronAnalyzer:
                     start_time=detection_time.isoformat(),
                     end_time=detection_time.isoformat(),
                     detections_list=detections_list,
+                    enriched_context=enriched_context,
+                    enrichment_result=enrichment_result,
                 )
                 llm_duration_ms = int((time.time() - llm_start) * 1000)
                 llm_duration_seconds = time.time() - llm_start
@@ -471,12 +632,79 @@ class NemotronAnalyzer:
 
         return "\n".join(lines)
 
+    async def _run_enrichment_pipeline(
+        self, detections: list[Detection]
+    ) -> EnrichmentResult | None:
+        """Run the enrichment pipeline on detections.
+
+        Converts Detection models to DetectionInput format and runs the
+        enrichment pipeline to extract license plates, faces, and OCR.
+
+        Args:
+            detections: List of Detection models from the database
+
+        Returns:
+            EnrichmentResult with plates and faces, or None if no enrichment
+        """
+        if not detections:
+            return None
+
+        pipeline = self._get_enrichment_pipeline()
+
+        # Convert Detection models to DetectionInput format
+        detection_inputs: list[DetectionInput] = []
+        from pathlib import Path
+
+        from PIL import Image
+
+        # Type annotation matches EnrichmentPipeline.enrich_batch signature
+        images: dict[int | None, Image.Image | Path | str] = {}
+
+        for det in detections:
+            # Skip detections without bounding boxes or object types
+            if (
+                det.bbox_x is None
+                or det.bbox_y is None
+                or det.bbox_width is None
+                or det.bbox_height is None
+                or det.object_type is None
+            ):
+                continue
+
+            # Create DetectionInput with bounding box
+            detection_input = DetectionInput(
+                id=det.id,
+                class_name=det.object_type,
+                confidence=det.confidence or 0.0,
+                bbox=BoundingBox(
+                    x1=float(det.bbox_x),
+                    y1=float(det.bbox_y),
+                    x2=float(det.bbox_x + det.bbox_width),
+                    y2=float(det.bbox_y + det.bbox_height),
+                ),
+            )
+            detection_inputs.append(detection_input)
+
+            # Map detection ID to image path
+            if det.file_path:
+                images[det.id] = det.file_path
+
+        if not detection_inputs:
+            return None
+
+        # Run the enrichment pipeline
+        result = await pipeline.enrich_batch(detection_inputs, images)
+
+        return result
+
     async def _call_llm(
         self,
         camera_name: str,
         start_time: str,
         end_time: str,
         detections_list: str,
+        enriched_context: EnrichedContext | None = None,
+        enrichment_result: EnrichmentResult | None = None,
     ) -> dict[str, Any]:
         """Call Nemotron LLM for risk analysis.
 
@@ -485,6 +713,8 @@ class NemotronAnalyzer:
             start_time: Start of detection window (ISO format)
             end_time: End of detection window (ISO format)
             detections_list: Formatted list of detections
+            enriched_context: Optional enriched context for enhanced prompts
+            enrichment_result: Optional enrichment result with plates/faces
 
         Returns:
             Dictionary with risk_score, risk_level, summary, and reasoning
@@ -493,20 +723,123 @@ class NemotronAnalyzer:
             httpx.HTTPError: If LLM request fails
             ValueError: If response cannot be parsed
         """
-        # Format the prompt
-        prompt = RISK_ANALYSIS_PROMPT.format(
-            camera_name=camera_name,
-            start_time=start_time,
-            end_time=end_time,
-            detections_list=detections_list,
+        # Format the prompt based on available context
+        has_enriched_context = (
+            enriched_context is not None and enriched_context.baselines is not None
+        )
+        has_enrichment_result = enrichment_result is not None and (
+            enrichment_result.has_license_plates or enrichment_result.has_faces
+        )
+        has_vision_extraction = (
+            enrichment_result is not None and enrichment_result.has_vision_extraction
         )
 
+        if has_vision_extraction and has_enriched_context:
+            # Use vision-enhanced prompt with Florence-2 attributes, re-id, and scene analysis
+            from backend.services.reid_service import format_full_reid_context
+            from backend.services.vision_extractor import (
+                format_scene_analysis,
+            )
+
+            assert enriched_context is not None
+            assert enriched_context.baselines is not None
+            assert enrichment_result is not None
+            assert enrichment_result.vision_extraction is not None
+
+            enricher = self._get_context_enricher()
+
+            # Determine time of day from environment context
+            time_of_day = "day"
+            if enrichment_result.vision_extraction.environment_context:
+                time_of_day = enrichment_result.vision_extraction.environment_context.time_of_day
+
+            # Format scene analysis
+            scene_text = "No scene analysis available."
+            if enrichment_result.vision_extraction.scene_analysis:
+                scene_text = format_scene_analysis(
+                    enrichment_result.vision_extraction.scene_analysis
+                )
+
+            # Format re-id context
+            reid_text = format_full_reid_context(
+                enrichment_result.person_reid_matches,
+                enrichment_result.vehicle_reid_matches,
+            )
+
+            prompt = VISION_ENHANCED_RISK_ANALYSIS_PROMPT.format(
+                camera_name=camera_name,
+                timestamp=f"{start_time} to {end_time}",
+                day_of_week=enriched_context.baselines.day_of_week,
+                time_of_day=time_of_day,
+                detections_with_attributes=enrichment_result.to_context_string(),
+                reid_context=reid_text,
+                zone_analysis=enricher.format_zone_analysis(enriched_context.zones),
+                baseline_comparison=enricher.format_baseline_comparison(enriched_context.baselines),
+                deviation_score=f"{enriched_context.baselines.deviation_score:.2f}",
+                cross_camera_summary=enricher.format_cross_camera_summary(
+                    enriched_context.cross_camera
+                ),
+                scene_analysis=scene_text,
+            )
+        elif has_enriched_context and has_enrichment_result:
+            # Use full enriched prompt with zone, baseline, cross-camera, and pipeline context
+            # These assertions help mypy understand type narrowing
+            assert enriched_context is not None
+            assert enriched_context.baselines is not None
+            assert enrichment_result is not None
+            enricher = self._get_context_enricher()
+            prompt = FULL_ENRICHED_RISK_ANALYSIS_PROMPT.format(
+                camera_name=camera_name,
+                start_time=start_time,
+                end_time=end_time,
+                day_of_week=enriched_context.baselines.day_of_week,
+                zone_analysis=enricher.format_zone_analysis(enriched_context.zones),
+                hour=enriched_context.baselines.hour_of_day,
+                baseline_comparison=enricher.format_baseline_comparison(enriched_context.baselines),
+                deviation_score=f"{enriched_context.baselines.deviation_score:.2f}",
+                cross_camera_summary=enricher.format_cross_camera_summary(
+                    enriched_context.cross_camera
+                ),
+                enrichment_context=enrichment_result.to_context_string(),
+                detections_list=detections_list,
+            )
+        elif has_enriched_context:
+            # Use enriched prompt with zone, baseline, and cross-camera context (no pipeline)
+            # These assertions help mypy understand type narrowing
+            assert enriched_context is not None
+            assert enriched_context.baselines is not None
+            enricher = self._get_context_enricher()
+            prompt = ENRICHED_RISK_ANALYSIS_PROMPT.format(
+                camera_name=camera_name,
+                start_time=start_time,
+                end_time=end_time,
+                day_of_week=enriched_context.baselines.day_of_week,
+                zone_analysis=enricher.format_zone_analysis(enriched_context.zones),
+                hour=enriched_context.baselines.hour_of_day,
+                baseline_comparison=enricher.format_baseline_comparison(enriched_context.baselines),
+                deviation_score=f"{enriched_context.baselines.deviation_score:.2f}",
+                cross_camera_summary=enricher.format_cross_camera_summary(
+                    enriched_context.cross_camera
+                ),
+                detections_list=detections_list,
+            )
+        else:
+            # Fall back to basic prompt
+            prompt = RISK_ANALYSIS_PROMPT.format(
+                camera_name=camera_name,
+                start_time=start_time,
+                end_time=end_time,
+                detections_list=detections_list,
+            )
+
         # Call llama.cpp completion endpoint
+        # Nemotron-3-Nano uses ChatML format with <|im_end|> as message terminator
         payload = {
             "prompt": prompt,
-            "temperature": 0.7,
-            "max_tokens": 500,
-            "stop": ["\n\n"],
+            "temperature": 0.7,  # Slightly creative for detailed reasoning
+            "top_p": 0.95,
+            "max_tokens": 1536,  # Extra room for detailed explanations
+            "stop": ["<|im_end|>", "<|im_start|>"],
         }
 
         # Merge auth headers with JSON content-type
@@ -538,7 +871,8 @@ class NemotronAnalyzer:
     def _parse_llm_response(self, text: str) -> dict[str, Any]:
         """Parse JSON response from LLM completion.
 
-        Handles cases where LLM output may include extra text or formatting.
+        Handles Nemotron-3-Nano output which includes <think>...</think> reasoning
+        blocks before the actual JSON response.
 
         Args:
             text: LLM completion text
@@ -549,10 +883,33 @@ class NemotronAnalyzer:
         Raises:
             ValueError: If JSON cannot be extracted or parsed
         """
-        # Try to extract JSON from the text
+        # Strip <think>...</think> reasoning blocks (Nemotron-3-Nano format)
+        # The model outputs reasoning in <think> tags before the JSON
+        think_pattern = r"<think>.*?</think>"
+        cleaned_text = re.sub(think_pattern, "", text, flags=re.DOTALL).strip()
+
+        # Also handle incomplete think blocks (model may not close the tag)
+        if "<think>" in cleaned_text:
+            # Find content after the last </think> or after <think>...
+            parts = cleaned_text.split("</think>")
+            if len(parts) > 1:
+                cleaned_text = parts[-1].strip()
+            else:
+                # No closing tag, try to find JSON after <think> block
+                think_start = cleaned_text.find("<think>")
+                # Look for JSON start after think
+                json_start = cleaned_text.find("{", think_start)
+                if json_start != -1:
+                    cleaned_text = cleaned_text[json_start:]
+
+        # Try to extract JSON from the cleaned text
         # Look for JSON object pattern
         json_pattern = r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}"
-        matches = re.findall(json_pattern, text, re.DOTALL)
+        matches = re.findall(json_pattern, cleaned_text, re.DOTALL)
+
+        # If no matches in cleaned text, try original text as fallback
+        if not matches:
+            matches = re.findall(json_pattern, text, re.DOTALL)
 
         if not matches:
             raise ValueError(f"No JSON found in LLM response: {text[:200]}")
