@@ -39,6 +39,13 @@ DEFAULT_DEDUPE_TTL_SECONDS = 300
 # Redis key prefix for dedupe entries
 DEDUPE_KEY_PREFIX = "dedupe:"
 
+# Maximum TTL for orphan cleanup (1 hour = 3600 seconds)
+# Keys older than this without TTL will be removed
+ORPHAN_CLEANUP_MAX_AGE_SECONDS = 3600
+
+# Interval for orphan cleanup task (10 minutes = 600 seconds)
+ORPHAN_CLEANUP_INTERVAL_SECONDS = 600
+
 
 def compute_file_hash(file_path: str) -> str | None:
     """Compute SHA256 hash of file content.
@@ -155,6 +162,9 @@ class DedupeService:
     async def _check_redis(self, file_hash: str) -> bool | None:
         """Check Redis for existing hash entry.
 
+        If a key is found, ensures it has a TTL set to prevent orphaned keys
+        from accumulating indefinitely.
+
         Args:
             file_hash: SHA256 hash to check
 
@@ -168,6 +178,9 @@ class DedupeService:
             key = self._get_redis_key(file_hash)
             exists = await self._redis_client.exists(key)
             if exists > 0:
+                # Ensure the key has a TTL set to prevent orphaned keys
+                # This handles the case where a key was created without TTL
+                await self.ensure_key_has_ttl(file_hash)
                 logger.info(f"Duplicate file detected (Redis): hash={file_hash[:16]}...")
                 return True
             return False
@@ -268,6 +281,81 @@ class DedupeService:
             return result > 0
         except Exception as e:
             logger.warning(f"Failed to clear hash from Redis: {e}")
+            return False
+
+    async def cleanup_orphaned_keys(self) -> int:
+        """Clean up orphaned dedupe keys that have no TTL set.
+
+        Scans for dedupe keys without TTL and removes them if they are older
+        than ORPHAN_CLEANUP_MAX_AGE_SECONDS. This prevents memory leaks from
+        keys that were created but never had TTL set properly.
+
+        Returns:
+            Number of orphaned keys cleaned up
+        """
+        if not self._redis_client or not self._redis_client._client:
+            return 0
+
+        cleaned_count = 0
+        try:
+            client = self._redis_client._client
+            # Scan for all dedupe keys
+            pattern = f"{DEDUPE_KEY_PREFIX}*"
+            async for key in client.scan_iter(match=pattern, count=100):
+                try:
+                    # Check if key has a TTL
+                    ttl = await client.ttl(key)
+                    # ttl returns:
+                    #   -2 if key doesn't exist
+                    #   -1 if key has no TTL (orphan)
+                    #   >= 0 for keys with TTL
+                    if ttl == -1:
+                        # Key exists but has no TTL - this is an orphan
+                        # Set a TTL to clean it up
+                        await client.expire(key, ORPHAN_CLEANUP_MAX_AGE_SECONDS)
+                        cleaned_count += 1
+                        logger.debug(f"Set TTL on orphaned dedupe key: {key}")
+                except Exception as e:
+                    logger.warning(f"Error checking TTL for key {key}: {e}")
+                    continue
+
+            if cleaned_count > 0:
+                logger.info(
+                    f"Set TTL on {cleaned_count} orphaned dedupe keys",
+                    extra={"cleaned_count": cleaned_count},
+                )
+
+        except Exception as e:
+            logger.error(f"Error during orphan key cleanup: {e}", exc_info=True)
+
+        return cleaned_count
+
+    async def ensure_key_has_ttl(self, file_hash: str) -> bool:
+        """Ensure a dedupe key has a TTL set.
+
+        Called after checking if a key exists to ensure orphaned keys
+        get a TTL set even if mark_processed is never called.
+
+        Args:
+            file_hash: SHA256 hash to check
+
+        Returns:
+            True if TTL was set or already exists, False on error
+        """
+        if not self._redis_client or not self._redis_client._client:
+            return False
+
+        try:
+            key = self._get_redis_key(file_hash)
+            client = self._redis_client._client
+            ttl = await client.ttl(key)
+            # If key has no TTL (-1), set one
+            if ttl == -1:
+                await client.expire(key, self._ttl_seconds)
+                logger.debug(f"Set TTL on dedupe key missing TTL: {key}")
+            return True
+        except Exception as e:
+            logger.warning(f"Failed to ensure TTL on key: {e}")
             return False
 
 
