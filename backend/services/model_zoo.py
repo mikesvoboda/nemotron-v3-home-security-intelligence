@@ -254,7 +254,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
             available=False,
         ),
         # Florence-2-large for vision-language queries (attributes, behavior, scene)
-        # DISABLED: Not downloaded to local model zoo
+        # Re-enabled: Reduced Nemotron GPU layers from 45 to 35 to free ~2GB VRAM
         "florence-2-large": ModelConfig(
             name="florence-2-large",
             path="/models/model-zoo/florence-2-large",

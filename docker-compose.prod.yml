@@ -91,7 +91,7 @@ services:
     volumes:
       - /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km:/models:ro
     environment:
-      - GPU_LAYERS=${GPU_LAYERS:-45}
+      - GPU_LAYERS=${GPU_LAYERS:-35}
       - CTX_SIZE=${CTX_SIZE:-8192}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8091/health"]
