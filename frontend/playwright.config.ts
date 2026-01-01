@@ -35,11 +35,12 @@ export default defineConfig({
   // Fail the build on CI if you accidentally left test.only in the source code
   forbidOnly: !!process.env.CI,
 
-  // Retry on CI only
-  retries: process.env.CI ? 2 : 0,
+  // Retry on CI only (1 retry to catch flaky tests without excessive time)
+  retries: process.env.CI ? 1 : 0,
 
-  // Limit workers on CI for stability
-  workers: process.env.CI ? 1 : undefined,
+  // Parallel workers: use 2 in CI for balance of speed and stability
+  // Local: use all available CPUs
+  workers: process.env.CI ? 2 : undefined,
 
   // Reporter configuration
   // CI: github (for annotations), html (for artifacts), junit (for duration auditing)
