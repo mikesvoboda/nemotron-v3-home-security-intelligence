@@ -633,26 +633,44 @@ class RedisClient:
             queue_length=new_length,
         )
 
+    # Default timeout for monitoring operations (5 seconds)
+    # Prevents indefinite hangs if Redis is slow or unresponsive
+    _MONITORING_TIMEOUT: float = 5.0
+
     async def get_queue_pressure(
         self,
         queue_name: str,
         max_size: int | None = None,
+        timeout: float | None = None,
     ) -> QueuePressureMetrics:
         """Get metrics about queue pressure and health.
+
+        Wraps the queue length check in a timeout to prevent hangs if Redis
+        is slow or unresponsive.
 
         Args:
             queue_name: Name of the queue to check
             max_size: Maximum queue size. If None, uses settings.queue_max_size
+            timeout: Timeout in seconds for the Redis operation.
+                If None, uses _MONITORING_TIMEOUT (5s).
 
         Returns:
             QueuePressureMetrics with current queue status
+
+        Raises:
+            asyncio.TimeoutError: If the queue length check exceeds the timeout
         """
         settings = get_settings()
+        effective_timeout = timeout if timeout is not None else self._MONITORING_TIMEOUT
 
         if max_size is None:
             max_size = settings.queue_max_size
 
-        current_length = await self.get_queue_length(queue_name)
+        # Wrap in asyncio.wait_for to prevent indefinite hangs
+        current_length = await asyncio.wait_for(
+            self.get_queue_length(queue_name),
+            timeout=effective_timeout,
+        )
         fill_ratio = current_length / max_size if max_size > 0 else 0
 
         return QueuePressureMetrics(
