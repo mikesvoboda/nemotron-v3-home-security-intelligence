@@ -367,6 +367,9 @@ export interface paths {
          *
          *     Returns:
          *         Created camera object with generated ID
+         *
+         *     Raises:
+         *         HTTPException: 409 if camera with same name or folder_path already exists
          */
         post: operations["create_camera_api_cameras_post"];
         delete?: never;
@@ -866,6 +869,7 @@ export interface paths {
          *         start_date: Optional start date for date range filter
          *         end_date: Optional end date for date range filter
          *         severity: Optional comma-separated risk levels (low, medium, high, critical)
+         *         risk_level: Alias for severity - accepts same format
          *         object_type: Optional comma-separated object types (person, vehicle, animal)
          *         reviewed: Optional filter by reviewed status
          *         limit: Maximum number of results to return (1-1000, default 50)
@@ -6782,6 +6786,8 @@ export interface operations {
                 end_date?: string | null;
                 /** @description Filter by risk levels (comma-separated: low,medium,high,critical) */
                 severity?: string | null;
+                /** @description Alias for severity - filter by risk levels (comma-separated: low,medium,high,critical) */
+                risk_level?: string | null;
                 /** @description Filter by object types (comma-separated: person,vehicle,animal) */
                 object_type?: string | null;
                 /** @description Filter by reviewed status */

@@ -51,6 +51,7 @@ class MockEventBroadcaster:
         self._channel_name = channel_name or self.CHANNEL_NAME
         self._connections: set = set()
         self._is_listening = False
+        self._listener_healthy = True
         self.messages: list[dict[str, Any]] = []
 
     @property
@@ -103,6 +104,14 @@ class MockEventBroadcaster:
             except Exception:  # noqa: S110 - Intentionally ignore send failures
                 pass
         return count
+
+    def is_listener_healthy(self) -> bool:
+        """Check if the listener is currently healthy.
+
+        Returns:
+            True if listener is running and healthy, False otherwise
+        """
+        return self._is_listening and self._listener_healthy
 
     # Legacy test-only methods - NOT part of real EventBroadcaster interface
     # These are convenience methods used by existing tests in this file
