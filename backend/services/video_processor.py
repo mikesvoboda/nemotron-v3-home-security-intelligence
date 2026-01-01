@@ -84,6 +84,91 @@ def _validate_video_path(video_path: str) -> Path:
     return video_path_obj
 
 
+def _validate_timestamp(timestamp: float) -> float:
+    """Validate timestamp for safe use in ffmpeg commands.
+
+    Args:
+        timestamp: Timestamp in seconds
+
+    Returns:
+        Validated timestamp as float
+
+    Raises:
+        ValueError: If timestamp is invalid or out of bounds
+    """
+    if not isinstance(timestamp, int | float):
+        raise ValueError(f"Timestamp must be a number, got {type(timestamp).__name__}")
+    timestamp = float(timestamp)
+    # Reasonable bounds: 0 to 24 hours (86400 seconds)
+    if timestamp < 0 or timestamp > 86400:
+        raise ValueError(f"Timestamp must be between 0 and 86400 seconds, got {timestamp}")
+    return timestamp
+
+
+def _validate_size(size: tuple[int, int]) -> tuple[int, int]:
+    """Validate size tuple for safe use in ffmpeg scale filter.
+
+    Args:
+        size: Tuple of (width, height) in pixels
+
+    Returns:
+        Validated size tuple
+
+    Raises:
+        ValueError: If size values are invalid or out of bounds
+    """
+    if not isinstance(size, tuple) or len(size) != 2:
+        raise ValueError(f"Size must be a tuple of (width, height), got {type(size).__name__}")
+    width, height = size
+    if not isinstance(width, int) or not isinstance(height, int):
+        raise ValueError("Size dimensions must be integers")
+    # Reasonable bounds: 1 to 8K resolution
+    if not (1 <= width <= 7680) or not (1 <= height <= 4320):
+        raise ValueError(f"Size dimensions must be between 1 and 7680x4320, got {width}x{height}")
+    return (width, height)
+
+
+def _validate_interval_seconds(interval_seconds: float) -> float:
+    """Validate interval for frame extraction.
+
+    Args:
+        interval_seconds: Time between frame extractions in seconds
+
+    Returns:
+        Validated interval as float
+
+    Raises:
+        ValueError: If interval is invalid or out of bounds
+    """
+    if not isinstance(interval_seconds, int | float):
+        raise ValueError(f"Interval must be a number, got {type(interval_seconds).__name__}")
+    interval_seconds = float(interval_seconds)
+    # Reasonable bounds: 0.1 seconds to 1 hour
+    if interval_seconds < 0.1 or interval_seconds > 3600:
+        raise ValueError(f"Interval must be between 0.1 and 3600 seconds, got {interval_seconds}")
+    return interval_seconds
+
+
+def _validate_max_frames(max_frames: int) -> int:
+    """Validate maximum frames for extraction.
+
+    Args:
+        max_frames: Maximum number of frames to extract
+
+    Returns:
+        Validated max_frames as int
+
+    Raises:
+        ValueError: If max_frames is invalid or out of bounds
+    """
+    if not isinstance(max_frames, int):
+        raise ValueError(f"max_frames must be an integer, got {type(max_frames).__name__}")
+    # Reasonable bounds: 1 to 1000 frames
+    if max_frames < 1 or max_frames > 1000:
+        raise ValueError(f"max_frames must be between 1 and 1000, got {max_frames}")
+    return max_frames
+
+
 class VideoProcessingError(Exception):
     """Raised when video processing fails."""
 
@@ -253,7 +338,7 @@ class VideoProcessor:
         """
         return get_mime_type_with_default(video_path, DEFAULT_VIDEO_MIME)
 
-    async def extract_thumbnail(
+    async def extract_thumbnail(  # noqa: PLR0911
         self,
         video_path: str,
         output_path: str | None = None,
@@ -284,6 +369,13 @@ class VideoProcessor:
             logger.error(f"Video path validation failed: {e}")
             return None
 
+        # Validate size parameter to prevent command injection
+        try:
+            validated_size = _validate_size(size)
+        except ValueError as e:
+            logger.error(f"Size validation failed: {e}")
+            return None
+
         try:
             # Get video duration to calculate smart timestamp
             if timestamp is None:
@@ -296,6 +388,9 @@ class VideoProcessor:
                     # Fall back to 1 second if metadata extraction fails
                     timestamp = 1.0
 
+            # Validate timestamp parameter to prevent command injection
+            validated_timestamp = _validate_timestamp(timestamp)
+
             # Generate output path if not provided
             if output_path is None:
                 video_stem = validated_path.stem
@@ -306,13 +401,13 @@ class VideoProcessor:
                 "ffmpeg",
                 "-y",  # Overwrite output file
                 "-ss",
-                str(timestamp),  # Seek to timestamp
+                str(validated_timestamp),  # Seek to timestamp (validated)
                 "-i",
                 str(validated_path),  # Input file
                 "-vframes",
                 "1",  # Extract only 1 frame
                 "-vf",
-                f"scale={size[0]}:{size[1]}:force_original_aspect_ratio=decrease,pad={size[0]}:{size[1]}:(ow-iw)/2:(oh-ih)/2",  # Scale with padding
+                f"scale={validated_size[0]}:{validated_size[1]}:force_original_aspect_ratio=decrease,pad={validated_size[0]}:{validated_size[1]}:(ow-iw)/2:(oh-ih)/2",  # Scale with padding (validated)
                 "-q:v",
                 "2",  # High quality JPEG
                 output_path,
@@ -345,7 +440,7 @@ class VideoProcessor:
             logger.error(f"Failed to extract thumbnail from {video_path}: {e}")
             return None
 
-    async def extract_frames_for_detection(
+    async def extract_frames_for_detection(  # noqa: PLR0911, PLR0912
         self,
         video_path: str,
         interval_seconds: float = 2.0,
@@ -377,6 +472,28 @@ class VideoProcessor:
             logger.error(f"Video path validation failed: {e}")
             return []
 
+        # Validate interval_seconds and max_frames to prevent command injection
+        try:
+            validated_interval = _validate_interval_seconds(interval_seconds)
+        except ValueError as e:
+            logger.error(f"Interval validation failed: {e}")
+            return []
+
+        try:
+            validated_max_frames = _validate_max_frames(max_frames)
+        except ValueError as e:
+            logger.error(f"Max frames validation failed: {e}")
+            return []
+
+        # Validate size if provided
+        validated_size: tuple[int, int] | None = None
+        if size is not None:
+            try:
+                validated_size = _validate_size(size)
+            except ValueError as e:
+                logger.error(f"Size validation failed: {e}")
+                return []
+
         try:
             # Get video duration
             metadata = await self.get_video_metadata(video_path)
@@ -389,9 +506,9 @@ class VideoProcessor:
             # Calculate frame timestamps
             timestamps: list[float] = []
             current_time = 0.5  # Start at 0.5 seconds to avoid black frames
-            while current_time < duration and len(timestamps) < max_frames:
+            while current_time < duration and len(timestamps) < validated_max_frames:
                 timestamps.append(current_time)
-                current_time += interval_seconds
+                current_time += validated_interval
 
             if not timestamps:
                 # Video too short, extract at least one frame at 10% into video
@@ -399,7 +516,7 @@ class VideoProcessor:
 
             logger.info(
                 f"Extracting {len(timestamps)} frames from {video_path} "
-                f"(duration: {duration:.1f}s, interval: {interval_seconds}s)"
+                f"(duration: {duration:.1f}s, interval: {validated_interval}s)"
             )
 
             # Create output directory for frames
@@ -409,10 +526,10 @@ class VideoProcessor:
 
             extracted_frames: list[str] = []
 
-            # Build scale filter if size is specified
+            # Build scale filter if size is specified (using validated values)
             scale_filter = ""
-            if size:
-                scale_filter = f"-vf scale={size[0]}:{size[1]}:force_original_aspect_ratio=decrease"
+            if validated_size:
+                scale_filter = f"-vf scale={validated_size[0]}:{validated_size[1]}:force_original_aspect_ratio=decrease"
 
             # Extract frames in parallel using ffmpeg
             # Use a single ffmpeg command to extract all frames efficiently
@@ -423,7 +540,7 @@ class VideoProcessor:
                     "ffmpeg",
                     "-y",  # Overwrite output file
                     "-ss",
-                    str(timestamp),  # Seek to timestamp
+                    str(timestamp),  # Seek to timestamp (already bounded by duration)
                     "-i",
                     str(validated_path),  # Input file
                     "-vframes",

@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.api.middleware import RateLimiter, RateLimitTier
 from backend.api.schemas.camera import (
     CameraCreate,
     CameraListResponse,
@@ -17,7 +18,7 @@ from backend.api.schemas.camera import (
 )
 from backend.core.config import get_settings
 from backend.core.database import get_db
-from backend.core.logging import get_logger
+from backend.core.logging import get_logger, sanitize_log_value
 from backend.models.audit import AuditAction
 from backend.models.camera import Camera
 from backend.services.audit import AuditService
@@ -29,6 +30,9 @@ from backend.services.cache_service import (
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/cameras", tags=["cameras"])
+
+# Rate limiter for snapshot endpoints (same tier as media)
+snapshot_rate_limiter = RateLimiter(tier=RateLimitTier.MEDIA)
 
 # Allowed snapshot types
 _SNAPSHOT_TYPES = {
@@ -63,7 +67,10 @@ async def list_cameras(
         cache = await get_cache_service()
         cached_data = await cache.get(cache_key)
         if cached_data is not None:
-            logger.debug(f"Returning cached cameras for status={status_filter}")
+            logger.debug(
+                "Returning cached cameras for status=%s",
+                sanitize_log_value(status_filter),
+            )
             # Cast to expected type - cache stores dict[str, Any]
             return dict(cached_data)
     except Exception as e:
@@ -348,12 +355,27 @@ async def delete_camera(
         logger.warning(f"Cache invalidation failed: {e}")
 
 
-@router.get("/{camera_id}/snapshot", response_class=FileResponse)
+@router.get(
+    "/{camera_id}/snapshot",
+    response_class=FileResponse,
+    responses={
+        200: {"description": "Snapshot served successfully"},
+        403: {"description": "Access denied"},
+        404: {"description": "Camera or snapshot not found"},
+        429: {"description": "Too many requests"},
+    },
+)
 async def get_camera_snapshot(
     camera_id: str,
     db: AsyncSession = Depends(get_db),
+    _rate_limit: None = Depends(snapshot_rate_limiter),
 ) -> FileResponse:
     """Return the latest image for a camera (best-effort snapshot).
+
+    This endpoint is exempt from API key authentication because:
+    1. It serves static image content accessed directly by browsers via <img> tags
+    2. It has its own security controls (path traversal protection, file type allowlist)
+    3. It has rate limiting to prevent abuse
 
     This endpoint uses the camera's configured `folder_path` and returns the most recently
     modified image file under that directory.

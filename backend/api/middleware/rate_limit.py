@@ -70,7 +70,10 @@ def _is_ip_trusted(client_ip: str, trusted_ips: list[str]) -> bool:
                 if ip_obj == trusted_ip:
                     return True
         except ValueError:
-            # Invalid trusted IP entry, skip
+            logger.warning(
+                f"Invalid CIDR in trusted_proxy_ips: {trusted}, skipping",
+                extra={"invalid_trusted_ip": trusted, "client_ip": client_ip},
+            )
             continue
 
     return False

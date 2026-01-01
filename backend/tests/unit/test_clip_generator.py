@@ -7,8 +7,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from backend.services.clip_generator import (
+    ALLOWED_OUTPUT_FORMATS,
     ClipGenerationError,
     ClipGenerator,
+    _validate_fps,
+    _validate_output_format,
+    _validate_roll_seconds,
+    _validate_video_path,
     get_clip_generator,
     reset_clip_generator,
 )
@@ -679,3 +684,217 @@ async def test_generate_clip_from_images_path_objects(
         result = await clip_generator.generate_clip_from_images(mock_event, images)
 
         assert result is not None
+
+
+# =============================================================================
+# Security Validation Tests - Command Injection Prevention
+# =============================================================================
+
+
+class TestSecurityValidation:
+    """Test input validation functions that prevent command injection."""
+
+    def test_validate_video_path_rejects_nonexistent(self) -> None:
+        """Test that nonexistent paths are rejected."""
+        with pytest.raises(ValueError, match="Video file not found"):
+            _validate_video_path("/nonexistent/path/to/video.mp4")
+
+    def test_validate_video_path_rejects_directory(self, tmp_path: Path) -> None:
+        """Test that directories are rejected."""
+        with pytest.raises(ValueError, match="Path is not a file"):
+            _validate_video_path(str(tmp_path))
+
+    def test_validate_video_path_rejects_dash_prefix(self) -> None:
+        """Test that paths starting with dash are rejected (command option injection)."""
+        with pytest.raises(ValueError, match="Video file not found"):
+            _validate_video_path("-malicious_file.mp4")
+
+    def test_validate_video_path_accepts_valid_file(self, tmp_path: Path) -> None:
+        """Test that valid video files are accepted."""
+        video_file = tmp_path / "valid_video.mp4"
+        video_file.write_bytes(b"fake video content")
+        result = _validate_video_path(str(video_file))
+        assert result == video_file.resolve()
+
+    def test_validate_roll_seconds_rejects_non_integer(self) -> None:
+        """Test that non-integer roll seconds are rejected."""
+        with pytest.raises(ValueError, match="pre_seconds must be an integer"):
+            _validate_roll_seconds(5.5, "pre_seconds")  # type: ignore[arg-type]
+
+    def test_validate_roll_seconds_rejects_negative(self) -> None:
+        """Test that negative roll seconds are rejected."""
+        with pytest.raises(ValueError, match="pre_seconds must be between 0 and 300"):
+            _validate_roll_seconds(-1, "pre_seconds")
+
+    def test_validate_roll_seconds_rejects_too_large(self) -> None:
+        """Test that roll seconds over 5 minutes are rejected."""
+        with pytest.raises(ValueError, match="post_seconds must be between 0 and 300"):
+            _validate_roll_seconds(400, "post_seconds")
+
+    def test_validate_roll_seconds_accepts_valid_values(self) -> None:
+        """Test that valid roll seconds are accepted."""
+        assert _validate_roll_seconds(0, "pre_seconds") == 0
+        assert _validate_roll_seconds(5, "pre_seconds") == 5
+        assert _validate_roll_seconds(300, "post_seconds") == 300
+
+    def test_validate_output_format_rejects_invalid(self) -> None:
+        """Test that invalid output formats are rejected."""
+        with pytest.raises(ValueError, match="Output format must be one of"):
+            _validate_output_format("avi")
+        with pytest.raises(ValueError, match="Output format must be one of"):
+            _validate_output_format("mp4; rm -rf /")
+
+    def test_validate_output_format_accepts_valid(self) -> None:
+        """Test that valid output formats are accepted."""
+        assert _validate_output_format("mp4") == "mp4"
+        assert _validate_output_format("gif") == "gif"
+        assert _validate_output_format("MP4") == "mp4"
+        assert _validate_output_format("GIF") == "gif"
+        assert _validate_output_format("  mp4  ") == "mp4"
+
+    def test_allowed_formats_immutable(self) -> None:
+        """Test that ALLOWED_OUTPUT_FORMATS is immutable."""
+        assert isinstance(ALLOWED_OUTPUT_FORMATS, frozenset)
+        assert "mp4" in ALLOWED_OUTPUT_FORMATS
+        assert "gif" in ALLOWED_OUTPUT_FORMATS
+
+    def test_validate_fps_rejects_non_integer(self) -> None:
+        """Test that non-integer fps are rejected."""
+        with pytest.raises(ValueError, match="fps must be an integer"):
+            _validate_fps(2.5)  # type: ignore[arg-type]
+        with pytest.raises(ValueError, match="fps must be an integer"):
+            _validate_fps("2")  # type: ignore[arg-type]
+
+    def test_validate_fps_rejects_out_of_bounds(self) -> None:
+        """Test that out-of-bounds fps are rejected."""
+        with pytest.raises(ValueError, match="fps must be between 1 and 60"):
+            _validate_fps(0)
+        with pytest.raises(ValueError, match="fps must be between 1 and 60"):
+            _validate_fps(61)
+
+    def test_validate_fps_accepts_valid_values(self) -> None:
+        """Test that valid fps are accepted."""
+        assert _validate_fps(1) == 1
+        assert _validate_fps(30) == 30
+        assert _validate_fps(60) == 60
+
+
+class TestClipGeneratorSecurityIntegration:
+    """Integration tests for security validation in ClipGenerator methods."""
+
+    @pytest.fixture
+    def temp_clips_dir(self, tmp_path):
+        """Create temporary clips directory."""
+        clips_dir = tmp_path / "clips"
+        clips_dir.mkdir()
+        return clips_dir
+
+    @pytest.fixture
+    def clip_generator(self, temp_clips_dir):
+        """Create ClipGenerator instance with temp directory."""
+        return ClipGenerator(
+            clips_directory=str(temp_clips_dir),
+            pre_roll_seconds=5,
+            post_roll_seconds=5,
+            enabled=True,
+        )
+
+    @pytest.fixture
+    def mock_event(self):
+        """Create mock Event object."""
+        event = MagicMock()
+        event.id = 123
+        event.started_at = datetime(2024, 1, 15, 10, 30, 0)
+        event.ended_at = datetime(2024, 1, 15, 10, 30, 30)
+        event.camera_id = "front_door"
+        return event
+
+    @pytest.mark.asyncio
+    async def test_generate_clip_from_video_rejects_invalid_path(
+        self, clip_generator, mock_event
+    ) -> None:
+        """Test that generate_clip_from_video rejects invalid video paths."""
+        # Path that looks like command option
+        result = await clip_generator.generate_clip_from_video(
+            mock_event, "-i /etc/passwd -o /tmp/evil"
+        )
+        assert result is None
+
+        # Nonexistent path
+        result = await clip_generator.generate_clip_from_video(mock_event, "/nonexistent/video.mp4")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_generate_clip_from_images_rejects_invalid_fps(
+        self, clip_generator, mock_event, tmp_path
+    ) -> None:
+        """Test that generate_clip_from_images rejects invalid fps."""
+        img_path = tmp_path / "frame1.jpg"
+        img_path.touch()
+
+        with pytest.raises(ValueError, match="fps must be between 1 and 60"):
+            await clip_generator.generate_clip_from_images(mock_event, [str(img_path)], fps=0)
+
+        with pytest.raises(ValueError, match="fps must be between 1 and 60"):
+            await clip_generator.generate_clip_from_images(mock_event, [str(img_path)], fps=100)
+
+    @pytest.mark.asyncio
+    async def test_generate_clip_from_images_rejects_invalid_format(
+        self, clip_generator, mock_event, tmp_path
+    ) -> None:
+        """Test that generate_clip_from_images rejects invalid output format."""
+        img_path = tmp_path / "frame1.jpg"
+        img_path.touch()
+
+        with pytest.raises(ValueError, match="Output format must be one of"):
+            await clip_generator.generate_clip_from_images(
+                mock_event, [str(img_path)], output_format="avi; rm -rf /"
+            )
+
+    @pytest.mark.asyncio
+    async def test_generate_clip_for_event_rejects_invalid_fps(
+        self, clip_generator, mock_event, tmp_path
+    ) -> None:
+        """Test that generate_clip_for_event rejects invalid fps."""
+        img_path = tmp_path / "frame1.jpg"
+        img_path.touch()
+
+        with pytest.raises(ValueError, match="fps must be between 1 and 60"):
+            await clip_generator.generate_clip_for_event(
+                mock_event, image_paths=[str(img_path)], fps=0
+            )
+
+    def test_validate_image_paths_rejects_dash_prefix(self, clip_generator, tmp_path) -> None:
+        """Test that _validate_image_paths filters out paths starting with dash."""
+        # Create a regular file
+        valid_img = tmp_path / "valid.jpg"
+        valid_img.touch()
+
+        # Try to include a path that looks like a command option
+        # This won't exist, so it will be filtered out
+        result = clip_generator._validate_image_paths([str(valid_img), "-i /etc/passwd"])
+
+        assert len(result) == 1
+        assert result[0] == valid_img.resolve()
+
+    def test_validate_image_paths_skips_nonexistent(self, clip_generator, tmp_path) -> None:
+        """Test that _validate_image_paths skips nonexistent files."""
+        valid_img = tmp_path / "valid.jpg"
+        valid_img.touch()
+
+        result = clip_generator._validate_image_paths([str(valid_img), "/nonexistent/image.jpg"])
+
+        assert len(result) == 1
+        assert result[0] == valid_img.resolve()
+
+    def test_validate_image_paths_skips_directories(self, clip_generator, tmp_path) -> None:
+        """Test that _validate_image_paths skips directories."""
+        valid_img = tmp_path / "valid.jpg"
+        valid_img.touch()
+
+        result = clip_generator._validate_image_paths(
+            [str(valid_img), str(tmp_path)]  # tmp_path is a directory
+        )
+
+        assert len(result) == 1
+        assert result[0] == valid_img.resolve()

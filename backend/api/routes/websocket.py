@@ -315,6 +315,7 @@ async def websocket_events_endpoint(  # noqa: PLR0912
             try:
                 await heartbeat_task
             except asyncio.CancelledError:
+                # Expected during graceful shutdown - task was intentionally cancelled
                 pass
         # Ensure the connection is properly cleaned up
         await broadcaster.disconnect(websocket)
@@ -462,6 +463,7 @@ async def websocket_system_status(  # noqa: PLR0912
             try:
                 await heartbeat_task
             except asyncio.CancelledError:
+                # Expected during graceful shutdown - task was intentionally cancelled
                 pass
         # Ensure the connection is properly cleaned up
         await broadcaster.disconnect(websocket)

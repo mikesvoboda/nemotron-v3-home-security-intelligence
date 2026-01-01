@@ -17,7 +17,7 @@
 import { useState, useCallback, useMemo } from 'react';
 
 import { useWebSocket } from './useWebSocket';
-import { buildWebSocketUrl } from '../services/api';
+import { buildWebSocketOptions } from '../services/api';
 
 export type ServiceName = 'redis' | 'rtdetr' | 'nemotron';
 export type ServiceStatusType =
@@ -133,10 +133,13 @@ export function useServiceStatus(): UseServiceStatusResult {
     }
   }, []);
 
-  const wsUrl = buildWebSocketUrl('/ws/events');
+  // Build WebSocket options using helper (respects VITE_WS_BASE_URL)
+  // SECURITY: API key is passed via Sec-WebSocket-Protocol header, not URL query param
+  const wsOptions = buildWebSocketOptions('/ws/events');
 
   useWebSocket({
-    url: wsUrl,
+    url: wsOptions.url,
+    protocols: wsOptions.protocols,
     onMessage: handleMessage,
   });
 
