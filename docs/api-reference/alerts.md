@@ -41,7 +41,7 @@ The Alerts API provides endpoints for managing alert rules and notification conf
 
 List all alert rules with optional filtering and pagination.
 
-**Source:** [`list_rules`](../backend/api/routes/alerts.py:64)
+**Source:** [`list_rules`](../../backend/api/routes/alerts.py:64)
 
 **Parameters:**
 
@@ -103,7 +103,7 @@ curl "http://localhost:8000/api/alerts/rules?severity=high"
 
 Create a new alert rule.
 
-**Source:** [`create_rule`](../backend/api/routes/alerts.py:116)
+**Source:** [`create_rule`](../../backend/api/routes/alerts.py:116)
 
 **Request Body:**
 
@@ -167,7 +167,7 @@ Returns the created rule.
 
 Get a specific alert rule by ID.
 
-**Source:** [`get_rule`](../backend/api/routes/alerts.py:167)
+**Source:** [`get_rule`](../../backend/api/routes/alerts.py:167)
 
 **Parameters:**
 
@@ -191,7 +191,7 @@ Returns the alert rule object.
 
 Update an existing alert rule.
 
-**Source:** [`update_rule`](../backend/api/routes/alerts.py:237)
+**Source:** [`update_rule`](../../backend/api/routes/alerts.py:237)
 
 **Parameters:**
 
@@ -228,7 +228,7 @@ curl -X PUT http://localhost:8000/api/alerts/rules/550e8400-e29b-41d4-a716-44665
 
 Delete an alert rule.
 
-**Source:** [`delete_rule`](../backend/api/routes/alerts.py:275)
+**Source:** [`delete_rule`](../../backend/api/routes/alerts.py:275)
 
 **Parameters:**
 
@@ -250,7 +250,7 @@ Delete an alert rule.
 
 Test a rule against historical events.
 
-**Source:** [`test_rule`](../backend/api/routes/alerts.py:302)
+**Source:** [`test_rule`](../../backend/api/routes/alerts.py:302)
 
 **Parameters:**
 
@@ -321,7 +321,7 @@ Test a rule against historical events.
 
 Get notification configuration status.
 
-**Source:** [`get_notification_config`](../backend/api/routes/notification.py:35)
+**Source:** [`get_notification_config`](../../backend/api/routes/notification.py:35)
 
 **Response:** `200 OK`
 
@@ -367,7 +367,7 @@ Get notification configuration status.
 
 Test notification delivery for a specific channel.
 
-**Source:** [`test_notification`](../backend/api/routes/notification.py:134)
+**Source:** [`test_notification`](../../backend/api/routes/notification.py:134)
 
 **Request Body:**
 

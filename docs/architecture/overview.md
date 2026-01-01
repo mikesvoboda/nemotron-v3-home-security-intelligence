@@ -256,8 +256,8 @@ flowchart TB
         end
 
         subgraph GPUContainers["Containerized GPU Services (CDI)"]
-            DET["RT-DETRv2 Container<br/>PyTorch + CUDA<br/>Port 8090<br/>~650 MiB VRAM"]
-            LLM["Nemotron Container<br/>llama.cpp<br/>Port 8091<br/>~14.7 GB VRAM"]
+            DET["RT-DETRv2 Container<br/>ONNX Runtime + CUDA<br/>Port 8090<br/>~4GB VRAM"]
+            LLM["Nemotron Container<br/>llama.cpp<br/>Port 8091<br/>~3GB VRAM"]
         end
 
         subgraph Storage["Persistent Storage"]

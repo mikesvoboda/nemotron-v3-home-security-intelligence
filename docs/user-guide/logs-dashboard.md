@@ -13,9 +13,15 @@ source_refs:
 
 # Logs Dashboard
 
-<!-- Nano Banana Pro Prompt:
-"Dark mode application logs dashboard interface, showing log entries in a table format with severity indicators (green info, yellow warning, red error), timestamp column, message column, filter controls at top, NVIDIA dark theme #121212 background with #76B900 green accents, clean minimalist UI, vertical 2:3 aspect ratio, no text overlays"
+<!-- SCREENSHOT: Logs Dashboard Full View
+Location: Logs page (click Logs in sidebar)
+Shows: Complete Logs dashboard with: four statistics cards at top (Errors Today in red with count, Warnings Today in yellow, Total Today in green, Most Active Component), collapsible filter panel with dropdowns (Log Level, Component, Camera, date pickers, search box), logs table showing entries with timestamp, level badge (color-coded), component name (green monospace), and truncated message, pagination controls at bottom
+Size: 1400x900 pixels (16:9 aspect ratio)
+Alt text: Logs dashboard showing statistics cards, filter controls, and log entries table with color-coded severity levels
 -->
+
+![Logs Dashboard](../images/placeholder-logs-dashboard-full.png)
+_Caption: The Logs Dashboard provides visibility into system operations and helps troubleshoot issues._
 
 ## Overview
 
@@ -179,6 +185,16 @@ To reset all filters and view unfiltered logs:
 ### Log Detail Modal
 
 Click any log row to open a modal with complete log details:
+
+<!-- SCREENSHOT: Log Detail Modal
+Location: Modal popup after clicking any log row
+Shows: Log detail modal with: header showing component name as title, full timestamp, level badge with icon, close X button. Body sections: full message text, Log Details metadata table (ID, Component, Source, Camera ID, Event ID, etc.), User Agent section (for frontend logs), and Additional Data section with JSON syntax highlighting
+Size: 700x600 pixels (~7:6 aspect ratio)
+Alt text: Log detail modal showing complete log information including metadata, message, and additional JSON data
+-->
+
+![Log Detail Modal](../images/placeholder-log-detail-modal.png)
+_Caption: Click any log entry to see complete details including metadata and additional data._
 
 **Header Section:**
 
@@ -395,6 +411,6 @@ Frontend logs are automatically sent to this endpoint when errors occur in the w
 
 - [Monitoring Guide](../admin-guide/monitoring.md) - Comprehensive system monitoring strategies
 - [Troubleshooting Guide](../admin-guide/troubleshooting.md) - Common issues and solutions
-- [System Health Endpoints](../api-reference/system-endpoints.md) - API health check documentation
+- [System Health Endpoints](../api-reference/system.md) - API health check documentation
 - [Dashboard Overview](./dashboard-overview.md) - Main dashboard features
 - [Understanding Alerts](./understanding-alerts.md) - Alert system documentation

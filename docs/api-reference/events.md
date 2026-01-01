@@ -31,7 +31,7 @@ The Events API provides endpoints for managing security events. Events are aggre
 
 List events with optional filtering and pagination.
 
-**Source:** [`list_events`](../backend/api/routes/events.py:55)
+**Source:** [`list_events`](../../backend/api/routes/events.py:55)
 
 **Parameters:**
 
@@ -96,7 +96,7 @@ curl "http://localhost:8000/api/events?reviewed=false"
 
 Get aggregated event statistics.
 
-**Source:** [`get_event_stats`](../backend/api/routes/events.py:181)
+**Source:** [`get_event_stats`](../../backend/api/routes/events.py:181)
 
 **Parameters:**
 
@@ -147,7 +147,7 @@ curl "http://localhost:8000/api/events/stats?start_date=2025-12-01T00:00:00Z&end
 
 Full-text search events using PostgreSQL full-text search.
 
-**Source:** [`search_events_endpoint`](../backend/api/routes/events.py:258)
+**Source:** [`search_events_endpoint`](../../backend/api/routes/events.py:258)
 
 **Parameters:**
 
@@ -238,7 +238,7 @@ sequenceDiagram
 
 Export events as a CSV file.
 
-**Source:** [`export_events`](../backend/api/routes/events.py:355)
+**Source:** [`export_events`](../../backend/api/routes/events.py:355)
 
 **Parameters:**
 
@@ -295,7 +295,7 @@ This operation creates an audit log entry with action `media_exported`.
 
 Get a specific event by ID.
 
-**Source:** [`get_event`](../backend/api/routes/events.py:490)
+**Source:** [`get_event`](../../backend/api/routes/events.py:490)
 
 **Parameters:**
 
@@ -340,7 +340,7 @@ curl http://localhost:8000/api/events/1
 
 Update an event's review status and/or notes.
 
-**Source:** [`update_event`](../backend/api/routes/events.py:536)
+**Source:** [`update_event`](../../backend/api/routes/events.py:536)
 
 **Parameters:**
 
@@ -411,7 +411,7 @@ This operation creates an audit log entry with:
 
 Get all detections associated with an event.
 
-**Source:** [`get_event_detections`](../backend/api/routes/events.py:628)
+**Source:** [`get_event_detections`](../../backend/api/routes/events.py:628)
 
 **Parameters:**
 
@@ -467,7 +467,7 @@ curl http://localhost:8000/api/events/1/detections
 
 Full event response model.
 
-**Source:** [`EventResponse`](../backend/api/schemas/events.py:8)
+**Source:** [`EventResponse`](../../backend/api/schemas/events.py:8)
 
 | Field             | Type           | Description                                     |
 | ----------------- | -------------- | ----------------------------------------------- |
@@ -488,7 +488,7 @@ Full event response model.
 
 Request model for updating an event.
 
-**Source:** [`EventUpdate`](../backend/api/schemas/events.py:47)
+**Source:** [`EventUpdate`](../../backend/api/schemas/events.py:47)
 
 | Field      | Type    | Required | Description            |
 | ---------- | ------- | -------- | ---------------------- |
@@ -499,7 +499,7 @@ Request model for updating an event.
 
 Response model for event statistics.
 
-**Source:** [`EventStatsResponse`](../backend/api/schemas/events.py:136)
+**Source:** [`EventStatsResponse`](../../backend/api/schemas/events.py:136)
 
 | Field                  | Type    | Description                  |
 | ---------------------- | ------- | ---------------------------- |

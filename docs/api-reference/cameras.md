@@ -28,7 +28,7 @@ The Cameras API provides CRUD operations for managing security cameras in the sy
 
 List all cameras with optional status filter.
 
-**Source:** [`list_cameras`](../backend/api/routes/cameras.py:35)
+**Source:** [`list_cameras`](../../backend/api/routes/cameras.py:35)
 
 **Parameters:**
 
@@ -77,7 +77,7 @@ curl "http://localhost:8000/api/cameras?status=online"
 
 Get a specific camera by its UUID.
 
-**Source:** [`get_camera`](../backend/api/routes/cameras.py:64)
+**Source:** [`get_camera`](../../backend/api/routes/cameras.py:64)
 
 **Parameters:**
 
@@ -127,7 +127,7 @@ curl http://localhost:8000/api/cameras/123e4567-e89b-12d3-a456-426614174000
 
 Create a new camera.
 
-**Source:** [`create_camera`](../backend/api/routes/cameras.py:94)
+**Source:** [`create_camera`](../../backend/api/routes/cameras.py:94)
 
 **Request Body:**
 
@@ -188,7 +188,7 @@ This operation creates an audit log entry with action `camera_created`.
 
 Update an existing camera. Only provided fields are updated.
 
-**Source:** [`update_camera`](../backend/api/routes/cameras.py:141)
+**Source:** [`update_camera`](../../backend/api/routes/cameras.py:141)
 
 **Parameters:**
 
@@ -253,7 +253,7 @@ This operation creates an audit log entry with action `camera_updated`, includin
 
 Delete a camera. This operation cascades to delete all related detections and events.
 
-**Source:** [`delete_camera`](../backend/api/routes/cameras.py:209)
+**Source:** [`delete_camera`](../../backend/api/routes/cameras.py:209)
 
 **Parameters:**
 
@@ -289,7 +289,7 @@ This operation creates an audit log entry with action `camera_deleted`.
 
 Get the latest snapshot image from a camera. Returns the most recently modified image file from the camera's configured folder path.
 
-**Source:** [`get_camera_snapshot`](../backend/api/routes/cameras.py:257)
+**Source:** [`get_camera_snapshot`](../../backend/api/routes/cameras.py:257)
 
 **Parameters:**
 
@@ -343,7 +343,7 @@ The endpoint validates that the camera's folder path is within the configured `f
 
 Full camera response model.
 
-**Source:** [`CameraResponse`](../backend/api/schemas/camera.py:47)
+**Source:** [`CameraResponse`](../../backend/api/schemas/camera.py:47)
 
 | Field          | Type     | Description                                  |
 | -------------- | -------- | -------------------------------------------- |
@@ -358,7 +358,7 @@ Full camera response model.
 
 Request model for creating a camera.
 
-**Source:** [`CameraCreate`](../backend/api/schemas/camera.py:8)
+**Source:** [`CameraCreate`](../../backend/api/schemas/camera.py:8)
 
 | Field         | Type   | Required | Constraints | Description                        |
 | ------------- | ------ | -------- | ----------- | ---------------------------------- |
@@ -370,7 +370,7 @@ Request model for creating a camera.
 
 Request model for updating a camera.
 
-**Source:** [`CameraUpdate`](../backend/api/schemas/camera.py:28)
+**Source:** [`CameraUpdate`](../../backend/api/schemas/camera.py:28)
 
 | Field         | Type   | Required | Constraints | Description     |
 | ------------- | ------ | -------- | ----------- | --------------- |
@@ -382,7 +382,7 @@ Request model for updating a camera.
 
 Response model for camera list.
 
-**Source:** [`CameraListResponse`](../backend/api/schemas/camera.py:72)
+**Source:** [`CameraListResponse`](../../backend/api/schemas/camera.py:72)
 
 | Field     | Type          | Description             |
 | --------- | ------------- | ----------------------- |

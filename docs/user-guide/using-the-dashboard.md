@@ -11,6 +11,16 @@ description: Complete guide to all dashboard features
 
 Welcome to your Home Security Intelligence dashboard. This guide will walk you through every feature of the system so you can easily monitor your home's security.
 
+<!-- SCREENSHOT: Complete Dashboard Tutorial Overview
+Location: Main dashboard page with annotations
+Shows: Full dashboard view with numbered callouts pointing to: (1) Header/status area, (2) Sidebar navigation, (3) Quick stats row, (4) Risk gauge, (5) GPU stats, (6) Camera grid, (7) Activity feed
+Size: 1400x900 pixels (16:9 aspect ratio)
+Alt text: Annotated dashboard overview showing all major sections with numbered callouts for learning the interface
+-->
+<!-- Image placeholder - screenshot would go here -->
+
+_Caption: The main dashboard with numbered sections for easy reference._
+
 ## Table of Contents
 
 1. [Getting Started](#getting-started)
@@ -107,12 +117,14 @@ The Risk Gauge is a circular dial that shows you the current security risk level
 
 The gauge displays a number from **0 to 100**:
 
+> See [Risk Levels Reference](../reference/config/risk-levels.md) for the canonical definition.
+
 | Score Range | Level               | What It Means                               |
 | ----------- | ------------------- | ------------------------------------------- |
-| 0-25        | **Low** (Green)     | Normal activity, nothing concerning         |
-| 26-50       | **Medium** (Yellow) | Something to be aware of, but probably okay |
-| 51-75       | **High** (Orange)   | Significant activity detected, check it out |
-| 76-100      | **Critical** (Red)  | Immediate attention needed                  |
+| 0-29        | **Low** (Green)     | Normal activity, nothing concerning         |
+| 30-59       | **Medium** (Yellow) | Something to be aware of, but probably okay |
+| 60-84       | **High** (Orange)   | Significant activity detected, check it out |
+| 85-100      | **Critical** (Red)  | Immediate attention needed                  |
 
 ### Reading the Gauge
 
@@ -291,6 +303,16 @@ Events are shown 20 at a time. Use the **Previous** and **Next** buttons at the 
 
 When you click on any event (in the feed, timeline, or alerts), a detailed popup window appears.
 
+<!-- SCREENSHOT: Event Detail Modal Complete
+Location: Modal popup after clicking any event
+Shows: Full event detail modal with: header (camera name, timestamp, duration, large risk badge), detection image with bounding boxes, thumbnail strip for sequence, AI Summary text, AI Reasoning highlighted section, Detected Objects list with confidence bars, Notes text area with Save button, and Previous/Next navigation buttons
+Size: 900x850 pixels (~1:1 aspect ratio)
+Alt text: Complete event detail modal showing all sections including detection image, AI analysis, detected objects, and user notes area
+-->
+<!-- Image placeholder - screenshot would go here -->
+
+_Caption: The event detail popup shows everything the AI observed and analyzed._
+
 ### Event Detail Modal Contents
 
 The popup is divided into several sections:
@@ -358,6 +380,16 @@ Technical information including:
 
 The Alerts page focuses only on events that need your attention - those rated High or Critical risk.
 
+<!-- SCREENSHOT: Alerts Page View
+Location: Alerts page (click Alerts in sidebar)
+Shows: Alerts page with warning triangle icon in title, severity filter dropdown showing options (All Alerts, Critical Only, High Only), refresh button, results summary with counts, and event cards with orange/red left borders indicating high/critical risk
+Size: 1200x700 pixels (12:7 aspect ratio)
+Alt text: Alerts page showing filtered view of high and critical risk events with severity dropdown and colored event cards
+-->
+<!-- Image placeholder - screenshot would go here -->
+
+_Caption: The Alerts page shows only high-priority events that need your attention._
+
 ### Accessing Alerts
 
 Click **Alerts** in the left sidebar. A warning triangle icon appears next to the title.
@@ -366,8 +398,8 @@ Click **Alerts** in the left sidebar. A warning triangle icon appears next to th
 
 The Alerts page shows the same event cards as the Timeline, but automatically filtered to show only:
 
-- **High risk** events (score 51-75)
-- **Critical risk** events (score 76-100)
+- **High risk** events (score 60-84)
+- **Critical risk** events (score 85-100)
 
 ### Filtering Alerts
 
@@ -388,6 +420,16 @@ If no high-risk events exist, you will see a friendly message: "No Alerts at Thi
 ---
 
 ## Navigation
+
+<!-- SCREENSHOT: Sidebar Navigation
+Location: Left sidebar of dashboard
+Shows: Sidebar with navigation items: Dashboard (selected/highlighted in green), Timeline, Entities (with "WIP" badge), Alerts, Logs, System, Settings. Show different states - normal (gray), hover (lighter), selected (green background)
+Size: 300x500 pixels (3:5 aspect ratio)
+Alt text: Sidebar navigation showing menu items with Dashboard selected and highlighted in green
+-->
+<!-- Image placeholder - screenshot would go here -->
+
+_Caption: The sidebar lets you navigate between different areas of the dashboard._
 
 ### Moving Between Pages
 
@@ -443,27 +485,29 @@ The settings page has three tabs:
 
 The AI system assigns a risk score to every event. Here is what each level means:
 
+> See [Risk Levels Reference](../reference/config/risk-levels.md) for the canonical definition and configuration options.
+
 ```mermaid
 graph LR
-    subgraph Low["LOW (0-25)"]
+    subgraph Low["LOW (0-29)"]
         L1["Normal activity"]
         L2["Known patterns"]
         L3["Expected visitors"]
     end
 
-    subgraph Medium["MEDIUM (26-50)"]
+    subgraph Medium["MEDIUM (30-59)"]
         M1["Unusual timing"]
         M2["Unknown person"]
         M3["Extended loitering"]
     end
 
-    subgraph High["HIGH (51-75)"]
+    subgraph High["HIGH (60-84)"]
         H1["Suspicious behavior"]
         H2["Multiple unknowns"]
         H3["Night activity"]
     end
 
-    subgraph Critical["CRITICAL (76-100)"]
+    subgraph Critical["CRITICAL (85-100)"]
         C1["Clear threat"]
         C2["Attempted entry"]
         C3["Known problem"]
@@ -472,7 +516,7 @@ graph LR
     Low --> Medium --> High --> Critical
 ```
 
-### Low Risk (Green, 0-25)
+### Low Risk (Green, 0-29)
 
 - Regular household activity
 - Family members coming and going
@@ -480,21 +524,21 @@ graph LR
 - Animals and wildlife
 - Normal neighborhood traffic
 
-### Medium Risk (Yellow, 26-50)
+### Medium Risk (Yellow, 30-59)
 
 - Unfamiliar people near property
 - Activity at unusual hours
 - Longer-than-normal presence
 - Vehicles stopping briefly
 
-### High Risk (Orange, 51-75)
+### High Risk (Orange, 60-84)
 
 - Unknown individuals approaching doors/windows
 - Activity late at night
 - Multiple people acting together
 - Repeated visits by same unknown person
 
-### Critical Risk (Red, 76-100)
+### Critical Risk (Red, 85-100)
 
 - Attempted unauthorized entry
 - Suspicious behavior near entry points
@@ -599,7 +643,7 @@ Include callout annotations:
 - Arrow to center number: "Current risk score (0-100)"
 - Arrow to text label: "Risk level name"
 - Arrow to sparkline: "Recent risk history trend"
-- Arrows to small gauges: "Low: 0-25", "Medium: 26-50", "High: 51-75", "Critical: 76-100"
+- Arrows to small gauges: "Low: 0-29", "Medium: 30-59", "High: 60-84", "Critical: 85-100"
 ```
 
 ---
@@ -914,31 +958,31 @@ Visual style: Clean dark theme, educational diagram style.
 
 Show 4 horizontal sections, one for each risk level:
 
-LOW (0-25):
+LOW (0-29):
 - Large green (#76B900) filled bar
 - "LOW" label in green
-- "0-25" score range
+- "0-29" score range
 - Examples: "Regular activity", "Family members", "Expected deliveries"
 - Checkmark icon
 
-MEDIUM (26-50):
+MEDIUM (30-59):
 - Large yellow (#FFB800) filled bar
 - "MEDIUM" label in yellow
-- "26-50" score range
+- "30-59" score range
 - Examples: "Unknown visitor", "Unusual timing", "Extended presence"
 - Warning triangle icon
 
-HIGH (51-75):
+HIGH (60-84):
 - Large orange (#E74856) filled bar
 - "HIGH" label in orange
-- "51-75" score range
+- "60-84" score range
 - Examples: "Suspicious behavior", "Night activity", "Multiple unknowns"
 - Alert icon
 
-CRITICAL (76-100):
+CRITICAL (85-100):
 - Large red (#ef4444) filled bar with pulsing glow effect
 - "CRITICAL" label in red
-- "76-100" score range
+- "85-100" score range
 - Examples: "Clear threat", "Attempted entry", "Emergency"
 - Octagon alert icon
 

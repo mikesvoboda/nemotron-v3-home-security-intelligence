@@ -153,10 +153,10 @@ event = await analyzer.analyze_batch(batch_id)
 
 ### Risk Scoring
 
-- **0-25 (low)**: Normal activity
-- **26-50 (medium)**: Unusual but not threatening
-- **51-75 (high)**: Suspicious activity
-- **76-100 (critical)**: Potential security threat
+- **0-29 (low)**: Normal activity
+- **30-59 (medium)**: Unusual but not threatening
+- **60-84 (high)**: Suspicious activity
+- **85-100 (critical)**: Potential security threat
 
 ## Prerequisites
 

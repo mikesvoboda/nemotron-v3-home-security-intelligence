@@ -11,9 +11,15 @@ source_refs:
 
 The full-text search feature allows you to find specific security events across your entire history using natural language queries and special syntax operators.
 
-<!-- Nano Banana Pro Prompt:
-"Dark mode search interface with search bar, filter dropdowns, and search results grid showing security events, vertical crop, NVIDIA aesthetic"
+<!-- SCREENSHOT: Search Interface Overview
+Location: Event Timeline page > Full-Text Search panel
+Shows: Search panel with: search bar with magnifying glass icon, help (?) button, "Filters" button with "Active" badge, expanded filter dropdowns below, and search results showing cards with relevance scores (percentage), risk badges, and event summaries
+Size: 1200x700 pixels (12:7 aspect ratio)
+Alt text: Full-text search interface showing search bar, filter controls, and search results with relevance scoring
 -->
+
+![Search Interface](../images/placeholder-search-interface.png)
+_Caption: The full-text search lets you find specific events using keywords and filters._
 
 ## Accessing Search
 
@@ -147,6 +153,16 @@ Click the **Filters** button to expand the advanced filters panel. These filters
 Click **Clear All** to reset all filters and clear the search query.
 
 ## Search Results
+
+<!-- SCREENSHOT: Search Results Display
+Location: Search results area below search bar
+Shows: Search results grid showing: result count header ("Showing 1-20 of 150 results for 'person'"), "Back to browse" link, and search result cards with relevance percentage badges (color-coded: green for 80%+, yellow for 50-79%, etc.), risk badges, summaries with search terms, and camera/timestamp info
+Size: 1000x500 pixels (2:1 aspect ratio)
+Alt text: Search results showing event cards with relevance scores, risk indicators, and highlighted search terms
+-->
+
+![Search Results](../images/placeholder-search-results.png)
+_Caption: Search results show relevance scores to help you find the best matches._
 
 ### Results Display
 

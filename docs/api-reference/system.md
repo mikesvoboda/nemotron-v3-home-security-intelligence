@@ -36,7 +36,7 @@ The System API provides endpoints for monitoring system health, GPU statistics, 
 
 Get detailed system health check.
 
-**Source:** [`get_health`](../backend/api/routes/system.py:665)
+**Source:** [`get_health`](../../backend/api/routes/system.py:665)
 
 **Response:** `200 OK` (healthy) or `503 Service Unavailable` (degraded/unhealthy)
 
@@ -113,7 +113,7 @@ sequenceDiagram
 
 Kubernetes-style liveness probe.
 
-**Source:** [`get_liveness`](../backend/api/routes/system.py:753)
+**Source:** [`get_liveness`](../../backend/api/routes/system.py:753)
 
 **Response:** `200 OK`
 
@@ -131,7 +131,7 @@ Kubernetes-style liveness probe.
 
 Kubernetes-style readiness probe with detailed status.
 
-**Source:** [`get_readiness`](../backend/api/routes/system.py:774)
+**Source:** [`get_readiness`](../../backend/api/routes/system.py:774)
 
 **Response:** `200 OK` (ready) or `503 Service Unavailable` (not ready)
 
@@ -188,7 +188,7 @@ Kubernetes-style readiness probe with detailed status.
 
 Get current GPU statistics.
 
-**Source:** [`get_gpu_stats`](../backend/api/routes/system.py:893)
+**Source:** [`get_gpu_stats`](../../backend/api/routes/system.py:893)
 
 **Response:** `200 OK`
 
@@ -222,7 +222,7 @@ Get current GPU statistics.
 
 Get GPU statistics time series for charting.
 
-**Source:** [`get_gpu_stats_history`](../backend/api/routes/system.py:933)
+**Source:** [`get_gpu_stats_history`](../../backend/api/routes/system.py:933)
 
 **Parameters:**
 
@@ -268,7 +268,7 @@ curl "http://localhost:8000/api/system/gpu/history?since=2025-12-23T09:00:00Z"
 
 Get system statistics.
 
-**Source:** [`get_stats`](../backend/api/routes/system.py:1100)
+**Source:** [`get_stats`](../../backend/api/routes/system.py:1100)
 
 **Response:** `200 OK`
 
@@ -296,7 +296,7 @@ Get system statistics.
 
 Get public configuration settings.
 
-**Source:** [`get_config`](../backend/api/routes/system.py:976)
+**Source:** [`get_config`](../../backend/api/routes/system.py:976)
 
 **Response:** `200 OK`
 
@@ -330,7 +330,7 @@ Get public configuration settings.
 
 Update runtime configuration settings.
 
-**Source:** [`patch_config`](../backend/api/routes/system.py:1023)
+**Source:** [`patch_config`](../../backend/api/routes/system.py:1023)
 
 **Authentication:** Required when `api_key_enabled=true` (via `X-API-Key` header)
 
@@ -382,7 +382,7 @@ curl -X PATCH http://localhost:8000/api/system/config \
 
 Get pipeline telemetry data.
 
-**Source:** [`get_telemetry`](../backend/api/routes/system.py:1271)
+**Source:** [`get_telemetry`](../../backend/api/routes/system.py:1271)
 
 **Response:** `200 OK`
 
@@ -436,7 +436,7 @@ Get pipeline telemetry data.
 
 Get detailed pipeline latency metrics with percentiles.
 
-**Source:** [`get_pipeline_latency`](../backend/api/routes/system.py:1344)
+**Source:** [`get_pipeline_latency`](../../backend/api/routes/system.py:1344)
 
 **Parameters:**
 
@@ -495,7 +495,7 @@ Get detailed pipeline latency metrics with percentiles.
 
 Trigger manual data cleanup.
 
-**Source:** [`trigger_cleanup`](../backend/api/routes/system.py:1391)
+**Source:** [`trigger_cleanup`](../../backend/api/routes/system.py:1391)
 
 **Authentication:** Required when `api_key_enabled=true` (via `X-API-Key` header)
 
@@ -555,7 +555,7 @@ curl -X POST http://localhost:8000/api/system/cleanup \
 
 Get severity level definitions and thresholds.
 
-**Source:** [`get_severity_metadata`](../backend/api/routes/system.py:1495)
+**Source:** [`get_severity_metadata`](../../backend/api/routes/system.py:1495)
 
 **Response:** `200 OK`
 
@@ -613,7 +613,7 @@ Get severity level definitions and thresholds.
 
 Get storage statistics and disk usage.
 
-**Source:** [`get_storage_stats`](../backend/api/routes/system.py:1583)
+**Source:** [`get_storage_stats`](../../backend/api/routes/system.py:1583)
 
 **Response:** `200 OK`
 
