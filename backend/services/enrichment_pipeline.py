@@ -6,6 +6,7 @@ with additional context by running on-demand AI models:
 1. License Plate Detection: Runs YOLO11 on vehicle detections
 2. License Plate OCR: Runs PaddleOCR on detected plates
 3. Face Detection: Runs YOLO11 on person detections
+4. Image Quality Assessment: BRISQUE for blur/noise/tampering detection
 
 The pipeline uses the ModelManager to efficiently load/unload models,
 minimizing VRAM usage while providing rich context for the Nemotron LLM
@@ -28,11 +29,24 @@ from backend.services.fashion_clip_loader import (
     classify_clothing,
     format_clothing_context,
 )
+from backend.services.image_quality_loader import (
+    ImageQualityResult,
+    assess_image_quality,
+    detect_quality_change,
+    interpret_blur_with_motion,
+)
 from backend.services.model_zoo import (
+    ANIMAL_CLASSES,
     PERSON_CLASS,
     VEHICLE_CLASSES,
     ModelManager,
     get_model_manager,
+)
+from backend.services.pet_classifier_loader import (
+    PetClassificationResult,
+    classify_pet,
+    format_pet_for_nemotron,
+    is_likely_pet_false_positive,
 )
 from backend.services.reid_service import (
     EntityEmbedding,
@@ -45,6 +59,15 @@ from backend.services.scene_change_detector import (
 )
 from backend.services.segformer_loader import (
     ClothingSegmentationResult,
+)
+from backend.services.vehicle_classifier_loader import (
+    VehicleClassificationResult,
+    classify_vehicle,
+    format_vehicle_classification_context,
+)
+from backend.services.vehicle_damage_loader import (
+    VehicleDamageResult,
+    detect_vehicle_damage,
 )
 from backend.services.violence_loader import (
     ViolenceDetectionResult,
@@ -165,6 +188,12 @@ class EnrichmentResult:
     weather_classification: WeatherResult | None = None
     clothing_classifications: dict[str, ClothingClassification] = field(default_factory=dict)
     clothing_segmentation: dict[str, ClothingSegmentationResult] = field(default_factory=dict)
+    vehicle_classifications: dict[str, VehicleClassificationResult] = field(default_factory=dict)
+    vehicle_damage: dict[str, VehicleDamageResult] = field(default_factory=dict)
+    pet_classifications: dict[str, PetClassificationResult] = field(default_factory=dict)
+    image_quality: ImageQualityResult | None = None
+    quality_change_detected: bool = False
+    quality_change_description: str = ""
     errors: list[str] = field(default_factory=list)
     processing_time_ms: float = 0.0
 
@@ -223,6 +252,62 @@ class EnrichmentResult:
         """Check if any suspicious clothing was detected."""
         return any(c.is_suspicious for c in self.clothing_classifications.values())
 
+    @property
+    def has_vehicle_classifications(self) -> bool:
+        """Check if any vehicle classifications are available."""
+        return bool(self.vehicle_classifications)
+
+    @property
+    def has_commercial_vehicles(self) -> bool:
+        """Check if any commercial/delivery vehicles were detected."""
+        return any(v.is_commercial for v in self.vehicle_classifications.values())
+
+    @property
+    def has_vehicle_damage(self) -> bool:
+        """Check if any vehicle damage was detected."""
+        return any(d.has_damage for d in self.vehicle_damage.values())
+
+    @property
+    def has_high_security_damage(self) -> bool:
+        """Check if any high-security vehicle damage was detected (glass shatter, lamp broken)."""
+        return any(d.has_high_security_damage for d in self.vehicle_damage.values())
+
+    @property
+    def has_image_quality(self) -> bool:
+        """Check if image quality assessment is available."""
+        return self.image_quality is not None
+
+    @property
+    def has_quality_issues(self) -> bool:
+        """Check if any image quality issues were detected."""
+        return self.image_quality is not None and not self.image_quality.is_good_quality
+
+    @property
+    def has_motion_blur(self) -> bool:
+        """Check if motion blur was detected (possible fast movement)."""
+        return self.image_quality is not None and self.image_quality.is_blurry
+
+    @property
+    def has_pet_classifications(self) -> bool:
+        """Check if any pet classifications are available."""
+        return bool(self.pet_classifications)
+
+    @property
+    def has_confirmed_pets(self) -> bool:
+        """Check if any high-confidence household pets were detected."""
+        return any(is_likely_pet_false_positive(p) for p in self.pet_classifications.values())
+
+    @property
+    def pet_only_event(self) -> bool:
+        """Check if this is a pet-only event (can skip Nemotron analysis)."""
+        return (
+            self.has_confirmed_pets
+            and not self.has_faces
+            and not self.has_license_plates
+            and not self.has_violence
+            and not self.has_clothing_classifications
+        )
+
     def to_context_string(self) -> str:  # noqa: PLR0912
         """Generate context string for LLM prompt.
 
@@ -278,6 +363,26 @@ class EnrichmentResult:
                 lines.append(f"  Person {det_id}:")
                 lines.append(f"    {format_clothing_context(classification)}")
 
+        # Vehicle Damage Detection
+        if self.vehicle_damage:
+            damaged_vehicles = {k: v for k, v in self.vehicle_damage.items() if v.has_damage}
+            if damaged_vehicles:
+                lines.append(f"## Vehicle Damage ({len(damaged_vehicles)} vehicles with damage)")
+                for det_id, damage_result in damaged_vehicles.items():
+                    lines.append(f"  Vehicle {det_id}:")
+                    lines.append(f"    {damage_result.to_context_string()}")
+                    if damage_result.has_high_security_damage:
+                        lines.append("    **SECURITY ALERT**: High-priority damage detected")
+
+        # Vehicle Classifications (ResNet-50)
+        if self.vehicle_classifications:
+            lines.append(
+                f"## Vehicle Classifications ({len(self.vehicle_classifications)} vehicles)"
+            )
+            for det_id, vehicle_class in self.vehicle_classifications.items():
+                lines.append(f"  Vehicle {det_id}:")
+                lines.append(f"    {format_vehicle_classification_context(vehicle_class)}")
+
         # License plates
         if self.license_plates:
             lines.append(f"## License Plates ({len(self.license_plates)} detected)")
@@ -294,6 +399,21 @@ class EnrichmentResult:
             lines.append(f"## Faces ({len(self.faces)} detected)")
             for i, face in enumerate(self.faces, 1):
                 lines.append(f"  - Face {i}: confidence {face.confidence:.0%}")
+
+        # Pet Classifications (for false positive context)
+        if self.pet_classifications:
+            lines.append(f"## Pet Classifications ({len(self.pet_classifications)} animals)")
+            for det_id, pet_result in self.pet_classifications.items():
+                lines.append(f"  - Animal {det_id}: {format_pet_for_nemotron(pet_result)}")
+            if self.pet_only_event:
+                lines.append("  **NOTE**: Pet-only event - low security risk")
+
+        # Image Quality Assessment
+        if self.image_quality:
+            lines.append("## Image Quality Assessment")
+            lines.append(f"  {self.image_quality.format_context()}")
+            if self.quality_change_detected:
+                lines.append(f"  **ALERT**: {self.quality_change_description}")
 
         if not lines:
             return "No additional context extracted."
@@ -328,6 +448,15 @@ class EnrichmentResult:
             "violence_detection": (
                 self.violence_detection.to_dict() if self.violence_detection else None
             ),
+            "vehicle_damage": {
+                det_id: result.to_dict() for det_id, result in self.vehicle_damage.items()
+            },
+            "vehicle_classifications": {
+                det_id: result.to_dict() for det_id, result in self.vehicle_classifications.items()
+            },
+            "image_quality": (self.image_quality.to_dict() if self.image_quality else None),
+            "quality_change_detected": self.quality_change_detected,
+            "quality_change_description": self.quality_change_description,
             "errors": self.errors,
             "processing_time_ms": self.processing_time_ms,
         }
@@ -392,6 +521,10 @@ class EnrichmentPipeline:
         violence_detection_enabled: bool = True,
         clothing_classification_enabled: bool = True,
         clothing_segmentation_enabled: bool = True,
+        vehicle_damage_detection_enabled: bool = True,
+        vehicle_classification_enabled: bool = True,
+        image_quality_enabled: bool = True,
+        pet_classification_enabled: bool = True,
         redis_client: Any | None = None,
     ) -> None:
         """Initialize the EnrichmentPipeline.
@@ -408,6 +541,9 @@ class EnrichmentPipeline:
             violence_detection_enabled: Enable violence detection (runs when 2+ persons)
             clothing_classification_enabled: Enable FashionCLIP clothing classification
             clothing_segmentation_enabled: Enable SegFormer clothing segmentation
+            vehicle_damage_detection_enabled: Enable YOLOv11 vehicle damage detection
+            vehicle_classification_enabled: Enable ResNet-50 vehicle type classification
+            image_quality_enabled: Enable BRISQUE image quality assessment (CPU-based)
             redis_client: Redis client for re-id storage (optional)
         """
         self.model_manager = model_manager or get_model_manager()
@@ -421,6 +557,11 @@ class EnrichmentPipeline:
         self.violence_detection_enabled = violence_detection_enabled
         self.clothing_classification_enabled = clothing_classification_enabled
         self.clothing_segmentation_enabled = clothing_segmentation_enabled
+        self.vehicle_damage_detection_enabled = vehicle_damage_detection_enabled
+        self.vehicle_classification_enabled = vehicle_classification_enabled
+        self.image_quality_enabled = image_quality_enabled
+        self.pet_classification_enabled = pet_classification_enabled
+        self._previous_quality_results: dict[str, ImageQualityResult] = {}
         self.redis_client = redis_client
 
         # Initialize services
@@ -591,6 +732,72 @@ class EnrichmentPipeline:
                     logger.error(error_msg)
                     result.errors.append(error_msg)
 
+        # Run vehicle damage detection on vehicle crops
+        if self.vehicle_damage_detection_enabled and pil_image:
+            vehicles = [d for d in high_conf_detections if d.class_name in VEHICLE_CLASSES]
+            if vehicles:
+                try:
+                    result.vehicle_damage = await self._detect_vehicle_damage(vehicles, pil_image)
+                except Exception as e:
+                    error_msg = f"Vehicle damage detection failed: {e}"
+                    logger.error(error_msg)
+                    result.errors.append(error_msg)
+
+        # Run vehicle segment classification on vehicle crops
+        if self.vehicle_classification_enabled and pil_image:
+            vehicles = [d for d in high_conf_detections if d.class_name in VEHICLE_CLASSES]
+            if vehicles:
+                try:
+                    result.vehicle_classifications = await self._classify_vehicle_types(
+                        vehicles, pil_image
+                    )
+                except Exception as e:
+                    error_msg = f"Vehicle classification failed: {e}"
+                    logger.error(error_msg)
+                    result.errors.append(error_msg)
+
+        # Run BRISQUE image quality assessment (CPU-based, no VRAM)
+        if self.image_quality_enabled and pil_image:
+            try:
+                quality_result = await self._assess_image_quality(pil_image, camera_id)
+                result.image_quality = quality_result
+
+                # Check for sudden quality changes (possible tampering)
+                if camera_id:
+                    previous = self._previous_quality_results.get(camera_id)
+                    change_detected, description = detect_quality_change(quality_result, previous)
+                    result.quality_change_detected = change_detected
+                    result.quality_change_description = description
+                    if change_detected:
+                        logger.warning(f"Camera {camera_id}: {description}")
+
+                    # Update tracking
+                    self._previous_quality_results[camera_id] = quality_result
+
+                # Log if blur detected with person (possible running)
+                persons = [d for d in high_conf_detections if d.class_name == PERSON_CLASS]
+                if quality_result.is_blurry and persons:
+                    blur_context = interpret_blur_with_motion(quality_result, has_person=True)
+                    logger.info(f"Motion context: {blur_context}")
+
+            except Exception as e:
+                error_msg = f"Image quality assessment failed: {e}"
+                logger.error(error_msg)
+                result.errors.append(error_msg)
+
+        # Run pet classification on dog/cat detections for false positive reduction
+        if self.pet_classification_enabled and pil_image:
+            animals = [d for d in high_conf_detections if d.class_name in ANIMAL_CLASSES]
+            if animals:
+                try:
+                    result.pet_classifications = await self._classify_pets(animals, pil_image)
+                    if result.pet_only_event:
+                        logger.info("Pet-only event detected - can skip Nemotron risk analysis")
+                except Exception as e:
+                    error_msg = f"Pet classification failed: {e}"
+                    logger.error(error_msg)
+                    result.errors.append(error_msg)
+
         result.processing_time_ms = (time.monotonic() - start_time) * 1000
         logger.info(
             f"Enrichment complete: {len(result.license_plates)} plates, "
@@ -599,7 +806,11 @@ class EnrichmentPipeline:
             f"reid={'yes' if result.has_reid_matches else 'no'}, "
             f"scene_change={'yes' if result.has_scene_change else 'no'}, "
             f"clothing_class={len(result.clothing_classifications)}, "
-            f"clothing_seg={len(result.clothing_segmentation)} "
+            f"clothing_seg={len(result.clothing_segmentation)}, "
+            f"vehicle_damage={len(result.vehicle_damage)}, "
+            f"vehicle_class={len(result.vehicle_classifications)}, "
+            f"pets={len(result.pet_classifications)}, "
+            f"quality={'yes' if result.image_quality else 'no'} "
             f"in {result.processing_time_ms:.1f}ms"
         )
 
@@ -1155,6 +1366,226 @@ class EnrichmentPipeline:
             logger.warning("segformer-b2-clothes model not available in MODEL_ZOO")
         except Exception as e:
             logger.error(f"Clothing segmentation error: {e}")
+
+        return results
+
+    async def _classify_vehicle_types(
+        self,
+        vehicles: list[DetectionInput],
+        image: Image.Image,
+    ) -> dict[str, VehicleClassificationResult]:
+        """Classify vehicle types for each vehicle detection using ResNet-50.
+
+        Runs the vehicle segment classification model on vehicle crops to identify
+        specific vehicle types (car, pickup_truck, work_van, etc.).
+
+        Args:
+            vehicles: List of vehicle detections to classify
+            image: Full frame image to crop vehicles from
+
+        Returns:
+            Dictionary mapping detection IDs to VehicleClassificationResult
+        """
+        results: dict[str, VehicleClassificationResult] = {}
+
+        if not vehicles:
+            return results
+
+        try:
+            async with self.model_manager.load("vehicle-segment-classification") as model_data:
+                for i, vehicle in enumerate(vehicles):
+                    det_id = str(vehicle.id) if vehicle.id else str(i)
+
+                    try:
+                        # Crop vehicle from full frame
+                        vehicle_crop = await self._crop_to_bbox(image, vehicle.bbox)
+                        if vehicle_crop is None:
+                            continue
+
+                        # Classify vehicle type
+                        classification = await classify_vehicle(model_data, vehicle_crop)
+                        results[det_id] = classification
+
+                        logger.debug(
+                            f"Vehicle {det_id} type: {classification.vehicle_type} "
+                            f"({classification.confidence:.0%})"
+                        )
+
+                    except Exception as e:
+                        logger.warning(f"Vehicle classification failed for vehicle {det_id}: {e}")
+                        continue
+
+        except KeyError:
+            logger.warning("vehicle-segment-classification model not available in MODEL_ZOO")
+        except Exception as e:
+            logger.error(f"Vehicle classification error: {e}")
+
+        return results
+
+    async def _detect_vehicle_damage(
+        self,
+        vehicles: list[DetectionInput],
+        image: Image.Image,
+    ) -> dict[str, VehicleDamageResult]:
+        """Detect damage on vehicle detections using YOLOv11-seg.
+
+        Runs the vehicle damage detection model on vehicle crops to identify:
+        - cracks: Surface cracks in paint/body
+        - dents: Impact dents on body panels
+        - glass_shatter: Broken/shattered glass (HIGH SECURITY)
+        - lamp_broken: Damaged headlights/taillights (HIGH SECURITY)
+        - scratches: Surface scratches on paint
+        - tire_flat: Flat or damaged tires
+
+        Security Value:
+        - glass_shatter + lamp_broken at night = suspicious (break-in/vandalism)
+        - Fresh damage on parked vehicles = possible hit-and-run or vandalism
+
+        Args:
+            vehicles: List of vehicle detections to analyze
+            image: Full frame image to crop vehicles from
+
+        Returns:
+            Dictionary mapping detection IDs to VehicleDamageResult
+        """
+        results: dict[str, VehicleDamageResult] = {}
+
+        if not vehicles:
+            return results
+
+        try:
+            async with self.model_manager.load("vehicle-damage-detection") as model:
+                for i, vehicle in enumerate(vehicles):
+                    det_id = str(vehicle.id) if vehicle.id else str(i)
+
+                    try:
+                        # Crop vehicle from full frame
+                        vehicle_crop = await self._crop_to_bbox(image, vehicle.bbox)
+                        if vehicle_crop is None:
+                            continue
+
+                        # Detect damage
+                        damage_result = await detect_vehicle_damage(model, vehicle_crop)
+                        results[det_id] = damage_result
+
+                        if damage_result.has_damage:
+                            logger.info(
+                                f"Vehicle {det_id} damage detected: "
+                                f"types={damage_result.damage_types}, "
+                                f"count={damage_result.total_damage_count}, "
+                                f"high_security={damage_result.has_high_security_damage}"
+                            )
+
+                    except Exception as e:
+                        logger.warning(f"Vehicle damage detection failed for vehicle {det_id}: {e}")
+                        continue
+
+        except KeyError:
+            logger.warning("vehicle-damage-detection model not available in MODEL_ZOO")
+        except Exception as e:
+            logger.error(f"Vehicle damage detection error: {e}")
+
+        return results
+
+    async def _assess_image_quality(
+        self,
+        image: Image.Image,
+        camera_id: str | None = None,
+    ) -> ImageQualityResult:
+        """Assess image quality using BRISQUE metric.
+
+        BRISQUE (Blind/Referenceless Image Spatial Quality Evaluator) is a
+        no-reference image quality metric that detects blur, noise, and
+        other quality degradations.
+
+        Security use cases:
+        - Sudden quality drop = possible camera obstruction/tampering
+        - High blur + person = fast movement (running)
+        - Consistent low quality = camera maintenance needed
+
+        Args:
+            image: PIL Image to assess
+            camera_id: Camera ID for tracking quality over time
+
+        Returns:
+            ImageQualityResult with quality assessment
+
+        Raises:
+            RuntimeError: If quality assessment fails
+        """
+        try:
+            async with self.model_manager.load("brisque-quality") as model_data:
+                result = await assess_image_quality(model_data, image)
+
+                if result.is_low_quality:
+                    camera_str = f" (camera: {camera_id})" if camera_id else ""
+                    logger.debug(
+                        f"Low quality image detected{camera_str}: "
+                        f"score={result.quality_score:.0f}, "
+                        f"issues={result.quality_issues}"
+                    )
+
+                return result
+
+        except KeyError as e:
+            logger.warning("brisque-quality model not available in MODEL_ZOO")
+            raise RuntimeError("brisque-quality model not configured") from e
+        except Exception as e:
+            logger.error(f"Image quality assessment error: {e}")
+            raise
+
+    async def _classify_pets(
+        self,
+        animals: list[DetectionInput],
+        image: Image.Image,
+    ) -> dict[str, PetClassificationResult]:
+        """Classify pets (dog/cat) for false positive reduction.
+
+        Runs the ResNet-18 pet classifier on animal crop detections to
+        distinguish between cats and dogs. High-confidence pet detections
+        can be used to skip Nemotron risk analysis for false positive reduction.
+
+        Args:
+            animals: List of animal detections (cat/dog classes from RT-DETRv2)
+            image: Full frame image to crop animals from
+
+        Returns:
+            Dictionary mapping detection IDs to PetClassificationResult
+        """
+        results: dict[str, PetClassificationResult] = {}
+
+        if not animals:
+            return results
+
+        try:
+            async with self.model_manager.load("pet-classifier") as model_data:
+                for i, animal in enumerate(animals):
+                    det_id = str(animal.id) if animal.id else str(i)
+
+                    try:
+                        # Crop animal from full frame
+                        animal_crop = await self._crop_to_bbox(image, animal.bbox)
+                        if animal_crop is None:
+                            continue
+
+                        # Classify pet
+                        pet_result = await classify_pet(model_data, animal_crop)
+                        results[det_id] = pet_result
+
+                        logger.debug(
+                            f"Animal {det_id} classified as {pet_result.animal_type} "
+                            f"({pet_result.confidence:.0%} confidence), "
+                            f"is_household_pet={pet_result.is_household_pet}"
+                        )
+
+                    except Exception as e:
+                        logger.warning(f"Pet classification failed for animal {det_id}: {e}")
+                        continue
+
+        except KeyError:
+            logger.warning("pet-classifier model not available in MODEL_ZOO")
+        except Exception as e:
+            logger.error(f"Pet classification error: {e}")
 
         return results
 
