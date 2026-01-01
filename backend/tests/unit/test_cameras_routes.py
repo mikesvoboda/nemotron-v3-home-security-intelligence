@@ -18,7 +18,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from backend.api.routes.cameras import router
+from backend.api.routes.cameras import router, snapshot_rate_limiter
 from backend.api.schemas.camera import (
     CameraCreate,
     CameraListResponse,
@@ -55,7 +55,12 @@ def client(mock_db_session: AsyncMock) -> TestClient:
     async def override_get_db():
         yield mock_db_session
 
+    # Override the rate limiter dependency (no-op for unit tests)
+    async def override_rate_limiter():
+        return None
+
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[snapshot_rate_limiter] = override_rate_limiter
 
     with TestClient(app) as test_client:
         yield test_client
