@@ -39,6 +39,8 @@ SLOW_TEST_PATTERNS = [
     r"test_system_broadcaster.*restarts_with_fresh",
     # Media route tests (thumbnail generation)
     r"test_media_api.*test_compat_thumbnail",
+    # Property-based tests with text generation overhead
+    r"test_alert.*test_alert_dedup_key_roundtrip",
 ]
 
 
