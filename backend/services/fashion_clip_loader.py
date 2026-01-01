@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any
 from backend.core.logging import get_logger
 
 if TYPE_CHECKING:
-    from PIL import Image
+    from PIL.Image import Image
 
 logger = get_logger(__name__)
 

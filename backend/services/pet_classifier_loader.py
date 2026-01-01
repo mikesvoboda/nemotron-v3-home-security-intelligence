@@ -172,7 +172,7 @@ async def classify_pet(
             probs = torch.nn.functional.softmax(logits, dim=-1)[0]
 
             # Get predicted class
-            pred_idx = probs.argmax().item()
+            pred_idx = int(probs.argmax().item())
             confidence = probs[pred_idx].item()
 
             # Map to labels based on model's id2label config
