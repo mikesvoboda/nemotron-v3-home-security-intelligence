@@ -13,7 +13,9 @@ Tests cover:
 
 import asyncio
 import signal
+from collections.abc import Callable
 from datetime import datetime
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -29,6 +31,133 @@ from backend.services.pipeline_workers import (
     get_pipeline_manager,
     stop_pipeline_manager,
 )
+
+# =============================================================================
+# Test Helpers for Event-Based Waiting
+# =============================================================================
+
+
+async def wait_for_condition(
+    condition: Callable[[], bool],
+    timeout: float = 2.0,
+    poll_interval: float = 0.01,
+    description: str = "condition",
+) -> bool:
+    """Wait for a condition to become true with a timeout.
+
+    This replaces arbitrary sleep() calls with deterministic condition checking.
+    The function polls the condition frequently (default 10ms) and returns as
+    soon as the condition is met, making tests faster and more reliable.
+
+    Args:
+        condition: A callable that returns True when the condition is met
+        timeout: Maximum time to wait in seconds (default 2.0)
+        poll_interval: How often to check the condition (default 0.01s)
+        description: Description for error messages
+
+    Returns:
+        True if condition was met within timeout
+
+    Raises:
+        TimeoutError: If the condition is not met within the timeout
+    """
+    deadline = asyncio.get_event_loop().time() + timeout
+    while asyncio.get_event_loop().time() < deadline:
+        if condition():
+            return True
+        await asyncio.sleep(poll_interval)
+    raise TimeoutError(f"Timeout waiting for {description}")
+
+
+async def wait_for_items_processed(
+    worker: Any,
+    min_count: int = 1,
+    timeout: float = 2.0,
+) -> None:
+    """Wait for a worker to process at least min_count items.
+
+    Args:
+        worker: Worker with a stats.items_processed attribute
+        min_count: Minimum number of items to wait for
+        timeout: Maximum wait time in seconds
+    """
+    await wait_for_condition(
+        lambda: worker.stats.items_processed >= min_count,
+        timeout=timeout,
+        description=f"worker to process {min_count} items",
+    )
+
+
+async def wait_for_worker_state(
+    worker: Any,
+    state: WorkerState,
+    timeout: float = 2.0,
+) -> None:
+    """Wait for a worker to reach a specific state.
+
+    Args:
+        worker: Worker with a stats.state attribute
+        state: Target state to wait for
+        timeout: Maximum wait time in seconds
+    """
+    await wait_for_condition(
+        lambda: worker.stats.state == state,
+        timeout=timeout,
+        description=f"worker to reach state {state.value}",
+    )
+
+
+async def wait_for_worker_running(worker: Any, timeout: float = 2.0) -> None:
+    """Wait for a worker to be running.
+
+    Args:
+        worker: Worker with a running property
+        timeout: Maximum wait time in seconds
+    """
+    await wait_for_condition(
+        lambda: worker.running,
+        timeout=timeout,
+        description="worker to start running",
+    )
+
+
+async def wait_for_errors(
+    worker: Any,
+    min_count: int = 1,
+    timeout: float = 2.0,
+) -> None:
+    """Wait for a worker to have at least min_count errors.
+
+    Args:
+        worker: Worker with a stats.errors attribute
+        min_count: Minimum number of errors to wait for
+        timeout: Maximum wait time in seconds
+    """
+    await wait_for_condition(
+        lambda: worker.stats.errors >= min_count,
+        timeout=timeout,
+        description=f"worker to have {min_count} errors",
+    )
+
+
+async def wait_for_call_count(
+    mock_fn: MagicMock | AsyncMock,
+    min_count: int = 1,
+    timeout: float = 2.0,
+) -> None:
+    """Wait for a mock function to be called at least min_count times.
+
+    Args:
+        mock_fn: Mock function with call_count attribute
+        min_count: Minimum number of calls to wait for
+        timeout: Maximum wait time in seconds
+    """
+    await wait_for_condition(
+        lambda: mock_fn.call_count >= min_count,
+        timeout=timeout,
+        description=f"mock to be called {min_count} times",
+    )
+
 
 # Fixtures
 
@@ -169,8 +298,8 @@ async def test_detection_worker_start_stop(mock_redis_client, mock_detector_clie
     assert worker.stats.state == WorkerState.RUNNING
     assert worker._task is not None
 
-    # Allow loop to run briefly
-    await asyncio.sleep(0.1)
+    # Wait for worker to be fully running (event-based instead of arbitrary sleep)
+    await wait_for_worker_running(worker)
 
     # Stop worker
     await worker.stop()
@@ -261,7 +390,8 @@ async def test_detection_worker_processes_item(
         mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
 
         await worker.start()
-        await asyncio.sleep(0.2)  # Let loop process
+        # Wait for the item to be processed (event-based instead of arbitrary sleep)
+        await wait_for_items_processed(worker, min_count=1)
         await worker.stop()
 
     # Verify detection was processed
@@ -296,7 +426,8 @@ async def test_detection_worker_handles_invalid_item(mock_redis_client, mock_det
     )
 
     await worker.start()
-    await asyncio.sleep(0.1)
+    # Wait for the error to be recorded (event-based instead of arbitrary sleep)
+    await wait_for_errors(worker, min_count=1)
     await worker.stop()
 
     # Should not increment items_processed for invalid items
@@ -375,7 +506,8 @@ async def test_detection_worker_error_recovery_with_retry(
         mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
 
         await worker.start()
-        await asyncio.sleep(0.5)  # Allow time for retry
+        # Wait for both items to be processed (event-based instead of arbitrary sleep)
+        await wait_for_items_processed(worker, min_count=2)
         await worker.stop()
 
     # Both items should be processed successfully
@@ -444,7 +576,8 @@ async def test_detection_worker_loop_cancelled_error(mock_redis_client, mock_det
     )
 
     await worker.start()
-    await asyncio.sleep(0.1)
+    # Wait for the task to be created and potentially exit due to CancelledError
+    await wait_for_worker_running(worker)
     # The loop should have exited due to CancelledError
     # Force stop to clean up
     worker._running = False
@@ -483,7 +616,8 @@ async def test_detection_worker_loop_general_exception_recovery(
 
     with patch("backend.services.pipeline_workers.record_pipeline_error") as mock_record:
         await worker.start()
-        await asyncio.sleep(0.2)  # Allow time for error recovery
+        # Wait for at least one error to be recorded (event-based instead of arbitrary sleep)
+        await wait_for_errors(worker, min_count=1)
         await worker.stop()
 
         # Should have recorded the error
@@ -526,7 +660,8 @@ async def test_analysis_worker_start_stop(mock_redis_client, mock_analyzer):
     assert worker.running is True
     assert worker.stats.state == WorkerState.RUNNING
 
-    await asyncio.sleep(0.1)
+    # Wait for worker to be fully running (event-based instead of arbitrary sleep)
+    await wait_for_worker_running(worker)
 
     await worker.stop()
     assert worker.running is False
@@ -598,7 +733,8 @@ async def test_analysis_worker_processes_batch(mock_redis_client, mock_analyzer)
     )
 
     await worker.start()
-    await asyncio.sleep(0.2)
+    # Wait for the item to be processed (event-based instead of arbitrary sleep)
+    await wait_for_items_processed(worker, min_count=1)
     await worker.stop()
 
     assert worker.stats.items_processed == 1
@@ -633,7 +769,8 @@ async def test_analysis_worker_handles_value_error(mock_redis_client, mock_analy
     )
 
     await worker.start()
-    await asyncio.sleep(0.2)
+    # Wait for analyze_batch to be called (event-based instead of arbitrary sleep)
+    await wait_for_call_count(mock_analyzer.analyze_batch, min_count=1)
     await worker.stop()
 
     # ValueError should not increment error count (expected case)
@@ -663,7 +800,12 @@ async def test_analysis_worker_handles_invalid_item(mock_redis_client, mock_anal
     )
 
     await worker.start()
-    await asyncio.sleep(0.1)
+    # Wait for worker to be running and process the invalid item
+    await wait_for_worker_running(worker)
+    # Give the worker a chance to process the queue item
+    await wait_for_condition(
+        lambda: call_count >= 2, timeout=2.0, description="queue item processed"
+    )
     await worker.stop()
 
     # Should not increment items_processed for invalid items
@@ -696,7 +838,8 @@ async def test_analysis_worker_general_exception_handling(mock_redis_client, moc
 
     with patch("backend.services.pipeline_workers.record_pipeline_error") as mock_record:
         await worker.start()
-        await asyncio.sleep(0.2)
+        # Wait for error to be recorded (event-based instead of arbitrary sleep)
+        await wait_for_errors(worker, min_count=1)
         await worker.stop()
 
         mock_record.assert_called_with("analysis_batch_error")
@@ -759,7 +902,8 @@ async def test_analysis_worker_loop_cancelled_error(mock_redis_client, mock_anal
     )
 
     await worker.start()
-    await asyncio.sleep(0.1)
+    # Wait for worker to be running (event-based instead of arbitrary sleep)
+    await wait_for_worker_running(worker)
     worker._running = False
     if worker._task and not worker._task.done():
         worker._task.cancel()
@@ -794,7 +938,8 @@ async def test_analysis_worker_loop_general_exception_recovery(mock_redis_client
 
     with patch("backend.services.pipeline_workers.record_pipeline_error") as mock_record:
         await worker.start()
-        await asyncio.sleep(0.2)
+        # Wait for error to be recorded (event-based instead of arbitrary sleep)
+        await wait_for_errors(worker, min_count=1)
         await worker.stop()
 
         mock_record.assert_called_with("analysis_worker_error")
@@ -833,7 +978,8 @@ async def test_timeout_worker_start_stop(mock_redis_client, mock_batch_aggregato
     assert worker.running is True
     assert worker.stats.state == WorkerState.RUNNING
 
-    await asyncio.sleep(0.15)
+    # Wait for at least one check cycle (event-based instead of arbitrary sleep)
+    await wait_for_call_count(mock_batch_aggregator.check_batch_timeouts, min_count=1)
 
     await worker.stop()
     assert worker.running is False
@@ -902,7 +1048,8 @@ async def test_timeout_worker_checks_timeouts(mock_redis_client, mock_batch_aggr
     )
 
     await worker.start()
-    await asyncio.sleep(0.15)
+    # Wait for items to be processed (event-based instead of arbitrary sleep)
+    await wait_for_items_processed(worker, min_count=2)
     await worker.stop()
 
     # Should have processed 2 batches
@@ -931,7 +1078,9 @@ async def test_timeout_worker_error_recovery(mock_redis_client, mock_batch_aggre
     )
 
     await worker.start()
-    await asyncio.sleep(0.2)
+    # Wait for error and recovery (event-based instead of arbitrary sleep)
+    await wait_for_errors(worker, min_count=1)
+    await wait_for_items_processed(worker, min_count=1)
     await worker.stop()
 
     # Should have recovered from error
@@ -974,6 +1123,68 @@ async def test_timeout_worker_stop_timeout_forces_cancel(mock_redis_client, mock
 
 
 @pytest.mark.asyncio
+async def test_timeout_worker_consistent_interval_despite_processing_time(
+    mock_redis_client, mock_batch_aggregator
+):
+    """Test BatchTimeoutWorker maintains consistent check interval despite variable processing time.
+
+    This tests the fix for P2 bug k78s: Batch Timeout Check Delay (10-20s Late).
+
+    The bug occurred because the worker always slept for the full check_interval AFTER
+    processing completed, causing timing drift. For example:
+    - check_interval = 10s
+    - processing takes 5s
+    - old behavior: total cycle = 5s + 10s = 15s (5s late)
+    - new behavior: total cycle = 5s + 5s = 10s (on time)
+    """
+    import time
+
+    call_times: list[float] = []
+
+    async def mock_check_timeouts_with_delay():
+        """Simulate check_batch_timeouts that takes variable time."""
+        call_times.append(time.time())
+        # Simulate processing time (50ms) - short enough to complete within test
+        await asyncio.sleep(0.05)
+        return []
+
+    mock_batch_aggregator.check_batch_timeouts = mock_check_timeouts_with_delay
+
+    check_interval = 0.1  # 100ms check interval for fast test
+    worker = BatchTimeoutWorker(
+        redis_client=mock_redis_client,
+        batch_aggregator=mock_batch_aggregator,
+        check_interval=check_interval,
+        stop_timeout=TEST_STOP_TIMEOUT,
+    )
+
+    await worker.start()
+    # Wait for at least 3 check cycles to measure interval consistency
+    await asyncio.sleep(0.35)
+    await worker.stop()
+
+    # Should have at least 3 calls
+    assert len(call_times) >= 3, f"Expected at least 3 calls, got {len(call_times)}"
+
+    # Calculate actual intervals between calls
+    intervals = []
+    for i in range(1, len(call_times)):
+        interval = call_times[i] - call_times[i - 1]
+        intervals.append(interval)
+
+    # Each interval should be approximately equal to check_interval (100ms)
+    # not check_interval + processing_time (150ms with the old bug)
+    # Allow 40ms tolerance for async scheduling variance
+    for i, interval in enumerate(intervals):
+        # With the fix, interval should be ~100ms (check_interval)
+        # Without the fix, interval would be ~150ms (check_interval + processing_time)
+        assert interval < check_interval + 0.04, (
+            f"Interval {i} was {interval * 1000:.0f}ms, expected ~{check_interval * 1000:.0f}ms. "
+            f"This suggests timing drift bug (processing time not subtracted from sleep)."
+        )
+
+
+@pytest.mark.asyncio
 async def test_queue_metrics_worker_initialization(mock_redis_client):
     """Test QueueMetricsWorker initializes correctly."""
     worker = QueueMetricsWorker(
@@ -996,7 +1207,8 @@ async def test_queue_metrics_worker_start_stop(mock_redis_client):
     await worker.start()
     assert worker.running is True
 
-    await asyncio.sleep(0.15)
+    # Wait for at least one metrics update (event-based instead of arbitrary sleep)
+    await wait_for_call_count(mock_redis_client.get_queue_length, min_count=1)
 
     await worker.stop()
     assert worker.running is False
@@ -1051,7 +1263,8 @@ async def test_queue_metrics_worker_updates_metrics(mock_redis_client):
 
     with patch("backend.services.pipeline_workers.set_queue_depth") as mock_set_depth:
         await worker.start()
-        await asyncio.sleep(0.1)
+        # Wait for metrics to be set (event-based instead of arbitrary sleep)
+        await wait_for_call_count(mock_set_depth, min_count=2)
         await worker.stop()
 
         # Should have called set_queue_depth for detection and analysis queues
@@ -1078,7 +1291,8 @@ async def test_queue_metrics_worker_loop_cancelled_error(mock_redis_client):
     )
 
     await worker.start()
-    await asyncio.sleep(0.1)
+    # Wait for worker to be running (event-based instead of arbitrary sleep)
+    await wait_for_worker_running(worker)
     # Worker should have exited due to CancelledError
     worker._running = False
     if worker._task and not worker._task.done():
@@ -1111,7 +1325,10 @@ async def test_queue_metrics_worker_handles_redis_error(mock_redis_client):
 
     # Should not raise exception
     await worker.start()
-    await asyncio.sleep(0.2)
+    # Wait for recovery after errors (event-based instead of arbitrary sleep)
+    await wait_for_condition(
+        lambda: call_count >= 3, timeout=2.0, description="queue length calls after errors"
+    )
     await worker.stop()
 
     assert worker.running is False
@@ -1163,7 +1380,8 @@ async def test_manager_start_stop(mock_redis_client):
     await manager.start()
     assert manager.running is True
 
-    await asyncio.sleep(0.1)
+    # Wait for manager to be fully running (event-based instead of arbitrary sleep)
+    await wait_for_condition(lambda: manager.running, timeout=2.0, description="manager running")
 
     await manager.stop()
     assert manager.running is False
@@ -1452,7 +1670,10 @@ async def test_worker_cancellation_during_processing(
         mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
 
         await worker.start()
-        await asyncio.sleep(0.1)  # Start processing
+        # Wait for processing to start (event-based instead of arbitrary sleep)
+        await wait_for_condition(
+            lambda: call_count >= 1, timeout=2.0, description="processing started"
+        )
 
         await worker.stop()
 
@@ -1592,7 +1813,8 @@ async def test_detection_worker_processes_video_item(
         mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
 
         await worker.start()
-        await asyncio.sleep(0.2)
+        # Wait for video to be processed (event-based instead of arbitrary sleep)
+        await wait_for_items_processed(worker, min_count=1)
         await worker.stop()
 
     # Verify video was processed
@@ -1638,7 +1860,8 @@ async def test_detection_worker_handles_video_with_no_frames(
     )
 
     await worker.start()
-    await asyncio.sleep(0.2)
+    # Wait for video item to be processed (event-based instead of arbitrary sleep)
+    await wait_for_items_processed(worker, min_count=1)
     await worker.stop()
 
     # Item should still be marked as processed (even though no frames)
@@ -1689,7 +1912,8 @@ async def test_detection_worker_processes_image_item(
         mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
 
         await worker.start()
-        await asyncio.sleep(0.2)
+        # Wait for image to be processed (event-based instead of arbitrary sleep)
+        await wait_for_items_processed(worker, min_count=1)
         await worker.stop()
 
     # Verify image was processed
@@ -1739,7 +1963,8 @@ async def test_detection_worker_defaults_to_image_media_type(
         mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
 
         await worker.start()
-        await asyncio.sleep(0.2)
+        # Wait for item to be processed (event-based instead of arbitrary sleep)
+        await wait_for_items_processed(worker, min_count=1)
         await worker.stop()
 
     # Should process as image (default)
@@ -1809,7 +2034,8 @@ async def test_detection_worker_uses_retry_handler(
         mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
 
         await worker.start()
-        await asyncio.sleep(0.2)
+        # Wait for item to be processed (event-based instead of arbitrary sleep)
+        await wait_for_items_processed(worker, min_count=1)
         await worker.stop()
 
     # Verify retry handler was called
@@ -1861,7 +2087,8 @@ async def test_detection_worker_handles_retry_failure_and_dlq(
     )
 
     await worker.start()
-    await asyncio.sleep(0.2)
+    # Wait for error to be recorded (event-based instead of arbitrary sleep)
+    await wait_for_errors(worker, min_count=1)
     await worker.stop()
 
     # Item failed - should count as error, not processed
@@ -1919,7 +2146,8 @@ async def test_detection_worker_passes_job_data_to_retry_handler(
         mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
 
         await worker.start()
-        await asyncio.sleep(0.2)
+        # Wait for retry handler to be called (event-based instead of arbitrary sleep)
+        await wait_for_call_count(mock_retry_handler.with_retry, min_count=1)
         await worker.stop()
 
     # Verify job data was captured with original queue item fields

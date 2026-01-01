@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 import AlertsPage from './components/alerts/AlertsPage';
 import { AuditLogPage } from './components/audit';
+import { ErrorBoundary } from './components/common';
 import DashboardPage from './components/dashboard/DashboardPage';
 import EntitiesPage from './components/entities/EntitiesPage';
 import EventTimeline from './components/events/EventTimeline';
@@ -13,18 +14,23 @@ import { SystemMonitoringPage } from './components/system';
 export default function App() {
   return (
     <BrowserRouter>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/timeline" element={<EventTimeline />} />
-          <Route path="/alerts" element={<AlertsPage />} />
-          <Route path="/entities" element={<EntitiesPage />} />
-          <Route path="/logs" element={<LogsDashboard />} />
-          <Route path="/audit" element={<AuditLogPage />} />
-          <Route path="/system" element={<SystemMonitoringPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-        </Routes>
-      </Layout>
+      <ErrorBoundary
+        title="Application Error"
+        description="The application encountered an unexpected error. Please try again or refresh the page."
+      >
+        <Layout>
+          <Routes>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/timeline" element={<EventTimeline />} />
+            <Route path="/alerts" element={<AlertsPage />} />
+            <Route path="/entities" element={<EntitiesPage />} />
+            <Route path="/logs" element={<LogsDashboard />} />
+            <Route path="/audit" element={<AuditLogPage />} />
+            <Route path="/system" element={<SystemMonitoringPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+          </Routes>
+        </Layout>
+      </ErrorBoundary>
     </BrowserRouter>
   );
 }

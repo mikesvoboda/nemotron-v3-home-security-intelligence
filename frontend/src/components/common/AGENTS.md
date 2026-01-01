@@ -6,18 +6,98 @@ Contains reusable UI components shared across multiple features. These are low-l
 
 ## Files
 
-| File                     | Purpose                                            | Status     |
-| ------------------------ | -------------------------------------------------- | ---------- |
-| `RiskBadge.tsx`          | Risk level badge with icon and optional score      | Active     |
-| `ConfidenceBadge.tsx`    | Detection confidence score badge with color coding | Active     |
-| `ObjectTypeBadge.tsx`    | Detection object type badge                        | Active     |
-| `Lightbox.tsx`           | Full-size image viewer with navigation             | Active     |
-| `WebSocketStatus.tsx`    | WebSocket connection status indicator              | Active     |
-| `ServiceStatusAlert.tsx` | Service health notification banner                 | Deprecated |
-| `index.ts`               | Barrel exports (RiskBadge, WebSocketStatus)        | Active     |
-| `*.test.tsx`             | Test files for each component                      | Active     |
+| File                     | Purpose                                                    | Status     |
+| ------------------------ | ---------------------------------------------------------- | ---------- |
+| `ErrorBoundary.tsx`      | React error boundary for catching component errors         | Active     |
+| `RiskBadge.tsx`          | Risk level badge with icon and optional score              | Active     |
+| `ConfidenceBadge.tsx`    | Detection confidence score badge with color coding         | Active     |
+| `ObjectTypeBadge.tsx`    | Detection object type badge                                | Active     |
+| `Lightbox.tsx`           | Full-size image viewer with navigation                     | Active     |
+| `WebSocketStatus.tsx`    | WebSocket connection status indicator                      | Active     |
+| `ServiceStatusAlert.tsx` | Service health notification banner                         | Deprecated |
+| `index.ts`               | Barrel exports (ErrorBoundary, RiskBadge, WebSocketStatus) | Active     |
+| `*.test.tsx`             | Test files for each component                              | Active     |
 
 ## Key Components
+
+### ErrorBoundary.tsx
+
+**Purpose:** React error boundary component that catches JavaScript errors in child components and displays a fallback UI
+
+**Props Interface:**
+
+```typescript
+interface ErrorBoundaryProps {
+  children: ReactNode; // Child components to wrap
+  fallback?: ReactNode; // Optional custom fallback UI
+  onError?: (error: Error, errorInfo: ErrorInfo) => void; // Optional error callback
+  title?: string; // Optional title for error message
+  description?: string; // Optional description for error message
+}
+```
+
+**Key Features:**
+
+- Catches JavaScript errors anywhere in child component tree
+- Implements `getDerivedStateFromError` for error state updates
+- Implements `componentDidCatch` for error logging and callbacks
+- User-friendly fallback UI with error message display
+- "Try Again" button to attempt recovery (re-renders children)
+- "Refresh Page" button as fallback recovery option
+- Support for custom fallback UI via `fallback` prop
+- Full accessibility: `role="alert"` and `aria-live="assertive"`
+
+**Error Handling:**
+
+1. Error occurs in child component
+2. `getDerivedStateFromError` updates state with error
+3. `componentDidCatch` logs error and calls `onError` callback
+4. Fallback UI is rendered instead of crashing
+
+**Recovery Options:**
+
+- **Try Again:** Resets error state and attempts to re-render children
+- **Refresh Page:** Calls `window.location.reload()` for full page refresh
+
+**Usage:**
+
+```tsx
+import { ErrorBoundary } from '../common';
+
+// Basic usage - wraps Routes in App.tsx
+<ErrorBoundary>
+  <Layout>
+    <Routes>...</Routes>
+  </Layout>
+</ErrorBoundary>
+
+// With custom title and description
+<ErrorBoundary
+  title="Application Error"
+  description="Please try again or refresh the page."
+>
+  <MyComponent />
+</ErrorBoundary>
+
+// With custom fallback
+<ErrorBoundary fallback={<CustomErrorPage />}>
+  <MyComponent />
+</ErrorBoundary>
+
+// With error callback (e.g., for error reporting)
+<ErrorBoundary onError={(error, errorInfo) => {
+  reportErrorToService(error, errorInfo);
+}}>
+  <MyComponent />
+</ErrorBoundary>
+```
+
+**Dependencies:**
+
+- `lucide-react` - AlertOctagon, RefreshCw icons
+- `react` - Component, ErrorInfo, ReactNode
+
+---
 
 ### RiskBadge.tsx
 
@@ -338,6 +418,21 @@ All badge components follow the same sizing pattern (sm/md/lg) for consistency a
 
 ## Testing
 
+### ErrorBoundary.test.tsx
+
+- Renders children when no error (normal operation)
+- Catches errors and displays fallback UI
+- Displays error message in fallback
+- Logs error to console
+- Calls onError callback when error is caught
+- Displays custom title and description when provided
+- Renders custom fallback when provided
+- Try Again button resets error state and re-renders
+- Refresh Page button calls window.location.reload
+- Nested error boundaries work correctly
+- Accessible alert role and aria-live attributes
+- Icons hidden from screen readers
+
 ### RiskBadge.test.tsx
 
 - Renders all risk levels with correct styling
@@ -366,7 +461,8 @@ All badge components follow the same sizing pattern (sm/md/lg) for consistency a
 
 ## Entry Points
 
-**Start here:** `RiskBadge.tsx` - Most commonly used badge component
+**Start here:** `ErrorBoundary.tsx` - App-level error handling (wraps Routes in App.tsx)
+**Also see:** `RiskBadge.tsx` - Most commonly used badge component
 **Also see:** `ConfidenceBadge.tsx` - Detection confidence scoring badge
 **Also see:** `ObjectTypeBadge.tsx` - Detection object type badge
 **Also see:** `WebSocketStatus.tsx` - Connection status indicator

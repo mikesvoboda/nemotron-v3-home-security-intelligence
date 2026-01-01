@@ -233,6 +233,7 @@ class WebSocketEventData(BaseModel):
         risk_score: Risk assessment score (0-100)
         risk_level: Risk classification (validated against RiskLevel enum)
         summary: Human-readable description of the event
+        reasoning: LLM reasoning for the risk assessment
         started_at: ISO 8601 timestamp when the event started (nullable)
     """
 
@@ -245,6 +246,7 @@ class WebSocketEventData(BaseModel):
         ..., description='Risk classification ("low", "medium", "high", "critical")'
     )
     summary: str = Field(..., description="Human-readable description of the event")
+    reasoning: str = Field(..., description="LLM reasoning for the risk assessment")
     started_at: str | None = Field(None, description="ISO 8601 timestamp when the event started")
 
     @field_validator("risk_level", mode="before")
@@ -277,6 +279,7 @@ class WebSocketEventData(BaseModel):
                 "risk_score": 75,
                 "risk_level": "high",
                 "summary": "Person detected at front door",
+                "reasoning": "Person approaching entrance during evening hours, behavior appears normal",
                 "started_at": "2025-12-23T12:00:00",
             }
         }
@@ -300,6 +303,7 @@ class WebSocketEventMessage(BaseModel):
                 "risk_score": 75,
                 "risk_level": "high",
                 "summary": "Person detected at front door",
+                "reasoning": "Person approaching entrance during evening hours, behavior appears normal",
                 "started_at": "2025-12-23T12:00:00"
             }
         }
@@ -322,6 +326,7 @@ class WebSocketEventMessage(BaseModel):
                     "risk_score": 75,
                     "risk_level": "high",
                     "summary": "Person detected at front door",
+                    "reasoning": "Person approaching entrance during evening hours, behavior appears normal",
                     "started_at": "2025-12-23T12:00:00",
                 },
             }

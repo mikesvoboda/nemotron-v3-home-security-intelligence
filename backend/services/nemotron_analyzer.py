@@ -641,6 +641,7 @@ class NemotronAnalyzer:
                     "risk_score": event.risk_score,
                     "risk_level": event.risk_level,
                     "summary": event.summary,
+                    "reasoning": event.reasoning,
                     "started_at": event.started_at.isoformat() if event.started_at else None,
                 },
             }

@@ -65,6 +65,7 @@ def _create_valid_event_data(
     risk_score: int = 75,
     risk_level: str = "high",
     summary: str = "Person detected at entrance",
+    reasoning: str = "Person detected approaching entrance during daytime hours",
     started_at: str | None = "2025-12-23T12:00:00",
 ) -> dict[str, Any]:
     """Create valid event data for testing."""
@@ -76,6 +77,7 @@ def _create_valid_event_data(
         "risk_score": risk_score,
         "risk_level": risk_level,
         "summary": summary,
+        "reasoning": reasoning,
         "started_at": started_at,
     }
 
@@ -1143,6 +1145,80 @@ async def test_broadcast_event_normalizes_risk_level_case() -> None:
     _, published = redis.publish.await_args.args
     # Should be normalized to lowercase
     assert published["data"]["risk_level"] == "high"
+
+
+# ==============================================================================
+# Tests for Reasoning Field in WebSocket Broadcasts (bead 14lh)
+# ==============================================================================
+
+
+@pytest.mark.asyncio
+async def test_broadcast_event_includes_reasoning_field() -> None:
+    """Test that broadcast_event includes the reasoning field from Nemotron AI analysis.
+
+    This test verifies the fix for bead 14lh: P2 bug where reasoning was missing
+    from WebSocket broadcasts. The reasoning field is essential for users to understand
+    why the AI assigned a particular risk score.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Valid event with reasoning field
+    valid_data = _create_valid_event_data(
+        id=42,
+        event_id=42,
+        batch_id="batch_abc",
+        camera_id="cam-123",
+        risk_score=85,
+        risk_level="critical",
+        summary="Suspicious activity detected",
+        reasoning="Multiple unidentified individuals observed near property perimeter at unusual hours",
+    )
+    payload = {"type": "event", "data": valid_data}
+
+    count = await broadcaster.broadcast_event(payload)
+
+    assert count == 1
+    redis.publish.assert_awaited_once()
+    _, published = redis.publish.await_args.args
+
+    # Verify reasoning field is present and correct
+    assert "reasoning" in published["data"]
+    assert (
+        published["data"]["reasoning"]
+        == "Multiple unidentified individuals observed near property perimeter at unusual hours"
+    )
+
+
+@pytest.mark.asyncio
+async def test_broadcast_event_rejects_missing_reasoning_field(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Test that broadcast_event rejects messages missing the required reasoning field.
+
+    The reasoning field is now required in WebSocketEventData schema.
+    """
+    redis = _FakeRedis()
+    broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
+
+    # Event data missing reasoning field
+    invalid_data = {
+        "id": 1,
+        "event_id": 1,
+        "batch_id": "batch_123",
+        "camera_id": "cam-uuid",
+        "risk_score": 75,
+        "risk_level": "high",
+        "summary": "Person detected",
+        # reasoning field intentionally missing
+        "started_at": "2025-12-23T12:00:00",
+    }
+    payload = {"type": "event", "data": invalid_data}
+
+    with pytest.raises(ValueError, match="Invalid event message format"):
+        await broadcaster.broadcast_event(payload)
+
+    redis.publish.assert_not_awaited()
 
 
 # ==============================================================================
