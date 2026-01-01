@@ -25,7 +25,8 @@
     "test:e2e:report": "playwright show-report",
     "generate-types": "cd .. && ./scripts/generate-types.sh",
     "generate-types:check": "cd .. && ./scripts/generate-types.sh --check",
-    "validate": "npm run typecheck && npm run lint && npm run test:coverage -- --run"
+    "validate": "npm run typecheck && npm run lint && npm run test:coverage -- --run",
+    "dead-code": "knip"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.9",
@@ -61,6 +62,7 @@
     "eslint-plugin-react-refresh": "^0.4.26",
     "globals": "^16.5.0",
     "jsdom": "^27.3.0",
+    "knip": "^5.78.0",
     "openapi-typescript": "^7.10.1",
     "postcss": "^8.4.33",
     "prettier": "^3.2.4",

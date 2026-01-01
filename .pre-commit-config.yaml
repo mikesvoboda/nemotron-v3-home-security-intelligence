@@ -37,6 +37,28 @@ repos:
       - id: check-merge-conflict
       - id: detect-private-key
 
+  # Hadolint - Dockerfile linting
+  # Requires: brew install hadolint (macOS) or download binary
+  - repo: local
+    hooks:
+      - id: hadolint
+        name: Hadolint Dockerfile Linting
+        entry: hadolint
+        language: system
+        types: [dockerfile]
+
+  # Semgrep - Shift-left security scanning
+  - repo: https://github.com/semgrep/semgrep
+    rev: v1.96.0
+    hooks:
+      - id: semgrep
+        name: Semgrep Security Scan
+        args:
+          - --config=semgrep.yml
+          - --config=p/python
+          - --error
+        types: [python]
+
   # Python - Ruff (fast linter + formatter)
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.14.10
