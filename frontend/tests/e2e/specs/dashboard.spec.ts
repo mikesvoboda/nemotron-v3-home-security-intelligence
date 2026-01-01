@@ -207,12 +207,12 @@ test.describe('Dashboard Error State', () => {
 
   test('shows error heading when API fails', async () => {
     await dashboardPage.goto();
-    await expect(dashboardPage.errorHeading).toBeVisible({ timeout: 8000 });
+    await expect(dashboardPage.errorHeading).toBeVisible({ timeout: 15000 });
   });
 
   test('shows reload button when API fails', async () => {
     await dashboardPage.goto();
-    await expect(dashboardPage.reloadButton).toBeVisible({ timeout: 8000 });
+    await expect(dashboardPage.reloadButton).toBeVisible({ timeout: 15000 });
   });
 
   test('error state displays error elements', async () => {

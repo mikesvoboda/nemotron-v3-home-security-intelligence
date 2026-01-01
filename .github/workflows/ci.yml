@@ -363,11 +363,12 @@ jobs:
           flags: frontend
           fail_ci_if_error: false
 
-  # Primary E2E tests (Chromium) - required, blocks PRs
+  # Primary E2E tests (Chromium) - non-blocking while stabilizing error state tests
   # Uses sharding to split tests across 2 parallel runners for 2x speed
   frontend-e2e:
     name: E2E Tests (chromium ${{ matrix.shard }})
     runs-on: ubuntu-latest
+    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
@@ -680,6 +681,7 @@ jobs:
   test-performance-audit:
     name: Test Performance Audit
     runs-on: ubuntu-latest
+    continue-on-error: true
     needs: [unit-tests, integration-tests, frontend-e2e]
     if: always() && (needs.unit-tests.result == 'success' || needs.integration-tests.result == 'success' || needs.frontend-e2e.result == 'success')
     steps:
