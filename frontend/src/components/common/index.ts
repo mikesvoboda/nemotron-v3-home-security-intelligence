@@ -1,3 +1,6 @@
+export { default as ErrorBoundary } from './ErrorBoundary';
+export type { ErrorBoundaryProps, ErrorBoundaryState } from './ErrorBoundary';
+
 export { default as RiskBadge } from './RiskBadge';
 export type { RiskBadgeProps } from './RiskBadge';
 

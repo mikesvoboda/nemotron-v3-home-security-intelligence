@@ -1028,6 +1028,7 @@ class TestEventBroadcastPipeline:
             "risk_score": 50,
             "risk_level": "medium",
             "summary": "Test event",
+            "reasoning": "Test reasoning for channel alignment test",
             "started_at": "2025-12-23T12:00:00",
         }
         await broadcaster.broadcast_event(valid_event_data)
@@ -1050,6 +1051,7 @@ class TestEventBroadcastPipeline:
             risk_score=50,
             risk_level="medium",
             summary="Test",
+            reasoning="Test reasoning for channel alignment",
         )
 
         # Mock get_broadcaster to return our mock broadcaster
@@ -1099,6 +1101,7 @@ class TestEventBroadcastPipeline:
             risk_score=75,
             risk_level="high",
             summary="Test envelope format",
+            reasoning="Test reasoning for envelope format",
         )
 
         # Broadcast the event using mocked get_broadcaster
@@ -1126,6 +1129,7 @@ class TestEventBroadcastPipeline:
         assert data["risk_score"] == 75
         assert data["risk_level"] == "high"
         assert data["summary"] == "Test envelope format"
+        assert data["reasoning"] == "Test reasoning for envelope format"
         assert data["started_at"] == "2025-12-23T14:30:00"
 
     @pytest.mark.asyncio
@@ -1158,6 +1162,7 @@ class TestEventBroadcastPipeline:
             "risk_score": 50,
             "risk_level": "medium",
             "summary": "Test event",
+            "reasoning": "Test reasoning for wrapper test",
             "started_at": "2025-12-23T12:00:00",
         }
         await broadcaster.broadcast_event(payload)
@@ -1165,7 +1170,9 @@ class TestEventBroadcastPipeline:
         # Verify it was wrapped
         message = mock_redis.publish.call_args[0][1]
         assert message["type"] == "event"
-        assert message["data"] == payload
+        # Data should include all fields from the payload
+        assert message["data"]["id"] == 123
+        assert message["data"]["reasoning"] == "Test reasoning for wrapper test"
 
     @pytest.mark.asyncio
     async def test_end_to_end_publish_subscribe(self, integration_env):
@@ -1240,6 +1247,7 @@ class TestEventBroadcastPipeline:
             risk_score=85,
             risk_level="critical",
             summary="End-to-end test event",
+            reasoning="End-to-end test reasoning",
         )
 
         # Use mocked get_broadcaster to return our broadcaster
@@ -1346,6 +1354,7 @@ class TestWebSocketEventMessageContract:
             risk_score=75,
             risk_level="high",
             summary="Contract test event",
+            reasoning="Contract test reasoning for schema validation",
         )
 
         # Broadcast the event using mocked get_broadcaster
@@ -1377,6 +1386,7 @@ class TestWebSocketEventMessageContract:
         assert validated_message.data.risk_score == 75
         assert validated_message.data.risk_level == "high"
         assert validated_message.data.summary == "Contract test event"
+        assert validated_message.data.reasoning == "Contract test reasoning for schema validation"
         assert validated_message.data.started_at == "2025-12-23T14:30:00"
 
     def test_schema_fields_match_documentation(self):
@@ -1396,6 +1406,7 @@ class TestWebSocketEventMessageContract:
             "risk_score",
             "risk_level",
             "summary",
+            "reasoning",
             "started_at",
         }
 
@@ -1455,6 +1466,7 @@ class TestWebSocketEventMessageContract:
             risk_score=50,
             risk_level="medium",
             summary="Event without started_at",
+            reasoning="Test reasoning for event without started_at",
         )
 
         # Broadcast the event using mocked get_broadcaster

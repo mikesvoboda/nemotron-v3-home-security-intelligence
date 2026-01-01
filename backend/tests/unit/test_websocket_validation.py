@@ -563,11 +563,16 @@ class TestWebSocketEventData:
             risk_score=75,
             risk_level=RiskLevel.HIGH,
             summary="Person detected at front door",
+            reasoning="Person observed approaching front entrance during evening hours",
             started_at="2025-12-23T12:00:00",
         )
         assert event_data.id == 1
         assert event_data.risk_score == 75
         assert event_data.risk_level == RiskLevel.HIGH
+        assert (
+            event_data.reasoning
+            == "Person observed approaching front entrance during evening hours"
+        )
 
     def test_risk_level_validator_with_enum(self) -> None:
         """Test risk_level validator when passed a RiskLevel enum directly."""
@@ -580,6 +585,7 @@ class TestWebSocketEventData:
             risk_score=50,
             risk_level=RiskLevel.MEDIUM,
             summary="Test event",
+            reasoning="Test reasoning for medium risk event",
         )
         assert event_data.risk_level == RiskLevel.MEDIUM
 
@@ -594,6 +600,7 @@ class TestWebSocketEventData:
             risk_score=25,
             risk_level="low",  # type: ignore[arg-type]
             summary="Test event",
+            reasoning="Low risk test reasoning",
         )
         assert event_data.risk_level == RiskLevel.LOW
 
@@ -607,6 +614,7 @@ class TestWebSocketEventData:
             risk_score=100,
             risk_level="CRITICAL",  # type: ignore[arg-type]
             summary="Test event",
+            reasoning="Critical risk test reasoning",
         )
         assert event_data.risk_level == RiskLevel.CRITICAL
 
@@ -620,6 +628,7 @@ class TestWebSocketEventData:
             risk_score=60,
             risk_level="MeDiUm",  # type: ignore[arg-type]
             summary="Test event",
+            reasoning="Mixed case test reasoning",
         )
         assert event_data.risk_level == RiskLevel.MEDIUM
 
@@ -635,6 +644,7 @@ class TestWebSocketEventData:
                 risk_score=50,
                 risk_level="invalid_level",  # type: ignore[arg-type]
                 summary="Test event",
+                reasoning="Test reasoning",
             )
         errors = exc_info.value.errors()
         assert any("risk_level" in str(e["loc"]) for e in errors)
@@ -654,6 +664,7 @@ class TestWebSocketEventData:
                 risk_score=50,
                 risk_level=123,  # type: ignore[arg-type]
                 summary="Test event",
+                reasoning="Test reasoning",
             )
         errors = exc_info.value.errors()
         assert any("risk_level" in str(e["loc"]) for e in errors)
@@ -669,6 +680,7 @@ class TestWebSocketEventData:
             risk_score=0,
             risk_level=RiskLevel.LOW,
             summary="Test event",
+            reasoning="Minimum risk score test reasoning",
         )
         assert event_data.risk_score == 0
 
@@ -681,6 +693,7 @@ class TestWebSocketEventData:
             risk_score=100,
             risk_level=RiskLevel.CRITICAL,
             summary="Test event",
+            reasoning="Maximum risk score test reasoning",
         )
         assert event_data.risk_score == 100
 
@@ -695,6 +708,7 @@ class TestWebSocketEventData:
                 risk_score=101,  # Over max
                 risk_level=RiskLevel.HIGH,
                 summary="Test event",
+                reasoning="Test reasoning",
             )
 
         with pytest.raises(ValidationError):
@@ -706,6 +720,7 @@ class TestWebSocketEventData:
                 risk_score=-1,  # Below min
                 risk_level=RiskLevel.LOW,
                 summary="Test event",
+                reasoning="Test reasoning",
             )
 
     def test_event_data_serialization(self) -> None:
@@ -718,6 +733,7 @@ class TestWebSocketEventData:
             risk_score=75,
             risk_level=RiskLevel.HIGH,
             summary="Person detected at front door",
+            reasoning="Person observed approaching front entrance during evening hours",
             started_at="2025-12-23T12:00:00",
         )
         json_str = event_data.model_dump_json()
@@ -725,6 +741,9 @@ class TestWebSocketEventData:
         assert parsed["id"] == 1
         assert parsed["risk_score"] == 75
         assert parsed["risk_level"] == "high"
+        assert (
+            parsed["reasoning"] == "Person observed approaching front entrance during evening hours"
+        )
 
 
 # =============================================================================
@@ -745,10 +764,12 @@ class TestWebSocketEventMessage:
             risk_score=75,
             risk_level=RiskLevel.HIGH,
             summary="Person detected at front door",
+            reasoning="Person observed at front door during evening hours",
         )
         message = WebSocketEventMessage(data=event_data)
         assert message.type == "event"
         assert message.data.id == 1
+        assert message.data.reasoning == "Person observed at front door during evening hours"
 
     def test_event_message_serialization(self) -> None:
         """Test that event message serializes correctly."""
@@ -760,6 +781,7 @@ class TestWebSocketEventMessage:
             risk_score=50,
             risk_level=RiskLevel.MEDIUM,
             summary="Test event",
+            reasoning="Test reasoning for serialization",
         )
         message = WebSocketEventMessage(data=event_data)
         json_str = message.model_dump_json()
@@ -767,6 +789,7 @@ class TestWebSocketEventMessage:
         assert parsed["type"] == "event"
         assert parsed["data"]["id"] == 1
         assert parsed["data"]["risk_level"] == "medium"
+        assert parsed["data"]["reasoning"] == "Test reasoning for serialization"
 
 
 # =============================================================================
@@ -927,6 +950,7 @@ class TestValidatorEdgeCases:
                 risk_score=50,
                 risk_level=level,  # type: ignore[arg-type]
                 summary="Test event",
+                reasoning=f"Test reasoning for {level} risk level",
             )
             assert event_data.risk_level.value == level
 
@@ -950,6 +974,7 @@ class TestValidatorEdgeCases:
                 risk_score=50,
                 risk_level=["high"],  # type: ignore[arg-type]
                 summary="Test event",
+                reasoning="Test reasoning",
             )
 
     def test_status_validator_with_dict_type(self) -> None:

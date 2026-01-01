@@ -810,7 +810,11 @@ class BatchTimeoutWorker:
         logger.info("BatchTimeoutWorker stopped")
 
     async def _run_loop(self) -> None:
-        """Main processing loop for the batch timeout worker."""
+        """Main processing loop for the batch timeout worker.
+
+        Uses elapsed-time-aware sleeping to maintain consistent check intervals.
+        If processing takes longer than the interval, the next check runs immediately.
+        """
         import time
 
         logger.info("BatchTimeoutWorker loop started")
@@ -838,8 +842,12 @@ class BatchTimeoutWorker:
                         },
                     )
 
-                # Wait before next check
-                await asyncio.sleep(self._check_interval)
+                # Calculate remaining sleep time to maintain consistent check interval
+                # This prevents timing drift when check_batch_timeouts() takes variable time
+                elapsed = time.time() - start_time
+                sleep_time = max(0.0, self._check_interval - elapsed)
+                if sleep_time > 0:
+                    await asyncio.sleep(sleep_time)
 
             except asyncio.CancelledError:
                 logger.info("BatchTimeoutWorker loop cancelled")

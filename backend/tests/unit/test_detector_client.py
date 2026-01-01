@@ -61,7 +61,7 @@ def sample_detector_response():
 async def test_health_check_success(detector_client):
     """Test health check when detector is available."""
     with patch("httpx.AsyncClient.get") as mock_get:
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
         mock_response.json.return_value = {"status": "healthy"}
         mock_get.return_value = mock_response
@@ -94,10 +94,10 @@ async def test_health_check_timeout(detector_client):
 async def test_health_check_http_error(detector_client):
     """Test health check when detector returns error status."""
     with patch("httpx.AsyncClient.get") as mock_get:
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 500
         mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-            "Internal Server Error", request=MagicMock(), response=mock_response
+            "Internal Server Error", request=MagicMock(spec=httpx.Request), response=mock_response
         )
         mock_get.return_value = mock_response
 
@@ -124,7 +124,7 @@ async def test_detect_objects_success(detector_client, mock_session, sample_dete
         patch("httpx.AsyncClient.post") as mock_post,
     ):
         # Mock detector response
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
         mock_response.json.return_value = sample_detector_response
         mock_post.return_value = mock_response
@@ -167,7 +167,7 @@ async def test_detect_objects_filters_low_confidence(
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
     ):
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
         mock_response.json.return_value = sample_detector_response
         mock_post.return_value = mock_response
@@ -195,7 +195,7 @@ async def test_detect_objects_no_detections(detector_client, mock_session):
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
     ):
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
         mock_response.json.return_value = empty_response
         mock_post.return_value = mock_response
@@ -276,10 +276,10 @@ async def test_detect_objects_server_error_raises_exception(detector_client, moc
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
     ):
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 500
         mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-            "Internal Server Error", request=MagicMock(), response=mock_response
+            "Internal Server Error", request=MagicMock(spec=httpx.Request), response=mock_response
         )
         mock_post.return_value = mock_response
 
@@ -303,10 +303,10 @@ async def test_detect_objects_client_error_returns_empty(detector_client, mock_s
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
     ):
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 400
         mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-            "Bad Request", request=MagicMock(), response=mock_response
+            "Bad Request", request=MagicMock(spec=httpx.Request), response=mock_response
         )
         mock_post.return_value = mock_response
 
@@ -334,7 +334,7 @@ async def test_detect_objects_invalid_json_raises_exception(detector_client, moc
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
     ):
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
         mock_response.json.side_effect = json.JSONDecodeError("Invalid JSON", "", 0)
         mock_post.return_value = mock_response
@@ -360,7 +360,7 @@ async def test_detect_objects_malformed_response(detector_client, mock_session):
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
     ):
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
         mock_response.json.return_value = malformed_response
         mock_post.return_value = mock_response
@@ -408,7 +408,7 @@ async def test_detect_objects_sets_file_type(detector_client, mock_session):
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
     ):
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
         mock_response.json.return_value = response
         mock_post.return_value = mock_response
@@ -443,7 +443,7 @@ async def test_detect_objects_sets_timestamp(detector_client, mock_session):
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
     ):
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
         mock_response.json.return_value = response
         mock_post.return_value = mock_response
@@ -480,7 +480,7 @@ async def test_detect_objects_multiple_types(detector_client, mock_session):
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
     ):
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
         mock_response.json.return_value = response
         mock_post.return_value = mock_response
@@ -527,7 +527,7 @@ async def test_detect_objects_invalid_bbox_format(detector_client, mock_session)
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
     ):
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
         mock_response.json.return_value = response
         mock_post.return_value = mock_response
@@ -564,7 +564,7 @@ async def test_detect_objects_detection_processing_exception(detector_client, mo
         patch("httpx.AsyncClient.post") as mock_post,
         patch("backend.services.detector_client.Detection", side_effect=Exception("DB error")),
     ):
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
         mock_response.json.return_value = response
         mock_post.return_value = mock_response
@@ -610,10 +610,10 @@ async def test_detect_objects_http_502_raises_exception(detector_client, mock_se
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
     ):
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 502
         mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-            "Bad Gateway", request=MagicMock(), response=mock_response
+            "Bad Gateway", request=MagicMock(spec=httpx.Request), response=mock_response
         )
         mock_post.return_value = mock_response
 
@@ -635,10 +635,10 @@ async def test_detect_objects_http_503_raises_exception(detector_client, mock_se
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
     ):
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 503
         mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-            "Service Unavailable", request=MagicMock(), response=mock_response
+            "Service Unavailable", request=MagicMock(spec=httpx.Request), response=mock_response
         )
         mock_post.return_value = mock_response
 
@@ -658,10 +658,10 @@ async def test_detect_objects_http_404_returns_empty(detector_client, mock_sessi
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
     ):
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 404
         mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
-            "Not Found", request=MagicMock(), response=mock_response
+            "Not Found", request=MagicMock(spec=httpx.Request), response=mock_response
         )
         mock_post.return_value = mock_response
 
