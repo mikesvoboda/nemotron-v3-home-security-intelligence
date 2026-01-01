@@ -47,8 +47,20 @@ from backend.services.enrichment_pipeline import (
 from backend.services.prompts import (
     ENRICHED_RISK_ANALYSIS_PROMPT,
     FULL_ENRICHED_RISK_ANALYSIS_PROMPT,
+    MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT,
     RISK_ANALYSIS_PROMPT,
     VISION_ENHANCED_RISK_ANALYSIS_PROMPT,
+    format_action_recognition_context,
+    format_clothing_analysis_context,
+    format_depth_context,
+    format_detections_with_all_enrichment,
+    format_image_quality_context,
+    format_pet_classification_context,
+    format_pose_analysis_context,
+    format_vehicle_classification_context,
+    format_vehicle_damage_context,
+    format_violence_context,
+    format_weather_context,
 )
 
 logger = get_logger(__name__)
@@ -746,7 +758,112 @@ class NemotronAnalyzer:
             enrichment_result is not None and enrichment_result.has_vision_extraction
         )
 
-        if has_vision_extraction and has_enriched_context:
+        # Check for full model zoo enrichment (clothing, violence, vehicle analysis, etc.)
+        has_model_zoo_enrichment = enrichment_result is not None and (
+            enrichment_result.has_violence
+            or enrichment_result.has_clothing_classifications
+            or enrichment_result.has_vehicle_classifications
+            or enrichment_result.has_vehicle_damage
+            or enrichment_result.has_pet_classifications
+            or enrichment_result.has_image_quality
+        )
+
+        if has_model_zoo_enrichment and has_enriched_context:
+            # Use MODEL_ZOO_ENHANCED prompt with full enrichment from all models
+            from backend.services.reid_service import format_full_reid_context
+            from backend.services.vision_extractor import (
+                format_scene_analysis,
+            )
+
+            assert enriched_context is not None
+            assert enriched_context.baselines is not None
+            assert enrichment_result is not None
+
+            enricher = self._get_context_enricher()
+
+            # Determine time of day from environment context or vision extraction
+            time_of_day = "day"
+            if (
+                enrichment_result.vision_extraction
+                and enrichment_result.vision_extraction.environment_context
+            ):
+                time_of_day = enrichment_result.vision_extraction.environment_context.time_of_day
+
+            # Format scene analysis
+            scene_text = "No scene analysis available."
+            if (
+                enrichment_result.vision_extraction
+                and enrichment_result.vision_extraction.scene_analysis
+            ):
+                scene_text = format_scene_analysis(
+                    enrichment_result.vision_extraction.scene_analysis
+                )
+
+            # Format re-id context
+            reid_text = format_full_reid_context(
+                enrichment_result.person_reid_matches,
+                enrichment_result.vehicle_reid_matches,
+            )
+
+            # Format all model zoo enrichment contexts
+            prompt = MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT.format(
+                camera_name=camera_name,
+                timestamp=f"{start_time} to {end_time}",
+                day_of_week=enriched_context.baselines.day_of_week,
+                time_of_day=time_of_day,
+                # Environmental context
+                weather_context=format_weather_context(enrichment_result.weather_classification),
+                image_quality_context=format_image_quality_context(
+                    enrichment_result.image_quality,
+                    enrichment_result.quality_change_detected,
+                    enrichment_result.quality_change_description,
+                ),
+                # Detections with all enrichment
+                detections_with_all_attributes=format_detections_with_all_enrichment(
+                    [],  # Will use enrichment_result.to_context_string() for now
+                    enrichment_result,
+                    enrichment_result.vision_extraction,
+                )
+                if enrichment_result.vision_extraction
+                else enrichment_result.to_context_string(),
+                # Violence analysis
+                violence_context=format_violence_context(enrichment_result.violence_detection),
+                # Behavioral analysis (future: ViTPose, X-CLIP)
+                pose_analysis=format_pose_analysis_context(None),  # TODO: Add pose results
+                action_recognition=format_action_recognition_context(
+                    None
+                ),  # TODO: Add action results
+                # Vehicle analysis
+                vehicle_classification_context=format_vehicle_classification_context(
+                    enrichment_result.vehicle_classifications
+                ),
+                vehicle_damage_context=format_vehicle_damage_context(
+                    enrichment_result.vehicle_damage,
+                    time_of_day=time_of_day,
+                ),
+                # Person analysis
+                clothing_analysis_context=format_clothing_analysis_context(
+                    enrichment_result.clothing_classifications,
+                    enrichment_result.clothing_segmentation,
+                ),
+                # Pet detection
+                pet_classification_context=format_pet_classification_context(
+                    enrichment_result.pet_classifications
+                ),
+                # Spatial context (future: Depth Anything V2)
+                depth_context=format_depth_context(None),  # TODO: Add depth results
+                # Re-identification
+                reid_context=reid_text,
+                # Zone, baseline, cross-camera
+                zone_analysis=enricher.format_zone_analysis(enriched_context.zones),
+                baseline_comparison=enricher.format_baseline_comparison(enriched_context.baselines),
+                deviation_score=f"{enriched_context.baselines.deviation_score:.2f}",
+                cross_camera_summary=enricher.format_cross_camera_summary(
+                    enriched_context.cross_camera
+                ),
+                scene_analysis=scene_text,
+            )
+        elif has_vision_extraction and has_enriched_context:
             # Use vision-enhanced prompt with Florence-2 attributes, re-id, and scene analysis
             from backend.services.reid_service import format_full_reid_context
             from backend.services.vision_extractor import (
