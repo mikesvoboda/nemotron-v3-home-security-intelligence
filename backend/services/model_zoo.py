@@ -196,18 +196,34 @@ async def load_paddle_ocr(model_path: str) -> Any:
 MODEL_ZOO: dict[str, ModelConfig] = {}
 
 
+def _get_model_zoo_base_path() -> str:
+    """Get the base path for model zoo.
+
+    Uses MODEL_ZOO_PATH environment variable if set, otherwise defaults
+    to /models/model-zoo (the Docker container mount point).
+
+    Returns:
+        Base path for model zoo directory
+    """
+    import os
+
+    return os.environ.get("MODEL_ZOO_PATH", "/models/model-zoo")
+
+
 def _init_model_zoo() -> dict[str, ModelConfig]:
     """Initialize the MODEL_ZOO registry with default models.
 
     This function is called lazily to avoid issues at import time.
+    The base path can be configured via MODEL_ZOO_PATH environment variable.
 
     Returns:
         Dictionary mapping model names to ModelConfig instances
     """
+    base_path = _get_model_zoo_base_path()
     return {
         "yolo11-license-plate": ModelConfig(
             name="yolo11-license-plate",
-            path="/models/model-zoo/yolo11-license-plate/license-plate-finetune-v1n.pt",
+            path=f"{base_path}/yolo11-license-plate/license-plate-finetune-v1n.pt",
             category="detection",
             vram_mb=300,
             load_fn=load_yolo_model,
@@ -216,7 +232,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         ),
         "yolo11-face": ModelConfig(
             name="yolo11-face",
-            path="/models/model-zoo/yolo11-face-detection/model.pt",
+            path=f"{base_path}/yolo11-face-detection/model.pt",
             category="detection",
             vram_mb=200,
             load_fn=load_yolo_model,
@@ -225,7 +241,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         ),
         "paddleocr": ModelConfig(
             name="paddleocr",
-            path="/models/model-zoo/paddleocr",
+            path=f"{base_path}/paddleocr",
             category="ocr",
             vram_mb=100,
             load_fn=load_paddle_ocr,
@@ -246,7 +262,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         # DISABLED: Not downloaded to local model zoo
         "clip-vit-l": ModelConfig(
             name="clip-vit-l",
-            path="/models/model-zoo/clip-vit-l",
+            path=f"{base_path}/clip-vit-l",
             category="embedding",
             vram_mb=800,
             load_fn=load_clip_model,
@@ -259,7 +275,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         # This improves VRAM management by keeping Florence-2 in a separate container.
         "florence-2-large": ModelConfig(
             name="florence-2-large",
-            path="/models/model-zoo/florence-2-large",
+            path=f"{base_path}/florence-2-large",
             category="vision-language",
             vram_mb=1200,  # ~1.2GB with float16
             load_fn=load_florence_model,
@@ -270,7 +286,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         # Enables zero-shot detection of security-relevant objects (knives, packages, etc.)
         "yolo-world-s": ModelConfig(
             name="yolo-world-s",
-            path="/models/model-zoo/yolo-world-s",
+            path=f"{base_path}/yolo-world-s",
             category="detection",
             vram_mb=1500,  # ~1.5GB
             load_fn=load_yolo_world_model,
@@ -281,7 +297,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         # Detects 17 COCO keypoints for pose classification (standing, crouching, running)
         "vitpose-small": ModelConfig(
             name="vitpose-small",
-            path="/models/model-zoo/vitpose-small",
+            path=f"{base_path}/vitpose-small",
             category="pose",
             vram_mb=1500,  # ~1.5GB with float16
             load_fn=load_vitpose_model,
@@ -293,7 +309,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         # Output: depth map where lower values = closer to camera
         "depth-anything-v2-small": ModelConfig(
             name="depth-anything-v2-small",
-            path="/models/model-zoo/depth-anything-v2-small",
+            path=f"{base_path}/depth-anything-v2-small",
             category="depth-estimation",
             vram_mb=150,  # ~100-200MB (very lightweight)
             load_fn=load_depth_model,
@@ -306,7 +322,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         # Reported accuracy: 98.80%
         "violence-detection": ModelConfig(
             name="violence-detection",
-            path="/models/model-zoo/violence-detection",
+            path=f"{base_path}/violence-detection",
             category="classification",
             vram_mb=500,  # ~500MB
             load_fn=load_violence_model,
@@ -320,7 +336,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         # Weather context helps Nemotron calibrate risk assessments
         "weather-classification": ModelConfig(
             name="weather-classification",
-            path="/models/model-zoo/weather-classification",
+            path=f"{base_path}/weather-classification",
             category="classification",
             vram_mb=200,  # ~200MB
             load_fn=load_weather_model,
@@ -332,7 +348,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         # Enables clothing-based person identification and suspicious attire detection
         "segformer-b2-clothes": ModelConfig(
             name="segformer-b2-clothes",
-            path="/models/model-zoo/segformer-b2-clothes",
+            path=f"{base_path}/segformer-b2-clothes",
             category="segmentation",
             vram_mb=1500,  # ~1.5GB
             load_fn=load_segformer_model,
@@ -345,7 +361,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         # Based on microsoft/xclip-base-patch32 - extends CLIP for video understanding
         "xclip-base": ModelConfig(
             name="xclip-base",
-            path="/models/model-zoo/xclip-base",
+            path=f"{base_path}/xclip-base",
             category="action-recognition",
             vram_mb=2000,  # ~2GB with float16
             load_fn=load_xclip_model,
@@ -360,7 +376,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         # Runs on person crop bounding boxes from RT-DETRv2
         "fashion-clip": ModelConfig(
             name="fashion-clip",
-            path="/models/model-zoo/fashion-clip",
+            path=f"{base_path}/fashion-clip",
             category="classification",
             vram_mb=500,  # ~500MB
             load_fn=load_fashion_clip_model,
@@ -390,7 +406,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         # Trained on MIO-TCD Traffic Dataset (50K images)
         "vehicle-segment-classification": ModelConfig(
             name="vehicle-segment-classification",
-            path="/models/model-zoo/vehicle-segment-classification",
+            path=f"{base_path}/vehicle-segment-classification",
             category="classification",
             vram_mb=1500,  # ~1.5GB (conservative estimate for ResNet-50)
             load_fn=load_vehicle_classifier,
@@ -402,7 +418,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         # Security: glass_shatter + lamp_broken at night = suspicious (break-in)
         "vehicle-damage-detection": ModelConfig(
             name="vehicle-damage-detection",
-            path="/models/model-zoo/vehicle-damage-detection",
+            path=f"{base_path}/vehicle-damage-detection",
             category="detection",
             vram_mb=2000,  # ~2GB (yolo11x-seg architecture)
             load_fn=load_vehicle_damage_model,
@@ -415,7 +431,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         # Lightweight model for quick load/unload cycles
         "pet-classifier": ModelConfig(
             name="pet-classifier",
-            path="/models/model-zoo/pet-classifier",
+            path=f"{base_path}/pet-classifier",
             category="classification",
             vram_mb=200,  # ~200MB (very lightweight ResNet-18)
             load_fn=load_pet_classifier_model,
