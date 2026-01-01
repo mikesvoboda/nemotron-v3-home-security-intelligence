@@ -823,7 +823,7 @@ class TestModelZooCLIPIntegration:
         config = zoo["clip-vit-l"]
 
         assert config.name == "clip-vit-l"
-        assert config.path == "openai/clip-vit-large-patch14"
+        assert config.path == "/models/model-zoo/clip-vit-l"
         assert config.category == "embedding"
         assert config.vram_mb == 800
         assert config.enabled is True

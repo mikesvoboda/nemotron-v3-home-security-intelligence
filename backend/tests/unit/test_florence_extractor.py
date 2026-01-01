@@ -752,7 +752,7 @@ class TestFlorenceModelZooRegistration:
 
         assert config is not None
         assert config.name == "florence-2-large"
-        assert config.path == "microsoft/Florence-2-large"
+        assert config.path == "/models/model-zoo/florence-2-large"
         assert config.category == "vision-language"
         assert config.vram_mb == 1200
         assert config.enabled is True
