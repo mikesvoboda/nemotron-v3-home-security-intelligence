@@ -692,6 +692,7 @@ class TestAlertProperties:
         alert = Alert(event_id=event_id, dedup_key="key")
         assert alert.event_id == event_id
 
+    @pytest.mark.slow
     @given(dedup_key=st.text(min_size=1, max_size=255))
     @settings(max_examples=25)
     def test_alert_dedup_key_roundtrip(self, dedup_key: str):
