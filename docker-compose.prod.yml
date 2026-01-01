@@ -112,8 +112,8 @@ services:
 
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile.prod
+      context: .
+      dockerfile: backend/Dockerfile.prod
     ports:
       - "8000:8000"
     volumes:
@@ -126,6 +126,7 @@ services:
       - NEMOTRON_URL=http://ai-llm:8091
       - FOSCAM_BASE_PATH=/cameras
       - DEBUG=false
+      - FAST_PATH_CONFIDENCE_THRESHOLD=1.0 # Disabled: requires 100% confidence
     depends_on:
       postgres:
         condition: service_healthy
