@@ -874,6 +874,9 @@ export interface paths {
          *
          *     Returns:
          *         SearchResponse with ranked results and pagination info
+         *
+         *     Raises:
+         *         HTTPException: 400 if any severity value is invalid
          */
         get: operations["search_events_endpoint_api_events_search_get"];
         put?: never;
