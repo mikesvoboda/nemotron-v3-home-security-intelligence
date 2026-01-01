@@ -293,66 +293,38 @@ class TestReIdentificationService:
     @pytest.mark.asyncio
     async def test_generate_embedding_cropped_image(self) -> None:
         """Test generate_embedding with bounding box crop."""
-        service = ReIdentificationService()
+        # Create mock clip client
+        mock_clip_client = AsyncMock()
+        mock_clip_client.embed.return_value = [0.1] * 768
+
+        service = ReIdentificationService(clip_client=mock_clip_client)
 
         # Create mock image
         mock_image = MagicMock()
         mock_cropped = MagicMock()
         mock_image.crop.return_value = mock_cropped
 
-        # Create mock model
-        mock_processor = MagicMock()
-        mock_inputs = {"pixel_values": MagicMock()}
-        mock_processor.return_value = mock_inputs
-
-        mock_clip_model = MagicMock()
-
-        # Mock tensor operations
-        mock_features = MagicMock()
-        mock_features.norm.return_value = MagicMock()
-        mock_features.__truediv__ = MagicMock(return_value=mock_features)
-        mock_features.__getitem__ = MagicMock(
-            return_value=MagicMock(
-                cpu=MagicMock(
-                    return_value=MagicMock(
-                        numpy=MagicMock(
-                            return_value=MagicMock(tolist=MagicMock(return_value=[0.1] * 768))
-                        )
-                    )
-                )
-            )
-        )
-        mock_clip_model.get_image_features.return_value = mock_features
-
-        # Mock device
-        mock_param = MagicMock()
-        mock_param.device = "cpu"
-        mock_clip_model.parameters.return_value = iter([mock_param])
-
-        model = {"model": mock_clip_model, "processor": mock_processor}
-
-        # Mock torch
-        mock_torch = MagicMock()
-        mock_torch.no_grad.return_value.__enter__ = MagicMock()
-        mock_torch.no_grad.return_value.__exit__ = MagicMock()
-
-        with patch.dict("sys.modules", {"torch": mock_torch}):
-            embedding = await service.generate_embedding(model, mock_image, bbox=(10, 20, 100, 150))
+        embedding = await service.generate_embedding(mock_image, bbox=(10, 20, 100, 150))
 
         # Verify crop was called with bbox
         mock_image.crop.assert_called_once_with((10, 20, 100, 150))
+        # Verify clip client was called with cropped image
+        mock_clip_client.embed.assert_called_once_with(mock_cropped)
         assert len(embedding) == 768
 
     @pytest.mark.asyncio
     async def test_generate_embedding_failure(self) -> None:
         """Test generate_embedding handles failures gracefully."""
-        service = ReIdentificationService()
+        # Create mock clip client that raises an error
+        mock_clip_client = AsyncMock()
+        mock_clip_client.embed.side_effect = RuntimeError("Connection failed")
+
+        service = ReIdentificationService(clip_client=mock_clip_client)
 
         mock_image = MagicMock()
-        mock_model = {"model": None, "processor": None}
 
         with pytest.raises(RuntimeError, match="Embedding generation failed"):
-            await service.generate_embedding(mock_model, mock_image)
+            await service.generate_embedding(mock_image)
 
     @pytest.mark.asyncio
     async def test_store_embedding_new_key(self) -> None:

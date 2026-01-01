@@ -8,9 +8,12 @@ with additional context by running on-demand AI models:
 3. Face Detection: Runs YOLO11 on person detections
 4. Image Quality Assessment: BRISQUE for blur/noise/tampering detection
 
-The pipeline uses the ModelManager to efficiently load/unload models,
-minimizing VRAM usage while providing rich context for the Nemotron LLM
-risk analysis.
+The pipeline can use either:
+- Local models via ModelManager (default, for single-process deployments)
+- Remote HTTP service at ai-enrichment:8094 (for containerized deployments)
+
+Set use_enrichment_service=True to use the HTTP service for vehicle, pet,
+and clothing classification instead of loading models locally.
 """
 
 from __future__ import annotations
@@ -24,6 +27,13 @@ from typing import Any
 from PIL import Image
 
 from backend.core.logging import get_logger
+
+# Import enrichment client for remote HTTP service
+from backend.services.enrichment_client import (
+    EnrichmentClient,
+    EnrichmentUnavailableError,
+    get_enrichment_client,
+)
 from backend.services.fashion_clip_loader import (
     ClothingClassification,
     classify_clothing,
@@ -710,6 +720,8 @@ class EnrichmentPipeline:
         image_quality_enabled: bool = True,
         pet_classification_enabled: bool = True,
         redis_client: Any | None = None,
+        use_enrichment_service: bool = False,
+        enrichment_client: EnrichmentClient | None = None,
     ) -> None:
         """Initialize the EnrichmentPipeline.
 
@@ -728,7 +740,11 @@ class EnrichmentPipeline:
             vehicle_damage_detection_enabled: Enable YOLOv11 vehicle damage detection
             vehicle_classification_enabled: Enable ResNet-50 vehicle type classification
             image_quality_enabled: Enable BRISQUE image quality assessment (CPU-based)
+            pet_classification_enabled: Enable pet classification for false positive reduction
             redis_client: Redis client for re-id storage (optional)
+            use_enrichment_service: Use HTTP service at ai-enrichment:8094 instead of local models
+                                    for vehicle, pet, and clothing classification
+            enrichment_client: Optional EnrichmentClient instance (uses global if not provided)
         """
         self.model_manager = model_manager or get_model_manager()
         self.min_confidence = min_confidence
@@ -748,6 +764,10 @@ class EnrichmentPipeline:
         self._previous_quality_results: dict[str, ImageQualityResult] = {}
         self.redis_client = redis_client
 
+        # Enrichment service settings
+        self.use_enrichment_service = use_enrichment_service
+        self._enrichment_client = enrichment_client
+
         # Initialize services
         self._vision_extractor = get_vision_extractor()
         self._reid_service = get_reid_service()
@@ -760,8 +780,189 @@ class EnrichmentPipeline:
             f"ocr={ocr_enabled}, "
             f"vision_extraction={vision_extraction_enabled}, "
             f"reid={reid_enabled}, "
-            f"scene_change={scene_change_enabled}"
+            f"scene_change={scene_change_enabled}, "
+            f"use_enrichment_service={use_enrichment_service}"
         )
+
+    def _get_enrichment_client(self) -> EnrichmentClient:
+        """Get the enrichment client, creating if needed.
+
+        Returns:
+            EnrichmentClient instance
+        """
+        if self._enrichment_client is None:
+            self._enrichment_client = get_enrichment_client()
+        return self._enrichment_client
+
+    async def _classify_vehicle_via_service(
+        self,
+        vehicles: list[DetectionInput],
+        image: Image.Image,
+    ) -> dict[str, VehicleClassificationResult]:
+        """Classify vehicles using the remote enrichment HTTP service.
+
+        Args:
+            vehicles: List of vehicle detections to classify
+            image: Full frame image to crop vehicles from
+
+        Returns:
+            Dictionary mapping detection IDs to VehicleClassificationResult
+        """
+        results: dict[str, VehicleClassificationResult] = {}
+
+        if not vehicles:
+            return results
+
+        client = self._get_enrichment_client()
+
+        for i, vehicle in enumerate(vehicles):
+            det_id = str(vehicle.id) if vehicle.id else str(i)
+
+            try:
+                # Crop vehicle from full frame
+                vehicle_crop = await self._crop_to_bbox(image, vehicle.bbox)
+                if vehicle_crop is None:
+                    continue
+
+                # Call remote service
+                bbox_tuple = vehicle.bbox.to_tuple() if vehicle.bbox else None
+                remote_result = await client.classify_vehicle(vehicle_crop, bbox_tuple)
+
+                if remote_result:
+                    # Convert remote result to local VehicleClassificationResult
+
+                    results[det_id] = VehicleClassificationResult(
+                        vehicle_type=remote_result.vehicle_type,
+                        confidence=remote_result.confidence,
+                        display_name=remote_result.display_name,
+                        is_commercial=remote_result.is_commercial,
+                        all_scores=remote_result.all_scores,
+                    )
+
+                    logger.debug(
+                        f"Vehicle {det_id} type (via service): {remote_result.vehicle_type} "
+                        f"({remote_result.confidence:.0%})"
+                    )
+
+            except EnrichmentUnavailableError as e:
+                logger.warning(f"Enrichment service unavailable for vehicle {det_id}: {e}")
+            except Exception as e:
+                logger.warning(f"Vehicle classification via service failed for {det_id}: {e}")
+
+        return results
+
+    async def _classify_pets_via_service(
+        self,
+        animals: list[DetectionInput],
+        image: Image.Image,
+    ) -> dict[str, PetClassificationResult]:
+        """Classify pets using the remote enrichment HTTP service.
+
+        Args:
+            animals: List of animal detections to classify
+            image: Full frame image to crop animals from
+
+        Returns:
+            Dictionary mapping detection IDs to PetClassificationResult
+        """
+        results: dict[str, PetClassificationResult] = {}
+
+        if not animals:
+            return results
+
+        client = self._get_enrichment_client()
+
+        for i, animal in enumerate(animals):
+            det_id = str(animal.id) if animal.id else str(i)
+
+            try:
+                # Crop animal from full frame
+                animal_crop = await self._crop_to_bbox(image, animal.bbox)
+                if animal_crop is None:
+                    continue
+
+                # Call remote service
+                bbox_tuple = animal.bbox.to_tuple() if animal.bbox else None
+                remote_result = await client.classify_pet(animal_crop, bbox_tuple)
+
+                if remote_result:
+                    # Convert remote result to local PetClassificationResult
+                    results[det_id] = PetClassificationResult(
+                        animal_type=remote_result.pet_type,
+                        confidence=remote_result.confidence,
+                        cat_score=0.0,  # Remote service doesn't return raw scores
+                        dog_score=0.0,
+                        is_household_pet=remote_result.is_household_pet,
+                    )
+
+                    logger.debug(
+                        f"Animal {det_id} classified (via service) as {remote_result.pet_type} "
+                        f"({remote_result.confidence:.0%} confidence)"
+                    )
+
+            except EnrichmentUnavailableError as e:
+                logger.warning(f"Enrichment service unavailable for animal {det_id}: {e}")
+            except Exception as e:
+                logger.warning(f"Pet classification via service failed for {det_id}: {e}")
+
+        return results
+
+    async def _classify_clothing_via_service(
+        self,
+        persons: list[DetectionInput],
+        image: Image.Image,
+    ) -> dict[str, ClothingClassification]:
+        """Classify clothing using the remote enrichment HTTP service.
+
+        Args:
+            persons: List of person detections to classify
+            image: Full frame image to crop persons from
+
+        Returns:
+            Dictionary mapping detection IDs to ClothingClassification
+        """
+        results: dict[str, ClothingClassification] = {}
+
+        if not persons:
+            return results
+
+        client = self._get_enrichment_client()
+
+        for i, person in enumerate(persons):
+            det_id = str(person.id) if person.id else str(i)
+
+            try:
+                # Crop person from full frame
+                person_crop = await self._crop_to_bbox(image, person.bbox)
+                if person_crop is None:
+                    continue
+
+                # Call remote service
+                bbox_tuple = person.bbox.to_tuple() if person.bbox else None
+                remote_result = await client.classify_clothing(person_crop, bbox_tuple)
+
+                if remote_result:
+                    # Convert remote result to local ClothingClassification
+                    results[det_id] = ClothingClassification(
+                        top_category=remote_result.top_category,
+                        confidence=remote_result.confidence,
+                        all_scores={},  # Remote service only returns top category
+                        is_suspicious=remote_result.is_suspicious,
+                        is_service_uniform=remote_result.is_service_uniform,
+                        raw_description=remote_result.description,
+                    )
+
+                    logger.debug(
+                        f"Person {det_id} clothing (via service): {remote_result.description} "
+                        f"({remote_result.confidence:.0%})"
+                    )
+
+            except EnrichmentUnavailableError as e:
+                logger.warning(f"Enrichment service unavailable for person {det_id}: {e}")
+            except Exception as e:
+                logger.warning(f"Clothing classification via service failed for {det_id}: {e}")
+
+        return results
 
     async def enrich_batch(  # noqa: PLR0912
         self,
@@ -895,9 +1096,14 @@ class EnrichmentPipeline:
             persons = [d for d in high_conf_detections if d.class_name == PERSON_CLASS]
             if persons:
                 try:
-                    result.clothing_classifications = await self._classify_person_clothing(
-                        persons, pil_image
-                    )
+                    if self.use_enrichment_service:
+                        result.clothing_classifications = await self._classify_clothing_via_service(
+                            persons, pil_image
+                        )
+                    else:
+                        result.clothing_classifications = await self._classify_person_clothing(
+                            persons, pil_image
+                        )
                 except Exception as e:
                     error_msg = f"Clothing classification failed: {e}"
                     logger.error(error_msg)
@@ -932,9 +1138,14 @@ class EnrichmentPipeline:
             vehicles = [d for d in high_conf_detections if d.class_name in VEHICLE_CLASSES]
             if vehicles:
                 try:
-                    result.vehicle_classifications = await self._classify_vehicle_types(
-                        vehicles, pil_image
-                    )
+                    if self.use_enrichment_service:
+                        result.vehicle_classifications = await self._classify_vehicle_via_service(
+                            vehicles, pil_image
+                        )
+                    else:
+                        result.vehicle_classifications = await self._classify_vehicle_types(
+                            vehicles, pil_image
+                        )
                 except Exception as e:
                     error_msg = f"Vehicle classification failed: {e}"
                     logger.error(error_msg)
@@ -974,7 +1185,12 @@ class EnrichmentPipeline:
             animals = [d for d in high_conf_detections if d.class_name in ANIMAL_CLASSES]
             if animals:
                 try:
-                    result.pet_classifications = await self._classify_pets(animals, pil_image)
+                    if self.use_enrichment_service:
+                        result.pet_classifications = await self._classify_pets_via_service(
+                            animals, pil_image
+                        )
+                    else:
+                        result.pet_classifications = await self._classify_pets(animals, pil_image)
                     if result.pet_only_event:
                         logger.info("Pet-only event detected - can skip Nemotron risk analysis")
                 except Exception as e:
@@ -1023,8 +1239,9 @@ class EnrichmentPipeline:
         assert self.redis_client is not None, "redis_client required for re-id"
         redis: Redis = self.redis_client  # type: ignore[assignment]
 
-        # Load CLIP model
-        async with self.model_manager.load("clip-vit-l") as model:
+        # CLIP model is now accessed via HTTP service (ai-clip)
+        # The context manager is kept for compatibility but model is unused
+        async with self.model_manager.load("clip-vit-l"):
             for i, det in enumerate(detections):
                 det_id = str(det.id) if det.id else str(i)
                 entity_type = "person" if det.class_name == PERSON_CLASS else "vehicle"
@@ -1033,9 +1250,9 @@ class EnrichmentPipeline:
                     continue
 
                 try:
-                    # Generate embedding
+                    # Generate embedding using ai-clip HTTP service
                     bbox = det.bbox.to_int_tuple() if det.bbox else None
-                    embedding = await self._reid_service.generate_embedding(model, image, bbox)
+                    embedding = await self._reid_service.generate_embedding(image, bbox=bbox)
 
                     # Find matches
                     matches = await self._reid_service.find_matching_entities(

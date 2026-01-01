@@ -138,6 +138,66 @@ services:
               count: 1
               capabilities: [gpu]
 
+  # CLIP ViT-L model for entity re-identification embeddings
+  ai-clip:
+    build:
+      context: ./ai/clip
+      dockerfile: Dockerfile
+    ports:
+      - "8093:8093"
+    volumes:
+      - /export/ai_models/model-zoo/clip-vit-l:/models/clip-vit-l:ro
+    environment:
+      - CLIP_MODEL_PATH=/models/clip-vit-l
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8093/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # Combined enrichment service for vehicle, pet, and clothing classification
+  ai-enrichment:
+    build:
+      context: ./ai/enrichment
+      dockerfile: Dockerfile
+    ports:
+      - "8094:8094"
+    volumes:
+      - /export/ai_models/model-zoo/vehicle-segment-classification:/models/vehicle-segment-classification:ro
+      - /export/ai_models/model-zoo/pet-classifier:/models/pet-classifier:ro
+      - /export/ai_models/model-zoo/fashion-clip:/models/fashion-clip:ro
+    environment:
+      - VEHICLE_MODEL_PATH=/models/vehicle-segment-classification
+      - PET_MODEL_PATH=/models/pet-classifier
+      - CLOTHING_MODEL_PATH=/models/fashion-clip
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8094/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 180s
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
   backend:
     build:
       context: .
@@ -154,6 +214,8 @@ services:
       - RTDETR_URL=http://ai-detector:8090
       - NEMOTRON_URL=http://ai-llm:8091
       - FLORENCE_URL=http://ai-florence:8092
+      - CLIP_URL=http://ai-clip:8093
+      - ENRICHMENT_URL=http://ai-enrichment:8094
       - FOSCAM_BASE_PATH=/cameras
       - DEBUG=false
       - FAST_PATH_CONFIDENCE_THRESHOLD=1.0 # Disabled: requires 100% confidence

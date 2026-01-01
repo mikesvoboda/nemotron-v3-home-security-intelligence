@@ -139,15 +139,20 @@ class TestAnalyzeBatchCreatesEvent:
         ]
         mock_redis_client.publish.return_value = 1
 
-        # Mock HTTP call to LLM
+        # Mock HTTP call to LLM - must properly mock async context manager
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = mock_llm_response
         mock_response.raise_for_status = MagicMock()
 
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+
         analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
 
-        with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
+        with patch("httpx.AsyncClient", return_value=mock_client):
             event = await analyzer.analyze_batch(batch_id)
 
         # Verify event was created
@@ -179,15 +184,20 @@ class TestAnalyzeBatchCreatesEvent:
         ]
         mock_redis_client.publish.return_value = 1
 
-        # Mock HTTP call to LLM
+        # Mock HTTP call to LLM - must properly mock async context manager
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = mock_llm_response
         mock_response.raise_for_status = MagicMock()
 
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+
         analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
 
-        with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
+        with patch("httpx.AsyncClient", return_value=mock_client):
             event = await analyzer.analyze_batch(batch_id)
 
         # Verify detection_ids are stored
@@ -208,15 +218,20 @@ class TestAnalyzeBatchCreatesEvent:
         ]
         mock_redis_client.publish.return_value = 1
 
-        # Mock HTTP call to LLM
+        # Mock HTTP call to LLM - must properly mock async context manager
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = mock_llm_response
         mock_response.raise_for_status = MagicMock()
 
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+
         analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
 
-        with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
+        with patch("httpx.AsyncClient", return_value=mock_client):
             event = await analyzer.analyze_batch(batch_id)
 
         # Verify risk assessment fields
@@ -239,15 +254,20 @@ class TestAnalyzeBatchCreatesEvent:
         ]
         mock_redis_client.publish.return_value = 1
 
-        # Mock HTTP call to LLM
+        # Mock HTTP call to LLM - must properly mock async context manager
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = mock_llm_response
         mock_response.raise_for_status = MagicMock()
 
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+
         analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
 
-        with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
+        with patch("httpx.AsyncClient", return_value=mock_client):
             event = await analyzer.analyze_batch(batch_id)
 
         # Verify time window matches detection times
@@ -367,15 +387,20 @@ class TestAnalyzeDetectionFastPath:
         # Mock Redis (no batch metadata needed for fast path)
         mock_redis_client.publish.return_value = 1
 
-        # Mock HTTP call to LLM
+        # Mock HTTP call to LLM - must properly mock async context manager
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = mock_llm_response
         mock_response.raise_for_status = MagicMock()
 
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+
         analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
 
-        with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
+        with patch("httpx.AsyncClient", return_value=mock_client):
             event = await analyzer.analyze_detection_fast_path(sample_camera.id, str(detection.id))
 
         # Verify event was created with fast path flag
@@ -485,9 +510,14 @@ class TestLLMResponseParsing:
         mock_response.json.return_value = invalid_response
         mock_response.raise_for_status = MagicMock()
 
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+
         analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
 
-        with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
+        with patch("httpx.AsyncClient", return_value=mock_client):
             event = await analyzer.analyze_batch(batch_id)
 
         # Risk score should be clamped to 100
@@ -523,9 +553,14 @@ class TestLLMResponseParsing:
         mock_response.json.return_value = invalid_response
         mock_response.raise_for_status = MagicMock()
 
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+
         analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
 
-        with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
+        with patch("httpx.AsyncClient", return_value=mock_client):
             event = await analyzer.analyze_batch(batch_id)
 
         # Risk level should be inferred from score (80 = high per thresholds: 60-84)
@@ -554,9 +589,14 @@ class TestLLMResponseParsing:
         mock_response.json.return_value = response_with_text
         mock_response.raise_for_status = MagicMock()
 
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+
         analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
 
-        with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
+        with patch("httpx.AsyncClient", return_value=mock_client):
             event = await analyzer.analyze_batch(batch_id)
 
         # Should extract JSON from text
@@ -631,9 +671,14 @@ class TestWebSocketBroadcast:
         mock_response.json.return_value = mock_llm_response
         mock_response.raise_for_status = MagicMock()
 
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+
         analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
 
-        with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
+        with patch("httpx.AsyncClient", return_value=mock_client):
             event = await analyzer.analyze_batch(batch_id)
 
         # Verify publish was called via EventBroadcaster
@@ -668,9 +713,14 @@ class TestWebSocketBroadcast:
         mock_response.json.return_value = mock_llm_response
         mock_response.raise_for_status = MagicMock()
 
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+
         analyzer = NemotronAnalyzer(redis_client=mock_redis_client)
 
-        with patch.object(httpx.AsyncClient, "post", return_value=mock_response):
+        with patch("httpx.AsyncClient", return_value=mock_client):
             # Should not raise exception
             event = await analyzer.analyze_batch(batch_id)
 
