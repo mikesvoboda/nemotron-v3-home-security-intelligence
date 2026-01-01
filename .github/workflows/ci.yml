@@ -43,6 +43,11 @@ jobs:
       - name: Ruff format check
         run: uv run ruff format --check backend/
 
+      - name: Complexity check (Radon)
+        run: |
+          uv run radon cc backend/ -a -nc
+          uv run radon mi backend/ -nc
+
   typecheck:
     name: Backend Type Check (Mypy)
     runs-on: ubuntu-latest
@@ -259,6 +264,29 @@ jobs:
           flags: backend-integration
           fail_ci_if_error: false
 
+  dead-code:
+    name: Dead Code Detection
+    runs-on: ubuntu-latest
+    # Non-blocking initially - reports issues without failing CI
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Run Vulture (dead code detection)
+        run: uv run vulture backend/ vulture_whitelist.py --min-confidence 80
+
   # ============================================================================
   # Frontend Jobs
   # ============================================================================
@@ -316,6 +344,11 @@ jobs:
       - name: ESLint
         run: cd frontend && npm run lint
 
+      - name: Dead code detection (Knip)
+        # Non-blocking initially - reports issues without failing CI
+        continue-on-error: true
+        run: cd frontend && npx knip
+
   frontend-typecheck:
     name: Frontend Type Check (TypeScript)
     runs-on: ubuntu-latest
@@ -362,6 +395,16 @@ jobs:
           files: frontend/coverage/lcov.info
           flags: frontend
           fail_ci_if_error: false
+
+  api-coverage:
+    name: API Endpoint Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check API coverage
+        run: ./scripts/check-api-coverage.sh
 
   # Primary E2E tests (Chromium) - non-blocking while stabilizing error state tests
   # Uses sharding to split tests across 2 parallel runners for 2x speed

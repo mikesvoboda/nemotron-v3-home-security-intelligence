@@ -297,6 +297,53 @@ cd frontend && npm test
 pre-commit run --all-files
 ```
 
+## Code Quality Tooling
+
+This project uses additional code quality tools beyond linting:
+
+### Pre-commit Hooks (Local)
+
+| Hook     | Purpose                                                 | Runtime |
+| -------- | ------------------------------------------------------- | ------- |
+| Hadolint | Docker best practices, CIS benchmarks                   | ~1-2s   |
+| Semgrep  | Security scanning (SQL injection, path traversal, etc.) | ~2-5s   |
+
+These run automatically on commit. Skip with `SKIP=hadolint,semgrep git commit` in emergencies (CI still catches issues).
+
+### CI-Only Checks
+
+| Tool         | Purpose                 | What It Catches                           |
+| ------------ | ----------------------- | ----------------------------------------- |
+| Vulture      | Python dead code        | Unused functions, imports, variables      |
+| Knip         | TypeScript dead code    | Unused exports, dependencies, files       |
+| Radon        | Complexity metrics      | Functions with cyclomatic complexity > 10 |
+| API Coverage | Backend→Frontend parity | Endpoints with no frontend consumers      |
+
+### Running Locally
+
+```bash
+# Dead code detection
+uv run vulture backend/ --min-confidence 80
+cd frontend && npx knip
+
+# Complexity analysis
+uv run radon cc backend/ -a -s  # Cyclomatic complexity
+uv run radon mi backend/ -s     # Maintainability index
+
+# API coverage
+./scripts/check-api-coverage.sh
+```
+
+### Architecture Review
+
+Use the existing superpowers code reviewer for architecture concerns:
+
+```
+/code-review
+```
+
+This checks: scope creep, over-engineering, pattern violations, SOLID principles, and architectural drift.
+
 ## Key Design Decisions
 
 - **Risk scoring:** LLM-determined (Nemotron analyzes detections and assigns 0-100 score)
