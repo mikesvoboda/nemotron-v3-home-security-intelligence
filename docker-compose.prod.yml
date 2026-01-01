@@ -15,7 +15,7 @@
 #   - FRONTEND_PORT: Host port for frontend (default: 5173, nginx serves on port 80 inside container)
 #   - RTDETR_CONFIDENCE: Detection confidence threshold (default: 0.5)
 #   - GPU_LAYERS: Number of GPU layers for LLM (default: 45)
-#   - CTX_SIZE: LLM context window size (default: 8192)
+#   - CTX_SIZE: LLM context window size (default: 16384)
 #   - HF_CACHE: HuggingFace cache directory (default: ~/.cache/huggingface)
 
 services:
@@ -91,14 +91,102 @@ services:
     volumes:
       - /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km:/models:ro
     environment:
-      - GPU_LAYERS=${GPU_LAYERS:-45}
-      - CTX_SIZE=${CTX_SIZE:-8192}
+      - GPU_LAYERS=${GPU_LAYERS:-35}
+      - CTX_SIZE=${CTX_SIZE:-16384}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8091/health"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 120s
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # Florence-2 vision-language model for dense captioning and visual understanding
+  ai-florence:
+    build:
+      context: ./ai/florence
+      dockerfile: Dockerfile
+    ports:
+      - "8092:8092"
+    volumes:
+      - /export/ai_models/model-zoo/florence-2-large:/models/florence-2-large:ro
+    environment:
+      - MODEL_PATH=/models/florence-2-large
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8092/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # CLIP ViT-L model for entity re-identification embeddings
+  ai-clip:
+    build:
+      context: ./ai/clip
+      dockerfile: Dockerfile
+    ports:
+      - "8093:8093"
+    volumes:
+      - /export/ai_models/model-zoo/clip-vit-l:/models/clip-vit-l:ro
+    environment:
+      - CLIP_MODEL_PATH=/models/clip-vit-l
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8093/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - security-net
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # Combined enrichment service for vehicle, pet, and clothing classification
+  ai-enrichment:
+    build:
+      context: ./ai/enrichment
+      dockerfile: Dockerfile
+    ports:
+      - "8094:8094"
+    volumes:
+      - /export/ai_models/model-zoo/vehicle-segment-classification:/models/vehicle-segment-classification:ro
+      - /export/ai_models/model-zoo/pet-classifier:/models/pet-classifier:ro
+      - /export/ai_models/model-zoo/fashion-clip:/models/fashion-clip:ro
+    environment:
+      - VEHICLE_MODEL_PATH=/models/vehicle-segment-classification
+      - PET_MODEL_PATH=/models/pet-classifier
+      - CLOTHING_MODEL_PATH=/models/fashion-clip
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8094/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 180s
     restart: unless-stopped
     networks:
       - security-net
@@ -119,11 +207,15 @@ services:
     volumes:
       - ./backend/data:/app/data
       - ${CAMERA_PATH:-/export/foscam}:/cameras:ro
+      - ${MODEL_ZOO_PATH:-/export/ai_models/model-zoo}:/models/model-zoo:ro,z
     environment:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-security}:${POSTGRES_PASSWORD:-security_dev_password}@postgres:5432/${POSTGRES_DB:-security}
       - REDIS_URL=redis://redis:6379
       - RTDETR_URL=http://ai-detector:8090
       - NEMOTRON_URL=http://ai-llm:8091
+      - FLORENCE_URL=http://ai-florence:8092
+      - CLIP_URL=http://ai-clip:8093
+      - ENRICHMENT_URL=http://ai-enrichment:8094
       - FOSCAM_BASE_PATH=/cameras
       - DEBUG=false
       - FAST_PATH_CONFIDENCE_THRESHOLD=1.0 # Disabled: requires 100% confidence
@@ -135,6 +227,8 @@ services:
       # ai-detector:
       #   condition: service_healthy
       # ai-llm:
+      #   condition: service_healthy
+      # ai-florence:
       #   condition: service_healthy
     healthcheck:
       test:

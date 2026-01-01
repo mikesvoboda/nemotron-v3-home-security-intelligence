@@ -1,7 +1,8 @@
 """Model Zoo for on-demand model loading.
 
 This module provides a registry of AI models that can be loaded on-demand during
-batch processing to extract additional context (license plates, faces, OCR text).
+batch processing to extract additional context (license plates, faces, OCR text,
+pose estimation).
 
 The ModelManager handles VRAM-efficient loading and unloading of models using
 async context managers that automatically release GPU memory when done.
@@ -10,6 +11,19 @@ Models:
     - yolo11-license-plate: License plate detection on vehicles
     - yolo11-face: Face detection on persons
     - paddleocr: OCR text extraction from detected plates
+    - clip-vit-l: CLIP embeddings for re-identification
+    - florence-2-large: Vision-language queries for attribute extraction
+    - yolo-world-s: Open-vocabulary zero-shot detection
+    - vitpose-small: Human pose keypoint detection (17 COCO keypoints)
+    - depth-anything-v2-small: Monocular depth estimation for distance context
+    - violence-detection: Binary violence classification on full frame
+    - weather-classification: Weather condition classification (5 classes)
+    - segformer-b2-clothes: Clothing segmentation on person detections
+    - xclip-base: Temporal action recognition in video sequences
+    - fashion-clip: Zero-shot clothing classification for security context
+    - brisque-quality: Image quality assessment (CPU-based, 0 VRAM)
+    - vehicle-segment-classification: Detailed vehicle type classification (11 types)
+    - pet-classifier: Cat/dog classification for false positive reduction
 
 VRAM Budget:
     - Nemotron LLM: 21,700 MB (always loaded)
@@ -28,7 +42,19 @@ from typing import TYPE_CHECKING, Any
 
 from backend.core.logging import get_logger
 from backend.services.clip_loader import load_clip_model
+from backend.services.depth_anything_loader import load_depth_model
+from backend.services.fashion_clip_loader import load_fashion_clip_model
 from backend.services.florence_loader import load_florence_model
+from backend.services.image_quality_loader import load_brisque_model
+from backend.services.pet_classifier_loader import load_pet_classifier_model
+from backend.services.segformer_loader import load_segformer_model
+from backend.services.vehicle_classifier_loader import load_vehicle_classifier
+from backend.services.vehicle_damage_loader import load_vehicle_damage_model
+from backend.services.violence_loader import load_violence_model
+from backend.services.vitpose_loader import load_vitpose_model
+from backend.services.weather_loader import load_weather_model
+from backend.services.xclip_loader import load_xclip_model
+from backend.services.yolo_world_loader import load_yolo_world_model
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -48,6 +74,15 @@ VEHICLE_CLASSES = frozenset(
 
 # Person class that should trigger face detection
 PERSON_CLASS = "person"
+
+# Animal classes that should trigger pet classification
+# These are common animal classes from COCO/RT-DETRv2 that might be pets
+ANIMAL_CLASSES = frozenset(
+    {
+        "cat",
+        "dog",
+    }
+)
 
 
 @dataclass
@@ -161,18 +196,34 @@ async def load_paddle_ocr(model_path: str) -> Any:
 MODEL_ZOO: dict[str, ModelConfig] = {}
 
 
+def _get_model_zoo_base_path() -> str:
+    """Get the base path for model zoo.
+
+    Uses MODEL_ZOO_PATH environment variable if set, otherwise defaults
+    to /models/model-zoo (the Docker container mount point).
+
+    Returns:
+        Base path for model zoo directory
+    """
+    import os
+
+    return os.environ.get("MODEL_ZOO_PATH", "/models/model-zoo")
+
+
 def _init_model_zoo() -> dict[str, ModelConfig]:
     """Initialize the MODEL_ZOO registry with default models.
 
     This function is called lazily to avoid issues at import time.
+    The base path can be configured via MODEL_ZOO_PATH environment variable.
 
     Returns:
         Dictionary mapping model names to ModelConfig instances
     """
+    base_path = _get_model_zoo_base_path()
     return {
         "yolo11-license-plate": ModelConfig(
             name="yolo11-license-plate",
-            path="keremberke/yolov11-license-plate-detection",
+            path=f"{base_path}/yolo11-license-plate/license-plate-finetune-v1n.pt",
             category="detection",
             vram_mb=300,
             load_fn=load_yolo_model,
@@ -181,7 +232,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         ),
         "yolo11-face": ModelConfig(
             name="yolo11-face",
-            path="keremberke/yolov11n-face-detection",
+            path=f"{base_path}/yolo11-face-detection/model.pt",
             category="detection",
             vram_mb=200,
             load_fn=load_yolo_model,
@@ -190,7 +241,7 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
         ),
         "paddleocr": ModelConfig(
             name="paddleocr",
-            path="PaddlePaddle/PaddleOCR",
+            path=f"{base_path}/paddleocr",
             category="ocr",
             vram_mb=100,
             load_fn=load_paddle_ocr,
@@ -208,9 +259,10 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
             available=False,
         ),
         # CLIP ViT-L for re-identification embeddings
+        # DISABLED: Not downloaded to local model zoo
         "clip-vit-l": ModelConfig(
             name="clip-vit-l",
-            path="openai/clip-vit-large-patch14",
+            path=f"{base_path}/clip-vit-l",
             category="embedding",
             vram_mb=800,
             load_fn=load_clip_model,
@@ -218,12 +270,171 @@ def _init_model_zoo() -> dict[str, ModelConfig]:
             available=False,
         ),
         # Florence-2-large for vision-language queries (attributes, behavior, scene)
+        # DISABLED: Florence-2 now runs as a dedicated HTTP service at http://ai-florence:8092
+        # The backend calls the service via florence_client.py instead of loading the model directly.
+        # This improves VRAM management by keeping Florence-2 in a separate container.
         "florence-2-large": ModelConfig(
             name="florence-2-large",
-            path="microsoft/Florence-2-large",
+            path=f"{base_path}/florence-2-large",
             category="vision-language",
             vram_mb=1200,  # ~1.2GB with float16
             load_fn=load_florence_model,
+            enabled=False,  # Disabled - now runs as dedicated ai-florence service
+            available=False,
+        ),
+        # YOLO-World-S for open-vocabulary detection via text prompts
+        # Enables zero-shot detection of security-relevant objects (knives, packages, etc.)
+        "yolo-world-s": ModelConfig(
+            name="yolo-world-s",
+            path=f"{base_path}/yolo-world-s",
+            category="detection",
+            vram_mb=1500,  # ~1.5GB
+            load_fn=load_yolo_world_model,
+            enabled=True,
+            available=False,
+        ),
+        # ViTPose+ Small for human pose keypoint detection
+        # Detects 17 COCO keypoints for pose classification (standing, crouching, running)
+        "vitpose-small": ModelConfig(
+            name="vitpose-small",
+            path=f"{base_path}/vitpose-small",
+            category="pose",
+            vram_mb=1500,  # ~1.5GB with float16
+            load_fn=load_vitpose_model,
+            enabled=True,
+            available=False,
+        ),
+        # Depth Anything V2 Small for monocular depth estimation
+        # Provides relative distance estimation for detected objects
+        # Output: depth map where lower values = closer to camera
+        "depth-anything-v2-small": ModelConfig(
+            name="depth-anything-v2-small",
+            path=f"{base_path}/depth-anything-v2-small",
+            category="depth-estimation",
+            vram_mb=150,  # ~100-200MB (very lightweight)
+            load_fn=load_depth_model,
+            enabled=True,
+            available=False,
+        ),
+        # ViT Violence Detection for identifying violent content
+        # Binary classification: violent vs non-violent
+        # Runs on full frame when 2+ persons detected (optimization)
+        # Reported accuracy: 98.80%
+        "violence-detection": ModelConfig(
+            name="violence-detection",
+            path=f"{base_path}/violence-detection",
+            category="classification",
+            vram_mb=500,  # ~500MB
+            load_fn=load_violence_model,
+            enabled=True,
+            available=False,
+        ),
+        # Weather Classification for environmental context
+        # SigLIP-based model fine-tuned for weather classification
+        # Classes: cloudy/overcast, foggy/hazy, rain/storm, snow/frosty, sun/clear
+        # Runs once per batch on full frame (not per detection)
+        # Weather context helps Nemotron calibrate risk assessments
+        "weather-classification": ModelConfig(
+            name="weather-classification",
+            path=f"{base_path}/weather-classification",
+            category="classification",
+            vram_mb=200,  # ~200MB
+            load_fn=load_weather_model,
+            enabled=True,
+            available=False,
+        ),
+        # SegFormer B2 Clothes for clothing segmentation on person detections
+        # Segments 18 clothing/body part categories for re-identification
+        # Enables clothing-based person identification and suspicious attire detection
+        "segformer-b2-clothes": ModelConfig(
+            name="segformer-b2-clothes",
+            path=f"{base_path}/segformer-b2-clothes",
+            category="segmentation",
+            vram_mb=1500,  # ~1.5GB
+            load_fn=load_segformer_model,
+            enabled=True,
+            available=False,
+        ),
+        # X-CLIP for temporal action recognition in video sequences
+        # Analyzes multiple frames to classify security-relevant actions:
+        # loitering, approaching door, running away, suspicious behavior, etc.
+        # Based on microsoft/xclip-base-patch32 - extends CLIP for video understanding
+        "xclip-base": ModelConfig(
+            name="xclip-base",
+            path=f"{base_path}/xclip-base",
+            category="action-recognition",
+            vram_mb=2000,  # ~2GB with float16
+            load_fn=load_xclip_model,
+            enabled=True,
+            available=False,
+        ),
+        # Marqo-FashionCLIP for zero-shot clothing classification
+        # Identifies security-relevant clothing attributes on person crops:
+        # - Suspicious attire (dark hoodie, face mask, gloves, all black)
+        # - Service uniforms (Amazon, FedEx, UPS, high-vis vest)
+        # - General clothing categories (casual, business, athletic)
+        # Runs on person crop bounding boxes from RT-DETRv2
+        "fashion-clip": ModelConfig(
+            name="fashion-clip",
+            path=f"{base_path}/fashion-clip",
+            category="classification",
+            vram_mb=500,  # ~500MB
+            load_fn=load_fashion_clip_model,
+            enabled=True,
+            available=False,
+        ),
+        # BRISQUE image quality assessment via PyIQA
+        # No-reference image quality metric for detecting:
+        # - Camera obstruction/tampering (sudden quality drop)
+        # - Motion blur (fast movement detection)
+        # - General quality degradation (noise, artifacts)
+        # CPU-based, no VRAM required
+        "brisque-quality": ModelConfig(
+            name="brisque-quality",
+            path="pyiqa",  # Uses pyiqa library, not a model path
+            category="quality-assessment",
+            vram_mb=0,  # CPU-based, no VRAM needed
+            load_fn=load_brisque_model,
+            enabled=False,  # Disabled: pyiqa incompatible with NumPy 2.0 (np.sctypes removed)
+            available=False,
+        ),
+        # ResNet-50 Vehicle Segment Classification for detailed vehicle type ID
+        # Classifies vehicles into 11 categories beyond RT-DETRv2's generic types:
+        # car, pickup_truck, single_unit_truck, articulated_truck, bus,
+        # motorcycle, bicycle, work_van, non_motorized_vehicle, pedestrian, background
+        # Helps distinguish delivery vehicles (work_van) from personal vehicles
+        # Trained on MIO-TCD Traffic Dataset (50K images)
+        "vehicle-segment-classification": ModelConfig(
+            name="vehicle-segment-classification",
+            path=f"{base_path}/vehicle-segment-classification",
+            category="classification",
+            vram_mb=1500,  # ~1.5GB (conservative estimate for ResNet-50)
+            load_fn=load_vehicle_classifier,
+            enabled=True,
+            available=False,
+        ),
+        # YOLOv11 Vehicle Damage Segmentation
+        # Classes: cracks, dents, glass_shatter, lamp_broken, scratches, tire_flat
+        # Security: glass_shatter + lamp_broken at night = suspicious (break-in)
+        "vehicle-damage-detection": ModelConfig(
+            name="vehicle-damage-detection",
+            path=f"{base_path}/vehicle-damage-detection",
+            category="detection",
+            vram_mb=2000,  # ~2GB (yolo11x-seg architecture)
+            load_fn=load_vehicle_damage_model,
+            enabled=True,
+            available=False,
+        ),
+        # ResNet-18 Pet Classifier for false positive reduction
+        # Classifies dog vs cat from animal crop detections
+        # High-confidence pet detections can skip Nemotron analysis
+        # Lightweight model for quick load/unload cycles
+        "pet-classifier": ModelConfig(
+            name="pet-classifier",
+            path=f"{base_path}/pet-classifier",
+            category="classification",
+            vram_mb=200,  # ~200MB (very lightweight ResNet-18)
+            load_fn=load_pet_classifier_model,
             enabled=True,
             available=False,
         ),

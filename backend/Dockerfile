@@ -1,17 +1,21 @@
-# Development Dockerfile using Alpine for smaller image and fewer CVEs
-FROM python:3.14-alpine
+# Development Dockerfile using Debian for PyTorch/ultralytics compatibility
+# Note: Alpine uses musl libc which is incompatible with PyTorch and OpenCV
+FROM python:3.14-slim-bookworm
 
 WORKDIR /app
 
 # Install build dependencies for Python packages with C extensions
 # and runtime dependencies for healthcheck and video processing
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
-    musl-dev \
+    libc6-dev \
     libffi-dev \
     wget \
     ffmpeg \
-    curl
+    curl \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install uv for fast dependency management
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
@@ -30,8 +34,8 @@ COPY backend/ ./backend/
 RUN mkdir -p /app/data
 
 # Create non-root user
-RUN addgroup -g 1000 appgroup && \
-    adduser -D -u 1000 -G appgroup appuser
+RUN groupadd -g 1000 appgroup && \
+    useradd -m -u 1000 -g appgroup appuser
 
 # Change ownership of app directory to non-root user
 RUN chown -R appuser:appgroup /app

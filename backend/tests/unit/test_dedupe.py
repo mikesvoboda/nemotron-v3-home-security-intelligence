@@ -617,10 +617,11 @@ async def test_cleanup_orphaned_keys_handles_scan_error(mock_redis_client_with_i
     """Test that cleanup_orphaned_keys handles scan errors gracefully."""
     service = DedupeService(redis_client=mock_redis_client_with_internal)
 
-    # Mock scan_iter to raise an exception
+    # Mock scan_iter to raise an exception - async generator pattern
     async def mock_scan_iter_error(match, count):
+        for _ in []:
+            yield
         raise Exception("Scan failed")
-        yield  # Make it an async generator
 
     mock_redis_client_with_internal._client.scan_iter = mock_scan_iter_error
 

@@ -46,10 +46,9 @@ class _FakeRedis:
         self.publish = AsyncMock(return_value=1)
 
     async def listen(self, _pubsub: Any) -> AsyncIterator[dict[str, Any]]:
-        # Default: no messages
-        if False:  # pragma: no cover
+        # Default: no messages - empty async generator pattern
+        for _ in []:
             yield {}
-        return
 
 
 # ==============================================================================
@@ -194,9 +193,9 @@ async def test_listen_for_events_restarts_after_error(monkeypatch: pytest.Monkey
 
     class RedisThatErrors(_FakeRedis):
         async def listen(self, _pubsub: Any) -> AsyncIterator[dict[str, Any]]:
-            raise RuntimeError("redis blew up")
-            if False:  # pragma: no cover
+            for _ in []:  # Make it an async generator
                 yield {}
+            raise RuntimeError("redis blew up")
 
     redis = RedisThatErrors()
     broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
@@ -268,9 +267,8 @@ async def test_start_subscribes_and_creates_listener_task(
 
     # Override listen to return immediately to prevent blocking
     async def quick_listen(_pubsub: Any) -> AsyncIterator[dict[str, Any]]:
-        if False:  # pragma: no cover
+        for _ in []:  # Empty async generator
             yield {}
-        return
 
     redis.listen = quick_listen  # type: ignore[method-assign]
 
@@ -511,9 +509,9 @@ async def test_listen_for_events_handles_cancelled_error(
 
     class RedisThatGetssCancelled(_FakeRedis):
         async def listen(self, _pubsub: Any) -> AsyncIterator[dict[str, Any]]:
-            raise asyncio.CancelledError()
-            if False:  # pragma: no cover
+            for _ in []:  # Make it an async generator
                 yield {}
+            raise asyncio.CancelledError()
 
     redis = RedisThatGetssCancelled()
     broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
@@ -596,9 +594,8 @@ async def test_get_broadcaster_creates_and_starts_instance() -> None:
 
     # Override listen to return immediately
     async def quick_listen(_pubsub: Any) -> AsyncIterator[dict[str, Any]]:
-        if False:  # pragma: no cover
+        for _ in []:  # Empty async generator
             yield {}
-        return
 
     redis.listen = quick_listen  # type: ignore[method-assign]
 
@@ -622,9 +619,8 @@ async def test_get_broadcaster_returns_existing_instance() -> None:
 
     # Override listen to return immediately
     async def quick_listen(_pubsub: Any) -> AsyncIterator[dict[str, Any]]:
-        if False:  # pragma: no cover
+        for _ in []:  # Empty async generator
             yield {}
-        return
 
     redis.listen = quick_listen  # type: ignore[method-assign]
 
@@ -659,9 +655,8 @@ async def test_stop_broadcaster_stops_and_clears_global_instance() -> None:
 
     # Override listen to return immediately
     async def quick_listen(_pubsub: Any) -> AsyncIterator[dict[str, Any]]:
-        if False:  # pragma: no cover
+        for _ in []:  # Empty async generator
             yield {}
-        return
 
     redis.listen = quick_listen  # type: ignore[method-assign]
 
@@ -752,9 +747,9 @@ async def test_listen_for_events_does_not_restart_when_listening_false(
 
     class RedisThatErrors(_FakeRedis):
         async def listen(self, _pubsub: Any) -> AsyncIterator[dict[str, Any]]:
-            raise RuntimeError("redis error")
-            if False:  # pragma: no cover
+            for _ in []:  # Make it an async generator
                 yield {}
+            raise RuntimeError("redis error")
 
     redis = RedisThatErrors()
     broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
@@ -782,9 +777,9 @@ async def test_listen_for_events_does_not_restart_second_time_when_listening_fal
 
     class RedisThatErrors(_FakeRedis):
         async def listen(self, _pubsub: Any) -> AsyncIterator[dict[str, Any]]:
-            raise RuntimeError("redis error")
-            if False:  # pragma: no cover
+            for _ in []:  # Make it an async generator
                 yield {}
+            raise RuntimeError("redis error")
 
     redis = RedisThatErrors()
     broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
@@ -883,9 +878,8 @@ async def test_get_broadcaster_concurrent_initialization() -> None:
 
     # Override listen to return immediately
     async def quick_listen(_pubsub: Any) -> AsyncIterator[dict[str, Any]]:
-        if False:  # pragma: no cover
+        for _ in []:  # Empty async generator
             yield {}
-        return
 
     redis.listen = quick_listen  # type: ignore[method-assign]
 
@@ -917,9 +911,8 @@ async def test_reset_broadcaster_state_clears_global_state() -> None:
 
     # Override listen to return immediately
     async def quick_listen(_pubsub: Any) -> AsyncIterator[dict[str, Any]]:
-        if False:  # pragma: no cover
+        for _ in []:  # Empty async generator
             yield {}
-        return
 
     redis.listen = quick_listen  # type: ignore[method-assign]
 
@@ -1235,9 +1228,9 @@ async def test_listen_for_events_recovery_bounded(monkeypatch: pytest.MonkeyPatc
         async def listen(self, _pubsub: Any) -> AsyncIterator[dict[str, Any]]:
             nonlocal error_count
             error_count += 1
-            raise RuntimeError("redis blew up")
-            if False:  # pragma: no cover
+            for _ in []:  # Make it an async generator
                 yield {}
+            raise RuntimeError("redis blew up")
 
     redis = RedisAlwaysErrors()
     broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
@@ -1306,9 +1299,9 @@ async def test_listen_for_events_logs_error_on_max_retries(
 
     class RedisAlwaysErrors(_FakeRedis):
         async def listen(self, _pubsub: Any) -> AsyncIterator[dict[str, Any]]:
-            raise RuntimeError("redis connection failed")
-            if False:  # pragma: no cover
+            for _ in []:  # Make it an async generator
                 yield {}
+            raise RuntimeError("redis connection failed")
 
     redis = RedisAlwaysErrors()
     broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
@@ -1484,9 +1477,8 @@ async def test_start_creates_supervisor_task() -> None:
 
     # Override listen to return immediately
     async def quick_listen(_pubsub: Any) -> AsyncIterator[dict[str, Any]]:
-        if False:  # pragma: no cover
+        for _ in []:  # Empty async generator
             yield {}
-        return
 
     redis.listen = quick_listen  # type: ignore[method-assign]
 
@@ -1508,9 +1500,8 @@ async def test_stop_cancels_supervisor_task() -> None:
     redis = _FakeRedis()
 
     async def quick_listen(_pubsub: Any) -> AsyncIterator[dict[str, Any]]:
-        if False:  # pragma: no cover
+        for _ in []:  # Empty async generator
             yield {}
-        return
 
     redis.listen = quick_listen  # type: ignore[method-assign]
 
@@ -1621,9 +1612,9 @@ async def test_listen_for_events_enters_degraded_mode_after_max_retries(
 
     class RedisAlwaysErrors(_FakeRedis):
         async def listen(self, _pubsub: Any) -> AsyncIterator[dict[str, Any]]:
-            raise RuntimeError("redis connection failed")
-            if False:  # pragma: no cover
+            for _ in []:  # Make it an async generator
                 yield {}
+            raise RuntimeError("redis connection failed")
 
     redis = RedisAlwaysErrors()
     broadcaster = EventBroadcaster(redis)  # type: ignore[arg-type]
@@ -1693,9 +1684,8 @@ async def test_start_clears_degraded_mode() -> None:
     redis = _FakeRedis()
 
     async def quick_listen(_pubsub: Any) -> AsyncIterator[dict[str, Any]]:
-        if False:  # pragma: no cover
+        for _ in []:  # Empty async generator
             yield {}
-        return
 
     redis.listen = quick_listen  # type: ignore[method-assign]
 

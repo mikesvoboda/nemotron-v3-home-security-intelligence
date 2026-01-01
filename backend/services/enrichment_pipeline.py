@@ -6,10 +6,14 @@ with additional context by running on-demand AI models:
 1. License Plate Detection: Runs YOLO11 on vehicle detections
 2. License Plate OCR: Runs PaddleOCR on detected plates
 3. Face Detection: Runs YOLO11 on person detections
+4. Image Quality Assessment: BRISQUE for blur/noise/tampering detection
 
-The pipeline uses the ModelManager to efficiently load/unload models,
-minimizing VRAM usage while providing rich context for the Nemotron LLM
-risk analysis.
+The pipeline can use either:
+- Local models via ModelManager (default, for single-process deployments)
+- Remote HTTP service at ai-enrichment:8094 (for containerized deployments)
+
+Set use_enrichment_service=True to use the HTTP service for vehicle, pet,
+and clothing classification instead of loading models locally.
 """
 
 from __future__ import annotations
@@ -23,11 +27,36 @@ from typing import Any
 from PIL import Image
 
 from backend.core.logging import get_logger
+
+# Import enrichment client for remote HTTP service
+from backend.services.enrichment_client import (
+    EnrichmentClient,
+    EnrichmentUnavailableError,
+    get_enrichment_client,
+)
+from backend.services.fashion_clip_loader import (
+    ClothingClassification,
+    classify_clothing,
+    format_clothing_context,
+)
+from backend.services.image_quality_loader import (
+    ImageQualityResult,
+    assess_image_quality,
+    detect_quality_change,
+    interpret_blur_with_motion,
+)
 from backend.services.model_zoo import (
+    ANIMAL_CLASSES,
     PERSON_CLASS,
     VEHICLE_CLASSES,
     ModelManager,
     get_model_manager,
+)
+from backend.services.pet_classifier_loader import (
+    PetClassificationResult,
+    classify_pet,
+    format_pet_for_nemotron,
+    is_likely_pet_false_positive,
 )
 from backend.services.reid_service import (
     EntityEmbedding,
@@ -38,9 +67,28 @@ from backend.services.scene_change_detector import (
     SceneChangeResult,
     get_scene_change_detector,
 )
+from backend.services.segformer_loader import (
+    ClothingSegmentationResult,
+)
+from backend.services.vehicle_classifier_loader import (
+    VehicleClassificationResult,
+    classify_vehicle,
+    format_vehicle_classification_context,
+)
+from backend.services.vehicle_damage_loader import (
+    VehicleDamageResult,
+    detect_vehicle_damage,
+)
+from backend.services.violence_loader import (
+    ViolenceDetectionResult,
+    classify_violence,
+)
 from backend.services.vision_extractor import (
     BatchExtractionResult,
     get_vision_extractor,
+)
+from backend.services.weather_loader import (
+    WeatherResult,
 )
 
 logger = get_logger(__name__)
@@ -146,6 +194,16 @@ class EnrichmentResult:
     person_reid_matches: dict[str, list[EntityMatch]] = field(default_factory=dict)
     vehicle_reid_matches: dict[str, list[EntityMatch]] = field(default_factory=dict)
     scene_change: SceneChangeResult | None = None
+    violence_detection: ViolenceDetectionResult | None = None
+    weather_classification: WeatherResult | None = None
+    clothing_classifications: dict[str, ClothingClassification] = field(default_factory=dict)
+    clothing_segmentation: dict[str, ClothingSegmentationResult] = field(default_factory=dict)
+    vehicle_classifications: dict[str, VehicleClassificationResult] = field(default_factory=dict)
+    vehicle_damage: dict[str, VehicleDamageResult] = field(default_factory=dict)
+    pet_classifications: dict[str, PetClassificationResult] = field(default_factory=dict)
+    image_quality: ImageQualityResult | None = None
+    quality_change_detected: bool = False
+    quality_change_description: str = ""
     errors: list[str] = field(default_factory=list)
     processing_time_ms: float = 0.0
 
@@ -153,6 +211,11 @@ class EnrichmentResult:
     def has_license_plates(self) -> bool:
         """Check if any license plates were detected."""
         return len(self.license_plates) > 0
+
+    @property
+    def has_clothing_segmentation(self) -> bool:
+        """Check if any clothing segmentation results are available."""
+        return bool(self.clothing_segmentation)
 
     @property
     def has_readable_plates(self) -> bool:
@@ -184,7 +247,78 @@ class EnrichmentResult:
         """Check if scene change was detected."""
         return self.scene_change is not None and self.scene_change.change_detected
 
-    def to_context_string(self) -> str:
+    @property
+    def has_violence(self) -> bool:
+        """Check if violence was detected."""
+        return self.violence_detection is not None and self.violence_detection.is_violent
+
+    @property
+    def has_clothing_classifications(self) -> bool:
+        """Check if any clothing classifications are available."""
+        return bool(self.clothing_classifications)
+
+    @property
+    def has_suspicious_clothing(self) -> bool:
+        """Check if any suspicious clothing was detected."""
+        return any(c.is_suspicious for c in self.clothing_classifications.values())
+
+    @property
+    def has_vehicle_classifications(self) -> bool:
+        """Check if any vehicle classifications are available."""
+        return bool(self.vehicle_classifications)
+
+    @property
+    def has_commercial_vehicles(self) -> bool:
+        """Check if any commercial/delivery vehicles were detected."""
+        return any(v.is_commercial for v in self.vehicle_classifications.values())
+
+    @property
+    def has_vehicle_damage(self) -> bool:
+        """Check if any vehicle damage was detected."""
+        return any(d.has_damage for d in self.vehicle_damage.values())
+
+    @property
+    def has_high_security_damage(self) -> bool:
+        """Check if any high-security vehicle damage was detected (glass shatter, lamp broken)."""
+        return any(d.has_high_security_damage for d in self.vehicle_damage.values())
+
+    @property
+    def has_image_quality(self) -> bool:
+        """Check if image quality assessment is available."""
+        return self.image_quality is not None
+
+    @property
+    def has_quality_issues(self) -> bool:
+        """Check if any image quality issues were detected."""
+        return self.image_quality is not None and not self.image_quality.is_good_quality
+
+    @property
+    def has_motion_blur(self) -> bool:
+        """Check if motion blur was detected (possible fast movement)."""
+        return self.image_quality is not None and self.image_quality.is_blurry
+
+    @property
+    def has_pet_classifications(self) -> bool:
+        """Check if any pet classifications are available."""
+        return bool(self.pet_classifications)
+
+    @property
+    def has_confirmed_pets(self) -> bool:
+        """Check if any high-confidence household pets were detected."""
+        return any(is_likely_pet_false_positive(p) for p in self.pet_classifications.values())
+
+    @property
+    def pet_only_event(self) -> bool:
+        """Check if this is a pet-only event (can skip Nemotron analysis)."""
+        return (
+            self.has_confirmed_pets
+            and not self.has_faces
+            and not self.has_license_plates
+            and not self.has_violence
+            and not self.has_clothing_classifications
+        )
+
+    def to_context_string(self) -> str:  # noqa: PLR0912
         """Generate context string for LLM prompt.
 
         Returns:
@@ -218,6 +352,47 @@ class EnrichmentResult:
                 f"Scene change detected (similarity: {self.scene_change.similarity_score:.2f})"
             )
 
+        # Violence detection
+        if self.violence_detection:
+            lines.append("## Violence Detection")
+            if self.violence_detection.is_violent:
+                lines.append(
+                    f"**VIOLENCE DETECTED** (confidence: {self.violence_detection.confidence:.0%})"
+                )
+            else:
+                lines.append(
+                    f"No violence detected (confidence: {self.violence_detection.confidence:.0%})"
+                )
+
+        # Clothing Classifications (FashionCLIP)
+        if self.clothing_classifications:
+            lines.append(
+                f"## Clothing Classifications ({len(self.clothing_classifications)} persons)"
+            )
+            for det_id, classification in self.clothing_classifications.items():
+                lines.append(f"  Person {det_id}:")
+                lines.append(f"    {format_clothing_context(classification)}")
+
+        # Vehicle Damage Detection
+        if self.vehicle_damage:
+            damaged_vehicles = {k: v for k, v in self.vehicle_damage.items() if v.has_damage}
+            if damaged_vehicles:
+                lines.append(f"## Vehicle Damage ({len(damaged_vehicles)} vehicles with damage)")
+                for det_id, damage_result in damaged_vehicles.items():
+                    lines.append(f"  Vehicle {det_id}:")
+                    lines.append(f"    {damage_result.to_context_string()}")
+                    if damage_result.has_high_security_damage:
+                        lines.append("    **SECURITY ALERT**: High-priority damage detected")
+
+        # Vehicle Classifications (ResNet-50)
+        if self.vehicle_classifications:
+            lines.append(
+                f"## Vehicle Classifications ({len(self.vehicle_classifications)} vehicles)"
+            )
+            for det_id, vehicle_class in self.vehicle_classifications.items():
+                lines.append(f"  Vehicle {det_id}:")
+                lines.append(f"    {format_vehicle_classification_context(vehicle_class)}")
+
         # License plates
         if self.license_plates:
             lines.append(f"## License Plates ({len(self.license_plates)} detected)")
@@ -234,6 +409,21 @@ class EnrichmentResult:
             lines.append(f"## Faces ({len(self.faces)} detected)")
             for i, face in enumerate(self.faces, 1):
                 lines.append(f"  - Face {i}: confidence {face.confidence:.0%}")
+
+        # Pet Classifications (for false positive context)
+        if self.pet_classifications:
+            lines.append(f"## Pet Classifications ({len(self.pet_classifications)} animals)")
+            for det_id, pet_result in self.pet_classifications.items():
+                lines.append(f"  - Animal {det_id}: {format_pet_for_nemotron(pet_result)}")
+            if self.pet_only_event:
+                lines.append("  **NOTE**: Pet-only event - low security risk")
+
+        # Image Quality Assessment
+        if self.image_quality:
+            lines.append("## Image Quality Assessment")
+            lines.append(f"  {self.image_quality.format_context()}")
+            if self.quality_change_detected:
+                lines.append(f"  **ALERT**: {self.quality_change_description}")
 
         if not lines:
             return "No additional context extracted."
@@ -265,9 +455,205 @@ class EnrichmentResult:
                 }
                 for face in self.faces
             ],
+            "violence_detection": (
+                self.violence_detection.to_dict() if self.violence_detection else None
+            ),
+            "vehicle_damage": {
+                det_id: result.to_dict() for det_id, result in self.vehicle_damage.items()
+            },
+            "vehicle_classifications": {
+                det_id: result.to_dict() for det_id, result in self.vehicle_classifications.items()
+            },
+            "image_quality": (self.image_quality.to_dict() if self.image_quality else None),
+            "quality_change_detected": self.quality_change_detected,
+            "quality_change_description": self.quality_change_description,
             "errors": self.errors,
             "processing_time_ms": self.processing_time_ms,
         }
+
+    def to_prompt_context(self, time_of_day: str | None = None) -> dict[str, str]:
+        """Generate all prompt context sections for MODEL_ZOO_ENHANCED template.
+
+        Returns a dictionary of formatted context strings for each enrichment
+        category, suitable for direct insertion into the prompt template.
+
+        Args:
+            time_of_day: Optional time context for risk assessment
+
+        Returns:
+            Dictionary mapping prompt field names to formatted context strings
+        """
+        from backend.services.prompts import (
+            format_action_recognition_context,
+            format_clothing_analysis_context,
+            format_depth_context,
+            format_image_quality_context,
+            format_pet_classification_context,
+            format_pose_analysis_context,
+            format_vehicle_classification_context,
+            format_vehicle_damage_context,
+            format_violence_context,
+            format_weather_context,
+        )
+
+        return {
+            # Violence analysis
+            "violence_context": format_violence_context(self.violence_detection),
+            # Weather context
+            "weather_context": format_weather_context(self.weather_classification),
+            # Image quality
+            "image_quality_context": format_image_quality_context(
+                self.image_quality,
+                self.quality_change_detected,
+                self.quality_change_description,
+            ),
+            # Clothing analysis
+            "clothing_analysis_context": format_clothing_analysis_context(
+                self.clothing_classifications,
+                self.clothing_segmentation,
+            ),
+            # Vehicle classification
+            "vehicle_classification_context": format_vehicle_classification_context(
+                self.vehicle_classifications
+            ),
+            # Vehicle damage
+            "vehicle_damage_context": format_vehicle_damage_context(
+                self.vehicle_damage,
+                time_of_day=time_of_day,
+            ),
+            # Pet classification
+            "pet_classification_context": format_pet_classification_context(
+                self.pet_classifications
+            ),
+            # Pose analysis (placeholder for future ViTPose integration)
+            "pose_analysis": format_pose_analysis_context(None),
+            # Action recognition (placeholder for future X-CLIP integration)
+            "action_recognition": format_action_recognition_context(None),
+            # Depth context (placeholder for future Depth Anything V2 integration)
+            "depth_context": format_depth_context(None),
+        }
+
+    def get_risk_modifiers(self) -> dict[str, float]:
+        """Calculate risk score modifiers based on enrichment results.
+
+        Returns a dictionary of named risk modifiers that can be used to
+        adjust the base risk score from Nemotron.
+
+        Positive values increase risk, negative values decrease risk.
+
+        Returns:
+            Dictionary mapping modifier names to float values (-1.0 to 1.0)
+        """
+        modifiers: dict[str, float] = {}
+
+        # Violence detection - major risk increase
+        if self.has_violence:
+            assert self.violence_detection is not None
+            modifiers["violence"] = 0.5 + (0.5 * self.violence_detection.confidence)
+
+        # Pet-only event - significant risk decrease
+        if self.pet_only_event:
+            modifiers["pet_only"] = -0.7
+
+        # High-confidence pets without other threats - moderate risk decrease
+        elif self.has_confirmed_pets and not self.has_violence:
+            modifiers["confirmed_pet"] = -0.3
+
+        # Suspicious clothing - moderate risk increase
+        if self.has_suspicious_clothing:
+            modifiers["suspicious_attire"] = 0.3
+
+        # Service uniform - moderate risk decrease (legitimate presence)
+        service_uniforms = [
+            c for c in self.clothing_classifications.values() if c.is_service_uniform
+        ]
+        if service_uniforms:
+            modifiers["service_uniform"] = -0.2
+
+        # High-security vehicle damage - major risk increase
+        if self.has_high_security_damage:
+            modifiers["vehicle_damage_high"] = 0.4
+        elif self.has_vehicle_damage:
+            modifiers["vehicle_damage"] = 0.15
+
+        # Commercial vehicles during day - slight risk decrease
+        if self.has_commercial_vehicles:
+            modifiers["commercial_vehicle"] = -0.1
+
+        # Image quality issues - slight uncertainty increase
+        if self.has_quality_issues:
+            modifiers["quality_issues"] = 0.1
+        if self.quality_change_detected:
+            modifiers["quality_change"] = 0.2
+
+        return modifiers
+
+    def get_summary_flags(self) -> list[dict[str, str]]:
+        """Generate summary flags for the risk assessment output.
+
+        Creates a list of flag dictionaries suitable for inclusion in
+        the Nemotron JSON output format.
+
+        Returns:
+            List of flag dictionaries with type, description, and severity
+        """
+        flags: list[dict[str, str]] = []
+
+        # Violence flag
+        if self.has_violence:
+            assert self.violence_detection is not None
+            flags.append(
+                {
+                    "type": "violence",
+                    "description": f"Violence detected ({self.violence_detection.confidence:.0%} confidence)",
+                    "severity": "critical",
+                }
+            )
+
+        # Suspicious attire flags
+        for det_id, clothing in self.clothing_classifications.items():
+            if clothing.is_suspicious:
+                flags.append(
+                    {
+                        "type": "suspicious_attire",
+                        "description": f"Person {det_id}: {clothing.top_category}",
+                        "severity": "alert",
+                    }
+                )
+
+        # Face covering flags from SegFormer
+        for det_id, seg in self.clothing_segmentation.items():
+            if seg.has_face_covered:
+                flags.append(
+                    {
+                        "type": "face_covered",
+                        "description": f"Person {det_id}: Face obscured by hat/sunglasses/scarf",
+                        "severity": "alert",
+                    }
+                )
+
+        # Vehicle damage flags
+        for det_id, damage in self.vehicle_damage.items():
+            if damage.has_high_security_damage:
+                flags.append(
+                    {
+                        "type": "vehicle_damage",
+                        "description": f"Vehicle {det_id}: {', '.join(damage.damage_types)}",
+                        "severity": "critical" if damage.has_high_security_damage else "warning",
+                    }
+                )
+
+        # Quality change flag
+        if self.quality_change_detected:
+            flags.append(
+                {
+                    "type": "quality_issue",
+                    "description": self.quality_change_description,
+                    "severity": "alert",
+                }
+            )
+
+        return flags
 
 
 @dataclass
@@ -326,7 +712,16 @@ class EnrichmentPipeline:
         vision_extraction_enabled: bool = True,
         reid_enabled: bool = True,
         scene_change_enabled: bool = True,
+        violence_detection_enabled: bool = True,
+        clothing_classification_enabled: bool = True,
+        clothing_segmentation_enabled: bool = True,
+        vehicle_damage_detection_enabled: bool = True,
+        vehicle_classification_enabled: bool = True,
+        image_quality_enabled: bool = True,
+        pet_classification_enabled: bool = True,
         redis_client: Any | None = None,
+        use_enrichment_service: bool = False,
+        enrichment_client: EnrichmentClient | None = None,
     ) -> None:
         """Initialize the EnrichmentPipeline.
 
@@ -339,7 +734,17 @@ class EnrichmentPipeline:
             vision_extraction_enabled: Enable Florence-2 vision extraction
             reid_enabled: Enable CLIP re-identification
             scene_change_enabled: Enable scene change detection
+            violence_detection_enabled: Enable violence detection (runs when 2+ persons)
+            clothing_classification_enabled: Enable FashionCLIP clothing classification
+            clothing_segmentation_enabled: Enable SegFormer clothing segmentation
+            vehicle_damage_detection_enabled: Enable YOLOv11 vehicle damage detection
+            vehicle_classification_enabled: Enable ResNet-50 vehicle type classification
+            image_quality_enabled: Enable BRISQUE image quality assessment (CPU-based)
+            pet_classification_enabled: Enable pet classification for false positive reduction
             redis_client: Redis client for re-id storage (optional)
+            use_enrichment_service: Use HTTP service at ai-enrichment:8094 instead of local models
+                                    for vehicle, pet, and clothing classification
+            enrichment_client: Optional EnrichmentClient instance (uses global if not provided)
         """
         self.model_manager = model_manager or get_model_manager()
         self.min_confidence = min_confidence
@@ -349,7 +754,19 @@ class EnrichmentPipeline:
         self.vision_extraction_enabled = vision_extraction_enabled
         self.reid_enabled = reid_enabled
         self.scene_change_enabled = scene_change_enabled
+        self.violence_detection_enabled = violence_detection_enabled
+        self.clothing_classification_enabled = clothing_classification_enabled
+        self.clothing_segmentation_enabled = clothing_segmentation_enabled
+        self.vehicle_damage_detection_enabled = vehicle_damage_detection_enabled
+        self.vehicle_classification_enabled = vehicle_classification_enabled
+        self.image_quality_enabled = image_quality_enabled
+        self.pet_classification_enabled = pet_classification_enabled
+        self._previous_quality_results: dict[str, ImageQualityResult] = {}
         self.redis_client = redis_client
+
+        # Enrichment service settings
+        self.use_enrichment_service = use_enrichment_service
+        self._enrichment_client = enrichment_client
 
         # Initialize services
         self._vision_extractor = get_vision_extractor()
@@ -363,8 +780,189 @@ class EnrichmentPipeline:
             f"ocr={ocr_enabled}, "
             f"vision_extraction={vision_extraction_enabled}, "
             f"reid={reid_enabled}, "
-            f"scene_change={scene_change_enabled}"
+            f"scene_change={scene_change_enabled}, "
+            f"use_enrichment_service={use_enrichment_service}"
         )
+
+    def _get_enrichment_client(self) -> EnrichmentClient:
+        """Get the enrichment client, creating if needed.
+
+        Returns:
+            EnrichmentClient instance
+        """
+        if self._enrichment_client is None:
+            self._enrichment_client = get_enrichment_client()
+        return self._enrichment_client
+
+    async def _classify_vehicle_via_service(
+        self,
+        vehicles: list[DetectionInput],
+        image: Image.Image,
+    ) -> dict[str, VehicleClassificationResult]:
+        """Classify vehicles using the remote enrichment HTTP service.
+
+        Args:
+            vehicles: List of vehicle detections to classify
+            image: Full frame image to crop vehicles from
+
+        Returns:
+            Dictionary mapping detection IDs to VehicleClassificationResult
+        """
+        results: dict[str, VehicleClassificationResult] = {}
+
+        if not vehicles:
+            return results
+
+        client = self._get_enrichment_client()
+
+        for i, vehicle in enumerate(vehicles):
+            det_id = str(vehicle.id) if vehicle.id else str(i)
+
+            try:
+                # Crop vehicle from full frame
+                vehicle_crop = await self._crop_to_bbox(image, vehicle.bbox)
+                if vehicle_crop is None:
+                    continue
+
+                # Call remote service
+                bbox_tuple = vehicle.bbox.to_tuple() if vehicle.bbox else None
+                remote_result = await client.classify_vehicle(vehicle_crop, bbox_tuple)
+
+                if remote_result:
+                    # Convert remote result to local VehicleClassificationResult
+
+                    results[det_id] = VehicleClassificationResult(
+                        vehicle_type=remote_result.vehicle_type,
+                        confidence=remote_result.confidence,
+                        display_name=remote_result.display_name,
+                        is_commercial=remote_result.is_commercial,
+                        all_scores=remote_result.all_scores,
+                    )
+
+                    logger.debug(
+                        f"Vehicle {det_id} type (via service): {remote_result.vehicle_type} "
+                        f"({remote_result.confidence:.0%})"
+                    )
+
+            except EnrichmentUnavailableError as e:
+                logger.warning(f"Enrichment service unavailable for vehicle {det_id}: {e}")
+            except Exception as e:
+                logger.warning(f"Vehicle classification via service failed for {det_id}: {e}")
+
+        return results
+
+    async def _classify_pets_via_service(
+        self,
+        animals: list[DetectionInput],
+        image: Image.Image,
+    ) -> dict[str, PetClassificationResult]:
+        """Classify pets using the remote enrichment HTTP service.
+
+        Args:
+            animals: List of animal detections to classify
+            image: Full frame image to crop animals from
+
+        Returns:
+            Dictionary mapping detection IDs to PetClassificationResult
+        """
+        results: dict[str, PetClassificationResult] = {}
+
+        if not animals:
+            return results
+
+        client = self._get_enrichment_client()
+
+        for i, animal in enumerate(animals):
+            det_id = str(animal.id) if animal.id else str(i)
+
+            try:
+                # Crop animal from full frame
+                animal_crop = await self._crop_to_bbox(image, animal.bbox)
+                if animal_crop is None:
+                    continue
+
+                # Call remote service
+                bbox_tuple = animal.bbox.to_tuple() if animal.bbox else None
+                remote_result = await client.classify_pet(animal_crop, bbox_tuple)
+
+                if remote_result:
+                    # Convert remote result to local PetClassificationResult
+                    results[det_id] = PetClassificationResult(
+                        animal_type=remote_result.pet_type,
+                        confidence=remote_result.confidence,
+                        cat_score=0.0,  # Remote service doesn't return raw scores
+                        dog_score=0.0,
+                        is_household_pet=remote_result.is_household_pet,
+                    )
+
+                    logger.debug(
+                        f"Animal {det_id} classified (via service) as {remote_result.pet_type} "
+                        f"({remote_result.confidence:.0%} confidence)"
+                    )
+
+            except EnrichmentUnavailableError as e:
+                logger.warning(f"Enrichment service unavailable for animal {det_id}: {e}")
+            except Exception as e:
+                logger.warning(f"Pet classification via service failed for {det_id}: {e}")
+
+        return results
+
+    async def _classify_clothing_via_service(
+        self,
+        persons: list[DetectionInput],
+        image: Image.Image,
+    ) -> dict[str, ClothingClassification]:
+        """Classify clothing using the remote enrichment HTTP service.
+
+        Args:
+            persons: List of person detections to classify
+            image: Full frame image to crop persons from
+
+        Returns:
+            Dictionary mapping detection IDs to ClothingClassification
+        """
+        results: dict[str, ClothingClassification] = {}
+
+        if not persons:
+            return results
+
+        client = self._get_enrichment_client()
+
+        for i, person in enumerate(persons):
+            det_id = str(person.id) if person.id else str(i)
+
+            try:
+                # Crop person from full frame
+                person_crop = await self._crop_to_bbox(image, person.bbox)
+                if person_crop is None:
+                    continue
+
+                # Call remote service
+                bbox_tuple = person.bbox.to_tuple() if person.bbox else None
+                remote_result = await client.classify_clothing(person_crop, bbox_tuple)
+
+                if remote_result:
+                    # Convert remote result to local ClothingClassification
+                    results[det_id] = ClothingClassification(
+                        top_category=remote_result.top_category,
+                        confidence=remote_result.confidence,
+                        all_scores={},  # Remote service only returns top category
+                        is_suspicious=remote_result.is_suspicious,
+                        is_service_uniform=remote_result.is_service_uniform,
+                        raw_description=remote_result.description,
+                    )
+
+                    logger.debug(
+                        f"Person {det_id} clothing (via service): {remote_result.description} "
+                        f"({remote_result.confidence:.0%})"
+                    )
+
+            except EnrichmentUnavailableError as e:
+                logger.warning(f"Enrichment service unavailable for person {det_id}: {e}")
+            except Exception as e:
+                logger.warning(f"Clothing classification via service failed for {det_id}: {e}")
+
+        return results
 
     async def enrich_batch(  # noqa: PLR0912
         self,
@@ -482,13 +1080,137 @@ class EnrichmentPipeline:
                 logger.error(error_msg)
                 result.errors.append(error_msg)
 
+        # Run violence detection when 2+ persons are detected (optimization)
+        if self.violence_detection_enabled and pil_image:
+            persons = [d for d in high_conf_detections if d.class_name == PERSON_CLASS]
+            if len(persons) >= 2:
+                try:
+                    result.violence_detection = await self._detect_violence(pil_image)
+                except Exception as e:
+                    error_msg = f"Violence detection failed: {e}"
+                    logger.error(error_msg)
+                    result.errors.append(error_msg)
+
+        # Run clothing classification on person crops
+        if self.clothing_classification_enabled and pil_image:
+            persons = [d for d in high_conf_detections if d.class_name == PERSON_CLASS]
+            if persons:
+                try:
+                    if self.use_enrichment_service:
+                        result.clothing_classifications = await self._classify_clothing_via_service(
+                            persons, pil_image
+                        )
+                    else:
+                        result.clothing_classifications = await self._classify_person_clothing(
+                            persons, pil_image
+                        )
+                except Exception as e:
+                    error_msg = f"Clothing classification failed: {e}"
+                    logger.error(error_msg)
+                    result.errors.append(error_msg)
+
+        # Run SegFormer clothing segmentation on person crops
+        if self.clothing_segmentation_enabled and pil_image:
+            persons = [d for d in high_conf_detections if d.class_name == PERSON_CLASS]
+            if persons:
+                try:
+                    result.clothing_segmentation = await self._segment_person_clothing(
+                        persons, pil_image
+                    )
+                except Exception as e:
+                    error_msg = f"Clothing segmentation failed: {e}"
+                    logger.error(error_msg)
+                    result.errors.append(error_msg)
+
+        # Run vehicle damage detection on vehicle crops
+        if self.vehicle_damage_detection_enabled and pil_image:
+            vehicles = [d for d in high_conf_detections if d.class_name in VEHICLE_CLASSES]
+            if vehicles:
+                try:
+                    result.vehicle_damage = await self._detect_vehicle_damage(vehicles, pil_image)
+                except Exception as e:
+                    error_msg = f"Vehicle damage detection failed: {e}"
+                    logger.error(error_msg)
+                    result.errors.append(error_msg)
+
+        # Run vehicle segment classification on vehicle crops
+        if self.vehicle_classification_enabled and pil_image:
+            vehicles = [d for d in high_conf_detections if d.class_name in VEHICLE_CLASSES]
+            if vehicles:
+                try:
+                    if self.use_enrichment_service:
+                        result.vehicle_classifications = await self._classify_vehicle_via_service(
+                            vehicles, pil_image
+                        )
+                    else:
+                        result.vehicle_classifications = await self._classify_vehicle_types(
+                            vehicles, pil_image
+                        )
+                except Exception as e:
+                    error_msg = f"Vehicle classification failed: {e}"
+                    logger.error(error_msg)
+                    result.errors.append(error_msg)
+
+        # Run BRISQUE image quality assessment (CPU-based, no VRAM)
+        if self.image_quality_enabled and pil_image:
+            try:
+                quality_result = await self._assess_image_quality(pil_image, camera_id)
+                result.image_quality = quality_result
+
+                # Check for sudden quality changes (possible tampering)
+                if camera_id:
+                    previous = self._previous_quality_results.get(camera_id)
+                    change_detected, description = detect_quality_change(quality_result, previous)
+                    result.quality_change_detected = change_detected
+                    result.quality_change_description = description
+                    if change_detected:
+                        logger.warning(f"Camera {camera_id}: {description}")
+
+                    # Update tracking
+                    self._previous_quality_results[camera_id] = quality_result
+
+                # Log if blur detected with person (possible running)
+                persons = [d for d in high_conf_detections if d.class_name == PERSON_CLASS]
+                if quality_result.is_blurry and persons:
+                    blur_context = interpret_blur_with_motion(quality_result, has_person=True)
+                    logger.info(f"Motion context: {blur_context}")
+
+            except Exception as e:
+                error_msg = f"Image quality assessment failed: {e}"
+                logger.error(error_msg)
+                result.errors.append(error_msg)
+
+        # Run pet classification on dog/cat detections for false positive reduction
+        if self.pet_classification_enabled and pil_image:
+            animals = [d for d in high_conf_detections if d.class_name in ANIMAL_CLASSES]
+            if animals:
+                try:
+                    if self.use_enrichment_service:
+                        result.pet_classifications = await self._classify_pets_via_service(
+                            animals, pil_image
+                        )
+                    else:
+                        result.pet_classifications = await self._classify_pets(animals, pil_image)
+                    if result.pet_only_event:
+                        logger.info("Pet-only event detected - can skip Nemotron risk analysis")
+                except Exception as e:
+                    error_msg = f"Pet classification failed: {e}"
+                    logger.error(error_msg)
+                    result.errors.append(error_msg)
+
         result.processing_time_ms = (time.monotonic() - start_time) * 1000
         logger.info(
             f"Enrichment complete: {len(result.license_plates)} plates, "
             f"{len(result.faces)} faces, "
             f"vision={'yes' if result.vision_extraction else 'no'}, "
             f"reid={'yes' if result.has_reid_matches else 'no'}, "
-            f"scene_change={'yes' if result.has_scene_change else 'no'} "
+            f"scene_change={'yes' if result.has_scene_change else 'no'}, "
+            f"clothing_class={len(result.clothing_classifications)}, "
+            f"clothing_seg={len(result.clothing_segmentation)}, "
+            f"vehicle_damage={len(result.vehicle_damage)}, "
+            f"vehicle_class={len(result.vehicle_classifications)}, "
+            f"pets={len(result.pet_classifications)}, "
+            f"quality={'yes' if result.image_quality else 'no'} "
             f"in {result.processing_time_ms:.1f}ms"
         )
 
@@ -517,8 +1239,9 @@ class EnrichmentPipeline:
         assert self.redis_client is not None, "redis_client required for re-id"
         redis: Redis = self.redis_client  # type: ignore[assignment]
 
-        # Load CLIP model
-        async with self.model_manager.load("clip-vit-l") as model:
+        # CLIP model is now accessed via HTTP service (ai-clip)
+        # The context manager is kept for compatibility but model is unused
+        async with self.model_manager.load("clip-vit-l"):
             for i, det in enumerate(detections):
                 det_id = str(det.id) if det.id else str(i)
                 entity_type = "person" if det.class_name == PERSON_CLASS else "vehicle"
@@ -527,9 +1250,9 @@ class EnrichmentPipeline:
                     continue
 
                 try:
-                    # Generate embedding
+                    # Generate embedding using ai-clip HTTP service
                     bbox = det.bbox.to_int_tuple() if det.bbox else None
-                    embedding = await self._reid_service.generate_embedding(model, image, bbox)
+                    embedding = await self._reid_service.generate_embedding(image, bbox=bbox)
 
                     # Find matches
                     matches = await self._reid_service.find_matching_entities(
@@ -908,6 +1631,364 @@ class EnrichmentPipeline:
         except Exception as e:
             logger.warning(f"OCR failed: {e}")
             return "", 0.0
+
+    async def _detect_violence(self, image: Image.Image) -> ViolenceDetectionResult:
+        """Run violence detection on a full frame image.
+
+        This method loads the violence detection model, runs inference,
+        and returns the classification result.
+
+        Args:
+            image: PIL Image (full frame) to classify
+
+        Returns:
+            ViolenceDetectionResult with classification
+
+        Raises:
+            RuntimeError: If violence detection fails
+        """
+        try:
+            async with self.model_manager.load("violence-detection") as model_data:
+                result = await classify_violence(model_data, image)
+                if result.is_violent:
+                    logger.warning(f"Violence detected with {result.confidence:.0%} confidence")
+                return result
+
+        except KeyError as e:
+            logger.warning("violence-detection model not available in MODEL_ZOO")
+            raise RuntimeError("violence-detection model not configured") from e
+        except Exception as e:
+            logger.error(f"Violence detection error: {e}")
+            raise
+
+    async def _classify_person_clothing(
+        self,
+        persons: list[DetectionInput],
+        image: Image.Image,
+    ) -> dict[str, ClothingClassification]:
+        """Classify clothing for each person detection using FashionCLIP.
+
+        Args:
+            persons: List of person detections to classify
+            image: Full frame image to crop persons from
+
+        Returns:
+            Dictionary mapping detection IDs to ClothingClassification results
+        """
+        results: dict[str, ClothingClassification] = {}
+
+        if not persons:
+            return results
+
+        try:
+            async with self.model_manager.load("fashion-clip") as model_data:
+                for i, person in enumerate(persons):
+                    det_id = str(person.id) if person.id else str(i)
+
+                    try:
+                        # Crop person from full frame
+                        person_crop = await self._crop_to_bbox(image, person.bbox)
+                        if person_crop is None:
+                            continue
+
+                        # Classify clothing
+                        classification = await classify_clothing(model_data, person_crop)
+                        results[det_id] = classification
+
+                        logger.debug(
+                            f"Person {det_id} clothing: {classification.raw_description} "
+                            f"({classification.confidence:.0%})"
+                        )
+
+                    except Exception as e:
+                        logger.warning(f"Clothing classification failed for person {det_id}: {e}")
+                        continue
+
+        except KeyError:
+            logger.warning("fashion-clip model not available in MODEL_ZOO")
+        except Exception as e:
+            logger.error(f"Clothing classification error: {e}")
+
+        return results
+
+    async def _segment_person_clothing(
+        self,
+        persons: list[DetectionInput],
+        image: Image.Image,
+    ) -> dict[str, ClothingSegmentationResult]:
+        """Segment clothing for each person detection using SegFormer.
+
+        Runs SegFormer B2 Clothes model on person crops to extract detailed
+        clothing segmentation including hats, sunglasses, upper clothes, pants,
+        dress, bags, shoes, and other apparel items.
+
+        Args:
+            persons: List of person detections to segment
+            image: Full frame image to crop persons from
+
+        Returns:
+            Dictionary mapping detection IDs to ClothingSegmentationResult
+        """
+        from backend.services.segformer_loader import segment_clothing
+
+        results: dict[str, ClothingSegmentationResult] = {}
+
+        if not persons:
+            return results
+
+        try:
+            async with self.model_manager.load("segformer-b2-clothes") as model_data:
+                model, processor = model_data
+
+                for i, person in enumerate(persons):
+                    det_id = str(person.id) if person.id else str(i)
+
+                    try:
+                        # Crop person from full frame
+                        person_crop = await self._crop_to_bbox(image, person.bbox)
+                        if person_crop is None:
+                            continue
+
+                        # Segment clothing
+                        segmentation = await segment_clothing(model, processor, person_crop)
+                        results[det_id] = segmentation
+
+                        logger.debug(
+                            f"Person {det_id} clothing items: {segmentation.clothing_items}, "
+                            f"face_covered={segmentation.has_face_covered}, "
+                            f"has_bag={segmentation.has_bag}"
+                        )
+
+                    except Exception as e:
+                        logger.warning(f"Clothing segmentation failed for person {det_id}: {e}")
+                        continue
+
+        except KeyError:
+            logger.warning("segformer-b2-clothes model not available in MODEL_ZOO")
+        except Exception as e:
+            logger.error(f"Clothing segmentation error: {e}")
+
+        return results
+
+    async def _classify_vehicle_types(
+        self,
+        vehicles: list[DetectionInput],
+        image: Image.Image,
+    ) -> dict[str, VehicleClassificationResult]:
+        """Classify vehicle types for each vehicle detection using ResNet-50.
+
+        Runs the vehicle segment classification model on vehicle crops to identify
+        specific vehicle types (car, pickup_truck, work_van, etc.).
+
+        Args:
+            vehicles: List of vehicle detections to classify
+            image: Full frame image to crop vehicles from
+
+        Returns:
+            Dictionary mapping detection IDs to VehicleClassificationResult
+        """
+        results: dict[str, VehicleClassificationResult] = {}
+
+        if not vehicles:
+            return results
+
+        try:
+            async with self.model_manager.load("vehicle-segment-classification") as model_data:
+                for i, vehicle in enumerate(vehicles):
+                    det_id = str(vehicle.id) if vehicle.id else str(i)
+
+                    try:
+                        # Crop vehicle from full frame
+                        vehicle_crop = await self._crop_to_bbox(image, vehicle.bbox)
+                        if vehicle_crop is None:
+                            continue
+
+                        # Classify vehicle type
+                        classification = await classify_vehicle(model_data, vehicle_crop)
+                        results[det_id] = classification
+
+                        logger.debug(
+                            f"Vehicle {det_id} type: {classification.vehicle_type} "
+                            f"({classification.confidence:.0%})"
+                        )
+
+                    except Exception as e:
+                        logger.warning(f"Vehicle classification failed for vehicle {det_id}: {e}")
+                        continue
+
+        except KeyError:
+            logger.warning("vehicle-segment-classification model not available in MODEL_ZOO")
+        except Exception as e:
+            logger.error(f"Vehicle classification error: {e}")
+
+        return results
+
+    async def _detect_vehicle_damage(
+        self,
+        vehicles: list[DetectionInput],
+        image: Image.Image,
+    ) -> dict[str, VehicleDamageResult]:
+        """Detect damage on vehicle detections using YOLOv11-seg.
+
+        Runs the vehicle damage detection model on vehicle crops to identify:
+        - cracks: Surface cracks in paint/body
+        - dents: Impact dents on body panels
+        - glass_shatter: Broken/shattered glass (HIGH SECURITY)
+        - lamp_broken: Damaged headlights/taillights (HIGH SECURITY)
+        - scratches: Surface scratches on paint
+        - tire_flat: Flat or damaged tires
+
+        Security Value:
+        - glass_shatter + lamp_broken at night = suspicious (break-in/vandalism)
+        - Fresh damage on parked vehicles = possible hit-and-run or vandalism
+
+        Args:
+            vehicles: List of vehicle detections to analyze
+            image: Full frame image to crop vehicles from
+
+        Returns:
+            Dictionary mapping detection IDs to VehicleDamageResult
+        """
+        results: dict[str, VehicleDamageResult] = {}
+
+        if not vehicles:
+            return results
+
+        try:
+            async with self.model_manager.load("vehicle-damage-detection") as model:
+                for i, vehicle in enumerate(vehicles):
+                    det_id = str(vehicle.id) if vehicle.id else str(i)
+
+                    try:
+                        # Crop vehicle from full frame
+                        vehicle_crop = await self._crop_to_bbox(image, vehicle.bbox)
+                        if vehicle_crop is None:
+                            continue
+
+                        # Detect damage
+                        damage_result = await detect_vehicle_damage(model, vehicle_crop)
+                        results[det_id] = damage_result
+
+                        if damage_result.has_damage:
+                            logger.info(
+                                f"Vehicle {det_id} damage detected: "
+                                f"types={damage_result.damage_types}, "
+                                f"count={damage_result.total_damage_count}, "
+                                f"high_security={damage_result.has_high_security_damage}"
+                            )
+
+                    except Exception as e:
+                        logger.warning(f"Vehicle damage detection failed for vehicle {det_id}: {e}")
+                        continue
+
+        except KeyError:
+            logger.warning("vehicle-damage-detection model not available in MODEL_ZOO")
+        except Exception as e:
+            logger.error(f"Vehicle damage detection error: {e}")
+
+        return results
+
+    async def _assess_image_quality(
+        self,
+        image: Image.Image,
+        camera_id: str | None = None,
+    ) -> ImageQualityResult:
+        """Assess image quality using BRISQUE metric.
+
+        BRISQUE (Blind/Referenceless Image Spatial Quality Evaluator) is a
+        no-reference image quality metric that detects blur, noise, and
+        other quality degradations.
+
+        Security use cases:
+        - Sudden quality drop = possible camera obstruction/tampering
+        - High blur + person = fast movement (running)
+        - Consistent low quality = camera maintenance needed
+
+        Args:
+            image: PIL Image to assess
+            camera_id: Camera ID for tracking quality over time
+
+        Returns:
+            ImageQualityResult with quality assessment
+
+        Raises:
+            RuntimeError: If quality assessment fails
+        """
+        try:
+            async with self.model_manager.load("brisque-quality") as model_data:
+                result = await assess_image_quality(model_data, image)
+
+                if result.is_low_quality:
+                    camera_str = f" (camera: {camera_id})" if camera_id else ""
+                    logger.debug(
+                        f"Low quality image detected{camera_str}: "
+                        f"score={result.quality_score:.0f}, "
+                        f"issues={result.quality_issues}"
+                    )
+
+                return result
+
+        except KeyError as e:
+            logger.warning("brisque-quality model not available in MODEL_ZOO")
+            raise RuntimeError("brisque-quality model not configured") from e
+        except Exception as e:
+            logger.error(f"Image quality assessment error: {e}")
+            raise
+
+    async def _classify_pets(
+        self,
+        animals: list[DetectionInput],
+        image: Image.Image,
+    ) -> dict[str, PetClassificationResult]:
+        """Classify pets (dog/cat) for false positive reduction.
+
+        Runs the ResNet-18 pet classifier on animal crop detections to
+        distinguish between cats and dogs. High-confidence pet detections
+        can be used to skip Nemotron risk analysis for false positive reduction.
+
+        Args:
+            animals: List of animal detections (cat/dog classes from RT-DETRv2)
+            image: Full frame image to crop animals from
+
+        Returns:
+            Dictionary mapping detection IDs to PetClassificationResult
+        """
+        results: dict[str, PetClassificationResult] = {}
+
+        if not animals:
+            return results
+
+        try:
+            async with self.model_manager.load("pet-classifier") as model_data:
+                for i, animal in enumerate(animals):
+                    det_id = str(animal.id) if animal.id else str(i)
+
+                    try:
+                        # Crop animal from full frame
+                        animal_crop = await self._crop_to_bbox(image, animal.bbox)
+                        if animal_crop is None:
+                            continue
+
+                        # Classify pet
+                        pet_result = await classify_pet(model_data, animal_crop)
+                        results[det_id] = pet_result
+
+                        logger.debug(
+                            f"Animal {det_id} classified as {pet_result.animal_type} "
+                            f"({pet_result.confidence:.0%} confidence), "
+                            f"is_household_pet={pet_result.is_household_pet}"
+                        )
+
+                    except Exception as e:
+                        logger.warning(f"Pet classification failed for animal {det_id}: {e}")
+                        continue
+
+        except KeyError:
+            logger.warning("pet-classifier model not available in MODEL_ZOO")
+        except Exception as e:
+            logger.error(f"Pet classification error: {e}")
+
+        return results
 
 
 # Global EnrichmentPipeline instance

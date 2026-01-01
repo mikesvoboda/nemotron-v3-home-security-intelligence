@@ -341,9 +341,9 @@ async def test_system_broadcaster_listen_restarts_with_fresh_connection():
         call_count += 1
         if call_count == 1:
             raise Exception("readuntil() called while another coroutine is waiting")
-        # Return empty generator for subsequent calls
-        return
-        yield  # Make it a generator
+        # Return empty generator for subsequent calls - empty generator pattern
+        for _ in []:
+            yield
 
     mock_redis.listen = mock_listen
     mock_redis.subscribe.return_value = mock_pubsub
@@ -441,10 +441,10 @@ async def test_system_broadcaster_start_pubsub_listener_success():
 
     broadcaster = SystemBroadcaster(redis_client=mock_redis)
 
-    # Mock listen to avoid actual async iteration
+    # Mock listen to avoid actual async iteration - empty generator pattern
     async def empty_listen(pubsub):
-        return
-        yield  # Make it an async generator
+        for _ in []:
+            yield
 
     mock_redis.listen = empty_listen
 
@@ -574,8 +574,9 @@ async def test_system_broadcaster_listen_for_updates_cancelled_error():
     mock_pubsub = AsyncMock()
 
     async def mock_listen(pubsub):
+        for _ in []:  # Make it an async generator
+            yield
         raise asyncio.CancelledError()
-        yield  # Make it an async generator
 
     mock_redis.listen = mock_listen
 
@@ -596,10 +597,11 @@ async def test_system_broadcaster_listen_for_updates_reconnection_failure():
     mock_redis = AsyncMock()
     mock_pubsub = AsyncMock()
 
-    # Listen raises error
+    # Listen raises error - async generator pattern
     async def mock_listen(pubsub):
+        for _ in []:
+            yield
         raise Exception("Connection error")
-        yield
 
     mock_redis.listen = mock_listen
     mock_redis.subscribe.return_value = None  # Reconnection will fail
