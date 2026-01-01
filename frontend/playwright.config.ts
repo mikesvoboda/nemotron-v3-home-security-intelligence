@@ -4,15 +4,14 @@ import { defineConfig, devices } from '@playwright/test';
  * Playwright E2E Test Configuration
  *
  * This configuration sets up comprehensive E2E tests for the Home Security Dashboard.
- * Tests run in multiple browsers: Chromium (default), Firefox, and WebKit.
+ * Tests run in multiple browsers: Chromium, Firefox, and WebKit.
  *
  * Browser Selection:
- * - Default: Runs all browsers (chromium, firefox, webkit)
- * - CI: Runs chromium only for speed
- * - Local: Can specify browser with --project flag
+ * - CI: Runs each browser in parallel containers via --project flag
+ * - Local: Runs all browsers by default, or specify with --project flag
  *
  * @example
- * # Run all browsers
+ * # Run all browsers (local)
  * npm run test:e2e
  *
  * # Run specific browser
@@ -77,44 +76,37 @@ export default defineConfig({
   },
 
   // Projects - Multi-browser testing configuration
-  // CI runs chromium only for speed; local runs all browsers
-  projects: process.env.CI
-    ? [
-        // CI: Chromium only for speed
-        {
-          name: 'chromium',
-          use: { ...devices['Desktop Chrome'] },
-        },
-      ]
-    : [
-        // Desktop browsers
-        {
-          name: 'chromium',
-          use: { ...devices['Desktop Chrome'] },
-        },
-        {
-          name: 'firefox',
-          use: { ...devices['Desktop Firefox'] },
-        },
-        {
-          name: 'webkit',
-          use: { ...devices['Desktop Safari'] },
-        },
-        // Mobile viewports
-        {
-          name: 'mobile-chrome',
-          use: { ...devices['Pixel 5'] },
-        },
-        {
-          name: 'mobile-safari',
-          use: { ...devices['iPhone 12'] },
-        },
-        // Tablet viewports
-        {
-          name: 'tablet',
-          use: { ...devices['iPad (gen 7)'] },
-        },
-      ],
+  // All browsers defined; CI uses --project flag to select specific browser
+  // This enables parallel browser testing in separate CI containers
+  projects: [
+    // Desktop browsers
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+    },
+    {
+      name: 'webkit',
+      use: { ...devices['Desktop Safari'] },
+    },
+    // Mobile viewports (only run locally, not in CI parallel jobs)
+    {
+      name: 'mobile-chrome',
+      use: { ...devices['Pixel 5'] },
+    },
+    {
+      name: 'mobile-safari',
+      use: { ...devices['iPhone 12'] },
+    },
+    // Tablet viewports
+    {
+      name: 'tablet',
+      use: { ...devices['iPad (gen 7)'] },
+    },
+  ],
 
   // Run your local dev server before starting the tests
   // Uses dev:e2e which runs Vite without the API proxy, allowing Playwright's
