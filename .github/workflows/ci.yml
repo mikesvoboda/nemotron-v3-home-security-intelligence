@@ -363,13 +363,56 @@ jobs:
           flags: frontend
           fail_ci_if_error: false
 
+  # Primary E2E tests (Chromium) - required, blocks PRs
   frontend-e2e:
+    name: E2E Tests (Chromium)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: Install Playwright Chromium
+        run: cd frontend && npx playwright install chromium --with-deps
+
+      - name: Run E2E tests (Chromium)
+        run: cd frontend && npx playwright test --project=chromium
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: playwright-report-chromium
+          path: frontend/playwright-report/
+          retention-days: 7
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: playwright-test-results-chromium
+          path: frontend/test-results/
+          retention-days: 7
+
+  # Secondary E2E tests (Firefox/WebKit) - non-blocking, informational only
+  frontend-e2e-secondary:
     name: E2E Tests (${{ matrix.browser }})
     runs-on: ubuntu-latest
+    # Non-blocking: These browsers are slower and flakier, failures are informational
+    continue-on-error: true
     strategy:
-      fail-fast: false # Continue other browsers if one fails
+      fail-fast: false
       matrix:
-        browser: [chromium, firefox, webkit]
+        browser: [firefox, webkit]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
