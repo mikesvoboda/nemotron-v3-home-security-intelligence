@@ -305,6 +305,170 @@ class CLIPClient:
                 original_error=e,
             ) from e
 
+    async def anomaly_score(
+        self, image: Image.Image, baseline_embedding: list[float]
+    ) -> tuple[float, float]:
+        """Compute scene anomaly score by comparing image to baseline embedding.
+
+        Sends an image and baseline embedding to the CLIP service, which computes
+        how different the current frame is from the baseline. This is useful for:
+        - Detecting new objects appearing in frame
+        - Identifying significant scene changes
+        - Alerting on unexpected activity patterns
+
+        The anomaly score is computed as: 1 - cosine_similarity
+        - 0.0 = identical to baseline (no anomaly)
+        - 1.0 = completely different from baseline (high anomaly)
+
+        Args:
+            image: PIL Image to analyze
+            baseline_embedding: 768-dimensional baseline embedding (average of "normal" frames)
+
+        Returns:
+            Tuple of (anomaly_score, similarity_to_baseline)
+            - anomaly_score: float in [0, 1] where higher = more anomalous
+            - similarity_to_baseline: cosine similarity in [-1, 1]
+
+        Raises:
+            CLIPUnavailableError: If the service is unavailable
+            ValueError: If baseline_embedding has wrong dimension
+        """
+        start_time = time.time()
+
+        # Validate baseline embedding dimension
+        if len(baseline_embedding) != EMBEDDING_DIMENSION:
+            raise ValueError(
+                f"Baseline embedding must have {EMBEDDING_DIMENSION} dimensions, "
+                f"got {len(baseline_embedding)}"
+            )
+
+        logger.debug("Sending anomaly score request to CLIP service...")
+
+        try:
+            # Encode image to base64
+            image_b64 = self._encode_image_to_base64(image)
+
+            # Build request payload
+            payload = {
+                "image": image_b64,
+                "baseline_embedding": baseline_embedding,
+            }
+
+            # Track AI request time
+            ai_start_time = time.time()
+
+            # Send to CLIP service
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                response = await client.post(
+                    f"{self._base_url}/anomaly-score",
+                    json=payload,
+                )
+                response.raise_for_status()
+
+            # Record AI request duration
+            ai_duration = time.time() - ai_start_time
+            observe_ai_request_duration("clip_anomaly", ai_duration)
+
+            # Parse response
+            result = response.json()
+
+            # Validate required fields
+            if "anomaly_score" not in result:
+                logger.warning(f"Malformed response from CLIP (missing 'anomaly_score'): {result}")
+                record_pipeline_error("clip_anomaly_malformed_response")
+                raise CLIPUnavailableError(
+                    "Malformed response from CLIP service: missing 'anomaly_score'"
+                )
+
+            if "similarity_to_baseline" not in result:
+                logger.warning(
+                    f"Malformed response from CLIP (missing 'similarity_to_baseline'): {result}"
+                )
+                record_pipeline_error("clip_anomaly_malformed_response")
+                raise CLIPUnavailableError(
+                    "Malformed response from CLIP service: missing 'similarity_to_baseline'"
+                )
+
+            anomaly_score_val: float = result["anomaly_score"]
+            similarity: float = result["similarity_to_baseline"]
+
+            duration_ms = int((time.time() - start_time) * 1000)
+
+            logger.debug(
+                f"CLIP anomaly score completed: score={anomaly_score_val:.3f}, "
+                f"similarity={similarity:.3f} in {duration_ms}ms"
+            )
+            return anomaly_score_val, similarity
+
+        except httpx.ConnectError as e:
+            duration_ms = int((time.time() - start_time) * 1000)
+            record_pipeline_error("clip_anomaly_connection_error")
+            logger.error(
+                f"Failed to connect to CLIP service for anomaly score: {e}",
+                extra={"duration_ms": duration_ms},
+                exc_info=True,
+            )
+            raise CLIPUnavailableError(
+                f"Failed to connect to CLIP service: {e}",
+                original_error=e,
+            ) from e
+
+        except httpx.TimeoutException as e:
+            duration_ms = int((time.time() - start_time) * 1000)
+            record_pipeline_error("clip_anomaly_timeout")
+            logger.error(
+                f"CLIP anomaly score request timed out: {e}",
+                extra={"duration_ms": duration_ms},
+                exc_info=True,
+            )
+            raise CLIPUnavailableError(
+                f"CLIP anomaly score request timed out: {e}",
+                original_error=e,
+            ) from e
+
+        except httpx.HTTPStatusError as e:
+            duration_ms = int((time.time() - start_time) * 1000)
+            status_code = e.response.status_code
+
+            if status_code >= 500:
+                record_pipeline_error("clip_anomaly_server_error")
+                logger.error(
+                    f"CLIP anomaly score returned server error: {status_code} - {e}",
+                    extra={"duration_ms": duration_ms, "status_code": status_code},
+                    exc_info=True,
+                )
+                raise CLIPUnavailableError(
+                    f"CLIP returned server error: {status_code}",
+                    original_error=e,
+                ) from e
+
+            record_pipeline_error("clip_anomaly_client_error")
+            logger.error(
+                f"CLIP anomaly score returned client error: {status_code} - {e}",
+                extra={"duration_ms": duration_ms, "status_code": status_code},
+                exc_info=True,
+            )
+            raise CLIPUnavailableError(
+                f"CLIP returned client error: {status_code}",
+                original_error=e,
+            ) from e
+
+        except CLIPUnavailableError:
+            raise
+
+        except Exception as e:
+            duration_ms = int((time.time() - start_time) * 1000)
+            record_pipeline_error("clip_anomaly_unexpected_error")
+            logger.error(
+                f"Unexpected error during CLIP anomaly score: {sanitize_error(e)}",
+                extra={"duration_ms": duration_ms},
+                exc_info=True,
+            )
+            raise CLIPUnavailableError(
+                f"Unexpected error during CLIP anomaly score: {sanitize_error(e)}",
+                original_error=e,
+            ) from e
+
 
 # Global client instance
 _clip_client: CLIPClient | None = None

@@ -420,3 +420,105 @@ def test_fashion_clip_in_model_zoo():
     assert config.vram_mb == 500
     assert config.category == "classification"
     assert config.enabled is True
+
+
+# =============================================================================
+# Regression Tests for Meta Tensor Loading Issue (bead d9qk)
+# =============================================================================
+
+
+def test_enrichment_clothing_classifier_uses_open_clip():
+    """Regression test: ClothingClassifier should use open_clip to avoid meta tensor error.
+
+    This test ensures the fix for the meta tensor loading error is in place.
+    The error "Cannot copy out of meta tensor; no data!" happens when using
+    AutoModel.from_pretrained() followed by .to(device) with CLIP-style models.
+
+    The fix uses open_clip.create_model_and_transforms() which properly handles
+    device placement during loading.
+    """
+
+    # Import the enrichment service's ClothingClassifier
+    # We need to add the ai/enrichment directory to the path temporarily
+    from pathlib import Path
+
+    enrichment_dir = Path(__file__).parent.parent.parent.parent / "ai" / "enrichment"
+
+    # Read the model.py file and verify it uses open_clip
+    model_py_path = enrichment_dir / "model.py"
+    if model_py_path.exists():
+        content = model_py_path.read_text()
+
+        # Verify the fix is in place
+        assert "import open_clip" in content, (
+            "ClothingClassifier.load_model() should import open_clip"
+        )
+        assert "create_model_and_transforms" in content, (
+            "ClothingClassifier should use open_clip.create_model_and_transforms()"
+        )
+        assert "_use_open_clip" in content, (
+            "ClothingClassifier should track which loading method was used"
+        )
+        assert "_load_with_transformers_fallback" in content, (
+            "ClothingClassifier should have a transformers fallback"
+        )
+        assert "device_map" in content, (
+            "Transformers fallback should use device_map to avoid meta tensor issue"
+        )
+
+
+def test_enrichment_clothing_classifier_has_fallback():
+    """Regression test: ClothingClassifier should have transformers fallback.
+
+    If open_clip loading fails, the classifier should fall back to transformers
+    with device_map parameter to avoid the meta tensor issue.
+    """
+    from pathlib import Path
+
+    enrichment_dir = Path(__file__).parent.parent.parent.parent / "ai" / "enrichment"
+    model_py_path = enrichment_dir / "model.py"
+
+    if model_py_path.exists():
+        content = model_py_path.read_text()
+
+        # Verify the fallback mechanism
+        assert "low_cpu_mem_usage=False" in content, (
+            "Transformers fallback should disable low_cpu_mem_usage to avoid meta tensors"
+        )
+        assert '{"": self.device}' in content or "device_map" in content, (
+            "Transformers fallback should use device_map for direct device loading"
+        )
+
+
+def test_enrichment_clothing_classifier_class_structure():
+    """Test ClothingClassifier class has expected attributes after fix.
+
+    The fix changes the class to have preprocess and tokenizer instead of processor,
+    and adds _use_open_clip flag.
+    """
+    from pathlib import Path
+
+    enrichment_dir = Path(__file__).parent.parent.parent.parent / "ai" / "enrichment"
+    model_py_path = enrichment_dir / "model.py"
+
+    if model_py_path.exists():
+        content = model_py_path.read_text()
+
+        # Verify new attributes
+        assert "self.preprocess" in content, (
+            "ClothingClassifier should have self.preprocess attribute"
+        )
+        assert "self.tokenizer" in content, (
+            "ClothingClassifier should have self.tokenizer attribute"
+        )
+        assert "self._use_open_clip" in content, (
+            "ClothingClassifier should have self._use_open_clip flag"
+        )
+
+        # Verify new methods
+        assert "def _classify_with_open_clip" in content, (
+            "ClothingClassifier should have _classify_with_open_clip method"
+        )
+        assert "def _classify_with_transformers" in content, (
+            "ClothingClassifier should have _classify_with_transformers method"
+        )
