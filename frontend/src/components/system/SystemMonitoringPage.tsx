@@ -159,17 +159,14 @@ export default function SystemMonitoringPage() {
     message: alert.message,
   }));
 
-  // Extract AI model metrics
-  const rtdetrMetrics = performanceData?.ai_models?.rtdetr
+  // Extract AI model metrics dictionary
+  // Combine ai_models with nemotron (which comes separately in the API response)
+  const aiModelsData = performanceData
     ? {
-        status: (performanceData.ai_models.rtdetr as { status: string }).status,
-        vram_gb: (performanceData.ai_models.rtdetr as { vram_gb?: number }).vram_gb ?? 0,
-        model: (performanceData.ai_models.rtdetr as { model?: string }).model ?? 'rtdetr',
-        device: (performanceData.ai_models.rtdetr as { device?: string }).device ?? 'cuda:0',
+        ...(performanceData.ai_models ?? {}),
+        ...(performanceData.nemotron ? { nemotron: performanceData.nemotron } : {}),
       }
     : null;
-
-  const nemotronMetrics = performanceData?.nemotron ?? null;
 
   // Extract database metrics
   const postgresMetrics = performanceData?.databases?.postgresql
@@ -646,11 +643,10 @@ export default function SystemMonitoringPage() {
           )}
         </div>
 
-        {/* AI Models Panel - RT-DETRv2 + Nemotron */}
+        {/* AI Models Panel - Dynamically renders all registered models */}
         <div className="mt-6">
           <AiModelsPanel
-            rtdetr={rtdetrMetrics}
-            nemotron={nemotronMetrics}
+            aiModels={aiModelsData}
             data-testid="ai-models-panel-section"
           />
         </div>
