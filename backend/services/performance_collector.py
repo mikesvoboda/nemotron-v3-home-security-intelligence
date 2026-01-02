@@ -344,7 +344,7 @@ class PerformanceCollector:
         """
         containers = [
             ("backend", "http://localhost:8000/health"),
-            ("frontend", "http://localhost:80/health"),
+            ("frontend", "http://frontend:80/health"),  # nginx health endpoint on port 80
             ("postgres", None),  # Check via psql
             ("redis", None),  # Check via ping
             ("ai-detector", f"{self._settings.rtdetr_url}/health"),

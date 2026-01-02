@@ -10,6 +10,15 @@ import type { Camera, Event, EventListResponse } from '../../services/api';
 // Mock API module
 vi.mock('../../services/api');
 
+// Mock VideoPlayer to avoid video element issues in tests
+vi.mock('../video/VideoPlayer', () => ({
+  default: vi.fn(({ src, poster, className }: { src: string; poster?: string; className?: string }) => (
+    <div data-testid="video-player" data-src={src} data-poster={poster} className={className}>
+      Mocked VideoPlayer
+    </div>
+  )),
+}));
+
 describe('AlertsPage', () => {
   const mockCameras: Camera[] = [
     {
@@ -84,6 +93,21 @@ describe('AlertsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
+    // Mock detection fetching for modal
+    vi.mocked(api.fetchEventDetections).mockResolvedValue({ detections: [], count: 0, limit: 100, offset: 0 });
+    // Mock update event for mark as reviewed
+    vi.mocked(api.updateEvent).mockResolvedValue({
+      id: 1,
+      camera_id: 'camera-1',
+      started_at: '2024-01-01T10:00:00Z',
+      ended_at: null,
+      risk_score: 75,
+      risk_level: 'high',
+      summary: 'Updated event',
+      reviewed: true,
+      detection_count: 0,
+      notes: null,
+    });
   });
 
   describe('Rendering', () => {
@@ -479,6 +503,185 @@ describe('AlertsPage', () => {
 
       await waitFor(() => {
         expect(screen.getByText('0 alerts found')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Event Detail Modal', () => {
+    it('opens modal when clicking on an alert card', async () => {
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce(mockHighResponse)
+        .mockResolvedValueOnce(mockCriticalResponse);
+
+      const user = userEvent.setup();
+      render(<AlertsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Wait for camera names to load
+      await waitFor(() => {
+        expect(screen.getByText('Front Door')).toBeInTheDocument();
+      });
+
+      // Find the first event card and click on it (not the View Details button)
+      const eventCard = screen.getByRole('button', { name: /View details for event from Front Door/i });
+      await user.click(eventCard);
+
+      // Modal should open
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+    });
+
+    it('closes modal when clicking close button', async () => {
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce(mockHighResponse)
+        .mockResolvedValueOnce(mockCriticalResponse);
+
+      const user = userEvent.setup();
+      render(<AlertsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Wait for camera names to load
+      await waitFor(() => {
+        expect(screen.getByText('Front Door')).toBeInTheDocument();
+      });
+
+      // Click on event card to open modal
+      const eventCard = screen.getByRole('button', { name: /View details for event from Front Door/i });
+      await user.click(eventCard);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
+      // Click close button
+      const closeButton = screen.getByRole('button', { name: 'Close modal' });
+      await user.click(closeButton);
+
+      // Modal should be closed
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
+    });
+
+    it('displays event details in modal', async () => {
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce(mockHighResponse)
+        .mockResolvedValueOnce(mockCriticalResponse);
+
+      const user = userEvent.setup();
+      render(<AlertsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Wait for camera names to load
+      await waitFor(() => {
+        expect(screen.getByText('Front Door')).toBeInTheDocument();
+      });
+
+      // Click on event card to open modal
+      const eventCard = screen.getByRole('button', { name: /View details for event from Front Door/i });
+      await user.click(eventCard);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
+      // Modal should show event details
+      // The modal displays the camera name in the title - use getAllByRole since both card and modal have headings
+      const headings = screen.getAllByRole('heading', { name: 'Front Door' });
+      // At least one heading should be in the modal (h2 with id="event-detail-title")
+      const modalTitle = headings.find((h) => h.id === 'event-detail-title');
+      expect(modalTitle).toBeInTheDocument();
+
+      // Should show AI Summary section
+      expect(screen.getByText('AI Summary')).toBeInTheDocument();
+    });
+
+    it('supports navigation between events in modal', async () => {
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce(mockHighResponse)
+        .mockResolvedValueOnce(mockCriticalResponse);
+
+      const user = userEvent.setup();
+      render(<AlertsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Wait for camera names to load
+      await waitFor(() => {
+        expect(screen.getByText('Front Door')).toBeInTheDocument();
+      });
+
+      // Click on first event card to open modal
+      const eventCard = screen.getByRole('button', { name: /View details for event from Front Door/i });
+      await user.click(eventCard);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
+      // Modal should have navigation buttons
+      expect(screen.getByRole('button', { name: 'Previous event' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Next event' })).toBeInTheDocument();
+
+      // Click Next to navigate to next event
+      const nextButton = screen.getByRole('button', { name: 'Next event' });
+      await user.click(nextButton);
+
+      // Should navigate to the next event (Back Yard camera)
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Back Yard' })).toBeInTheDocument();
+      });
+    });
+
+    it('marks event as reviewed from modal', async () => {
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce(mockHighResponse)
+        .mockResolvedValueOnce(mockCriticalResponse);
+
+      const user = userEvent.setup();
+      render(<AlertsPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
+      });
+
+      // Wait for camera names to load
+      await waitFor(() => {
+        expect(screen.getByText('Front Door')).toBeInTheDocument();
+      });
+
+      // Click on event card to open modal
+      const eventCard = screen.getByRole('button', { name: /View details for event from Front Door/i });
+      await user.click(eventCard);
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
+      // Mock the next fetch calls after marking as reviewed
+      vi.mocked(api.fetchEvents)
+        .mockResolvedValueOnce(mockHighResponse)
+        .mockResolvedValueOnce(mockCriticalResponse);
+
+      // Click mark as reviewed button
+      const reviewButton = screen.getByRole('button', { name: 'Mark event as reviewed' });
+      await user.click(reviewButton);
+
+      // Should call updateEvent API
+      await waitFor(() => {
+        expect(api.updateEvent).toHaveBeenCalledWith(1, { reviewed: true });
       });
     });
   });

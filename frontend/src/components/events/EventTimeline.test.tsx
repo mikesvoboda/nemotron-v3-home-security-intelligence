@@ -3,12 +3,42 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import EventTimeline from './EventTimeline';
+import * as useEventStreamHook from '../../hooks/useEventStream';
 import * as api from '../../services/api';
 
 import type { Camera, Event, EventListResponse } from '../../services/api';
 
 // Mock API module
 vi.mock('../../services/api');
+
+// Mock useEventStream hook with factory function
+vi.mock('../../hooks/useEventStream', () => ({
+  useEventStream: vi.fn(),
+}));
+
+// Mock ActivityFeed component
+vi.mock('../dashboard/ActivityFeed', () => ({
+  default: ({
+    events,
+    maxItems,
+    onEventClick,
+  }: {
+    events: Array<{ id: string; camera_name: string }>;
+    maxItems: number;
+    onEventClick?: (eventId: string) => void;
+  }) => (
+    <button
+      type="button"
+      data-testid="activity-feed"
+      data-event-count={events.length}
+      data-max-items={maxItems}
+      data-camera-names={events.map((e) => e.camera_name).join(',')}
+      onClick={() => onEventClick && events.length > 0 && onEventClick(events[0].id)}
+    >
+      Activity Feed
+    </button>
+  ),
+}));
 
 describe('EventTimeline', () => {
   const mockCameras: Camera[] = [
@@ -76,10 +106,31 @@ describe('EventTimeline', () => {
     offset: 0,
   };
 
+  // Mock WebSocket events for live activity
+  const mockWsEvents = [
+    {
+      id: 'ws-event-1',
+      camera_id: 'camera-1',
+      camera_name: 'Front Door',
+      risk_score: 80,
+      risk_level: 'high' as const,
+      summary: 'Live person detected',
+      timestamp: '2024-01-01T12:30:00Z',
+    },
+  ];
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
     vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
+
+    // Mock useEventStream hook
+    vi.mocked(useEventStreamHook.useEventStream).mockReturnValue({
+      events: mockWsEvents,
+      isConnected: true,
+      latestEvent: mockWsEvents[0],
+      clearEvents: vi.fn(),
+    });
   });
 
   describe('Rendering', () => {
@@ -88,13 +139,58 @@ describe('EventTimeline', () => {
 
       expect(screen.getByText('Event Timeline')).toBeInTheDocument();
       expect(
-        screen.getByText('View and filter all security events from your cameras')
+        screen.getByText(/View and filter all security events from your cameras/)
       ).toBeInTheDocument();
 
       // Wait for async state updates to complete to avoid act() warnings
       await waitFor(() => {
         expect(screen.queryByText('Loading events...')).not.toBeInTheDocument();
       });
+    });
+
+    it('renders the Live Activity feed', async () => {
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('activity-feed')).toBeInTheDocument();
+      });
+
+      expect(screen.getByRole('heading', { name: /live activity/i })).toBeInTheDocument();
+    });
+
+    it('renders Live Activity with WebSocket events', async () => {
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        const activityFeed = screen.getByTestId('activity-feed');
+        expect(activityFeed).toHaveAttribute('data-event-count', '1');
+        expect(activityFeed).toHaveAttribute('data-camera-names', 'Front Door');
+      });
+    });
+
+    it('shows disconnected indicator when WebSocket is not connected', async () => {
+      vi.mocked(useEventStreamHook.useEventStream).mockReturnValue({
+        events: [],
+        isConnected: false,
+        latestEvent: null,
+        clearEvents: vi.fn(),
+      });
+
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/disconnected/i)).toBeInTheDocument();
+      });
+    });
+
+    it('does not show disconnected indicator when WebSocket is connected', async () => {
+      render(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.queryByText(/Loading events.../)).not.toBeInTheDocument();
+      });
+
+      expect(screen.queryByText(/disconnected/i)).not.toBeInTheDocument();
     });
 
     it('displays loading state initially', async () => {
@@ -677,6 +773,13 @@ describe('EventTimeline', () => {
       vi.resetAllMocks();
       vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
       vi.mocked(api.fetchEvents).mockRejectedValue(new Error('Network error'));
+      // Re-mock useEventStream after resetAllMocks
+      vi.mocked(useEventStreamHook.useEventStream).mockReturnValue({
+        events: mockWsEvents,
+        isConnected: true,
+        latestEvent: mockWsEvents[0],
+        clearEvents: vi.fn(),
+      });
 
       render(<EventTimeline />);
 
@@ -695,6 +798,13 @@ describe('EventTimeline', () => {
       vi.resetAllMocks();
       vi.mocked(api.fetchCameras).mockRejectedValue(new Error('Camera fetch failed'));
       vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
+      // Re-mock useEventStream after resetAllMocks
+      vi.mocked(useEventStreamHook.useEventStream).mockReturnValue({
+        events: mockWsEvents,
+        isConnected: true,
+        latestEvent: mockWsEvents[0],
+        clearEvents: vi.fn(),
+      });
 
       render(<EventTimeline />);
 
@@ -1449,6 +1559,13 @@ describe('EventTimeline', () => {
       vi.resetAllMocks();
       vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
       vi.mocked(api.fetchEvents).mockRejectedValue(new Error('Network error'));
+      // Re-mock useEventStream after resetAllMocks
+      vi.mocked(useEventStreamHook.useEventStream).mockReturnValue({
+        events: mockWsEvents,
+        isConnected: true,
+        latestEvent: mockWsEvents[0],
+        clearEvents: vi.fn(),
+      });
 
       render(<EventTimeline />);
 

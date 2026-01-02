@@ -1,7 +1,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-import { useWebSocket, WebSocketOptions } from './useWebSocket';
+import { useWebSocket, WebSocketOptions, calculateBackoffDelay } from './useWebSocket';
 
 // Extend Window interface for WebSocket
 declare global {
@@ -847,6 +847,166 @@ describe('useWebSocket', () => {
       expect(secondHeartbeat).toBeInstanceOf(Date);
       // Second heartbeat should be later (or equal due to timing)
       expect(secondHeartbeat!.getTime()).toBeGreaterThanOrEqual(firstHeartbeat!.getTime());
+    });
+  });
+});
+
+describe('calculateBackoffDelay', () => {
+  // Store original Math.random and restore after tests
+  let originalRandom: () => number;
+
+  beforeEach(() => {
+    originalRandom = Math.random;
+  });
+
+  afterEach(() => {
+    Math.random = originalRandom;
+  });
+
+  describe('exponential backoff progression', () => {
+    it('calculates exponential delays (1s, 2s, 4s, 8s, 16s base intervals)', () => {
+      // Mock random to return 0 (no jitter) for predictable testing
+      Math.random = () => 0;
+
+      const baseInterval = 1000; // 1 second
+
+      // attempt 0: 1000 * 2^0 = 1000ms
+      expect(calculateBackoffDelay(0, baseInterval)).toBe(1000);
+      // attempt 1: 1000 * 2^1 = 2000ms
+      expect(calculateBackoffDelay(1, baseInterval)).toBe(2000);
+      // attempt 2: 1000 * 2^2 = 4000ms
+      expect(calculateBackoffDelay(2, baseInterval)).toBe(4000);
+      // attempt 3: 1000 * 2^3 = 8000ms
+      expect(calculateBackoffDelay(3, baseInterval)).toBe(8000);
+      // attempt 4: 1000 * 2^4 = 16000ms
+      expect(calculateBackoffDelay(4, baseInterval)).toBe(16000);
+    });
+
+    it('caps delay at maxInterval (default 30s)', () => {
+      Math.random = () => 0;
+
+      const baseInterval = 1000;
+
+      // attempt 5: 1000 * 2^5 = 32000ms, capped at 30000ms
+      expect(calculateBackoffDelay(5, baseInterval)).toBe(30000);
+      // attempt 6: 1000 * 2^6 = 64000ms, capped at 30000ms
+      expect(calculateBackoffDelay(6, baseInterval)).toBe(30000);
+      // attempt 10: huge number, still capped at 30000ms
+      expect(calculateBackoffDelay(10, baseInterval)).toBe(30000);
+    });
+
+    it('respects custom maxInterval', () => {
+      Math.random = () => 0;
+
+      const baseInterval = 1000;
+      const customMaxInterval = 10000;
+
+      // attempt 0: 1000ms
+      expect(calculateBackoffDelay(0, baseInterval, customMaxInterval)).toBe(1000);
+      // attempt 3: 8000ms (under cap)
+      expect(calculateBackoffDelay(3, baseInterval, customMaxInterval)).toBe(8000);
+      // attempt 4: 16000ms -> capped at 10000ms
+      expect(calculateBackoffDelay(4, baseInterval, customMaxInterval)).toBe(10000);
+      // attempt 5: 32000ms -> capped at 10000ms
+      expect(calculateBackoffDelay(5, baseInterval, customMaxInterval)).toBe(10000);
+    });
+  });
+
+  describe('jitter', () => {
+    it('adds up to 25% jitter to the delay', () => {
+      // Test with max jitter (random returns 1)
+      Math.random = () => 1;
+
+      const baseInterval = 1000;
+
+      // attempt 0: base = 1000, jitter = 1 * 0.25 * 1000 = 250, total = 1250
+      expect(calculateBackoffDelay(0, baseInterval)).toBe(1250);
+      // attempt 1: base = 2000, jitter = 1 * 0.25 * 2000 = 500, total = 2500
+      expect(calculateBackoffDelay(1, baseInterval)).toBe(2500);
+    });
+
+    it('adds proportional jitter (12.5% when random=0.5)', () => {
+      Math.random = () => 0.5;
+
+      const baseInterval = 1000;
+
+      // attempt 0: base = 1000, jitter = 0.5 * 0.25 * 1000 = 125, total = 1125
+      expect(calculateBackoffDelay(0, baseInterval)).toBe(1125);
+      // attempt 2: base = 4000, jitter = 0.5 * 0.25 * 4000 = 500, total = 4500
+      expect(calculateBackoffDelay(2, baseInterval)).toBe(4500);
+    });
+
+    it('returns integer values (no fractional milliseconds)', () => {
+      // Use a random value that would produce fractional results
+      Math.random = () => 0.333;
+
+      const baseInterval = 1000;
+      const result = calculateBackoffDelay(1, baseInterval);
+
+      // Result should be an integer
+      expect(Number.isInteger(result)).toBe(true);
+    });
+  });
+
+  describe('rate limit compliance', () => {
+    it('delays help avoid hitting WebSocket rate limit (10/min + 2 burst)', () => {
+      Math.random = () => 0;
+
+      const baseInterval = 1000;
+
+      // Calculate total time for 5 reconnection attempts (default)
+      // Attempt 0: wait 1s, Attempt 1: wait 2s, Attempt 2: wait 4s, Attempt 3: wait 8s, Attempt 4: wait 16s
+      const delays = [0, 1, 2, 3, 4].map((attempt) =>
+        calculateBackoffDelay(attempt, baseInterval)
+      );
+      const totalDelay = delays.reduce((sum, delay) => sum + delay, 0);
+
+      // Total: 1000 + 2000 + 4000 + 8000 + 16000 = 31000ms = 31 seconds
+      expect(totalDelay).toBe(31000);
+
+      // With 5 attempts over 31+ seconds, we're well under 10/min rate limit
+      // Rate limit is 10 connections per minute (plus 2 burst = 12 total)
+      // 5 attempts in 31+ seconds = ~9.7 per minute (safe margin)
+    });
+
+    it('respects 30s maximum delay to prevent excessive waits', () => {
+      Math.random = () => 0;
+
+      // Even with many attempts, delay never exceeds 30 seconds
+      for (let attempt = 0; attempt < 20; attempt++) {
+        const delay = calculateBackoffDelay(attempt, 1000);
+        expect(delay).toBeLessThanOrEqual(30000);
+      }
+    });
+  });
+
+  describe('edge cases', () => {
+    it('handles attempt 0 correctly', () => {
+      Math.random = () => 0;
+      expect(calculateBackoffDelay(0, 1000)).toBe(1000);
+    });
+
+    it('handles different base intervals', () => {
+      Math.random = () => 0;
+
+      // 500ms base
+      expect(calculateBackoffDelay(0, 500)).toBe(500);
+      expect(calculateBackoffDelay(1, 500)).toBe(1000);
+      expect(calculateBackoffDelay(2, 500)).toBe(2000);
+
+      // 2000ms base
+      expect(calculateBackoffDelay(0, 2000)).toBe(2000);
+      expect(calculateBackoffDelay(1, 2000)).toBe(4000);
+      expect(calculateBackoffDelay(2, 2000)).toBe(8000);
+    });
+
+    it('handles very small base interval', () => {
+      Math.random = () => 0;
+
+      // 100ms base
+      expect(calculateBackoffDelay(0, 100)).toBe(100);
+      expect(calculateBackoffDelay(5, 100)).toBe(3200); // 100 * 32
+      expect(calculateBackoffDelay(10, 100)).toBe(30000); // Capped at max
     });
   });
 });

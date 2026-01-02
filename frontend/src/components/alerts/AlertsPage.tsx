@@ -1,14 +1,16 @@
 import { AlertTriangle, Bell, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
-import { fetchCameras, fetchEvents, isAbortError } from '../../services/api';
+import { fetchCameras, fetchEvents, isAbortError, updateEvent } from '../../services/api';
 import { getRiskLevel } from '../../utils/risk';
 import RiskBadge from '../common/RiskBadge';
 import EventCard from '../events/EventCard';
+import EventDetailModal from '../events/EventDetailModal';
 
 import type { Camera, Event, EventsQueryParams } from '../../services/api';
 import type { RiskLevel } from '../../utils/risk';
 import type { Detection } from '../events/EventCard';
+import type { Event as ModalEvent } from '../events/EventDetailModal';
 
 export interface AlertsPageProps {
   onViewEventDetails?: (eventId: number) => void;
@@ -37,6 +39,9 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
 
   // State for selected risk level filter (high or critical)
   const [riskFilter, setRiskFilter] = useState<'high' | 'critical' | 'all'>('all');
+
+  // State for event detail modal
+  const [selectedEventForModal, setSelectedEventForModal] = useState<number | null>(null);
 
   // Create a memoized camera name lookup map that updates when cameras change
   // This ensures the component re-renders with correct camera names when cameras load
@@ -176,6 +181,60 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
       started_at: event.started_at,
       ended_at: event.ended_at,
       onViewDetails: onViewEventDetails ? () => onViewEventDetails(event.id) : undefined,
+      onClick: (eventId: string) => setSelectedEventForModal(parseInt(eventId, 10)),
+    };
+  };
+
+  // Handle modal close
+  const handleModalClose = () => {
+    setSelectedEventForModal(null);
+  };
+
+  // Handle mark as reviewed from modal
+  const handleMarkReviewed = async (eventId: string) => {
+    try {
+      await updateEvent(parseInt(eventId, 10), { reviewed: true });
+      // Reload events to reflect changes
+      setPagination((prev) => ({ ...prev })); // Trigger re-fetch
+    } catch (err) {
+      console.error('Failed to mark event as reviewed:', err);
+    }
+  };
+
+  // Handle navigation between events in modal
+  const handleNavigate = (direction: 'prev' | 'next') => {
+    if (selectedEventForModal === null) return;
+
+    const currentIndex = events.findIndex((e) => e.id === selectedEventForModal);
+    if (currentIndex === -1) return;
+
+    const newIndex = direction === 'prev' ? currentIndex - 1 : currentIndex + 1;
+    if (newIndex >= 0 && newIndex < events.length) {
+      setSelectedEventForModal(events[newIndex].id);
+    }
+  };
+
+  // Convert API Event to ModalEvent format
+  const getModalEvent = (): ModalEvent | null => {
+    if (selectedEventForModal === null) return null;
+
+    const event = events.find((e) => e.id === selectedEventForModal);
+    if (!event) return null;
+
+    const camera_name = cameraNameMap.get(event.camera_id) || 'Unknown Camera';
+
+    return {
+      id: String(event.id),
+      timestamp: event.started_at,
+      camera_name,
+      risk_score: event.risk_score || 0,
+      risk_label: event.risk_level || getRiskLevel(event.risk_score || 0),
+      summary: event.summary || 'No summary available',
+      detections: [], // Detections will be loaded by the modal
+      started_at: event.started_at,
+      ended_at: event.ended_at,
+      reviewed: event.reviewed,
+      notes: event.notes,
     };
   };
 
@@ -308,6 +367,15 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
           </button>
         </div>
       )}
+
+      {/* Event Detail Modal */}
+      <EventDetailModal
+        event={getModalEvent()}
+        isOpen={selectedEventForModal !== null}
+        onClose={handleModalClose}
+        onMarkReviewed={(eventId) => void handleMarkReviewed(eventId)}
+        onNavigate={handleNavigate}
+      />
     </div>
   );
 }
