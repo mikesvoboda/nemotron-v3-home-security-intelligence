@@ -11,7 +11,7 @@ source_refs:
 
 ---
 
-> **Comprehensive reference for all environment variables.** This is the authoritative source for configuration options. Copy `.env.example` to `.env` and adjust values as needed.
+> **How to configure the system.** For the authoritative list of environment variables and ports, use `docs/reference/config/env-reference.md` and `docs/RUNTIME_CONFIG.md`. Copy `.env.example` to `.env` and adjust values as needed.
 
 <!-- Nano Banana Pro Prompt:
 "Technical illustration of server configuration files and environment settings,
@@ -162,12 +162,15 @@ Set `FILE_WATCHER_POLLING=true` if:
 
 ## AI Service Endpoints
 
-| Variable       | Default                 | Description                 |
-| -------------- | ----------------------- | --------------------------- |
-| `RTDETR_URL`   | `http://localhost:8090` | RT-DETRv2 detection service |
-| `NEMOTRON_URL` | `http://localhost:8091` | Nemotron LLM service        |
+| Variable         | Default                 | Description                              |
+| ---------------- | ----------------------- | ---------------------------------------- |
+| `RTDETR_URL`     | `http://localhost:8090` | RT-DETRv2 detection service              |
+| `NEMOTRON_URL`   | `http://localhost:8091` | Nemotron LLM service                     |
+| `FLORENCE_URL`   | `http://localhost:8092` | Florence-2 vision extraction (optional)  |
+| `CLIP_URL`       | `http://localhost:8093` | CLIP entity re-identification (optional) |
+| `ENRICHMENT_URL` | `http://localhost:8094` | Enrichment HTTP service (optional)       |
 
-**Source:** [`backend/core/config.py:105-112`](../../backend/core/config.py)
+**Source:** [`backend/core/config.py`](../../backend/core/config.py)
 
 ### AI Service Timeouts
 
@@ -210,10 +213,17 @@ AI_HEALTH_TIMEOUT=30.0
 
 ### Container Networking
 
-AI services run natively on the host for GPU access. Configure URLs based on your environment:
+AI services can run **containerized** (production compose) or **on the host** (development). Configure URLs based on what your backend can reach.
 
 ```bash
-# Native development
+# Production (docker-compose.prod.yml): backend -> AI services on the compose network
+RTDETR_URL=http://ai-detector:8090
+NEMOTRON_URL=http://ai-llm:8091
+FLORENCE_URL=http://ai-florence:8092
+CLIP_URL=http://ai-clip:8093
+ENRICHMENT_URL=http://ai-enrichment:8094
+
+# Native development (host-run AI)
 RTDETR_URL=http://localhost:8090
 NEMOTRON_URL=http://localhost:8091
 

@@ -48,7 +48,7 @@ The system broadcasts GPU stats via WebSocket at `/ws/system`. Check the dashboa
 
 ```bash
 # Query GPU stats from API
-curl http://localhost:8000/api/system/gpu/history?minutes=30
+curl "http://localhost:8000/api/system/gpu/history?since=2025-12-30T09:45:00Z&limit=300"
 ```
 
 ---

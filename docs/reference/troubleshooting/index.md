@@ -92,6 +92,9 @@ ls -lt /export/foscam/*/  # Should show recent files
 ```bash
 curl http://localhost:8090/health  # RT-DETRv2
 curl http://localhost:8091/health  # Nemotron
+curl http://localhost:8092/health  # Florence-2 (optional)
+curl http://localhost:8093/health  # CLIP (optional)
+curl http://localhost:8094/health  # Enrichment (optional)
 ```
 
 **4. Check queue depths:**
@@ -137,7 +140,7 @@ curl -s http://localhost:8091/health
 ```bash
 ./ai/start_llm.sh
 # Or if containerized:
-docker compose -f docker-compose.prod.yml up -d nemotron
+docker compose -f docker-compose.prod.yml up -d ai-llm
 ```
 
 **2. Check Nemotron logs:**
@@ -145,7 +148,7 @@ docker compose -f docker-compose.prod.yml up -d nemotron
 ```bash
 tail -f /tmp/nemotron-llm.log
 # Or in container:
-docker compose -f docker-compose.prod.yml logs -f nemotron
+docker compose -f docker-compose.prod.yml logs -f ai-llm
 ```
 
 **3. Increase timeout if needed:**
@@ -371,7 +374,7 @@ docker stats
 curl -s http://localhost:8000/api/system/telemetry | jq '.queues'
 
 # DLQ size
-curl -s http://localhost:8000/api/system/dlq/stats
+curl -s http://localhost:8000/api/dlq/stats
 ```
 
 ### Possible Causes
@@ -435,7 +438,7 @@ docker compose -f docker-compose.prod.yml restart
 df -h
 
 # Check storage stats
-curl -s http://localhost:8000/api/system/storage/stats | jq .
+curl -s http://localhost:8000/api/system/storage | jq .
 
 # Database size
 psql -h localhost -U security -d security -c "SELECT pg_size_pretty(pg_database_size('security'));"
@@ -454,7 +457,7 @@ psql -h localhost -U security -d security -c "SELECT pg_size_pretty(pg_database_
 
 ```bash
 # Preview first
-curl -s http://localhost:8000/api/system/cleanup/preview | jq .
+curl -s -X POST "http://localhost:8000/api/system/cleanup?dry_run=true" | jq .
 
 # Execute cleanup
 curl -X POST http://localhost:8000/api/system/cleanup

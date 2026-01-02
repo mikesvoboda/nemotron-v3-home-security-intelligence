@@ -4,6 +4,8 @@
 
 This hub is for **sysadmins, DevOps engineers, and technically savvy users** who deploy and maintain the system. For end-user documentation, see the [User Hub](user-hub.md). For development and contribution, see the [Developer Hub](developer-hub.md).
 
+> See [Stability Levels](reference/stability.md) for what’s stable vs still evolving.
+
 ---
 
 ## Quick Deploy
@@ -202,8 +204,12 @@ DATABASE_URL=postgresql+asyncpg://security:password@postgres:5432/security
 REDIS_URL=redis://redis:6379
 
 # AI Services
-RTDETR_URL=http://localhost:8090
-NEMOTRON_URL=http://localhost:8091
+# Production (docker-compose.prod.yml): backend reaches AI services by compose DNS
+RTDETR_URL=http://ai-detector:8090
+NEMOTRON_URL=http://ai-llm:8091
+FLORENCE_URL=http://ai-florence:8092
+CLIP_URL=http://ai-clip:8093
+ENRICHMENT_URL=http://ai-enrichment:8094
 
 # Camera uploads
 FOSCAM_BASE_PATH=/export/foscam
@@ -234,6 +240,9 @@ RETENTION_DAYS=30
 | -------------------------------- | ----------------------- | ---------------------------- |
 | `RTDETR_URL`                     | `http://localhost:8090` | Detection service URL        |
 | `NEMOTRON_URL`                   | `http://localhost:8091` | LLM service URL              |
+| `FLORENCE_URL`                   | `http://localhost:8092` | Optional vision extraction   |
+| `CLIP_URL`                       | `http://localhost:8093` | Optional re-identification   |
+| `ENRICHMENT_URL`                 | `http://localhost:8094` | Optional enrichment endpoint |
 | `DETECTION_CONFIDENCE_THRESHOLD` | `0.5`                   | Minimum detection confidence |
 | `AI_CONNECT_TIMEOUT`             | `10.0`                  | Connection timeout (seconds) |
 | `RTDETR_READ_TIMEOUT`            | `60.0`                  | Detection timeout (seconds)  |
@@ -242,6 +251,10 @@ RETENTION_DAYS=30
 **Container networking:**
 
 ```bash
+# Production (docker-compose.prod.yml): internal DNS
+RTDETR_URL=http://ai-detector:8090
+NEMOTRON_URL=http://ai-llm:8091
+
 # Docker Desktop (macOS/Windows) - default works
 RTDETR_URL=http://host.docker.internal:8090
 
@@ -339,11 +352,11 @@ curl http://localhost:8000/api/system/health
 # GPU stats
 curl http://localhost:8000/api/system/gpu
 
-# GPU history
-curl "http://localhost:8000/api/system/gpu/history?minutes=30"
+# GPU history (use `since` + `limit`)
+curl "http://localhost:8000/api/system/gpu/history?since=2025-12-30T09:45:00Z&limit=300"
 
 # DLQ stats
-curl http://localhost:8000/api/system/dlq/stats
+curl http://localhost:8000/api/dlq/stats
 ```
 
 **WebSocket monitoring:**
@@ -357,24 +370,20 @@ GPU stats and service status broadcast via `/ws/system` channel.
 **Quick database backup:**
 
 ```bash
-# Docker - compressed custom format (recommended)
-docker exec postgres pg_dump -U security -d security \
-    --format=custom --compress=9 \
-    > backup_$(date +%Y%m%d).dump
-
-# Podman
-podman exec postgres pg_dump -U security -d security \
-    --format=custom --compress=9 \
-    > backup_$(date +%Y%m%d).dump
+# See operator/backup.md for full backup/restore runbooks.
+# Docker (recommended):
+docker compose -f docker-compose.prod.yml exec -T postgres pg_dump -U security -d security \
+  --format=custom --compress=9 \
+  > backup_$(date +%Y%m%d).dump
 ```
 
 **Quick restore:**
 
 ```bash
 # Restore from compressed backup
-docker exec -i postgres pg_restore \
-    -U security -d security --clean --if-exists \
-    < backup.dump
+docker compose -f docker-compose.prod.yml exec -T postgres pg_restore \
+  -U security -d security --clean --if-exists \
+  < backup.dump
 ```
 
 > [!NOTE]
@@ -402,7 +411,7 @@ Automated cleanup runs daily at 03:00.
 **Preview cleanup (dry run):**
 
 ```bash
-curl http://localhost:8000/api/system/cleanup/preview
+curl -X POST "http://localhost:8000/api/system/cleanup?dry_run=true"
 ```
 
 **Storage estimates:**
@@ -664,5 +673,5 @@ docker compose -f docker-compose.prod.yml logs --tail=100 backend
 
 - [User Hub](user-hub.md) - End-user documentation
 - [Developer Hub](developer-hub.md) - Development and contribution
-- [API Reference](api-reference/overview.md) - REST and WebSocket API documentation
+- [API Reference](reference/api/overview.md) - REST and WebSocket API documentation
 - [Architecture Overview](architecture/overview.md) - System design and components

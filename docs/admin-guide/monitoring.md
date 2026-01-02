@@ -298,7 +298,7 @@ class JobFailure:
 
 ```bash
 # Get DLQ counts
-curl http://localhost:8000/api/system/dlq/stats
+curl http://localhost:8000/api/dlq/stats
 ```
 
 Response:
@@ -369,7 +369,7 @@ curl "http://localhost:8000/api/dlq/jobs/dlq:detection_queue?start=50&limit=50"
 Move all jobs from DLQ back to processing queue:
 
 ```bash
-curl -X POST "http://localhost:8000/api/system/dlq/requeue-all?queue=dlq:detection_queue"
+curl -X POST "http://localhost:8000/api/dlq/requeue-all/dlq:detection_queue"
 ```
 
 #### Clear DLQ
@@ -377,7 +377,7 @@ curl -X POST "http://localhost:8000/api/system/dlq/requeue-all?queue=dlq:detecti
 Permanently delete all jobs from a DLQ:
 
 ```bash
-curl -X DELETE "http://localhost:8000/api/system/dlq/clear?queue=dlq:detection_queue"
+curl -X DELETE "http://localhost:8000/api/dlq/dlq:detection_queue"
 ```
 
 ### DLQ Monitor Dashboard
@@ -473,19 +473,19 @@ flowchart TB
 
 ### DLQ Management
 
-| Endpoint                      | Method | Description          |
-| ----------------------------- | ------ | -------------------- |
-| `/api/system/dlq/stats`       | GET    | DLQ queue counts     |
-| `/api/system/dlq/jobs`        | GET    | List jobs in DLQ     |
-| `/api/system/dlq/requeue-all` | POST   | Requeue all DLQ jobs |
-| `/api/system/dlq/clear`       | DELETE | Clear DLQ            |
+| Endpoint                            | Method | Description          |
+| ----------------------------------- | ------ | -------------------- |
+| `/api/dlq/stats`                    | GET    | DLQ queue counts     |
+| `/api/dlq/jobs/{queue_name}`        | GET    | List jobs in DLQ     |
+| `/api/dlq/requeue-all/{queue_name}` | POST   | Requeue all DLQ jobs |
+| `/api/dlq/{queue_name}`             | DELETE | Clear DLQ            |
 
 ### Storage
 
-| Endpoint                      | Method | Description           |
-| ----------------------------- | ------ | --------------------- |
-| `/api/system/storage/stats`   | GET    | Disk usage statistics |
-| `/api/system/cleanup/preview` | GET    | Cleanup dry run       |
+| Endpoint                           | Method | Description           |
+| ---------------------------------- | ------ | --------------------- |
+| `/api/system/storage`              | GET    | Disk usage statistics |
+| `/api/system/cleanup?dry_run=true` | POST   | Cleanup dry run       |
 
 ---
 

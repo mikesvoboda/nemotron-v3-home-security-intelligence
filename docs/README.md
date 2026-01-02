@@ -12,6 +12,8 @@ For a quick overview of the project and getting started instructions, see the [m
 
 Non-technical guides for operating and understanding the system.
 
+> New here? See [Stability Levels](reference/stability.md) to understand what’s stable vs still evolving.
+
 | Document                                                               | Description                           |
 | ---------------------------------------------------------------------- | ------------------------------------- |
 | [User Guide: Getting Started](user-guide/getting-started.md)           | First-time setup and basic usage      |
