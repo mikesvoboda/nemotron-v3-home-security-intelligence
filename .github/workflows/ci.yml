@@ -524,32 +524,50 @@ jobs:
 
   # ============================================================================
   # Build Jobs (run on PRs and pushes to catch Docker issues before merge)
+  # Separate jobs for backend/frontend to avoid disk space issues
   # ============================================================================
 
-  build:
-    name: Build Docker Images (${{ matrix.name }})
+  build-backend:
+    name: Build Docker (backend)
     runs-on: ubuntu-latest
-    # Non-blocking: Docker build failures are informational, don't block PR merges
     continue-on-error: true
     needs:
       - lint
       - typecheck
       - unit-tests
       - integration-tests
-      - api-types-check
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Free up disk space
+        run: |
+          # Remove unnecessary tools to free up space for Docker build
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          df -h
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./backend/Dockerfile.prod
+          push: false
+          tags: backend:${{ github.sha }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+  build-frontend:
+    name: Build Docker (frontend)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    needs:
       - frontend-lint
       - frontend-typecheck
       - frontend-tests
       - frontend-e2e
-    strategy:
-      matrix:
-        include:
-          - name: backend
-            context: .
-            dockerfile: ./backend/Dockerfile.prod
-          - name: frontend
-            context: ./frontend
-            dockerfile: ./frontend/Dockerfile.prod
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -557,15 +575,15 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build ${{ matrix.name }} image
+      - name: Build frontend image
         uses: docker/build-push-action@v5
         with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
+          context: ./frontend
+          file: ./frontend/Dockerfile.prod
           push: false
-          tags: ${{ matrix.name }}:${{ github.sha }}
-          cache-from: type=gha,scope=${{ matrix.name }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+          tags: frontend:${{ github.sha }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
 
   # ============================================================================
   # Security Validation Job
