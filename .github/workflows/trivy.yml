@@ -31,7 +31,8 @@ jobs:
       - name: Build backend image
         id: build
         # Use production Dockerfile which has minimal dependencies
-        run: docker build -t backend:${{ github.sha }} -f backend/Dockerfile.prod backend/
+        # Context must be project root because Dockerfile.prod copies pyproject.toml/uv.lock from root
+        run: docker build -t backend:${{ github.sha }} -f backend/Dockerfile.prod .
 
       - name: Run Trivy vulnerability scanner (blocking)
         # Fail build on CRITICAL/HIGH vulnerabilities not in .trivyignore
