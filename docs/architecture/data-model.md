@@ -51,6 +51,14 @@ This document describes the complete data model for the Home Security Intelligen
 
 ---
 
+## Entity Relationship Diagram
+
+![Data Model ERD](../images/erd-data-model.png)
+
+The three core entities (Camera, Detection, Event) form the backbone of the system's data model. Cameras produce detections, which are grouped into events by the batch aggregator.
+
+---
+
 ## Storage Overview
 
 The system uses two complementary storage backends optimized for their respective strengths:

@@ -40,6 +40,10 @@ The real-time system enables instant dashboard updates without polling by using 
 
 ### Architecture Diagram
 
+![WebSocket Architecture](../images/arch-websocket-flow.png)
+
+### Detailed Mermaid Diagram
+
 ```mermaid
 flowchart TB
     subgraph Pipeline["AI Pipeline"]
