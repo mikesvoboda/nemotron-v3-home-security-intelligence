@@ -167,6 +167,16 @@ async def test_config_endpoint_has_expected_values(client, mock_redis):
 
 
 @pytest.mark.asyncio
+async def test_get_config_includes_grafana_url(client, mock_redis):
+    """Test that GET /api/system/config includes grafana_url."""
+    response = await client.get("/api/system/config")
+    assert response.status_code == 200
+    data = response.json()
+    assert "grafana_url" in data
+    assert data["grafana_url"].startswith("http")
+
+
+@pytest.mark.asyncio
 async def test_patch_config_updates_values(client, mock_redis):
     """PATCH /api/system/config updates runtime config and affects subsequent reads."""
     payload = {
