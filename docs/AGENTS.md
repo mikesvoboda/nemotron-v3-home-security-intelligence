@@ -241,9 +241,9 @@ See `admin-guide/AGENTS.md` for detailed information.
 
 ### api-reference/
 
-REST and WebSocket API documentation (legacy location, see also `reference/api/`).
+REST and WebSocket API documentation (**canonical location**).
 
-See `api-reference/AGENTS.md` for detailed information.
+See `api-reference/AGENTS.md` for detailed information. A second copy exists at `reference/api/` (historical/alternate format); prefer `api-reference/` to avoid drift.
 
 ### architecture/
 
@@ -307,7 +307,7 @@ See `reference/AGENTS.md` for detailed information.
 
 **Subdirectories:**
 
-- `reference/api/` - Complete API reference
+- `api-reference/` - Complete API reference
 - `reference/config/` - Configuration reference
 - `reference/troubleshooting/` - Problem-solving guides
 
@@ -376,7 +376,7 @@ See `user-guide/AGENTS.md` for detailed information.
 | ------------------- | ------------------------------------ |
 | System architecture | `architecture/overview.md`           |
 | AI pipeline         | `architecture/ai-pipeline.md`        |
-| API integration     | `reference/api/overview.md`          |
+| API integration     | `api-reference/overview.md`          |
 | Configuration       | `reference/config/env-reference.md`  |
 | Troubleshooting     | `reference/troubleshooting/index.md` |
 | User features       | `user/dashboard-basics.md`           |

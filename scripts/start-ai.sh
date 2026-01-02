@@ -13,7 +13,8 @@
 #   - NVIDIA GPU with CUDA support (RTX A5500 or similar)
 #   - llama-server (from llama.cpp) in PATH
 #   - Python environment with RT-DETRv2 dependencies
-#   - Model files downloaded (run ai/download_models.sh first)
+#   - Nemotron GGUF model downloaded (run ai/download_models.sh first)
+#   - RT-DETRv2 weights are pulled via HuggingFace by the detector service (see RTDETR_MODEL_PATH / HF_HOME)
 #
 
 set -e
@@ -32,8 +33,7 @@ LLM_PID_FILE="/tmp/nemotron-llm.pid"
 DETECTOR_LOG_FILE="/tmp/rtdetr-detector.log"
 LLM_LOG_FILE="/tmp/nemotron-llm.log"
 
-# Model files
-RTDETR_MODEL="$RTDETR_DIR/rtdetrv2_r50vd.onnx"
+# Model file (Nemotron dev model)
 NEMOTRON_MODEL="$NEMOTRON_DIR/nemotron-mini-4b-instruct-q4_k_m.gguf"
 
 # Colors for output
@@ -130,12 +130,7 @@ check_prerequisites() {
         print_success "Nemotron model found ($(du -h "$NEMOTRON_MODEL" | cut -f1))"
     fi
 
-    if [ ! -f "$RTDETR_MODEL" ]; then
-        print_warning "RT-DETRv2 model not found: $RTDETR_MODEL"
-        print_warning "Model will be downloaded automatically on first use"
-    else
-        print_success "RT-DETRv2 model found ($(du -h "$RTDETR_MODEL" | cut -f1))"
-    fi
+    print_success "RT-DETRv2 weights are managed by HuggingFace cache (no local ONNX file required)"
 
     if [ $errors -gt 0 ]; then
         print_error "Prerequisites check failed with $errors errors"

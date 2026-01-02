@@ -12,7 +12,9 @@
 The AI pipeline transforms raw camera images into risk-scored security events through a multi-stage process:
 
 ```
-Camera FTP -> FileWatcher -> detection_queue -> RT-DETRv2 -> BatchAggregator -> analysis_queue -> Nemotron LLM -> Event -> WebSocket
+Camera FTP -> FileWatcher -> detection_queue -> RT-DETRv2 -> Detections
+  -> Enrichment (context + model zoo + optional Florence/CLIP) -> BatchAggregator -> analysis_queue
+  -> Nemotron LLM -> Event -> WebSocket
 ```
 
 ---
@@ -96,6 +98,19 @@ Nemotron LLM analyzes batched detections and generates:
 
 **Source:** `backend/services/nemotron_analyzer.py`
 
+### 6.5 Enrichment (Context + Model Zoo)
+
+Before calling the LLM, the backend can enrich a batch with additional context:
+
+- **ContextEnricher**: zones, baseline deviation, cross-camera activity
+- **EnrichmentPipeline**: model-zoo enrichment (plates/OCR, faces, clothing/vehicle/pet signals, image quality/tamper, etc.)
+- **Optional AI services**: Florence-2 and CLIP (when enabled/configured)
+
+This enrichment is designed to be **best-effort**: if an enrichment service is unavailable, the system should
+continue with a less enriched prompt rather than failing the entire pipeline.
+
+**Source:** `backend/services/context_enricher.py`, `backend/services/enrichment_pipeline.py`
+
 ### 7. Event Creation
 
 Analysis results are stored as Event records in PostgreSQL with links to source detections.
@@ -169,11 +184,8 @@ New events are published via Redis pub/sub to all connected WebSocket clients.
 
 ## Resource Usage
 
-| Service   | VRAM | Port | Latency |
-| --------- | ---- | ---- | ------- |
-| RT-DETRv2 | ~4GB | 8090 | 30-50ms |
-| Nemotron  | ~3GB | 8091 | 2-5s    |
-| **Total** | ~7GB | -    | -       |
+VRAM depends on the deployed model sizes and which enrichment services are enabled. For authoritative ports/env,
+see [Runtime Configuration](../RUNTIME_CONFIG.md).
 
 ---
 

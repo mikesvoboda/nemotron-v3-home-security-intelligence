@@ -334,7 +334,7 @@ Update runtime configuration settings.
 
 **Source:** [`patch_config`](../../backend/api/routes/system.py:1023)
 
-**Authentication:** Required when `api_key_enabled=true` (via `X-API-Key` header)
+**Authentication:** Required when `API_KEY_ENABLED=true` (via `X-API-Key` header)
 
 **Request Body:**
 
@@ -499,7 +499,7 @@ Trigger manual data cleanup.
 
 **Source:** [`trigger_cleanup`](../../backend/api/routes/system.py:1391)
 
-**Authentication:** Required when `api_key_enabled=true` (via `X-API-Key` header)
+**Authentication:** Required when `API_KEY_ENABLED=true` (via `X-API-Key` header)
 
 **Parameters:**
 

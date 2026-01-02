@@ -85,14 +85,14 @@ The [`GPUMonitor`](../../backend/services/gpu_monitor.py:23) service polls NVIDI
 
 ### Metrics Collected
 
-| Metric            | Unit    | Description                           |
-| ----------------- | ------- | ------------------------------------- |
-| `gpu_utilization` | %       | GPU compute utilization               |
-| `memory_used`     | MB      | VRAM currently in use                 |
-| `memory_total`    | MB      | Total VRAM available                  |
-| `temperature`     | Celsius | GPU core temperature                  |
-| `power_usage`     | Watts   | Current power draw                    |
-| `inference_fps`   | FPS     | Inference throughput (when available) |
+| Metric          | Unit    | Description                           |
+| --------------- | ------- | ------------------------------------- |
+| `utilization`   | %       | GPU compute utilization               |
+| `memory_used`   | MB      | VRAM currently in use                 |
+| `memory_total`  | MB      | Total VRAM available                  |
+| `temperature`   | Celsius | GPU core temperature                  |
+| `power_usage`   | Watts   | Current power draw                    |
+| `inference_fps` | FPS     | Inference throughput (when available) |
 
 **Source:** [`backend/services/gpu_monitor.py:104-159`](../../backend/services/gpu_monitor.py)
 
@@ -118,8 +118,9 @@ The [`GPUMonitor`](../../backend/services/gpu_monitor.py:23) service polls NVIDI
 # Current GPU stats
 curl http://localhost:8000/api/system/gpu
 
-# GPU history (last N minutes)
-curl "http://localhost:8000/api/system/gpu/history?minutes=30"
+# GPU history (sample window)
+# Use `since` (ISO timestamp) and `limit` (max samples).
+curl "http://localhost:8000/api/system/gpu/history?since=2025-12-30T09:45:00Z&limit=300"
 ```
 
 Response:
@@ -127,31 +128,35 @@ Response:
 ```json
 {
   "gpu_name": "NVIDIA RTX A5500",
-  "gpu_utilization": 45.0,
+  "utilization": 45.0,
   "memory_used": 8192,
   "memory_total": 24576,
   "temperature": 62.0,
   "power_usage": 125.5,
-  "recorded_at": "2025-12-30T10:15:00Z"
+  "recorded_at": "2025-12-30T10:15:00Z",
+  "inference_fps": null
 }
 ```
 
 ### WebSocket Updates
 
-GPU stats are broadcast via WebSocket on the `/ws/system` channel:
+GPU stats are delivered inside the `/ws/system` stream as part of the `system_status` message envelope:
 
 ```json
 {
-  "type": "gpu_stats",
+  "type": "system_status",
   "data": {
-    "gpu_name": "NVIDIA RTX A5500",
-    "gpu_utilization": 45.0,
-    "memory_used": 8192,
-    "memory_total": 24576,
-    "temperature": 62.0,
-    "power_usage": 125.5,
-    "recorded_at": "2025-12-30T10:15:00.000Z"
-  }
+    "gpu": {
+      "gpu_name": "NVIDIA RTX A5500",
+      "utilization": 45.0,
+      "memory_used": 8192,
+      "memory_total": 24576,
+      "temperature": 62.0,
+      "power_usage": 125.5,
+      "inference_fps": null
+    }
+  },
+  "timestamp": "2025-12-30T10:15:00.000Z"
 }
 ```
 

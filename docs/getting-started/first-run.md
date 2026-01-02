@@ -138,10 +138,10 @@ cd home-security-intelligence
 ./ai/start_detector.sh
 ```
 
-**What happens** ([`ai/start_detector.sh:31-37`](../../ai/start_detector.sh:31)):
+**What happens** ([`ai/rtdetr/model.py`](../../ai/rtdetr/model.py)):
 
-- Loads the RT-DETRv2 ONNX model
-- Starts HTTP server on port 8090 ([line 12](../../ai/start_detector.sh:12))
+- Loads RT-DETRv2 via HuggingFace Transformers (`RTDETR_MODEL_PATH`)
+- Starts HTTP server on port 8090
 - Uses ~4GB VRAM
 
 **Expected output:**
@@ -184,7 +184,7 @@ llama server listening at http://0.0.0.0:8091
 ```bash
 # Check RT-DETRv2
 curl http://localhost:8090/health
-# Expected: {"status": "ok"}
+# Expected: JSON describing model + CUDA status
 
 # Check Nemotron
 curl http://localhost:8091/health
@@ -370,7 +370,7 @@ nvidia-smi
 
 # Check model files exist
 ls -la ai/nemotron/*.gguf
-ls -la ai/rtdetr/*.onnx
+# RT-DETRv2 weights are downloaded to HuggingFace cache; use /health to confirm model_loaded=true
 
 # Check port availability
 lsof -i :8090

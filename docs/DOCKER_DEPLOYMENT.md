@@ -410,7 +410,8 @@ Create a `.env` file in the project root (use `.env.example` as template).
 FOSCAM_BASE_PATH=/export/foscam
 
 # Database
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/home_security
+# Defaults match docker-compose.prod.yml (override via env/.env as needed)
+DATABASE_URL=postgresql+asyncpg://security:security_dev_password@postgres:5432/security
 
 # Redis
 REDIS_URL=redis://redis:6379
@@ -418,6 +419,9 @@ REDIS_URL=redis://redis:6379
 # AI Services (containerized with GPU passthrough)
 RTDETR_URL=http://localhost:8090
 NEMOTRON_URL=http://localhost:8091
+FLORENCE_URL=http://localhost:8092
+CLIP_URL=http://localhost:8093
+ENRICHMENT_URL=http://localhost:8094
 
 # Processing
 BATCH_WINDOW_SECONDS=90
@@ -782,13 +786,12 @@ Add monitoring stack (Prometheus + Grafana):
 
 ```bash
 # Create PostgreSQL backup
-docker compose exec postgres pg_dump -U postgres home_security > backup.sql
+docker compose exec -T postgres pg_dump -U security -d security > backup.sql
 
 # Or use compressed format
-docker compose exec postgres pg_dump -U postgres -F c home_security > backup.dump
+docker compose exec -T postgres pg_dump -U security -d security -F c > backup.dump
 
-# Copy backup to host (if needed)
-docker compose cp backend:/app/data/backup.db ./backup.db
+# Tip: keep backups outside the repo and outside container volumes.
 ```
 
 ### Redis Backup
@@ -807,8 +810,9 @@ docker compose cp redis:/data/dump.rdb ./redis-backup.rdb
 # Stop services
 docker compose down
 
-# Replace database file
-cp backup.db ./backend/data/security.db
+# Restore PostgreSQL database (example for .sql format)
+docker compose -f docker-compose.prod.yml up -d postgres
+docker compose exec -T postgres psql -U security -d security < backup.sql
 
 # Replace Redis data
 docker compose cp redis-backup.rdb redis:/data/dump.rdb
