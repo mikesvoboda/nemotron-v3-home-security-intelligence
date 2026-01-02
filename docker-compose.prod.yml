@@ -12,6 +12,7 @@
 #   - nvidia-container-toolkit must be installed
 #
 # Environment Variables:
+#   - AI_MODELS_PATH: Base path for AI models (default: /export/ai_models)
 #   - FRONTEND_PORT: Host port for frontend (default: 5173, nginx serves on port 80 inside container)
 #   - RTDETR_CONFIDENCE: Detection confidence threshold (default: 0.5)
 #   - GPU_LAYERS: Number of GPU layers for LLM (default: 45)
@@ -89,7 +90,7 @@ services:
     ports:
       - "8091:8091"
     volumes:
-      - /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km:/models:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/nemotron/nemotron-3-nano-30b-a3b-q4km:/models:ro
     environment:
       - GPU_LAYERS=${GPU_LAYERS:-35}
       - CTX_SIZE=${CTX_SIZE:-131072}
@@ -118,7 +119,7 @@ services:
     ports:
       - "8092:8092"
     volumes:
-      - /export/ai_models/model-zoo/florence-2-large:/models/florence-2-large:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/florence-2-large:/models/florence-2-large:ro
     environment:
       - MODEL_PATH=/models/florence-2-large
     healthcheck:
@@ -146,7 +147,7 @@ services:
     ports:
       - "8093:8093"
     volumes:
-      - /export/ai_models/model-zoo/clip-vit-l:/models/clip-vit-l:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/clip-vit-l:/models/clip-vit-l:ro
     environment:
       - CLIP_MODEL_PATH=/models/clip-vit-l
     healthcheck:
@@ -174,10 +175,10 @@ services:
     ports:
       - "8094:8094"
     volumes:
-      - /export/ai_models/model-zoo/vehicle-segment-classification:/models/vehicle-segment-classification:ro
-      - /export/ai_models/model-zoo/pet-classifier:/models/pet-classifier:ro
-      - /export/ai_models/model-zoo/fashion-clip:/models/fashion-clip:ro
-      - /export/ai_models/model-zoo/depth-anything-v2-small:/models/depth-anything-v2-small:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/vehicle-segment-classification:/models/vehicle-segment-classification:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/pet-classifier:/models/pet-classifier:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/fashion-clip:/models/fashion-clip:ro
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo/depth-anything-v2-small:/models/depth-anything-v2-small:ro
     environment:
       - VEHICLE_MODEL_PATH=/models/vehicle-segment-classification
       - PET_MODEL_PATH=/models/pet-classifier
@@ -209,7 +210,7 @@ services:
     volumes:
       - ./backend/data:/app/data
       - ${CAMERA_PATH:-/export/foscam}:/cameras:ro
-      - ${MODEL_ZOO_PATH:-/export/ai_models/model-zoo}:/models/model-zoo:ro,z
+      - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/model-zoo:ro,z
     environment:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-security}:${POSTGRES_PASSWORD:-security_dev_password}@postgres:5432/${POSTGRES_DB:-security}
       - REDIS_URL=redis://redis:6379
