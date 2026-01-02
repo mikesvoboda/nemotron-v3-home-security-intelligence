@@ -17,7 +17,7 @@ Shows: The Live Activity feed panel with "Live Activity" title, Pause button, an
 Size: 600x500 pixels (1.2:1 aspect ratio)
 Alt text: Live Activity feed showing recent security events with thumbnails, risk level badges, AI-generated summaries, and timestamps
 -->
-<!-- Image placeholder - activity feed screenshot would go here -->
+<!-- Screenshot: Live Activity feed panel with event cards showing thumbnails, risk badges, summaries, and timestamps -->
 
 _Caption: The Live Activity feed shows security events as they happen._
 
@@ -58,7 +58,7 @@ Shows: Full Timeline page with: page title, "Show Filters" button (expanded show
 Size: 1200x800 pixels (3:2 aspect ratio)
 Alt text: Event Timeline page showing filter controls, search bar, results summary with event counts by risk level, and grid of event cards
 -->
-<!-- Image placeholder - event timeline screenshot would go here -->
+<!-- Screenshot: Event Timeline page with filter controls, results summary, event cards grid, and pagination -->
 
 _Caption: The Event Timeline shows all your security events with powerful filtering options._
 
@@ -76,7 +76,7 @@ Shows: Expanded filter panel with dropdowns for Camera, Risk Level, Status, Obje
 Size: 1000x200 pixels (5:1 aspect ratio)
 Alt text: Timeline filter controls showing dropdowns for camera, risk level, status, object type, and date range pickers
 -->
-<!-- Image placeholder - timeline filters screenshot would go here -->
+<!-- Screenshot: Timeline filter panel with dropdowns for camera, risk level, status, object type, and date pickers -->
 
 _Caption: Use filters to narrow down events by camera, risk level, status, object type, or date range._
 
@@ -130,7 +130,7 @@ Shows: Full event detail modal with: header (camera name, timestamp, duration, r
 Size: 900x800 pixels (9:8 aspect ratio)
 Alt text: Event detail modal showing detection image with object highlighting, AI analysis summary, reasoning explanation, detected objects list, and notes section
 -->
-<!-- Image placeholder - event detail modal screenshot would go here -->
+<!-- Screenshot: Event detail modal with detection image, AI analysis, detected objects, and notes section -->
 
 _Caption: Click any event to see full details including the AI analysis and detection image._
 
@@ -152,7 +152,7 @@ Shows: A detection image with AI-drawn bounding boxes around detected objects (p
 Size: 700x500 pixels (7:5 aspect ratio)
 Alt text: Security camera image with AI-highlighted detection boxes showing identified objects with confidence scores
 -->
-<!-- Image placeholder - detection image screenshot would go here -->
+<!-- Screenshot: Detection image with AI-drawn bounding boxes around detected objects with confidence scores -->
 
 _Caption: The AI highlights detected objects with boxes and confidence scores._
 

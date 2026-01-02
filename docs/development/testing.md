@@ -138,7 +138,7 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-addopts = "-n auto --dist=loadgroup -v --strict-markers --tb=short --timeout=1"
+addopts = "-n auto --dist=worksteal -v --strict-markers --tb=short --timeout=1"
 timeout_method = "thread"
 ```
 

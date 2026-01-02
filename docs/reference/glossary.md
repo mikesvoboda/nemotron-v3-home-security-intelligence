@@ -44,6 +44,10 @@ A physical security camera device that uploads images via FTP to the configured 
 
 A fault tolerance pattern that temporarily disables calls to a failing service. When failures exceed a threshold, the circuit "opens" and returns cached errors immediately. After a timeout, it allows test calls to check if the service has recovered.
 
+### CLIP
+
+Contrastive Language-Image Pre-training model used for generating image embeddings that enable re-identification of people and objects across different camera frames.
+
 ### Confidence Score
 
 A value from 0.0 to 1.0 indicating how certain the RT-DETRv2 model is about a detection. Higher values mean more certainty. Controlled by `DETECTION_CONFIDENCE_THRESHOLD`.
@@ -80,6 +84,10 @@ Background worker process that sends images to RT-DETRv2 for object detection. P
 
 A security incident that may contain one or more detections, analyzed by Nemotron for risk assessment. Events have a risk score, risk level, summary, and reasoning explanation.
 
+### Enrichment Service
+
+Optional AI service that aggregates advanced vision features including vehicle damage detection, clothing segmentation, pet classification, and image quality analysis.
+
 ### Event Broadcaster
 
 Service that sends real-time event notifications to connected WebSocket clients.
@@ -87,6 +95,10 @@ Service that sends real-time event notifications to connected WebSocket clients.
 ---
 
 ## F
+
+### Florence-2
+
+Vision-language model from Microsoft used for extracting rich visual attributes like detailed descriptions, object attributes, and scene understanding.
 
 ### Fast Path
 
@@ -202,6 +214,10 @@ A technique to reduce model size and memory usage by using lower precision numbe
 
 Protection against excessive API requests. Requests exceeding the limit are rejected with HTTP 429. Configured per endpoint tier.
 
+### Re-identification (Re-ID)
+
+The process of matching detected people or objects across different camera frames or time periods using CLIP embeddings.
+
 ### Readiness Probe
 
 A health check that indicates whether the application is ready to receive traffic. If it fails, traffic should not be routed to this instance. See `GET /ready`.
@@ -242,6 +258,10 @@ A state-of-the-art real-time object detection model. Uses a transformer architec
 
 ## S
 
+### Scene Change Detection
+
+Feature that tracks baseline scene characteristics to detect significant environmental changes like lighting shifts or camera tampering.
+
 ### Severity
 
 The classification of alert importance: `low`, `medium`, `high`, or `critical`. Used in [Alert Rules](#alert-rule) to prioritize notifications.
@@ -269,6 +289,10 @@ The maximum duration for grouping detections into a batch. Set by `BATCH_WINDOW_
 ---
 
 ## V
+
+### Vision Extraction
+
+Process of using Florence-2 to extract detailed visual attributes from detection images, including clothing descriptions, pose information, and contextual details.
 
 ### VRAM (Video RAM)
 

@@ -13,11 +13,11 @@ Click **Settings** in the left sidebar to open the configuration page.
 
 <!-- SCREENSHOT: Settings Page Overview
 Location: Settings page (click Settings in sidebar)
-Shows: Settings page with three tabs (CAMERAS, PROCESSING, AI MODELS), Cameras tab selected (green background), camera list table showing cameras with name, folder path, status indicators, last seen, and action buttons
+Shows: Settings page with four tabs (CAMERAS, PROCESSING, AI MODELS, NOTIFICATIONS), Cameras tab selected (green background), camera list table showing cameras with name, folder path, status indicators, last seen, and action buttons
 Size: 1200x700 pixels (12:7 aspect ratio)
-Alt text: Settings page with tabbed navigation showing Cameras, Processing, and AI Models tabs, with camera configuration table displayed
+Alt text: Settings page with tabbed navigation showing Cameras, Processing, AI Models, and Notifications tabs, with camera configuration table displayed
 -->
-<!-- Image placeholder - settings page screenshot would go here -->
+<!-- Screenshot: Settings page with four tabs and camera configuration table -->
 
 _Caption: The Settings page lets you configure cameras, processing options, and view AI status._
 
@@ -25,7 +25,7 @@ _Caption: The Settings page lets you configure cameras, processing options, and 
 
 ## Settings Tabs
 
-The settings page has three tabs:
+The settings page has four tabs:
 
 ### Cameras Tab
 
@@ -37,7 +37,7 @@ Shows: Camera list table with columns: Name (e.g., "Front Door", "Backyard"), Fo
 Size: 1000x400 pixels (2.5:1 aspect ratio)
 Alt text: Camera settings table showing configured cameras with their names, paths, status indicators, and edit/delete action buttons
 -->
-<!-- Image placeholder - cameras tab screenshot would go here -->
+<!-- Screenshot: Cameras tab showing camera list with names, paths, status badges, and action buttons -->
 
 _Caption: The Cameras tab shows all your connected cameras and their status._
 
@@ -79,7 +79,7 @@ Shows: Two model cards (RT-DETRv2 Object Detection and Nemotron Risk Analysis), 
 Size: 1000x500 pixels (2:1 aspect ratio)
 Alt text: AI Models settings showing RT-DETRv2 and Nemotron model cards with status indicators, memory usage, and performance metrics
 -->
-<!-- Image placeholder - AI models tab screenshot would go here -->
+<!-- Screenshot: AI Models tab showing RT-DETRv2 and Nemotron status cards with GPU memory usage -->
 
 _Caption: The AI Models tab shows the status of your AI detection and analysis models._
 
@@ -93,6 +93,33 @@ _Caption: The AI Models tab shows the status of your AI detection and analysis m
 - Green checkmark: Service healthy
 - Yellow warning: Service degraded
 - Red X: Service unavailable
+
+---
+
+### Notifications Tab
+
+View and test notification channel settings:
+
+<!-- Screenshot: Notifications Settings Tab showing email configuration status, webhook status, test buttons, and available channels summary -->
+
+_Caption: The Notifications tab shows your notification channel configuration and lets you test them._
+
+- **Email Status** - Shows if email notifications are configured
+- **Webhook Status** - Shows if webhook notifications are configured
+- **Test Buttons** - Send test messages to verify configuration
+- **Available Channels** - Summary of active notification channels
+
+**What You Can See:**
+
+| Setting             | Description                             |
+| ------------------- | --------------------------------------- |
+| Email Configuration | SMTP host, port, TLS status, recipients |
+| Webhook URL         | Where webhook alerts are sent           |
+| Channel Badges      | Green badges for configured channels    |
+
+**Note:** Notification settings are configured by your system administrator via environment variables. This tab displays current configuration but cannot change it.
+
+For detailed notification documentation, see the [Alerts & Notifications Guide](../user-guide/alerts-notifications.md).
 
 ---
 
