@@ -13,6 +13,13 @@ This project is an AI-powered home security monitoring dashboard.
 
 ## Local Development Environment
 
+**First-time setup:** Run the interactive setup script to generate `.env` and `docker-compose.override.yml`:
+
+```bash
+./setup.sh              # Quick mode - accept defaults with Enter
+./setup.sh --guided     # Guided mode - step-by-step with explanations
+```
+
 This project uses standard Docker Compose files (`docker-compose.prod.yml`) that work with both Docker and Podman:
 
 ```bash
