@@ -94,15 +94,16 @@ _Caption: The header bar shows system health at a glance. Hover to see individua
 
 The left sidebar has buttons to different areas:
 
-| Button        | What It Does                         |
-| ------------- | ------------------------------------ |
-| **Dashboard** | Main overview (you are here)         |
-| **Timeline**  | All past events with filters         |
-| **Entities**  | Tracked people/objects (coming soon) |
-| **Alerts**    | High-priority events only            |
-| **Logs**      | Technical logs                       |
-| **System**    | Performance monitoring               |
-| **Settings**  | Configuration options                |
+| Button        | What It Does                              |
+| ------------- | ----------------------------------------- |
+| **Dashboard** | Main overview (you are here)              |
+| **Timeline**  | All past events with filters              |
+| **Entities**  | Tracked people/objects (work in progress) |
+| **Alerts**    | High-priority events only                 |
+| **Logs**      | Technical logs                            |
+| **Audit Log** | Security-sensitive actions (advanced)     |
+| **System**    | Performance monitoring                    |
+| **Settings**  | Configuration options                     |
 
 The current page is highlighted in bright green.
 

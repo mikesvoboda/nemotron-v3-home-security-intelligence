@@ -138,7 +138,7 @@ tar xzf actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz
 
 ### Step 1: Get Registration Token
 
-1. Go to repository: `https://github.com/YOUR_USER/nemotron-v3-home-security-intelligence`
+1. Go to repository: `https://github.com/YOUR_USER/home-security-intelligence`
 2. Navigate to: Settings > Actions > Runners > New self-hosted runner
 3. Copy the registration token (valid for 1 hour)
 
@@ -147,7 +147,7 @@ tar xzf actions-runner-linux-x64-${RUNNER_VERSION}.tar.gz
 ```bash
 # As github-runner user in /opt/actions-runner
 ./config.sh \
-  --url https://github.com/YOUR_USER/nemotron-v3-home-security-intelligence \
+  --url https://github.com/YOUR_USER/home-security-intelligence \
   --token YOUR_REGISTRATION_TOKEN \
   --name "rtx-a5500-runner" \
   --labels "self-hosted,linux,gpu,rtx-a5500" \

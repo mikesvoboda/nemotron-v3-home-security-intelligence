@@ -139,7 +139,7 @@ pip install -r requirements.txt
 Key dependencies:
 
 - `torch` + `torchvision` - PyTorch for deep learning
-- `onnxruntime-gpu` - ONNX Runtime with CUDA
+- `transformers` - HuggingFace model loading/inference (RT-DETRv2)
 - `fastapi` + `uvicorn` - Web server
 - `pillow` + `opencv-python` - Image processing
 - `pynvml` - NVIDIA GPU monitoring

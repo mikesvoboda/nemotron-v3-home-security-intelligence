@@ -1,6 +1,6 @@
 # AI Service Troubleshooting
 
-> Solving RT-DETRv2, Nemotron, and pipeline problems.
+> Solving AI service and pipeline problems (RT-DETRv2, Nemotron, and optional Florence/CLIP/Enrichment).
 
 **Time to read:** ~6 min
 **Prerequisites:** [GPU Issues](gpu-issues.md) for hardware problems
@@ -28,6 +28,14 @@ pgrep -f "llama-server"  # Nemotron
 # Check logs
 tail -f /tmp/rtdetr-detector.log
 tail -f /tmp/nemotron-llm.log
+```
+
+If you are running the optional services, also check:
+
+```bash
+curl http://localhost:8092/health  # Florence-2 (optional)
+curl http://localhost:8093/health  # CLIP (optional)
+curl http://localhost:8094/health  # Enrichment (optional)
 ```
 
 ### Solutions
@@ -71,12 +79,15 @@ ls -la ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf
 ### Diagnosis
 
 ```bash
-# Check detailed AI status
-curl http://localhost:8000/api/system/health | jq .services.ai
+# Check overall service health (includes AI service URLs from config)
+curl http://localhost:8000/api/system/health | jq .services
 
-# Check individual services
+# Check individual AI services
 curl http://localhost:8090/health  # RT-DETRv2
 curl http://localhost:8091/health  # Nemotron
+curl http://localhost:8092/health  # Florence-2 (optional)
+curl http://localhost:8093/health  # CLIP (optional)
+curl http://localhost:8094/health  # Enrichment (optional)
 ```
 
 ### Solutions
@@ -89,6 +100,49 @@ curl http://localhost:8091/health  # Nemotron
 | Up        | Down     | Detections work, no risk analysis                     |
 | Down      | Up       | No new detections, existing events can be re-analyzed |
 | Down      | Down     | System unhealthy                                      |
+
+> Optional enrichment services (Florence/CLIP/Enrichment) typically degrade **enrichment quality** rather than fully stopping event creation. The core “detections → batches → LLM → events” path can still function if RT-DETRv2 and Nemotron are healthy.
+
+---
+
+## Optional Enrichment Issues (Florence / CLIP / Enrichment)
+
+### Symptoms
+
+- Events exist, but “extra context” fields are missing (no attributes, no re-identification hints, etc.)
+- Backend logs mention enrichment timeouts or connection errors
+- CPU spikes on the backend when enrichment is enabled (model-zoo work can be heavy)
+
+### Quick Diagnosis
+
+```bash
+# Confirm the backend is configured to reach the optional services
+curl http://localhost:8000/api/system/config | jq '.florence_url, .clip_url, .enrichment_url'
+
+# Check health endpoints
+curl http://localhost:8092/health  # Florence-2
+curl http://localhost:8093/health  # CLIP
+curl http://localhost:8094/health  # Enrichment
+```
+
+### Common Causes
+
+1. **Wrong URL from backend** (container vs host networking)
+2. **GPU/VRAM pressure** (too many services competing)
+3. **Timeouts** (services are up, but slow to respond under load)
+
+### Solutions
+
+**1. Fix container vs host networking**
+
+- **Production compose**: backend should use compose DNS names (`http://ai-florence:8092`, `http://ai-clip:8093`, `http://ai-enrichment:8094`)
+- **Host-run AI**: backend should use `localhost` (or `host.docker.internal` / `host.containers.internal` when backend is containerized)
+
+**2. Temporarily disable optional enrichment**
+
+If you need the system running reliably, disable the optional features first, then re-enable one-by-one after you stabilize GPU/latency.
+
+See `docs/reference/config/env-reference.md` for the feature toggles.
 
 **Restart failed service:**
 

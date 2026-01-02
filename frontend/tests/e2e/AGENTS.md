@@ -4,105 +4,128 @@
 
 End-to-end test suite using Playwright for full browser-based testing. Tests verify that the application renders correctly and responds to user interactions with mocked backend APIs.
 
-## Directory Contents
+## Directory Structure
 
 ```
 frontend/tests/e2e/
 ├── AGENTS.md           # This documentation file
-├── smoke.spec.ts       # Dashboard loading and component visibility tests
-├── navigation.spec.ts  # Page navigation and routing tests
-├── realtime.spec.ts    # Real-time updates and error handling tests
+├── fixtures/           # Test fixtures and API mocking
+│   ├── AGENTS.md       # Fixtures documentation
+│   ├── index.ts        # Central fixture exports with custom test function
+│   ├── api-mocks.ts    # Configurable API mock setup
+│   ├── test-data.ts    # Mock data for all entities
+│   └── websocket-mock.ts  # WebSocket simulation utilities
+├── pages/              # Page Object Model classes
+│   ├── AGENTS.md       # Page objects documentation
+│   ├── index.ts        # Central page object exports
+│   ├── BasePage.ts     # Base class with common selectors/methods
+│   ├── DashboardPage.ts
+│   ├── TimelinePage.ts
+│   ├── AlertsPage.ts
+│   ├── EntitiesPage.ts
+│   ├── LogsPage.ts
+│   ├── AuditPage.ts
+│   ├── SystemPage.ts
+│   └── SettingsPage.ts
+├── specs/              # Test specification files
+│   ├── AGENTS.md       # Specs documentation
+│   ├── smoke.spec.ts   # Basic loading and visibility tests
+│   ├── dashboard.spec.ts   # Dashboard component tests
+│   ├── navigation.spec.ts  # Route navigation tests
+│   ├── realtime.spec.ts    # WebSocket and real-time tests
+│   ├── events.spec.ts      # Events/timeline tests
+│   ├── alerts.spec.ts      # Alerts page tests
+│   ├── entities.spec.ts    # Entities page tests
+│   ├── logs.spec.ts        # Logs page tests
+│   ├── audit.spec.ts       # Audit log tests
+│   ├── system.spec.ts      # System monitoring tests
+│   ├── settings.spec.ts    # Settings page tests
+│   ├── responsive.spec.ts  # Responsive design tests
+│   └── error-handling.spec.ts  # Error state tests
 └── .gitkeep            # Git placeholder
 ```
 
-## Test Files
+## Architecture
 
-### smoke.spec.ts
+### Page Object Model (POM)
 
-Dashboard smoke tests (2 test suites, 6 tests):
-
-**Dashboard Smoke Tests (4 tests):**
-
-- `dashboard page loads successfully` - Verifies page loads with correct title
-- `dashboard displays key components` - Checks Current Risk Level, Camera Status, Live Activity sections
-- `dashboard shows real-time monitoring subtitle` - Verifies "Real-time AI-powered home security monitoring" text
-- `dashboard has correct page title` - Validates browser title contains "Home Security"
-
-**Layout Smoke Tests (2 tests):**
-
-- `header displays branding` - Checks NVIDIA/SECURITY branding in header
-- `sidebar navigation is visible` - Verifies aside element is present
-
-### navigation.spec.ts
-
-Navigation tests (1 test suite, 6 tests):
-
-- `can navigate to dashboard from root` - Default page is dashboard
-- `can navigate to timeline page` - Timeline page loads
-- `can navigate to logs page` - Logs page loads
-- `can navigate to settings page` - Settings page loads
-- `URL reflects current page` - URL changes with navigation
-- `page transitions preserve layout` - Header/sidebar persist
-
-### realtime.spec.ts
-
-Real-time feature tests (3 test suites, 5 tests):
-
-**Real-time Updates (3 tests):**
-
-- `dashboard shows disconnected state when WebSocket fails` - Checks "(Disconnected)" text appears
-- `activity feed shows empty state when no events` - Verifies "No activity" message in Live Activity section
-- `dashboard displays GPU stats from API` - Checks "Utilization" text is visible
-
-**Connection Status Indicators (1 test):**
-
-- `header shows system status indicator` - Verifies "System" text in header
-
-**Error Handling (1 test):**
-
-- `dashboard shows error state when API fails` - Checks "Error Loading Dashboard" heading and "Reload Page" button
-
-## API Mocking Pattern
-
-All tests mock backend endpoints using Playwright's `page.route()`:
+Tests follow the Page Object Model pattern for maintainability:
 
 ```typescript
-async function setupApiMocks(page: Page) {
-  // Mock cameras endpoint
-  await page.route('**/api/cameras', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ cameras: [...] }),
-    });
-  });
+// In test spec:
+import { DashboardPage } from '../pages';
+import { setupApiMocks, defaultMockConfig } from '../fixtures';
 
-  // Mock WebSocket to simulate disconnection
-  await page.route('**/ws/**', async (route) => {
-    await route.abort('connectionfailed');
-  });
-}
+test('dashboard loads', async ({ page }) => {
+  await setupApiMocks(page, defaultMockConfig);
+  const dashboard = new DashboardPage(page);
+  await dashboard.goto();
+  await dashboard.expectAllSectionsVisible();
+});
 ```
 
-**Mocked Endpoints:**
+### Fixture System
 
-- `GET /api/cameras/*/snapshot*` - Camera snapshot images (transparent PNG)
-- `GET /api/cameras` - Camera list with status
-- `GET /api/system/gpu/history*` - GPU history samples (must be registered before /api/system/gpu)
-- `GET /api/system/gpu` - Current GPU statistics
-- `GET /api/system/health` - System health status
-- `GET /api/health` - Basic health check
-- `GET /api/events/stats*` - Event statistics (must be registered before /api/events)
-- `GET /api/events*` - Events with pagination
-- `GET /api/system/stats` - System statistics
-- `GET /api/system/config` - System configuration
-- `GET /api/logs/stats` - Log statistics (must be registered before /api/logs)
-- `GET /api/logs*` - Log entries
-- `WS /ws/**` - WebSocket (aborted to test disconnection)
+Fixtures provide configurable mock data and API setup:
 
-**Important:** Route handlers are matched in registration order. More specific routes must be registered BEFORE more general routes (e.g., `/api/system/gpu/history` before `/api/system/gpu`).
+```typescript
+// Default configuration
+import { test, expect } from '../fixtures';
 
-## Running E2E Tests
+test('auto-mocked test', async ({ page }) => {
+  // API mocks automatically set up via fixture
+  await page.goto('/');
+});
+
+// Custom configuration
+import { errorMockConfig } from '../fixtures';
+
+test.use({ mockConfig: errorMockConfig });
+
+test('error state test', async ({ page }) => {
+  await page.goto('/');
+  // Will use error mock config
+});
+```
+
+## Mock Configurations
+
+| Configuration         | Purpose                            |
+| --------------------- | ---------------------------------- |
+| `defaultMockConfig`   | Normal operation with healthy data |
+| `emptyMockConfig`     | No data scenarios (empty lists)    |
+| `errorMockConfig`     | API failure scenarios (500 errors) |
+| `highAlertMockConfig` | High-risk state with many alerts   |
+
+## Mocked API Endpoints
+
+All backend endpoints are mocked to enable testing without a real backend:
+
+| Endpoint                       | Purpose                |
+| ------------------------------ | ---------------------- |
+| `GET /api/cameras`             | Camera list            |
+| `GET /api/cameras/*/snapshot*` | Camera snapshot images |
+| `GET /api/events*`             | Events with pagination |
+| `GET /api/events/stats*`       | Event statistics       |
+| `GET /api/system/gpu`          | Current GPU stats      |
+| `GET /api/system/gpu/history*` | GPU history samples    |
+| `GET /api/system/health`       | System health status   |
+| `GET /api/system/stats`        | System statistics      |
+| `GET /api/system/config`       | System configuration   |
+| `GET /api/system/telemetry`    | Pipeline telemetry     |
+| `GET /api/system/workers`      | Worker status          |
+| `GET /api/system/performance`  | Performance metrics    |
+| `GET /api/logs*`               | Log entries            |
+| `GET /api/logs/stats`          | Log statistics         |
+| `GET /api/audit*`              | Audit log entries      |
+| `GET /api/audit/stats`         | Audit statistics       |
+| `GET /api/search*`             | Search results         |
+| `GET /api/health`              | Basic health check     |
+| `WS /ws/**`                    | WebSocket connections  |
+
+**Important**: Route handlers are matched in registration order. More specific routes (e.g., `/api/system/gpu/history`) must be registered BEFORE more general routes (e.g., `/api/system/gpu`).
+
+## Running Tests
 
 ```bash
 # From frontend/ directory
@@ -112,9 +135,11 @@ npm run test:e2e:debug      # Run in debug mode
 npm run test:e2e:report     # View HTML report
 
 # Run specific test file
-npx playwright test smoke.spec.ts
-npx playwright test navigation.spec.ts
-npx playwright test realtime.spec.ts
+npx playwright test specs/smoke.spec.ts
+npx playwright test specs/dashboard.spec.ts
+
+# Run tests matching a pattern
+npx playwright test -g "dashboard"
 ```
 
 ## Playwright Configuration
@@ -125,7 +150,7 @@ From `frontend/playwright.config.ts`:
 | ------------------- | ------------------------- |
 | `testDir`           | `./tests/e2e`             |
 | `baseURL`           | `http://localhost:5173`   |
-| `browser`           | Chromium only             |
+| `browsers`          | Chromium, Firefox, WebKit |
 | `timeout`           | 30 seconds                |
 | `expect.timeout`    | 5 seconds                 |
 | `navigationTimeout` | 10 seconds                |
@@ -133,7 +158,6 @@ From `frontend/playwright.config.ts`:
 | `workers`           | 1 (CI), unlimited (local) |
 | `fullyParallel`     | true                      |
 | `webServer.command` | `npm run dev:e2e`         |
-| `webServer.timeout` | 120 seconds               |
 
 **Artifacts on Failure:**
 
@@ -141,35 +165,39 @@ From `frontend/playwright.config.ts`:
 - Traces collected on first retry
 - Videos retained on failure
 
-**Web Server:** Uses `npm run dev:e2e` which runs Vite without API proxy, allowing Playwright's `page.route()` to intercept API requests directly.
+## Test Categories
 
-## CI Integration
-
-E2E tests run in GitHub Actions:
-
-```yaml
-- name: Install Playwright Chromium
-  run: cd frontend && npx playwright install chromium --with-deps
-
-- name: Run E2E tests
-  run: cd frontend && npm run test:e2e
-```
+| Category   | Spec File                | Description                        |
+| ---------- | ------------------------ | ---------------------------------- |
+| Smoke      | `smoke.spec.ts`          | Basic loading and visibility       |
+| Dashboard  | `dashboard.spec.ts`      | Dashboard-specific functionality   |
+| Navigation | `navigation.spec.ts`     | Route transitions and URL handling |
+| Real-time  | `realtime.spec.ts`       | WebSocket and live updates         |
+| Events     | `events.spec.ts`         | Event timeline and details         |
+| Alerts     | `alerts.spec.ts`         | Alert management                   |
+| Entities   | `entities.spec.ts`       | Entity tracking                    |
+| Logs       | `logs.spec.ts`           | Application logs                   |
+| Audit      | `audit.spec.ts`          | Audit log viewer                   |
+| System     | `system.spec.ts`         | System monitoring                  |
+| Settings   | `settings.spec.ts`       | Application settings               |
+| Responsive | `responsive.spec.ts`     | Mobile/tablet viewports            |
+| Errors     | `error-handling.spec.ts` | Error states and recovery          |
 
 ## Notes for AI Agents
 
 - Tests use **mocked backend** - no real backend required
-- Each test file has a `setupApiMocks()` function in `beforeEach`
-- **Route registration order matters** - more specific routes must be registered first
-- WebSocket connections are aborted to test disconnection handling
-- Use `timeout: 15000` for initial page loads in `expect()` calls
+- Use `setupApiMocks()` or the auto-mocking fixture in `beforeEach`
+- **Route registration order matters** - specific routes before general
+- WebSocket connections are aborted by default to test disconnection
+- Use `timeout: 15000` for initial page loads in CI environments
 - Tests verify **UI behavior**, not implementation details
 - Response shapes must match actual API schemas
-- E2E tests are excluded from Vitest via `vite.config.ts` exclude pattern
-- Camera snapshots return a transparent 1x1 PNG to avoid missing image errors
+- Camera snapshots return a transparent 1x1 PNG
+- Page objects encapsulate all selectors - update there, not in specs
 
 ## Entry Points
 
-1. **smoke.spec.ts** - Start here for basic page loading tests
-2. **navigation.spec.ts** - Page routing and transitions
-3. **realtime.spec.ts** - WebSocket and real-time features
-4. **Mock pattern**: Look at `setupApiMocks()` in any test file
+1. **Fixtures**: `fixtures/index.ts` - Auto-mocking test function
+2. **Page Objects**: `pages/BasePage.ts` - Common selectors/methods
+3. **Simple Tests**: `specs/smoke.spec.ts` - Understand test patterns
+4. **Configuration**: `/frontend/playwright.config.ts`

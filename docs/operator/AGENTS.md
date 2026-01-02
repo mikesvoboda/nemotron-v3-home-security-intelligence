@@ -12,10 +12,11 @@ This directory contains focused documentation for operators (sysadmins, DevOps e
 
 ## Available Spokes
 
-| Document       | Description                               |
-| -------------- | ----------------------------------------- |
-| `backup.md`    | Backup and recovery procedures            |
-| `gpu-setup.md` | NVIDIA driver and container toolkit setup |
+| Document              | Description                                      |
+| --------------------- | ------------------------------------------------ |
+| `backup.md`           | Backup and recovery procedures                   |
+| `deployment-modes.md` | Deployment mode decision table and AI networking |
+| `gpu-setup.md`        | NVIDIA driver and container toolkit setup        |
 
 ## Migration Status
 

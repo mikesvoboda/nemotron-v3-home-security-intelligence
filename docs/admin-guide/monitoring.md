@@ -85,14 +85,14 @@ The [`GPUMonitor`](../../backend/services/gpu_monitor.py:23) service polls NVIDI
 
 ### Metrics Collected
 
-| Metric            | Unit    | Description                           |
-| ----------------- | ------- | ------------------------------------- |
-| `gpu_utilization` | %       | GPU compute utilization               |
-| `memory_used`     | MB      | VRAM currently in use                 |
-| `memory_total`    | MB      | Total VRAM available                  |
-| `temperature`     | Celsius | GPU core temperature                  |
-| `power_usage`     | Watts   | Current power draw                    |
-| `inference_fps`   | FPS     | Inference throughput (when available) |
+| Metric          | Unit    | Description                           |
+| --------------- | ------- | ------------------------------------- |
+| `utilization`   | %       | GPU compute utilization               |
+| `memory_used`   | MB      | VRAM currently in use                 |
+| `memory_total`  | MB      | Total VRAM available                  |
+| `temperature`   | Celsius | GPU core temperature                  |
+| `power_usage`   | Watts   | Current power draw                    |
+| `inference_fps` | FPS     | Inference throughput (when available) |
 
 **Source:** [`backend/services/gpu_monitor.py:104-159`](../../backend/services/gpu_monitor.py)
 
@@ -118,8 +118,9 @@ The [`GPUMonitor`](../../backend/services/gpu_monitor.py:23) service polls NVIDI
 # Current GPU stats
 curl http://localhost:8000/api/system/gpu
 
-# GPU history (last N minutes)
-curl "http://localhost:8000/api/system/gpu/history?minutes=30"
+# GPU history (sample window)
+# Use `since` (ISO timestamp) and `limit` (max samples).
+curl "http://localhost:8000/api/system/gpu/history?since=2025-12-30T09:45:00Z&limit=300"
 ```
 
 Response:
@@ -127,31 +128,35 @@ Response:
 ```json
 {
   "gpu_name": "NVIDIA RTX A5500",
-  "gpu_utilization": 45.0,
+  "utilization": 45.0,
   "memory_used": 8192,
   "memory_total": 24576,
   "temperature": 62.0,
   "power_usage": 125.5,
-  "recorded_at": "2025-12-30T10:15:00Z"
+  "recorded_at": "2025-12-30T10:15:00Z",
+  "inference_fps": null
 }
 ```
 
 ### WebSocket Updates
 
-GPU stats are broadcast via WebSocket on the `/ws/system` channel:
+GPU stats are delivered inside the `/ws/system` stream as part of the `system_status` message envelope:
 
 ```json
 {
-  "type": "gpu_stats",
+  "type": "system_status",
   "data": {
-    "gpu_name": "NVIDIA RTX A5500",
-    "gpu_utilization": 45.0,
-    "memory_used": 8192,
-    "memory_total": 24576,
-    "temperature": 62.0,
-    "power_usage": 125.5,
-    "recorded_at": "2025-12-30T10:15:00.000Z"
-  }
+    "gpu": {
+      "gpu_name": "NVIDIA RTX A5500",
+      "utilization": 45.0,
+      "memory_used": 8192,
+      "memory_total": 24576,
+      "temperature": 62.0,
+      "power_usage": 125.5,
+      "inference_fps": null
+    }
+  },
+  "timestamp": "2025-12-30T10:15:00.000Z"
 }
 ```
 
@@ -293,7 +298,7 @@ class JobFailure:
 
 ```bash
 # Get DLQ counts
-curl http://localhost:8000/api/system/dlq/stats
+curl http://localhost:8000/api/dlq/stats
 ```
 
 Response:
@@ -364,7 +369,7 @@ curl "http://localhost:8000/api/dlq/jobs/dlq:detection_queue?start=50&limit=50"
 Move all jobs from DLQ back to processing queue:
 
 ```bash
-curl -X POST "http://localhost:8000/api/system/dlq/requeue-all?queue=dlq:detection_queue"
+curl -X POST "http://localhost:8000/api/dlq/requeue-all/dlq:detection_queue"
 ```
 
 #### Clear DLQ
@@ -372,7 +377,7 @@ curl -X POST "http://localhost:8000/api/system/dlq/requeue-all?queue=dlq:detecti
 Permanently delete all jobs from a DLQ:
 
 ```bash
-curl -X DELETE "http://localhost:8000/api/system/dlq/clear?queue=dlq:detection_queue"
+curl -X DELETE "http://localhost:8000/api/dlq/dlq:detection_queue"
 ```
 
 ### DLQ Monitor Dashboard
@@ -468,19 +473,19 @@ flowchart TB
 
 ### DLQ Management
 
-| Endpoint                      | Method | Description          |
-| ----------------------------- | ------ | -------------------- |
-| `/api/system/dlq/stats`       | GET    | DLQ queue counts     |
-| `/api/system/dlq/jobs`        | GET    | List jobs in DLQ     |
-| `/api/system/dlq/requeue-all` | POST   | Requeue all DLQ jobs |
-| `/api/system/dlq/clear`       | DELETE | Clear DLQ            |
+| Endpoint                            | Method | Description          |
+| ----------------------------------- | ------ | -------------------- |
+| `/api/dlq/stats`                    | GET    | DLQ queue counts     |
+| `/api/dlq/jobs/{queue_name}`        | GET    | List jobs in DLQ     |
+| `/api/dlq/requeue-all/{queue_name}` | POST   | Requeue all DLQ jobs |
+| `/api/dlq/{queue_name}`             | DELETE | Clear DLQ            |
 
 ### Storage
 
-| Endpoint                      | Method | Description           |
-| ----------------------------- | ------ | --------------------- |
-| `/api/system/storage/stats`   | GET    | Disk usage statistics |
-| `/api/system/cleanup/preview` | GET    | Cleanup dry run       |
+| Endpoint                           | Method | Description           |
+| ---------------------------------- | ------ | --------------------- |
+| `/api/system/storage`              | GET    | Disk usage statistics |
+| `/api/system/cleanup?dry_run=true` | POST   | Cleanup dry run       |
 
 ---
 

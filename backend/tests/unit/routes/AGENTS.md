@@ -1,0 +1,122 @@
+# Unit Tests - API Routes
+
+## Purpose
+
+The `backend/tests/unit/routes/` directory contains unit tests for FastAPI route handlers in `backend/api/routes/`. Tests verify endpoint behavior with mocked dependencies.
+
+## Test Files (5 files)
+
+| File                          | Tests For                   | Test Count |
+| ----------------------------- | --------------------------- | ---------- |
+| `test_admin_routes.py`        | Admin endpoints (seed data) | ~15 tests  |
+| `test_alerts_routes.py`       | Alert rules CRUD endpoints  | ~40 tests  |
+| `test_audit_routes.py`        | Audit log endpoints         | ~25 tests  |
+| `test_notification_routes.py` | Notification endpoints      | ~20 tests  |
+
+## Additional Route Tests (in parent directory)
+
+Many route tests are in `backend/tests/unit/` directly:
+
+| File                        | Tests For                   |
+| --------------------------- | --------------------------- |
+| `test_cameras_routes.py`    | Camera CRUD endpoints       |
+| `test_events_routes.py`     | Event management endpoints  |
+| `test_detections_routes.py` | Detection listing endpoints |
+| `test_system_routes.py`     | System health and config    |
+| `test_logs_routes.py`       | Log management endpoints    |
+| `test_media_routes.py`      | Media file serving          |
+| `test_websocket_routes.py`  | WebSocket handlers          |
+| `test_zones_routes.py`      | Zone CRUD endpoints         |
+| `test_dlq_api.py`           | Dead-letter queue endpoints |
+| `test_telemetry_api.py`     | Telemetry endpoints         |
+
+## Test Categories
+
+### CRUD Operation Tests
+
+- Create (POST) - Request validation, database insertion
+- Read (GET) - Single item, list with pagination/filters
+- Update (PUT/PATCH) - Partial updates, validation
+- Delete (DELETE) - Cascade behavior, not found handling
+
+### Error Handling Tests
+
+- 404 Not Found responses
+- 422 Validation errors
+- 401/403 Authentication/Authorization errors
+- 500 Internal server errors
+
+### Pagination Tests
+
+- Default pagination values
+- Custom limit/offset
+- Maximum limit enforcement
+- Response format verification
+
+### Filter Tests
+
+- Query parameter parsing
+- Filter application
+- Combined filter scenarios
+- Invalid filter handling
+
+## Running Tests
+
+```bash
+# Run all route unit tests
+pytest backend/tests/unit/routes/ -v
+pytest backend/tests/unit/test_*_routes.py -v
+
+# Run specific route tests
+pytest backend/tests/unit/routes/test_alerts_routes.py -v
+
+# Run with coverage
+pytest backend/tests/unit/routes/ -v --cov=backend/api/routes
+```
+
+## Common Mocking Patterns
+
+### Mocking Database Session
+
+```python
+@pytest.fixture
+def mock_session():
+    session = AsyncMock()
+    session.execute.return_value = MagicMock(
+        scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[])))
+    )
+    return session
+```
+
+### Mocking Route Dependencies
+
+```python
+from unittest.mock import patch
+
+@pytest.mark.asyncio
+async def test_endpoint(client, mock_session):
+    with patch("backend.api.routes.cameras.get_db", return_value=mock_session):
+        response = await client.get("/api/cameras")
+        assert response.status_code == 200
+```
+
+### Testing with httpx AsyncClient
+
+```python
+from httpx import AsyncClient, ASGITransport
+from backend.main import app
+
+@pytest.fixture
+async def client():
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test"
+    ) as client:
+        yield client
+```
+
+## Related Documentation
+
+- `/backend/api/routes/AGENTS.md` - Route documentation
+- `/backend/tests/unit/AGENTS.md` - Unit test patterns
+- `/backend/tests/integration/AGENTS.md` - Integration test patterns

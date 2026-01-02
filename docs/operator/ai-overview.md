@@ -9,7 +9,8 @@
 
 ## What the AI Does
 
-The AI pipeline transforms raw camera images into risk-scored security events through two specialized services:
+The AI pipeline transforms raw camera images into risk-scored security events using **core AI services** plus
+an **enrichment layer** that adds context (attributes, captions, re-ID, and other signals).
 
 ### RT-DETRv2 Detection Server (Port 8090)
 
@@ -21,9 +22,8 @@ The AI pipeline transforms raw camera images into risk-scored security events th
 
 **Technology:**
 
-- ONNX Runtime with CUDA acceleration
-- ~4GB VRAM usage
-- HuggingFace Transformers model
+- PyTorch + HuggingFace Transformers (GPU accelerated)
+- Typical VRAM usage depends on model + runtime (plan ~3–4GB; see `ai/AGENTS.md`)
 
 ### Nemotron LLM Server (Port 8091)
 
@@ -35,10 +35,24 @@ The AI pipeline transforms raw camera images into risk-scored security events th
 
 **Technology:**
 
-- llama.cpp with quantized GGUF model
-- Nemotron Mini 4B Q4_K_M quantization
-- ~3GB VRAM usage
-- 2-5 seconds per risk analysis
+- llama.cpp server with quantized GGUF models
+- Model size differs by deployment:
+  - Dev/host runs often use Nemotron Mini 4B (low VRAM)
+  - Production may run larger models (higher VRAM)
+
+## Enrichment Services (Ports 8092–8094)
+
+In production deployments, the system can run additional AI services:
+
+- **Florence-2 (8092)**: vision-language extraction (captions/attributes)
+- **CLIP (8093)**: embeddings and re-identification support
+- **Enrichment service (8094)**: vehicle/pet/clothing/etc. helpers
+
+These services feed into the backend’s enrichment pipeline and ultimately improve the context sent to the LLM.
+
+> [!NOTE]
+> The backend also has a “model zoo” that can run additional enrichment steps on demand (and/or delegate to
+> `ai-enrichment` depending on configuration).
 
 ## Architecture Diagram
 
@@ -70,28 +84,34 @@ The AI pipeline transforms raw camera images into risk-scored security events th
 
 ## Resource Requirements
 
-| Resource       | Minimum | Recommended |
-| -------------- | ------- | ----------- |
-| **Total VRAM** | ~7GB    | 12GB+       |
-| **RT-DETRv2**  | ~4GB    | ~4GB        |
-| **Nemotron**   | ~3GB    | ~3GB        |
-| **CUDA**       | 11.8+   | 12.x        |
+VRAM depends heavily on which services/models are enabled.
+
+| Profile                  | Typical VRAM | Notes                                               |
+| ------------------------ | ------------ | --------------------------------------------------- |
+| **Minimal (dev)**        | ~8–12GB      | RT-DETRv2 + Nemotron Mini 4B                        |
+| **Full AI stack (prod)** | ~22GB        | RT-DETRv2 + Nemotron + Florence + CLIP + Enrichment |
 
 ## Deployment Model
 
-Both services run in **OCI containers** (Docker or Podman) with NVIDIA GPU passthrough via Container Device Interface (CDI).
+AI services can run either:
+
+- **Fully containerized** (recommended for production): see `docker-compose.prod.yml`
+- **Host-run** (useful for development): see `scripts/start-ai.sh`
 
 **Production:** All AI services containerized in `docker-compose.prod.yml`
 **Development:** AI services can run natively on host for easier debugging
 
 ## Service Endpoints
 
-| Service   | Endpoint      | Method | Purpose                     |
-| --------- | ------------- | ------ | --------------------------- |
-| RT-DETRv2 | `/health`     | GET    | Health check                |
-| RT-DETRv2 | `/detect`     | POST   | Object detection (image)    |
-| Nemotron  | `/health`     | GET    | Health check                |
-| Nemotron  | `/completion` | POST   | Risk analysis (JSON prompt) |
+| Service    | Endpoint      | Method | Purpose                     |
+| ---------- | ------------- | ------ | --------------------------- |
+| RT-DETRv2  | `/health`     | GET    | Health check                |
+| RT-DETRv2  | `/detect`     | POST   | Object detection (image)    |
+| Nemotron   | `/health`     | GET    | Health check                |
+| Nemotron   | `/completion` | POST   | Risk analysis (JSON prompt) |
+| Florence-2 | `/health`     | GET    | Health check                |
+| CLIP       | `/health`     | GET    | Health check                |
+| Enrichment | `/health`     | GET    | Health check                |
 
 ---
 

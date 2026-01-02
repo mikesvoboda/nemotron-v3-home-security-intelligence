@@ -1,78 +1,136 @@
-# ai/enrichment - Combined Enrichment Service
-
-HTTP server hosting multiple classification models for detection enrichment.
+# Combined Enrichment Service
 
 ## Purpose
 
-Provides vehicle type classification, pet classification, clothing
-classification, and action recognition as a single containerized service to
-reduce VRAM fragmentation and simplify deployment.
+HTTP server hosting multiple classification models for enriching RT-DETRv2 detections with additional attributes. Consolidates vehicle, pet, clothing, depth, and pose analysis into a single containerized service to reduce VRAM fragmentation and simplify deployment.
 
-## Port
+## Port and Resources
 
-- **8094** (configurable via `PORT` environment variable)
+- **Port**: 8094 (configurable via `PORT`)
+- **Expected VRAM**: ~6 GB total (with all models loaded)
 
-## Expected VRAM
+| Model                  | VRAM    | Purpose                         |
+| ---------------------- | ------- | ------------------------------- |
+| Vehicle Classification | ~1.5 GB | Vehicle type (car, truck, etc.) |
+| Pet Classifier         | ~200 MB | Cat/dog classification          |
+| FashionCLIP            | ~800 MB | Clothing attributes             |
+| Depth Anything V2      | ~150 MB | Distance estimation             |
+| ViTPose+ Small         | ~1.5 GB | Human pose analysis             |
 
-- ~6GB total (with all models loaded)
-  - Vehicle Segment Classification (ResNet-50): ~1.5GB
-  - Pet Classifier (ResNet-18): ~200MB
-  - FashionCLIP: ~800MB
-  - X-CLIP Action Classifier: ~2GB
-  - ViTPose+ Small: ~1.5GB
+## Directory Contents
+
+```
+ai/enrichment/
+├── AGENTS.md          # This file
+├── Dockerfile         # Container build (PyTorch + CUDA 12.4)
+├── model.py           # FastAPI server with all classifiers
+├── vitpose.py         # ViTPose+ pose analyzer module
+└── requirements.txt   # Python dependencies
+```
 
 ## Key Files
 
-| File               | Purpose                                        |
-| ------------------ | ---------------------------------------------- |
-| `model.py`         | FastAPI app with all classifiers and endpoints |
-| `vitpose.py`       | ViTPose+ pose analyzer module                  |
-| `Dockerfile`       | Container build definition                     |
-| `requirements.txt` | Python dependencies                            |
+### `model.py` (Main Server)
 
-## Models Hosted
+FastAPI server hosting all classification models.
 
-### 1. Vehicle Segment Classification (ResNet-50)
+**Classifier Classes:**
 
-- **Classes:** articulated_truck, bicycle, bus, car, motorcycle, pickup_truck, etc.
-- **Model path:** `/models/vehicle-segment-classification`
-- **Endpoint:** `POST /vehicle-classify`
+| Class                | Model          | Purpose                           |
+| -------------------- | -------------- | --------------------------------- |
+| `VehicleClassifier`  | ResNet-50      | Vehicle type classification       |
+| `PetClassifier`      | ResNet-18      | Cat/dog classification            |
+| `ClothingClassifier` | FashionCLIP    | Zero-shot clothing classification |
+| `DepthEstimator`     | Depth Anything | Monocular depth estimation        |
 
-### 2. Pet Classifier (ResNet-18)
+**Vehicle Classes:**
 
-- **Classes:** cat, dog
-- **Model path:** `/models/pet-classifier`
-- **Endpoint:** `POST /pet-classify`
+```python
+VEHICLE_SEGMENT_CLASSES = [
+    "articulated_truck", "background", "bicycle", "bus", "car",
+    "motorcycle", "non_motorized_vehicle", "pedestrian",
+    "pickup_truck", "single_unit_truck", "work_van"
+]
+```
 
-### 3. FashionCLIP
+**Clothing Prompts (Security-Focused):**
 
-- **Zero-shot clothing classification**
-- **Security-focused prompts:** dark hoodie, face mask, service uniforms, etc.
-- **Model path:** `/models/fashion-clip`
-- **Endpoint:** `POST /clothing-classify`
+```python
+SECURITY_CLOTHING_PROMPTS = [
+    "person wearing dark hoodie",
+    "person wearing face mask",
+    "person wearing ski mask or balaclava",
+    "delivery uniform", "Amazon delivery vest", "FedEx uniform",
+    "UPS uniform", "USPS postal worker uniform",
+    "casual clothing", "business attire or suit", ...
+]
+```
 
-### 4. X-CLIP Action Classifier
+### `vitpose.py` (Pose Analyzer)
 
-- **Temporal action recognition from video frames**
-- **Security-focused actions:** loitering, running away, suspicious behavior, etc.
-- **Model path:** `/models/xclip-base`
-- **Endpoint:** `POST /action-classify`
+ViTPose+ Small human pose estimation module.
 
-### 5. ViTPose+ Small (Human Pose Estimation)
+**Class: `PoseAnalyzer`**
 
-- **17 COCO keypoints detection**
-- **Posture classification:** standing, walking, sitting, crouching, lying_down, running
-- **Security alerts:** crouching (hiding), lying_down (medical emergency), hands_raised (robbery), fighting_stance
-- **Model path:** `/models/vitpose-plus-small`
-- **Endpoint:** `POST /pose-analyze`
+```python
+def load_model(self) -> None:
+    """Load ViTPose+ via VitPoseForPoseEstimation.from_pretrained()"""
+
+def analyze(self, image: Image.Image, min_confidence: float = 0.3) -> dict:
+    """Returns keypoints, posture classification, and security alerts"""
+```
+
+**COCO Keypoints (17):**
+
+```python
+COCO_KEYPOINT_NAMES = [
+    "nose", "left_eye", "right_eye", "left_ear", "right_ear",
+    "left_shoulder", "right_shoulder", "left_elbow", "right_elbow",
+    "left_wrist", "right_wrist", "left_hip", "right_hip",
+    "left_knee", "right_knee", "left_ankle", "right_ankle"
+]
+```
+
+**Posture Classifications:**
+
+- `standing`, `walking`, `running`, `sitting`, `crouching`, `lying_down`, `unknown`
+
+**Security Alerts:**
+
+- `crouching` - Potential hiding/break-in behavior
+- `lying_down` - Possible medical emergency
+- `hands_raised` - Potential surrender/robbery scenario
+- `fighting_stance` - Aggressive posture
+
+### `Dockerfile`
+
+Container build configuration:
+
+- **Base image**: `pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime`
+- **Non-root user**: `enrichment` for security
+- **Health check**: 180s start period (loading all models)
+- **HuggingFace cache**: `/cache/huggingface`
+
+### `requirements.txt`
+
+```
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+transformers>=4.35.0
+open_clip_torch>=2.24.0    # FashionCLIP
+pillow>=10.0.0
+numpy>=1.24.0
+pydantic>=2.4.0
+pynvml>=11.5.0
+safetensors>=0.4.0
+```
 
 ## API Endpoints
 
 ### GET /health
 
-Health check with model status and VRAM usage.
-
-Response:
+Returns health status of all models.
 
 ```json
 {
@@ -85,8 +143,7 @@ Response:
     },
     { "name": "pet-classifier", "loaded": true, "vram_mb": 200 },
     { "name": "fashion-clip", "loaded": true, "vram_mb": 800 },
-    { "name": "xclip-action", "loaded": true, "vram_mb": 2000 },
-    { "name": "vitpose-plus-small", "loaded": true, "vram_mb": 1500 }
+    { "name": "depth-anything-v2-small", "loaded": true, "vram_mb": 150 }
   ],
   "total_vram_used_gb": 6.0,
   "device": "cuda:0",
@@ -96,18 +153,18 @@ Response:
 
 ### POST /vehicle-classify
 
-Classify vehicle type and attributes.
+Classify vehicle type from cropped image.
 
-Request:
+**Request:**
 
 ```json
 {
   "image": "<base64>",
-  "bbox": [x1, y1, x2, y2]  // optional
+  "bbox": [x1, y1, x2, y2]  // optional crop
 }
 ```
 
-Response:
+**Response:**
 
 ```json
 {
@@ -124,16 +181,16 @@ Response:
 
 Classify pet type (cat/dog).
 
-Request:
+**Request:**
 
 ```json
 {
   "image": "<base64>",
-  "bbox": [x1, y1, x2, y2]  // optional
+  "bbox": [x1, y1, x2, y2]  // optional crop
 }
 ```
 
-Response:
+**Response:**
 
 ```json
 {
@@ -147,18 +204,18 @@ Response:
 
 ### POST /clothing-classify
 
-Classify clothing attributes using FashionCLIP.
+Classify clothing using FashionCLIP zero-shot classification.
 
-Request:
+**Request:**
 
 ```json
 {
   "image": "<base64>",
-  "bbox": [x1, y1, x2, y2]  // optional
+  "bbox": [x1, y1, x2, y2]  // optional crop
 }
 ```
 
-Response:
+**Response:**
 
 ```json
 {
@@ -174,62 +231,74 @@ Response:
 }
 ```
 
-### POST /action-classify
+### POST /depth-estimate
 
-Classify action from a sequence of video frames using X-CLIP.
+Estimate depth map for entire image.
 
-Request:
+**Request:**
+
+```json
+{ "image": "<base64>" }
+```
+
+**Response:**
 
 ```json
 {
-  "frames": ["<base64_frame1>", "<base64_frame2>", ...],  // 8 frames optimal
-  "labels": ["custom action 1", "custom action 2"]  // optional, defaults to security prompts
+  "depth_map_base64": "<base64-png>",
+  "min_depth": 0.0,
+  "max_depth": 1.0,
+  "mean_depth": 0.45,
+  "inference_time_ms": 85.3
 }
 ```
 
-Response:
+### POST /object-distance
 
-```json
-{
-  "action": "a person loitering",
-  "confidence": 0.78,
-  "is_suspicious": true,
-  "risk_weight": 0.7,
-  "all_scores": {
-    "a person loitering": 0.78,
-    "a person walking normally": 0.12,
-    "a person looking around suspiciously": 0.05
-  },
-  "inference_time_ms": 245.6
-}
-```
+Estimate distance to object at bounding box.
 
-Security Action Categories:
-
-- **Suspicious:** loitering, running away, looking around suspiciously, trying door handle, checking windows, hiding near bushes, taking photos, vandalizing, breaking in
-- **Normal:** walking normally, delivering package, knocking on door, ringing doorbell, leaving package
-
-### POST /pose-analyze
-
-Analyze human pose keypoints using ViTPose+.
-
-Request:
+**Request:**
 
 ```json
 {
   "image": "<base64>",
-  "bbox": [x1, y1, x2, y2],  // optional - crop to person
-  "min_confidence": 0.3  // optional - keypoint confidence threshold
+  "bbox": [100, 150, 300, 400],
+  "method": "center" // or "mean", "median", "min"
 }
 ```
 
-Response:
+**Response:**
+
+```json
+{
+  "estimated_distance_m": 3.5,
+  "relative_depth": 0.35,
+  "proximity_label": "close",
+  "inference_time_ms": 90.2
+}
+```
+
+### POST /pose-analyze
+
+Analyze human pose keypoints.
+
+**Request:**
+
+```json
+{
+  "image": "<base64>",
+  "bbox": [x1, y1, x2, y2],  // optional crop
+  "min_confidence": 0.3
+}
+```
+
+**Response:**
 
 ```json
 {
   "keypoints": [
-    { "name": "nose", "x": 0.5, "y": 0.1, "confidence": 0.95 },
-    { "name": "left_shoulder", "x": 0.4, "y": 0.25, "confidence": 0.92 },
+    {"name": "nose", "x": 0.5, "y": 0.1, "confidence": 0.95},
+    {"name": "left_shoulder", "x": 0.4, "y": 0.25, "confidence": 0.92},
     ...
   ],
   "posture": "standing",
@@ -238,35 +307,22 @@ Response:
 }
 ```
 
-Posture Classifications:
-
-- **Normal:** standing, walking, running
-- **Concerning:** sitting, crouching, lying_down
-- **Unknown:** insufficient keypoints detected
-
-Security Alerts:
-
-- **crouching:** Potential hiding or break-in behavior
-- **lying_down:** Possible medical emergency or unconscious person
-- **hands_raised:** Potential surrender or robbery scenario
-- **fighting_stance:** Aggressive posture with arms extended
-
 ## Environment Variables
 
-| Variable              | Default                                  | Description              |
-| --------------------- | ---------------------------------------- | ------------------------ |
-| `HOST`                | `0.0.0.0`                                | Bind address             |
-| `PORT`                | `8094`                                   | Listen port              |
-| `VEHICLE_MODEL_PATH`  | `/models/vehicle-segment-classification` | Vehicle classifier path  |
-| `PET_MODEL_PATH`      | `/models/pet-classifier`                 | Pet classifier path      |
-| `CLOTHING_MODEL_PATH` | `/models/fashion-clip`                   | FashionCLIP model path   |
-| `ACTION_MODEL_PATH`   | `/models/xclip-base`                     | X-CLIP action model path |
-| `VITPOSE_MODEL_PATH`  | `/models/vitpose-plus-small`             | ViTPose+ model path      |
-| `HF_HOME`             | `/cache/huggingface`                     | HuggingFace cache dir    |
+| Variable              | Default                                  | Description             |
+| --------------------- | ---------------------------------------- | ----------------------- |
+| `HOST`                | `0.0.0.0`                                | Bind address            |
+| `PORT`                | `8094`                                   | Listen port             |
+| `VEHICLE_MODEL_PATH`  | `/models/vehicle-segment-classification` | Vehicle classifier path |
+| `PET_MODEL_PATH`      | `/models/pet-classifier`                 | Pet classifier path     |
+| `CLOTHING_MODEL_PATH` | `/models/fashion-clip`                   | FashionCLIP model path  |
+| `DEPTH_MODEL_PATH`    | `/models/depth-anything-v2-small`        | Depth estimator path    |
+| `VITPOSE_MODEL_PATH`  | `/models/vitpose-plus-small`             | ViTPose+ model path     |
+| `HF_HOME`             | `/cache/huggingface`                     | HuggingFace cache dir   |
 
 ## Backend Integration
 
-The backend can use this service via `EnrichmentClient`:
+Called by `backend/services/enrichment_client.py`:
 
 ```python
 from backend.services.enrichment_client import get_enrichment_client
@@ -282,25 +338,19 @@ print(f"Vehicle: {result.display_name} ({result.confidence:.0%})")
 
 # Classify pet
 pet = await client.classify_pet(animal_image)
-print(f"Pet: {pet.pet_type} ({pet.confidence:.0%})")
 
 # Classify clothing
 clothing = await client.classify_clothing(person_image)
-print(f"Clothing: {clothing.description}")
-
-# Classify action from video frames
-frames = [frame1, frame2, frame3, ...]  # PIL Images
-action = await client.classify_action(frames)
-print(f"Action: {action.action} (suspicious: {action.is_suspicious})")
+if clothing.is_suspicious:
+    print(f"Alert: {clothing.description}")
 
 # Analyze pose
 pose = await client.analyze_pose(person_image)
-print(f"Posture: {pose.posture}")
-if pose.has_security_alerts():
-    print(f"Alerts: {pose.alerts}")
+if pose.alerts:
+    print(f"Pose alerts: {pose.alerts}")
 ```
 
-Or via `EnrichmentPipeline` with `use_enrichment_service=True`:
+Or via `EnrichmentPipeline`:
 
 ```python
 from backend.services.enrichment_pipeline import EnrichmentPipeline
@@ -309,31 +359,41 @@ pipeline = EnrichmentPipeline(use_enrichment_service=True)
 result = await pipeline.enrich_batch(detections, images, camera_id)
 ```
 
-## Docker Compose
+## Starting the Server
 
-See `docker-compose.prod.yml` for the `ai-enrichment` service definition.
+### Container (Production)
 
-Volumes mount model directories from `/export/ai_models/model-zoo/`.
+```bash
+docker compose -f docker-compose.prod.yml up ai-enrichment
+```
+
+### Native (Development)
+
+```bash
+cd ai/enrichment && python model.py
+```
 
 ## Testing
 
 ```bash
-# Build and start
-podman-compose -f docker-compose.prod.yml build ai-enrichment
-podman-compose -f docker-compose.prod.yml up -d ai-enrichment
-
 # Health check
 curl http://localhost:8094/health
 
-# Test classification (requires base64 image)
+# Vehicle classification (with base64 image)
 curl -X POST http://localhost:8094/vehicle-classify \
   -H "Content-Type: application/json" \
-  -d '{"image": "<base64_encoded_image>"}'
+  -d '{"image": "'$(base64 -w0 vehicle.jpg)'"}'
+
+# Clothing classification
+curl -X POST http://localhost:8094/clothing-classify \
+  -H "Content-Type: application/json" \
+  -d '{"image": "'$(base64 -w0 person.jpg)'"}'
 ```
 
-## Related Files
+## Entry Points
 
-- `backend/services/enrichment_client.py` - HTTP client
-- `backend/services/enrichment_pipeline.py` - Pipeline integration
-- `backend/core/config.py` - `enrichment_url` setting
-- `docker-compose.prod.yml` - Service definition
+1. **Main server**: `model.py` - All classifiers and endpoints
+2. **Pose analyzer**: `vitpose.py` - ViTPose+ module
+3. **Dockerfile**: Container build configuration
+4. **Backend client**: `backend/services/enrichment_client.py`
+5. **Backend pipeline**: `backend/services/enrichment_pipeline.py`

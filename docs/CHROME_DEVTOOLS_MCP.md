@@ -163,7 +163,7 @@ submit the form, and report any console errors or network failures.
 ### Capture Visual State
 
 ```
-Take a screenshot of http://localhost:8080/dashboard after it finishes loading.
+Take a screenshot of http://localhost:5173 after it finishes loading.
 ```
 
 ### Analyze JavaScript Errors

@@ -9,9 +9,15 @@
 
 ## Starting Services
 
+> [!IMPORTANT]
+> This doc covers **host-run AI** (useful for development) and **containerized AI** (recommended for production).
+> In production, `docker-compose.prod.yml` defines _all_ AI services (8090–8094).
+>
+> For “which URL should I use?” (container DNS vs host vs remote), start with: [Deployment Modes & AI Networking](deployment-modes.md).
+
 ### Unified Startup (Recommended)
 
-Use the unified startup script to manage both services:
+Use the unified startup script to manage the **core host-run** AI services (RT-DETRv2 + Nemotron):
 
 ```bash
 ./scripts/start-ai.sh start
@@ -64,6 +70,34 @@ Start services separately for debugging:
 
 # Nemotron LLM server (in separate terminal)
 ./ai/start_llm.sh
+```
+
+---
+
+## Production (containerized AI services)
+
+Start the full stack (including Florence/CLIP/Enrichment):
+
+```bash
+docker compose -f docker-compose.prod.yml up -d
+```
+
+Start only the core services:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d postgres redis backend frontend ai-detector ai-llm
+```
+
+Start only AI services (all 5):
+
+```bash
+docker compose -f docker-compose.prod.yml up -d ai-detector ai-llm ai-florence ai-clip ai-enrichment
+```
+
+Stop:
+
+```bash
+docker compose -f docker-compose.prod.yml down
 ```
 
 ---
@@ -147,6 +181,14 @@ python example_client.py path/to/test/image.jpg
 ```
 
 ### Test Nemotron LLM
+
+### Test Florence / CLIP / Enrichment (production)
+
+```bash
+curl http://localhost:8092/health  # Florence-2
+curl http://localhost:8093/health  # CLIP
+curl http://localhost:8094/health  # Enrichment
+```
 
 ```bash
 # Health check

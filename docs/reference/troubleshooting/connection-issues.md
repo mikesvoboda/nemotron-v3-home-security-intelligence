@@ -22,6 +22,9 @@
 ss -tlnp | grep 8000   # Backend
 ss -tlnp | grep 8090   # RT-DETRv2
 ss -tlnp | grep 8091   # Nemotron
+ss -tlnp | grep 8092   # Florence-2 (optional)
+ss -tlnp | grep 8093   # CLIP (optional)
+ss -tlnp | grep 8094   # Enrichment (optional)
 
 # Check container status
 docker compose -f docker-compose.prod.yml ps
@@ -58,6 +61,14 @@ For Docker:
 
 - Services on same network can use service names (`postgres`, `redis`)
 - External access uses `localhost:PORT`
+
+For production compose, AI services are reachable from the backend by compose DNS:
+
+- `ai-detector:8090`
+- `ai-llm:8091`
+- `ai-florence:8092` (optional)
+- `ai-clip:8093` (optional)
+- `ai-enrichment:8094` (optional)
 
 For native development:
 

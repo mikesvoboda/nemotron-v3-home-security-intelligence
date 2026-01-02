@@ -18,6 +18,9 @@ Run these commands first to identify the issue:
 # Test service health endpoints
 curl http://localhost:8090/health   # RT-DETRv2
 curl http://localhost:8091/health   # Nemotron
+curl http://localhost:8092/health   # Florence-2 (optional)
+curl http://localhost:8093/health   # CLIP (optional)
+curl http://localhost:8094/health   # Enrichment (optional)
 
 # Check GPU availability
 nvidia-smi
@@ -51,10 +54,10 @@ RuntimeError: CUDA out of memory
 2. Check VRAM usage: `nvidia-smi`
 3. Restart services: `./scripts/start-ai.sh restart`
 
-**ONNX Runtime not found:**
+**Python dependency not found (RT-DETRv2):**
 
 ```
-ModuleNotFoundError: No module named 'onnxruntime'
+ModuleNotFoundError: No module named 'transformers'
 ```
 
 **Solution:**
@@ -67,7 +70,7 @@ pip install -r requirements.txt
 **Model file not found:**
 
 ```
-FileNotFoundError: rtdetrv2_r50vd.onnx
+ImportError / ModuleNotFoundError in `ai/rtdetr/model.py`
 ```
 
 **Solution:** Model auto-downloads on first use. Wait for download to complete (check logs).
@@ -251,11 +254,11 @@ httpx.ConnectError: [Errno 111] Connection refused
 
 **Docker/Podman networking:**
 
-| Platform | Runtime        | Use This URL                           |
-| -------- | -------------- | -------------------------------------- |
-| macOS    | Docker Desktop | `http://host.docker.internal:8090`     |
-| macOS    | Podman         | `http://host.containers.internal:8090` |
-| Linux    | Docker/Podman  | `http://192.168.1.100:8090` (host IP)  |
+The correct URL depends on your deployment mode (production compose DNS vs host-run AI vs “backend container + host AI”).
+
+Start here:
+
+- [Deployment Modes & AI Networking](deployment-modes.md) (decision table + copy/paste `.env` snippets)
 
 ### From Container Can't Reach Host
 

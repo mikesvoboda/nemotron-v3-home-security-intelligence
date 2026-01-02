@@ -34,7 +34,7 @@ Each event in the feed shows:
 ### Using the Feed
 
 - Click any event to see full details in a popup
-- Events appear with newest at the top
+- Events appear with newest at the bottom (the feed auto-scrolls to keep you at the latest)
 - Feed shows up to 10 recent events
 
 ### Auto-Scroll Feature
@@ -112,7 +112,7 @@ Above the event list you see:
 3. Selected events can be marked as reviewed in bulk
 
 **Exporting Events:**
-Click **Export CSV** to download filtered events as a spreadsheet.
+Click **Quick Export** (CSV) to download filtered events as a spreadsheet. Use **Advanced Export** for more export options.
 
 ### Pagination
 
