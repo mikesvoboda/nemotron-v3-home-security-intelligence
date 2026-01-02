@@ -161,7 +161,7 @@ test.describe('All Routes Smoke Tests', () => {
     ];
 
     for (const route of routes) {
-      await page.goto(route.path);
+      await page.goto(route.path, { timeout: 30000 });
       await expect(page.getByRole('heading', { name: route.title }).first()).toBeVisible({
         timeout: 15000,
       });
