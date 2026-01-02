@@ -344,7 +344,7 @@ class PerformanceCollector:
         """
         containers = [
             ("backend", "http://localhost:8000/health"),
-            ("frontend", "http://frontend:5173/"),  # Vite dev server on port 5173
+            ("frontend", "http://frontend:80/health"),  # nginx health endpoint on port 80
             ("postgres", None),  # Check via psql
             ("redis", None),  # Check via ping
             ("ai-detector", f"{self._settings.rtdetr_url}/health"),
@@ -359,12 +359,7 @@ class PerformanceCollector:
             if url:
                 try:
                     resp = await client.get(url, timeout=2.0)
-                    # For frontend (Vite dev server), accept any response as healthy
-                    # since Vite returns 403 for cross-origin requests but server is up
-                    if name == "frontend":
-                        # Any response means server is running
-                        pass
-                    elif resp.status_code != 200:
+                    if resp.status_code != 200:
                         health = "unhealthy"
                 except Exception:
                     health = "unhealthy"
