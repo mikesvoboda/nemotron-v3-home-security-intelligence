@@ -7,9 +7,10 @@ Models hosted:
 1. Vehicle Segment Classification (~1.5GB) - ResNet-50 for vehicle type/color
 2. Pet Classifier (~200MB) - ResNet-18 for dog/cat classification
 3. FashionCLIP (~800MB) - Zero-shot clothing attribute extraction
+4. Depth Anything V2 Small (~150MB) - Monocular depth estimation
 
 Port: 8094 (configurable via PORT env var)
-Expected VRAM: ~2.5GB total
+Expected VRAM: ~2.65GB total
 """
 
 import base64
@@ -555,6 +556,240 @@ class ClothingClassifier:
 
 
 # =============================================================================
+# Depth Estimator (Depth Anything V2 Small)
+# =============================================================================
+
+
+class DepthEstimator:
+    """Depth Anything V2 Small monocular depth estimation model wrapper.
+
+    This model estimates relative depth from a single RGB image. The output
+    is a depth map where lower values indicate objects closer to the camera
+    and higher values indicate objects farther away.
+
+    Use cases for home security:
+    - Estimate how close a person is to the camera/door
+    - Detect approaching vs departing movement
+    - Provide distance context to Nemotron for risk analysis
+    """
+
+    def __init__(self, model_path: str, device: str = "cuda:0"):
+        """Initialize depth estimator.
+
+        Args:
+            model_path: Path to Depth Anything V2 model directory
+            device: Device to run inference on
+        """
+        self.model_path = model_path
+        self.device = device
+        self.model: Any = None
+        self.processor: Any = None
+
+        logger.info(f"Initializing DepthEstimator from {self.model_path}")
+
+    def load_model(self) -> None:
+        """Load the Depth Anything V2 model."""
+        from transformers import AutoImageProcessor, AutoModelForDepthEstimation
+
+        logger.info("Loading Depth Anything V2 model...")
+
+        self.processor = AutoImageProcessor.from_pretrained(self.model_path)
+        self.model = AutoModelForDepthEstimation.from_pretrained(self.model_path)
+
+        # Move to device
+        if "cuda" in self.device and torch.cuda.is_available():
+            self.model = self.model.to(self.device)
+            logger.info(f"DepthEstimator loaded on {self.device}")
+        else:
+            self.device = "cpu"
+            logger.info("DepthEstimator using CPU")
+
+        self.model.eval()
+        logger.info("DepthEstimator loaded successfully")
+
+    def estimate_depth(self, image: Image.Image) -> dict[str, Any]:
+        """Estimate depth map for an image.
+
+        Args:
+            image: PIL Image to estimate depth for
+
+        Returns:
+            Dictionary containing:
+            - depth_map_base64: Base64 encoded PNG depth map visualization
+            - min_depth: Minimum depth value (normalized 0-1)
+            - max_depth: Maximum depth value (normalized 0-1)
+            - mean_depth: Mean depth value across the image
+        """
+        import numpy as np
+
+        if self.model is None or self.processor is None:
+            raise RuntimeError("Model not loaded")
+
+        # Ensure RGB mode
+        rgb_image = image.convert("RGB") if image.mode != "RGB" else image
+
+        # Preprocess image
+        inputs = self.processor(images=rgb_image, return_tensors="pt")
+
+        # Move to device
+        inputs = {k: v.to(self.device) for k, v in inputs.items()}
+
+        # Run inference
+        with torch.no_grad():
+            outputs = self.model(**inputs)
+            predicted_depth = outputs.predicted_depth
+
+        # Interpolate to original size
+        prediction = torch.nn.functional.interpolate(
+            predicted_depth.unsqueeze(1),
+            size=rgb_image.size[::-1],  # (height, width)
+            mode="bicubic",
+            align_corners=False,
+        ).squeeze()
+
+        # Normalize depth map to 0-1 range
+        depth_array = prediction.cpu().numpy()
+        min_val = float(depth_array.min())
+        max_val = float(depth_array.max())
+
+        if max_val - min_val > 0:
+            normalized_depth = (depth_array - min_val) / (max_val - min_val)
+        else:
+            normalized_depth = np.zeros_like(depth_array)
+
+        # Convert to grayscale image for visualization (0-255)
+        depth_visual = (normalized_depth * 255).astype(np.uint8)
+        depth_image = Image.fromarray(depth_visual, mode="L")
+
+        # Encode to base64 PNG
+        buffer = io.BytesIO()
+        depth_image.save(buffer, format="PNG")
+        buffer.seek(0)
+        depth_map_base64 = base64.b64encode(buffer.read()).decode("utf-8")
+
+        return {
+            "depth_map_base64": depth_map_base64,
+            "min_depth": round(float(normalized_depth.min()), 4),
+            "max_depth": round(float(normalized_depth.max()), 4),
+            "mean_depth": round(float(normalized_depth.mean()), 4),
+            "normalized_depth": normalized_depth,  # Keep for object distance calculation
+        }
+
+    def estimate_object_distance(
+        self,
+        image: Image.Image,
+        bbox: list[float],
+        method: str = "center",
+    ) -> dict[str, Any]:
+        """Estimate relative distance to an object at a bounding box location.
+
+        Args:
+            image: PIL Image
+            bbox: Bounding box [x1, y1, x2, y2]
+            method: How to sample depth:
+                - "center": Sample at bbox center (fastest)
+                - "mean": Average depth over bbox (most accurate)
+                - "median": Median depth over bbox (robust to outliers)
+                - "min": Minimum depth in bbox (closest point)
+
+        Returns:
+            Dictionary containing:
+            - estimated_distance_m: Estimated distance in meters (relative scale)
+            - relative_depth: Normalized depth value (0=close, 1=far)
+            - proximity_label: Human-readable proximity description
+        """
+        import numpy as np
+
+        if self.model is None or self.processor is None:
+            raise RuntimeError("Model not loaded")
+
+        # First get the full depth map
+        depth_result = self.estimate_depth(image)
+        normalized_depth = depth_result["normalized_depth"]
+
+        # Extract bbox coordinates
+        x1, y1, x2, y2 = bbox
+        h, w = normalized_depth.shape[:2]
+
+        # Clamp bbox to image boundaries
+        x1 = max(0, min(int(x1), w - 1))
+        y1 = max(0, min(int(y1), h - 1))
+        x2 = max(0, min(int(x2), w - 1))
+        y2 = max(0, min(int(y2), h - 1))
+
+        # Handle invalid bbox
+        if x2 <= x1 or y2 <= y1:
+            relative_depth = 0.5
+        elif method == "center":
+            center_x = (x1 + x2) // 2
+            center_y = (y1 + y2) // 2
+            relative_depth = float(normalized_depth[center_y, center_x])
+        elif method == "mean":
+            region = normalized_depth[y1:y2, x1:x2]
+            relative_depth = float(np.mean(region))
+        elif method == "median":
+            region = normalized_depth[y1:y2, x1:x2]
+            relative_depth = float(np.median(region))
+        elif method == "min":
+            region = normalized_depth[y1:y2, x1:x2]
+            relative_depth = float(np.min(region))
+        else:
+            raise ValueError(f"Unknown depth sampling method: {method}")
+
+        # Convert relative depth to approximate distance
+        estimated_distance_m = self._depth_to_distance(relative_depth)
+
+        # Generate proximity label
+        proximity_label = self._depth_to_proximity_label(relative_depth)
+
+        return {
+            "estimated_distance_m": round(estimated_distance_m, 2),
+            "relative_depth": round(relative_depth, 4),
+            "proximity_label": proximity_label,
+        }
+
+    def _depth_to_distance(self, depth_value: float) -> float:
+        """Convert normalized depth value to estimated distance in meters.
+
+        This uses a simple heuristic mapping since monocular depth is relative.
+        The scale is calibrated for typical home security camera scenarios.
+
+        Args:
+            depth_value: Normalized depth in [0, 1]
+
+        Returns:
+            Estimated distance in meters (approximate)
+        """
+        # Map depth 0-1 to distance range 0.5m - 15m
+        min_distance = 0.5
+        max_distance = 15.0
+
+        # Exponential mapping: closer objects have more resolution
+        distance = min_distance + (max_distance - min_distance) * (depth_value**0.7)
+        return distance
+
+    def _depth_to_proximity_label(self, depth_value: float) -> str:
+        """Convert normalized depth value to human-readable proximity label.
+
+        Args:
+            depth_value: Normalized depth in [0, 1]
+
+        Returns:
+            Human-readable proximity label
+        """
+        if depth_value < 0.15:
+            return "very close"
+        elif depth_value < 0.35:
+            return "close"
+        elif depth_value < 0.55:
+            return "moderate distance"
+        elif depth_value < 0.75:
+            return "far"
+        else:
+            return "very far"
+
+
+# =============================================================================
 # Pydantic Models for API
 # =============================================================================
 
@@ -633,6 +868,49 @@ class ClothingClassifyResponse(BaseModel):
     inference_time_ms: float = Field(..., description="Inference time in milliseconds")
 
 
+class DepthEstimateRequest(BaseModel):
+    """Request format for depth estimation endpoint."""
+
+    image: str = Field(..., description="Base64 encoded image")
+
+
+class DepthEstimateResponse(BaseModel):
+    """Response format for depth estimation endpoint."""
+
+    depth_map_base64: str = Field(..., description="Base64 encoded PNG depth map visualization")
+    min_depth: float = Field(..., description="Minimum depth value (normalized 0-1)")
+    max_depth: float = Field(..., description="Maximum depth value (normalized 0-1)")
+    mean_depth: float = Field(..., description="Mean depth value across the image")
+    inference_time_ms: float = Field(..., description="Inference time in milliseconds")
+
+
+class ObjectDistanceRequest(BaseModel):
+    """Request format for object distance estimation endpoint."""
+
+    image: str = Field(..., description="Base64 encoded image")
+    bbox: list[float] = Field(
+        ...,
+        description="Bounding box [x1, y1, x2, y2] of object to measure distance to",
+        min_length=4,
+        max_length=4,
+    )
+    method: str = Field(
+        default="center",
+        description="Depth sampling method: 'center', 'mean', 'median', or 'min'",
+    )
+
+
+class ObjectDistanceResponse(BaseModel):
+    """Response format for object distance estimation endpoint."""
+
+    estimated_distance_m: float = Field(
+        ..., description="Estimated distance in meters (approximate, relative scale)"
+    )
+    relative_depth: float = Field(..., description="Normalized depth value (0=close, 1=far)")
+    proximity_label: str = Field(..., description="Human-readable proximity description")
+    inference_time_ms: float = Field(..., description="Inference time in milliseconds")
+
+
 class ModelStatus(BaseModel):
     """Status of a single model."""
 
@@ -658,6 +936,7 @@ class HealthResponse(BaseModel):
 vehicle_classifier: VehicleClassifier | None = None
 pet_classifier: PetClassifier | None = None
 clothing_classifier: ClothingClassifier | None = None
+depth_estimator: DepthEstimator | None = None
 
 
 def get_vram_usage() -> float | None:
@@ -739,9 +1018,9 @@ def decode_and_crop_image(
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI):
+async def lifespan(_app: FastAPI):  # noqa: PLR0912
     """Lifespan context manager for FastAPI app."""
-    global vehicle_classifier, pet_classifier, clothing_classifier  # noqa: PLW0603
+    global vehicle_classifier, pet_classifier, clothing_classifier, depth_estimator  # noqa: PLW0603
 
     logger.info("Starting Combined Enrichment Service...")
 
@@ -751,6 +1030,7 @@ async def lifespan(_app: FastAPI):
     )
     pet_model_path = os.environ.get("PET_MODEL_PATH", "/models/pet-classifier")
     clothing_model_path = os.environ.get("CLOTHING_MODEL_PATH", "/models/fashion-clip")
+    depth_model_path = os.environ.get("DEPTH_MODEL_PATH", "/models/depth-anything-v2-small")
 
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
@@ -793,6 +1073,19 @@ async def lifespan(_app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to load clothing classifier: {e}")
 
+    # Load depth estimator
+    try:
+        depth_estimator = DepthEstimator(
+            model_path=depth_model_path,
+            device=device,
+        )
+        depth_estimator.load_model()
+        logger.info("Depth estimator loaded successfully")
+    except FileNotFoundError:
+        logger.warning(f"Depth model not found at {depth_model_path}")
+    except Exception as e:
+        logger.error(f"Failed to load depth estimator: {e}")
+
     vram = get_vram_usage()
     logger.info(f"All models loaded. Total VRAM usage: {vram:.2f} GB" if vram else "VRAM: N/A")
 
@@ -808,6 +1101,8 @@ async def lifespan(_app: FastAPI):
         del pet_classifier.model
     if clothing_classifier and clothing_classifier.model:
         del clothing_classifier.model
+    if depth_estimator and depth_estimator.model:
+        del depth_estimator.model
 
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
@@ -818,7 +1113,7 @@ async def lifespan(_app: FastAPI):
 # Create FastAPI app
 app = FastAPI(
     title="Combined Enrichment Service",
-    description="Detection enrichment service with vehicle, pet, and clothing classification",
+    description="Detection enrichment service with vehicle, pet, clothing classification and depth estimation",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -846,6 +1141,11 @@ async def health_check() -> HealthResponse:
             name="fashion-clip",
             loaded=clothing_classifier is not None and clothing_classifier.model is not None,
             vram_mb=800 if clothing_classifier and clothing_classifier.model else None,
+        ),
+        ModelStatus(
+            name="depth-anything-v2-small",
+            loaded=depth_estimator is not None and depth_estimator.model is not None,
+            vram_mb=150 if depth_estimator and depth_estimator.model else None,
         ),
     ]
 
@@ -974,6 +1274,89 @@ async def clothing_classify(request: ClothingClassifyRequest) -> ClothingClassif
     except Exception as e:
         logger.error(f"Clothing classification failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Classification failed: {e!s}") from e
+
+
+@app.post("/depth-estimate", response_model=DepthEstimateResponse)
+async def depth_estimate(request: DepthEstimateRequest) -> DepthEstimateResponse:
+    """Estimate depth map for an image using Depth Anything V2.
+
+    Input: Base64 encoded image
+    Output: Depth map as base64 PNG, depth statistics
+    """
+    if depth_estimator is None or depth_estimator.model is None:
+        raise HTTPException(status_code=503, detail="Depth estimator not loaded")
+
+    try:
+        start_time = time.perf_counter()
+
+        # Decode image
+        image = decode_and_crop_image(request.image)
+
+        # Run depth estimation
+        result = depth_estimator.estimate_depth(image)
+
+        inference_time_ms = (time.perf_counter() - start_time) * 1000
+
+        return DepthEstimateResponse(
+            depth_map_base64=result["depth_map_base64"],
+            min_depth=result["min_depth"],
+            max_depth=result["max_depth"],
+            mean_depth=result["mean_depth"],
+            inference_time_ms=round(inference_time_ms, 2),
+        )
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        logger.error(f"Depth estimation failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Depth estimation failed: {e!s}") from e
+
+
+@app.post("/object-distance", response_model=ObjectDistanceResponse)
+async def object_distance(request: ObjectDistanceRequest) -> ObjectDistanceResponse:
+    """Estimate distance to an object within a bounding box.
+
+    Input: Base64 encoded image, bounding box, optional sampling method
+    Output: Estimated distance in meters, relative depth, proximity label
+    """
+    if depth_estimator is None or depth_estimator.model is None:
+        raise HTTPException(status_code=503, detail="Depth estimator not loaded")
+
+    # Validate method
+    valid_methods = {"center", "mean", "median", "min"}
+    if request.method not in valid_methods:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid method '{request.method}'. Must be one of: {valid_methods}",
+        )
+
+    try:
+        start_time = time.perf_counter()
+
+        # Decode image
+        image = decode_and_crop_image(request.image)
+
+        # Run object distance estimation
+        result = depth_estimator.estimate_object_distance(
+            image=image,
+            bbox=request.bbox,
+            method=request.method,
+        )
+
+        inference_time_ms = (time.perf_counter() - start_time) * 1000
+
+        return ObjectDistanceResponse(
+            estimated_distance_m=result["estimated_distance_m"],
+            relative_depth=result["relative_depth"],
+            proximity_label=result["proximity_label"],
+            inference_time_ms=round(inference_time_ms, 2),
+        )
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        logger.error(f"Object distance estimation failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Distance estimation failed: {e!s}") from e
 
 
 if __name__ == "__main__":
