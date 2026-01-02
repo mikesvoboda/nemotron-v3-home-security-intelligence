@@ -38,23 +38,15 @@ jobs:
     steps:
       - name: Free disk space
         if: matrix.image.name == 'backend'
-        run: |
-          # Remove unnecessary tools to free ~30GB for ML dependencies
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
-          sudo rm -rf /opt/hostedtoolcache/go
-          sudo rm -rf /opt/hostedtoolcache/node
-          sudo rm -rf /usr/local/share/powershell
-          sudo rm -rf /usr/share/swift
-          sudo rm -rf /usr/local/share/chromium
-          sudo rm -rf /usr/local/.ghcup
-          # Clean Docker completely
-          sudo docker system prune -af --volumes
-          sudo rm -rf /var/lib/docker/*
-          sudo systemctl restart docker
-          df -h
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
 
       - name: Checkout
         uses: actions/checkout@v4
