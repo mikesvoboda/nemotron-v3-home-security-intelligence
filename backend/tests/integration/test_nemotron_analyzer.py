@@ -116,10 +116,10 @@ async def test_analyze_batch_success(
     from backend.core.database import get_session
 
     async with get_session() as session:
-        # Create camera
+        # Create camera with unique name to prevent unique constraint conflicts
         camera = Camera(
             id=camera_id,
-            name="Front Door",
+            name=f"Front Door {camera_id[-8:]}",
             folder_path=f"/export/foscam/{camera_id}",
         )
         session.add(camera)
@@ -198,9 +198,10 @@ async def test_analyze_batch_llm_failure_uses_fallback(
     from backend.core.database import get_session
 
     async with get_session() as session:
+        # Use unique name to prevent unique constraint conflicts in parallel tests
         camera = Camera(
             id=camera_id,
-            name="Front Door",
+            name=f"Front Door {camera_id[-8:]}",
             folder_path=f"/export/foscam/{camera_id}",
         )
         session.add(camera)
@@ -321,9 +322,10 @@ async def test_analyze_batch_detections_not_in_database(analyzer, mock_redis_cli
     from backend.core.database import get_session
 
     async with get_session() as session:
+        # Use unique name to prevent unique constraint conflicts in parallel tests
         camera = Camera(
             id=camera_id,
-            name="Front Door",
+            name=f"Front Door {camera_id[-8:]}",
             folder_path=f"/export/foscam/{camera_id}",
         )
         session.add(camera)
@@ -365,10 +367,10 @@ async def test_analyze_detection_fast_path_success(
     from backend.core.database import get_session
 
     async with get_session() as session:
-        # Create camera
+        # Create camera with unique name to prevent unique constraint conflicts
         camera = Camera(
             id=camera_id,
-            name="Front Door",
+            name=f"Front Door {camera_id[-8:]}",
             folder_path=f"/export/foscam/{camera_id}",
         )
         session.add(camera)
@@ -437,9 +439,10 @@ async def test_analyze_detection_fast_path_llm_failure(
     from backend.core.database import get_session
 
     async with get_session() as session:
+        # Use unique name to prevent unique constraint conflicts in parallel tests
         camera = Camera(
             id=camera_id,
-            name="Front Door",
+            name=f"Front Door {camera_id[-8:]}",
             folder_path=f"/export/foscam/{camera_id}",
         )
         session.add(camera)
@@ -478,9 +481,10 @@ async def test_analyze_detection_fast_path_single_detection_time(
     from backend.core.database import get_session
 
     async with get_session() as session:
+        # Use unique name to prevent unique constraint conflicts in parallel tests
         camera = Camera(
             id=camera_id,
-            name="Front Door",
+            name=f"Front Door {camera_id[-8:]}",
             folder_path=f"/export/foscam/{camera_id}",
         )
         session.add(camera)
@@ -529,9 +533,10 @@ async def test_analyze_detection_fast_path_detection_ids_format(
     from backend.core.database import get_session
 
     async with get_session() as session:
+        # Use unique name to prevent unique constraint conflicts in parallel tests
         camera = Camera(
             id=camera_id,
-            name="Front Door",
+            name=f"Front Door {camera_id[-8:]}",
             folder_path=f"/export/foscam/{camera_id}",
         )
         session.add(camera)
@@ -583,9 +588,10 @@ async def test_analyze_detection_fast_path_broadcast_called(
     from backend.core.database import get_session
 
     async with get_session() as session:
+        # Use unique name to prevent unique constraint conflicts in parallel tests
         camera = Camera(
             id=camera_id,
-            name="Front Door",
+            name=f"Front Door {camera_id[-8:]}",
             folder_path=f"/export/foscam/{camera_id}",
         )
         session.add(camera)
@@ -677,9 +683,10 @@ async def test_analyze_batch_string_detection_ids_converted_to_int(
     from backend.core.database import get_session
 
     async with get_session() as session:
+        # Use unique name to prevent unique constraint conflicts in parallel tests
         camera = Camera(
             id=camera_id,
-            name="Front Door",
+            name=f"Front Door {camera_id[-8:]}",
             folder_path=f"/export/foscam/{camera_id}",
         )
         session.add(camera)
@@ -748,9 +755,10 @@ async def test_analyze_batch_invalid_detection_id_raises_clear_error(
     from backend.core.database import get_session
 
     async with get_session() as session:
+        # Use unique name to prevent unique constraint conflicts in parallel tests
         camera = Camera(
             id=camera_id,
-            name="Front Door",
+            name=f"Front Door {camera_id[-8:]}",
             folder_path=f"/export/foscam/{camera_id}",
         )
         session.add(camera)
@@ -796,9 +804,10 @@ async def test_analyze_batch_mixed_int_and_string_detection_ids(
     from backend.core.database import get_session
 
     async with get_session() as session:
+        # Use unique name to prevent unique constraint conflicts in parallel tests
         camera = Camera(
             id=camera_id,
-            name="Front Door",
+            name=f"Front Door {camera_id[-8:]}",
             folder_path=f"/export/foscam/{camera_id}",
         )
         session.add(camera)
@@ -859,9 +868,10 @@ async def test_analyze_batch_with_direct_detection_ids_parameter(
     from backend.core.database import get_session
 
     async with get_session() as session:
+        # Use unique name to prevent unique constraint conflicts in parallel tests
         camera = Camera(
             id=camera_id,
-            name="Front Door",
+            name=f"Front Door {camera_id[-8:]}",
             folder_path=f"/export/foscam/{camera_id}",
         )
         session.add(camera)

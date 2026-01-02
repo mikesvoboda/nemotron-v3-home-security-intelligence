@@ -241,6 +241,58 @@ async def _reset_db_schema() -> None:
         # Using IF NOT EXISTS makes this idempotent and safe to run in parallel
         await conn.execute(text("ALTER TABLE events ADD COLUMN IF NOT EXISTS llm_prompt TEXT"))
 
+        # Add unique indexes for cameras table (migration adds these for production)
+        # First, clean up any duplicate cameras that might prevent index creation
+        # Delete duplicate cameras by name (keep oldest)
+        await conn.execute(
+            text(
+                """
+                DELETE FROM cameras
+                WHERE id IN (
+                    SELECT id FROM (
+                        SELECT id,
+                               ROW_NUMBER() OVER (
+                                   PARTITION BY name
+                                   ORDER BY created_at ASC, id ASC
+                               ) as rn
+                        FROM cameras
+                    ) ranked
+                    WHERE rn > 1
+                )
+                """
+            )
+        )
+
+        # Delete duplicate cameras by folder_path (keep oldest)
+        await conn.execute(
+            text(
+                """
+                DELETE FROM cameras
+                WHERE id IN (
+                    SELECT id FROM (
+                        SELECT id,
+                               ROW_NUMBER() OVER (
+                                   PARTITION BY folder_path
+                                   ORDER BY created_at ASC, id ASC
+                               ) as rn
+                        FROM cameras
+                    ) ranked
+                    WHERE rn > 1
+                )
+                """
+            )
+        )
+
+        # Now create unique indexes (using IF NOT EXISTS for idempotency)
+        await conn.execute(
+            text("CREATE UNIQUE INDEX IF NOT EXISTS idx_cameras_name_unique ON cameras (name)")
+        )
+        await conn.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_cameras_folder_path_unique ON cameras (folder_path)"
+            )
+        )
+
 
 @pytest.fixture(scope="function")
 async def isolated_db() -> AsyncGenerator[None]:

@@ -324,6 +324,12 @@ class Settings(BaseSettings):
         default=True,
         description="Enable Florence-2 vision extraction for vehicle/person attributes",
     )
+    image_quality_enabled: bool = Field(
+        default=False,
+        description="Enable BRISQUE image quality assessment (CPU-based). "
+        "Currently disabled by default because pyiqa is incompatible with NumPy 2.0 "
+        "(np.sctypes was removed). Set to True only if using NumPy <2.0.",
+    )
     reid_enabled: bool = Field(
         default=True,
         description="Enable CLIP re-identification for tracking entities across cameras",

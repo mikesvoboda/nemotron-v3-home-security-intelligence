@@ -153,12 +153,20 @@ class TestVideoValidation:
         assert is_valid_video("/path/that/does/not/exist.mp4") is False
 
     def test_is_valid_media_file_image(self, tmp_path: Path) -> None:
-        """Test is_valid_media_file with valid image."""
+        """Test is_valid_media_file with valid image above minimum size threshold."""
         from PIL import Image
 
         image_path = tmp_path / "test.jpg"
-        img = Image.new("RGB", (100, 100), color="red")
-        img.save(image_path)
+        # Create a valid image large enough to pass minimum size validation (>10KB)
+        size = (640, 480)
+        img = Image.new("RGB", size, color="red")
+        # Add gradient pattern to increase file size
+        pixels = img.load()
+        if pixels is not None:
+            for y in range(size[1]):
+                for x in range(size[0]):
+                    pixels[x, y] = (x % 256, y % 256, (x + y) % 256)
+        img.save(image_path, "JPEG", quality=95)
 
         assert is_valid_media_file(str(image_path)) is True
 
@@ -287,8 +295,15 @@ class TestFileWatcherVideoProcessing:
 
         camera_dir = temp_camera_root / "camera1"
         image_path = camera_dir / "test.jpg"
-        img = Image.new("RGB", (100, 100), color="blue")
-        img.save(image_path)
+        # Create a valid image above minimum size (>10KB)
+        size = (640, 480)
+        img = Image.new("RGB", size, color="blue")
+        pixels = img.load()
+        if pixels is not None:
+            for y in range(size[1]):
+                for x in range(size[0]):
+                    pixels[x, y] = (x % 256, y % 256, (x + y) % 256)
+        img.save(image_path, "JPEG", quality=95)
 
         await file_watcher._process_file(str(image_path))
 

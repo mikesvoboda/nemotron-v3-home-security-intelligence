@@ -717,7 +717,7 @@ class EnrichmentPipeline:
         clothing_segmentation_enabled: bool = True,
         vehicle_damage_detection_enabled: bool = True,
         vehicle_classification_enabled: bool = True,
-        image_quality_enabled: bool = True,
+        image_quality_enabled: bool | None = None,
         pet_classification_enabled: bool = True,
         redis_client: Any | None = None,
         use_enrichment_service: bool = False,
@@ -739,13 +739,18 @@ class EnrichmentPipeline:
             clothing_segmentation_enabled: Enable SegFormer clothing segmentation
             vehicle_damage_detection_enabled: Enable YOLOv11 vehicle damage detection
             vehicle_classification_enabled: Enable ResNet-50 vehicle type classification
-            image_quality_enabled: Enable BRISQUE image quality assessment (CPU-based)
+            image_quality_enabled: Enable BRISQUE image quality assessment (CPU-based).
+                                   Default None uses settings.image_quality_enabled (False by default
+                                   due to pyiqa/NumPy 2.0 incompatibility).
             pet_classification_enabled: Enable pet classification for false positive reduction
             redis_client: Redis client for re-id storage (optional)
             use_enrichment_service: Use HTTP service at ai-enrichment:8094 instead of local models
                                     for vehicle, pet, and clothing classification
             enrichment_client: Optional EnrichmentClient instance (uses global if not provided)
         """
+        # Import settings to get image_quality_enabled default
+        from backend.core.config import get_settings
+
         self.model_manager = model_manager or get_model_manager()
         self.min_confidence = min_confidence
         self.license_plate_enabled = license_plate_enabled
@@ -759,7 +764,12 @@ class EnrichmentPipeline:
         self.clothing_segmentation_enabled = clothing_segmentation_enabled
         self.vehicle_damage_detection_enabled = vehicle_damage_detection_enabled
         self.vehicle_classification_enabled = vehicle_classification_enabled
-        self.image_quality_enabled = image_quality_enabled
+        # Use config default if not explicitly set (disabled due to pyiqa/NumPy 2.0 incompatibility)
+        if image_quality_enabled is None:
+            settings = get_settings()
+            self.image_quality_enabled = settings.image_quality_enabled
+        else:
+            self.image_quality_enabled = image_quality_enabled
         self.pet_classification_enabled = pet_classification_enabled
         self._previous_quality_results: dict[str, ImageQualityResult] = {}
         self.redis_client = redis_client
@@ -1176,9 +1186,13 @@ class EnrichmentPipeline:
                     logger.info(f"Motion context: {blur_context}")
 
             except Exception as e:
-                error_msg = f"Image quality assessment failed: {e}"
-                logger.error(error_msg)
-                result.errors.append(error_msg)
+                # Model disabled is expected behavior when pyiqa is incompatible
+                if "disabled" in str(e).lower():
+                    logger.debug(f"Image quality assessment skipped (model disabled): {e}")
+                else:
+                    error_msg = f"Image quality assessment failed: {e}"
+                    logger.error(error_msg)
+                    result.errors.append(error_msg)
 
         # Run pet classification on dog/cat detections for false positive reduction
         if self.pet_classification_enabled and pil_image:
@@ -1931,6 +1945,13 @@ class EnrichmentPipeline:
         except KeyError as e:
             logger.warning("brisque-quality model not available in MODEL_ZOO")
             raise RuntimeError("brisque-quality model not configured") from e
+        except RuntimeError as e:
+            # Model disabled is expected behavior, log at debug level
+            if "disabled" in str(e).lower():
+                logger.debug(f"Image quality assessment skipped: {e}")
+            else:
+                logger.error(f"Image quality assessment error: {e}")
+            raise
         except Exception as e:
             logger.error(f"Image quality assessment error: {e}")
             raise

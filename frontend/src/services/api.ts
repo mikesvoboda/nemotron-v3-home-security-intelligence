@@ -14,6 +14,12 @@
 // ============================================================================
 
 export type {
+  AlertRule,
+  AlertRuleCreate,
+  AlertRuleListResponse,
+  AlertRuleSchedule,
+  AlertRuleUpdate,
+  AlertSeverity,
   AuditLogListResponse,
   AuditLogResponse,
   AuditLogStats,
@@ -56,10 +62,20 @@ export type {
   TelemetryResponse,
   ValidationError,
   WorkerStatus,
+  Zone,
+  ZoneCreate,
+  ZoneListResponse,
+  ZoneShape,
+  ZoneType,
+  ZoneUpdate,
 } from '../types/generated';
-
 // Import concrete types for use in this module
 import type {
+  AlertRule as GeneratedAlertRule,
+  AlertRuleCreate as GeneratedAlertRuleCreate,
+  AlertRuleListResponse as GeneratedAlertRuleListResponse,
+  AlertRuleUpdate as GeneratedAlertRuleUpdate,
+  AlertSeverity,
   AuditLogListResponse as GeneratedAuditLogListResponse,
   AuditLogResponse as GeneratedAuditLogResponse,
   AuditLogStats as GeneratedAuditLogStats,
@@ -87,6 +103,10 @@ import type {
   SystemConfigUpdate,
   SystemStats,
   TelemetryResponse,
+  Zone,
+  ZoneCreate,
+  ZoneListResponse as GeneratedZoneListResponse,
+  ZoneUpdate,
 } from '../types/generated';
 
 // ============================================================================
@@ -1257,4 +1277,232 @@ export async function fetchAuditStats(): Promise<GeneratedAuditLogStats> {
  */
 export async function fetchAuditLog(id: number): Promise<GeneratedAuditLogResponse> {
   return fetchApi<GeneratedAuditLogResponse>(`/api/audit/${id}`);
+}
+
+// ============================================================================
+// Alert Rules Endpoints
+// ============================================================================
+
+/**
+ * Query parameters for fetching alert rules
+ */
+export interface AlertRulesQueryParams {
+  /** Filter by enabled status */
+  enabled?: boolean;
+  /** Filter by severity level */
+  severity?: AlertSeverity;
+  /** Maximum number of results (default 50) */
+  limit?: number;
+  /** Number of results to skip for pagination */
+  offset?: number;
+}
+
+/**
+ * Fetch all alert rules with optional filtering and pagination.
+ *
+ * @param params - Query parameters for filtering
+ * @returns AlertRuleListResponse with rules and pagination info
+ */
+export async function fetchAlertRules(
+  params?: AlertRulesQueryParams
+): Promise<GeneratedAlertRuleListResponse> {
+  const queryParams = new URLSearchParams();
+
+  if (params) {
+    if (params.enabled !== undefined) queryParams.append('enabled', String(params.enabled));
+    if (params.severity) queryParams.append('severity', params.severity);
+    if (params.limit !== undefined) queryParams.append('limit', String(params.limit));
+    if (params.offset !== undefined) queryParams.append('offset', String(params.offset));
+  }
+
+  const queryString = queryParams.toString();
+  const endpoint = queryString ? `/api/alerts/rules?${queryString}` : '/api/alerts/rules';
+
+  return fetchApi<GeneratedAlertRuleListResponse>(endpoint);
+}
+
+/**
+ * Fetch a single alert rule by ID.
+ *
+ * @param id - Alert rule UUID
+ * @returns AlertRule with rule details
+ */
+export async function fetchAlertRule(id: string): Promise<GeneratedAlertRule> {
+  return fetchApi<GeneratedAlertRule>(`/api/alerts/rules/${id}`);
+}
+
+/**
+ * Create a new alert rule.
+ *
+ * @param data - Alert rule creation data
+ * @returns Created AlertRule
+ */
+export async function createAlertRule(data: GeneratedAlertRuleCreate): Promise<GeneratedAlertRule> {
+  return fetchApi<GeneratedAlertRule>('/api/alerts/rules', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Update an existing alert rule.
+ *
+ * @param id - Alert rule UUID
+ * @param data - Alert rule update data
+ * @returns Updated AlertRule
+ */
+export async function updateAlertRule(
+  id: string,
+  data: GeneratedAlertRuleUpdate
+): Promise<GeneratedAlertRule> {
+  return fetchApi<GeneratedAlertRule>(`/api/alerts/rules/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Delete an alert rule.
+ *
+ * @param id - Alert rule UUID
+ */
+export async function deleteAlertRule(id: string): Promise<void> {
+  return fetchApi<void>(`/api/alerts/rules/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+/**
+ * Test result for a single event
+ */
+export interface RuleTestEventResult {
+  event_id: number;
+  camera_id: string;
+  risk_score: number | null;
+  object_types: string[];
+  matches: boolean;
+  matched_conditions: string[];
+  started_at: string | null;
+}
+
+/**
+ * Response from testing an alert rule
+ */
+export interface RuleTestResponse {
+  rule_id: string;
+  rule_name: string;
+  events_tested: number;
+  events_matched: number;
+  match_rate: number;
+  results: RuleTestEventResult[];
+}
+
+/**
+ * Request for testing an alert rule
+ */
+export interface RuleTestRequest {
+  /** Specific event IDs to test against */
+  event_ids?: number[];
+  /** Maximum number of recent events to test (if event_ids not provided) */
+  limit?: number;
+  /** Override current time for schedule testing (ISO format) */
+  test_time?: string;
+}
+
+/**
+ * Test an alert rule against historical events.
+ *
+ * @param id - Alert rule UUID
+ * @param request - Test request parameters
+ * @returns RuleTestResponse with per-event match results
+ */
+export async function testAlertRule(id: string, request?: RuleTestRequest): Promise<RuleTestResponse> {
+  return fetchApi<RuleTestResponse>(`/api/alerts/rules/${id}/test`, {
+    method: 'POST',
+    body: JSON.stringify(request || { limit: 10 }),
+  });
+}
+
+// ============================================================================
+// Zone Endpoints
+// ============================================================================
+
+/**
+ * Fetch all zones for a camera.
+ *
+ * @param cameraId - Camera UUID
+ * @param enabled - Optional filter by enabled status
+ * @returns Zone list with all zones for the camera
+ */
+export async function fetchZones(
+  cameraId: string,
+  enabled?: boolean
+): Promise<GeneratedZoneListResponse> {
+  const queryParams = new URLSearchParams();
+  if (enabled !== undefined) {
+    queryParams.append('enabled', String(enabled));
+  }
+
+  const queryString = queryParams.toString();
+  const endpoint = queryString
+    ? `/api/cameras/${cameraId}/zones?${queryString}`
+    : `/api/cameras/${cameraId}/zones`;
+
+  return fetchApi<GeneratedZoneListResponse>(endpoint);
+}
+
+/**
+ * Fetch a single zone by ID.
+ *
+ * @param cameraId - Camera UUID
+ * @param zoneId - Zone UUID
+ * @returns Zone object
+ */
+export async function fetchZone(cameraId: string, zoneId: string): Promise<Zone> {
+  return fetchApi<Zone>(`/api/cameras/${cameraId}/zones/${zoneId}`);
+}
+
+/**
+ * Create a new zone for a camera.
+ *
+ * @param cameraId - Camera UUID
+ * @param data - Zone creation data
+ * @returns Created zone object
+ */
+export async function createZone(cameraId: string, data: ZoneCreate): Promise<Zone> {
+  return fetchApi<Zone>(`/api/cameras/${cameraId}/zones`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Update an existing zone.
+ *
+ * @param cameraId - Camera UUID
+ * @param zoneId - Zone UUID
+ * @param data - Zone update data
+ * @returns Updated zone object
+ */
+export async function updateZone(
+  cameraId: string,
+  zoneId: string,
+  data: ZoneUpdate
+): Promise<Zone> {
+  return fetchApi<Zone>(`/api/cameras/${cameraId}/zones/${zoneId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Delete a zone.
+ *
+ * @param cameraId - Camera UUID
+ * @param zoneId - Zone UUID
+ */
+export async function deleteZone(cameraId: string, zoneId: string): Promise<void> {
+  return fetchApi<void>(`/api/cameras/${cameraId}/zones/${zoneId}`, {
+    method: 'DELETE',
+  });
 }

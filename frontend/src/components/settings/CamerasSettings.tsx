@@ -1,6 +1,6 @@
 import { Dialog, Transition } from '@headlessui/react';
 import { clsx } from 'clsx';
-import { AlertCircle, Camera as CameraIcon, Edit2, Plus, Trash2, X } from 'lucide-react';
+import { AlertCircle, Camera as CameraIcon, Edit2, MapPin, Plus, Trash2, X } from 'lucide-react';
 import { Fragment, useEffect, useState } from 'react';
 
 import {
@@ -12,6 +12,7 @@ import {
   type CameraCreate,
   type CameraUpdate,
 } from '../../services/api';
+import { ZoneEditor } from '../zones';
 
 /** Valid camera status values matching backend CameraStatus enum */
 type CameraStatusValue = 'online' | 'offline' | 'error' | 'unknown';
@@ -50,6 +51,9 @@ export default function CamerasSettings() {
   });
   const [formErrors, setFormErrors] = useState<CameraFormErrors>({});
   const [submitting, setSubmitting] = useState(false);
+
+  // Zone editor state
+  const [zoneEditorCamera, setZoneEditorCamera] = useState<Camera | null>(null);
 
   // Load cameras on mount
   useEffect(() => {
@@ -310,9 +314,18 @@ export default function CamerasSettings() {
                   <td className="whitespace-nowrap px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
+                        onClick={() => setZoneEditorCamera(camera)}
+                        className="rounded p-1.5 text-gray-400 transition-colors hover:bg-gray-800 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+                        aria-label={`Configure zones for ${camera.name}`}
+                        title="Configure Zones"
+                      >
+                        <MapPin className="h-4 w-4" />
+                      </button>
+                      <button
                         onClick={() => handleOpenEditModal(camera)}
                         className="rounded p-1.5 text-gray-400 transition-colors hover:bg-gray-800 hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary"
                         aria-label={`Edit ${camera.name}`}
+                        title="Edit Camera"
                       >
                         <Edit2 className="h-4 w-4" />
                       </button>
@@ -320,6 +333,7 @@ export default function CamerasSettings() {
                         onClick={() => handleOpenDeleteModal(camera)}
                         className="rounded p-1.5 text-gray-400 transition-colors hover:bg-gray-800 hover:text-red-500 focus:outline-none focus:ring-2 focus:ring-red-500"
                         aria-label={`Delete ${camera.name}`}
+                        title="Delete Camera"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -544,6 +558,15 @@ export default function CamerasSettings() {
           </div>
         </Dialog>
       </Transition>
+
+      {/* Zone Editor Modal */}
+      {zoneEditorCamera && (
+        <ZoneEditor
+          camera={zoneEditorCamera}
+          isOpen={Boolean(zoneEditorCamera)}
+          onClose={() => setZoneEditorCamera(null)}
+        />
+      )}
     </div>
   );
 }
