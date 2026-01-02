@@ -15,6 +15,7 @@ from .enums import Severity
 if TYPE_CHECKING:
     from .alert import Alert
     from .camera import Camera
+    from .event_audit import EventAudit
 
 
 class Event(Base):
@@ -40,6 +41,8 @@ class Event(Base):
     risk_level: Mapped[str | None] = mapped_column(String, nullable=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     reasoning: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Full prompt sent to Nemotron LLM for analysis (for debugging/improvement)
+    llm_prompt: Mapped[str | None] = mapped_column(Text, nullable=True)
     detection_ids: Mapped[str | None] = mapped_column(Text, nullable=True)
     reviewed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -61,6 +64,9 @@ class Event(Base):
     camera: Mapped[Camera] = relationship("Camera", back_populates="events")
     alerts: Mapped[list[Alert]] = relationship(
         "Alert", back_populates="event", cascade="all, delete-orphan"
+    )
+    audit: Mapped[EventAudit | None] = relationship(
+        "EventAudit", back_populates="event", uselist=False, cascade="all, delete-orphan"
     )
 
     # Indexes for common queries
