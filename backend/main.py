@@ -11,6 +11,7 @@ from backend.api.middleware import AuthMiddleware, SecurityHeadersMiddleware
 from backend.api.middleware.request_id import RequestIDMiddleware
 from backend.api.routes import (
     admin,
+    ai_audit,
     alerts,
     audit,
     cameras,
@@ -340,6 +341,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 
 # Register routers
 app.include_router(admin.router)
+app.include_router(ai_audit.router)
 app.include_router(alerts.router)
 app.include_router(audit.router)
 app.include_router(cameras.router)
