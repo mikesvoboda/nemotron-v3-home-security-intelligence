@@ -124,8 +124,10 @@ def mock_pynvml_no_gpu():
 @pytest.fixture
 def mock_database_session():
     """Mock database session."""
+    from sqlalchemy.ext.asyncio import AsyncSession
+
     with patch("backend.services.gpu_monitor.get_session") as mock_get_session:
-        mock_session = AsyncMock()
+        mock_session = AsyncMock(spec=AsyncSession)
         mock_session.__aenter__.return_value = mock_session
         mock_session.__aexit__.return_value = None
         mock_session.commit = AsyncMock()

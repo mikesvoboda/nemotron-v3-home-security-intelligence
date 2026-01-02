@@ -1,9 +1,11 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
+
 import Header from './Header';
 import * as useConnectionStatusModule from '../../hooks/useConnectionStatus';
 import * as useHealthStatusModule from '../../hooks/useHealthStatus';
+import { checkAccessibility, checkNavigationAccessibility, checkInteractiveAccessibility } from '../../test-utils';
 
 import type { ChannelStatus, ConnectionState } from '../../hooks/useWebSocketStatus';
 
@@ -1348,6 +1350,117 @@ describe('Header', () => {
       expect(screen.queryByTestId('health-tooltip')).not.toBeInTheDocument();
 
       vi.useRealTimers();
+    });
+  });
+
+  describe('axe-core accessibility compliance', () => {
+    it('has no accessibility violations in default state', async () => {
+      const { container } = render(<Header />);
+      await checkAccessibility(container);
+    });
+
+    it('has no accessibility violations when connected', async () => {
+      const systemStatus = {
+        type: 'system_status' as const,
+        data: {
+          gpu: {
+            utilization: 45,
+            memory_used: 8192,
+            memory_total: 24576,
+            temperature: 65,
+            inference_fps: 30.5,
+          },
+          cameras: { active: 3, total: 5 },
+          queue: { pending: 0, processing: 0 },
+          health: 'healthy' as const,
+        },
+        timestamp: '2025-12-23T10:00:00Z',
+      };
+
+      vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(
+        createMockConnectionStatus('connected', 'connected', systemStatus)
+      );
+
+      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
+        health: {
+          status: 'healthy',
+          services: {
+            database: { status: 'healthy', message: 'OK' },
+          },
+          timestamp: '2025-12-23T10:00:00Z',
+        },
+        isLoading: false,
+        error: null,
+        overallStatus: 'healthy',
+        services: {
+          database: { status: 'healthy', message: 'OK' },
+        },
+        refresh: vi.fn(),
+      });
+
+      const { container } = render(<Header />);
+      await checkAccessibility(container);
+    });
+
+    it('passes navigation accessibility checks', async () => {
+      const { container } = render(<Header />);
+      await checkNavigationAccessibility(container);
+    });
+
+    it('passes interactive accessibility checks for hamburger menu', async () => {
+      const { container } = render(<Header />);
+      await checkInteractiveAccessibility(container);
+    });
+
+    it('has no accessibility violations with tooltip visible', async () => {
+      const systemStatus = {
+        type: 'system_status' as const,
+        data: {
+          gpu: {
+            utilization: 45,
+            memory_used: 8192,
+            memory_total: 24576,
+            temperature: 65,
+            inference_fps: 30.5,
+          },
+          cameras: { active: 3, total: 5 },
+          queue: { pending: 0, processing: 0 },
+          health: 'healthy' as const,
+        },
+        timestamp: '2025-12-23T10:00:00Z',
+      };
+
+      vi.spyOn(useConnectionStatusModule, 'useConnectionStatus').mockReturnValue(
+        createMockConnectionStatus('connected', 'connected', systemStatus)
+      );
+
+      vi.spyOn(useHealthStatusModule, 'useHealthStatus').mockReturnValue({
+        health: {
+          status: 'healthy',
+          services: {
+            database: { status: 'healthy', message: 'OK' },
+            redis: { status: 'healthy', message: 'Connected' },
+          },
+          timestamp: '2025-12-23T10:00:00Z',
+        },
+        isLoading: false,
+        error: null,
+        overallStatus: 'healthy',
+        services: {
+          database: { status: 'healthy', message: 'OK' },
+          redis: { status: 'healthy', message: 'Connected' },
+        },
+        refresh: vi.fn(),
+      });
+
+      const { container } = render(<Header />);
+
+      // Show tooltip
+      const healthIndicator = screen.getByTestId('health-indicator');
+      fireEvent.mouseEnter(healthIndicator);
+
+      // Check accessibility with tooltip visible
+      await checkAccessibility(container);
     });
   });
 });

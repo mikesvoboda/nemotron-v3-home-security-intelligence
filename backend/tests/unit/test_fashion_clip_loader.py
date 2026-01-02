@@ -125,8 +125,8 @@ def test_suspicious_and_service_mutually_exclusive():
 # Test format_clothing_context
 
 
-def test_format_clothing_context_basic():
-    """Test basic clothing context formatting."""
+def test_fashion_clip_format_clothing_context_basic():
+    """Test basic clothing context formatting with FashionCLIP."""
     classification = ClothingClassification(
         top_category="casual clothing",
         confidence=0.85,
