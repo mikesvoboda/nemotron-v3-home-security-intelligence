@@ -46,6 +46,9 @@ SUPPORTED_PROMPTS = {
     "<OCR_WITH_REGION>",
 }
 
+# VQA prompt prefix - VQA prompts have format: <VQA>question text
+VQA_PROMPT_PREFIX = "<VQA>"
+
 
 class ExtractRequest(BaseModel):
     """Request format for extract endpoint."""
@@ -53,7 +56,7 @@ class ExtractRequest(BaseModel):
     image: str = Field(..., description="Base64 encoded image")
     prompt: str = Field(
         default="<CAPTION>",
-        description="Florence-2 prompt (e.g., <CAPTION>, <DETAILED_CAPTION>, <MORE_DETAILED_CAPTION>)",
+        description="Florence-2 prompt (e.g., <CAPTION>, <DETAILED_CAPTION>, <VQA>What color is the car?)",
     )
 
 
@@ -448,6 +451,7 @@ async def extract(request: ExtractRequest) -> ExtractResponse:
     - <REGION_PROPOSAL>: Region proposals
     - <OCR>: Optical character recognition
     - <OCR_WITH_REGION>: OCR with region information
+    - <VQA>question: Visual question answering (question text follows the tag)
 
     Returns:
         Extraction results with the generated text response
@@ -456,12 +460,14 @@ async def extract(request: ExtractRequest) -> ExtractResponse:
         raise HTTPException(status_code=503, detail="Model not loaded")
 
     try:
-        # Validate prompt
-        if request.prompt not in SUPPORTED_PROMPTS:
+        # Validate prompt - check exact match or VQA prefix
+        is_vqa_prompt = request.prompt.startswith(VQA_PROMPT_PREFIX)
+        if not is_vqa_prompt and request.prompt not in SUPPORTED_PROMPTS:
             raise HTTPException(
                 status_code=400,
                 detail=f"Unsupported prompt: {request.prompt}. "
-                f"Supported prompts: {', '.join(sorted(SUPPORTED_PROMPTS))}",
+                f"Supported prompts: {', '.join(sorted(SUPPORTED_PROMPTS))}, "
+                f"or VQA format: {VQA_PROMPT_PREFIX}<question>",
             )
 
         # Validate base64 string size BEFORE decoding to prevent DoS
