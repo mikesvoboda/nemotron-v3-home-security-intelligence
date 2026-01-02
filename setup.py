@@ -60,6 +60,24 @@ def find_available_port(start: int) -> int:
     return port
 
 
+def prompt_with_default(prompt: str, default: str) -> str:
+    """Prompt user for input with a default value.
+
+    Args:
+        prompt: Prompt text to display
+        default: Default value if user presses Enter
+
+    Returns:
+        User input or default value
+    """
+    try:
+        user_input = input(f"{prompt} [{default}]: ").strip()
+        return user_input if user_input else default
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return default
+
+
 def generate_password(length: int = 16) -> str:
     """Generate a secure random password.
 
@@ -169,6 +187,70 @@ def generate_docker_override_content(config: dict) -> str:
         lines.append("")
 
     return "\n".join(lines)
+
+
+def run_quick_mode() -> dict:
+    """Run quick setup mode with minimal prompts.
+
+    Returns:
+        Configuration dictionary
+    """
+    print("=" * 60)
+    print("  Home Security Intelligence - Quick Setup")
+    print("=" * 60)
+    print()
+
+    # Check port conflicts
+    print("Checking for port conflicts...")
+    conflicts = []
+    ports = {}
+    for service, info in SERVICES.items():
+        default_port = info["port"]
+        if check_port_available(default_port):
+            ports[service] = default_port
+        else:
+            available = find_available_port(default_port)
+            ports[service] = available
+            conflicts.append(f"  {service}: {default_port} -> {available}")
+
+    if conflicts:
+        print("! Port conflicts detected, using alternatives:")
+        for c in conflicts:
+            print(c)
+    else:
+        print("* All default ports available")
+    print()
+
+    # Paths
+    print("-- Paths " + "-" * 52)
+    camera_path = prompt_with_default("Camera upload path", "/export/foscam")
+    ai_models_path = prompt_with_default("AI models path", "/export/ai_models")
+    print()
+
+    # Credentials
+    print("-- Credentials " + "-" * 46)
+    postgres_password = prompt_with_default("Database password", generate_password())
+    ftp_password = prompt_with_default("FTP password", generate_password())
+    print()
+
+    # Ports (optional customization)
+    print("-- Ports (press Enter to keep defaults) " + "-" * 21)
+    for service, info in SERVICES.items():
+        suggested = ports[service]
+        custom = prompt_with_default(f"{info['desc']}", str(suggested))
+        try:
+            ports[service] = int(custom)
+        except ValueError:
+            ports[service] = suggested
+    print()
+
+    return {
+        "camera_path": camera_path,
+        "ai_models_path": ai_models_path,
+        "postgres_password": postgres_password,
+        "ftp_password": ftp_password,
+        "ports": ports,
+    }
 
 
 if __name__ == "__main__":
