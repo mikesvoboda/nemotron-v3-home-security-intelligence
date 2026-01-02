@@ -148,11 +148,11 @@ podman run --rm --device nvidia.com/gpu=all nvidia/cuda:12.0-base-ubuntu22.04 nv
 
 ### Deployment Options
 
-| Mode        | Use Case                      | AI Services   | Compose File              |
-| ----------- | ----------------------------- | ------------- | ------------------------- |
-| Production  | Full deployment               | Containerized | `docker-compose.prod.yml` |
-| Development | Local development, hot reload | Host (native) | `docker-compose.yml`      |
-| GHCR        | Pre-built images, fast deploy | Containerized | `docker-compose.ghcr.yml` |
+| Mode        | Use Case                          | AI Services            | Compose File              |
+| ----------- | --------------------------------- | ---------------------- | ------------------------- |
+| Production  | Full deployment                   | Containerized          | `docker-compose.prod.yml` |
+| Development | Local development, hot reload     | Host (native)          | `docker-compose.yml`      |
+| GHCR        | Pre-built app images, fast deploy | External (host/remote) | `docker-compose.ghcr.yml` |
 
 **Production deployment:**
 
@@ -221,6 +221,10 @@ RETENTION_DAYS=30
 ### AI Configuration
 
 ~8 min read | [Full Guide](operator/ai-overview.md)
+
+**Deployment modes & networking (start here if AI is unreachable):**
+
+- [Deployment Modes & AI Networking](operator/deployment-modes.md) - pick the right URLs for your setup
 
 **AI Services Documentation:**
 
@@ -618,6 +622,10 @@ docker stats
 
 [Full Troubleshooting Guide](admin-guide/troubleshooting.md)
 
+For a fast “health → fix” decision flow, use:
+
+- [Troubleshooting Index](reference/troubleshooting/index.md) (includes a triage flowchart)
+
 ### Quick Diagnostics
 
 ```bash
@@ -627,6 +635,9 @@ curl http://localhost:8000/api/system/health
 # AI service connectivity
 curl http://localhost:8090/health   # RT-DETRv2
 curl http://localhost:8091/health   # Nemotron
+curl http://localhost:8092/health   # Florence-2 (optional)
+curl http://localhost:8093/health   # CLIP (optional)
+curl http://localhost:8094/health   # Enrichment (optional)
 
 # GPU availability
 nvidia-smi
@@ -640,14 +651,14 @@ docker compose -f docker-compose.prod.yml logs --tail=100 backend
 
 ### Common Issues
 
-| Issue                      | Quick Fix                                                                                     |
-| -------------------------- | --------------------------------------------------------------------------------------------- |
-| AI services unreachable    | Check `RTDETR_URL` / `NEMOTRON_URL` in `.env`. For Docker Desktop, use `host.docker.internal` |
-| GPU out of memory          | Close other GPU applications, restart AI services                                             |
-| Database connection failed | Verify `DATABASE_URL`, check PostgreSQL is running                                            |
-| WebSocket won't connect    | Check CORS settings, verify backend is healthy                                                |
-| Images not processing      | Check `FOSCAM_BASE_PATH`, enable `FILE_WATCHER_POLLING` for Docker Desktop                    |
-| DLQ jobs accumulating      | Verify AI services are healthy, check error messages in DLQ                                   |
+| Issue                      | Quick Fix                                                                                          |
+| -------------------------- | -------------------------------------------------------------------------------------------------- |
+| AI services unreachable    | Start with [Deployment Modes & AI Networking](operator/deployment-modes.md) to choose correct URLs |
+| GPU out of memory          | Close other GPU applications, restart AI services                                                  |
+| Database connection failed | Verify `DATABASE_URL`, check PostgreSQL is running                                                 |
+| WebSocket won't connect    | Check CORS settings, verify backend is healthy                                                     |
+| Images not processing      | Check `FOSCAM_BASE_PATH`, enable `FILE_WATCHER_POLLING` for Docker Desktop                         |
+| DLQ jobs accumulating      | Verify AI services are healthy, check error messages in DLQ                                        |
 
 ### Getting Help
 

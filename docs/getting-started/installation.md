@@ -199,9 +199,19 @@ Edit `.env` with your settings:
 DATABASE_URL=postgresql+asyncpg://security:security_dev_password@postgres:5432/security
 REDIS_URL=redis://redis:6379
 
-# AI Services (adjust if AI servers run on different host)
-RTDETR_URL=http://host.docker.internal:8090
-NEMOTRON_URL=http://host.docker.internal:8091
+# AI Services (pick URLs based on your deployment mode)
+# See: docs/operator/deployment-modes.md
+#
+# Production (docker-compose.prod.yml): backend reaches AI via compose DNS
+# RTDETR_URL=http://ai-detector:8090
+# NEMOTRON_URL=http://ai-llm:8091
+# FLORENCE_URL=http://ai-florence:8092
+# CLIP_URL=http://ai-clip:8093
+# ENRICHMENT_URL=http://ai-enrichment:8094
+#
+# Development (host-run AI):
+# RTDETR_URL=http://localhost:8090
+# NEMOTRON_URL=http://localhost:8091
 
 # Camera Upload Directory
 FOSCAM_BASE_PATH=/export/foscam

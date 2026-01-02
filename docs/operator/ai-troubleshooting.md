@@ -254,11 +254,11 @@ httpx.ConnectError: [Errno 111] Connection refused
 
 **Docker/Podman networking:**
 
-| Platform | Runtime        | Use This URL                           |
-| -------- | -------------- | -------------------------------------- |
-| macOS    | Docker Desktop | `http://host.docker.internal:8090`     |
-| macOS    | Podman         | `http://host.containers.internal:8090` |
-| Linux    | Docker/Podman  | `http://192.168.1.100:8090` (host IP)  |
+The correct URL depends on your deployment mode (production compose DNS vs host-run AI vs “backend container + host AI”).
+
+Start here:
+
+- [Deployment Modes & AI Networking](deployment-modes.md) (decision table + copy/paste `.env` snippets)
 
 ### From Container Can't Reach Host
 

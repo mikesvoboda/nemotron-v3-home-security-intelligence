@@ -215,6 +215,8 @@ AI_HEALTH_TIMEOUT=30.0
 
 AI services can run **containerized** (production compose) or **on the host** (development). Configure URLs based on what your backend can reach.
 
+> See [Deployment Modes & AI Networking](../operator/deployment-modes.md) for a decision table and copy/paste `.env` snippets.
+
 ```bash
 # Production (docker-compose.prod.yml): backend -> AI services on the compose network
 RTDETR_URL=http://ai-detector:8090
