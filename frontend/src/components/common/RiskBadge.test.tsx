@@ -2,6 +2,8 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import RiskBadge from './RiskBadge';
+import { checkAccessibility, checkInteractiveAccessibility } from '../../test-utils';
+
 
 describe('RiskBadge', () => {
   describe('risk level rendering', () => {
@@ -170,6 +172,21 @@ describe('RiskBadge', () => {
       render(<RiskBadge level="medium" />);
       const badge = screen.getByRole('status');
       expect(badge).toBeInTheDocument();
+    });
+
+    it('has no accessibility violations for low risk', async () => {
+      const { container } = render(<RiskBadge level="low" />);
+      await checkAccessibility(container);
+    });
+
+    it('has no accessibility violations for critical risk with score', async () => {
+      const { container } = render(<RiskBadge level="critical" score={95} showScore />);
+      await checkAccessibility(container);
+    });
+
+    it('passes interactive accessibility checks', async () => {
+      const { container } = render(<RiskBadge level="high" />);
+      await checkInteractiveAccessibility(container);
     });
   });
 
