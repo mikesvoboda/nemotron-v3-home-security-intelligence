@@ -26,7 +26,7 @@ Shows: Horizontal bar divided into four color-coded sections showing risk levels
 Size: 1000x200 pixels (5:1 aspect ratio)
 Alt text: Risk level color guide showing four sections - green for Low (0-29), yellow for Medium (30-59), orange for High (60-84), and red for Critical (85-100)
 -->
-<!-- Image placeholder - risk level color guide would go here -->
+<!-- Screenshot: Risk level color guide showing Low (green), Medium (yellow), High (orange), Critical (red) sections -->
 
 _Caption: Risk levels are color-coded for easy identification._
 
@@ -100,7 +100,7 @@ Shows: Alerts page with warning triangle icon in title, severity filter dropdown
 Size: 1200x700 pixels (12:7 aspect ratio)
 Alt text: Alerts page showing high and critical risk events with orange and red severity indicators, filter dropdown, and event cards
 -->
-<!-- Image placeholder - alerts page screenshot would go here -->
+<!-- Screenshot: Alerts page with severity filter, refresh button, and high/critical event cards -->
 
 _Caption: The Alerts page shows only high-priority events that need your attention._
 
@@ -141,7 +141,7 @@ Shows: Four event cards side by side, each representing a different risk level: 
 Size: 1000x400 pixels (2.5:1 aspect ratio)
 Alt text: Four example alert cards showing Low (green), Medium (yellow), High (orange), and Critical (red) risk levels with their distinctive border colors
 -->
-<!-- Image placeholder - alert cards comparison would go here -->
+<!-- Screenshot: Four event cards showing Low, Medium, High, and Critical risk levels with color-coded borders -->
 
 _Caption: Event cards are color-coded by risk level for easy identification._
 

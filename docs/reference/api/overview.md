@@ -106,6 +106,15 @@ For container orchestration and monitoring:
 | `GET /api/system/health`       | Detailed health with service status    |
 | `GET /api/system/health/ready` | Detailed readiness with worker status  |
 
+### When to Use Each Health Endpoint
+
+| Endpoint                   | Use Case           | When to Use                                                                    |
+| -------------------------- | ------------------ | ------------------------------------------------------------------------------ |
+| `/health`                  | Liveness (K8s)     | Container crash detection - restarts container if probe fails                  |
+| `/ready`                   | Readiness (K8s)    | Load balancer routing - removes instance from traffic until dependencies ready |
+| `/api/system/health`       | Detailed diagnosis | Operator debugging - shows individual service status and error details         |
+| `/api/system/health/ready` | Worker diagnosis   | Pipeline debugging - shows worker health and queue status                      |
+
 ## Rate Limiting
 
 Rate limiting is enabled by default to protect the API:

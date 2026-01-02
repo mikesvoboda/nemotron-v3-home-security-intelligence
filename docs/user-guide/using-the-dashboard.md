@@ -17,7 +17,7 @@ Shows: Full dashboard view with numbered callouts pointing to: (1) Header/status
 Size: 1400x900 pixels (16:9 aspect ratio)
 Alt text: Annotated dashboard overview showing all major sections with numbered callouts for learning the interface
 -->
-<!-- Image placeholder - screenshot would go here -->
+<!-- Screenshot: Main dashboard with numbered callouts for header, sidebar, stats, risk gauge, GPU stats, cameras, and activity feed -->
 
 _Caption: The main dashboard with numbered sections for easy reference._
 
@@ -311,7 +311,7 @@ Shows: Full event detail modal with: header (camera name, timestamp, duration, l
 Size: 900x850 pixels (~1:1 aspect ratio)
 Alt text: Complete event detail modal showing all sections including detection image, AI analysis, detected objects, and user notes area
 -->
-<!-- Image placeholder - screenshot would go here -->
+<!-- Screenshot: Event detail modal showing detection image, AI analysis, detected objects, and notes section -->
 
 _Caption: The event detail popup shows everything the AI observed and analyzed._
 
@@ -388,7 +388,7 @@ Shows: Alerts page with warning triangle icon in title, severity filter dropdown
 Size: 1200x700 pixels (12:7 aspect ratio)
 Alt text: Alerts page showing filtered view of high and critical risk events with severity dropdown and colored event cards
 -->
-<!-- Image placeholder - screenshot would go here -->
+<!-- Screenshot: Alerts page with severity filter dropdown and high/critical event cards -->
 
 _Caption: The Alerts page shows only high-priority events that need your attention._
 
@@ -429,7 +429,7 @@ Shows: Sidebar with navigation items: Dashboard (selected/highlighted in green),
 Size: 300x500 pixels (3:5 aspect ratio)
 Alt text: Sidebar navigation showing menu items with Dashboard selected and highlighted in green
 -->
-<!-- Image placeholder - screenshot would go here -->
+<!-- Screenshot: Sidebar navigation with Dashboard highlighted and other menu items -->
 
 _Caption: The sidebar lets you navigate between different areas of the dashboard._
 
@@ -461,7 +461,7 @@ Click **Settings** in the sidebar to configure your system.
 
 ### Settings Tabs
 
-The settings page has three tabs:
+The settings page has four tabs:
 
 #### Cameras Tab
 
@@ -480,6 +480,15 @@ The settings page has three tabs:
 - View AI model status
 - See which detection models are loaded
 - Monitor AI performance
+
+#### Notifications Tab
+
+- View email notification configuration status
+- View webhook notification configuration status
+- Test notification channels with test buttons
+- See available notification channels summary
+
+For detailed notification documentation, see the [Alerts & Notifications Guide](alerts-notifications.md).
 
 ---
 

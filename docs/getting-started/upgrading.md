@@ -83,11 +83,8 @@ git checkout v1.2.0
 ### Step 3: Update Dependencies
 
 ```bash
-# Activate Python environment
-source .venv/bin/activate
-
-# Update Python dependencies
-pip install -r backend/requirements.txt --upgrade
+# Update Python dependencies using uv (10-100x faster than pip)
+uv sync --extra dev
 
 # Update Node dependencies
 cd frontend && npm install && cd ..
@@ -299,8 +296,7 @@ git fetch origin
 git checkout "$VERSION"
 
 # Dependencies
-source .venv/bin/activate
-pip install -r backend/requirements.txt --upgrade
+uv sync --extra dev
 cd frontend && npm install && cd ..
 
 # Rebuild and start

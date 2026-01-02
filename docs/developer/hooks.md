@@ -16,8 +16,9 @@ Pre-commit hooks run automatically on every `git commit` and `git push`. They ca
 ## Installation
 
 ```bash
-# Install pre-commit framework
-pip install pre-commit
+# pre-commit is included in dev dependencies
+# Install with: uv sync --extra dev
+source .venv/bin/activate
 
 # Install hooks (run once per clone)
 pre-commit install                     # For commit hooks

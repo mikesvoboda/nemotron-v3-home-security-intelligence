@@ -4,6 +4,15 @@
 
 This directory contains end-user documentation for the Home Security Intelligence dashboard. These guides are written for non-technical users who want to understand and operate the security system.
 
+> **Note: Two Documentation Structures Exist**
+>
+> This project has two user documentation directories:
+>
+> - `docs/user-guide/` (this directory) = Comprehensive standalone documentation with detailed guides
+> - `docs/user/` = Hub-and-spoke structure with standardized shorter templates linked from `user-hub.md`
+>
+> **Choose one approach, not both.** The `user-guide/` docs are more comprehensive and standalone, while `user/` docs follow a consistent template and integrate with the User Hub. Pick the structure that best fits your documentation needs.
+
 ## Directory Contents
 
 ```

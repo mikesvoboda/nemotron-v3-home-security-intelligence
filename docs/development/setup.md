@@ -23,7 +23,7 @@ Before starting, ensure you have the following installed:
 | Requirement    | Minimum Version         | Check Command                            | Notes                 |
 | -------------- | ----------------------- | ---------------------------------------- | --------------------- |
 | **Python**     | 3.14+                   | `python3 --version`                      | Required for backend  |
-| **Node.js**    | 18+                     | `node --version`                         | Required for frontend |
+| **Node.js**    | 20.19+ or 22.12+        | `node --version`                         | Required for frontend |
 | **npm**        | 9+                      | `npm --version`                          | Comes with Node.js    |
 | **Git**        | 2.x                     | `git --version`                          | Version control       |
 | **Container**  | Docker 20+ or Podman 4+ | `docker --version` or `podman --version` | Docker or Podman      |
@@ -81,22 +81,15 @@ cd home_security_intelligence
 Create and activate a Python virtual environment:
 
 ```bash
-# Using uv (faster, recommended)
-uv venv .venv
-source .venv/bin/activate
-uv pip install -r backend/requirements.txt
+# Using uv (recommended - 10-100x faster than pip)
+# Install uv: curl -LsSf https://astral.sh/uv/install.sh | sh
+uv sync --extra dev
 
-# Or using standard venv
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r backend/requirements.txt
+# This creates .venv and installs all dependencies from pyproject.toml
+# Development tools (pre-commit, ruff, mypy, pytest) are included
 ```
 
-Install development tools:
-
-```bash
-pip install pre-commit ruff mypy pytest
-```
+**Note:** This project uses `uv` for Python dependency management with `pyproject.toml` as the dependency source. The `uv.lock` file ensures reproducible builds.
 
 ### 3. Frontend Setup
 

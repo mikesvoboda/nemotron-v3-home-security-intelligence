@@ -80,7 +80,7 @@ Shows: Complete dashboard view with all main sections visible - header bar with 
 Size: 1400x900 pixels (16:9 aspect ratio)
 Alt text: The main security dashboard showing the complete interface a new user will see when first opening the application
 -->
-<!-- Image placeholder - screenshot would go here -->
+<!-- Screenshot: First-time dashboard view with all main sections visible -->
 
 _Caption: This is what you will see when you first open the dashboard._
 
@@ -135,7 +135,7 @@ Shows: The risk gauge in a calm (green/low) state with score around 15-20, showi
 Size: 300x300 pixels (1:1 aspect ratio)
 Alt text: Risk gauge showing a low risk score with green coloring, indicating normal activity
 -->
-<!-- Image placeholder - screenshot would go here -->
+<!-- Screenshot: Risk gauge in green/low state showing calm security status -->
 
 _Caption: The Risk Gauge shows your current security status at a glance._
 

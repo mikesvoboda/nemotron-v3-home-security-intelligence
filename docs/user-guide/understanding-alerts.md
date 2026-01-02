@@ -17,7 +17,7 @@ Shows: Visual thermometer-style or horizontal bar design showing the 0-100 risk 
 Size: 1000x300 pixels (~3:1 aspect ratio)
 Alt text: Risk score scale visualization showing four risk levels from Low (green) to Critical (red) with score ranges and recommended actions
 -->
-<!-- Image placeholder -->
+<!-- Screenshot: Risk score thermometer showing 0-100 scale with Low/Medium/High/Critical color zones -->
 
 _Caption: Risk scores range from 0 (nothing to worry about) to 100 (needs immediate attention)._
 
@@ -144,7 +144,7 @@ Shows: The AI Reasoning highlighted box (with green tint) containing example rea
 Size: 700x200 pixels (3.5:1 aspect ratio)
 Alt text: AI Reasoning section showing the system's explanation for assigning a particular risk score to an event
 -->
-<!-- Image placeholder -->
+<!-- Screenshot: AI Reasoning section with green-tinted box explaining risk score factors -->
 
 _Caption: The AI Reasoning section explains why the system assigned a particular risk score._
 
