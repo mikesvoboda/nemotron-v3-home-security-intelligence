@@ -90,12 +90,12 @@ The setup script ([`scripts/setup-hooks.sh`](../../scripts/setup-hooks.sh:1)) au
 1. **Creates Python virtual environment** ([lines 26-51](../../scripts/setup-hooks.sh:26))
 
    ```bash
-   # Creates .venv/ and installs backend dependencies
-   python3 -m venv .venv
-   source .venv/bin/activate
-   pip install -r backend/requirements.txt
-   pip install pre-commit ruff mypy
+   # Creates .venv/ and installs all dependencies from pyproject.toml
+   # Uses uv (recommended - 10-100x faster than pip)
+   uv sync --extra dev
    ```
+
+   **Note:** Dependencies are defined in `pyproject.toml` and locked in `uv.lock` for reproducible builds.
 
 2. **Installs Node.js dependencies** ([lines 54-67](../../scripts/setup-hooks.sh:54))
 

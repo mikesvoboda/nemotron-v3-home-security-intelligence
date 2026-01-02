@@ -105,7 +105,7 @@ flowchart TB
 |                      | Tailwind CSS     | 3.4     | Utility-first approach, dark theme customization, responsive design            |
 |                      | Tremor           | 3.17    | Pre-built data visualization components (charts, gauges) for dashboards        |
 |                      | Vite             | 5.0     | Fast dev server with HMR, modern bundling, excellent DX                        |
-| **Backend**          | Python           | 3.11+   | AI/ML ecosystem (PyTorch, transformers), async support, rapid development      |
+| **Backend**          | Python           | 3.14+   | AI/ML ecosystem (PyTorch, transformers), async support, rapid development      |
 |                      | FastAPI          | 0.104+  | Modern async framework, automatic OpenAPI docs, type hints, WebSocket support  |
 |                      | SQLAlchemy       | 2.0     | Async ORM, excellent PostgreSQL support, type-safe queries with `Mapped` hints |
 |                      | Pydantic         | 2.0     | Request validation, settings management, schema generation                     |
@@ -151,6 +151,9 @@ flowchart TB
 | **HealthMonitor**         | `backend/services/health_monitor.py`      | Service health checks, auto-recovery                   |
 | **RetryHandler**          | `backend/services/retry_handler.py`       | Exponential backoff, dead-letter queues                |
 | **PipelineWorkerManager** | `backend/services/pipeline_workers.py`    | Background worker lifecycle management                 |
+| **AlertEngine**           | `backend/services/alert_engine.py`        | Alert rule evaluation and notification triggering      |
+| **ZoneService**           | `backend/services/zone_service.py`        | Geographic zone management for detections              |
+| **BaselineService**       | `backend/services/baseline_service.py`    | Anomaly detection via activity baselines               |
 
 ### Frontend Components
 

@@ -17,7 +17,7 @@ Shows: Complete dashboard view with all sections visible - header, sidebar, quic
 Size: 1400x900 pixels (16:9 aspect ratio)
 Alt text: The main security dashboard showing the complete interface with navigation sidebar, quick stats cards, risk gauge, camera grid, and live activity feed
 -->
-<!-- Image placeholder - dashboard screenshot would go here -->
+<!-- Screenshot: Main dashboard with header, sidebar, quick stats, risk gauge, camera grid, and activity feed -->
 
 _Caption: The main Security Dashboard - your home base for monitoring your property._
 
@@ -84,7 +84,7 @@ Shows: The header with NVIDIA logo, "LIVE MONITORING" status indicator with gree
 Size: 800x200 pixels (4:1 aspect ratio)
 Alt text: The dashboard header showing system health status with a green pulsing dot indicating live monitoring, and the tooltip displaying individual service health
 -->
-<!-- Image placeholder - header health screenshot would go here -->
+<!-- Screenshot: Header bar with NVIDIA logo, LIVE MONITORING status, and service health tooltip -->
 
 _Caption: The header bar shows system health at a glance. Hover to see individual service status._
 
@@ -119,7 +119,7 @@ Shows: Four stat cards in a row: "Active Cameras" (with camera icon and count), 
 Size: 1200x150 pixels (8:1 aspect ratio)
 Alt text: Four quick stat cards showing active cameras count, events today count, current risk score with colored badge, and system status indicator
 -->
-<!-- Image placeholder - quick stats screenshot would go here -->
+<!-- Screenshot: Quick stats row with Active Cameras, Events Today, Current Risk Score, and System Status cards -->
 
 _Caption: Quick stats give you key numbers at a glance._
 
@@ -156,7 +156,7 @@ Shows: The circular risk gauge component displaying a score (e.g., 18), with the
 Size: 400x400 pixels (1:1 aspect ratio)
 Alt text: Circular risk gauge showing current security risk level with score number in center, colored arc indicator, risk level label, and trend sparkline
 -->
-<!-- Image placeholder - risk gauge screenshot would go here -->
+<!-- Screenshot: Circular risk gauge with score number, colored arc, risk level label, and trend sparkline -->
 
 _Caption: The Risk Gauge shows your current security risk level at a glance._
 
@@ -177,7 +177,7 @@ Shows: Four risk gauges side by side showing different states: Low (green, score
 Size: 800x250 pixels (3.2:1 aspect ratio)
 Alt text: Four risk gauge examples showing Low (green), Medium (yellow), High (orange), and Critical (red) risk levels
 -->
-<!-- Image placeholder - risk gauge states screenshot would go here -->
+<!-- Screenshot: Four risk gauge examples showing Low (green), Medium (yellow), High (orange), Critical (red) states -->
 
 _Caption: The gauge changes color based on risk level - green for low, yellow for medium, orange for high, and red for critical._
 
@@ -202,7 +202,7 @@ Shows: Camera grid with 3-4 camera cards arranged in a row. Each card should sho
 Size: 1000x350 pixels (2.9:1 aspect ratio)
 Alt text: Camera grid showing multiple security cameras with thumbnails, status indicators, and one selected camera highlighted with green border
 -->
-<!-- Image placeholder - camera grid screenshot would go here -->
+<!-- Screenshot: Camera grid with camera cards showing thumbnails, status badges, names, and timestamps -->
 
 _Caption: The Camera Grid shows all your cameras at a glance. Click any camera to select it._
 

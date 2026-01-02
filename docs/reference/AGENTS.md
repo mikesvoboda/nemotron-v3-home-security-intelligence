@@ -55,6 +55,8 @@ reference/
 
 **Purpose:** Complete REST and WebSocket API documentation.
 
+> **Note:** The `docs/api-reference/` directory is the **canonical/authoritative location** for API documentation. The `docs/reference/api/` directory is maintained for historical compatibility, but `docs/api-reference/` should be treated as the source of truth for all API documentation.
+
 See `api/AGENTS.md` for detailed information.
 
 **Key Files:**
