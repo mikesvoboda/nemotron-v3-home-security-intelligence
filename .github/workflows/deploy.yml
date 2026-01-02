@@ -67,34 +67,9 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.image.name }}
 
-      # Build for scanning (amd64 only to avoid duplicate scans)
-      - name: Build image for scanning
-        if: matrix.platform.suffix == 'amd64'
-        uses: docker/build-push-action@v6
-        with:
-          context: ${{ matrix.image.context }}
-          file: ${{ matrix.image.dockerfile }}
-          push: false
-          load: true
-          platforms: ${{ matrix.platform.arch }}
-          tags: ${{ matrix.image.name }}:scan
-          cache-from: type=gha,scope=${{ matrix.image.name }}-${{ matrix.platform.suffix }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}-${{ matrix.platform.suffix }}
-
-      - name: Scan image with Trivy
-        if: matrix.platform.suffix == 'amd64'
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ matrix.image.name }}:scan
-          format: "table"
-          exit-code: "1"
-          severity: "CRITICAL,HIGH"
-
-      - name: Remove scan image to free space
-        if: matrix.platform.suffix == 'amd64'
-        run: docker rmi ${{ matrix.image.name }}:scan || true
-
       # Build and push by digest (for later manifest merge)
+      # Note: Trivy scan temporarily disabled to reduce disk usage during build
+      # TODO: Re-enable scanning from registry after push (see option 3 in PR #128)
       - name: Build and push by digest
         id: build
         uses: docker/build-push-action@v6
