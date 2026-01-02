@@ -1,6 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
 
-import ActivityFeed, { type ActivityEvent } from './ActivityFeed';
 import CameraGrid, { type CameraStatus } from './CameraGrid';
 import RiskGauge from './RiskGauge';
 import StatsRow from './StatsRow';
@@ -21,11 +20,11 @@ import {
  *
  * Assembles Phase 6 components into a cohesive dashboard layout:
  * - Top row: RiskGauge (full width)
- * - Middle: CameraGrid (full width)
- * - Bottom: ActivityFeed (full width)
+ * - Bottom: CameraGrid (full width)
  *
  * Note: GPU Statistics and Pipeline Telemetry are available on the System page
  * which provides better context with RT-DETRv2/Nemotron model cards and pipeline metrics.
+ * Live Activity feed is available on the Timeline page.
  *
  * Features:
  * - Real-time updates via WebSocket
@@ -154,25 +153,6 @@ export default function DashboardPage() {
     last_seen_at: camera.last_seen_at ?? undefined,
   }));
 
-  // Create a map from camera_id to camera name for quick lookups
-  const cameraNameMap = useMemo(() => {
-    const map = new Map<string, string>();
-    cameras.forEach((camera) => {
-      map.set(camera.id, camera.name);
-    });
-    return map;
-  }, [cameras]);
-
-  // Convert merged events to ActivityEvent[] for ActivityFeed
-  // Resolve camera_name from cameras list or fall back to 'Unknown Camera'
-  const activityEvents: ActivityEvent[] = mergedEvents.map((event) => ({
-    id: String(event.id),
-    timestamp: event.timestamp ?? event.started_at ?? new Date().toISOString(),
-    camera_name: event.camera_name ?? cameraNameMap.get(event.camera_id) ?? 'Unknown Camera',
-    risk_score: event.risk_score,
-    summary: event.summary,
-  }));
-
   // Error state
   if (error && !loading) {
     return (
@@ -215,10 +195,6 @@ export default function DashboardPage() {
               ))}
             </div>
           </div>
-
-          {/* Activity feed skeleton */}
-          <div className="mb-4 h-6 w-32 animate-pulse rounded-lg bg-gray-800 md:h-8 md:w-48"></div>
-          <div className="h-72 animate-pulse rounded-lg bg-gray-800 md:h-96"></div>
         </div>
       </div>
     );
@@ -270,17 +246,6 @@ export default function DashboardPage() {
         <div className="mb-6 md:mb-8">
           <h2 className="mb-3 text-xl font-semibold text-white md:mb-4 md:text-2xl">Camera Status</h2>
           <CameraGrid cameras={cameraStatuses} />
-        </div>
-
-        {/* Activity Feed */}
-        <div className="mb-6 md:mb-8">
-          <h2 className="mb-3 text-xl font-semibold text-white md:mb-4 md:text-2xl">Live Activity</h2>
-          <ActivityFeed
-            events={activityEvents}
-            maxItems={10}
-            autoScroll={true}
-            className="h-[400px] md:h-[600px]"
-          />
         </div>
       </div>
     </div>

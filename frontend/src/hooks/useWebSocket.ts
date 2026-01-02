@@ -318,5 +318,5 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
   };
 }
 
-// Export type guard for testing
-export { isHeartbeatMessage };
+// Export type guard and backoff function for testing
+export { isHeartbeatMessage, calculateBackoffDelay };
