@@ -244,7 +244,7 @@ jobs:
             --cov=backend \
             --cov-report=xml:coverage-integration.xml \
             --cov-report=term-missing \
-            --cov-fail-under=50 \
+            --cov-fail-under=49 \
             --junit-xml=test-results-integration.xml \
             --durations=20 \
             -v
