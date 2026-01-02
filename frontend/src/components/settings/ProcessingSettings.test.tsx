@@ -15,6 +15,7 @@ describe('ProcessingSettings', () => {
     batch_window_seconds: 90,
     batch_idle_timeout_seconds: 30,
     detection_confidence_threshold: 0.5,
+    grafana_url: 'http://localhost:3002',
   };
 
   beforeEach(() => {

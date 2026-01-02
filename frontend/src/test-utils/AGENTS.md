@@ -4,7 +4,7 @@ This directory contains shared test utilities for the Home Security Intelligence
 
 ## Purpose
 
-Provides reusable test helpers, factories, and accessibility testing utilities to reduce test boilerplate and ensure consistent testing patterns across the codebase.
+Provides reusable test helpers and factories to reduce test boilerplate and ensure consistent testing patterns across the codebase.
 
 ## Key Files
 
@@ -45,32 +45,12 @@ const event = createEvent({ risk_score: 85 });
 const cameras = createCameras(5);
 ```
 
-### `a11y.ts`
-
-Accessibility testing utilities using axe-core:
-
-- `checkAccessibility()` - Primary accessibility check
-- `getAccessibilityResults()` - Get results without failing
-- `formatViolations()` - Format violations for debugging
-- Pre-configured helpers for specific patterns:
-  - `checkInteractiveAccessibility()` - Buttons, links, inputs
-  - `checkFormAccessibility()` - Form fields
-  - `checkImageAccessibility()` - Images and media
-  - `checkNavigationAccessibility()` - Landmarks and navigation
-
-```tsx
-it('is accessible', async () => {
-  const { container } = renderWithProviders(<MyComponent />);
-  await checkAccessibility(container);
-});
-```
-
 ### `index.ts`
 
 Central export point for all utilities. Import everything from here:
 
 ```tsx
-import { renderWithProviders, screen, createEvent, checkAccessibility } from '../test-utils';
+import { renderWithProviders, screen, createEvent } from '../test-utils';
 ```
 
 ## Usage Patterns
@@ -103,27 +83,7 @@ it('handles click', async () => {
 });
 ```
 
-### Accessibility Testing
-
-```tsx
-describe('accessibility', () => {
-  it('has no violations', async () => {
-    const { container } = renderWithProviders(<MyComponent />);
-    await checkAccessibility(container);
-  });
-
-  it('passes with custom rules', async () => {
-    const { container } = renderWithProviders(<MyComponent />);
-    await checkAccessibility(container, {
-      rules: { 'color-contrast': { enabled: false } },
-    });
-  });
-});
-```
-
 ## Conventions
 
 1. **Always import from `test-utils`** - Use the central export for consistency
 2. **Use factories for test data** - Avoid hardcoding test data
-3. **Add accessibility tests** - All components should have at least basic a11y checks
-4. **Document known issues** - If disabling rules, add a comment explaining why

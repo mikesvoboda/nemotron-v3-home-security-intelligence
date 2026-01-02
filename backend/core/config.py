@@ -278,6 +278,12 @@ class Settings(BaseSettings):
         description="Combined enrichment service URL for vehicle, pet, and clothing classification",
     )
 
+    # Monitoring URLs
+    grafana_url: str = Field(
+        default="http://localhost:3002",
+        description="Grafana dashboard URL for frontend link",
+    )
+
     @field_validator("florence_url", "clip_url", "enrichment_url", mode="before")
     @classmethod
     def validate_vision_service_urls(cls, v: Any) -> str:
