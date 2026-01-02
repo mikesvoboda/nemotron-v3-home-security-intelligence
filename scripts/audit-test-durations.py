@@ -44,6 +44,9 @@ SLOW_TEST_PATTERNS = [
     r"test_alert.*test_alert_dedup_key_roundtrip",
     r"test_alert.*test_alert_event_id_roundtrip",
     r"test_event.*test_risk_score_roundtrip",
+    r"test_audit_log.*test_details_roundtrip",
+    # TLS certificate generation tests - RSA key generation is CPU-intensive
+    r"test_tls.*test_custom_key_size_4096",
     # E2E error state tests - wait for API retry exhaustion (~15s)
     r".*Error State.*shows error",
     r".*Error State.*error state",
