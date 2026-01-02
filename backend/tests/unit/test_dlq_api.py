@@ -31,6 +31,7 @@ def mock_redis() -> MagicMock:
     redis.add_to_queue = AsyncMock(return_value=1)
     redis.add_to_queue_safe = AsyncMock(return_value=QueueAddResult(success=True, queue_length=1))
     redis.get_from_queue = AsyncMock(return_value=None)
+    redis.pop_from_queue_nonblocking = AsyncMock(return_value=None)
     redis.get_queue_length = AsyncMock(return_value=0)
     redis.peek_queue = AsyncMock(return_value=[])
     redis.clear_queue = AsyncMock(return_value=True)
@@ -174,7 +175,7 @@ class TestRequeueEndpoint:
 
     def test_requeue_single_job_success(self, client: TestClient, mock_redis: MagicMock) -> None:
         """Test successful requeue of a single job."""
-        mock_redis.get_from_queue = AsyncMock(
+        mock_redis.pop_from_queue_nonblocking = AsyncMock(
             return_value={
                 "original_job": {"camera_id": "cam1"},
                 "error": "Error",
@@ -195,7 +196,7 @@ class TestRequeueEndpoint:
 
     def test_requeue_empty_queue(self, client: TestClient, mock_redis: MagicMock) -> None:
         """Test requeue from empty queue."""
-        mock_redis.get_from_queue = AsyncMock(return_value=None)
+        mock_redis.pop_from_queue_nonblocking = AsyncMock(return_value=None)
 
         response = client.post("/api/dlq/requeue/dlq:detection_queue")
 
@@ -206,7 +207,7 @@ class TestRequeueEndpoint:
 
     def test_requeue_analysis_queue(self, client: TestClient, mock_redis: MagicMock) -> None:
         """Test requeue from analysis DLQ."""
-        mock_redis.get_from_queue = AsyncMock(
+        mock_redis.pop_from_queue_nonblocking = AsyncMock(
             return_value={
                 "original_job": {"batch_id": "batch_001"},
                 "error": "Error",
@@ -231,7 +232,7 @@ class TestRequeueAllEndpoint:
     def test_requeue_all_success(self, client: TestClient, mock_redis: MagicMock) -> None:
         """Test successful requeue of all jobs."""
         # First call for get_queue_length returns 2 (non-empty queue)
-        # Then get_from_queue: two calls return jobs, third returns None (empty)
+        # Then pop_from_queue_nonblocking: two calls return jobs, third returns None (empty)
         job_data = {
             "original_job": {"camera_id": "cam1"},
             "error": "Error",
@@ -241,7 +242,7 @@ class TestRequeueAllEndpoint:
             "queue_name": "detection_queue",
         }
         mock_redis.get_queue_length = AsyncMock(return_value=2)
-        mock_redis.get_from_queue = AsyncMock(side_effect=[job_data, job_data, None])
+        mock_redis.pop_from_queue_nonblocking = AsyncMock(side_effect=[job_data, job_data, None])
         mock_redis.add_to_queue = AsyncMock(return_value=1)
 
         response = client.post("/api/dlq/requeue-all/dlq:detection_queue")
@@ -253,7 +254,7 @@ class TestRequeueAllEndpoint:
 
     def test_requeue_all_empty_queue(self, client: TestClient, mock_redis: MagicMock) -> None:
         """Test requeue all from empty queue returns early."""
-        # Queue length is 0, so endpoint should return early without calling get_from_queue
+        # Queue length is 0, so endpoint should return early without calling pop_from_queue_nonblocking
         mock_redis.get_queue_length = AsyncMock(return_value=0)
 
         response = client.post("/api/dlq/requeue-all/dlq:detection_queue")
@@ -262,8 +263,8 @@ class TestRequeueAllEndpoint:
         data = response.json()
         assert data["success"] is False
         assert "no jobs" in data["message"].lower()
-        # Verify get_from_queue was NOT called (early return)
-        mock_redis.get_from_queue.assert_not_called()
+        # Verify pop_from_queue_nonblocking was NOT called (early return)
+        mock_redis.pop_from_queue_nonblocking.assert_not_called()
 
     def test_requeue_all_respects_max_iterations(
         self, client: TestClient, mock_redis: MagicMock
@@ -286,7 +287,7 @@ class TestRequeueAllEndpoint:
         # Queue reports a large size
         mock_redis.get_queue_length = AsyncMock(return_value=max_iterations + 1000)
         # Always return a job (simulating infinite queue)
-        mock_redis.get_from_queue = AsyncMock(return_value=job_data)
+        mock_redis.pop_from_queue_nonblocking = AsyncMock(return_value=job_data)
         mock_redis.add_to_queue = AsyncMock(return_value=1)
 
         response = client.post("/api/dlq/requeue-all/dlq:detection_queue")
@@ -298,8 +299,8 @@ class TestRequeueAllEndpoint:
         assert str(max_iterations) in data["message"]
         # Should indicate we hit the limit
         assert "hit limit" in data["message"].lower()
-        # Verify get_from_queue was called exactly max_iterations times
-        assert mock_redis.get_from_queue.call_count == max_iterations
+        # Verify pop_from_queue_nonblocking was called exactly max_iterations times
+        assert mock_redis.pop_from_queue_nonblocking.call_count == max_iterations
 
 
 class TestClearDLQEndpoint:

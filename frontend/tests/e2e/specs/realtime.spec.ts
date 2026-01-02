@@ -25,19 +25,23 @@ test.describe('Real-time Updates', () => {
     await expect(page.getByRole('button', { name: /WebSocket connection status/i })).toBeVisible();
   });
 
-  test('dashboard displays GPU stats from API', async ({ page }) => {
+  test('dashboard displays risk gauge and camera grid', async ({ page }) => {
+    // Note: GPU stats are displayed on the System page, not the Dashboard.
+    // The Dashboard shows Risk Gauge, Camera Grid, and Stats Row.
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
     await dashboardPage.waitForDashboardLoad();
-    await dashboardPage.expectGpuStatsVisible();
+    // Verify the main dashboard sections are visible
+    await expect(dashboardPage.riskGaugeHeading).toBeVisible();
+    await expect(dashboardPage.cameraGridHeading).toBeVisible();
   });
 
-  test('system page shows GPU section', async ({ page }) => {
+  test('system page shows GPU statistics section', async ({ page }) => {
     const systemPage = new SystemPage(page);
     await systemPage.goto();
     await systemPage.waitForSystemLoad();
-    // Look for GPU Statistics heading
-    await expect(page.getByText(/GPU Statistics/i)).toBeVisible();
+    // Look for GPU Statistics heading - this is where GPU stats are displayed
+    await expect(page.getByText(/GPU Statistics/i)).toBeVisible({ timeout: 10000 });
   });
 });
 

@@ -33,6 +33,8 @@ import {
   getDetectionImageUrl,
   exportEventsCSV,
   searchEvents,
+  fetchStorageStats,
+  previewCleanup,
   // Retry and deduplication utilities
   shouldRetry,
   getRetryDelay,
@@ -65,6 +67,14 @@ import {
   type EventSearchParams,
   type SearchResponse,
   type SearchResult,
+  fetchNotificationConfig,
+  testNotification,
+  type NotificationConfig,
+  type TestNotificationResult,
+  fetchAuditLogs,
+  fetchAuditStats as fetchAuditLogStats,
+  fetchAuditLog,
+  type AuditLogsQueryParams,
 } from './api';
 
 // Mock data
@@ -423,10 +433,15 @@ describe('buildWebSocketOptionsInternal (secure API key handling)', () => {
     });
 
     it('strips trailing slash from WS base URL', () => {
-      const options = buildWebSocketOptionsInternal('/ws/events', 'wss://api.example.com/', undefined, {
-        protocol: 'http:',
-        host: 'localhost:5173',
-      });
+      const options = buildWebSocketOptionsInternal(
+        '/ws/events',
+        'wss://api.example.com/',
+        undefined,
+        {
+          protocol: 'http:',
+          host: 'localhost:5173',
+        }
+      );
       expect(options.url).toBe('wss://api.example.com/ws/events');
     });
   });
@@ -445,10 +460,15 @@ describe('buildWebSocketOptionsInternal (secure API key handling)', () => {
     });
 
     it('works with both WS base URL and API key', () => {
-      const options = buildWebSocketOptionsInternal('/ws/events', 'wss://api.example.com', 'secure-token', {
-        protocol: 'http:',
-        host: 'localhost:5173',
-      });
+      const options = buildWebSocketOptionsInternal(
+        '/ws/events',
+        'wss://api.example.com',
+        'secure-token',
+        {
+          protocol: 'http:',
+          host: 'localhost:5173',
+        }
+      );
       expect(options.url).toBe('wss://api.example.com/ws/events');
       expect(options.url).not.toContain('api_key');
       expect(options.protocols).toEqual(['api-key.secure-token']);
@@ -2323,5 +2343,359 @@ describe('Request Deduplication Integration', () => {
 
     // In-flight requests should be cleared
     expect(getInFlightRequestCount()).toBe(0);
+  });
+});
+
+// ============================================================================
+// Storage API Tests
+// ============================================================================
+
+// Note: fetchStorageStats, previewCleanup, StorageStatsResponse are imported at top of file
+
+const mockStorageStatsResponse = {
+  disk_used_bytes: 268435456000, // 250 GB
+  disk_total_bytes: 536870912000, // 500 GB
+  disk_free_bytes: 268435456000, // 250 GB
+  disk_usage_percent: 50,
+  thumbnails: { file_count: 10000, size_bytes: 21474836480 }, // 20 GB
+  images: { file_count: 10000, size_bytes: 107374182400 }, // 100 GB
+  clips: { file_count: 500, size_bytes: 107374182400 }, // 100 GB
+  events_count: 500,
+  detections_count: 5000,
+  gpu_stats_count: 10000,
+  logs_count: 50000,
+  timestamp: '2025-01-01T00:00:00Z',
+};
+
+const mockCleanupResponseForStorage = {
+  events_deleted: 15,
+  detections_deleted: 89,
+  gpu_stats_deleted: 2880,
+  logs_deleted: 150,
+  thumbnails_deleted: 89,
+  images_deleted: 0,
+  space_reclaimed: 524288000,
+  retention_days: 30,
+  dry_run: true,
+  timestamp: '2025-01-01T00:00:00Z',
+};
+
+describe('Storage API', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  describe('fetchStorageStats', () => {
+    it('fetches storage stats successfully', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockStorageStatsResponse));
+
+      const result = await fetchStorageStats();
+
+      expect(fetch).toHaveBeenCalledWith('/api/system/storage', {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      expect(result.disk_total_bytes).toBe(536870912000);
+      expect(result.disk_used_bytes).toBe(268435456000);
+      expect(result.disk_usage_percent).toBe(50);
+    });
+
+    it('returns storage categories correctly', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockStorageStatsResponse));
+
+      const result = await fetchStorageStats();
+
+      expect(result.images.file_count).toBe(10000);
+      expect(result.images.size_bytes).toBe(107374182400);
+    });
+
+    it('throws ApiError on server error', async () => {
+      vi.mocked(fetch).mockResolvedValue(
+        createMockErrorResponse(500, 'Internal Server Error', 'Disk monitoring unavailable')
+      );
+
+      await expect(fetchStorageStats()).rejects.toThrow(ApiError);
+      await expect(fetchStorageStats()).rejects.toMatchObject({
+        status: 500,
+        message: 'Disk monitoring unavailable',
+      });
+    });
+  });
+
+  describe('previewCleanup', () => {
+    it('previews cleanup successfully', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockCleanupResponseForStorage));
+
+      const result = await previewCleanup();
+
+      expect(fetch).toHaveBeenCalledWith('/api/system/cleanup?dry_run=true', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      expect(result.events_deleted).toBe(15);
+      expect(result.space_reclaimed).toBe(524288000);
+      expect(result.dry_run).toBe(true);
+    });
+
+    it('throws ApiError on server error', async () => {
+      vi.mocked(fetch).mockResolvedValue(
+        createMockErrorResponse(500, 'Internal Server Error', 'Cleanup service unavailable')
+      );
+
+      await expect(previewCleanup()).rejects.toThrow(ApiError);
+    });
+  });
+});
+
+// ============================================================================
+// Notification API Tests
+// ============================================================================
+
+const mockNotificationConfig: NotificationConfig = {
+  notification_enabled: true,
+  email_configured: true,
+  webhook_configured: false,
+  push_configured: false,
+  available_channels: ['email'],
+  smtp_host: 'smtp.example.com',
+  smtp_port: 587,
+  smtp_from_address: 'alerts@example.com',
+  smtp_use_tls: true,
+  default_webhook_url: null,
+  webhook_timeout_seconds: null,
+  default_email_recipients: ['admin@example.com'],
+};
+
+const mockTestNotificationResult: TestNotificationResult = {
+  channel: 'email',
+  success: true,
+  error: null,
+  message: 'Test notification sent successfully',
+};
+
+describe('Notification API', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  describe('fetchNotificationConfig', () => {
+    it('fetches notification config successfully', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockNotificationConfig));
+
+      const result = await fetchNotificationConfig();
+
+      expect(fetch).toHaveBeenCalledWith('/api/notification/config', {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      expect(result.notification_enabled).toBe(true);
+      expect(result.email_configured).toBe(true);
+      expect(result.available_channels).toContain('email');
+    });
+
+    it('throws ApiError on server error', async () => {
+      vi.mocked(fetch).mockResolvedValue(
+        createMockErrorResponse(500, 'Internal Server Error', 'Config service unavailable')
+      );
+
+      await expect(fetchNotificationConfig()).rejects.toThrow(ApiError);
+    });
+  });
+
+  describe('testNotification', () => {
+    it('tests email notification successfully', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockTestNotificationResult));
+
+      const result = await testNotification('email', ['test@example.com']);
+
+      expect(fetch).toHaveBeenCalledWith('/api/notification/test', {
+        method: 'POST',
+        body: JSON.stringify({ channel: 'email', email_recipients: ['test@example.com'] }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+      expect(result.success).toBe(true);
+      expect(result.channel).toBe('email');
+    });
+
+    it('tests webhook notification with custom URL', async () => {
+      const webhookResult: TestNotificationResult = {
+        channel: 'webhook',
+        success: true,
+        error: null,
+        message: 'Webhook delivered',
+      };
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(webhookResult));
+
+      const result = await testNotification('webhook', undefined, 'https://hook.example.com');
+
+      expect(fetch).toHaveBeenCalledWith('/api/notification/test', {
+        method: 'POST',
+        body: JSON.stringify({ channel: 'webhook', webhook_url: 'https://hook.example.com' }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+      expect(result.channel).toBe('webhook');
+    });
+
+    it('tests notification without optional parameters', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockTestNotificationResult));
+
+      await testNotification('push');
+
+      expect(fetch).toHaveBeenCalledWith('/api/notification/test', {
+        method: 'POST',
+        body: JSON.stringify({ channel: 'push' }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+    });
+
+    it('handles test failure response', async () => {
+      const failedResult: TestNotificationResult = {
+        channel: 'email',
+        success: false,
+        error: 'SMTP connection failed',
+        message: 'Failed to send test notification',
+      };
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(failedResult));
+
+      const result = await testNotification('email');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('SMTP connection failed');
+    });
+  });
+});
+
+// ============================================================================
+// Audit Log API Tests
+// ============================================================================
+
+describe('Audit Log API', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const mockAuditLogListResponse = {
+    logs: [
+      {
+        id: 1,
+        timestamp: '2025-01-01T10:00:00Z',
+        action: 'create',
+        resource_type: 'camera',
+        resource_id: 'cam-1',
+        actor: 'system',
+        status: 'success',
+        details: { name: 'Front Door' },
+      },
+    ],
+    total: 1,
+    limit: 100,
+    offset: 0,
+  };
+
+  const mockAuditLogStats = {
+    total_logs: 1000,
+    logs_by_action: { create: 300, update: 500, delete: 200 },
+    logs_by_status: { success: 950, failure: 50 },
+    logs_by_resource_type: { camera: 400, event: 600 },
+  };
+
+  describe('fetchAuditLogs', () => {
+    it('fetches audit logs without parameters', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockAuditLogListResponse));
+
+      const result = await fetchAuditLogs();
+
+      expect(fetch).toHaveBeenCalledWith('/api/audit', {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      expect(result.logs).toHaveLength(1);
+    });
+
+    it('fetches audit logs with all query parameters', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockAuditLogListResponse));
+
+      const params: AuditLogsQueryParams = {
+        action: 'create',
+        resource_type: 'camera',
+        resource_id: 'cam-1',
+        actor: 'system',
+        status: 'success',
+        start_date: '2025-01-01',
+        end_date: '2025-01-31',
+        limit: 50,
+        offset: 10,
+      };
+
+      await fetchAuditLogs(params);
+
+      const calledUrl = vi.mocked(fetch).mock.calls[0][0] as string;
+      expect(calledUrl).toContain('action=create');
+      expect(calledUrl).toContain('resource_type=camera');
+      expect(calledUrl).toContain('resource_id=cam-1');
+      expect(calledUrl).toContain('actor=system');
+      expect(calledUrl).toContain('status=success');
+      expect(calledUrl).toContain('start_date=2025-01-01');
+      expect(calledUrl).toContain('end_date=2025-01-31');
+      expect(calledUrl).toContain('limit=50');
+      expect(calledUrl).toContain('offset=10');
+    });
+
+    it('throws ApiError on server error', async () => {
+      vi.mocked(fetch).mockResolvedValue(
+        createMockErrorResponse(500, 'Internal Server Error', 'Audit service unavailable')
+      );
+
+      await expect(fetchAuditLogs()).rejects.toThrow(ApiError);
+    });
+  });
+
+  describe('fetchAuditStats (audit logs)', () => {
+    it('fetches audit log stats successfully', async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockAuditLogStats));
+
+      const result = await fetchAuditLogStats();
+
+      expect(fetch).toHaveBeenCalledWith('/api/audit/stats', {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      expect(result.total_logs).toBe(1000);
+    });
+  });
+
+  describe('fetchAuditLog', () => {
+    it('fetches single audit log by ID', async () => {
+      const mockSingleLog = mockAuditLogListResponse.logs[0];
+      vi.mocked(fetch).mockResolvedValueOnce(createMockResponse(mockSingleLog));
+
+      const result = await fetchAuditLog(1);
+
+      expect(fetch).toHaveBeenCalledWith('/api/audit/1', {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      expect(result.id).toBe(1);
+      expect(result.action).toBe('create');
+    });
+
+    it('throws ApiError on 404 not found', async () => {
+      vi.mocked(fetch).mockResolvedValue(
+        createMockErrorResponse(404, 'Not Found', 'Audit log not found')
+      );
+
+      await expect(fetchAuditLog(999)).rejects.toThrow(ApiError);
+      await expect(fetchAuditLog(999)).rejects.toMatchObject({
+        status: 404,
+        message: 'Audit log not found',
+      });
+    });
   });
 });

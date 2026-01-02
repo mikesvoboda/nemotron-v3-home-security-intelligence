@@ -6,6 +6,8 @@ import LogsTable, { type LogEntry } from './LogsTable';
 import LogStatsCards from './LogStatsCards';
 import { fetchCameras, fetchLogs, type Camera, type LogsQueryParams } from '../../services/api';
 
+import type { LogLevel } from '../../services/logger';
+
 export interface LogsDashboardProps {
   className?: string;
 }
@@ -38,6 +40,9 @@ export default function LogsDashboard({ className = '' }: LogsDashboardProps) {
   // State for detail modal
   const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // State for level filter from stats cards (synced with LogFilters)
+  const [levelFilter, setLevelFilter] = useState<LogLevel | undefined>(undefined);
 
   // Load cameras for filter dropdown
   useEffect(() => {
@@ -73,6 +78,8 @@ export default function LogsDashboard({ className = '' }: LogsDashboardProps) {
 
   // Handle filter changes from LogFilters component
   const handleFilterChange = useCallback((filters: LogFilterParams) => {
+    // Sync the level filter state when LogFilters changes it (e.g., from dropdown)
+    setLevelFilter(filters.level);
     setQueryParams((prev) => ({
       ...prev,
       level: filters.level,
@@ -83,6 +90,11 @@ export default function LogsDashboard({ className = '' }: LogsDashboardProps) {
       search: filters.search,
       offset: 0, // Reset to first page when filters change
     }));
+  }, []);
+
+  // Handle level filter from stats cards
+  const handleLevelFilter = useCallback((level: LogLevel | undefined) => {
+    setLevelFilter(level);
   }, []);
 
   // Handle pagination from LogsTable component
@@ -118,12 +130,19 @@ export default function LogsDashboard({ className = '' }: LogsDashboardProps) {
 
       {/* Statistics Cards */}
       <div className="mb-6">
-        <LogStatsCards />
+        <LogStatsCards
+          onLevelFilter={handleLevelFilter}
+          activeLevel={levelFilter}
+        />
       </div>
 
       {/* Filter Panel */}
       <div className="mb-6">
-        <LogFilters onFilterChange={handleFilterChange} cameras={cameras} />
+        <LogFilters
+          onFilterChange={handleFilterChange}
+          cameras={cameras}
+          externalLevel={levelFilter}
+        />
       </div>
 
       {/* Logs Table with Pagination */}

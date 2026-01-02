@@ -160,8 +160,8 @@ test.describe('Empty State Handling', () => {
     const logsPage = new LogsPage(page);
     await logsPage.goto();
     await logsPage.waitForLogsLoad();
-    const hasEmpty = await logsPage.hasEmptyState();
-    expect(hasEmpty).toBe(true);
+    // Use expect with timeout instead of boolean check for faster assertion
+    await expect(logsPage.emptyState).toBeVisible({ timeout: 2000 });
   });
 });
 
