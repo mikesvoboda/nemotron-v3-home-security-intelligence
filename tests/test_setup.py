@@ -1,6 +1,7 @@
 # tests/test_setup.py
 import socket
 import sys
+import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -9,12 +10,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from setup import (
     check_port_available,
+    configure_firewall,
     find_available_port,
     generate_docker_override_content,
     generate_env_content,
     generate_password,
     prompt_with_default,
     run_quick_mode,
+    write_config_files,
 )
 
 
@@ -189,3 +192,131 @@ def test_run_quick_mode_handles_port_conflicts():
     # Should still return valid config
     assert "ports" in config
     assert isinstance(config["ports"], dict)
+
+
+# Tests for file writing (Task 9)
+
+
+def test_write_config_files_creates_env():
+    """Test that write_config_files creates .env file."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config = {
+            "camera_path": "/test/cameras",
+            "ai_models_path": "/test/models",
+            "postgres_password": "testpass",
+            "ftp_password": "ftppass",
+            "ports": {"backend": 8000, "postgres": 5432, "redis": 6379, "grafana": 3002},
+        }
+        write_config_files(config, output_dir=tmpdir)
+
+        env_path = Path(tmpdir) / ".env"
+        assert env_path.exists()
+        content = env_path.read_text()
+        assert "CAMERA_PATH=/test/cameras" in content
+
+
+def test_write_config_files_creates_docker_override():
+    """Test that write_config_files creates docker-compose.override.yml."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config = {
+            "camera_path": "/test/cameras",
+            "ai_models_path": "/test/models",
+            "postgres_password": "testpass",
+            "ftp_password": "ftppass",
+            "ports": {"backend": 8000, "frontend": 5173},
+        }
+        write_config_files(config, output_dir=tmpdir)
+
+        override_path = Path(tmpdir) / "docker-compose.override.yml"
+        assert override_path.exists()
+        content = override_path.read_text()
+        assert "services:" in content
+
+
+def test_write_config_files_returns_paths():
+    """Test that write_config_files returns the created file paths."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config = {
+            "camera_path": "/test/cameras",
+            "ai_models_path": "/test/models",
+            "postgres_password": "testpass",
+            "ftp_password": "ftppass",
+            "ports": {"backend": 8000},
+        }
+        env_path, override_path = write_config_files(config, output_dir=tmpdir)
+
+        assert env_path == Path(tmpdir) / ".env"
+        assert override_path == Path(tmpdir) / "docker-compose.override.yml"
+
+
+def test_write_config_files_creates_output_dir():
+    """Test that write_config_files creates output directory if needed."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        nested_dir = Path(tmpdir) / "nested" / "path"
+        config = {
+            "camera_path": "/test/cameras",
+            "ai_models_path": "/test/models",
+            "postgres_password": "testpass",
+            "ftp_password": "ftppass",
+            "ports": {},
+        }
+        write_config_files(config, output_dir=str(nested_dir))
+
+        assert nested_dir.exists()
+        assert (nested_dir / ".env").exists()
+        assert (nested_dir / "docker-compose.override.yml").exists()
+
+
+# Tests for firewall configuration (Task 9)
+
+
+def test_configure_firewall_non_linux():
+    """Test configure_firewall returns False on non-Linux."""
+    with patch("setup.platform.system", return_value="Darwin"):
+        result = configure_firewall([8000, 3002])
+    assert result is False
+
+
+def test_configure_firewall_no_firewall_tool():
+    """Test configure_firewall returns False when no firewall tool available."""
+    with (
+        patch("setup.platform.system", return_value="Linux"),
+        patch("setup.shutil.which", return_value=None),
+    ):
+        result = configure_firewall([8000, 3002])
+    assert result is False
+
+
+def test_configure_firewall_firewalld_success():
+    """Test configure_firewall with firewalld succeeds."""
+    with (
+        patch("setup.platform.system", return_value="Linux"),
+        patch(
+            "setup.shutil.which",
+            side_effect=lambda cmd: "/usr/bin/firewall-cmd" if cmd == "firewall-cmd" else None,
+        ),
+        patch("setup.subprocess.run") as mock_run,
+    ):
+        mock_run.return_value.returncode = 0
+        result = configure_firewall([8000, 3002])
+
+    assert result is True
+    # Should call firewall-cmd for each port plus reload
+    assert mock_run.call_count == 3
+
+
+def test_configure_firewall_ufw_success():
+    """Test configure_firewall with ufw succeeds."""
+    with (
+        patch("setup.platform.system", return_value="Linux"),
+        patch(
+            "setup.shutil.which", side_effect=lambda cmd: "/usr/sbin/ufw" if cmd == "ufw" else None
+        ),
+        patch("setup.subprocess.run") as mock_run,
+    ):
+        mock_run.return_value.returncode = 0
+        result = configure_firewall([8000, 3002])
+
+    assert result is True
+    # Should call ufw for each port
+    assert mock_run.call_count == 2

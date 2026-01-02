@@ -7,10 +7,16 @@ Supports two modes:
 - Guided mode (--guided): Step-by-step with explanations
 """
 
+import argparse
+import platform
 import secrets
+import shutil
 import socket
+import subprocess
+import sys
 from datetime import datetime
-from typing import TypedDict
+from pathlib import Path
+from typing import Any, TypedDict
 
 
 class ServiceInfo(TypedDict):
@@ -263,5 +269,131 @@ def run_quick_mode() -> dict:
     }
 
 
+def write_config_files(config: dict[str, Any], output_dir: str = ".") -> tuple[Path, Path]:
+    """Write configuration files to disk.
+
+    Args:
+        config: Configuration dictionary
+        output_dir: Directory to write files to
+
+    Returns:
+        Tuple of (env_path, override_path)
+    """
+    output = Path(output_dir)
+    output.mkdir(parents=True, exist_ok=True)
+
+    env_path = output / ".env"
+    override_path = output / "docker-compose.override.yml"
+
+    env_content = generate_env_content(config)
+    override_content = generate_docker_override_content(config)
+
+    env_path.write_text(env_content)
+    override_path.write_text(override_content)
+
+    return env_path, override_path
+
+
+def configure_firewall(ports: list[int]) -> bool:
+    """Configure Linux firewall to allow specified ports.
+
+    Args:
+        ports: List of port numbers to open
+
+    Returns:
+        True if successful, False otherwise
+    """
+    if platform.system() != "Linux":
+        return False
+
+    # Try firewall-cmd (Fedora/RHEL/CentOS)
+    if shutil.which("firewall-cmd"):
+        try:
+            for port in ports:
+                subprocess.run(  # noqa: S603 - firewall config requires subprocess
+                    ["firewall-cmd", "--permanent", f"--add-port={port}/tcp"],  # noqa: S607
+                    check=True,
+                    capture_output=True,
+                )
+            subprocess.run(
+                ["firewall-cmd", "--reload"],  # noqa: S607
+                check=True,
+                capture_output=True,
+            )
+            return True
+        except subprocess.CalledProcessError:
+            return False
+
+    # Try ufw (Ubuntu/Debian)
+    if shutil.which("ufw"):
+        try:
+            for port in ports:
+                subprocess.run(  # noqa: S603 - firewall config requires subprocess
+                    ["ufw", "allow", f"{port}/tcp"],  # noqa: S607
+                    check=True,
+                    capture_output=True,
+                )
+            return True
+        except subprocess.CalledProcessError:
+            return False
+
+    return False
+
+
+def main() -> None:
+    """Main entry point for setup script."""
+    parser = argparse.ArgumentParser(description="Interactive setup for Home Security Intelligence")
+    parser.add_argument(
+        "--guided",
+        action="store_true",
+        help="Run in guided mode with detailed explanations",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default=".",
+        help="Output directory for generated files (default: current directory)",
+    )
+    args = parser.parse_args()
+
+    try:
+        if args.guided:
+            print("Guided mode not yet implemented")
+            config = run_quick_mode()  # Fallback to quick mode
+        else:
+            config = run_quick_mode()
+
+        # Write configuration files
+        env_path, override_path = write_config_files(config, args.output_dir)
+
+        print("=" * 60)
+        print("Generated:")
+        print(f"  - {env_path}")
+        print(f"  - {override_path}")
+        print()
+
+        # Offer firewall configuration on Linux
+        if platform.system() == "Linux":
+            frontend_port = config["ports"].get("frontend", 5173)
+            grafana_port = config["ports"].get("grafana", 3002)
+
+            answer = prompt_with_default(
+                f"Open firewall ports for frontend ({frontend_port}) and Grafana ({grafana_port})?",
+                "n",
+            )
+            if answer.lower() in ("y", "yes"):
+                if configure_firewall([frontend_port, grafana_port]):
+                    print("Firewall configured")
+                else:
+                    print("Could not configure firewall (may need sudo)")
+
+        print()
+        print("Ready! Run: docker-compose -f docker-compose.prod.yml up -d")
+        print("=" * 60)
+
+    except KeyboardInterrupt:
+        print("\n\nSetup cancelled.")
+        sys.exit(1)
+
+
 if __name__ == "__main__":
-    print("Setup script placeholder - full implementation in next task")
+    main()
