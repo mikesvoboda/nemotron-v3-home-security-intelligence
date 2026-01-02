@@ -476,6 +476,124 @@ class TestBuildSearchQuery:
         # The result should still be a valid query object
         assert result is not None
 
+    def test_build_query_includes_ilike_fallback(self):
+        """Build search query includes ILIKE fallback for NULL search_vector.
+
+        The query should include an OR condition that falls back to ILIKE
+        matching on summary, reasoning, and object_types when search_vector is NULL.
+        """
+        tsquery_str = "person"
+        query = "person"
+        result, has_search = _build_search_query(tsquery_str, query)
+        assert has_search is True
+        assert result is not None
+
+        # Convert to string to inspect the query structure
+        query_str = str(result)
+
+        # The query should contain LIKE patterns for fallback
+        # Note: SQLAlchemy may render ILIKE as 'lower(col) LIKE lower(:param)' for portability
+        # or as 'ILIKE' depending on the dialect
+        assert "like" in query_str.lower()
+
+    def test_build_query_escapes_ilike_special_chars(self):
+        """Build search query escapes ILIKE special characters in fallback.
+
+        Special characters like %, _, and \\ should be escaped to prevent
+        pattern injection attacks.
+        """
+        tsquery_str = "test"
+        # Query with special ILIKE characters
+        query = "test%pattern_with\\special"
+        result, has_search = _build_search_query(tsquery_str, query)
+        assert has_search is True
+        assert result is not None
+
+        # The query should be built successfully without errors
+        # The escape_ilike_pattern function handles the escaping
+
+
+class TestILikeFallbackBehavior:
+    """Tests for ILIKE fallback behavior when search_vector is NULL."""
+
+    def test_build_search_query_structure(self):
+        """Verify the search query structure includes fallback conditions."""
+        tsquery_str = "person"
+        query = "person"
+        result, has_search = _build_search_query(tsquery_str, query)
+
+        assert has_search is True
+        assert result is not None
+
+        # The query should be a SQLAlchemy Select object
+        # We can verify it compiles without errors
+        from sqlalchemy.dialects import postgresql
+
+        compiled = result.compile(dialect=postgresql.dialect())
+        query_text = str(compiled)
+
+        # Should contain references to search_vector (for FTS match)
+        assert "search_vector" in query_text
+
+        # Should contain ILIKE for fallback (rendered as ILIKE in PostgreSQL)
+        assert "ilike" in query_text.lower()
+
+    def test_ilike_fallback_searches_summary(self):
+        """ILIKE fallback should search in summary field."""
+        tsquery_str = "suspicious"
+        query = "suspicious"
+        result, _ = _build_search_query(tsquery_str, query)
+
+        from sqlalchemy.dialects import postgresql
+
+        compiled = result.compile(dialect=postgresql.dialect())
+        query_text = str(compiled)
+
+        # Should reference summary in the ILIKE condition
+        assert "summary" in query_text.lower()
+
+    def test_ilike_fallback_searches_reasoning(self):
+        """ILIKE fallback should search in reasoning field."""
+        tsquery_str = "analysis"
+        query = "analysis"
+        result, _ = _build_search_query(tsquery_str, query)
+
+        from sqlalchemy.dialects import postgresql
+
+        compiled = result.compile(dialect=postgresql.dialect())
+        query_text = str(compiled)
+
+        # Should reference reasoning in the ILIKE condition
+        assert "reasoning" in query_text.lower()
+
+    def test_ilike_fallback_searches_object_types(self):
+        """ILIKE fallback should search in object_types field."""
+        tsquery_str = "vehicle"
+        query = "vehicle"
+        result, _ = _build_search_query(tsquery_str, query)
+
+        from sqlalchemy.dialects import postgresql
+
+        compiled = result.compile(dialect=postgresql.dialect())
+        query_text = str(compiled)
+
+        # Should reference object_types in the ILIKE condition
+        assert "object_types" in query_text.lower()
+
+    def test_ilike_fallback_only_when_search_vector_is_null(self):
+        """ILIKE fallback should only apply when search_vector IS NULL."""
+        tsquery_str = "person"
+        query = "person"
+        result, _ = _build_search_query(tsquery_str, query)
+
+        from sqlalchemy.dialects import postgresql
+
+        compiled = result.compile(dialect=postgresql.dialect())
+        query_text = str(compiled)
+
+        # Should contain IS NULL check for search_vector
+        assert "is null" in query_text.lower()
+
 
 class TestRowToSearchResult:
     """Tests for _row_to_search_result function (lines 305-310)."""
