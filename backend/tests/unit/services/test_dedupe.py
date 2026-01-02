@@ -706,11 +706,16 @@ class TestCleanupOrphanedKeys:
     async def test_cleanup_orphans_scan_error(self, mock_redis_client: AsyncMock) -> None:
         """Test cleanup handles scan errors gracefully."""
 
-        async def mock_scan_iter(*args: Any, **kwargs: Any) -> Any:
-            raise Exception("Scan error")
-            yield  # Make it a generator
+        class ErrorAsyncIterator:
+            """Async iterator that raises an exception on iteration."""
 
-        mock_redis_client._client.scan_iter = mock_scan_iter
+            def __aiter__(self) -> ErrorAsyncIterator:
+                return self
+
+            async def __anext__(self) -> Any:
+                raise Exception("Scan error")
+
+        mock_redis_client._client.scan_iter = MagicMock(return_value=ErrorAsyncIterator())
 
         with patch("backend.services.dedupe.get_settings") as mock_settings:
             mock_settings.return_value = MagicMock(spec=[])

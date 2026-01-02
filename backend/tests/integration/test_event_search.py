@@ -38,7 +38,7 @@ def _ensure_fts_setup():
 
 
 @pytest.fixture
-async def fts_db(integration_db: str, _ensure_fts_setup: dict):
+async def _fts_db(integration_db: str, _ensure_fts_setup: dict):
     """Set up FTS trigger and function in the test database.
 
     The search_vector trigger is created via Alembic migrations but not by
@@ -139,7 +139,7 @@ class TestSearchVectorAutoPopulation:
     """Tests for search_vector auto-population via database trigger."""
 
     @pytest.mark.asyncio
-    async def test_search_vector_populated_on_insert(self, fts_db: str):
+    async def test_search_vector_populated_on_insert(self, _fts_db: str):
         """Verify search_vector is automatically populated when an event is inserted."""
         from backend.core.database import get_session
 
@@ -162,7 +162,7 @@ class TestSearchVectorAutoPopulation:
             assert event.search_vector is not None, "search_vector should be populated by trigger"
 
     @pytest.mark.asyncio
-    async def test_search_vector_includes_summary(self, fts_db: str):
+    async def test_search_vector_includes_summary(self, _fts_db: str):
         """Verify search_vector includes summary content."""
         from backend.core.database import get_session
 
@@ -195,7 +195,7 @@ class TestSearchVectorAutoPopulation:
             assert found_event.id == event_id
 
     @pytest.mark.asyncio
-    async def test_search_vector_includes_reasoning(self, fts_db: str):
+    async def test_search_vector_includes_reasoning(self, _fts_db: str):
         """Verify search_vector includes reasoning content."""
         from backend.core.database import get_session
 
@@ -228,7 +228,7 @@ class TestSearchVectorAutoPopulation:
             assert found_event.id == event_id
 
     @pytest.mark.asyncio
-    async def test_search_vector_includes_object_types(self, fts_db: str):
+    async def test_search_vector_includes_object_types(self, _fts_db: str):
         """Verify search_vector includes object_types content."""
         from backend.core.database import get_session
 
@@ -261,7 +261,7 @@ class TestSearchVectorAutoPopulation:
             assert found_event.id == event_id
 
     @pytest.mark.asyncio
-    async def test_search_vector_includes_camera_name(self, fts_db: str):
+    async def test_search_vector_includes_camera_name(self, _fts_db: str):
         """Verify search_vector includes camera name via trigger subquery."""
         from backend.core.database import get_session
 
@@ -307,7 +307,7 @@ class TestSearchVectorUpdateOnChange:
     """Tests for search_vector update when event fields are modified."""
 
     @pytest.mark.asyncio
-    async def test_search_vector_updates_on_summary_change(self, fts_db: str):
+    async def test_search_vector_updates_on_summary_change(self, _fts_db: str):
         """Verify search_vector updates when summary is changed."""
         from backend.core.database import get_session
 
@@ -347,7 +347,7 @@ class TestSearchVectorUpdateOnChange:
             assert found_event.id == event_id
 
     @pytest.mark.asyncio
-    async def test_search_vector_updates_on_reasoning_change(self, fts_db: str):
+    async def test_search_vector_updates_on_reasoning_change(self, _fts_db: str):
         """Verify search_vector updates when reasoning is changed."""
         from backend.core.database import get_session
 
@@ -385,7 +385,7 @@ class TestSearchVectorUpdateOnChange:
             assert found_event.id == event_id
 
     @pytest.mark.asyncio
-    async def test_search_vector_updates_on_object_types_change(self, fts_db: str):
+    async def test_search_vector_updates_on_object_types_change(self, _fts_db: str):
         """Verify search_vector updates when object_types is changed."""
         from backend.core.database import get_session
 
@@ -432,7 +432,7 @@ class TestFullTextSearchQueries:
     """Tests for various full-text search query patterns."""
 
     @pytest.mark.asyncio
-    async def test_single_word_search(self, fts_db: str):
+    async def test_single_word_search(self, _fts_db: str):
         """Test searching for a single word."""
         from backend.core.database import get_session
 
@@ -465,7 +465,7 @@ class TestFullTextSearchQueries:
             assert "Suspicious" in events[0].summary
 
     @pytest.mark.asyncio
-    async def test_and_search(self, fts_db: str):
+    async def test_and_search(self, _fts_db: str):
         """Test AND search with multiple terms."""
         from backend.core.database import get_session
 
@@ -499,7 +499,7 @@ class TestFullTextSearchQueries:
             assert "Delivery" in events[0].summary
 
     @pytest.mark.asyncio
-    async def test_or_search(self, fts_db: str):
+    async def test_or_search(self, _fts_db: str):
         """Test OR search with multiple terms."""
         from backend.core.database import get_session
 
@@ -541,7 +541,7 @@ class TestFullTextSearchQueries:
             assert len(events) == 2  # Cat event and Suspicious event
 
     @pytest.mark.asyncio
-    async def test_not_search(self, fts_db: str):
+    async def test_not_search(self, _fts_db: str):
         """Test NOT search to exclude terms."""
         from backend.core.database import get_session
 
@@ -575,7 +575,7 @@ class TestFullTextSearchQueries:
             assert "suspicious" not in events[0].summary.lower()
 
     @pytest.mark.asyncio
-    async def test_phrase_search(self, fts_db: str):
+    async def test_phrase_search(self, _fts_db: str):
         """Test phrase search with proximity operator."""
         from backend.core.database import get_session
 
@@ -607,7 +607,7 @@ class TestFullTextSearchQueries:
             assert any(e.id == event_id for e in events)
 
     @pytest.mark.asyncio
-    async def test_websearch_to_tsquery(self, fts_db: str):
+    async def test_websearch_to_tsquery(self, _fts_db: str):
         """Test using websearch_to_tsquery for natural language queries."""
         from backend.core.database import get_session
 
@@ -649,7 +649,7 @@ class TestSearchRanking:
     """Tests for ts_rank search ranking accuracy."""
 
     @pytest.mark.asyncio
-    async def test_ts_rank_returns_scores(self, fts_db: str):
+    async def test_ts_rank_returns_scores(self, _fts_db: str):
         """Verify ts_rank returns relevance scores."""
         from backend.core.database import get_session
 
@@ -683,7 +683,7 @@ class TestSearchRanking:
             assert relevance > 0, "Relevance score should be positive"
 
     @pytest.mark.asyncio
-    async def test_higher_term_frequency_ranks_higher(self, fts_db: str):
+    async def test_higher_term_frequency_ranks_higher(self, _fts_db: str):
         """Verify events with more term occurrences rank higher."""
         from backend.core.database import get_session
 
@@ -739,7 +739,7 @@ class TestSearchRanking:
             assert rows[0][1] > rows[1][1]
 
     @pytest.mark.asyncio
-    async def test_ranking_order_by_relevance(self, fts_db: str):
+    async def test_ranking_order_by_relevance(self, _fts_db: str):
         """Test that results can be ordered by relevance score."""
         from backend.core.database import get_session
 
@@ -794,7 +794,7 @@ class TestMultiWordSearches:
     """Tests for multi-word search scenarios."""
 
     @pytest.mark.asyncio
-    async def test_all_words_must_match_with_and(self, fts_db: str):
+    async def test_all_words_must_match_with_and(self, _fts_db: str):
         """Test that AND requires all words to match."""
         from backend.core.database import get_session
 
@@ -836,7 +836,7 @@ class TestMultiWordSearches:
             assert len(not_found) == 0
 
     @pytest.mark.asyncio
-    async def test_stemming_in_search(self, fts_db: str):
+    async def test_stemming_in_search(self, _fts_db: str):
         """Test that PostgreSQL stemming works (e.g., 'walking' matches 'walk')."""
         from backend.core.database import get_session
 
@@ -875,7 +875,7 @@ class TestEdgeCases:
     """Tests for edge cases: Unicode, long text, special characters."""
 
     @pytest.mark.asyncio
-    async def test_unicode_text_in_search(self, fts_db: str):
+    async def test_unicode_text_in_search(self, _fts_db: str):
         """Test that Unicode text is handled correctly."""
         from backend.core.database import get_session
 
@@ -901,7 +901,7 @@ class TestEdgeCases:
             assert "Entrega" in found.summary
 
     @pytest.mark.asyncio
-    async def test_unicode_search_terms(self, fts_db: str):
+    async def test_unicode_search_terms(self, _fts_db: str):
         """Test searching with Unicode search terms."""
         from backend.core.database import get_session
 
@@ -930,7 +930,7 @@ class TestEdgeCases:
             assert len(found) >= 1
 
     @pytest.mark.asyncio
-    async def test_very_long_text(self, fts_db: str):
+    async def test_very_long_text(self, _fts_db: str):
         """Test handling of very long text content."""
         from backend.core.database import get_session
 
@@ -975,7 +975,7 @@ class TestEdgeCases:
             assert any(e.id == event_id for e in found)
 
     @pytest.mark.asyncio
-    async def test_special_characters_in_text(self, fts_db: str):
+    async def test_special_characters_in_text(self, _fts_db: str):
         """Test handling of special characters in text."""
         from backend.core.database import get_session
 
@@ -1006,7 +1006,7 @@ class TestEdgeCases:
             assert any(e.id == event_id for e in found)
 
     @pytest.mark.asyncio
-    async def test_empty_fields_handled(self, fts_db: str):
+    async def test_empty_fields_handled(self, _fts_db: str):
         """Test that events with empty/null fields are handled correctly."""
         from backend.core.database import get_session
 
@@ -1030,7 +1030,7 @@ class TestEdgeCases:
             # The trigger uses COALESCE to handle NULLs
 
     @pytest.mark.asyncio
-    async def test_numeric_content_in_text(self, fts_db: str):
+    async def test_numeric_content_in_text(self, _fts_db: str):
         """Test searching for numeric content."""
         from backend.core.database import get_session
 
@@ -1061,7 +1061,7 @@ class TestEdgeCases:
             assert any(e.id == event_id for e in found)
 
     @pytest.mark.asyncio
-    async def test_case_insensitive_search(self, fts_db: str):
+    async def test_case_insensitive_search(self, _fts_db: str):
         """Test that search is case-insensitive."""
         from backend.core.database import get_session
 
@@ -1112,7 +1112,7 @@ class TestGINIndexUsage:
     """Tests to verify GIN index is being used for search queries."""
 
     @pytest.mark.asyncio
-    async def test_gin_index_exists(self, fts_db: str):
+    async def test_gin_index_exists(self, _fts_db: str):
         """Verify the GIN index exists on the search_vector column."""
         from backend.core.database import get_session
 
@@ -1134,7 +1134,7 @@ class TestGINIndexUsage:
             assert "gin" in row[1].lower(), "Index should be GIN type"
 
     @pytest.mark.asyncio
-    async def test_query_uses_index(self, fts_db: str):
+    async def test_query_uses_index(self, _fts_db: str):
         """Test that search queries use the GIN index (via EXPLAIN)."""
         from backend.core.database import get_session
 
@@ -1180,7 +1180,7 @@ class TestTriggerBehavior:
     """Tests for the database trigger function behavior."""
 
     @pytest.mark.asyncio
-    async def test_trigger_exists(self, fts_db: str):
+    async def test_trigger_exists(self, _fts_db: str):
         """Verify the search vector trigger exists."""
         from backend.core.database import get_session
 
@@ -1201,7 +1201,7 @@ class TestTriggerBehavior:
             assert row[0] == "events_search_vector_trigger"
 
     @pytest.mark.asyncio
-    async def test_trigger_function_exists(self, fts_db: str):
+    async def test_trigger_function_exists(self, _fts_db: str):
         """Verify the trigger function exists."""
         from backend.core.database import get_session
 
