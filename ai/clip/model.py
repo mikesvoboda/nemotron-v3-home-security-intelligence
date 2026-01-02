@@ -51,6 +51,27 @@ class EmbedResponse(BaseModel):
     inference_time_ms: float = Field(..., description="Inference time in milliseconds")
 
 
+class AnomalyScoreRequest(BaseModel):
+    """Request format for anomaly-score endpoint."""
+
+    image: str = Field(..., description="Base64 encoded image to analyze")
+    baseline_embedding: list[float] = Field(
+        ..., description=f"{EMBEDDING_DIMENSION}-dimensional baseline embedding"
+    )
+
+
+class AnomalyScoreResponse(BaseModel):
+    """Response format for anomaly-score endpoint."""
+
+    anomaly_score: float = Field(
+        ..., ge=0.0, le=1.0, description="Anomaly score (0 = normal, 1 = highly anomalous)"
+    )
+    similarity_to_baseline: float = Field(
+        ..., ge=-1.0, le=1.0, description="Cosine similarity to baseline (-1 to 1)"
+    )
+    inference_time_ms: float = Field(..., description="Inference time in milliseconds")
+
+
 class HealthResponse(BaseModel):
     """Health check response."""
 
@@ -178,6 +199,52 @@ class CLIPEmbeddingModel:
         inference_time_ms = (time.perf_counter() - start_time) * 1000
 
         return embedding, inference_time_ms
+
+    def compute_anomaly_score(
+        self, image: Image.Image, baseline_embedding: list[float]
+    ) -> tuple[float, float, float]:
+        """Compute anomaly score by comparing image embedding to baseline.
+
+        The anomaly score is computed as: 1 - cosine_similarity
+        This means:
+        - 0.0 = identical to baseline (no anomaly)
+        - 1.0 = completely different from baseline (high anomaly)
+        - 2.0 = opposite direction (theoretically maximum anomaly)
+
+        In practice, scores are clamped to [0, 1] for usability.
+
+        Args:
+            image: PIL Image to analyze
+            baseline_embedding: 768-dimensional baseline embedding to compare against
+
+        Returns:
+            Tuple of (anomaly_score, similarity, inference_time_ms)
+        """
+        start_time = time.perf_counter()
+
+        # Extract embedding for current image
+        current_embedding, _ = self.extract_embedding(image)
+
+        # Convert to tensors for cosine similarity computation
+        current_tensor = torch.tensor(current_embedding, dtype=torch.float32)
+        baseline_tensor = torch.tensor(baseline_embedding, dtype=torch.float32)
+
+        # Ensure embeddings are normalized (they should be from extract_embedding)
+        current_norm = current_tensor / current_tensor.norm(p=2)
+        baseline_norm = baseline_tensor / baseline_tensor.norm(p=2)
+
+        # Compute cosine similarity (dot product of normalized vectors)
+        similarity = float(torch.dot(current_norm, baseline_norm).item())
+
+        # Compute anomaly score: 1 - similarity, clamped to [0, 1]
+        # similarity of 1.0 -> anomaly of 0.0 (identical)
+        # similarity of 0.0 -> anomaly of 1.0 (orthogonal)
+        # similarity of -1.0 -> anomaly of 2.0, but we clamp to 1.0
+        anomaly_score = max(0.0, min(1.0, 1.0 - similarity))
+
+        inference_time_ms = (time.perf_counter() - start_time) * 1000
+
+        return anomaly_score, similarity, inference_time_ms
 
 
 # Global model instance
@@ -314,6 +381,84 @@ async def embed(request: EmbedRequest) -> EmbedResponse:
     except Exception as e:
         logger.error(f"Embedding extraction failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Embedding extraction failed: {e!s}") from e
+
+
+@app.post("/anomaly-score", response_model=AnomalyScoreResponse)
+async def anomaly_score(request: AnomalyScoreRequest) -> AnomalyScoreResponse:
+    """Compute scene anomaly score by comparing image to baseline embedding.
+
+    The anomaly score indicates how different the current frame is from the
+    baseline (average of "normal" frames). This is useful for detecting:
+    - New objects appearing in frame
+    - Significant scene changes
+    - Unexpected activity patterns
+
+    Args:
+        request: Contains base64-encoded image and baseline embedding
+
+    Returns:
+        Anomaly score (0-1), similarity to baseline, and inference time
+    """
+    if model is None or model.model is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+
+    try:
+        # Validate baseline embedding dimension
+        if len(request.baseline_embedding) != EMBEDDING_DIMENSION:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Baseline embedding must have {EMBEDDING_DIMENSION} dimensions, "
+                f"got {len(request.baseline_embedding)}",
+            )
+
+        # Validate base64 string size BEFORE decoding to prevent DoS
+        if len(request.image) > MAX_BASE64_SIZE_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Base64 image data size ({len(request.image)} bytes) exceeds "
+                f"maximum allowed size ({MAX_BASE64_SIZE_BYTES} bytes). "
+                f"Maximum decoded image size: {MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB",
+            )
+
+        # Decode base64 image
+        try:
+            image_bytes = base64.b64decode(request.image)
+        except binascii.Error as e:
+            raise HTTPException(status_code=400, detail=f"Invalid base64 encoding: {e}") from e
+
+        # Validate decoded image size
+        if len(image_bytes) > MAX_IMAGE_SIZE_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Decoded image size ({len(image_bytes)} bytes) exceeds maximum "
+                f"allowed size ({MAX_IMAGE_SIZE_BYTES} bytes / "
+                f"{MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB)",
+            )
+
+        # Open image
+        try:
+            image = Image.open(io.BytesIO(image_bytes))
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Invalid image data: {e}") from e
+
+        # Compute anomaly score
+        score, similarity, inference_time_ms = model.compute_anomaly_score(
+            image, request.baseline_embedding
+        )
+
+        return AnomalyScoreResponse(
+            anomaly_score=score,
+            similarity_to_baseline=similarity,
+            inference_time_ms=inference_time_ms,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Anomaly score computation failed: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Anomaly score computation failed: {e!s}"
+        ) from e
 
 
 if __name__ == "__main__":
