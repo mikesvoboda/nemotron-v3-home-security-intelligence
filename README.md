@@ -228,8 +228,10 @@ enrichment services like Florence/CLIP/Enrichment).
 [AI Setup](docs/AI_SETUP.md).
 
 ```bash
-# 1) Create local config
-cp .env.example .env
+# 1) Run interactive setup (generates .env and docker-compose.override.yml)
+./setup.sh              # Quick mode - accept defaults with Enter
+# OR
+./setup.sh --guided     # Guided mode - step-by-step with explanations
 
 # 2) Download AI models (first run)
 ./ai/download_models.sh
@@ -260,8 +262,8 @@ curl http://localhost:8000/api/system/health
 Useful when iterating on AI services, or when GPU passthrough is inconvenient.
 
 ```bash
-# 1) Create local config
-cp .env.example .env
+# 1) Run interactive setup (generates .env and docker-compose.override.yml)
+./setup.sh              # Quick mode - accept defaults with Enter
 
 # 2) Download AI models (first run)
 ./ai/download_models.sh
