@@ -6374,13 +6374,6 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Access denied */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
             /** @description Camera or snapshot not found */
             404: {
                 headers: {
