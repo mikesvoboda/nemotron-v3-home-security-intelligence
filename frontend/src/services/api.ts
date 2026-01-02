@@ -457,8 +457,12 @@ async function fetchApi<T>(endpoint: string, options?: FetchOptions): Promise<T>
     headers,
   };
 
-  // Check for request deduplication (only for GET requests)
-  const requestKey = getRequestKey(method, url);
+  // Check if request has an abort signal - skip deduplication for these
+  // to avoid race conditions with React Strict Mode's double-mounting
+  const hasAbortSignal = options?.signal instanceof AbortSignal;
+
+  // Check for request deduplication (only for GET requests WITHOUT abort signals)
+  const requestKey = hasAbortSignal ? null : getRequestKey(method, url);
 
   if (requestKey) {
     // Check if there's already an in-flight request for this key

@@ -133,26 +133,8 @@ test.describe('Dashboard Camera Grid', () => {
   });
 });
 
-test.describe('Dashboard Activity Feed', () => {
-  let dashboardPage: DashboardPage;
-
-  test.beforeEach(async ({ page }) => {
-    await setupApiMocks(page, defaultMockConfig);
-    dashboardPage = new DashboardPage(page);
-  });
-
-  test('activity feed section is visible', async () => {
-    await dashboardPage.goto();
-    await dashboardPage.waitForDashboardLoad();
-    await expect(dashboardPage.activityFeedHeading).toBeVisible();
-  });
-
-  test('activity feed heading shows Live Activity', async () => {
-    await dashboardPage.goto();
-    await dashboardPage.waitForDashboardLoad();
-    await expect(dashboardPage.activityFeedHeading).toHaveText(/Live Activity/i);
-  });
-});
+// Note: Activity Feed was moved from Dashboard to Timeline page in the UI redesign.
+// The Live Activity tests are now covered in timeline.spec.ts
 
 test.describe('Dashboard Empty State', () => {
   let dashboardPage: DashboardPage;
@@ -162,11 +144,11 @@ test.describe('Dashboard Empty State', () => {
     dashboardPage = new DashboardPage(page);
   });
 
-  test('shows no activity message when no events', async () => {
+  test('dashboard loads with empty event data', async () => {
     await dashboardPage.goto();
     await dashboardPage.waitForDashboardLoad();
-    const hasNoActivity = await dashboardPage.hasNoActivityMessage();
-    expect(hasNoActivity).toBe(true);
+    // Verify dashboard loads without crashing when there are no events
+    await expect(dashboardPage.riskGaugeHeading).toBeVisible();
   });
 });
 

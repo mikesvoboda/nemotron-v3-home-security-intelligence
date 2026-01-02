@@ -127,13 +127,14 @@ test.describe('System Page Error Handling', () => {
 });
 
 test.describe('Empty State Handling', () => {
-  test('dashboard shows no activity with empty events', async ({ page }) => {
+  test('dashboard loads with empty events', async ({ page }) => {
     await setupApiMocks(page, emptyMockConfig);
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
     await dashboardPage.waitForDashboardLoad();
-    const hasNoActivity = await dashboardPage.hasNoActivityMessage();
-    expect(hasNoActivity).toBe(true);
+    // Verify dashboard loads without crashing when there are no events
+    // Note: Activity Feed was moved to Timeline page in UI redesign
+    await expect(dashboardPage.riskGaugeHeading).toBeVisible();
   });
 
   test('timeline shows no events with empty data', async ({ page }) => {

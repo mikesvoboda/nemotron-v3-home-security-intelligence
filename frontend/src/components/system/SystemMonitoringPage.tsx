@@ -1,4 +1,4 @@
-import { Card, Title, Text, Badge, Metric } from '@tremor/react';
+import { Card, Title, Text, Badge, Metric, Callout } from '@tremor/react';
 import { clsx } from 'clsx';
 import {
   Server,
@@ -9,6 +9,8 @@ import {
   CheckCircle,
   XCircle,
   AlertTriangle,
+  BarChart2,
+  ExternalLink,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -371,6 +373,32 @@ export default function SystemMonitoringPage() {
             data-testid="system-time-range-selector"
           />
         </div>
+
+        {/* Grafana Monitoring Banner */}
+        <Callout
+          title="Monitoring Dashboard Available"
+          icon={BarChart2}
+          color="blue"
+          className="mb-6"
+          data-testid="grafana-monitoring-banner"
+        >
+          <span className="inline-flex flex-wrap items-center gap-2">
+            <span>
+              View detailed metrics and historical data in Grafana.
+              No login required (anonymous access enabled).
+            </span>
+            <a
+              href="http://localhost:3002"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+              data-testid="grafana-link"
+            >
+              Open Grafana
+              <ExternalLink className="h-4 w-4" />
+            </a>
+          </span>
+        </Callout>
 
         {/* Performance Alerts - Only shown when there are alerts */}
         {transformedAlerts.length > 0 && (

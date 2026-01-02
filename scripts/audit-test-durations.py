@@ -67,10 +67,27 @@ SLOW_TEST_PATTERNS = [
     r"Dashboard Risk Gauge.*visible",
     r"Dashboard Risk Gauge.*heading",
     r"Dashboard High Alert State.*loads",
-    # E2E alerts page tests - page load overhead (~5-6s)
+    # E2E alerts page tests - page load overhead (~5-7s)
     r"Alerts Page Load.*title",
     r"Alerts Page Load.*displays",
     r"Alerts Page Load.*loads",
+    r"Alerts Filter.*",
+    r"Alerts Refresh.*",
+    r"Alerts Pagination.*",
+    r"Alerts Empty State.*",
+    r"Alerts Error State.*",
+    r"Alerts High Alert Mode.*",
+    # E2E Event Timeline page tests - page load overhead in CI (~7s)
+    r"Event Timeline Page Load.*",
+    r"Event Timeline Filters.*",
+    r"Event Timeline Search.*",
+    r"Event Timeline Export.*",
+    r"Event Timeline Pagination.*",
+    r"Event Timeline Bulk Actions.*",
+    r"Event Timeline Empty State.*",
+    r"Event Timeline Error State.*",
+    # Error State tests with specific naming patterns
+    r".*Error State.*handles API error",
     # Model loading tests - may download/initialize models on first run
     r"test_vehicle_damage_loader.*test_load_model",
     r"test_violence_loader.*test_load_violence_model",

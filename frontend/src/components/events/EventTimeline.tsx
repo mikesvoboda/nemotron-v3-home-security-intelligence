@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import EventCard from './EventCard';
 import EventDetailModal from './EventDetailModal';
 import ExportPanel from './ExportPanel';
+import { useEventStream } from '../../hooks/useEventStream';
 import {
   bulkUpdateEvents,
   exportEventsCSV,
@@ -26,6 +27,7 @@ import {
 } from '../../services/api';
 import { getRiskLevel } from '../../utils/risk';
 import RiskBadge from '../common/RiskBadge';
+import ActivityFeed, { type ActivityEvent } from '../dashboard/ActivityFeed';
 import { SearchBar, SearchResultsPanel } from '../search';
 
 import type { Detection } from './EventCard';
@@ -80,6 +82,9 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   // State for event detail modal
   const [selectedEventForModal, setSelectedEventForModal] = useState<number | null>(null);
 
+  // WebSocket hook for real-time live activity
+  const { events: wsEvents, isConnected: wsConnected } = useEventStream();
+
   // State for full-text search mode
   const [isSearchMode, setIsSearchMode] = useState(false);
   const [fullTextQuery, setFullTextQuery] = useState('');
@@ -99,6 +104,18 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
     });
     return map;
   }, [cameras]);
+
+  // Convert WebSocket events to ActivityEvent[] for ActivityFeed
+  // Resolve camera_name from cameras list or fall back to 'Unknown Camera'
+  const activityEvents: ActivityEvent[] = useMemo(() => {
+    return wsEvents.map((event) => ({
+      id: String(event.id),
+      timestamp: event.timestamp ?? event.started_at ?? new Date().toISOString(),
+      camera_name: event.camera_name ?? cameraNameMap.get(event.camera_id) ?? 'Unknown Camera',
+      risk_score: event.risk_score,
+      summary: event.summary,
+    }));
+  }, [wsEvents, cameraNameMap]);
 
   // Ref to track the latest search request ID to prevent race conditions
   const searchRequestIdRef = useRef(0);
@@ -522,7 +539,24 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-white">Event Timeline</h1>
-        <p className="mt-2 text-gray-400">View and filter all security events from your cameras</p>
+        <p className="mt-2 text-gray-400">
+          View and filter all security events from your cameras
+          {!wsConnected && (
+            <span className="ml-2 text-yellow-500">(Disconnected)</span>
+          )}
+        </p>
+      </div>
+
+      {/* Live Activity Feed */}
+      <div className="mb-6">
+        <h2 className="mb-3 text-xl font-semibold text-white md:mb-4 md:text-2xl">Live Activity</h2>
+        <ActivityFeed
+          events={activityEvents}
+          maxItems={10}
+          autoScroll={true}
+          onEventClick={(eventId) => setSelectedEventForModal(parseInt(eventId, 10))}
+          className="h-[300px] md:h-[400px]"
+        />
       </div>
 
       {/* Full-Text Search Bar */}

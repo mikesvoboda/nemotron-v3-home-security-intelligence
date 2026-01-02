@@ -697,6 +697,43 @@ describe('SystemMonitoringPage', () => {
     });
   });
 
+  describe('Grafana Monitoring Banner', () => {
+    it('displays the Grafana monitoring banner', async () => {
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('grafana-monitoring-banner')).toBeInTheDocument();
+      });
+    });
+
+    it('displays correct banner title', async () => {
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Monitoring Dashboard Available')).toBeInTheDocument();
+      });
+    });
+
+    it('displays Grafana link with correct href', async () => {
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        const grafanaLink = screen.getByTestId('grafana-link');
+        expect(grafanaLink).toHaveAttribute('href', 'http://localhost:3002');
+        expect(grafanaLink).toHaveAttribute('target', '_blank');
+        expect(grafanaLink).toHaveAttribute('rel', 'noopener noreferrer');
+      });
+    });
+
+    it('mentions anonymous access in banner text', async () => {
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/no login required/i)).toBeInTheDocument();
+      });
+    });
+  });
+
   describe('Styling and Layout', () => {
     it('has correct page structure and styling', async () => {
       const { container } = render(<SystemMonitoringPage />);
