@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This directory contains all project documentation including design specifications, implementation plans, setup guides, architecture decisions, and visual assets.
+This directory contains all project documentation including design specifications, implementation plans, setup guides, architecture decisions, reference materials, and visual assets.
 
 ## Directory Structure
 
@@ -19,13 +19,21 @@ docs/
   COPILOT_SETUP.md                # GitHub Copilot Free tier setup guide
   GITHUB_MODELS.md                # GitHub Models integration guide
   SELF_HOSTED_RUNNER.md           # Self-hosted GPU runner setup guide
+  LINK_AUDIT.md                   # Documentation link audit results
+  developer-hub.md                # Developer documentation hub
+  operator-hub.md                 # Operator documentation hub
+  user-hub.md                     # User documentation hub
+
   admin-guide/                    # System administrator documentation
+    AGENTS.md                     # Admin guide directory guide
     configuration.md              # System configuration guide
     monitoring.md                 # Monitoring and observability
     security.md                   # Security hardening guide
     storage-retention.md          # Data storage and retention policies
     troubleshooting.md            # Admin troubleshooting guide
-  api-reference/                  # API documentation
+
+  api-reference/                  # API documentation (legacy location)
+    AGENTS.md                     # API reference directory guide
     overview.md                   # API overview
     alerts.md                     # Alerts API reference
     cameras.md                    # Cameras API reference
@@ -33,6 +41,7 @@ docs/
     events.md                     # Events API reference
     system.md                     # System API reference
     websocket.md                  # WebSocket API reference
+
   architecture/                   # Technical architecture documentation
     AGENTS.md                     # Architecture directory guide
     overview.md                   # System architecture overview
@@ -42,36 +51,127 @@ docs/
     frontend-hooks.md             # Frontend React hooks documentation
     real-time.md                  # Real-time communication architecture
     resilience.md                 # Resilience patterns documentation
+
+  benchmarks/                     # Performance benchmark results
+    AGENTS.md                     # Benchmarks directory guide
+    model-zoo-benchmark.md        # Model Zoo benchmark results
+
   decisions/                      # Architecture Decision Records (ADRs)
     AGENTS.md                     # Decisions directory guide
     grafana-integration.md        # Grafana integration decision
-  development/                    # Developer documentation
+
+  developer/                      # Developer-focused documentation
+    AGENTS.md                     # Developer directory guide
+    alerts.md                     # Alert system for developers
+    batching-logic.md             # Batch aggregation details
+    codebase-tour.md              # Directory structure navigation
+    data-model.md                 # Database schema for developers
+    detection-service.md          # Detection service details
+    hooks.md                      # Pre-commit hook documentation
+    local-setup.md                # Development environment setup
+    pipeline-overview.md          # AI pipeline for developers
+    risk-analysis.md              # Risk analysis service details
+    video.md                      # Video processing details
+
+  development/                    # Development workflow documentation
+    AGENTS.md                     # Development directory guide
     contributing.md               # Contribution guidelines
     patterns.md                   # Code patterns and conventions
     setup.md                      # Development environment setup
     testing.md                    # Testing guide
+
   getting-started/                # Quick start guides
+    AGENTS.md                     # Getting started directory guide
     first-run.md                  # First run guide
     installation.md               # Installation guide
     prerequisites.md              # System prerequisites
     upgrading.md                  # Upgrade guide
+
   images/                         # Visual assets
     AGENTS.md                     # Images directory guide
-    dashboard-mockup.svg          # Dashboard UI mockup
-    *.png                         # Screenshots
+    SCREENSHOT_GUIDE.md           # Screenshot capture guidelines
+    dashboard-mockup.svg          # Dashboard UI mockup (vector)
+    dashboard.png                 # Dashboard screenshot
+    dashboard-full.png            # Full dashboard screenshot
+    timeline.png                  # Event timeline screenshot
+    alerts.png                    # Alerts page screenshot
+
+  operator/                       # Operator-focused documentation
+    AGENTS.md                     # Operator directory guide
+    ai-configuration.md           # AI model configuration
+    ai-installation.md            # AI service installation
+    ai-overview.md                # AI services overview
+    ai-performance.md             # AI performance tuning
+    ai-services.md                # AI service management
+    ai-tls.md                     # AI service TLS configuration
+    ai-troubleshooting.md         # AI troubleshooting quick fixes
+    backup.md                     # Backup and recovery
+    database.md                   # Database management
+    gpu-setup.md                  # GPU and NVIDIA setup
+
   plans/                          # Design and implementation plans
     AGENTS.md                     # Plans directory guide
-    *.md                          # Date-prefixed plan documents
-  user-guide/                     # End-user documentation
+    2024-12-21-dashboard-mvp-design.md
+    2024-12-22-mvp-implementation-plan.md
+    2024-12-24-logging-system-design.md
+    2024-12-24-logging-implementation-plan.md
+    2025-01-01-testing-reliability-design.md
+    2025-12-26-github-cicd-design.md
+    2025-12-26-github-cicd-implementation.md
+    2025-12-26-readme-redesign.md
+    2025-12-26-service-health-monitoring-design.md
+    2025-12-28-documentation-design.md
+    2025-12-30-ai-containerization-design.md
+    2025-12-30-documentation-restructure-design.md
+    2025-12-30-test-performance-implementation.md
+    2025-12-30-test-performance-optimization-design.md
+    2025-12-31-documentation-overhaul-design.md
+    2025-12-31-system-performance-design.md
+    2025-12-31-system-performance-plan.md
+    2026-01-01-*.md               # Recent design documents
+    prompt-enrichment-tasks.md    # Prompt enrichment task list
+
+  reference/                      # Authoritative reference documentation
+    AGENTS.md                     # Reference directory guide
+    glossary.md                   # Terms and definitions
+    api/                          # API endpoint reference
+      AGENTS.md                   # API reference guide
+      overview.md                 # API conventions
+      alerts.md                   # Alert rules API
+      cameras.md                  # Cameras API
+      detections.md               # Detections API
+      events.md                   # Events API
+      system.md                   # System API
+      websocket.md                # WebSocket API
+    config/                       # Configuration reference
+      AGENTS.md                   # Config reference guide
+      env-reference.md            # Environment variables
+      risk-levels.md              # Risk score definitions
+    troubleshooting/              # Problem-solving guides
+      AGENTS.md                   # Troubleshooting guide
+      index.md                    # Symptom quick reference
+      ai-issues.md                # AI troubleshooting
+      connection-issues.md        # Network troubleshooting
+      database-issues.md          # Database troubleshooting
+      gpu-issues.md               # GPU troubleshooting
+
+  user/                           # End-user documentation (hub-and-spoke)
+    AGENTS.md                     # User directory guide
+    dashboard-basics.md           # Dashboard layout and components
+    dashboard-settings.md         # Settings configuration
+    understanding-alerts.md       # Risk levels and responses
+    viewing-events.md             # Event viewing and interaction
+
+  user-guide/                     # End-user documentation (original)
     AGENTS.md                     # User guide directory guide
     getting-started.md            # New user onboarding
     understanding-alerts.md       # Risk levels and alerts
     using-the-dashboard.md        # Dashboard usage guide
-    alerts-notifications.md       # Alerts and notifications guide
+    alerts-notifications.md       # Alerts and notifications
     dashboard-overview.md         # Dashboard overview
     event-timeline.md             # Event timeline guide
     logs-dashboard.md             # Logs dashboard guide
-    search.md                     # Search functionality guide
+    search.md                     # Search functionality
     settings.md                   # Settings page guide
 ```
 
@@ -123,82 +223,107 @@ Post-MVP roadmap ideas organized into 8 themes:
 | `COPILOT_SETUP.md`       | GitHub Copilot Free tier                  | Enabling, limits (2000 completions/month), best practices |
 | `GITHUB_MODELS.md`       | GitHub Models for AI-assisted development | Available models, rate limits, API usage                  |
 
-### Subdirectories
+### Documentation Hubs
 
-**admin-guide/** - System administrator documentation
+| File               | Purpose                       | Target Audience                   |
+| ------------------ | ----------------------------- | --------------------------------- |
+| `developer-hub.md` | Developer documentation index | Software developers, contributors |
+| `operator-hub.md`  | Operator documentation index  | System admins, DevOps engineers   |
+| `user-hub.md`      | User documentation index      | End users, homeowners             |
 
-- Configuration and environment setup
-- Monitoring and observability
-- Security hardening guidelines
-- Storage and retention policies
-- Troubleshooting common issues
+## Subdirectories
 
-**api-reference/** - API documentation
+### admin-guide/
 
-- REST API endpoint documentation
-- WebSocket API reference
-- Request/response examples
-- Authentication and error handling
+System administrator documentation for configuring, monitoring, and maintaining the system.
 
-**architecture/** - Technical architecture documentation
+See `admin-guide/AGENTS.md` for detailed information.
 
-- System overview with Mermaid diagrams
-- AI pipeline details and data flow
-- Database schema and relationships
-- Architecture decisions and rationale
-- Frontend hooks documentation
-- Real-time communication patterns
-- Resilience and error handling
-- See `architecture/AGENTS.md` for detailed documentation
+### api-reference/
 
-**decisions/** - Architecture Decision Records (ADRs)
+REST and WebSocket API documentation (legacy location, see also `reference/api/`).
 
-- Documents significant technical decisions
-- Currently contains: Grafana integration strategy
-- See `decisions/AGENTS.md` for more details
+See `api-reference/AGENTS.md` for detailed information.
 
-**development/** - Developer documentation
+### architecture/
 
-- Contribution guidelines
-- Code patterns and conventions
-- Development environment setup
-- Testing strategies and tools
+Technical architecture documentation including system design, AI pipeline, data models, and architectural decisions.
 
-**getting-started/** - Quick start guides
+See `architecture/AGENTS.md` for detailed information.
 
-- System prerequisites
-- Installation guide
-- First run walkthrough
-- Upgrade procedures
+### benchmarks/
 
-**images/** - Visual assets
+Performance benchmark results for AI models and system components.
 
-- `dashboard-mockup.svg` - Main dashboard UI mockup (vector)
-- `dashboard.png`, `dashboard-full.png` - Dashboard screenshots
-- `timeline.png` - Event timeline screenshot
-- `alerts.png` - Alerts page screenshot
-- See `images/AGENTS.md` for detailed documentation
+See `benchmarks/AGENTS.md` for detailed information.
 
-**plans/** - Design specifications and implementation plans
+### decisions/
 
-- Date-prefixed files (`YYYY-MM-DD-description.md`)
-- MVP design, implementation plan, logging system, CI/CD, health monitoring
-- Test performance optimization, documentation restructure
-- System performance design and plans
-- See `plans/AGENTS.md` for detailed documentation
+Architecture Decision Records (ADRs) documenting significant technical choices.
 
-**user-guide/** - End-user documentation
+See `decisions/AGENTS.md` for detailed information.
 
-- Written for non-technical users
-- Getting started guide
-- Understanding alerts and risk levels
-- Dashboard usage and feature guides
-- Search, settings, and logs documentation
-- See `user-guide/AGENTS.md` for detailed documentation
+### developer/
 
-## Relationship to Project
+Developer-focused documentation for contributing to and extending the system.
 
-### Documentation Flow
+See `developer/AGENTS.md` for detailed information.
+
+### development/
+
+Development workflow documentation including contribution guidelines, patterns, and testing.
+
+See `development/AGENTS.md` for detailed information.
+
+### getting-started/
+
+Quick start guides for installation, first run, and upgrades.
+
+See `getting-started/AGENTS.md` for detailed information.
+
+### images/
+
+Visual assets including mockups, screenshots, and diagrams.
+
+See `images/AGENTS.md` for detailed information.
+
+### operator/
+
+Operator-focused documentation for deployment, configuration, and maintenance.
+
+See `operator/AGENTS.md` for detailed information.
+
+### plans/
+
+Design specifications and implementation plans with date-prefixed filenames.
+
+See `plans/AGENTS.md` for detailed information.
+
+### reference/
+
+Authoritative reference documentation including API, configuration, and troubleshooting.
+
+See `reference/AGENTS.md` for detailed information.
+
+**Subdirectories:**
+
+- `reference/api/` - Complete API reference
+- `reference/config/` - Configuration reference
+- `reference/troubleshooting/` - Problem-solving guides
+
+### user/
+
+End-user documentation using hub-and-spoke architecture (integrated with user-hub.md).
+
+See `user/AGENTS.md` for detailed information.
+
+### user-guide/
+
+End-user documentation (original structure, standalone documents).
+
+See `user-guide/AGENTS.md` for detailed information.
+
+## Documentation Flow
 
 1. **Design Phase:** `plans/2024-12-21-dashboard-mvp-design.md`
 
@@ -219,65 +344,22 @@ Post-MVP roadmap ideas organized into 8 themes:
    - Post-MVP enhancement ideas
    - Defines WHAT COMES NEXT
 
-### Source of Truth
+## Source of Truth
 
 **Docs are source of truth for:**
 
 - Architecture decisions (design spec, ADRs)
-- API contracts (design spec)
-- Database schema (design spec)
-- Environment configuration (RUNTIME_CONFIG.md)
+- API contracts (reference/api/)
+- Database schema (architecture/data-model.md)
+- Environment configuration (reference/config/env-reference.md)
 - Deployment procedures (AI_SETUP.md, DOCKER_DEPLOYMENT.md)
+- Risk level definitions (reference/config/risk-levels.md)
 
 **Code is source of truth for:**
 
 - Current implementation state
 - Test coverage
 - Actual behavior and edge cases
-
-## Important Patterns
-
-### When to Update Documentation
-
-**ROADMAP.md** should be updated:
-
-- When adding new post-MVP enhancement ideas
-- When completing roadmap items (mark as done)
-- When changing prioritization strategy
-- After MVP is operational and roadmap work begins
-
-**Implementation Plan** should be updated:
-
-- RARELY (tasks are tracked in bd, not this file)
-- Only if phase definitions change
-- Only if new epics are added
-
-**Design Specification** should be updated:
-
-- When architecture changes
-- When API contracts change
-- When database schema changes
-- NOT for implementation details or refinements
-
-**Setup/Deployment Guides** should be updated:
-
-- When adding new services or dependencies
-- When changing deployment procedures
-- When updating recommended configurations
-- When adding new troubleshooting solutions
-- NOT for code-level changes (those go in code comments)
-
-### Design Decisions Documented
-
-The design specification and architecture documents these critical decisions:
-
-1. **Database:** PostgreSQL (chosen for concurrent pipeline worker access)
-2. **Batch Processing:** 90s window + 30s idle timeout (vs real-time per-frame analysis)
-3. **Risk Scoring:** LLM-determined via Nemotron (0-100 scale)
-4. **Deployment:** Fully containerized (Podman) with GPU passthrough for AI models
-5. **Authentication:** None for MVP (single-user local deployment)
-6. **Retention:** 30 days (configurable)
-7. **UI Theme:** NVIDIA green (#76B900) with dark background
 
 ## Entry Points for Agents
 
@@ -288,12 +370,16 @@ The design specification and architecture documents these critical decisions:
 3. **Refer to implementation plan** - Find task details and phase breakdown
 4. **Refer to design spec** - Understand architecture/API contracts
 
-### Understanding AI Pipeline
+### Understanding the System
 
-1. **Read design spec** - Processing Pipeline section
-2. **Read AI_SETUP.md** - How to set up and run AI services
-3. **Read RUNTIME_CONFIG.md** - Port assignments and configuration
-4. Check `backend/services/` for implementation
+| Goal                | Start Here                           |
+| ------------------- | ------------------------------------ |
+| System architecture | `architecture/overview.md`           |
+| AI pipeline         | `architecture/ai-pipeline.md`        |
+| API integration     | `reference/api/overview.md`          |
+| Configuration       | `reference/config/env-reference.md`  |
+| Troubleshooting     | `reference/troubleshooting/index.md` |
+| User features       | `user/dashboard-basics.md`           |
 
 ### Deploying the System
 
@@ -308,7 +394,7 @@ The design specification and architecture documents these critical decisions:
 
 - Date prefix for time-sensitive docs: `YYYY-MM-DD-description.md`
 - ALL_CAPS for root-level guides: `AI_SETUP.md`, `ROADMAP.md`
-- Lowercase with hyphens for ADRs: `grafana-integration.md`
+- Lowercase with hyphens for other docs: `env-reference.md`
 
 ### Document Structure
 
@@ -319,13 +405,6 @@ All AGENTS.md files follow this structure:
 - Important patterns and conventions
 - Entry points for understanding the code
 
-All guide files follow this structure:
-
-- Overview and quick start
-- Detailed sections with examples
-- Troubleshooting guide
-- Quick reference at the end
-
 ## Related Documentation
 
 - **Root AGENTS.md:** Project overview and entry points
@@ -334,3 +413,4 @@ All guide files follow this structure:
 - **scripts/AGENTS.md:** Development and deployment scripts
 - **backend/AGENTS.md:** Backend architecture overview
 - **frontend/AGENTS.md:** Frontend architecture overview
+- **ai/AGENTS.md:** AI services implementation details
