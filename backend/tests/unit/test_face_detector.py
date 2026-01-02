@@ -119,8 +119,8 @@ def test_get_head_region_preserves_xy():
     assert head[1] == 100
 
 
-def test_crop_bbox_with_padding_basic():
-    """Test basic bbox cropping with padding."""
+def test_face_crop_bbox_with_padding_basic():
+    """Test basic bbox cropping with padding for face detector."""
     image = Image.new("RGB", (1000, 800), color=(255, 0, 0))
     bbox = (100, 100, 200, 200)  # x, y, width, height
     padding = 0.2
@@ -156,8 +156,8 @@ def test_crop_bbox_with_padding_zero():
     assert cropped.size == (200, 150)
 
 
-def test_convert_crop_bbox_to_original():
-    """Test bbox coordinate conversion."""
+def test_face_convert_crop_bbox_to_original():
+    """Test bbox coordinate conversion for face detector."""
     crop_bbox_norm = [0.25, 0.25, 0.75, 0.75]
     original_bbox = (100, 100, 200, 200)
     crop_size = (280, 280)

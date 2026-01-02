@@ -194,8 +194,8 @@ def test_pose_result_without_bbox():
     assert result.bbox is None
 
 
-def test_pose_result_to_dict():
-    """Test PoseResult.to_dict() method."""
+def test_vitpose_pose_result_to_dict():
+    """Test VitPose PoseResult.to_dict() method."""
     keypoints = {
         "nose": Keypoint(x=150, y=50, confidence=0.92, name="nose"),
         "left_hip": Keypoint(x=140, y=200, confidence=0.87, name="left_hip"),

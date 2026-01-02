@@ -282,8 +282,8 @@ def test_clip_model_vram_budget():
 # =============================================================================
 
 
-def test_module_docstring():
-    """Test module has proper docstring."""
+def test_clip_loader_module_docstring():
+    """Test clip_loader module has proper docstring."""
     from backend.services import clip_loader
 
     assert clip_loader.__doc__ is not None
@@ -291,7 +291,7 @@ def test_module_docstring():
     assert "embedding" in clip_loader.__doc__.lower() or "re-identification" in clip_loader.__doc__
 
 
-def test_function_docstring():
+def test_clip_loader_function_docstring():
     """Test load_clip_model has proper docstring."""
     assert load_clip_model.__doc__ is not None
     assert "CLIP" in load_clip_model.__doc__

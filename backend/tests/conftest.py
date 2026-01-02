@@ -203,10 +203,11 @@ async def _ensure_clean_db() -> None:
 
 
 async def _reset_db_schema() -> None:
-    """Create all tables to ensure schema matches current models.
+    """Create all tables and add any missing columns to match current models.
 
     This is called once per database to ensure the database schema matches
-    the current SQLAlchemy models.
+    the current SQLAlchemy models. Uses create_all for new tables and
+    explicit ALTER TABLE for missing columns.
 
     Note: Advisory locks removed - integration tests now use module-scoped
     containers which provide full isolation per test module.
@@ -215,6 +216,8 @@ async def _reset_db_schema() -> None:
 
     if _schema_reset_done:
         return
+
+    from sqlalchemy import text
 
     from backend.core.database import get_engine
 
@@ -232,6 +235,11 @@ async def _reset_db_schema() -> None:
     async with engine.begin() as conn:
         # Create tables if they don't exist
         await conn.run_sync(ModelsBase.metadata.create_all)
+
+        # Add any missing columns that create_all doesn't handle
+        # This handles schema drift without dropping data
+        # Using IF NOT EXISTS makes this idempotent and safe to run in parallel
+        await conn.execute(text("ALTER TABLE events ADD COLUMN IF NOT EXISTS llm_prompt TEXT"))
 
 
 @pytest.fixture(scope="function")

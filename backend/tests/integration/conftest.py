@@ -368,6 +368,8 @@ async def integration_db(integration_env: str) -> AsyncGenerator[str]:
     try:
         yield integration_env
     finally:
+        # Clean up test cameras before closing the database
+        await _cleanup_test_cameras()
         await close_db()
         get_settings.cache_clear()
 
@@ -477,6 +479,31 @@ async def real_redis(
         await client.disconnect()
 
 
+async def _cleanup_test_cameras() -> None:
+    """Delete test cameras created by integration tests.
+
+    This helper function cleans up cameras to prevent orphaned entries
+    from accumulating in the database.
+    """
+    from sqlalchemy import text
+
+    from backend.core.database import get_engine, get_session
+
+    try:
+        engine = get_engine()
+        if engine is None:
+            return
+
+        async with get_session() as session:
+            # Delete all test-related data (simple approach)
+            await session.execute(text("DELETE FROM detections"))
+            await session.execute(text("DELETE FROM events"))
+            await session.execute(text("DELETE FROM cameras"))
+            await session.commit()
+    except Exception:  # noqa: S110
+        pass
+
+
 @pytest.fixture
 async def client(integration_db: str, mock_redis: AsyncMock) -> AsyncGenerator[None]:
     """Async HTTP client bound to the FastAPI app (no network, no server startup).
@@ -486,6 +513,7 @@ async def client(integration_db: str, mock_redis: AsyncMock) -> AsyncGenerator[N
     - We patch app lifespan DB init/close to avoid double initialization.
     - We patch Redis init/close so lifespan does not connect.
     - All background services are mocked to avoid slow startup and cleanup issues.
+    - Test cameras are cleaned up after each test to prevent orphaned entries.
 
     Use this fixture for testing API endpoints.
     """
@@ -558,6 +586,9 @@ async def client(integration_db: str, mock_redis: AsyncMock) -> AsyncGenerator[N
     ):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             yield ac
+
+        # Clean up test cameras after the test
+        await _cleanup_test_cameras()
 
 
 # =============================================================================

@@ -189,8 +189,8 @@ def test_format_clothing_context_no_items():
     assert context == "No clothing detected"
 
 
-def test_format_clothing_context_basic():
-    """Test format_clothing_context with basic clothing items."""
+def test_segformer_format_clothing_context_basic():
+    """Test format_clothing_context with basic clothing items from SegFormer."""
     result = ClothingSegmentationResult(
         clothing_items={"pants", "upper_clothes"},
         has_face_covered=False,
