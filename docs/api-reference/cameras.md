@@ -314,12 +314,12 @@ Binary image data with appropriate `Content-Type` header:
 
 **Errors:**
 
-| Code | Description                                               |
-| ---- | --------------------------------------------------------- |
-| 403  | Camera folder_path is outside configured foscam_base_path |
-| 404  | Camera not found                                          |
-| 404  | Camera folder does not exist                              |
-| 404  | No snapshot images found for camera                       |
+| Code | Description                                       |
+| ---- | ------------------------------------------------- |
+| 404  | Camera not found                                  |
+| 404  | Camera folder does not exist                      |
+| 404  | No snapshot images found for camera               |
+| 404  | No snapshot available (folder path misconfigured) |
 
 **Example Request:**
 

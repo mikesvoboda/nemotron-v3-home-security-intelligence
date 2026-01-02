@@ -780,7 +780,7 @@ class TestGetCameraSnapshot:
     def test_get_snapshot_folder_outside_base_path(
         self, client: TestClient, mock_db_session: AsyncMock, tmp_path: Path
     ) -> None:
-        """Test snapshot endpoint returns 403 if folder is outside base path."""
+        """Test snapshot endpoint returns 404 if folder is outside base path."""
         # Create a camera with folder outside allowed base path
         camera = Camera(
             id=str(uuid.uuid4()),
@@ -801,9 +801,9 @@ class TestGetCameraSnapshot:
         with patch("backend.api.routes.cameras.get_settings", return_value=mock_settings):
             response = client.get(f"/api/cameras/{camera.id}/snapshot")
 
-        assert response.status_code == 403
+        assert response.status_code == 404
         data = response.json()
-        assert "outside" in data["detail"].lower()
+        assert "no snapshot" in data["detail"].lower() or "not found" in data["detail"].lower()
 
     def test_get_snapshot_folder_does_not_exist(
         self, client: TestClient, mock_db_session: AsyncMock, tmp_path: Path

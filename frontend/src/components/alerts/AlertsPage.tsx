@@ -1,5 +1,5 @@
 import { AlertTriangle, Bell, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { fetchCameras, fetchEvents, isAbortError } from '../../services/api';
 import { getRiskLevel } from '../../utils/risk';
@@ -37,6 +37,16 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
 
   // State for selected risk level filter (high or critical)
   const [riskFilter, setRiskFilter] = useState<'high' | 'critical' | 'all'>('all');
+
+  // Create a memoized camera name lookup map that updates when cameras change
+  // This ensures the component re-renders with correct camera names when cameras load
+  const cameraNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    cameras.forEach((camera) => {
+      map.set(camera.id, camera.name);
+    });
+    return map;
+  }, [cameras]);
 
   // Load cameras for camera name lookup
   useEffect(() => {
@@ -152,8 +162,7 @@ export default function AlertsPage({ onViewEventDetails, className = '' }: Alert
 
   // Convert Event to EventCard props
   const getEventCardProps = (event: Event) => {
-    const camera = cameras.find((c) => c.id === event.camera_id);
-    const camera_name = camera?.name || 'Unknown Camera';
+    const camera_name = cameraNameMap.get(event.camera_id) || 'Unknown Camera';
     const detections: Detection[] = [];
 
     return {

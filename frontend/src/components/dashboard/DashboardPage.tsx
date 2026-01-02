@@ -2,7 +2,6 @@ import { useEffect, useState, useMemo } from 'react';
 
 import ActivityFeed, { type ActivityEvent } from './ActivityFeed';
 import CameraGrid, { type CameraStatus } from './CameraGrid';
-import PipelineTelemetry from './PipelineTelemetry';
 import RiskGauge from './RiskGauge';
 import StatsRow from './StatsRow';
 import { useEventStream, type SecurityEvent } from '../../hooks/useEventStream';
@@ -22,12 +21,11 @@ import {
  *
  * Assembles Phase 6 components into a cohesive dashboard layout:
  * - Top row: RiskGauge (full width)
- * - Pipeline Telemetry (full width)
  * - Middle: CameraGrid (full width)
  * - Bottom: ActivityFeed (full width)
  *
- * Note: GPU Statistics are available on the System page which provides
- * better context with RT-DETRv2/Nemotron model cards and pipeline metrics.
+ * Note: GPU Statistics and Pipeline Telemetry are available on the System page
+ * which provides better context with RT-DETRv2/Nemotron model cards and pipeline metrics.
  *
  * Features:
  * - Real-time updates via WebSocket
@@ -266,11 +264,6 @@ export default function DashboardPage() {
               />
             </div>
           </div>
-        </div>
-
-        {/* Pipeline Telemetry - full width */}
-        <div className="mb-6 md:mb-8">
-          <PipelineTelemetry />
         </div>
 
         {/* Camera Grid */}

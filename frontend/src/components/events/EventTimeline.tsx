@@ -10,7 +10,7 @@ import {
   Square,
   X,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import EventCard from './EventCard';
 import EventDetailModal from './EventDetailModal';
@@ -89,6 +89,16 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
   const [searchOffset, setSearchOffset] = useState(0);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+
+  // Create a memoized camera name lookup map that updates when cameras change
+  // This ensures the component re-renders with correct camera names when cameras load
+  const cameraNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    cameras.forEach((camera) => {
+      map.set(camera.id, camera.name);
+    });
+    return map;
+  }, [cameras]);
 
   // Ref to track the latest search request ID to prevent race conditions
   const searchRequestIdRef = useRef(0);
@@ -431,9 +441,8 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
 
   // Convert Event to EventCard props
   const getEventCardProps = (event: Event) => {
-    // Find camera name
-    const camera = cameras.find((c) => c.id === event.camera_id);
-    const camera_name = camera?.name || 'Unknown Camera';
+    // Use memoized camera name map for efficient lookup
+    const camera_name = cameraNameMap.get(event.camera_id) || 'Unknown Camera';
 
     // Convert detections (not available in list view, would need separate API call)
     const detections: Detection[] = [];
@@ -491,12 +500,12 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
     const event = filteredEvents.find((e) => e.id === selectedEventForModal);
     if (!event) return null;
 
-    const camera = cameras.find((c) => c.id === event.camera_id);
+    const camera_name = cameraNameMap.get(event.camera_id) || 'Unknown Camera';
 
     return {
       id: String(event.id),
       timestamp: event.started_at,
-      camera_name: camera?.name || 'Unknown Camera',
+      camera_name,
       risk_score: event.risk_score || 0,
       risk_label: event.risk_level || getRiskLevel(event.risk_score || 0),
       summary: event.summary || 'No summary available',
