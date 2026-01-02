@@ -2,53 +2,140 @@
 
 > AI-powered home security monitoring with real-time object detection and LLM-based risk analysis. Self-hosted, privacy-first. Fully containerized with GPU passthrough.
 
-## Quick Deploy (One Command)
+## For AI Assistants (Cursor, Claude, etc.)
 
-```bash
-# Clone and start everything (requires NVIDIA GPU + nvidia-container-toolkit)
-git clone https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence.git
-cd nemotron-v3-home-security-intelligence
-podman-compose -f docker-compose.prod.yml up -d
-```
+This file provides deployment and architecture context for LLM-powered coding assistants.
 
-**Access:** http://localhost:5173 (Dashboard) | http://localhost:8000/docs (API)
+**Key entry points:**
+- `docker-compose.prod.yml` - Container orchestration (9 core + 4 monitoring services)
+- `backend/` - Python FastAPI backend (REST API, WebSocket, AI pipeline)
+- `frontend/` - React TypeScript dashboard (Tailwind + Tremor)
+- `ai/` - AI service containers (RT-DETRv2, Nemotron, Florence, CLIP, Enrichment)
 
-## Services & Ports
-
-| Service | Port | Description |
-|---------|------|-------------|
-| Frontend | 5173 | React dashboard (nginx) |
-| Backend | 8000 | FastAPI REST + WebSocket |
-| PostgreSQL | 5432 | Event/detection storage |
-| Redis | 6379 | Queues and pub/sub |
-| RT-DETRv2 | 8090 | Object detection (GPU) |
-| Nemotron | 8091 | Risk analysis LLM (GPU) |
-
-## Requirements
-
-- **Linux** with Podman 4.0+ or Docker 20.10+
-- **NVIDIA GPU** with 16GB+ VRAM (RTX 3090/4090, A4000, A5500)
-- **nvidia-container-toolkit** for GPU passthrough
-- 50GB disk for AI models
-
-## Full Documentation
-
-- [llms-full.txt](llms-full.txt): Complete deployment guide with troubleshooting
-- [docs/DOCKER_DEPLOYMENT.md](docs/DOCKER_DEPLOYMENT.md): Container configuration
-- [docs/RUNTIME_CONFIG.md](docs/RUNTIME_CONFIG.md): Environment variables
-- [CLAUDE.md](CLAUDE.md): Development setup
-
-## Architecture
-
+**Architecture:**
 ```
 Cameras (FTP) --> FileWatcher --> RT-DETRv2 --> Batch Aggregator --> Nemotron --> Dashboard
                                   (detection)                        (risk analysis)
 ```
 
-- **Frontend:** React + TypeScript + Tailwind + Tremor
-- **Backend:** Python FastAPI + PostgreSQL + Redis
-- **AI:** RT-DETRv2 (detection) + Nemotron via llama.cpp (reasoning)
-- **Containers:** All services containerized with Podman/Docker
+## Quick Deploy (First Time)
+
+```bash
+# 1. Clone repository
+git clone https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence.git
+cd nemotron-v3-home-security-intelligence
+
+# 2. Configure environment
+cp .env.example .env
+
+# 3. Download AI models (~23GB, takes 10-30 min on fast connection)
+./ai/download_models.sh
+
+# 4. Start all services (builds AI containers on first run)
+podman-compose -f docker-compose.prod.yml up -d
+
+# 5. Wait for AI models to load (~2-3 min)
+watch -n 5 'curl -s http://localhost:8000/api/system/health/ready'
+```
+
+**Access:** http://localhost:5173 (Dashboard) | http://localhost:8000/docs (API)
+
+## Update Deployment (GHCR)
+
+Pre-built frontend/backend containers are published to GitHub Container Registry.
+AI service containers must be built locally (GPU-specific optimizations).
+
+```bash
+# Pull latest frontend + backend from GHCR
+podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:latest
+podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:latest
+
+# Rebuild AI containers if ai/ code changed
+podman-compose -f docker-compose.prod.yml build ai-detector ai-llm ai-florence ai-clip ai-enrichment
+
+# Restart everything
+podman-compose -f docker-compose.prod.yml down
+podman-compose -f docker-compose.prod.yml up -d
+```
+
+## GPU Requirements
+
+| VRAM | Capability | Example GPUs |
+|------|------------|--------------|
+| **24GB** | Full stack, all models loaded | RTX 3090, 4090, A5000, A5500, A6000 |
+| **16GB** | Reduced GPU layers (`GPU_LAYERS=30`) | RTX 4080, A4000 |
+| **12GB** | Minimal mode, some CPU offload | RTX 3080, 4070 Ti |
+
+**Full stack VRAM usage:** ~23GB (Nemotron ~21GB + RT-DETRv2 ~650MB + enrichment models)
+
+## AI Models (~42GB total)
+
+The download script (`./ai/download_models.sh`) fetches all required models:
+
+| Model | Size | Purpose |
+|-------|------|---------|
+| Nemotron-3-Nano-30B (Q4_K_M) | ~18GB | Risk reasoning LLM |
+| RT-DETRv2 | ~165MB | Object detection (auto-download) |
+| Florence-2-Large | ~3GB | Vision-language captions |
+| CLIP-ViT-L | ~1.7GB | Entity re-identification |
+| Fashion-CLIP | ~3.5GB | Clothing classification |
+| Vehicle-Segment-Classification | ~100MB | Vehicle types |
+| Pet-Classifier | ~100MB | Cat/dog detection |
+| Depth-Anything-V2-Small | ~95MB | Depth estimation |
+
+### Custom Model Path
+
+Default installation path: `/export/ai_models`
+
+To use a custom path:
+```bash
+# Set before running download script
+export AI_MODELS_PATH=/your/custom/path
+./ai/download_models.sh
+
+# Also set when starting containers
+AI_MODELS_PATH=/your/custom/path podman-compose -f docker-compose.prod.yml up -d
+```
+
+### Directory Structure (after download)
+
+```
+${AI_MODELS_PATH}/
+├── nemotron/
+│   └── nemotron-3-nano-30b-a3b-q4km/  # Nemotron LLM (.gguf)
+└── model-zoo/
+    ├── florence-2-large/              # Vision-language
+    ├── clip-vit-l/                    # Embeddings
+    ├── fashion-clip/                  # Clothing
+    ├── vehicle-segment-classification/ # Vehicles
+    ├── pet-classifier/                # Pets
+    └── depth-anything-v2-small/       # Depth
+```
+
+## Services & Ports
+
+### Core Services (9)
+
+| Service | Port | Container | GPU | Description |
+|---------|------|-----------|-----|-------------|
+| Frontend | 5173 | frontend | No | React dashboard (nginx) |
+| Backend | 8000 | backend | No | FastAPI REST + WebSocket |
+| PostgreSQL | 5432 | postgres | No | Event/detection storage |
+| Redis | 6379 | redis | No | Queues and pub/sub |
+| RT-DETRv2 | 8090 | ai-detector | Yes | Object detection |
+| Nemotron | 8091 | ai-llm | Yes | Risk analysis LLM |
+| Florence-2 | 8092 | ai-florence | Yes | Vision-language captions |
+| CLIP | 8093 | ai-clip | Yes | Embeddings/re-identification |
+| Enrichment | 8094 | ai-enrichment | Yes | Vehicle/pet/clothing analysis |
+
+### Monitoring Services (4)
+
+| Service | Port | Description |
+|---------|------|-------------|
+| Prometheus | 9090 | Metrics collection |
+| Grafana | 3000 | Dashboards |
+| Redis Exporter | 9121 | Redis metrics |
+| JSON Exporter | 7979 | Custom metrics |
 
 ## Common Commands
 
@@ -58,6 +145,7 @@ podman-compose -f docker-compose.prod.yml up -d
 
 # View logs
 podman-compose -f docker-compose.prod.yml logs -f backend
+podman-compose -f docker-compose.prod.yml logs -f ai-llm
 
 # Check health
 curl http://localhost:8000/api/system/health/ready
@@ -68,8 +156,8 @@ podman-compose -f docker-compose.prod.yml down
 # GPU memory check
 nvidia-smi
 
-# Enable systemd auto-start (Linux only)
-./scripts/setup-systemd.sh
+# Database shell
+podman exec -it nemotron-v3-home-security-intelligence_postgres_1 psql -U security -d security
 ```
 
 ## Deploy from CI/CD Containers
@@ -88,26 +176,72 @@ podman-compose -f docker-compose.prod.yml up -d
 
 ## Auto-Start on Boot
 
-| Platform | Script | Service Manager |
-|----------|--------|-----------------|
-| Linux | `./scripts/setup-systemd.sh` | systemd |
-| macOS | `./scripts/setup-launchd.sh` | launchd |
-| Windows | `.\scripts\setup-windows.ps1` (Admin) | Task Scheduler |
+| Platform | Command |
+|----------|---------|
+| Linux (systemd) | `./scripts/setup-systemd.sh` |
+| macOS (launchd) | `./scripts/setup-launchd.sh` |
+| Windows (Task Scheduler) | `powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1` |
 
+## Troubleshooting
+
+**Container won't start (port in use):**
 ```bash
-# Linux
-./scripts/setup-systemd.sh
-systemctl --user restart nemotron-v3-home-security-intelligence_backend_1
-
-# macOS
-./scripts/setup-launchd.sh
-launchctl list | grep com.security
-
-# Windows (run as Administrator)
-powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
+ss -tlnp | grep 8000  # Find what's using the port
 ```
 
-All scripts configure:
-- Auto-start on boot for all 6 containers
-- Frontend dependency on backend (waits for healthy backend)
-- Orphaned container cleanup on restart
+**GPU not available:**
+```bash
+podman run --rm --device nvidia.com/gpu=all nvidia/cuda:12.4-base nvidia-smi
+```
+
+**Out of VRAM:**
+```bash
+# Edit .env or docker-compose.prod.yml
+GPU_LAYERS=30  # Reduce from default 45
+```
+
+**AI service slow/not responding:**
+```bash
+curl http://localhost:8090/health  # RT-DETRv2
+curl http://localhost:8091/health  # Nemotron
+# First request after startup is slow (model loading)
+```
+
+## Documentation
+
+| Need | Document |
+|------|----------|
+| All environment variables | [docs/RUNTIME_CONFIG.md](docs/RUNTIME_CONFIG.md) |
+| AI model setup & downloads | [docs/AI_SETUP.md](docs/AI_SETUP.md) |
+| Container configuration | [docs/DOCKER_DEPLOYMENT.md](docs/DOCKER_DEPLOYMENT.md) |
+| Full operator guide | [docs/operator-hub.md](docs/operator-hub.md) |
+| Development setup | [CLAUDE.md](CLAUDE.md) |
+| User guide | [docs/user-hub.md](docs/user-hub.md) |
+
+## Project Structure
+
+```
+nemotron-v3-home-security-intelligence/
+├── docker-compose.prod.yml   # Container orchestration
+├── backend/                  # FastAPI backend
+│   ├── api/routes/          # REST + WebSocket endpoints
+│   ├── services/            # AI pipeline, file watcher
+│   └── models/              # SQLAlchemy models
+├── frontend/                 # React dashboard
+│   └── src/
+│       ├── components/      # UI components
+│       ├── hooks/           # WebSocket + data hooks
+│       └── services/        # API client
+├── ai/                       # AI service containers
+│   ├── rtdetr/              # Object detection (port 8090)
+│   ├── nemotron/            # Risk reasoning LLM (port 8091)
+│   ├── florence/            # Vision-language (port 8092)
+│   ├── clip/                # Embeddings (port 8093)
+│   └── enrichment/          # Additional models (port 8094)
+└── docs/                     # Documentation
+```
+
+## Support
+
+- **Issues:** https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence/issues
+- **API Docs:** http://localhost:8000/docs (when running)
