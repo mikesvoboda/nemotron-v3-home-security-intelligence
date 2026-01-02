@@ -16,6 +16,7 @@ _.clean_detections
 _.clean_events
 _.clean_full_stack
 _.clean_logs
+_.clean_test_data
 _.temp_foscam_dir
 _.temp_thumbnail_dir
 _.reset_redis_global_state
