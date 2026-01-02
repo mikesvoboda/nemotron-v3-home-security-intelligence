@@ -151,6 +151,17 @@ describe('SystemMonitoringPage', () => {
     (api.fetchTelemetry as Mock).mockResolvedValue(mockTelemetry);
     (api.fetchGPUStats as Mock).mockResolvedValue(mockGPUStats);
 
+    // Mock fetchConfig for config API (default to URL in config)
+    (api.fetchConfig as Mock).mockResolvedValue({
+      app_name: 'Home Security Intelligence',
+      version: '0.1.0',
+      retention_days: 30,
+      batch_window_seconds: 90,
+      batch_idle_timeout_seconds: 30,
+      detection_confidence_threshold: 0.5,
+      grafana_url: 'http://localhost:3002',
+    });
+
     (useHealthStatusHook.useHealthStatus as Mock).mockReturnValue({
       health: mockHealthResponse,
       services: mockHealthResponse.services,
@@ -714,7 +725,17 @@ describe('SystemMonitoringPage', () => {
       });
     });
 
-    it('displays Grafana link with correct href', async () => {
+    it('displays Grafana link with default URL when config has no custom URL', async () => {
+      // Mock fetchConfig to return config without grafana_url
+      (api.fetchConfig as Mock).mockResolvedValue({
+        app_name: 'Home Security Intelligence',
+        version: '0.1.0',
+        retention_days: 30,
+        batch_window_seconds: 90,
+        batch_idle_timeout_seconds: 30,
+        detection_confidence_threshold: 0.5,
+      });
+
       render(<SystemMonitoringPage />);
 
       await waitFor(() => {
@@ -722,6 +743,38 @@ describe('SystemMonitoringPage', () => {
         expect(grafanaLink).toHaveAttribute('href', 'http://localhost:3002');
         expect(grafanaLink).toHaveAttribute('target', '_blank');
         expect(grafanaLink).toHaveAttribute('rel', 'noopener noreferrer');
+      });
+    });
+
+    it('uses dynamic grafana_url from config API', async () => {
+      // Mock fetchConfig to return custom grafana_url
+      (api.fetchConfig as Mock).mockResolvedValue({
+        app_name: 'Home Security Intelligence',
+        version: '0.1.0',
+        retention_days: 30,
+        batch_window_seconds: 90,
+        batch_idle_timeout_seconds: 30,
+        detection_confidence_threshold: 0.5,
+        grafana_url: 'http://custom-grafana:3333',
+      });
+
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        const grafanaLink = screen.getByTestId('grafana-link');
+        expect(grafanaLink).toHaveAttribute('href', 'http://custom-grafana:3333');
+      });
+    });
+
+    it('keeps default URL when config API fails', async () => {
+      // Mock fetchConfig to fail
+      (api.fetchConfig as Mock).mockRejectedValue(new Error('Network error'));
+
+      render(<SystemMonitoringPage />);
+
+      await waitFor(() => {
+        const grafanaLink = screen.getByTestId('grafana-link');
+        expect(grafanaLink).toHaveAttribute('href', 'http://localhost:3002');
       });
     });
 

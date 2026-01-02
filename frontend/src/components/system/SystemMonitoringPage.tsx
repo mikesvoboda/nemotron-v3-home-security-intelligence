@@ -27,6 +27,7 @@ import {
   fetchStats,
   fetchTelemetry,
   fetchGPUStats,
+  fetchConfig,
   type GPUStats,
   type TelemetryResponse,
   type ServiceStatus,
@@ -117,6 +118,7 @@ export default function SystemMonitoringPage() {
   const [gpuStats, setGpuStats] = useState<GPUStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [grafanaUrl, setGrafanaUrl] = useState<string>('http://localhost:3002');
 
   // Use the health status hook for service health
   const {
@@ -250,6 +252,25 @@ export default function SystemMonitoringPage() {
       };
     });
   });
+
+  // Fetch Grafana URL from config API
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        const config = await fetchConfig();
+        // Check for grafana_url in the config response
+        // The type may not include grafana_url yet if types haven't been regenerated
+        const configWithGrafana = config as typeof config & { grafana_url?: string };
+        if (configWithGrafana.grafana_url) {
+          setGrafanaUrl(configWithGrafana.grafana_url);
+        }
+      } catch (err) {
+        // Silently fail and keep default URL
+        console.error('Failed to fetch config:', err);
+      }
+    };
+    void loadConfig();
+  }, []);
 
   // Fetch initial data
   useEffect(() => {
@@ -388,7 +409,7 @@ export default function SystemMonitoringPage() {
               No login required (anonymous access enabled).
             </span>
             <a
-              href="http://localhost:3002"
+              href={grafanaUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"

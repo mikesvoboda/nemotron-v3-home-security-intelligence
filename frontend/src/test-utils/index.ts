@@ -10,7 +10,6 @@
  *   screen,
  *   createEvent,
  *   createDetection,
- *   checkAccessibility
  * } from '../test-utils';
  *
  * describe('MyComponent', () => {
@@ -19,7 +18,6 @@
  *     const { user } = renderWithProviders(<MyComponent event={event} />);
  *
  *     expect(screen.getByRole('article')).toBeInTheDocument();
- *     await checkAccessibility(screen.getByRole('article'));
  *   });
  * });
  */
@@ -78,18 +76,3 @@ export type {
   HealthStatus,
   SystemHealth,
 } from './factories';
-
-// Accessibility testing utilities
-export {
-  checkAccessibility,
-  getAccessibilityResults,
-  formatViolations,
-  createAccessibilityHelper,
-  checkInteractiveAccessibility,
-  checkFormAccessibility,
-  checkImageAccessibility,
-  checkNavigationAccessibility,
-  axe,
-} from './a11y';
-
-export type { AccessibilityCheckOptions } from './a11y';
