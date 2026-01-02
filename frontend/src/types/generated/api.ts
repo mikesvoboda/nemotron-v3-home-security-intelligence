@@ -3855,7 +3855,6 @@ export interface components {
          *           ],
          *           "ended_at": "2025-12-23T12:02:30Z",
          *           "id": 1,
-         *           "llm_prompt": "<|im_start|>system\nYou are a home security risk analyzer...",
          *           "reasoning": "Person approaching entrance during daytime, no suspicious behavior",
          *           "reviewed": false,
          *           "risk_level": "medium",
@@ -3905,7 +3904,6 @@ export interface components {
          *       ],
          *       "ended_at": "2025-12-23T12:02:30Z",
          *       "id": 1,
-         *       "llm_prompt": "<|im_start|>system\nYou are a home security risk analyzer...",
          *       "reasoning": "Person approaching entrance during daytime, no suspicious behavior",
          *       "reviewed": false,
          *       "risk_level": "medium",
@@ -3956,11 +3954,6 @@ export interface components {
              * @description LLM reasoning for risk score
              */
             reasoning?: string | null;
-            /**
-             * Llm Prompt
-             * @description Full prompt sent to Nemotron LLM (for debugging/improvement)
-             */
-            llm_prompt?: string | null;
             /**
              * Reviewed
              * @description Whether event has been reviewed
