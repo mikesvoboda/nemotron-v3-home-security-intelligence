@@ -48,11 +48,13 @@ repos:
         types: [dockerfile]
 
   # Semgrep - Shift-left security scanning
+  # Note: Uses Python 3.12 because protobuf doesn't support Python 3.14 yet
   - repo: https://github.com/semgrep/semgrep
     rev: v1.96.0
     hooks:
       - id: semgrep
         name: Semgrep Security Scan
+        language_version: python3.12
         args:
           - --config=semgrep.yml
           - --config=p/python
