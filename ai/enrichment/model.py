@@ -83,8 +83,9 @@ VEHICLE_DISPLAY_NAMES: dict[str, str] = {
     "work_van": "work van/delivery van",
 }
 
-# Common vehicle colors for color classification
-VEHICLE_COLORS: list[str] = [
+# Common vehicle colors for color classification - reserved for future use
+# with FashionCLIP zero-shot color classification
+_VEHICLE_COLORS: list[str] = [
     "white",
     "black",
     "silver",

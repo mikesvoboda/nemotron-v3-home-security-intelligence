@@ -165,7 +165,7 @@ def clear_gpu_cache() -> None:
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
     except ImportError:
-        pass
+        pass  # torch not installed, skip CUDA cleanup
 
 
 async def benchmark_model(

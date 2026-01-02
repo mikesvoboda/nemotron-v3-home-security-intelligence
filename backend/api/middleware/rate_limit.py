@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING
 from fastapi import Depends, HTTPException, Request, WebSocket, status
 
 from backend.core.config import get_settings
-from backend.core.logging import get_logger
+from backend.core.logging import get_logger, mask_ip
 from backend.core.redis import RedisClient, get_redis
 
 if TYPE_CHECKING:
@@ -361,10 +361,10 @@ class RateLimiter:
 
             if not is_allowed:
                 logger.warning(
-                    f"Rate limit exceeded for {client_ip} on tier {self.tier.value}: "
+                    f"Rate limit exceeded for {mask_ip(client_ip)} on tier {self.tier.value}: "
                     f"{current_count}/{total_limit} requests",
                     extra={
-                        "client_ip": client_ip,
+                        "client_ip": mask_ip(client_ip),
                         "tier": self.tier.value,
                         "current_count": current_count,
                         "limit": total_limit,
@@ -445,10 +445,10 @@ async def check_websocket_rate_limit(
 
     if not is_allowed:
         logger.warning(
-            f"WebSocket rate limit exceeded for {client_ip}: "
+            f"WebSocket rate limit exceeded for {mask_ip(client_ip)}: "
             f"{current_count}/{limit} connection attempts",
             extra={
-                "client_ip": client_ip,
+                "client_ip": mask_ip(client_ip),
                 "current_count": current_count,
                 "limit": limit,
             },

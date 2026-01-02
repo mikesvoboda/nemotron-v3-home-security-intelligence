@@ -55,7 +55,7 @@ async def load_clip_model(model_path: str) -> Any:
                     model = model.cuda()
                     logger.info("CLIP model moved to CUDA")
             except ImportError:
-                pass
+                pass  # torch not installed, model will run on CPU
 
             return {"model": model, "processor": processor}
 
