@@ -10,9 +10,19 @@ Supports two modes:
 import secrets
 import socket
 from datetime import datetime
+from typing import TypedDict
+
+
+class ServiceInfo(TypedDict):
+    """Type definition for service configuration."""
+
+    port: int
+    category: str
+    desc: str
+
 
 # Service definitions with default ports
-SERVICES = {
+SERVICES: dict[str, ServiceInfo] = {
     "backend": {"port": 8000, "category": "Core", "desc": "Backend API"},
     "frontend": {"port": 5173, "category": "Core", "desc": "Frontend web UI"},
     "postgres": {"port": 5432, "category": "Core", "desc": "PostgreSQL database"},
