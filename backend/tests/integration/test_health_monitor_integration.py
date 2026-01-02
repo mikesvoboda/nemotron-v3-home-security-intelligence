@@ -110,10 +110,16 @@ class MockBroadcaster:
     def __init__(self) -> None:
         self.broadcast_calls: list[dict[str, Any]] = []
         self.broadcast_event = AsyncMock(side_effect=self._record_broadcast)
+        self.broadcast_service_status = AsyncMock(side_effect=self._record_service_status)
 
     async def _record_broadcast(self, event_data: dict[str, Any]) -> int:
         """Record broadcast calls for verification."""
         self.broadcast_calls.append(event_data)
+        return 1
+
+    async def _record_service_status(self, status_data: dict[str, Any]) -> int:
+        """Record service status broadcast calls for verification."""
+        self.broadcast_calls.append(status_data)
         return 1
 
 
