@@ -36,6 +36,17 @@ jobs:
             suffix: arm64
 
     steps:
+      - name: Free disk space
+        if: matrix.image.name == 'backend' && matrix.platform.suffix == 'amd64'
+        run: |
+          # Remove unnecessary tools to free ~10GB
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo docker image prune -af
+          df -h
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -77,6 +88,10 @@ jobs:
           format: "table"
           exit-code: "1"
           severity: "CRITICAL,HIGH"
+
+      - name: Remove scan image to free space
+        if: matrix.platform.suffix == 'amd64'
+        run: docker rmi ${{ matrix.image.name }}:scan || true
 
       # Build and push by digest (for later manifest merge)
       - name: Build and push by digest
