@@ -26,14 +26,11 @@ no text overlays"
 
 ## How it works (at a glance)
 
-```
-FTP uploads → FileWatcher → Redis queues → RT-DETRv2 → Detections
-                                         │
-                                         ├─ EnrichmentPipeline (model zoo + Florence/CLIP + context signals)
-                                         │
-                                         ▼
-                                BatchAggregator → Nemotron → Events → WebSocket → UI
-```
+![From Camera to Alert](docs/images/info-camera-to-event.png)
+
+### AI Pipeline
+
+![AI Pipeline Flow](docs/images/flow-ai-pipeline.png)
 
 ## Documentation (pick your path)
 
@@ -46,9 +43,17 @@ FTP uploads → FileWatcher → Redis queues → RT-DETRv2 → Detections
 If you just need the authoritative env/ports reference, go straight to
 [Runtime Configuration](docs/RUNTIME_CONFIG.md).
 
-## AI services and model zoo (what’s actually in this repo)
+## AI services and model zoo (what's actually in this repo)
 
-This project ships a **multi-service AI stack** (`ai/`) plus a backend “model zoo” used for enrichment.
+This project ships a **multi-service AI stack** (`ai/`) plus a backend "model zoo" used for enrichment.
+
+### What the system detects
+
+![Detection Types](docs/images/info-detection-types.png)
+
+### Model zoo enrichment
+
+![Model Zoo](docs/images/arch-model-zoo.png)
 
 ### AI services (containerized HTTP)
 
@@ -175,6 +180,8 @@ Common things you’ll configure:
 - `API_KEY_ENABLED` (turn on API key auth for exposed deployments)
 
 ## Architecture (1-minute tour)
+
+![System Architecture](docs/images/arch-system-overview.png)
 
 - **Frontend** (`frontend/`): React + TypeScript + Tailwind + Tremor
   - REST client + WS URL builder: `frontend/src/services/api.ts`

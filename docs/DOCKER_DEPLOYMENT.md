@@ -2,6 +2,10 @@
 
 This guide covers deploying the Home Security Intelligence system using Docker Compose or Podman Compose.
 
+## Deployment Architecture
+
+![Docker Deployment Topology](images/deploy-docker-topology.png)
+
 ## Overview
 
 The system consists of five main service groups:

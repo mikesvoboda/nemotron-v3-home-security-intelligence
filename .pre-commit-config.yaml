@@ -34,6 +34,7 @@ repos:
         exclude: tsconfig.*\.json$
       - id: check-added-large-files
         args: ["--maxkb=1000"]
+        exclude: ^docs/images/.*\.png$
       - id: check-merge-conflict
       - id: detect-private-key
 
