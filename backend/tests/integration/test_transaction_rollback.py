@@ -561,7 +561,7 @@ class TestConcurrentBatchCompletion:
                 return event.id
 
         # Run concurrent attempts (with small delay to simulate race condition)
-        results = await asyncio.gather(
+        await asyncio.gather(
             create_event_for_batch(1),
             create_event_for_batch(2),
             create_event_for_batch(3),
