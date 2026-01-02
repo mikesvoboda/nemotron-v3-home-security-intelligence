@@ -31,7 +31,8 @@ RUN uv sync --frozen --no-install-project
 COPY backend/ ./backend/
 
 # Create data directory for logs and thumbnails
-RUN mkdir -p /app/data
+# The thumbnails subdirectory is required for the ThumbnailGenerator service
+RUN mkdir -p /app/data/thumbnails
 
 # Create non-root user
 RUN groupadd -g 1000 appgroup && \
