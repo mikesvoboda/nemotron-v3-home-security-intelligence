@@ -166,13 +166,13 @@ class TestListenerRecovery:
         mock_pubsub = AsyncMock()
         mock_redis_client.subscribe_dedicated.return_value = mock_pubsub
 
-        with patch.object(broadcaster, "_reset_pubsub_connection") as mock_reset:
+        async def mock_reset_impl():
+            broadcaster._pubsub = mock_pubsub
 
-            async def mock_reset_impl():
-                broadcaster._pubsub = mock_pubsub
-
-            mock_reset.side_effect = mock_reset_impl
-
+        with (
+            patch.object(broadcaster, "_reset_pubsub_connection", side_effect=mock_reset_impl),
+            patch("asyncio.sleep", return_value=None),
+        ):
             await broadcaster._attempt_listener_recovery()
 
         assert broadcaster._recovery_attempts == 1
@@ -460,12 +460,11 @@ class TestDatabaseQueryErrorHandling:
         """Test deprecated _get_camera_stats handles errors."""
         broadcaster = SystemBroadcaster()
 
-        @asynccontextmanager
-        async def failing_session():
-            raise Exception("Session creation failed")
-            yield  # Never reached, but needed for asynccontextmanager
+        mock_session = MagicMock()
+        mock_session.__aenter__ = AsyncMock(side_effect=Exception("Session creation failed"))
+        mock_session.__aexit__ = AsyncMock()
 
-        with patch("backend.services.system_broadcaster.get_session", failing_session):
+        with patch("backend.services.system_broadcaster.get_session", return_value=mock_session):
             result = await broadcaster._get_camera_stats()
 
         # Should return zeros
@@ -553,12 +552,11 @@ class TestDeprecatedGetHealthStatus:
         """Test _get_health_status returns unhealthy when database fails."""
         broadcaster = SystemBroadcaster()
 
-        @asynccontextmanager
-        async def failing_session():
-            raise Exception("Database unavailable")
-            yield
+        mock_session = MagicMock()
+        mock_session.__aenter__ = AsyncMock(side_effect=Exception("Database unavailable"))
+        mock_session.__aexit__ = AsyncMock()
 
-        with patch("backend.services.system_broadcaster.get_session", failing_session):
+        with patch("backend.services.system_broadcaster.get_session", return_value=mock_session):
             result = await broadcaster._get_health_status()
 
         assert result == "unhealthy"

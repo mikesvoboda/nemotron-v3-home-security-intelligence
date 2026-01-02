@@ -1080,6 +1080,7 @@ class TestAuditLogProperties:
 class TestAuditLogDetailsProperties:
     """Property-based tests for AuditLog details field."""
 
+    @pytest.mark.slow
     @given(details=details_dicts)
     @settings(max_examples=100)
     def test_details_roundtrip(self, details: dict):
