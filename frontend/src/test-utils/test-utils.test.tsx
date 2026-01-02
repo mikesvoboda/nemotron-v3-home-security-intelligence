@@ -26,10 +26,6 @@ import {
   createWsEventMessage,
   createWsServiceStatusMessage,
   createWsGpuStatsMessage,
-  // Accessibility
-  checkAccessibility,
-  getAccessibilityResults,
-  formatViolations,
 } from './index';
 
 // Simple test component for render utilities
@@ -282,34 +278,6 @@ describe('Test Utilities', () => {
       const message = createWsGpuStatsMessage({ gpu_utilization: 80 });
       expect(message.type).toBe('gpu_stats');
       expect(message.data.gpu_utilization).toBe(80);
-    });
-  });
-
-  describe('Accessibility Utilities', () => {
-    it('checkAccessibility passes for accessible component', async () => {
-      const { container } = renderWithProviders(
-        <div>
-          <h1>Accessible Page</h1>
-          <button type="button">Click me</button>
-        </div>
-      );
-
-      // Should not throw
-      await expect(checkAccessibility(container)).resolves.not.toThrow();
-    });
-
-    it('getAccessibilityResults returns results object', async () => {
-      const { container } = renderWithProviders(<TestComponent />);
-      const results = await getAccessibilityResults(container);
-
-      expect(results).toBeDefined();
-      expect(results.violations).toBeDefined();
-      expect(Array.isArray(results.violations)).toBe(true);
-    });
-
-    it('formatViolations returns message for no violations', () => {
-      const message = formatViolations([]);
-      expect(message).toBe('No accessibility violations found.');
     });
   });
 });

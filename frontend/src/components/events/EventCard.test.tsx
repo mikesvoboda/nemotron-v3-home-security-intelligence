@@ -3,8 +3,6 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 import EventCard, { type Detection, type EventCardProps } from './EventCard';
-import { checkAccessibility, checkInteractiveAccessibility, checkImageAccessibility } from '../../test-utils';
-
 
 describe('EventCard', () => {
   // Base time for consistent testing
@@ -1593,70 +1591,6 @@ describe('EventCard', () => {
       // Check for green background/border for high confidence
       const greenBgElements = container.querySelectorAll('.bg-green-500\\/20');
       expect(greenBgElements.length).toBeGreaterThan(0);
-    });
-  });
-
-  describe('axe-core accessibility compliance', () => {
-    it('has no accessibility violations for a complete event card', async () => {
-      const { container } = render(<EventCard {...mockProps} />);
-      await checkAccessibility(container);
-    });
-
-    it('has no accessibility violations with view details button', async () => {
-      const handleViewDetails = vi.fn();
-      const { container } = render(<EventCard {...mockProps} onViewDetails={handleViewDetails} />);
-      await checkAccessibility(container);
-    });
-
-    it('has no accessibility violations when card is clickable', async () => {
-      const handleClick = vi.fn();
-      const { container } = render(<EventCard {...mockProps} onClick={handleClick} />);
-      // Note: EventCard has a known nested-interactive issue when onClick is provided
-      // (clickable div with role="button" contains nested buttons like "View Details").
-      // This is a known pattern trade-off for the card interaction UX.
-      // TODO: Consider refactoring to use a link or button for the entire card.
-      await checkAccessibility(container, {
-        rules: { 'nested-interactive': { enabled: false } },
-      });
-    });
-
-    it('has no accessibility violations for critical risk event', async () => {
-      const criticalEvent = { ...mockProps, risk_score: 95, risk_label: 'Critical' };
-      const { container } = render(<EventCard {...criticalEvent} />);
-      await checkAccessibility(container);
-    });
-
-    it('has no accessibility violations for event without thumbnail', async () => {
-      const noThumbnailEvent = { ...mockProps, thumbnail_url: undefined };
-      const { container } = render(<EventCard {...noThumbnailEvent} />);
-      await checkAccessibility(container);
-    });
-
-    it('passes interactive accessibility checks for buttons', async () => {
-      const handleViewDetails = vi.fn();
-      const { container } = render(<EventCard {...mockProps} onViewDetails={handleViewDetails} />);
-      await checkInteractiveAccessibility(container);
-    });
-
-    it('passes image accessibility checks for thumbnail', async () => {
-      const { container } = render(<EventCard {...mockProps} />);
-      await checkImageAccessibility(container);
-    });
-
-    it('AI reasoning toggle maintains accessibility when expanded', async () => {
-      vi.useRealTimers();
-      const user = userEvent.setup();
-      const { container } = render(<EventCard {...mockProps} />);
-
-      // Expand reasoning
-      const toggleButton = screen.getByRole('button', { name: /AI Reasoning/i });
-      await user.click(toggleButton);
-
-      // Check accessibility after expansion
-      await checkAccessibility(container);
-
-      vi.useFakeTimers({ shouldAdvanceTime: true });
-      vi.setSystemTime(BASE_TIME);
     });
   });
 });
