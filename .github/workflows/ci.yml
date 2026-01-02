@@ -523,56 +523,14 @@ jobs:
           retention-days: 7
 
   # ============================================================================
-  # Build Job (only runs on main branch after merge, not blocking PRs)
+  # Build Jobs (run on PRs and pushes to catch Docker issues before merge)
   # ============================================================================
 
   build:
-    name: Build Docker Images
+    name: Build Docker Images (${{ matrix.name }})
     runs-on: ubuntu-latest
-    # Only run on pushes to main, not on PRs (non-blocking for PR merges)
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs:
-      - lint
-      - typecheck
-      - unit-tests
-      - integration-tests
-      - api-types-check
-      - frontend-lint
-      - frontend-typecheck
-      - frontend-tests
-      - frontend-e2e
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build backend image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./backend/Dockerfile
-          push: false
-          tags: backend:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build frontend image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./frontend
-          file: ./frontend/Dockerfile
-          push: false
-          tags: frontend:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  build-prod:
-    name: Build Production Docker Images
-    runs-on: ubuntu-latest
-    # Only run on pushes to main, not on PRs (non-blocking for PR merges)
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Non-blocking: Docker build failures are informational, don't block PR merges
+    continue-on-error: true
     needs:
       - lint
       - typecheck
@@ -599,15 +557,15 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build ${{ matrix.name }} production image
+      - name: Build ${{ matrix.name }} image
         uses: docker/build-push-action@v5
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           push: false
-          tags: ${{ matrix.name }}-prod:${{ github.sha }}
-          cache-from: type=gha,scope=${{ matrix.name }}-prod
-          cache-to: type=gha,mode=max,scope=${{ matrix.name }}-prod
+          tags: ${{ matrix.name }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
 
   # ============================================================================
   # Security Validation Job
