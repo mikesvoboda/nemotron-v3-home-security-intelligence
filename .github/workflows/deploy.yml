@@ -19,7 +19,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - context: ./backend
+          - context: .
             dockerfile: ./backend/Dockerfile.prod
             image: backend
           - context: ./frontend

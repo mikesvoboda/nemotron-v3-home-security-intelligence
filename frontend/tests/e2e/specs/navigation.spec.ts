@@ -145,6 +145,10 @@ test.describe('All Routes Smoke Tests', () => {
   });
 
   test('all 8 routes load without error', async ({ page }) => {
+    // Increase timeout for this test since it iterates through 8 routes sequentially
+    // Firefox is slower than Chromium, so we need extra time for all routes
+    test.setTimeout(60000);
+
     const routes = [
       { path: '/', title: /Security Dashboard/i },
       { path: '/timeline', title: /Event Timeline/i },
