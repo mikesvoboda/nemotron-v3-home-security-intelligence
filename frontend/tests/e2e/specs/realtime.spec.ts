@@ -6,7 +6,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { DashboardPage, SystemPage } from '../pages';
+import { DashboardPage, SystemPage, TimelinePage } from '../pages';
 import { setupApiMocks, defaultMockConfig, emptyMockConfig, errorMockConfig } from '../fixtures';
 
 test.describe('Real-time Updates', () => {
@@ -68,13 +68,13 @@ test.describe('Connection Status Indicators', () => {
 });
 
 test.describe('Empty State Handling', () => {
-  test('activity feed shows empty state when no events', async ({ page }) => {
+  test('timeline shows empty state when no events', async ({ page }) => {
     await setupApiMocks(page, emptyMockConfig);
-    const dashboardPage = new DashboardPage(page);
-    await dashboardPage.goto();
-    await dashboardPage.waitForDashboardLoad();
-    const hasNoActivity = await dashboardPage.hasNoActivityMessage();
-    expect(hasNoActivity).toBe(true);
+    const timelinePage = new TimelinePage(page);
+    await timelinePage.goto();
+    await timelinePage.waitForTimelineLoad();
+    const hasNoEvents = await timelinePage.hasNoEventsMessage();
+    expect(hasNoEvents).toBe(true);
   });
 });
 
