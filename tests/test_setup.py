@@ -16,6 +16,7 @@ from setup import (
     generate_env_content,
     generate_password,
     prompt_with_default,
+    run_guided_mode,
     run_quick_mode,
     write_config_files,
 )
@@ -320,3 +321,33 @@ def test_configure_firewall_ufw_success():
     assert result is True
     # Should call ufw for each port
     assert mock_run.call_count == 2
+
+
+# Tests for guided mode (Task 11)
+
+
+def test_run_guided_mode_returns_config():
+    """Test guided mode returns complete config dict."""
+    inputs = [
+        "/test/cameras",  # camera path
+        "n",  # don't create dir
+        "/test/models",  # ai models path
+        "",  # accept generated password
+        "",  # accept generated password
+        # 14 ports (all default - no input needed since ports are available)
+        "y",  # confirm
+    ]
+    with (
+        patch("builtins.input", side_effect=inputs),
+        patch("setup.check_port_available", return_value=True),
+        patch.object(Path, "exists", return_value=False),
+    ):
+        config = run_guided_mode()
+
+    assert "camera_path" in config
+    assert "ai_models_path" in config
+    assert "postgres_password" in config
+    assert "ftp_password" in config
+    assert "ports" in config
+    assert config["camera_path"] == "/test/cameras"
+    assert config["ai_models_path"] == "/test/models"

@@ -269,6 +269,124 @@ def run_quick_mode() -> dict:
     }
 
 
+def run_guided_mode() -> dict:
+    """Run guided setup mode with detailed explanations.
+
+    Returns:
+        Configuration dictionary
+    """
+    ports = {service: info["port"] for service, info in SERVICES.items()}
+
+    # Step 1: Camera Path
+    print("=" * 60)
+    print("  Step 1 of 5: Camera Upload Path")
+    print("=" * 60)
+    print()
+    print("This is where your Foscam cameras upload images via FTP.")
+    print("The backend watches this directory for new files.")
+    print()
+    print("Requirements:")
+    print("  * Must exist and be readable by Docker")
+    print("  * Recommended: SSD or fast storage for real-time processing")
+    print("  * Typical size: 10-50GB depending on camera count/retention")
+    print()
+    camera_path = prompt_with_default("Enter camera upload path", "/export/foscam")
+
+    # Validate path exists
+    if Path(camera_path).exists():
+        print("+ Directory exists and is readable")
+    else:
+        print(f"! Directory does not exist: {camera_path}")
+        create = prompt_with_default("Create it now?", "n")
+        if create.lower() in ("y", "yes"):
+            try:
+                Path(camera_path).mkdir(parents=True, exist_ok=True)
+                print("+ Directory created")
+            except PermissionError:
+                print("! Permission denied - you may need to create it manually")
+    print()
+
+    # Step 2: AI Models Path
+    print("=" * 60)
+    print("  Step 2 of 5: AI Models Path")
+    print("=" * 60)
+    print()
+    print("This is where AI model weights are stored.")
+    print("The AI services load models from this directory.")
+    print()
+    print("Requirements:")
+    print("  * Requires ~15GB of disk space for all models")
+    print("  * Must be readable by Docker containers")
+    print()
+    ai_models_path = prompt_with_default("Enter AI models path", "/export/ai_models")
+
+    # Check disk space
+    try:
+        _total, _used, free = shutil.disk_usage(Path(ai_models_path).parent)
+        free_gb = free / (1024**3)
+        if free_gb < 15:
+            print(f"! Warning: Only {free_gb:.1f}GB free space (15GB recommended)")
+        else:
+            print(f"+ {free_gb:.1f}GB free space available")
+    except OSError:
+        # Path doesn't exist yet or isn't accessible - that's OK
+        pass
+    print()
+
+    # Step 3: Credentials
+    print("=" * 60)
+    print("  Step 3 of 5: Security Credentials")
+    print("=" * 60)
+    print()
+    print("Strong passwords will be auto-generated if you press Enter.")
+    print()
+    postgres_password = prompt_with_default("Database password", generate_password())
+    ftp_password = prompt_with_default("FTP password", generate_password())
+    print()
+
+    # Step 4: Port Configuration
+    print("=" * 60)
+    print("  Step 4 of 5: Port Configuration")
+    print("=" * 60)
+    print()
+    print("Checking for port conflicts...")
+
+    for service, info in SERVICES.items():
+        default_port = info["port"]
+        if not check_port_available(default_port):
+            available = find_available_port(default_port)
+            print(f"! {info['desc']} ({service}): port {default_port} in use")
+            ports[service] = int(prompt_with_default("  Alternative port", str(available)))
+        else:
+            print(f"+ {info['desc']}: {default_port}")
+            ports[service] = default_port
+    print()
+
+    # Step 5: Summary
+    print("=" * 60)
+    print("  Step 5 of 5: Configuration Summary")
+    print("=" * 60)
+    print()
+    print(f"Camera Path:    {camera_path}")
+    print(f"AI Models Path: {ai_models_path}")
+    print(f"Database Port:  {ports['postgres']}")
+    print(f"Frontend Port:  {ports['frontend']}")
+    print(f"Grafana Port:   {ports['grafana']}")
+    print()
+    confirm = prompt_with_default("Proceed with this configuration?", "y")
+    if confirm.lower() not in ("y", "yes"):
+        print("Setup cancelled.")
+        sys.exit(0)
+
+    return {
+        "camera_path": camera_path,
+        "ai_models_path": ai_models_path,
+        "postgres_password": postgres_password,
+        "ftp_password": ftp_password,
+        "ports": ports,
+    }
+
+
 def write_config_files(config: dict[str, Any], output_dir: str = ".") -> tuple[Path, Path]:
     """Write configuration files to disk.
 
@@ -356,11 +474,7 @@ def main() -> None:
     args = parser.parse_args()
 
     try:
-        if args.guided:
-            print("Guided mode not yet implemented")
-            config = run_quick_mode()  # Fallback to quick mode
-        else:
-            config = run_quick_mode()
+        config = run_guided_mode() if args.guided else run_quick_mode()
 
         # Write configuration files
         env_path, override_path = write_config_files(config, args.output_dir)
