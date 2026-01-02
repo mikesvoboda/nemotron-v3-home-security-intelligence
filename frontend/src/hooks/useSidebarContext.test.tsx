@@ -460,7 +460,7 @@ describe('useSidebarContext', () => {
 
       expect(() => {
         render(<TestComponent />);
-      }).toThrow('useSidebarContext must be used within a Layout component');
+      }).toThrow('useSidebarContext must be used within Layout');
 
       consoleSpy.mockRestore();
     });
