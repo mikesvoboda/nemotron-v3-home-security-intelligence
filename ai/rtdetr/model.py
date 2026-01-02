@@ -22,7 +22,7 @@ from typing import Any
 import torch
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, Field
 from transformers import AutoImageProcessor, AutoModelForObjectDetection
 
@@ -339,9 +339,17 @@ async def detect_objects(
 
     Returns:
         Detection results with bounding boxes and confidence scores
+
+    Raises:
+        HTTPException 400: Invalid image file (corrupted, truncated, or not an image)
+        HTTPException 413: Image size exceeds maximum allowed size
+        HTTPException 503: Model not loaded
     """
     if model is None or model.model is None:
         raise HTTPException(status_code=503, detail="Model not loaded")
+
+    # Track filename for error reporting
+    filename = file.filename if file else "base64_image"
 
     try:
         # Load image from file or base64 with size validation
@@ -398,8 +406,32 @@ async def detect_objects(
 
     except HTTPException:
         raise
+    except UnidentifiedImageError as e:
+        # Handle corrupted/invalid image files - return 400 Bad Request
+        logger.warning(
+            f"Invalid image file received: {filename}. "
+            f"File may be corrupted, truncated, or not a valid image format. Error: {e}",
+            extra={"filename": filename, "error": str(e)},
+        )
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid image file '{filename}': Cannot identify image format. "
+            f"File may be corrupted, truncated, or not a supported image type "
+            f"(supported: JPEG, PNG, GIF, BMP, WEBP).",
+        ) from e
+    except OSError as e:
+        # Handle truncated or corrupted images that PIL can partially read
+        # This catches "image file is truncated" errors
+        logger.warning(
+            f"Corrupted image file received: {filename}. Error: {e}",
+            extra={"filename": filename, "error": str(e)},
+        )
+        raise HTTPException(
+            status_code=400,
+            detail=f"Corrupted image file '{filename}': {e!s}",
+        ) from e
     except Exception as e:
-        logger.error(f"Detection failed: {e}", exc_info=True)
+        logger.error(f"Detection failed for {filename}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Detection failed: {e!s}") from e
 
 
@@ -412,6 +444,11 @@ async def detect_objects_batch(files: list[UploadFile] = File(...)) -> JSONRespo
 
     Returns:
         JSON response with detections for each image
+
+    Raises:
+        HTTPException 400: One or more files are invalid images
+        HTTPException 413: One or more files exceed maximum size
+        HTTPException 503: Model not loaded
     """
     if model is None or model.model is None:
         raise HTTPException(status_code=503, detail="Model not loaded")
@@ -432,8 +469,30 @@ async def detect_objects_batch(files: list[UploadFile] = File(...)) -> JSONRespo
                     f"exceeds maximum allowed size ({MAX_IMAGE_SIZE_BYTES} bytes / "
                     f"{MAX_IMAGE_SIZE_BYTES // (1024 * 1024)}MB)",
                 )
-            image = Image.open(io.BytesIO(image_bytes))
-            images.append(image)
+            try:
+                image = Image.open(io.BytesIO(image_bytes))
+                images.append(image)
+            except UnidentifiedImageError as e:
+                logger.warning(
+                    f"Invalid image file in batch: {file.filename} (index {idx}). "
+                    f"File may be corrupted, truncated, or not a valid image format. Error: {e}",
+                    extra={"filename": file.filename, "index": idx, "error": str(e)},
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid image file at index {idx} ({file.filename}): "
+                    f"Cannot identify image format. File may be corrupted, truncated, "
+                    f"or not a supported image type.",
+                ) from e
+            except OSError as e:
+                logger.warning(
+                    f"Corrupted image file in batch: {file.filename} (index {idx}). Error: {e}",
+                    extra={"filename": file.filename, "index": idx, "error": str(e)},
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Corrupted image file at index {idx} ({file.filename}): {e!s}",
+                ) from e
 
         # Run batch detection
         all_detections, total_time_ms = model.detect_batch(images)
@@ -459,6 +518,8 @@ async def detect_objects_batch(files: list[UploadFile] = File(...)) -> JSONRespo
             }
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Batch detection failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Batch detection failed: {e!s}") from e
