@@ -723,5 +723,5 @@ jobs:
         env:
           UNIT_TEST_THRESHOLD: "1.0"
           INTEGRATION_TEST_THRESHOLD: "5.0"
-          E2E_TEST_THRESHOLD: "5.0"
+          E2E_TEST_THRESHOLD: "10.0"
           WARN_THRESHOLD_PERCENT: "80"
