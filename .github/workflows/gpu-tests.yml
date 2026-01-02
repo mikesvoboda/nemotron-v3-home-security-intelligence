@@ -39,14 +39,9 @@ jobs:
       - name: Run GPU tests
         run: |
           # Exit code 5 means no tests collected - treat as success
-          # Ignore integration and e2e tests - they require DATABASE_URL and would
-          # conflict with production database on same host (causes TRUNCATE lock contention)
-          uv run pytest backend/tests/ \
-            -m "gpu" \
-            --ignore=backend/tests/integration/ \
-            --ignore=backend/tests/e2e/ \
-            -v \
-            --tb=short || [ $? -eq 5 ]
+          # Only run tests from gpu/ folder to avoid collecting unit tests that
+          # import backend.services (which requires DATABASE_URL at collection time)
+          uv run pytest backend/tests/gpu/ -m "gpu" -v --tb=short || [ $? -eq 5 ]
         env:
           CUDA_VISIBLE_DEVICES: "0"
 
