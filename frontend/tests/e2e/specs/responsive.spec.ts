@@ -190,11 +190,14 @@ test.describe('Desktop Viewport Tests', () => {
     await expect(dashboardPage.navSettings).toBeVisible();
   });
 
-  test('GPU stats panel visible on desktop', async ({ page }) => {
+  test('stats row panel visible on desktop', async ({ page }) => {
+    // Note: GPU stats are on the System page, not the Dashboard.
+    // The Dashboard has StatsRow with Active Cameras, Events Today, etc.
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
     await dashboardPage.waitForDashboardLoad();
-    await dashboardPage.expectGpuStatsVisible();
+    await expect(dashboardPage.activeCamerasStat).toBeVisible();
+    await expect(dashboardPage.eventsTodayStat).toBeVisible();
   });
 
   test('system page shows all metrics on desktop', async ({ page }) => {

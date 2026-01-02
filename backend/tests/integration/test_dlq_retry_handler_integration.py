@@ -98,9 +98,21 @@ def retry_config() -> RetryConfig:
     """Create a fast retry config for testing."""
     return RetryConfig(
         max_retries=3,
-        base_delay_seconds=0.01,  # Fast for testing
-        max_delay_seconds=0.1,
+        base_delay_seconds=0.001,  # Ultra-fast for testing (1ms)
+        max_delay_seconds=0.01,
         exponential_base=2.0,
+        jitter=False,
+    )
+
+
+@pytest.fixture
+def instant_fail_config() -> RetryConfig:
+    """Create a config with single retry for instant DLQ (no delays)."""
+    return RetryConfig(
+        max_retries=1,  # Single attempt = immediate DLQ, zero delays
+        base_delay_seconds=0.0,
+        max_delay_seconds=0.0,
+        exponential_base=1.0,
         jitter=False,
     )
 
@@ -111,6 +123,13 @@ def handler(real_redis: RedisClient, retry_config: RetryConfig) -> RetryHandler:
     # Reset global handler to ensure clean state
     reset_retry_handler()
     return RetryHandler(redis_client=real_redis, config=retry_config)
+
+
+@pytest.fixture
+def instant_handler(real_redis: RedisClient, instant_fail_config: RetryConfig) -> RetryHandler:
+    """Create a RetryHandler that fails instantly to DLQ (no retries/delays)."""
+    reset_retry_handler()
+    return RetryHandler(redis_client=real_redis, config=instant_fail_config)
 
 
 @pytest.fixture
@@ -339,33 +358,33 @@ class TestRequeueBehavior:
 
     @pytest.mark.asyncio
     async def test_requeue_fifo_order(
-        self, handler: RetryHandler, unique_queues: QueueNames
+        self, instant_handler: RetryHandler, unique_queues: QueueNames
     ) -> None:
         """Test that jobs are requeued in FIFO order (oldest first)."""
 
         async def always_fail() -> str:
             raise RuntimeError("Failure")
 
-        # Add jobs in order
+        # Add jobs in order (using instant_handler for zero-delay DLQ insertion)
         for i in range(3):
-            await handler.with_retry(
+            await instant_handler.with_retry(
                 operation=always_fail,
                 job_data={"order": i},
                 queue_name=unique_queues.detection_queue,
             )
 
         # Requeue in order - should get oldest first (FIFO)
-        job1 = await handler.requeue_dlq_job(unique_queues.dlq_detection_queue)
+        job1 = await instant_handler.requeue_dlq_job(unique_queues.dlq_detection_queue)
         assert job1["order"] == 0
 
-        job2 = await handler.requeue_dlq_job(unique_queues.dlq_detection_queue)
+        job2 = await instant_handler.requeue_dlq_job(unique_queues.dlq_detection_queue)
         assert job2["order"] == 1
 
-        job3 = await handler.requeue_dlq_job(unique_queues.dlq_detection_queue)
+        job3 = await instant_handler.requeue_dlq_job(unique_queues.dlq_detection_queue)
         assert job3["order"] == 2
 
         # DLQ should be empty now
-        job4 = await handler.requeue_dlq_job(unique_queues.dlq_detection_queue)
+        job4 = await instant_handler.requeue_dlq_job(unique_queues.dlq_detection_queue)
         assert job4 is None
 
     @pytest.mark.asyncio
@@ -629,22 +648,24 @@ class TestAtomicRequeueOperations:
 
     @pytest.mark.asyncio
     async def test_concurrent_requeue_no_duplicates(
-        self, handler: RetryHandler, unique_queues: QueueNames
+        self, instant_handler: RetryHandler, unique_queues: QueueNames
     ) -> None:
         """Test that concurrent requeue calls don't return the same job."""
 
         async def always_fail() -> str:
             raise RuntimeError("Failure")
 
-        # Add a single job to DLQ
-        await handler.with_retry(
+        # Add a single job to DLQ (using instant_handler for zero-delay)
+        await instant_handler.with_retry(
             operation=always_fail,
             job_data={"camera_id": "unique_job"},
             queue_name=unique_queues.detection_queue,
         )
 
         # Try to requeue concurrently from multiple coroutines
-        tasks = [handler.requeue_dlq_job(unique_queues.dlq_detection_queue) for _ in range(5)]
+        tasks = [
+            instant_handler.requeue_dlq_job(unique_queues.dlq_detection_queue) for _ in range(5)
+        ]
         results = await asyncio.gather(*tasks)
 
         # Only one should get the job, others should get None

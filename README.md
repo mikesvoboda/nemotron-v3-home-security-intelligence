@@ -17,10 +17,150 @@ no text overlays"
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-009688.svg)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
 
+## Why This Matters: AI on Your Hardware
+
+**Millions of people own NVIDIA GPUs that can run advanced AI models locally.** This project proves you don't need cloud APIs or data center hardware to build intelligent systems.
+
+### Nemotron v3 Nano: Big Model, Small Footprint
+
+The brain of this system is [NVIDIA's Nemotron-3-Nano](https://huggingface.co/nvidia/Nemotron-3-Nano-30B-A3B-GGUF) — a 30 billion parameter reasoning model that fits on a single workstation GPU:
+
+| Specification        | Value                  | Why It Matters                                       |
+| -------------------- | ---------------------- | ---------------------------------------------------- |
+| **Parameters**       | 30B (A3B architecture) | State-of-the-art reasoning in a dense model          |
+| **Quantization**     | Q4_K_M (4-bit)         | Reduces memory by ~4x with minimal quality loss      |
+| **VRAM Required**    | ~18GB                  | Fits on RTX 3090, 4090, A5000, A5500, A6000          |
+| **Context Window**   | 128K tokens            | Analyze hours of security context in a single prompt |
+| **Inference Engine** | llama.cpp              | Optimized C++ with CUDA acceleration                 |
+
+### Configuration
+
+```yaml
+# docker-compose.prod.yml
+ai-llm:
+  environment:
+    - GPU_LAYERS=35 # Offload 35 layers to GPU (adjust for your VRAM)
+    - CTX_SIZE=131072 # Full 128K context window
+  volumes:
+    - /path/to/nemotron-3-nano-30b-a3b-q4km:/models:ro
+```
+
+The llama.cpp server runs with:
+
+- `--cont-batching` — Continuous batching for throughput
+- `--parallel 1` — Single-slot for dedicated inference
+- `--metrics` — Prometheus-compatible monitoring
+
+### What This Enables
+
+With 128K context, Nemotron can reason about:
+
+- **All detections in a time window** — not just the latest frame
+- **Historical baselines** — "Is this normal for 3am on a Tuesday?"
+- **Cross-camera correlation** — "Same person seen at front door, then garage"
+- **Rich enrichment data** — clothing, vehicles, behavior, scene descriptions
+
+All processed locally, with your footage never leaving your network.
+
+> [!TIP] > **Don't have 24GB VRAM?** Reduce `GPU_LAYERS` to offload some layers to CPU RAM, or use a smaller quantization. The system degrades gracefully.
+
+---
+
+## System Requirements
+
+### Hardware
+
+| Component      | Minimum               | Recommended       | This Project Uses |
+| -------------- | --------------------- | ----------------- | ----------------- |
+| **GPU VRAM**   | 12GB (reduced layers) | 24GB              | RTX A5500 (24GB)  |
+| **System RAM** | 32GB                  | 64GB+             | 128GB             |
+| **Storage**    | 50GB (core models)    | 100GB+ (full zoo) | ~42GB models      |
+| **CPU**        | 8 cores               | 16+ cores         | AMD Ryzen 9       |
+
+### GPU Compatibility
+
+Any NVIDIA GPU with sufficient VRAM and CUDA support:
+
+| VRAM     | What You Can Run                    | Example GPUs                        |
+| -------- | ----------------------------------- | ----------------------------------- |
+| **24GB** | Full stack, all models loaded       | RTX 3090, 4090, A5000, A5500, A6000 |
+| **16GB** | Nemotron (reduced layers) + RT-DETR | RTX 4080, A4000, Tesla T4           |
+| **12GB** | Nemotron (CPU offload) + RT-DETR    | RTX 3080, 4070 Ti                   |
+| **8GB**  | RT-DETR only, no LLM                | RTX 3070, 4060 Ti                   |
+
+### Model Storage Requirements
+
+**Core AI Models (~23GB):**
+
+| Model                      | Size   | Purpose              |
+| -------------------------- | ------ | -------------------- |
+| Nemotron-3-Nano-30B Q4_K_M | 23 GB  | Risk reasoning (LLM) |
+| RT-DETRv2                  | 165 MB | Object detection     |
+
+**Enrichment Model Zoo (~19GB total):**
+
+| Model                  | Size   | Purpose                        |
+| ---------------------- | ------ | ------------------------------ |
+| CLIP ViT-L             | 6.4 GB | Embeddings / re-identification |
+| Fashion-CLIP           | 3.5 GB | Clothing classification        |
+| Florence-2-Large       | 3.0 GB | Vision-language captions       |
+| Weather Classification | 2.4 GB | Weather/visibility context     |
+| X-CLIP Base            | 1.5 GB | Action recognition             |
+| Violence Detection     | 656 MB | Violence classifier            |
+| YOLO License Plate     | 656 MB | License plate detection        |
+| Segformer Clothes      | 523 MB | Clothing segmentation          |
+| ViTPose Small          | 127 MB | Pose estimation                |
+| Vehicle Damage         | 120 MB | Damage detection               |
+| Depth Anything V2      | 95 MB  | Depth estimation               |
+| Vehicle Segment        | 91 MB  | Vehicle type classification    |
+| Pet Classifier         | 86 MB  | Cat/dog detection              |
+| YOLO Face              | 41 MB  | Face detection                 |
+| YOLO World             | 25 MB  | Open-vocabulary detection      |
+| PaddleOCR              | 12 MB  | Text recognition               |
+| OSNet Re-ID            | 2.9 MB | Person re-identification       |
+
+### Container Architecture (9 Services)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         Docker/Podman                           │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐  │
+│  │  Frontend   │  │   Backend   │  │      AI Services        │  │
+│  │   (nginx)   │  │  (FastAPI)  │  │  ┌───────┐ ┌─────────┐  │  │
+│  │    57 MB    │  │    17 GB*   │  │  │RT-DETR│ │Nemotron │  │  │
+│  └─────────────┘  └─────────────┘  │  │ 8.5GB │ │  3.6GB  │  │  │
+│                                     │  └───────┘ └─────────┘  │  │
+│  ┌─────────────┐  ┌─────────────┐  │  ┌───────┐ ┌─────────┐  │  │
+│  │  PostgreSQL │  │    Redis    │  │  │Florence│ │  CLIP   │  │  │
+│  │   279 MB    │  │    42 MB    │  │  │ 8.3GB │ │  8.3GB  │  │  │
+│  └─────────────┘  └─────────────┘  │  └───────┘ └─────────┘  │  │
+│                                     │  ┌─────────────────┐    │  │
+│                                     │  │   Enrichment    │    │  │
+│                                     │  │     8.3 GB      │    │  │
+│                                     │  └─────────────────┘    │  │
+│                                     └─────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+* Backend image includes Python ML dependencies
+```
+
+### Runtime Resource Usage
+
+With all services running on RTX A5500 (24GB):
+
+| Resource       | Usage                                 |
+| -------------- | ------------------------------------- |
+| **GPU Memory** | ~23 GB / 24 GB                        |
+| **System RAM** | ~16 GB                                |
+| **Containers** | 9                                     |
+| **Open Ports** | 5173 (UI), 8000 (API), 8090-8094 (AI) |
+
+---
+
 ## What you get
 
 - **Real-time dashboard**: camera grid, activity feed, risk gauge, telemetry
-- **Detections → events (not noise)**: time-window batching turns many frames into one explained “event”
+- **Detections → events (not noise)**: time-window batching turns many frames into one explained "event"
 - **AI model zoo enrichment**: optional captions, re-ID, plate/OCR, faces, clothing/vehicle/pet context, image quality/tamper signals
 - **Local-first**: runs on your hardware; footage stays on your network
 

@@ -1072,8 +1072,18 @@ class NemotronAnalyzer:
                 if json_start != -1:
                     cleaned_text = cleaned_text[json_start:]
 
+        # Handle "thinking out loud" without <think> tags
+        # If text starts with non-JSON content, skip to first {
+        first_brace = cleaned_text.find("{")
+        if first_brace > 0:
+            # Check if there's preamble text before the JSON
+            preamble = cleaned_text[:first_brace].strip()
+            if preamble and not preamble.startswith("{"):
+                logger.debug(f"Skipping LLM preamble: {preamble[:100]}...")
+                cleaned_text = cleaned_text[first_brace:]
+
         # Try to extract JSON from the cleaned text
-        # Look for JSON object pattern
+        # Look for JSON object pattern (handles nested objects)
         json_pattern = r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}"
         matches = re.findall(json_pattern, cleaned_text, re.DOTALL)
 

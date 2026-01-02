@@ -160,6 +160,7 @@ def mock_redis_for_dlq() -> AsyncMock:
     mock_redis_client.get_queue_length.return_value = 0
     mock_redis_client.peek_queue.return_value = []
     mock_redis_client.clear_queue.return_value = True
+    mock_redis_client.pop_from_queue_nonblocking.return_value = None
     return mock_redis_client
 
 
@@ -486,7 +487,7 @@ class TestRequeueDLQJob:
         """Test requeue with valid API key on empty DLQ."""
         # Configure mock to return empty queue and no job to requeue
         mock_redis_for_dlq.get_queue_length.return_value = 0
-        mock_redis_for_dlq.get_from_queue.return_value = None
+        mock_redis_for_dlq.pop_from_queue_nonblocking.return_value = None
 
         response = await api_key_client.post(
             f"/api/dlq/requeue/{DLQ_DETECTION_QUEUE}",
@@ -504,7 +505,7 @@ class TestRequeueDLQJob:
     ) -> None:
         """Test requeue with API key provided via query parameter."""
         mock_redis_for_dlq.get_queue_length.return_value = 0
-        mock_redis_for_dlq.get_from_queue.return_value = None
+        mock_redis_for_dlq.pop_from_queue_nonblocking.return_value = None
 
         response = await api_key_client.post(
             f"/api/dlq/requeue/{DLQ_DETECTION_QUEUE}?api_key=test-secret-key-12345"
@@ -520,7 +521,7 @@ class TestRequeueDLQJob:
     ) -> None:
         """Test requeue works without API key when auth is disabled."""
         mock_redis_for_dlq.get_queue_length.return_value = 0
-        mock_redis_for_dlq.get_from_queue.return_value = None
+        mock_redis_for_dlq.pop_from_queue_nonblocking.return_value = None
 
         response = await dlq_client.post(f"/api/dlq/requeue/{DLQ_DETECTION_QUEUE}")
 
@@ -820,7 +821,7 @@ class TestDLQResponseSchemas:
     ) -> None:
         """Test that requeue response matches DLQRequeueResponse schema."""
         mock_redis_for_dlq.get_queue_length.return_value = 0
-        mock_redis_for_dlq.get_from_queue.return_value = None
+        mock_redis_for_dlq.pop_from_queue_nonblocking.return_value = None
 
         response = await dlq_client.post(f"/api/dlq/requeue/{DLQ_DETECTION_QUEUE}")
 
@@ -883,7 +884,7 @@ class TestDLQFullCycleOperations:
         Scenario: DLQ has 3 jobs, requeue one, verify count is now 2.
         """
         # Track call sequence to simulate state changes
-        call_count = {"get_queue_length": 0, "get_from_queue": 0}
+        call_count = {"get_queue_length": 0, "pop_from_queue_nonblocking": 0}
         sample_job = create_sample_job_failure()
 
         async def get_queue_length_dynamic(queue_name: str) -> int:
@@ -893,12 +894,14 @@ class TestDLQFullCycleOperations:
                 return 3 if call_count["get_queue_length"] == 1 else 2
             return 0
 
-        async def get_from_queue_dynamic(queue_name: str, timeout: int = 0) -> dict | None:
-            call_count["get_from_queue"] += 1
+        async def pop_from_queue_nonblocking_dynamic(queue_name: str) -> dict | None:
+            call_count["pop_from_queue_nonblocking"] += 1
             return sample_job.to_dict()
 
         mock_redis_for_dlq.get_queue_length.side_effect = get_queue_length_dynamic
-        mock_redis_for_dlq.get_from_queue.side_effect = get_from_queue_dynamic
+        mock_redis_for_dlq.pop_from_queue_nonblocking.side_effect = (
+            pop_from_queue_nonblocking_dynamic
+        )
         mock_redis_for_dlq.add_to_queue_safe.return_value = MagicMock(
             success=True, had_backpressure=False, queue_length=1, moved_to_dlq_count=0, error=None
         )
@@ -929,14 +932,16 @@ class TestDLQFullCycleOperations:
                 return remaining_jobs[min(job_index["value"], len(remaining_jobs) - 1)]
             return 0
 
-        async def get_from_queue_dynamic(queue_name: str, timeout: int = 0) -> dict | None:
+        async def pop_from_queue_nonblocking_dynamic(queue_name: str) -> dict | None:
             if job_index["value"] < 3:
                 job_index["value"] += 1
                 return sample_job.to_dict()
             return None  # No more jobs
 
         mock_redis_for_dlq.get_queue_length.side_effect = get_queue_length_dynamic
-        mock_redis_for_dlq.get_from_queue.side_effect = get_from_queue_dynamic
+        mock_redis_for_dlq.pop_from_queue_nonblocking.side_effect = (
+            pop_from_queue_nonblocking_dynamic
+        )
         mock_redis_for_dlq.add_to_queue_safe.return_value = MagicMock(
             success=True, had_backpressure=False, queue_length=1, moved_to_dlq_count=0, error=None
         )
@@ -997,7 +1002,7 @@ class TestDLQFullCycleOperations:
 
         # Simulate infinite jobs (always return a job)
         mock_redis_for_dlq.get_queue_length.return_value = 10000  # More than limit
-        mock_redis_for_dlq.get_from_queue.return_value = sample_job.to_dict()
+        mock_redis_for_dlq.pop_from_queue_nonblocking.return_value = sample_job.to_dict()
         mock_redis_for_dlq.add_to_queue_safe.return_value = MagicMock(
             success=True, had_backpressure=False, queue_length=1, moved_to_dlq_count=0, error=None
         )
@@ -1027,7 +1032,7 @@ class TestDLQErrorHandling:
         sample_job = create_sample_job_failure()
 
         mock_redis_for_dlq.get_queue_length.return_value = 1
-        mock_redis_for_dlq.get_from_queue.return_value = sample_job.to_dict()
+        mock_redis_for_dlq.pop_from_queue_nonblocking.return_value = sample_job.to_dict()
         # Simulate target queue being full - add_to_queue_safe returns failure
         mock_redis_for_dlq.add_to_queue_safe.return_value = MagicMock(
             success=False,
@@ -1206,7 +1211,7 @@ class TestAnalysisQueueOperations:
         )
 
         mock_redis_for_dlq.get_queue_length.return_value = 1
-        mock_redis_for_dlq.get_from_queue.return_value = sample_job.to_dict()
+        mock_redis_for_dlq.pop_from_queue_nonblocking.return_value = sample_job.to_dict()
         mock_redis_for_dlq.add_to_queue_safe.return_value = MagicMock(
             success=True, had_backpressure=False, queue_length=1, moved_to_dlq_count=0, error=None
         )

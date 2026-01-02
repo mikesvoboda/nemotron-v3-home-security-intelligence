@@ -841,6 +841,30 @@ class RedisClient:
                 return value
         return None
 
+    async def pop_from_queue_nonblocking(self, queue_name: str) -> Any | None:
+        """Non-blocking pop from the front of a queue (LPOP).
+
+        Unlike get_from_queue() which uses BLPOP with a minimum timeout,
+        this method returns immediately if the queue is empty.
+
+        Use this for operations that need instant response without blocking,
+        such as DLQ requeue operations.
+
+        Args:
+            queue_name: Name of the queue (Redis list key)
+
+        Returns:
+            Deserialized item from the queue, or None if queue is empty
+        """
+        client = self._ensure_connected()
+        result = await client.lpop(queue_name)  # type: ignore[misc]
+        if result:
+            try:
+                return json.loads(result)
+            except json.JSONDecodeError:
+                return result
+        return None
+
     async def get_queue_length(self, queue_name: str) -> int:
         """Get the length of a queue (LLEN).
 

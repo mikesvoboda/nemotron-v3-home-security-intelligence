@@ -53,16 +53,12 @@ test.describe('Dashboard Smoke Tests', () => {
     await expect(dashboardPage.cameraGridHeading).toBeVisible();
   });
 
-  test('dashboard shows live activity section', async () => {
+  test('dashboard shows stats row section', async () => {
     await dashboardPage.goto();
     await dashboardPage.waitForDashboardLoad();
-    await expect(dashboardPage.activityFeedHeading).toBeVisible();
-  });
-
-  test('dashboard displays GPU stats', async () => {
-    await dashboardPage.goto();
-    await dashboardPage.waitForDashboardLoad();
-    await dashboardPage.expectGpuStatsVisible();
+    // Dashboard displays StatsRow with Active Cameras, Events Today, Current Risk, System Status
+    // GPU Statistics are available on the System page, not the Dashboard
+    await expect(dashboardPage.activeCamerasStat).toBeVisible();
   });
 });
 

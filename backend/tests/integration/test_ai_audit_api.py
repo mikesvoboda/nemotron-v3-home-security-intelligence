@@ -38,7 +38,7 @@ async def async_client(client: AsyncClient) -> AsyncClient:
 
 
 @pytest.fixture
-async def clean_ai_audit_tables(integration_db: str):
+async def _clean_ai_audit_tables(_integration_db: str):
     """Delete AI audit related data before test runs for proper isolation.
 
     Uses DELETE instead of TRUNCATE to avoid AccessExclusiveLock deadlocks.
@@ -68,7 +68,7 @@ async def clean_ai_audit_tables(integration_db: str):
 
 
 @pytest.fixture
-async def sample_camera_for_audit(integration_db: str, clean_ai_audit_tables: None) -> Camera:
+async def sample_camera_for_audit(_integration_db: str, _clean_ai_audit_tables: None) -> Camera:
     """Create a sample camera for AI audit tests."""
     from backend.core.database import get_session
     from backend.models.camera import Camera
@@ -88,7 +88,7 @@ async def sample_camera_for_audit(integration_db: str, clean_ai_audit_tables: No
 
 
 @pytest.fixture
-async def sample_event_for_audit(integration_db: str, sample_camera_for_audit: Camera) -> Event:
+async def sample_event_for_audit(_integration_db: str, sample_camera_for_audit: Camera) -> Event:
     """Create a sample event for AI audit tests."""
     from backend.core.database import get_session
     from backend.models.event import Event
@@ -113,7 +113,7 @@ async def sample_event_for_audit(integration_db: str, sample_camera_for_audit: C
 
 
 @pytest.fixture
-async def sample_event_audit(integration_db: str, sample_event_for_audit: Event) -> EventAudit:
+async def sample_event_audit(_integration_db: str, sample_event_for_audit: Event) -> EventAudit:
     """Create a sample event audit record."""
     from backend.core.database import get_session
     from backend.models.event_audit import EventAudit
@@ -164,8 +164,8 @@ async def sample_event_audit(integration_db: str, sample_event_for_audit: Event)
 
 
 @pytest.fixture
-async def multiple_event_audits(
-    integration_db: str, sample_camera_for_audit: Camera
+async def _multiple_event_audits(
+    _integration_db: str, sample_camera_for_audit: Camera
 ) -> list[tuple[Event, EventAudit]]:
     """Create multiple events with audits for stats/leaderboard testing."""
     from backend.core.database import get_session
@@ -272,7 +272,7 @@ class TestGetEventAudit:
     async def test_get_event_audit_not_found_event(
         self,
         async_client: AsyncClient,
-        clean_ai_audit_tables: None,
+        _clean_ai_audit_tables: None,
     ):
         """Test 404 for non-existent event."""
         response = await async_client.get("/api/ai-audit/events/999999")
@@ -298,7 +298,7 @@ class TestGetAuditStats:
     async def test_get_audit_stats_empty(
         self,
         async_client: AsyncClient,
-        clean_ai_audit_tables: None,
+        _clean_ai_audit_tables: None,
     ):
         """Test getting stats when no audits exist."""
         response = await async_client.get("/api/ai-audit/stats?days=7")
@@ -312,7 +312,7 @@ class TestGetAuditStats:
     async def test_get_audit_stats_with_data(
         self,
         async_client: AsyncClient,
-        multiple_event_audits: list[tuple[Event, EventAudit]],
+        _multiple_event_audits: list[tuple[Event, EventAudit]],
     ):
         """Test getting audit stats with data."""
         response = await async_client.get("/api/ai-audit/stats?days=7")
@@ -338,7 +338,7 @@ class TestGetAuditStats:
     async def test_get_audit_stats_days_parameter(
         self,
         async_client: AsyncClient,
-        multiple_event_audits: list[tuple[Event, EventAudit]],
+        _multiple_event_audits: list[tuple[Event, EventAudit]],
     ):
         """Test days parameter for stats."""
         # Test with different day values
@@ -351,7 +351,7 @@ class TestGetAuditStats:
     async def test_get_audit_stats_days_validation(
         self,
         async_client: AsyncClient,
-        clean_ai_audit_tables: None,
+        _clean_ai_audit_tables: None,
     ):
         """Test validation of days parameter."""
         # Test invalid values
@@ -371,7 +371,7 @@ class TestGetLeaderboard:
     async def test_get_leaderboard_empty(
         self,
         async_client: AsyncClient,
-        clean_ai_audit_tables: None,
+        _clean_ai_audit_tables: None,
     ):
         """Test getting leaderboard when no audits exist."""
         response = await async_client.get("/api/ai-audit/leaderboard?days=7")
@@ -385,7 +385,7 @@ class TestGetLeaderboard:
     async def test_get_leaderboard_with_data(
         self,
         async_client: AsyncClient,
-        multiple_event_audits: list[tuple[Event, EventAudit]],
+        _multiple_event_audits: list[tuple[Event, EventAudit]],
     ):
         """Test getting leaderboard with data."""
         response = await async_client.get("/api/ai-audit/leaderboard?days=7")
@@ -409,7 +409,7 @@ class TestGetLeaderboard:
     async def test_get_leaderboard_days_parameter(
         self,
         async_client: AsyncClient,
-        multiple_event_audits: list[tuple[Event, EventAudit]],
+        _multiple_event_audits: list[tuple[Event, EventAudit]],
     ):
         """Test days parameter for leaderboard."""
         response = await async_client.get("/api/ai-audit/leaderboard?days=30")
@@ -424,7 +424,7 @@ class TestGetRecommendations:
     async def test_get_recommendations_empty(
         self,
         async_client: AsyncClient,
-        clean_ai_audit_tables: None,
+        _clean_ai_audit_tables: None,
     ):
         """Test getting recommendations when no audits exist."""
         response = await async_client.get("/api/ai-audit/recommendations?days=7")
@@ -479,7 +479,7 @@ class TestBatchAudit:
     async def test_batch_audit_empty(
         self,
         async_client: AsyncClient,
-        clean_ai_audit_tables: None,
+        _clean_ai_audit_tables: None,
     ):
         """Test batch audit when no events exist."""
         response = await async_client.post(
@@ -496,7 +496,7 @@ class TestBatchAudit:
     async def test_batch_audit_validation(
         self,
         async_client: AsyncClient,
-        clean_ai_audit_tables: None,
+        _clean_ai_audit_tables: None,
     ):
         """Test batch audit request validation."""
         # Test invalid limit
@@ -515,7 +515,7 @@ class TestBatchAudit:
     async def test_batch_audit_with_min_risk_score(
         self,
         async_client: AsyncClient,
-        multiple_event_audits: list[tuple[Event, EventAudit]],
+        _multiple_event_audits: list[tuple[Event, EventAudit]],
     ):
         """Test batch audit with min_risk_score filter."""
         response = await async_client.post(
@@ -538,7 +538,7 @@ class TestEvaluateEvent:
     async def test_evaluate_event_not_found(
         self,
         async_client: AsyncClient,
-        clean_ai_audit_tables: None,
+        _clean_ai_audit_tables: None,
     ):
         """Test 404 for non-existent event evaluation."""
         response = await async_client.post("/api/ai-audit/events/999999/evaluate")
