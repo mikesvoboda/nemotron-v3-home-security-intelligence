@@ -4,15 +4,22 @@ This guide covers deploying the Home Security Intelligence system using Docker C
 
 ## Overview
 
-The system consists of five main services, all containerized:
+The system consists of five main service groups:
 
 1. **Backend** - FastAPI application (port 8000)
 2. **Frontend** - React/Vite application (port 5173 dev, port 80 prod)
 3. **Redis** - Cache and message broker (port 6379)
 4. **PostgreSQL** - Database (port 5432)
-5. **AI Services** - RT-DETRv2 (port 8090) and Nemotron LLM (port 8091) with GPU passthrough
+5. **AI Services** - GPU-accelerated inference services:
+   - RT-DETRv2 (8090)
+   - Nemotron (8091)
+   - Florence-2 (8092, optional)
+   - CLIP (8093, optional)
+   - Enrichment (8094, optional)
 
-All services run in OCI-compliant containers (Docker or Podman). AI services use NVIDIA Container Toolkit for GPU access.
+In production, all of the above are containerized (Docker/Podman). In development, it’s common to run the backend/frontend in containers and run the AI services on the host (GPU reasons).
+
+> If you’re debugging “AI unreachable”, start with: `docs/operator/deployment-modes.md`.
 
 ## Container Runtime Options
 
@@ -94,12 +101,6 @@ sudo apt install podman podman-compose
 **Development:**
 
 ```bash
-# macOS: Set host for AI services
-export AI_HOST=host.containers.internal
-
-# Linux: Use your host IP
-export AI_HOST=$(hostname -I | awk '{print $1}')
-
 # Start services
 podman-compose up -d
 
@@ -113,7 +114,6 @@ podman-compose down
 **Production:**
 
 ```bash
-export AI_HOST=host.containers.internal  # or host IP on Linux
 podman-compose -f docker-compose.prod.yml up -d
 ```
 
@@ -147,6 +147,23 @@ echo $GITHUB_TOKEN | docker login ghcr.io -u YOUR_USERNAME --password-stdin
 echo $GITHUB_TOKEN | podman login ghcr.io -u YOUR_USERNAME --password-stdin
 ```
 
+### Configure image location
+
+The GHCR compose file supports these variables:
+
+- `GHCR_OWNER`: your GitHub org/user (example: `your-org`)
+- `GHCR_REPO`: your image namespace/repo (example: `home-security-intelligence`)
+- `IMAGE_TAG`: image tag (example: `latest` or a commit SHA)
+
+Example:
+
+```bash
+export GHCR_OWNER=your-org
+export GHCR_REPO=home-security-intelligence
+export IMAGE_TAG=latest
+docker compose -f docker-compose.ghcr.yml up -d
+```
+
 ### Deploy from GHCR
 
 **Docker:**
@@ -171,6 +188,8 @@ export CAMERA_PATH=/path/to/your/cameras  # Adjust as needed
 podman-compose -f docker-compose.ghcr.yml up -d
 ```
 
+> Note: `docker-compose.ghcr.yml` runs the application stack (backend/frontend/postgres/redis). It assumes AI services are reachable externally (host-run or remote), so you must set `RTDETR_URL` / `NEMOTRON_URL` (and optionally `FLORENCE_URL` / `CLIP_URL` / `ENRICHMENT_URL`) correctly. See `docs/operator/deployment-modes.md`.
+
 ### Use a Specific Image Version
 
 ```bash
@@ -181,16 +200,18 @@ docker compose -f docker-compose.ghcr.yml up -d
 
 ### Available Images
 
-| Image                                                                        | Description            |
-| ---------------------------------------------------------------------------- | ---------------------- |
-| `ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:latest`  | FastAPI backend        |
-| `ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:latest` | React frontend (nginx) |
+| Image                                                      | Description            |
+| ---------------------------------------------------------- | ---------------------- |
+| `ghcr.io/<org>/home-security-intelligence/backend:latest`  | FastAPI backend        |
+| `ghcr.io/<org>/home-security-intelligence/frontend:latest` | React frontend (nginx) |
 
 ---
 
 ## Cross-Platform Host Resolution
 
-All services run in containers. The following host resolution info is for legacy/native setups or when running the backend outside containers.
+This section applies when the **backend is containerized** but **AI is running on the host** (common with `docker-compose.yml`).
+
+For production (`docker-compose.prod.yml`), the backend reaches AI services via compose DNS (`ai-detector`, `ai-llm`, etc.). See `docs/operator/deployment-modes.md`.
 
 | Platform | Container Runtime | Host Resolution                  |
 | -------- | ----------------- | -------------------------------- |
@@ -201,7 +222,7 @@ All services run in containers. The following host resolution info is for legacy
 
 ### Configuration
 
-All compose files support the `AI_HOST` environment variable:
+`docker-compose.yml` and `docker-compose.ghcr.yml` use the `AI_HOST` environment variable to help a containerized backend reach host-run AI services:
 
 ```bash
 # macOS with Docker Desktop (default, no action needed)
@@ -410,7 +431,8 @@ Create a `.env` file in the project root (use `.env.example` as template).
 FOSCAM_BASE_PATH=/export/foscam
 
 # Database
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/home_security
+# Defaults match docker-compose.prod.yml (override via env/.env as needed)
+DATABASE_URL=postgresql+asyncpg://security:security_dev_password@postgres:5432/security
 
 # Redis
 REDIS_URL=redis://redis:6379
@@ -418,6 +440,9 @@ REDIS_URL=redis://redis:6379
 # AI Services (containerized with GPU passthrough)
 RTDETR_URL=http://localhost:8090
 NEMOTRON_URL=http://localhost:8091
+FLORENCE_URL=http://localhost:8092
+CLIP_URL=http://localhost:8093
+ENRICHMENT_URL=http://localhost:8094
 
 # Processing
 BATCH_WINDOW_SECONDS=90
@@ -476,7 +501,8 @@ All services are connected via a custom bridge network `security-net`:
 - Services can communicate using service names as hostnames
 - Backend connects to Redis via `redis://redis:6379`
 - Frontend connects to Backend via `http://backend:8000` (internal) or `http://localhost:8000` (from host)
-- AI services accessed via `host.docker.internal:8090` and `host.docker.internal:8091`
+- In development (`docker-compose.yml`), backend reaches host-run AI via `AI_HOST` (defaults to `host.docker.internal`).
+- In production (`docker-compose.prod.yml`), backend reaches containerized AI via compose DNS (`ai-detector`, `ai-llm`, `ai-florence`, `ai-clip`, `ai-enrichment`).
 
 ## Volume Management
 
@@ -545,7 +571,7 @@ Both backend and frontend have `.dockerignore` files to exclude unnecessary file
 
 - Ensure Redis is healthy: `docker compose ps redis`
 - Check Redis logs: `docker compose logs redis`
-- Verify network: `docker network inspect nemotron-v3-home-security-intelligence_security-net`
+- Verify network: `docker network ls | grep security-net` (then inspect the actual `${project}_security-net` name if needed)
 
 ### Frontend cannot connect to Backend
 
@@ -555,7 +581,7 @@ Both backend and frontend have `.dockerignore` files to exclude unnecessary file
 
 ### AI services not accessible
 
-AI services (RT-DETRv2 and Nemotron) run in containers (Docker or Podman) with GPU passthrough. Ensure they are:
+AI services run with GPU passthrough in production compose. Ensure they are:
 
 1. Running: `docker ps --filter name=ai-` or `podman ps --filter name=ai-`
 2. Healthy: Check container health status
@@ -570,14 +596,19 @@ docker ps --filter name=ai-
 podman ps --filter name=ai-
 
 # Check logs
-docker compose -f docker-compose.prod.yml logs ai-detector ai-llm
+docker compose -f docker-compose.prod.yml logs ai-detector ai-llm ai-florence ai-clip ai-enrichment
 # OR
-podman-compose -f docker-compose.prod.yml logs ai-detector ai-llm
+podman-compose -f docker-compose.prod.yml logs ai-detector ai-llm ai-florence ai-clip ai-enrichment
 
 # Test health endpoints
 curl http://localhost:8090/health
 curl http://localhost:8091/health
+curl http://localhost:8092/health
+curl http://localhost:8093/health
+curl http://localhost:8094/health
 ```
+
+If the backend is healthy but AI shows unreachable, it’s usually a URL mode mismatch. See `docs/operator/deployment-modes.md`.
 
 ### Insufficient resources
 
@@ -649,6 +680,8 @@ podman exec <container> getent hosts host.containers.internal
 # If not, use host IP directly
 export AI_HOST=$(hostname -I | awk '{print $1}')
 ```
+
+See also: `docs/operator/deployment-modes.md` (decision table + correct URLs for each mode).
 
 ## Manual Commands
 
@@ -782,13 +815,12 @@ Add monitoring stack (Prometheus + Grafana):
 
 ```bash
 # Create PostgreSQL backup
-docker compose exec postgres pg_dump -U postgres home_security > backup.sql
+docker compose exec -T postgres pg_dump -U security -d security > backup.sql
 
 # Or use compressed format
-docker compose exec postgres pg_dump -U postgres -F c home_security > backup.dump
+docker compose exec -T postgres pg_dump -U security -d security -F c > backup.dump
 
-# Copy backup to host (if needed)
-docker compose cp backend:/app/data/backup.db ./backup.db
+# Tip: keep backups outside the repo and outside container volumes.
 ```
 
 ### Redis Backup
@@ -807,8 +839,9 @@ docker compose cp redis:/data/dump.rdb ./redis-backup.rdb
 # Stop services
 docker compose down
 
-# Replace database file
-cp backup.db ./backend/data/security.db
+# Restore PostgreSQL database (example for .sql format)
+docker compose -f docker-compose.prod.yml up -d postgres
+docker compose exec -T postgres psql -U security -d security < backup.sql
 
 # Replace Redis data
 docker compose cp redis-backup.rdb redis:/data/dump.rdb

@@ -73,7 +73,12 @@ The system uses two complementary storage backends optimized for their respectiv
 erDiagram
     cameras ||--o{ detections : "has many"
     cameras ||--o{ events : "has many"
+    cameras ||--o{ zones : "has many"
+    cameras ||--o{ activity_baselines : "has many"
+    cameras ||--o{ class_baselines : "has many"
     events ||--o{ detections : "groups"
+    events ||--o{ alerts : "triggers"
+    alert_rules ||--o{ alerts : "generates"
 
     cameras {
         string id PK "UUID primary key"
@@ -113,6 +118,87 @@ erDiagram
         bool reviewed "User reviewed flag"
         text notes "User notes (nullable)"
         bool is_fast_path "Fast path flag"
+    }
+
+    alerts {
+        uuid id PK "UUID primary key"
+        int event_id FK "References events.id"
+        uuid rule_id FK "References alert_rules.id (nullable)"
+        enum severity "low|medium|high|critical"
+        enum status "pending|delivered|acknowledged|dismissed"
+        datetime created_at "Creation timestamp"
+        datetime updated_at "Last update timestamp"
+        datetime delivered_at "Delivery timestamp (nullable)"
+        json channels "Notification channels (nullable)"
+        string dedup_key "Deduplication key"
+        json metadata "Additional metadata (nullable)"
+    }
+
+    alert_rules {
+        uuid id PK "UUID primary key"
+        string name "Rule name"
+        text description "Rule description (nullable)"
+        bool enabled "Active status"
+        enum severity "low|medium|high|critical"
+        int risk_threshold "Minimum risk score (nullable)"
+        json object_types "Object types to match (nullable)"
+        json camera_ids "Camera IDs to apply (nullable)"
+        json zone_ids "Zone IDs to match (nullable)"
+        float min_confidence "Minimum confidence (nullable)"
+        json schedule "Time-based conditions (nullable)"
+        json conditions "Legacy conditions (nullable)"
+        string dedup_key_template "Dedup key template"
+        int cooldown_seconds "Cooldown period"
+        json channels "Notification channels (nullable)"
+        datetime created_at "Creation timestamp"
+        datetime updated_at "Last update timestamp"
+    }
+
+    zones {
+        string id PK "Zone ID"
+        string camera_id FK "References cameras.id"
+        string name "Zone name"
+        enum zone_type "entry_point|driveway|sidewalk|yard|other"
+        json coordinates "Normalized coordinate points"
+        enum shape "rectangle|polygon"
+        string color "Display color"
+        bool enabled "Active status"
+        int priority "Zone priority"
+        datetime created_at "Creation timestamp"
+        datetime updated_at "Last update timestamp"
+    }
+
+    activity_baselines {
+        int id PK "Auto-increment"
+        string camera_id FK "References cameras.id"
+        int hour "Hour of day (0-23)"
+        int day_of_week "Day of week (0-6)"
+        float avg_count "EWMA activity count"
+        int sample_count "Number of samples"
+        datetime last_updated "Last update timestamp"
+    }
+
+    class_baselines {
+        int id PK "Auto-increment"
+        string camera_id FK "References cameras.id"
+        string detection_class "Object class"
+        int hour "Hour of day (0-23)"
+        float frequency "EWMA frequency"
+        int sample_count "Number of samples"
+        datetime last_updated "Last update timestamp"
+    }
+
+    audit_logs {
+        int id PK "Auto-increment"
+        datetime timestamp "Log timestamp"
+        string action "Auditable action"
+        string resource_type "Resource type"
+        string resource_id "Resource ID (nullable)"
+        string actor "Actor identifier"
+        string ip_address "Client IP (nullable)"
+        text user_agent "Browser UA (nullable)"
+        json details "Additional details (nullable)"
+        string status "success|failure"
     }
 
     gpu_stats {
@@ -338,6 +424,211 @@ erDiagram
 
 ---
 
+### alerts
+
+**Purpose:** Stores notifications generated from security events based on alert rules.
+
+| Column         | Type         | Nullable | Default    | Description                                                       |
+| -------------- | ------------ | -------- | ---------- | ----------------------------------------------------------------- |
+| `id`           | UUID         | NO       | uuid4()    | Primary key                                                       |
+| `event_id`     | INTEGER      | NO       | -          | Foreign key to `events.id`                                        |
+| `rule_id`      | UUID         | YES      | NULL       | Foreign key to `alert_rules.id`                                   |
+| `severity`     | ENUM         | NO       | `MEDIUM`   | Alert severity: `low`, `medium`, `high`, `critical`               |
+| `status`       | ENUM         | NO       | `PENDING`  | Alert status: `pending`, `delivered`, `acknowledged`, `dismissed` |
+| `created_at`   | DATETIME(tz) | NO       | `utcnow()` | When alert was created                                            |
+| `updated_at`   | DATETIME(tz) | NO       | `utcnow()` | When alert was last updated                                       |
+| `delivered_at` | DATETIME(tz) | YES      | NULL       | When alert was delivered                                          |
+| `channels`     | JSON         | YES      | NULL       | Notification channels used                                        |
+| `dedup_key`    | STRING(255)  | NO       | -          | Deduplication key for preventing duplicates                       |
+| `metadata`     | JSON         | YES      | NULL       | Additional alert context                                          |
+
+**Indexes:**
+
+- `idx_alerts_event_id` - Filter by event
+- `idx_alerts_rule_id` - Filter by rule
+- `idx_alerts_severity` - Filter by severity
+- `idx_alerts_status` - Filter by status
+- `idx_alerts_created_at` - Time-range queries
+- `idx_alerts_dedup_key` - Deduplication lookups
+- `idx_alerts_dedup_key_created_at` - Combined dedup + time queries
+
+**Usage:**
+
+- Created by `AlertEngine` when events match alert rule conditions
+- Tracks delivery status across notification channels
+- Supports deduplication via `dedup_key` within cooldown windows
+
+---
+
+### alert_rules
+
+**Purpose:** Defines conditions for generating alerts from security events.
+
+| Column               | Type         | Nullable | Default                 | Description                                |
+| -------------------- | ------------ | -------- | ----------------------- | ------------------------------------------ |
+| `id`                 | UUID         | NO       | uuid4()                 | Primary key                                |
+| `name`               | STRING(255)  | NO       | -                       | Human-readable rule name                   |
+| `description`        | TEXT         | YES      | NULL                    | Rule description                           |
+| `enabled`            | BOOLEAN      | NO       | `True`                  | Whether rule is active                     |
+| `severity`           | ENUM         | NO       | `MEDIUM`                | Severity for triggered alerts              |
+| `risk_threshold`     | INTEGER      | YES      | NULL                    | Minimum risk score (0-100)                 |
+| `object_types`       | JSON         | YES      | NULL                    | Object types to match (e.g., `["person"]`) |
+| `camera_ids`         | JSON         | YES      | NULL                    | Camera IDs to apply to (empty = all)       |
+| `zone_ids`           | JSON         | YES      | NULL                    | Zone IDs to match (empty = any)            |
+| `min_confidence`     | FLOAT        | YES      | NULL                    | Minimum detection confidence (0.0-1.0)     |
+| `schedule`           | JSON         | YES      | NULL                    | Time-based conditions                      |
+| `conditions`         | JSON         | YES      | NULL                    | Legacy conditions (backward compatibility) |
+| `dedup_key_template` | STRING(255)  | NO       | `{camera_id}:{rule_id}` | Template for generating dedup keys         |
+| `cooldown_seconds`   | INTEGER      | NO       | `300`                   | Cooldown period (default: 5 minutes)       |
+| `channels`           | JSON         | YES      | NULL                    | Notification channels to use               |
+| `created_at`         | DATETIME(tz) | NO       | `utcnow()`              | When rule was created                      |
+| `updated_at`         | DATETIME(tz) | NO       | `utcnow()`              | When rule was last updated                 |
+
+**Indexes:**
+
+- `idx_alert_rules_name` - Search by name
+- `idx_alert_rules_enabled` - Filter active rules
+- `idx_alert_rules_severity` - Filter by severity
+
+**Usage:**
+
+- All conditions in a rule must match (AND logic)
+- Multiple rules can trigger for the same event
+- Higher severity rule takes precedence for same event
+- Cooldown prevents duplicate alerts within the specified window
+
+---
+
+### zones
+
+**Purpose:** Defines regions of interest on camera views for detection context.
+
+| Column        | Type         | Nullable | Default     | Description                                                       |
+| ------------- | ------------ | -------- | ----------- | ----------------------------------------------------------------- |
+| `id`          | STRING       | NO       | -           | Primary key (user-defined ID)                                     |
+| `camera_id`   | STRING       | NO       | -           | Foreign key to `cameras.id`                                       |
+| `name`        | STRING(255)  | NO       | -           | Human-readable zone name                                          |
+| `zone_type`   | ENUM         | NO       | `OTHER`     | Zone type: `entry_point`, `driveway`, `sidewalk`, `yard`, `other` |
+| `coordinates` | JSONB        | NO       | -           | Normalized coordinates (0-1 range) as `[[x,y],...]`               |
+| `shape`       | ENUM         | NO       | `RECTANGLE` | Zone shape: `rectangle`, `polygon`                                |
+| `color`       | STRING(7)    | NO       | `#3B82F6`   | Display color (hex)                                               |
+| `enabled`     | BOOLEAN      | NO       | `True`      | Whether zone is active                                            |
+| `priority`    | INTEGER      | NO       | `0`         | Zone priority for overlapping zones                               |
+| `created_at`  | DATETIME(tz) | NO       | `utcnow()`  | When zone was created                                             |
+| `updated_at`  | DATETIME(tz) | NO       | `utcnow()`  | When zone was last updated                                        |
+
+**Indexes:**
+
+- `idx_zones_camera_id` - Filter by camera
+- `idx_zones_enabled` - Filter active zones
+- `idx_zones_camera_enabled` - Combined camera + enabled filter
+
+**Usage:**
+
+- Coordinates are normalized (0-1) relative to image dimensions
+- Zone type provides semantic context (e.g., driveway vs sidewalk)
+- Used by `ZoneService` to determine which detections fall within zones
+- Zone context can influence risk assessment
+
+---
+
+### activity_baselines
+
+**Purpose:** Tracks baseline activity rates per camera for anomaly detection.
+
+| Column         | Type         | Nullable | Default    | Description                                       |
+| -------------- | ------------ | -------- | ---------- | ------------------------------------------------- |
+| `id`           | INTEGER      | NO       | Auto       | Primary key                                       |
+| `camera_id`    | STRING       | NO       | -          | Foreign key to `cameras.id`                       |
+| `hour`         | INTEGER      | NO       | -          | Hour of day (0-23)                                |
+| `day_of_week`  | INTEGER      | NO       | -          | Day of week (0=Monday, 6=Sunday)                  |
+| `avg_count`    | FLOAT        | NO       | `0.0`      | Exponentially weighted moving average of activity |
+| `sample_count` | INTEGER      | NO       | `0`        | Number of samples used                            |
+| `last_updated` | DATETIME(tz) | NO       | `utcnow()` | When baseline was last updated                    |
+
+**Constraints:**
+
+- Unique constraint on `(camera_id, hour, day_of_week)`
+
+**Indexes:**
+
+- `idx_activity_baseline_camera` - Filter by camera
+- `idx_activity_baseline_slot` - Combined camera + hour + day lookup
+
+**Usage:**
+
+- Tracks typical activity levels by time slot (168 slots per camera)
+- Uses exponential decay for seasonal drift handling
+- Used by `BaselineService` to detect unusual activity patterns
+
+---
+
+### class_baselines
+
+**Purpose:** Tracks frequency of specific object classes per camera for anomaly detection.
+
+| Column            | Type         | Nullable | Default    | Description                                        |
+| ----------------- | ------------ | -------- | ---------- | -------------------------------------------------- |
+| `id`              | INTEGER      | NO       | Auto       | Primary key                                        |
+| `camera_id`       | STRING       | NO       | -          | Foreign key to `cameras.id`                        |
+| `detection_class` | STRING       | NO       | -          | Object class (e.g., "person", "vehicle")           |
+| `hour`            | INTEGER      | NO       | -          | Hour of day (0-23)                                 |
+| `frequency`       | FLOAT        | NO       | `0.0`      | Exponentially weighted moving average of frequency |
+| `sample_count`    | INTEGER      | NO       | `0`        | Number of samples used                             |
+| `last_updated`    | DATETIME(tz) | NO       | `utcnow()` | When baseline was last updated                     |
+
+**Constraints:**
+
+- Unique constraint on `(camera_id, detection_class, hour)`
+
+**Indexes:**
+
+- `idx_class_baseline_camera` - Filter by camera
+- `idx_class_baseline_class` - Combined camera + class lookup
+- `idx_class_baseline_slot` - Combined camera + class + hour lookup
+
+**Usage:**
+
+- Tracks how often specific objects appear by hour (e.g., "vehicles rare after midnight")
+- Uses exponential decay for seasonal drift handling
+- Used by `BaselineService` to detect unusual object patterns
+
+---
+
+### audit_logs
+
+**Purpose:** Records security-sensitive operations for compliance and debugging.
+
+| Column          | Type         | Nullable | Default    | Description                                          |
+| --------------- | ------------ | -------- | ---------- | ---------------------------------------------------- |
+| `id`            | INTEGER      | NO       | Auto       | Primary key                                          |
+| `timestamp`     | DATETIME(tz) | NO       | `utcnow()` | When action occurred                                 |
+| `action`        | STRING(50)   | NO       | -          | Action type (e.g., `event_reviewed`, `rule_created`) |
+| `resource_type` | STRING(50)   | NO       | -          | Type of resource affected                            |
+| `resource_id`   | STRING(255)  | YES      | NULL       | ID of affected resource                              |
+| `actor`         | STRING(100)  | NO       | -          | Who performed the action                             |
+| `ip_address`    | STRING(45)   | YES      | NULL       | Client IP address                                    |
+| `user_agent`    | TEXT         | YES      | NULL       | Browser user agent                                   |
+| `details`       | JSONB        | YES      | NULL       | Additional structured context                        |
+| `status`        | STRING(20)   | NO       | `success`  | Action status: `success`, `failure`                  |
+
+**Indexes:**
+
+- `idx_audit_logs_timestamp` - Time-range queries
+- `idx_audit_logs_action` - Filter by action type
+- `idx_audit_logs_resource_type` - Filter by resource type
+- `idx_audit_logs_actor` - Filter by actor
+- `idx_audit_logs_status` - Filter by status
+- `idx_audit_logs_resource` - Combined resource type + ID lookup
+
+**Usage:**
+
+- Records all security-sensitive operations (login, settings changes, rule modifications)
+- Supports audit trail requirements for compliance
+- Subject to same retention policy as other logs
+
+---
+
 ## Key Relationships
 
 ### Detection to Event Association
@@ -503,6 +794,10 @@ dedupe:{sha256_hash} -> file_path (string, 5 min TTL default)
 security_events (channel)
 ├── Event broadcasts on analysis completion
 └── WebSocket clients subscribe via backend relay
+
+system_status (channel)
+├── Periodic system status/health broadcasts
+└── WebSocket clients subscribe via backend relay
 ```
 
 **Message Schema:**
@@ -546,7 +841,8 @@ stateDiagram-v2
 
     MarkProcessed --> Detecting: DetectionQueueWorker
     Detecting --> DetectionStored: RT-DETRv2 inference
-    DetectionStored --> Batching: BatchAggregator
+    DetectionStored --> Enriching: EnrichmentPipeline (optional)
+    Enriching --> Batching: BatchAggregator
 
     state Batching {
         [*] --> ActiveBatch
@@ -592,21 +888,27 @@ stateDiagram-v2
    - Detection record(s) created in PostgreSQL
    - Thumbnail generated and stored
 
-5. **Batch Aggregation:**
+5. **Optional Enrichment (Best-Effort):**
+
+   - If enabled, detections can be enriched with additional attributes/entities
+   - This stage may use backend-side model-zoo enrichers and/or optional AI services
+   - Failures should not block detection storage or event analysis
+
+6. **Batch Aggregation:**
 
    - Detection added to camera's active batch
    - Batch state tracked in Redis keys
    - Batch closed on window timeout (90s) or idle timeout (30s)
    - Completed batch pushed to `analysis_queue`
 
-6. **LLM Analysis:**
+7. **LLM Analysis:**
 
    - AnalysisQueueWorker pops batch from queue
    - Detection data sent to Nemotron LLM
    - Risk score, level, summary generated
    - Event record created in PostgreSQL
 
-7. **Real-time Broadcast:**
+8. **Real-time Broadcast:**
    - Event published to `security_events` channel
    - WebSocket clients receive update
    - Dashboard updates in real-time

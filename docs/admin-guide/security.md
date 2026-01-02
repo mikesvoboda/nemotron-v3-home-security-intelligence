@@ -74,6 +74,61 @@ flowchart TB
 
 ---
 
+## Default Credentials Warning
+
+> **CRITICAL: Never use default database credentials in production.**
+
+The `docker-compose.prod.yml` includes default PostgreSQL credentials for development convenience:
+
+```yaml
+# Default (INSECURE) credentials in docker-compose.prod.yml
+POSTGRES_USER: security
+POSTGRES_PASSWORD: security_dev_password
+POSTGRES_DB: security
+```
+
+### Changing Database Credentials
+
+**Before production deployment:**
+
+1. **Create a secure password:**
+
+   ```bash
+   # Generate a 32-character random password
+   openssl rand -base64 32
+   ```
+
+2. **Set credentials in .env file:**
+
+   ```bash
+   # .env (never commit this file)
+   POSTGRES_USER=security
+   POSTGRES_PASSWORD=your-secure-generated-password-here
+   POSTGRES_DB=security
+   ```
+
+3. **Update DATABASE_URL if connecting directly:**
+
+   ```bash
+   DATABASE_URL=postgresql+asyncpg://security:your-secure-generated-password-here@postgres:5432/security
+   ```
+
+4. **Verify .env is in .gitignore:**
+
+   ```bash
+   grep "^\.env$" .gitignore || echo ".env" >> .gitignore
+   ```
+
+### Production Checklist Item
+
+Add to your deployment checklist:
+
+- [ ] Database password changed from default `security_dev_password`
+- [ ] Credentials stored in `.env` file (not committed to git)
+- [ ] `.env` file permissions restricted (`chmod 600 .env`)
+
+---
+
 ## Authentication
 
 ### API Key Authentication
@@ -571,7 +626,8 @@ chown app:app data/logs/
 - [ ] `ADMIN_ENABLED=false`
 - [ ] TLS with valid certificates
 - [ ] API keys required
-- [ ] Strong, unique passwords
+- [ ] **Database password changed from default** (see [Default Credentials Warning](#default-credentials-warning))
+- [ ] Strong, unique passwords for all services
 - [ ] Firewall configured
 - [ ] Database not exposed
 - [ ] Redis not exposed

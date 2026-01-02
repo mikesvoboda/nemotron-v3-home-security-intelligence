@@ -14,13 +14,16 @@ Copy `.env.example` to `.env` and adjust values as needed. All variables have se
 | Frontend    | 5173 | HTTP     | Vite dev server (development) or host port in production (default) |
 | Frontend    | 80   | HTTP     | Nginx inside production container (mapped via FRONTEND_PORT)       |
 | Backend API | 8000 | HTTP/WS  | FastAPI REST + WebSocket                                           |
-| RT-DETRv2   | 8090 | HTTP     | Object detection service (containerized with GPU)                  |
-| Nemotron    | 8091 | HTTP     | LLM risk analysis service (containerized with GPU)                 |
+| RT-DETRv2   | 8090 | HTTP     | Object detection service                                           |
+| Nemotron    | 8091 | HTTP     | LLM risk analysis service                                          |
+| Florence-2  | 8092 | HTTP     | Vision extraction service (optional)                               |
+| CLIP        | 8093 | HTTP     | Re-identification service (optional)                               |
+| Enrichment  | 8094 | HTTP     | Enrichment HTTP service (optional)                                 |
 | Redis       | 6379 | TCP      | Cache, queues, pub/sub                                             |
 
 ## AI Service Deployment Modes
 
-This project supports two deployment modes for AI services (RT-DETRv2 and Nemotron):
+This project supports multiple deployment modes for AI services (RT-DETRv2, Nemotron, and optional Florence/CLIP/Enrichment):
 
 1. **Development Mode (Host-run AI)**: AI services run directly on the host machine; backend runs in containers
 2. **Production Mode (Fully Containerized)**: All services including AI run in containers with GPU passthrough
@@ -43,6 +46,9 @@ Docker Desktop provides `host.docker.internal` automatically:
 # No additional configuration needed - this is the default in docker-compose.yml
 RTDETR_URL=http://host.docker.internal:8090
 NEMOTRON_URL=http://host.docker.internal:8091
+FLORENCE_URL=http://host.docker.internal:8092
+CLIP_URL=http://host.docker.internal:8093
+ENRICHMENT_URL=http://host.docker.internal:8094
 ```
 
 #### macOS with Podman
@@ -119,6 +125,9 @@ In this mode, the backend reaches AI services via container network names:
 # Set automatically in docker-compose.prod.yml
 RTDETR_URL=http://ai-detector:8090
 NEMOTRON_URL=http://ai-llm:8091
+FLORENCE_URL=http://ai-florence:8092
+CLIP_URL=http://ai-clip:8093
+ENRICHMENT_URL=http://ai-enrichment:8094
 ```
 
 **GPU Requirements for Production Mode:**
@@ -129,13 +138,15 @@ NEMOTRON_URL=http://ai-llm:8091
 
 ### Quick Reference: AI_HOST by Platform
 
-| Platform | Runtime | Development (host AI)            | Production (container AI) |
-| -------- | ------- | -------------------------------- | ------------------------- |
-| macOS    | Docker  | `host.docker.internal` (default) | N/A (use Linux for GPU)   |
-| macOS    | Podman  | `host.containers.internal`       | N/A (use Linux for GPU)   |
-| Linux    | Docker  | Host IP or `host-gateway`        | `ai-detector`, `ai-llm`   |
-| Linux    | Podman  | Host IP or `host-gateway`        | `ai-detector`, `ai-llm`   |
-| Windows  | Docker  | `host.docker.internal`           | N/A (use Linux for GPU)   |
+| Platform | Runtime | Development (host AI)            | Production (container AI)                                          |
+| -------- | ------- | -------------------------------- | ------------------------------------------------------------------ |
+| macOS    | Docker  | `host.docker.internal` (default) | N/A (use Linux for GPU)                                            |
+| macOS    | Podman  | `host.containers.internal`       | N/A (use Linux for GPU)                                            |
+| Linux    | Docker  | Host IP or `host-gateway`        | `ai-detector`, `ai-llm`, `ai-florence`, `ai-clip`, `ai-enrichment` |
+| Linux    | Podman  | Host IP or `host-gateway`        | `ai-detector`, `ai-llm`, `ai-florence`, `ai-clip`, `ai-enrichment` |
+| Windows  | Docker  | `host.docker.internal`           | N/A (use Linux for GPU)                                            |
+
+> For a decision table and copy/paste `.env` snippets for each mode, see `docs/operator/deployment-modes.md`.
 
 ## Environment Variables
 

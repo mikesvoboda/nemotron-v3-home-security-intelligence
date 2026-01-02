@@ -3,8 +3,8 @@
 # Download AI models for home security system
 #
 # Models:
-#   - Nemotron Mini 4B Instruct (Q4_K_M quantized) - ~2.5GB
-#   - RT-DETRv2 (from Hugging Face transformers) - ~160MB
+#   - Nemotron Mini 4B Instruct (Q4_K_M quantized) - ~2.5GB (development convenience)
+#   - RT-DETRv2 weights are pulled automatically by the detector service via HuggingFace cache
 #
 
 set -e
@@ -88,79 +88,8 @@ fi
 
 echo ""
 
-#
-# RT-DETRv2 ONNX model
-#
-# The RT-DETR server in this repo expects an ONNX file at:
-#   ai/rtdetr/rtdetrv2_r50vd.onnx
-#
-# Many deployments already have model artifacts on disk (e.g. /export/ai_models/...).
-# This script tries, in order:
-#   1) Use RTDETR_ONNX_PATH if set
-#   2) Search common model roots (default /export/ai_models/rt-detrv2)
-#   3) If RTDETR_ONNX_URL is set, download it
-#
-RTDETR_DIR="${SCRIPT_DIR}/rtdetr"
-RTDETR_ONNX_NAME="rtdetrv2_r50vd.onnx"
-RTDETR_ONNX_TARGET="${RTDETR_DIR}/${RTDETR_ONNX_NAME}"
-
-mkdir -p "$RTDETR_DIR"
-
-if [ -f "$RTDETR_ONNX_TARGET" ]; then
-    echo "[SKIP] RT-DETRv2 ONNX already exists: $RTDETR_ONNX_TARGET"
-else
-    echo "[INFO] Resolving RT-DETRv2 ONNX model..."
-    echo "       Target: $RTDETR_ONNX_TARGET"
-
-    if [ -n "${RTDETR_ONNX_PATH:-}" ] && [ -f "${RTDETR_ONNX_PATH}" ]; then
-        echo "[COPY] Using RTDETR_ONNX_PATH=${RTDETR_ONNX_PATH}"
-        cp "${RTDETR_ONNX_PATH}" "${RTDETR_ONNX_TARGET}"
-        echo "[OK] RT-DETRv2 ONNX copied"
-    else
-        # Default search roots (customizable)
-        SEARCH_ROOTS=()
-        if [ -n "${RTDETR_MODELS_DIR:-}" ]; then
-            SEARCH_ROOTS+=("${RTDETR_MODELS_DIR}")
-        fi
-        SEARCH_ROOTS+=("/export/ai_models/rt-detrv2" "/export/ai_models/rt-detrv2/weights" "/export/ai_models/rt-detrv2/optimized")
-
-        FOUND_ONNX=""
-        for root in "${SEARCH_ROOTS[@]}"; do
-            if [ -d "${root}" ]; then
-                # Prefer files that mention r50vd; otherwise take first .onnx found.
-                FOUND_ONNX="$(find "${root}" -type f -name '*.onnx' 2>/dev/null | grep -i 'r50vd' | head -n 1 || true)"
-                if [ -z "${FOUND_ONNX}" ]; then
-                    FOUND_ONNX="$(find "${root}" -type f -name '*.onnx' 2>/dev/null | head -n 1 || true)"
-                fi
-                if [ -n "${FOUND_ONNX}" ]; then
-                    break
-                fi
-            fi
-        done
-
-        if [ -n "${FOUND_ONNX}" ]; then
-            echo "[FOUND] ${FOUND_ONNX}"
-            cp "${FOUND_ONNX}" "${RTDETR_ONNX_TARGET}"
-            echo "[OK] RT-DETRv2 ONNX copied from existing model store"
-        else
-            if [ -n "${RTDETR_ONNX_URL:-}" ]; then
-                echo "[DOWNLOAD] RT-DETRv2 ONNX from RTDETR_ONNX_URL"
-                echo "Source: ${RTDETR_ONNX_URL}"
-                wget -O "${RTDETR_ONNX_TARGET}" "${RTDETR_ONNX_URL}"
-                echo "[OK] RT-DETRv2 ONNX downloaded successfully"
-            else
-                echo "[WARN] RT-DETRv2 ONNX not found."
-                echo "       Provide one of the following:"
-                echo "       - RTDETR_ONNX_PATH=/path/to/model.onnx"
-                echo "       - RTDETR_MODELS_DIR=/export/ai_models/rt-detrv2 (or similar)"
-                echo "       - RTDETR_ONNX_URL=https://.../rtdetrv2_r50vd.onnx"
-                echo ""
-                echo "       The detector server will still start, but /detect will return 503 until the model is present."
-            fi
-        fi
-    fi
-fi
-
+echo "[INFO] RT-DETRv2 weights are pulled automatically by the detector service (HuggingFace cache)."
+echo "       If you need to pin the model, set RTDETR_MODEL_PATH (e.g. 'PekingU/rtdetr_r50vd_coco_o365')."
 echo ""
 echo "=========================================="
 echo "Download Complete!"

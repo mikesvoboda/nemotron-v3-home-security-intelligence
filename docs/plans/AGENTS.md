@@ -2,7 +2,16 @@
 
 ## Purpose
 
-This directory contains design specifications and implementation plans that define the project architecture, requirements, and task breakdown. These documents serve as the source of truth for what to build and how.
+This directory contains design specifications and implementation plans that capture **design intent** and historical
+decision-making.
+
+> [!IMPORTANT]
+> Treat `docs/plans/` as **historical design docs**, not operational runbooks.
+> These files may reference earlier architecture choices (e.g. SQLite, older AI runtimes) that are no longer true.
+>
+> - **Code** is the source of truth for behavior
+> - **`docs/RUNTIME_CONFIG.md`** is the source of truth for ports/env
+> - **`docs/operator/` + `docs/DOCKER_DEPLOYMENT.md`** are the source of truth for deployment steps
 
 ## Directory Contents
 

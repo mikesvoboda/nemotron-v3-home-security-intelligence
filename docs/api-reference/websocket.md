@@ -31,7 +31,7 @@ Stream security events in real-time as they are detected and analyzed.
 
 **URL:** `ws://localhost:8000/ws/events`
 
-**Authentication:** Required when `api_key_enabled=true`
+**Authentication:** Required when `API_KEY_ENABLED=true`
 
 Provide API key via:
 

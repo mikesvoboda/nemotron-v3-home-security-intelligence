@@ -3,7 +3,7 @@
 > Get your development environment running in under 10 minutes.
 
 **Time to read:** ~5 min
-**Prerequisites:** Python 3.14+, Node.js 18+, Docker/Podman
+**Prerequisites:** Python 3.14+, Node.js 20.19+ or 22.12+, Docker/Podman
 
 ---
 
@@ -32,15 +32,13 @@ The setup script:
 ### 1. Backend
 
 ```bash
-# Create virtual environment
-python3 -m venv .venv
+# Install dependencies using uv (recommended - 10-100x faster than pip)
+# Install uv: curl -LsSf https://astral.sh/uv/install.sh | sh
+uv sync --extra dev
+
+# This creates .venv and installs all dependencies from pyproject.toml
+# Activate the environment for manual commands
 source .venv/bin/activate
-
-# Install dependencies
-pip install -r backend/requirements.txt
-
-# Install dev tools
-pip install pre-commit ruff mypy pytest
 ```
 
 ### 2. Frontend

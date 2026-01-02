@@ -92,11 +92,25 @@ export PROJECT_ROOT="/path/to/your/project"
 
 When AI services run in containers, use appropriate host resolution:
 
+> For a decision table and copy/paste `.env` snippets for every deployment mode, use: **[Deployment Modes & AI Networking](deployment-modes.md)**.
+
 | Platform | Runtime        | AI Service URLs                        |
 | -------- | -------------- | -------------------------------------- |
 | macOS    | Docker Desktop | `http://host.docker.internal:8090`     |
 | macOS    | Podman         | `http://host.containers.internal:8090` |
 | Linux    | Docker/Podman  | `http://192.168.1.100:8090` (host IP)  |
+
+### Production compose DNS (recommended)
+
+When running `docker-compose.prod.yml`, the backend reaches AI services by compose DNS:
+
+```bash
+RTDETR_URL=http://ai-detector:8090
+NEMOTRON_URL=http://ai-llm:8091
+FLORENCE_URL=http://ai-florence:8092
+CLIP_URL=http://ai-clip:8093
+ENRICHMENT_URL=http://ai-enrichment:8094
+```
 
 **Example .env for macOS with Docker:**
 

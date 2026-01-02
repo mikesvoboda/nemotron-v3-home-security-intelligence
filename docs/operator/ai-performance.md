@@ -48,7 +48,7 @@ The system broadcasts GPU stats via WebSocket at `/ws/system`. Check the dashboa
 
 ```bash
 # Query GPU stats from API
-curl http://localhost:8000/api/system/gpu/history?minutes=30
+curl "http://localhost:8000/api/system/gpu/history?since=2025-12-30T09:45:00Z&limit=300"
 ```
 
 ---
@@ -94,32 +94,79 @@ curl -X POST http://localhost:8090/detect/batch \
 
 ## Nemotron LLM Tuning
 
-### Context Size
+### GPU Layers Configuration
 
-Larger context allows longer prompts but uses more VRAM.
+Controls how many model layers run on GPU vs CPU. More GPU layers = faster inference but more VRAM.
+
+**Configuration locations and their defaults:**
+
+| Location                  | Default | Model    | Rationale                        |
+| ------------------------- | ------- | -------- | -------------------------------- |
+| `docker-compose.prod.yml` | 35      | Nano 30B | Conservative for 16GB GPUs       |
+| `ai/nemotron/Dockerfile`  | 30      | Nano 30B | Safe default for varied hardware |
+| `ai/start_llm.sh`         | 99      | Mini 4B  | All layers on GPU (small model)  |
+
+**Recommended settings by GPU VRAM:**
+
+| VRAM  | GPU_LAYERS | Notes                                    |
+| ----- | ---------- | ---------------------------------------- |
+| 8GB   | 20-25      | Partial offload, slower inference        |
+| 12GB  | 30-35      | Balanced performance                     |
+| 16GB  | 40-45      | Good performance                         |
+| 24GB+ | 50-53      | Maximum layers (Nano 30B has ~53 layers) |
+
+**Setting GPU_LAYERS:**
 
 ```bash
-# Default: 4096 tokens
---ctx-size 4096
+# In .env or shell
+export GPU_LAYERS=45
 
-# For complex batches
---ctx-size 8192
+# Or override in docker-compose command
+GPU_LAYERS=45 docker compose -f docker-compose.prod.yml up ai-llm -d
 
-# Memory-constrained
---ctx-size 2048
+# For host-run development (Mini 4B), use all layers
+# ai/start_llm.sh already uses --n-gpu-layers 99
 ```
 
-### GPU Layers
+### Context Size Configuration
 
-Controls how much of the model runs on GPU vs CPU.
+Controls the maximum context window. Larger contexts allow more batch data but use significantly more VRAM.
+
+**Configuration locations and their defaults:**
+
+| Location                  | Default | Rationale                                            |
+| ------------------------- | ------- | ---------------------------------------------------- |
+| `docker-compose.prod.yml` | 131072  | Production batch processing with multiple detections |
+| `ai/nemotron/Dockerfile`  | 131072  | Match production compose default                     |
+| `ai/start_llm.sh`         | 4096    | Development use, smaller context sufficient          |
+
+**VRAM impact of context size (approximate for Nano 30B):**
+
+| CTX_SIZE | Additional VRAM | Use Case                           |
+| -------- | --------------- | ---------------------------------- |
+| 2048     | ~500MB          | Minimal, single detection analysis |
+| 4096     | ~1GB            | Development, testing               |
+| 8192     | ~2GB            | Small batches                      |
+| 32768    | ~4GB            | Medium batches                     |
+| 131072   | ~8-12GB         | Production batch processing        |
+
+**Setting CTX_SIZE:**
 
 ```bash
-# Full GPU (default, requires ~3GB VRAM)
---n-gpu-layers 99
+# In .env or shell
+export CTX_SIZE=8192
 
-# Partial GPU (if VRAM limited)
---n-gpu-layers 20
+# Or override in docker-compose command
+CTX_SIZE=8192 docker compose -f docker-compose.prod.yml up ai-llm -d
+
+# For memory-constrained systems
+CTX_SIZE=4096 GPU_LAYERS=25 docker compose -f docker-compose.prod.yml up ai-llm -d
 ```
+
+**Trade-offs:**
+
+- **Large context (131072)**: Can analyze many detections in a single batch, better contextual reasoning, higher VRAM
+- **Small context (4096)**: Faster startup, lower VRAM, may need to split large batches
 
 ### Parallelism
 
