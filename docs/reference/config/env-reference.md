@@ -69,10 +69,13 @@ REDIS_URL=rediss://redis-host:6379/0
 
 ### Service URLs
 
-| Variable       | Required | Default                 | Description                     |
-| -------------- | -------- | ----------------------- | ------------------------------- |
-| `RTDETR_URL`   | No       | `http://localhost:8090` | RT-DETRv2 detection service URL |
-| `NEMOTRON_URL` | No       | `http://localhost:8091` | Nemotron LLM service URL        |
+| Variable         | Required | Default                 | Description                             |
+| ---------------- | -------- | ----------------------- | --------------------------------------- |
+| `RTDETR_URL`     | No       | `http://localhost:8090` | RT-DETRv2 detection service URL         |
+| `NEMOTRON_URL`   | No       | `http://localhost:8091` | Nemotron LLM service URL                |
+| `FLORENCE_URL`   | No       | `http://localhost:8092` | Florence-2 vision-language service URL  |
+| `CLIP_URL`       | No       | `http://localhost:8093` | CLIP embedding service URL              |
+| `ENRICHMENT_URL` | No       | `http://localhost:8094` | Enrichment service URL (remote helpers) |
 
 > **Warning:** Use HTTPS in production to prevent MITM attacks.
 
@@ -84,6 +87,25 @@ REDIS_URL=rediss://redis-host:6379/0
 | `NEMOTRON_API_KEY` | No       | -       | API key for Nemotron service  |
 
 ### Service Timeouts
+
+### Enrichment Feature Toggles
+
+These control enrichment behaviors in the backend. Defaults are designed for “rich context”, but you can
+disable them if you’re resource constrained or running without those services.
+
+| Variable                    | Required | Default | Description                               |
+| --------------------------- | -------- | ------- | ----------------------------------------- |
+| `VISION_EXTRACTION_ENABLED` | No       | `true`  | Enable Florence-2 based vision extraction |
+| `REID_ENABLED`              | No       | `true`  | Enable CLIP-based re-identification       |
+| `SCENE_CHANGE_ENABLED`      | No       | `true`  | Enable scene change detection             |
+
+### Re-ID / Scene Change Tuning
+
+| Variable                    | Required | Default | Description                              |
+| --------------------------- | -------- | ------- | ---------------------------------------- |
+| `REID_SIMILARITY_THRESHOLD` | No       | `0.85`  | Cosine similarity threshold for matching |
+| `REID_TTL_HOURS`            | No       | `24`    | Redis TTL for embeddings                 |
+| `SCENE_CHANGE_THRESHOLD`    | No       | `0.90`  | SSIM threshold (below = change detected) |
 
 | Variable                | Required | Default | Range   | Description                |
 | ----------------------- | -------- | ------- | ------- | -------------------------- |

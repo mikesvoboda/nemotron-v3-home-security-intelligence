@@ -68,7 +68,7 @@ Verified the Docker Compose deployment configuration and enhanced it with health
 **Backend Dockerfile**
 
 - Added wget installation for health checks
-- Created /app/data directory for SQLite
+- Created /app/data directory for runtime data (logs, runtime.env, thumbnails, etc.)
 - Added comments for clarity
 
 **Frontend Dockerfile**
@@ -169,7 +169,7 @@ Verified the Docker Compose deployment configuration and enhanced it with health
 | Volume         | Type  | Purpose                    | Mount                      |
 | -------------- | ----- | -------------------------- | -------------------------- |
 | redis_data     | Named | Redis data persistence     | /data                      |
-| backend/data   | Bind  | SQLite database            | ./backend/data:/app/data   |
+| backend/data   | Bind  | Backend runtime data       | ./backend/data:/app/data   |
 | /export/foscam | Bind  | Camera uploads (read-only) | /export/foscam:/cameras:ro |
 
 ### Networks

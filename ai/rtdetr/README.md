@@ -6,7 +6,7 @@ HTTP server wrapping RT-DETRv2 object detection model for home security monitori
 
 - FastAPI-based REST API
 - CUDA/GPU acceleration (RTX A5500)
-- ONNX Runtime for optimized inference
+- PyTorch + HuggingFace Transformers inference
 - Batch processing support
 - Filters to security-relevant classes only
 
@@ -18,13 +18,10 @@ pip install -r requirements.txt
 
 ## Model Setup
 
-Place the RT-DETRv2 ONNX model file in this directory:
+RT-DETRv2 is loaded via HuggingFace Transformers. Configure the model source with `RTDETR_MODEL_PATH`:
 
-```
-ai/rtdetr/rtdetrv2_r50vd.onnx
-```
-
-Or configure a custom model path in the startup script.
+- HuggingFace model id (default in `docker-compose.prod.yml`): `PekingU/rtdetr_r50vd_coco_o365`
+- Or a local path to a compatible Transformers model directory
 
 ## Running the Server
 
@@ -152,8 +149,8 @@ The server filters detections to security-relevant classes only:
 
 Environment variables or command-line arguments:
 
-- `MODEL_PATH`: Path to ONNX model file (default: `rtdetrv2_r50vd.onnx`)
-- `CONFIDENCE_THRESHOLD`: Minimum detection confidence (default: 0.5)
+- `RTDETR_MODEL_PATH`: HuggingFace model id or local model directory
+- `RTDETR_CONFIDENCE`: Minimum detection confidence (default: 0.5)
 - `DEVICE`: Inference device (default: `cuda:0` if available, else `cpu`)
 - `PORT`: Server port (default: 8090)
 

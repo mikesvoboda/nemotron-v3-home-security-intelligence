@@ -51,10 +51,10 @@ RuntimeError: CUDA out of memory
 2. Check VRAM usage: `nvidia-smi`
 3. Restart services: `./scripts/start-ai.sh restart`
 
-**ONNX Runtime not found:**
+**Python dependency not found (RT-DETRv2):**
 
 ```
-ModuleNotFoundError: No module named 'onnxruntime'
+ModuleNotFoundError: No module named 'transformers'
 ```
 
 **Solution:**
@@ -67,7 +67,7 @@ pip install -r requirements.txt
 **Model file not found:**
 
 ```
-FileNotFoundError: rtdetrv2_r50vd.onnx
+ImportError / ModuleNotFoundError in `ai/rtdetr/model.py`
 ```
 
 **Solution:** Model auto-downloads on first use. Wait for download to complete (check logs).

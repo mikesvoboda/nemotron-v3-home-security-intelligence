@@ -503,6 +503,10 @@ dedupe:{sha256_hash} -> file_path (string, 5 min TTL default)
 security_events (channel)
 ├── Event broadcasts on analysis completion
 └── WebSocket clients subscribe via backend relay
+
+system_status (channel)
+├── Periodic system status/health broadcasts
+└── WebSocket clients subscribe via backend relay
 ```
 
 **Message Schema:**
@@ -546,7 +550,8 @@ stateDiagram-v2
 
     MarkProcessed --> Detecting: DetectionQueueWorker
     Detecting --> DetectionStored: RT-DETRv2 inference
-    DetectionStored --> Batching: BatchAggregator
+    DetectionStored --> Enriching: EnrichmentPipeline (optional)
+    Enriching --> Batching: BatchAggregator
 
     state Batching {
         [*] --> ActiveBatch
@@ -592,21 +597,27 @@ stateDiagram-v2
    - Detection record(s) created in PostgreSQL
    - Thumbnail generated and stored
 
-5. **Batch Aggregation:**
+5. **Optional Enrichment (Best-Effort):**
+
+   - If enabled, detections can be enriched with additional attributes/entities
+   - This stage may use backend-side model-zoo enrichers and/or optional AI services
+   - Failures should not block detection storage or event analysis
+
+6. **Batch Aggregation:**
 
    - Detection added to camera's active batch
    - Batch state tracked in Redis keys
    - Batch closed on window timeout (90s) or idle timeout (30s)
    - Completed batch pushed to `analysis_queue`
 
-6. **LLM Analysis:**
+7. **LLM Analysis:**
 
    - AnalysisQueueWorker pops batch from queue
    - Detection data sent to Nemotron LLM
    - Risk score, level, summary generated
    - Event record created in PostgreSQL
 
-7. **Real-time Broadcast:**
+8. **Real-time Broadcast:**
    - Event published to `security_events` channel
    - WebSocket clients receive update
    - Dashboard updates in real-time

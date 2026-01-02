@@ -9,6 +9,10 @@
 
 ## Starting Services
 
+> [!IMPORTANT]
+> This doc covers **host-run AI** (useful for development) and **containerized AI** (recommended for production).
+> In production, `docker-compose.prod.yml` defines _all_ AI services (8090–8094).
+
 ### Unified Startup (Recommended)
 
 Use the unified startup script to manage both services:
@@ -64,6 +68,28 @@ Start services separately for debugging:
 
 # Nemotron LLM server (in separate terminal)
 ./ai/start_llm.sh
+```
+
+---
+
+## Production (containerized AI services)
+
+Start the full stack (including Florence/CLIP/Enrichment):
+
+```bash
+docker compose -f docker-compose.prod.yml up -d
+```
+
+Start only the core services:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d postgres redis backend frontend ai-detector ai-llm
+```
+
+Stop:
+
+```bash
+docker compose -f docker-compose.prod.yml down
 ```
 
 ---
@@ -147,6 +173,14 @@ python example_client.py path/to/test/image.jpg
 ```
 
 ### Test Nemotron LLM
+
+### Test Florence / CLIP / Enrichment (production)
+
+```bash
+curl http://localhost:8092/health  # Florence-2
+curl http://localhost:8093/health  # CLIP
+curl http://localhost:8094/health  # Enrichment
+```
 
 ```bash
 # Health check

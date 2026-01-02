@@ -1,6 +1,10 @@
 # AI Services Setup Guide
 
-Comprehensive guide for setting up and running the AI inference services for the Nemotron v3 Home Security Intelligence system.
+Comprehensive guide for setting up and running the AI inference stack for Home Security Intelligence.
+
+> [!IMPORTANT] > **Do not assume “two AI services”.** In production, this repo supports a multi-service AI stack
+> (RT-DETRv2 + Nemotron + Florence-2 + CLIP + Enrichment) plus backend “model zoo” enrichment.
+> The authoritative ports/env reference is [`docs/RUNTIME_CONFIG.md`](RUNTIME_CONFIG.md).
 
 ## Table of Contents
 
@@ -21,55 +25,61 @@ Comprehensive guide for setting up and running the AI inference services for the
 
 ## Overview
 
-The AI pipeline consists of two independent services running in **containers (Docker or Podman) with GPU passthrough**:
+This project supports two common AI deployment modes:
+
+1. **Production (fully containerized AI)**: AI services run as containers (recommended for deployment)
+2. **Development (host-run AI)**: selected AI services run natively for faster iteration/debugging
+
+### AI services (containerized HTTP)
+
+In production (`docker-compose.prod.yml`), the AI layer consists of these HTTP services:
 
 1. **RT-DETRv2 Detection Server** (Port 8090)
+2. **Nemotron LLM Server (llama.cpp)** (Port 8091)
+3. **Florence-2 Vision-Language Server** (Port 8092)
+4. **CLIP Embedding Server** (Port 8093)
+5. **Enrichment Service** (Port 8094)
 
-   - Real-time object detection from camera images
-   - ONNX Runtime with GPU acceleration
-   - ~4GB VRAM usage
-   - 30-50ms inference per image
+These are used by the backend for:
 
-2. **Nemotron LLM Server** (Port 8091)
-   - Risk reasoning and natural language generation
-   - llama.cpp with quantized GGUF model
-   - ~3GB VRAM usage (Nemotron Mini 4B Q4_K_M quantization)
-   - 2-5 seconds per risk analysis
+- Object detection (RT-DETRv2)
+- Risk reasoning (Nemotron)
+- Vision-language attributes/captions (Florence-2)
+- Embeddings/re-identification support (CLIP)
+- Remote enrichment helpers (vehicle/pet/clothing/etc. via `ai-enrichment`)
 
-**Total VRAM requirement**: ~7GB (both services running concurrently)
+### Backend enrichment (“model zoo”)
 
-**Production Deployment**: Both services run in OCI containers (Docker or Podman) with NVIDIA GPU passthrough via Container Device Interface (CDI).
+Separately from the AI services, the backend includes an enrichment pipeline that can run additional models
+on demand (or delegate certain work to `ai-enrichment` when configured). This is how the system adds richer
+context (plates/OCR, faces, clothing/vehicle/pet signals, image quality/tamper indicators) into the LLM prompt.
+
+### Resource requirements (two profiles)
+
+Exact VRAM depends on which services are enabled and which model sizes you deploy.
+
+- **Host-run dev (minimal)**: RT-DETRv2 + Nemotron Mini 4B can fit in ~8–12GB VRAM
+- **Production full AI stack**: plan for ~22GB VRAM (24GB recommended) when running all services
+
+See also: [`ai/AGENTS.md`](../ai/AGENTS.md)
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    AI Pipeline Services                      │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  ┌──────────────────┐         ┌──────────────────┐         │
-│  │  RT-DETRv2       │         │  Nemotron LLM    │         │
-│  │  Detection       │         │  Risk Analysis   │         │
-│  │                  │         │                  │         │
-│  │  Port: 8090      │         │  Port: 8091      │         │
-│  │  VRAM: ~4GB      │         │  VRAM: ~3GB      │         │
-│  │  Latency: 30-50ms│         │  Latency: 2-5s   │         │
-│  └──────────────────┘         └──────────────────┘         │
-│         ▲                             ▲                     │
-│         │                             │                     │
-│         │ HTTP POST /detect           │ HTTP POST          │
-│         │ (multipart/form-data)       │ /completion        │
-│         │                             │ (JSON)             │
-└─────────┼─────────────────────────────┼──────────────────────┘
-          │                             │
-          │                             │
-    ┌─────┴──────┐              ┌──────┴────────┐
-    │ Detector   │              │ Nemotron      │
-    │ Client     │              │ Analyzer      │
-    │ (FastAPI)  │              │ (FastAPI)     │
-    └────────────┘              └───────────────┘
-     backend/services/          backend/services/
+Camera uploads → backend FileWatcher → detection_queue
+  → RT-DETRv2 (8090) → detections (DB)
+  → batching + enrichment (context + model zoo)
+  → Nemotron (8091) → events (DB)
+  → WebSocket dashboard
+
+Enrichment services (optional / configurable):
+  - Florence-2 (8092): captions/attributes
+  - CLIP (8093): embeddings / re-ID
+  - Enrichment service (8094): vehicle/pet/clothing/etc.
 ```
+
+> [!NOTE]
+> “Optional / configurable” here means these can be disabled by settings, not that the codebase lacks them.
 
 ## Environment Variables
 
@@ -119,8 +129,23 @@ These variables configure how the backend connects to AI services:
 | ------------------ | ------------------------------------ | ----------------------- |
 | `RTDETR_URL`       | Full URL to RT-DETRv2 service        | `http://localhost:8090` |
 | `NEMOTRON_URL`     | Full URL to Nemotron service         | `http://localhost:8091` |
+| `FLORENCE_URL`     | Full URL to Florence-2 service       | `http://localhost:8092` |
+| `CLIP_URL`         | Full URL to CLIP service             | `http://localhost:8093` |
+| `ENRICHMENT_URL`   | Full URL to Enrichment service       | `http://localhost:8094` |
 | `RTDETR_API_KEY`   | API key for RT-DETRv2 authentication | (none)                  |
 | `NEMOTRON_API_KEY` | API key for Nemotron authentication  | (none)                  |
+
+#### Feature toggles (backend)
+
+These control enrichment behaviors in the backend:
+
+| Variable                    | Default | Description                               |
+| --------------------------- | ------- | ----------------------------------------- |
+| `VISION_EXTRACTION_ENABLED` | `true`  | Enable Florence-2 based vision extraction |
+| `REID_ENABLED`              | `true`  | Enable CLIP-based re-identification       |
+| `SCENE_CHANGE_ENABLED`      | `true`  | Enable scene change detection             |
+
+See `docs/RUNTIME_CONFIG.md` for the authoritative reference.
 
 #### Systemd Services
 
@@ -280,7 +305,7 @@ pip install -r requirements.txt
 Key dependencies:
 
 - `torch` + `torchvision` - PyTorch for deep learning
-- `onnxruntime-gpu` - ONNX Runtime with CUDA
+- `transformers` - HuggingFace model loading/inference
 - `fastapi` + `uvicorn` - Web server
 - `pillow` + `opencv-python` - Image processing
 - `pynvml` - NVIDIA GPU monitoring
@@ -318,7 +343,7 @@ cd "$PROJECT_ROOT"
 ./ai/download_models.sh
 ```
 
-**What it downloads:**
+**What it downloads (development convenience):**
 
 1. **Nemotron Mini 4B Instruct (Q4_K_M)** - ~2.5GB
 
@@ -327,10 +352,13 @@ cd "$PROJECT_ROOT"
    - Location: `ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf`
    - Download time: ~5-10 minutes (depends on connection)
 
-2. **RT-DETRv2** - ~160MB
-   - Auto-downloaded on first use via Hugging Face transformers
-   - Model: `PekingU/rtdetr_r50vd_coco_o365`
-   - Location: Hugging Face cache (`~/.cache/huggingface/`)
+2. **RT-DETRv2 weights** - auto-downloaded on first use via Hugging Face transformers
+   - Model: `PekingU/rtdetr_r50vd_coco_o365` (default in `docker-compose.prod.yml`)
+   - Location: Hugging Face cache (`HF_HOME`, often `~/.cache/huggingface/`)
+
+> [!IMPORTANT]
+> Production deployments often mount models from `/export/ai_models/...` (see `docker-compose.prod.yml`).
+> `download_models.sh` is not the authoritative production mechanism for all model zoo artifacts.
 
 ### Manual Download (Alternative)
 
@@ -360,7 +388,13 @@ ls -lh ai/nemotron/nemotron-mini-4b-instruct-q4_k_m.gguf
 
 ## Starting Services
 
-### Unified Startup (Recommended)
+### Production (containers, recommended for deployment)
+
+```bash
+docker compose -f docker-compose.prod.yml up -d
+```
+
+### Development (host-run AI)
 
 Use the unified startup script to manage both services:
 
@@ -493,6 +527,14 @@ python example_client.py path/to/test/image.jpg
 
 ### Test Nemotron LLM
 
+### Test Florence / CLIP / Enrichment (production stack)
+
+```bash
+curl http://localhost:8092/health  # Florence-2
+curl http://localhost:8093/health  # CLIP
+curl http://localhost:8094/health  # Enrichment
+```
+
 ```bash
 # Health check
 curl http://localhost:8091/health
@@ -545,27 +587,15 @@ tail -f /tmp/rtdetr-detector.log
    - Check VRAM: `nvidia-smi`
    - Restart services: `./scripts/start-ai.sh restart`
 
-2. **ONNX Runtime not found**
+2. **Missing Python dependencies**
 
-   ```
-   ModuleNotFoundError: No module named 'onnxruntime'
-   ```
-
-   - **Solution**: Install dependencies
+   - **Symptom**: import errors for `torch`, `transformers`, etc.
+   - **Solution**:
 
    ```bash
    cd ai/rtdetr
    pip install -r requirements.txt
    ```
-
-3. **Model file not found**
-
-   ```
-   FileNotFoundError: rtdetrv2_r50vd.onnx
-   ```
-
-   - **Solution**: Model will auto-download on first use
-   - Wait for download to complete (check logs)
 
 ### Nemotron LLM Won't Start
 
@@ -1150,7 +1180,7 @@ For production systems requiring high availability:
 
 - **llama.cpp**: https://github.com/ggerganov/llama.cpp
 - **RT-DETRv2**: https://github.com/lyuwenyu/RT-DETR
-- **ONNX Runtime**: https://onnxruntime.ai/docs/
+- **HuggingFace Transformers**: https://huggingface.co/docs/transformers
 - **NVIDIA CUDA**: https://docs.nvidia.com/cuda/
 
 ### Project Documentation
