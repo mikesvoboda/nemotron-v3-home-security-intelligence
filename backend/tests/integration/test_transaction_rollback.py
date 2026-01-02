@@ -57,7 +57,7 @@ async def clean_test_data(integration_db: str) -> None:
 
 
 @pytest.fixture
-async def sample_camera(integration_db: str, clean_test_data: None) -> Camera:
+async def sample_camera(integration_db: str, _clean_test_data: None) -> Camera:
     """Create a sample camera for tests."""
     camera_id = unique_id("camera")
     async with get_session() as session:
@@ -121,7 +121,7 @@ class TestEventDetectionAtomicCreation:
             assert saved_event.camera_id == sample_camera.id
 
     async def test_event_creation_rollback_on_invalid_camera(
-        self, integration_db: str, clean_test_data: None
+        self, integration_db: str, _clean_test_data: None
     ) -> None:
         """Test that event creation rolls back when referencing invalid camera."""
         batch_id = unique_id("batch")
@@ -321,7 +321,7 @@ class TestAlertRuleConstraintValidation:
     """Tests for alert rule creation with constraint validation."""
 
     async def test_alert_rule_creation_succeeds(
-        self, integration_db: str, clean_test_data: None
+        self, integration_db: str, _clean_test_data: None
     ) -> None:
         """Test that valid alert rule creation succeeds."""
         rule_id = str(uuid.uuid4())
@@ -403,7 +403,7 @@ class TestAlertRuleConstraintValidation:
             assert saved_alert.rule_id == rule_id
 
     async def test_alert_creation_rollback_on_invalid_event(
-        self, integration_db: str, clean_test_data: None
+        self, integration_db: str, _clean_test_data: None
     ) -> None:
         """Test that alert creation rolls back when referencing invalid event."""
         rule_id = str(uuid.uuid4())

@@ -78,13 +78,15 @@ test.describe('Mobile Viewport Tests', () => {
     await expect(dashboardPage.cameraGridHeading).toBeVisible();
   });
 
-  test('activity feed is visible on mobile', async ({ page }) => {
+  test('stats row is visible on mobile', async ({ page }) => {
+    // Note: Activity Feed is on the Timeline page, not the Dashboard.
+    // This test checks the Stats Row instead.
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
     await dashboardPage.waitForDashboardLoad();
-    // Scroll to activity section
-    await page.evaluate(() => window.scrollBy(0, 600));
-    await expect(dashboardPage.activityFeedHeading).toBeVisible();
+    // Scroll to stats section
+    await page.evaluate(() => window.scrollBy(0, 200));
+    await expect(dashboardPage.activeCamerasStat).toBeVisible();
   });
 });
 
