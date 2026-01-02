@@ -38,7 +38,7 @@ async def async_client(client: AsyncClient) -> AsyncClient:
 
 
 @pytest.fixture
-async def _clean_ai_audit_tables(_integration_db: str):
+async def _clean_ai_audit_tables(integration_db: str):
     """Delete AI audit related data before test runs for proper isolation.
 
     Uses DELETE instead of TRUNCATE to avoid AccessExclusiveLock deadlocks.
@@ -68,7 +68,7 @@ async def _clean_ai_audit_tables(_integration_db: str):
 
 
 @pytest.fixture
-async def sample_camera_for_audit(_integration_db: str, _clean_ai_audit_tables: None) -> Camera:
+async def sample_camera_for_audit(integration_db: str, _clean_ai_audit_tables: None) -> Camera:
     """Create a sample camera for AI audit tests."""
     from backend.core.database import get_session
     from backend.models.camera import Camera
@@ -88,7 +88,7 @@ async def sample_camera_for_audit(_integration_db: str, _clean_ai_audit_tables: 
 
 
 @pytest.fixture
-async def sample_event_for_audit(_integration_db: str, sample_camera_for_audit: Camera) -> Event:
+async def sample_event_for_audit(integration_db: str, sample_camera_for_audit: Camera) -> Event:
     """Create a sample event for AI audit tests."""
     from backend.core.database import get_session
     from backend.models.event import Event
@@ -113,7 +113,7 @@ async def sample_event_for_audit(_integration_db: str, sample_camera_for_audit: 
 
 
 @pytest.fixture
-async def sample_event_audit(_integration_db: str, sample_event_for_audit: Event) -> EventAudit:
+async def sample_event_audit(integration_db: str, sample_event_for_audit: Event) -> EventAudit:
     """Create a sample event audit record."""
     from backend.core.database import get_session
     from backend.models.event_audit import EventAudit
@@ -165,7 +165,7 @@ async def sample_event_audit(_integration_db: str, sample_event_for_audit: Event
 
 @pytest.fixture
 async def _multiple_event_audits(
-    _integration_db: str, sample_camera_for_audit: Camera
+    integration_db: str, sample_camera_for_audit: Camera
 ) -> list[tuple[Event, EventAudit]]:
     """Create multiple events with audits for stats/leaderboard testing."""
     from backend.core.database import get_session
