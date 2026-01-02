@@ -384,45 +384,58 @@ SERVICE_CATEGORIES: frozenset[str] = frozenset(
 
 
 class ClothingClassifier:
-    """FashionCLIP zero-shot clothing classification model wrapper."""
+    """FashionCLIP zero-shot clothing classification model wrapper.
+
+    Uses open_clip library directly instead of transformers.AutoModel because
+    the Marqo-FashionCLIP custom model wrapper has meta tensor issues when
+    loaded via transformers that cause "Cannot copy out of meta tensor" errors.
+    """
 
     def __init__(self, model_path: str, device: str = "cuda:0"):
         """Initialize clothing classifier.
 
         Args:
-            model_path: Path to FashionCLIP model directory
+            model_path: Path to FashionCLIP model directory or HuggingFace model ID
             device: Device to run inference on
         """
         self.model_path = model_path
         self.device = device
         self.model: Any = None
-        self.processor: Any = None
+        self.preprocess: Any = None
+        self.tokenizer: Any = None
 
         logger.info(f"Initializing ClothingClassifier from {self.model_path}")
 
     def load_model(self) -> None:
-        """Load the FashionCLIP model."""
-        from transformers import AutoModel, AutoProcessor
+        """Load the FashionCLIP model using open_clip."""
+        from open_clip import create_model_from_pretrained, get_tokenizer
 
         logger.info("Loading FashionCLIP model...")
 
-        self.processor = AutoProcessor.from_pretrained(
-            self.model_path,
-            trust_remote_code=True,
-        )
-        self.model = AutoModel.from_pretrained(
-            self.model_path,
-            trust_remote_code=True,
-        )
-
-        # Move to device
-        if "cuda" in self.device and torch.cuda.is_available():
-            self.model = self.model.to(self.device)
-            logger.info(f"ClothingClassifier loaded on {self.device}")
+        # Convert path to HuggingFace hub format if needed
+        if self.model_path.startswith("/") or self.model_path.startswith("./"):
+            # Local path - use hf-hub format with Marqo model
+            hub_path = "hf-hub:Marqo/marqo-fashionCLIP"
+            logger.info(f"Local path {self.model_path} detected, using HuggingFace hub: {hub_path}")
+        elif "/" in self.model_path and not self.model_path.startswith("hf-hub:"):
+            # HuggingFace model ID without prefix
+            hub_path = f"hf-hub:{self.model_path}"
         else:
-            self.device = "cpu"
-            logger.info("ClothingClassifier using CPU")
+            hub_path = self.model_path
 
+        # Load model and preprocess using open_clip
+        self.model, self.preprocess = create_model_from_pretrained(hub_path)
+        self.tokenizer = get_tokenizer(hub_path)
+
+        # Determine target device and move model
+        if "cuda" in self.device and torch.cuda.is_available():
+            target_device = self.device
+            self.model = self.model.to(target_device)
+        else:
+            target_device = "cpu"
+            self.device = "cpu"
+
+        logger.info(f"ClothingClassifier loaded on {self.device}")
         self.model.eval()
         logger.info("ClothingClassifier loaded successfully")
 
@@ -442,7 +455,7 @@ class ClothingClassifier:
         Returns:
             Dictionary with clothing_type, color, style, confidence, etc.
         """
-        if self.model is None or self.processor is None:
+        if self.model is None or self.preprocess is None or self.tokenizer is None:
             raise RuntimeError("Model not loaded")
 
         if prompts is None:
@@ -451,23 +464,20 @@ class ClothingClassifier:
         # Ensure RGB mode
         rgb_image = image.convert("RGB") if image.mode != "RGB" else image
 
-        # Process image and text prompts
-        processed = self.processor(
-            text=prompts,
-            images=[rgb_image],
-            padding="max_length",
-            return_tensors="pt",
-        )
+        # Process image using open_clip preprocess
+        image_tensor = self.preprocess(rgb_image).unsqueeze(0).to(self.device)
 
-        # Move to device
-        processed = {k: v.to(self.device) for k, v in processed.items()}
+        # Tokenize text prompts
+        text_tokens = self.tokenizer(prompts).to(self.device)
 
         # Get image and text features
         with torch.no_grad():
-            image_features = self.model.get_image_features(
-                processed["pixel_values"], normalize=True
-            )
-            text_features = self.model.get_text_features(processed["input_ids"], normalize=True)
+            image_features = self.model.encode_image(image_tensor)
+            text_features = self.model.encode_text(text_tokens)
+
+            # Normalize features
+            image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+            text_features = text_features / text_features.norm(dim=-1, keepdim=True)
 
             # Compute similarity scores
             similarity = (100.0 * image_features @ text_features.T).softmax(dim=-1)

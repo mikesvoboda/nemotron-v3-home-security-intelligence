@@ -48,7 +48,8 @@ COPY --from=builder /app/.venv /app/.venv
 COPY backend/ ./backend/
 
 # Create data directory for logs and thumbnails
-RUN mkdir -p /app/data
+# The subdirectories are required for logging and ThumbnailGenerator service
+RUN mkdir -p /app/data/thumbnails /app/data/logs
 
 # Set ownership of app directories
 RUN chown -R appuser:appuser /app
