@@ -1056,7 +1056,14 @@ def _runtime_env_path() -> Path:
 
 
 def _write_runtime_env(overrides: dict[str, str]) -> None:
-    """Write/merge settings overrides into the runtime env file."""
+    """Write/merge settings overrides into the runtime env file.
+
+    Uses fsync to guarantee data is written to disk before returning,
+    ensuring settings survive process restarts and page refreshes.
+
+    Args:
+        overrides: Dictionary of environment variable names to values.
+    """
     path = _runtime_env_path()
     path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -1072,7 +1079,13 @@ def _write_runtime_env(overrides: dict[str, str]) -> None:
     existing.update(overrides)
 
     content = "\n".join(f"{k}={v}" for k, v in sorted(existing.items())) + "\n"
-    path.write_text(content, encoding="utf-8")
+
+    # Write with explicit flush and fsync to ensure persistence
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(content)
+        f.flush()
+        os.fsync(f.fileno())
+    logger.info(f"Wrote runtime env to {path}: {overrides}")
 
 
 @router.patch("/config", response_model=ConfigResponse, dependencies=[Depends(verify_api_key)])
@@ -1090,6 +1103,9 @@ async def patch_config(
     - This updates a runtime override env file (see `HSI_RUNTIME_ENV_PATH`) and clears the
       settings cache so subsequent `get_settings()` calls observe the new values.
     """
+    logger.info(f"patch_config called with: {update.model_dump()}")
+    logger.info(f"Runtime env path: {_runtime_env_path()}")
+
     # Capture old settings for audit log
     old_settings = get_settings()
     old_values = {
@@ -1116,6 +1132,12 @@ async def patch_config(
     # Make new values visible to the app immediately.
     get_settings.cache_clear()
     settings = get_settings()
+
+    logger.info(
+        f"Settings after update: retention_days={settings.retention_days}, "
+        f"batch_window_seconds={settings.batch_window_seconds}, "
+        f"detection_confidence_threshold={settings.detection_confidence_threshold}"
+    )
 
     # Build changes for audit log
     new_values = {

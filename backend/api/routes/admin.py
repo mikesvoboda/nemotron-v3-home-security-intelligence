@@ -85,44 +85,55 @@ class ClearDataResponse(BaseModel):
 
 # --- Sample Data ---
 
-SAMPLE_CAMERAS = [
-    {
-        "id": "front-door",
-        "name": "Front Door",
-        "folder_path": "/export/foscam/front_door",
-        "status": "online",
-    },
-    {
-        "id": "backyard",
-        "name": "Backyard",
-        "folder_path": "/export/foscam/backyard",
-        "status": "online",
-    },
-    {
-        "id": "garage",
-        "name": "Garage",
-        "folder_path": "/export/foscam/garage",
-        "status": "offline",
-    },
-    {
-        "id": "driveway",
-        "name": "Driveway",
-        "folder_path": "/export/foscam/driveway",
-        "status": "online",
-    },
-    {
-        "id": "side-gate",
-        "name": "Side Gate",
-        "folder_path": "/export/foscam/side_gate",
-        "status": "online",
-    },
-    {
-        "id": "living-room",
-        "name": "Living Room",
-        "folder_path": "/export/foscam/living_room",
-        "status": "offline",
-    },
-]
+
+def _get_sample_cameras() -> list[dict[str, str]]:
+    """Generate sample camera data using configured foscam_base_path.
+
+    This ensures seeded cameras have folder_paths that are valid under
+    the configured base path, avoiding 404 errors when serving snapshots.
+    """
+    settings = get_settings()
+    base_path = settings.foscam_base_path
+
+    return [
+        {
+            "id": "front-door",
+            "name": "Front Door",
+            "folder_path": f"{base_path}/front_door",
+            "status": "online",
+        },
+        {
+            "id": "backyard",
+            "name": "Backyard",
+            "folder_path": f"{base_path}/backyard",
+            "status": "online",
+        },
+        {
+            "id": "garage",
+            "name": "Garage",
+            "folder_path": f"{base_path}/garage",
+            "status": "offline",
+        },
+        {
+            "id": "driveway",
+            "name": "Driveway",
+            "folder_path": f"{base_path}/driveway",
+            "status": "online",
+        },
+        {
+            "id": "side-gate",
+            "name": "Side Gate",
+            "folder_path": f"{base_path}/side_gate",
+            "status": "online",
+        },
+        {
+            "id": "living-room",
+            "name": "Living Room",
+            "folder_path": f"{base_path}/living_room",
+            "status": "offline",
+        },
+    ]
+
 
 MOCK_SUMMARIES = {
     "low": [
@@ -262,7 +273,7 @@ async def seed_cameras(
             await db.commit()
 
     # Seed cameras
-    cameras_to_create = SAMPLE_CAMERAS[: request.count]
+    cameras_to_create = _get_sample_cameras()[: request.count]
 
     for camera_data in cameras_to_create:
         # Check if camera already exists

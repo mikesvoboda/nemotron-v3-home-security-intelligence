@@ -31,6 +31,7 @@ import {
 } from '../../services/api';
 import GpuStats from '../dashboard/GpuStats';
 import PipelineQueues from '../dashboard/PipelineQueues';
+import PipelineTelemetry from '../dashboard/PipelineTelemetry';
 
 import type { GpuMetricDataPoint } from '../../hooks/useGpuHistory';
 
@@ -603,6 +604,11 @@ export default function SystemMonitoringPage() {
             nemotron={nemotronMetrics}
             data-testid="ai-models-panel-section"
           />
+        </div>
+
+        {/* Pipeline Telemetry - Full metrics with charts */}
+        <div className="mt-6" data-testid="pipeline-telemetry-section">
+          <PipelineTelemetry />
         </div>
 
         {/* Databases Panel - PostgreSQL + Redis */}

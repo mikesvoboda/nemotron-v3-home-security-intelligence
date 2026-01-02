@@ -360,7 +360,6 @@ async def delete_camera(
     response_class=FileResponse,
     responses={
         200: {"description": "Snapshot served successfully"},
-        403: {"description": "Access denied"},
         404: {"description": "Camera or snapshot not found"},
         429: {"description": "Too many requests"},
     },
@@ -396,9 +395,22 @@ async def get_camera_snapshot(
     try:
         camera_dir.relative_to(base_root)
     except ValueError as err:
+        # Return 404 instead of 403 - semantically the snapshot is "not found"
+        # because the folder_path is misconfigured. The frontend handles 404
+        # gracefully by showing a placeholder icon, avoiding console errors.
+        # Security: We still block path traversal attempts, just with a less
+        # alarming error code that doesn't imply a permissions issue.
+        logger.warning(
+            "Camera folder_path outside base_path",
+            extra={
+                "camera_id": camera_id,
+                "folder_path": camera.folder_path,
+                "base_path": str(base_root),
+            },
+        )
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Camera folder_path is outside configured foscam_base_path",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No snapshot available for this camera",
         ) from err
 
     if not camera_dir.exists() or not camera_dir.is_dir():

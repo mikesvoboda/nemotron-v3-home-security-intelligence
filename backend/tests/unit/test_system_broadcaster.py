@@ -469,8 +469,13 @@ async def test_system_broadcaster_broadcast_status_via_redis():
     status_data = {"type": "system_status", "data": {"test": "value"}}
     await broadcaster.broadcast_status(status_data)
 
-    # Should publish via Redis
-    mock_redis.publish.assert_called_once_with("system_status", status_data)
+    # Should publish via Redis with instance origin wrapper
+    mock_redis.publish.assert_called_once()
+    call_args = mock_redis.publish.call_args
+    assert call_args[0][0] == "system_status"  # Channel name
+    published_message = call_args[0][1]
+    assert "_origin_instance" in published_message  # Has instance ID
+    assert published_message["payload"] == status_data  # Payload is the original data
 
 
 @pytest.mark.asyncio
@@ -930,11 +935,13 @@ async def test_system_broadcaster_broadcast_performance_with_collector():
     # Should have called collect_all
     mock_collector.collect_all.assert_called_once()
 
-    # Should have published via Redis
+    # Should have published via Redis with instance origin wrapper
     mock_redis.publish.assert_called_once()
     call_args = mock_redis.publish.call_args
     assert call_args[0][0] == "performance_update"  # Channel name
-    assert call_args[0][1]["type"] == "performance_update"  # Message type
+    published_message = call_args[0][1]
+    assert "_origin_instance" in published_message  # Has instance ID
+    assert published_message["payload"]["type"] == "performance_update"  # Payload has message type
 
 
 @pytest.mark.asyncio
