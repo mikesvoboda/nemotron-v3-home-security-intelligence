@@ -8,6 +8,7 @@ from .camera import Base, Camera
 from .detection import Detection
 from .enums import CameraStatus, Severity
 from .event import Event
+from .event_audit import EventAudit
 from .gpu_stats import GPUStats
 from .log import Log
 from .zone import Zone, ZoneShape, ZoneType
@@ -28,6 +29,7 @@ __all__ = [
     "ClassBaseline",
     "Detection",
     "Event",
+    "EventAudit",
     "GPUStats",
     "Log",
     "Severity",
