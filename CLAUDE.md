@@ -33,6 +33,27 @@ For macOS with Podman, set the AI host:
 export AI_HOST=host.containers.internal
 ```
 
+## Deploy from CI/CD Containers
+
+Pull and redeploy using pre-built containers from GitHub Container Registry (main branch):
+
+```bash
+# Pull latest containers from GHCR
+podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:latest
+podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:latest
+
+# Stop current containers
+podman-compose -f docker-compose.prod.yml down
+
+# Redeploy with latest images
+podman-compose -f docker-compose.prod.yml up -d
+
+# Verify deployment
+curl http://localhost:8000/api/system/health/ready
+```
+
+**Note:** CI/CD automatically builds and pushes images on every merge to `main`. Use `:latest` for most recent stable build or specify a commit SHA tag for specific versions.
+
 ## Python Dependencies (uv)
 
 This project uses **uv** for Python dependency management (10-100x faster than pip):

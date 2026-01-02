@@ -550,8 +550,8 @@ class RetryHandler:
             return None
 
         try:
-            # Use non-blocking pop with 0 timeout
-            item = await self._redis.get_from_queue(dlq_name, timeout=0)
+            # Use non-blocking pop (LPOP) for instant response
+            item = await self._redis.pop_from_queue_nonblocking(dlq_name)
             if item:
                 failure = JobFailure.from_dict(item)
                 logger.info(

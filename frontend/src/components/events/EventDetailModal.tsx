@@ -34,6 +34,7 @@ import {
 } from '../../utils/confidence';
 import { getRiskLevel } from '../../utils/risk';
 import { formatDuration } from '../../utils/time';
+import { EventAuditDetail } from '../audit';
 import Lightbox from '../common/Lightbox';
 import RiskBadge from '../common/RiskBadge';
 import DetectionImage from '../detection/DetectionImage';
@@ -92,6 +93,9 @@ export default function EventDetailModal({
   onFlagEvent,
   onDownloadMedia,
 }: EventDetailModalProps) {
+  // State for active tab (Details vs AI Audit)
+  const [activeTab, setActiveTab] = useState<'details' | 'audit'>('details');
+
   // State for notes editing
   const [notesText, setNotesText] = useState<string>('');
   const [isSavingNotes, setIsSavingNotes] = useState<boolean>(false);
@@ -459,9 +463,35 @@ export default function EventDetailModal({
                   </div>
                 </div>
 
+                {/* Tab Navigation */}
+                <div className="flex border-b border-gray-800 px-6">
+                  <button
+                    onClick={() => setActiveTab('details')}
+                    className={`px-4 py-3 text-sm font-medium transition-colors ${
+                      activeTab === 'details'
+                        ? 'border-b-2 border-[#76B900] text-[#76B900]'
+                        : 'text-gray-400 hover:text-gray-200'
+                    }`}
+                  >
+                    Details
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('audit')}
+                    className={`px-4 py-3 text-sm font-medium transition-colors ${
+                      activeTab === 'audit'
+                        ? 'border-b-2 border-[#76B900] text-[#76B900]'
+                        : 'text-gray-400 hover:text-gray-200'
+                    }`}
+                  >
+                    AI Audit
+                  </button>
+                </div>
+
                 {/* Content */}
                 <div className="max-h-[calc(100vh-200px)] overflow-y-auto p-6">
-                  {/* Media display: Video or Image based on selected detection */}
+                  {activeTab === 'details' ? (
+                    <>
+                      {/* Media display: Video or Image based on selected detection */}
                   {isVideoDetection && selectedDetectionId ? (
                     <div className="mb-6 overflow-hidden rounded-lg bg-black">
                       <VideoPlayer
@@ -768,6 +798,10 @@ export default function EventDetailModal({
                       )}
                     </dl>
                   </div>
+                    </>
+                  ) : (
+                    <EventAuditDetail eventId={parseInt(event.id, 10)} />
+                  )}
                 </div>
 
                 {/* Footer actions */}

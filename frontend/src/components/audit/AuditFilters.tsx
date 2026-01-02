@@ -1,14 +1,6 @@
 import { Calendar, Filter, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-export interface AuditFiltersProps {
-  onFilterChange: (filters: AuditFilterParams) => void;
-  availableActions?: string[];
-  availableResourceTypes?: string[];
-  availableActors?: string[];
-  className?: string;
-}
-
 export interface AuditFilterParams {
   action?: string;
   resourceType?: string;
@@ -16,6 +8,16 @@ export interface AuditFilterParams {
   status?: string;
   startDate?: string;
   endDate?: string;
+}
+
+export interface AuditFiltersProps {
+  onFilterChange: (filters: AuditFilterParams) => void;
+  availableActions?: string[];
+  availableResourceTypes?: string[];
+  availableActors?: string[];
+  className?: string;
+  /** Controlled filter state from parent (e.g., stats card clicks) */
+  controlledFilters?: AuditFilterParams;
 }
 
 const STATUS_OPTIONS = ['success', 'failure'];
@@ -33,6 +35,7 @@ function formatAction(action: string): string {
 /**
  * AuditFilters component provides filtering controls for the audit log page
  * Matches the styling of LogFilters component
+ * Supports both internal state and controlled state from parent (e.g., stats card clicks)
  */
 export default function AuditFilters({
   onFilterChange,
@@ -40,10 +43,29 @@ export default function AuditFilters({
   availableResourceTypes = [],
   availableActors = [],
   className = '',
+  controlledFilters,
 }: AuditFiltersProps) {
-  // State for filters
-  const [filters, setFilters] = useState<AuditFilterParams>({});
+  // State for filters - initialized from controlled filters if provided
+  const [filters, setFilters] = useState<AuditFilterParams>(controlledFilters ?? {});
   const [showFilters, setShowFilters] = useState(false);
+
+  // Sync internal state when controlled filters change from parent
+  useEffect(() => {
+    if (controlledFilters !== undefined) {
+      setFilters(controlledFilters);
+      // Auto-expand filters when a filter is applied from stats cards
+      const hasActiveFilters =
+        controlledFilters.action ||
+        controlledFilters.resourceType ||
+        controlledFilters.actor ||
+        controlledFilters.status ||
+        controlledFilters.startDate ||
+        controlledFilters.endDate;
+      if (hasActiveFilters) {
+        setShowFilters(true);
+      }
+    }
+  }, [controlledFilters]);
 
   // Notify parent when filters change
   useEffect(() => {

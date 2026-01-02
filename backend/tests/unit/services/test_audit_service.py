@@ -4,8 +4,10 @@ Tests cover:
 - AuditService.log_action() - All parameters, enum conversion, IP extraction
 - AuditService.get_audit_logs() - Filter combinations, pagination, date range filtering
 - AuditService.get_audit_log_by_id() - Existence checks, not-found handling
+- AI Pipeline AuditService (audit_service.py) - Model contribution flags, token estimation
 """
 
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
@@ -13,6 +15,13 @@ import pytest
 
 from backend.models.audit import AuditAction, AuditLog, AuditStatus
 from backend.services.audit import AuditService, audit_service
+from backend.services.audit_service import (
+    AuditService as AIPipelineAuditService,
+)
+from backend.services.audit_service import (
+    get_audit_service,
+    reset_audit_service,
+)
 
 # =============================================================================
 # log_action Tests
@@ -332,6 +341,371 @@ class TestLogActionRequestExtraction:
 
         # X-Forwarded-For should override client IP
         assert result.ip_address == "8.8.8.8"
+
+
+# =============================================================================
+# AI Pipeline AuditService Tests (from audit_service.py)
+# =============================================================================
+
+
+@dataclass
+class MockEnrichmentResult:
+    """Mock EnrichmentResult for testing."""
+
+    has_vision_extraction: bool = False
+    person_reid_matches: dict = field(default_factory=dict)
+    vehicle_reid_matches: dict = field(default_factory=dict)
+    has_violence: bool = False
+    has_clothing_classifications: bool = False
+    has_vehicle_classifications: bool = False
+    has_vehicle_damage: bool = False
+    has_pet_classifications: bool = False
+    weather_classification: object | None = None
+    has_image_quality: bool = False
+
+
+@dataclass
+class MockEnrichedContext:
+    """Mock EnrichedContext for testing."""
+
+    zones: list = field(default_factory=list)
+    baselines: object | None = None
+    cross_camera: object | None = None
+
+
+class TestAIPipelineAuditService:
+    """Tests for the AI Pipeline AuditService (audit_service.py)."""
+
+    def setup_method(self) -> None:
+        """Reset singleton before each test."""
+        reset_audit_service()
+
+    def test_create_partial_audit_basic(self) -> None:
+        """Test creating partial audit with no enrichment."""
+        service = AIPipelineAuditService()
+        audit = service.create_partial_audit(
+            event_id=123,
+            llm_prompt="test prompt",
+            enriched_context=None,
+            enrichment_result=None,
+        )
+        assert audit.event_id == 123
+        assert audit.prompt_length == len("test prompt")
+        assert audit.has_rtdetr is True
+        assert audit.has_florence is False
+
+    def test_create_partial_audit_with_prompt_metrics(self) -> None:
+        """Test prompt length and token estimate calculation."""
+        service = AIPipelineAuditService()
+        prompt = "This is a test prompt with multiple words"
+        audit = service.create_partial_audit(
+            event_id=456,
+            llm_prompt=prompt,
+            enriched_context=None,
+            enrichment_result=None,
+        )
+        assert audit.prompt_length == len(prompt)
+        assert audit.prompt_token_estimate == len(prompt) // 4
+
+    def test_create_partial_audit_with_enrichment_result(self) -> None:
+        """Test creating audit with enrichment result flags."""
+        service = AIPipelineAuditService()
+
+        # Mock enrichment result with florence and violence
+        mock_result = MockEnrichmentResult(
+            has_vision_extraction=True,
+            has_violence=True,
+            has_clothing_classifications=True,
+        )
+
+        audit = service.create_partial_audit(
+            event_id=789,
+            llm_prompt="test",
+            enriched_context=None,
+            enrichment_result=mock_result,  # type: ignore[arg-type]
+        )
+
+        assert audit.has_rtdetr is True
+        assert audit.has_florence is True
+        assert audit.has_violence is True
+        assert audit.has_clothing is True
+        assert audit.has_clip is False
+        assert audit.has_vehicle is False
+
+    def test_create_partial_audit_with_enriched_context(self) -> None:
+        """Test creating audit with enriched context flags."""
+        service = AIPipelineAuditService()
+
+        # Mock enriched context with zones and baselines
+        mock_context = MockEnrichedContext(
+            zones=[{"zone_id": "z1"}],
+            baselines=MagicMock(),
+            cross_camera=MagicMock(),
+        )
+
+        audit = service.create_partial_audit(
+            event_id=101,
+            llm_prompt="test",
+            enriched_context=mock_context,  # type: ignore[arg-type]
+            enrichment_result=None,
+        )
+
+        assert audit.has_zones is True
+        assert audit.has_baseline is True
+        assert audit.has_cross_camera is True
+
+    def test_create_partial_audit_no_prompt(self) -> None:
+        """Test creating audit with no LLM prompt."""
+        service = AIPipelineAuditService()
+        audit = service.create_partial_audit(
+            event_id=999,
+            llm_prompt=None,
+            enriched_context=None,
+            enrichment_result=None,
+        )
+        assert audit.prompt_length == 0
+        assert audit.prompt_token_estimate == 0
+
+    def test_estimate_tokens_none(self) -> None:
+        """Test token estimation with None input."""
+        service = AIPipelineAuditService()
+        assert service._estimate_tokens(None) == 0
+
+    def test_estimate_tokens_empty(self) -> None:
+        """Test token estimation with empty string."""
+        service = AIPipelineAuditService()
+        assert service._estimate_tokens("") == 0
+
+    def test_estimate_tokens_short(self) -> None:
+        """Test token estimation with short string."""
+        service = AIPipelineAuditService()
+        assert service._estimate_tokens("test") == 1  # 4 chars / 4 = 1
+
+    def test_estimate_tokens_long(self) -> None:
+        """Test token estimation with long string."""
+        service = AIPipelineAuditService()
+        assert service._estimate_tokens("a" * 100) == 25  # 100 chars / 4 = 25
+
+    def test_estimate_tokens_calculation(self) -> None:
+        """Test token estimation calculation (chars / 4)."""
+        service = AIPipelineAuditService()
+        # Test various lengths
+        assert service._estimate_tokens("ab") == 0  # 2 / 4 = 0 (integer division)
+        assert service._estimate_tokens("abcd") == 1  # 4 / 4 = 1
+        assert service._estimate_tokens("abcdefgh") == 2  # 8 / 4 = 2
+        assert service._estimate_tokens("x" * 12) == 3  # 12 / 4 = 3
+
+    def test_calc_utilization_empty(self) -> None:
+        """Test enrichment utilization with no enrichment."""
+        service = AIPipelineAuditService()
+        util = service._calc_utilization(None, None)
+        # Should be 1/12 (just rtdetr)
+        assert util == pytest.approx(1 / 12)
+
+    def test_calc_utilization_with_florence(self) -> None:
+        """Test enrichment utilization with Florence enabled."""
+        service = AIPipelineAuditService()
+        mock_result = MockEnrichmentResult(has_vision_extraction=True)
+        util = service._calc_utilization(None, mock_result)  # type: ignore[arg-type]
+        # rtdetr + florence = 2/12
+        assert util == pytest.approx(2 / 12)
+
+    def test_calc_utilization_with_multiple_enrichments(self) -> None:
+        """Test enrichment utilization with multiple enrichments."""
+        service = AIPipelineAuditService()
+        mock_result = MockEnrichmentResult(
+            has_vision_extraction=True,
+            has_violence=True,
+            has_clothing_classifications=True,
+            has_vehicle_classifications=True,
+            has_image_quality=True,
+        )
+        mock_context = MockEnrichedContext(
+            zones=[{"z1": "zone"}],
+            baselines=MagicMock(),
+        )
+        util = service._calc_utilization(mock_context, mock_result)  # type: ignore[arg-type]
+        # rtdetr + florence + violence + clothing + vehicle + image_quality + zones + baseline = 8/12
+        assert util == pytest.approx(8 / 12)
+
+    def test_calc_utilization_full(self) -> None:
+        """Test enrichment utilization with all enrichments."""
+        service = AIPipelineAuditService()
+        mock_result = MockEnrichmentResult(
+            has_vision_extraction=True,
+            person_reid_matches={"p1": []},  # Non-empty dict for clip
+            has_violence=True,
+            has_clothing_classifications=True,
+            has_vehicle_classifications=True,
+            has_vehicle_damage=True,
+            has_pet_classifications=True,
+            weather_classification=MagicMock(),
+            has_image_quality=True,
+        )
+        mock_context = MockEnrichedContext(
+            zones=[{"z1": "zone"}],
+            baselines=MagicMock(),
+            cross_camera=MagicMock(),
+        )
+        util = service._calc_utilization(mock_context, mock_result)  # type: ignore[arg-type]
+        # All 12 enrichments enabled
+        assert util == pytest.approx(12 / 12)
+
+    def test_singleton_get_audit_service(self) -> None:
+        """Test service singleton returns same instance."""
+        s1 = get_audit_service()
+        s2 = get_audit_service()
+        assert s1 is s2
+
+    def test_singleton_reset(self) -> None:
+        """Test singleton reset creates new instance."""
+        s1 = get_audit_service()
+        reset_audit_service()
+        s2 = get_audit_service()
+        assert s1 is not s2
+
+    def test_singleton_is_audit_service(self) -> None:
+        """Test singleton is an AIPipelineAuditService instance."""
+        service = get_audit_service()
+        assert isinstance(service, AIPipelineAuditService)
+
+
+class TestAIPipelineAuditServiceModelFlags:
+    """Tests for model contribution flag detection."""
+
+    def setup_method(self) -> None:
+        """Reset singleton before each test."""
+        reset_audit_service()
+
+    def test_has_florence_true(self) -> None:
+        """Test Florence detection when has_vision_extraction is True."""
+        service = AIPipelineAuditService()
+        result = MockEnrichmentResult(has_vision_extraction=True)
+        assert service._has_florence(result) is True  # type: ignore[arg-type]
+
+    def test_has_florence_false(self) -> None:
+        """Test Florence detection when has_vision_extraction is False."""
+        service = AIPipelineAuditService()
+        result = MockEnrichmentResult(has_vision_extraction=False)
+        assert service._has_florence(result) is False  # type: ignore[arg-type]
+
+    def test_has_florence_none(self) -> None:
+        """Test Florence detection when result is None."""
+        service = AIPipelineAuditService()
+        assert service._has_florence(None) is False
+
+    def test_has_clip_with_person_matches(self) -> None:
+        """Test CLIP detection with person re-ID matches."""
+        service = AIPipelineAuditService()
+        result = MockEnrichmentResult(person_reid_matches={"p1": []})
+        assert service._has_clip(result) is True  # type: ignore[arg-type]
+
+    def test_has_clip_with_vehicle_matches(self) -> None:
+        """Test CLIP detection with vehicle re-ID matches."""
+        service = AIPipelineAuditService()
+        result = MockEnrichmentResult(vehicle_reid_matches={"v1": []})
+        assert service._has_clip(result) is True  # type: ignore[arg-type]
+
+    def test_has_clip_empty(self) -> None:
+        """Test CLIP detection with no re-ID matches."""
+        service = AIPipelineAuditService()
+        result = MockEnrichmentResult()
+        assert service._has_clip(result) is False  # type: ignore[arg-type]
+
+    def test_has_violence_true(self) -> None:
+        """Test violence detection flag."""
+        service = AIPipelineAuditService()
+        result = MockEnrichmentResult(has_violence=True)
+        assert service._has_violence(result) is True  # type: ignore[arg-type]
+
+    def test_has_violence_false(self) -> None:
+        """Test violence detection flag when False."""
+        service = AIPipelineAuditService()
+        result = MockEnrichmentResult(has_violence=False)
+        assert service._has_violence(result) is False  # type: ignore[arg-type]
+
+    def test_has_clothing_true(self) -> None:
+        """Test clothing classification flag."""
+        service = AIPipelineAuditService()
+        result = MockEnrichmentResult(has_clothing_classifications=True)
+        assert service._has_clothing(result) is True  # type: ignore[arg-type]
+
+    def test_has_vehicle_classifications(self) -> None:
+        """Test vehicle classification flag."""
+        service = AIPipelineAuditService()
+        result = MockEnrichmentResult(has_vehicle_classifications=True)
+        assert service._has_vehicle(result) is True  # type: ignore[arg-type]
+
+    def test_has_vehicle_damage(self) -> None:
+        """Test vehicle damage flag."""
+        service = AIPipelineAuditService()
+        result = MockEnrichmentResult(has_vehicle_damage=True)
+        assert service._has_vehicle(result) is True  # type: ignore[arg-type]
+
+    def test_has_pet_true(self) -> None:
+        """Test pet classification flag."""
+        service = AIPipelineAuditService()
+        result = MockEnrichmentResult(has_pet_classifications=True)
+        assert service._has_pet(result) is True  # type: ignore[arg-type]
+
+    def test_has_weather_true(self) -> None:
+        """Test weather classification flag."""
+        service = AIPipelineAuditService()
+        result = MockEnrichmentResult(weather_classification=MagicMock())
+        assert service._has_weather(result) is True  # type: ignore[arg-type]
+
+    def test_has_weather_none(self) -> None:
+        """Test weather classification flag when None."""
+        service = AIPipelineAuditService()
+        result = MockEnrichmentResult(weather_classification=None)
+        assert service._has_weather(result) is False  # type: ignore[arg-type]
+
+    def test_has_image_quality_true(self) -> None:
+        """Test image quality flag."""
+        service = AIPipelineAuditService()
+        result = MockEnrichmentResult(has_image_quality=True)
+        assert service._has_image_quality(result) is True  # type: ignore[arg-type]
+
+    def test_has_zones_true(self) -> None:
+        """Test zones flag when zones list is non-empty."""
+        service = AIPipelineAuditService()
+        context = MockEnrichedContext(zones=[{"z1": "zone"}])
+        assert service._has_zones(context) is True  # type: ignore[arg-type]
+
+    def test_has_zones_empty(self) -> None:
+        """Test zones flag when zones list is empty."""
+        service = AIPipelineAuditService()
+        context = MockEnrichedContext(zones=[])
+        assert service._has_zones(context) is False  # type: ignore[arg-type]
+
+    def test_has_zones_none(self) -> None:
+        """Test zones flag when context is None."""
+        service = AIPipelineAuditService()
+        assert service._has_zones(None) is False
+
+    def test_has_baseline_true(self) -> None:
+        """Test baseline flag when baselines is not None."""
+        service = AIPipelineAuditService()
+        context = MockEnrichedContext(baselines=MagicMock())
+        assert service._has_baseline(context) is True  # type: ignore[arg-type]
+
+    def test_has_baseline_none(self) -> None:
+        """Test baseline flag when baselines is None."""
+        service = AIPipelineAuditService()
+        context = MockEnrichedContext(baselines=None)
+        assert service._has_baseline(context) is False  # type: ignore[arg-type]
+
+    def test_has_cross_camera_true(self) -> None:
+        """Test cross_camera flag when not None."""
+        service = AIPipelineAuditService()
+        context = MockEnrichedContext(cross_camera=MagicMock())
+        assert service._has_cross_camera(context) is True  # type: ignore[arg-type]
+
+    def test_has_cross_camera_none(self) -> None:
+        """Test cross_camera flag when None."""
+        service = AIPipelineAuditService()
+        context = MockEnrichedContext(cross_camera=None)
+        assert service._has_cross_camera(context) is False  # type: ignore[arg-type]
 
 
 # =============================================================================

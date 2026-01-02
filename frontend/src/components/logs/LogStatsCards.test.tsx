@@ -1,10 +1,12 @@
 import { render, screen, act } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import LogStatsCards from './LogStatsCards';
 import * as api from '../../services/api';
 
 import type { LogStats } from '../../services/api';
+import type { LogLevel } from '../../services/logger';
 
 // Mock API module
 vi.mock('../../services/api');
@@ -321,6 +323,171 @@ describe('LogStatsCards', () => {
       // Should display all zeros
       const zeros = screen.getAllByText('0');
       expect(zeros.length).toBeGreaterThanOrEqual(3);
+    });
+  });
+
+  describe('Clickable Level Filter Cards', () => {
+    // Helper to render with callback and wait for load
+    const renderWithCallbackAndWaitForLoad = async (
+      onLevelFilter: (level: LogLevel | undefined) => void,
+      activeLevel?: LogLevel
+    ) => {
+      const result = render(
+        <LogStatsCards onLevelFilter={onLevelFilter} activeLevel={activeLevel} />
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      return result;
+    };
+
+    it('calls onLevelFilter with ERROR when clicking Errors Today card', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      const mockOnLevelFilter = vi.fn();
+
+      await renderWithCallbackAndWaitForLoad(mockOnLevelFilter);
+
+      const errorCard = screen.getByRole('button', { name: 'Filter by errors' });
+      await user.click(errorCard);
+
+      expect(mockOnLevelFilter).toHaveBeenCalledWith('ERROR');
+    });
+
+    it('calls onLevelFilter with WARNING when clicking Warnings Today card', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      const mockOnLevelFilter = vi.fn();
+
+      await renderWithCallbackAndWaitForLoad(mockOnLevelFilter);
+
+      const warningCard = screen.getByRole('button', { name: 'Filter by warnings' });
+      await user.click(warningCard);
+
+      expect(mockOnLevelFilter).toHaveBeenCalledWith('WARNING');
+    });
+
+    it('calls onLevelFilter with undefined when clicking already active ERROR card (toggle off)', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      const mockOnLevelFilter = vi.fn();
+
+      await renderWithCallbackAndWaitForLoad(mockOnLevelFilter, 'ERROR');
+
+      const errorCard = screen.getByRole('button', { name: 'Filter by errors' });
+      await user.click(errorCard);
+
+      expect(mockOnLevelFilter).toHaveBeenCalledWith(undefined);
+    });
+
+    it('calls onLevelFilter with undefined when clicking already active WARNING card (toggle off)', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      const mockOnLevelFilter = vi.fn();
+
+      await renderWithCallbackAndWaitForLoad(mockOnLevelFilter, 'WARNING');
+
+      const warningCard = screen.getByRole('button', { name: 'Filter by warnings' });
+      await user.click(warningCard);
+
+      expect(mockOnLevelFilter).toHaveBeenCalledWith(undefined);
+    });
+
+    it('shows active state ring on ERROR card when activeLevel is ERROR', async () => {
+      const mockOnLevelFilter = vi.fn();
+
+      await renderWithCallbackAndWaitForLoad(mockOnLevelFilter, 'ERROR');
+
+      const errorCard = screen.getByRole('button', { name: 'Filter by errors' });
+      expect(errorCard).toHaveClass('ring-2');
+      expect(errorCard).toHaveClass('ring-red-500');
+
+      // Warning card should NOT have ring
+      const warningCard = screen.getByRole('button', { name: 'Filter by warnings' });
+      expect(warningCard).not.toHaveClass('ring-2');
+    });
+
+    it('shows active state ring on WARNING card when activeLevel is WARNING', async () => {
+      const mockOnLevelFilter = vi.fn();
+
+      await renderWithCallbackAndWaitForLoad(mockOnLevelFilter, 'WARNING');
+
+      const warningCard = screen.getByRole('button', { name: 'Filter by warnings' });
+      expect(warningCard).toHaveClass('ring-2');
+      expect(warningCard).toHaveClass('ring-yellow-500');
+
+      // Error card should NOT have ring
+      const errorCard = screen.getByRole('button', { name: 'Filter by errors' });
+      expect(errorCard).not.toHaveClass('ring-2');
+    });
+
+    it('cards have cursor-pointer class when onLevelFilter is provided', async () => {
+      const mockOnLevelFilter = vi.fn();
+
+      await renderWithCallbackAndWaitForLoad(mockOnLevelFilter);
+
+      const errorCard = screen.getByRole('button', { name: 'Filter by errors' });
+      const warningCard = screen.getByRole('button', { name: 'Filter by warnings' });
+
+      expect(errorCard).toHaveClass('cursor-pointer');
+      expect(warningCard).toHaveClass('cursor-pointer');
+    });
+
+    it('cards do NOT have button role when onLevelFilter is not provided', async () => {
+      await renderAndWaitForLoad();
+
+      // Without onLevelFilter, cards should not be buttons
+      expect(screen.queryByRole('button', { name: 'Filter by errors' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Filter by warnings' })).not.toBeInTheDocument();
+    });
+
+    it('cards have aria-pressed attribute reflecting active state', async () => {
+      const mockOnLevelFilter = vi.fn();
+
+      await renderWithCallbackAndWaitForLoad(mockOnLevelFilter, 'ERROR');
+
+      const errorCard = screen.getByRole('button', { name: 'Filter by errors' });
+      const warningCard = screen.getByRole('button', { name: 'Filter by warnings' });
+
+      expect(errorCard).toHaveAttribute('aria-pressed', 'true');
+      expect(warningCard).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('supports keyboard activation with Enter key', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      const mockOnLevelFilter = vi.fn();
+
+      await renderWithCallbackAndWaitForLoad(mockOnLevelFilter);
+
+      const errorCard = screen.getByRole('button', { name: 'Filter by errors' });
+      errorCard.focus();
+      await user.keyboard('{Enter}');
+
+      expect(mockOnLevelFilter).toHaveBeenCalledWith('ERROR');
+    });
+
+    it('supports keyboard activation with Space key', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      const mockOnLevelFilter = vi.fn();
+
+      await renderWithCallbackAndWaitForLoad(mockOnLevelFilter);
+
+      const warningCard = screen.getByRole('button', { name: 'Filter by warnings' });
+      warningCard.focus();
+      await user.keyboard(' ');
+
+      expect(mockOnLevelFilter).toHaveBeenCalledWith('WARNING');
+    });
+
+    it('cards have hover classes for visual feedback', async () => {
+      const mockOnLevelFilter = vi.fn();
+
+      await renderWithCallbackAndWaitForLoad(mockOnLevelFilter);
+
+      const errorCard = screen.getByRole('button', { name: 'Filter by errors' });
+      const warningCard = screen.getByRole('button', { name: 'Filter by warnings' });
+
+      // Check for hover classes (Tailwind hover: prefix)
+      expect(errorCard.className).toContain('hover:border-red-500/50');
+      expect(errorCard.className).toContain('hover:bg-zinc-800');
+      expect(warningCard.className).toContain('hover:border-yellow-500/50');
+      expect(warningCard.className).toContain('hover:bg-zinc-800');
     });
   });
 });

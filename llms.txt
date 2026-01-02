@@ -72,6 +72,20 @@ nvidia-smi
 ./scripts/setup-systemd.sh
 ```
 
+## Deploy from CI/CD Containers
+
+Pull and redeploy using pre-built containers from GitHub Container Registry:
+
+```bash
+# Pull latest containers from GHCR (main branch)
+podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:latest
+podman pull ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:latest
+
+# Redeploy
+podman-compose -f docker-compose.prod.yml down
+podman-compose -f docker-compose.prod.yml up -d
+```
+
 ## Auto-Start on Boot
 
 | Platform | Script | Service Manager |
