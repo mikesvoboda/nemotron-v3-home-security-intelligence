@@ -15,7 +15,12 @@ from typing import TYPE_CHECKING, Any
 from fastapi import WebSocket
 from pydantic import ValidationError
 
-from backend.api.schemas.websocket import WebSocketEventData, WebSocketEventMessage
+from backend.api.schemas.websocket import (
+    WebSocketEventData,
+    WebSocketEventMessage,
+    WebSocketServiceStatusData,
+    WebSocketServiceStatusMessage,
+)
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
 from backend.core.redis import RedisClient
@@ -219,6 +224,64 @@ class EventBroadcaster:
             raise
         except Exception as e:
             logger.error(f"Failed to broadcast event: {e}")
+            raise
+
+    async def broadcast_service_status(self, status_data: dict[str, Any]) -> int:
+        """Broadcast a service status message to all connected WebSocket clients via Redis pub/sub.
+
+        This method validates the status data against the WebSocketServiceStatusMessage schema
+        before publishing to Redis. This ensures all messages sent to clients conform
+        to the expected format for service status updates.
+
+        Args:
+            status_data: Status data dictionary containing service status details
+
+        Returns:
+            Number of Redis subscribers that received the message
+
+        Raises:
+            ValueError: If the message fails schema validation
+
+        Example status_data:
+            {
+                "type": "service_status",
+                "data": {
+                    "service": "nemotron",
+                    "status": "healthy",
+                    "message": "Service recovered"
+                },
+                "timestamp": "2025-12-23T12:00:00.000Z"
+            }
+        """
+        try:
+            # Validate message format before broadcasting
+            # This ensures all outgoing messages conform to the WebSocketServiceStatusMessage schema
+            try:
+                # Extract the data portion and validate it
+                data_dict = status_data.get("data", {})
+                validated_data = WebSocketServiceStatusData.model_validate(data_dict)
+                validated_message = WebSocketServiceStatusMessage(
+                    data=validated_data,
+                    timestamp=status_data.get("timestamp", ""),
+                )
+                # Use the validated message for broadcasting
+                broadcast_data = validated_message.model_dump(mode="json")
+            except ValidationError as ve:
+                logger.error(f"Service status message validation failed: {ve}")
+                raise ValueError(f"Invalid service status message format: {ve}") from ve
+
+            # Publish validated message to Redis channel
+            subscriber_count = await self._redis.publish(self._channel_name, broadcast_data)
+            logger.debug(
+                f"Service status broadcast to Redis: {broadcast_data.get('type')} "
+                f"(subscribers: {subscriber_count})"
+            )
+            return subscriber_count
+        except ValueError:
+            # Re-raise validation errors
+            raise
+        except Exception as e:
+            logger.error(f"Failed to broadcast service status: {e}")
             raise
 
     def _enter_degraded_mode(self) -> None:

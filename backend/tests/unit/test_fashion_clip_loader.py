@@ -446,8 +446,12 @@ def test_enrichment_clothing_classifier_uses_open_clip():
         assert "from open_clip import create_model_from_pretrained, get_tokenizer" in content, (
             "ClothingClassifier should use open_clip create_model_from_pretrained"
         )
-        assert "create_model_from_pretrained(hub_path)" in content, (
+        assert "create_model_from_pretrained(" in content, (
             "ClothingClassifier should load model with create_model_from_pretrained()"
+        )
+        # Device parameter is passed directly to avoid meta tensor issues
+        assert "device=target_device" in content, (
+            "ClothingClassifier should pass device to create_model_from_pretrained()"
         )
         assert "get_tokenizer(hub_path)" in content, (
             "ClothingClassifier should get tokenizer with get_tokenizer()"
@@ -457,8 +461,8 @@ def test_enrichment_clothing_classifier_uses_open_clip():
 def test_enrichment_clothing_classifier_has_device_handling():
     """Verify ClothingClassifier properly handles device placement.
 
-    The ClothingClassifier should detect CUDA availability and move the model
-    to the appropriate device using .to() after loading with open_clip.
+    The ClothingClassifier should detect CUDA availability and pass the device
+    directly to create_model_from_pretrained() to avoid meta tensor issues.
     """
     from pathlib import Path
 
@@ -468,12 +472,13 @@ def test_enrichment_clothing_classifier_has_device_handling():
     if model_py_path.exists():
         content = model_py_path.read_text()
 
-        # Verify device handling - uses .to() after open_clip loading
+        # Verify device handling - device is passed to create_model_from_pretrained
+        # to avoid "Cannot copy out of meta tensor" errors
         assert "torch.cuda.is_available()" in content, (
             "ClothingClassifier should check CUDA availability"
         )
-        assert "self.model.to(target_device)" in content, (
-            "ClothingClassifier should move model to device with .to()"
+        assert "device=target_device" in content, (
+            "ClothingClassifier should pass device to create_model_from_pretrained()"
         )
         assert 'self.device = "cpu"' in content, (
             "ClothingClassifier should fallback to CPU when CUDA unavailable"
