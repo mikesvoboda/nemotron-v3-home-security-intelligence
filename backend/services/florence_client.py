@@ -25,6 +25,7 @@ from __future__ import annotations
 import base64
 import io
 import time
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import httpx
@@ -35,6 +36,32 @@ from backend.core.metrics import observe_ai_request_duration, record_pipeline_er
 
 if TYPE_CHECKING:
     from PIL import Image
+
+
+@dataclass
+class OCRRegion:
+    """A text region with bounding box coordinates."""
+
+    text: str
+    bbox: list[float]  # [x1, y1, x2, y2, x3, y3, x4, y4] quadrilateral
+
+
+@dataclass
+class Detection:
+    """A detected object with bounding box and confidence score."""
+
+    label: str
+    bbox: list[float]  # [x1, y1, x2, y2]
+    score: float = 1.0
+
+
+@dataclass
+class CaptionedRegion:
+    """A region with its caption and bounding box."""
+
+    caption: str
+    bbox: list[float]  # [x1, y1, x2, y2]
+
 
 logger = get_logger(__name__)
 
@@ -295,6 +322,334 @@ class FlorenceClient:
             # For unexpected errors, also raise to allow retry
             raise FlorenceUnavailableError(
                 f"Unexpected error during Florence extraction: {sanitize_error(e)}",
+                original_error=e,
+            ) from e
+
+    async def ocr(self, image: Image.Image) -> str:
+        """Extract text from an image using OCR.
+
+        Args:
+            image: PIL Image to analyze
+
+        Returns:
+            Extracted text from the image, or empty string on error
+
+        Raises:
+            FlorenceUnavailableError: If the service is unavailable
+        """
+        start_time = time.time()
+
+        logger.debug("Sending OCR request...")
+
+        try:
+            image_b64 = self._encode_image_to_base64(image)
+            payload = {"image": image_b64}
+
+            ai_start_time = time.time()
+
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                response = await client.post(
+                    f"{self._base_url}/ocr",
+                    json=payload,
+                )
+                response.raise_for_status()
+
+            ai_duration = time.time() - ai_start_time
+            observe_ai_request_duration("florence_ocr", ai_duration)
+
+            result = response.json()
+
+            if "text" not in result:
+                logger.warning(f"Malformed OCR response (missing 'text'): {result}")
+                record_pipeline_error("florence_ocr_malformed_response")
+                return ""
+
+            extracted_text: str = result["text"]
+            duration_ms = int((time.time() - start_time) * 1000)
+
+            logger.debug(f"Florence OCR completed: {len(extracted_text)} chars in {duration_ms}ms")
+            return extracted_text
+
+        except httpx.ConnectError as e:
+            record_pipeline_error("florence_ocr_connection_error")
+            raise FlorenceUnavailableError(
+                f"Failed to connect to Florence service for OCR: {e}",
+                original_error=e,
+            ) from e
+
+        except httpx.TimeoutException as e:
+            record_pipeline_error("florence_ocr_timeout")
+            raise FlorenceUnavailableError(
+                f"Florence OCR request timed out: {e}",
+                original_error=e,
+            ) from e
+
+        except httpx.HTTPStatusError as e:
+            status_code = e.response.status_code
+            if status_code >= 500:
+                record_pipeline_error("florence_ocr_server_error")
+                raise FlorenceUnavailableError(
+                    f"Florence OCR returned server error: {status_code}",
+                    original_error=e,
+                ) from e
+            record_pipeline_error("florence_ocr_client_error")
+            logger.error(f"Florence OCR returned client error: {status_code} - {e}")
+            return ""
+
+        except Exception as e:
+            record_pipeline_error("florence_ocr_unexpected_error")
+            raise FlorenceUnavailableError(
+                f"Unexpected error during Florence OCR: {sanitize_error(e)}",
+                original_error=e,
+            ) from e
+
+    async def ocr_with_regions(self, image: Image.Image) -> list[OCRRegion]:
+        """Extract text with bounding box regions from an image.
+
+        Args:
+            image: PIL Image to analyze
+
+        Returns:
+            List of OCRRegion objects with text and bounding boxes
+
+        Raises:
+            FlorenceUnavailableError: If the service is unavailable
+        """
+        start_time = time.time()
+
+        logger.debug("Sending OCR with regions request...")
+
+        try:
+            image_b64 = self._encode_image_to_base64(image)
+            payload = {"image": image_b64}
+
+            ai_start_time = time.time()
+
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                response = await client.post(
+                    f"{self._base_url}/ocr-with-regions",
+                    json=payload,
+                )
+                response.raise_for_status()
+
+            ai_duration = time.time() - ai_start_time
+            observe_ai_request_duration("florence_ocr_regions", ai_duration)
+
+            result = response.json()
+
+            if "regions" not in result:
+                logger.warning(f"Malformed OCR regions response (missing 'regions'): {result}")
+                record_pipeline_error("florence_ocr_regions_malformed_response")
+                return []
+
+            regions = [
+                OCRRegion(text=r.get("text", ""), bbox=r.get("bbox", [])) for r in result["regions"]
+            ]
+            duration_ms = int((time.time() - start_time) * 1000)
+
+            logger.debug(
+                f"Florence OCR regions completed: {len(regions)} regions in {duration_ms}ms"
+            )
+            return regions
+
+        except httpx.ConnectError as e:
+            record_pipeline_error("florence_ocr_regions_connection_error")
+            raise FlorenceUnavailableError(
+                f"Failed to connect to Florence service for OCR regions: {e}",
+                original_error=e,
+            ) from e
+
+        except httpx.TimeoutException as e:
+            record_pipeline_error("florence_ocr_regions_timeout")
+            raise FlorenceUnavailableError(
+                f"Florence OCR regions request timed out: {e}",
+                original_error=e,
+            ) from e
+
+        except httpx.HTTPStatusError as e:
+            status_code = e.response.status_code
+            if status_code >= 500:
+                record_pipeline_error("florence_ocr_regions_server_error")
+                raise FlorenceUnavailableError(
+                    f"Florence OCR regions returned server error: {status_code}",
+                    original_error=e,
+                ) from e
+            record_pipeline_error("florence_ocr_regions_client_error")
+            logger.error(f"Florence OCR regions returned client error: {status_code} - {e}")
+            return []
+
+        except Exception as e:
+            record_pipeline_error("florence_ocr_regions_unexpected_error")
+            raise FlorenceUnavailableError(
+                f"Unexpected error during Florence OCR regions: {sanitize_error(e)}",
+                original_error=e,
+            ) from e
+
+    async def detect(self, image: Image.Image) -> list[Detection]:
+        """Detect objects with bounding boxes in an image.
+
+        Args:
+            image: PIL Image to analyze
+
+        Returns:
+            List of Detection objects with labels and bounding boxes
+
+        Raises:
+            FlorenceUnavailableError: If the service is unavailable
+        """
+        start_time = time.time()
+
+        logger.debug("Sending object detection request...")
+
+        try:
+            image_b64 = self._encode_image_to_base64(image)
+            payload = {"image": image_b64}
+
+            ai_start_time = time.time()
+
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                response = await client.post(
+                    f"{self._base_url}/detect",
+                    json=payload,
+                )
+                response.raise_for_status()
+
+            ai_duration = time.time() - ai_start_time
+            observe_ai_request_duration("florence_detect", ai_duration)
+
+            result = response.json()
+
+            if "detections" not in result:
+                logger.warning(f"Malformed detect response (missing 'detections'): {result}")
+                record_pipeline_error("florence_detect_malformed_response")
+                return []
+
+            detections = [
+                Detection(
+                    label=d.get("label", ""),
+                    bbox=d.get("bbox", []),
+                    score=d.get("score", 1.0),
+                )
+                for d in result["detections"]
+            ]
+            duration_ms = int((time.time() - start_time) * 1000)
+
+            logger.debug(f"Florence detect completed: {len(detections)} objects in {duration_ms}ms")
+            return detections
+
+        except httpx.ConnectError as e:
+            record_pipeline_error("florence_detect_connection_error")
+            raise FlorenceUnavailableError(
+                f"Failed to connect to Florence service for detection: {e}",
+                original_error=e,
+            ) from e
+
+        except httpx.TimeoutException as e:
+            record_pipeline_error("florence_detect_timeout")
+            raise FlorenceUnavailableError(
+                f"Florence detect request timed out: {e}",
+                original_error=e,
+            ) from e
+
+        except httpx.HTTPStatusError as e:
+            status_code = e.response.status_code
+            if status_code >= 500:
+                record_pipeline_error("florence_detect_server_error")
+                raise FlorenceUnavailableError(
+                    f"Florence detect returned server error: {status_code}",
+                    original_error=e,
+                ) from e
+            record_pipeline_error("florence_detect_client_error")
+            logger.error(f"Florence detect returned client error: {status_code} - {e}")
+            return []
+
+        except Exception as e:
+            record_pipeline_error("florence_detect_unexpected_error")
+            raise FlorenceUnavailableError(
+                f"Unexpected error during Florence detection: {sanitize_error(e)}",
+                original_error=e,
+            ) from e
+
+    async def dense_caption(self, image: Image.Image) -> list[CaptionedRegion]:
+        """Generate captions for all regions in an image.
+
+        Args:
+            image: PIL Image to analyze
+
+        Returns:
+            List of CaptionedRegion objects with captions and bounding boxes
+
+        Raises:
+            FlorenceUnavailableError: If the service is unavailable
+        """
+        start_time = time.time()
+
+        logger.debug("Sending dense captioning request...")
+
+        try:
+            image_b64 = self._encode_image_to_base64(image)
+            payload = {"image": image_b64}
+
+            ai_start_time = time.time()
+
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                response = await client.post(
+                    f"{self._base_url}/dense-caption",
+                    json=payload,
+                )
+                response.raise_for_status()
+
+            ai_duration = time.time() - ai_start_time
+            observe_ai_request_duration("florence_dense_caption", ai_duration)
+
+            result = response.json()
+
+            if "regions" not in result:
+                logger.warning(f"Malformed dense caption response (missing 'regions'): {result}")
+                record_pipeline_error("florence_dense_caption_malformed_response")
+                return []
+
+            regions = [
+                CaptionedRegion(caption=r.get("caption", ""), bbox=r.get("bbox", []))
+                for r in result["regions"]
+            ]
+            duration_ms = int((time.time() - start_time) * 1000)
+
+            logger.debug(
+                f"Florence dense caption completed: {len(regions)} regions in {duration_ms}ms"
+            )
+            return regions
+
+        except httpx.ConnectError as e:
+            record_pipeline_error("florence_dense_caption_connection_error")
+            raise FlorenceUnavailableError(
+                f"Failed to connect to Florence service for dense captioning: {e}",
+                original_error=e,
+            ) from e
+
+        except httpx.TimeoutException as e:
+            record_pipeline_error("florence_dense_caption_timeout")
+            raise FlorenceUnavailableError(
+                f"Florence dense caption request timed out: {e}",
+                original_error=e,
+            ) from e
+
+        except httpx.HTTPStatusError as e:
+            status_code = e.response.status_code
+            if status_code >= 500:
+                record_pipeline_error("florence_dense_caption_server_error")
+                raise FlorenceUnavailableError(
+                    f"Florence dense caption returned server error: {status_code}",
+                    original_error=e,
+                ) from e
+            record_pipeline_error("florence_dense_caption_client_error")
+            logger.error(f"Florence dense caption returned client error: {status_code} - {e}")
+            return []
+
+        except Exception as e:
+            record_pipeline_error("florence_dense_caption_unexpected_error")
+            raise FlorenceUnavailableError(
+                f"Unexpected error during Florence dense captioning: {sanitize_error(e)}",
                 original_error=e,
             ) from e
 

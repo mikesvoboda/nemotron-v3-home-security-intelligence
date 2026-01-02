@@ -469,6 +469,413 @@ class CLIPClient:
                 original_error=e,
             ) from e
 
+    async def classify(self, image: Image.Image, labels: list[str]) -> tuple[dict[str, float], str]:
+        """Classify an image against a list of text labels using zero-shot classification.
+
+        Uses CLIP's text encoder and image encoder to compute similarity scores,
+        then applies softmax to normalize scores to sum to 1.0.
+
+        Args:
+            image: PIL Image to classify
+            labels: List of text labels to classify against
+
+        Returns:
+            Tuple of (scores dict, top_label)
+
+        Raises:
+            CLIPUnavailableError: If the service is unavailable (connection, timeout, 5xx)
+            ValueError: If labels list is empty
+        """
+        if not labels:
+            raise ValueError("Labels list cannot be empty")
+
+        start_time = time.time()
+
+        logger.debug(f"Sending classification request to CLIP service with {len(labels)} labels...")
+
+        try:
+            # Encode image to base64
+            image_b64 = self._encode_image_to_base64(image)
+
+            # Build request payload
+            payload = {
+                "image": image_b64,
+                "labels": labels,
+            }
+
+            # Track AI request time
+            ai_start_time = time.time()
+
+            # Send to CLIP service
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                response = await client.post(
+                    f"{self._base_url}/classify",
+                    json=payload,
+                )
+                response.raise_for_status()
+
+            # Record AI request duration
+            ai_duration = time.time() - ai_start_time
+            observe_ai_request_duration("clip", ai_duration)
+
+            # Parse response
+            result = response.json()
+
+            if "scores" not in result or "top_label" not in result:
+                logger.warning(f"Malformed response from CLIP classify (missing fields): {result}")
+                record_pipeline_error("clip_malformed_response")
+                raise CLIPUnavailableError(
+                    "Malformed response from CLIP service: missing 'scores' or 'top_label'"
+                )
+
+            scores: dict[str, float] = result["scores"]
+            top_label: str = result["top_label"]
+
+            duration_ms = int((time.time() - start_time) * 1000)
+
+            logger.debug(
+                f"CLIP classification completed: top_label='{top_label}' in {duration_ms}ms"
+            )
+            return scores, top_label
+
+        except httpx.ConnectError as e:
+            duration_ms = int((time.time() - start_time) * 1000)
+            record_pipeline_error("clip_connection_error")
+            logger.error(
+                f"Failed to connect to CLIP service: {e}",
+                extra={"duration_ms": duration_ms},
+                exc_info=True,
+            )
+            raise CLIPUnavailableError(
+                f"Failed to connect to CLIP service: {e}",
+                original_error=e,
+            ) from e
+
+        except httpx.TimeoutException as e:
+            duration_ms = int((time.time() - start_time) * 1000)
+            record_pipeline_error("clip_timeout")
+            logger.error(
+                f"CLIP request timed out: {e}",
+                extra={"duration_ms": duration_ms},
+                exc_info=True,
+            )
+            raise CLIPUnavailableError(
+                f"CLIP request timed out: {e}",
+                original_error=e,
+            ) from e
+
+        except httpx.HTTPStatusError as e:
+            duration_ms = int((time.time() - start_time) * 1000)
+            status_code = e.response.status_code
+
+            if status_code >= 500:
+                record_pipeline_error("clip_server_error")
+                logger.error(
+                    f"CLIP returned server error: {status_code} - {e}",
+                    extra={"duration_ms": duration_ms, "status_code": status_code},
+                    exc_info=True,
+                )
+                raise CLIPUnavailableError(
+                    f"CLIP returned server error: {status_code}",
+                    original_error=e,
+                ) from e
+
+            record_pipeline_error("clip_client_error")
+            logger.error(
+                f"CLIP returned client error: {status_code} - {e}",
+                extra={"duration_ms": duration_ms, "status_code": status_code},
+                exc_info=True,
+            )
+            raise CLIPUnavailableError(
+                f"CLIP returned client error: {status_code}",
+                original_error=e,
+            ) from e
+
+        except CLIPUnavailableError:
+            raise
+
+        except Exception as e:
+            duration_ms = int((time.time() - start_time) * 1000)
+            record_pipeline_error("clip_unexpected_error")
+            logger.error(
+                f"Unexpected error during CLIP classification: {sanitize_error(e)}",
+                extra={"duration_ms": duration_ms},
+                exc_info=True,
+            )
+            raise CLIPUnavailableError(
+                f"Unexpected error during CLIP classification: {sanitize_error(e)}",
+                original_error=e,
+            ) from e
+
+    async def similarity(self, image: Image.Image, text: str) -> float:
+        """Compute cosine similarity between an image and a text description.
+
+        Args:
+            image: PIL Image to compare
+            text: Text description to compare against
+
+        Returns:
+            Cosine similarity score (typically between -1 and 1, but usually 0-1 for CLIP)
+
+        Raises:
+            CLIPUnavailableError: If the service is unavailable (connection, timeout, 5xx)
+        """
+        start_time = time.time()
+
+        logger.debug("Sending similarity request to CLIP service...")
+
+        try:
+            # Encode image to base64
+            image_b64 = self._encode_image_to_base64(image)
+
+            # Build request payload
+            payload = {
+                "image": image_b64,
+                "text": text,
+            }
+
+            # Track AI request time
+            ai_start_time = time.time()
+
+            # Send to CLIP service
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                response = await client.post(
+                    f"{self._base_url}/similarity",
+                    json=payload,
+                )
+                response.raise_for_status()
+
+            # Record AI request duration
+            ai_duration = time.time() - ai_start_time
+            observe_ai_request_duration("clip", ai_duration)
+
+            # Parse response
+            result = response.json()
+
+            if "similarity" not in result:
+                logger.warning(
+                    f"Malformed response from CLIP similarity (missing 'similarity'): {result}"
+                )
+                record_pipeline_error("clip_malformed_response")
+                raise CLIPUnavailableError(
+                    "Malformed response from CLIP service: missing 'similarity'"
+                )
+
+            sim_score: float = result["similarity"]
+
+            duration_ms = int((time.time() - start_time) * 1000)
+
+            logger.debug(f"CLIP similarity completed: {sim_score:.4f} in {duration_ms}ms")
+            return sim_score
+
+        except httpx.ConnectError as e:
+            duration_ms = int((time.time() - start_time) * 1000)
+            record_pipeline_error("clip_connection_error")
+            logger.error(
+                f"Failed to connect to CLIP service: {e}",
+                extra={"duration_ms": duration_ms},
+                exc_info=True,
+            )
+            raise CLIPUnavailableError(
+                f"Failed to connect to CLIP service: {e}",
+                original_error=e,
+            ) from e
+
+        except httpx.TimeoutException as e:
+            duration_ms = int((time.time() - start_time) * 1000)
+            record_pipeline_error("clip_timeout")
+            logger.error(
+                f"CLIP request timed out: {e}",
+                extra={"duration_ms": duration_ms},
+                exc_info=True,
+            )
+            raise CLIPUnavailableError(
+                f"CLIP request timed out: {e}",
+                original_error=e,
+            ) from e
+
+        except httpx.HTTPStatusError as e:
+            duration_ms = int((time.time() - start_time) * 1000)
+            status_code = e.response.status_code
+
+            if status_code >= 500:
+                record_pipeline_error("clip_server_error")
+                logger.error(
+                    f"CLIP returned server error: {status_code} - {e}",
+                    extra={"duration_ms": duration_ms, "status_code": status_code},
+                    exc_info=True,
+                )
+                raise CLIPUnavailableError(
+                    f"CLIP returned server error: {status_code}",
+                    original_error=e,
+                ) from e
+
+            record_pipeline_error("clip_client_error")
+            logger.error(
+                f"CLIP returned client error: {status_code} - {e}",
+                extra={"duration_ms": duration_ms, "status_code": status_code},
+                exc_info=True,
+            )
+            raise CLIPUnavailableError(
+                f"CLIP returned client error: {status_code}",
+                original_error=e,
+            ) from e
+
+        except CLIPUnavailableError:
+            raise
+
+        except Exception as e:
+            duration_ms = int((time.time() - start_time) * 1000)
+            record_pipeline_error("clip_unexpected_error")
+            logger.error(
+                f"Unexpected error during CLIP similarity: {sanitize_error(e)}",
+                extra={"duration_ms": duration_ms},
+                exc_info=True,
+            )
+            raise CLIPUnavailableError(
+                f"Unexpected error during CLIP similarity: {sanitize_error(e)}",
+                original_error=e,
+            ) from e
+
+    async def batch_similarity(self, image: Image.Image, texts: list[str]) -> dict[str, float]:
+        """Compute cosine similarity between an image and multiple text descriptions.
+
+        Args:
+            image: PIL Image to compare
+            texts: List of text descriptions to compare against
+
+        Returns:
+            Dictionary mapping each text to its similarity score
+
+        Raises:
+            CLIPUnavailableError: If the service is unavailable (connection, timeout, 5xx)
+            ValueError: If texts list is empty
+        """
+        if not texts:
+            raise ValueError("Texts list cannot be empty")
+
+        start_time = time.time()
+
+        logger.debug(f"Sending batch similarity request to CLIP service with {len(texts)} texts...")
+
+        try:
+            # Encode image to base64
+            image_b64 = self._encode_image_to_base64(image)
+
+            # Build request payload
+            payload = {
+                "image": image_b64,
+                "texts": texts,
+            }
+
+            # Track AI request time
+            ai_start_time = time.time()
+
+            # Send to CLIP service
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                response = await client.post(
+                    f"{self._base_url}/batch-similarity",
+                    json=payload,
+                )
+                response.raise_for_status()
+
+            # Record AI request duration
+            ai_duration = time.time() - ai_start_time
+            observe_ai_request_duration("clip", ai_duration)
+
+            # Parse response
+            result = response.json()
+
+            if "similarities" not in result:
+                logger.warning(
+                    f"Malformed response from CLIP batch-similarity (missing 'similarities'): {result}"
+                )
+                record_pipeline_error("clip_malformed_response")
+                raise CLIPUnavailableError(
+                    "Malformed response from CLIP service: missing 'similarities'"
+                )
+
+            similarities: dict[str, float] = result["similarities"]
+
+            duration_ms = int((time.time() - start_time) * 1000)
+
+            logger.debug(
+                f"CLIP batch similarity completed: {len(similarities)} scores in {duration_ms}ms"
+            )
+            return similarities
+
+        except httpx.ConnectError as e:
+            duration_ms = int((time.time() - start_time) * 1000)
+            record_pipeline_error("clip_connection_error")
+            logger.error(
+                f"Failed to connect to CLIP service: {e}",
+                extra={"duration_ms": duration_ms},
+                exc_info=True,
+            )
+            raise CLIPUnavailableError(
+                f"Failed to connect to CLIP service: {e}",
+                original_error=e,
+            ) from e
+
+        except httpx.TimeoutException as e:
+            duration_ms = int((time.time() - start_time) * 1000)
+            record_pipeline_error("clip_timeout")
+            logger.error(
+                f"CLIP request timed out: {e}",
+                extra={"duration_ms": duration_ms},
+                exc_info=True,
+            )
+            raise CLIPUnavailableError(
+                f"CLIP request timed out: {e}",
+                original_error=e,
+            ) from e
+
+        except httpx.HTTPStatusError as e:
+            duration_ms = int((time.time() - start_time) * 1000)
+            status_code = e.response.status_code
+
+            # 5xx errors are server-side failures that should be retried
+            if status_code >= 500:
+                record_pipeline_error("clip_server_error")
+                logger.error(
+                    f"CLIP returned server error: {status_code} - {e}",
+                    extra={"duration_ms": duration_ms, "status_code": status_code},
+                    exc_info=True,
+                )
+                raise CLIPUnavailableError(
+                    f"CLIP returned server error: {status_code}",
+                    original_error=e,
+                ) from e
+
+            # 4xx errors are client errors (bad request, etc.)
+            record_pipeline_error("clip_client_error")
+            logger.error(
+                f"CLIP returned client error: {status_code} - {e}",
+                extra={"duration_ms": duration_ms, "status_code": status_code},
+                exc_info=True,
+            )
+            raise CLIPUnavailableError(
+                f"CLIP returned client error: {status_code}",
+                original_error=e,
+            ) from e
+
+        except CLIPUnavailableError:
+            # Re-raise our own exceptions
+            raise
+
+        except Exception as e:
+            duration_ms = int((time.time() - start_time) * 1000)
+            record_pipeline_error("clip_unexpected_error")
+            logger.error(
+                f"Unexpected error during CLIP batch similarity: {sanitize_error(e)}",
+                extra={"duration_ms": duration_ms},
+                exc_info=True,
+            )
+            raise CLIPUnavailableError(
+                f"Unexpected error during CLIP batch similarity: {sanitize_error(e)}",
+                original_error=e,
+            ) from e
+
 
 # Global client instance
 _clip_client: CLIPClient | None = None
