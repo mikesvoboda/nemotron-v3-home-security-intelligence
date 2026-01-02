@@ -7,6 +7,10 @@
 
 ---
 
+![How Batch Aggregation Works](../images/flow-batch-aggregator.png)
+
+---
+
 ## Why We Batch
 
 1. **Better LLM Context**: A "person approaching door" event might span 30 seconds across 15 images. Analyzing together gives full context.

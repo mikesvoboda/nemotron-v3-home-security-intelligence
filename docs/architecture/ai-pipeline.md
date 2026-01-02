@@ -52,11 +52,12 @@ The AI pipeline transforms raw camera images into risk-scored security events th
 
 ### High-Level Flow
 
-```
-Camera FTP Upload -> File Watcher -> Detection Queue -> RT-DETRv2 -> Detections (DB)
-  -> Enrichment (context + model zoo + optional Florence/CLIP) -> Batch Aggregator -> Analysis Queue
-  -> Nemotron LLM -> Event Creation -> WebSocket Broadcast
-```
+![AI Pipeline Flow Diagram](../images/flow-ai-pipeline.png)
+
+The pipeline processes images through two paths:
+
+- **Normal Path:** Detections are batched over 30-90 second windows before LLM analysis
+- **Fast Path:** High-confidence (≥90%) critical detections bypass batching for immediate analysis
 
 ### Complete Pipeline Sequence Diagram
 

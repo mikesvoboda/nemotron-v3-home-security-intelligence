@@ -48,6 +48,17 @@ Home Security Intelligence transforms commodity IP cameras into an intelligent t
 
 ## High-Level Architecture
 
+![System Architecture Overview](../images/arch-system-overview.png)
+
+The system is organized into four layers:
+
+- **Camera Layer:** Foscam IP cameras upload images via FTP
+- **Application Layer:** React frontend + FastAPI backend
+- **GPU Services:** 5 AI inference containers (RT-DETRv2, Nemotron, Florence-2, CLIP, Enrichment)
+- **Data Layer:** PostgreSQL, Redis, and filesystem storage
+
+### Detailed Mermaid Diagram
+
 ```mermaid
 flowchart TB
     subgraph Cameras["Camera Layer"]

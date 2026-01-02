@@ -25,6 +25,8 @@ _Caption: Risk scores range from 0 (nothing to worry about) to 100 (needs immedi
 
 ## How Risk Scores Work
 
+![How Risk Scores Work](../images/info-risk-scoring.png)
+
 Every time the system detects something on your cameras, it assigns a **risk score** from 0 to 100. Think of this like a thermometer for potential concern:
 
 - **0** = Nothing to worry about
