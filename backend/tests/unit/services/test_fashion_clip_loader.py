@@ -282,90 +282,109 @@ class TestLoadFashionClipModel:
     @pytest.mark.asyncio
     async def test_load_model_success_with_cuda(self) -> None:
         """Test successful model loading with CUDA available."""
-        mock_processor = MagicMock()
         mock_model = MagicMock()
         mock_model.cuda.return_value = mock_model
+        mock_preprocess = MagicMock()
+        mock_tokenizer = MagicMock()
 
-        # Create mock torch module
+        # Create mock torch module with submodules
         mock_torch = MagicMock()
         mock_torch.cuda.is_available.return_value = True
 
-        # Create mock transformers module
-        mock_transformers = MagicMock()
-        mock_transformers.AutoProcessor.from_pretrained.return_value = mock_processor
-        mock_transformers.AutoModel.from_pretrained.return_value = mock_model
+        # Create mock open_clip module
+        mock_open_clip = MagicMock()
+        mock_open_clip.create_model_from_pretrained.return_value = (
+            mock_model,
+            mock_preprocess,
+        )
+        mock_open_clip.get_tokenizer.return_value = mock_tokenizer
 
         with patch.dict(
             sys.modules,
             {
                 "torch": mock_torch,
-                "transformers": mock_transformers,
+                "torch.nn": MagicMock(),
+                "torch.nn.functional": MagicMock(),
+                "open_clip": mock_open_clip,
             },
         ):
             result = await load_fashion_clip_model("/path/to/model")
 
             assert result["model"] == mock_model
-            assert result["processor"] == mock_processor
+            assert result["preprocess"] == mock_preprocess
+            assert result["tokenizer"] == mock_tokenizer
             mock_model.cuda.assert_called_once()
             mock_model.eval.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_load_model_success_without_cuda(self) -> None:
         """Test successful model loading without CUDA."""
-        mock_processor = MagicMock()
         mock_model = MagicMock()
+        mock_preprocess = MagicMock()
+        mock_tokenizer = MagicMock()
 
-        # Create mock torch module
+        # Create mock torch module with submodules
         mock_torch = MagicMock()
         mock_torch.cuda.is_available.return_value = False
 
-        # Create mock transformers module
-        mock_transformers = MagicMock()
-        mock_transformers.AutoProcessor.from_pretrained.return_value = mock_processor
-        mock_transformers.AutoModel.from_pretrained.return_value = mock_model
+        # Create mock open_clip module
+        mock_open_clip = MagicMock()
+        mock_open_clip.create_model_from_pretrained.return_value = (
+            mock_model,
+            mock_preprocess,
+        )
+        mock_open_clip.get_tokenizer.return_value = mock_tokenizer
 
         with patch.dict(
             sys.modules,
             {
                 "torch": mock_torch,
-                "transformers": mock_transformers,
+                "torch.nn": MagicMock(),
+                "torch.nn.functional": MagicMock(),
+                "open_clip": mock_open_clip,
             },
         ):
             result = await load_fashion_clip_model("/path/to/model")
 
             assert result["model"] == mock_model
-            assert result["processor"] == mock_processor
+            assert result["preprocess"] == mock_preprocess
+            assert result["tokenizer"] == mock_tokenizer
             mock_model.cuda.assert_not_called()
             mock_model.eval.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_load_model_from_huggingface_path(self) -> None:
         """Test loading model from HuggingFace path."""
-        mock_processor = MagicMock()
         mock_model = MagicMock()
+        mock_preprocess = MagicMock()
+        mock_tokenizer = MagicMock()
 
         mock_torch = MagicMock()
         mock_torch.cuda.is_available.return_value = False
 
-        mock_transformers = MagicMock()
-        mock_transformers.AutoProcessor.from_pretrained.return_value = mock_processor
-        mock_transformers.AutoModel.from_pretrained.return_value = mock_model
+        mock_open_clip = MagicMock()
+        mock_open_clip.create_model_from_pretrained.return_value = (
+            mock_model,
+            mock_preprocess,
+        )
+        mock_open_clip.get_tokenizer.return_value = mock_tokenizer
 
         with patch.dict(
             sys.modules,
             {
                 "torch": mock_torch,
-                "transformers": mock_transformers,
+                "torch.nn": MagicMock(),
+                "torch.nn.functional": MagicMock(),
+                "open_clip": mock_open_clip,
             },
         ):
-            await load_fashion_clip_model("Marqo/marqo-fashionCLIP")
+            result = await load_fashion_clip_model("Marqo/marqo-fashionCLIP")
 
-            mock_transformers.AutoProcessor.from_pretrained.assert_called_once_with(
-                "Marqo/marqo-fashionCLIP", trust_remote_code=True
+            # HuggingFace path gets prefixed with hf-hub:
+            mock_open_clip.create_model_from_pretrained.assert_called_once_with(
+                "hf-hub:Marqo/marqo-fashionCLIP"
             )
-            mock_transformers.AutoModel.from_pretrained.assert_called_once_with(
-                "Marqo/marqo-fashionCLIP", trust_remote_code=True
-            )
+            assert result["model"] == mock_model
 
     @pytest.mark.asyncio
     async def test_load_model_runtime_error(self) -> None:
@@ -373,16 +392,16 @@ class TestLoadFashionClipModel:
         mock_torch = MagicMock()
         mock_torch.cuda.is_available.return_value = False
 
-        mock_transformers = MagicMock()
-        mock_transformers.AutoProcessor.from_pretrained.side_effect = OSError(
-            "Model not found at path"
-        )
+        mock_open_clip = MagicMock()
+        mock_open_clip.create_model_from_pretrained.side_effect = OSError("Model not found at path")
 
         with patch.dict(
             sys.modules,
             {
                 "torch": mock_torch,
-                "transformers": mock_transformers,
+                "torch.nn": MagicMock(),
+                "torch.nn.functional": MagicMock(),
+                "open_clip": mock_open_clip,
             },
         ):
             with pytest.raises(RuntimeError) as exc_info:
@@ -393,29 +412,36 @@ class TestLoadFashionClipModel:
     @pytest.mark.asyncio
     async def test_load_model_with_local_path(self) -> None:
         """Test loading model from local path."""
-        mock_processor = MagicMock()
         mock_model = MagicMock()
+        mock_preprocess = MagicMock()
+        mock_tokenizer = MagicMock()
 
         mock_torch = MagicMock()
         mock_torch.cuda.is_available.return_value = False
 
-        mock_transformers = MagicMock()
-        mock_transformers.AutoProcessor.from_pretrained.return_value = mock_processor
-        mock_transformers.AutoModel.from_pretrained.return_value = mock_model
+        mock_open_clip = MagicMock()
+        mock_open_clip.create_model_from_pretrained.return_value = (
+            mock_model,
+            mock_preprocess,
+        )
+        mock_open_clip.get_tokenizer.return_value = mock_tokenizer
 
         with patch.dict(
             sys.modules,
             {
                 "torch": mock_torch,
-                "transformers": mock_transformers,
+                "torch.nn": MagicMock(),
+                "torch.nn.functional": MagicMock(),
+                "open_clip": mock_open_clip,
             },
         ):
             result = await load_fashion_clip_model("/export/ai_models/model-zoo/fashion-clip")
 
             assert "model" in result
-            assert "processor" in result
-            mock_transformers.AutoProcessor.from_pretrained.assert_called_once_with(
-                "/export/ai_models/model-zoo/fashion-clip", trust_remote_code=True
+            assert "preprocess" in result
+            # Local paths use hf-hub:Marqo/marqo-fashionCLIP
+            mock_open_clip.create_model_from_pretrained.assert_called_once_with(
+                "hf-hub:Marqo/marqo-fashionCLIP"
             )
 
     @pytest.mark.asyncio
@@ -707,22 +733,28 @@ class TestDeviceHandling:
     @pytest.mark.asyncio
     async def test_model_moves_to_cuda_when_available(self) -> None:
         """Test model is moved to CUDA when available."""
-        mock_processor = MagicMock()
         mock_model = MagicMock()
         mock_model.cuda.return_value = mock_model
+        mock_preprocess = MagicMock()
+        mock_tokenizer = MagicMock()
 
         mock_torch = MagicMock()
         mock_torch.cuda.is_available.return_value = True
 
-        mock_transformers = MagicMock()
-        mock_transformers.AutoProcessor.from_pretrained.return_value = mock_processor
-        mock_transformers.AutoModel.from_pretrained.return_value = mock_model
+        mock_open_clip = MagicMock()
+        mock_open_clip.create_model_from_pretrained.return_value = (
+            mock_model,
+            mock_preprocess,
+        )
+        mock_open_clip.get_tokenizer.return_value = mock_tokenizer
 
         with patch.dict(
             sys.modules,
             {
                 "torch": mock_torch,
-                "transformers": mock_transformers,
+                "torch.nn": MagicMock(),
+                "torch.nn.functional": MagicMock(),
+                "open_clip": mock_open_clip,
             },
         ):
             await load_fashion_clip_model("/path/to/model")
@@ -733,21 +765,27 @@ class TestDeviceHandling:
     @pytest.mark.asyncio
     async def test_model_stays_on_cpu_when_cuda_unavailable(self) -> None:
         """Test model stays on CPU when CUDA unavailable."""
-        mock_processor = MagicMock()
         mock_model = MagicMock()
+        mock_preprocess = MagicMock()
+        mock_tokenizer = MagicMock()
 
         mock_torch = MagicMock()
         mock_torch.cuda.is_available.return_value = False
 
-        mock_transformers = MagicMock()
-        mock_transformers.AutoProcessor.from_pretrained.return_value = mock_processor
-        mock_transformers.AutoModel.from_pretrained.return_value = mock_model
+        mock_open_clip = MagicMock()
+        mock_open_clip.create_model_from_pretrained.return_value = (
+            mock_model,
+            mock_preprocess,
+        )
+        mock_open_clip.get_tokenizer.return_value = mock_tokenizer
 
         with patch.dict(
             sys.modules,
             {
                 "torch": mock_torch,
-                "transformers": mock_transformers,
+                "torch.nn": MagicMock(),
+                "torch.nn.functional": MagicMock(),
+                "open_clip": mock_open_clip,
             },
         ):
             await load_fashion_clip_model("/path/to/model")
@@ -758,21 +796,27 @@ class TestDeviceHandling:
     @pytest.mark.asyncio
     async def test_model_is_set_to_eval_mode(self) -> None:
         """Test model is set to evaluation mode."""
-        mock_processor = MagicMock()
         mock_model = MagicMock()
+        mock_preprocess = MagicMock()
+        mock_tokenizer = MagicMock()
 
         mock_torch = MagicMock()
         mock_torch.cuda.is_available.return_value = False
 
-        mock_transformers = MagicMock()
-        mock_transformers.AutoProcessor.from_pretrained.return_value = mock_processor
-        mock_transformers.AutoModel.from_pretrained.return_value = mock_model
+        mock_open_clip = MagicMock()
+        mock_open_clip.create_model_from_pretrained.return_value = (
+            mock_model,
+            mock_preprocess,
+        )
+        mock_open_clip.get_tokenizer.return_value = mock_tokenizer
 
         with patch.dict(
             sys.modules,
             {
                 "torch": mock_torch,
-                "transformers": mock_transformers,
+                "torch.nn": MagicMock(),
+                "torch.nn.functional": MagicMock(),
+                "open_clip": mock_open_clip,
             },
         ):
             await load_fashion_clip_model("/path/to/model")
