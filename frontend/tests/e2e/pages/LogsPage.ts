@@ -211,9 +211,15 @@ export class LogsPage extends BasePage {
 
   /**
    * Check if empty state is shown
+   * Waits up to 10s for the empty state to appear (WebKit is slower)
    */
   async hasEmptyState(): Promise<boolean> {
-    return this.emptyState.isVisible().catch(() => false);
+    try {
+      await this.emptyState.waitFor({ state: 'visible', timeout: 10000 });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /**
