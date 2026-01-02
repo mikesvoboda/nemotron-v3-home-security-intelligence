@@ -204,7 +204,8 @@ def test_gpu_monitor_init_with_gpu(mock_pynvml):
     assert monitor.running is False
 
 
-def test_gpu_monitor_init_without_pynvml(mock_no_gpu_access):
+@pytest.mark.usefixtures("mock_no_gpu_access")
+def test_gpu_monitor_init_without_pynvml():
     """Test GPUMonitor initialization when pynvml is not installed and nvidia-smi unavailable."""
     monitor = GPUMonitor(poll_interval=5.0)
 
@@ -249,7 +250,8 @@ def test_get_current_stats_real_gpu(mock_pynvml):
     assert isinstance(stats["recorded_at"], datetime)
 
 
-def test_get_current_stats_mock_gpu(mock_no_gpu_access):
+@pytest.mark.usefixtures("mock_no_gpu_access")
+def test_get_current_stats_mock_gpu():
     """Test getting current GPU stats when GPU is not available.
 
     The mock mode now provides simulated values (varying slightly over time)
@@ -1002,7 +1004,8 @@ async def test_get_current_stats_async_with_gpu(mock_pynvml):
 
 
 @pytest.mark.asyncio
-async def test_get_current_stats_async_ai_container_fallback(mock_no_gpu_access):
+@pytest.mark.usefixtures("mock_no_gpu_access")
+async def test_get_current_stats_async_ai_container_fallback():
     """Test async stats retrieval falls back to AI containers.
 
     Requires both pynvml and nvidia-smi to be unavailable so AI containers are tried.
@@ -1024,7 +1027,8 @@ async def test_get_current_stats_async_ai_container_fallback(mock_no_gpu_access)
 
 
 @pytest.mark.asyncio
-async def test_get_current_stats_async_mock_fallback(mock_no_gpu_access):
+@pytest.mark.usefixtures("mock_no_gpu_access")
+async def test_get_current_stats_async_mock_fallback():
     """Test async stats retrieval falls back to mock when AI containers fail.
 
     Requires both pynvml and nvidia-smi to be unavailable to reach mock mode.
