@@ -83,7 +83,7 @@ async def load_xclip_model(model_path: str) -> Any:
                     model = model.cuda().half()
                     logger.info("X-CLIP model moved to CUDA with float16")
             except ImportError:
-                pass
+                pass  # torch not installed, model will run on CPU
 
             # Set to eval mode
             model.eval()

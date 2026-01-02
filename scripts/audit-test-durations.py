@@ -46,10 +46,35 @@ SLOW_TEST_PATTERNS = [
     r"test_event.*test_risk_score_roundtrip",
     # E2E error state tests - wait for API retry exhaustion (~15s)
     r".*Error State.*shows error",
+    r".*Error State.*error state",
+    r".*Error State.*reload button",
     r".*Error Handling.*shows error",
     r".*Error Handling.*error message",
+    r".*Error Handling.*reload button",
+    r".*Network Error Messages.*user-friendly",
     r".*Partial API Failure",
     r".*Empty State.*dashboard",
+    r".*Empty State.*no activity",
+    # E2E dashboard tests - initial page load overhead in CI (~7s)
+    r"Dashboard Stats Row.*displays",
+    r"Dashboard Camera Grid.*displays",
+    r"Dashboard Camera Grid.*visible",
+    r"Dashboard Activity Feed.*visible",
+    r"Dashboard Activity Feed.*heading",
+    r"Dashboard Risk Gauge.*visible",
+    r"Dashboard Risk Gauge.*heading",
+    r"Dashboard High Alert State.*loads",
+    # E2E alerts page tests - page load overhead (~5-6s)
+    r"Alerts Page Load.*title",
+    r"Alerts Page Load.*displays",
+    r"Alerts Page Load.*loads",
+    # Model loading tests - may download/initialize models on first run
+    r"test_vehicle_damage_loader.*test_load_model",
+    r"test_violence_loader.*test_load_violence_model",
+    r"test_model_zoo.*test_load_context_manager",
+    r"test_benchmark_vram.*test_clear_gpu_cache",
+    # Full pipeline integration test - multi-stage AI processing
+    r"test_pipeline_e2e.*test_full_pipeline",
 ]
 
 
