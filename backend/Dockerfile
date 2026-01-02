@@ -32,7 +32,7 @@ COPY backend/ ./backend/
 
 # Create data directory for logs and thumbnails
 # The thumbnails subdirectory is required for the ThumbnailGenerator service
-RUN mkdir -p /app/data/thumbnails
+RUN mkdir -p /app/data/thumbnails /app/data/logs
 
 # Create non-root user
 RUN groupadd -g 1000 appgroup && \

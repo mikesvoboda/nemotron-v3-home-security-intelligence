@@ -392,14 +392,14 @@ async def test_load_fashion_clip_model_runtime_error(monkeypatch):
     """Test load_fashion_clip_model handles RuntimeError for failed loading."""
     import sys
 
-    # Mock torch and transformers to exist but fail on model load
+    # Mock torch and open_clip to exist but fail on model load
     mock_torch = MagicMock()
     mock_torch.cuda.is_available.return_value = False
-    mock_transformers = MagicMock()
-    mock_transformers.AutoProcessor.from_pretrained.side_effect = RuntimeError("Model not found")
+    mock_open_clip = MagicMock()
+    mock_open_clip.create_model_from_pretrained.side_effect = RuntimeError("Model not found")
 
     monkeypatch.setitem(sys.modules, "torch", mock_torch)
-    monkeypatch.setitem(sys.modules, "transformers", mock_transformers)
+    monkeypatch.setitem(sys.modules, "open_clip", mock_open_clip)
 
     with pytest.raises(RuntimeError, match="Failed to load FashionCLIP"):
         await load_fashion_clip_model("/nonexistent/path")
@@ -427,12 +427,12 @@ def test_fashion_clip_in_model_zoo():
 # =============================================================================
 
 
-def test_enrichment_clothing_classifier_uses_transformers():
-    """Verify ClothingClassifier uses transformers for FashionCLIP model loading.
+def test_enrichment_clothing_classifier_uses_open_clip():
+    """Verify ClothingClassifier uses open_clip for FashionCLIP model loading.
 
-    The ClothingClassifier uses HuggingFace transformers with AutoModel and
-    AutoProcessor for loading FashionCLIP models. This provides compatibility
-    with the patrickjohncyh/fashion-clip model format.
+    The ClothingClassifier uses open_clip directly instead of transformers.AutoModel
+    because the Marqo-FashionCLIP custom model wrapper has meta tensor issues when
+    loaded via transformers that cause "Cannot copy out of meta tensor" errors.
     """
     from pathlib import Path
 
@@ -442,18 +442,15 @@ def test_enrichment_clothing_classifier_uses_transformers():
     if model_py_path.exists():
         content = model_py_path.read_text()
 
-        # Verify transformers-based implementation
-        assert "from transformers import AutoModel, AutoProcessor" in content, (
-            "ClothingClassifier should use transformers AutoModel and AutoProcessor"
+        # Verify open_clip-based implementation
+        assert "from open_clip import create_model_from_pretrained, get_tokenizer" in content, (
+            "ClothingClassifier should use open_clip create_model_from_pretrained"
         )
-        assert "AutoProcessor.from_pretrained" in content, (
-            "ClothingClassifier should load processor with AutoProcessor.from_pretrained()"
+        assert "create_model_from_pretrained(hub_path)" in content, (
+            "ClothingClassifier should load model with create_model_from_pretrained()"
         )
-        assert "AutoModel.from_pretrained" in content, (
-            "ClothingClassifier should load model with AutoModel.from_pretrained()"
-        )
-        assert "trust_remote_code=True" in content, (
-            "ClothingClassifier should use trust_remote_code=True for FashionCLIP"
+        assert "get_tokenizer(hub_path)" in content, (
+            "ClothingClassifier should get tokenizer with get_tokenizer()"
         )
 
 
@@ -461,7 +458,7 @@ def test_enrichment_clothing_classifier_has_device_handling():
     """Verify ClothingClassifier properly handles device placement.
 
     The ClothingClassifier should detect CUDA availability and move the model
-    to the appropriate device after loading.
+    to the appropriate device using .to() after loading with open_clip.
     """
     from pathlib import Path
 
@@ -471,11 +468,13 @@ def test_enrichment_clothing_classifier_has_device_handling():
     if model_py_path.exists():
         content = model_py_path.read_text()
 
-        # Verify device handling
+        # Verify device handling - uses .to() after open_clip loading
         assert "torch.cuda.is_available()" in content, (
             "ClothingClassifier should check CUDA availability"
         )
-        assert ".to(self.device)" in content, "ClothingClassifier should move model to device"
+        assert "self.model.to(target_device)" in content, (
+            "ClothingClassifier should move model to device with .to()"
+        )
         assert 'self.device = "cpu"' in content, (
             "ClothingClassifier should fallback to CPU when CUDA unavailable"
         )
@@ -484,7 +483,7 @@ def test_enrichment_clothing_classifier_has_device_handling():
 def test_enrichment_clothing_classifier_class_structure():
     """Verify ClothingClassifier has expected class structure.
 
-    The ClothingClassifier should have model and processor attributes,
+    The ClothingClassifier should have model, preprocess, and tokenizer attributes,
     and helper methods for extracting clothing attributes.
     """
     from pathlib import Path
@@ -495,10 +494,13 @@ def test_enrichment_clothing_classifier_class_structure():
     if model_py_path.exists():
         content = model_py_path.read_text()
 
-        # Verify core attributes
+        # Verify core attributes (now uses preprocess and tokenizer instead of processor)
         assert "self.model" in content, "ClothingClassifier should have self.model attribute"
-        assert "self.processor" in content, (
-            "ClothingClassifier should have self.processor attribute"
+        assert "self.preprocess" in content, (
+            "ClothingClassifier should have self.preprocess attribute"
+        )
+        assert "self.tokenizer" in content, (
+            "ClothingClassifier should have self.tokenizer attribute"
         )
         assert "self.model_path" in content, (
             "ClothingClassifier should have self.model_path attribute"
