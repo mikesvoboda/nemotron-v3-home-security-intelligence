@@ -1,11 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
-import { afterEach, beforeAll, expect } from 'vitest';
-import * as matchers from 'vitest-axe/matchers';
-
-// Extend vitest's expect with vitest-axe matchers
-// Note: vitest-axe/extend-expect is empty (0 bytes bug), so we manually extend
-expect.extend(matchers);
+import { afterEach, beforeAll } from 'vitest';
 
 /**
  * Fix HeadlessUI focus issue with jsdom

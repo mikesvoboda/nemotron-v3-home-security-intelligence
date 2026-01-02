@@ -3340,6 +3340,7 @@ export interface components {
          *       "batch_idle_timeout_seconds": 30,
          *       "batch_window_seconds": 90,
          *       "detection_confidence_threshold": 0.5,
+         *       "grafana_url": "http://localhost:3002",
          *       "retention_days": 30,
          *       "version": "0.1.0"
          *     }
@@ -3375,6 +3376,11 @@ export interface components {
              * @description Minimum confidence threshold for detections (0.0-1.0)
              */
             detection_confidence_threshold: number;
+            /**
+             * Grafana Url
+             * @description Grafana dashboard URL for frontend link
+             */
+            grafana_url: string;
         };
         /**
          * ConfigUpdateRequest
