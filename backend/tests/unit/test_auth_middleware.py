@@ -12,23 +12,23 @@ from backend.core.config import get_settings
 
 
 @pytest.fixture
-def test_api_key():
-    """Return a test API key."""
+def auth_middleware_test_api_key():
+    """Return a test API key for auth middleware tests."""
     return "test_secret_key_12345"
 
 
 @pytest.fixture
-def test_api_key_hash(test_api_key):
+def auth_middleware_test_api_key_hash(auth_middleware_test_api_key):
     """Return the hash of the test API key."""
-    return hashlib.sha256(test_api_key.encode()).hexdigest()
+    return hashlib.sha256(auth_middleware_test_api_key.encode()).hexdigest()
 
 
 @pytest.fixture
-def app_with_auth(test_api_key):
+def app_with_auth(auth_middleware_test_api_key):
     """Create a test FastAPI app with authentication middleware."""
     # Set up environment for testing
     os.environ["API_KEY_ENABLED"] = "true"
-    os.environ["API_KEYS"] = f'["{test_api_key}"]'
+    os.environ["API_KEYS"] = f'["{auth_middleware_test_api_key}"]'
     os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost:5432/test")
     get_settings.cache_clear()
 
@@ -100,18 +100,18 @@ def app_without_auth():
     get_settings.cache_clear()
 
 
-def test_valid_key_in_header(app_with_auth, test_api_key):
+def test_valid_key_in_header(app_with_auth, auth_middleware_test_api_key):
     """Test that a valid API key in the header allows access."""
     client = TestClient(app_with_auth)
-    response = client.get("/api/protected", headers={"X-API-Key": test_api_key})
+    response = client.get("/api/protected", headers={"X-API-Key": auth_middleware_test_api_key})
     assert response.status_code == 200
     assert response.json() == {"message": "protected"}
 
 
-def test_valid_key_in_query_param(app_with_auth, test_api_key):
+def test_valid_key_in_query_param(app_with_auth, auth_middleware_test_api_key):
     """Test that a valid API key in query parameter allows access."""
     client = TestClient(app_with_auth)
-    response = client.get(f"/api/protected?api_key={test_api_key}")
+    response = client.get(f"/api/protected?api_key={auth_middleware_test_api_key}")
     assert response.status_code == 200
     assert response.json() == {"message": "protected"}
 
@@ -223,34 +223,38 @@ def test_docs_endpoints_bypass_auth(app_with_auth):
     assert response.status_code != 401
 
 
-def test_hash_key_produces_correct_hash(test_api_key, test_api_key_hash):
+def test_hash_key_produces_correct_hash(
+    auth_middleware_test_api_key, auth_middleware_test_api_key_hash
+):
     """Test that the _hash_key method produces correct SHA-256 hash."""
     app = FastAPI()
     middleware = AuthMiddleware(app, valid_key_hashes=set())
-    computed_hash = middleware._hash_key(test_api_key)
-    assert computed_hash == test_api_key_hash
+    computed_hash = middleware._hash_key(auth_middleware_test_api_key)
+    assert computed_hash == auth_middleware_test_api_key_hash
 
 
-def test_middleware_loads_keys_from_settings(test_api_key, test_api_key_hash):
+def test_middleware_loads_keys_from_settings(
+    auth_middleware_test_api_key, auth_middleware_test_api_key_hash
+):
     """Test that middleware correctly loads and hashes keys from settings."""
-    os.environ["API_KEYS"] = f'["{test_api_key}"]'
+    os.environ["API_KEYS"] = f'["{auth_middleware_test_api_key}"]'
     os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost:5432/test")
     get_settings.cache_clear()
 
     app = FastAPI()
     middleware = AuthMiddleware(app)
 
-    assert test_api_key_hash in middleware.valid_key_hashes
+    assert auth_middleware_test_api_key_hash in middleware.valid_key_hashes
 
     # Cleanup
     os.environ.pop("API_KEYS", None)
     get_settings.cache_clear()
 
 
-def test_middleware_accepts_custom_key_hashes(test_api_key_hash):
+def test_middleware_accepts_custom_key_hashes(auth_middleware_test_api_key_hash):
     """Test that middleware accepts custom key hashes."""
     app = FastAPI()
-    custom_hashes = {test_api_key_hash, "another_hash"}
+    custom_hashes = {auth_middleware_test_api_key_hash, "another_hash"}
     middleware = AuthMiddleware(app, valid_key_hashes=custom_hashes)
 
     assert middleware.valid_key_hashes == custom_hashes
@@ -354,14 +358,14 @@ def test_multiple_valid_keys():
     get_settings.cache_clear()
 
 
-def test_header_takes_precedence_over_query_param(app_with_auth, test_api_key):
+def test_header_takes_precedence_over_query_param(app_with_auth, auth_middleware_test_api_key):
     """Test that X-API-Key header takes precedence over query parameter."""
     client = TestClient(app_with_auth)
 
     # Valid header, invalid query param - should succeed
     response = client.get(
         "/api/protected?api_key=invalid",
-        headers={"X-API-Key": test_api_key},
+        headers={"X-API-Key": auth_middleware_test_api_key},
     )
     assert response.status_code == 200
 

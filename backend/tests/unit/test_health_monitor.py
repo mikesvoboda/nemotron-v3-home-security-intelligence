@@ -1187,8 +1187,8 @@ def test_service_config_restart_cmd_default_is_none():
     assert config.restart_cmd is None, "restart_cmd should default to None"
 
 
-def test_service_config_restart_cmd_can_be_set():
-    """Test that ServiceConfig.restart_cmd can be explicitly set."""
+def test_health_monitor_service_config_restart_cmd_can_be_set():
+    """Test that ServiceConfig.restart_cmd can be explicitly set for health monitor."""
     config = ServiceConfig(
         name="test",
         health_url="http://localhost:9999/health",

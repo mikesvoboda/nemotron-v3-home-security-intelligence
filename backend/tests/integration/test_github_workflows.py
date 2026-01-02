@@ -35,7 +35,14 @@ REQUIRED_WORKFLOW_KEYS = {"name", "on", "jobs"}
 REQUIRED_JOB_KEYS = {"steps"}
 
 # Runner types that are valid
-VALID_RUNNERS = {"ubuntu-latest", "ubuntu-22.04", "ubuntu-20.04", "macos-latest", "windows-latest"}
+VALID_RUNNERS = {
+    "ubuntu-latest",
+    "ubuntu-22.04",
+    "ubuntu-20.04",
+    "ubuntu-24.04-arm",  # ARM64 native builds
+    "macos-latest",
+    "windows-latest",
+}
 SELF_HOSTED_LABELS = {"self-hosted", "gpu", "rtx-a5500", "linux"}
 
 
@@ -170,6 +177,9 @@ class TestJobStructure:
                 runs_on = job_config["runs-on"]
                 # Can be string or list (for self-hosted)
                 if isinstance(runs_on, str):
+                    # Allow GitHub Actions expressions (matrix variables, etc.)
+                    if runs_on.startswith("${{"):
+                        continue  # Expression will be evaluated at runtime
                     assert runs_on in VALID_RUNNERS, (
                         f"{workflow_file.name}:{job_name}: unknown runner '{runs_on}'"
                     )

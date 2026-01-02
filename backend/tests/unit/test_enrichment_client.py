@@ -587,8 +587,8 @@ async def test_analyze_pose_timeout(enrichment_client, sample_image):
 # Test: PoseAnalysisResult Data Class
 
 
-def test_pose_result_to_dict():
-    """Test PoseAnalysisResult to_dict method."""
+def test_enrichment_pose_analysis_result_to_dict():
+    """Test enrichment client PoseAnalysisResult to_dict method."""
     keypoints = [
         KeypointData(name="nose", x=0.5, y=0.1, confidence=0.95),
         KeypointData(name="left_shoulder", x=0.4, y=0.25, confidence=0.92),

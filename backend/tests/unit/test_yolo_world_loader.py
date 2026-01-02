@@ -567,8 +567,8 @@ def test_yolo_world_vram_budget():
 # =============================================================================
 
 
-def test_module_docstring():
-    """Test module has proper docstring."""
+def test_yolo_world_loader_module_docstring():
+    """Test yolo_world_loader module has proper docstring."""
     from backend.services import yolo_world_loader
 
     assert yolo_world_loader.__doc__ is not None
@@ -576,7 +576,7 @@ def test_module_docstring():
     assert "open-vocabulary" in yolo_world_loader.__doc__.lower()
 
 
-def test_function_docstring():
+def test_yolo_world_loader_function_docstring():
     """Test load_yolo_world_model has proper docstring."""
     assert load_yolo_world_model.__doc__ is not None
     assert "YOLO-World" in load_yolo_world_model.__doc__
