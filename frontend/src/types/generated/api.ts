@@ -104,6 +104,194 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ai-audit/events/{event_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Event Audit
+         * @description Get audit information for a specific event.
+         *
+         *     Retrieves the AI pipeline audit record for the given event, including
+         *     model contributions, quality scores, and prompt improvement suggestions.
+         *
+         *     Args:
+         *         event_id: The ID of the event to get audit for
+         *         db: Database session
+         *
+         *     Returns:
+         *         EventAuditResponse containing full audit details
+         *
+         *     Raises:
+         *         HTTPException: 404 if event or audit not found
+         */
+        get: operations["get_event_audit_api_ai_audit_events__event_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai-audit/events/{event_id}/evaluate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Evaluate Event
+         * @description Trigger full evaluation for a specific event's audit.
+         *
+         *     Runs the complete self-evaluation pipeline (self-critique, rubric scoring,
+         *     consistency check, prompt improvement) for the given event.
+         *
+         *     Args:
+         *         event_id: The ID of the event to evaluate
+         *         force: If True, re-evaluate even if already evaluated
+         *         db: Database session
+         *
+         *     Returns:
+         *         EventAuditResponse with updated evaluation results
+         *
+         *     Raises:
+         *         HTTPException: 404 if event or audit not found
+         */
+        post: operations["evaluate_event_api_ai_audit_events__event_id__evaluate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai-audit/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Audit Stats
+         * @description Get aggregate AI audit statistics.
+         *
+         *     Returns aggregate statistics including total events, quality scores,
+         *     model contribution rates, and audit trends over the specified period.
+         *
+         *     Args:
+         *         days: Number of days to include in statistics (1-90, default 7)
+         *         camera_id: Optional camera ID to filter stats
+         *         db: Database session
+         *
+         *     Returns:
+         *         AuditStatsResponse with aggregate statistics
+         */
+        get: operations["get_audit_stats_api_ai_audit_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai-audit/leaderboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Model Leaderboard
+         * @description Get model leaderboard ranked by contribution rate.
+         *
+         *     Returns a ranked list of AI models by their contribution rate,
+         *     along with quality correlation data.
+         *
+         *     Args:
+         *         days: Number of days to include (1-90, default 7)
+         *         db: Database session
+         *
+         *     Returns:
+         *         LeaderboardResponse with ranked model entries
+         */
+        get: operations["get_model_leaderboard_api_ai_audit_leaderboard_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai-audit/recommendations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Recommendations
+         * @description Get aggregated prompt improvement recommendations.
+         *
+         *     Analyzes all audits to produce actionable recommendations for
+         *     improving the AI pipeline prompt templates.
+         *
+         *     Args:
+         *         days: Number of days to analyze (1-90, default 7)
+         *         db: Database session
+         *
+         *     Returns:
+         *         RecommendationsResponse with prioritized recommendations
+         */
+        get: operations["get_recommendations_api_ai_audit_recommendations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai-audit/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Trigger Batch Audit
+         * @description Trigger batch audit processing for multiple events.
+         *
+         *     Queues events for audit processing based on the provided criteria.
+         *     Events are processed asynchronously.
+         *
+         *     Args:
+         *         request: Batch audit request with filtering criteria
+         *         db: Database session
+         *
+         *     Returns:
+         *         BatchAuditResponse with number of queued events
+         */
+        post: operations["trigger_batch_audit_api_ai_audit_batch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/alerts/rules": {
         parameters: {
             query?: never;
@@ -2578,6 +2766,32 @@ export interface components {
             recent_actors: string[];
         };
         /**
+         * AuditStatsResponse
+         * @description Aggregate audit statistics.
+         */
+        AuditStatsResponse: {
+            /** Total Events */
+            total_events: number;
+            /** Audited Events */
+            audited_events: number;
+            /** Fully Evaluated Events */
+            fully_evaluated_events: number;
+            /** Avg Quality Score */
+            avg_quality_score: number | null;
+            /** Avg Consistency Rate */
+            avg_consistency_rate: number | null;
+            /** Avg Enrichment Utilization */
+            avg_enrichment_utilization: number | null;
+            /** Model Contribution Rates */
+            model_contribution_rates: {
+                [key: string]: number;
+            };
+            /** Audits By Day */
+            audits_by_day: {
+                [key: string]: unknown;
+            }[];
+        };
+        /**
          * BatchAggregatorStatusResponse
          * @description Status information for the BatchAggregator service.
          * @example {
@@ -2617,6 +2831,34 @@ export interface components {
              * @description Configured idle timeout in seconds
              */
             idle_timeout_seconds: number;
+        };
+        /**
+         * BatchAuditRequest
+         * @description Request for batch audit processing.
+         */
+        BatchAuditRequest: {
+            /**
+             * Limit
+             * @default 100
+             */
+            limit: number;
+            /** Min Risk Score */
+            min_risk_score?: number | null;
+            /**
+             * Force Reevaluate
+             * @default false
+             */
+            force_reevaluate: boolean;
+        };
+        /**
+         * BatchAuditResponse
+         * @description Response for batch audit request.
+         */
+        BatchAuditResponse: {
+            /** Queued Count */
+            queued_count: number;
+            /** Message */
+            message: string;
         };
         /**
          * BatchInfoResponse
@@ -3564,6 +3806,38 @@ export interface components {
             video_height?: number | null;
         };
         /**
+         * EventAuditResponse
+         * @description Full audit response for a single event.
+         */
+        EventAuditResponse: {
+            /** Id */
+            id: number;
+            /** Event Id */
+            event_id: number;
+            /**
+             * Audited At
+             * Format: date-time
+             */
+            audited_at: string;
+            /** Is Fully Evaluated */
+            is_fully_evaluated: boolean;
+            contributions: components["schemas"]["ModelContributions"];
+            /** Prompt Length */
+            prompt_length: number;
+            /** Prompt Token Estimate */
+            prompt_token_estimate: number;
+            /** Enrichment Utilization */
+            enrichment_utilization: number;
+            scores: components["schemas"]["QualityScores"];
+            /** Consistency Risk Score */
+            consistency_risk_score?: number | null;
+            /** Consistency Diff */
+            consistency_diff?: number | null;
+            /** Self Eval Critique */
+            self_eval_critique?: string | null;
+            improvements: components["schemas"]["PromptImprovements"];
+        };
+        /**
          * EventListResponse
          * @description Schema for event list response with pagination.
          * @example {
@@ -3581,6 +3855,7 @@ export interface components {
          *           ],
          *           "ended_at": "2025-12-23T12:02:30Z",
          *           "id": 1,
+         *           "llm_prompt": "<|im_start|>system\nYou are a home security risk analyzer...",
          *           "reasoning": "Person approaching entrance during daytime, no suspicious behavior",
          *           "reviewed": false,
          *           "risk_level": "medium",
@@ -3630,6 +3905,7 @@ export interface components {
          *       ],
          *       "ended_at": "2025-12-23T12:02:30Z",
          *       "id": 1,
+         *       "llm_prompt": "<|im_start|>system\nYou are a home security risk analyzer...",
          *       "reasoning": "Person approaching entrance during daytime, no suspicious behavior",
          *       "reviewed": false,
          *       "risk_level": "medium",
@@ -3680,6 +3956,11 @@ export interface components {
              * @description LLM reasoning for risk score
              */
             reasoning?: string | null;
+            /**
+             * Llm Prompt
+             * @description Full prompt sent to Nemotron LLM (for debugging/improvement)
+             */
+            llm_prompt?: string | null;
             /**
              * Reviewed
              * @description Whether event has been reviewed
@@ -4063,6 +4344,16 @@ export interface components {
             timestamp: string;
         };
         /**
+         * LeaderboardResponse
+         * @description Model leaderboard response.
+         */
+        LeaderboardResponse: {
+            /** Entries */
+            entries: components["schemas"]["ModelLeaderboardEntry"][];
+            /** Period Days */
+            period_days: number;
+        };
+        /**
          * LogEntry
          * @description Schema for a single log entry.
          */
@@ -4213,6 +4504,98 @@ export interface components {
              * @description The path that was attempted to be accessed
              */
             path: string;
+        };
+        /**
+         * ModelContributions
+         * @description Model contribution flags.
+         */
+        ModelContributions: {
+            /**
+             * Rtdetr
+             * @description RT-DETR object detection
+             * @default false
+             */
+            rtdetr: boolean;
+            /**
+             * Florence
+             * @description Florence-2 vision attributes
+             * @default false
+             */
+            florence: boolean;
+            /**
+             * Clip
+             * @description CLIP embeddings
+             * @default false
+             */
+            clip: boolean;
+            /**
+             * Violence
+             * @description Violence detection
+             * @default false
+             */
+            violence: boolean;
+            /**
+             * Clothing
+             * @description Clothing analysis
+             * @default false
+             */
+            clothing: boolean;
+            /**
+             * Vehicle
+             * @description Vehicle classification
+             * @default false
+             */
+            vehicle: boolean;
+            /**
+             * Pet
+             * @description Pet classification
+             * @default false
+             */
+            pet: boolean;
+            /**
+             * Weather
+             * @description Weather classification
+             * @default false
+             */
+            weather: boolean;
+            /**
+             * Image Quality
+             * @description Image quality assessment
+             * @default false
+             */
+            image_quality: boolean;
+            /**
+             * Zones
+             * @description Zone analysis
+             * @default false
+             */
+            zones: boolean;
+            /**
+             * Baseline
+             * @description Baseline comparison
+             * @default false
+             */
+            baseline: boolean;
+            /**
+             * Cross Camera
+             * @description Cross-camera correlation
+             * @default false
+             */
+            cross_camera: boolean;
+        };
+        /**
+         * ModelLeaderboardEntry
+         * @description Single entry in model leaderboard.
+         */
+        ModelLeaderboardEntry: {
+            /** Model Name */
+            model_name: string;
+            /** Contribution Rate */
+            contribution_rate: number;
+            /** Quality Correlation */
+            quality_correlation: number | null;
+            /** Event Count */
+            event_count: number;
         };
         /**
          * NotificationChannel
@@ -4543,6 +4926,38 @@ export interface components {
             timestamp: string;
         };
         /**
+         * PromptImprovements
+         * @description Prompt improvement suggestions from self-evaluation.
+         */
+        PromptImprovements: {
+            /** Missing Context */
+            missing_context?: string[];
+            /** Confusing Sections */
+            confusing_sections?: string[];
+            /** Unused Data */
+            unused_data?: string[];
+            /** Format Suggestions */
+            format_suggestions?: string[];
+            /** Model Gaps */
+            model_gaps?: string[];
+        };
+        /**
+         * QualityScores
+         * @description Self-evaluation quality scores (1-5 scale).
+         */
+        QualityScores: {
+            /** Context Usage */
+            context_usage?: number | null;
+            /** Reasoning Coherence */
+            reasoning_coherence?: number | null;
+            /** Risk Justification */
+            risk_justification?: number | null;
+            /** Consistency */
+            consistency?: number | null;
+            /** Overall */
+            overall?: number | null;
+        };
+        /**
          * QueueDepths
          * @description Queue depth information for pipeline queues.
          * @example {
@@ -4634,6 +5049,30 @@ export interface components {
              * @description Timestamp of readiness check
              */
             timestamp: string;
+        };
+        /**
+         * RecommendationItem
+         * @description Single recommendation item.
+         */
+        RecommendationItem: {
+            /** Category */
+            category: string;
+            /** Suggestion */
+            suggestion: string;
+            /** Frequency */
+            frequency: number;
+            /** Priority */
+            priority: string;
+        };
+        /**
+         * RecommendationsResponse
+         * @description Aggregated recommendations response.
+         */
+        RecommendationsResponse: {
+            /** Recommendations */
+            recommendations: components["schemas"]["RecommendationItem"][];
+            /** Total Events Analyzed */
+            total_events_analyzed: number;
         };
         /**
          * RuleTestEventResult
@@ -5883,6 +6322,202 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClearDataResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_event_audit_api_ai_audit_events__event_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventAuditResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    evaluate_event_api_ai_audit_events__event_id__evaluate_post: {
+        parameters: {
+            query?: {
+                /** @description Force re-evaluation even if already evaluated */
+                force?: boolean;
+            };
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventAuditResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_audit_stats_api_ai_audit_stats_get: {
+        parameters: {
+            query?: {
+                /** @description Number of days to include */
+                days?: number;
+                /** @description Filter by camera ID */
+                camera_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditStatsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_model_leaderboard_api_ai_audit_leaderboard_get: {
+        parameters: {
+            query?: {
+                /** @description Number of days to include */
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaderboardResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_recommendations_api_ai_audit_recommendations_get: {
+        parameters: {
+            query?: {
+                /** @description Number of days to include */
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecommendationsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    trigger_batch_audit_api_ai_audit_batch_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BatchAuditRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchAuditResponse"];
                 };
             };
             /** @description Validation Error */
