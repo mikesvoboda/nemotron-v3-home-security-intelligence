@@ -448,3 +448,144 @@ class TestSizeLimits:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+class TestInvalidImageHandling:
+    """Tests for invalid/corrupted image file handling.
+
+    These tests verify that PIL.UnidentifiedImageError and similar errors
+    are handled correctly, returning 400 Bad Request instead of 500 Server Error.
+    """
+
+    @pytest.fixture
+    def client(self):
+        """Create test client."""
+        return TestClient(app)
+
+    @pytest.fixture
+    def dummy_image_bytes(self):
+        """Create valid dummy image bytes for comparison."""
+        img_array = np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8)
+        img = Image.fromarray(img_array)
+        img_bytes = io.BytesIO()
+        img.save(img_bytes, format="JPEG")
+        img_bytes.seek(0)
+        return img_bytes.getvalue()
+
+    @pytest.fixture(autouse=True)
+    def _mock_model(self):
+        """Mock the global model instance."""
+        with patch("model.model"):
+            mock_instance = MagicMock()
+            mock_instance.detect.return_value = ([], 10.0)
+            mock_instance.detect_batch.return_value = ([[]], 10.0)
+            import model as model_module
+
+            model_module.model = mock_instance
+            yield mock_instance
+
+    def test_detect_rejects_non_image_file_with_400(self, client, _mock_model):
+        """Test that non-image files (e.g., text files) return 400 Bad Request."""
+        # Send a text file disguised as a JPEG
+        text_data = b"This is not an image, just plain text content."
+
+        response = client.post(
+            "/detect", files={"file": ("fake_image.jpg", text_data, "image/jpeg")}
+        )
+
+        assert response.status_code == 400
+        assert "Invalid image file" in response.json()["detail"]
+        assert "fake_image.jpg" in response.json()["detail"]
+
+    def test_detect_rejects_corrupted_image_with_400(self, client, _mock_model):
+        """Test that corrupted/truncated image files return 400 Bad Request."""
+        # Create truncated JPEG data (valid header but incomplete)
+        # JPEG files start with FF D8 FF
+        corrupted_jpeg = bytes([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10]) + b"corrupted data"
+
+        response = client.post(
+            "/detect", files={"file": ("corrupted.jpg", corrupted_jpeg, "image/jpeg")}
+        )
+
+        # Should return 400, not 500
+        assert response.status_code == 400
+        assert (
+            "corrupted.jpg" in response.json()["detail"].lower()
+            or "Invalid image file" in response.json()["detail"]
+        )
+
+    def test_detect_rejects_empty_file_with_400(self, client, _mock_model):
+        """Test that empty files return 400 Bad Request."""
+        response = client.post("/detect", files={"file": ("empty.jpg", b"", "image/jpeg")})
+
+        assert response.status_code == 400
+        assert (
+            "empty.jpg" in response.json()["detail"].lower()
+            or "Invalid image file" in response.json()["detail"]
+        )
+
+    def test_detect_rejects_random_binary_with_400(self, client, _mock_model):
+        """Test that random binary data returns 400 Bad Request."""
+        import os
+
+        random_data = os.urandom(1024)  # 1KB of random binary data
+
+        response = client.post("/detect", files={"file": ("random.bin", random_data, "image/jpeg")})
+
+        assert response.status_code == 400
+        assert (
+            "Invalid image file" in response.json()["detail"]
+            or "Cannot identify image" in response.json()["detail"]
+        )
+
+    def test_batch_detect_rejects_invalid_file_with_400(
+        self, client, _mock_model, dummy_image_bytes
+    ):
+        """Test that batch detection rejects invalid files with 400, not 500."""
+        text_data = b"This is not an image"
+
+        files = [
+            ("files", ("valid.jpg", dummy_image_bytes, "image/jpeg")),
+            ("files", ("invalid.jpg", text_data, "image/jpeg")),
+        ]
+
+        response = client.post("/detect/batch", files=files)
+
+        assert response.status_code == 400
+        # Should identify the invalid file by index or name
+        assert "index 1" in response.json()["detail"] or "invalid.jpg" in response.json()["detail"]
+
+    def test_detect_error_includes_filename(self, client, _mock_model):
+        """Test that error messages include the filename for debugging."""
+        text_data = b"not an image"
+
+        response = client.post(
+            "/detect", files={"file": ("my_camera_shot.jpg", text_data, "image/jpeg")}
+        )
+
+        assert response.status_code == 400
+        # The filename should be in the error detail for debugging
+        assert "my_camera_shot.jpg" in response.json()["detail"]
+
+    def test_detect_valid_image_still_works(self, client, _mock_model, dummy_image_bytes):
+        """Test that valid images still work correctly after error handling changes."""
+        response = client.post(
+            "/detect", files={"file": ("valid_image.jpg", dummy_image_bytes, "image/jpeg")}
+        )
+
+        assert response.status_code == 200
+        assert "detections" in response.json()
+        assert "inference_time_ms" in response.json()
+
+    def test_detect_rejects_video_file_with_400(self, client, _mock_model):
+        """Test that video files (which have image extensions sometimes) return 400."""
+        # Simulate an AVI file header disguised with .jpg extension
+        avi_header = b"RIFF\x00\x00\x00\x00AVI LIST"
+
+        response = client.post("/detect", files={"file": ("video.jpg", avi_header, "image/jpeg")})
+
+        assert response.status_code == 400
+        assert (
+            "video.jpg" in response.json()["detail"].lower()
+            or "Invalid image file" in response.json()["detail"]
+        )

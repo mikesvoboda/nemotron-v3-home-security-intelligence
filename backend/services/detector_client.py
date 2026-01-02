@@ -380,16 +380,26 @@ class DetectorClient:
                 ) from e
 
             # 4xx errors are client errors (bad request, etc.) - don't retry
+            # For 400 errors (invalid image), extract error detail from response
+            error_detail = None
+            if status_code == 400:
+                try:
+                    error_response = e.response.json()
+                    error_detail = error_response.get("detail", str(e))
+                except Exception:
+                    error_detail = e.response.text[:500] if e.response.text else str(e)
+
             record_pipeline_error("rtdetr_client_error")
             logger.error(
-                f"Detector returned client error: {status_code} - {e}",
+                f"Detector returned client error for {image_path}: "
+                f"{status_code} - {error_detail or e}",
                 extra={
                     "camera_id": camera_id,
                     "file_path": image_path,
                     "duration_ms": duration_ms,
                     "status_code": status_code,
+                    "error_detail": error_detail,
                 },
-                exc_info=True,
             )
             return []
 
