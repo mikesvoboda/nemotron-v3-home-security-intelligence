@@ -18,6 +18,9 @@ Run these commands first to identify the issue:
 # Test service health endpoints
 curl http://localhost:8090/health   # RT-DETRv2
 curl http://localhost:8091/health   # Nemotron
+curl http://localhost:8092/health   # Florence-2 (optional)
+curl http://localhost:8093/health   # CLIP (optional)
+curl http://localhost:8094/health   # Enrichment (optional)
 
 # Check GPU availability
 nvidia-smi

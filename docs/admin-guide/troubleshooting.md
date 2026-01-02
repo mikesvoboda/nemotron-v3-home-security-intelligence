@@ -306,7 +306,7 @@ podman-compose logs -f frontend
 1. **Check DLQ status:**
 
    ```bash
-   curl http://localhost:8000/api/system/dlq/stats
+   curl http://localhost:8000/api/dlq/stats
    ```
 
 2. **Verify AI services are healthy:**

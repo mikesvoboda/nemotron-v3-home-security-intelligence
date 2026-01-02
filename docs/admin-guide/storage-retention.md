@@ -334,7 +334,7 @@ flowchart TB
 
 ```bash
 # Storage statistics
-curl http://localhost:8000/api/system/storage/stats
+curl http://localhost:8000/api/system/storage
 
 # Database record counts
 curl http://localhost:8000/api/system/stats

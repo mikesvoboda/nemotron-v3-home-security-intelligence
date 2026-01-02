@@ -181,10 +181,10 @@ docker compose -f docker-compose.ghcr.yml up -d
 
 ### Available Images
 
-| Image                                                                        | Description            |
-| ---------------------------------------------------------------------------- | ---------------------- |
-| `ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:latest`  | FastAPI backend        |
-| `ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:latest` | React frontend (nginx) |
+| Image                                                      | Description            |
+| ---------------------------------------------------------- | ---------------------- |
+| `ghcr.io/<org>/home-security-intelligence/backend:latest`  | FastAPI backend        |
+| `ghcr.io/<org>/home-security-intelligence/frontend:latest` | React frontend (nginx) |
 
 ---
 
@@ -549,7 +549,7 @@ Both backend and frontend have `.dockerignore` files to exclude unnecessary file
 
 - Ensure Redis is healthy: `docker compose ps redis`
 - Check Redis logs: `docker compose logs redis`
-- Verify network: `docker network inspect nemotron-v3-home-security-intelligence_security-net`
+- Verify network: `docker network ls | grep security-net` (then inspect the actual `${project}_security-net` name if needed)
 
 ### Frontend cannot connect to Backend
 

@@ -14,7 +14,7 @@ Verified the Docker Compose deployment configuration and enhanced it with health
 
 1. **docker-compose.yml** ✅
 
-   - Location: `/home/msvoboda/github/nemotron-v3-home-security-intelligence/docker-compose.yml`
+   - Location: `/home/msvoboda/github/home-security-intelligence/docker-compose.yml`
    - Status: Found and enhanced
    - Services: Backend (FastAPI), Frontend (React/Vite), Redis
    - Networking: Custom bridge network `security-net`
@@ -22,16 +22,16 @@ Verified the Docker Compose deployment configuration and enhanced it with health
 
 2. **Backend Dockerfile** ✅
 
-   - Location: `/home/msvoboda/github/nemotron-v3-home-security-intelligence/backend/Dockerfile`
+   - Location: `/home/msvoboda/github/home-security-intelligence/backend/Dockerfile`
    - Status: Enhanced with wget for health checks and data directory creation
 
 3. **Frontend Dockerfile** ✅
 
-   - Location: `/home/msvoboda/github/nemotron-v3-home-security-intelligence/frontend/Dockerfile`
+   - Location: `/home/msvoboda/github/home-security-intelligence/frontend/Dockerfile`
    - Status: Enhanced with wget for health checks
 
 4. **.env.example** ✅
-   - Location: `/home/msvoboda/github/nemotron-v3-home-security-intelligence/.env.example`
+   - Location: `/home/msvoboda/github/home-security-intelligence/.env.example`
    - Status: Verified - contains all necessary environment variables
 
 ## Enhancements Made
@@ -335,7 +335,7 @@ All services are running and healthy:
 ### If Backend cannot connect to Redis:
 
 - Ensure Redis is healthy: `docker compose ps redis`
-- Check network: `docker network inspect nemotron-v3-home-security-intelligence_security-net`
+- Check network: `docker network ls | grep security-net` (then inspect the actual `${project}_security-net` name if needed)
 - Verify REDIS_URL environment variable: `docker compose exec backend env | grep REDIS`
 
 ### If Frontend cannot connect to Backend:
@@ -348,33 +348,33 @@ All services are running and healthy:
 
 ### Modified Files
 
-1. `/home/msvoboda/github/nemotron-v3-home-security-intelligence/docker-compose.yml`
+1. `/home/msvoboda/github/home-security-intelligence/docker-compose.yml`
 
    - Added health checks
    - Added service dependencies with conditions
    - Added explicit network definition
 
-2. `/home/msvoboda/github/nemotron-v3-home-security-intelligence/backend/Dockerfile`
+2. `/home/msvoboda/github/home-security-intelligence/backend/Dockerfile`
 
    - Added wget for health checks
    - Created /app/data directory
    - Added documentation comments
 
-3. `/home/msvoboda/github/nemotron-v3-home-security-intelligence/frontend/Dockerfile`
+3. `/home/msvoboda/github/home-security-intelligence/frontend/Dockerfile`
    - Added wget for health checks
    - Added documentation comments
 
 ### New Files Created
 
-1. `/home/msvoboda/github/nemotron-v3-home-security-intelligence/backend/.dockerignore`
-2. `/home/msvoboda/github/nemotron-v3-home-security-intelligence/frontend/.dockerignore`
-3. `/home/msvoboda/github/nemotron-v3-home-security-intelligence/docker-compose.prod.yml`
-4. `/home/msvoboda/github/nemotron-v3-home-security-intelligence/backend/Dockerfile.prod`
-5. `/home/msvoboda/github/nemotron-v3-home-security-intelligence/frontend/Dockerfile.prod`
-6. `/home/msvoboda/github/nemotron-v3-home-security-intelligence/frontend/nginx.conf`
-7. `/home/msvoboda/github/nemotron-v3-home-security-intelligence/scripts/test-docker.sh` (executable)
-8. `/home/msvoboda/github/nemotron-v3-home-security-intelligence/docs/DOCKER_DEPLOYMENT.md`
-9. `/home/msvoboda/github/nemotron-v3-home-security-intelligence/docs/DOCKER_VERIFICATION_SUMMARY.md` (this file)
+1. `/home/msvoboda/github/home-security-intelligence/backend/.dockerignore`
+2. `/home/msvoboda/github/home-security-intelligence/frontend/.dockerignore`
+3. `/home/msvoboda/github/home-security-intelligence/docker-compose.prod.yml`
+4. `/home/msvoboda/github/home-security-intelligence/backend/Dockerfile.prod`
+5. `/home/msvoboda/github/home-security-intelligence/frontend/Dockerfile.prod`
+6. `/home/msvoboda/github/home-security-intelligence/frontend/nginx.conf`
+7. `/home/msvoboda/github/home-security-intelligence/scripts/test-docker.sh` (executable)
+8. `/home/msvoboda/github/home-security-intelligence/docs/DOCKER_DEPLOYMENT.md`
+9. `/home/msvoboda/github/home-security-intelligence/docs/DOCKER_VERIFICATION_SUMMARY.md` (this file)
 
 ## Key Features
 

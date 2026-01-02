@@ -376,8 +376,9 @@ See `user-guide/AGENTS.md` for detailed information.
 | ------------------- | ------------------------------------ |
 | System architecture | `architecture/overview.md`           |
 | AI pipeline         | `architecture/ai-pipeline.md`        |
-| API integration     | `api-reference/overview.md`          |
+| API integration     | `reference/api/overview.md`          |
 | Configuration       | `reference/config/env-reference.md`  |
+| Stability / WIP     | `reference/stability.md`             |
 | Troubleshooting     | `reference/troubleshooting/index.md` |
 | User features       | `user/dashboard-basics.md`           |
 
