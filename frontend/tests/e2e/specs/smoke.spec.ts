@@ -6,7 +6,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { DashboardPage } from '../pages';
+import { DashboardPage, TimelinePage } from '../pages';
 import { setupApiMocks, defaultMockConfig } from '../fixtures';
 
 test.describe('Dashboard Smoke Tests', () => {
@@ -120,18 +120,20 @@ test.describe('Dashboard Camera Tests', () => {
   });
 });
 
-test.describe('Dashboard Activity Feed Tests', () => {
-  let dashboardPage: DashboardPage;
+test.describe('Timeline Event Tests', () => {
+  let timelinePage: TimelinePage;
 
   test.beforeEach(async ({ page }) => {
     await setupApiMocks(page, defaultMockConfig);
-    dashboardPage = new DashboardPage(page);
+    timelinePage = new TimelinePage(page);
   });
 
-  test('shows activity items when events exist', async () => {
-    await dashboardPage.goto();
-    await dashboardPage.waitForDashboardLoad();
-    // Activity feed should show events from mock data
-    await expect(dashboardPage.activityFeedHeading).toBeVisible();
+  test('shows event cards when events exist', async () => {
+    await timelinePage.goto();
+    await timelinePage.waitForTimelineLoad();
+    // Timeline should show event cards from mock data
+    await expect(timelinePage.pageTitle).toBeVisible();
+    const eventCount = await timelinePage.getEventCount();
+    expect(eventCount).toBeGreaterThan(0);
   });
 });
