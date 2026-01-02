@@ -7,6 +7,8 @@ export interface LogFiltersProps {
   onFilterChange: (filters: LogFilterParams) => void;
   cameras?: Array<{ id: string; name: string }>;
   className?: string;
+  /** External level filter (controlled from parent, e.g., stats cards) */
+  externalLevel?: LogLevel;
 }
 
 export interface LogFilterParams {
@@ -41,11 +43,22 @@ export default function LogFilters({
   onFilterChange,
   cameras = [],
   className = '',
+  externalLevel,
 }: LogFiltersProps) {
   // State for filters
   const [filters, setFilters] = useState<LogFilterParams>({});
   const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Sync external level filter into local state when it changes
+  useEffect(() => {
+    setFilters((prev) => {
+      if (prev.level !== externalLevel) {
+        return { ...prev, level: externalLevel };
+      }
+      return prev;
+    });
+  }, [externalLevel]);
 
   // Notify parent when filters change
   useEffect(() => {

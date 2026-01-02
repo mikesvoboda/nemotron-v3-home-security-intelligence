@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import AuditDetailModal from './AuditDetailModal';
 import AuditFilters, { type AuditFilterParams } from './AuditFilters';
-import AuditStatsCards from './AuditStatsCards';
+import AuditStatsCards, { type StatsFilterType } from './AuditStatsCards';
 import AuditTable, { type AuditEntry } from './AuditTable';
 import {
   fetchAuditLogs,
@@ -11,6 +11,14 @@ import {
   type AuditLogsQueryParams,
   type AuditLogStats,
 } from '../../services/api';
+
+/**
+ * Get today's date in YYYY-MM-DD format for filtering
+ */
+function getTodayDateString(): string {
+  const today = new Date();
+  return today.toISOString().split('T')[0];
+}
 
 export interface AuditLogPageProps {
   className?: string;
@@ -45,6 +53,13 @@ export default function AuditLogPage({ className = '' }: AuditLogPageProps) {
   // State for detail modal
   const [selectedLog, setSelectedLog] = useState<AuditEntry | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // State for stats card filter selection (for visual feedback)
+  const [activeStatsFilter, setActiveStatsFilter] = useState<StatsFilterType | null>(null);
+  const [activeActionFilter, setActiveActionFilter] = useState<string | null>(null);
+
+  // Controlled filters for AuditFilters component
+  const [controlledFilters, setControlledFilters] = useState<AuditFilterParams>({});
 
   // Load stats on mount
   useEffect(() => {
@@ -126,6 +141,61 @@ export default function AuditLogPage({ className = '' }: AuditLogPageProps) {
     setTimeout(() => setSelectedLog(null), 300);
   };
 
+  // Handle stats card filter click
+  const handleStatsFilterClick = useCallback((filterType: StatsFilterType) => {
+    // Toggle behavior: click active filter to clear it
+    if (activeStatsFilter === filterType) {
+      // Clear the filter
+      setActiveStatsFilter(null);
+      setActiveActionFilter(null);
+      setControlledFilters({});
+      return;
+    }
+
+    // Clear any action filter when clicking a stats card
+    setActiveActionFilter(null);
+    setActiveStatsFilter(filterType);
+
+    // Apply the appropriate filter based on card type
+    switch (filterType) {
+      case 'total':
+        // Clear all filters
+        setControlledFilters({});
+        break;
+      case 'today':
+        // Filter to today's date
+        setControlledFilters({
+          startDate: getTodayDateString(),
+          endDate: getTodayDateString(),
+        });
+        break;
+      case 'success':
+        // Filter by status=success
+        setControlledFilters({ status: 'success' });
+        break;
+      case 'failure':
+        // Filter by status=failure
+        setControlledFilters({ status: 'failure' });
+        break;
+    }
+  }, [activeStatsFilter]);
+
+  // Handle action badge click
+  const handleActionClick = useCallback((action: string) => {
+    // Toggle behavior: click active filter to clear it
+    if (activeActionFilter === action) {
+      setActiveActionFilter(null);
+      setControlledFilters({});
+      setActiveStatsFilter(null);
+      return;
+    }
+
+    // Clear any stats filter when clicking an action badge
+    setActiveStatsFilter(null);
+    setActiveActionFilter(action);
+    setControlledFilters({ action });
+  }, [activeActionFilter]);
+
   return (
     <div className={`flex flex-col ${className}`}>
       {/* Header */}
@@ -138,7 +208,14 @@ export default function AuditLogPage({ className = '' }: AuditLogPageProps) {
 
       {/* Statistics Cards */}
       <div className="mb-6">
-        <AuditStatsCards stats={stats} loading={statsLoading} />
+        <AuditStatsCards
+          stats={stats}
+          loading={statsLoading}
+          activeFilter={activeStatsFilter}
+          activeActionFilter={activeActionFilter}
+          onFilterClick={handleStatsFilterClick}
+          onActionClick={handleActionClick}
+        />
       </div>
 
       {/* Filter Panel */}
@@ -148,6 +225,7 @@ export default function AuditLogPage({ className = '' }: AuditLogPageProps) {
           availableActions={stats?.by_action ? Object.keys(stats.by_action) : []}
           availableResourceTypes={stats?.by_resource_type ? Object.keys(stats.by_resource_type) : []}
           availableActors={stats?.recent_actors || []}
+          controlledFilters={controlledFilters}
         />
       </div>
 

@@ -197,6 +197,252 @@ describe('AuditLogPage', () => {
 
       expect(screen.getByText('50')).toBeInTheDocument(); // event_reviewed count
     });
+
+    it('clicking "Successful Operations" card filters by status=success', async () => {
+      const user = userEvent.setup();
+      render(<AuditLogPage />);
+
+      // Wait for stats to load
+      await waitFor(() => {
+        expect(screen.getByText('Successful Operations')).toBeInTheDocument();
+      });
+
+      // Click on the Successful Operations card
+      const successCard = screen.getByText('Successful Operations').closest('[role="button"]');
+      expect(successCard).toBeInTheDocument();
+      await user.click(successCard!);
+
+      // Verify the API was called with status=success filter
+      await waitFor(() => {
+        expect(api.fetchAuditLogs).toHaveBeenCalledWith(
+          expect.objectContaining({ status: 'success' }),
+          expect.anything()
+        );
+      });
+    });
+
+    it('clicking "Failed Operations" card filters by status=failure', async () => {
+      const user = userEvent.setup();
+      render(<AuditLogPage />);
+
+      // Wait for stats to load
+      await waitFor(() => {
+        expect(screen.getByText('Failed Operations')).toBeInTheDocument();
+      });
+
+      // Click on the Failed Operations card
+      const failureCard = screen.getByText('Failed Operations').closest('[role="button"]');
+      expect(failureCard).toBeInTheDocument();
+      await user.click(failureCard!);
+
+      // Verify the API was called with status=failure filter
+      await waitFor(() => {
+        expect(api.fetchAuditLogs).toHaveBeenCalledWith(
+          expect.objectContaining({ status: 'failure' }),
+          expect.anything()
+        );
+      });
+    });
+
+    it('clicking "Total Audit Entries" card clears all filters', async () => {
+      const user = userEvent.setup();
+      render(<AuditLogPage />);
+
+      // Wait for stats to load
+      await waitFor(() => {
+        expect(screen.getByText('Total Audit Entries')).toBeInTheDocument();
+      });
+
+      // First apply a filter by clicking Success card
+      const successCard = screen.getByText('Successful Operations').closest('[role="button"]');
+      await user.click(successCard!);
+
+      // Then click Total to clear
+      const totalCard = screen.getByText('Total Audit Entries').closest('[role="button"]');
+      await user.click(totalCard!);
+
+      // Verify the API was called without status filter
+      await waitFor(() => {
+        expect(api.fetchAuditLogs).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            status: undefined,
+          }),
+          expect.anything()
+        );
+      });
+    });
+
+    it('clicking "Entries Today" card filters by today\'s date', async () => {
+      const user = userEvent.setup();
+      render(<AuditLogPage />);
+
+      // Wait for stats to load
+      await waitFor(() => {
+        expect(screen.getByText('Entries Today')).toBeInTheDocument();
+      });
+
+      // Click on the Entries Today card
+      const todayCard = screen.getByText('Entries Today').closest('[role="button"]');
+      expect(todayCard).toBeInTheDocument();
+      await user.click(todayCard!);
+
+      // Get today's date in YYYY-MM-DD format
+      const today = new Date().toISOString().split('T')[0];
+
+      // Verify the API was called with date filters for today
+      await waitFor(() => {
+        expect(api.fetchAuditLogs).toHaveBeenCalledWith(
+          expect.objectContaining({
+            start_date: today,
+            end_date: today,
+          }),
+          expect.anything()
+        );
+      });
+    });
+
+    it('clicking an action badge filters by that action', async () => {
+      const user = userEvent.setup();
+      render(<AuditLogPage />);
+
+      // Wait for action badges to load
+      await waitFor(() => {
+        expect(screen.getByText('Actions by Type')).toBeInTheDocument();
+      });
+
+      // Find and click the "Event Reviewed" badge
+      const eventReviewedBadge = screen.getByRole('button', { name: /Event Reviewed/i });
+      await user.click(eventReviewedBadge);
+
+      // Verify the API was called with action filter
+      await waitFor(() => {
+        expect(api.fetchAuditLogs).toHaveBeenCalledWith(
+          expect.objectContaining({ action: 'event_reviewed' }),
+          expect.anything()
+        );
+      });
+    });
+
+    it('clicking active stats card toggles off the filter', async () => {
+      const user = userEvent.setup();
+      render(<AuditLogPage />);
+
+      // Wait for stats to load
+      await waitFor(() => {
+        expect(screen.getByText('Successful Operations')).toBeInTheDocument();
+      });
+
+      // Click to activate filter
+      const successCard = screen.getByText('Successful Operations').closest('[role="button"]');
+      await user.click(successCard!);
+
+      // Verify filter was applied
+      await waitFor(() => {
+        expect(api.fetchAuditLogs).toHaveBeenCalledWith(
+          expect.objectContaining({ status: 'success' }),
+          expect.anything()
+        );
+      });
+
+      // Click again to toggle off
+      await user.click(successCard!);
+
+      // Verify filter was cleared
+      await waitFor(() => {
+        expect(api.fetchAuditLogs).toHaveBeenLastCalledWith(
+          expect.objectContaining({ status: undefined }),
+          expect.anything()
+        );
+      });
+    });
+
+    it('clicking active action badge toggles off the filter', async () => {
+      const user = userEvent.setup();
+      render(<AuditLogPage />);
+
+      // Wait for action badges to load
+      await waitFor(() => {
+        expect(screen.getByText('Actions by Type')).toBeInTheDocument();
+      });
+
+      // Click to activate filter
+      const eventReviewedBadge = screen.getByRole('button', { name: /Event Reviewed/i });
+      await user.click(eventReviewedBadge);
+
+      // Verify filter was applied
+      await waitFor(() => {
+        expect(api.fetchAuditLogs).toHaveBeenCalledWith(
+          expect.objectContaining({ action: 'event_reviewed' }),
+          expect.anything()
+        );
+      });
+
+      // Click again to toggle off
+      await user.click(eventReviewedBadge);
+
+      // Verify filter was cleared
+      await waitFor(() => {
+        expect(api.fetchAuditLogs).toHaveBeenLastCalledWith(
+          expect.objectContaining({ action: undefined }),
+          expect.anything()
+        );
+      });
+    });
+
+    it('stats cards have cursor pointer style', async () => {
+      render(<AuditLogPage />);
+
+      // Wait for stats to load
+      await waitFor(() => {
+        expect(screen.getByText('Successful Operations')).toBeInTheDocument();
+      });
+
+      // Check that cards have role="button" indicating they're clickable
+      const successCard = screen.getByText('Successful Operations').closest('[role="button"]');
+      expect(successCard).toBeInTheDocument();
+      expect(successCard).toHaveClass('cursor-pointer');
+    });
+
+    it('active stats card shows visual selection ring', async () => {
+      const user = userEvent.setup();
+      render(<AuditLogPage />);
+
+      // Wait for stats to load
+      await waitFor(() => {
+        expect(screen.getByText('Successful Operations')).toBeInTheDocument();
+      });
+
+      // Click to activate
+      const successCard = screen.getByText('Successful Operations').closest('[role="button"]');
+      await user.click(successCard!);
+
+      // Check for active styling (ring class)
+      await waitFor(() => {
+        expect(successCard).toHaveClass('ring-2');
+      });
+    });
+
+    it('clicking stats card auto-expands filter panel', async () => {
+      const user = userEvent.setup();
+      render(<AuditLogPage />);
+
+      // Wait for stats to load
+      await waitFor(() => {
+        expect(screen.getByText('Successful Operations')).toBeInTheDocument();
+      });
+
+      // Filters should be hidden initially (Show Filters button visible)
+      expect(screen.getByText('Show Filters')).toBeInTheDocument();
+
+      // Click on a stats card
+      const successCard = screen.getByText('Successful Operations').closest('[role="button"]');
+      await user.click(successCard!);
+
+      // Filter panel should auto-expand (Hide Filters button visible)
+      await waitFor(() => {
+        expect(screen.getByText('Hide Filters')).toBeInTheDocument();
+      });
+    });
   });
 
   describe('Empty State', () => {
