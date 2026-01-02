@@ -94,7 +94,7 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
   };
 
   render(): ReactNode {
-    const { hasError, error } = this.state;
+    const { hasError, error, errorInfo } = this.state;
     const { children, fallback, title, description } = this.props;
 
     if (hasError) {
@@ -122,6 +122,14 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
             <p className="mb-4 max-w-md rounded bg-gray-800/50 px-3 py-2 font-mono text-xs text-red-400">
               {error.message}
             </p>
+          )}
+          {import.meta.env.DEV && errorInfo?.componentStack && (
+            <details className="mb-4 max-w-md text-left">
+              <summary className="cursor-pointer text-xs text-gray-500">Component Stack</summary>
+              <pre className="mt-2 max-h-32 overflow-auto rounded bg-gray-800/50 p-2 text-xs text-gray-400">
+                {errorInfo.componentStack}
+              </pre>
+            </details>
           )}
           <div className="flex gap-3">
             <button

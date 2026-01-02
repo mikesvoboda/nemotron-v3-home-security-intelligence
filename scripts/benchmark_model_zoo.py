@@ -32,7 +32,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import gc
-import os
 import subprocess
 import sys
 import time
@@ -51,7 +50,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # Set it before running this script for local development:
 #   MODEL_ZOO_PATH=/export/ai_models/model-zoo python scripts/benchmark_model_zoo.py
 
-from backend.services.model_zoo import MODEL_ZOO, ModelManager, get_model_config, get_model_zoo
+from backend.services.model_zoo import ModelManager, get_model_config, get_model_zoo
 
 
 @dataclass
@@ -74,13 +73,15 @@ def get_gpu_memory_mb() -> float:
     """Get current GPU memory usage in MB using nvidia-smi."""
     try:
         result = subprocess.run(
-            ["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"],
+            ["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"],  # noqa: S607
             capture_output=True,
             text=True,
             check=True,
         )
         # Sum all GPUs if multiple
-        total = sum(float(line.strip()) for line in result.stdout.strip().split("\n") if line.strip())
+        total = sum(
+            float(line.strip()) for line in result.stdout.strip().split("\n") if line.strip()
+        )
         return total
     except (subprocess.CalledProcessError, FileNotFoundError, ValueError):
         return 0.0
@@ -90,7 +91,7 @@ def get_gpu_name() -> str:
     """Get GPU name using nvidia-smi."""
     try:
         result = subprocess.run(
-            ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
+            ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],  # noqa: S607
             capture_output=True,
             text=True,
             check=True,
@@ -111,7 +112,7 @@ def create_test_image(width: int = 640, height: int = 480) -> Image.Image:
     return Image.fromarray(data)
 
 
-async def run_inference(model: Any, model_name: str, image: Image.Image) -> float | None:
+async def run_inference(model: Any, model_name: str, image: Image.Image) -> float | None:  # noqa: PLR0912
     """Run a single inference and return time in seconds.
 
     Returns None if inference is not applicable for this model type.
@@ -119,7 +120,7 @@ async def run_inference(model: Any, model_name: str, image: Image.Image) -> floa
     start = time.perf_counter()
 
     try:
-        if model_name == "yolo11-license-plate" or model_name == "yolo11-face":
+        if model_name in ("yolo11-license-plate", "yolo11-face"):
             # YOLO models expect numpy array
             img_array = np.array(image)
             _ = model(img_array)
@@ -261,7 +262,9 @@ async def run_inference(model: Any, model_name: str, image: Image.Image) -> floa
         return None
 
 
-async def benchmark_model(model_name: str, manager: ModelManager, test_image: Image.Image) -> BenchmarkResult:
+async def benchmark_model(
+    model_name: str, manager: ModelManager, test_image: Image.Image
+) -> BenchmarkResult:
     """Benchmark a single model."""
     print(f"\nBenchmarking {model_name}...")
 
@@ -274,9 +277,9 @@ async def benchmark_model(model_name: str, manager: ModelManager, test_image: Im
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
     except ImportError:
-        pass
+        pass  # torch not installed, skip CUDA operations
 
-    time.sleep(0.5)  # Allow memory to settle
+    time.sleep(0.5)  # noqa: ASYNC251 - Allow memory to settle (intentional blocking)
     vram_before = get_gpu_memory_mb()
     print(f"  VRAM before: {vram_before:.0f} MB")
 
@@ -284,7 +287,6 @@ async def benchmark_model(model_name: str, manager: ModelManager, test_image: Im
     load_time = 0.0
     vram_after = vram_before
     inference_time = None
-    unload_start = 0.0
 
     try:
         # Load model
@@ -300,8 +302,8 @@ async def benchmark_model(model_name: str, manager: ModelManager, test_image: Im
                 if torch.cuda.is_available():
                     torch.cuda.synchronize()
             except ImportError:
-                pass
-            time.sleep(0.2)
+                pass  # torch not installed, skip CUDA synchronization
+            time.sleep(0.2)  # noqa: ASYNC251 - Allow memory to settle
             vram_after = get_gpu_memory_mb()
             vram_used = vram_after - vram_before
             print(f"  VRAM after: {vram_after:.0f} MB (+{vram_used:.0f} MB)")
@@ -322,7 +324,6 @@ async def benchmark_model(model_name: str, manager: ModelManager, test_image: Im
         error = str(e)
         print(f"  ERROR: {error}")
         unload_time = 0.0
-        vram_used = 0.0
 
     # Measure VRAM after unload
     gc.collect()
@@ -333,8 +334,8 @@ async def benchmark_model(model_name: str, manager: ModelManager, test_image: Im
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
     except ImportError:
-        pass
-    time.sleep(0.5)
+        pass  # torch not installed, skip CUDA cleanup
+    time.sleep(0.5)  # noqa: ASYNC251 - Allow memory to settle
     vram_final = get_gpu_memory_mb()
     vram_recovered = abs(vram_final - vram_before) < 100  # Allow 100MB tolerance
     print(f"  VRAM final: {vram_final:.0f} MB (recovered: {vram_recovered})")
@@ -414,9 +415,15 @@ def generate_markdown_report(results: list[BenchmarkResult], gpu_name: str) -> s
     max_load = max((r.load_time_s for r in successful), default=0)
     all_recovered = all(r.vram_recovered for r in successful)
 
-    lines.append(f"| Max VRAM per model | <1500MB | {max_vram:.0f}MB | {'PASS' if max_vram < 1500 else 'FAIL'} |")
-    lines.append(f"| Max load time | <5s | {max_load:.2f}s | {'PASS' if max_load < 5 else 'FAIL'} |")
-    lines.append(f"| VRAM recovered | Yes | {'Yes' if all_recovered else 'No'} | {'PASS' if all_recovered else 'FAIL'} |")
+    lines.append(
+        f"| Max VRAM per model | <1500MB | {max_vram:.0f}MB | {'PASS' if max_vram < 1500 else 'FAIL'} |"
+    )
+    lines.append(
+        f"| Max load time | <5s | {max_load:.2f}s | {'PASS' if max_load < 5 else 'FAIL'} |"
+    )
+    lines.append(
+        f"| VRAM recovered | Yes | {'Yes' if all_recovered else 'No'} | {'PASS' if all_recovered else 'FAIL'} |"
+    )
 
     # Add detailed results
     lines.extend(
@@ -525,9 +532,13 @@ async def main() -> None:
         max_load = max(r.load_time_s for r in successful)
         all_recovered = all(r.vram_recovered for r in successful)
 
-        print(f"\nMax VRAM: {max_vram:.0f}MB (target: <1500MB) {'PASS' if max_vram < 1500 else 'FAIL'}")
+        print(
+            f"\nMax VRAM: {max_vram:.0f}MB (target: <1500MB) {'PASS' if max_vram < 1500 else 'FAIL'}"
+        )
         print(f"Max load: {max_load:.2f}s (target: <5s) {'PASS' if max_load < 5 else 'FAIL'}")
-        print(f"VRAM recovered: {'Yes' if all_recovered else 'No'} {'PASS' if all_recovered else 'FAIL'}")
+        print(
+            f"VRAM recovered: {'Yes' if all_recovered else 'No'} {'PASS' if all_recovered else 'FAIL'}"
+        )
 
 
 if __name__ == "__main__":

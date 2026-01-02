@@ -404,7 +404,7 @@ async def get_camera_snapshot(
             "Camera folder_path outside base_path",
             extra={
                 "camera_id": camera_id,
-                "folder_path": camera.folder_path,
+                "folder_path": sanitize_log_value(camera.folder_path),
                 "base_path": str(base_root),
             },
         )
