@@ -91,15 +91,15 @@ class IsolatedAlertRuleEngine(AlertRuleEngine):
 
 
 @pytest.fixture
-def test_prefix():
+def engine_test_prefix():
     """Generate a unique prefix for this test run to ensure isolation."""
     return unique_id("engine")
 
 
 @pytest.fixture
-async def test_camera(session, test_prefix):
+async def test_camera(session, engine_test_prefix):
     """Create a test camera for use in engine tests."""
-    camera_id = f"{test_prefix}_front_door"
+    camera_id = f"{engine_test_prefix}_front_door"
     camera = Camera(
         id=camera_id,
         name="Front Door Camera",
@@ -302,11 +302,11 @@ class TestRuleEvaluationBasic:
 
     @pytest.mark.asyncio
     async def test_evaluate_event_rule_with_no_conditions(
-        self, session, alert_engine, test_event, test_prefix
+        self, session, alert_engine, test_event, engine_test_prefix
     ):
         """Test that a rule with no conditions always matches."""
         rule = AlertRule(
-            name=f"No Conditions Rule {test_prefix}",
+            name=f"No Conditions Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.LOW,
         )
@@ -322,11 +322,11 @@ class TestRuleEvaluationBasic:
 
     @pytest.mark.asyncio
     async def test_evaluate_event_disabled_rule_ignored(
-        self, session, alert_engine, test_event, test_prefix
+        self, session, alert_engine, test_event, engine_test_prefix
     ):
         """Test that disabled rules are not evaluated."""
         rule = AlertRule(
-            name=f"Disabled Rule {test_prefix}",
+            name=f"Disabled Rule {engine_test_prefix}",
             enabled=False,  # Disabled
             severity=AlertSeverity.HIGH,
         )
@@ -343,11 +343,13 @@ class TestRiskThresholdCondition:
     """Tests for risk_threshold condition evaluation."""
 
     @pytest.mark.asyncio
-    async def test_risk_threshold_matches(self, session, alert_engine, test_event, test_prefix):
+    async def test_risk_threshold_matches(
+        self, session, alert_engine, test_event, engine_test_prefix
+    ):
         """Test rule matches when risk_score >= threshold."""
         # test_event has risk_score=80
         rule = AlertRule(
-            name=f"Risk Threshold Rule {test_prefix}",
+            name=f"Risk Threshold Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.HIGH,
             risk_threshold=70,
@@ -362,11 +364,13 @@ class TestRiskThresholdCondition:
         assert "risk_score >= 70" in result.triggered_rules[0].matched_conditions
 
     @pytest.mark.asyncio
-    async def test_risk_threshold_exact_match(self, session, alert_engine, test_event, test_prefix):
+    async def test_risk_threshold_exact_match(
+        self, session, alert_engine, test_event, engine_test_prefix
+    ):
         """Test rule matches when risk_score == threshold (boundary)."""
         # test_event has risk_score=80
         rule = AlertRule(
-            name=f"Risk Threshold Exact {test_prefix}",
+            name=f"Risk Threshold Exact {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.MEDIUM,
             risk_threshold=80,
@@ -380,11 +384,13 @@ class TestRiskThresholdCondition:
         assert result.has_triggers is True
 
     @pytest.mark.asyncio
-    async def test_risk_threshold_not_met(self, session, alert_engine, test_event, test_prefix):
+    async def test_risk_threshold_not_met(
+        self, session, alert_engine, test_event, engine_test_prefix
+    ):
         """Test rule does not match when risk_score < threshold."""
         # test_event has risk_score=80
         rule = AlertRule(
-            name=f"High Threshold Rule {test_prefix}",
+            name=f"High Threshold Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.CRITICAL,
             risk_threshold=90,
@@ -399,7 +405,7 @@ class TestRiskThresholdCondition:
 
     @pytest.mark.asyncio
     async def test_risk_threshold_with_none_risk_score(
-        self, session, alert_engine, test_camera, test_prefix
+        self, session, alert_engine, test_camera, engine_test_prefix
     ):
         """Test rule does not match when event has no risk_score."""
         event = Event(
@@ -412,7 +418,7 @@ class TestRiskThresholdCondition:
         await session.flush()
 
         rule = AlertRule(
-            name=f"Risk Threshold None {test_prefix}",
+            name=f"Risk Threshold None {engine_test_prefix}",
             enabled=True,
             risk_threshold=50,
         )
@@ -430,11 +436,11 @@ class TestCameraIdCondition:
 
     @pytest.mark.asyncio
     async def test_camera_id_matches(
-        self, session, alert_engine, test_event, test_camera, test_prefix
+        self, session, alert_engine, test_event, test_camera, engine_test_prefix
     ):
         """Test rule matches when camera_id is in the list."""
         rule = AlertRule(
-            name=f"Camera Filter Rule {test_prefix}",
+            name=f"Camera Filter Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.MEDIUM,
             camera_ids=[test_camera.id, "other_camera"],
@@ -449,10 +455,12 @@ class TestCameraIdCondition:
         assert f"camera_id in {rule.camera_ids}" in result.triggered_rules[0].matched_conditions
 
     @pytest.mark.asyncio
-    async def test_camera_id_not_in_list(self, session, alert_engine, test_event, test_prefix):
+    async def test_camera_id_not_in_list(
+        self, session, alert_engine, test_event, engine_test_prefix
+    ):
         """Test rule does not match when camera_id is not in the list."""
         rule = AlertRule(
-            name=f"Other Cameras Rule {test_prefix}",
+            name=f"Other Cameras Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.HIGH,
             camera_ids=["backyard", "garage"],  # Different cameras
@@ -467,11 +475,11 @@ class TestCameraIdCondition:
 
     @pytest.mark.asyncio
     async def test_empty_camera_ids_matches_all(
-        self, session, alert_engine, test_event, test_prefix
+        self, session, alert_engine, test_event, engine_test_prefix
     ):
         """Test that empty camera_ids means all cameras match."""
         rule = AlertRule(
-            name=f"All Cameras Rule {test_prefix}",
+            name=f"All Cameras Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.LOW,
             camera_ids=[],  # Empty list
@@ -491,11 +499,11 @@ class TestObjectTypesCondition:
 
     @pytest.mark.asyncio
     async def test_object_type_matches(
-        self, session, alert_engine, test_event, test_detections, test_prefix
+        self, session, alert_engine, test_event, test_detections, engine_test_prefix
     ):
         """Test rule matches when detection has matching object type."""
         rule = AlertRule(
-            name=f"Person Detection Rule {test_prefix}",
+            name=f"Person Detection Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.HIGH,
             object_types=["person"],
@@ -511,11 +519,11 @@ class TestObjectTypesCondition:
 
     @pytest.mark.asyncio
     async def test_object_type_case_insensitive(
-        self, session, alert_engine, test_event, test_detections, test_prefix
+        self, session, alert_engine, test_event, test_detections, engine_test_prefix
     ):
         """Test object type matching is case-insensitive."""
         rule = AlertRule(
-            name=f"Case Insensitive Rule {test_prefix}",
+            name=f"Case Insensitive Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.MEDIUM,
             object_types=["PERSON", "Vehicle"],  # Different case
@@ -530,11 +538,11 @@ class TestObjectTypesCondition:
 
     @pytest.mark.asyncio
     async def test_object_type_not_found(
-        self, session, alert_engine, test_event, test_detections, test_prefix
+        self, session, alert_engine, test_event, test_detections, engine_test_prefix
     ):
         """Test rule does not match when no detection has matching object type."""
         rule = AlertRule(
-            name=f"Animal Detection Rule {test_prefix}",
+            name=f"Animal Detection Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.LOW,
             object_types=["animal", "dog", "cat"],  # Not in detections
@@ -549,11 +557,11 @@ class TestObjectTypesCondition:
 
     @pytest.mark.asyncio
     async def test_object_type_with_no_detections(
-        self, session, alert_engine, test_event, test_prefix
+        self, session, alert_engine, test_event, engine_test_prefix
     ):
         """Test rule with object_types does not match when no detections."""
         rule = AlertRule(
-            name=f"Object Types No Detections {test_prefix}",
+            name=f"Object Types No Detections {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.MEDIUM,
             object_types=["person"],
@@ -572,12 +580,12 @@ class TestMinConfidenceCondition:
 
     @pytest.mark.asyncio
     async def test_min_confidence_matches(
-        self, session, alert_engine, test_event, test_detections, test_prefix
+        self, session, alert_engine, test_event, test_detections, engine_test_prefix
     ):
         """Test rule matches when detection confidence >= threshold."""
         # test_detections have confidence 0.95 and 0.85
         rule = AlertRule(
-            name=f"High Confidence Rule {test_prefix}",
+            name=f"High Confidence Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.HIGH,
             min_confidence=0.90,
@@ -593,11 +601,11 @@ class TestMinConfidenceCondition:
 
     @pytest.mark.asyncio
     async def test_min_confidence_not_met(
-        self, session, alert_engine, test_event, test_detections, test_prefix
+        self, session, alert_engine, test_event, test_detections, engine_test_prefix
     ):
         """Test rule does not match when no detection meets confidence threshold."""
         rule = AlertRule(
-            name=f"Very High Confidence Rule {test_prefix}",
+            name=f"Very High Confidence Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.CRITICAL,
             min_confidence=0.99,  # Higher than any detection
@@ -612,7 +620,7 @@ class TestMinConfidenceCondition:
 
     @pytest.mark.asyncio
     async def test_min_confidence_with_none_confidence(
-        self, session, alert_engine, test_event, test_camera, test_prefix
+        self, session, alert_engine, test_event, test_camera, engine_test_prefix
     ):
         """Test rule with detections that have None confidence."""
         detection = Detection(
@@ -626,7 +634,7 @@ class TestMinConfidenceCondition:
         await session.flush()
 
         rule = AlertRule(
-            name=f"Confidence None Rule {test_prefix}",
+            name=f"Confidence None Rule {engine_test_prefix}",
             enabled=True,
             min_confidence=0.5,
         )
@@ -643,13 +651,15 @@ class TestScheduleCondition:
     """Tests for schedule (time-based) condition evaluation."""
 
     @pytest.mark.asyncio
-    async def test_schedule_within_time_range(self, session, alert_engine, test_event, test_prefix):
+    async def test_schedule_within_time_range(
+        self, session, alert_engine, test_event, engine_test_prefix
+    ):
         """Test rule matches when current time is within schedule."""
         # Use a time that's definitely within 09:00-17:00 UTC
         current_time = datetime(2024, 1, 15, 12, 0, 0)  # Monday 12:00 UTC
 
         rule = AlertRule(
-            name=f"Business Hours Rule {test_prefix}",
+            name=f"Business Hours Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.MEDIUM,
             schedule={
@@ -671,14 +681,14 @@ class TestScheduleCondition:
 
     @pytest.mark.asyncio
     async def test_schedule_outside_time_range(
-        self, session, alert_engine, test_event, test_prefix
+        self, session, alert_engine, test_event, engine_test_prefix
     ):
         """Test rule does not match when current time is outside schedule."""
         # Use a time that's outside 09:00-17:00 UTC
         current_time = datetime(2024, 1, 15, 20, 0, 0)  # Monday 20:00 UTC
 
         rule = AlertRule(
-            name=f"Business Hours Rule {test_prefix}",
+            name=f"Business Hours Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.MEDIUM,
             schedule={
@@ -698,13 +708,15 @@ class TestScheduleCondition:
         assert result.has_triggers is False
 
     @pytest.mark.asyncio
-    async def test_schedule_overnight_range(self, session, alert_engine, test_event, test_prefix):
+    async def test_schedule_overnight_range(
+        self, session, alert_engine, test_event, engine_test_prefix
+    ):
         """Test schedule that spans midnight (e.g., 22:00-06:00)."""
         # Use a time at 23:00 which should be within 22:00-06:00
         current_time = datetime(2024, 1, 15, 23, 0, 0)  # Monday 23:00 UTC
 
         rule = AlertRule(
-            name=f"Night Watch Rule {test_prefix}",
+            name=f"Night Watch Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.HIGH,
             schedule={
@@ -725,14 +737,14 @@ class TestScheduleCondition:
 
     @pytest.mark.asyncio
     async def test_schedule_overnight_early_morning(
-        self, session, alert_engine, test_event, test_prefix
+        self, session, alert_engine, test_event, engine_test_prefix
     ):
         """Test overnight schedule matches in early morning."""
         # Use a time at 03:00 which should be within 22:00-06:00
         current_time = datetime(2024, 1, 15, 3, 0, 0)  # Monday 03:00 UTC
 
         rule = AlertRule(
-            name=f"Night Watch Early {test_prefix}",
+            name=f"Night Watch Early {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.HIGH,
             schedule={
@@ -752,13 +764,13 @@ class TestScheduleCondition:
         assert result.has_triggers is True
 
     @pytest.mark.asyncio
-    async def test_schedule_day_filter(self, session, alert_engine, test_event, test_prefix):
+    async def test_schedule_day_filter(self, session, alert_engine, test_event, engine_test_prefix):
         """Test schedule with specific days of week."""
         # Monday, January 15, 2024
         current_time = datetime(2024, 1, 15, 12, 0, 0)  # Monday
 
         rule = AlertRule(
-            name=f"Weekday Rule {test_prefix}",
+            name=f"Weekday Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.MEDIUM,
             schedule={
@@ -779,13 +791,13 @@ class TestScheduleCondition:
         assert result.has_triggers is True
 
     @pytest.mark.asyncio
-    async def test_schedule_wrong_day(self, session, alert_engine, test_event, test_prefix):
+    async def test_schedule_wrong_day(self, session, alert_engine, test_event, engine_test_prefix):
         """Test schedule does not match on wrong day of week."""
         # Saturday, January 20, 2024
         current_time = datetime(2024, 1, 20, 12, 0, 0)  # Saturday
 
         rule = AlertRule(
-            name=f"Weekday Only Rule {test_prefix}",
+            name=f"Weekday Only Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.MEDIUM,
             schedule={
@@ -807,11 +819,11 @@ class TestScheduleCondition:
 
     @pytest.mark.asyncio
     async def test_schedule_empty_means_always_active(
-        self, session, alert_engine, test_event, test_prefix
+        self, session, alert_engine, test_event, engine_test_prefix
     ):
         """Test that empty/null schedule means rule is always active."""
         rule = AlertRule(
-            name=f"No Schedule Rule {test_prefix}",
+            name=f"No Schedule Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.LOW,
             schedule=None,
@@ -826,13 +838,13 @@ class TestScheduleCondition:
 
     @pytest.mark.asyncio
     async def test_schedule_invalid_timezone_uses_utc(
-        self, session, alert_engine, test_event, test_prefix
+        self, session, alert_engine, test_event, engine_test_prefix
     ):
         """Test that invalid timezone falls back to UTC."""
         current_time = datetime(2024, 1, 15, 12, 0, 0)  # Monday 12:00
 
         rule = AlertRule(
-            name=f"Invalid TZ Rule {test_prefix}",
+            name=f"Invalid TZ Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.LOW,
             schedule={
@@ -858,11 +870,11 @@ class TestMultipleConditions:
 
     @pytest.mark.asyncio
     async def test_all_conditions_must_match(
-        self, session, alert_engine, test_event, test_detections, test_camera, test_prefix
+        self, session, alert_engine, test_event, test_detections, test_camera, engine_test_prefix
     ):
         """Test that all conditions must match for rule to trigger."""
         rule = AlertRule(
-            name=f"Multi Condition Rule {test_prefix}",
+            name=f"Multi Condition Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.CRITICAL,
             risk_threshold=70,  # Will match (event has 80)
@@ -881,11 +893,11 @@ class TestMultipleConditions:
 
     @pytest.mark.asyncio
     async def test_one_condition_fails_rule_not_triggered(
-        self, session, alert_engine, test_event, test_detections, test_prefix
+        self, session, alert_engine, test_event, test_detections, engine_test_prefix
     ):
         """Test that if any condition fails, rule does not trigger."""
         rule = AlertRule(
-            name=f"Multi Condition Fail Rule {test_prefix}",
+            name=f"Multi Condition Fail Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.CRITICAL,
             risk_threshold=70,  # Will match
@@ -906,17 +918,17 @@ class TestMultipleRules:
 
     @pytest.mark.asyncio
     async def test_multiple_rules_can_trigger(
-        self, session, alert_engine, test_event, test_detections, test_prefix
+        self, session, alert_engine, test_event, test_detections, engine_test_prefix
     ):
         """Test that multiple rules can trigger for same event."""
         rule1 = AlertRule(
-            name=f"Low Threshold Rule {test_prefix}",
+            name=f"Low Threshold Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.LOW,
             risk_threshold=50,
         )
         rule2 = AlertRule(
-            name=f"Person Alert Rule {test_prefix}",
+            name=f"Person Alert Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.HIGH,
             object_types=["person"],
@@ -932,21 +944,21 @@ class TestMultipleRules:
 
     @pytest.mark.asyncio
     async def test_triggered_rules_sorted_by_severity(
-        self, session, alert_engine, test_event, test_prefix
+        self, session, alert_engine, test_event, engine_test_prefix
     ):
         """Test that triggered rules are sorted by severity (highest first)."""
         rule_low = AlertRule(
-            name=f"Low Rule {test_prefix}",
+            name=f"Low Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.LOW,
         )
         rule_critical = AlertRule(
-            name=f"Critical Rule {test_prefix}",
+            name=f"Critical Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.CRITICAL,
         )
         rule_medium = AlertRule(
-            name=f"Medium Rule {test_prefix}",
+            name=f"Medium Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.MEDIUM,
         )
@@ -964,15 +976,17 @@ class TestMultipleRules:
         assert result.triggered_rules[2].severity == AlertSeverity.LOW
 
     @pytest.mark.asyncio
-    async def test_highest_severity_tracked(self, session, alert_engine, test_event, test_prefix):
+    async def test_highest_severity_tracked(
+        self, session, alert_engine, test_event, engine_test_prefix
+    ):
         """Test that highest_severity is correctly tracked."""
         rule1 = AlertRule(
-            name=f"Medium Rule {test_prefix}",
+            name=f"Medium Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.MEDIUM,
         )
         rule2 = AlertRule(
-            name=f"High Rule {test_prefix}",
+            name=f"High Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.HIGH,
         )
@@ -990,10 +1004,12 @@ class TestCooldownBehavior:
     """Tests for cooldown checking."""
 
     @pytest.mark.asyncio
-    async def test_rule_in_cooldown_skipped(self, session, alert_engine, test_event, test_prefix):
+    async def test_rule_in_cooldown_skipped(
+        self, session, alert_engine, test_event, engine_test_prefix
+    ):
         """Test that rule in cooldown is skipped."""
         rule = AlertRule(
-            name=f"Cooldown Rule {test_prefix}",
+            name=f"Cooldown Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.HIGH,
             cooldown_seconds=300,
@@ -1023,11 +1039,11 @@ class TestCooldownBehavior:
 
     @pytest.mark.asyncio
     async def test_rule_outside_cooldown_triggers(
-        self, session, alert_engine, test_event, test_prefix
+        self, session, alert_engine, test_event, engine_test_prefix
     ):
         """Test that rule outside cooldown triggers."""
         rule = AlertRule(
-            name=f"Cooldown Expired Rule {test_prefix}",
+            name=f"Cooldown Expired Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.HIGH,
             cooldown_seconds=60,  # 1 minute cooldown
@@ -1058,10 +1074,12 @@ class TestDedupKeyBuilding:
     """Tests for dedup key template building."""
 
     @pytest.mark.asyncio
-    async def test_dedup_key_default_template(self, session, alert_engine, test_event, test_prefix):
+    async def test_dedup_key_default_template(
+        self, session, alert_engine, test_event, engine_test_prefix
+    ):
         """Test default dedup key template."""
         rule = AlertRule(
-            name=f"Default Dedup Rule {test_prefix}",
+            name=f"Default Dedup Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.MEDIUM,
             # Uses default: "{camera_id}:{rule_id}"
@@ -1077,11 +1095,11 @@ class TestDedupKeyBuilding:
 
     @pytest.mark.asyncio
     async def test_dedup_key_with_object_type(
-        self, session, alert_engine, test_event, test_detections, test_prefix
+        self, session, alert_engine, test_event, test_detections, engine_test_prefix
     ):
         """Test dedup key with object_type variable."""
         rule = AlertRule(
-            name=f"Object Type Dedup Rule {test_prefix}",
+            name=f"Object Type Dedup Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.MEDIUM,
             dedup_key_template="{camera_id}:{object_type}:{rule_id}",
@@ -1098,11 +1116,11 @@ class TestDedupKeyBuilding:
 
     @pytest.mark.asyncio
     async def test_dedup_key_unknown_object_type(
-        self, session, alert_engine, test_event, test_prefix
+        self, session, alert_engine, test_event, engine_test_prefix
     ):
         """Test dedup key with no detections uses 'unknown' for object_type."""
         rule = AlertRule(
-            name=f"Unknown Object Dedup Rule {test_prefix}",
+            name=f"Unknown Object Dedup Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.MEDIUM,
             dedup_key_template="{camera_id}:{object_type}",
@@ -1122,11 +1140,11 @@ class TestLoadDetections:
 
     @pytest.mark.asyncio
     async def test_load_detections_from_event(
-        self, session, alert_engine, test_event_with_detections, test_detections, test_prefix
+        self, session, alert_engine, test_event_with_detections, test_detections, engine_test_prefix
     ):
         """Test that detections are loaded from event.detection_ids."""
         rule = AlertRule(
-            name=f"Auto Load Detections Rule {test_prefix}",
+            name=f"Auto Load Detections Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.MEDIUM,
             object_types=["person"],  # Requires detections to match
@@ -1142,12 +1160,12 @@ class TestLoadDetections:
 
     @pytest.mark.asyncio
     async def test_load_detections_empty_detection_ids(
-        self, session, alert_engine, test_event, test_prefix
+        self, session, alert_engine, test_event, engine_test_prefix
     ):
         """Test handling of empty detection_ids."""
         # test_event has detection_ids=None
         rule = AlertRule(
-            name=f"Empty Detections Rule {test_prefix}",
+            name=f"Empty Detections Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.LOW,
             object_types=["person"],
@@ -1163,7 +1181,7 @@ class TestLoadDetections:
 
     @pytest.mark.asyncio
     async def test_load_detections_invalid_json(
-        self, session, alert_engine, test_camera, test_prefix
+        self, session, alert_engine, test_camera, engine_test_prefix
     ):
         """Test handling of invalid JSON in detection_ids."""
         event = Event(
@@ -1177,7 +1195,7 @@ class TestLoadDetections:
         await session.flush()
 
         rule = AlertRule(
-            name=f"Invalid JSON Rule {test_prefix}",
+            name=f"Invalid JSON Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.LOW,
             object_types=["person"],
@@ -1197,11 +1215,11 @@ class TestCreateAlertsForEvent:
 
     @pytest.mark.asyncio
     async def test_create_alerts_for_triggered_rules(
-        self, session, alert_engine, test_event, test_prefix
+        self, session, alert_engine, test_event, engine_test_prefix
     ):
         """Test creating alerts for triggered rules."""
         rule = AlertRule(
-            name=f"Create Alert Rule {test_prefix}",
+            name=f"Create Alert Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.HIGH,
             channels=["pushover", "email"],
@@ -1228,16 +1246,16 @@ class TestCreateAlertsForEvent:
 
     @pytest.mark.asyncio
     async def test_create_alerts_multiple_rules(
-        self, session, alert_engine, test_event, test_prefix
+        self, session, alert_engine, test_event, engine_test_prefix
     ):
         """Test creating alerts for multiple triggered rules."""
         rule1 = AlertRule(
-            name=f"Rule 1 {test_prefix}",
+            name=f"Rule 1 {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.LOW,
         )
         rule2 = AlertRule(
-            name=f"Rule 2 {test_prefix}",
+            name=f"Rule 2 {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.HIGH,
         )
@@ -1260,7 +1278,7 @@ class TestBatchLoadDetections:
 
     @pytest.mark.asyncio
     async def test_batch_load_detections_multiple_events(
-        self, session, alert_engine, test_camera, test_prefix
+        self, session, alert_engine, test_camera, engine_test_prefix
     ):
         """Test batch loading detections for multiple events."""
         # Create detections
@@ -1315,7 +1333,9 @@ class TestTestRuleAgainstEvents:
     """Tests for testing rules against historical events."""
 
     @pytest.mark.asyncio
-    async def test_test_rule_against_events(self, session, alert_engine, test_camera, test_prefix):
+    async def test_test_rule_against_events(
+        self, session, alert_engine, test_camera, engine_test_prefix
+    ):
         """Test testing a rule against multiple events."""
         # Create events with different risk scores
         events = []
@@ -1331,7 +1351,7 @@ class TestTestRuleAgainstEvents:
         await session.flush()
 
         rule = AlertRule(
-            name=f"Test Rule {test_prefix}",
+            name=f"Test Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.HIGH,
             risk_threshold=50,
@@ -1352,12 +1372,12 @@ class TestEdgeCases:
 
     @pytest.mark.asyncio
     async def test_rule_evaluation_error_handled(
-        self, session, alert_engine, test_event, test_prefix
+        self, session, alert_engine, test_event, engine_test_prefix
     ):
         """Test that rule evaluation errors are handled gracefully."""
         # Create a rule that will cause an error during evaluation
         rule = AlertRule(
-            name=f"Error Rule {test_prefix}",
+            name=f"Error Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.HIGH,
             schedule={"invalid_key": "invalid"},  # May cause issues
@@ -1375,7 +1395,7 @@ class TestEdgeCases:
 
     @pytest.mark.asyncio
     async def test_detection_with_none_object_type(
-        self, session, alert_engine, test_event, test_camera, test_prefix
+        self, session, alert_engine, test_event, test_camera, engine_test_prefix
     ):
         """Test handling of detections with None object_type."""
         detection = Detection(
@@ -1389,7 +1409,7 @@ class TestEdgeCases:
         await session.flush()
 
         rule = AlertRule(
-            name=f"Object Type Rule {test_prefix}",
+            name=f"Object Type Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.LOW,
             object_types=["person"],
@@ -1405,11 +1425,11 @@ class TestEdgeCases:
 
     @pytest.mark.asyncio
     async def test_zone_ids_logged_but_not_implemented(
-        self, session, alert_engine, test_event, test_prefix
+        self, session, alert_engine, test_event, engine_test_prefix
     ):
         """Test that zone_ids condition is acknowledged but not blocking."""
         rule = AlertRule(
-            name=f"Zone Rule {test_prefix}",
+            name=f"Zone Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.MEDIUM,
             zone_ids=["entry_zone", "driveway"],  # Zone filtering specified
@@ -1426,11 +1446,11 @@ class TestEdgeCases:
 
     @pytest.mark.asyncio
     async def test_invalid_dedup_key_template_variable(
-        self, session, alert_engine, test_event, test_prefix
+        self, session, alert_engine, test_event, engine_test_prefix
     ):
         """Test handling of invalid variables in dedup_key_template."""
         rule = AlertRule(
-            name=f"Invalid Template Rule {test_prefix}",
+            name=f"Invalid Template Rule {engine_test_prefix}",
             enabled=True,
             severity=AlertSeverity.LOW,
             dedup_key_template="{camera_id}:{invalid_var}",  # Invalid variable

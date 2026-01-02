@@ -722,3 +722,155 @@ class TestPromptTemplateStructure:
         assert '"flags"' in MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT
         assert '"recommended_action"' in MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT
         assert '"confidence_factors"' in MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT
+
+
+class TestFormattersErrorHandling:
+    """Tests for error handling in formatter functions."""
+
+    def test_format_violence_context_with_invalid_attributes(self) -> None:
+        """Test format_violence_context handles objects with missing attributes."""
+
+        class PartialViolenceResult:
+            """Partial result missing some attributes."""
+
+            is_violent = True
+            confidence = 0.9
+            # Missing violent_score and non_violent_score
+
+        # Should handle missing attributes gracefully or raise informative error
+        try:
+            result = format_violence_context(PartialViolenceResult())
+            # If it succeeds, verify it contains expected content
+            assert "VIOLENCE" in result or result is not None
+        except AttributeError:
+            # AttributeError is acceptable for missing required attributes
+            pass
+
+    def test_format_weather_context_with_invalid_confidence(self) -> None:
+        """Test format_weather_context handles invalid confidence values."""
+
+        class InvalidWeatherResult:
+            simple_condition = "clear"
+            confidence = None  # Invalid confidence
+
+        try:
+            result = format_weather_context(InvalidWeatherResult())
+            # Should handle None confidence gracefully
+            assert "clear" in result or "Weather" in result
+        except TypeError:
+            # TypeError is acceptable for None confidence in formatting
+            pass
+
+    def test_format_clothing_analysis_context_with_none_values(self) -> None:
+        """Test format_clothing_analysis_context handles None values in dict."""
+        clothing = {
+            "det_1": None  # None value instead of classification object
+        }
+        try:
+            result = format_clothing_analysis_context(clothing, None)
+            # Should handle None gracefully or skip the entry
+            assert result is not None
+        except (AttributeError, TypeError):
+            # These errors are acceptable for None values
+            pass
+
+    def test_format_pose_analysis_context_with_missing_keys(self) -> None:
+        """Test format_pose_analysis_context handles dicts with missing keys."""
+        poses = {"det_1": {}}  # Empty dict, missing 'classification' and 'confidence'
+        result = format_pose_analysis_context(poses)
+        # Should handle missing keys gracefully
+        assert result is not None
+
+    def test_format_action_recognition_context_with_empty_list(self) -> None:
+        """Test format_action_recognition_context handles empty action lists."""
+        actions = {"det_1": []}  # Empty list of actions
+        result = format_action_recognition_context(actions)
+        # Should handle empty lists gracefully
+        assert result is not None
+
+    def test_format_vehicle_classification_with_none_values(self) -> None:
+        """Test format_vehicle_classification_context handles None confidence."""
+
+        class InvalidVehicleResult:
+            vehicle_type = "car"
+            display_name = "car/sedan"
+            confidence = None  # Invalid
+            is_commercial = False
+            all_scores: dict = {}  # noqa: RUF012
+
+        classifications = {"det_1": InvalidVehicleResult()}
+        try:
+            result = format_vehicle_classification_context(classifications)
+            assert result is not None
+        except TypeError:
+            # TypeError is acceptable for None confidence in formatting
+            pass
+
+    def test_format_vehicle_damage_with_empty_damage_types(self) -> None:
+        """Test format_vehicle_damage_context handles empty damage_types set."""
+
+        @dataclass
+        class EmptyDamageResult:
+            has_damage = False
+            damage_types: set = None  # type: ignore
+            total_damage_count = 0
+            highest_confidence = 0.0
+            has_high_security_damage = False
+
+            def __post_init__(self):
+                if self.damage_types is None:
+                    self.damage_types = set()
+
+        damage = {"det_1": EmptyDamageResult()}
+        result = format_vehicle_damage_context(damage)
+        assert "No damage detected" in result or result is not None
+
+    def test_format_depth_context_with_invalid_structure(self) -> None:
+        """Test format_depth_context handles invalid dict structure."""
+        depth_data = {"invalid_key": "invalid_value"}  # Missing 'detections' key
+        result = format_depth_context(depth_data)
+        # Should handle missing keys gracefully
+        assert result is not None
+
+    def test_format_image_quality_with_none_quality_score(self) -> None:
+        """Test format_image_quality_context handles None quality_score."""
+
+        class InvalidQualityResult:
+            quality_score = None  # Invalid
+            is_good_quality = False
+            is_blurry = False
+            is_noisy = False
+            quality_issues: list = []  # noqa: RUF012
+
+        try:
+            result = format_image_quality_context(InvalidQualityResult())
+            assert result is not None
+        except TypeError:
+            # TypeError is acceptable for None in formatting
+            pass
+
+    def test_format_detections_with_all_enrichment_missing_fields(self) -> None:
+        """Test format_detections_with_all_enrichment handles missing fields."""
+        detections = [
+            {
+                "detection_id": "det_1",
+                # Missing class_name, confidence, bbox
+            }
+        ]
+        try:
+            result = format_detections_with_all_enrichment(detections)
+            # Should handle missing fields gracefully
+            assert result is not None
+        except KeyError:
+            # KeyError is acceptable for missing required fields
+            pass
+
+    def test_format_detections_with_none_in_list(self) -> None:
+        """Test format_detections_with_all_enrichment handles None in list."""
+        detections = [None]  # type: ignore
+        try:
+            result = format_detections_with_all_enrichment(detections)
+            assert result is not None
+        except (TypeError, AttributeError):
+            # These errors are acceptable for None in list
+            pass

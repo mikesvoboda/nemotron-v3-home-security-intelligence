@@ -2,6 +2,8 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import App from './App';
+import { checkAccessibility } from './test-utils';
+
 
 // Mock the Layout component
 vi.mock('./components/layout/Layout', () => ({
@@ -48,5 +50,12 @@ describe('App', () => {
 
     expect(container).toContainElement(layout);
     expect(layout).toContainElement(dashboard);
+  });
+
+  describe('accessibility', () => {
+    it('has no accessibility violations', async () => {
+      const { container } = render(<App />);
+      await checkAccessibility(container);
+    });
   });
 });

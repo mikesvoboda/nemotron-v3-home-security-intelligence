@@ -89,7 +89,7 @@ async def test_shell_health_check_success(shell_manager, sample_config):
     """Test health check when service responds with HTTP 200."""
     with patch("backend.services.service_managers.httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
         mock_response.raise_for_status = MagicMock()  # Does not raise
         mock_client.get = AsyncMock(return_value=mock_response)
@@ -138,11 +138,13 @@ async def test_shell_health_check_http_error(shell_manager, sample_config):
     """Test health check when service returns HTTP 500 error."""
     with patch("backend.services.service_managers.httpx.AsyncClient") as mock_client_class:
         mock_client = AsyncMock()
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 500
         mock_response.raise_for_status = MagicMock(
             side_effect=httpx.HTTPStatusError(
-                "Internal Server Error", request=MagicMock(), response=mock_response
+                "Internal Server Error",
+                request=MagicMock(spec=httpx.Request),
+                response=mock_response,
             )
         )
         mock_client.get = AsyncMock(return_value=mock_response)
@@ -564,8 +566,8 @@ def test_service_config_defaults():
     assert config.backoff_base == 5.0
 
 
-def test_service_config_restart_cmd_can_be_set():
-    """Test that restart_cmd can be explicitly set."""
+def test_service_manager_config_restart_cmd_can_be_set():
+    """Test that restart_cmd can be explicitly set for service managers."""
     config = ServiceConfig(
         name="test",
         health_url="http://localhost:9999/health",

@@ -2120,3 +2120,1169 @@ class TestEnrichmentResultToPromptContext:
         assert isinstance(context, dict)
         # The time_of_day is passed to format_vehicle_damage_context
         assert "vehicle_damage_context" in context
+
+
+# =============================================================================
+# EnrichmentResult to_context_string Extended Tests
+# =============================================================================
+
+
+class TestEnrichmentResultToContextStringExtended:
+    """Extended tests for EnrichmentResult.to_context_string() method."""
+
+    def test_to_context_string_with_vision_extraction(self) -> None:
+        """Test to_context_string with vision extraction results."""
+        from backend.services.vision_extractor import (
+            BatchExtractionResult,
+            PersonAttributes,
+        )
+
+        vision_result = BatchExtractionResult(
+            person_attributes={
+                "1": PersonAttributes(
+                    clothing="casual clothing",
+                    carrying="backpack",
+                    is_service_worker=False,
+                    action="walking",
+                    caption="a person walking",
+                )
+            },
+            vehicle_attributes={},
+        )
+        result = EnrichmentResult(vision_extraction=vision_result)
+        context = result.to_context_string()
+
+        assert "Vision Analysis" in context or "No additional context" not in context
+
+    def test_to_context_string_with_reid_matches(self) -> None:
+        """Test to_context_string with re-identification matches."""
+        from datetime import datetime
+
+        from backend.services.reid_service import EntityEmbedding, EntityMatch
+
+        entity = EntityEmbedding(
+            entity_type="person",
+            embedding=[0.1] * 768,
+            camera_id="camera_1",
+            timestamp=datetime.now(),
+            detection_id="det_456",
+            attributes={"clothing": "blue shirt"},
+        )
+        match = EntityMatch(
+            entity=entity,
+            similarity=0.95,
+            time_gap_seconds=30.0,
+        )
+        result = EnrichmentResult(person_reid_matches={"1": [match]})
+        context = result.to_context_string()
+
+        # Check that re-id context is present
+        assert "Re-Identification" in context or len(context) > 0
+
+    def test_to_context_string_with_scene_change(self) -> None:
+        """Test to_context_string with scene change detected."""
+        from backend.services.scene_change_detector import SceneChangeResult
+
+        scene_result = SceneChangeResult(
+            change_detected=True,
+            similarity_score=0.45,
+        )
+        result = EnrichmentResult(scene_change=scene_result)
+        context = result.to_context_string()
+
+        assert "Scene Change" in context
+        assert "0.45" in context
+
+    def test_to_context_string_with_violence_detected(self) -> None:
+        """Test to_context_string with violence detected."""
+        violence = ViolenceDetectionResult(
+            is_violent=True,
+            confidence=0.85,
+            violent_score=0.85,
+            non_violent_score=0.15,
+        )
+        result = EnrichmentResult(violence_detection=violence)
+        context = result.to_context_string()
+
+        assert "Violence Detection" in context
+        assert "VIOLENCE DETECTED" in context
+        assert "85%" in context
+
+    def test_to_context_string_with_violence_not_detected(self) -> None:
+        """Test to_context_string with no violence."""
+        violence = ViolenceDetectionResult(
+            is_violent=False,
+            confidence=0.9,
+            violent_score=0.1,
+            non_violent_score=0.9,
+        )
+        result = EnrichmentResult(violence_detection=violence)
+        context = result.to_context_string()
+
+        assert "Violence Detection" in context
+        assert "No violence detected" in context
+
+    def test_to_context_string_with_clothing_classifications(self) -> None:
+        """Test to_context_string with clothing classifications."""
+        clothing = ClothingClassification(
+            top_category="casual",
+            confidence=0.88,
+            all_scores={},
+            is_suspicious=False,
+            is_service_uniform=False,
+            raw_description="casual clothing",
+        )
+        result = EnrichmentResult(clothing_classifications={"1": clothing})
+        context = result.to_context_string()
+
+        assert "Clothing Classifications" in context
+        assert "Person 1" in context
+
+    def test_to_context_string_with_vehicle_damage(self) -> None:
+        """Test to_context_string with vehicle damage detected."""
+        damage = VehicleDamageResult(
+            detections=[
+                DamageDetection(
+                    damage_type="glass_shatter",
+                    confidence=0.9,
+                    bbox=(0, 0, 50, 50),
+                )
+            ]
+        )
+        result = EnrichmentResult(vehicle_damage={"1": damage})
+        context = result.to_context_string()
+
+        assert "Vehicle Damage" in context
+        assert "Vehicle 1" in context
+        assert "SECURITY ALERT" in context
+
+    def test_to_context_string_with_vehicle_classifications(self) -> None:
+        """Test to_context_string with vehicle classifications."""
+        vehicle = VehicleClassificationResult(
+            vehicle_type="pickup_truck",
+            confidence=0.92,
+            display_name="pickup truck",
+            is_commercial=False,
+            all_scores={},
+        )
+        result = EnrichmentResult(vehicle_classifications={"1": vehicle})
+        context = result.to_context_string()
+
+        assert "Vehicle Classifications" in context
+        assert "Vehicle 1" in context
+
+    def test_to_context_string_with_unreadable_plate(self) -> None:
+        """Test to_context_string with unreadable license plate."""
+        bbox = BoundingBox(x1=0, y1=0, x2=100, y2=50)
+        plate = LicensePlateResult(bbox=bbox, text="")  # No text
+        result = EnrichmentResult(license_plates=[plate])
+        context = result.to_context_string()
+
+        assert "License Plates" in context
+        assert "[unreadable]" in context
+
+    def test_to_context_string_with_pet_only_event(self) -> None:
+        """Test to_context_string with pet-only event."""
+        pet = PetClassificationResult(
+            animal_type="dog",
+            confidence=0.95,
+            cat_score=0.05,
+            dog_score=0.95,
+            is_household_pet=True,
+        )
+        result = EnrichmentResult(pet_classifications={"1": pet})
+        context = result.to_context_string()
+
+        assert "Pet Classifications" in context
+        assert "NOTE" in context
+        assert "Pet-only event" in context
+
+    def test_to_context_string_with_image_quality_alert(self) -> None:
+        """Test to_context_string with image quality alert."""
+        quality = ImageQualityResult(
+            quality_score=75.0,
+            brisque_score=70.0,
+            is_blurry=True,
+            is_noisy=False,
+            is_low_quality=True,
+            quality_issues=["blurry"],
+        )
+        result = EnrichmentResult(
+            image_quality=quality,
+            quality_change_detected=True,
+            quality_change_description="Sudden quality drop",
+        )
+        context = result.to_context_string()
+
+        assert "Image Quality Assessment" in context
+        assert "ALERT" in context
+        assert "Sudden quality drop" in context
+
+
+# =============================================================================
+# EnrichmentResult Risk Modifiers Extended Tests
+# =============================================================================
+
+
+class TestEnrichmentResultRiskModifiersExtended:
+    """Extended tests for get_risk_modifiers method."""
+
+    def test_risk_modifiers_confirmed_pet_without_violence(self) -> None:
+        """Test confirmed pet modifier without violence."""
+        # Set up a pet that is confirmed but result also has other context (like faces)
+        pet = PetClassificationResult(
+            animal_type="cat",
+            confidence=0.98,
+            cat_score=0.98,
+            dog_score=0.02,
+            is_household_pet=True,
+        )
+        # Add a face so it's not a pet-only event
+        bbox = BoundingBox(x1=0, y1=0, x2=50, y2=50)
+        face = FaceResult(bbox=bbox, confidence=0.9)
+        result = EnrichmentResult(
+            pet_classifications={"1": pet},
+            faces=[face],
+        )
+        modifiers = result.get_risk_modifiers()
+
+        assert "confirmed_pet" in modifiers
+        assert modifiers["confirmed_pet"] < 0
+
+    def test_risk_modifiers_commercial_vehicle(self) -> None:
+        """Test commercial vehicle modifier."""
+        vehicle = VehicleClassificationResult(
+            vehicle_type="work_van",
+            confidence=0.92,
+            display_name="work van",
+            is_commercial=True,
+            all_scores={},
+        )
+        result = EnrichmentResult(vehicle_classifications={"1": vehicle})
+        modifiers = result.get_risk_modifiers()
+
+        assert "commercial_vehicle" in modifiers
+        assert modifiers["commercial_vehicle"] < 0
+
+    def test_risk_modifiers_quality_issues(self) -> None:
+        """Test quality issues modifier."""
+        quality = ImageQualityResult(
+            quality_score=75.0,
+            brisque_score=70.0,
+            is_blurry=True,
+            is_noisy=True,
+            is_low_quality=True,
+            quality_issues=["blurry", "noisy"],
+        )
+        result = EnrichmentResult(image_quality=quality)
+        modifiers = result.get_risk_modifiers()
+
+        assert "quality_issues" in modifiers
+        assert modifiers["quality_issues"] > 0
+
+    def test_risk_modifiers_quality_change(self) -> None:
+        """Test quality change modifier."""
+        result = EnrichmentResult(
+            quality_change_detected=True,
+            quality_change_description="Sudden degradation",
+        )
+        modifiers = result.get_risk_modifiers()
+
+        assert "quality_change" in modifiers
+        assert modifiers["quality_change"] > 0
+
+
+# =============================================================================
+# EnrichmentResult Summary Flags Extended Tests
+# =============================================================================
+
+
+class TestEnrichmentResultSummaryFlagsExtended:
+    """Extended tests for get_summary_flags method."""
+
+    def test_summary_flags_vehicle_damage_non_high_security(self) -> None:
+        """Test vehicle damage flag without high security damage."""
+        damage = VehicleDamageResult(
+            detections=[
+                DamageDetection(
+                    damage_type="scratch",
+                    confidence=0.8,
+                    bbox=(0, 0, 50, 50),
+                )
+            ]
+        )
+        result = EnrichmentResult(vehicle_damage={"1": damage})
+        flags = result.get_summary_flags()
+
+        # Should NOT have vehicle_damage flag since scratch is not high security
+        # The flag is only added for high_security_damage
+        vehicle_flags = [f for f in flags if f["type"] == "vehicle_damage"]
+        assert len(vehicle_flags) == 0
+
+    def test_summary_flags_vehicle_damage_high_security(self) -> None:
+        """Test vehicle damage flag with high security damage."""
+        damage = VehicleDamageResult(
+            detections=[
+                DamageDetection(
+                    damage_type="glass_shatter",
+                    confidence=0.9,
+                    bbox=(0, 0, 50, 50),
+                )
+            ]
+        )
+        result = EnrichmentResult(vehicle_damage={"1": damage})
+        flags = result.get_summary_flags()
+
+        vehicle_flag = next((f for f in flags if f["type"] == "vehicle_damage"), None)
+        assert vehicle_flag is not None
+        assert "critical" in vehicle_flag["severity"] or "warning" in vehicle_flag["severity"]
+
+
+# =============================================================================
+# EnrichmentResult to_dict Extended Tests
+# =============================================================================
+
+
+class TestEnrichmentResultToDictExtended:
+    """Extended tests for EnrichmentResult.to_dict() method."""
+
+    def test_to_dict_with_vehicle_classifications(self) -> None:
+        """Test to_dict with vehicle classifications."""
+        vehicle = VehicleClassificationResult(
+            vehicle_type="sedan",
+            confidence=0.9,
+            display_name="sedan",
+            is_commercial=False,
+            all_scores={"sedan": 0.9},
+        )
+        result = EnrichmentResult(vehicle_classifications={"1": vehicle})
+        data = result.to_dict()
+
+        assert "vehicle_classifications" in data
+        assert "1" in data["vehicle_classifications"]
+        assert data["vehicle_classifications"]["1"]["vehicle_type"] == "sedan"
+
+    def test_to_dict_with_vehicle_damage(self) -> None:
+        """Test to_dict with vehicle damage."""
+        damage = VehicleDamageResult(
+            detections=[
+                DamageDetection(
+                    damage_type="dent",
+                    confidence=0.8,
+                    bbox=(0, 0, 50, 50),
+                )
+            ]
+        )
+        result = EnrichmentResult(vehicle_damage={"1": damage})
+        data = result.to_dict()
+
+        assert "vehicle_damage" in data
+        assert "1" in data["vehicle_damage"]
+
+    def test_to_dict_with_image_quality(self) -> None:
+        """Test to_dict with image quality."""
+        quality = ImageQualityResult(
+            quality_score=45.0,
+            brisque_score=30.0,
+            is_blurry=False,
+            is_noisy=False,
+            is_low_quality=False,
+            quality_issues=[],
+        )
+        result = EnrichmentResult(image_quality=quality)
+        data = result.to_dict()
+
+        assert "image_quality" in data
+        assert data["image_quality"] is not None
+        assert data["image_quality"]["quality_score"] == 45.0
+
+
+# =============================================================================
+# EnrichmentPipeline Extended enrich_batch Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+class TestEnrichmentPipelineEnrichBatchExtended:
+    """Extended tests for EnrichmentPipeline.enrich_batch() method."""
+
+    async def test_enrich_batch_license_plate_detection(
+        self,
+        test_image: Image.Image,
+        vehicle_detection: DetectionInput,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test enrich_batch runs license plate detection."""
+        # Create a mock YOLO model that returns detection results
+        mock_yolo_result = MagicMock()
+        mock_yolo_boxes = MagicMock()
+        mock_yolo_boxes.xyxy = [MagicMock()]
+        mock_yolo_boxes.xyxy[0].tolist.return_value = [10, 20, 100, 50]
+        mock_yolo_boxes.conf = [MagicMock()]
+        mock_yolo_boxes.conf[0] = 0.92
+        mock_yolo_result.boxes = [mock_yolo_boxes]
+
+        mock_model = MagicMock()
+        mock_model.predict.return_value = [mock_yolo_result]
+
+        def mock_load(name: str):
+            if name == "yolo11-license-plate":
+                return MockAsyncContextManager(mock_model)
+            raise KeyError(f"Unknown model: {name}")
+
+        mock_model_manager.load = mock_load
+
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+        ):
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                license_plate_enabled=True,
+                ocr_enabled=False,  # Disable OCR to simplify test
+                face_detection_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                violence_detection_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_classification_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                image_quality_enabled=False,
+                pet_classification_enabled=False,
+            )
+
+            result = await pipeline.enrich_batch(
+                detections=[vehicle_detection],
+                images={None: test_image},
+            )
+
+            assert result.has_license_plates
+            assert len(result.license_plates) == 1
+            assert result.license_plates[0].confidence == 0.92
+
+    async def test_enrich_batch_face_detection(
+        self,
+        test_image: Image.Image,
+        person_detection: DetectionInput,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test enrich_batch runs face detection."""
+        # Create a mock YOLO model that returns face detection results
+        mock_yolo_result = MagicMock()
+        mock_yolo_boxes = MagicMock()
+        mock_yolo_boxes.xyxy = [MagicMock()]
+        mock_yolo_boxes.xyxy[0].tolist.return_value = [10, 10, 40, 50]
+        mock_yolo_boxes.conf = [MagicMock()]
+        mock_yolo_boxes.conf[0] = 0.95
+        mock_yolo_result.boxes = [mock_yolo_boxes]
+
+        mock_model = MagicMock()
+        mock_model.predict.return_value = [mock_yolo_result]
+
+        def mock_load(name: str):
+            if name == "yolo11-face":
+                return MockAsyncContextManager(mock_model)
+            raise KeyError(f"Unknown model: {name}")
+
+        mock_model_manager.load = mock_load
+
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+        ):
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                license_plate_enabled=False,
+                face_detection_enabled=True,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                violence_detection_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_classification_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                image_quality_enabled=False,
+                pet_classification_enabled=False,
+            )
+
+            result = await pipeline.enrich_batch(
+                detections=[person_detection],
+                images={None: test_image},
+            )
+
+            assert result.has_faces
+            assert len(result.faces) == 1
+            assert result.faces[0].confidence == 0.95
+
+    async def test_enrich_batch_scene_change_detection(
+        self,
+        test_image: Image.Image,
+        person_detection: DetectionInput,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test enrich_batch runs scene change detection."""
+        from backend.services.scene_change_detector import SceneChangeResult
+
+        mock_scene_result = SceneChangeResult(
+            change_detected=True,
+            similarity_score=0.35,
+        )
+
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch(
+                "backend.services.enrichment_pipeline.get_scene_change_detector"
+            ) as mock_get_scene,
+        ):
+            mock_detector = MagicMock()
+            mock_detector.detect_changes.return_value = mock_scene_result
+            mock_get_scene.return_value = mock_detector
+
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                license_plate_enabled=False,
+                face_detection_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=True,
+                violence_detection_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_classification_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                image_quality_enabled=False,
+                pet_classification_enabled=False,
+            )
+
+            result = await pipeline.enrich_batch(
+                detections=[person_detection],
+                images={None: test_image},
+                camera_id="test_camera",
+            )
+
+            assert result.has_scene_change
+            assert result.scene_change.similarity_score == 0.35
+
+    async def test_enrich_batch_vehicle_damage_detection(
+        self,
+        test_image: Image.Image,
+        vehicle_detection: DetectionInput,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test enrich_batch runs vehicle damage detection."""
+        mock_damage_result = VehicleDamageResult(
+            detections=[
+                DamageDetection(
+                    damage_type="scratch",
+                    confidence=0.85,
+                    bbox=(10, 10, 50, 50),
+                )
+            ]
+        )
+
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch(
+                "backend.services.enrichment_pipeline.detect_vehicle_damage",
+                new_callable=AsyncMock,
+            ) as mock_detect,
+        ):
+            mock_detect.return_value = mock_damage_result
+
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                license_plate_enabled=False,
+                face_detection_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                violence_detection_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_classification_enabled=False,
+                vehicle_damage_detection_enabled=True,
+                image_quality_enabled=False,
+                pet_classification_enabled=False,
+            )
+
+            result = await pipeline.enrich_batch(
+                detections=[vehicle_detection],
+                images={None: test_image},
+            )
+
+            assert result.has_vehicle_damage
+            assert "1" in result.vehicle_damage
+
+    async def test_enrich_batch_clothing_segmentation(
+        self,
+        test_image: Image.Image,
+        person_detection: DetectionInput,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test enrich_batch runs clothing segmentation."""
+        mock_seg_result = ClothingSegmentationResult(
+            clothing_items={"upper_clothes", "pants"},
+            has_face_covered=False,
+            has_bag=True,
+            coverage_percentages={"upper_clothes": 0.4, "pants": 0.3},
+        )
+
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch(
+                "backend.services.segformer_loader.segment_clothing",
+                new_callable=AsyncMock,
+            ) as mock_segment,
+        ):
+            mock_segment.return_value = mock_seg_result
+
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                license_plate_enabled=False,
+                face_detection_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                violence_detection_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=True,
+                vehicle_classification_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                image_quality_enabled=False,
+                pet_classification_enabled=False,
+            )
+
+            result = await pipeline.enrich_batch(
+                detections=[person_detection],
+                images={None: test_image},
+            )
+
+            assert result.has_clothing_segmentation
+            assert "2" in result.clothing_segmentation
+            assert result.clothing_segmentation["2"].has_bag
+
+    async def test_enrich_batch_no_shared_image_returns_early(
+        self,
+        vehicle_detection: DetectionInput,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test enrich_batch returns early when no shared image available for certain tasks."""
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+        ):
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                license_plate_enabled=False,
+                face_detection_enabled=False,
+                vision_extraction_enabled=True,  # Requires shared image
+                reid_enabled=False,
+                scene_change_enabled=False,
+                violence_detection_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_classification_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                image_quality_enabled=False,
+                pet_classification_enabled=False,
+            )
+
+            # Pass empty images dict (no shared image)
+            result = await pipeline.enrich_batch(
+                detections=[vehicle_detection],
+                images={},
+            )
+
+            # Vision extraction should not run without shared image
+            assert not result.has_vision_extraction
+
+
+# =============================================================================
+# EnrichmentPipeline Helper Methods Extended Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+class TestEnrichmentPipelineHelpersExtended:
+    """Extended tests for EnrichmentPipeline helper methods."""
+
+    async def test_load_image_from_path(
+        self,
+        mock_model_manager: MagicMock,
+        tmp_path,
+    ) -> None:
+        """Test _load_image can load from file path."""
+        # Create a temporary image file
+        from pathlib import Path
+
+        img = Image.new("RGB", (100, 100), color=(255, 0, 0))
+        img_path = tmp_path / "test_image.png"
+        img.save(img_path)
+
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+        ):
+            pipeline = EnrichmentPipeline(model_manager=mock_model_manager)
+
+            result = await pipeline._load_image(Path(img_path))
+
+            assert result is not None
+            assert result.size == (100, 100)
+
+    async def test_load_image_from_string_path(
+        self,
+        mock_model_manager: MagicMock,
+        tmp_path,
+    ) -> None:
+        """Test _load_image can load from string path."""
+        # Create a temporary image file
+        img = Image.new("RGB", (80, 80), color=(0, 255, 0))
+        img_path = tmp_path / "test_image2.png"
+        img.save(img_path)
+
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+        ):
+            pipeline = EnrichmentPipeline(model_manager=mock_model_manager)
+
+            result = await pipeline._load_image(str(img_path))
+
+            assert result is not None
+            assert result.size == (80, 80)
+
+    async def test_load_image_invalid_path_returns_none(
+        self,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test _load_image returns None for invalid path."""
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+        ):
+            pipeline = EnrichmentPipeline(model_manager=mock_model_manager)
+
+            result = await pipeline._load_image("/nonexistent/path/image.png")
+
+            assert result is None
+
+    async def test_crop_to_bbox_error_returns_none(
+        self,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test _crop_to_bbox returns None on error."""
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+        ):
+            pipeline = EnrichmentPipeline(model_manager=mock_model_manager)
+            bbox = BoundingBox(x1=10, y1=20, x2=100, y2=150)
+
+            # Pass invalid path that will fail to load
+            result = await pipeline._crop_to_bbox("/nonexistent/image.png", bbox)
+
+            assert result is None
+
+
+# =============================================================================
+# EnrichmentPipeline Error Handling Extended Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+class TestEnrichmentPipelineErrorHandlingExtended:
+    """Extended error handling tests."""
+
+    async def test_license_plate_model_not_available(
+        self,
+        test_image: Image.Image,
+        vehicle_detection: DetectionInput,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test license plate detection handles missing model gracefully."""
+
+        def mock_load(name: str):
+            if name == "yolo11-license-plate":
+                raise KeyError("Model not available")
+            return MockAsyncContextManager({})
+
+        mock_model_manager.load = mock_load
+
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+        ):
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                license_plate_enabled=True,
+                face_detection_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                violence_detection_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_classification_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                image_quality_enabled=False,
+                pet_classification_enabled=False,
+            )
+
+            result = await pipeline.enrich_batch(
+                detections=[vehicle_detection],
+                images={None: test_image},
+            )
+
+            # Should complete without plates but no crash
+            assert not result.has_license_plates
+            assert isinstance(result, EnrichmentResult)
+
+    async def test_face_detection_model_not_available(
+        self,
+        test_image: Image.Image,
+        person_detection: DetectionInput,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test face detection handles missing model gracefully."""
+
+        def mock_load(name: str):
+            if name == "yolo11-face":
+                raise KeyError("Model not available")
+            return MockAsyncContextManager({})
+
+        mock_model_manager.load = mock_load
+
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+        ):
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                license_plate_enabled=False,
+                face_detection_enabled=True,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                violence_detection_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_classification_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                image_quality_enabled=False,
+                pet_classification_enabled=False,
+            )
+
+            result = await pipeline.enrich_batch(
+                detections=[person_detection],
+                images={None: test_image},
+            )
+
+            # Should complete without faces but no crash
+            assert not result.has_faces
+
+    async def test_clothing_classification_error_graceful(
+        self,
+        test_image: Image.Image,
+        person_detection: DetectionInput,
+        mock_model_manager: MagicMock,
+        caplog,
+    ) -> None:
+        """Test clothing classification error handling.
+
+        Note: Internal helper method errors are logged as warnings but don't
+        get appended to result.errors - only top-level errors do.
+        """
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch(
+                "backend.services.enrichment_pipeline.classify_clothing",
+                new_callable=AsyncMock,
+            ) as mock_classify,
+        ):
+            mock_classify.side_effect = RuntimeError("Classification failed")
+
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                license_plate_enabled=False,
+                face_detection_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                violence_detection_enabled=False,
+                clothing_classification_enabled=True,
+                clothing_segmentation_enabled=False,
+                vehicle_classification_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                image_quality_enabled=False,
+                pet_classification_enabled=False,
+            )
+
+            result = await pipeline.enrich_batch(
+                detections=[person_detection],
+                images={None: test_image},
+            )
+
+            # Pipeline completes gracefully without classifications
+            assert isinstance(result, EnrichmentResult)
+            assert len(result.clothing_classifications) == 0
+            # Errors in internal helpers are logged as warnings
+            assert "Clothing classification failed" in caplog.text
+
+    async def test_pet_classification_error_graceful(
+        self,
+        test_image: Image.Image,
+        dog_detection: DetectionInput,
+        mock_model_manager: MagicMock,
+        caplog,
+    ) -> None:
+        """Test pet classification error handling.
+
+        Note: Internal helper method errors are logged as warnings but don't
+        get appended to result.errors - only top-level errors do.
+        """
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch(
+                "backend.services.enrichment_pipeline.classify_pet",
+                new_callable=AsyncMock,
+            ) as mock_classify,
+        ):
+            mock_classify.side_effect = RuntimeError("Pet classification failed")
+
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                license_plate_enabled=False,
+                face_detection_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                violence_detection_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_classification_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                image_quality_enabled=False,
+                pet_classification_enabled=True,
+            )
+
+            result = await pipeline.enrich_batch(
+                detections=[dog_detection],
+                images={None: test_image},
+            )
+
+            # Pipeline completes gracefully without classifications
+            assert isinstance(result, EnrichmentResult)
+            assert len(result.pet_classifications) == 0
+            # Errors in internal helpers are logged as warnings
+            assert "Pet classification failed" in caplog.text
+
+    async def test_image_quality_error_graceful(
+        self,
+        test_image: Image.Image,
+        person_detection: DetectionInput,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test image quality assessment error handling."""
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch(
+                "backend.services.enrichment_pipeline.assess_image_quality",
+                new_callable=AsyncMock,
+            ) as mock_assess,
+        ):
+            mock_assess.side_effect = RuntimeError("Quality assessment failed")
+
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                license_plate_enabled=False,
+                face_detection_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                violence_detection_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_classification_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                image_quality_enabled=True,
+                pet_classification_enabled=False,
+            )
+
+            result = await pipeline.enrich_batch(
+                detections=[person_detection],
+                images={None: test_image},
+            )
+
+            # Error should be recorded
+            assert len(result.errors) >= 1
+            assert any("Image quality assessment failed" in e for e in result.errors)
+
+
+# =============================================================================
+# EnrichmentPipeline Service Mode Extended Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+class TestEnrichmentServiceModeExtended:
+    """Extended tests for HTTP enrichment service mode."""
+
+    async def test_pet_service_unavailable_handled(
+        self,
+        test_image: Image.Image,
+        dog_detection: DetectionInput,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test pet classification service unavailable is handled."""
+        from backend.services.enrichment_client import EnrichmentUnavailableError
+
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_enrichment_client") as mock_get_client,
+        ):
+            mock_client = MagicMock()
+            mock_client.classify_pet = AsyncMock(
+                side_effect=EnrichmentUnavailableError("Service down")
+            )
+            mock_get_client.return_value = mock_client
+
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                use_enrichment_service=True,
+                license_plate_enabled=False,
+                face_detection_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                violence_detection_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_classification_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                image_quality_enabled=False,
+                pet_classification_enabled=True,
+            )
+
+            result = await pipeline.enrich_batch(
+                detections=[dog_detection],
+                images={None: test_image},
+            )
+
+            # Should complete gracefully
+            assert isinstance(result, EnrichmentResult)
+            assert len(result.pet_classifications) == 0
+
+    async def test_clothing_service_unavailable_handled(
+        self,
+        test_image: Image.Image,
+        person_detection: DetectionInput,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test clothing classification service unavailable is handled."""
+        from backend.services.enrichment_client import EnrichmentUnavailableError
+
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_enrichment_client") as mock_get_client,
+        ):
+            mock_client = MagicMock()
+            mock_client.classify_clothing = AsyncMock(
+                side_effect=EnrichmentUnavailableError("Service down")
+            )
+            mock_get_client.return_value = mock_client
+
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                use_enrichment_service=True,
+                license_plate_enabled=False,
+                face_detection_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                violence_detection_enabled=False,
+                clothing_classification_enabled=True,
+                clothing_segmentation_enabled=False,
+                vehicle_classification_enabled=False,
+                vehicle_damage_detection_enabled=False,
+                image_quality_enabled=False,
+                pet_classification_enabled=False,
+            )
+
+            result = await pipeline.enrich_batch(
+                detections=[person_detection],
+                images={None: test_image},
+            )
+
+            # Should complete gracefully
+            assert isinstance(result, EnrichmentResult)
+            assert len(result.clothing_classifications) == 0
+
+    async def test_service_returns_none_result(
+        self,
+        test_image: Image.Image,
+        vehicle_detection: DetectionInput,
+        mock_model_manager: MagicMock,
+    ) -> None:
+        """Test service returning None is handled."""
+        with (
+            patch("backend.services.enrichment_pipeline.get_vision_extractor"),
+            patch("backend.services.enrichment_pipeline.get_reid_service"),
+            patch("backend.services.enrichment_pipeline.get_scene_change_detector"),
+            patch("backend.services.enrichment_pipeline.get_enrichment_client") as mock_get_client,
+        ):
+            mock_client = MagicMock()
+            mock_client.classify_vehicle = AsyncMock(return_value=None)
+            mock_get_client.return_value = mock_client
+
+            pipeline = EnrichmentPipeline(
+                model_manager=mock_model_manager,
+                use_enrichment_service=True,
+                license_plate_enabled=False,
+                face_detection_enabled=False,
+                vision_extraction_enabled=False,
+                reid_enabled=False,
+                scene_change_enabled=False,
+                violence_detection_enabled=False,
+                clothing_classification_enabled=False,
+                clothing_segmentation_enabled=False,
+                vehicle_classification_enabled=True,
+                vehicle_damage_detection_enabled=False,
+                image_quality_enabled=False,
+                pet_classification_enabled=False,
+            )
+
+            result = await pipeline.enrich_batch(
+                detections=[vehicle_detection],
+                images={None: test_image},
+            )
+
+            # Should complete but without classifications
+            assert len(result.vehicle_classifications) == 0

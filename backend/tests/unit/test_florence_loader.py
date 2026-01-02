@@ -260,8 +260,8 @@ def test_florence_model_vram_budget():
 # =============================================================================
 
 
-def test_module_docstring():
-    """Test module has proper docstring."""
+def test_florence_loader_module_docstring():
+    """Test florence_loader module has proper docstring."""
     from backend.services import florence_loader
 
     assert florence_loader.__doc__ is not None
@@ -269,7 +269,7 @@ def test_module_docstring():
     assert "vision-language" in florence_loader.__doc__.lower()
 
 
-def test_function_docstring():
+def test_florence_loader_function_docstring():
     """Test load_florence_model has proper docstring."""
     assert load_florence_model.__doc__ is not None
     assert "HuggingFace" in load_florence_model.__doc__
