@@ -104,7 +104,7 @@ On the left side, you'll see navigation options:
 | ------------- | --------------------------------------------------------------------- |
 | **Dashboard** | The main overview (where you start)                                   |
 | **Timeline**  | History of all events - you can filter by camera, date, or risk level |
-| **Entities**  | (Coming soon) Will show recognized people and vehicles                |
+| **Entities**  | (Work in progress) Will show recognized people and vehicles           |
 | **Alerts**    | Events that need your attention                                       |
 | **Logs**      | Technical system logs (for troubleshooting)                           |
 | **System**    | System health and performance                                         |

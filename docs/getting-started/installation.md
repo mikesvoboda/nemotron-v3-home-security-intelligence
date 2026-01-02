@@ -143,7 +143,7 @@ The model download script ([`ai/download_models.sh`](../../ai/download_models.sh
 | Model                | Size   | Purpose           | Location                                                       |
 | -------------------- | ------ | ----------------- | -------------------------------------------------------------- |
 | **Nemotron Mini 4B** | ~2.5GB | Risk analysis LLM | `ai/nemotron/` ([lines 19-87](../../ai/download_models.sh:19)) |
-| **RT-DETRv2**        | ~160MB | Object detection  | `ai/rtdetr/` ([lines 91-162](../../ai/download_models.sh:91))  |
+| **RT-DETRv2**        | varies | Object detection  | HuggingFace cache (`HF_HOME`), pulled by the detector service  |
 
 ### Using Pre-downloaded Models
 
@@ -153,8 +153,8 @@ If you have models cached locally (e.g., on a shared network drive), you can ski
 # For Nemotron (GGUF format)
 export NEMOTRON_GGUF_PATH=/path/to/nemotron-mini-4b-instruct-q4_k_m.gguf
 
-# For RT-DETRv2 (ONNX format)
-export RTDETR_ONNX_PATH=/path/to/rtdetrv2_r50vd.onnx
+# RT-DETRv2 is loaded via HuggingFace (configure via RTDETR_MODEL_PATH if needed)
+export RTDETR_MODEL_PATH=PekingU/rtdetr_r50vd_coco_o365
 
 # Then run the script
 ./ai/download_models.sh
@@ -199,9 +199,19 @@ Edit `.env` with your settings:
 DATABASE_URL=postgresql+asyncpg://security:security_dev_password@postgres:5432/security
 REDIS_URL=redis://redis:6379
 
-# AI Services (adjust if AI servers run on different host)
-RTDETR_URL=http://host.docker.internal:8090
-NEMOTRON_URL=http://host.docker.internal:8091
+# AI Services (pick URLs based on your deployment mode)
+# See: docs/operator/deployment-modes.md
+#
+# Production (docker-compose.prod.yml): backend reaches AI via compose DNS
+# RTDETR_URL=http://ai-detector:8090
+# NEMOTRON_URL=http://ai-llm:8091
+# FLORENCE_URL=http://ai-florence:8092
+# CLIP_URL=http://ai-clip:8093
+# ENRICHMENT_URL=http://ai-enrichment:8094
+#
+# Development (host-run AI):
+# RTDETR_URL=http://localhost:8090
+# NEMOTRON_URL=http://localhost:8091
 
 # Camera Upload Directory
 FOSCAM_BASE_PATH=/export/foscam
@@ -267,7 +277,9 @@ cd frontend && npm list --depth=0
 
 # Check models exist
 ls -la ai/nemotron/*.gguf
-ls -la ai/rtdetr/*.onnx
+
+# RT-DETRv2 weights live in HuggingFace cache. Verify by starting the service and hitting /health:
+# curl http://localhost:8090/health
 
 # Check container runtime (choose one)
 docker --version && docker compose version   # Docker

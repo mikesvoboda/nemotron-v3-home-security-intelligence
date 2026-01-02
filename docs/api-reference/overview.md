@@ -16,7 +16,7 @@ The Home Security Intelligence system exposes a REST API for managing cameras, e
 All API endpoints are relative to the base URL:
 
 ```
-http://localhost:8000/api
+http://localhost:8000
 ```
 
 For production deployments, replace `localhost:8000` with your server address.
@@ -47,7 +47,7 @@ Exceptions:
 
 ## Authentication
 
-The API supports optional API key authentication. When enabled (`api_key_enabled=true`), provide the API key via:
+The API supports optional API key authentication. When enabled (`API_KEY_ENABLED=true`), provide the API key via:
 
 **HTTP Header (preferred):**
 
@@ -124,14 +124,14 @@ List endpoints support pagination with consistent query parameters:
 
 ```json
 {
-  "items": [...],
+  "events": [...],
   "count": 150,
   "limit": 50,
   "offset": 0
 }
 ```
 
-- `items` - Array of results (field name varies by endpoint: `cameras`, `events`, `detections`, etc.)
+- The **array field name varies by endpoint** (e.g. `cameras`, `events`, `detections`, `logs`, `rules`).
 - `count` - Total number of items matching filters (before pagination)
 - `limit` - Applied limit value
 - `offset` - Applied offset value
@@ -197,6 +197,7 @@ See [detections.md](detections.md) for full documentation.
 | ------ | ------------------------------ | -------------------------- |
 | GET    | `/api/system/health`           | Detailed health check      |
 | GET    | `/health` (root level)         | Kubernetes liveness probe  |
+| GET    | `/ready` (root level)          | Kubernetes readiness probe |
 | GET    | `/api/system/health/ready`     | Kubernetes readiness probe |
 | GET    | `/api/system/gpu`              | Current GPU statistics     |
 | GET    | `/api/system/gpu/history`      | GPU stats time series      |
@@ -254,7 +255,16 @@ See [websocket.md](websocket.md) for full documentation.
 
 ## Rate Limiting
 
-The API implements rate limiting for WebSocket connections. HTTP endpoints do not have explicit rate limits but should be used responsibly.
+Rate limiting is implemented via Redis-based sliding window counters. It can be disabled for trusted LAN deployments, but is recommended when the API is reachable beyond localhost.
+
+**Default tiers (per minute):**
+
+- **Standard**: most API endpoints
+- **Media**: image/video endpoints (`/api/media/*`, snapshots, thumbnails)
+- **Search**: `/api/events/search`
+- **WebSocket**: new connections to `/ws/*`
+
+Configure via `RATE_LIMIT_*` environment variables (see `docs/reference/config/env-reference.md` and `docs/RUNTIME_CONFIG.md`).
 
 ## CORS
 

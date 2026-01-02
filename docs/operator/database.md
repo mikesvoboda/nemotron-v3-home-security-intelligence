@@ -204,7 +204,7 @@ CleanupService runs daily at 03:00.
 ### Preview Cleanup
 
 ```bash
-curl http://localhost:8000/api/system/cleanup/preview
+curl -X POST "http://localhost:8000/api/system/cleanup?dry_run=true"
 ```
 
 ### Manual Cleanup

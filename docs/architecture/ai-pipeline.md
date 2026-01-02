@@ -53,7 +53,9 @@ The AI pipeline transforms raw camera images into risk-scored security events th
 ### High-Level Flow
 
 ```
-Camera FTP Upload -> File Watcher -> Detection Queue -> RT-DETRv2 -> Batch Aggregator -> Analysis Queue -> Nemotron LLM -> Event Creation -> WebSocket Broadcast
+Camera FTP Upload -> File Watcher -> Detection Queue -> RT-DETRv2 -> Detections (DB)
+  -> Enrichment (context + model zoo + optional Florence/CLIP) -> Batch Aggregator -> Analysis Queue
+  -> Nemotron LLM -> Event Creation -> WebSocket Broadcast
 ```
 
 ### Complete Pipeline Sequence Diagram
@@ -73,7 +75,7 @@ sequenceDiagram
     participant NEM as Nemotron LLM (8091)
     participant WS as WebSocket
 
-    Note over Camera,WS: Normal Path (~95% of detections)
+    Note over Camera,WS: Normal Path (batched)
     Camera->>FTP: Upload image via FTP
     FTP->>FW: inotify/FSEvents trigger
     FW->>FW: Debounce (0.5s)
@@ -87,16 +89,16 @@ sequenceDiagram
     RT-->>DW: JSON {detections, inference_time_ms}
     DW->>DB: INSERT Detection records
 
-    loop For each detection
-        DW->>BA: add_detection(camera_id, detection_id, confidence, object_type)
-        alt Fast Path (confidence >= 0.90 AND object_type in fast_path_types)
-            BA->>NEM: Immediate analysis
-            NEM-->>BA: Risk assessment JSON
-            BA->>DB: INSERT Event (is_fast_path=true)
-            BA->>WS: Broadcast event
-        else Normal Batching
-            BA->>BA: Add to batch, update last_activity
-        end
+    Note over DW,NEM: Enrichment (best-effort)
+    DW->>BA: add_detection(camera_id, detection_id, confidence, object_type)
+
+    alt Fast Path (confidence >= 0.90 AND object_type in fast_path_types)
+        BA->>NEM: Immediate analysis (may include enrichment/context)
+        NEM-->>BA: Risk assessment JSON
+        BA->>DB: INSERT Event (is_fast_path=true)
+        BA->>WS: Broadcast event
+    else Normal Batching
+        BA->>BA: Add to batch, update last_activity
     end
 
     Note over BA,AQ: Batch Timeout Check (every 10s)
@@ -109,7 +111,8 @@ sequenceDiagram
     AW->>AQ: BLPOP (5s timeout)
     AQ-->>AW: Analysis job
     AW->>DB: SELECT Detection details
-    AW->>NEM: POST /completion (prompt)
+    AW->>AW: Load detections + run ContextEnricher + EnrichmentPipeline (best-effort)
+    AW->>NEM: POST /completion (prompt with enrichment)
     Note right of NEM: ~2-5s inference
     NEM-->>AW: JSON {risk_score, risk_level, summary, reasoning}
     AW->>DB: INSERT Event record
@@ -461,7 +464,10 @@ When a batch closes, it's pushed to the analysis queue:
 
 ## Nemotron Analysis
 
-Nemotron Mini 4B Instruct is the LLM that analyzes batched detections and generates risk assessments with natural language explanations.
+Nemotron (via llama.cpp server) is the LLM that analyzes detections and generates risk assessments with natural language explanations.
+
+In practice, deployments may use different model sizes/quantizations. Treat model choice as an operator concern
+(see `docker-compose.prod.yml` and `docs/RUNTIME_CONFIG.md`).
 
 ### Source Files
 
@@ -783,32 +789,43 @@ flowchart TB
 
 ### Environment Variables
 
-| Variable                         | Default                 | Description                           |
-| -------------------------------- | ----------------------- | ------------------------------------- |
-| `FOSCAM_BASE_PATH`               | `/export/foscam`        | Camera FTP upload directory           |
-| `RTDETR_URL`                     | `http://localhost:8090` | RT-DETRv2 service URL                 |
-| `NEMOTRON_URL`                   | `http://localhost:8091` | Nemotron LLM service URL              |
-| `DETECTION_CONFIDENCE_THRESHOLD` | `0.5`                   | Minimum confidence to store detection |
-| `BATCH_WINDOW_SECONDS`           | `90`                    | Maximum batch duration                |
-| `BATCH_IDLE_TIMEOUT_SECONDS`     | `30`                    | Idle timeout before closing batch     |
-| `FAST_PATH_CONFIDENCE_THRESHOLD` | `0.90`                  | Confidence threshold for fast path    |
-| `FAST_PATH_OBJECT_TYPES`         | `["person"]`            | Object types eligible for fast path   |
-| `DEDUPE_TTL_SECONDS`             | `300`                   | File hash deduplication TTL           |
+| Variable                         | Default                 | Description                            |
+| -------------------------------- | ----------------------- | -------------------------------------- |
+| `FOSCAM_BASE_PATH`               | `/export/foscam`        | Camera FTP upload directory            |
+| `RTDETR_URL`                     | `http://localhost:8090` | RT-DETRv2 service URL                  |
+| `NEMOTRON_URL`                   | `http://localhost:8091` | Nemotron LLM service URL               |
+| `FLORENCE_URL`                   | `http://localhost:8092` | Florence-2 vision-language service URL |
+| `CLIP_URL`                       | `http://localhost:8093` | CLIP embedding service URL             |
+| `ENRICHMENT_URL`                 | `http://localhost:8094` | Enrichment service URL                 |
+| `DETECTION_CONFIDENCE_THRESHOLD` | `0.5`                   | Minimum confidence to store detection  |
+| `BATCH_WINDOW_SECONDS`           | `90`                    | Maximum batch duration                 |
+| `BATCH_IDLE_TIMEOUT_SECONDS`     | `30`                    | Idle timeout before closing batch      |
+| `FAST_PATH_CONFIDENCE_THRESHOLD` | `0.90`                  | Confidence threshold for fast path     |
+| `FAST_PATH_OBJECT_TYPES`         | `["person"]`            | Object types eligible for fast path    |
+| `DEDUPE_TTL_SECONDS`             | `300`                   | File hash deduplication TTL            |
+
+### Enrichment Feature Toggles
+
+| Variable                    | Default | Description                         |
+| --------------------------- | ------- | ----------------------------------- |
+| `VISION_EXTRACTION_ENABLED` | `true`  | Enable Florence-2 based extraction  |
+| `REID_ENABLED`              | `true`  | Enable CLIP-based re-identification |
+| `SCENE_CHANGE_ENABLED`      | `true`  | Enable scene change detection       |
 
 ### AI Service Ports
 
-| Service   | Port | Protocol | Description       |
-| --------- | ---- | -------- | ----------------- |
-| RT-DETRv2 | 8090 | HTTP     | Object detection  |
-| Nemotron  | 8091 | HTTP     | LLM risk analysis |
+| Service    | Port | Protocol | Description        |
+| ---------- | ---- | -------- | ------------------ |
+| RT-DETRv2  | 8090 | HTTP     | Object detection   |
+| Nemotron   | 8091 | HTTP     | LLM risk analysis  |
+| Florence   | 8092 | HTTP     | Vision-language    |
+| CLIP       | 8093 | HTTP     | Embeddings / re-ID |
+| Enrichment | 8094 | HTTP     | Enrichment helpers |
 
 ### VRAM Requirements
 
-| Service          | VRAM     | Notes                      |
-| ---------------- | -------- | -------------------------- |
-| RT-DETRv2        | ~4GB     | HuggingFace Transformers   |
-| Nemotron Mini 4B | ~3GB     | Q4_K_M quantization        |
-| **Total**        | **~7GB** | Fits on RTX 3060 or better |
+VRAM varies by model choice and enabled enrichment. For “minimal dev” vs “full prod” guidance, see `docs/AI_SETUP.md`
+and `ai/AGENTS.md`.
 
 ---
 

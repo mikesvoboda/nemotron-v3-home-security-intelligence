@@ -69,6 +69,9 @@ flowchart TB
 
     subgraph GPU["Containerized GPU Services"]
         DET["RT-DETRv2<br/>Object Detection<br/>:8090"]
+        FLO["Florence-2<br/>Vision extraction (optional)<br/>:8092"]
+        CLIP["CLIP<br/>Re-identification (optional)<br/>:8093"]
+        ENR["Enrichment API<br/>Model-zoo enrichment (optional)<br/>:8094"]
         LLM["Nemotron LLM<br/>Risk Analysis<br/>:8091"]
     end
 
@@ -81,6 +84,9 @@ flowchart TB
     FTPS -->|FileWatcher| BE
     BE <-->|Queues & Pub/Sub| RD
     BE -->|HTTP /detect| DET
+    BE -->|HTTP (optional)| FLO
+    BE -->|HTTP (optional)| CLIP
+    BE -->|HTTP (optional)| ENR
     BE -->|HTTP /completion| LLM
     BE <-->|SQLAlchemy| DB
     BE -->|PIL/Pillow| FS
@@ -165,6 +171,9 @@ flowchart TB
 | -------------------- | -------------------- | ---------------------------------------------------- |
 | **RT-DETRv2 Server** | `ai/rtdetr/model.py` | Object detection inference, security-class filtering |
 | **Nemotron LLM**     | `ai/nemotron/`       | Risk reasoning via llama.cpp server                  |
+| **Florence-2**       | `ai/florence/`       | Optional vision extraction used by enrichment        |
+| **CLIP**             | `ai/clip/`           | Optional entity re-identification used by enrichment |
+| **Enrichment API**   | `ai/enrichment/`     | Optional higher-level enrichment endpoint            |
 
 ---
 
@@ -256,7 +265,10 @@ flowchart TB
         end
 
         subgraph GPUContainers["Containerized GPU Services (CDI)"]
-            DET["RT-DETRv2 Container<br/>ONNX Runtime + CUDA<br/>Port 8090<br/>~4GB VRAM"]
+            DET["RT-DETRv2 Container<br/>PyTorch + Transformers<br/>Port 8090<br/>~3–4GB VRAM"]
+            FLO["Florence-2 Container<br/>Vision extraction (optional)<br/>Port 8092<br/>VRAM varies"]
+            CLIP["CLIP Container<br/>Re-ID (optional)<br/>Port 8093<br/>VRAM varies"]
+            ENR["Enrichment Container<br/>Model-zoo API (optional)<br/>Port 8094<br/>VRAM varies"]
             LLM["Nemotron Container<br/>llama.cpp<br/>Port 8091<br/>~3GB VRAM"]
         end
 
@@ -272,6 +284,9 @@ flowchart TB
     FE <--> BE
     BE <--> RD
     BE -->|localhost:8090| DET
+    BE -->|localhost:8092 (optional)| FLO
+    BE -->|localhost:8093 (optional)| CLIP
+    BE -->|localhost:8094 (optional)| ENR
     BE -->|localhost:8091| LLM
     DET --> GPU
     LLM --> GPU
@@ -290,6 +305,9 @@ flowchart TB
 | **PostgreSQL** | Podman                          | Database isolation, volume persistence   |
 | **RT-DETRv2**  | Podman (GPU via CDI)            | GPU access via NVIDIA Container Toolkit  |
 | **Nemotron**   | Podman (GPU via CDI)            | GPU access via NVIDIA Container Toolkit  |
+| **Florence-2** | Podman (GPU via CDI, optional)  | Optional enrichment capability           |
+| **CLIP**       | Podman (GPU via CDI, optional)  | Optional enrichment capability           |
+| **Enrichment** | Podman (GPU via CDI, optional)  | Optional enrichment capability           |
 
 ### Port Summary
 
@@ -300,6 +318,9 @@ flowchart TB
 | 8000 | Backend API     | HTTP/WS  | Browser, Frontend container  |
 | 6379 | Redis           | TCP      | Backend container only       |
 | 8090 | RT-DETRv2       | HTTP     | Backend container, localhost |
+| 8092 | Florence-2      | HTTP     | Backend container, localhost |
+| 8093 | CLIP            | HTTP     | Backend container, localhost |
+| 8094 | Enrichment      | HTTP     | Backend container, localhost |
 | 8091 | Nemotron        | HTTP     | Backend container, localhost |
 
 ---
@@ -317,6 +338,7 @@ sequenceDiagram
     participant DW as DetectionWorker
     participant DET as RT-DETRv2
     participant DB as PostgreSQL
+    participant EN as EnrichmentPipeline
     participant BA as BatchAggregator
     participant AQ as analysis_queue
     participant AW as AnalysisWorker
@@ -337,6 +359,11 @@ sequenceDiagram
     DET->>DET: inference (30-50ms)
     DET-->>DW: {detections: [...]}
     DW->>DB: INSERT detections
+    opt Enrichment enabled
+        DW->>EN: enrich detections (context + optional services)
+        EN-->>DW: enriched attributes/entities
+        DW->>DB: UPDATE detection metadata
+    end
 
     alt Fast Path (person > 90% confidence)
         DW->>LLM: immediate analysis
@@ -686,6 +713,14 @@ REDIS_URL=redis://localhost:6379/0
 # AI Services
 RTDETR_URL=http://localhost:8090
 NEMOTRON_URL=http://localhost:8091
+FLORENCE_URL=http://localhost:8092
+CLIP_URL=http://localhost:8093
+ENRICHMENT_URL=http://localhost:8094
+
+# Optional enrichment feature toggles (see docs/RUNTIME_CONFIG.md for authoritative list)
+VISION_EXTRACTION_ENABLED=true
+REID_ENABLED=true
+SCENE_CHANGE_ENABLED=true
 
 # Detection
 DETECTION_CONFIDENCE_THRESHOLD=0.5

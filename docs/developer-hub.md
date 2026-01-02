@@ -4,6 +4,8 @@
 
 This hub is for software developers who want to understand the codebase, contribute features or fixes, or extend the system with new capabilities. It assumes programming experience and familiarity with Python, TypeScript, and web development concepts.
 
+> See [Stability Levels](reference/stability.md) for what’s stable vs still evolving.
+
 **Quick Start:** [Local Setup](developer/local-setup.md) | [Codebase Tour](developer/codebase-tour.md) | [Testing Guide](development/testing.md)
 
 ---
@@ -192,7 +194,7 @@ Scopes: cameras, events, detections, websocket, ai, frontend, etc.
 
 | Document                                      | Description                                    |
 | --------------------------------------------- | ---------------------------------------------- |
-| [API Overview](api-reference/overview.md)     | REST endpoints, authentication, error handling |
+| [API Overview](reference/api/overview.md)     | REST endpoints, authentication, error handling |
 | [Cameras API](api-reference/cameras.md)       | Camera CRUD, status management                 |
 | [Events API](api-reference/events.md)         | Event listing, filtering, marking reviewed     |
 | [Detections API](api-reference/detections.md) | Detection queries, thumbnails                  |

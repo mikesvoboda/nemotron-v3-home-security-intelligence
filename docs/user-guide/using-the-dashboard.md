@@ -62,8 +62,9 @@ graph TB
         Nav3["Entities"]
         Nav4["Alerts"]
         Nav5["Logs"]
-        Nav6["System"]
-        Nav7["Settings"]
+        Nav6["Audit Log"]
+        Nav7["System"]
+        Nav8["Settings"]
     end
 
     subgraph MainContent["Main Dashboard Area"]
@@ -102,6 +103,7 @@ On the left side of the screen, you have navigation buttons to different areas:
 | **Entities**  | Shows tracked people and objects (work in progress) |
 | **Alerts**    | Shows only high-priority events needing attention   |
 | **Logs**      | Technical logs for troubleshooting                  |
+| **Audit Log** | Security-sensitive actions (advanced)               |
 | **System**    | System monitoring and performance                   |
 | **Settings**  | Camera and system configuration                     |
 
@@ -223,7 +225,7 @@ Each event in the feed shows:
 ### Using the Feed
 
 - **Click on any event** to see full details in a popup window
-- Events appear in order with newest at the top
+- Events appear in order with newest at the bottom (auto-scroll keeps you at the latest)
 - The feed shows up to 10 recent events
 
 ### Auto-Scroll Feature
@@ -291,7 +293,7 @@ Above the event list, you will see:
 3. Selected events can be marked as reviewed or not reviewed in bulk
 
 **Exporting Events:**
-Click **Export CSV** to download the filtered events as a spreadsheet file.
+Click **Quick Export** (CSV) to download the filtered events as a spreadsheet file. Use **Advanced Export** for more export options.
 
 ### Pagination
 
@@ -437,7 +439,7 @@ Use the sidebar on the left to switch between different areas of the dashboard:
 
 1. **Dashboard** - Main overview with live status
 2. **Timeline** - Full event history with filtering
-3. **Entities** - Tracked people and objects (coming soon)
+3. **Entities** - Tracked people and objects (work in progress)
 4. **Alerts** - High-priority events only
 5. **Logs** - System logs for troubleshooting
 6. **System** - Performance monitoring
@@ -827,7 +829,7 @@ Layout:
 2. Filter bar (expanded state):
 - "Hide Filters" button with green "Active" badge
 - Search box with magnifying glass icon and "Search summaries..." placeholder
-- "Export CSV" button with download icon
+- "Quick Export" button (CSV) with download icon
 - Grid of filter dropdowns:
   - Camera: "All Cameras" dropdown
   - Risk Level: "High" selected (highlighted)
@@ -1034,7 +1036,7 @@ Card 5 - "Add Notes":
 
 Card 6 - "Export Data":
 - Download icon
-- "Go to Timeline, click Export CSV"
+- "Go to Timeline, click Quick Export"
 - "Download events as spreadsheet"
 
 Footer with keyboard shortcuts:

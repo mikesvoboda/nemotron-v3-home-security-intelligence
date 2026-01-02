@@ -49,7 +49,10 @@ services:
           memory: 1G
 
   backend:
-    image: ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/backend:${IMAGE_TAG:-latest}
+    # Configure your GHCR location:
+    # - GHCR_OWNER: e.g. "your-org" or "your-user"
+    # - GHCR_REPO:  e.g. "home-security-intelligence"
+    image: ghcr.io/${GHCR_OWNER:-mikesvoboda}/${GHCR_REPO:-home-security-intelligence}/backend:${IMAGE_TAG:-latest}
     ports:
       - "8000:8000"
     volumes:
@@ -110,7 +113,7 @@ services:
           memory: 512M
 
   frontend:
-    image: ghcr.io/mikesvoboda/nemotron-v3-home-security-intelligence/frontend:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GHCR_OWNER:-mikesvoboda}/${GHCR_REPO:-home-security-intelligence}/frontend:${IMAGE_TAG:-latest}
     ports:
       - "${FRONTEND_PORT:-8080}:80"
     environment:
