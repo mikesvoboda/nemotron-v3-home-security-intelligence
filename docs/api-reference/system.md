@@ -14,21 +14,23 @@ The System API provides endpoints for monitoring system health, GPU statistics, 
 
 ## Endpoints Overview
 
-| Method | Endpoint                       | Description                |
-| ------ | ------------------------------ | -------------------------- |
-| GET    | `/api/system/health`           | Detailed health check      |
-| GET    | `/health` (root level)         | Kubernetes liveness probe  |
-| GET    | `/api/system/health/ready`     | Kubernetes readiness probe |
-| GET    | `/api/system/gpu`              | Current GPU statistics     |
-| GET    | `/api/system/gpu/history`      | GPU stats time series      |
-| GET    | `/api/system/stats`            | System statistics          |
-| GET    | `/api/system/config`           | Get configuration          |
-| PATCH  | `/api/system/config`           | Update configuration       |
-| GET    | `/api/system/telemetry`        | Pipeline telemetry         |
-| GET    | `/api/system/pipeline-latency` | Pipeline latency metrics   |
-| POST   | `/api/system/cleanup`          | Trigger data cleanup       |
-| GET    | `/api/system/severity`         | Severity definitions       |
-| GET    | `/api/system/storage`          | Storage statistics         |
+| Method | Endpoint                                    | Description                |
+| ------ | ------------------------------------------- | -------------------------- |
+| GET    | `/api/system/health`                        | Detailed health check      |
+| GET    | `/health` (root level)                      | Kubernetes liveness probe  |
+| GET    | `/api/system/health/ready`                  | Kubernetes readiness probe |
+| GET    | `/api/system/gpu`                           | Current GPU statistics     |
+| GET    | `/api/system/gpu/history`                   | GPU stats time series      |
+| GET    | `/api/system/stats`                         | System statistics          |
+| GET    | `/api/system/config`                        | Get configuration          |
+| PATCH  | `/api/system/config`                        | Update configuration       |
+| GET    | `/api/system/telemetry`                     | Pipeline telemetry         |
+| GET    | `/api/system/pipeline-latency`              | Pipeline latency metrics   |
+| POST   | `/api/system/cleanup`                       | Trigger data cleanup       |
+| GET    | `/api/system/severity`                      | Severity definitions       |
+| GET    | `/api/system/storage`                       | Storage statistics         |
+| GET    | `/api/system/circuit-breakers`              | List circuit breakers      |
+| POST   | `/api/system/circuit-breakers/{name}/reset` | Reset circuit breaker      |
 
 ---
 
@@ -661,6 +663,126 @@ Get storage statistics and disk usage.
 | `gpu_stats_count`    | integer  | Total GPU stat records        |
 | `logs_count`         | integer  | Total log entries             |
 | `timestamp`          | datetime | Snapshot timestamp            |
+
+---
+
+## GET /api/system/circuit-breakers
+
+Get status of all circuit breakers in the system.
+
+**Source:** [`get_circuit_breakers`](../../backend/api/routes/system.py:1774)
+
+**Response:** `200 OK`
+
+```json
+{
+  "circuit_breakers": {
+    "rtdetr": {
+      "name": "rtdetr",
+      "state": "closed",
+      "failure_count": 0,
+      "success_count": 10,
+      "total_calls": 100,
+      "rejected_calls": 0,
+      "last_failure_time": null,
+      "opened_at": null,
+      "config": {
+        "failure_threshold": 5,
+        "recovery_timeout": 30.0,
+        "half_open_max_calls": 3,
+        "success_threshold": 2
+      }
+    },
+    "nemotron": {
+      "name": "nemotron",
+      "state": "closed",
+      "failure_count": 0,
+      "success_count": 5,
+      "total_calls": 50,
+      "rejected_calls": 0,
+      "last_failure_time": null,
+      "opened_at": null,
+      "config": {
+        "failure_threshold": 5,
+        "recovery_timeout": 30.0,
+        "half_open_max_calls": 3,
+        "success_threshold": 2
+      }
+    }
+  },
+  "total_count": 2,
+  "open_count": 0,
+  "timestamp": "2025-12-30T10:30:00Z"
+}
+```
+
+**Response Fields:**
+
+| Field              | Type     | Description                              |
+| ------------------ | -------- | ---------------------------------------- |
+| `circuit_breakers` | object   | Map of circuit breaker names to status   |
+| `total_count`      | integer  | Total number of circuit breakers         |
+| `open_count`       | integer  | Number of circuit breakers in OPEN state |
+| `timestamp`        | datetime | Response timestamp                       |
+
+**Circuit Breaker State Values:**
+
+| State       | Description                                 |
+| ----------- | ------------------------------------------- |
+| `closed`    | Normal operation, calls pass through        |
+| `open`      | Service failing, calls rejected immediately |
+| `half_open` | Testing recovery, limited calls allowed     |
+
+---
+
+## POST /api/system/circuit-breakers/{name}/reset
+
+Reset a specific circuit breaker to CLOSED state.
+
+**Source:** [`reset_circuit_breaker`](../../backend/api/routes/system.py:1831)
+
+**Authentication:** Required when `API_KEY_ENABLED=true` (via `X-API-Key` header)
+
+**Parameters:**
+
+| Name   | Type   | In   | Required | Description                 |
+| ------ | ------ | ---- | -------- | --------------------------- |
+| `name` | string | path | Yes      | Name of the circuit breaker |
+
+**Response:** `200 OK`
+
+```json
+{
+  "name": "rtdetr",
+  "previous_state": "open",
+  "new_state": "closed",
+  "message": "Circuit breaker 'rtdetr' reset successfully from open to closed"
+}
+```
+
+**Response Fields:**
+
+| Field            | Type   | Description                         |
+| ---------------- | ------ | ----------------------------------- |
+| `name`           | string | Circuit breaker name                |
+| `previous_state` | string | State before reset                  |
+| `new_state`      | string | State after reset (always `closed`) |
+| `message`        | string | Human-readable confirmation message |
+
+**Errors:**
+
+| Code | Description                                                    |
+| ---- | -------------------------------------------------------------- |
+| 400  | Invalid name (empty, too long, or contains invalid characters) |
+| 401  | API key required or invalid                                    |
+| 404  | Circuit breaker with specified name not found                  |
+
+**Example Request:**
+
+```bash
+curl -X POST http://localhost:8000/api/system/circuit-breakers/rtdetr/reset \
+  -H "X-API-Key: your-api-key"
+```
 
 ---
 
