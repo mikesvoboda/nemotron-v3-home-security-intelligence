@@ -717,9 +717,10 @@ async def test_analyze_batch_success(
     assert event.reviewed is False
 
     # Verify session operations were called
-    mock_session.add.assert_called_once()
-    mock_session.commit.assert_awaited_once()
-    mock_session.refresh.assert_awaited_once()
+    # Event + EventAudit are both added, committed, and refreshed
+    assert mock_session.add.call_count == 2  # Event and EventAudit
+    assert mock_session.commit.await_count == 2  # Commit for Event and EventAudit
+    assert mock_session.refresh.await_count == 2  # Refresh for Event and EventAudit
 
 
 @pytest.mark.asyncio

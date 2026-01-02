@@ -718,7 +718,7 @@ class TestHealthReporting:
     async def test_health_monitor_broadcasts_status_changes(self, mock_redis_client):
         """Test health monitor broadcasts status changes via WebSocket."""
         broadcaster = AsyncMock()
-        broadcaster.broadcast_event = AsyncMock()
+        broadcaster.broadcast_service_status = AsyncMock()
 
         service_config = ServiceConfig(
             name="rtdetr",
@@ -740,8 +740,8 @@ class TestHealthReporting:
         # Simulate status broadcast
         await monitor._broadcast_status(service_config, "unhealthy", "Health check failed")
 
-        broadcaster.broadcast_event.assert_called_once()
-        call_args = broadcaster.broadcast_event.call_args[0][0]
+        broadcaster.broadcast_service_status.assert_called_once()
+        call_args = broadcaster.broadcast_service_status.call_args[0][0]
         assert call_args["type"] == "service_status"
         # Note: The broadcast payload uses nested data structure: {"type": "...", "data": {"status": ...}}
         assert call_args["data"]["status"] == "unhealthy"

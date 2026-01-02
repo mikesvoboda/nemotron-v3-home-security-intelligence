@@ -423,17 +423,21 @@ class ClothingClassifier:
         else:
             hub_path = self.model_path
 
-        # Load model and preprocess using open_clip
-        self.model, self.preprocess = create_model_from_pretrained(hub_path)
-        self.tokenizer = get_tokenizer(hub_path)
-
-        # Determine target device and move model
+        # Determine target device before loading
+        # Pass device directly to create_model_from_pretrained to avoid
+        # "Cannot copy out of meta tensor" error when loading HF Hub models
+        # that use meta tensors during initialization
         if "cuda" in self.device and torch.cuda.is_available():
             target_device = self.device
-            self.model = self.model.to(target_device)
         else:
             target_device = "cpu"
             self.device = "cpu"
+
+        # Load model and preprocess using open_clip with device specified
+        # This loads weights directly onto the target device, avoiding the
+        # meta tensor issue that occurs when loading to CPU then moving
+        self.model, self.preprocess = create_model_from_pretrained(hub_path, device=target_device)
+        self.tokenizer = get_tokenizer(hub_path)
 
         logger.info(f"ClothingClassifier loaded on {self.device}")
         self.model.eval()
