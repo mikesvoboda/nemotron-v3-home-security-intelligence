@@ -420,3 +420,98 @@ def test_fashion_clip_in_model_zoo():
     assert config.vram_mb == 500
     assert config.category == "classification"
     assert config.enabled is True
+
+
+# =============================================================================
+# Regression Tests for Meta Tensor Loading Issue (bead d9qk)
+# =============================================================================
+
+
+def test_enrichment_clothing_classifier_uses_transformers():
+    """Verify ClothingClassifier uses transformers for FashionCLIP model loading.
+
+    The ClothingClassifier uses HuggingFace transformers with AutoModel and
+    AutoProcessor for loading FashionCLIP models. This provides compatibility
+    with the patrickjohncyh/fashion-clip model format.
+    """
+    from pathlib import Path
+
+    enrichment_dir = Path(__file__).parent.parent.parent.parent / "ai" / "enrichment"
+    model_py_path = enrichment_dir / "model.py"
+
+    if model_py_path.exists():
+        content = model_py_path.read_text()
+
+        # Verify transformers-based implementation
+        assert "from transformers import AutoModel, AutoProcessor" in content, (
+            "ClothingClassifier should use transformers AutoModel and AutoProcessor"
+        )
+        assert "AutoProcessor.from_pretrained" in content, (
+            "ClothingClassifier should load processor with AutoProcessor.from_pretrained()"
+        )
+        assert "AutoModel.from_pretrained" in content, (
+            "ClothingClassifier should load model with AutoModel.from_pretrained()"
+        )
+        assert "trust_remote_code=True" in content, (
+            "ClothingClassifier should use trust_remote_code=True for FashionCLIP"
+        )
+
+
+def test_enrichment_clothing_classifier_has_device_handling():
+    """Verify ClothingClassifier properly handles device placement.
+
+    The ClothingClassifier should detect CUDA availability and move the model
+    to the appropriate device after loading.
+    """
+    from pathlib import Path
+
+    enrichment_dir = Path(__file__).parent.parent.parent.parent / "ai" / "enrichment"
+    model_py_path = enrichment_dir / "model.py"
+
+    if model_py_path.exists():
+        content = model_py_path.read_text()
+
+        # Verify device handling
+        assert "torch.cuda.is_available()" in content, (
+            "ClothingClassifier should check CUDA availability"
+        )
+        assert ".to(self.device)" in content, "ClothingClassifier should move model to device"
+        assert 'self.device = "cpu"' in content, (
+            "ClothingClassifier should fallback to CPU when CUDA unavailable"
+        )
+
+
+def test_enrichment_clothing_classifier_class_structure():
+    """Verify ClothingClassifier has expected class structure.
+
+    The ClothingClassifier should have model and processor attributes,
+    and helper methods for extracting clothing attributes.
+    """
+    from pathlib import Path
+
+    enrichment_dir = Path(__file__).parent.parent.parent.parent / "ai" / "enrichment"
+    model_py_path = enrichment_dir / "model.py"
+
+    if model_py_path.exists():
+        content = model_py_path.read_text()
+
+        # Verify core attributes
+        assert "self.model" in content, "ClothingClassifier should have self.model attribute"
+        assert "self.processor" in content, (
+            "ClothingClassifier should have self.processor attribute"
+        )
+        assert "self.model_path" in content, (
+            "ClothingClassifier should have self.model_path attribute"
+        )
+        assert "self.device" in content, "ClothingClassifier should have self.device attribute"
+
+        # Verify helper methods for clothing analysis
+        assert "def _extract_clothing_type" in content, (
+            "ClothingClassifier should have _extract_clothing_type method"
+        )
+        assert "def _extract_color" in content, (
+            "ClothingClassifier should have _extract_color method"
+        )
+        assert "def _extract_style" in content, (
+            "ClothingClassifier should have _extract_style method"
+        )

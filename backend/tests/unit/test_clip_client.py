@@ -264,6 +264,184 @@ class TestCLIPClient:
                 with pytest.raises(CLIPUnavailableError, match="invalid dimension"):
                     await client.embed(image)
 
+    @pytest.mark.asyncio
+    async def test_anomaly_score_success(self) -> None:
+        """Test successful anomaly score computation."""
+        with patch("backend.services.clip_client.get_settings") as mock_settings:
+            mock_settings.return_value.clip_url = "http://localhost:8093"
+            mock_settings.return_value.ai_connect_timeout = 10.0
+            mock_settings.return_value.ai_health_timeout = 5.0
+
+            client = CLIPClient()
+
+            # Create a test image
+            image = Image.new("RGB", (224, 224), color=(128, 128, 128))
+            # Create a baseline embedding
+            baseline = [0.1] * EMBEDDING_DIMENSION
+
+            with patch("httpx.AsyncClient") as mock_client_cls:
+                mock_client = AsyncMock()
+                mock_client_cls.return_value.__aenter__.return_value = mock_client
+
+                mock_response = MagicMock()
+                mock_response.status_code = 200
+                mock_response.json.return_value = {
+                    "anomaly_score": 0.35,
+                    "similarity_to_baseline": 0.65,
+                    "inference_time_ms": 30.5,
+                }
+                mock_client.post.return_value = mock_response
+
+                anomaly, similarity = await client.anomaly_score(image, baseline)
+
+                assert anomaly == 0.35
+                assert similarity == 0.65
+
+                # Verify the correct endpoint was called
+                mock_client.post.assert_called_once()
+                call_args = mock_client.post.call_args
+                assert "/anomaly-score" in call_args[0][0]
+
+    @pytest.mark.asyncio
+    async def test_anomaly_score_invalid_baseline_dimension(self) -> None:
+        """Test anomaly_score with wrong baseline dimension raises ValueError."""
+        with patch("backend.services.clip_client.get_settings") as mock_settings:
+            mock_settings.return_value.clip_url = "http://localhost:8093"
+            mock_settings.return_value.ai_connect_timeout = 10.0
+            mock_settings.return_value.ai_health_timeout = 5.0
+
+            client = CLIPClient()
+            image = Image.new("RGB", (224, 224), color=(128, 128, 128))
+            # Wrong dimension (should be 768)
+            baseline = [0.1] * 512
+
+            with pytest.raises(ValueError, match="768 dimensions"):
+                await client.anomaly_score(image, baseline)
+
+    @pytest.mark.asyncio
+    async def test_anomaly_score_connection_error(self) -> None:
+        """Test anomaly_score with connection error raises CLIPUnavailableError."""
+        with patch("backend.services.clip_client.get_settings") as mock_settings:
+            mock_settings.return_value.clip_url = "http://localhost:8093"
+            mock_settings.return_value.ai_connect_timeout = 10.0
+            mock_settings.return_value.ai_health_timeout = 5.0
+
+            client = CLIPClient()
+            image = Image.new("RGB", (224, 224), color=(128, 128, 128))
+            baseline = [0.1] * EMBEDDING_DIMENSION
+
+            with patch("httpx.AsyncClient") as mock_client_cls:
+                mock_client = AsyncMock()
+                mock_client_cls.return_value.__aenter__.return_value = mock_client
+                mock_client.post.side_effect = httpx.ConnectError("Connection refused")
+
+                with pytest.raises(CLIPUnavailableError, match="Failed to connect"):
+                    await client.anomaly_score(image, baseline)
+
+    @pytest.mark.asyncio
+    async def test_anomaly_score_timeout(self) -> None:
+        """Test anomaly_score with timeout raises CLIPUnavailableError."""
+        with patch("backend.services.clip_client.get_settings") as mock_settings:
+            mock_settings.return_value.clip_url = "http://localhost:8093"
+            mock_settings.return_value.ai_connect_timeout = 10.0
+            mock_settings.return_value.ai_health_timeout = 5.0
+
+            client = CLIPClient()
+            image = Image.new("RGB", (224, 224), color=(128, 128, 128))
+            baseline = [0.1] * EMBEDDING_DIMENSION
+
+            with patch("httpx.AsyncClient") as mock_client_cls:
+                mock_client = AsyncMock()
+                mock_client_cls.return_value.__aenter__.return_value = mock_client
+                mock_client.post.side_effect = httpx.TimeoutException("Timeout")
+
+                with pytest.raises(CLIPUnavailableError, match="timed out"):
+                    await client.anomaly_score(image, baseline)
+
+    @pytest.mark.asyncio
+    async def test_anomaly_score_missing_anomaly_score(self) -> None:
+        """Test anomaly_score with missing anomaly_score field raises error."""
+        with patch("backend.services.clip_client.get_settings") as mock_settings:
+            mock_settings.return_value.clip_url = "http://localhost:8093"
+            mock_settings.return_value.ai_connect_timeout = 10.0
+            mock_settings.return_value.ai_health_timeout = 5.0
+
+            client = CLIPClient()
+            image = Image.new("RGB", (224, 224), color=(128, 128, 128))
+            baseline = [0.1] * EMBEDDING_DIMENSION
+
+            with patch("httpx.AsyncClient") as mock_client_cls:
+                mock_client = AsyncMock()
+                mock_client_cls.return_value.__aenter__.return_value = mock_client
+
+                mock_response = MagicMock()
+                mock_response.status_code = 200
+                # Missing 'anomaly_score' key
+                mock_response.json.return_value = {
+                    "similarity_to_baseline": 0.65,
+                    "inference_time_ms": 30.5,
+                }
+                mock_client.post.return_value = mock_response
+
+                with pytest.raises(CLIPUnavailableError, match="missing 'anomaly_score'"):
+                    await client.anomaly_score(image, baseline)
+
+    @pytest.mark.asyncio
+    async def test_anomaly_score_missing_similarity(self) -> None:
+        """Test anomaly_score with missing similarity_to_baseline field raises error."""
+        with patch("backend.services.clip_client.get_settings") as mock_settings:
+            mock_settings.return_value.clip_url = "http://localhost:8093"
+            mock_settings.return_value.ai_connect_timeout = 10.0
+            mock_settings.return_value.ai_health_timeout = 5.0
+
+            client = CLIPClient()
+            image = Image.new("RGB", (224, 224), color=(128, 128, 128))
+            baseline = [0.1] * EMBEDDING_DIMENSION
+
+            with patch("httpx.AsyncClient") as mock_client_cls:
+                mock_client = AsyncMock()
+                mock_client_cls.return_value.__aenter__.return_value = mock_client
+
+                mock_response = MagicMock()
+                mock_response.status_code = 200
+                # Missing 'similarity_to_baseline' key
+                mock_response.json.return_value = {
+                    "anomaly_score": 0.35,
+                    "inference_time_ms": 30.5,
+                }
+                mock_client.post.return_value = mock_response
+
+                with pytest.raises(CLIPUnavailableError, match="missing 'similarity_to_baseline'"):
+                    await client.anomaly_score(image, baseline)
+
+    @pytest.mark.asyncio
+    async def test_anomaly_score_server_error(self) -> None:
+        """Test anomaly_score with server error raises CLIPUnavailableError."""
+        with patch("backend.services.clip_client.get_settings") as mock_settings:
+            mock_settings.return_value.clip_url = "http://localhost:8093"
+            mock_settings.return_value.ai_connect_timeout = 10.0
+            mock_settings.return_value.ai_health_timeout = 5.0
+
+            client = CLIPClient()
+            image = Image.new("RGB", (224, 224), color=(128, 128, 128))
+            baseline = [0.1] * EMBEDDING_DIMENSION
+
+            with patch("httpx.AsyncClient") as mock_client_cls:
+                mock_client = AsyncMock()
+                mock_client_cls.return_value.__aenter__.return_value = mock_client
+
+                mock_response = MagicMock()
+                mock_response.status_code = 500
+                mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+                    "Server Error",
+                    request=MagicMock(),
+                    response=mock_response,
+                )
+                mock_client.post.return_value = mock_response
+
+                with pytest.raises(CLIPUnavailableError, match="server error"):
+                    await client.anomaly_score(image, baseline)
+
 
 class TestGlobalClientFunctions:
     """Tests for global client singleton functions."""
