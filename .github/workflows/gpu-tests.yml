@@ -28,7 +28,7 @@ jobs:
           echo "GPU Memory: $(nvidia-smi --query-gpu=memory.total --format=csv,noheader)"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v7
         with:
           version: 'latest'
 
