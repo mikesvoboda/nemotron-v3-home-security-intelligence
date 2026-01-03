@@ -65,6 +65,96 @@ from backend.services.prompts import (
 
 logger = get_logger(__name__)
 
+
+def extract_detection_enrichment(
+    enrichment_result: EnrichmentResult | None,
+    detection_id: int,
+) -> dict | None:
+    """Extract enrichment data relevant to a specific detection.
+
+    This function extracts the portion of EnrichmentResult that applies
+    to a specific detection ID, suitable for storage on the Detection model.
+
+    Args:
+        enrichment_result: EnrichmentResult from enrichment pipeline
+        detection_id: The detection ID to extract enrichment for
+
+    Returns:
+        Dictionary of enrichment data for this detection, or None if no data
+    """
+    if enrichment_result is None:
+        return None
+
+    det_id_str = str(detection_id)
+    result: dict = {}
+
+    # Extract license plates for this detection
+    plates_for_det = [
+        {
+            "bbox": plate.bbox.to_tuple() if plate.bbox else None,
+            "text": plate.text,
+            "confidence": plate.confidence,
+            "ocr_confidence": plate.ocr_confidence,
+        }
+        for plate in enrichment_result.license_plates
+        if plate.source_detection_id == detection_id
+    ]
+    if plates_for_det:
+        result["license_plates"] = plates_for_det
+
+    # Extract faces for this detection
+    faces_for_det = [
+        {
+            "bbox": face.bbox.to_tuple() if face.bbox else None,
+            "confidence": face.confidence,
+        }
+        for face in enrichment_result.faces
+        if face.source_detection_id == detection_id
+    ]
+    if faces_for_det:
+        result["faces"] = faces_for_det
+
+    # Extract vehicle classification for this detection
+    if det_id_str in enrichment_result.vehicle_classifications:
+        vehicle_class = enrichment_result.vehicle_classifications[det_id_str]
+        result["vehicle_classification"] = vehicle_class.to_dict()
+
+    # Extract vehicle damage for this detection
+    if det_id_str in enrichment_result.vehicle_damage:
+        damage = enrichment_result.vehicle_damage[det_id_str]
+        result["vehicle_damage"] = damage.to_dict()
+
+    # Extract pet classification for this detection
+    if det_id_str in enrichment_result.pet_classifications:
+        pet = enrichment_result.pet_classifications[det_id_str]
+        result["pet_classification"] = {
+            "animal_type": pet.animal_type,
+            "confidence": pet.confidence,
+            "is_household_pet": pet.is_household_pet,
+        }
+
+    # Extract clothing classification for this detection
+    if det_id_str in enrichment_result.clothing_classifications:
+        clothing = enrichment_result.clothing_classifications[det_id_str]
+        result["clothing_classification"] = {
+            "top_category": clothing.top_category,
+            "confidence": clothing.confidence,
+            "is_suspicious": clothing.is_suspicious,
+            "is_service_uniform": clothing.is_service_uniform,
+        }
+
+    # Extract clothing segmentation for this detection
+    if det_id_str in enrichment_result.clothing_segmentation:
+        seg = enrichment_result.clothing_segmentation[det_id_str]
+        result["clothing_segmentation"] = {
+            "clothing_items": seg.clothing_items,
+            "has_face_covered": seg.has_face_covered,
+            "has_bag": seg.has_bag,
+        }
+
+    return result if result else None
+
+
 # Timeout configuration for Nemotron LLM service
 # - connect_timeout: Maximum time to establish connection (10s)
 # - read_timeout: Maximum time to wait for LLM response (120s for complex inference)
@@ -247,7 +337,7 @@ class NemotronAnalyzer:
             return {"X-API-Key": self._api_key}
         return {}
 
-    async def analyze_batch(
+    async def analyze_batch(  # noqa: PLR0912
         self,
         batch_id: str,
         camera_id: str | None = None,
@@ -349,6 +439,20 @@ class NemotronAnalyzer:
             enrichment_result = await self._get_enrichment_result(
                 batch_id, detections, camera_id=camera_id
             )
+
+            # Persist enrichment data to each detection
+            if enrichment_result is not None:
+                enriched_count = 0
+                for detection in detections:
+                    det_enrichment = extract_detection_enrichment(enrichment_result, detection.id)
+                    if det_enrichment:
+                        detection.enrichment_data = det_enrichment
+                        enriched_count += 1
+                if enriched_count > 0:
+                    logger.debug(
+                        f"Persisted enrichment data for {enriched_count}/{len(detections)} "
+                        f"detections in batch {batch_id}"
+                    )
 
             # Call LLM for risk analysis
             llm_start = time.time()
@@ -534,6 +638,15 @@ class NemotronAnalyzer:
             enrichment_result = await self._get_enrichment_result(
                 batch_id, [detection], camera_id=camera_id
             )
+
+            # Persist enrichment data to the detection
+            if enrichment_result is not None:
+                det_enrichment = extract_detection_enrichment(enrichment_result, detection_id_int)
+                if det_enrichment:
+                    detection.enrichment_data = det_enrichment
+                    logger.debug(
+                        f"Persisted enrichment data for fast path detection {detection_id}"
+                    )
 
             # Call LLM for risk analysis
             llm_start = time.time()

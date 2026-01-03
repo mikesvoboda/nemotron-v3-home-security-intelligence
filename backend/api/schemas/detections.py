@@ -1,6 +1,7 @@
 """Pydantic schemas for detections API endpoints."""
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -29,6 +30,15 @@ class DetectionResponse(BaseModel):
                 "video_codec": None,
                 "video_width": None,
                 "video_height": None,
+                "enrichment_data": {
+                    "clothing_classification": {
+                        "top_category": "t-shirt",
+                        "confidence": 0.85,
+                        "is_suspicious": False,
+                        "is_service_uniform": False,
+                    },
+                    "faces": [{"bbox": [120, 50, 180, 130], "confidence": 0.92}],
+                },
             }
         },
     )
@@ -53,6 +63,12 @@ class DetectionResponse(BaseModel):
     video_codec: str | None = Field(None, description="Video codec (e.g., h264, hevc)")
     video_width: int | None = Field(None, description="Video resolution width")
     video_height: int | None = Field(None, description="Video resolution height")
+    # AI enrichment data
+    enrichment_data: dict[str, Any] | None = Field(
+        None,
+        description="AI-computed enrichment data (vehicle classification, pet detection, "
+        "person attributes, license plates, etc.)",
+    )
 
 
 class DetectionListResponse(BaseModel):

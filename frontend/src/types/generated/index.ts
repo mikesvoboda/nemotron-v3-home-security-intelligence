@@ -195,5 +195,59 @@ export interface AiAuditRecommendationsResponse {
   total_events_analyzed: number;
 }
 
+// Enrichment types for event detail enhancement (NEM-501)
+// These match backend enrichment data structures
+
+/** Vehicle classification enrichment */
+export interface EnrichmentVehicle {
+  type: string;
+  color: string;
+  damage?: string[];
+  confidence: number;
+}
+
+/** Pet detection enrichment */
+export interface EnrichmentPet {
+  type: string;
+  breed?: string;
+  confidence: number;
+}
+
+/** Person attributes enrichment */
+export interface EnrichmentPerson {
+  clothing: string;
+  action?: string;
+  carrying?: string;
+  confidence: number;
+}
+
+/** License plate detection enrichment */
+export interface EnrichmentLicensePlate {
+  text: string;
+  confidence: number;
+}
+
+/** Weather condition enrichment */
+export interface EnrichmentWeather {
+  condition: string;
+  confidence: number;
+}
+
+/** Image quality assessment enrichment */
+export interface EnrichmentImageQuality {
+  score: number;
+  issues: string[];
+}
+
+/** Combined enrichment data for an event */
+export interface EnrichmentData {
+  vehicle?: EnrichmentVehicle;
+  pet?: EnrichmentPet;
+  person?: EnrichmentPerson;
+  license_plate?: EnrichmentLicensePlate;
+  weather?: EnrichmentWeather;
+  image_quality?: EnrichmentImageQuality;
+}
+
 // Import the components type for use in type aliases
 import type { components } from './api';

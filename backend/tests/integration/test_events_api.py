@@ -806,6 +806,203 @@ class TestGetEventStats:
             assert "event_count" in camera_stat
 
 
+class TestEnrichmentDataInResponse:
+    """Tests for enrichment_data field in API responses."""
+
+    @pytest.fixture
+    async def detection_with_enrichment(self, integration_db, sample_camera):
+        """Create a detection with enrichment data."""
+        from backend.core.database import get_session
+        from backend.models.detection import Detection
+
+        enrichment = {
+            "vehicle_classification": {
+                "vehicle_type": "sedan",
+                "confidence": 0.92,
+                "display_name": "Sedan",
+                "is_commercial": False,
+            },
+            "license_plates": [
+                {
+                    "bbox": [100, 200, 150, 220],
+                    "text": "ABC123",
+                    "confidence": 0.88,
+                    "ocr_confidence": 0.75,
+                }
+            ],
+        }
+
+        async with get_session() as db:
+            detection = Detection(
+                camera_id=sample_camera.id,
+                file_path="/export/foscam/front_door/test_enriched.jpg",
+                file_type="image/jpeg",
+                detected_at=datetime(2025, 12, 23, 12, 0, 0),
+                object_type="car",
+                confidence=0.95,
+                bbox_x=100,
+                bbox_y=150,
+                bbox_width=200,
+                bbox_height=400,
+                enrichment_data=enrichment,
+            )
+            db.add(detection)
+            await db.commit()
+            await db.refresh(detection)
+            yield detection
+
+    @pytest.fixture
+    async def event_with_enriched_detection(
+        self, integration_db, sample_camera, detection_with_enrichment
+    ):
+        """Create an event with an enriched detection."""
+        import json
+
+        from backend.core.database import get_session
+        from backend.models.event import Event
+
+        async with get_session() as db:
+            event = Event(
+                batch_id=str(uuid.uuid4()),
+                camera_id=sample_camera.id,
+                started_at=datetime(2025, 12, 23, 12, 0, 0),
+                ended_at=datetime(2025, 12, 23, 12, 2, 30),
+                risk_score=65,
+                risk_level="medium",
+                summary="Vehicle detected with license plate",
+                reasoning="A sedan was detected in the driveway",
+                detection_ids=json.dumps([detection_with_enrichment.id]),
+                reviewed=False,
+            )
+            db.add(event)
+            await db.commit()
+            await db.refresh(event)
+            yield event
+
+    async def test_get_event_detections_includes_enrichment(
+        self, async_client, event_with_enriched_detection, detection_with_enrichment
+    ):
+        """Test that GET /api/events/{event_id}/detections includes enrichment_data."""
+        response = await async_client.get(
+            f"/api/events/{event_with_enriched_detection.id}/detections"
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        assert "detections" in data
+        assert len(data["detections"]) == 1
+
+        detection = data["detections"][0]
+        assert detection["id"] == detection_with_enrichment.id
+        assert "enrichment_data" in detection
+        assert detection["enrichment_data"] is not None
+
+        # Verify enrichment data content
+        enrichment = detection["enrichment_data"]
+        assert "vehicle_classification" in enrichment
+        assert enrichment["vehicle_classification"]["vehicle_type"] == "sedan"
+        assert enrichment["vehicle_classification"]["confidence"] == 0.92
+
+        assert "license_plates" in enrichment
+        assert len(enrichment["license_plates"]) == 1
+        assert enrichment["license_plates"][0]["text"] == "ABC123"
+
+    async def test_get_event_detections_enrichment_none(
+        self, async_client, sample_event, sample_detection
+    ):
+        """Test that enrichment_data is None for detections without enrichment."""
+        import json
+
+        from backend.core.database import get_session
+        from backend.models.event import Event
+
+        # Update event to reference the sample detection (which has no enrichment)
+        async with get_session() as db:
+            from sqlalchemy import select
+
+            result = await db.execute(select(Event).where(Event.id == sample_event.id))
+            event = result.scalar_one()
+            event.detection_ids = json.dumps([sample_detection.id])
+            await db.commit()
+
+        response = await async_client.get(f"/api/events/{sample_event.id}/detections")
+        assert response.status_code == 200
+        data = response.json()
+
+        assert len(data["detections"]) >= 1
+        detection = data["detections"][0]
+        # enrichment_data should be None for detections without enrichment
+        assert detection.get("enrichment_data") is None
+
+    async def test_detection_enrichment_person_attributes(
+        self, async_client, integration_db, sample_camera
+    ):
+        """Test enrichment_data with person-specific attributes."""
+        import json
+
+        from backend.core.database import get_session
+        from backend.models.detection import Detection
+        from backend.models.event import Event
+
+        enrichment = {
+            "clothing_classification": {
+                "top_category": "jacket",
+                "confidence": 0.87,
+                "is_suspicious": False,
+                "is_service_uniform": True,
+            },
+            "faces": [
+                {
+                    "bbox": [120, 50, 180, 130],
+                    "confidence": 0.93,
+                }
+            ],
+        }
+
+        async with get_session() as db:
+            detection = Detection(
+                camera_id=sample_camera.id,
+                file_path="/export/foscam/front_door/test_person.jpg",
+                file_type="image/jpeg",
+                detected_at=datetime(2025, 12, 23, 13, 0, 0),
+                object_type="person",
+                confidence=0.96,
+                bbox_x=150,
+                bbox_y=100,
+                bbox_width=180,
+                bbox_height=450,
+                enrichment_data=enrichment,
+            )
+            db.add(detection)
+            await db.commit()
+            await db.refresh(detection)
+
+            event = Event(
+                batch_id=str(uuid.uuid4()),
+                camera_id=sample_camera.id,
+                started_at=datetime(2025, 12, 23, 13, 0, 0),
+                ended_at=datetime(2025, 12, 23, 13, 1, 0),
+                risk_score=30,
+                risk_level="low",
+                summary="Service person detected",
+                reasoning="Delivery person in uniform",
+                detection_ids=json.dumps([detection.id]),
+                reviewed=False,
+            )
+            db.add(event)
+            await db.commit()
+            await db.refresh(event)
+
+            response = await async_client.get(f"/api/events/{event.id}/detections")
+            assert response.status_code == 200
+            data = response.json()
+
+            det = data["detections"][0]
+            assert det["enrichment_data"]["clothing_classification"]["top_category"] == "jacket"
+            assert det["enrichment_data"]["clothing_classification"]["is_service_uniform"] is True
+            assert len(det["enrichment_data"]["faces"]) == 1
+
+
 class TestEventsAPIValidation:
     """Tests for API validation and error handling."""
 

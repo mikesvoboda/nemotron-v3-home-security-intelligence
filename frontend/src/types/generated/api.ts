@@ -3881,6 +3881,25 @@ export interface components {
          *       "camera_id": "123e4567-e89b-12d3-a456-426614174000",
          *       "confidence": 0.95,
          *       "detected_at": "2025-12-23T12:00:00Z",
+         *       "enrichment_data": {
+         *         "clothing_classification": {
+         *           "confidence": 0.85,
+         *           "is_service_uniform": false,
+         *           "is_suspicious": false,
+         *           "top_category": "t-shirt"
+         *         },
+         *         "faces": [
+         *           {
+         *             "bbox": [
+         *               120,
+         *               50,
+         *               180,
+         *               130
+         *             ],
+         *             "confidence": 0.92
+         *           }
+         *         ]
+         *       },
          *       "file_path": "/export/foscam/front_door/20251223_120000.jpg",
          *       "file_type": "image/jpeg",
          *       "id": 1,
@@ -3977,6 +3996,13 @@ export interface components {
              * @description Video resolution height
              */
             video_height?: number | null;
+            /**
+             * Enrichment Data
+             * @description AI-computed enrichment data (vehicle classification, pet detection, person attributes, license plates, etc.)
+             */
+            enrichment_data?: {
+                [key: string]: unknown;
+            } | null;
         };
         /**
          * EntityAppearance
