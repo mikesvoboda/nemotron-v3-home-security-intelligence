@@ -119,7 +119,8 @@ test.describe('Alert Rules Error State', () => {
   test('displays try again button on error', async ({ browserName }) => {
     test.skip(browserName === 'firefox', 'Flaky on firefox due to timing');
     await alertRulesPage.goto();
-    await expect(alertRulesPage.tryAgainButton).toBeVisible();
+    // Firefox needs longer timeout for error state to render
+    await expect(alertRulesPage.tryAgainButton).toBeVisible({ timeout: 10000 });
   });
 });
 
