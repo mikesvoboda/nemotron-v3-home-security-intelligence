@@ -38,6 +38,7 @@ DRY_RUN="${DRY_RUN:-false}"
 SKIP_PULL="${SKIP_PULL:-false}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.ghcr.yml}"
+FRONTEND_PORT="${FRONTEND_PORT:-8080}"
 
 # GHCR settings (from docker-compose.ghcr.yml defaults)
 GHCR_OWNER="${GHCR_OWNER:-mikesvoboda}"
@@ -290,10 +291,10 @@ verify_deployment() {
 
     # Check frontend
     print_step "Checking frontend..."
-    if curl -s --connect-timeout 5 "http://localhost:8080" > /dev/null 2>&1; then
+    if curl -s --connect-timeout 5 "http://localhost:${FRONTEND_PORT}" > /dev/null 2>&1; then
         print_success "Frontend is responding"
     else
-        print_warn "Frontend not responding on port 8080"
+        print_warn "Frontend not responding on port ${FRONTEND_PORT}"
     fi
 
     # Show running containers
@@ -381,7 +382,7 @@ main() {
     echo ""
     echo "Services:"
     echo "  - Backend:  http://localhost:8000"
-    echo "  - Frontend: http://localhost:8080"
+    echo "  - Frontend: http://localhost:${FRONTEND_PORT}"
     echo ""
     echo "Useful commands:"
     echo "  View logs:    $COMPOSE_CMD -f $COMPOSE_FILE logs -f"
