@@ -1447,6 +1447,7 @@ export interface paths {
          *     Mapping rules:
          *     - `cameras/<camera_id>/<filename...>` → camera media
          *     - `thumbnails/<filename>` → thumbnails
+         *     - `detections/<id>` → detection images
          */
         get: operations["serve_media_compat_api_media__path__get"];
         put?: never;
@@ -4324,7 +4325,8 @@ export interface components {
          *           "risk_level": "medium",
          *           "risk_score": 75,
          *           "started_at": "2025-12-23T12:00:00Z",
-         *           "summary": "Person detected near front entrance"
+         *           "summary": "Person detected near front entrance",
+         *           "thumbnail_url": "/api/media/detections/1"
          *         }
          *       ],
          *       "limit": 50,
@@ -4374,7 +4376,8 @@ export interface components {
          *       "risk_level": "medium",
          *       "risk_score": 75,
          *       "started_at": "2025-12-23T12:00:00Z",
-         *       "summary": "Person detected near front entrance"
+         *       "summary": "Person detected near front entrance",
+         *       "thumbnail_url": "/api/media/detections/1"
          *     }
          */
         EventResponse: {
@@ -4446,6 +4449,11 @@ export interface components {
              * @description List of detection IDs associated with this event
              */
             detection_ids?: number[];
+            /**
+             * Thumbnail Url
+             * @description URL to thumbnail image (first detection's media)
+             */
+            thumbnail_url?: string | null;
         };
         /**
          * EventStatsResponse

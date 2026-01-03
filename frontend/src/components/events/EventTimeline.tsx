@@ -490,6 +490,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
       risk_score: event.risk_score || 0,
       risk_label: event.risk_level || getRiskLevel(event.risk_score || 0),
       summary: event.summary || 'No summary available',
+      thumbnail_url: event.thumbnail_url || undefined,
       detections,
       started_at: event.started_at,
       ended_at: event.ended_at,

@@ -117,372 +117,78 @@ Issues are organized with:
 - **Labels:** phase-1 through phase-8, backend, frontend, tdd, etc.
 - **Parent/sub-issues:** Epics contain sub-tasks
 
-## Task Execution Order
+### Linear MCP Tools
 
-Tasks are organized into 8 execution phases. **Always complete earlier phases before starting later ones.**
-
-### Phase 1: Project Setup (P0)
-
-Foundation - directory structures, container setup, environment, dependencies.
-[View in Linear](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-1)
-
-### Phase 2: Database & Layout Foundation (P1)
-
-PostgreSQL models, Redis connection, Tailwind theme, app layout.
-[View in Linear](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-2)
-
-### Phase 3: Core APIs & Components (P2)
-
-Cameras API, system API, WebSocket hooks, API client, basic UI components.
-[View in Linear](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-3)
-
-### Phase 4: AI Pipeline (P3/P4)
-
-File watcher, RT-DETRv2 wrapper, detector client, batch aggregator, Nemotron analyzer.
-[View in Linear](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-4)
-
-### Phase 5: Events & Real-time (P4)
-
-Events API, detections API, WebSocket channels, GPU monitor, cleanup service.
-[View in Linear](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-5)
-
-### Phase 6: Dashboard Components (P3)
-
-Risk gauge, camera grid, live activity feed, GPU stats, EventCard.
-[View in Linear](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-6)
-
-### Phase 7: Pages & Modals (P4)
-
-Main dashboard, event timeline, event detail modal, settings pages.
-[View in Linear](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-7)
-
-### Phase 8: Integration & E2E (P4)
-
-Unit tests, E2E tests, deployment verification, documentation.
-[View in Linear](https://linear.app/nemotron-v3-home-security/team/NEM/label/phase-8)
-
-## Post-MVP Roadmap (After MVP is Operational)
-
-After the MVP is **fully operational end-to-end** (Phases 1–8 complete, deployment verified, and tests passing),
-review `docs/ROADMAP.md` to identify post-MVP enhancements and create new Linear issues accordingly.
-
-## TDD Approach
-
-This project follows **Test-Driven Development (TDD)** for all feature implementation. Tests are not an afterthought; they drive the design and ensure correctness from the start.
-
-### The TDD Cycle: RED-GREEN-REFACTOR
-
-1. **RED** - Write a failing test that defines the expected behavior
-2. **GREEN** - Write the minimum code necessary to make the test pass
-3. **REFACTOR** - Improve the code while keeping tests green
-
-```
-┌─────────┐     ┌─────────┐     ┌──────────┐
-│   RED   │ ──▶ │  GREEN  │ ──▶ │ REFACTOR │
-│  (fail) │     │ (pass)  │     │ (improve)│
-└─────────┘     └─────────┘     └──────────┘
-      ▲                               │
-      └───────────────────────────────┘
-```
-
-### Pre-Implementation Checklist
-
-Before writing any production code, complete this checklist:
-
-- [ ] Understand the acceptance criteria from the Linear issue
-- [ ] Identify the code layer(s) involved (API, service, component, E2E)
-- [ ] Write test stubs for each acceptance criterion
-- [ ] Run tests to confirm they fail (RED phase)
-- [ ] Only then begin implementation
-
-### Test Patterns by Layer
-
-#### Backend API Routes (pytest + httpx)
+When using Claude Code, query Linear directly via MCP tools:
 
 ```python
-# backend/tests/unit/api/routes/test_cameras.py
-import pytest
-from httpx import AsyncClient
-from backend.main import app
+# List open issues (must filter by status to find open work)
+mcp__linear__list_issues(teamId="998946a2-aa75-491b-a39d-189660131392", status="Todo", first=100)
+mcp__linear__list_issues(teamId="998946a2-aa75-491b-a39d-189660131392", status="In Progress", first=100)
 
-@pytest.mark.asyncio
-async def test_get_camera_returns_camera_data(async_client: AsyncClient):
-    """RED: Write this test first, then implement the endpoint."""
-    response = await async_client.get("/api/cameras/front_door")
+# Search issues by text
+mcp__linear__search_issues(query="WebSocket")
 
-    assert response.status_code == 200
-    data = response.json()
-    assert data["name"] == "front_door"
-    assert "status" in data
-    assert "last_seen" in data
+# Get full issue details
+mcp__linear__get_issue(issueId="ISSUE-ID")
 
-@pytest.mark.asyncio
-async def test_get_camera_not_found_returns_404(async_client: AsyncClient):
-    """Test error handling for missing cameras."""
-    response = await async_client.get("/api/cameras/nonexistent")
-
-    assert response.status_code == 404
-    assert "not found" in response.json()["detail"].lower()
+# Update issue status
+mcp__linear__update_issue(issueId="ISSUE-ID", status="In Progress")
 ```
 
-#### Backend Services (pytest + mocking)
+**Important:** The default `list_issues` returns only 50 results sorted by recent activity, which may miss open issues. Always:
 
-```python
-# backend/tests/unit/services/test_detection_service.py
-import pytest
-from unittest.mock import AsyncMock, patch
-from backend.services.detection import DetectionService
+- Filter by `status` ("Todo", "In Progress") to find open work
+- Set `first=100` to get more results
+- **Team ID:** `998946a2-aa75-491b-a39d-189660131392`
 
-@pytest.mark.asyncio
-async def test_process_image_calls_rtdetr_client():
-    """RED: Test that service integrates with RT-DETR correctly."""
-    mock_rtdetr = AsyncMock()
-    mock_rtdetr.detect.return_value = [
-        {"label": "person", "confidence": 0.95, "bbox": [100, 200, 300, 400]}
-    ]
+## Testing
 
-    service = DetectionService(rtdetr_client=mock_rtdetr)
-    result = await service.process_image("/path/to/image.jpg")
+This project follows **Test-Driven Development (TDD)**: write tests first, then implement.
 
-    mock_rtdetr.detect.assert_called_once_with("/path/to/image.jpg")
-    assert len(result.detections) == 1
-    assert result.detections[0].label == "person"
+### TDD Cycle
 
-@pytest.mark.asyncio
-async def test_process_image_handles_rtdetr_timeout():
-    """Test graceful handling of AI service timeouts."""
-    mock_rtdetr = AsyncMock()
-    mock_rtdetr.detect.side_effect = TimeoutError("RT-DETR timeout")
+1. **RED** - Write a failing test
+2. **GREEN** - Write minimum code to pass
+3. **REFACTOR** - Improve while keeping tests green
 
-    service = DetectionService(rtdetr_client=mock_rtdetr)
-
-    with pytest.raises(DetectionError) as exc_info:
-        await service.process_image("/path/to/image.jpg")
-
-    assert "timeout" in str(exc_info.value).lower()
-```
-
-#### Frontend Components (Vitest + React Testing Library)
-
-```typescript
-// frontend/src/components/RiskGauge.test.tsx
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
-import { RiskGauge } from './RiskGauge';
-
-describe('RiskGauge', () => {
-  it('displays low risk styling for scores under 30', () => {
-    // RED: Write test first, then implement component
-    render(<RiskGauge score={25} />);
-
-    const gauge = screen.getByRole('meter');
-    expect(gauge).toHaveAttribute('aria-valuenow', '25');
-    expect(gauge).toHaveClass('risk-low');
-  });
-
-  it('displays high risk styling for scores over 70', () => {
-    render(<RiskGauge score={85} />);
-
-    const gauge = screen.getByRole('meter');
-    expect(gauge).toHaveClass('risk-high');
-    expect(screen.getByText(/high risk/i)).toBeInTheDocument();
-  });
-
-  it('updates in real-time when score changes', async () => {
-    const { rerender } = render(<RiskGauge score={20} />);
-    expect(screen.getByRole('meter')).toHaveAttribute('aria-valuenow', '20');
-
-    rerender(<RiskGauge score={80} />);
-    expect(screen.getByRole('meter')).toHaveAttribute('aria-valuenow', '80');
-  });
-});
-```
-
-#### E2E Tests (Playwright)
-
-```typescript
-// frontend/tests/e2e/dashboard.spec.ts
-import { test, expect } from "@playwright/test";
-
-test.describe("Dashboard", () => {
-  test("displays live camera feeds on load", async ({ page }) => {
-    // RED: Write E2E test first to define user journey
-    await page.goto("/");
-
-    // Wait for WebSocket connection
-    await expect(page.locator('[data-testid="ws-status"]')).toHaveText(
-      "Connected",
-    );
-
-    // Verify camera grid loads
-    const cameraCards = page.locator('[data-testid="camera-card"]');
-    await expect(cameraCards).toHaveCount(4);
-
-    // Verify each camera shows status
-    for (const card of await cameraCards.all()) {
-      await expect(card.locator(".camera-status")).toBeVisible();
-    }
-  });
-
-  test("risk gauge updates when new detection arrives", async ({ page }) => {
-    await page.goto("/");
-
-    // Initial state
-    const gauge = page.locator('[data-testid="risk-gauge"]');
-    await expect(gauge).toHaveAttribute("aria-valuenow", "0");
-
-    // Simulate detection via API (or mock WebSocket)
-    await page.evaluate(() => {
-      window.dispatchEvent(
-        new CustomEvent("test:detection", {
-          detail: { risk_score: 75 },
-        }),
-      );
-    });
-
-    // Verify gauge updates
-    await expect(gauge).toHaveAttribute("aria-valuenow", "75");
-  });
-});
-```
-
-### Using the TDD Skill
-
-For complex features, invoke the TDD skill to guide your workflow:
-
-```bash
-/test-driven-development
-```
-
-This skill will:
-
-1. Help identify test cases from requirements
-2. Generate test stubs for each layer
-3. Guide you through the RED-GREEN-REFACTOR cycle
-4. Ensure proper test coverage before completion
-
-### Integration with Linear
-
-Tasks labeled `tdd` are test-focused tasks that pair with feature tasks:
-[View TDD issues](https://linear.app/nemotron-v3-home-security/team/NEM/label/tdd)
-
-**Workflow for TDD-labeled issues:**
-
-1. **Claim both tasks** - The feature task and its corresponding TDD task
-2. **Start with tests** - Implement tests from the TDD issue first
-3. **Verify RED** - Run tests to confirm they fail appropriately
-4. **Implement feature** - Write code to make tests pass (GREEN)
-5. **Refactor** - Clean up while keeping tests green
-6. **Close TDD issue first** - Then close the feature issue
-
-### Test Coverage Requirements
-
-This project enforces strict coverage thresholds:
-
-| Test Type   | Minimum Coverage | Enforcement   |
-| ----------- | ---------------- | ------------- |
-| Unit        | 92%              | CI gate       |
-| Integration | 50%              | CI gate       |
-| Combined    | 90%              | CI gate       |
-| E2E         | Critical paths   | Manual review |
-
-**Coverage Commands:**
-
-```bash
-# Backend coverage report
-uv run pytest backend/tests/unit/ --cov=backend --cov-report=term-missing
-
-# Frontend coverage report
-cd frontend && npm test -- --coverage
-
-# Full coverage report
-./scripts/validate.sh --coverage
-```
-
-### Never Disable Testing
-
-See the **[NEVER DISABLE TESTING](#never-disable-testing)** section below. This is an absolute rule:
-
-- Do NOT skip tests to pass CI
-- Do NOT lower coverage thresholds
-- Do NOT comment out failing tests
-- FIX the code or FIX the test
-
-### PR Checklist for TDD Verification
-
-Before creating a PR, verify:
-
-- [ ] All new code has corresponding tests
-- [ ] Tests were written BEFORE implementation (TDD)
-- [ ] Tests cover happy path AND error cases
-- [ ] Coverage thresholds are met (92% unit, 50% integration)
-- [ ] No tests were skipped or disabled
-- [ ] E2E tests pass for UI changes
-
-### Testing Resources
-
-- **Test Infrastructure:** See `backend/tests/AGENTS.md`
-- **Fixtures and Factories:** See `backend/tests/conftest.py`
-- **E2E Test Patterns:** See `frontend/tests/e2e/README.md`
-- **Coverage Reports:** Generated in `coverage/` directory after test runs
-
-## Testing Requirements
-
-**All features must have tests written at time of development.** No feature is complete without:
-
-1. **Unit tests** - Test individual functions/components in isolation
-2. **Integration tests** - Test interactions between components
-3. **Property-based tests** - Use Hypothesis for model invariants
+For complex features, use `/test-driven-development` to guide your workflow.
 
 ### Test Locations
 
 ```
 backend/tests/
-  unit/              # Python unit tests (pytest) - 2957 tests
-  integration/       # API and service integration tests - 626 tests
+  unit/              # Python unit tests (pytest)
+  integration/       # API and service integration tests
 frontend/
   src/**/*.test.ts   # Component and hook tests (Vitest)
-  tests/e2e/         # Playwright E2E tests - 233 tests (multi-browser)
+  tests/e2e/         # Playwright E2E tests (multi-browser)
 ```
 
-### Test Parallelization
+For test patterns and examples, see actual test files and `backend/tests/AGENTS.md`.
 
-- **Unit tests:** Run in parallel with `pytest-xdist` (`-n auto --dist=worksteal`)
-- **Integration tests:** Run serially (`-n0`) due to shared database state
-- **E2E tests:** Multi-browser (chromium, firefox, webkit) + mobile viewports
+### Coverage Requirements
 
-### Validation Workflow
+| Test Type   | Minimum | Enforcement |
+| ----------- | ------- | ----------- |
+| Unit        | 92%     | CI gate     |
+| Integration | 50%     | CI gate     |
+| Combined    | 90%     | CI gate     |
 
-After implementing any feature, **dispatch a validation agent** to run tests:
+### Running Tests
 
 ```bash
-# Backend unit tests (parallel ~10s)
-uv run pytest backend/tests/unit/ -n auto --dist=worksteal
+# Full validation (recommended)
+./scripts/validate.sh
 
-# Backend integration tests (serial ~70s)
-uv run pytest backend/tests/integration/ -n0
-
-# Frontend tests
-cd frontend && npm test
-
-# E2E tests (multi-browser)
-cd frontend && npx playwright test
+# Individual test suites
+uv run pytest backend/tests/unit/ -n auto --dist=worksteal   # Backend unit (parallel)
+uv run pytest backend/tests/integration/ -n0                  # Backend integration (serial)
+cd frontend && npm test                                       # Frontend unit
+cd frontend && npx playwright test                            # E2E (multi-browser)
 ```
 
-**CRITICAL:** Do not mark a task as complete until:
-
-- All relevant tests pass
-- A validation agent has confirmed no regressions
-- Test coverage includes both happy path and error cases
-
-### When to Dispatch Validation Agents
-
-- After implementing any new feature
-- After modifying existing code
-- Before closing any task
-- Before committing code
-
-Validation agents should run the full test suite and report any failures. Fix all failures before proceeding.
+**CRITICAL:** Do not mark a task complete until all tests pass.
 
 ## Git and Pre-commit Rules
 
@@ -515,57 +221,22 @@ Validation agents should run the full test suite and report any failures. Fix al
 
 ## NEVER DISABLE TESTING
 
-> **⛔ ABSOLUTE RULE: Unit and integration tests must NEVER be disabled, removed, or bypassed.**
+> **⛔ ABSOLUTE RULE: Tests must NEVER be disabled, removed, or bypassed.**
 
-This rule is non-negotiable. Previous agents have violated this rule by:
+Previous agents have violated this by lowering coverage thresholds, skipping tests, or using `--no-verify`.
 
-- Moving test hooks from `pre-commit` to `pre-push` stage (reducing test frequency)
-- Lowering coverage thresholds to pass CI
-- Commenting out or skipping failing tests
-- Removing test assertions to make tests pass
+**If tests fail, FIX THE CODE or FIX THE TEST. Do not:**
 
-**If tests are failing, FIX THE CODE or FIX THE TESTS. Do not:**
-
-1. Disable the test hook
-2. Change the hook stage to run less frequently
-3. Lower coverage thresholds
-4. Skip tests with `@pytest.skip` without a documented reason
-5. Remove test files or test functions
-6. Use `--no-verify` flags
-
-**Required hooks that must remain active:**
-
-| Hook                      | Stage    | Purpose                            |
-| ------------------------- | -------- | ---------------------------------- |
-| `fast-test`               | pre-push | Runs unit tests before every push  |
-| Backend Unit Tests        | CI       | Full unit test suite with coverage |
-| Backend Integration Tests | CI       | API and service integration tests  |
-| Frontend Tests            | CI       | Component and hook tests           |
-| E2E Tests                 | CI       | End-to-end browser tests           |
+- Disable or skip tests
+- Lower coverage thresholds
+- Use `--no-verify` flags
+- Remove test files or assertions
 
 **Setup (run once per clone):**
 
 ```bash
-pre-commit install                    # Install pre-commit hooks
+pre-commit install                       # Install pre-commit hooks
 pre-commit install --hook-type pre-push  # Install pre-push hooks
-```
-
-If you encounter test failures, your job is to investigate and fix them, not to disable the safety net.
-
-If pre-commit checks fail, fix the issues before committing. Run the full test suite after all agents complete work:
-
-```bash
-# Backend
-uv run pytest backend/tests/ -v
-
-# Frontend
-cd frontend && npm test
-
-# Full validation (recommended before PRs)
-./scripts/validate.sh
-
-# Pre-commit (runs lint/format checks)
-pre-commit run --all-files
 ```
 
 ## Code Quality Tooling
@@ -718,34 +389,9 @@ Each Linear issue should result in exactly one PR:
 
 ## Issue Closure Requirements
 
-Before marking an issue as "Done" in Linear, verify ALL of the following:
-
-### Required Checklist
-
-```bash
-# Quick validation (recommended)
-./scripts/validate.sh
-
-# Or run individually:
-uv run pytest backend/tests/unit/ -n auto --dist=worksteal  # Backend unit tests
-uv run pytest backend/tests/integration/ -n0                 # Backend integration tests
-cd frontend && npm test                                       # Frontend tests
-uv run mypy backend/                                          # Backend type check
-cd frontend && npm run typecheck                              # Frontend type check
-pre-commit run --all-files                                    # Pre-commit hooks
-```
-
-### For UI Changes, Also Run
-
-```bash
-cd frontend && npx playwright test  # E2E tests (multi-browser)
-```
-
-### Closure Workflow
+Before marking an issue as "Done" in Linear:
 
 1. Ensure all code is committed and pushed
-2. Run validation: `./scripts/validate.sh`
-3. If all tests pass, mark the issue as "Done" in Linear
-4. If tests fail, fix the issue and re-run before closing
-
-**CRITICAL:** Do not close an issue if any validation fails. Fix the issue first.
+2. Run `./scripts/validate.sh` (for UI changes, also run `npx playwright test`)
+3. If all tests pass, mark the issue as "Done"
+4. If tests fail, fix the issue first
