@@ -32,7 +32,11 @@ import httpx
 
 from backend.core.config import get_settings
 from backend.core.logging import get_logger, sanitize_error
-from backend.core.metrics import observe_ai_request_duration, record_pipeline_error
+from backend.core.metrics import (
+    observe_ai_request_duration,
+    record_florence_task,
+    record_pipeline_error,
+)
 
 if TYPE_CHECKING:
     from PIL import Image
@@ -254,6 +258,13 @@ class FlorenceClient:
             extracted_text: str = result["result"]
             duration_ms = int((time.time() - start_time) * 1000)
 
+            # Record semantic metric for Florence task executed
+            # Extract task type from prompt (e.g., "<CAPTION>" -> "caption")
+            task_type = (
+                prompt.strip("<>").split(">")[0].lower() if prompt.startswith("<") else "extract"
+            )
+            record_florence_task(task_type)
+
             logger.debug(
                 f"Florence extraction completed: {len(extracted_text)} chars in {duration_ms}ms"
             )
@@ -367,6 +378,9 @@ class FlorenceClient:
             extracted_text: str = result["text"]
             duration_ms = int((time.time() - start_time) * 1000)
 
+            # Record semantic metric for Florence OCR task
+            record_florence_task("ocr")
+
             logger.debug(f"Florence OCR completed: {len(extracted_text)} chars in {duration_ms}ms")
             return extracted_text
 
@@ -446,6 +460,9 @@ class FlorenceClient:
                 OCRRegion(text=r.get("text", ""), bbox=r.get("bbox", [])) for r in result["regions"]
             ]
             duration_ms = int((time.time() - start_time) * 1000)
+
+            # Record semantic metric for Florence OCR with regions task
+            record_florence_task("ocr_with_regions")
 
             logger.debug(
                 f"Florence OCR regions completed: {len(regions)} regions in {duration_ms}ms"
@@ -534,6 +551,9 @@ class FlorenceClient:
             ]
             duration_ms = int((time.time() - start_time) * 1000)
 
+            # Record semantic metric for Florence detect task
+            record_florence_task("detect")
+
             logger.debug(f"Florence detect completed: {len(detections)} objects in {duration_ms}ms")
             return detections
 
@@ -614,6 +634,9 @@ class FlorenceClient:
                 for r in result["regions"]
             ]
             duration_ms = int((time.time() - start_time) * 1000)
+
+            # Record semantic metric for Florence dense caption task
+            record_florence_task("dense_caption")
 
             logger.debug(
                 f"Florence dense caption completed: {len(regions)} regions in {duration_ms}ms"

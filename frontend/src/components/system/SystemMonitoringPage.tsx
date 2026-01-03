@@ -13,11 +13,13 @@ import {
 import { useEffect, useState, useRef } from 'react';
 
 import AiModelsPanel from './AiModelsPanel';
+import CircuitBreakerPanel from './CircuitBreakerPanel';
 import ContainersPanel from './ContainersPanel';
 import DatabasesPanel from './DatabasesPanel';
 import HostSystemPanel from './HostSystemPanel';
 import PerformanceAlerts from './PerformanceAlerts';
 import PipelineMetricsPanel from './PipelineMetricsPanel';
+import SeverityConfigPanel from './SeverityConfigPanel';
 import TimeRangeSelector from './TimeRangeSelector';
 import WorkerStatusPanel from './WorkerStatusPanel';
 import { useHealthStatus } from '../../hooks/useHealthStatus';
@@ -630,6 +632,19 @@ export default function SystemMonitoringPage() {
               history={containerHistory}
               data-testid="containers-panel-section"
             />
+          </div>
+
+          {/* Row 4: Circuit Breakers (collapsible) */}
+          <div className="xl:col-span-2">
+            <CircuitBreakerPanel
+              pollingInterval={10000}
+              defaultExpanded={false}
+            />
+          </div>
+
+          {/* Row 4: Severity Configuration (static) */}
+          <div className="xl:col-span-2">
+            <SeverityConfigPanel />
           </div>
 
           {/* Row 4: Host System (CPU | RAM | Disk inline bars) - Full width */}
