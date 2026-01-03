@@ -1,7 +1,58 @@
 import { Activity, Calendar, Camera, Shield } from 'lucide-react';
 import { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { getRiskColor, getRiskLabel, getRiskLevel } from '../../utils/risk';
+
+/**
+ * Generates an SVG path for a sparkline chart
+ * @param data - Array of data points (0-100)
+ * @param width - Width of the SVG viewBox
+ * @param height - Height of the SVG viewBox
+ * @param fillPath - Whether to generate a filled area path (true) or line path (false)
+ * @returns SVG path string
+ */
+function generateSparklinePath(
+  data: number[],
+  width: number,
+  height: number,
+  fillPath: boolean
+): string {
+  /* c8 ignore next */ if (data.length === 0) return '';
+
+  const maxValue = Math.max(...data, 100); // Ensure scale includes 100
+  const minValue = Math.min(...data, 0); // Ensure scale includes 0
+  const range = maxValue - minValue || 1; // Avoid division by zero
+  const padding = 2; // Padding from edges
+  const availableHeight = height - padding * 2;
+
+  // Calculate points using numeric coordinates within viewBox
+  const points = data.map((value, index) => {
+    const x = (index / (data.length - 1 || 1)) * width; // Numeric x within viewBox width
+    const normalizedValue = (value - minValue) / range;
+    const y = height - padding - normalizedValue * availableHeight; // Invert Y axis
+    return { x, y };
+  });
+
+  /* c8 ignore next */ if (points.length === 0) return '';
+
+  // Build path with numeric coordinates
+  let path = `M ${points[0].x} ${points[0].y}`;
+
+  // Add line segments
+  for (let i = 1; i < points.length; i++) {
+    path += ` L ${points[i].x} ${points[i].y}`;
+  }
+
+  // For filled area, close the path
+  if (fillPath) {
+    path += ` L ${points[points.length - 1].x} ${height}`;
+    path += ` L ${points[0].x} ${height}`;
+    path += ' Z';
+  }
+
+  return path;
+}
 
 export interface StatsRowProps {
   /** Number of active cameras */
@@ -12,6 +63,8 @@ export interface StatsRowProps {
   currentRiskScore: number;
   /** System health status */
   systemStatus: 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
+  /** Optional array of historical risk values for sparkline display */
+  riskHistory?: number[];
   /** Additional CSS classes */
   className?: string;
 }
@@ -22,7 +75,7 @@ export interface StatsRowProps {
  * Shows:
  * - Active cameras count
  * - Events today count
- * - Current risk level (color-coded)
+ * - Current risk level (color-coded) with optional sparkline
  * - System status indicator
  *
  * Features NVIDIA dark theme with color-coded indicators.
@@ -32,8 +85,11 @@ export default function StatsRow({
   eventsToday,
   currentRiskScore,
   systemStatus,
+  riskHistory,
   className = '',
 }: StatsRowProps) {
+  const navigate = useNavigate();
+
   // Get risk level and color
   const riskLevel = getRiskLevel(currentRiskScore);
   const riskColor = getRiskColor(riskLevel);
@@ -66,6 +122,9 @@ export default function StatsRow({
     }
   }, [systemStatus]);
 
+  // Check if we should show the sparkline
+  const showSparkline = riskHistory && riskHistory.length > 1;
+
   return (
     <div
       className={`grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 ${className}`}
@@ -73,7 +132,15 @@ export default function StatsRow({
       aria-label="Dashboard statistics"
     >
       {/* Active Cameras */}
-      <div className="flex items-center gap-4 rounded-lg border border-gray-800 bg-[#1A1A1A] p-4 shadow-sm">
+      <button
+        type="button"
+        onClick={() => {
+          void navigate('/settings');
+        }}
+        className="flex items-center gap-4 rounded-lg border border-gray-800 bg-[#1A1A1A] p-4 shadow-sm transition-all duration-200 hover:border-[#76B900]/50 hover:bg-[#1A1A1A]/90 focus:outline-none focus:ring-2 focus:ring-[#76B900]/50 cursor-pointer text-left"
+        data-testid="cameras-card"
+        aria-label={`Active cameras: ${activeCameras}. Click to view camera settings.`}
+      >
         <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[#76B900]/10">
           <Camera className="h-6 w-6 text-[#76B900]" aria-hidden="true" />
         </div>
@@ -83,10 +150,18 @@ export default function StatsRow({
           </div>
           <div className="text-sm text-gray-400">Active Cameras</div>
         </div>
-      </div>
+      </button>
 
       {/* Events Today */}
-      <div className="flex items-center gap-4 rounded-lg border border-gray-800 bg-[#1A1A1A] p-4 shadow-sm">
+      <button
+        type="button"
+        onClick={() => {
+          void navigate('/timeline');
+        }}
+        className="flex items-center gap-4 rounded-lg border border-gray-800 bg-[#1A1A1A] p-4 shadow-sm transition-all duration-200 hover:border-blue-500/50 hover:bg-[#1A1A1A]/90 focus:outline-none focus:ring-2 focus:ring-blue-500/50 cursor-pointer text-left"
+        data-testid="events-card"
+        aria-label={`Events today: ${eventsToday}. Click to view event timeline.`}
+      >
         <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-500/10">
           <Calendar className="h-6 w-6 text-blue-500" aria-hidden="true" />
         </div>
@@ -96,28 +171,74 @@ export default function StatsRow({
           </div>
           <div className="text-sm text-gray-400">Events Today</div>
         </div>
-      </div>
+      </button>
 
-      {/* Current Risk Level */}
-      <div className="flex items-center gap-4 rounded-lg border border-gray-800 bg-[#1A1A1A] p-4 shadow-sm">
+      {/* Current Risk Level with Sparkline */}
+      <button
+        type="button"
+        onClick={() => {
+          void navigate('/alerts');
+        }}
+        className="flex items-center gap-4 rounded-lg border border-gray-800 bg-[#1A1A1A] p-4 shadow-sm transition-all duration-200 hover:border-gray-600 hover:bg-[#1A1A1A]/90 focus:outline-none focus:ring-2 focus:ring-gray-500/50 cursor-pointer text-left"
+        data-testid="risk-card"
+        aria-label={`Current risk: ${riskLabel} (${currentRiskScore}). Click to view alerts.`}
+      >
         <div
           className="flex h-12 w-12 items-center justify-center rounded-lg"
           style={{ backgroundColor: `${riskColor}20` }}
         >
           <Shield className="h-6 w-6" style={{ color: riskColor }} aria-hidden="true" />
         </div>
-        <div className="flex flex-col">
-          <div className="text-2xl font-bold text-white" data-testid="risk-score">
-            {currentRiskScore}
+        <div className="flex flex-col flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <div className="text-2xl font-bold text-white" data-testid="risk-score">
+              {currentRiskScore}
+            </div>
+            {/* Sparkline for risk history */}
+            {showSparkline && (
+              <svg
+                width="60"
+                height="24"
+                viewBox="0 0 60 24"
+                preserveAspectRatio="none"
+                className="flex-shrink-0"
+                aria-hidden="true"
+                data-testid="risk-sparkline"
+              >
+                {/* Background area */}
+                <path
+                  d={generateSparklinePath(riskHistory, 60, 24, true)}
+                  fill={`${riskColor}20`}
+                  stroke="none"
+                />
+                {/* Line */}
+                <path
+                  d={generateSparklinePath(riskHistory, 60, 24, false)}
+                  fill="none"
+                  stroke={riskColor}
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
           </div>
           <div className="text-sm" style={{ color: riskColor }} data-testid="risk-label">
             {riskLabel}
           </div>
         </div>
-      </div>
+      </button>
 
       {/* System Status */}
-      <div className="flex items-center gap-4 rounded-lg border border-gray-800 bg-[#1A1A1A] p-4 shadow-sm">
+      <button
+        type="button"
+        onClick={() => {
+          void navigate('/system');
+        }}
+        className="flex items-center gap-4 rounded-lg border border-gray-800 bg-[#1A1A1A] p-4 shadow-sm transition-all duration-200 hover:border-gray-600 hover:bg-[#1A1A1A]/90 focus:outline-none focus:ring-2 focus:ring-gray-500/50 cursor-pointer text-left"
+        data-testid="system-card"
+        aria-label={`System status: ${statusLabel}. Click to view system monitoring.`}
+      >
         <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-800">
           <Activity className="h-6 w-6 text-white" aria-hidden="true" />
         </div>
@@ -134,7 +255,7 @@ export default function StatsRow({
           </div>
           <div className="text-sm text-gray-400">System Status</div>
         </div>
-      </div>
+      </button>
     </div>
   );
 }

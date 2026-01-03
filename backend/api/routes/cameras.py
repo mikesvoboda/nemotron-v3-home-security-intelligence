@@ -404,22 +404,42 @@ async def get_camera_snapshot(
         # - Database has cameras from a different environment (Docker vs native)
         # - Container FOSCAM_BASE_PATH (/cameras) differs from dev path (/export/foscam)
         #
-        # Fallback: Try to find the camera folder by ID under the current base_path.
+        # Fallback strategy:
+        # 1. First, try to extract the folder name from the stored path and look for it
+        #    under base_path. This handles cases where the camera name differs from the
+        #    folder name (e.g., camera name "Den Camera" but folder is "den").
+        # 2. If that fails, try the camera_id directly (works when name == folder name).
+        #
         # This is safe because we only look within FOSCAM_BASE_PATH (no traversal).
-        # The camera ID is normalized from the folder name (e.g., "den" -> "den").
-        fallback_dir = base_root / camera_id
-        if fallback_dir.exists() and fallback_dir.is_dir():
-            # Found camera folder by ID - use it
+        stored_folder_name = Path(camera.folder_path).name
+        fallback_by_folder_name = base_root / stored_folder_name
+        fallback_by_camera_id = base_root / camera_id
+
+        if fallback_by_folder_name.exists() and fallback_by_folder_name.is_dir():
+            # Found camera folder by stored folder name
             logger.debug(
-                "Using fallback camera path by ID",
+                "Using fallback camera path by folder name",
                 extra={
                     "camera_id": camera_id,
                     "stored_path": sanitize_log_value(camera.folder_path),
-                    "fallback_path": str(fallback_dir),
+                    "stored_folder_name": stored_folder_name,
+                    "fallback_path": str(fallback_by_folder_name),
                     "base_path": str(base_root),
                 },
             )
-            camera_dir = fallback_dir
+            camera_dir = fallback_by_folder_name
+        elif fallback_by_camera_id.exists() and fallback_by_camera_id.is_dir():
+            # Found camera folder by camera ID
+            logger.debug(
+                "Using fallback camera path by camera ID",
+                extra={
+                    "camera_id": camera_id,
+                    "stored_path": sanitize_log_value(camera.folder_path),
+                    "fallback_path": str(fallback_by_camera_id),
+                    "base_path": str(base_root),
+                },
+            )
+            camera_dir = fallback_by_camera_id
         else:
             # No fallback available - return 404
             logger.debug(
@@ -428,7 +448,8 @@ async def get_camera_snapshot(
                     "camera_id": camera_id,
                     "folder_path": sanitize_log_value(camera.folder_path),
                     "base_path": str(base_root),
-                    "fallback_tried": str(fallback_dir),
+                    "fallback_by_folder_name_tried": str(fallback_by_folder_name),
+                    "fallback_by_camera_id_tried": str(fallback_by_camera_id),
                 },
             )
             raise HTTPException(
