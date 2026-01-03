@@ -551,6 +551,34 @@ class GPUMonitor:
         filtered = [stats for stats in self._stats_history if stats["recorded_at"] >= cutoff_time]
         return list(reversed(filtered))
 
+    async def _calculate_inference_fps(self, session: Any) -> float | None:
+        """Calculate inference FPS from recent detection throughput.
+
+        Counts detections processed in the last 60 seconds and calculates
+        the frames per second rate.
+
+        Args:
+            session: SQLAlchemy async session for database queries
+
+        Returns:
+            Inference FPS as a float, or None if calculation fails
+        """
+        try:
+            from sqlalchemy import func
+
+            from backend.models.detection import Detection
+
+            # Count detections in last 60 seconds
+            cutoff = datetime.now(UTC) - timedelta(seconds=60)
+            result = await session.execute(
+                select(func.count(Detection.id)).where(Detection.detected_at >= cutoff)
+            )
+            count = result.scalar() or 0
+            return count / 60.0 if count >= 0 else 0.0
+        except Exception as e:
+            logger.warning(f"Failed to calculate inference FPS: {e}")
+            return None
+
     async def _store_stats(self, stats: dict[str, Any]) -> None:
         """Store GPU statistics in database.
 
@@ -558,13 +586,10 @@ class GPUMonitor:
             stats: Dictionary containing GPU statistics
         """
         try:
-            # Get inference FPS from ThroughputTracker
-            from backend.core.metrics import get_throughput_tracker
-
-            throughput_tracker = get_throughput_tracker()
-            inference_fps = throughput_tracker.get_inference_fps(window_minutes=5)
-
             async with get_session() as session:
+                # Calculate inference FPS from recent detections
+                inference_fps = await self._calculate_inference_fps(session)
+
                 gpu_stats = GPUStats(
                     recorded_at=stats["recorded_at"],
                     gpu_name=stats["gpu_name"],

@@ -2234,7 +2234,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/system/pipeline-latency-history": {
+    "/api/system/pipeline-latency/history": {
         parameters: {
             query?: never;
             header?: never;
@@ -2243,18 +2243,17 @@ export interface paths {
         };
         /**
          * Get Pipeline Latency History
-         * @description Get raw pipeline latency samples for time-series visualization.
+         * @description Get pipeline latency history for time-series visualization.
          *
-         *     Returns individual latency samples for all pipeline stages, suitable for
-         *     creating time-series graphs. Samples are sorted by timestamp in descending
-         *     order (most recent first).
+         *     Returns latency data grouped into time buckets for charting.
+         *     Each bucket contains aggregated statistics for all pipeline stages.
          *
          *     Args:
-         *         window_minutes: Time window for filtering samples (default 60 minutes)
-         *         limit: Maximum number of samples to return (default 100, None for all)
+         *         since: Number of minutes of history to return (default 60)
+         *         bucket_seconds: Size of each time bucket in seconds (default 60 = 1 minute)
          *
          *     Returns:
-         *         PipelineLatencyHistoryResponse with list of latency samples
+         *         PipelineLatencyHistoryResponse with chronologically ordered snapshots
          */
         get: operations["get_pipeline_latency_history_api_system_pipeline_latency_history_get"];
         put?: never;
@@ -5964,25 +5963,53 @@ export interface components {
             quality_change_detected?: boolean | null;
         };
         /**
-         * LatencySample
-         * @description A single latency sample for time-series visualization.
+         * LatencyHistorySnapshot
+         * @description Single time-bucket snapshot of pipeline latency metrics.
          */
-        LatencySample: {
+        LatencyHistorySnapshot: {
             /**
              * Timestamp
-             * @description Unix timestamp when the sample was recorded
+             * @description Bucket start time (ISO format)
              */
-            timestamp: number;
+            timestamp: string;
             /**
-             * Stage
-             * @description Pipeline stage name (watch_to_detect, detect_to_batch, etc.)
+             * Stages
+             * @description Latency stats for each pipeline stage (None if no samples)
              */
-            stage: string;
+            stages: {
+                [key: string]: components["schemas"]["LatencyHistoryStageStats"] | null;
+            };
+        };
+        /**
+         * LatencyHistoryStageStats
+         * @description Latency statistics for a single stage in a history snapshot.
+         */
+        LatencyHistoryStageStats: {
             /**
-             * Latency Ms
-             * @description Latency in milliseconds
+             * Avg Ms
+             * @description Average latency in milliseconds
              */
-            latency_ms: number;
+            avg_ms: number;
+            /**
+             * P50 Ms
+             * @description 50th percentile (median) latency
+             */
+            p50_ms: number;
+            /**
+             * P95 Ms
+             * @description 95th percentile latency
+             */
+            p95_ms: number;
+            /**
+             * P99 Ms
+             * @description 99th percentile latency
+             */
+            p99_ms: number;
+            /**
+             * Sample Count
+             * @description Number of samples in this bucket
+             */
+            sample_count: number;
         };
         /**
          * LeaderboardResponse
@@ -6291,30 +6318,7 @@ export interface components {
          * @example {
          *       "loading_strategy": "sequential",
          *       "max_concurrent_models": 1,
-         *       "models": [
-         *         {
-         *           "available": true,
-         *           "category": "detection",
-         *           "display_name": "YOLO11 License Plate",
-         *           "enabled": true,
-         *           "load_count": 1,
-         *           "name": "yolo11-license-plate",
-         *           "path": "/models/model-zoo/yolo11-license-plate/license-plate-finetune-v1n.pt",
-         *           "status": "loaded",
-         *           "vram_mb": 300
-         *         },
-         *         {
-         *           "available": false,
-         *           "category": "detection",
-         *           "display_name": "YOLO11 Face Detection",
-         *           "enabled": true,
-         *           "load_count": 0,
-         *           "name": "yolo11-face",
-         *           "path": "/models/model-zoo/yolo11-face-detection/model.pt",
-         *           "status": "unloaded",
-         *           "vram_mb": 200
-         *         }
-         *       ],
+         *       "models": [],
          *       "vram_available_mb": 1350,
          *       "vram_budget_mb": 1650,
          *       "vram_used_mb": 300
@@ -6637,19 +6641,22 @@ export interface components {
          * PipelineLatencyHistoryResponse
          * @description Response schema for pipeline latency history endpoint.
          *
-         *     Provides raw latency samples for time-series visualization.
-         *     Samples are sorted by timestamp in descending order (most recent first).
+         *     Provides time-series latency data for charting and trend analysis.
+         *     Each snapshot contains aggregated metrics for a time bucket.
          * @example {
-         *       "samples": [
+         *       "bucket_seconds": 60,
+         *       "snapshots": [
          *         {
-         *           "latency_ms": 50,
-         *           "stage": "watch_to_detect",
-         *           "timestamp": 1735393800
-         *         },
-         *         {
-         *           "latency_ms": 100,
-         *           "stage": "detect_to_batch",
-         *           "timestamp": 1735393795
+         *           "stages": {
+         *             "watch_to_detect": {
+         *               "avg_ms": 50,
+         *               "p50_ms": 45,
+         *               "p95_ms": 120,
+         *               "p99_ms": 150,
+         *               "sample_count": 15
+         *             }
+         *           },
+         *           "timestamp": "2025-12-28T10:00:00+00:00"
          *         }
          *       ],
          *       "timestamp": "2025-12-28T10:30:00Z",
@@ -6658,19 +6665,24 @@ export interface components {
          */
         PipelineLatencyHistoryResponse: {
             /**
-             * Samples
-             * @description List of latency samples for time-series visualization
+             * Snapshots
+             * @description Chronologically ordered latency snapshots
              */
-            samples?: components["schemas"]["LatencySample"][];
+            snapshots: components["schemas"]["LatencyHistorySnapshot"][];
             /**
              * Window Minutes
-             * @description Time window used for filtering samples
+             * @description Time window covered by the history
              */
             window_minutes: number;
             /**
+             * Bucket Seconds
+             * @description Bucket size for aggregation
+             */
+            bucket_seconds: number;
+            /**
              * Timestamp
              * Format: date-time
-             * @description Timestamp of response
+             * @description Timestamp when history was retrieved
              */
             timestamp: string;
         };
@@ -10990,8 +11002,8 @@ export interface operations {
     get_pipeline_latency_history_api_system_pipeline_latency_history_get: {
         parameters: {
             query?: {
-                window_minutes?: number;
-                limit?: number | null;
+                since?: number;
+                bucket_seconds?: number;
             };
             header?: never;
             path?: never;

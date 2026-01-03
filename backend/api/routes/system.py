@@ -35,7 +35,8 @@ from backend.api.schemas.system import (
     GPUStatsHistoryResponse,
     GPUStatsResponse,
     HealthResponse,
-    LatencySample,
+    LatencyHistorySnapshot,
+    LatencyHistoryStageStats,
     ModelRegistryResponse,
     ModelStatusEnum,
     ModelStatusResponse,
@@ -1537,39 +1538,58 @@ async def get_pipeline_latency(
     )
 
 
-@router.get("/pipeline-latency-history", response_model=PipelineLatencyHistoryResponse)
+@router.get("/pipeline-latency/history", response_model=PipelineLatencyHistoryResponse)
 async def get_pipeline_latency_history(
-    window_minutes: int = 60,
-    limit: int | None = 100,
+    since: int = 60,
+    bucket_seconds: int = 60,
 ) -> PipelineLatencyHistoryResponse:
-    """Get raw pipeline latency samples for time-series visualization.
+    """Get pipeline latency history for time-series visualization.
 
-    Returns individual latency samples for all pipeline stages, suitable for
-    creating time-series graphs. Samples are sorted by timestamp in descending
-    order (most recent first).
+    Returns latency data grouped into time buckets for charting.
+    Each bucket contains aggregated statistics for all pipeline stages.
 
     Args:
-        window_minutes: Time window for filtering samples (default 60 minutes)
-        limit: Maximum number of samples to return (default 100, None for all)
+        since: Number of minutes of history to return (default 60)
+        bucket_seconds: Size of each time bucket in seconds (default 60 = 1 minute)
 
     Returns:
-        PipelineLatencyHistoryResponse with list of latency samples
+        PipelineLatencyHistoryResponse with chronologically ordered snapshots
     """
     from backend.core.metrics import get_pipeline_latency_tracker
 
     tracker = get_pipeline_latency_tracker()
-    samples = tracker.get_samples_history(window_minutes=window_minutes, limit=limit)
+    history_data = tracker.get_latency_history(
+        window_minutes=since,
+        bucket_seconds=bucket_seconds,
+    )
+
+    # Convert raw history data to schema format
+    snapshots = []
+    for snapshot in history_data:
+        stages: dict[str, LatencyHistoryStageStats | None] = {}
+        for stage_name, stage_stats in snapshot["stages"].items():
+            if stage_stats is not None:
+                stages[stage_name] = LatencyHistoryStageStats(
+                    avg_ms=stage_stats["avg_ms"],
+                    p50_ms=stage_stats["p50_ms"],
+                    p95_ms=stage_stats["p95_ms"],
+                    p99_ms=stage_stats["p99_ms"],
+                    sample_count=stage_stats["sample_count"],
+                )
+            else:
+                stages[stage_name] = None
+
+        snapshots.append(
+            LatencyHistorySnapshot(
+                timestamp=snapshot["timestamp"],
+                stages=stages,
+            )
+        )
 
     return PipelineLatencyHistoryResponse(
-        samples=[
-            LatencySample(
-                timestamp=sample["timestamp"],  # type: ignore[arg-type]
-                stage=str(sample["stage"]),
-                latency_ms=float(sample["latency_ms"]),
-            )
-            for sample in samples
-        ],
-        window_minutes=window_minutes,
+        snapshots=snapshots,
+        window_minutes=since,
+        bucket_seconds=bucket_seconds,
         timestamp=datetime.now(UTC),
     )
 

@@ -107,6 +107,19 @@ export type AlertRuleListResponse = components['schemas']['AlertRuleListResponse
 export type AlertRuleSchedule = components['schemas']['AlertRuleSchedule'];
 export type AlertSeverity = components['schemas']['AlertSeverity'];
 
+// Circuit Breaker types
+export type CircuitBreakerStateEnum = components['schemas']['CircuitBreakerStateEnum'];
+export type CircuitBreakerConfigResponse = components['schemas']['CircuitBreakerConfigResponse'];
+export type CircuitBreakerStatusResponse = components['schemas']['CircuitBreakerStatusResponse'];
+export type CircuitBreakersResponse = components['schemas']['CircuitBreakersResponse'];
+export type CircuitBreakerResetResponse = components['schemas']['CircuitBreakerResetResponse'];
+
+// Severity types
+export type SeverityEnum = components['schemas']['SeverityEnum'];
+export type SeverityDefinitionResponse = components['schemas']['SeverityDefinitionResponse'];
+export type SeverityThresholds = components['schemas']['SeverityThresholds'];
+export type SeverityMetadataResponse = components['schemas']['SeverityMetadataResponse'];
+
 // Zone types
 export type Zone = components['schemas']['ZoneResponse'];
 export type ZoneCreate = components['schemas']['ZoneCreate'];
@@ -114,12 +127,6 @@ export type ZoneUpdate = components['schemas']['ZoneUpdate'];
 export type ZoneListResponse = components['schemas']['ZoneListResponse'];
 export type ZoneShape = components['schemas']['ZoneShape'];
 export type ZoneType = components['schemas']['ZoneType'];
-
-// Severity types
-export type SeverityEnum = components['schemas']['SeverityEnum'];
-export type SeverityDefinitionResponse = components['schemas']['SeverityDefinitionResponse'];
-export type SeverityThresholds = components['schemas']['SeverityThresholds'];
-export type SeverityMetadataResponse = components['schemas']['SeverityMetadataResponse'];
 
 // Model Zoo types
 export type ModelStatusResponse = components['schemas']['ModelStatusResponse'];

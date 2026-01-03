@@ -1,238 +1,58 @@
-import { Card, Title, Text } from '@tremor/react';
-import { AlertTriangle, Gauge } from 'lucide-react';
-import { useEffect, useState, useCallback } from 'react';
-
-import { fetchSeverityMetadata } from '../../services/api';
+import { Card, Title, Text, Badge } from '@tremor/react';
+import { clsx } from 'clsx';
+import { Gauge, AlertCircle, Lock } from 'lucide-react';
 
 import type {
-  SeverityMetadataResponse,
   SeverityDefinitionResponse,
-  SeverityThresholds,
-} from '../../services/api';
+  SeverityMetadataResponse,
+} from '../../types/generated';
 
 /**
  * Props for SeverityConfigPanel component
  */
 export interface SeverityConfigPanelProps {
-  /** Optional class name for styling */
+  /** Severity metadata from API */
+  data: SeverityMetadataResponse | null;
+  /** Loading state */
+  loading: boolean;
+  /** Error message if fetch failed */
+  error: string | null;
+  /** Additional CSS classes */
   className?: string;
 }
 
 /**
- * Gets icon for severity level
- */
-function getSeverityIcon(severity: string) {
-  switch (severity) {
-    case 'critical':
-      return '!!';
-    case 'high':
-      return '!';
-    case 'medium':
-      return '-';
-    case 'low':
-      return '';
-    default:
-      return '';
-  }
-}
-
-/**
- * SeverityRow - Displays a single severity level's definition
- */
-interface SeverityRowProps {
-  definition: SeverityDefinitionResponse;
-}
-
-function SeverityRow({ definition }: SeverityRowProps) {
-  return (
-    <div
-      className="flex items-center justify-between rounded-lg bg-gray-800/50 p-3"
-      data-testid={`severity-row-${definition.severity}`}
-    >
-      <div className="flex items-center gap-3">
-        {/* Color Indicator */}
-        <div
-          className="h-4 w-4 rounded-full"
-          style={{ backgroundColor: definition.color }}
-          data-testid={`severity-color-${definition.severity}`}
-          aria-label={`${definition.label} color indicator`}
-        />
-
-        {/* Severity Info */}
-        <div className="flex flex-col">
-          <div className="flex items-center gap-2">
-            <span
-              className="text-sm font-medium text-gray-300"
-              data-testid={`severity-label-${definition.severity}`}
-            >
-              {definition.label}
-            </span>
-            {getSeverityIcon(definition.severity) && (
-              <span
-                className="text-xs font-bold"
-                style={{ color: definition.color }}
-              >
-                {getSeverityIcon(definition.severity)}
-              </span>
-            )}
-          </div>
-          <span
-            className="text-xs text-gray-500"
-            data-testid={`severity-description-${definition.severity}`}
-          >
-            {definition.description}
-          </span>
-        </div>
-      </div>
-
-      {/* Score Range */}
-      <div className="text-right">
-        <span
-          className="text-sm font-mono font-medium"
-          style={{ color: definition.color }}
-          data-testid={`severity-range-${definition.severity}`}
-        >
-          {definition.min_score} - {definition.max_score}
-        </span>
-        <Text className="text-xs text-gray-500">Risk Score</Text>
-      </div>
-    </div>
-  );
-}
-
-/**
- * SeverityScale - Visual representation of severity thresholds
- */
-interface SeverityScaleProps {
-  definitions: SeverityDefinitionResponse[];
-}
-
-function SeverityScale({ definitions }: SeverityScaleProps) {
-  // Sort definitions by min_score for proper scale display
-  const sortedDefs = [...definitions].sort((a, b) => a.min_score - b.min_score);
-
-  return (
-    <div className="mt-4" data-testid="severity-scale">
-      <Text className="mb-2 text-xs text-gray-500">Risk Score Scale</Text>
-      <div className="flex h-4 w-full overflow-hidden rounded-full">
-        {sortedDefs.map((def) => {
-          const width = ((def.max_score - def.min_score + 1) / 101) * 100;
-          return (
-            <div
-              key={def.severity}
-              className="h-full"
-              style={{
-                backgroundColor: def.color,
-                width: `${width}%`,
-              }}
-              title={`${def.label}: ${def.min_score}-${def.max_score}`}
-            />
-          );
-        })}
-      </div>
-      <div className="mt-1 flex justify-between text-xs text-gray-500">
-        <span>0</span>
-        <span>25</span>
-        <span>50</span>
-        <span>75</span>
-        <span>100</span>
-      </div>
-    </div>
-  );
-}
-
-/**
- * ThresholdsSection - Displays threshold configuration
- */
-interface ThresholdsSectionProps {
-  thresholds: SeverityThresholds;
-}
-
-function ThresholdsSection({ thresholds }: ThresholdsSectionProps) {
-  return (
-    <div className="mt-4 rounded-lg bg-gray-800/30 p-3">
-      <Text className="mb-2 text-xs font-medium text-gray-400">Threshold Configuration</Text>
-      <div className="grid grid-cols-3 gap-2 text-center text-xs">
-        <div>
-          <Text className="text-gray-500">Low Max</Text>
-          <span
-            className="font-mono font-medium text-green-400"
-            data-testid="threshold-low-max"
-          >
-            {thresholds.low_max}
-          </span>
-        </div>
-        <div>
-          <Text className="text-gray-500">Medium Max</Text>
-          <span
-            className="font-mono font-medium text-yellow-400"
-            data-testid="threshold-medium-max"
-          >
-            {thresholds.medium_max}
-          </span>
-        </div>
-        <div>
-          <Text className="text-gray-500">High Max</Text>
-          <span
-            className="font-mono font-medium text-orange-400"
-            data-testid="threshold-high-max"
-          >
-            {thresholds.high_max}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * SeverityConfigPanel - Displays severity level definitions and thresholds
+ * SeverityConfigPanel - Displays severity level configuration (read-only)
  *
  * Shows:
- * - All severity levels with their colors, labels, and descriptions
- * - Risk score ranges for each severity level
- * - Visual scale showing threshold boundaries
- * - Current threshold configuration
- *
- * Fetches data from GET /api/system/severity endpoint.
+ * - All 4 severity levels (LOW, MEDIUM, HIGH, CRITICAL)
+ * - Risk score ranges, color codes, and descriptions
+ * - Current thresholds configuration
+ * - Read-only indicator (editing is a future enhancement)
  */
-export default function SeverityConfigPanel({ className }: SeverityConfigPanelProps) {
-  const [data, setData] = useState<SeverityMetadataResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    try {
-      const response = await fetchSeverityMetadata();
-      setData(response);
-      setError(null);
-    } catch (err) {
-      console.error('Failed to fetch severity metadata:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch severity configuration');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Initial fetch - severity config is static, so no polling needed
-  useEffect(() => {
-    void fetchData();
-  }, [fetchData]);
-
+export default function SeverityConfigPanel({
+  data,
+  loading,
+  error,
+  className,
+}: SeverityConfigPanelProps) {
   // Loading state
   if (loading) {
     return (
       <Card
-        className={`border-gray-800 bg-[#1A1A1A] shadow-lg ${className ?? ''}`}
+        className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)}
         data-testid="severity-config-panel-loading"
       >
-        <Title className="mb-4 flex items-center gap-2 text-white">
-          <Gauge className="h-5 w-5 text-[#76B900]" />
-          Severity Levels
-        </Title>
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="h-5 w-5 animate-pulse rounded bg-gray-700" />
+            <div className="h-6 w-48 animate-pulse rounded bg-gray-700" />
+          </div>
+          <div className="h-5 w-20 animate-pulse rounded bg-gray-700" />
+        </div>
         <div className="space-y-3">
-          {Array.from({ length: 4 }, (_, i) => (
-            <div key={i} className="h-16 animate-pulse rounded-lg bg-gray-800"></div>
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-16 animate-pulse rounded-lg bg-gray-800/50" />
           ))}
         </div>
       </Card>
@@ -243,60 +63,153 @@ export default function SeverityConfigPanel({ className }: SeverityConfigPanelPr
   if (error) {
     return (
       <Card
-        className={`border-gray-800 bg-[#1A1A1A] shadow-lg ${className ?? ''}`}
+        className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)}
         data-testid="severity-config-panel-error"
       >
-        <Title className="mb-4 flex items-center gap-2 text-white">
+        <div className="mb-4 flex items-center gap-2">
           <Gauge className="h-5 w-5 text-[#76B900]" />
-          Severity Levels
-        </Title>
-        <div className="flex items-center gap-3 rounded-lg border border-red-500/30 bg-red-500/10 p-4">
-          <AlertTriangle className="h-5 w-5 text-red-500" />
-          <div>
-            <Text className="text-sm font-medium text-red-400">
-              Failed to load severity configuration
-            </Text>
-            <Text className="text-xs text-gray-400">{error}</Text>
-          </div>
+          <Title className="text-white">Severity Configuration</Title>
+        </div>
+        <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-4">
+          <AlertCircle className="h-5 w-5 text-red-500" />
+          <Text className="text-red-400">{error}</Text>
         </div>
       </Card>
     );
   }
 
-  const definitions = data?.definitions ?? [];
-  const thresholds = data?.thresholds;
-
-  // Sort definitions by priority (0 = highest priority, displayed first)
-  const sortedDefinitions = [...definitions].sort((a, b) => a.priority - b.priority);
+  // Sort definitions by priority (0 = critical = first)
+  const sortedDefinitions = data?.definitions
+    ? [...data.definitions].sort((a, b) => a.priority - b.priority)
+    : [];
 
   return (
     <Card
-      className={`border-gray-800 bg-[#1A1A1A] shadow-lg ${className ?? ''}`}
+      className={clsx('border-gray-800 bg-[#1A1A1A] shadow-lg', className)}
       data-testid="severity-config-panel"
     >
-      <Title className="mb-4 flex items-center gap-2 text-white">
-        <Gauge className="h-5 w-5 text-[#76B900]" />
-        Severity Levels
-      </Title>
-
-      {/* Severity Definitions List */}
-      <div className="space-y-2" data-testid="severity-definitions-list">
-        {sortedDefinitions.length > 0 ? (
-          sortedDefinitions.map((definition) => (
-            <SeverityRow key={definition.severity} definition={definition} />
-          ))
-        ) : (
-          <Text className="py-4 text-center text-gray-500">
-            No severity definitions configured
-          </Text>
-        )}
+      <div className="mb-4 flex items-center justify-between">
+        <Title className="flex items-center gap-2 text-white">
+          <Gauge className="h-5 w-5 text-[#76B900]" />
+          Severity Configuration
+        </Title>
+        <Badge color="gray" size="sm" icon={Lock}>
+          Read-only
+        </Badge>
       </div>
 
-      {/* Visual Scale */}
-      {definitions.length > 0 && <SeverityScale definitions={definitions} />}
+      {sortedDefinitions.length === 0 ? (
+        <div className="flex h-32 items-center justify-center">
+          <Text className="text-sm text-gray-500">No severity levels configured</Text>
+        </div>
+      ) : (
+        <>
+          {/* Severity Levels */}
+          <div className="space-y-2">
+            {sortedDefinitions.map((definition) => (
+              <SeverityLevelRow
+                key={definition.severity}
+                definition={definition}
+              />
+            ))}
+          </div>
 
-      {/* Threshold Configuration */}
-      {thresholds && <ThresholdsSection thresholds={thresholds} />}
+          {/* Thresholds Section */}
+          {data?.thresholds && (
+            <div
+              className="mt-4 rounded-lg border border-gray-700 bg-gray-800/30 p-3"
+              data-testid="thresholds-section"
+            >
+              <Text className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">
+                Threshold Configuration
+              </Text>
+              <div className="grid grid-cols-3 gap-3 text-center text-xs">
+                <div>
+                  <Text className="text-gray-500">Low Max</Text>
+                  <p
+                    className="font-mono text-gray-200"
+                    data-testid="threshold-low-max"
+                  >
+                    {data.thresholds.low_max}
+                  </p>
+                </div>
+                <div>
+                  <Text className="text-gray-500">Medium Max</Text>
+                  <p
+                    className="font-mono text-gray-200"
+                    data-testid="threshold-medium-max"
+                  >
+                    {data.thresholds.medium_max}
+                  </p>
+                </div>
+                <div>
+                  <Text className="text-gray-500">High Max</Text>
+                  <p
+                    className="font-mono text-gray-200"
+                    data-testid="threshold-high-max"
+                  >
+                    {data.thresholds.high_max}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </Card>
+  );
+}
+
+/**
+ * SeverityLevelRow - Displays a single severity level's configuration
+ */
+interface SeverityLevelRowProps {
+  definition: SeverityDefinitionResponse;
+}
+
+function SeverityLevelRow({ definition }: SeverityLevelRowProps) {
+  return (
+    <div
+      className="flex items-center gap-3 rounded-lg border border-gray-700 bg-gray-800/50 p-3"
+      data-testid={`severity-level-${definition.severity}`}
+    >
+      {/* Color Indicator */}
+      <div
+        className="h-8 w-2 rounded-full"
+        style={{ backgroundColor: definition.color }}
+        data-testid={`color-indicator-${definition.severity}`}
+      />
+
+      {/* Label and Description */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <Text className="font-medium text-gray-200">{definition.label}</Text>
+          <Badge
+            size="xs"
+            style={{
+              backgroundColor: `${definition.color}20`,
+              color: definition.color,
+              borderColor: definition.color,
+            }}
+          >
+            {definition.severity.toUpperCase()}
+          </Badge>
+        </div>
+        <Text className="text-xs text-gray-400 truncate">
+          {definition.description}
+        </Text>
+      </div>
+
+      {/* Score Range */}
+      <div className="text-right">
+        <Text className="text-xs text-gray-500">Score Range</Text>
+        <p
+          className="text-tremor-default dark:text-dark-tremor-content font-mono text-sm text-gray-200"
+          data-testid={`score-range-${definition.severity}`}
+        >
+          {definition.min_score}-{definition.max_score}
+        </p>
+      </div>
+    </div>
   );
 }

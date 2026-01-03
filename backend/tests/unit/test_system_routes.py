@@ -3934,3 +3934,119 @@ async def test_bounded_health_check_timeout_with_custom_value() -> None:
 
     assert is_healthy is True
     assert error is None
+
+
+# =============================================================================
+# Pipeline Latency History Tests (NEM-249)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_pipeline_latency_history_empty() -> None:
+    """Test pipeline latency history returns empty snapshots when no data."""
+    from backend.api.schemas.system import PipelineLatencyHistoryResponse
+    from backend.core.metrics import PipelineLatencyTracker
+
+    # Create a fresh tracker with no data
+    tracker = PipelineLatencyTracker()
+
+    with patch("backend.core.metrics.get_pipeline_latency_tracker", return_value=tracker):
+        response = await system_routes.get_pipeline_latency_history()
+
+    assert isinstance(response, PipelineLatencyHistoryResponse)
+    assert response.snapshots == []
+    assert response.window_minutes == 60
+    assert response.bucket_seconds == 60
+
+
+@pytest.mark.asyncio
+async def test_get_pipeline_latency_history_with_data() -> None:
+    """Test pipeline latency history returns data when samples exist."""
+    import time
+
+    from backend.api.schemas.system import PipelineLatencyHistoryResponse
+    from backend.core.metrics import PipelineLatencyTracker
+
+    tracker = PipelineLatencyTracker()
+
+    # Mock time to control bucket placement
+    current_time = time.time()
+
+    with patch.object(tracker, "_time") as mock_time:
+        mock_time.time.return_value = current_time
+
+        # Add some samples
+        tracker.record_stage_latency("watch_to_detect", 100.0)
+        tracker.record_stage_latency("watch_to_detect", 150.0)
+        tracker.record_stage_latency("detect_to_batch", 200.0)
+
+        with patch("backend.core.metrics.get_pipeline_latency_tracker", return_value=tracker):
+            response = await system_routes.get_pipeline_latency_history(
+                since=60,
+                bucket_seconds=60,
+            )
+
+    assert isinstance(response, PipelineLatencyHistoryResponse)
+    assert len(response.snapshots) >= 1
+    assert response.window_minutes == 60
+    assert response.bucket_seconds == 60
+
+
+@pytest.mark.asyncio
+async def test_get_pipeline_latency_history_custom_params() -> None:
+    """Test pipeline latency history with custom parameters."""
+    from backend.api.schemas.system import PipelineLatencyHistoryResponse
+    from backend.core.metrics import PipelineLatencyTracker
+
+    tracker = PipelineLatencyTracker()
+
+    with patch("backend.core.metrics.get_pipeline_latency_tracker", return_value=tracker):
+        response = await system_routes.get_pipeline_latency_history(
+            since=30,
+            bucket_seconds=120,
+        )
+
+    assert isinstance(response, PipelineLatencyHistoryResponse)
+    assert response.window_minutes == 30
+    assert response.bucket_seconds == 120
+
+
+@pytest.mark.asyncio
+async def test_get_pipeline_latency_history_stage_stats_format() -> None:
+    """Test that stage stats have correct format in history."""
+    import time
+
+    from backend.api.schemas.system import (
+        LatencyHistoryStageStats,
+    )
+    from backend.core.metrics import PipelineLatencyTracker
+
+    tracker = PipelineLatencyTracker()
+
+    current_time = time.time()
+
+    with patch.object(tracker, "_time") as mock_time:
+        mock_time.time.return_value = current_time
+
+        # Add multiple samples to get meaningful stats
+        for latency in [100.0, 110.0, 120.0, 130.0, 140.0]:
+            tracker.record_stage_latency("watch_to_detect", latency)
+
+        with patch("backend.core.metrics.get_pipeline_latency_tracker", return_value=tracker):
+            response = await system_routes.get_pipeline_latency_history(
+                since=60,
+                bucket_seconds=60,
+            )
+
+    assert len(response.snapshots) >= 1
+    snapshot = response.snapshots[-1]  # Most recent
+
+    # Check that watch_to_detect has valid stats
+    watch_stats = snapshot.stages.get("watch_to_detect")
+    assert watch_stats is not None
+    assert isinstance(watch_stats, LatencyHistoryStageStats)
+    assert watch_stats.avg_ms > 0
+    assert watch_stats.p50_ms > 0
+    assert watch_stats.p95_ms > 0
+    assert watch_stats.p99_ms > 0
+    assert watch_stats.sample_count == 5

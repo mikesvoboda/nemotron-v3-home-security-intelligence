@@ -27,6 +27,7 @@ from backend.api.schemas.events import (
 from backend.api.schemas.search import SearchResponse as SearchResponseSchema
 from backend.core.database import escape_ilike_pattern, get_db
 from backend.core.logging import get_logger
+from backend.core.metrics import record_event_reviewed
 from backend.models.audit import AuditAction
 from backend.models.camera import Camera
 from backend.models.detection import Detection
@@ -668,6 +669,8 @@ async def update_event(
     # Determine audit action based on changes
     if changes.get("reviewed", {}).get("new") is True:
         action = AuditAction.EVENT_REVIEWED
+        # Record events reviewed metric for Prometheus (NEM-770)
+        record_event_reviewed()
     elif changes.get("reviewed", {}).get("new") is False:
         action = AuditAction.EVENT_DISMISSED
     else:

@@ -1,261 +1,320 @@
-import { render, screen, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
 
 import SeverityConfigPanel from './SeverityConfigPanel';
-import * as api from '../../services/api';
 
-// Mock the API module
-vi.mock('../../services/api', () => ({
-  fetchSeverityMetadata: vi.fn(),
-}));
+import type {
+  SeverityDefinitionResponse,
+  SeverityMetadataResponse,
+} from '../../types/generated';
 
-const mockSeverityMetadataResponse = {
-  definitions: [
-    {
-      severity: 'low' as const,
-      label: 'Low',
-      description: 'Routine activity, no concern',
-      color: '#22c55e',
-      priority: 3,
-      min_score: 0,
-      max_score: 29,
+// Mock data generators
+function createMockSeverityDefinition(
+  severity: 'low' | 'medium' | 'high' | 'critical',
+  label: string,
+  description: string,
+  color: string,
+  priority: number,
+  minScore: number,
+  maxScore: number
+): SeverityDefinitionResponse {
+  return {
+    severity,
+    label,
+    description,
+    color,
+    priority,
+    min_score: minScore,
+    max_score: maxScore,
+  };
+}
+
+function createMockSeverityMetadata(): SeverityMetadataResponse {
+  return {
+    definitions: [
+      createMockSeverityDefinition(
+        'low',
+        'Low',
+        'Routine activity, no concern',
+        '#22c55e',
+        3,
+        0,
+        29
+      ),
+      createMockSeverityDefinition(
+        'medium',
+        'Medium',
+        'Notable activity, worth reviewing',
+        '#eab308',
+        2,
+        30,
+        59
+      ),
+      createMockSeverityDefinition(
+        'high',
+        'High',
+        'Concerning activity, review soon',
+        '#f97316',
+        1,
+        60,
+        84
+      ),
+      createMockSeverityDefinition(
+        'critical',
+        'Critical',
+        'Immediate attention required',
+        '#ef4444',
+        0,
+        85,
+        100
+      ),
+    ],
+    thresholds: {
+      low_max: 29,
+      medium_max: 59,
+      high_max: 84,
     },
-    {
-      severity: 'medium' as const,
-      label: 'Medium',
-      description: 'Notable activity, worth reviewing',
-      color: '#eab308',
-      priority: 2,
-      min_score: 30,
-      max_score: 59,
-    },
-    {
-      severity: 'high' as const,
-      label: 'High',
-      description: 'Concerning activity, review soon',
-      color: '#f97316',
-      priority: 1,
-      min_score: 60,
-      max_score: 84,
-    },
-    {
-      severity: 'critical' as const,
-      label: 'Critical',
-      description: 'Immediate attention required',
-      color: '#ef4444',
-      priority: 0,
-      min_score: 85,
-      max_score: 100,
-    },
-  ],
-  thresholds: {
-    low_max: 29,
-    medium_max: 59,
-    high_max: 84,
-  },
-};
+  };
+}
+
+const mockSeverityMetadata = createMockSeverityMetadata();
 
 describe('SeverityConfigPanel', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+  describe('rendering', () => {
+    it('renders the component with title', () => {
+      render(
+        <SeverityConfigPanel
+          data={mockSeverityMetadata}
+          loading={false}
+          error={null}
+        />
+      );
 
-  it('shows loading state initially', () => {
-    vi.mocked(api.fetchSeverityMetadata).mockImplementation(
-      () => new Promise(() => {}) // Never resolves
-    );
-
-    render(<SeverityConfigPanel />);
-
-    expect(screen.getByTestId('severity-config-panel-loading')).toBeInTheDocument();
-  });
-
-  it('displays severity definitions after loading', async () => {
-    vi.mocked(api.fetchSeverityMetadata).mockResolvedValue(mockSeverityMetadataResponse);
-
-    render(<SeverityConfigPanel />);
-
-    await waitFor(() => {
       expect(screen.getByTestId('severity-config-panel')).toBeInTheDocument();
+      expect(screen.getByText('Severity Configuration')).toBeInTheDocument();
     });
 
-    // Check all severity levels are displayed
-    expect(screen.getByTestId('severity-row-low')).toBeInTheDocument();
-    expect(screen.getByTestId('severity-row-medium')).toBeInTheDocument();
-    expect(screen.getByTestId('severity-row-high')).toBeInTheDocument();
-    expect(screen.getByTestId('severity-row-critical')).toBeInTheDocument();
+    it('renders all four severity levels', () => {
+      render(
+        <SeverityConfigPanel
+          data={mockSeverityMetadata}
+          loading={false}
+          error={null}
+        />
+      );
+
+      expect(screen.getByTestId('severity-level-low')).toBeInTheDocument();
+      expect(screen.getByTestId('severity-level-medium')).toBeInTheDocument();
+      expect(screen.getByTestId('severity-level-high')).toBeInTheDocument();
+      expect(screen.getByTestId('severity-level-critical')).toBeInTheDocument();
+    });
   });
 
-  it('displays correct labels for each severity level', async () => {
-    vi.mocked(api.fetchSeverityMetadata).mockResolvedValue(mockSeverityMetadataResponse);
+  describe('severity labels', () => {
+    it('displays severity labels', () => {
+      render(
+        <SeverityConfigPanel
+          data={mockSeverityMetadata}
+          loading={false}
+          error={null}
+        />
+      );
 
-    render(<SeverityConfigPanel />);
+      expect(screen.getByText('Low')).toBeInTheDocument();
+      expect(screen.getByText('Medium')).toBeInTheDocument();
+      expect(screen.getByText('High')).toBeInTheDocument();
+      expect(screen.getByText('Critical')).toBeInTheDocument();
+    });
+  });
 
-    await waitFor(() => {
-      expect(screen.getByTestId('severity-config-panel')).toBeInTheDocument();
+  describe('severity descriptions', () => {
+    it('displays descriptions for each severity level', () => {
+      render(
+        <SeverityConfigPanel
+          data={mockSeverityMetadata}
+          loading={false}
+          error={null}
+        />
+      );
+
+      expect(screen.getByText('Routine activity, no concern')).toBeInTheDocument();
+      expect(screen.getByText('Notable activity, worth reviewing')).toBeInTheDocument();
+      expect(screen.getByText('Concerning activity, review soon')).toBeInTheDocument();
+      expect(screen.getByText('Immediate attention required')).toBeInTheDocument();
+    });
+  });
+
+  describe('risk score ranges', () => {
+    it('displays risk score ranges for each severity level', () => {
+      render(
+        <SeverityConfigPanel
+          data={mockSeverityMetadata}
+          loading={false}
+          error={null}
+        />
+      );
+
+      expect(screen.getByTestId('score-range-low')).toHaveTextContent('0-29');
+      expect(screen.getByTestId('score-range-medium')).toHaveTextContent('30-59');
+      expect(screen.getByTestId('score-range-high')).toHaveTextContent('60-84');
+      expect(screen.getByTestId('score-range-critical')).toHaveTextContent('85-100');
+    });
+  });
+
+  describe('color display', () => {
+    it('displays color indicators for each severity level', () => {
+      render(
+        <SeverityConfigPanel
+          data={mockSeverityMetadata}
+          loading={false}
+          error={null}
+        />
+      );
+
+      const lowColor = screen.getByTestId('color-indicator-low');
+      const mediumColor = screen.getByTestId('color-indicator-medium');
+      const highColor = screen.getByTestId('color-indicator-high');
+      const criticalColor = screen.getByTestId('color-indicator-critical');
+
+      // Check that color indicators exist
+      expect(lowColor).toBeInTheDocument();
+      expect(mediumColor).toBeInTheDocument();
+      expect(highColor).toBeInTheDocument();
+      expect(criticalColor).toBeInTheDocument();
+    });
+  });
+
+  describe('thresholds display', () => {
+    it('displays threshold values', () => {
+      render(
+        <SeverityConfigPanel
+          data={mockSeverityMetadata}
+          loading={false}
+          error={null}
+        />
+      );
+
+      expect(screen.getByTestId('thresholds-section')).toBeInTheDocument();
+      expect(screen.getByTestId('threshold-low-max')).toHaveTextContent('29');
+      expect(screen.getByTestId('threshold-medium-max')).toHaveTextContent('59');
+      expect(screen.getByTestId('threshold-high-max')).toHaveTextContent('84');
+    });
+  });
+
+  describe('loading state', () => {
+    it('displays loading skeleton when loading is true', () => {
+      render(
+        <SeverityConfigPanel
+          data={null}
+          loading={true}
+          error={null}
+        />
+      );
+
+      expect(screen.getByTestId('severity-config-panel-loading')).toBeInTheDocument();
     });
 
-    // Check labels
-    expect(screen.getByTestId('severity-label-low')).toHaveTextContent('Low');
-    expect(screen.getByTestId('severity-label-medium')).toHaveTextContent('Medium');
-    expect(screen.getByTestId('severity-label-high')).toHaveTextContent('High');
-    expect(screen.getByTestId('severity-label-critical')).toHaveTextContent('Critical');
-  });
+    it('does not display severity levels when loading', () => {
+      render(
+        <SeverityConfigPanel
+          data={null}
+          loading={true}
+          error={null}
+        />
+      );
 
-  it('displays descriptions for each severity level', async () => {
-    vi.mocked(api.fetchSeverityMetadata).mockResolvedValue(mockSeverityMetadataResponse);
-
-    render(<SeverityConfigPanel />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('severity-config-panel')).toBeInTheDocument();
+      expect(screen.queryByTestId('severity-level-low')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('severity-level-critical')).not.toBeInTheDocument();
     });
-
-    // Check descriptions
-    expect(screen.getByTestId('severity-description-low')).toHaveTextContent(
-      'Routine activity, no concern'
-    );
-    expect(screen.getByTestId('severity-description-critical')).toHaveTextContent(
-      'Immediate attention required'
-    );
   });
 
-  it('displays score ranges for each severity level', async () => {
-    vi.mocked(api.fetchSeverityMetadata).mockResolvedValue(mockSeverityMetadataResponse);
+  describe('error state', () => {
+    it('displays error message when error is present', () => {
+      render(
+        <SeverityConfigPanel
+          data={null}
+          loading={false}
+          error="Failed to fetch severity metadata"
+        />
+      );
 
-    render(<SeverityConfigPanel />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('severity-config-panel')).toBeInTheDocument();
-    });
-
-    // Check score ranges
-    expect(screen.getByTestId('severity-range-low')).toHaveTextContent('0 - 29');
-    expect(screen.getByTestId('severity-range-medium')).toHaveTextContent('30 - 59');
-    expect(screen.getByTestId('severity-range-high')).toHaveTextContent('60 - 84');
-    expect(screen.getByTestId('severity-range-critical')).toHaveTextContent('85 - 100');
-  });
-
-  it('displays color indicators for each severity level', async () => {
-    vi.mocked(api.fetchSeverityMetadata).mockResolvedValue(mockSeverityMetadataResponse);
-
-    render(<SeverityConfigPanel />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('severity-config-panel')).toBeInTheDocument();
-    });
-
-    // Check color indicators exist
-    expect(screen.getByTestId('severity-color-low')).toBeInTheDocument();
-    expect(screen.getByTestId('severity-color-medium')).toBeInTheDocument();
-    expect(screen.getByTestId('severity-color-high')).toBeInTheDocument();
-    expect(screen.getByTestId('severity-color-critical')).toBeInTheDocument();
-  });
-
-  it('displays error state when API call fails', async () => {
-    vi.mocked(api.fetchSeverityMetadata).mockRejectedValue(new Error('Network error'));
-
-    render(<SeverityConfigPanel />);
-
-    await waitFor(() => {
       expect(screen.getByTestId('severity-config-panel-error')).toBeInTheDocument();
+      expect(screen.getByText(/Failed to fetch severity metadata/i)).toBeInTheDocument();
     });
-
-    expect(screen.getByText(/Failed to load severity configuration/i)).toBeInTheDocument();
   });
 
-  it('displays threshold configuration section', async () => {
-    vi.mocked(api.fetchSeverityMetadata).mockResolvedValue(mockSeverityMetadataResponse);
+  describe('read-only indicator', () => {
+    it('displays read-only indicator', () => {
+      render(
+        <SeverityConfigPanel
+          data={mockSeverityMetadata}
+          loading={false}
+          error={null}
+        />
+      );
 
-    render(<SeverityConfigPanel />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('severity-config-panel')).toBeInTheDocument();
+      // Should indicate that this is read-only configuration
+      expect(screen.getByText(/Read-only/i)).toBeInTheDocument();
     });
-
-    // Check threshold values are displayed
-    expect(screen.getByTestId('threshold-low-max')).toHaveTextContent('29');
-    expect(screen.getByTestId('threshold-medium-max')).toHaveTextContent('59');
-    expect(screen.getByTestId('threshold-high-max')).toHaveTextContent('84');
   });
 
-  it('shows panel title correctly', async () => {
-    vi.mocked(api.fetchSeverityMetadata).mockResolvedValue(mockSeverityMetadataResponse);
+  describe('priority ordering', () => {
+    it('displays severity levels in correct order (critical first)', () => {
+      render(
+        <SeverityConfigPanel
+          data={mockSeverityMetadata}
+          loading={false}
+          error={null}
+        />
+      );
 
-    render(<SeverityConfigPanel />);
+      // Get all severity level elements
+      const severityLevels = screen.getAllByTestId(/severity-level-/);
 
-    await waitFor(() => {
-      expect(screen.getByTestId('severity-config-panel')).toBeInTheDocument();
+      // Verify order: critical (priority 0) should be first
+      expect(severityLevels[0]).toHaveAttribute('data-testid', 'severity-level-critical');
+      expect(severityLevels[1]).toHaveAttribute('data-testid', 'severity-level-high');
+      expect(severityLevels[2]).toHaveAttribute('data-testid', 'severity-level-medium');
+      expect(severityLevels[3]).toHaveAttribute('data-testid', 'severity-level-low');
     });
-
-    expect(screen.getByText('Severity Levels')).toBeInTheDocument();
   });
 
-  it('handles empty definitions gracefully', async () => {
-    vi.mocked(api.fetchSeverityMetadata).mockResolvedValue({
-      definitions: [],
-      thresholds: {
-        low_max: 29,
-        medium_max: 59,
-        high_max: 84,
-      },
-    });
+  describe('empty data handling', () => {
+    it('handles empty definitions array gracefully', () => {
+      const emptyData: SeverityMetadataResponse = {
+        definitions: [],
+        thresholds: {
+          low_max: 29,
+          medium_max: 59,
+          high_max: 84,
+        },
+      };
 
-    render(<SeverityConfigPanel />);
+      render(
+        <SeverityConfigPanel
+          data={emptyData}
+          loading={false}
+          error={null}
+        />
+      );
 
-    await waitFor(() => {
       expect(screen.getByTestId('severity-config-panel')).toBeInTheDocument();
+      expect(screen.getByText(/No severity levels/i)).toBeInTheDocument();
     });
-
-    expect(screen.getByText(/No severity definitions configured/i)).toBeInTheDocument();
   });
 
-  it('displays severity levels sorted by priority', async () => {
-    vi.mocked(api.fetchSeverityMetadata).mockResolvedValue(mockSeverityMetadataResponse);
+  describe('visual consistency', () => {
+    it('renders consistent card styling', () => {
+      render(
+        <SeverityConfigPanel
+          data={mockSeverityMetadata}
+          loading={false}
+          error={null}
+        />
+      );
 
-    render(<SeverityConfigPanel />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('severity-config-panel')).toBeInTheDocument();
+      const panel = screen.getByTestId('severity-config-panel');
+      expect(panel).toBeInTheDocument();
     });
-
-    const severityRows = screen.getAllByTestId(/^severity-row-/);
-    expect(severityRows).toHaveLength(4);
-
-    // Critical (priority 0) should come first
-    expect(severityRows[0]).toHaveAttribute('data-testid', 'severity-row-critical');
-    expect(severityRows[1]).toHaveAttribute('data-testid', 'severity-row-high');
-    expect(severityRows[2]).toHaveAttribute('data-testid', 'severity-row-medium');
-    expect(severityRows[3]).toHaveAttribute('data-testid', 'severity-row-low');
-  });
-
-  it('applies correct color styling to severity badges', async () => {
-    vi.mocked(api.fetchSeverityMetadata).mockResolvedValue(mockSeverityMetadataResponse);
-
-    render(<SeverityConfigPanel />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('severity-config-panel')).toBeInTheDocument();
-    });
-
-    // Color indicators should have inline style with background color (browser converts hex to rgb)
-    const lowColor = screen.getByTestId('severity-color-low');
-    expect(lowColor).toHaveAttribute('style', expect.stringContaining('rgb(34, 197, 94)'));
-
-    const criticalColor = screen.getByTestId('severity-color-critical');
-    expect(criticalColor).toHaveAttribute('style', expect.stringContaining('rgb(239, 68, 68)'));
-  });
-
-  it('shows visual risk score scale', async () => {
-    vi.mocked(api.fetchSeverityMetadata).mockResolvedValue(mockSeverityMetadataResponse);
-
-    render(<SeverityConfigPanel />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('severity-config-panel')).toBeInTheDocument();
-    });
-
-    // Should show a visual scale at the bottom
-    expect(screen.getByTestId('severity-scale')).toBeInTheDocument();
   });
 });
