@@ -785,10 +785,17 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Free up disk space
-        run: |
-          # Remove unnecessary tools to free up space for Docker build
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
-          df -h
+        # Backend image includes heavy ML dependencies (PyTorch, transformers)
+        # which require more disk space than default GitHub runners provide
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
