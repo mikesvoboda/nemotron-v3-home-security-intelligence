@@ -170,10 +170,10 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
                 max="300"
                 step="10"
                 value={editedConfig.batch_window_seconds}
-                onChange={(e) =>
+                onInput={(e) =>
                   setEditedConfig({
                     ...editedConfig,
-                    batch_window_seconds: parseInt(e.target.value),
+                    batch_window_seconds: parseInt((e.target as HTMLInputElement).value),
                   })
                 }
                 className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]"
@@ -204,10 +204,10 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
                 max="120"
                 step="5"
                 value={editedConfig.batch_idle_timeout_seconds}
-                onChange={(e) =>
+                onInput={(e) =>
                   setEditedConfig({
                     ...editedConfig,
-                    batch_idle_timeout_seconds: parseInt(e.target.value),
+                    batch_idle_timeout_seconds: parseInt((e.target as HTMLInputElement).value),
                   })
                 }
                 className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]"
@@ -238,10 +238,10 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
                 max="90"
                 step="1"
                 value={editedConfig.retention_days}
-                onChange={(e) =>
+                onInput={(e) =>
                   setEditedConfig({
                     ...editedConfig,
-                    retention_days: parseInt(e.target.value),
+                    retention_days: parseInt((e.target as HTMLInputElement).value),
                   })
                 }
                 className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]"
@@ -272,10 +272,10 @@ export default function ProcessingSettings({ className }: ProcessingSettingsProp
                 max="1"
                 step="0.01"
                 value={editedConfig.detection_confidence_threshold}
-                onChange={(e) =>
+                onInput={(e) =>
                   setEditedConfig({
                     ...editedConfig,
-                    detection_confidence_threshold: parseFloat(e.target.value),
+                    detection_confidence_threshold: parseFloat((e.target as HTMLInputElement).value),
                   })
                 }
                 className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 accent-[#76B900]"
