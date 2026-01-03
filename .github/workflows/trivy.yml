@@ -28,19 +28,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Free disk space
+      - name: Free up disk space
         # Backend image includes heavy ML dependencies (PyTorch, transformers)
         # which require more disk space than default GitHub runners provide
-        run: |
-          echo "Disk space before cleanup:"
-          df -h /
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /usr/local/share/boost
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-          docker system prune -af
-          echo "Disk space after cleanup:"
-          df -h /
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
 
       - name: Build backend image
         id: build
@@ -51,6 +50,8 @@ jobs:
       - name: Run Trivy vulnerability scanner (blocking)
         # Fail build on CRITICAL/HIGH vulnerabilities not in .trivyignore
         # Only run if build succeeded
+        # Note: SARIF upload skipped for backend due to disk space constraints
+        # (large ML image + Trivy cache exhausts GitHub runner disk)
         if: steps.build.outcome == 'success'
         uses: aquasecurity/trivy-action@master
         with:
@@ -59,25 +60,6 @@ jobs:
           severity: 'CRITICAL,HIGH'
           exit-code: '1'
           trivyignores: '.trivyignore'
-
-      - name: Run Trivy for SARIF upload
-        # Run SARIF generation for GitHub Security tab if build succeeded
-        # Runs even if blocking scan above failed (found vulnerabilities)
-        if: always() && steps.build.outcome == 'success'
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: 'backend:${{ github.sha }}'
-          format: 'sarif'
-          output: 'trivy-backend.sarif'
-          severity: 'CRITICAL,HIGH'
-          exit-code: '0'
-          trivyignores: '.trivyignore'
-
-      - name: Upload Trivy scan results
-        uses: github/codeql-action/upload-sarif@v4
-        if: always() && steps.build.outcome == 'success'
-        with:
-          sarif_file: 'trivy-backend.sarif'
 
   scan-frontend:
     name: Scan Frontend Image

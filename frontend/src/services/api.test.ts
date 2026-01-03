@@ -571,31 +571,49 @@ describe('Camera API', () => {
     });
 
     it('throws ApiError on 500 error', async () => {
-      vi.mocked(fetch).mockResolvedValue(
-        createMockErrorResponse(500, 'Internal Server Error', 'Database error')
-      );
-
-      await expect(fetchCameras()).rejects.toThrow(ApiError);
+      vi.useFakeTimers();
+      clearInFlightRequests();
 
       vi.mocked(fetch).mockResolvedValue(
         createMockErrorResponse(500, 'Internal Server Error', 'Database error')
       );
-      await expect(fetchCameras()).rejects.toMatchObject({
-        status: 500,
-        message: 'Database error',
+
+      let caughtError: ApiError | null = null;
+      const promise = fetchCameras().catch((e) => {
+        caughtError = e as ApiError;
       });
+
+      await vi.runAllTimersAsync();
+      await promise;
+
+      expect(caughtError).toBeInstanceOf(ApiError);
+      expect(caughtError!.status).toBe(500);
+      expect(caughtError!.message).toBe('Database error');
+
+      clearInFlightRequests();
+      vi.useRealTimers();
     });
 
     it('throws ApiError on network error', async () => {
+      vi.useFakeTimers();
+      clearInFlightRequests();
+
       vi.mocked(fetch).mockRejectedValue(new Error('Network failure'));
 
-      await expect(fetchCameras()).rejects.toThrow(ApiError);
-
-      vi.mocked(fetch).mockRejectedValue(new Error('Network failure'));
-      await expect(fetchCameras()).rejects.toMatchObject({
-        status: 0,
-        message: 'Network failure',
+      let caughtError: ApiError | null = null;
+      const promise = fetchCameras().catch((e) => {
+        caughtError = e as ApiError;
       });
+
+      await vi.runAllTimersAsync();
+      await promise;
+
+      expect(caughtError).toBeInstanceOf(ApiError);
+      expect(caughtError!.status).toBe(0);
+      expect(caughtError!.message).toBe('Network failure');
+
+      clearInFlightRequests();
+      vi.useRealTimers();
     });
   });
 
@@ -949,11 +967,27 @@ describe('System API', () => {
     });
 
     it('throws ApiError on 500 error', async () => {
-      vi.mocked(fetch).mockResolvedValueOnce(
+      vi.useFakeTimers();
+      clearInFlightRequests();
+
+      vi.mocked(fetch).mockResolvedValue(
         createMockErrorResponse(500, 'Internal Server Error', 'GPU monitoring service unavailable')
       );
 
-      await expect(fetchGpuHistory()).rejects.toThrow(ApiError);
+      let caughtError: ApiError | null = null;
+      const promise = fetchGpuHistory().catch((e) => {
+        caughtError = e as ApiError;
+      });
+
+      await vi.runAllTimersAsync();
+      await promise;
+
+      expect(caughtError).toBeInstanceOf(ApiError);
+      expect(caughtError!.status).toBe(500);
+      expect(caughtError!.message).toBe('GPU monitoring service unavailable');
+
+      clearInFlightRequests();
+      vi.useRealTimers();
     });
   });
 
@@ -1125,17 +1159,28 @@ describe('System API', () => {
     });
 
     it('throws ApiError on server error', async () => {
+      vi.useFakeTimers();
+      clearInFlightRequests();
+
       // Use mockResolvedValue (not Once) because retry logic makes multiple fetch calls
       vi.mocked(fetch).mockResolvedValue(
         createMockErrorResponse(500, 'Internal Server Error', 'Redis unavailable')
       );
 
-      await expect(fetchTelemetry()).rejects.toThrow(ApiError);
-
-      await expect(fetchTelemetry()).rejects.toMatchObject({
-        status: 500,
-        message: 'Redis unavailable',
+      let caughtError: ApiError | null = null;
+      const promise = fetchTelemetry().catch((e) => {
+        caughtError = e as ApiError;
       });
+
+      await vi.runAllTimersAsync();
+      await promise;
+
+      expect(caughtError).toBeInstanceOf(ApiError);
+      expect(caughtError!.status).toBe(500);
+      expect(caughtError!.message).toBe('Redis unavailable');
+
+      clearInFlightRequests();
+      vi.useRealTimers();
     });
   });
 });
@@ -1384,6 +1429,9 @@ describe('Events API', () => {
     });
 
     it('handles non-Error failures', async () => {
+      vi.useFakeTimers();
+      clearInFlightRequests();
+
       // First call succeeds, subsequent calls fail with retries
       let callCount = 0;
       vi.mocked(fetch).mockImplementation(() => {
@@ -1394,10 +1442,19 @@ describe('Events API', () => {
         return Promise.reject(new Error('string error'));
       });
 
-      const result = await bulkUpdateEvents([1, 2], { reviewed: true });
+      let result: { successful: number[]; failed: { id: number; error: string }[] } | null = null;
+      const promise = bulkUpdateEvents([1, 2], { reviewed: true }).then((r) => {
+        result = r;
+      });
 
-      expect(result.successful).toContain(1);
-      expect(result.failed[0].error).toBe('string error');
+      await vi.runAllTimersAsync();
+      await promise;
+
+      expect(result!.successful).toContain(1);
+      expect(result!.failed[0].error).toBe('string error');
+
+      clearInFlightRequests();
+      vi.useRealTimers();
     });
   });
 });
@@ -1652,15 +1709,8 @@ describe('Error Handling', () => {
   });
 
   it('handles error response with non-JSON body', async () => {
-    vi.mocked(fetch).mockResolvedValue({
-      ok: false,
-      status: 500,
-      statusText: 'Internal Server Error',
-      json: () => Promise.reject(new Error('Not JSON')),
-      headers: new Headers({ 'Content-Type': 'text/html' }),
-    } as unknown as Response);
-
-    await expect(fetchCameras()).rejects.toThrow(ApiError);
+    vi.useFakeTimers();
+    clearInFlightRequests();
 
     vi.mocked(fetch).mockResolvedValue({
       ok: false,
@@ -1669,34 +1719,65 @@ describe('Error Handling', () => {
       json: () => Promise.reject(new Error('Not JSON')),
       headers: new Headers({ 'Content-Type': 'text/html' }),
     } as unknown as Response);
-    await expect(fetchCameras()).rejects.toMatchObject({
-      status: 500,
-      message: 'HTTP 500: Internal Server Error',
+
+    let caughtError: ApiError | null = null;
+    const promise = fetchCameras().catch((e) => {
+      caughtError = e as ApiError;
     });
+
+    await vi.runAllTimersAsync();
+    await promise;
+
+    expect(caughtError).toBeInstanceOf(ApiError);
+    expect(caughtError!.status).toBe(500);
+    expect(caughtError!.message).toBe('HTTP 500: Internal Server Error');
+
+    clearInFlightRequests();
+    vi.useRealTimers();
   });
 
   it('handles network timeout', async () => {
+    vi.useFakeTimers();
+    clearInFlightRequests();
+
     vi.mocked(fetch).mockRejectedValue(new Error('Request timeout'));
 
-    await expect(fetchHealth()).rejects.toThrow(ApiError);
-
-    vi.mocked(fetch).mockRejectedValue(new Error('Request timeout'));
-    await expect(fetchHealth()).rejects.toMatchObject({
-      status: 0,
-      message: 'Request timeout',
+    let caughtError: ApiError | null = null;
+    const promise = fetchHealth().catch((e) => {
+      caughtError = e as ApiError;
     });
+
+    await vi.runAllTimersAsync();
+    await promise;
+
+    expect(caughtError).toBeInstanceOf(ApiError);
+    expect(caughtError!.status).toBe(0);
+    expect(caughtError!.message).toBe('Request timeout');
+
+    clearInFlightRequests();
+    vi.useRealTimers();
   });
 
   it('handles fetch rejection with non-Error object', async () => {
+    vi.useFakeTimers();
+    clearInFlightRequests();
+
     vi.mocked(fetch).mockRejectedValue('String error');
 
-    await expect(fetchHealth()).rejects.toThrow(ApiError);
-
-    vi.mocked(fetch).mockRejectedValue('String error');
-    await expect(fetchHealth()).rejects.toMatchObject({
-      status: 0,
-      message: 'Network request failed',
+    let caughtError: ApiError | null = null;
+    const promise = fetchHealth().catch((e) => {
+      caughtError = e as ApiError;
     });
+
+    await vi.runAllTimersAsync();
+    await promise;
+
+    expect(caughtError).toBeInstanceOf(ApiError);
+    expect(caughtError!.status).toBe(0);
+    expect(caughtError!.message).toBe('Network request failed');
+
+    clearInFlightRequests();
+    vi.useRealTimers();
   });
 
   it('handles 401 unauthorized', async () => {
@@ -1728,19 +1809,27 @@ describe('Error Handling', () => {
   });
 
   it('handles 503 service unavailable', async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      createMockErrorResponse(503, 'Service Unavailable', 'Service temporarily unavailable')
-    );
-
-    await expect(fetchHealth()).rejects.toThrow(ApiError);
+    vi.useFakeTimers();
+    clearInFlightRequests();
 
     vi.mocked(fetch).mockResolvedValue(
       createMockErrorResponse(503, 'Service Unavailable', 'Service temporarily unavailable')
     );
-    await expect(fetchHealth()).rejects.toMatchObject({
-      status: 503,
-      message: 'Service temporarily unavailable',
+
+    let caughtError: ApiError | null = null;
+    const promise = fetchHealth().catch((e) => {
+      caughtError = e as ApiError;
     });
+
+    await vi.runAllTimersAsync();
+    await promise;
+
+    expect(caughtError).toBeInstanceOf(ApiError);
+    expect(caughtError!.status).toBe(503);
+    expect(caughtError!.message).toBe('Service temporarily unavailable');
+
+    clearInFlightRequests();
+    vi.useRealTimers();
   });
 });
 
@@ -2093,17 +2182,28 @@ describe('searchEvents', () => {
   });
 
   it('throws ApiError on server error', async () => {
+    vi.useFakeTimers();
+    clearInFlightRequests();
+
     // Use mockResolvedValue (not Once) because retry logic makes multiple fetch calls
     vi.mocked(fetch).mockResolvedValue(
       createMockErrorResponse(500, 'Internal Server Error', 'Search service unavailable')
     );
 
-    await expect(searchEvents({ q: 'test' })).rejects.toThrow(ApiError);
-
-    await expect(searchEvents({ q: 'test' })).rejects.toMatchObject({
-      status: 500,
-      message: 'Search service unavailable',
+    let caughtError: ApiError | null = null;
+    const promise = searchEvents({ q: 'test' }).catch((e) => {
+      caughtError = e as ApiError;
     });
+
+    await vi.runAllTimersAsync();
+    await promise;
+
+    expect(caughtError).toBeInstanceOf(ApiError);
+    expect(caughtError!.status).toBe(500);
+    expect(caughtError!.message).toBe('Search service unavailable');
+
+    clearInFlightRequests();
+    vi.useRealTimers();
   });
 
   it('throws ApiError on validation error', async () => {
@@ -2418,15 +2518,27 @@ describe('Storage API', () => {
     });
 
     it('throws ApiError on server error', async () => {
+      vi.useFakeTimers();
+      clearInFlightRequests();
+
       vi.mocked(fetch).mockResolvedValue(
         createMockErrorResponse(500, 'Internal Server Error', 'Disk monitoring unavailable')
       );
 
-      await expect(fetchStorageStats()).rejects.toThrow(ApiError);
-      await expect(fetchStorageStats()).rejects.toMatchObject({
-        status: 500,
-        message: 'Disk monitoring unavailable',
+      let caughtError: ApiError | null = null;
+      const promise = fetchStorageStats().catch((e) => {
+        caughtError = e as ApiError;
       });
+
+      await vi.runAllTimersAsync();
+      await promise;
+
+      expect(caughtError).toBeInstanceOf(ApiError);
+      expect(caughtError!.status).toBe(500);
+      expect(caughtError!.message).toBe('Disk monitoring unavailable');
+
+      clearInFlightRequests();
+      vi.useRealTimers();
     });
   });
 
@@ -2446,11 +2558,27 @@ describe('Storage API', () => {
     });
 
     it('throws ApiError on server error', async () => {
+      vi.useFakeTimers();
+      clearInFlightRequests();
+
       vi.mocked(fetch).mockResolvedValue(
         createMockErrorResponse(500, 'Internal Server Error', 'Cleanup service unavailable')
       );
 
-      await expect(previewCleanup()).rejects.toThrow(ApiError);
+      let caughtError: ApiError | null = null;
+      const promise = previewCleanup().catch((e) => {
+        caughtError = e as ApiError;
+      });
+
+      await vi.runAllTimersAsync();
+      await promise;
+
+      expect(caughtError).toBeInstanceOf(ApiError);
+      expect(caughtError!.status).toBe(500);
+      expect(caughtError!.message).toBe('Cleanup service unavailable');
+
+      clearInFlightRequests();
+      vi.useRealTimers();
     });
   });
 });
@@ -2505,11 +2633,27 @@ describe('Notification API', () => {
     });
 
     it('throws ApiError on server error', async () => {
+      vi.useFakeTimers();
+      clearInFlightRequests();
+
       vi.mocked(fetch).mockResolvedValue(
         createMockErrorResponse(500, 'Internal Server Error', 'Config service unavailable')
       );
 
-      await expect(fetchNotificationConfig()).rejects.toThrow(ApiError);
+      let caughtError: ApiError | null = null;
+      const promise = fetchNotificationConfig().catch((e) => {
+        caughtError = e as ApiError;
+      });
+
+      await vi.runAllTimersAsync();
+      await promise;
+
+      expect(caughtError).toBeInstanceOf(ApiError);
+      expect(caughtError!.status).toBe(500);
+      expect(caughtError!.message).toBe('Config service unavailable');
+
+      clearInFlightRequests();
+      vi.useRealTimers();
     });
   });
 
@@ -2656,11 +2800,27 @@ describe('Audit Log API', () => {
     });
 
     it('throws ApiError on server error', async () => {
+      vi.useFakeTimers();
+      clearInFlightRequests();
+
       vi.mocked(fetch).mockResolvedValue(
         createMockErrorResponse(500, 'Internal Server Error', 'Audit service unavailable')
       );
 
-      await expect(fetchAuditLogs()).rejects.toThrow(ApiError);
+      let caughtError: ApiError | null = null;
+      const promise = fetchAuditLogs().catch((e) => {
+        caughtError = e as ApiError;
+      });
+
+      await vi.runAllTimersAsync();
+      await promise;
+
+      expect(caughtError).toBeInstanceOf(ApiError);
+      expect(caughtError!.status).toBe(500);
+      expect(caughtError!.message).toBe('Audit service unavailable');
+
+      clearInFlightRequests();
+      vi.useRealTimers();
     });
   });
 
@@ -2757,18 +2917,31 @@ describe('Audit Log API', () => {
     });
 
     it('throws ApiError on server error', async () => {
-      vi.mocked(fetch).mockResolvedValueOnce(
+      vi.useFakeTimers();
+      clearInFlightRequests();
+
+      // Use mockResolvedValue (not Once) to handle all retry attempts
+      vi.mocked(fetch).mockResolvedValue(
         createMockErrorResponse(500, 'Internal Server Error', 'Failed to fetch circuit breakers')
       );
 
-      await expect(fetchCircuitBreakers()).rejects.toThrow(ApiError);
-      vi.mocked(fetch).mockResolvedValueOnce(
-        createMockErrorResponse(500, 'Internal Server Error', 'Failed to fetch circuit breakers')
-      );
-      await expect(fetchCircuitBreakers()).rejects.toMatchObject({
-        status: 500,
-        message: 'Failed to fetch circuit breakers',
+      // Capture the error - don't re-throw to avoid unhandled rejection warnings
+      let caughtError: ApiError | null = null;
+      const promise = fetchCircuitBreakers().catch((e) => {
+        caughtError = e as ApiError;
       });
+
+      // Advance through all retry delays (1000 + 2000 + 4000 ms) and run all timers
+      await vi.runAllTimersAsync();
+      await promise;
+
+      // Verify error was thrown and captured
+      expect(caughtError).toBeInstanceOf(ApiError);
+      expect(caughtError!.status).toBe(500);
+      expect(caughtError!.message).toBe('Failed to fetch circuit breakers');
+
+      clearInFlightRequests();
+      vi.useRealTimers();
     });
   });
 
@@ -2912,18 +3085,31 @@ describe('Audit Log API', () => {
     });
 
     it('throws ApiError on server error', async () => {
-      vi.mocked(fetch).mockResolvedValueOnce(
+      vi.useFakeTimers();
+      clearInFlightRequests();
+
+      // Use mockResolvedValue (not Once) to handle all retry attempts
+      vi.mocked(fetch).mockResolvedValue(
         createMockErrorResponse(500, 'Internal Server Error', 'Failed to fetch severity metadata')
       );
 
-      await expect(fetchSeverityMetadata()).rejects.toThrow(ApiError);
-      vi.mocked(fetch).mockResolvedValueOnce(
-        createMockErrorResponse(500, 'Internal Server Error', 'Failed to fetch severity metadata')
-      );
-      await expect(fetchSeverityMetadata()).rejects.toMatchObject({
-        status: 500,
-        message: 'Failed to fetch severity metadata',
+      // Capture the error - don't re-throw to avoid unhandled rejection warnings
+      let caughtError: ApiError | null = null;
+      const promise = fetchSeverityMetadata().catch((e) => {
+        caughtError = e as ApiError;
       });
+
+      // Advance through all retry delays (1000 + 2000 + 4000 ms) and run all timers
+      await vi.runAllTimersAsync();
+      await promise;
+
+      // Verify error was thrown and captured
+      expect(caughtError).toBeInstanceOf(ApiError);
+      expect(caughtError!.status).toBe(500);
+      expect(caughtError!.message).toBe('Failed to fetch severity metadata');
+
+      clearInFlightRequests();
+      vi.useRealTimers();
     });
   });
 });

@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import LogsDashboard from './LogsDashboard';
 import * as api from '../../services/api';
@@ -103,9 +103,14 @@ describe('LogsDashboard', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
     vi.mocked(api.fetchLogs).mockResolvedValue(mockLogsResponse);
     vi.mocked(api.fetchLogStats).mockResolvedValue(mockLogStats);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   describe('Rendering', () => {
@@ -164,7 +169,7 @@ describe('LogsDashboard', () => {
 
   describe('Filtering', () => {
     it('filters logs by level', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       render(<LogsDashboard />);
 
       await waitFor(() => {
@@ -184,7 +189,7 @@ describe('LogsDashboard', () => {
     });
 
     it('filters logs by component', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       render(<LogsDashboard />);
 
       await waitFor(() => {
@@ -204,7 +209,7 @@ describe('LogsDashboard', () => {
     });
 
     it('filters logs by camera', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       render(<LogsDashboard />);
 
       await waitFor(() => {
@@ -224,7 +229,7 @@ describe('LogsDashboard', () => {
     });
 
     it('filters logs by date range', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       render(<LogsDashboard />);
 
       await waitFor(() => {
@@ -251,7 +256,7 @@ describe('LogsDashboard', () => {
     });
 
     it('searches logs by message content', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       render(<LogsDashboard />);
 
       await waitFor(() => {
@@ -269,7 +274,7 @@ describe('LogsDashboard', () => {
     });
 
     it('clears search query', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       render(<LogsDashboard />);
 
       await waitFor(() => {
@@ -295,7 +300,7 @@ describe('LogsDashboard', () => {
     });
 
     it('resets to first page when filters change', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
       // Mock response for pagination
       const manyLogs: LogEntry[] = Array.from({ length: 100 }, (_, i) => ({
@@ -376,7 +381,7 @@ describe('LogsDashboard', () => {
     });
 
     it('navigates to next page', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       render(<LogsDashboard />);
 
       await waitFor(() => {
@@ -394,7 +399,7 @@ describe('LogsDashboard', () => {
     });
 
     it('navigates to previous page', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       render(<LogsDashboard />);
 
       await waitFor(() => {
@@ -430,7 +435,7 @@ describe('LogsDashboard', () => {
     });
 
     it('disables next button on last page', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       render(<LogsDashboard />);
 
       await waitFor(() => {
@@ -449,7 +454,7 @@ describe('LogsDashboard', () => {
 
   describe('Log Detail Modal', () => {
     it('opens modal when clicking on a log row', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       render(<LogsDashboard />);
 
       await waitFor(() => {
@@ -470,7 +475,7 @@ describe('LogsDashboard', () => {
     });
 
     it('closes modal when clicking close button', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       render(<LogsDashboard />);
 
       await waitFor(() => {
@@ -507,12 +512,9 @@ describe('LogsDashboard', () => {
 
       render(<LogsDashboard />);
 
-      await waitFor(
-        () => {
-          expect(screen.getByText('Error Loading Logs')).toBeInTheDocument();
-        },
-        { timeout: 3000 }
-      );
+      await waitFor(() => {
+        expect(screen.getByText('Error Loading Logs')).toBeInTheDocument();
+      });
 
       expect(screen.getByText('Network error')).toBeInTheDocument();
     });
@@ -555,12 +557,9 @@ describe('LogsDashboard', () => {
 
       render(<LogsDashboard />);
 
-      await waitFor(
-        () => {
-          expect(screen.getByText('Error Loading Logs')).toBeInTheDocument();
-        },
-        { timeout: 3000 }
-      );
+      await waitFor(() => {
+        expect(screen.getByText('Error Loading Logs')).toBeInTheDocument();
+      });
 
       expect(screen.getByText('Failed to load logs')).toBeInTheDocument();
     });
@@ -585,7 +584,7 @@ describe('LogsDashboard', () => {
     });
 
     it('shows filtered empty state when filters match no logs', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
       render(<LogsDashboard />);
 
@@ -616,7 +615,7 @@ describe('LogsDashboard', () => {
 
   describe('Stats Card Filter Integration', () => {
     it('filters logs by ERROR level when clicking Errors Today card', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       render(<LogsDashboard />);
 
       await waitFor(() => {
@@ -635,7 +634,7 @@ describe('LogsDashboard', () => {
     });
 
     it('filters logs by WARNING level when clicking Warnings Today card', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       render(<LogsDashboard />);
 
       await waitFor(() => {
@@ -654,7 +653,7 @@ describe('LogsDashboard', () => {
     });
 
     it('clears level filter when clicking already active stats card (toggle off)', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       render(<LogsDashboard />);
 
       await waitFor(() => {
@@ -682,7 +681,7 @@ describe('LogsDashboard', () => {
     });
 
     it('syncs stats card filter with filter dropdown', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       render(<LogsDashboard />);
 
       await waitFor(() => {
@@ -709,7 +708,7 @@ describe('LogsDashboard', () => {
     });
 
     it('updates stats card active state when filter dropdown changes', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       render(<LogsDashboard />);
 
       await waitFor(() => {

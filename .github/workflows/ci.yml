@@ -146,7 +146,7 @@ jobs:
     name: Integration Tests (API)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [unit-tests]
+    # Runs in parallel with unit-tests (removed needs dependency for CI speed)
     services:
       postgres:
         image: postgres:16-alpine
@@ -228,7 +228,7 @@ jobs:
     name: Integration Tests (WebSocket)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [unit-tests]
+    # Runs in parallel with unit-tests (removed needs dependency for CI speed)
     services:
       postgres:
         image: postgres:16-alpine
@@ -310,7 +310,7 @@ jobs:
     name: Integration Tests (Services)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [unit-tests]
+    # Runs in parallel with unit-tests (removed needs dependency for CI speed)
     services:
       postgres:
         image: postgres:16-alpine
@@ -392,7 +392,7 @@ jobs:
     name: Integration Tests (Models)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [unit-tests]
+    # Runs in parallel with unit-tests (removed needs dependency for CI speed)
     services:
       postgres:
         image: postgres:16-alpine
@@ -772,23 +772,26 @@ jobs:
     name: Build Docker (backend)
     runs-on: ubuntu-latest
     continue-on-error: true
+    # Only needs lint/typecheck - runs in parallel with tests for CI speed
     needs:
       - lint
       - typecheck
-      - unit-tests
-      - integration-tests-api
-      - integration-tests-websocket
-      - integration-tests-services
-      - integration-tests-models
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Free up disk space
-        run: |
-          # Remove unnecessary tools to free up space for Docker build
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
-          df -h
+        # Backend image includes heavy ML dependencies (PyTorch, transformers)
+        # which require more disk space than default GitHub runners provide
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
