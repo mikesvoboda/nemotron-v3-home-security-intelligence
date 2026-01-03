@@ -24,7 +24,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-OPENAPI_SPEC_FILE="$PROJECT_ROOT/openapi.json"
+OPENAPI_SPEC_FILE="/tmp/openapi-$$.json"
 GENERATED_TYPES_DIR="$PROJECT_ROOT/frontend/src/types/generated"
 GENERATED_TYPES_FILE="$GENERATED_TYPES_DIR/api.ts"
 
