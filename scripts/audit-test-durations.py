@@ -95,6 +95,18 @@ SLOW_TEST_PATTERNS = [
     r"test_benchmark_vram.*test_clear_gpu_cache",
     # Full pipeline integration test - multi-stage AI processing
     r"test_pipeline_e2e.*test_full_pipeline",
+    # Navigation smoke test - loads 8 routes sequentially (expected ~12s)
+    r"All Routes Smoke Tests.*all 8 routes",
+    r"navigation\.spec\.ts.*all 8 routes",
+    # Navigation transition tests - page loads and transitions (~9-10s in CI)
+    r"Navigation Tests.*page transitions",
+    r"Navigation Tests.*sidebar persists",
+    # System page error state tests (~10s due to retry exhaustion)
+    r"System Error State.*page loads",
+    r"system\.spec\.ts.*Error State",
+    # Performance collector container health tests - multiple HTTP health checks
+    r"test_performance_collector.*TestCollectContainerHealth",
+    r"test_performance_collector.*test_collect_container_health",
 ]
 
 

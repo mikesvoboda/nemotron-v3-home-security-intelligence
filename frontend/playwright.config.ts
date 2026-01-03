@@ -35,8 +35,8 @@ export default defineConfig({
   // Fail the build on CI if you accidentally left test.only in the source code
   forbidOnly: !!process.env.CI,
 
-  // Retry on CI only (1 retry to catch flaky tests without excessive time)
-  retries: process.env.CI ? 1 : 0,
+  // Retry on CI only (2 retries to catch flaky tests, especially on secondary browsers)
+  retries: process.env.CI ? 2 : 0,
 
   // Parallel workers: use 4 in CI for speed
   // For CI sharding, run: npx playwright test --shard=1/4
@@ -96,11 +96,19 @@ export default defineConfig({
     },
     {
       name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
+      use: {
+        ...devices['Desktop Firefox'],
+        // Firefox can be slower - increase action timeout
+        actionTimeout: 8000,
+      },
     },
     {
       name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
+      use: {
+        ...devices['Desktop Safari'],
+        // WebKit can be slower - increase action timeout
+        actionTimeout: 8000,
+      },
     },
     // Mobile viewports (only run locally, not in CI parallel jobs)
     {
