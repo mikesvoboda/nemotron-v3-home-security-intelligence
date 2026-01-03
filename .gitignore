@@ -63,3 +63,4 @@ coverage.json
 # Worktrees
 .worktrees/
 .hypothesis/
+.mcp.json
