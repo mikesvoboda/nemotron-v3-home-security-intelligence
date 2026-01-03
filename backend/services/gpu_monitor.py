@@ -1,10 +1,10 @@
-"""GPU monitoring service using pynvml or AI container endpoints.
+"""GPU monitoring service using nvidia-ml-py (pynvml) or AI container endpoints.
 
 This service polls GPU statistics at a configurable interval, stores them in the
 database, and can expose them for real-time monitoring via WebSocket.
 
 When running in a container without GPU access, it queries the RT-DETRv2
-AI container for GPU statistics instead of using local pynvml. The RT-DETRv2
+AI container for GPU statistics instead of using local nvidia-ml-py (pynvml). The RT-DETRv2
 container reports VRAM usage via its /health endpoint.
 
 Note: Nemotron (llama.cpp server) does not expose GPU metrics, so GPU stats
@@ -29,7 +29,7 @@ logger = get_logger(__name__)
 
 
 class GPUMonitor:
-    """Monitor NVIDIA GPU statistics using pynvml or AI container endpoints.
+    """Monitor NVIDIA GPU statistics using nvidia-ml-py (pynvml) or AI container endpoints.
 
     Features:
     - Async polling at configurable intervals
@@ -102,7 +102,9 @@ class GPUMonitor:
                 self._gpu_available = False
 
         except ImportError:
-            logger.warning("pynvml not installed. GPU monitoring disabled. Will return mock data.")
+            logger.warning(
+                "nvidia-ml-py (pynvml) not installed. GPU monitoring disabled. Will return mock data."
+            )
             self._nvml_initialized = False
             self._gpu_available = False
         except Exception as e:

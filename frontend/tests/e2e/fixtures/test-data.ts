@@ -415,3 +415,210 @@ export const mockTelemetry = {
 // 1x1 Transparent PNG for camera snapshots
 export const transparentPngBase64 =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+// Zone Mock Data
+export const mockZones = {
+  frontDoorEntry: {
+    id: 'zone-1',
+    camera_id: 'cam-1',
+    name: 'Front Door Entry',
+    zone_type: 'entry_point',
+    coordinates: [
+      [0.1, 0.2],
+      [0.4, 0.2],
+      [0.4, 0.8],
+      [0.1, 0.8],
+    ],
+    shape: 'rectangle',
+    color: '#3B82F6',
+    enabled: true,
+    priority: 1,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  drivewayZone: {
+    id: 'zone-2',
+    camera_id: 'cam-4',
+    name: 'Driveway Zone',
+    zone_type: 'driveway',
+    coordinates: [
+      [0.2, 0.3],
+      [0.8, 0.3],
+      [0.8, 0.9],
+      [0.2, 0.9],
+    ],
+    shape: 'rectangle',
+    color: '#EF4444',
+    enabled: true,
+    priority: 2,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  yardPolygon: {
+    id: 'zone-3',
+    camera_id: 'cam-2',
+    name: 'Back Yard Area',
+    zone_type: 'yard',
+    coordinates: [
+      [0.1, 0.1],
+      [0.5, 0.1],
+      [0.7, 0.5],
+      [0.5, 0.9],
+      [0.1, 0.9],
+    ],
+    shape: 'polygon',
+    color: '#22C55E',
+    enabled: true,
+    priority: 0,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  disabledZone: {
+    id: 'zone-4',
+    camera_id: 'cam-1',
+    name: 'Disabled Test Zone',
+    zone_type: 'other',
+    coordinates: [
+      [0.5, 0.5],
+      [0.9, 0.5],
+      [0.9, 0.9],
+      [0.5, 0.9],
+    ],
+    shape: 'rectangle',
+    color: '#6B7280',
+    enabled: false,
+    priority: 0,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+};
+
+export const allZones = Object.values(mockZones);
+
+export const mockZonesByCamera: Record<string, (typeof mockZones.frontDoorEntry)[]> = {
+  'cam-1': [mockZones.frontDoorEntry, mockZones.disabledZone],
+  'cam-2': [mockZones.yardPolygon],
+  'cam-3': [],
+  'cam-4': [mockZones.drivewayZone],
+};
+
+// Alert Rules Mock Data
+export const mockAlertRules = {
+  highRiskPersonAlert: {
+    id: 'rule-1',
+    name: 'High Risk Person Alert',
+    description: 'Alert when person detected with high risk score',
+    enabled: true,
+    severity: 'critical',
+    risk_threshold: 70,
+    object_types: ['person'],
+    camera_ids: ['cam-1', 'cam-4'],
+    zone_ids: null,
+    min_confidence: 0.7,
+    schedule: {
+      days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+      start_time: '22:00',
+      end_time: '06:00',
+      timezone: 'America/New_York',
+    },
+    conditions: null,
+    dedup_key_template: '{camera_id}:{rule_id}',
+    cooldown_seconds: 300,
+    channels: ['pushover', 'webhook'],
+    created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  vehicleNightAlert: {
+    id: 'rule-2',
+    name: 'Vehicle Night Alert',
+    description: 'Alert for vehicles detected at night',
+    enabled: true,
+    severity: 'high',
+    risk_threshold: 50,
+    object_types: ['vehicle', 'car', 'truck'],
+    camera_ids: ['cam-4'],
+    zone_ids: null,
+    min_confidence: 0.6,
+    schedule: {
+      days: [],
+      start_time: '20:00',
+      end_time: '07:00',
+      timezone: 'America/New_York',
+    },
+    conditions: null,
+    dedup_key_template: '{camera_id}:{object_type}',
+    cooldown_seconds: 600,
+    channels: ['email'],
+    created_at: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  disabledRule: {
+    id: 'rule-3',
+    name: 'Disabled Test Rule',
+    description: 'This rule is disabled for testing',
+    enabled: false,
+    severity: 'low',
+    risk_threshold: 30,
+    object_types: ['animal'],
+    camera_ids: null,
+    zone_ids: null,
+    min_confidence: 0.5,
+    schedule: null,
+    conditions: null,
+    dedup_key_template: '{camera_id}:{rule_id}',
+    cooldown_seconds: 120,
+    channels: [],
+    created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+};
+
+export const allAlertRules = Object.values(mockAlertRules);
+
+// Rule Test Results Mock Data
+export const mockRuleTestResults = {
+  successful: {
+    rule_id: 'rule-1',
+    rule_name: 'High Risk Person Alert',
+    events_tested: 10,
+    events_matched: 4,
+    match_rate: 0.4,
+    results: [
+      {
+        event_id: 1,
+        camera_id: 'cam-1',
+        risk_score: 85,
+        object_types: ['person'],
+        matches: true,
+        matched_conditions: ['risk_threshold', 'object_types', 'camera_ids'],
+        started_at: new Date(Date.now() - 3600000).toISOString(),
+      },
+      {
+        event_id: 2,
+        camera_id: 'cam-2',
+        risk_score: 55,
+        object_types: ['person'],
+        matches: false,
+        matched_conditions: ['object_types'],
+        started_at: new Date(Date.now() - 7200000).toISOString(),
+      },
+      {
+        event_id: 3,
+        camera_id: 'cam-4',
+        risk_score: 78,
+        object_types: ['person', 'vehicle'],
+        matches: true,
+        matched_conditions: ['risk_threshold', 'object_types', 'camera_ids'],
+        started_at: new Date(Date.now() - 10800000).toISOString(),
+      },
+    ],
+  },
+  empty: {
+    rule_id: 'rule-1',
+    rule_name: 'High Risk Person Alert',
+    events_tested: 0,
+    events_matched: 0,
+    match_rate: 0.0,
+    results: [],
+  },
+};

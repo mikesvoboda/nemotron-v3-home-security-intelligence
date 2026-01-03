@@ -19,7 +19,7 @@ The script will:
 
 Requirements:
     - NVIDIA GPU with CUDA support
-    - pynvml or nvidia-smi for VRAM monitoring
+    - nvidia-ml-py or nvidia-smi for VRAM monitoring
     - Model dependencies (transformers, ultralytics, etc.)
 """
 

@@ -19,7 +19,7 @@ class TimeRange(str, Enum):
 
 
 class GpuMetrics(BaseModel):
-    """GPU metrics from nvidia-smi / pynvml."""
+    """GPU metrics from nvidia-smi / nvidia-ml-py."""
 
     name: str = Field(..., description="GPU device name (e.g., 'NVIDIA RTX A5500')")
     utilization: float = Field(..., ge=0, le=100, description="GPU utilization percentage (0-100)")

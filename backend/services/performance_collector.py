@@ -1,7 +1,7 @@
 """Service for collecting system performance metrics.
 
 This service aggregates metrics from:
-- GPU (via pynvml or AI container health endpoints)
+- GPU (via nvidia-ml-py or AI container health endpoints)
 - AI models (RT-DETRv2 and Nemotron)
 - PostgreSQL database
 - Redis cache
@@ -69,9 +69,9 @@ class PerformanceCollector:
 
             pynvml.nvmlInit()
             self._pynvml_available = True
-            logger.info("pynvml initialized successfully")
+            logger.info("nvidia-ml-py (pynvml) initialized successfully")
         except Exception as e:
-            logger.warning(f"pynvml not available: {e}")
+            logger.warning(f"nvidia-ml-py (pynvml) not available: {e}")
             self._pynvml_available = False
 
     async def _get_http_client(self) -> httpx.AsyncClient:
@@ -162,7 +162,7 @@ class PerformanceCollector:
                 "power_watts": power,
             }
         except Exception as e:
-            logger.warning(f"pynvml collection failed: {e}")
+            logger.warning(f"nvidia-ml-py collection failed: {e}")
             return None
 
     async def _collect_gpu_fallback(self) -> dict[str, Any] | None:

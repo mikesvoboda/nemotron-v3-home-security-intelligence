@@ -300,7 +300,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     print("Event broadcaster stopped")
     await stop_system_broadcaster()
     print("System status broadcaster stopped")
-    # Close performance collector (cleanup HTTP client and pynvml)
+    # Close performance collector (cleanup HTTP client and nvidia-ml-py (pynvml))
     await performance_collector.close()
     print("Performance collector closed")
     await close_db()
