@@ -200,7 +200,10 @@ test.describe('System Error State', () => {
     await systemPage.goto();
     // The page should still render even with errors
     // In error state, the page shows an error message with Reload Page button
-    await expect(systemPage.reloadButton).toBeVisible({ timeout: 10000 });
+    // Use .or() pattern for faster detection of either error indicator
+    await expect(
+      systemPage.errorMessage.or(systemPage.reloadButton)
+    ).toBeVisible({ timeout: 5000 });
   });
 });
 

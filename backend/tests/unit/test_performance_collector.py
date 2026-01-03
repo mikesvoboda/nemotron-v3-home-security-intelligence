@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from backend.api.schemas.performance import ContainerMetrics
 from backend.services.performance_collector import PerformanceCollector
 
 
@@ -680,10 +681,23 @@ class TestCollectContainerHealth:
             mock_client_instance.get.return_value = mock_response
             mock_client.return_value = mock_client_instance
 
-            containers = await collector.collect_container_health()
-            assert len(containers) == 6
-            assert containers[0].status == "running"
-            assert containers[0].health == "healthy"
+            with patch.object(
+                collector, "_check_postgres_health", new_callable=AsyncMock
+            ) as mock_pg:
+                mock_pg.return_value = ContainerMetrics(
+                    name="postgres", status="running", health="healthy"
+                )
+                with patch.object(
+                    collector, "_check_redis_health", new_callable=AsyncMock
+                ) as mock_redis:
+                    mock_redis.return_value = ContainerMetrics(
+                        name="redis", status="running", health="healthy"
+                    )
+
+                    containers = await collector.collect_container_health()
+                    assert len(containers) == 6
+                    assert containers[0].status == "running"
+                    assert containers[0].health == "healthy"
 
     @pytest.mark.asyncio
     async def test_collect_container_health_unhealthy(self, collector):
@@ -696,10 +710,23 @@ class TestCollectContainerHealth:
             mock_client_instance.get.return_value = mock_response
             mock_client.return_value = mock_client_instance
 
-            containers = await collector.collect_container_health()
-            # Containers with URLs should be unhealthy
-            unhealthy = [c for c in containers if c.health == "unhealthy"]
-            assert len(unhealthy) > 0
+            with patch.object(
+                collector, "_check_postgres_health", new_callable=AsyncMock
+            ) as mock_pg:
+                mock_pg.return_value = ContainerMetrics(
+                    name="postgres", status="running", health="unhealthy"
+                )
+                with patch.object(
+                    collector, "_check_redis_health", new_callable=AsyncMock
+                ) as mock_redis:
+                    mock_redis.return_value = ContainerMetrics(
+                        name="redis", status="running", health="unhealthy"
+                    )
+
+                    containers = await collector.collect_container_health()
+                    # Containers with URLs should be unhealthy
+                    unhealthy = [c for c in containers if c.health == "unhealthy"]
+                    assert len(unhealthy) > 0
 
     @pytest.mark.asyncio
     async def test_collect_container_health_exception(self, collector):
@@ -709,9 +736,22 @@ class TestCollectContainerHealth:
             mock_client_instance.get.side_effect = Exception("Connection refused")
             mock_client.return_value = mock_client_instance
 
-            containers = await collector.collect_container_health()
-            # Should still return containers, but unhealthy
-            assert len(containers) == 6
+            with patch.object(
+                collector, "_check_postgres_health", new_callable=AsyncMock
+            ) as mock_pg:
+                mock_pg.return_value = ContainerMetrics(
+                    name="postgres", status="running", health="unhealthy"
+                )
+                with patch.object(
+                    collector, "_check_redis_health", new_callable=AsyncMock
+                ) as mock_redis:
+                    mock_redis.return_value = ContainerMetrics(
+                        name="redis", status="running", health="unhealthy"
+                    )
+
+                    containers = await collector.collect_container_health()
+                    # Should still return containers, but unhealthy
+                    assert len(containers) == 6
 
 
 class TestCollectInferenceMetrics:
