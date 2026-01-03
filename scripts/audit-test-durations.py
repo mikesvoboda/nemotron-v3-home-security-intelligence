@@ -112,6 +112,17 @@ SLOW_TEST_PATTERNS = [
     r"alert-rules\.spec\.ts.*Error State.*button.*error",
     # Re-identification tests - require Redis connection setup overhead
     r"test_enrichment_pipeline.*test_run_reid_requires_redis",
+    # Accessibility tests - axe-core analysis takes 15-25s per page in CI
+    r"accessibility\.spec\.ts.*",
+    r".*Accessibility.*accessible",
+    r".*Accessibility.*violations",
+    r".*Color Contrast.*",
+    r".*keyboard accessible",
+    r".*focus correctly",
+    # Property-based JSON parsing tests - Hypothesis text generation overhead
+    r"test_json_utils.*PropertyBased.*",
+    r"test_json_utils.*test_valid_json_always_parses",
+    r"test_json_utils.*test_json_after_think_block_parses",
 ]
 
 # Benchmark patterns - tests that should be excluded from audit entirely

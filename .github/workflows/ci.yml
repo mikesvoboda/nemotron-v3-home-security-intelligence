@@ -194,11 +194,11 @@ jobs:
 
       - name: Run API integration tests
         # API tests: test_*_api.py files
-        # -n auto enables xdist with worksteal scheduler for within-shard parallelism
+        # -n0 runs tests serially to avoid database deadlocks from concurrent schema creation
         run: |
           uv run pytest backend/tests/integration/ \
             -k "test_admin_api or test_ai_audit_api or test_alerts_api or test_api_error_scenarios or test_api_errors or test_audit_api or test_cameras_api or test_detections_api or test_dlq_api or test_entities_api or test_events_api or test_http_error_codes or test_logs_api or test_media_api or test_media_security or test_metrics_api or test_notification_api or test_search_api or test_system_api or test_video_streaming or test_zones_api or test_api" \
-            -n auto --dist=worksteal \
+            -n0 \
             --timeout=30 \
             --cov=backend \
             --cov-report=xml:coverage-integration-api.xml \
@@ -275,11 +275,11 @@ jobs:
 
       - name: Run WebSocket integration tests
         # WebSocket tests: test_websocket*.py, test_broadcast*.py, test_pubsub*.py
-        # -n auto enables xdist with worksteal scheduler for within-shard parallelism
+        # -n0 runs tests serially to avoid database deadlocks from concurrent schema creation
         run: |
           uv run pytest backend/tests/integration/ \
             -k "test_websocket or test_system_broadcaster or test_redis_pubsub" \
-            -n auto --dist=worksteal \
+            -n0 \
             --timeout=30 \
             --cov=backend \
             --cov-report=xml:coverage-integration-websocket.xml \
@@ -356,11 +356,11 @@ jobs:
 
       - name: Run Services integration tests
         # Service tests: test_*_integration.py, test_batch*.py, test_detector*.py, test_file_watcher*.py, test_circuit*.py
-        # -n auto enables xdist with worksteal scheduler for within-shard parallelism
+        # -n0 runs tests serially to avoid database deadlocks from concurrent schema creation
         run: |
           uv run pytest backend/tests/integration/ \
             -k "test_batch_aggregator_integration or test_detector_client_integration or test_file_watcher_filesystem or test_file_watcher_integration or test_circuit_breaker or test_cleanup_service or test_dlq_retry_handler_integration or test_health_monitor_integration or test_nemotron_analyzer_integration or test_nemotron_analyzer or test_vision_extraction_pipeline or test_pipeline_e2e or test_full_stack or test_audit or test_event_search or test_github_workflows or test_alembic_migrations or test_transaction_rollback" \
-            -n auto --dist=worksteal \
+            -n0 \
             --timeout=30 \
             --cov=backend \
             --cov-report=xml:coverage-integration-services.xml \
@@ -437,11 +437,11 @@ jobs:
 
       - name: Run Models integration tests
         # Model tests: test_models*.py, test_database*.py, test_baseline*.py, test_alert_*.py, test_enrichment*.py, test_cache*.py
-        # -n auto enables xdist with worksteal scheduler for within-shard parallelism
+        # -n0 runs tests serially to avoid database deadlocks from concurrent schema creation
         run: |
           uv run pytest backend/tests/integration/ \
             -k "test_models or test_model_cascades or test_database or test_baseline or test_alert_dedup or test_alert_engine or test_alert_models or test_enrichment_pipeline or test_cache_service_integration" \
-            -n auto --dist=worksteal \
+            -n0 \
             --timeout=30 \
             --cov=backend \
             --cov-report=xml:coverage-integration-models.xml \

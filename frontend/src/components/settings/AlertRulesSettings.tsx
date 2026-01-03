@@ -467,6 +467,7 @@ export default function AlertRulesSettings() {
                         checked={rule.enabled}
                         onChange={() => void handleToggleEnabled(rule)}
                         disabled={togglingRuleId === rule.id}
+                        aria-label={`Toggle ${rule.name} rule ${rule.enabled ? 'off' : 'on'}`}
                         className={clsx(
                           'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background',
                           rule.enabled ? 'bg-primary' : 'bg-gray-600'
@@ -667,6 +668,7 @@ export default function AlertRulesSettings() {
                                 onChange={(checked) =>
                                   setFormData({ ...formData, enabled: checked })
                                 }
+                                aria-label={`Rule status: ${formData.enabled ? 'enabled' : 'disabled'}`}
                                 className={clsx(
                                   'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-panel',
                                   formData.enabled ? 'bg-primary' : 'bg-gray-600'
@@ -868,6 +870,7 @@ export default function AlertRulesSettings() {
                             onChange={(checked) =>
                               setFormData({ ...formData, schedule_enabled: checked })
                             }
+                            aria-label={`Schedule: ${formData.schedule_enabled ? 'enabled' : 'disabled'}`}
                             className={clsx(
                               'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-panel',
                               formData.schedule_enabled ? 'bg-primary' : 'bg-gray-600'
