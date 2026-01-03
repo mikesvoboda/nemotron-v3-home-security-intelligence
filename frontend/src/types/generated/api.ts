@@ -758,6 +758,76 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cameras/{camera_id}/scene-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Camera Scene Changes
+         * @description Get scene changes for a camera.
+         *
+         *     Returns a list of detected scene changes that may indicate camera
+         *     tampering, angle changes, or blocked views.
+         *
+         *     Args:
+         *         camera_id: ID of the camera
+         *         acknowledged: Filter by acknowledgement status (None = all)
+         *         limit: Maximum number of results (default: 50, max: 1000)
+         *         offset: Number of results to skip (default: 0)
+         *         db: Database session
+         *
+         *     Returns:
+         *         SceneChangeListResponse with list of scene changes
+         *
+         *     Raises:
+         *         HTTPException: 404 if camera not found
+         */
+        get: operations["get_camera_scene_changes_api_cameras__camera_id__scene_changes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cameras/{camera_id}/scene-changes/{scene_change_id}/acknowledge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Acknowledge Scene Change
+         * @description Acknowledge a scene change alert.
+         *
+         *     Marks a scene change as acknowledged to indicate it has been reviewed.
+         *
+         *     Args:
+         *         camera_id: ID of the camera
+         *         scene_change_id: ID of the scene change to acknowledge
+         *         request: FastAPI request for audit logging
+         *         db: Database session
+         *
+         *     Returns:
+         *         SceneChangeAcknowledgeResponse confirming acknowledgement
+         *
+         *     Raises:
+         *         HTTPException: 404 if camera or scene change not found
+         */
+        post: operations["acknowledge_scene_change_api_cameras__camera_id__scene_changes__scene_change_id__acknowledge_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/detections": {
         parameters: {
             query?: never;
@@ -1498,6 +1568,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/events/{event_id}/clip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Event Clip
+         * @description Get clip information for a specific event.
+         *
+         *     Returns information about whether a video clip is available for the event,
+         *     and if so, provides the URL to access it along with metadata.
+         *
+         *     Args:
+         *         event_id: Event ID
+         *         db: Database session
+         *
+         *     Returns:
+         *         ClipInfoResponse with clip availability and metadata
+         *
+         *     Raises:
+         *         HTTPException: 404 if event not found
+         */
+        get: operations["get_event_clip_api_events__event_id__clip_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/events/{event_id}/clip/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate Event Clip
+         * @description Trigger video clip generation for an event.
+         *
+         *     If a clip already exists and force=False, returns the existing clip info.
+         *     If force=True, regenerates the clip even if one exists.
+         *
+         *     Clip generation uses detection images to create a video sequence, or
+         *     extracts from existing video if available.
+         *
+         *     Args:
+         *         event_id: Event ID
+         *         request: Clip generation parameters
+         *         db: Database session
+         *
+         *     Returns:
+         *         ClipGenerateResponse with generation status and clip info
+         *
+         *     Raises:
+         *         HTTPException: 404 if event not found
+         *         HTTPException: 400 if event has no detections to generate clip from
+         */
+        post: operations["generate_event_clip_api_events__event_id__clip_generate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/logs": {
         parameters: {
             query?: never;
@@ -1659,6 +1800,38 @@ export interface paths {
          *         HTTPException: 403 for invalid paths, 404 for missing files
          */
         get: operations["serve_thumbnail_api_media_thumbnails__filename__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/media/clips/{filename}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Serve Clip
+         * @description Serve event video clips.
+         *
+         *     Clips are generated by the ClipGenerator service and stored in the
+         *     configured clips directory.
+         *
+         *     Args:
+         *         filename: The clip filename (e.g., "123_clip.mp4")
+         *
+         *     Returns:
+         *         FileResponse with appropriate content-type header
+         *
+         *     Raises:
+         *         HTTPException: 403 for invalid paths, 404 for missing files
+         */
+        get: operations["serve_clip_api_media_clips__filename__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3927,6 +4100,120 @@ export interface components {
             /** Detections Cleared */
             detections_cleared: number;
         };
+        /**
+         * ClipGenerateRequest
+         * @description Schema for clip generation request (POST /api/events/{event_id}/clip/generate).
+         * @example {
+         *       "end_offset_seconds": 30,
+         *       "force": false,
+         *       "start_offset_seconds": -15
+         *     }
+         */
+        ClipGenerateRequest: {
+            /**
+             * Start Offset Seconds
+             * @description Seconds before event start to include (negative value, max -300)
+             * @default -15
+             */
+            start_offset_seconds: number;
+            /**
+             * End Offset Seconds
+             * @description Seconds after event end to include (max 300)
+             * @default 30
+             */
+            end_offset_seconds: number;
+            /**
+             * Force
+             * @description Force regeneration even if clip already exists
+             * @default false
+             */
+            force: boolean;
+        };
+        /**
+         * ClipGenerateResponse
+         * @description Schema for clip generation response.
+         * @example {
+         *       "clip_url": "/api/media/clips/123_clip.mp4",
+         *       "event_id": 123,
+         *       "generated_at": "2026-01-03T10:30:00Z",
+         *       "message": "Clip generated successfully",
+         *       "status": "completed"
+         *     }
+         */
+        ClipGenerateResponse: {
+            /**
+             * Event Id
+             * @description Event ID
+             */
+            event_id: number;
+            /** @description Status of clip generation */
+            status: components["schemas"]["ClipStatus"];
+            /**
+             * Clip Url
+             * @description URL to access the clip (if completed)
+             */
+            clip_url?: string | null;
+            /**
+             * Generated At
+             * @description Timestamp when the clip was generated
+             */
+            generated_at?: string | null;
+            /**
+             * Message
+             * @description Status message or error details
+             */
+            message?: string | null;
+        };
+        /**
+         * ClipInfoResponse
+         * @description Schema for clip info response (GET /api/events/{event_id}/clip).
+         * @example {
+         *       "clip_available": true,
+         *       "clip_url": "/api/media/clips/123_clip.mp4",
+         *       "duration_seconds": 30,
+         *       "event_id": 123,
+         *       "file_size_bytes": 5242880,
+         *       "generated_at": "2026-01-03T10:30:00Z"
+         *     }
+         */
+        ClipInfoResponse: {
+            /**
+             * Event Id
+             * @description Event ID
+             */
+            event_id: number;
+            /**
+             * Clip Available
+             * @description Whether a clip is available for this event
+             */
+            clip_available: boolean;
+            /**
+             * Clip Url
+             * @description URL to access the clip (if available)
+             */
+            clip_url?: string | null;
+            /**
+             * Duration Seconds
+             * @description Duration of the clip in seconds
+             */
+            duration_seconds?: number | null;
+            /**
+             * Generated At
+             * @description Timestamp when the clip was generated
+             */
+            generated_at?: string | null;
+            /**
+             * File Size Bytes
+             * @description File size of the clip in bytes
+             */
+            file_size_bytes?: number | null;
+        };
+        /**
+         * ClipStatus
+         * @description Status of clip generation.
+         * @enum {string}
+         */
+        ClipStatus: "pending" | "completed" | "failed";
         /**
          * ClothingEnrichment
          * @description Clothing classification and segmentation results.
@@ -6899,6 +7186,127 @@ export interface components {
             results: components["schemas"]["RuleTestEventResult"][];
         };
         /**
+         * SceneChangeAcknowledgeResponse
+         * @description Response schema for acknowledging a scene change.
+         *
+         *     Confirms that a scene change has been acknowledged.
+         * @example {
+         *       "acknowledged": true,
+         *       "acknowledged_at": "2026-01-03T11:00:00Z",
+         *       "id": 1
+         *     }
+         */
+        SceneChangeAcknowledgeResponse: {
+            /**
+             * Id
+             * @description Scene change ID
+             */
+            id: number;
+            /**
+             * Acknowledged
+             * @description Acknowledgement status (always True)
+             * @default true
+             */
+            acknowledged: boolean;
+            /**
+             * Acknowledged At
+             * Format: date-time
+             * @description When the change was acknowledged
+             */
+            acknowledged_at: string;
+        };
+        /**
+         * SceneChangeListResponse
+         * @description Response schema for listing scene changes.
+         *
+         *     Returns a list of scene changes for a camera with total count.
+         * @example {
+         *       "camera_id": "front_door",
+         *       "scene_changes": [
+         *         {
+         *           "acknowledged": false,
+         *           "change_type": "view_blocked",
+         *           "detected_at": "2026-01-03T10:30:00Z",
+         *           "id": 1,
+         *           "similarity_score": 0.23
+         *         }
+         *       ],
+         *       "total_changes": 1
+         *     }
+         */
+        SceneChangeListResponse: {
+            /**
+             * Camera Id
+             * @description Camera ID
+             */
+            camera_id: string;
+            /**
+             * Scene Changes
+             * @description List of scene changes
+             */
+            scene_changes?: components["schemas"]["SceneChangeResponse"][];
+            /**
+             * Total Changes
+             * @description Total number of scene changes
+             * @default 0
+             */
+            total_changes: number;
+        };
+        /**
+         * SceneChangeResponse
+         * @description Response schema for a single scene change.
+         *
+         *     Represents a detected camera view change that may indicate
+         *     tampering, angle changes, or blocked views.
+         * @example {
+         *       "acknowledged": false,
+         *       "change_type": "view_blocked",
+         *       "detected_at": "2026-01-03T10:30:00Z",
+         *       "file_path": "/export/foscam/front_door/image.jpg",
+         *       "id": 1,
+         *       "similarity_score": 0.23
+         *     }
+         */
+        SceneChangeResponse: {
+            /**
+             * Id
+             * @description Unique scene change ID
+             */
+            id: number;
+            /**
+             * Detected At
+             * Format: date-time
+             * @description When the scene change was detected
+             */
+            detected_at: string;
+            /**
+             * Change Type
+             * @description Type of change: view_blocked, angle_changed, view_tampered, unknown
+             */
+            change_type: string;
+            /**
+             * Similarity Score
+             * @description SSIM similarity score (0-1, lower means more different)
+             */
+            similarity_score: number;
+            /**
+             * Acknowledged
+             * @description Whether the change has been acknowledged
+             * @default false
+             */
+            acknowledged: boolean;
+            /**
+             * Acknowledged At
+             * @description When the change was acknowledged
+             */
+            acknowledged_at?: string | null;
+            /**
+             * File Path
+             * @description Path to the image that triggered detection
+             */
+            file_path?: string | null;
+        };
+        /**
          * SearchResponse
          * @description Schema for search response with pagination.
          * @example {
@@ -8936,6 +9344,76 @@ export interface operations {
             };
         };
     };
+    get_camera_scene_changes_api_cameras__camera_id__scene_changes_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by acknowledgement status */
+                acknowledged?: boolean | null;
+                /** @description Maximum number of results */
+                limit?: number;
+                /** @description Number of results to skip */
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                camera_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SceneChangeListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    acknowledge_scene_change_api_cameras__camera_id__scene_changes__scene_change_id__acknowledge_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                camera_id: string;
+                scene_change_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SceneChangeAcknowledgeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_detections_api_detections_get: {
         parameters: {
             query?: {
@@ -9781,6 +10259,72 @@ export interface operations {
             };
         };
     };
+    get_event_clip_api_events__event_id__clip_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClipInfoResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_event_clip_api_events__event_id__clip_generate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClipGenerateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClipGenerateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_logs_api_logs_get: {
         parameters: {
             query?: {
@@ -10036,6 +10580,60 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Thumbnail served successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaErrorResponse"];
+                };
+            };
+            /** @description File not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    serve_clip_api_media_clips__filename__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                filename: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Clip served successfully */
             200: {
                 headers: {
                     [name: string]: unknown;

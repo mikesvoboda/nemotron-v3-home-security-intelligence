@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from .baseline import ActivityBaseline, ClassBaseline
     from .detection import Detection
     from .event import Event
+    from .scene_change import SceneChange
     from .zone import Zone
 
 
@@ -109,6 +110,9 @@ class Camera(Base):
     )
     class_baselines: Mapped[list[ClassBaseline]] = relationship(
         "ClassBaseline", back_populates="camera", cascade="all, delete-orphan", passive_deletes=True
+    )
+    scene_changes: Mapped[list[SceneChange]] = relationship(
+        "SceneChange", back_populates="camera", cascade="all, delete-orphan", passive_deletes=True
     )
 
     @classmethod

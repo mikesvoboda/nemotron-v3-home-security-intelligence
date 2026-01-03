@@ -16,11 +16,17 @@ from backend.api.schemas.camera import (
     CameraResponse,
     CameraUpdate,
 )
+from backend.api.schemas.scene_change import (
+    SceneChangeAcknowledgeResponse,
+    SceneChangeListResponse,
+    SceneChangeResponse,
+)
 from backend.core.config import get_settings
 from backend.core.database import get_db
 from backend.core.logging import get_logger, sanitize_log_value
 from backend.models.audit import AuditAction
 from backend.models.camera import Camera, normalize_camera_id
+from backend.models.scene_change import SceneChange
 from backend.services.audit import AuditService
 from backend.services.baseline import get_baseline_service
 from backend.services.cache_service import (
@@ -690,4 +696,159 @@ async def get_camera_baseline_anomalies(
         anomalies=anomalies,
         count=len(anomalies),
         period_days=days,
+    )
+
+
+@router.get("/{camera_id}/scene-changes", response_model=SceneChangeListResponse)
+async def get_camera_scene_changes(
+    camera_id: str,
+    acknowledged: bool | None = Query(default=None, description="Filter by acknowledgement status"),
+    limit: int = Query(default=50, ge=1, le=1000, description="Maximum number of results"),
+    offset: int = Query(default=0, ge=0, description="Number of results to skip"),
+    db: AsyncSession = Depends(get_db),
+) -> SceneChangeListResponse:
+    """Get scene changes for a camera.
+
+    Returns a list of detected scene changes that may indicate camera
+    tampering, angle changes, or blocked views.
+
+    Args:
+        camera_id: ID of the camera
+        acknowledged: Filter by acknowledgement status (None = all)
+        limit: Maximum number of results (default: 50, max: 1000)
+        offset: Number of results to skip (default: 0)
+        db: Database session
+
+    Returns:
+        SceneChangeListResponse with list of scene changes
+
+    Raises:
+        HTTPException: 404 if camera not found
+    """
+    # Verify camera exists
+    camera_result = await db.execute(select(Camera).where(Camera.id == camera_id))
+    camera = camera_result.scalar_one_or_none()
+
+    if not camera:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Camera with id {camera_id} not found",
+        )
+
+    # Build query for scene changes
+    query = select(SceneChange).where(SceneChange.camera_id == camera_id)
+
+    # Apply acknowledged filter if provided
+    if acknowledged is not None:
+        query = query.where(SceneChange.acknowledged == acknowledged)
+
+    # Order by detected_at descending (most recent first)
+    query = query.order_by(SceneChange.detected_at.desc())
+
+    # Apply pagination
+    query = query.offset(offset).limit(limit)
+
+    changes_result = await db.execute(query)
+    scene_changes = changes_result.scalars().all()
+
+    # Convert to response models
+    scene_change_responses = [
+        SceneChangeResponse(
+            id=sc.id,
+            detected_at=sc.detected_at,
+            change_type=sc.change_type.value,
+            similarity_score=sc.similarity_score,
+            acknowledged=sc.acknowledged,
+            acknowledged_at=sc.acknowledged_at,
+            file_path=sc.file_path,
+        )
+        for sc in scene_changes
+    ]
+
+    return SceneChangeListResponse(
+        camera_id=camera_id,
+        scene_changes=scene_change_responses,
+        total_changes=len(scene_change_responses),
+    )
+
+
+@router.post(
+    "/{camera_id}/scene-changes/{scene_change_id}/acknowledge",
+    response_model=SceneChangeAcknowledgeResponse,
+)
+async def acknowledge_scene_change(
+    camera_id: str,
+    scene_change_id: int,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> SceneChangeAcknowledgeResponse:
+    """Acknowledge a scene change alert.
+
+    Marks a scene change as acknowledged to indicate it has been reviewed.
+
+    Args:
+        camera_id: ID of the camera
+        scene_change_id: ID of the scene change to acknowledge
+        request: FastAPI request for audit logging
+        db: Database session
+
+    Returns:
+        SceneChangeAcknowledgeResponse confirming acknowledgement
+
+    Raises:
+        HTTPException: 404 if camera or scene change not found
+    """
+    from datetime import UTC, datetime
+
+    # Verify camera exists
+    camera_result = await db.execute(select(Camera).where(Camera.id == camera_id))
+    camera = camera_result.scalar_one_or_none()
+
+    if not camera:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Camera with id {camera_id} not found",
+        )
+
+    # Get scene change
+    change_result = await db.execute(
+        select(SceneChange).where(
+            SceneChange.id == scene_change_id, SceneChange.camera_id == camera_id
+        )
+    )
+    scene_change = change_result.scalar_one_or_none()
+
+    if not scene_change:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Scene change with id {scene_change_id} not found for camera {camera_id}",
+        )
+
+    # Update acknowledgement status
+    acknowledged_at = datetime.now(UTC)
+    scene_change.acknowledged = True
+    scene_change.acknowledged_at = acknowledged_at
+
+    # Log the audit entry
+    await AuditService.log_action(
+        db=db,
+        action=AuditAction.EVENT_REVIEWED,  # Reusing existing audit action
+        resource_type="scene_change",
+        resource_id=str(scene_change_id),
+        actor="anonymous",
+        details={
+            "camera_id": camera_id,
+            "change_type": scene_change.change_type.value,
+            "similarity_score": scene_change.similarity_score,
+        },
+        request=request,
+    )
+
+    await db.commit()
+    await db.refresh(scene_change)
+
+    return SceneChangeAcknowledgeResponse(
+        id=scene_change.id,
+        acknowledged=scene_change.acknowledged,
+        acknowledged_at=scene_change.acknowledged_at,
     )

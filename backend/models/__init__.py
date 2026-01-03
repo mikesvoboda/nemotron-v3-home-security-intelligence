@@ -11,6 +11,7 @@ from .event import Event
 from .event_audit import EventAudit
 from .gpu_stats import GPUStats
 from .log import Log
+from .scene_change import SceneChange, SceneChangeType
 from .zone import Zone, ZoneShape, ZoneType
 
 __all__ = [
@@ -32,6 +33,8 @@ __all__ = [
     "EventAudit",
     "GPUStats",
     "Log",
+    "SceneChange",
+    "SceneChangeType",
     "Severity",
     "Zone",
     "ZoneShape",

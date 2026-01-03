@@ -176,8 +176,12 @@ export default function Header() {
   const effectiveHealth = apiHealth ?? (isConnected ? status?.health : null) ?? null;
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-gray-800 bg-[#1A1A1A] px-3 md:px-6">
-      <div className="flex items-center gap-2 md:gap-4">
+    <header className="flex h-16 items-center justify-between border-b border-gray-800 bg-[#1A1A1A]">
+      {/* Branding container - aligned with sidebar width and padding */}
+      <div
+        className="flex items-center gap-2 px-4 md:w-64 md:gap-4"
+        data-testid="header-branding"
+      >
         {/* Mobile hamburger menu button */}
         <button
           onClick={toggleMobileMenu}
@@ -201,7 +205,7 @@ export default function Header() {
         </div>
       </div>
 
-      <div className="flex items-center gap-2 md:gap-6">
+      <div className="flex items-center gap-2 px-3 md:gap-6 md:px-6">
         {/* System Health Indicator with Tooltip */}
         <div
           ref={containerRef}

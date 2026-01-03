@@ -1238,6 +1238,27 @@ describe('Header', () => {
     });
   });
 
+  describe('Branding Alignment with Sidebar', () => {
+    it('branding container has width matching sidebar (w-64) on desktop', () => {
+      render(<Header />);
+      const brandingContainer = screen.getByTestId('header-branding');
+      expect(brandingContainer).toHaveClass('md:w-64');
+    });
+
+    it('branding container has padding matching sidebar nav padding (px-4)', () => {
+      render(<Header />);
+      const brandingContainer = screen.getByTestId('header-branding');
+      expect(brandingContainer).toHaveClass('px-4');
+    });
+
+    it('branding container includes the NVIDIA logo and title', () => {
+      render(<Header />);
+      const brandingContainer = screen.getByTestId('header-branding');
+      expect(brandingContainer).toContainElement(screen.getByAltText('NVIDIA'));
+      expect(brandingContainer).toContainElement(screen.getByText('NVIDIA SECURITY'));
+    });
+  });
+
   describe('Focus and Blur Events', () => {
     it('shows tooltip on focus', () => {
       const systemStatus = {

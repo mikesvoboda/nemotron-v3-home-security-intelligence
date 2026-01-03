@@ -26,6 +26,12 @@ from .baseline import (
     ObjectBaseline,
 )
 from .camera import CameraCreate, CameraListResponse, CameraResponse, CameraStatus, CameraUpdate
+from .clips import (
+    ClipGenerateRequest,
+    ClipGenerateResponse,
+    ClipInfoResponse,
+    ClipStatus,
+)
 from .enrichment import (
     ClothingEnrichment,
     DepthEnrichment,
@@ -51,6 +57,12 @@ from .notification import (
     TestNotificationRequest,
     TestNotificationResponse,
 )
+from .scene_change import (
+    SceneChangeAcknowledgeResponse,
+    SceneChangeListResponse,
+    SceneChangeResponse,
+    SceneChangeType,
+)
 from .search import SearchRequest, SearchResponse, SearchResult
 from .websocket import (
     RiskLevel,
@@ -63,6 +75,8 @@ from .websocket import (
     WebSocketMessageType,
     WebSocketPingMessage,
     WebSocketPongResponse,
+    WebSocketSceneChangeData,
+    WebSocketSceneChangeMessage,
     WebSocketServiceStatusData,
     WebSocketServiceStatusMessage,
     WebSocketSubscribeMessage,
@@ -90,6 +104,10 @@ __all__ = [
     "CameraResponse",
     "CameraStatus",
     "CameraUpdate",
+    "ClipGenerateRequest",
+    "ClipGenerateResponse",
+    "ClipInfoResponse",
+    "ClipStatus",
     "ClothingEnrichment",
     "CurrentDeviation",
     "DailyPattern",
@@ -113,6 +131,10 @@ __all__ = [
     "PetEnrichment",
     "PoseEnrichment",
     "RiskLevel",
+    "SceneChangeAcknowledgeResponse",
+    "SceneChangeListResponse",
+    "SceneChangeResponse",
+    "SceneChangeType",
     "SearchRequest",
     "SearchResponse",
     "SearchResult",
@@ -131,6 +153,8 @@ __all__ = [
     "WebSocketMessageType",
     "WebSocketPingMessage",
     "WebSocketPongResponse",
+    "WebSocketSceneChangeData",
+    "WebSocketSceneChangeMessage",
     "WebSocketServiceStatusData",
     "WebSocketServiceStatusMessage",
     "WebSocketSubscribeMessage",
