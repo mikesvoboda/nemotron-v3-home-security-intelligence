@@ -125,6 +125,17 @@ repos:
   # NOTE: Full test suite runs in CI. Pre-commit focuses on fast lint/format checks.
   - repo: local
     hooks:
+      # Auto-rebase on origin/main before pushing
+      # Keeps feature branches up-to-date and avoids merge conflicts
+      # Skip with: SKIP=auto-rebase git push
+      - id: auto-rebase
+        name: Auto-rebase on origin/main
+        entry: ./scripts/pre-push-rebase.sh
+        language: script
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
       # Fast test hook - DISABLED by default for pre-commit performance (~2 min)
       # To run tests on pre-push instead, use: pre-commit install --hook-type pre-push
       # Or run manually: pytest backend/tests/unit/ -m "not slow" -q --fail-fast
