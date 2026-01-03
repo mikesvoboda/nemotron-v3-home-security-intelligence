@@ -11,13 +11,23 @@
 #   - NVIDIA GPU with CUDA support required for AI services
 #   - nvidia-container-toolkit must be installed
 #
-# Environment Variables:
+# Environment Variables (Required):
+#   - POSTGRES_PASSWORD: Database password (REQUIRED - no default for security)
+#     Generate with: openssl rand -base64 32
+#     Or use Docker secrets (see secrets section below)
+#
+# Environment Variables (Optional):
 #   - AI_MODELS_PATH: Base path for AI models (default: /export/ai_models)
 #   - FRONTEND_PORT: Host port for frontend (default: 5173, nginx serves on port 80 inside container)
 #   - RTDETR_CONFIDENCE: Detection confidence threshold (default: 0.5)
 #   - GPU_LAYERS: Number of GPU layers for LLM (default: 45)
 #   - CTX_SIZE: LLM context window size (default: 131072)
 #   - HF_CACHE: HuggingFace cache directory (default: ~/.cache/huggingface)
+#
+# Docker Secrets Support:
+#   For enhanced security, you can use Docker secrets instead of environment variables.
+#   Create secrets/postgres_password.txt with your password, then uncomment the secrets
+#   sections below. The container will read the password from /run/secrets/postgres_password.
 
 services:
   postgres:
@@ -28,8 +38,16 @@ services:
       - postgres_data:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-security}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-security_dev_password}
+      # SECURITY: No default password - must be explicitly set via environment or secrets
+      # Option 1: Set POSTGRES_PASSWORD environment variable (e.g., in .env file)
+      # Option 2: Use Docker secrets (uncomment secrets section below)
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set - run ./setup.sh or set manually}
       - POSTGRES_DB=${POSTGRES_DB:-security}
+    # Uncomment to use Docker secrets instead of environment variables:
+    # secrets:
+    #   - postgres_password
+    # environment:
+    #   - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
     healthcheck:
       test:
         [
@@ -214,13 +232,15 @@ services:
       - ${CAMERA_PATH:-/export/foscam}:/cameras:ro
       - ${AI_MODELS_PATH:-/export/ai_models}/model-zoo:/models/model-zoo:ro,z
     environment:
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-security}:${POSTGRES_PASSWORD:-security_dev_password}@postgres:5432/${POSTGRES_DB:-security}
+      # SECURITY: Uses same POSTGRES_PASSWORD as postgres service (must be set)
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-security}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-security}
       - REDIS_URL=redis://redis:6379
       - RTDETR_URL=http://ai-detector:8090
       - NEMOTRON_URL=http://ai-llm:8091
       - FLORENCE_URL=http://ai-florence:8092
       - CLIP_URL=http://ai-clip:8093
       - ENRICHMENT_URL=http://ai-enrichment:8094
+      - FRONTEND_URL=http://frontend:80
       - FOSCAM_BASE_PATH=/cameras
       - DEBUG=false
       - FAST_PATH_CONFIDENCE_THRESHOLD=1.0 # Disabled: requires 100% confidence
@@ -443,3 +463,14 @@ volumes:
 networks:
   security-net:
     driver: bridge
+# Docker Secrets (optional - for enhanced security)
+# Uncomment to use file-based secrets instead of environment variables.
+# Create the secrets directory and files first:
+#   mkdir -p secrets
+#   openssl rand -base64 32 > secrets/postgres_password.txt
+#   chmod 600 secrets/postgres_password.txt
+#
+# Then uncomment the secrets section in the postgres service above.
+# secrets:
+#   postgres_password:
+#     file: ./secrets/postgres_password.txt

@@ -80,6 +80,11 @@ def sync_client(integration_env):
         """Mock seed_cameras_if_empty to avoid database access."""
         return 0
 
+    # Create mock validate_camera_paths_on_startup (called after seed_cameras in lifespan)
+    async def mock_validate_camera_paths_on_startup():
+        """Mock validate_camera_paths_on_startup to avoid database access."""
+        return (0, 0)  # Return (valid_count, invalid_count)
+
     # Mock background services that have 5-second intervals to avoid slow teardown
     mock_system_broadcaster = MagicMock()
     mock_system_broadcaster.start_broadcasting = AsyncMock()
@@ -135,6 +140,10 @@ def sync_client(integration_env):
         patch("backend.core.redis.close_redis", return_value=None),
         patch("backend.main.init_db", mock_init_db),
         patch("backend.main.seed_cameras_if_empty", mock_seed_cameras_if_empty),
+        patch(
+            "backend.main.validate_camera_paths_on_startup",
+            mock_validate_camera_paths_on_startup,
+        ),
         patch("backend.main.init_redis", return_value=mock_redis_client),
         patch("backend.main.close_redis", return_value=None),
         patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
@@ -637,6 +646,11 @@ def sync_client_with_auth_enabled(integration_env, test_api_key):
         """Mock seed_cameras_if_empty to avoid database access."""
         return 0
 
+    # Create mock validate_camera_paths_on_startup (called after seed_cameras in lifespan)
+    async def mock_validate_camera_paths_on_startup():
+        """Mock validate_camera_paths_on_startup to avoid database access."""
+        return (0, 0)  # Return (valid_count, invalid_count)
+
     # Mock background services that have 5-second intervals to avoid slow teardown
     mock_system_broadcaster = MagicMock()
     mock_system_broadcaster.start_broadcasting = AsyncMock()
@@ -692,6 +706,10 @@ def sync_client_with_auth_enabled(integration_env, test_api_key):
         patch("backend.core.redis.close_redis", return_value=None),
         patch("backend.main.init_db", mock_init_db),
         patch("backend.main.seed_cameras_if_empty", mock_seed_cameras_if_empty),
+        patch(
+            "backend.main.validate_camera_paths_on_startup",
+            mock_validate_camera_paths_on_startup,
+        ),
         patch("backend.main.init_redis", return_value=mock_redis_client),
         patch("backend.main.close_redis", return_value=None),
         patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
@@ -747,36 +765,58 @@ class TestWebSocketAuthentication:
             assert websocket is not None
 
     def test_events_websocket_without_api_key_rejected(self, sync_client_with_auth_enabled):
-        """Test that /ws/events rejects connection without API key when auth is enabled."""
-        with (
-            pytest.raises((Exception, WebSocketDisconnect)),
-            sync_client_with_auth_enabled.websocket_connect("/ws/events"),
-        ):
-            pass
+        """Test that /ws/events rejects connection without API key when auth is enabled.
+
+        The server accepts the connection first to send a proper WebSocket close frame,
+        then immediately closes with code 1008 (Policy Violation).
+        """
+        with sync_client_with_auth_enabled.websocket_connect("/ws/events") as websocket:
+            # Connection is accepted but immediately closed with policy violation
+            # Attempting to receive should raise WebSocketDisconnect with code 1008
+            with pytest.raises(WebSocketDisconnect) as exc_info:
+                websocket.receive_text()
+            assert exc_info.value.code == 1008
 
     def test_system_websocket_without_api_key_rejected(self, sync_client_with_auth_enabled):
-        """Test that /ws/system rejects connection without API key when auth is enabled."""
-        with (
-            pytest.raises((Exception, WebSocketDisconnect)),
-            sync_client_with_auth_enabled.websocket_connect("/ws/system"),
-        ):
-            pass
+        """Test that /ws/system rejects connection without API key when auth is enabled.
+
+        The server accepts the connection first to send a proper WebSocket close frame,
+        then immediately closes with code 1008 (Policy Violation).
+        """
+        with sync_client_with_auth_enabled.websocket_connect("/ws/system") as websocket:
+            # Connection is accepted but immediately closed with policy violation
+            # Attempting to receive should raise WebSocketDisconnect with code 1008
+            with pytest.raises(WebSocketDisconnect) as exc_info:
+                websocket.receive_text()
+            assert exc_info.value.code == 1008
 
     def test_events_websocket_with_invalid_api_key_rejected(self, sync_client_with_auth_enabled):
-        """Test that /ws/events rejects connection with invalid API key."""
-        with (
-            pytest.raises((Exception, WebSocketDisconnect)),
-            sync_client_with_auth_enabled.websocket_connect("/ws/events?api_key=invalid_key_12345"),
-        ):
-            pass
+        """Test that /ws/events rejects connection with invalid API key.
+
+        The server accepts the connection first to send a proper WebSocket close frame,
+        then immediately closes with code 1008 (Policy Violation).
+        """
+        with sync_client_with_auth_enabled.websocket_connect(
+            "/ws/events?api_key=invalid_key_12345"
+        ) as websocket:
+            # Connection is accepted but immediately closed with policy violation
+            with pytest.raises(WebSocketDisconnect) as exc_info:
+                websocket.receive_text()
+            assert exc_info.value.code == 1008
 
     def test_system_websocket_with_invalid_api_key_rejected(self, sync_client_with_auth_enabled):
-        """Test that /ws/system rejects connection with invalid API key."""
-        with (
-            pytest.raises((Exception, WebSocketDisconnect)),
-            sync_client_with_auth_enabled.websocket_connect("/ws/system?api_key=invalid_key_12345"),
-        ):
-            pass
+        """Test that /ws/system rejects connection with invalid API key.
+
+        The server accepts the connection first to send a proper WebSocket close frame,
+        then immediately closes with code 1008 (Policy Violation).
+        """
+        with sync_client_with_auth_enabled.websocket_connect(
+            "/ws/system?api_key=invalid_key_12345"
+        ) as websocket:
+            # Connection is accepted but immediately closed with policy violation
+            with pytest.raises(WebSocketDisconnect) as exc_info:
+                websocket.receive_text()
+            assert exc_info.value.code == 1008
 
     def test_events_websocket_without_auth_enabled_allows_connection(self, sync_client):
         """Test that /ws/events allows connection when auth is disabled."""
@@ -970,7 +1010,12 @@ class TestWebSocketAuthenticationUnit:
 
     @pytest.mark.asyncio
     async def test_authenticate_websocket_failure_closes_connection(self, integration_env):
-        """Test that authenticate_websocket closes connection on failure."""
+        """Test that authenticate_websocket accepts then closes connection on failure.
+
+        Note: The WebSocket must be accepted before closing to properly send the
+        close frame with the policy violation code. Calling close() without accept()
+        would result in an HTTP 403 response during the handshake.
+        """
         from backend.api.middleware.auth import authenticate_websocket
         from backend.core.config import get_settings
 
@@ -978,6 +1023,7 @@ class TestWebSocketAuthenticationUnit:
         mock_ws = MagicMock()
         mock_ws.query_params = {}
         mock_ws.headers = {}
+        mock_ws.accept = AsyncMock()  # Must be AsyncMock since we now call accept()
         mock_ws.close = AsyncMock()
 
         # Enable auth
@@ -987,6 +1033,8 @@ class TestWebSocketAuthenticationUnit:
 
         result = await authenticate_websocket(mock_ws)
         assert result is False
+        # Verify accept was called first (required for proper WebSocket close)
+        mock_ws.accept.assert_called_once()
         mock_ws.close.assert_called_once_with(code=1008)  # WS_1008_POLICY_VIOLATION
 
         # Cleanup

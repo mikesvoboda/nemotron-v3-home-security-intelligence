@@ -125,6 +125,11 @@ def security_client(security_temp_foscam_dir, security_temp_thumbnail_dir):
     # Patch thumbnail serving
     from backend.api.routes import media as media_module
 
+    # Create no-op rate limiter that always passes
+    # Note: Must not use *args/**kwargs as FastAPI exposes them as query params
+    async def mock_rate_limiter() -> None:
+        return None
+
     async def patched_serve_thumbnail(filename: str):
         """Patched version that uses temp thumbnail directory."""
         from fastapi.responses import FileResponse
@@ -156,6 +161,9 @@ def security_client(security_temp_foscam_dir, security_temp_thumbnail_dir):
     async def mock_seed_cameras_if_empty():
         return 0
 
+    async def mock_validate_camera_paths_on_startup():
+        return (0, 0)
+
     async def mock_init_redis():
         return mock_redis_client
 
@@ -168,6 +176,10 @@ def security_client(security_temp_foscam_dir, security_temp_thumbnail_dir):
     with (
         patch("backend.main.init_db", mock_init_db),
         patch("backend.main.seed_cameras_if_empty", mock_seed_cameras_if_empty),
+        patch(
+            "backend.main.validate_camera_paths_on_startup",
+            mock_validate_camera_paths_on_startup,
+        ),
         patch("backend.main.init_redis", mock_init_redis),
         patch("backend.main.get_broadcaster", mock_get_broadcaster),
         patch("backend.main.FileWatcher", return_value=mock_file_watcher),
@@ -178,9 +190,15 @@ def security_client(security_temp_foscam_dir, security_temp_thumbnail_dir):
         patch("backend.main.ServiceHealthMonitor", return_value=mock_service_health_monitor),
         patch("backend.api.routes.media.get_settings", mock_get_settings),
         patch.object(media_module, "serve_thumbnail", patched_serve_thumbnail),
-        TestClient(app) as test_client,
     ):
-        yield test_client
+        # Override the rate limiter dependency using FastAPI's dependency_overrides
+        app.dependency_overrides[media_module.media_rate_limiter] = mock_rate_limiter
+        try:
+            with TestClient(app) as test_client:
+                yield test_client
+        finally:
+            # Clean up the override
+            app.dependency_overrides.pop(media_module.media_rate_limiter, None)
 
 
 # =============================================================================

@@ -66,6 +66,11 @@ def sync_client_for_broadcast(integration_env):
         """Mock seed_cameras_if_empty to avoid database access."""
         return 0
 
+    # Create mock validate_camera_paths_on_startup (called after seed_cameras in lifespan)
+    async def mock_validate_camera_paths_on_startup():
+        """Mock validate_camera_paths_on_startup to avoid database access."""
+        return (0, 0)  # Return (valid_count, invalid_count)
+
     # Mock background services that have 5-second intervals to avoid slow teardown
     mock_system_broadcaster = MagicMock()
     mock_system_broadcaster.start_broadcasting = AsyncMock()
@@ -142,6 +147,10 @@ def sync_client_for_broadcast(integration_env):
         patch("backend.core.redis.close_redis", return_value=None),
         patch("backend.main.init_db", mock_init_db),
         patch("backend.main.seed_cameras_if_empty", mock_seed_cameras_if_empty),
+        patch(
+            "backend.main.validate_camera_paths_on_startup",
+            mock_validate_camera_paths_on_startup,
+        ),
         patch("backend.main.init_redis", return_value=mock_redis_client),
         patch("backend.main.close_redis", return_value=None),
         patch("backend.main.get_system_broadcaster", return_value=mock_system_broadcaster),
