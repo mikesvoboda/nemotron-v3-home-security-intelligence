@@ -227,7 +227,14 @@ export const mockSystemConfig = {
 };
 
 // Event Stats Mock Data
-export const mockEventStats = {
+interface EventStats {
+  total_events: number;
+  events_by_risk_level: { low: number; medium: number; high: number; critical: number };
+  events_by_camera: Record<string, number>;
+  average_risk_score: number;
+}
+
+export const mockEventStats: Record<string, EventStats> = {
   normal: {
     total_events: 150,
     events_by_risk_level: { low: 80, medium: 45, high: 20, critical: 5 },
@@ -412,6 +419,387 @@ export const mockTelemetry = {
   },
 };
 
+// Zone Mock Data
+export const mockZones = {
+  frontDoorEntry: {
+    id: 'zone-1',
+    camera_id: 'cam-1',
+    name: 'Front Door Entry',
+    zone_type: 'entry_point',
+    coordinates: [
+      [0.1, 0.2],
+      [0.4, 0.2],
+      [0.4, 0.8],
+      [0.1, 0.8],
+    ],
+    shape: 'rectangle',
+    color: '#EF4444',
+    enabled: true,
+    priority: 90,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  frontDoorDriveway: {
+    id: 'zone-2',
+    camera_id: 'cam-1',
+    name: 'Front Driveway',
+    zone_type: 'driveway',
+    coordinates: [
+      [0.5, 0.5],
+      [0.9, 0.5],
+      [0.9, 0.9],
+      [0.5, 0.9],
+    ],
+    shape: 'rectangle',
+    color: '#F59E0B',
+    enabled: true,
+    priority: 50,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  backYardFence: {
+    id: 'zone-3',
+    camera_id: 'cam-2',
+    name: 'Back Fence',
+    zone_type: 'yard',
+    coordinates: [
+      [0.1, 0.1],
+      [0.9, 0.1],
+      [0.9, 0.3],
+      [0.1, 0.3],
+    ],
+    shape: 'polygon',
+    color: '#10B981',
+    enabled: true,
+    priority: 70,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  disabledZone: {
+    id: 'zone-4',
+    camera_id: 'cam-1',
+    name: 'Sidewalk Monitor',
+    zone_type: 'sidewalk',
+    coordinates: [
+      [0.0, 0.85],
+      [1.0, 0.85],
+      [1.0, 1.0],
+      [0.0, 1.0],
+    ],
+    shape: 'rectangle',
+    color: '#3B82F6',
+    enabled: false,
+    priority: 20,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+};
+
+export const allZones = Object.values(mockZones);
+
+export const zonesByCamera = {
+  'cam-1': [mockZones.frontDoorEntry, mockZones.frontDoorDriveway, mockZones.disabledZone],
+  'cam-2': [mockZones.backYardFence],
+  'cam-3': [],
+  'cam-4': [],
+};
+
 // 1x1 Transparent PNG for camera snapshots
 export const transparentPngBase64 =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+// Alert Rule Mock Data
+export const mockAlertRules = {
+  nightIntruder: {
+    id: 'rule-1',
+    name: 'Night Intruder Alert',
+    description: 'Detect people during nighttime hours',
+    enabled: true,
+    severity: 'critical',
+    risk_threshold: 70,
+    object_types: ['person'],
+    camera_ids: ['cam-1', 'cam-2'],
+    zone_ids: null,
+    min_confidence: 0.8,
+    schedule: {
+      days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
+      start_time: '22:00',
+      end_time: '06:00',
+      timezone: 'UTC',
+    },
+    conditions: null,
+    dedup_key_template: '{camera_id}:{rule_id}',
+    cooldown_seconds: 300,
+    channels: ['email', 'pushover'],
+    created_at: new Date(Date.now() - 86400000).toISOString(),
+    updated_at: new Date(Date.now() - 86400000).toISOString(),
+  },
+  vehicleDetection: {
+    id: 'rule-2',
+    name: 'Vehicle Detection',
+    description: 'Alert when vehicles are detected in driveway',
+    enabled: true,
+    severity: 'medium',
+    risk_threshold: 50,
+    object_types: ['vehicle'],
+    camera_ids: ['cam-4'],
+    zone_ids: null,
+    min_confidence: 0.7,
+    schedule: null,
+    conditions: null,
+    dedup_key_template: '{camera_id}:{rule_id}',
+    cooldown_seconds: 600,
+    channels: ['webhook'],
+    created_at: new Date(Date.now() - 172800000).toISOString(),
+    updated_at: new Date(Date.now() - 172800000).toISOString(),
+  },
+  animalAlert: {
+    id: 'rule-3',
+    name: 'Animal Alert',
+    description: 'Low priority alert for animal detections',
+    enabled: false,
+    severity: 'low',
+    risk_threshold: null,
+    object_types: ['animal'],
+    camera_ids: [],
+    zone_ids: null,
+    min_confidence: 0.6,
+    schedule: null,
+    conditions: null,
+    dedup_key_template: '{camera_id}:{rule_id}',
+    cooldown_seconds: 900,
+    channels: [],
+    created_at: new Date(Date.now() - 259200000).toISOString(),
+    updated_at: new Date(Date.now() - 259200000).toISOString(),
+  },
+  highRiskAlert: {
+    id: 'rule-4',
+    name: 'High Risk Event',
+    description: 'Alert for any high risk events across all cameras',
+    enabled: true,
+    severity: 'high',
+    risk_threshold: 80,
+    object_types: null,
+    camera_ids: null,
+    zone_ids: null,
+    min_confidence: null,
+    schedule: null,
+    conditions: null,
+    dedup_key_template: '{camera_id}:{rule_id}',
+    cooldown_seconds: 120,
+    channels: ['email', 'webhook', 'pushover'],
+    created_at: new Date(Date.now() - 345600000).toISOString(),
+    updated_at: new Date(Date.now() - 345600000).toISOString(),
+  },
+};
+
+export const allAlertRules = Object.values(mockAlertRules);
+
+// Rule Test Result Mock Data
+export const mockRuleTestResults = {
+  withMatches: {
+    rule_id: 'rule-1',
+    rule_name: 'Night Intruder Alert',
+    events_tested: 5,
+    events_matched: 3,
+    match_rate: 0.6,
+    results: [
+      {
+        event_id: 1,
+        camera_id: 'cam-1',
+        risk_score: 85,
+        object_types: ['person'],
+        matches: true,
+        matched_conditions: ['risk_threshold', 'object_types'],
+        started_at: new Date(Date.now() - 3600000).toISOString(),
+      },
+      {
+        event_id: 2,
+        camera_id: 'cam-2',
+        risk_score: 72,
+        object_types: ['person', 'vehicle'],
+        matches: true,
+        matched_conditions: ['risk_threshold'],
+        started_at: new Date(Date.now() - 7200000).toISOString(),
+      },
+      {
+        event_id: 3,
+        camera_id: 'cam-1',
+        risk_score: 45,
+        object_types: ['animal'],
+        matches: false,
+        matched_conditions: [],
+        started_at: new Date(Date.now() - 10800000).toISOString(),
+      },
+      {
+        event_id: 4,
+        camera_id: 'cam-3',
+        risk_score: 90,
+        object_types: ['person'],
+        matches: true,
+        matched_conditions: ['risk_threshold', 'object_types'],
+        started_at: new Date(Date.now() - 14400000).toISOString(),
+      },
+      {
+        event_id: 5,
+        camera_id: 'cam-4',
+        risk_score: 30,
+        object_types: ['vehicle'],
+        matches: false,
+        matched_conditions: [],
+        started_at: new Date(Date.now() - 18000000).toISOString(),
+      },
+    ],
+  },
+  noMatches: {
+    rule_id: 'rule-3',
+    rule_name: 'Animal Alert',
+    events_tested: 3,
+    events_matched: 0,
+    match_rate: 0.0,
+    results: [
+      {
+        event_id: 1,
+        camera_id: 'cam-1',
+        risk_score: 85,
+        object_types: ['person'],
+        matches: false,
+        matched_conditions: [],
+        started_at: new Date(Date.now() - 3600000).toISOString(),
+      },
+      {
+        event_id: 2,
+        camera_id: 'cam-2',
+        risk_score: 72,
+        object_types: ['vehicle'],
+        matches: false,
+        matched_conditions: [],
+        started_at: new Date(Date.now() - 7200000).toISOString(),
+      },
+      {
+        event_id: 3,
+        camera_id: 'cam-4',
+        risk_score: 90,
+        object_types: ['person'],
+        matches: false,
+        matched_conditions: [],
+        started_at: new Date(Date.now() - 10800000).toISOString(),
+      },
+    ],
+  },
+  noEvents: {
+    rule_id: 'rule-2',
+    rule_name: 'Vehicle Detection',
+    events_tested: 0,
+    events_matched: 0,
+    match_rate: 0.0,
+    results: [],
+  },
+};
+
+// AI Audit Mock Data
+export const mockAiAuditStats = {
+  normal: {
+    total_events: 1000,
+    audited_events: 950,
+    fully_evaluated_events: 800,
+    avg_quality_score: 4.2,
+    avg_consistency_rate: 4.0,
+    avg_enrichment_utilization: 0.75,
+    model_contribution_rates: {
+      rtdetr: 1.0,
+      florence: 0.85,
+      clip: 0.6,
+      violence: 0.3,
+      clothing: 0.5,
+      vehicle: 0.4,
+      pet: 0.25,
+      weather: 0.2,
+      image_quality: 0.7,
+      zones: 0.65,
+      baseline: 0.55,
+      cross_camera: 0.15,
+    },
+    audits_by_day: [
+      { date: '2024-01-01', count: 120 },
+      { date: '2024-01-02', count: 135 },
+      { date: '2024-01-03', count: 145 },
+    ],
+  },
+  empty: {
+    total_events: 0,
+    audited_events: 0,
+    fully_evaluated_events: 0,
+    avg_quality_score: null,
+    avg_consistency_rate: null,
+    avg_enrichment_utilization: null,
+    model_contribution_rates: {},
+    audits_by_day: [],
+  },
+};
+
+export const mockAiAuditLeaderboard = {
+  normal: {
+    entries: [
+      { model_name: 'rtdetr', contribution_rate: 1.0, quality_correlation: null, event_count: 1000 },
+      { model_name: 'florence', contribution_rate: 0.85, quality_correlation: 0.75, event_count: 850 },
+      { model_name: 'image_quality', contribution_rate: 0.7, quality_correlation: 0.65, event_count: 700 },
+      { model_name: 'zones', contribution_rate: 0.65, quality_correlation: null, event_count: 650 },
+      { model_name: 'clip', contribution_rate: 0.6, quality_correlation: 0.5, event_count: 600 },
+      { model_name: 'baseline', contribution_rate: 0.55, quality_correlation: null, event_count: 550 },
+      { model_name: 'clothing', contribution_rate: 0.5, quality_correlation: 0.45, event_count: 500 },
+      { model_name: 'vehicle', contribution_rate: 0.4, quality_correlation: null, event_count: 400 },
+      { model_name: 'violence', contribution_rate: 0.3, quality_correlation: 0.3, event_count: 300 },
+      { model_name: 'pet', contribution_rate: 0.25, quality_correlation: null, event_count: 250 },
+      { model_name: 'weather', contribution_rate: 0.2, quality_correlation: null, event_count: 200 },
+      { model_name: 'cross_camera', contribution_rate: 0.15, quality_correlation: null, event_count: 150 },
+    ],
+    period_days: 7,
+  },
+  empty: {
+    entries: [],
+    period_days: 7,
+  },
+};
+
+export const mockAiAuditRecommendations = {
+  normal: {
+    recommendations: [
+      {
+        category: 'missing_context',
+        suggestion: 'Add time since last motion detection',
+        frequency: 50,
+        priority: 'high',
+      },
+      {
+        category: 'missing_context',
+        suggestion: 'Include historical activity patterns',
+        frequency: 35,
+        priority: 'medium',
+      },
+      {
+        category: 'unused_data',
+        suggestion: 'Weather data not used for indoor cameras',
+        frequency: 30,
+        priority: 'medium',
+      },
+      {
+        category: 'model_gaps',
+        suggestion: 'Violence detection missing from prompt',
+        frequency: 20,
+        priority: 'high',
+      },
+      {
+        category: 'format_suggestions',
+        suggestion: 'Group detections by object type',
+        frequency: 15,
+        priority: 'low',
+      },
+    ],
+    total_events_analyzed: 800,
+  },
+  empty: {
+    recommendations: [],
+    total_events_analyzed: 0,
+  },
+};

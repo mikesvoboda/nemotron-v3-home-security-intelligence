@@ -22,7 +22,7 @@ Shows: Complete Timeline page with: page header, full-text search bar, expanded 
 Size: 1400x900 pixels (16:9 aspect ratio)
 Alt text: Event Timeline page showing search bar, filters, results summary, and grid of event cards with pagination
 -->
-<!-- Image placeholder - screenshot would go here -->
+<!-- Screenshot: Complete Event Timeline page with search, filters, results summary, event cards, and pagination -->
 
 _Caption: The Event Timeline page lets you browse, filter, and search all your security events._
 
@@ -67,7 +67,7 @@ Shows: Single event card showing: checkbox, camera name with icon, timestamp, du
 Size: 400x350 pixels (~8:7 aspect ratio)
 Alt text: Single event card showing all information including risk badge, object detections, AI summary, and action checkbox
 -->
-<!-- Image placeholder - screenshot would go here -->
+<!-- Screenshot: Single event card with risk badge, camera name, timestamp, AI summary, and detection list -->
 
 _Caption: Each event card shows key information at a glance._
 
@@ -111,7 +111,7 @@ Shows: Expanded filter section with: Camera dropdown, Risk Level dropdown, Statu
 Size: 1100x250 pixels (~4:1 aspect ratio)
 Alt text: Expanded filter panel showing all available filter options for narrowing down event results
 -->
-<!-- Image placeholder - screenshot would go here -->
+<!-- Screenshot: Expanded filter panel with dropdowns for camera, risk, status, object type, and date pickers -->
 
 _Caption: Use filters to find exactly the events you are looking for._
 

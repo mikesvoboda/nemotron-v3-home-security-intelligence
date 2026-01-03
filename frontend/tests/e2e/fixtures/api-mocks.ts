@@ -24,6 +24,12 @@ import {
   mockTelemetry,
   generateGPUHistory,
   transparentPngBase64,
+  zonesByCamera,
+  allAlertRules,
+  mockRuleTestResults,
+  mockAiAuditStats,
+  mockAiAuditLeaderboard,
+  mockAiAuditRecommendations,
 } from './test-data';
 
 /**
@@ -37,7 +43,7 @@ export interface ApiMockConfig {
   // Event data
   events?: typeof allEvents;
   eventsError?: boolean;
-  eventStats?: typeof mockEventStats.normal;
+  eventStats?: (typeof mockEventStats)[keyof typeof mockEventStats];
 
   // GPU data
   gpuStats?: typeof mockGPUStats.healthy;
@@ -69,6 +75,21 @@ export interface ApiMockConfig {
   telemetry?: typeof mockTelemetry.normal;
   telemetryError?: boolean;
 
+  // Zones
+  zones?: typeof zonesByCamera;
+  zonesError?: boolean;
+
+  // Alert rules
+  alertRules?: typeof allAlertRules;
+  alertRulesError?: boolean;
+  ruleTestResults?: typeof mockRuleTestResults.withMatches;
+
+  // AI Audit
+  aiAuditStats?: typeof mockAiAuditStats.normal;
+  aiAuditLeaderboard?: typeof mockAiAuditLeaderboard.normal;
+  aiAuditRecommendations?: typeof mockAiAuditRecommendations.normal;
+  aiAuditError?: boolean;
+
   // WebSocket behavior
   wsConnectionFail?: boolean;
 }
@@ -90,6 +111,12 @@ export const defaultMockConfig: ApiMockConfig = {
   auditLogs: mockAuditLogs.sample,
   auditStats: mockAuditStats.normal,
   telemetry: mockTelemetry.normal,
+  zones: zonesByCamera,
+  alertRules: allAlertRules,
+  ruleTestResults: mockRuleTestResults.withMatches,
+  aiAuditStats: mockAiAuditStats.normal,
+  aiAuditLeaderboard: mockAiAuditLeaderboard.normal,
+  aiAuditRecommendations: mockAiAuditRecommendations.normal,
   wsConnectionFail: true, // Default to failing WS in E2E tests
 };
 
@@ -104,6 +131,8 @@ export const errorMockConfig: ApiMockConfig = {
   logsError: true,
   auditError: true,
   telemetryError: true,
+  alertRulesError: true,
+  aiAuditError: true,
   wsConnectionFail: true,
 };
 
@@ -124,6 +153,9 @@ export const emptyMockConfig: ApiMockConfig = {
   auditLogs: [],
   auditStats: { ...mockAuditStats.normal, total: 0 },
   telemetry: mockTelemetry.normal,
+  aiAuditStats: mockAiAuditStats.empty,
+  aiAuditLeaderboard: mockAiAuditLeaderboard.empty,
+  aiAuditRecommendations: mockAiAuditRecommendations.empty,
   wsConnectionFail: true,
 };
 
@@ -175,12 +207,138 @@ export async function setupApiMocks(
 
   // Camera snapshot endpoint (BEFORE /api/cameras)
   await page.route('**/api/cameras/*/snapshot*', async (route) => {
-    const transparentPng = Buffer.from(transparentPngBase64, 'base64');
+    // Convert base64 to binary using Uint8Array (works in both Node.js and browser)
+    const binaryString = atob(transparentPngBase64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
     await route.fulfill({
       status: 200,
       contentType: 'image/png',
-      body: transparentPng,
+      body: bytes,
     });
+  });
+
+  // Zone endpoints (BEFORE /api/cameras to match specific zone routes)
+  // GET /api/cameras/:camera_id/zones
+  await page.route('**/api/cameras/*/zones', async (route) => {
+    if (route.request().method() === 'GET') {
+      if (mergedConfig.zonesError) {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'Failed to fetch zones' }),
+        });
+      } else {
+        // Extract camera_id from URL
+        const url = route.request().url();
+        const match = url.match(/\/api\/cameras\/([^/]+)\/zones/);
+        const cameraId = match?.[1] || '';
+        const zonesData = mergedConfig.zones || zonesByCamera;
+        const zones = zonesData[cameraId as keyof typeof zonesData] || [];
+
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            zones,
+            count: zones.length,
+          }),
+        });
+      }
+    } else if (route.request().method() === 'POST') {
+      // Create zone
+      if (mergedConfig.zonesError) {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'Failed to create zone' }),
+        });
+      } else {
+        const body = route.request().postDataJSON();
+        const newZone = {
+          id: `zone-${Date.now()}`,
+          camera_id: body.camera_id || 'cam-1',
+          ...body,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        await route.fulfill({
+          status: 201,
+          contentType: 'application/json',
+          body: JSON.stringify(newZone),
+        });
+      }
+    } else {
+      await route.continue();
+    }
+  });
+
+  // Individual zone operations: GET/PUT/DELETE /api/cameras/:camera_id/zones/:zone_id
+  await page.route('**/api/cameras/*/zones/*', async (route) => {
+    const method = route.request().method();
+    const url = route.request().url();
+
+    // Skip if this is the zones list endpoint (handled above)
+    if (url.endsWith('/zones')) {
+      await route.continue();
+      return;
+    }
+
+    if (mergedConfig.zonesError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Zone operation failed' }),
+      });
+      return;
+    }
+
+    if (method === 'GET') {
+      // Get single zone
+      const match = url.match(/\/api\/cameras\/([^/]+)\/zones\/([^/]+)/);
+      const cameraId = match?.[1] || '';
+      const zoneId = match?.[2] || '';
+      const zonesData = mergedConfig.zones || zonesByCamera;
+      const zones = zonesData[cameraId as keyof typeof zonesData] || [];
+      const zone = zones.find((z: { id: string }) => z.id === zoneId);
+
+      if (zone) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(zone),
+        });
+      } else {
+        await route.fulfill({
+          status: 404,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'Zone not found' }),
+        });
+      }
+    } else if (method === 'PUT') {
+      // Update zone
+      const body = route.request().postDataJSON();
+      const updatedZone = {
+        id: 'zone-updated',
+        ...body,
+        updated_at: new Date().toISOString(),
+      };
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(updatedZone),
+      });
+    } else if (method === 'DELETE') {
+      // Delete zone
+      await route.fulfill({
+        status: 204,
+        body: '',
+      });
+    } else {
+      await route.continue();
+    }
   });
 
   // Cameras endpoint
@@ -374,6 +532,113 @@ export async function setupApiMocks(
     });
   });
 
+  // AI Audit Stats endpoint (BEFORE /api/ai-audit)
+  await page.route('**/api/ai-audit/stats*', async (route) => {
+    if (mergedConfig.aiAuditError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Failed to fetch AI audit stats' }),
+      });
+    } else {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mergedConfig.aiAuditStats || mockAiAuditStats.normal),
+      });
+    }
+  });
+
+  // AI Audit Leaderboard endpoint
+  await page.route('**/api/ai-audit/leaderboard*', async (route) => {
+    if (mergedConfig.aiAuditError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Failed to fetch AI audit leaderboard' }),
+      });
+    } else {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mergedConfig.aiAuditLeaderboard || mockAiAuditLeaderboard.normal),
+      });
+    }
+  });
+
+  // AI Audit Recommendations endpoint
+  await page.route('**/api/ai-audit/recommendations*', async (route) => {
+    if (mergedConfig.aiAuditError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Failed to fetch AI audit recommendations' }),
+      });
+    } else {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mergedConfig.aiAuditRecommendations || mockAiAuditRecommendations.normal),
+      });
+    }
+  });
+
+  // AI Audit Event endpoint
+  await page.route('**/api/ai-audit/events/*', async (route) => {
+    if (mergedConfig.aiAuditError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Failed to fetch event audit' }),
+      });
+    } else {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 1,
+          event_id: 1,
+          audited_at: new Date().toISOString(),
+          is_fully_evaluated: true,
+          contributions: {
+            rtdetr: true,
+            florence: true,
+            clip: false,
+            violence: false,
+            clothing: true,
+            vehicle: false,
+            pet: false,
+            weather: false,
+            image_quality: true,
+            zones: true,
+            baseline: true,
+            cross_camera: false,
+          },
+          prompt_length: 5000,
+          prompt_token_estimate: 1250,
+          enrichment_utilization: 0.5,
+          scores: {
+            context_usage: 4.2,
+            reasoning_coherence: 4.0,
+            risk_justification: 3.8,
+            consistency: 4.5,
+            overall: 4.1,
+          },
+          consistency_risk_score: 75,
+          consistency_diff: -5,
+          self_eval_critique: 'Good overall analysis with room for improvement in risk justification.',
+          improvements: {
+            missing_context: ['Add time since last motion'],
+            confusing_sections: [],
+            unused_data: ['Weather data'],
+            format_suggestions: [],
+            model_gaps: [],
+          },
+        }),
+      });
+    }
+  });
+
   // Audit Logs endpoint
   await page.route('**/api/audit*', async (route) => {
     if (mergedConfig.auditError) {
@@ -452,6 +717,143 @@ export async function setupApiMocks(
         timestamp: new Date().toISOString(),
       }),
     });
+  });
+
+  // Alert Rules test endpoint (BEFORE /api/alerts/rules)
+  await page.route('**/api/alerts/rules/*/test', async (route) => {
+    if (mergedConfig.alertRulesError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Failed to test rule' }),
+      });
+    } else {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mergedConfig.ruleTestResults || mockRuleTestResults.withMatches),
+      });
+    }
+  });
+
+  // Individual Alert Rule operations: GET/PUT/DELETE /api/alerts/rules/:rule_id
+  await page.route('**/api/alerts/rules/*', async (route) => {
+    const method = route.request().method();
+    const url = route.request().url();
+
+    // Skip if this is the test endpoint or rules list endpoint
+    if (url.includes('/test') || url.endsWith('/rules')) {
+      await route.continue();
+      return;
+    }
+
+    if (mergedConfig.alertRulesError) {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Alert rule operation failed' }),
+      });
+      return;
+    }
+
+    if (method === 'GET') {
+      // Get single rule
+      const match = url.match(/\/api\/alerts\/rules\/([^/]+)/);
+      const ruleId = match?.[1] || '';
+      const rules = mergedConfig.alertRules || allAlertRules;
+      const rule = rules.find((r: { id: string }) => r.id === ruleId);
+
+      if (rule) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(rule),
+        });
+      } else {
+        await route.fulfill({
+          status: 404,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'Alert rule not found' }),
+        });
+      }
+    } else if (method === 'PUT') {
+      // Update rule
+      const body = route.request().postDataJSON();
+      const match = url.match(/\/api\/alerts\/rules\/([^/]+)/);
+      const ruleId = match?.[1] || '';
+      const rules = mergedConfig.alertRules || allAlertRules;
+      const existingRule = rules.find((r: { id: string }) => r.id === ruleId);
+
+      const updatedRule = {
+        ...(existingRule || {}),
+        ...body,
+        id: ruleId,
+        updated_at: new Date().toISOString(),
+      };
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(updatedRule),
+      });
+    } else if (method === 'DELETE') {
+      // Delete rule
+      await route.fulfill({
+        status: 204,
+        body: '',
+      });
+    } else {
+      await route.continue();
+    }
+  });
+
+  // Alert Rules list/create endpoint
+  await page.route('**/api/alerts/rules', async (route) => {
+    const method = route.request().method();
+
+    if (method === 'GET') {
+      if (mergedConfig.alertRulesError) {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'Failed to fetch alert rules' }),
+        });
+      } else {
+        const rules = mergedConfig.alertRules || allAlertRules;
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            rules: rules,
+            count: rules.length,
+            limit: 50,
+            offset: 0,
+          }),
+        });
+      }
+    } else if (method === 'POST') {
+      if (mergedConfig.alertRulesError) {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ detail: 'Failed to create alert rule' }),
+        });
+      } else {
+        const body = route.request().postDataJSON();
+        const newRule = {
+          id: `rule-${Date.now()}`,
+          ...body,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        await route.fulfill({
+          status: 201,
+          contentType: 'application/json',
+          body: JSON.stringify(newRule),
+        });
+      }
+    } else {
+      await route.continue();
+    }
   });
 
   // WebSocket connections

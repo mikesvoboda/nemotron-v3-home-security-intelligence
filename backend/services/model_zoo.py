@@ -725,7 +725,7 @@ class ModelManager:
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
             except ImportError:
-                pass
+                pass  # torch not installed, skip CUDA cleanup
 
         logger.info("All models unloaded")
 

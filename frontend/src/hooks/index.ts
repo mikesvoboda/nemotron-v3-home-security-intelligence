@@ -44,3 +44,11 @@ export type {
   PerformanceHistory,
   UsePerformanceMetricsReturn,
 } from './usePerformanceMetrics';
+
+export { useAIMetrics } from './useAIMetrics';
+export type {
+  AIModelStatus,
+  AIPerformanceState,
+  UseAIMetricsResult,
+  UseAIMetricsOptions,
+} from './useAIMetrics';

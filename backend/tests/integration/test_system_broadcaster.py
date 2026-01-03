@@ -121,7 +121,7 @@ async def test_system_broadcaster_get_camera_stats(isolated_db):
     initial_total = initial_stats["total"]
     initial_active = initial_stats["active"]
 
-    # Add cameras to database with unique IDs
+    # Add cameras to database with unique IDs and names to prevent unique constraint conflicts
     cam_id1 = unique_id("cam")
     cam_id2 = unique_id("cam")
     cam_id3 = unique_id("cam")
@@ -129,19 +129,19 @@ async def test_system_broadcaster_get_camera_stats(isolated_db):
     async with get_session() as sess:
         camera1 = Camera(
             id=cam_id1,
-            name="Front Door",
+            name=f"Front Door {cam_id1[-8:]}",
             folder_path=f"/test/{cam_id1}",
             status="online",
         )
         camera2 = Camera(
             id=cam_id2,
-            name="Back Yard",
+            name=f"Back Yard {cam_id2[-8:]}",
             folder_path=f"/test/{cam_id2}",
             status="offline",
         )
         camera3 = Camera(
             id=cam_id3,
-            name="Garage",
+            name=f"Garage {cam_id3[-8:]}",
             folder_path=f"/test/{cam_id3}",
             status="online",
         )
@@ -379,8 +379,13 @@ async def test_system_broadcaster_broadcast_status_via_redis():
     status_data = {"type": "system_status", "data": {"test": "value"}}
     await broadcaster.broadcast_status(status_data)
 
-    # Should publish via Redis
-    mock_redis.publish.assert_called_once_with("system_status", status_data)
+    # Should publish via Redis with instance origin wrapper
+    mock_redis.publish.assert_called_once()
+    call_args = mock_redis.publish.call_args
+    assert call_args[0][0] == "system_status"  # Channel name
+    published_message = call_args[0][1]
+    assert "_origin_instance" in published_message  # Has instance ID
+    assert published_message["payload"] == status_data  # Payload is the original data
 
 
 @pytest.mark.asyncio

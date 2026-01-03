@@ -45,6 +45,13 @@ def pytest_configure(config: pytest.Config) -> None:
     # See: https://bugzilla.redhat.com/show_bug.cgi?id=2356165
     os.environ.setdefault("PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION", "python")
 
+    # Set default DATABASE_URL for test collection (required by pydantic Settings)
+    # This is needed because some modules import settings at module level
+    os.environ.setdefault(
+        "DATABASE_URL",
+        "postgresql+asyncpg://security:security_dev_password@localhost:5432/security",
+    )
+
 
 # Default development PostgreSQL URL (matches docker-compose.yml)
 DEFAULT_DEV_POSTGRES_URL = (
@@ -203,10 +210,11 @@ async def _ensure_clean_db() -> None:
 
 
 async def _reset_db_schema() -> None:
-    """Create all tables to ensure schema matches current models.
+    """Create all tables and add any missing columns to match current models.
 
     This is called once per database to ensure the database schema matches
-    the current SQLAlchemy models.
+    the current SQLAlchemy models. Uses create_all for new tables and
+    explicit ALTER TABLE for missing columns.
 
     Note: Advisory locks removed - integration tests now use module-scoped
     containers which provide full isolation per test module.
@@ -215,6 +223,8 @@ async def _reset_db_schema() -> None:
 
     if _schema_reset_done:
         return
+
+    from sqlalchemy import text
 
     from backend.core.database import get_engine
 
@@ -232,6 +242,63 @@ async def _reset_db_schema() -> None:
     async with engine.begin() as conn:
         # Create tables if they don't exist
         await conn.run_sync(ModelsBase.metadata.create_all)
+
+        # Add any missing columns that create_all doesn't handle
+        # This handles schema drift without dropping data
+        # Using IF NOT EXISTS makes this idempotent and safe to run in parallel
+        await conn.execute(text("ALTER TABLE events ADD COLUMN IF NOT EXISTS llm_prompt TEXT"))
+
+        # Add unique indexes for cameras table (migration adds these for production)
+        # First, clean up any duplicate cameras that might prevent index creation
+        # Delete duplicate cameras by name (keep oldest)
+        await conn.execute(
+            text(
+                """
+                DELETE FROM cameras
+                WHERE id IN (
+                    SELECT id FROM (
+                        SELECT id,
+                               ROW_NUMBER() OVER (
+                                   PARTITION BY name
+                                   ORDER BY created_at ASC, id ASC
+                               ) as rn
+                        FROM cameras
+                    ) ranked
+                    WHERE rn > 1
+                )
+                """
+            )
+        )
+
+        # Delete duplicate cameras by folder_path (keep oldest)
+        await conn.execute(
+            text(
+                """
+                DELETE FROM cameras
+                WHERE id IN (
+                    SELECT id FROM (
+                        SELECT id,
+                               ROW_NUMBER() OVER (
+                                   PARTITION BY folder_path
+                                   ORDER BY created_at ASC, id ASC
+                               ) as rn
+                        FROM cameras
+                    ) ranked
+                    WHERE rn > 1
+                )
+                """
+            )
+        )
+
+        # Now create unique indexes (using IF NOT EXISTS for idempotency)
+        await conn.execute(
+            text("CREATE UNIQUE INDEX IF NOT EXISTS idx_cameras_name_unique ON cameras (name)")
+        )
+        await conn.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_cameras_folder_path_unique ON cameras (folder_path)"
+            )
+        )
 
 
 @pytest.fixture(scope="function")

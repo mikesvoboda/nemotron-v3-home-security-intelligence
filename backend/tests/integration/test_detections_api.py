@@ -52,16 +52,20 @@ async def clean_detections(integration_db):
 
 @pytest.fixture
 async def sample_camera(integration_db):
-    """Create a sample camera in the database."""
+    """Create a sample camera in the database.
+
+    Uses unique names and folder paths to prevent conflicts with unique constraints.
+    """
     from backend.core.database import get_session
     from backend.models.camera import Camera
 
     camera_id = str(uuid.uuid4())
+    unique_suffix = uuid.uuid4().hex[:8]
     async with get_session() as db:
         camera = Camera(
             id=camera_id,
-            name="Front Door",
-            folder_path="/export/foscam/front_door",
+            name=f"Front Door {unique_suffix}",
+            folder_path=f"/export/foscam/front_door_{unique_suffix}",
             status="online",
         )
         db.add(camera)

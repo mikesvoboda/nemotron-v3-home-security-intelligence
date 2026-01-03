@@ -40,6 +40,10 @@ The real-time system enables instant dashboard updates without polling by using 
 
 ### Architecture Diagram
 
+![WebSocket Architecture](../images/arch-websocket-flow.png)
+
+### Detailed Mermaid Diagram
+
 ```mermaid
 flowchart TB
     subgraph Pipeline["AI Pipeline"]
@@ -548,11 +552,11 @@ Hook for security event stream:
 ```typescript
 // frontend/src/hooks/useEventStream.ts
 export function useEventStream() {
-  const { isConnected, lastMessage } = useWebSocket("/ws/events");
+  const { isConnected, lastMessage } = useWebSocket('/ws/events');
   const [events, setEvents] = useState<Event[]>([]);
 
   useEffect(() => {
-    if (lastMessage?.type === "event") {
+    if (lastMessage?.type === 'event') {
       setEvents((prev) => [lastMessage.data, ...prev].slice(0, 100));
     }
   }, [lastMessage]);
@@ -568,11 +572,11 @@ Hook for system status updates:
 ```typescript
 // frontend/src/hooks/useSystemStatus.ts
 export function useSystemStatus() {
-  const { isConnected, lastMessage } = useWebSocket("/ws/system");
+  const { isConnected, lastMessage } = useWebSocket('/ws/system');
   const [status, setStatus] = useState<SystemStatus | null>(null);
 
   useEffect(() => {
-    if (lastMessage?.type === "system_status") {
+    if (lastMessage?.type === 'system_status') {
       setStatus(lastMessage.data);
     }
   }, [lastMessage]);

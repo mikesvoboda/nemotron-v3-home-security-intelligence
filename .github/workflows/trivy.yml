@@ -4,17 +4,17 @@ on:
   push:
     branches: [main]
     paths:
-      - "**/Dockerfile*"
-      - "backend/requirements.txt"
-      - "backend/requirements-prod.txt"
-      - "frontend/package.json"
+      - '**/Dockerfile*'
+      - 'backend/requirements.txt'
+      - 'backend/requirements-prod.txt'
+      - 'frontend/package.json'
   pull_request:
     branches: [main]
     paths:
-      - "**/Dockerfile*"
-      - "backend/requirements.txt"
-      - "backend/requirements-prod.txt"
-      - "frontend/package.json"
+      - '**/Dockerfile*'
+      - 'backend/requirements.txt'
+      - 'backend/requirements-prod.txt'
+      - 'frontend/package.json'
 
 permissions:
   contents: read
@@ -28,37 +28,56 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Free disk space
+        # Backend image includes heavy ML dependencies (PyTorch, transformers)
+        # which require more disk space than default GitHub runners provide
+        run: |
+          echo "Disk space before cleanup:"
+          df -h /
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          docker system prune -af
+          echo "Disk space after cleanup:"
+          df -h /
+
       - name: Build backend image
+        id: build
         # Use production Dockerfile which has minimal dependencies
-        run: docker build -t backend:${{ github.sha }} -f backend/Dockerfile.prod backend/
+        # Context must be project root because Dockerfile.prod copies pyproject.toml/uv.lock from root
+        run: docker build -t backend:${{ github.sha }} -f backend/Dockerfile.prod .
 
       - name: Run Trivy vulnerability scanner (blocking)
         # Fail build on CRITICAL/HIGH vulnerabilities not in .trivyignore
+        # Only run if build succeeded
+        if: steps.build.outcome == 'success'
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: "backend:${{ github.sha }}"
-          format: "table"
-          severity: "CRITICAL,HIGH"
-          exit-code: "1"
-          trivyignores: ".trivyignore"
+          image-ref: 'backend:${{ github.sha }}'
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+          trivyignores: '.trivyignore'
 
       - name: Run Trivy for SARIF upload
-        # Always run SARIF generation for GitHub Security tab (even after failure above)
-        if: always()
+        # Run SARIF generation for GitHub Security tab if build succeeded
+        # Runs even if blocking scan above failed (found vulnerabilities)
+        if: always() && steps.build.outcome == 'success'
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: "backend:${{ github.sha }}"
-          format: "sarif"
-          output: "trivy-backend.sarif"
-          severity: "CRITICAL,HIGH"
-          exit-code: "0"
-          trivyignores: ".trivyignore"
+          image-ref: 'backend:${{ github.sha }}'
+          format: 'sarif'
+          output: 'trivy-backend.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'
+          trivyignores: '.trivyignore'
 
       - name: Upload Trivy scan results
         uses: github/codeql-action/upload-sarif@v4
-        if: always()
+        if: always() && steps.build.outcome == 'success'
         with:
-          sarif_file: "trivy-backend.sarif"
+          sarif_file: 'trivy-backend.sarif'
 
   scan-frontend:
     name: Scan Frontend Image
@@ -68,33 +87,37 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build frontend image
+        id: build
         # Use production Dockerfile which has minimal dependencies
         run: docker build -t frontend:${{ github.sha }} -f frontend/Dockerfile.prod frontend/
 
       - name: Run Trivy vulnerability scanner (blocking)
         # Fail build on CRITICAL/HIGH vulnerabilities not in .trivyignore
+        # Only run if build succeeded
+        if: steps.build.outcome == 'success'
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: "frontend:${{ github.sha }}"
-          format: "table"
-          severity: "CRITICAL,HIGH"
-          exit-code: "1"
-          trivyignores: ".trivyignore"
+          image-ref: 'frontend:${{ github.sha }}'
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+          trivyignores: '.trivyignore'
 
       - name: Run Trivy for SARIF upload
-        # Always run SARIF generation for GitHub Security tab (even after failure above)
-        if: always()
+        # Run SARIF generation for GitHub Security tab if build succeeded
+        # Runs even if blocking scan above failed (found vulnerabilities)
+        if: always() && steps.build.outcome == 'success'
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: "frontend:${{ github.sha }}"
-          format: "sarif"
-          output: "trivy-frontend.sarif"
-          severity: "CRITICAL,HIGH"
-          exit-code: "0"
-          trivyignores: ".trivyignore"
+          image-ref: 'frontend:${{ github.sha }}'
+          format: 'sarif'
+          output: 'trivy-frontend.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'
+          trivyignores: '.trivyignore'
 
       - name: Upload Trivy scan results
         uses: github/codeql-action/upload-sarif@v4
-        if: always()
+        if: always() && steps.build.outcome == 'success'
         with:
-          sarif_file: "trivy-frontend.sarif"
+          sarif_file: 'trivy-frontend.sarif'

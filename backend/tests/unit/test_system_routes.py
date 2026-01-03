@@ -1452,6 +1452,7 @@ async def test_get_config_returns_settings() -> None:
     mock_settings.batch_window_seconds = 90
     mock_settings.batch_idle_timeout_seconds = 30
     mock_settings.detection_confidence_threshold = 0.5
+    mock_settings.grafana_url = "http://localhost:3002"
 
     with patch.object(system_routes, "get_settings", return_value=mock_settings):
         response = await system_routes.get_config()
@@ -1478,6 +1479,7 @@ async def test_patch_config_updates_retention_days(tmp_path, monkeypatch) -> Non
     mock_settings.batch_window_seconds = 90
     mock_settings.batch_idle_timeout_seconds = 30
     mock_settings.detection_confidence_threshold = 0.5
+    mock_settings.grafana_url = "http://localhost:3002"
 
     mock_get_settings = MagicMock(return_value=mock_settings)
     mock_get_settings.cache_clear = MagicMock()
@@ -1513,6 +1515,7 @@ async def test_patch_config_updates_batch_window_seconds(tmp_path, monkeypatch) 
     mock_settings.batch_window_seconds = 120
     mock_settings.batch_idle_timeout_seconds = 30
     mock_settings.detection_confidence_threshold = 0.5
+    mock_settings.grafana_url = "http://localhost:3002"
 
     mock_get_settings = MagicMock(return_value=mock_settings)
     mock_get_settings.cache_clear = MagicMock()
@@ -1547,6 +1550,7 @@ async def test_patch_config_updates_batch_idle_timeout(tmp_path, monkeypatch) ->
     mock_settings.batch_window_seconds = 90
     mock_settings.batch_idle_timeout_seconds = 45
     mock_settings.detection_confidence_threshold = 0.5
+    mock_settings.grafana_url = "http://localhost:3002"
 
     mock_get_settings = MagicMock(return_value=mock_settings)
     mock_get_settings.cache_clear = MagicMock()
@@ -1581,6 +1585,7 @@ async def test_patch_config_updates_detection_threshold(tmp_path, monkeypatch) -
     mock_settings.batch_window_seconds = 90
     mock_settings.batch_idle_timeout_seconds = 30
     mock_settings.detection_confidence_threshold = 0.75
+    mock_settings.grafana_url = "http://localhost:3002"
 
     mock_get_settings = MagicMock(return_value=mock_settings)
     mock_get_settings.cache_clear = MagicMock()
@@ -1615,6 +1620,7 @@ async def test_patch_config_no_changes(tmp_path, monkeypatch) -> None:
     mock_settings.batch_window_seconds = 90
     mock_settings.batch_idle_timeout_seconds = 30
     mock_settings.detection_confidence_threshold = 0.5
+    mock_settings.grafana_url = "http://localhost:3002"
 
     mock_get_settings = MagicMock(return_value=mock_settings)
     mock_get_settings.cache_clear = MagicMock()
@@ -1651,6 +1657,7 @@ async def test_patch_config_multiple_fields(tmp_path, monkeypatch) -> None:
     mock_settings.batch_window_seconds = 60
     mock_settings.batch_idle_timeout_seconds = 20
     mock_settings.detection_confidence_threshold = 0.8
+    mock_settings.grafana_url = "http://localhost:3002"
 
     mock_get_settings = MagicMock(return_value=mock_settings)
     mock_get_settings.cache_clear = MagicMock()

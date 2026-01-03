@@ -5,8 +5,9 @@
  * - Tab navigation
  * - Cameras settings
  * - Processing settings
- * - AI Models display
  * - Notifications settings
+ *
+ * Note: AI Models settings moved to System Monitoring page
  */
 
 import { test, expect } from '@playwright/test';
@@ -63,10 +64,6 @@ test.describe('Settings Tab Navigation', () => {
     await expect(settingsPage.processingTab).toBeVisible();
   });
 
-  test('AI models tab is visible', async () => {
-    await expect(settingsPage.aiModelsTab).toBeVisible();
-  });
-
   test('notifications tab is visible', async () => {
     await expect(settingsPage.notificationsTab).toBeVisible();
   });
@@ -80,11 +77,6 @@ test.describe('Settings Tab Navigation', () => {
     // Tab should respond to click
   });
 
-  test('can click AI models tab', async ({ page }) => {
-    await settingsPage.aiModelsTab.click();
-    // Tab should respond to click
-  });
-
   test('can click notifications tab', async ({ page }) => {
     await settingsPage.notificationsTab.click();
     // Tab should respond to click
@@ -92,9 +84,11 @@ test.describe('Settings Tab Navigation', () => {
 
   test('tab list has multiple tabs', async ({ page }) => {
     // Verify there are multiple tab buttons available
-    const tabButtons = page.locator('button').filter({ hasText: /CAMERAS|PROCESSING|AI MODELS|NOTIFICATIONS/i });
+    // Settings page has 3 tabs: CAMERAS, PROCESSING, NOTIFICATIONS
+    // (AI Models moved to System Monitoring page)
+    const tabButtons = page.locator('button').filter({ hasText: /CAMERAS|PROCESSING|NOTIFICATIONS/i });
     const count = await tabButtons.count();
-    expect(count).toBe(4);
+    expect(count).toBe(3);
   });
 });
 

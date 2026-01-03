@@ -11,12 +11,12 @@
 
 The Home Security Intelligence system stores data in multiple locations:
 
-| Data Type              | Location                         | Priority     |
-| ---------------------- | -------------------------------- | ------------ |
-| PostgreSQL Database    | `postgres_data` volume           | **Critical** |
-| Detection Images/Clips | `./backend/data/`                | **High**     |
-| Configuration          | `.env`                           | **Critical** |
-| Camera FTP Uploads     | `${CAMERA_PATH:-/export/foscam}` | **Medium**   |
+| Data Type           | Location                         | Priority     |
+| ------------------- | -------------------------------- | ------------ |
+| PostgreSQL Database | `postgres_data` volume           | **Critical** |
+| Generated Media     | `./backend/data/`                | **High**     |
+| Configuration       | `.env`                           | **Critical** |
+| Camera FTP Uploads  | `${CAMERA_PATH:-/export/foscam}` | **Medium**   |
 
 > [!NOTE]
 > Redis is ephemeral cache - it does **not** require backup.
@@ -45,27 +45,27 @@ The Home Security Intelligence system stores data in multiple locations:
 
 ```bash
 # Docker - compressed custom format (recommended)
-docker exec postgres pg_dump -U security -d security \
+docker compose -f docker-compose.prod.yml exec -T postgres pg_dump -U security -d security \
     --format=custom --compress=9 \
     > backup_$(date +%Y%m%d).dump
 
 # Podman
-podman exec postgres pg_dump -U security -d security \
+podman-compose -f docker-compose.prod.yml exec -T postgres pg_dump -U security -d security \
     --format=custom --compress=9 \
     > backup_$(date +%Y%m%d).dump
 
 # Plain SQL format
-docker exec postgres pg_dump -U security security > backup.sql
+docker compose -f docker-compose.prod.yml exec -T postgres pg_dump -U security security > backup.sql
 ```
 
 ### File Backup
 
 ```bash
-# Full data directory
+# Full generated media directory (thumbnails, clips, logs, etc.)
 tar -czvf files_$(date +%Y%m%d).tar.gz backend/data/
 
-# Clips only (most important)
-tar -czvf clips_$(date +%Y%m%d).tar.gz backend/data/clips/
+# Clips only (if you generate/store clips)
+tar -czvf clips_$(date +%Y%m%d).tar.gz backend/data/clips/ || true
 ```
 
 ### Configuration Backup
@@ -88,14 +88,14 @@ set -euo pipefail
 BACKUP_DIR="/opt/hsi-backup/daily"
 RETENTION_DAYS=30
 DATE=$(date +%Y-%m-%d_%H%M%S)
-PROJECT_DIR="/path/to/nemotron-v3-home-security-intelligence"
+PROJECT_DIR="/path/to/home_security_intelligence"
 
 mkdir -p "${BACKUP_DIR}"
 
 echo "[$(date)] Starting backup..."
 
 # Database
-docker exec postgres pg_dump -U security -d security \
+docker compose -f "${PROJECT_DIR}/docker-compose.prod.yml" exec -T postgres pg_dump -U security -d security \
     --format=custom --compress=9 \
     > "${BACKUP_DIR}/database_${DATE}.dump"
 
@@ -135,8 +135,8 @@ chmod +x /opt/hsi-backup/backup.sh
 1. **Install prerequisites and clone repo**
 
    ```bash
-   git clone https://github.com/mikesvoboda/nemotron-v3-home-security-intelligence.git
-   cd nemotron-v3-home-security-intelligence
+   git clone https://github.com/your-org/home-security-intelligence.git
+   cd home-security-intelligence
    ```
 
 2. **Restore configuration**
@@ -156,7 +156,7 @@ chmod +x /opt/hsi-backup/backup.sh
 4. **Restore database**
 
    ```bash
-   docker exec -i postgres pg_restore \
+   docker compose -f docker-compose.prod.yml exec -T postgres pg_restore \
        -U security -d security --clean --if-exists \
        < backup.dump
    ```
@@ -187,11 +187,11 @@ chmod +x /opt/hsi-backup/backup.sh
 docker compose -f docker-compose.prod.yml stop backend
 
 # Drop and recreate database
-docker exec postgres psql -U security -c "DROP DATABASE security;"
-docker exec postgres psql -U security -c "CREATE DATABASE security;"
+docker compose -f docker-compose.prod.yml exec -T postgres psql -U security -c "DROP DATABASE security;"
+docker compose -f docker-compose.prod.yml exec -T postgres psql -U security -c "CREATE DATABASE security;"
 
 # Restore
-docker exec -i postgres pg_restore -U security -d security < backup.dump
+docker compose -f docker-compose.prod.yml exec -T postgres pg_restore -U security -d security < backup.dump
 
 # Restart
 docker compose -f docker-compose.prod.yml up -d backend

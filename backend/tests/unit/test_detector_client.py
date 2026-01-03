@@ -122,6 +122,7 @@ async def test_detect_objects_success(detector_client, mock_session, sample_dete
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
+        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
     ):
         # Mock detector response
         mock_response = MagicMock(spec=httpx.Response)
@@ -166,6 +167,7 @@ async def test_detect_objects_filters_low_confidence(
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
+        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
@@ -194,6 +196,7 @@ async def test_detect_objects_no_detections(detector_client, mock_session):
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
+        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
@@ -234,6 +237,7 @@ async def test_detect_objects_connection_error_raises_exception(detector_client,
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post", side_effect=httpx.ConnectError("Connection refused")),
+        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
     ):
         with pytest.raises(DetectorUnavailableError) as exc_info:
             await detector_client.detect_objects(image_path, camera_id, mock_session)
@@ -255,6 +259,7 @@ async def test_detect_objects_timeout_raises_exception(detector_client, mock_ses
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post", side_effect=httpx.TimeoutException("Request timeout")),
+        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
     ):
         with pytest.raises(DetectorUnavailableError) as exc_info:
             await detector_client.detect_objects(image_path, camera_id, mock_session)
@@ -275,6 +280,7 @@ async def test_detect_objects_server_error_raises_exception(detector_client, moc
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
+        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 500
@@ -302,6 +308,7 @@ async def test_detect_objects_client_error_returns_empty(detector_client, mock_s
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
+        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 400
@@ -333,6 +340,7 @@ async def test_detect_objects_invalid_json_raises_exception(detector_client, moc
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
+        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
@@ -359,6 +367,7 @@ async def test_detect_objects_malformed_response(detector_client, mock_session):
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
+        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
@@ -407,6 +416,7 @@ async def test_detect_objects_sets_file_type(detector_client, mock_session):
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
+        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
@@ -442,6 +452,7 @@ async def test_detect_objects_sets_timestamp(detector_client, mock_session):
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
+        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
@@ -479,6 +490,7 @@ async def test_detect_objects_multiple_types(detector_client, mock_session):
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
+        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
@@ -526,6 +538,7 @@ async def test_detect_objects_invalid_bbox_format(detector_client, mock_session)
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
+        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200
@@ -609,6 +622,7 @@ async def test_detect_objects_http_502_raises_exception(detector_client, mock_se
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
+        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 502
@@ -634,6 +648,7 @@ async def test_detect_objects_http_503_raises_exception(detector_client, mock_se
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
+        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 503
@@ -657,6 +672,7 @@ async def test_detect_objects_http_404_returns_empty(detector_client, mock_sessi
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post") as mock_post,
+        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
     ):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 404
@@ -682,8 +698,319 @@ async def test_detect_objects_unexpected_error_raises_exception(detector_client,
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_bytes", return_value=mock_image_data),
         patch("httpx.AsyncClient.post", side_effect=RuntimeError("Unexpected error")),
+        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
     ):
         with pytest.raises(DetectorUnavailableError) as exc_info:
             await detector_client.detect_objects(image_path, camera_id, mock_session)
 
         assert "Unexpected" in str(exc_info.value)
+
+
+# Test: HTTP 400 error with error detail extraction
+
+
+@pytest.mark.asyncio
+async def test_detect_objects_http_400_extracts_error_detail(detector_client, mock_session):
+    """Test that HTTP 400 errors extract error detail from JSON response.
+
+    When the detector returns 400 (invalid image), the error detail should be
+    extracted from the response body for better logging/debugging.
+    """
+    image_path = "/export/foscam/front_door/corrupted_image.jpg"
+    camera_id = "front_door"
+    mock_image_data = b"not actually image data"
+
+    with (
+        patch("pathlib.Path.exists", return_value=True),
+        patch("pathlib.Path.read_bytes", return_value=mock_image_data),
+        patch("httpx.AsyncClient.post") as mock_post,
+    ):
+        mock_response = MagicMock(spec=httpx.Response)
+        mock_response.status_code = 400
+        # The detector returns a JSON body with error detail
+        mock_response.json.return_value = {
+            "detail": "Invalid image file 'corrupted_image.jpg': Cannot identify image format."
+        }
+        mock_response.text = '{"detail": "Invalid image file"}'
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Bad Request", request=MagicMock(spec=httpx.Request), response=mock_response
+        )
+        mock_post.return_value = mock_response
+
+        detections = await detector_client.detect_objects(image_path, camera_id, mock_session)
+
+        # Should return empty (4xx is client error, no retry)
+        assert len(detections) == 0
+        # No DB operations should occur
+        assert not mock_session.add.called
+
+
+@pytest.mark.asyncio
+async def test_detect_objects_http_400_handles_non_json_response(detector_client, mock_session):
+    """Test that HTTP 400 handles non-JSON response body gracefully."""
+    image_path = "/export/foscam/front_door/bad_image.jpg"
+    camera_id = "front_door"
+    mock_image_data = b"fake_image_data"
+
+    with (
+        patch("pathlib.Path.exists", return_value=True),
+        patch("pathlib.Path.read_bytes", return_value=mock_image_data),
+        patch("httpx.AsyncClient.post") as mock_post,
+    ):
+        mock_response = MagicMock(spec=httpx.Response)
+        mock_response.status_code = 400
+        # Detector returns non-JSON body
+        mock_response.json.side_effect = ValueError("No JSON object could be decoded")
+        mock_response.text = "Plain text error message"
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "Bad Request", request=MagicMock(spec=httpx.Request), response=mock_response
+        )
+        mock_post.return_value = mock_response
+
+        detections = await detector_client.detect_objects(image_path, camera_id, mock_session)
+
+        # Should still return empty and not crash
+        assert len(detections) == 0
+
+
+# Test: Camera last_seen_at Update
+
+
+@pytest.mark.asyncio
+async def test_detect_objects_updates_camera_last_seen_at(detector_client, mock_session):
+    """Test that camera's last_seen_at is updated when detections are stored."""
+    image_path = "/export/foscam/front_door/image_last_seen.jpg"
+    camera_id = "front_door"
+
+    mock_image_data = b"fake_image_data"
+    response = {
+        "detections": [
+            {
+                "class": "person",
+                "confidence": 0.95,
+                "bbox": [100, 150, 300, 400],
+            }
+        ],
+        "processing_time_ms": 50.0,
+        "image_size": [1920, 1080],
+    }
+
+    # Create a mock camera object to verify last_seen_at is updated
+    mock_camera = MagicMock()
+    mock_camera.last_seen_at = None
+    mock_session.get = AsyncMock(return_value=mock_camera)
+
+    with (
+        patch("pathlib.Path.exists", return_value=True),
+        patch("pathlib.Path.read_bytes", return_value=mock_image_data),
+        patch("httpx.AsyncClient.post") as mock_post,
+        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
+    ):
+        mock_response = MagicMock(spec=httpx.Response)
+        mock_response.status_code = 200
+        mock_response.json.return_value = response
+        mock_post.return_value = mock_response
+
+        detections = await detector_client.detect_objects(image_path, camera_id, mock_session)
+
+        assert len(detections) == 1
+        # Verify camera was fetched
+        mock_session.get.assert_called_once()
+        # Verify last_seen_at was updated (should be a datetime, not None)
+        assert mock_camera.last_seen_at is not None
+
+
+@pytest.mark.asyncio
+async def test_detect_objects_no_camera_update_when_no_detections(detector_client, mock_session):
+    """Test that camera's last_seen_at is NOT updated when no detections are found."""
+    image_path = "/export/foscam/front_door/image_empty.jpg"
+    camera_id = "front_door"
+
+    mock_image_data = b"fake_image_data"
+    empty_response = {"detections": [], "processing_time_ms": 50.0, "image_size": [1920, 1080]}
+
+    mock_session.get = AsyncMock()
+
+    with (
+        patch("pathlib.Path.exists", return_value=True),
+        patch("pathlib.Path.read_bytes", return_value=mock_image_data),
+        patch("httpx.AsyncClient.post") as mock_post,
+        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
+    ):
+        mock_response = MagicMock(spec=httpx.Response)
+        mock_response.status_code = 200
+        mock_response.json.return_value = empty_response
+        mock_post.return_value = mock_response
+
+        detections = await detector_client.detect_objects(image_path, camera_id, mock_session)
+
+        assert len(detections) == 0
+        # Verify camera was NOT fetched (no detections = no update)
+        mock_session.get.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_detect_objects_handles_missing_camera(detector_client, mock_session):
+    """Test that detection works even if camera is not found in database."""
+    image_path = "/export/foscam/orphan_camera/image.jpg"
+    camera_id = "orphan_camera"
+
+    mock_image_data = b"fake_image_data"
+    response = {
+        "detections": [
+            {
+                "class": "person",
+                "confidence": 0.95,
+                "bbox": [100, 150, 300, 400],
+            }
+        ],
+        "processing_time_ms": 50.0,
+        "image_size": [1920, 1080],
+    }
+
+    # Camera not found in database
+    mock_session.get = AsyncMock(return_value=None)
+
+    with (
+        patch("pathlib.Path.exists", return_value=True),
+        patch("pathlib.Path.read_bytes", return_value=mock_image_data),
+        patch("httpx.AsyncClient.post") as mock_post,
+        patch.object(detector_client, "_validate_image_for_detection", return_value=True),
+    ):
+        mock_response = MagicMock(spec=httpx.Response)
+        mock_response.status_code = 200
+        mock_response.json.return_value = response
+        mock_post.return_value = mock_response
+
+        # Should not raise, just skip camera update
+        detections = await detector_client.detect_objects(image_path, camera_id, mock_session)
+
+        assert len(detections) == 1
+        # Verify we still committed the detections
+        mock_session.commit.assert_called_once()
+
+
+# Test: Image Validation
+
+
+@pytest.mark.asyncio
+async def test_detect_objects_rejects_invalid_image(detector_client, mock_session):
+    """Test that invalid/corrupted images are rejected before detection."""
+    image_path = "/export/foscam/front_door/corrupted.jpg"
+    camera_id = "front_door"
+
+    with (
+        patch("pathlib.Path.exists", return_value=True),
+        patch.object(detector_client, "_validate_image_for_detection", return_value=False),
+    ):
+        detections = await detector_client.detect_objects(image_path, camera_id, mock_session)
+
+        # Should return empty list for invalid images
+        assert len(detections) == 0
+        # Should not add any detections
+        assert not mock_session.add.called
+        # Should not commit
+        assert not mock_session.commit.called
+
+
+@pytest.mark.asyncio
+async def test_detect_objects_rejects_truncated_image(detector_client, mock_session, tmp_path):
+    """Test that truncated images from incomplete FTP uploads are rejected."""
+    from PIL import Image
+
+    from backend.services.detector_client import MIN_DETECTION_IMAGE_SIZE
+
+    # Create a valid image first
+    valid_image = tmp_path / "valid.jpg"
+    img = Image.new("RGB", (640, 480), color="red")
+    # Add gradient for larger file size
+    pixels = img.load()
+    if pixels is not None:
+        for y in range(480):
+            for x in range(640):
+                pixels[x, y] = (x % 256, y % 256, (x + y) % 256)
+    img.save(valid_image, "JPEG", quality=95)
+
+    # Read and truncate
+    valid_bytes = valid_image.read_bytes()
+    truncated_bytes = valid_bytes[: int(len(valid_bytes) * 0.6)]
+
+    # Write truncated image
+    truncated_image = tmp_path / "truncated.jpg"
+    truncated_image.write_bytes(truncated_bytes)
+
+    # Verify it's above min size but still truncated
+    assert truncated_image.stat().st_size >= MIN_DETECTION_IMAGE_SIZE
+
+    with patch("pathlib.Path.exists", return_value=True):
+        # Use real validation (not mocked)
+        detections = await detector_client.detect_objects(
+            str(truncated_image), "camera1", mock_session
+        )
+
+        # Should return empty list for truncated images
+        assert len(detections) == 0
+
+
+@pytest.mark.asyncio
+async def test_detect_objects_rejects_too_small_image(detector_client, mock_session, tmp_path):
+    """Test that very small images are rejected (likely truncated)."""
+    from backend.services.detector_client import MIN_DETECTION_IMAGE_SIZE
+
+    # Create a small file that's below the minimum size
+    small_image = tmp_path / "tiny.jpg"
+    # Just write some random bytes below the threshold
+    small_image.write_bytes(b"\xff\xd8\xff" + b"\x00" * 5000)  # ~5KB
+
+    assert small_image.stat().st_size < MIN_DETECTION_IMAGE_SIZE
+
+    with patch("pathlib.Path.exists", return_value=True):
+        detections = await detector_client.detect_objects(str(small_image), "camera1", mock_session)
+
+        # Should return empty list for too-small images
+        assert len(detections) == 0
+
+
+def test_validate_image_for_detection_valid_image(detector_client, tmp_path):
+    """Test _validate_image_for_detection accepts valid images."""
+    from PIL import Image
+
+    # Create a valid image above minimum size
+    image_path = tmp_path / "valid.jpg"
+    img = Image.new("RGB", (640, 480), color="blue")
+    # Add gradient for larger file size
+    pixels = img.load()
+    if pixels is not None:
+        for y in range(480):
+            for x in range(640):
+                pixels[x, y] = (x % 256, y % 256, (x + y) % 256)
+    img.save(image_path, "JPEG", quality=95)
+
+    result = detector_client._validate_image_for_detection(str(image_path), "camera1")
+
+    assert result is True
+
+
+def test_validate_image_for_detection_corrupted_image(detector_client, tmp_path):
+    """Test _validate_image_for_detection rejects corrupted images."""
+    # Create a file with invalid image data
+    image_path = tmp_path / "corrupted.jpg"
+    image_path.write_text("This is not an image file!")
+
+    result = detector_client._validate_image_for_detection(str(image_path), "camera1")
+
+    assert result is False
+
+
+def test_validate_image_for_detection_too_small(detector_client, tmp_path):
+    """Test _validate_image_for_detection rejects images below minimum size."""
+    from PIL import Image
+
+    # Create a tiny valid image
+    image_path = tmp_path / "tiny.jpg"
+    img = Image.new("RGB", (10, 10), color="red")
+    img.save(image_path, "JPEG", quality=50)
+
+    result = detector_client._validate_image_for_detection(str(image_path), "camera1")
+
+    assert result is False

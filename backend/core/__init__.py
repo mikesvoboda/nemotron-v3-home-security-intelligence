@@ -11,6 +11,10 @@ from backend.core.database import (
     get_session_factory,
     init_db,
 )
+from backend.core.json_utils import (
+    extract_json_field,
+    extract_json_from_llm_response,
+)
 from backend.core.logging import (
     SENSITIVE_FIELD_NAMES,
     get_logger,
@@ -86,6 +90,8 @@ __all__ = [
     "close_redis",
     "create_ssl_context",
     "escape_ilike_pattern",
+    "extract_json_field",
+    "extract_json_from_llm_response",
     "generate_self_signed_cert",
     "generate_self_signed_certificate",
     "get_cert_info",

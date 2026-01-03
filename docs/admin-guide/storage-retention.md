@@ -120,11 +120,11 @@ cleanup_service = CleanupService(
 
 ### Optional Cleanup
 
-| Data Type       | Default         | Configuration                              |
-| --------------- | --------------- | ------------------------------------------ |
-| Original Images | **Not deleted** | Set `delete_images=True` in CleanupService |
+| Data Type       | Default         | Configuration                                   |
+| --------------- | --------------- | ----------------------------------------------- |
+| Original Images | **Not deleted** | Not currently exposed as an environment setting |
 
-**Warning:** Original camera images are not deleted by default. Enable image deletion only if you have backups or don't need long-term image retention.
+**Warning:** Original camera images are not deleted by default. If you need automated deletion of originals, it currently requires changing how `CleanupService` is initialized (advanced/operator customization).
 
 ---
 
@@ -194,21 +194,24 @@ Before running actual cleanup, preview what would be deleted:
 
 ```bash
 # Dry run cleanup preview
-curl http://localhost:8000/api/system/cleanup/preview
+# Note: this endpoint requires an API key only when `API_KEY_ENABLED=true`.
+curl -X POST "http://localhost:8000/api/system/cleanup?dry_run=true"
 ```
 
 Response:
 
 ```json
 {
-  "retention_days": 30,
   "events_deleted": 45,
   "detections_deleted": 328,
   "gpu_stats_deleted": 8640,
   "logs_deleted": 1024,
   "thumbnails_deleted": 328,
   "images_deleted": 0,
-  "space_reclaimed": 52428800
+  "space_reclaimed": 52428800,
+  "retention_days": 30,
+  "dry_run": true,
+  "timestamp": "2025-12-27T10:30:00Z"
 }
 ```
 
@@ -236,8 +239,8 @@ print(f"Would reclaim {stats.space_reclaimed / 1024 / 1024:.1f} MB")
 ### Trigger Immediate Cleanup
 
 ```bash
-# Via API (requires admin endpoints enabled)
-curl -X POST http://localhost:8000/api/admin/cleanup/run
+# Via API (requires API key only when `API_KEY_ENABLED=true`)
+curl -X POST "http://localhost:8000/api/system/cleanup"
 ```
 
 ### Programmatic Cleanup
@@ -251,6 +254,14 @@ print(f"Deleted {stats.events_deleted} events, reclaimed {stats.space_reclaimed}
 ```
 
 **Source:** [`backend/services/cleanup_service.py:176-259`](../../backend/services/cleanup_service.py)
+
+### Cleanup Job Status
+
+To view the latest cleanup status (and whether a cleanup is currently running), use:
+
+```bash
+curl http://localhost:8000/api/system/cleanup/status
+```
 
 ---
 
@@ -323,7 +334,7 @@ flowchart TB
 
 ```bash
 # Storage statistics
-curl http://localhost:8000/api/system/storage/stats
+curl http://localhost:8000/api/system/storage
 
 # Database record counts
 curl http://localhost:8000/api/system/stats

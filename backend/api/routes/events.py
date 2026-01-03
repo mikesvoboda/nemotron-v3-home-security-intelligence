@@ -174,6 +174,11 @@ async def list_events(
         parsed_detection_ids = parse_detection_ids(event.detection_ids)
         detection_count = len(parsed_detection_ids)
 
+        # Compute thumbnail_url from first detection ID
+        thumbnail_url = (
+            f"/api/media/detections/{parsed_detection_ids[0]}" if parsed_detection_ids else None
+        )
+
         # Create response with detection count and detection_ids
         event_dict = {
             "id": event.id,
@@ -187,6 +192,7 @@ async def list_events(
             "reviewed": event.reviewed,
             "detection_count": detection_count,
             "detection_ids": parsed_detection_ids,
+            "thumbnail_url": thumbnail_url,
         }
         events_with_counts.append(event_dict)
 
@@ -585,6 +591,11 @@ async def get_event(
     parsed_detection_ids = parse_detection_ids(event.detection_ids)
     detection_count = len(parsed_detection_ids)
 
+    # Compute thumbnail_url from first detection ID
+    thumbnail_url = (
+        f"/api/media/detections/{parsed_detection_ids[0]}" if parsed_detection_ids else None
+    )
+
     return {
         "id": event.id,
         "camera_id": event.camera_id,
@@ -598,6 +609,7 @@ async def get_event(
         "notes": event.notes,
         "detection_count": detection_count,
         "detection_ids": parsed_detection_ids,
+        "thumbnail_url": thumbnail_url,
     }
 
 
@@ -677,6 +689,11 @@ async def update_event(
     parsed_detection_ids = parse_detection_ids(event.detection_ids)
     detection_count = len(parsed_detection_ids)
 
+    # Compute thumbnail_url from first detection ID
+    thumbnail_url = (
+        f"/api/media/detections/{parsed_detection_ids[0]}" if parsed_detection_ids else None
+    )
+
     return {
         "id": event.id,
         "camera_id": event.camera_id,
@@ -690,6 +707,7 @@ async def update_event(
         "notes": event.notes,
         "detection_count": detection_count,
         "detection_ids": parsed_detection_ids,
+        "thumbnail_url": thumbnail_url,
     }
 
 

@@ -25,7 +25,8 @@ if TYPE_CHECKING:
 
 # Basic prompt template (legacy, used as fallback)
 RISK_ANALYSIS_PROMPT = """<|im_start|>system
-You are a home security risk analyzer. Provide detailed reasoning. Output valid JSON only.<|im_end|>
+You are a home security risk analyzer.
+IMPORTANT: Output ONLY a valid JSON object. No preamble, no explanation, no markdown - just raw JSON starting with {{ and ending with }}.<|im_end|>
 <|im_start|>user
 Analyze these detections and output a JSON risk assessment.
 
@@ -50,7 +51,8 @@ Output JSON with detailed reasoning that explains your risk assessment:
 
 # Enhanced prompt template with context enrichment
 ENRICHED_RISK_ANALYSIS_PROMPT = """<|im_start|>system
-You are a home security risk analyzer. Output valid JSON only.<|im_end|>
+You are a home security risk analyzer.
+IMPORTANT: Output ONLY a valid JSON object. No preamble, no explanation, no markdown - just raw JSON starting with {{ and ending with }}.<|im_end|>
 <|im_start|>user
 Analyze these detections and output a JSON risk assessment.
 
@@ -93,7 +95,8 @@ Output format: {{"risk_score": N, "risk_level": "level", "summary": "text", "rea
 # Full enriched prompt with vision enrichment (plates, faces, OCR)
 # Used when both context enrichment and enrichment pipeline are available
 FULL_ENRICHED_RISK_ANALYSIS_PROMPT = """<|im_start|>system
-You are a home security risk analyzer. Output valid JSON only.<|im_end|>
+You are a home security risk analyzer.
+IMPORTANT: Output ONLY a valid JSON object. No preamble, no explanation, no markdown - just raw JSON starting with {{ and ending with }}.<|im_end|>
 <|im_start|>user
 Analyze these detections and output a JSON risk assessment.
 
@@ -141,7 +144,8 @@ Output format: {{"risk_score": N, "risk_level": "level", "summary": "text", "rea
 # Vision-enhanced prompt with Florence-2 attributes, re-identification, and scene analysis
 # Used when full vision extraction pipeline is available
 VISION_ENHANCED_RISK_ANALYSIS_PROMPT = """<|im_start|>system
-You are a home security risk analyzer. Provide detailed reasoning. Output valid JSON only.<|im_end|>
+You are a home security risk analyzer.
+IMPORTANT: Output ONLY a valid JSON object. No preamble, no explanation, no markdown - just raw JSON starting with {{ and ending with }}.<|im_end|>
 <|im_start|>user
 Analyze this security event and provide a risk assessment.
 
@@ -206,7 +210,8 @@ Output JSON:
 # - Image Quality (BRISQUE)
 
 MODEL_ZOO_ENHANCED_RISK_ANALYSIS_PROMPT = """<|im_start|>system
-You are an advanced home security risk analyzer with access to comprehensive AI-enriched detection data. Provide detailed reasoning. Output valid JSON only.<|im_end|>
+You are an advanced home security risk analyzer with access to comprehensive AI-enriched detection data.
+IMPORTANT: Output ONLY a valid JSON object. No preamble, no explanation, no markdown code blocks - just the raw JSON starting with {{ and ending with }}.<|im_end|>
 <|im_start|>user
 Analyze this security event with full AI enrichment and provide a detailed risk assessment.
 

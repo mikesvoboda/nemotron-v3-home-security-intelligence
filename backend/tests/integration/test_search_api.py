@@ -21,14 +21,14 @@ pytestmark = pytest.mark.skip(reason="Search API route not yet implemented")
 @pytest.fixture
 async def setup_searchable_events(db_session):
     """Create test data for search tests."""
-    # Use unique IDs to avoid parallel test conflicts
+    # Use unique IDs and names to avoid parallel test conflicts and unique constraint violations
     front_door_id = unique_id("front_door")
     back_yard_id = unique_id("back_yard")
 
-    # Create a camera
+    # Create a camera with unique name
     camera = Camera(
         id=front_door_id,
-        name="Front Door",
+        name=f"Front Door {front_door_id[-8:]}",
         folder_path=f"/export/foscam/{front_door_id}",
         status="online",
     )
@@ -36,7 +36,7 @@ async def setup_searchable_events(db_session):
 
     camera2 = Camera(
         id=back_yard_id,
-        name="Back Yard",
+        name=f"Back Yard {back_yard_id[-8:]}",
         folder_path=f"/export/foscam/{back_yard_id}",
         status="online",
     )

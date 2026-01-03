@@ -31,7 +31,7 @@ Stream security events in real-time as they are detected and analyzed.
 
 **URL:** `ws://localhost:8000/ws/events`
 
-**Authentication:** Required when `api_key_enabled=true`
+**Authentication:** Required when `API_KEY_ENABLED=true`
 
 Provide API key via:
 
@@ -194,30 +194,30 @@ Sent when client message validation fails:
 
 ```javascript
 // Connect with API key
-const ws = new WebSocket("ws://localhost:8000/ws/events?api_key=YOUR_KEY");
+const ws = new WebSocket('ws://localhost:8000/ws/events?api_key=YOUR_KEY');
 
 ws.onopen = () => {
-  console.log("Connected to event stream");
+  console.log('Connected to event stream');
 
   // Send periodic pings to keep connection alive
   setInterval(() => {
-    ws.send(JSON.stringify({ type: "ping" }));
+    ws.send(JSON.stringify({ type: 'ping' }));
   }, 60000);
 };
 
 ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
 
-  if (data.type === "event") {
-    console.log("New security event:", data.data);
+  if (data.type === 'event') {
+    console.log('New security event:', data.data);
     // Handle new event
-  } else if (data.type === "pong") {
-    console.log("Keepalive acknowledged");
+  } else if (data.type === 'pong') {
+    console.log('Keepalive acknowledged');
   }
 };
 
 ws.onerror = (error) => {
-  console.error("WebSocket error:", error);
+  console.error('WebSocket error:', error);
 };
 
 ws.onclose = (event) => {
@@ -316,19 +316,19 @@ Sent when a service status changes:
 ### JavaScript Example
 
 ```javascript
-const ws = new WebSocket("ws://localhost:8000/ws/system?api_key=YOUR_KEY");
+const ws = new WebSocket('ws://localhost:8000/ws/system?api_key=YOUR_KEY');
 
 ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
 
-  if (data.type === "system_status") {
+  if (data.type === 'system_status') {
     // Update GPU dashboard
     updateGpuStats(data.data.gpu);
     // Update queue indicator
     updateQueueStatus(data.data.queue);
     // Update health badge
     updateHealthBadge(data.data.health);
-  } else if (data.type === "service_status") {
+  } else if (data.type === 'service_status') {
     // Handle service status change
     showServiceAlert(data.data);
   }
@@ -354,7 +354,7 @@ class ReconnectingWebSocket {
     this.ws = new WebSocket(this.url);
 
     this.ws.onopen = () => {
-      console.log("Connected");
+      console.log('Connected');
       this.reconnectDelay = 1000; // Reset delay on success
     };
 
@@ -369,7 +369,7 @@ class ReconnectingWebSocket {
     };
 
     this.ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
+      console.error('WebSocket error:', error);
     };
   }
 }

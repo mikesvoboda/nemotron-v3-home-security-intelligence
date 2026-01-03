@@ -83,7 +83,7 @@ def sample_configs():
 def mock_broadcaster():
     """Create a mock EventBroadcaster."""
     broadcaster = MagicMock()
-    broadcaster.broadcast_event = AsyncMock()
+    broadcaster.broadcast_service_status = AsyncMock()
     return broadcaster
 
 
@@ -169,7 +169,7 @@ async def test_health_check_detects_unhealthy_service(
 
     # Verify broadcast was called with "unhealthy" status
     # Event format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
-    broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
+    broadcast_calls = mock_broadcaster.broadcast_service_status.call_args_list
     unhealthy_broadcasts = [
         call for call in broadcast_calls if call[0][0].get("data", {}).get("status") == "unhealthy"
     ]
@@ -195,7 +195,7 @@ async def test_health_check_timeout_treated_as_unhealthy(
 
     # Verify broadcast was called with "unhealthy" status due to exception
     # Event format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
-    broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
+    broadcast_calls = mock_broadcaster.broadcast_service_status.call_args_list
     unhealthy_broadcasts = [
         call for call in broadcast_calls if call[0][0].get("data", {}).get("status") == "unhealthy"
     ]
@@ -302,7 +302,7 @@ async def test_max_retries_stops_restart_attempts(mock_manager, mock_broadcaster
 
     # Verify "failed" status was broadcast
     # Event format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
-    broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
+    broadcast_calls = mock_broadcaster.broadcast_service_status.call_args_list
     failed_broadcasts = [
         call for call in broadcast_calls if call[0][0].get("data", {}).get("status") == "failed"
     ]
@@ -367,7 +367,7 @@ async def test_broadcasts_status_on_failure(
 
     # Find broadcast calls with "unhealthy" status
     # Event format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
-    broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
+    broadcast_calls = mock_broadcaster.broadcast_service_status.call_args_list
     unhealthy_broadcasts = [
         call for call in broadcast_calls if call[0][0].get("data", {}).get("status") == "unhealthy"
     ]
@@ -411,7 +411,7 @@ async def test_broadcasts_status_on_recovery(mock_manager, mock_broadcaster, fas
 
     # Find broadcast calls with "healthy" status
     # Event format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
-    broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
+    broadcast_calls = mock_broadcaster.broadcast_service_status.call_args_list
     healthy_broadcasts = [
         call for call in broadcast_calls if call[0][0].get("data", {}).get("status") == "healthy"
     ]
@@ -434,7 +434,7 @@ async def test_broadcasts_status_on_restart(
 
     # Find broadcast calls with "restarting" status
     # Event format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
-    broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
+    broadcast_calls = mock_broadcaster.broadcast_service_status.call_args_list
     restarting_broadcasts = [
         call for call in broadcast_calls if call[0][0].get("data", {}).get("status") == "restarting"
     ]
@@ -509,7 +509,7 @@ async def test_restart_command_failure_handling(
 
     # Verify restart_failed status was broadcast
     # Event format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
-    broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
+    broadcast_calls = mock_broadcaster.broadcast_service_status.call_args_list
     restart_failed_broadcasts = [
         call
         for call in broadcast_calls
@@ -665,8 +665,8 @@ async def test_broadcast_event_format(health_monitor, mock_manager, mock_broadca
 
     # Check broadcast event structure
     # Event format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
-    assert mock_broadcaster.broadcast_event.called
-    event_data = mock_broadcaster.broadcast_event.call_args_list[0][0][0]
+    assert mock_broadcaster.broadcast_service_status.called
+    event_data = mock_broadcaster.broadcast_service_status.call_args_list[0][0][0]
 
     assert "type" in event_data
     assert event_data["type"] == "service_status"
@@ -685,7 +685,7 @@ async def test_broadcast_failure_does_not_crash_monitor(
 ):
     """Test that broadcaster failure doesn't crash the health monitor."""
     mock_manager.check_health.return_value = False
-    mock_broadcaster.broadcast_event.side_effect = Exception("Broadcast failed")
+    mock_broadcaster.broadcast_service_status.side_effect = Exception("Broadcast failed")
 
     # Should not raise even when broadcast fails
     await health_monitor.start()
@@ -771,7 +771,7 @@ async def test_restart_success_but_health_still_fails(mock_manager, mock_broadca
 
     # Should have broadcast "restart_failed" due to failed health verification
     # Event format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
-    broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
+    broadcast_calls = mock_broadcaster.broadcast_service_status.call_args_list
     restart_failed_broadcasts = [
         call
         for call in broadcast_calls
@@ -993,7 +993,7 @@ async def test_restart_exception_handling(
 
     # Should have broadcast restart_failed status
     # Event format: {"type": "service_status", "data": {"service": ..., "status": ...}, "timestamp": ...}
-    broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
+    broadcast_calls = mock_broadcaster.broadcast_service_status.call_args_list
     restart_failed_broadcasts = [
         call
         for call in broadcast_calls
@@ -1047,7 +1047,7 @@ async def test_restart_disabled_broadcasts_restart_disabled_status(
     mock_manager.restart.assert_not_called()
 
     # Verify 'restart_disabled' status was broadcast
-    broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
+    broadcast_calls = mock_broadcaster.broadcast_service_status.call_args_list
     restart_disabled_broadcasts = [
         call
         for call in broadcast_calls
@@ -1108,7 +1108,7 @@ async def test_restart_disabled_healthy_service_no_broadcast(
     await health_monitor_no_restart.stop()
 
     # Should not have any restart_disabled broadcasts since service is healthy
-    broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
+    broadcast_calls = mock_broadcaster.broadcast_service_status.call_args_list
     restart_disabled_broadcasts = [
         call
         for call in broadcast_calls
@@ -1167,7 +1167,7 @@ async def test_mixed_services_only_disabled_one_skips_restart(
     )
 
     # Verify both unhealthy and restart_disabled status broadcasts occurred
-    broadcast_calls = mock_broadcaster.broadcast_event.call_args_list
+    broadcast_calls = mock_broadcaster.broadcast_service_status.call_args_list
     restart_disabled_broadcasts = [
         call
         for call in broadcast_calls
@@ -1187,8 +1187,8 @@ def test_service_config_restart_cmd_default_is_none():
     assert config.restart_cmd is None, "restart_cmd should default to None"
 
 
-def test_service_config_restart_cmd_can_be_set():
-    """Test that ServiceConfig.restart_cmd can be explicitly set."""
+def test_health_monitor_service_config_restart_cmd_can_be_set():
+    """Test that ServiceConfig.restart_cmd can be explicitly set for health monitor."""
     config = ServiceConfig(
         name="test",
         health_url="http://localhost:9999/health",

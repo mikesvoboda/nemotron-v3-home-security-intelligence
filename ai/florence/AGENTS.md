@@ -1,0 +1,244 @@
+# Florence-2 Vision-Language Server
+
+## Purpose
+
+FastAPI-based HTTP server that wraps Florence-2-large model for vision-language queries. Supports various prompts for attribute extraction from security camera images including captions, object detection, OCR, and dense region captioning.
+
+## Port and Resources
+
+- **Port**: 8092
+- **Expected VRAM**: ~1.2 GB
+- **Inference Time**: 100-300ms per query
+
+## Directory Contents
+
+```
+ai/florence/
+├── AGENTS.md          # This file
+├── Dockerfile         # Container build (PyTorch + CUDA 12.4)
+├── model.py           # FastAPI vision-language server
+└── requirements.txt   # Python dependencies
+```
+
+## Key Files
+
+### `model.py` (Main Server)
+
+FastAPI server implementation using HuggingFace Transformers AutoModelForCausalLM.
+
+**Classes:**
+
+| Class             | Description                                       |
+| ----------------- | ------------------------------------------------- |
+| `ExtractRequest`  | Request: image (base64), prompt (Florence-2 task) |
+| `ExtractResponse` | Response: result, prompt_used, inference_time_ms  |
+| `HealthResponse`  | Health: status, model, device, vram_used_gb       |
+| `Florence2Model`  | Model wrapper with load_model(), extract()        |
+
+**Key Functions in Florence2Model:**
+
+```python
+def load_model(self) -> None:
+    """Load model via AutoModelForCausalLM.from_pretrained() with trust_remote_code=True"""
+
+def extract(self, image: Image.Image, prompt: str) -> tuple[str, float]:
+    """Run Florence-2 inference, returns (result, inference_time_ms)"""
+```
+
+**Supported Prompts:**
+
+```python
+SUPPORTED_PROMPTS = {
+    "<CAPTION>",              # Brief image caption
+    "<DETAILED_CAPTION>",     # Detailed image description
+    "<MORE_DETAILED_CAPTION>",# Very detailed description
+    "<OD>",                   # Object detection
+    "<DENSE_REGION_CAPTION>", # Dense region captioning
+    "<REGION_PROPOSAL>",      # Region proposals
+    "<OCR>",                  # Text recognition
+    "<OCR_WITH_REGION>",      # OCR with bounding boxes
+}
+```
+
+### `Dockerfile`
+
+Container build configuration:
+
+- **Base image**: `pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime`
+- **Non-root user**: `florence` for security
+- **Health check**: 120s start period (larger model)
+- **HuggingFace cache**: `/cache/huggingface`
+
+### `requirements.txt`
+
+```
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+torch>=2.0.0
+transformers>=4.35.0
+einops>=0.7.0      # Required by Florence-2
+timm>=0.9.0        # Required by Florence-2
+pillow>=10.0.0
+numpy>=1.24.0
+pydantic>=2.4.0
+pynvml>=11.5.0
+```
+
+## API Endpoints
+
+### GET /health
+
+Returns server health status.
+
+```json
+{
+  "status": "healthy",
+  "model": "florence-2-large",
+  "model_loaded": true,
+  "device": "cuda:0",
+  "cuda_available": true,
+  "vram_used_gb": 1.2
+}
+```
+
+### POST /extract
+
+Extract information using a Florence-2 prompt.
+
+**Request:**
+
+```json
+{
+  "image": "<base64-encoded-image>",
+  "prompt": "<CAPTION>"
+}
+```
+
+**Response (caption):**
+
+```json
+{
+  "result": "A person in a blue jacket standing at a front door",
+  "prompt_used": "<CAPTION>",
+  "inference_time_ms": 145.2
+}
+```
+
+**Response (object detection):**
+
+```json
+{
+  "result": "{'<OD>': {'bboxes': [[100,150,300,400]], 'labels': ['person']}}",
+  "prompt_used": "<OD>",
+  "inference_time_ms": 180.5
+}
+```
+
+## Prompt Types and Use Cases
+
+### Caption Prompts
+
+| Prompt                    | Output                        | Use Case            |
+| ------------------------- | ----------------------------- | ------------------- |
+| `<CAPTION>`               | Brief 1-sentence description  | Quick scene summary |
+| `<DETAILED_CAPTION>`      | Detailed paragraph            | Event logging       |
+| `<MORE_DETAILED_CAPTION>` | Very detailed multi-paragraph | Full scene analysis |
+
+### Detection Prompts
+
+| Prompt                   | Output                      | Use Case                     |
+| ------------------------ | --------------------------- | ---------------------------- |
+| `<OD>`                   | Objects with bounding boxes | Object localization          |
+| `<DENSE_REGION_CAPTION>` | Caption per detected region | Detailed scene understanding |
+| `<REGION_PROPOSAL>`      | All region proposals        | Object discovery             |
+
+### OCR Prompts
+
+| Prompt              | Output                   | Use Case              |
+| ------------------- | ------------------------ | --------------------- |
+| `<OCR>`             | Detected text            | License plates, signs |
+| `<OCR_WITH_REGION>` | Text with bounding boxes | Text localization     |
+
+## Environment Variables
+
+| Variable              | Default                    | Description            |
+| --------------------- | -------------------------- | ---------------------- |
+| `FLORENCE_MODEL_PATH` | `/models/florence-2-large` | HuggingFace model path |
+| `HOST`                | `0.0.0.0`                  | Bind address           |
+| `PORT`                | `8092`                     | Server port            |
+| `HF_HOME`             | `/cache/huggingface`       | HuggingFace cache dir  |
+
+## Model Details
+
+- **Model**: Microsoft Florence-2-large
+- **Architecture**: Vision-language transformer with task-specific prompts
+- **Special Requirements**:
+  - `trust_remote_code=True` (custom model code)
+  - `attn_implementation="eager"` (SDPA compatibility)
+  - `use_cache=False` in generate() (past_key_values bug workaround)
+
+## Starting the Server
+
+### Container (Production)
+
+```bash
+docker compose -f docker-compose.prod.yml up ai-florence
+```
+
+### Native (Development)
+
+```bash
+cd ai/florence && python model.py
+```
+
+## Example Usage
+
+```bash
+# Get brief caption
+curl -X POST http://localhost:8092/extract \
+  -H "Content-Type: application/json" \
+  -d '{
+    "image": "'$(base64 -w0 image.jpg)'",
+    "prompt": "<CAPTION>"
+  }'
+
+# Detect objects
+curl -X POST http://localhost:8092/extract \
+  -H "Content-Type: application/json" \
+  -d '{
+    "image": "'$(base64 -w0 image.jpg)'",
+    "prompt": "<OD>"
+  }'
+
+# Extract text (OCR)
+curl -X POST http://localhost:8092/extract \
+  -H "Content-Type: application/json" \
+  -d '{
+    "image": "'$(base64 -w0 image.jpg)'",
+    "prompt": "<OCR>"
+  }'
+```
+
+## Backend Integration
+
+The Florence-2 server is an optional service that can provide detailed scene descriptions for Nemotron risk analysis:
+
+```python
+# Example integration (not yet implemented in backend)
+from httpx import AsyncClient
+
+async def get_scene_description(image_base64: str) -> str:
+    async with AsyncClient() as client:
+        response = await client.post(
+            "http://localhost:8092/extract",
+            json={"image": image_base64, "prompt": "<DETAILED_CAPTION>"}
+        )
+        return response.json()["result"]
+```
+
+## Entry Points
+
+1. **Main server**: `model.py` - Start here for understanding the API
+2. **Dockerfile**: Container build configuration
+3. **Requirements**: `requirements.txt` - Python dependencies (note: einops, timm required)

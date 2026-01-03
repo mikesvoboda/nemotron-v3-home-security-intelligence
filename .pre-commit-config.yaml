@@ -33,7 +33,8 @@ repos:
       - id: check-json
         exclude: tsconfig.*\.json$
       - id: check-added-large-files
-        args: ["--maxkb=1000"]
+        args: ['--maxkb=1000']
+        exclude: ^docs/images/.*\.png$
       - id: check-merge-conflict
       - id: detect-private-key
 
@@ -48,11 +49,13 @@ repos:
         types: [dockerfile]
 
   # Semgrep - Shift-left security scanning
+  # Note: Uses Python 3.12 because protobuf doesn't support Python 3.14 yet
   - repo: https://github.com/semgrep/semgrep
     rev: v1.96.0
     hooks:
       - id: semgrep
         name: Semgrep Security Scan
+        language_version: python3.12
         args:
           - --config=semgrep.yml
           - --config=p/python
@@ -82,26 +85,29 @@ repos:
         args: [--ignore-missing-imports]
         files: ^backend/
 
-  # Prettier (Formatting) - Non-TypeScript files only
-  # TypeScript files use local prettier to avoid type parameter stripping bug
+  # Prettier (Formatting) - Non-TypeScript, non-frontend files only
+  # TypeScript files use local prettier-frontend hook to avoid type parameter stripping bug
+  # Frontend CSS/JSON/MD use local prettier-frontend hook to access tailwindcss plugin
   # Exclude tsconfig.json which uses JSONC format (trailing commas)
   - repo: https://github.com/pre-commit/mirrors-prettier
     rev: v3.1.0
     hooks:
       - id: prettier
         types_or: [css, json, markdown, yaml]
-        exclude: tsconfig.*\.json$
+        exclude: (^frontend/|tsconfig.*\.json$)
         additional_dependencies:
           - prettier@3.2.4
 
-  # TypeScript/JavaScript - Local Prettier (avoids mirrors-prettier TypeScript bug)
+  # Frontend Prettier - Uses local prettier with tailwindcss plugin
+  # Handles all frontend files: TS/TSX/JS/JSX plus CSS/JSON/MD
   - repo: local
     hooks:
       - id: prettier-frontend
         name: Prettier (Frontend)
         entry: bash -c 'cd frontend && npx prettier --write --ignore-unknown'
         language: system
-        files: ^frontend/.*\.(ts|tsx|js|jsx)$
+        files: ^frontend/.*\.(ts|tsx|js|jsx|css|json|md)$
+        exclude: package-lock\.json$
         pass_filenames: true
 
       - id: eslint
@@ -122,6 +128,17 @@ repos:
   # NOTE: Full test suite runs in CI. Pre-commit focuses on fast lint/format checks.
   - repo: local
     hooks:
+      # Auto-rebase on origin/main before pushing
+      # Keeps feature branches up-to-date and avoids merge conflicts
+      # Skip with: SKIP=auto-rebase git push
+      - id: auto-rebase
+        name: Auto-rebase on origin/main
+        entry: ./scripts/pre-push-rebase.sh
+        language: script
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
       # Fast test hook - DISABLED by default for pre-commit performance (~2 min)
       # To run tests on pre-push instead, use: pre-commit install --hook-type pre-push
       # Or run manually: pytest backend/tests/unit/ -m "not slow" -q --fail-fast

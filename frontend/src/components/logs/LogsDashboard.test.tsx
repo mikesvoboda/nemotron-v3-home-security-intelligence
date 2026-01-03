@@ -613,4 +613,126 @@ describe('LogsDashboard', () => {
       expect(screen.getByText('No logs match the current filters')).toBeInTheDocument();
     });
   });
+
+  describe('Stats Card Filter Integration', () => {
+    it('filters logs by ERROR level when clicking Errors Today card', async () => {
+      const user = userEvent.setup();
+      render(<LogsDashboard />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Log Statistics')).toBeInTheDocument();
+      });
+
+      // Click on Errors Today card
+      const errorCard = screen.getByRole('button', { name: 'Filter by errors' });
+      await user.click(errorCard);
+
+      await waitFor(() => {
+        expect(api.fetchLogs).toHaveBeenCalledWith(
+          expect.objectContaining({ level: 'ERROR', offset: 0 })
+        );
+      });
+    });
+
+    it('filters logs by WARNING level when clicking Warnings Today card', async () => {
+      const user = userEvent.setup();
+      render(<LogsDashboard />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Log Statistics')).toBeInTheDocument();
+      });
+
+      // Click on Warnings Today card
+      const warningCard = screen.getByRole('button', { name: 'Filter by warnings' });
+      await user.click(warningCard);
+
+      await waitFor(() => {
+        expect(api.fetchLogs).toHaveBeenCalledWith(
+          expect.objectContaining({ level: 'WARNING', offset: 0 })
+        );
+      });
+    });
+
+    it('clears level filter when clicking already active stats card (toggle off)', async () => {
+      const user = userEvent.setup();
+      render(<LogsDashboard />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Log Statistics')).toBeInTheDocument();
+      });
+
+      // Click on Errors Today card to activate
+      const errorCard = screen.getByRole('button', { name: 'Filter by errors' });
+      await user.click(errorCard);
+
+      await waitFor(() => {
+        expect(api.fetchLogs).toHaveBeenCalledWith(
+          expect.objectContaining({ level: 'ERROR' })
+        );
+      });
+
+      // Click again to deactivate (toggle off)
+      await user.click(errorCard);
+
+      await waitFor(() => {
+        expect(api.fetchLogs).toHaveBeenCalledWith(
+          expect.objectContaining({ level: undefined })
+        );
+      });
+    });
+
+    it('syncs stats card filter with filter dropdown', async () => {
+      const user = userEvent.setup();
+      render(<LogsDashboard />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Log Statistics')).toBeInTheDocument();
+      });
+
+      // Click on Errors Today card
+      const errorCard = screen.getByRole('button', { name: 'Filter by errors' });
+      await user.click(errorCard);
+
+      await waitFor(() => {
+        expect(api.fetchLogs).toHaveBeenCalledWith(
+          expect.objectContaining({ level: 'ERROR' })
+        );
+      });
+
+      // Open filters and verify dropdown shows ERROR
+      await user.click(screen.getByText('Show Filters'));
+
+      await waitFor(() => {
+        const levelSelect = screen.getByLabelText('Log Level');
+        expect(levelSelect).toHaveValue('ERROR');
+      });
+    });
+
+    it('updates stats card active state when filter dropdown changes', async () => {
+      const user = userEvent.setup();
+      render(<LogsDashboard />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Log Statistics')).toBeInTheDocument();
+      });
+
+      // Open filters
+      await user.click(screen.getByText('Show Filters'));
+
+      // Select ERROR from dropdown
+      const levelSelect = screen.getByLabelText('Log Level');
+      await user.selectOptions(levelSelect, 'ERROR');
+
+      await waitFor(() => {
+        expect(api.fetchLogs).toHaveBeenCalledWith(
+          expect.objectContaining({ level: 'ERROR' })
+        );
+      });
+
+      // Verify the Errors Today card shows active state
+      const errorCard = screen.getByRole('button', { name: 'Filter by errors' });
+      expect(errorCard).toHaveClass('ring-2');
+      expect(errorCard).toHaveClass('ring-red-500');
+    });
+  });
 });

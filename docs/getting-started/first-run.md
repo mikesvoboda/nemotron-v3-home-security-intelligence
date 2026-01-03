@@ -37,7 +37,7 @@ There are two deployment paths. Choose the one that fits your setup:
 | **Production**  | Run in containers    | Simplest setup, everything containerized | `docker-compose.prod.yml` |
 | **Development** | Run natively on host | Faster AI iteration, debugging           | `docker-compose.yml`      |
 
-> **Important:** Do NOT mix host-run AI servers with `docker-compose.prod.yml`. This causes port conflicts on 8090/8091.
+> **Important:** Do NOT mix host-run AI servers with `docker-compose.prod.yml`. This causes port conflicts on 8090–8094.
 
 ---
 
@@ -48,7 +48,7 @@ All services run in containers, including GPU-accelerated AI servers.
 ### Prerequisites
 
 - NVIDIA GPU with `nvidia-container-toolkit` installed
-- Models downloaded via `./ai/download_models.sh`
+- AI model storage configured (see `docs/AI_SETUP.md`)
 
 ### Start Everything
 
@@ -62,14 +62,17 @@ podman-compose -f docker-compose.prod.yml up -d
 
 **What starts** ([`docker-compose.prod.yml`](../../docker-compose.prod.yml:1)):
 
-| Service     | Port | Purpose                    |
-| ----------- | ---- | -------------------------- |
-| PostgreSQL  | 5432 | Database                   |
-| Redis       | 6379 | Queues + pub/sub           |
-| ai-detector | 8090 | RT-DETRv2 object detection |
-| ai-llm      | 8091 | Nemotron LLM risk analysis |
-| Backend     | 8000 | FastAPI + WebSocket        |
-| Frontend    | 5173 | React dashboard (nginx)    |
+| Service       | Port | Purpose                    |
+| ------------- | ---- | -------------------------- |
+| PostgreSQL    | 5432 | Database                   |
+| Redis         | 6379 | Queues + pub/sub           |
+| ai-detector   | 8090 | RT-DETRv2 object detection |
+| ai-llm        | 8091 | Nemotron LLM risk analysis |
+| ai-florence   | 8092 | Florence-2 (optional)      |
+| ai-clip       | 8093 | CLIP (optional)            |
+| ai-enrichment | 8094 | Enrichment (optional)      |
+| Backend       | 8000 | FastAPI + WebSocket        |
+| Frontend      | 5173 | React dashboard (nginx)    |
 
 ### Verify Production Deployment
 
@@ -138,10 +141,10 @@ cd home-security-intelligence
 ./ai/start_detector.sh
 ```
 
-**What happens** ([`ai/start_detector.sh:31-37`](../../ai/start_detector.sh:31)):
+**What happens** ([`ai/rtdetr/model.py`](../../ai/rtdetr/model.py)):
 
-- Loads the RT-DETRv2 ONNX model
-- Starts HTTP server on port 8090 ([line 12](../../ai/start_detector.sh:12))
+- Loads RT-DETRv2 via HuggingFace Transformers (`RTDETR_MODEL_PATH`)
+- Starts HTTP server on port 8090
 - Uses ~4GB VRAM
 
 **Expected output:**
@@ -184,7 +187,7 @@ llama server listening at http://0.0.0.0:8091
 ```bash
 # Check RT-DETRv2
 curl http://localhost:8090/health
-# Expected: {"status": "ok"}
+# Expected: JSON describing model + CUDA status
 
 # Check Nemotron
 curl http://localhost:8091/health
@@ -370,7 +373,7 @@ nvidia-smi
 
 # Check model files exist
 ls -la ai/nemotron/*.gguf
-ls -la ai/rtdetr/*.onnx
+# RT-DETRv2 weights are downloaded to HuggingFace cache; use /health to confirm model_loaded=true
 
 # Check port availability
 lsof -i :8090

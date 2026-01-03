@@ -172,30 +172,42 @@ class TestAlertRuleModel:
     @pytest.mark.asyncio
     async def test_query_enabled_rules(self, session):
         """Test querying only enabled rules."""
+        # Use unique prefix to isolate this test's rules from other tests
+        test_prefix = unique_id("query_test")
+        created_enabled_ids = []
+        created_disabled_ids = []
+
         # Create enabled and disabled rules
         for i in range(3):
             rule = AlertRule(
-                name=f"Enabled Rule {i}",
+                name=f"Enabled Rule_{test_prefix}_{i}",
                 enabled=True,
             )
             session.add(rule)
+            await session.flush()
+            created_enabled_ids.append(rule.id)
 
         for i in range(2):
             rule = AlertRule(
-                name=f"Disabled Rule {i}",
+                name=f"Disabled Rule_{test_prefix}_{i}",
                 enabled=False,
             )
             session.add(rule)
+            await session.flush()
+            created_disabled_ids.append(rule.id)
 
-        await session.flush()
-
-        # Query only enabled rules
-        stmt = select(AlertRule).where(AlertRule.enabled.is_(True))
+        # Query only enabled rules from this test (filter by IDs we created)
+        all_created_ids = created_enabled_ids + created_disabled_ids
+        stmt = select(AlertRule).where(
+            AlertRule.id.in_(all_created_ids),
+            AlertRule.enabled.is_(True),
+        )
         result = await session.execute(stmt)
         enabled_rules = result.scalars().all()
 
         assert len(enabled_rules) == 3
         assert all(r.enabled for r in enabled_rules)
+        assert all(r.id in created_enabled_ids for r in enabled_rules)
 
 
 class TestAlertModel:

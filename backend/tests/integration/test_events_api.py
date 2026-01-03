@@ -55,16 +55,18 @@ async def sample_camera(integration_db, clean_events):
     """Create a sample camera in the database.
 
     Depends on clean_events to ensure test isolation.
+    Uses unique names and folder paths to prevent conflicts with unique constraints.
     """
     from backend.core.database import get_session
     from backend.models.camera import Camera
 
     camera_id = str(uuid.uuid4())
+    unique_suffix = uuid.uuid4().hex[:8]
     async with get_session() as db:
         camera = Camera(
             id=camera_id,
-            name="Front Door",
-            folder_path="/export/foscam/front_door",
+            name=f"Front Door {unique_suffix}",
+            folder_path=f"/export/foscam/front_door_{unique_suffix}",
             status="online",
         )
         db.add(camera)
@@ -136,12 +138,13 @@ async def multiple_events(integration_db, sample_camera):
     from backend.models.event import Event
 
     camera2_id = str(uuid.uuid4())
+    unique_suffix = uuid.uuid4().hex[:8]
 
     async with get_session() as db:
         camera2 = Camera(
             id=camera2_id,
-            name="Back Door",
-            folder_path="/export/foscam/back_door",
+            name=f"Back Door {unique_suffix}",
+            folder_path=f"/export/foscam/back_door_{unique_suffix}",
             status="online",
         )
         db.add(camera2)
@@ -691,7 +694,7 @@ class TestGetEventStats:
         assert len(data["events_by_camera"]) == 1
         camera_stat = data["events_by_camera"][0]
         assert camera_stat["camera_id"] == sample_event.camera_id
-        assert camera_stat["camera_name"] == "Front Door"
+        assert camera_stat["camera_name"].startswith("Front Door")
         assert camera_stat["event_count"] == 1
 
     async def test_get_event_stats_with_multiple_events(self, async_client, multiple_events):
@@ -718,14 +721,14 @@ class TestGetEventStats:
 
         # Front Door camera should have 3 events (indices 0, 1, 3)
         front_door_stats = next(
-            (c for c in data["events_by_camera"] if c["camera_name"] == "Front Door"), None
+            (c for c in data["events_by_camera"] if c["camera_name"].startswith("Front Door")), None
         )
         assert front_door_stats is not None
         assert front_door_stats["event_count"] == 3
 
         # Back Door camera should have 1 event (index 2)
         back_door_stats = next(
-            (c for c in data["events_by_camera"] if c["camera_name"] == "Back Door"), None
+            (c for c in data["events_by_camera"] if c["camera_name"].startswith("Back Door")), None
         )
         assert back_door_stats is not None
         assert back_door_stats["event_count"] == 1

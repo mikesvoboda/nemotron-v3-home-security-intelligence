@@ -26,10 +26,10 @@ provisioning/
 ```yaml
 apiVersion: 1
 providers:
-  - name: "Home Security Intelligence"
+  - name: 'Home Security Intelligence'
     orgId: 1
-    folder: "Home Security Intelligence"
-    folderUid: "hsi-dashboards"
+    folder: 'Home Security Intelligence'
+    folderUid: 'hsi-dashboards'
     type: file
     disableDeletion: false
     updateIntervalSeconds: 30
@@ -64,7 +64,7 @@ providers:
    isDefault: true
    editable: false
    jsonData:
-     timeInterval: "15s"
+     timeInterval: '15s'
      httpMethod: POST
    ```
 
@@ -131,8 +131,8 @@ Add to `dashboards/dashboard.yml`:
 
 ```yaml
 providers:
-  - name: "Additional Dashboards"
-    folder: "Custom"
+  - name: 'Additional Dashboards'
+    folder: 'Custom'
     type: file
     options:
       path: /var/lib/grafana/custom-dashboards
@@ -175,8 +175,8 @@ The UID defaults to the datasource name if not specified.
 ### Folder Organization
 
 ```yaml
-folder: "Home Security Intelligence"
-folderUid: "hsi-dashboards"
+folder: 'Home Security Intelligence'
+folderUid: 'hsi-dashboards'
 ```
 
 ### Immutable vs Editable

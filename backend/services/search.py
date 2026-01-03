@@ -254,7 +254,12 @@ def _join_query_parts(result_parts: list[str]) -> str:
 
 
 def _build_search_query(tsquery_str: str, query: str) -> tuple:
-    """Build the base search query with relevance ranking."""
+    """Build the base search query with relevance ranking.
+
+    The query includes an ILIKE fallback for events with NULL search_vector.
+    This handles events created before the FTS trigger was added, or events
+    that were never updated after the trigger was created.
+    """
     if tsquery_str:
         has_operators = any(op in tsquery_str for op in ["&", "|", "!", "<->"])
         if has_operators:
@@ -262,11 +267,33 @@ def _build_search_query(tsquery_str: str, query: str) -> tuple:
         else:
             tsquery = func.websearch_to_tsquery(cast("english", REGCONFIG), query)
 
-        rank = func.ts_rank(Event.search_vector, tsquery)
+        # ts_rank returns values typically in range 0.0-0.1
+        # Normalize to 0.0-1.0 range for frontend percentage display
+        # Multiply by 10 and cap at 1.0: ts_rank 0.1 -> 1.0 (100%), 0.05 -> 0.5 (50%)
+        raw_rank = func.ts_rank(Event.search_vector, tsquery)
+        rank = func.least(raw_rank * 10, cast(1.0, Float))
+
+        # Escape the query for ILIKE pattern matching to prevent injection
+        safe_query = escape_ilike_pattern(query)
+
+        # Build search condition with ILIKE fallback for NULL search_vector
+        # This handles events created before the FTS trigger was added
+        search_condition = or_(
+            Event.search_vector.op("@@")(tsquery),
+            and_(
+                Event.search_vector.is_(None),
+                or_(
+                    Event.summary.ilike(f"%{safe_query}%"),
+                    Event.reasoning.ilike(f"%{safe_query}%"),
+                    Event.object_types.ilike(f"%{safe_query}%"),
+                ),
+            ),
+        )
+
         return (
             select(Event, rank.label("relevance_score"), Camera.name.label("camera_name"))
             .outerjoin(Camera, Event.camera_id == Camera.id)
-            .where(Event.search_vector.op("@@")(tsquery)),
+            .where(search_condition),
             True,
         )
     else:

@@ -407,6 +407,7 @@ class NemotronAnalyzer:
                 risk_level=risk_data.get("risk_level", "medium"),
                 summary=risk_data.get("summary", "No summary available"),
                 reasoning=risk_data.get("reasoning", "No reasoning available"),
+                llm_prompt=risk_data.get("llm_prompt"),
                 detection_ids=json.dumps(int_detection_ids),
                 reviewed=False,
             )
@@ -414,6 +415,24 @@ class NemotronAnalyzer:
             session.add(event)
             await session.commit()
             await session.refresh(event)
+
+            # Create partial audit record for model contribution tracking
+            try:
+                from backend.services.audit_service import get_audit_service
+
+                audit_service = get_audit_service()
+                audit = audit_service.create_partial_audit(
+                    event_id=event.id,
+                    llm_prompt=risk_data.get("llm_prompt"),
+                    enriched_context=enriched_context,
+                    enrichment_result=enrichment_result,
+                )
+                session.add(audit)
+                await session.commit()
+                await session.refresh(audit)
+                logger.debug(f"Created audit {audit.id} for event {event.id}")
+            except Exception as e:
+                logger.warning(f"Failed to create audit for event {event.id}: {e}")
 
             total_duration_ms = int((time.time() - analysis_start) * 1000)
             total_duration_seconds = time.time() - analysis_start
@@ -573,6 +592,7 @@ class NemotronAnalyzer:
                 risk_level=risk_data.get("risk_level", "medium"),
                 summary=risk_data.get("summary", "No summary available"),
                 reasoning=risk_data.get("reasoning", "No reasoning available"),
+                llm_prompt=risk_data.get("llm_prompt"),
                 detection_ids=json.dumps([detection_id_int]),
                 reviewed=False,
                 is_fast_path=True,
@@ -581,6 +601,24 @@ class NemotronAnalyzer:
             session.add(event)
             await session.commit()
             await session.refresh(event)
+
+            # Create partial audit record for model contribution tracking
+            try:
+                from backend.services.audit_service import get_audit_service
+
+                audit_service = get_audit_service()
+                audit = audit_service.create_partial_audit(
+                    event_id=event.id,
+                    llm_prompt=risk_data.get("llm_prompt"),
+                    enriched_context=enriched_context,
+                    enrichment_result=enrichment_result,
+                )
+                session.add(audit)
+                await session.commit()
+                await session.refresh(audit)
+                logger.debug(f"Created audit {audit.id} for event {event.id}")
+            except Exception as e:
+                logger.warning(f"Failed to create audit for event {event.id}: {e}")
 
             total_duration_ms = int((time.time() - analysis_start) * 1000)
             total_duration_seconds = time.time() - analysis_start
@@ -995,6 +1033,9 @@ class NemotronAnalyzer:
         # Validate and normalize risk data
         risk_data = self._validate_risk_data(risk_data)
 
+        # Include the prompt in the response for debugging/improvement
+        risk_data["llm_prompt"] = prompt
+
         return risk_data
 
     def _parse_llm_response(self, text: str) -> dict[str, Any]:
@@ -1031,8 +1072,18 @@ class NemotronAnalyzer:
                 if json_start != -1:
                     cleaned_text = cleaned_text[json_start:]
 
+        # Handle "thinking out loud" without <think> tags
+        # If text starts with non-JSON content, skip to first {
+        first_brace = cleaned_text.find("{")
+        if first_brace > 0:
+            # Check if there's preamble text before the JSON
+            preamble = cleaned_text[:first_brace].strip()
+            if preamble and not preamble.startswith("{"):
+                logger.debug(f"Skipping LLM preamble: {preamble[:100]}...")
+                cleaned_text = cleaned_text[first_brace:]
+
         # Try to extract JSON from the cleaned text
-        # Look for JSON object pattern
+        # Look for JSON object pattern (handles nested objects)
         json_pattern = r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}"
         matches = re.findall(json_pattern, cleaned_text, re.DOTALL)
 

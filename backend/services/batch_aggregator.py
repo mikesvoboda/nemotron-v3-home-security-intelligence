@@ -156,6 +156,7 @@ class BatchAggregator:
         _file_path: str,
         confidence: float | None = None,
         object_type: str | None = None,
+        pipeline_start_time: str | None = None,
     ) -> str:
         """Add detection to batch for camera.
 
@@ -171,9 +172,12 @@ class BatchAggregator:
         Args:
             camera_id: Camera identifier
             detection_id: Detection identifier (int or string, normalized to int internally)
-            file_path: Path to the detection image file
+            _file_path: Path to the detection image file
             confidence: Detection confidence score (0.0-1.0)
             object_type: Detected object type (e.g., "person", "car")
+            pipeline_start_time: ISO timestamp when the file was first detected
+                (for total pipeline latency tracking). Only stored for the first
+                detection in a batch.
 
         Returns:
             Batch ID that the detection was added to (or fast path batch ID)
@@ -231,14 +235,29 @@ class BatchAggregator:
                 # Set batch metadata with TTL for orphan cleanup
                 # Uses asyncio.gather to parallelize Redis SET operations for performance
                 ttl = self.BATCH_KEY_TTL_SECONDS
-                await asyncio.gather(
+
+                # Build list of Redis operations to execute in parallel
+                redis_ops = [
                     self._redis.set(batch_key, batch_id, expire=ttl),
                     self._redis.set(f"batch:{batch_id}:camera_id", camera_id, expire=ttl),
                     self._redis.set(f"batch:{batch_id}:started_at", str(current_time), expire=ttl),
                     self._redis.set(
                         f"batch:{batch_id}:last_activity", str(current_time), expire=ttl
                     ),
-                )
+                ]
+
+                # Store pipeline_start_time only for the first detection in the batch
+                # This captures when the first file in the batch was detected for total latency
+                if pipeline_start_time:
+                    redis_ops.append(
+                        self._redis.set(
+                            f"batch:{batch_id}:pipeline_start_time",
+                            pipeline_start_time,
+                            expire=ttl,
+                        )
+                    )
+
+                await asyncio.gather(*redis_ops)
                 # Note: No need to initialize empty list - RPUSH creates it automatically
 
             # Add detection to batch using atomic RPUSH operation
@@ -402,9 +421,10 @@ class BatchAggregator:
                     }
 
                 # Get batch data in parallel for performance
-                detections_result, started_at_str = await asyncio.gather(
+                detections_result, started_at_str, pipeline_start_time = await asyncio.gather(
                     self._atomic_list_get_all(f"batch:{batch_id}:detections"),
                     self._redis.get(f"batch:{batch_id}:started_at"),
+                    self._redis.get(f"batch:{batch_id}:pipeline_start_time"),
                 )
                 detections = detections_result
                 started_at = float(started_at_str) if started_at_str else time.time()
@@ -421,12 +441,16 @@ class BatchAggregator:
 
                 # Push to analysis queue if there are detections
                 if detections:
-                    queue_item = {
+                    queue_item: dict[str, Any] = {
                         "batch_id": batch_id,
                         "camera_id": camera_id,
                         "detection_ids": detections,
                         "timestamp": time.time(),
                     }
+
+                    # Include pipeline_start_time for total pipeline latency tracking
+                    if pipeline_start_time:
+                        queue_item["pipeline_start_time"] = pipeline_start_time
 
                     # Use add_to_queue_safe() with DLQ policy to prevent silent data loss
                     # If the queue is full, items are moved to a dead-letter queue
@@ -486,6 +510,7 @@ class BatchAggregator:
                     f"batch:{batch_id}:detections",
                     f"batch:{batch_id}:started_at",
                     f"batch:{batch_id}:last_activity",
+                    f"batch:{batch_id}:pipeline_start_time",
                 )
 
                 logger.debug(

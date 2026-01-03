@@ -5,11 +5,12 @@ sending images for object detection and storing results in the database.
 
 Detection Flow:
     1. Read image file from filesystem
-    2. POST to detector server with image data
-    3. Parse JSON response with detections
-    4. Filter by confidence threshold
-    5. Store detections in database
-    6. Return Detection model instances
+    2. Validate image integrity (catch truncated/corrupt images)
+    3. POST to detector server with image data
+    4. Parse JSON response with detections
+    5. Filter by confidence threshold
+    6. Store detections in database
+    7. Return Detection model instances
 
 Error Handling:
     - Connection errors: Raise DetectorUnavailableError (allows retry)
@@ -18,6 +19,7 @@ Error Handling:
     - HTTP 4xx errors: Log and return empty list (client error, no retry)
     - Invalid JSON: Log and return empty list (malformed response)
     - Missing files: Log and return empty list (local file issue)
+    - Truncated/corrupt images: Log and return empty list (skip bad images)
 """
 
 import time
@@ -26,6 +28,7 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core.config import get_settings
@@ -36,9 +39,14 @@ from backend.core.metrics import (
     record_pipeline_error,
 )
 from backend.core.mime_types import get_mime_type_with_default
+from backend.models.camera import Camera
 from backend.models.detection import Detection
 
 logger = get_logger(__name__)
+
+# Minimum image file size for detection (10KB)
+# Images smaller than this are likely truncated from incomplete FTP uploads
+MIN_DETECTION_IMAGE_SIZE = 10 * 1024  # 10KB
 
 # Timeout configuration for AI service clients
 # - connect_timeout: Maximum time to establish connection (10s)
@@ -142,6 +150,63 @@ class DetectorClient:
             )
             return False
 
+    def _validate_image_for_detection(self, image_path: str, camera_id: str) -> bool:
+        """Validate that an image file is suitable for object detection.
+
+        This method performs comprehensive validation to catch truncated or
+        corrupt images before sending them to the AI detector service.
+
+        Validation checks:
+        1. File size is above minimum threshold (catches truncation)
+        2. PIL can load the image data (catches corruption)
+
+        Args:
+            image_path: Path to the image file
+            camera_id: Camera ID for logging context
+
+        Returns:
+            True if image is valid and suitable for detection
+        """
+        try:
+            image_file = Path(image_path)
+
+            # Check file size - very small images are likely truncated
+            file_size = image_file.stat().st_size
+            if file_size < MIN_DETECTION_IMAGE_SIZE:
+                logger.warning(
+                    f"Image too small for detection ({file_size} bytes, "
+                    f"minimum {MIN_DETECTION_IMAGE_SIZE}): {image_path}",
+                    extra={
+                        "camera_id": camera_id,
+                        "file_path": image_path,
+                        "file_size": file_size,
+                        "min_size": MIN_DETECTION_IMAGE_SIZE,
+                    },
+                )
+                return False
+
+            # Try to load the image to catch truncation/corruption
+            # This reads and decompresses the full image data
+            with Image.open(image_path) as img:
+                # load() forces full decompression - will fail on truncated images
+                img.load()
+
+            return True
+
+        except OSError as e:
+            # OSError covers most PIL image errors (truncated, corrupt, etc.)
+            logger.warning(
+                f"Image validation failed (corrupt/truncated) {image_path}: {e}",
+                extra={"camera_id": camera_id, "file_path": image_path, "error": str(e)},
+            )
+            return False
+        except Exception as e:
+            logger.warning(
+                f"Image validation failed {image_path}: {sanitize_error(e)}",
+                extra={"camera_id": camera_id, "file_path": image_path, "error": str(e)},
+            )
+            return False
+
     async def detect_objects(  # noqa: PLR0912
         self,
         image_path: str,
@@ -180,6 +245,12 @@ class DetectorClient:
                 extra={"camera_id": camera_id, "file_path": image_path},
             )
             record_pipeline_error("file_not_found")
+            return []
+
+        # Validate image integrity before sending to detector
+        # This catches truncated/corrupt images from incomplete FTP uploads
+        if not self._validate_image_for_detection(image_path, camera_id):
+            record_pipeline_error("invalid_image")
             return []
 
         logger.debug(
@@ -303,6 +374,16 @@ class DetectorClient:
 
             # Commit to database
             if detections:
+                # Update camera's last_seen_at timestamp when detections are stored
+                # This ensures the camera shows activity only when actual detections occur
+                camera = await session.get(Camera, camera_id)
+                if camera:
+                    camera.last_seen_at = detected_at
+                    logger.debug(
+                        f"Updated camera {camera_id} last_seen_at to {detected_at}",
+                        extra={"camera_id": camera_id, "last_seen_at": detected_at.isoformat()},
+                    )
+
                 await session.commit()
                 duration_ms = int((time.time() - start_time) * 1000)
                 # Record detection metrics
@@ -380,16 +461,26 @@ class DetectorClient:
                 ) from e
 
             # 4xx errors are client errors (bad request, etc.) - don't retry
+            # For 400 errors (invalid image), extract error detail from response
+            error_detail = None
+            if status_code == 400:
+                try:
+                    error_response = e.response.json()
+                    error_detail = error_response.get("detail", str(e))
+                except Exception:
+                    error_detail = e.response.text[:500] if e.response.text else str(e)
+
             record_pipeline_error("rtdetr_client_error")
             logger.error(
-                f"Detector returned client error: {status_code} - {e}",
+                f"Detector returned client error for {image_path}: "
+                f"{status_code} - {error_detail or e}",
                 extra={
                     "camera_id": camera_id,
                     "file_path": image_path,
                     "duration_ms": duration_ms,
                     "status_code": status_code,
+                    "error_detail": error_detail,
                 },
-                exc_info=True,
             )
             return []
 

@@ -9,12 +9,12 @@ vi.mock('./CamerasSettings', () => ({
   default: () => <div data-testid="cameras-settings">Cameras Settings</div>,
 }));
 
-vi.mock('./ProcessingSettings', () => ({
-  default: () => <div data-testid="processing-settings">Processing Settings</div>,
+vi.mock('./AlertRulesSettings', () => ({
+  default: () => <div data-testid="alert-rules-settings">Alert Rules Settings</div>,
 }));
 
-vi.mock('./AIModelsSettings', () => ({
-  default: () => <div data-testid="ai-models-settings">AI Models Settings</div>,
+vi.mock('./ProcessingSettings', () => ({
+  default: () => <div data-testid="processing-settings">Processing Settings</div>,
 }));
 
 vi.mock('./NotificationSettings', () => ({
@@ -33,8 +33,8 @@ describe('SettingsPage', () => {
     render(<SettingsPage />);
 
     expect(screen.getByRole('tab', { name: /cameras/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /rules/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /processing/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /ai models/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /notifications/i })).toBeInTheDocument();
   });
 
@@ -42,6 +42,17 @@ describe('SettingsPage', () => {
     render(<SettingsPage />);
 
     expect(screen.getByTestId('cameras-settings')).toBeInTheDocument();
+  });
+
+  it('should switch to rules settings when tab is clicked', async () => {
+    const user = userEvent.setup();
+    render(<SettingsPage />);
+
+    const rulesTab = screen.getByRole('tab', { name: /rules/i });
+    await user.click(rulesTab);
+
+    expect(screen.getByTestId('alert-rules-settings')).toBeInTheDocument();
+    expect(screen.queryByTestId('cameras-settings')).not.toBeInTheDocument();
   });
 
   it('should switch to processing settings when tab is clicked', async () => {
@@ -52,17 +63,6 @@ describe('SettingsPage', () => {
     await user.click(processingTab);
 
     expect(screen.getByTestId('processing-settings')).toBeInTheDocument();
-    expect(screen.queryByTestId('cameras-settings')).not.toBeInTheDocument();
-  });
-
-  it('should switch to ai models settings when tab is clicked', async () => {
-    const user = userEvent.setup();
-    render(<SettingsPage />);
-
-    const aiModelsTab = screen.getByRole('tab', { name: /ai models/i });
-    await user.click(aiModelsTab);
-
-    expect(screen.getByTestId('ai-models-settings')).toBeInTheDocument();
     expect(screen.queryByTestId('cameras-settings')).not.toBeInTheDocument();
   });
 
@@ -94,11 +94,11 @@ describe('SettingsPage', () => {
     camerasTab.focus();
     expect(camerasTab).toHaveFocus();
 
-    // Press arrow right to move to next tab
+    // Press arrow right to move to next tab (RULES is now second)
     await user.keyboard('{ArrowRight}');
 
-    const processingTab = screen.getByRole('tab', { name: /processing/i });
-    expect(processingTab).toHaveFocus();
+    const rulesTab = screen.getByRole('tab', { name: /rules/i });
+    expect(rulesTab).toHaveFocus();
   });
 
   it('should cycle tabs with arrow keys', async () => {

@@ -841,6 +841,30 @@ class RedisClient:
                 return value
         return None
 
+    async def pop_from_queue_nonblocking(self, queue_name: str) -> Any | None:
+        """Non-blocking pop from the front of a queue (LPOP).
+
+        Unlike get_from_queue() which uses BLPOP with a minimum timeout,
+        this method returns immediately if the queue is empty.
+
+        Use this for operations that need instant response without blocking,
+        such as DLQ requeue operations.
+
+        Args:
+            queue_name: Name of the queue (Redis list key)
+
+        Returns:
+            Deserialized item from the queue, or None if queue is empty
+        """
+        client = self._ensure_connected()
+        result = await client.lpop(queue_name)  # type: ignore[misc]
+        if result:
+            try:
+                return json.loads(result)
+            except json.JSONDecodeError:
+                return result
+        return None
+
     async def get_queue_length(self, queue_name: str) -> int:
         """Get the length of a queue (LLEN).
 
@@ -1021,7 +1045,7 @@ class RedisClient:
         """
         client = self._ensure_connected()
         value = await client.get(key)
-        if value:
+        if value is not None:
             try:
                 return json.loads(value)
             except json.JSONDecodeError:
@@ -1033,14 +1057,15 @@ class RedisClient:
 
         Args:
             key: Cache key
-            value: Value to store (will be JSON-serialized if not a string)
+            value: Value to store (will be JSON-serialized)
             expire: Expiration time in seconds (optional)
 
         Returns:
             True if successful
         """
         client = self._ensure_connected()
-        serialized = json.dumps(value) if not isinstance(value, str) else value
+        # Always JSON-serialize for consistent deserialization in get()
+        serialized = json.dumps(value)
         return cast("bool", await client.set(key, serialized, ex=expire))
 
     async def delete(self, *keys: str) -> int:

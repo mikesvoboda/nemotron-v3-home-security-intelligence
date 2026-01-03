@@ -16,7 +16,7 @@ Shows: Complete Alerts page with: page title with warning triangle icon, severit
 Size: 1200x800 pixels (3:2 aspect ratio)
 Alt text: Alerts page showing high and critical risk events with severity filter, refresh button, and color-coded event cards
 -->
-<!-- Image placeholder -->
+<!-- Screenshot: Alerts page with severity filter, refresh button, and high/critical event cards -->
 
 _Caption: The Alerts page shows only high-priority events that need your attention._
 
@@ -261,7 +261,7 @@ Shows: Notifications tab showing: Email configuration section (status badge, SMT
 Size: 1000x600 pixels (5:3 aspect ratio)
 Alt text: Notification settings showing email and webhook configuration status with test buttons and available channels summary
 -->
-<!-- Image placeholder -->
+<!-- Screenshot: Notifications tab showing email and webhook configuration status with test buttons -->
 
 _Caption: The Notifications tab shows your email and webhook configuration status._
 

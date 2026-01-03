@@ -44,12 +44,74 @@ SLOW_TEST_PATTERNS = [
     r"test_alert.*test_alert_dedup_key_roundtrip",
     r"test_alert.*test_alert_event_id_roundtrip",
     r"test_event.*test_risk_score_roundtrip",
+    r"test_audit_log.*test_details_roundtrip",
+    # TLS certificate generation tests - RSA key generation is CPU-intensive
+    r"test_tls.*test_custom_key_size_4096",
     # E2E error state tests - wait for API retry exhaustion (~15s)
     r".*Error State.*shows error",
+    r".*Error State.*error state",
+    r".*Error State.*reload button",
     r".*Error Handling.*shows error",
     r".*Error Handling.*error message",
+    r".*Error Handling.*reload button",
+    r".*Network Error Messages.*user-friendly",
     r".*Partial API Failure",
     r".*Empty State.*dashboard",
+    r".*Empty State.*no activity",
+    # E2E dashboard tests - initial page load overhead in CI (~7s)
+    r"Dashboard Stats Row.*displays",
+    r"Dashboard Camera Grid.*displays",
+    r"Dashboard Camera Grid.*visible",
+    r"Dashboard Activity Feed.*visible",
+    r"Dashboard Activity Feed.*heading",
+    r"Dashboard Risk Gauge.*visible",
+    r"Dashboard Risk Gauge.*heading",
+    r"Dashboard High Alert State.*loads",
+    # E2E alerts page tests - page load overhead (~5-7s)
+    r"Alerts Page Load.*title",
+    r"Alerts Page Load.*displays",
+    r"Alerts Page Load.*loads",
+    r"Alerts Filter.*",
+    r"Alerts Refresh.*",
+    r"Alerts Pagination.*",
+    r"Alerts Empty State.*",
+    r"Alerts Error State.*",
+    r"Alerts High Alert Mode.*",
+    # E2E Event Timeline page tests - page load overhead in CI (~7s)
+    r"Event Timeline Page Load.*",
+    r"Event Timeline Filters.*",
+    r"Event Timeline Search.*",
+    r"Event Timeline Export.*",
+    r"Event Timeline Pagination.*",
+    r"Event Timeline Bulk Actions.*",
+    r"Event Timeline Empty State.*",
+    r"Event Timeline Error State.*",
+    # Error State tests with specific naming patterns
+    r".*Error State.*handles API error",
+    # Model loading tests - may download/initialize models on first run
+    r"test_vehicle_damage_loader.*test_load_model",
+    r"test_violence_loader.*test_load_violence_model",
+    r"test_model_zoo.*test_load_context_manager",
+    r"test_benchmark_vram.*test_clear_gpu_cache",
+    # Full pipeline integration test - multi-stage AI processing
+    r"test_pipeline_e2e.*test_full_pipeline",
+    # Navigation smoke test - loads 8 routes sequentially (expected ~12s)
+    r"All Routes Smoke Tests.*all 8 routes",
+    r"navigation\.spec\.ts.*all 8 routes",
+    # Navigation transition tests - page loads and transitions (~9-10s in CI)
+    r"Navigation Tests.*page transitions",
+    r"Navigation Tests.*sidebar persists",
+    # System page error state tests (~10s due to retry exhaustion)
+    r"System Error State.*page loads",
+    r"system\.spec\.ts.*Error State",
+    # Performance collector container health tests - multiple HTTP health checks
+    r"test_performance_collector.*TestCollectContainerHealth",
+    r"test_performance_collector.*test_collect_container_health",
+    # Alert rules error state tests - API retry exhaustion (~10-11s)
+    r"alert-rules\.spec\.ts.*Error State.*try again",
+    r"alert-rules\.spec\.ts.*Error State.*button.*error",
+    # Re-identification tests - require Redis connection setup overhead
+    r"test_enrichment_pipeline.*test_run_reid_requires_redis",
 ]
 
 

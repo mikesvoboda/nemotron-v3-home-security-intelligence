@@ -69,7 +69,7 @@ export async function setupWebSocketMock(
   // Block WebSocket upgrade requests
   await page.route('**/ws/**', async (route) => {
     if (mergedConfig.blockConnections) {
-      if (mergedConfig.connectionDelay > 0) {
+      if (mergedConfig.connectionDelay && mergedConfig.connectionDelay > 0) {
         await new Promise((resolve) => setTimeout(resolve, mergedConfig.connectionDelay));
       }
 
@@ -244,13 +244,13 @@ export async function waitForConnectionAttempt(
 ): Promise<boolean> {
   let connectionAttempted = false;
 
-  const listener = (route: { request: () => { url: () => string } }) => {
-    if (route.request().url().includes('/ws/')) {
+  const listener = (request: { url: () => string }) => {
+    if (request.url().includes('/ws/')) {
       connectionAttempted = true;
     }
   };
 
-  page.on('route', listener);
+  page.on('request', listener);
 
   await page.waitForTimeout(timeoutMs);
 

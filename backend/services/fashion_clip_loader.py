@@ -115,51 +115,68 @@ class ClothingClassification:
 async def load_fashion_clip_model(model_path: str) -> Any:
     """Load Marqo-FashionCLIP model from local path or HuggingFace.
 
-    This function loads the FashionCLIP model using the transformers library.
+    This function loads the FashionCLIP model using open_clip library directly.
     The model is optimized for fashion/clothing recognition and uses CLIP
     architecture for zero-shot classification.
 
+    Note: We use open_clip directly instead of transformers.AutoModel because
+    the Marqo-FashionCLIP custom model wrapper has meta tensor issues when
+    loaded via transformers that cause "Cannot copy out of meta tensor" errors.
+
     Args:
-        model_path: Path to local model directory or HuggingFace model path
-                   (e.g., "/export/ai_models/model-zoo/fashion-clip" or
-                    "Marqo/marqo-fashionCLIP")
+        model_path: Path to local model directory or HuggingFace model path.
+                   For local paths (e.g., "/export/ai_models/model-zoo/fashion-clip"),
+                   the model files should be in open_clip format.
+                   For HuggingFace paths (e.g., "Marqo/marqo-fashionCLIP"),
+                   use "hf-hub:" prefix.
 
     Returns:
         Dictionary containing:
             - model: The FashionCLIP model instance
-            - processor: The processor for image/text preprocessing
+            - preprocess: The image preprocessing transform
+            - tokenizer: The text tokenizer
 
     Raises:
-        ImportError: If transformers or torch is not installed
+        ImportError: If open_clip_torch or torch is not installed
         RuntimeError: If model loading fails
     """
     try:
         import torch
-        from transformers import AutoModel, AutoProcessor
+        from open_clip import create_model_from_pretrained, get_tokenizer
 
         logger.info(f"Loading FashionCLIP model from {model_path}")
 
         loop = asyncio.get_event_loop()
 
         def _load() -> dict[str, Any]:
-            """Load model and processor synchronously."""
-            processor = AutoProcessor.from_pretrained(
-                model_path,
-                trust_remote_code=True,
-            )
-            model = AutoModel.from_pretrained(
-                model_path,
-                trust_remote_code=True,
-            )
+            """Load model, preprocess, and tokenizer synchronously."""
+            # Convert path to HuggingFace hub format if needed
+            # Local paths should be converted to hf-hub format for open_clip
+            if model_path.startswith("/") or model_path.startswith("./"):
+                # Local path - use hf-hub format with Marqo model
+                # This assumes the local path contains a copy of the model,
+                # but open_clip needs the hf-hub format for Marqo models
+                hub_path = "hf-hub:Marqo/marqo-fashionCLIP"
+                logger.info(f"Local path {model_path} detected, using HuggingFace hub: {hub_path}")
+            elif "/" in model_path and not model_path.startswith("hf-hub:"):
+                # HuggingFace model ID without prefix
+                hub_path = f"hf-hub:{model_path}"
+            else:
+                hub_path = model_path
 
-            # Move to GPU if available
-            if torch.cuda.is_available():
+            # Load model and preprocess using open_clip
+            model, preprocess = create_model_from_pretrained(hub_path)
+            tokenizer = get_tokenizer(hub_path)
+
+            # Determine target device and move model
+            target_device = "cuda" if torch.cuda.is_available() else "cpu"
+            if target_device == "cuda":
                 model = model.cuda()
-                logger.info("FashionCLIP model moved to CUDA")
+            logger.info(f"FashionCLIP model loaded on {target_device}")
 
             model.eval()
 
-            return {"model": model, "processor": processor}
+            return {"model": model, "preprocess": preprocess, "tokenizer": tokenizer}
 
         result = await loop.run_in_executor(None, _load)
 
@@ -168,12 +185,12 @@ async def load_fashion_clip_model(model_path: str) -> Any:
 
     except ImportError as e:
         logger.warning(
-            "transformers or torch package not installed. "
-            "Install with: pip install transformers torch"
+            "open_clip_torch or torch package not installed. "
+            "Install with: pip install open_clip_torch torch"
         )
         raise ImportError(
-            "FashionCLIP requires transformers and torch. "
-            "Install with: pip install transformers torch"
+            "FashionCLIP requires open_clip_torch and torch. "
+            "Install with: pip install open_clip_torch torch"
         ) from e
 
     except Exception as e:
@@ -193,7 +210,8 @@ async def classify_clothing(
     of predefined security-relevant prompts.
 
     Args:
-        model_dict: Dictionary containing model and processor from load_fashion_clip_model
+        model_dict: Dictionary containing model, preprocess, and tokenizer
+                   from load_fashion_clip_model
         image: PIL Image of person crop (should be cropped to person bounding box)
         prompts: List of text prompts for classification. Defaults to SECURITY_CLOTHING_PROMPTS
         top_k: Number of top categories to include in all_scores
@@ -211,28 +229,30 @@ async def classify_clothing(
         import torch
 
         model = model_dict["model"]
-        processor = model_dict["processor"]
+        preprocess = model_dict["preprocess"]
+        tokenizer = model_dict["tokenizer"]
 
         loop = asyncio.get_event_loop()
 
         def _classify() -> ClothingClassification:
             """Run classification synchronously."""
-            # Process image and text prompts
-            processed = processor(
-                text=prompts,
-                images=[image],
-                padding="max_length",
-                return_tensors="pt",
-            )
-
-            # Move to same device as model
+            # Get device from model
             device = next(model.parameters()).device
-            processed = {k: v.to(device) for k, v in processed.items()}
+
+            # Process image using open_clip preprocess
+            image_tensor = preprocess(image).unsqueeze(0).to(device)
+
+            # Tokenize text prompts
+            text_tokens = tokenizer(prompts).to(device)
 
             # Get image and text features
             with torch.no_grad():
-                image_features = model.get_image_features(processed["pixel_values"], normalize=True)
-                text_features = model.get_text_features(processed["input_ids"], normalize=True)
+                image_features = model.encode_image(image_tensor)
+                text_features = model.encode_text(text_tokens)
+
+                # Normalize features
+                image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+                text_features = text_features / text_features.norm(dim=-1, keepdim=True)
 
                 # Compute similarity scores
                 similarity = (100.0 * image_features @ text_features.T).softmax(dim=-1)
@@ -290,7 +310,8 @@ async def classify_clothing_batch(
     Batch processes multiple person crops for efficiency.
 
     Args:
-        model_dict: Dictionary containing model and processor from load_fashion_clip_model
+        model_dict: Dictionary containing model, preprocess, and tokenizer
+                   from load_fashion_clip_model
         images: List of PIL Images (person crops)
         prompts: List of text prompts for classification. Defaults to SECURITY_CLOTHING_PROMPTS
         top_k: Number of top categories to include in all_scores
@@ -308,30 +329,30 @@ async def classify_clothing_batch(
         import torch
 
         model = model_dict["model"]
-        processor = model_dict["processor"]
+        preprocess = model_dict["preprocess"]
+        tokenizer = model_dict["tokenizer"]
 
         loop = asyncio.get_event_loop()
 
         def _classify_batch() -> list[ClothingClassification]:
             """Run batch classification synchronously."""
-            # Process all images and text prompts
-            processed = processor(
-                text=prompts,
-                images=images,
-                padding="max_length",
-                return_tensors="pt",
-            )
-
-            # Move to same device as model
+            # Get device from model
             device = next(model.parameters()).device
-            processed = {k: v.to(device) for k, v in processed.items()}
 
-            # Get text features (same for all images)
+            # Process all images using open_clip preprocess and stack into batch
+            image_tensors = torch.stack([preprocess(img) for img in images]).to(device)
+
+            # Tokenize text prompts (same for all images)
+            text_tokens = tokenizer(prompts).to(device)
+
+            # Get text and image features
             with torch.no_grad():
-                text_features = model.get_text_features(processed["input_ids"], normalize=True)
+                text_features = model.encode_text(text_tokens)
+                image_features = model.encode_image(image_tensors)
 
-                # Get image features for all images
-                image_features = model.get_image_features(processed["pixel_values"], normalize=True)
+                # Normalize features
+                text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+                image_features = image_features / image_features.norm(dim=-1, keepdim=True)
 
                 # Compute similarity scores for all images: [num_images, num_prompts]
                 similarity = (100.0 * image_features @ text_features.T).softmax(dim=-1)

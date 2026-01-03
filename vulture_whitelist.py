@@ -16,6 +16,8 @@ _.clean_detections
 _.clean_events
 _.clean_full_stack
 _.clean_logs
+_.clean_test_data
+_.cleanup_keys
 _.temp_foscam_dir
 _.temp_thumbnail_dir
 _.reset_redis_global_state
@@ -24,6 +26,7 @@ _.reset_redis_global_state
 _.mock_pil_image
 _.mock_pynvml_not_available
 _.mock_pynvml_no_gpu
+_.override_media_rate_limiter
 
 # Config fixtures
 _.cfg

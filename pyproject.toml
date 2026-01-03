@@ -21,7 +21,7 @@ dependencies = [
     # Image processing
     "pillow>=11.0.0",
     # GPU monitoring
-    "pynvml>=11.5.0",
+    "nvidia-ml-py>=12.560.30",
     # Host system monitoring
     "psutil>=5.9.0",
     # HTTP client (for AI services)
@@ -45,6 +45,8 @@ dependencies = [
     "torchreid>=0.2.5",
     "gdown>=5.2.0",
     "pyiqa>=0.1.10",
+    "open_clip_torch>=2.29.0",
+    "accelerate>=1.12.0",
 ]
 
 [project.optional-dependencies]
@@ -131,6 +133,7 @@ ignore = [
     "ARG002", # unused method argument for fixtures used via side effects
     "PLR2004",# magic values ok in tests
     "B007",   # unused loop control variable ok in tests
+    "ERA001", # section headers and documentation comments ok in tests
 ]
 "backend/examples/**/*.py" = [
     "ERA001", # commented code ok in examples

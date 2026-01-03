@@ -19,7 +19,7 @@ Shows: Complete dashboard with all sections visible - header with system status,
 Size: 1400x900 pixels (16:9 aspect ratio)
 Alt text: Complete security dashboard showing all main components including navigation, statistics, risk gauge, cameras, and activity feed
 -->
-<!-- Image placeholder - screenshot would go here -->
+<!-- Screenshot: Complete dashboard with header, sidebar, quick stats, risk gauge, GPU stats, camera grid, and activity feed -->
 
 _Caption: The Security Dashboard is your central command center for home security monitoring._
 
@@ -65,7 +65,7 @@ Shows: Circular risk gauge with score number in center (e.g., 23), colored arc (
 Size: 400x450 pixels (8:9 aspect ratio)
 Alt text: Circular risk gauge showing current security risk level with score, colored arc, risk level label, and trend sparkline
 -->
-<!-- Image placeholder - screenshot would go here -->
+<!-- Screenshot: Circular risk gauge with score in center, colored arc, risk level label, and trend sparkline -->
 
 _Caption: The Risk Gauge provides an at-a-glance view of your current security status._
 
@@ -101,7 +101,7 @@ Shows: Grid of 3-4 camera cards showing: thumbnail images, status badges (mix of
 Size: 1000x400 pixels (2.5:1 aspect ratio)
 Alt text: Camera grid showing multiple security camera cards with thumbnails, status indicators, names, and timestamps
 -->
-<!-- Image placeholder - screenshot would go here -->
+<!-- Screenshot: Camera grid with camera cards showing thumbnails, status badges, names, and last seen times -->
 
 _Caption: The Camera Grid shows all your connected cameras with their current status._
 
@@ -143,7 +143,7 @@ Shows: GPU statistics card with utilization percentage bar, memory usage bar, te
 Size: 400x350 pixels (8:7 aspect ratio)
 Alt text: GPU statistics panel showing utilization, memory, temperature, power, and inference performance metrics
 -->
-<!-- Image placeholder - screenshot would go here -->
+<!-- Screenshot: GPU statistics panel with utilization, memory, temperature, power, and FPS metrics -->
 
 _Caption: GPU Statistics show how your AI hardware is performing._
 
@@ -189,7 +189,7 @@ Shows: Activity feed panel with "Live Activity" title, Pause/Resume button, and 
 Size: 600x450 pixels (4:3 aspect ratio)
 Alt text: Live activity feed showing recent security events with thumbnails, risk indicators, and AI-generated summaries
 -->
-<!-- Image placeholder - screenshot would go here -->
+<!-- Screenshot: Live activity feed with event cards showing thumbnails, risk badges, AI summaries, and timestamps -->
 
 _Caption: The Live Activity Feed shows security events as they happen in real-time._
 

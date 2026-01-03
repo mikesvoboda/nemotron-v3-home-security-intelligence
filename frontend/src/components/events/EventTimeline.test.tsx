@@ -1,14 +1,44 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import EventTimeline from './EventTimeline';
+import * as useEventStreamHook from '../../hooks/useEventStream';
 import * as api from '../../services/api';
+import { renderWithProviders, screen, waitFor, userEvent } from '../../test-utils/renderWithProviders';
 
 import type { Camera, Event, EventListResponse } from '../../services/api';
 
 // Mock API module
 vi.mock('../../services/api');
+
+// Mock useEventStream hook with factory function
+vi.mock('../../hooks/useEventStream', () => ({
+  useEventStream: vi.fn(),
+}));
+
+// Mock ActivityFeed component
+vi.mock('../dashboard/ActivityFeed', () => ({
+  default: ({
+    events,
+    maxItems,
+    onEventClick,
+  }: {
+    events: Array<{ id: string; camera_name: string }>;
+    maxItems: number;
+    onEventClick?: (eventId: string) => void;
+  }) => (
+    <button
+      type="button"
+      data-testid="activity-feed"
+      data-event-count={events.length}
+      data-max-items={maxItems}
+      data-camera-names={events.map((e) => e.camera_name).join(',')}
+      onClick={() => onEventClick && events.length > 0 && onEventClick(events[0].id)}
+    >
+      Activity Feed
+    </button>
+  ),
+}));
 
 describe('EventTimeline', () => {
   const mockCameras: Camera[] = [
@@ -76,19 +106,40 @@ describe('EventTimeline', () => {
     offset: 0,
   };
 
+  // Mock WebSocket events for live activity
+  const mockWsEvents = [
+    {
+      id: 'ws-event-1',
+      camera_id: 'camera-1',
+      camera_name: 'Front Door',
+      risk_score: 80,
+      risk_level: 'high' as const,
+      summary: 'Live person detected',
+      timestamp: '2024-01-01T12:30:00Z',
+    },
+  ];
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
     vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
+
+    // Mock useEventStream hook
+    vi.mocked(useEventStreamHook.useEventStream).mockReturnValue({
+      events: mockWsEvents,
+      isConnected: true,
+      latestEvent: mockWsEvents[0],
+      clearEvents: vi.fn(),
+    });
   });
 
   describe('Rendering', () => {
     it('renders the timeline header', async () => {
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       expect(screen.getByText('Event Timeline')).toBeInTheDocument();
       expect(
-        screen.getByText('View and filter all security events from your cameras')
+        screen.getByText(/View and filter all security events from your cameras/)
       ).toBeInTheDocument();
 
       // Wait for async state updates to complete to avoid act() warnings
@@ -97,8 +148,53 @@ describe('EventTimeline', () => {
       });
     });
 
+    it('renders the Live Activity feed', async () => {
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('activity-feed')).toBeInTheDocument();
+      });
+
+      expect(screen.getByRole('heading', { name: /live activity/i })).toBeInTheDocument();
+    });
+
+    it('renders Live Activity with WebSocket events', async () => {
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        const activityFeed = screen.getByTestId('activity-feed');
+        expect(activityFeed).toHaveAttribute('data-event-count', '1');
+        expect(activityFeed).toHaveAttribute('data-camera-names', 'Front Door');
+      });
+    });
+
+    it('shows disconnected indicator when WebSocket is not connected', async () => {
+      vi.mocked(useEventStreamHook.useEventStream).mockReturnValue({
+        events: [],
+        isConnected: false,
+        latestEvent: null,
+        clearEvents: vi.fn(),
+      });
+
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/disconnected/i)).toBeInTheDocument();
+      });
+    });
+
+    it('does not show disconnected indicator when WebSocket is connected', async () => {
+      renderWithProviders(<EventTimeline />);
+
+      await waitFor(() => {
+        expect(screen.queryByText(/Loading events.../)).not.toBeInTheDocument();
+      });
+
+      expect(screen.queryByText(/disconnected/i)).not.toBeInTheDocument();
+    });
+
     it('displays loading state initially', async () => {
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       expect(screen.getByText('Loading events...')).toBeInTheDocument();
 
@@ -109,7 +205,7 @@ describe('EventTimeline', () => {
     });
 
     it('displays events after loading', async () => {
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -120,7 +216,7 @@ describe('EventTimeline', () => {
     });
 
     it('displays result count', async () => {
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Showing 1-3 of 3 events')).toBeInTheDocument();
@@ -128,7 +224,7 @@ describe('EventTimeline', () => {
     });
 
     it('displays pagination controls', async () => {
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByLabelText('Previous page')).toBeInTheDocument();
@@ -142,7 +238,7 @@ describe('EventTimeline', () => {
   describe('Filtering', () => {
     it('shows filter button and toggles filter panel', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Show Filters')).toBeInTheDocument();
@@ -167,7 +263,7 @@ describe('EventTimeline', () => {
 
     it('filters events by camera', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Show Filters')).toBeInTheDocument();
@@ -185,7 +281,7 @@ describe('EventTimeline', () => {
 
     it('filters events by risk level', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Show Filters')).toBeInTheDocument();
@@ -203,7 +299,7 @@ describe('EventTimeline', () => {
 
     it('filters events by reviewed status', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Show Filters')).toBeInTheDocument();
@@ -221,7 +317,7 @@ describe('EventTimeline', () => {
 
     it('filters events by date range', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Show Filters')).toBeInTheDocument();
@@ -246,7 +342,7 @@ describe('EventTimeline', () => {
 
     it('clears all filters', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Show Filters')).toBeInTheDocument();
@@ -273,7 +369,7 @@ describe('EventTimeline', () => {
 
     it('shows active filter indicator', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Show Filters')).toBeInTheDocument();
@@ -296,7 +392,7 @@ describe('EventTimeline', () => {
 
     it('filters events by object type', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Show Filters')).toBeInTheDocument();
@@ -314,7 +410,7 @@ describe('EventTimeline', () => {
 
     it('displays object type filter dropdown with all options', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Show Filters')).toBeInTheDocument();
@@ -340,7 +436,7 @@ describe('EventTimeline', () => {
 
     it('clears object type filter with clear all filters button', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Show Filters')).toBeInTheDocument();
@@ -367,7 +463,7 @@ describe('EventTimeline', () => {
 
     it('combines object type filter with other filters', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Show Filters')).toBeInTheDocument();
@@ -396,7 +492,7 @@ describe('EventTimeline', () => {
   describe('Search', () => {
     it('filters events by search query', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -416,7 +512,7 @@ describe('EventTimeline', () => {
 
     it('clears search query', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -441,7 +537,7 @@ describe('EventTimeline', () => {
 
     it('shows no results message when search has no matches', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -484,7 +580,7 @@ describe('EventTimeline', () => {
 
     it('navigates to next page', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Page 1 of 3')).toBeInTheDocument();
@@ -527,7 +623,7 @@ describe('EventTimeline', () => {
         });
 
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       // Wait for initial load
       await waitFor(() => {
@@ -552,7 +648,7 @@ describe('EventTimeline', () => {
     });
 
     it('disables previous button on first page', async () => {
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Page 1 of 3')).toBeInTheDocument();
@@ -589,7 +685,7 @@ describe('EventTimeline', () => {
         });
 
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       // Wait for initial load (page 1)
       await waitFor(() => {
@@ -644,7 +740,7 @@ describe('EventTimeline', () => {
         });
 
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       // Wait for initial load (page 1)
       await waitFor(() => {
@@ -677,8 +773,15 @@ describe('EventTimeline', () => {
       vi.resetAllMocks();
       vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
       vi.mocked(api.fetchEvents).mockRejectedValue(new Error('Network error'));
+      // Re-mock useEventStream after resetAllMocks
+      vi.mocked(useEventStreamHook.useEventStream).mockReturnValue({
+        events: mockWsEvents,
+        isConnected: true,
+        latestEvent: mockWsEvents[0],
+        clearEvents: vi.fn(),
+      });
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       // Wait for error state to be displayed after async fetch fails
       await waitFor(
@@ -695,8 +798,15 @@ describe('EventTimeline', () => {
       vi.resetAllMocks();
       vi.mocked(api.fetchCameras).mockRejectedValue(new Error('Camera fetch failed'));
       vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
+      // Re-mock useEventStream after resetAllMocks
+      vi.mocked(useEventStreamHook.useEventStream).mockReturnValue({
+        events: mockWsEvents,
+        isConnected: true,
+        latestEvent: mockWsEvents[0],
+        clearEvents: vi.fn(),
+      });
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       // Should still load events
       await waitFor(() => {
@@ -725,7 +835,7 @@ describe('EventTimeline', () => {
         offset: 0,
       });
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('No Events Found')).toBeInTheDocument();
@@ -737,7 +847,7 @@ describe('EventTimeline', () => {
     it('shows filtered empty state when filters match no events', async () => {
       const user = userEvent.setup();
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -771,7 +881,7 @@ describe('EventTimeline', () => {
         offset: 0,
       });
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('No Events Found')).toBeInTheDocument();
@@ -790,7 +900,7 @@ describe('EventTimeline', () => {
         offset: 0,
       });
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('No Events Found')).toBeInTheDocument();
@@ -808,7 +918,7 @@ describe('EventTimeline', () => {
       const handleViewDetails = vi.fn();
       const user = userEvent.setup();
 
-      render(<EventTimeline onViewEventDetails={handleViewDetails} />);
+      renderWithProviders(<EventTimeline onViewEventDetails={handleViewDetails} />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -827,7 +937,7 @@ describe('EventTimeline', () => {
       vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
       vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       // Wait for events to load first
       await waitFor(() => {
@@ -868,7 +978,7 @@ describe('EventTimeline', () => {
 
       vi.mocked(api.fetchEvents).mockResolvedValue(eventsWithUnknownCamera);
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Unknown Camera')).toBeInTheDocument();
@@ -878,7 +988,7 @@ describe('EventTimeline', () => {
 
   describe('Bulk Actions', () => {
     it('displays bulk action controls when events are loaded', async () => {
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -890,7 +1000,7 @@ describe('EventTimeline', () => {
 
     it('toggles selection for individual events', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -914,7 +1024,7 @@ describe('EventTimeline', () => {
 
     it('selects all events when clicking select all', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -932,7 +1042,7 @@ describe('EventTimeline', () => {
 
     it('deselects all events when clicking select all again', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -968,7 +1078,7 @@ describe('EventTimeline', () => {
         failed: [],
       });
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1030,7 +1140,7 @@ describe('EventTimeline', () => {
           )
       );
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1077,7 +1187,7 @@ describe('EventTimeline', () => {
         failed: [{ id: 2, error: 'Network error' }],
       });
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1107,7 +1217,7 @@ describe('EventTimeline', () => {
     });
 
     it('does not show bulk action button when no events selected', async () => {
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1120,7 +1230,7 @@ describe('EventTimeline', () => {
 
     it('clears selection when toggling individual checkbox off', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1146,7 +1256,7 @@ describe('EventTimeline', () => {
 
     it('shows Mark Not Reviewed button when events are selected', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1178,7 +1288,7 @@ describe('EventTimeline', () => {
         failed: [],
       });
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1240,7 +1350,7 @@ describe('EventTimeline', () => {
           )
       );
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1287,7 +1397,7 @@ describe('EventTimeline', () => {
         failed: [{ id: 2, error: 'Network error' }],
       });
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1317,7 +1427,7 @@ describe('EventTimeline', () => {
     });
 
     it('does not show Mark Not Reviewed button when no events selected', async () => {
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1331,7 +1441,7 @@ describe('EventTimeline', () => {
 
   describe('Risk Summary Badges', () => {
     it('displays risk summary badges with correct counts', async () => {
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1365,7 +1475,7 @@ describe('EventTimeline', () => {
         },
       ];
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1384,19 +1494,17 @@ describe('EventTimeline', () => {
       const riskSelect = screen.getByLabelText('Risk Level');
       await user.selectOptions(riskSelect, 'high');
 
-      // Should only show high risk count
+      // Should only show high risk count - wait for critical badge to disappear
       await waitFor(() => {
         expect(screen.getByText('1', { selector: '.text-orange-400' })).toBeInTheDocument(); // High
+        expect(screen.queryByText('1', { selector: '.text-red-400' })).not.toBeInTheDocument(); // Critical
+        expect(screen.queryByText('1', { selector: '.text-green-400' })).not.toBeInTheDocument(); // Low
       });
-
-      // Should not show other risk levels
-      expect(screen.queryByText('1', { selector: '.text-red-400' })).not.toBeInTheDocument(); // Critical
-      expect(screen.queryByText('1', { selector: '.text-green-400' })).not.toBeInTheDocument(); // Low
     });
 
     it('updates risk summary badges with search query', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1433,7 +1541,7 @@ describe('EventTimeline', () => {
         () => new Promise(() => {}) // Never resolves
       );
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       // Should show loading state
       expect(screen.getByText('Loading events...')).toBeInTheDocument();
@@ -1449,8 +1557,15 @@ describe('EventTimeline', () => {
       vi.resetAllMocks();
       vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
       vi.mocked(api.fetchEvents).mockRejectedValue(new Error('Network error'));
+      // Re-mock useEventStream after resetAllMocks
+      vi.mocked(useEventStreamHook.useEventStream).mockReturnValue({
+        events: mockWsEvents,
+        isConnected: true,
+        latestEvent: mockWsEvents[0],
+        clearEvents: vi.fn(),
+      });
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Error Loading Events')).toBeInTheDocument();
@@ -1471,7 +1586,7 @@ describe('EventTimeline', () => {
         offset: 0,
       });
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('No Events Found')).toBeInTheDocument();
@@ -1520,7 +1635,7 @@ describe('EventTimeline', () => {
         offset: 0,
       });
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected')).toBeInTheDocument();
@@ -1585,7 +1700,7 @@ describe('EventTimeline', () => {
         offset: 0,
       });
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Critical event 1')).toBeInTheDocument();
@@ -1633,7 +1748,7 @@ describe('EventTimeline', () => {
         offset: 0,
       });
 
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Event with explicit level')).toBeInTheDocument();
@@ -1649,7 +1764,7 @@ describe('EventTimeline', () => {
   describe('Event Detail Modal', () => {
     it('opens modal when clicking on event card', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1668,7 +1783,7 @@ describe('EventTimeline', () => {
 
     it('closes modal when close button is clicked', async () => {
       const user = userEvent.setup();
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1692,7 +1807,7 @@ describe('EventTimeline', () => {
     });
 
     it('event cards are clickable with cursor-pointer', async () => {
-      render(<EventTimeline />);
+      renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();
@@ -1708,7 +1823,7 @@ describe('EventTimeline', () => {
     it('View Details button calls onViewEventDetails when provided', async () => {
       const user = userEvent.setup();
       const handleViewDetails = vi.fn();
-      render(<EventTimeline onViewEventDetails={handleViewDetails} />);
+      renderWithProviders(<EventTimeline onViewEventDetails={handleViewDetails} />);
 
       await waitFor(() => {
         expect(screen.getByText('Person detected near entrance')).toBeInTheDocument();

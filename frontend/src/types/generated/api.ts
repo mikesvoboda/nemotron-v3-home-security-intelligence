@@ -104,6 +104,194 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ai-audit/events/{event_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Event Audit
+         * @description Get audit information for a specific event.
+         *
+         *     Retrieves the AI pipeline audit record for the given event, including
+         *     model contributions, quality scores, and prompt improvement suggestions.
+         *
+         *     Args:
+         *         event_id: The ID of the event to get audit for
+         *         db: Database session
+         *
+         *     Returns:
+         *         EventAuditResponse containing full audit details
+         *
+         *     Raises:
+         *         HTTPException: 404 if event or audit not found
+         */
+        get: operations["get_event_audit_api_ai_audit_events__event_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai-audit/events/{event_id}/evaluate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Evaluate Event
+         * @description Trigger full evaluation for a specific event's audit.
+         *
+         *     Runs the complete self-evaluation pipeline (self-critique, rubric scoring,
+         *     consistency check, prompt improvement) for the given event.
+         *
+         *     Args:
+         *         event_id: The ID of the event to evaluate
+         *         force: If True, re-evaluate even if already evaluated
+         *         db: Database session
+         *
+         *     Returns:
+         *         EventAuditResponse with updated evaluation results
+         *
+         *     Raises:
+         *         HTTPException: 404 if event or audit not found
+         */
+        post: operations["evaluate_event_api_ai_audit_events__event_id__evaluate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai-audit/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Audit Stats
+         * @description Get aggregate AI audit statistics.
+         *
+         *     Returns aggregate statistics including total events, quality scores,
+         *     model contribution rates, and audit trends over the specified period.
+         *
+         *     Args:
+         *         days: Number of days to include in statistics (1-90, default 7)
+         *         camera_id: Optional camera ID to filter stats
+         *         db: Database session
+         *
+         *     Returns:
+         *         AuditStatsResponse with aggregate statistics
+         */
+        get: operations["get_audit_stats_api_ai_audit_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai-audit/leaderboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Model Leaderboard
+         * @description Get model leaderboard ranked by contribution rate.
+         *
+         *     Returns a ranked list of AI models by their contribution rate,
+         *     along with quality correlation data.
+         *
+         *     Args:
+         *         days: Number of days to include (1-90, default 7)
+         *         db: Database session
+         *
+         *     Returns:
+         *         LeaderboardResponse with ranked model entries
+         */
+        get: operations["get_model_leaderboard_api_ai_audit_leaderboard_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai-audit/recommendations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Recommendations
+         * @description Get aggregated prompt improvement recommendations.
+         *
+         *     Analyzes all audits to produce actionable recommendations for
+         *     improving the AI pipeline prompt templates.
+         *
+         *     Args:
+         *         days: Number of days to analyze (1-90, default 7)
+         *         db: Database session
+         *
+         *     Returns:
+         *         RecommendationsResponse with prioritized recommendations
+         */
+        get: operations["get_recommendations_api_ai_audit_recommendations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai-audit/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Trigger Batch Audit
+         * @description Trigger batch audit processing for multiple events.
+         *
+         *     Queues events for audit processing based on the provided criteria.
+         *     Events are processed asynchronously.
+         *
+         *     Args:
+         *         request: Batch audit request with filtering criteria
+         *         db: Database session
+         *
+         *     Returns:
+         *         BatchAuditResponse with number of queued events
+         */
+        post: operations["trigger_batch_audit_api_ai_audit_batch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/alerts/rules": {
         parameters: {
             query?: never;
@@ -469,6 +657,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cameras/validation/paths": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Validate Camera Paths
+         * @description Validate all camera folder paths against the configured base path.
+         *
+         *     This endpoint checks each camera's folder_path to determine:
+         *     1. Whether the path is under the configured FOSCAM_BASE_PATH
+         *     2. Whether the directory exists on disk
+         *     3. Whether the directory contains any images
+         *
+         *     Use this to diagnose cameras that show "No snapshot available" errors.
+         *
+         *     Returns:
+         *         Dictionary with validation results for all cameras
+         */
+        get: operations["validate_camera_paths_api_cameras_validation_paths_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/detections": {
         parameters: {
             query?: never;
@@ -793,6 +1011,105 @@ export interface paths {
          *         DLQClearResponse with operation result
          */
         delete: operations["clear_dlq_api_dlq__queue_name__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/entities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Entities
+         * @description List tracked entities with optional filtering.
+         *
+         *     Returns a paginated list of entities that have been tracked via
+         *     re-identification. Entities are grouped by their embedding clusters.
+         *
+         *     Args:
+         *         entity_type: Filter by entity type ('person' or 'vehicle')
+         *         camera_id: Filter by camera ID
+         *         since: Filter entities seen since this timestamp
+         *         limit: Maximum number of results (1-1000, default 50)
+         *         offset: Number of results to skip for pagination (default 0)
+         *         reid_service: Re-identification service dependency
+         *
+         *     Returns:
+         *         EntityListResponse with filtered entities and pagination info
+         */
+        get: operations["list_entities_api_entities_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/entities/{entity_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Entity
+         * @description Get detailed information about a specific entity.
+         *
+         *     Returns the entity's summary information along with all recorded appearances.
+         *
+         *     Args:
+         *         entity_id: Unique entity identifier (detection_id)
+         *         reid_service: Re-identification service dependency
+         *
+         *     Returns:
+         *         EntityDetail with full entity information
+         *
+         *     Raises:
+         *         HTTPException: 404 if entity not found, 503 if Redis unavailable
+         */
+        get: operations["get_entity_api_entities__entity_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/entities/{entity_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Entity History
+         * @description Get the appearance timeline for a specific entity.
+         *
+         *     Returns a chronological list of all appearances for the entity
+         *     across all cameras.
+         *
+         *     Args:
+         *         entity_id: Unique entity identifier (detection_id)
+         *         reid_service: Re-identification service dependency
+         *
+         *     Returns:
+         *         EntityHistoryResponse with appearance timeline
+         *
+         *     Raises:
+         *         HTTPException: 404 if entity not found, 503 if Redis unavailable
+         */
+        get: operations["get_entity_history_api_entities__entity_id__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1130,6 +1447,7 @@ export interface paths {
          *     Mapping rules:
          *     - `cameras/<camera_id>/<filename...>` → camera media
          *     - `thumbnails/<filename>` → thumbnails
+         *     - `detections/<id>` → detection images
          */
         get: operations["serve_media_compat_api_media__path__get"];
         put?: never;
@@ -1352,6 +1670,43 @@ export interface paths {
          *         HTTP 200 if ready, 503 if degraded or not ready.
          */
         get: operations["get_readiness_api_system_health_ready_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/health/websocket": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Websocket Health
+         * @description Get health status of WebSocket broadcasters and their circuit breakers.
+         *
+         *     Returns the current state of circuit breakers for:
+         *     - Event broadcaster: Handles real-time security event distribution
+         *     - System broadcaster: Handles system status updates (GPU, cameras, queues)
+         *
+         *     Circuit breakers protect the system from cascading failures by:
+         *     - Opening after repeated connection failures
+         *     - Blocking recovery attempts while open to allow stabilization
+         *     - Gradually testing recovery in half-open state
+         *
+         *     Circuit breaker states:
+         *     - closed: Normal operation, WebSocket events flowing normally
+         *     - open: Failures detected, events may be delayed or unavailable
+         *     - half_open: Testing recovery, limited operations allowed
+         *
+         *     Returns:
+         *         WebSocketHealthResponse with circuit breaker status for both broadcasters
+         */
+        get: operations["get_websocket_health_api_system_health_websocket_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2578,6 +2933,32 @@ export interface components {
             recent_actors: string[];
         };
         /**
+         * AuditStatsResponse
+         * @description Aggregate audit statistics.
+         */
+        AuditStatsResponse: {
+            /** Total Events */
+            total_events: number;
+            /** Audited Events */
+            audited_events: number;
+            /** Fully Evaluated Events */
+            fully_evaluated_events: number;
+            /** Avg Quality Score */
+            avg_quality_score: number | null;
+            /** Avg Consistency Rate */
+            avg_consistency_rate: number | null;
+            /** Avg Enrichment Utilization */
+            avg_enrichment_utilization: number | null;
+            /** Model Contribution Rates */
+            model_contribution_rates: {
+                [key: string]: number;
+            };
+            /** Audits By Day */
+            audits_by_day: {
+                [key: string]: unknown;
+            }[];
+        };
+        /**
          * BatchAggregatorStatusResponse
          * @description Status information for the BatchAggregator service.
          * @example {
@@ -2617,6 +2998,34 @@ export interface components {
              * @description Configured idle timeout in seconds
              */
             idle_timeout_seconds: number;
+        };
+        /**
+         * BatchAuditRequest
+         * @description Request for batch audit processing.
+         */
+        BatchAuditRequest: {
+            /**
+             * Limit
+             * @default 100
+             */
+            limit: number;
+            /** Min Risk Score */
+            min_risk_score?: number | null;
+            /**
+             * Force Reevaluate
+             * @default false
+             */
+            force_reevaluate: boolean;
+        };
+        /**
+         * BatchAuditResponse
+         * @description Response for batch audit request.
+         */
+        BatchAuditResponse: {
+            /** Queued Count */
+            queued_count: number;
+            /** Message */
+            message: string;
         };
         /**
          * BatchInfoResponse
@@ -3098,6 +3507,7 @@ export interface components {
          *       "batch_idle_timeout_seconds": 30,
          *       "batch_window_seconds": 90,
          *       "detection_confidence_threshold": 0.5,
+         *       "grafana_url": "http://localhost:3002",
          *       "retention_days": 30,
          *       "version": "0.1.0"
          *     }
@@ -3133,6 +3543,11 @@ export interface components {
              * @description Minimum confidence threshold for detections (0.0-1.0)
              */
             detection_confidence_threshold: number;
+            /**
+             * Grafana Url
+             * @description Grafana dashboard URL for frontend link
+             */
+            grafana_url: string;
         };
         /**
          * ConfigUpdateRequest
@@ -3564,6 +3979,329 @@ export interface components {
             video_height?: number | null;
         };
         /**
+         * EntityAppearance
+         * @description Schema for a single entity appearance at a specific time and camera.
+         *
+         *     Represents one sighting of an entity, including the detection it came from
+         *     and additional attributes extracted from the image.
+         * @example {
+         *       "attributes": {
+         *         "carrying": "backpack",
+         *         "clothing": "blue jacket"
+         *       },
+         *       "camera_id": "front_door",
+         *       "camera_name": "Front Door",
+         *       "detection_id": "det_abc123",
+         *       "similarity_score": 0.92,
+         *       "thumbnail_url": "/api/detections/123/image",
+         *       "timestamp": "2025-12-23T14:30:00Z"
+         *     }
+         */
+        EntityAppearance: {
+            /**
+             * Detection Id
+             * @description Detection ID from original detection
+             */
+            detection_id: string;
+            /**
+             * Camera Id
+             * @description Camera ID where entity was seen
+             */
+            camera_id: string;
+            /**
+             * Camera Name
+             * @description Human-readable camera name
+             */
+            camera_name?: string | null;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description When the entity was detected
+             */
+            timestamp: string;
+            /**
+             * Thumbnail Url
+             * @description URL to thumbnail image of this appearance
+             */
+            thumbnail_url?: string | null;
+            /**
+             * Similarity Score
+             * @description Similarity score to the entity's reference embedding
+             */
+            similarity_score?: number | null;
+            /**
+             * Attributes
+             * @description Additional attributes extracted from the detection (clothing, carrying, etc.)
+             */
+            attributes?: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * EntityDetail
+         * @description Schema for detailed entity information including appearance history.
+         *
+         *     Extends EntitySummary with the full list of appearances.
+         * @example {
+         *       "appearance_count": 3,
+         *       "appearances": [
+         *         {
+         *           "attributes": {
+         *             "clothing": "blue jacket"
+         *           },
+         *           "camera_id": "front_door",
+         *           "camera_name": "Front Door",
+         *           "detection_id": "det_001",
+         *           "similarity_score": 1,
+         *           "thumbnail_url": "/api/detections/1/image",
+         *           "timestamp": "2025-12-23T10:00:00Z"
+         *         },
+         *         {
+         *           "attributes": {
+         *             "carrying": "bag",
+         *             "clothing": "blue jacket"
+         *           },
+         *           "camera_id": "backyard",
+         *           "camera_name": "Backyard",
+         *           "detection_id": "det_002",
+         *           "similarity_score": 0.94,
+         *           "thumbnail_url": "/api/detections/2/image",
+         *           "timestamp": "2025-12-23T12:15:00Z"
+         *         }
+         *       ],
+         *       "cameras_seen": [
+         *         "front_door",
+         *         "backyard"
+         *       ],
+         *       "entity_type": "person",
+         *       "first_seen": "2025-12-23T10:00:00Z",
+         *       "id": "entity_abc123",
+         *       "last_seen": "2025-12-23T14:30:00Z",
+         *       "thumbnail_url": "/api/detections/123/image"
+         *     }
+         */
+        EntityDetail: {
+            /**
+             * Id
+             * @description Unique entity identifier
+             */
+            id: string;
+            /**
+             * Entity Type
+             * @description Type of entity: 'person' or 'vehicle'
+             */
+            entity_type: string;
+            /**
+             * First Seen
+             * Format: date-time
+             * @description Timestamp of first appearance
+             */
+            first_seen: string;
+            /**
+             * Last Seen
+             * Format: date-time
+             * @description Timestamp of most recent appearance
+             */
+            last_seen: string;
+            /**
+             * Appearance Count
+             * @description Total number of appearances
+             */
+            appearance_count: number;
+            /**
+             * Cameras Seen
+             * @description List of camera IDs where entity was detected
+             */
+            cameras_seen?: string[];
+            /**
+             * Thumbnail Url
+             * @description URL to the most recent thumbnail image
+             */
+            thumbnail_url?: string | null;
+            /**
+             * Appearances
+             * @description List of all appearances for this entity
+             */
+            appearances?: components["schemas"]["EntityAppearance"][];
+        };
+        /**
+         * EntityHistoryResponse
+         * @description Schema for entity appearance history response.
+         * @example {
+         *       "appearances": [
+         *         {
+         *           "attributes": {},
+         *           "camera_id": "front_door",
+         *           "camera_name": "Front Door",
+         *           "detection_id": "det_001",
+         *           "similarity_score": 1,
+         *           "thumbnail_url": "/api/detections/1/image",
+         *           "timestamp": "2025-12-23T10:00:00Z"
+         *         }
+         *       ],
+         *       "count": 1,
+         *       "entity_id": "entity_abc123",
+         *       "entity_type": "person"
+         *     }
+         */
+        EntityHistoryResponse: {
+            /**
+             * Entity Id
+             * @description Entity identifier
+             */
+            entity_id: string;
+            /**
+             * Entity Type
+             * @description Type of entity
+             */
+            entity_type: string;
+            /**
+             * Appearances
+             * @description List of appearances in chronological order
+             */
+            appearances: components["schemas"]["EntityAppearance"][];
+            /**
+             * Count
+             * @description Total number of appearances
+             */
+            count: number;
+        };
+        /**
+         * EntityListResponse
+         * @description Schema for paginated entity list response.
+         * @example {
+         *       "count": 1,
+         *       "entities": [
+         *         {
+         *           "appearance_count": 5,
+         *           "cameras_seen": [
+         *             "front_door",
+         *             "backyard"
+         *           ],
+         *           "entity_type": "person",
+         *           "first_seen": "2025-12-23T10:00:00Z",
+         *           "id": "entity_abc123",
+         *           "last_seen": "2025-12-23T14:30:00Z",
+         *           "thumbnail_url": "/api/detections/123/image"
+         *         }
+         *       ],
+         *       "limit": 50,
+         *       "offset": 0
+         *     }
+         */
+        EntityListResponse: {
+            /**
+             * Entities
+             * @description List of tracked entities
+             */
+            entities: components["schemas"]["EntitySummary"][];
+            /**
+             * Count
+             * @description Total number of entities matching filters
+             */
+            count: number;
+            /**
+             * Limit
+             * @description Maximum number of results returned
+             */
+            limit: number;
+            /**
+             * Offset
+             * @description Number of results skipped
+             */
+            offset: number;
+        };
+        /**
+         * EntitySummary
+         * @description Schema for entity summary in list responses.
+         *
+         *     Provides an overview of a tracked entity without the full appearance history.
+         * @example {
+         *       "appearance_count": 5,
+         *       "cameras_seen": [
+         *         "front_door",
+         *         "backyard",
+         *         "driveway"
+         *       ],
+         *       "entity_type": "person",
+         *       "first_seen": "2025-12-23T10:00:00Z",
+         *       "id": "entity_abc123",
+         *       "last_seen": "2025-12-23T14:30:00Z",
+         *       "thumbnail_url": "/api/detections/123/image"
+         *     }
+         */
+        EntitySummary: {
+            /**
+             * Id
+             * @description Unique entity identifier
+             */
+            id: string;
+            /**
+             * Entity Type
+             * @description Type of entity: 'person' or 'vehicle'
+             */
+            entity_type: string;
+            /**
+             * First Seen
+             * Format: date-time
+             * @description Timestamp of first appearance
+             */
+            first_seen: string;
+            /**
+             * Last Seen
+             * Format: date-time
+             * @description Timestamp of most recent appearance
+             */
+            last_seen: string;
+            /**
+             * Appearance Count
+             * @description Total number of appearances
+             */
+            appearance_count: number;
+            /**
+             * Cameras Seen
+             * @description List of camera IDs where entity was detected
+             */
+            cameras_seen?: string[];
+            /**
+             * Thumbnail Url
+             * @description URL to the most recent thumbnail image
+             */
+            thumbnail_url?: string | null;
+        };
+        /**
+         * EventAuditResponse
+         * @description Full audit response for a single event.
+         */
+        EventAuditResponse: {
+            /** Id */
+            id: number;
+            /** Event Id */
+            event_id: number;
+            /**
+             * Audited At
+             * Format: date-time
+             */
+            audited_at: string;
+            /** Is Fully Evaluated */
+            is_fully_evaluated: boolean;
+            contributions: components["schemas"]["ModelContributions"];
+            /** Prompt Length */
+            prompt_length: number;
+            /** Prompt Token Estimate */
+            prompt_token_estimate: number;
+            /** Enrichment Utilization */
+            enrichment_utilization: number;
+            scores: components["schemas"]["QualityScores"];
+            /** Consistency Risk Score */
+            consistency_risk_score?: number | null;
+            /** Consistency Diff */
+            consistency_diff?: number | null;
+            /** Self Eval Critique */
+            self_eval_critique?: string | null;
+            improvements: components["schemas"]["PromptImprovements"];
+        };
+        /**
          * EventListResponse
          * @description Schema for event list response with pagination.
          * @example {
@@ -3581,12 +4319,14 @@ export interface components {
          *           ],
          *           "ended_at": "2025-12-23T12:02:30Z",
          *           "id": 1,
+         *           "llm_prompt": "<|im_start|>system\nYou are a home security risk analyzer...",
          *           "reasoning": "Person approaching entrance during daytime, no suspicious behavior",
          *           "reviewed": false,
          *           "risk_level": "medium",
          *           "risk_score": 75,
          *           "started_at": "2025-12-23T12:00:00Z",
-         *           "summary": "Person detected near front entrance"
+         *           "summary": "Person detected near front entrance",
+         *           "thumbnail_url": "/api/media/detections/1"
          *         }
          *       ],
          *       "limit": 50,
@@ -3630,12 +4370,14 @@ export interface components {
          *       ],
          *       "ended_at": "2025-12-23T12:02:30Z",
          *       "id": 1,
+         *       "llm_prompt": "<|im_start|>system\nYou are a home security risk analyzer...",
          *       "reasoning": "Person approaching entrance during daytime, no suspicious behavior",
          *       "reviewed": false,
          *       "risk_level": "medium",
          *       "risk_score": 75,
          *       "started_at": "2025-12-23T12:00:00Z",
-         *       "summary": "Person detected near front entrance"
+         *       "summary": "Person detected near front entrance",
+         *       "thumbnail_url": "/api/media/detections/1"
          *     }
          */
         EventResponse: {
@@ -3681,6 +4423,11 @@ export interface components {
              */
             reasoning?: string | null;
             /**
+             * Llm Prompt
+             * @description Full prompt sent to Nemotron LLM (for debugging/improvement)
+             */
+            llm_prompt?: string | null;
+            /**
              * Reviewed
              * @description Whether event has been reviewed
              * @default false
@@ -3702,6 +4449,11 @@ export interface components {
              * @description List of detection IDs associated with this event
              */
             detection_ids?: number[];
+            /**
+             * Thumbnail Url
+             * @description URL to thumbnail image (first detection's media)
+             */
+            thumbnail_url?: string | null;
         };
         /**
          * EventStatsResponse
@@ -4063,6 +4815,16 @@ export interface components {
             timestamp: string;
         };
         /**
+         * LeaderboardResponse
+         * @description Model leaderboard response.
+         */
+        LeaderboardResponse: {
+            /** Entries */
+            entries: components["schemas"]["ModelLeaderboardEntry"][];
+            /** Period Days */
+            period_days: number;
+        };
+        /**
          * LogEntry
          * @description Schema for a single log entry.
          */
@@ -4213,6 +4975,98 @@ export interface components {
              * @description The path that was attempted to be accessed
              */
             path: string;
+        };
+        /**
+         * ModelContributions
+         * @description Model contribution flags.
+         */
+        ModelContributions: {
+            /**
+             * Rtdetr
+             * @description RT-DETR object detection
+             * @default false
+             */
+            rtdetr: boolean;
+            /**
+             * Florence
+             * @description Florence-2 vision attributes
+             * @default false
+             */
+            florence: boolean;
+            /**
+             * Clip
+             * @description CLIP embeddings
+             * @default false
+             */
+            clip: boolean;
+            /**
+             * Violence
+             * @description Violence detection
+             * @default false
+             */
+            violence: boolean;
+            /**
+             * Clothing
+             * @description Clothing analysis
+             * @default false
+             */
+            clothing: boolean;
+            /**
+             * Vehicle
+             * @description Vehicle classification
+             * @default false
+             */
+            vehicle: boolean;
+            /**
+             * Pet
+             * @description Pet classification
+             * @default false
+             */
+            pet: boolean;
+            /**
+             * Weather
+             * @description Weather classification
+             * @default false
+             */
+            weather: boolean;
+            /**
+             * Image Quality
+             * @description Image quality assessment
+             * @default false
+             */
+            image_quality: boolean;
+            /**
+             * Zones
+             * @description Zone analysis
+             * @default false
+             */
+            zones: boolean;
+            /**
+             * Baseline
+             * @description Baseline comparison
+             * @default false
+             */
+            baseline: boolean;
+            /**
+             * Cross Camera
+             * @description Cross-camera correlation
+             * @default false
+             */
+            cross_camera: boolean;
+        };
+        /**
+         * ModelLeaderboardEntry
+         * @description Single entry in model leaderboard.
+         */
+        ModelLeaderboardEntry: {
+            /** Model Name */
+            model_name: string;
+            /** Contribution Rate */
+            contribution_rate: number;
+            /** Quality Correlation */
+            quality_correlation: number | null;
+            /** Event Count */
+            event_count: number;
         };
         /**
          * NotificationChannel
@@ -4543,6 +5397,38 @@ export interface components {
             timestamp: string;
         };
         /**
+         * PromptImprovements
+         * @description Prompt improvement suggestions from self-evaluation.
+         */
+        PromptImprovements: {
+            /** Missing Context */
+            missing_context?: string[];
+            /** Confusing Sections */
+            confusing_sections?: string[];
+            /** Unused Data */
+            unused_data?: string[];
+            /** Format Suggestions */
+            format_suggestions?: string[];
+            /** Model Gaps */
+            model_gaps?: string[];
+        };
+        /**
+         * QualityScores
+         * @description Self-evaluation quality scores (1-5 scale).
+         */
+        QualityScores: {
+            /** Context Usage */
+            context_usage?: number | null;
+            /** Reasoning Coherence */
+            reasoning_coherence?: number | null;
+            /** Risk Justification */
+            risk_justification?: number | null;
+            /** Consistency */
+            consistency?: number | null;
+            /** Overall */
+            overall?: number | null;
+        };
+        /**
          * QueueDepths
          * @description Queue depth information for pipeline queues.
          * @example {
@@ -4634,6 +5520,30 @@ export interface components {
              * @description Timestamp of readiness check
              */
             timestamp: string;
+        };
+        /**
+         * RecommendationItem
+         * @description Single recommendation item.
+         */
+        RecommendationItem: {
+            /** Category */
+            category: string;
+            /** Suggestion */
+            suggestion: string;
+            /** Frequency */
+            frequency: number;
+            /** Priority */
+            priority: string;
+        };
+        /**
+         * RecommendationsResponse
+         * @description Aggregated recommendations response.
+         */
+        RecommendationsResponse: {
+            /** Recommendations */
+            recommendations: components["schemas"]["RecommendationItem"][];
+            /** Total Events Analyzed */
+            total_events_analyzed: number;
         };
         /**
          * RuleTestEventResult
@@ -5479,6 +6389,53 @@ export interface components {
             type: string;
         };
         /**
+         * WebSocketBroadcasterStatus
+         * @description Status of a WebSocket broadcaster's circuit breaker.
+         */
+        WebSocketBroadcasterStatus: {
+            /** @description Current circuit state: closed (normal), open (failing), half_open (testing) */
+            state: components["schemas"]["CircuitBreakerStateEnum"];
+            /**
+             * Failure Count
+             * @description Current consecutive failure count
+             */
+            failure_count: number;
+            /**
+             * Is Degraded
+             * @description Whether the broadcaster is in degraded mode
+             */
+            is_degraded: boolean;
+        };
+        /**
+         * WebSocketHealthResponse
+         * @description Response schema for WebSocket health endpoint.
+         * @example {
+         *       "event_broadcaster": {
+         *         "failure_count": 0,
+         *         "is_degraded": false,
+         *         "state": "closed"
+         *       },
+         *       "system_broadcaster": {
+         *         "failure_count": 0,
+         *         "is_degraded": false,
+         *         "state": "closed"
+         *       },
+         *       "timestamp": "2025-12-30T10:30:00Z"
+         *     }
+         */
+        WebSocketHealthResponse: {
+            /** @description Status of the event broadcaster circuit breaker */
+            event_broadcaster?: components["schemas"]["WebSocketBroadcasterStatus"] | null;
+            /** @description Status of the system broadcaster circuit breaker */
+            system_broadcaster?: components["schemas"]["WebSocketBroadcasterStatus"] | null;
+            /**
+             * Timestamp
+             * Format: date-time
+             * @description Timestamp of health check
+             */
+            timestamp: string;
+        };
+        /**
          * WebhookTestNotificationRequest
          * @description Schema for testing notification configuration.
          * @example {
@@ -5883,6 +6840,202 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ClearDataResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_event_audit_api_ai_audit_events__event_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventAuditResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    evaluate_event_api_ai_audit_events__event_id__evaluate_post: {
+        parameters: {
+            query?: {
+                /** @description Force re-evaluation even if already evaluated */
+                force?: boolean;
+            };
+            header?: never;
+            path: {
+                event_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventAuditResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_audit_stats_api_ai_audit_stats_get: {
+        parameters: {
+            query?: {
+                /** @description Number of days to include */
+                days?: number;
+                /** @description Filter by camera ID */
+                camera_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditStatsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_model_leaderboard_api_ai_audit_leaderboard_get: {
+        parameters: {
+            query?: {
+                /** @description Number of days to include */
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LeaderboardResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_recommendations_api_ai_audit_recommendations_get: {
+        parameters: {
+            query?: {
+                /** @description Number of days to include */
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecommendationsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    trigger_batch_audit_api_ai_audit_batch_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BatchAuditRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchAuditResponse"];
                 };
             };
             /** @description Validation Error */
@@ -6374,13 +7527,6 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Access denied */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
             /** @description Camera or snapshot not found */
             404: {
                 headers: {
@@ -6403,6 +7549,28 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    validate_camera_paths_api_cameras_validation_paths_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
             };
         };
     };
@@ -6802,6 +7970,108 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DLQClearResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_entities_api_entities_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by entity type: 'person' or 'vehicle' */
+                entity_type?: string | null;
+                /** @description Filter by camera ID */
+                camera_id?: string | null;
+                /** @description Filter entities seen since this time */
+                since?: string | null;
+                /** @description Maximum number of results */
+                limit?: number;
+                /** @description Number of results to skip */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntityListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_entity_api_entities__entity_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntityDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_entity_history_api_entities__entity_id__history_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntityHistoryResponse"];
                 };
             };
             /** @description Validation Error */
@@ -7493,6 +8763,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReadinessResponse"];
+                };
+            };
+        };
+    };
+    get_websocket_health_api_system_health_websocket_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebSocketHealthResponse"];
                 };
             };
         };

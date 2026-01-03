@@ -690,3 +690,116 @@ class TestAuditService:
         result = await AuditService.get_audit_log_by_id(db=mock_db_session, audit_id=99999)
 
         assert result is None
+
+
+class TestAuditServiceErrorHandling:
+    """Tests for AuditService error handling."""
+
+    @pytest.fixture
+    def mock_db_session_with_errors(self):
+        """Create a mock database session that raises errors."""
+        from sqlalchemy.ext.asyncio import AsyncSession
+
+        mock_session = MagicMock(spec=AsyncSession)
+        return mock_session
+
+    @pytest.mark.asyncio
+    async def test_log_action_handles_db_flush_error(self, mock_db_session_with_errors):
+        """Test log_action handles database flush errors gracefully."""
+
+        async def raise_db_error():
+            raise Exception("Database connection lost")
+
+        mock_db_session_with_errors.add = MagicMock()
+        mock_db_session_with_errors.flush = raise_db_error
+
+        with pytest.raises(Exception, match="Database connection lost"):
+            await AuditService.log_action(
+                db=mock_db_session_with_errors,
+                action=AuditAction.EVENT_REVIEWED,
+                resource_type="event",
+                actor="test_user",
+            )
+
+    @pytest.mark.asyncio
+    async def test_get_audit_logs_handles_execute_error(self, mock_db_session_with_errors):
+        """Test get_audit_logs handles query execution errors."""
+
+        async def raise_query_error(query):
+            raise Exception("Query timeout")
+
+        mock_db_session_with_errors.execute = raise_query_error
+
+        with pytest.raises(Exception, match="Query timeout"):
+            await AuditService.get_audit_logs(db=mock_db_session_with_errors)
+
+    @pytest.mark.asyncio
+    async def test_log_action_with_none_actor(self, mock_db_session_with_errors):
+        """Test log_action handles None actor value."""
+
+        async def async_flush():
+            pass
+
+        mock_db_session_with_errors.add = MagicMock()
+        mock_db_session_with_errors.flush = async_flush
+
+        # Should handle None actor gracefully
+        result = await AuditService.log_action(
+            db=mock_db_session_with_errors,
+            action=AuditAction.SETTINGS_CHANGED,
+            resource_type="settings",
+            actor=None,  # type: ignore
+        )
+
+        assert result.actor is None
+
+    @pytest.mark.asyncio
+    async def test_log_action_with_empty_details(self, mock_db_session_with_errors):
+        """Test log_action handles empty details dict."""
+
+        async def async_flush():
+            pass
+
+        mock_db_session_with_errors.add = MagicMock()
+        mock_db_session_with_errors.flush = async_flush
+
+        result = await AuditService.log_action(
+            db=mock_db_session_with_errors,
+            action=AuditAction.EVENT_DISMISSED,
+            resource_type="event",
+            resource_id="123",
+            actor="user",
+            details={},
+        )
+
+        assert result.details == {}
+
+    @pytest.mark.asyncio
+    async def test_get_audit_logs_with_invalid_limit(self, mock_db_session_with_errors):
+        """Test get_audit_logs handles invalid limit values."""
+        mock_count_result = MagicMock()
+        mock_count_result.scalar.return_value = 0
+
+        mock_logs_result = MagicMock()
+        mock_logs_scalars = MagicMock()
+        mock_logs_scalars.all.return_value = []
+        mock_logs_result.scalars.return_value = mock_logs_scalars
+
+        call_count = [0]
+
+        async def mock_execute(query):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return mock_count_result
+            return mock_logs_result
+
+        mock_db_session_with_errors.execute = mock_execute
+
+        # Should handle negative limit by using 0 or default behavior
+        logs, total = await AuditService.get_audit_logs(
+            db=mock_db_session_with_errors,
+            limit=-1,  # Invalid negative limit
+        )
+
+        assert total == 0
+        assert len(logs) == 0

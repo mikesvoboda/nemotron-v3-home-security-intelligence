@@ -2249,3 +2249,266 @@ async def test_detection_worker_initializes_with_retry_handler(mock_redis_client
     # Config should have expected values
     assert worker._retry_handler.config.max_retries == 3
     assert worker._retry_handler.config.base_delay_seconds == 1.0
+
+
+# =============================================================================
+# Pipeline Start Time Tracking Tests (bead 4mje.3)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_detection_worker_passes_pipeline_start_time_to_batch_aggregator(
+    mock_redis_client, mock_detector_client, mock_batch_aggregator
+):
+    """Test that DetectionQueueWorker passes pipeline_start_time to batch aggregator.
+
+    This tests the fix for bead 4mje.3: Pipeline latency metrics are all null because
+    total_pipeline stage is defined but never recorded. The pipeline_start_time must
+    be propagated from file detection through to event creation.
+    """
+    call_count = 0
+
+    async def mock_get_from_queue(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        await asyncio.sleep(0.01)
+        if call_count == 1:
+            return {
+                "camera_id": "front_door",
+                "file_path": "/path/to/image.jpg",
+                "timestamp": datetime.now().isoformat(),
+                "media_type": "image",
+                "pipeline_start_time": "2025-12-28T10:00:00.000000",
+            }
+        return None
+
+    mock_redis_client.get_from_queue = mock_get_from_queue
+
+    detection = MagicMock()
+    detection.id = 1
+    detection.confidence = 0.95
+    detection.object_type = "person"
+    mock_detector_client.detect_objects = AsyncMock(return_value=[detection])
+
+    worker = DetectionQueueWorker(
+        redis_client=mock_redis_client,
+        detector_client=mock_detector_client,
+        batch_aggregator=mock_batch_aggregator,
+        poll_timeout=1,
+    )
+
+    with patch("backend.services.pipeline_workers.get_session") as mock_get_session:
+        mock_session = AsyncMock()
+        mock_get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
+
+        await worker.start()
+        await wait_for_items_processed(worker, min_count=1)
+        await worker.stop()
+
+    # Verify batch aggregator was called with pipeline_start_time
+    mock_batch_aggregator.add_detection.assert_called_once()
+    call_kwargs = mock_batch_aggregator.add_detection.call_args[1]
+    assert "pipeline_start_time" in call_kwargs
+    assert call_kwargs["pipeline_start_time"] == "2025-12-28T10:00:00.000000"
+
+
+@pytest.mark.asyncio
+async def test_detection_worker_handles_missing_pipeline_start_time(
+    mock_redis_client, mock_detector_client, mock_batch_aggregator
+):
+    """Test that DetectionQueueWorker handles queue items without pipeline_start_time.
+
+    For backwards compatibility, older queue items may not have pipeline_start_time.
+    The worker should still process them normally.
+    """
+    call_count = 0
+
+    async def mock_get_from_queue(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        await asyncio.sleep(0.01)
+        if call_count == 1:
+            return {
+                "camera_id": "front_door",
+                "file_path": "/path/to/image.jpg",
+                "timestamp": datetime.now().isoformat(),
+                "media_type": "image",
+                # pipeline_start_time intentionally omitted
+            }
+        return None
+
+    mock_redis_client.get_from_queue = mock_get_from_queue
+
+    detection = MagicMock()
+    detection.id = 1
+    detection.confidence = 0.95
+    detection.object_type = "person"
+    mock_detector_client.detect_objects = AsyncMock(return_value=[detection])
+
+    worker = DetectionQueueWorker(
+        redis_client=mock_redis_client,
+        detector_client=mock_detector_client,
+        batch_aggregator=mock_batch_aggregator,
+        poll_timeout=1,
+    )
+
+    with patch("backend.services.pipeline_workers.get_session") as mock_get_session:
+        mock_session = AsyncMock()
+        mock_get_session.return_value.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_get_session.return_value.__aexit__ = AsyncMock(return_value=None)
+
+        await worker.start()
+        await wait_for_items_processed(worker, min_count=1)
+        await worker.stop()
+
+    # Verify batch aggregator was called (with None pipeline_start_time)
+    mock_batch_aggregator.add_detection.assert_called_once()
+    call_kwargs = mock_batch_aggregator.add_detection.call_args[1]
+    assert call_kwargs.get("pipeline_start_time") is None
+
+
+@pytest.mark.asyncio
+async def test_analysis_worker_records_total_pipeline_latency(mock_redis_client, mock_analyzer):
+    """Test that AnalysisQueueWorker records total_pipeline latency when pipeline_start_time is present.
+
+    This is the key test for bead 4mje.3 fix: the total_pipeline latency must be recorded
+    when processing analysis queue items that include pipeline_start_time.
+    """
+    call_count = 0
+    # Use a timestamp from 5 seconds ago to ensure measurable latency
+    pipeline_start_time = (
+        datetime.now().isoformat()
+    )  # Will have ~0ms latency but still exercises the code path
+
+    async def mock_get_from_queue(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        await asyncio.sleep(0.01)
+        if call_count == 1:
+            return {
+                "batch_id": "batch_123",
+                "camera_id": "front_door",
+                "detection_ids": [1, 2, 3],
+                "pipeline_start_time": pipeline_start_time,
+            }
+        return None
+
+    mock_redis_client.get_from_queue = mock_get_from_queue
+
+    worker = AnalysisQueueWorker(
+        redis_client=mock_redis_client,
+        analyzer=mock_analyzer,
+        poll_timeout=1,
+    )
+
+    with patch(
+        "backend.services.pipeline_workers.record_pipeline_stage_latency"
+    ) as mock_record_latency:
+        await worker.start()
+        await wait_for_items_processed(worker, min_count=1)
+        await worker.stop()
+
+        # Verify total_pipeline latency was recorded
+        mock_record_latency.assert_called()
+        call_args = mock_record_latency.call_args_list
+        # Find the total_pipeline call
+        total_pipeline_calls = [c for c in call_args if c[0][0] == "total_pipeline"]
+        assert len(total_pipeline_calls) == 1
+        # Latency should be a positive number (in milliseconds)
+        latency_ms = total_pipeline_calls[0][0][1]
+        assert latency_ms >= 0
+
+
+@pytest.mark.asyncio
+async def test_analysis_worker_handles_missing_pipeline_start_time(
+    mock_redis_client, mock_analyzer
+):
+    """Test that AnalysisQueueWorker handles queue items without pipeline_start_time.
+
+    For backwards compatibility, older queue items may not have pipeline_start_time.
+    The worker should still process them normally without recording total_pipeline latency.
+    """
+    call_count = 0
+
+    async def mock_get_from_queue(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        await asyncio.sleep(0.01)
+        if call_count == 1:
+            return {
+                "batch_id": "batch_123",
+                "camera_id": "front_door",
+                "detection_ids": [1, 2, 3],
+                # pipeline_start_time intentionally omitted
+            }
+        return None
+
+    mock_redis_client.get_from_queue = mock_get_from_queue
+
+    worker = AnalysisQueueWorker(
+        redis_client=mock_redis_client,
+        analyzer=mock_analyzer,
+        poll_timeout=1,
+    )
+
+    with patch(
+        "backend.services.pipeline_workers.record_pipeline_stage_latency"
+    ) as mock_record_latency:
+        await worker.start()
+        await wait_for_items_processed(worker, min_count=1)
+        await worker.stop()
+
+        # Verify total_pipeline latency was NOT recorded (no pipeline_start_time)
+        call_args = mock_record_latency.call_args_list
+        total_pipeline_calls = [c for c in call_args if c[0][0] == "total_pipeline"]
+        assert len(total_pipeline_calls) == 0
+
+
+@pytest.mark.asyncio
+async def test_analysis_worker_handles_invalid_pipeline_start_time(
+    mock_redis_client, mock_analyzer
+):
+    """Test that AnalysisQueueWorker handles invalid pipeline_start_time gracefully.
+
+    If the timestamp is malformed, the worker should log a warning but continue
+    processing the item normally.
+    """
+    call_count = 0
+
+    async def mock_get_from_queue(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        await asyncio.sleep(0.01)
+        if call_count == 1:
+            return {
+                "batch_id": "batch_123",
+                "camera_id": "front_door",
+                "detection_ids": [1, 2, 3],
+                "pipeline_start_time": "invalid-timestamp-format",
+            }
+        return None
+
+    mock_redis_client.get_from_queue = mock_get_from_queue
+
+    worker = AnalysisQueueWorker(
+        redis_client=mock_redis_client,
+        analyzer=mock_analyzer,
+        poll_timeout=1,
+    )
+
+    with patch(
+        "backend.services.pipeline_workers.record_pipeline_stage_latency"
+    ) as mock_record_latency:
+        await worker.start()
+        await wait_for_items_processed(worker, min_count=1)
+        await worker.stop()
+
+        # Item should still be processed (no errors)
+        assert worker.stats.items_processed == 1
+        assert worker.stats.errors == 0
+
+        # total_pipeline should NOT be recorded (invalid timestamp)
+        call_args = mock_record_latency.call_args_list
+        total_pipeline_calls = [c for c in call_args if c[0][0] == "total_pipeline"]
+        assert len(total_pipeline_calls) == 0

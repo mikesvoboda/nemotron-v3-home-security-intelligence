@@ -55,16 +55,20 @@ test.describe('Timeline Error Handling', () => {
     await setupApiMocks(page, errorMockConfig);
     const timelinePage = new TimelinePage(page);
     await timelinePage.goto();
-    await timelinePage.waitForTimelineLoad();
-    await expect(timelinePage.errorMessage).toBeVisible({ timeout: 15000 });
+    // For error tests, wait directly for the error message instead of using
+    // waitForTimelineLoad() which is designed for success scenarios and may
+    // time out before the error state renders
+    await expect(timelinePage.pageTitle).toBeVisible({ timeout: 10000 });
+    await expect(timelinePage.errorMessage).toBeVisible({ timeout: 10000 });
   });
 
   test('error message mentions events', async ({ page }) => {
     await setupApiMocks(page, errorMockConfig);
     const timelinePage = new TimelinePage(page);
     await timelinePage.goto();
-    await timelinePage.waitForTimelineLoad();
-    await expect(timelinePage.errorMessage).toHaveText(/Error Loading Events/i, { timeout: 15000 });
+    // Wait for page structure then error message
+    await expect(timelinePage.pageTitle).toBeVisible({ timeout: 10000 });
+    await expect(timelinePage.errorMessage).toHaveText(/Error Loading Events/i, { timeout: 10000 });
   });
 });
 
@@ -73,8 +77,10 @@ test.describe('Alerts Error Handling', () => {
     await setupApiMocks(page, errorMockConfig);
     const alertsPage = new AlertsPage(page);
     await alertsPage.goto();
-    await alertsPage.waitForAlertsLoad();
-    await expect(alertsPage.errorMessage).toBeVisible({ timeout: 15000 });
+    // For error tests, wait directly for the error message instead of using
+    // waitForAlertsLoad() which is designed for success scenarios
+    await expect(alertsPage.pageTitle).toBeVisible({ timeout: 10000 });
+    await expect(alertsPage.errorMessage).toBeVisible({ timeout: 10000 });
   });
 });
 
@@ -121,13 +127,14 @@ test.describe('System Page Error Handling', () => {
 });
 
 test.describe('Empty State Handling', () => {
-  test('dashboard shows no activity with empty events', async ({ page }) => {
+  test('dashboard loads with empty events', async ({ page }) => {
     await setupApiMocks(page, emptyMockConfig);
     const dashboardPage = new DashboardPage(page);
     await dashboardPage.goto();
     await dashboardPage.waitForDashboardLoad();
-    const hasNoActivity = await dashboardPage.hasNoActivityMessage();
-    expect(hasNoActivity).toBe(true);
+    // Verify dashboard loads without crashing when there are no events
+    // Note: Activity Feed was moved to Timeline page in UI redesign
+    await expect(dashboardPage.riskGaugeHeading).toBeVisible();
   });
 
   test('timeline shows no events with empty data', async ({ page }) => {
@@ -153,8 +160,8 @@ test.describe('Empty State Handling', () => {
     const logsPage = new LogsPage(page);
     await logsPage.goto();
     await logsPage.waitForLogsLoad();
-    const hasEmpty = await logsPage.hasEmptyState();
-    expect(hasEmpty).toBe(true);
+    // Use expect with timeout instead of boolean check for faster assertion
+    await expect(logsPage.emptyState).toBeVisible({ timeout: 2000 });
   });
 });
 

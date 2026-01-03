@@ -278,6 +278,19 @@ class Settings(BaseSettings):
         description="Combined enrichment service URL for vehicle, pet, and clothing classification",
     )
 
+    # Monitoring URLs
+    grafana_url: str = Field(
+        default="http://localhost:3002",
+        description="Grafana dashboard URL for frontend link",
+    )
+
+    # Frontend URL for health checks (internal Docker network URL)
+    frontend_url: str = Field(
+        default="http://frontend:80",
+        description="Frontend container URL for health checks (Docker internal network). "
+        "Use 'http://frontend:80' for Docker/Podman, or 'http://localhost:5173' for local dev.",
+    )
+
     @field_validator("florence_url", "clip_url", "enrichment_url", mode="before")
     @classmethod
     def validate_vision_service_urls(cls, v: Any) -> str:
@@ -317,6 +330,12 @@ class Settings(BaseSettings):
     vision_extraction_enabled: bool = Field(
         default=True,
         description="Enable Florence-2 vision extraction for vehicle/person attributes",
+    )
+    image_quality_enabled: bool = Field(
+        default=False,
+        description="Enable BRISQUE image quality assessment (CPU-based). "
+        "Currently disabled by default because pyiqa is incompatible with NumPy 2.0 "
+        "(np.sctypes was removed). Set to True only if using NumPy <2.0.",
     )
     reid_enabled: bool = Field(
         default=True,

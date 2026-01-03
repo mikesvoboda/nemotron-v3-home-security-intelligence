@@ -1103,15 +1103,16 @@ async def test_close_batch_uses_parallel_redis_operations(batch_aggregator, mock
 
     batch_id = "test-batch-123"
 
-    # Mock batch exists
+    # Mock batch exists - now includes pipeline_start_time in gather
     mock_redis_instance.get.side_effect = [
         "camera_1",  # camera_id lookup
         "camera_1",  # camera_id re-check after lock
         str(time.time()),  # started_at (from parallel gather)
+        None,  # pipeline_start_time (from parallel gather)
     ]
     mock_redis_instance._client.lrange.return_value = ["1", "2", "3"]
 
-    # Track that gather is used (detections + started_at fetched in parallel)
+    # Track that gather is used (detections + started_at + pipeline_start_time fetched in parallel)
     original_gather = asyncio.gather
     gather_calls = []
 
@@ -1130,3 +1131,176 @@ async def test_close_batch_uses_parallel_redis_operations(batch_aggregator, mock
     assert summary["batch_id"] == batch_id
     assert summary["camera_id"] == "camera_1"
     assert summary["detections"] == [1, 2, 3]
+
+
+# ==============================================================================
+# Tests for Pipeline Start Time Tracking (bead 4mje.3)
+# ==============================================================================
+
+
+@pytest.mark.asyncio
+async def test_add_detection_stores_pipeline_start_time(batch_aggregator, mock_redis_instance):
+    """Test that add_detection stores pipeline_start_time in Redis for new batches."""
+    camera_id = "front_door"
+    detection_id = 1
+    file_path = "/export/foscam/front_door/image_001.jpg"
+    pipeline_start_time = "2025-12-28T10:00:00.000000"
+
+    # Mock: No existing batch
+    mock_redis_instance.get.return_value = None
+    mock_redis_instance._client.rpush.return_value = 1
+
+    with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
+        mock_uuid.return_value.hex = "batch_with_time"
+
+        batch_id = await batch_aggregator.add_detection(
+            camera_id=camera_id,
+            detection_id=detection_id,
+            _file_path=file_path,
+            pipeline_start_time=pipeline_start_time,
+        )
+
+    assert batch_id == "batch_with_time"
+
+    # Verify pipeline_start_time was stored in Redis
+    set_calls = mock_redis_instance.set.call_args_list
+    set_keys = [call[0][0] for call in set_calls]
+
+    # Should have a key for pipeline_start_time
+    assert f"batch:{batch_id}:pipeline_start_time" in set_keys
+
+    # Find the pipeline_start_time set call and verify value
+    for call in set_calls:
+        if call[0][0] == f"batch:{batch_id}:pipeline_start_time":
+            assert call[0][1] == pipeline_start_time
+
+
+@pytest.mark.asyncio
+async def test_add_detection_without_pipeline_start_time(batch_aggregator, mock_redis_instance):
+    """Test that add_detection works without pipeline_start_time (backwards compatibility)."""
+    camera_id = "front_door"
+    detection_id = 2
+    file_path = "/export/foscam/front_door/image_002.jpg"
+
+    # Mock: No existing batch
+    mock_redis_instance.get.return_value = None
+    mock_redis_instance._client.rpush.return_value = 1
+
+    with patch("backend.services.batch_aggregator.uuid.uuid4") as mock_uuid:
+        mock_uuid.return_value.hex = "batch_no_time"
+
+        batch_id = await batch_aggregator.add_detection(
+            camera_id=camera_id,
+            detection_id=detection_id,
+            _file_path=file_path,
+            # pipeline_start_time intentionally omitted
+        )
+
+    assert batch_id == "batch_no_time"
+
+    # Verify pipeline_start_time was NOT stored in Redis
+    set_calls = mock_redis_instance.set.call_args_list
+    set_keys = [call[0][0] for call in set_calls]
+
+    # Should NOT have a key for pipeline_start_time
+    assert f"batch:{batch_id}:pipeline_start_time" not in set_keys
+
+
+@pytest.mark.asyncio
+async def test_close_batch_includes_pipeline_start_time_in_queue(
+    batch_aggregator, mock_redis_instance
+):
+    """Test that close_batch includes pipeline_start_time in the analysis queue item."""
+    batch_id = "batch_with_time"
+    camera_id = "garage"
+    detections = ["1", "2", "3"]
+    pipeline_start_time = "2025-12-28T10:00:00.000000"
+
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            return camera_id
+        elif key == f"batch:{batch_id}:started_at":
+            return str(time.time() - 60)
+        elif key == f"batch:{batch_id}:pipeline_start_time":
+            return pipeline_start_time
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+    mock_redis_instance._client.lrange.return_value = detections
+
+    summary = await batch_aggregator.close_batch(batch_id)
+
+    # Verify summary
+    assert summary["batch_id"] == batch_id
+    assert summary["camera_id"] == camera_id
+
+    # Verify queue was called with pipeline_start_time
+    mock_redis_instance.add_to_queue_safe.assert_called_once()
+    queue_call = mock_redis_instance.add_to_queue_safe.call_args
+    queue_data = queue_call[0][1]
+
+    assert queue_data["pipeline_start_time"] == pipeline_start_time
+
+
+@pytest.mark.asyncio
+async def test_close_batch_without_pipeline_start_time(batch_aggregator, mock_redis_instance):
+    """Test that close_batch works when pipeline_start_time is not stored (backwards compatibility)."""
+    batch_id = "batch_no_time"
+    camera_id = "garage"
+    detections = ["1", "2", "3"]
+
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            return camera_id
+        elif key == f"batch:{batch_id}:started_at":
+            return str(time.time() - 60)
+        elif key == f"batch:{batch_id}:pipeline_start_time":
+            return None  # No pipeline_start_time stored
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+    mock_redis_instance._client.lrange.return_value = detections
+
+    summary = await batch_aggregator.close_batch(batch_id)
+
+    # Verify summary
+    assert summary["batch_id"] == batch_id
+
+    # Verify queue was called with None pipeline_start_time
+    mock_redis_instance.add_to_queue_safe.assert_called_once()
+    queue_call = mock_redis_instance.add_to_queue_safe.call_args
+    queue_data = queue_call[0][1]
+
+    assert queue_data.get("pipeline_start_time") is None
+
+
+@pytest.mark.asyncio
+async def test_close_batch_cleans_up_pipeline_start_time_key(batch_aggregator, mock_redis_instance):
+    """Test that close_batch cleans up the pipeline_start_time key from Redis."""
+    batch_id = "batch_cleanup"
+    camera_id = "garage"
+    detections = ["1", "2"]
+    pipeline_start_time = "2025-12-28T10:00:00.000000"
+
+    async def mock_get(key):
+        if key == f"batch:{batch_id}:camera_id":
+            return camera_id
+        elif key == f"batch:{batch_id}:started_at":
+            return str(time.time() - 60)
+        elif key == f"batch:{batch_id}:pipeline_start_time":
+            return pipeline_start_time
+        return None
+
+    mock_redis_instance.get.side_effect = mock_get
+    mock_redis_instance._client.lrange.return_value = detections
+
+    await batch_aggregator.close_batch(batch_id)
+
+    # Verify delete was called with pipeline_start_time key
+    delete_calls = mock_redis_instance.delete.call_args_list
+    deleted_keys = []
+    for call in delete_calls:
+        deleted_keys.extend(call[0])
+
+    # The pipeline_start_time key should be in the deleted keys
+    assert f"batch:{batch_id}:pipeline_start_time" in deleted_keys

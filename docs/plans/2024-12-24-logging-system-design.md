@@ -155,9 +155,9 @@ POST /api/logs/frontend
 
 ```typescript
 // Usage throughout app:
-logger.error("API request failed", { endpoint: "/api/events", status: 500 });
-logger.event("user_navigation", { page: "event-timeline" });
-logger.event("button_click", { action: "dismiss_alert", event_id: 123 });
+logger.error('API request failed', { endpoint: '/api/events', status: 500 });
+logger.event('user_navigation', { page: 'event-timeline' });
+logger.event('button_click', { action: 'dismiss_alert', event_id: 123 });
 ```
 
 Features:

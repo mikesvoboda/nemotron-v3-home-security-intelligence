@@ -192,10 +192,10 @@ WebSocket connections are rate-limited:
 ## JavaScript Client Example
 
 ```javascript
-const ws = new WebSocket("ws://localhost:8000/ws/events");
+const ws = new WebSocket('ws://localhost:8000/ws/events');
 
 ws.onopen = () => {
-  console.log("Connected");
+  console.log('Connected');
   // Send ping every 30 seconds to keep alive
   setInterval(() => ws.send('{"type":"ping"}'), 30000);
 };
@@ -203,20 +203,20 @@ ws.onopen = () => {
 ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
 
-  if (data.type === "event") {
-    console.log("New event:", data.data);
+  if (data.type === 'event') {
+    console.log('New event:', data.data);
     // Update UI with new event
-  } else if (data.type === "pong") {
-    console.log("Pong received");
+  } else if (data.type === 'pong') {
+    console.log('Pong received');
   }
 };
 
 ws.onerror = (error) => {
-  console.error("WebSocket error:", error);
+  console.error('WebSocket error:', error);
 };
 
 ws.onclose = (event) => {
-  console.log("Disconnected:", event.code, event.reason);
+  console.log('Disconnected:', event.code, event.reason);
   // Implement reconnection logic
 };
 ```
@@ -224,7 +224,7 @@ ws.onclose = (event) => {
 ## React Hook Example
 
 ```typescript
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react';
 
 function useEventStream(apiKey?: string) {
   const [events, setEvents] = useState<Event[]>([]);
@@ -232,13 +232,13 @@ function useEventStream(apiKey?: string) {
   useEffect(() => {
     const url = apiKey
       ? `ws://localhost:8000/ws/events?api_key=${apiKey}`
-      : "ws://localhost:8000/ws/events";
+      : 'ws://localhost:8000/ws/events';
 
     const ws = new WebSocket(url);
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      if (data.type === "event") {
+      if (data.type === 'event') {
         setEvents((prev) => [data.data, ...prev]);
       }
     };

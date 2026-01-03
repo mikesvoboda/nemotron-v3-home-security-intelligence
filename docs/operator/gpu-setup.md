@@ -9,7 +9,7 @@
 
 ## Overview
 
-Home Security Intelligence runs two AI services that require GPU acceleration:
+Home Security Intelligence uses GPU acceleration for AI inference. The core, always-on services are:
 
 | Service          | Purpose             | VRAM Usage | Inference Time |
 | ---------------- | ------------------- | ---------- | -------------- |
@@ -17,7 +17,7 @@ Home Security Intelligence runs two AI services that require GPU acceleration:
 | Nemotron Mini 4B | Risk analysis (LLM) | ~3GB       | 2-5s           |
 | **Total**        |                     | **~7GB**   |                |
 
-Both services run in containers with NVIDIA GPU passthrough. This guide covers the complete setup from bare metal to working GPU inference.
+Additional optional AI services (e.g. Florence-2, CLIP, Enrichment) may also use GPU, depending on your deployment and feature toggles. This guide covers the complete setup from bare metal to working GPU inference.
 
 ---
 
@@ -413,7 +413,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ["0"] # Use GPU 0
+              device_ids: ['0'] # Use GPU 0
               capabilities: [gpu]
 
   ai-llm:
@@ -422,7 +422,7 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: ["1"] # Use GPU 1
+              device_ids: ['1'] # Use GPU 1
               capabilities: [gpu]
 ```
 

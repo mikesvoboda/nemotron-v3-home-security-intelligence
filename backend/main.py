@@ -11,11 +11,13 @@ from backend.api.middleware import AuthMiddleware, SecurityHeadersMiddleware
 from backend.api.middleware.request_id import RequestIDMiddleware
 from backend.api.routes import (
     admin,
+    ai_audit,
     alerts,
     audit,
     cameras,
     detections,
     dlq,
+    entities,
     events,
     media,
     metrics,
@@ -142,6 +144,73 @@ async def seed_cameras_if_empty() -> int:
         return created
 
 
+async def validate_camera_paths_on_startup() -> tuple[int, int]:
+    """Validate camera paths on startup and log any issues.
+
+    This function checks all cameras in the database to ensure their folder_path
+    is under the configured foscam_base_path. This catches configuration mismatches
+    early (e.g., when FOSCAM_BASE_PATH changes between environments).
+
+    Issues are logged once at startup rather than on every snapshot request,
+    reducing log noise while still alerting administrators to problems.
+
+    Returns:
+        Tuple of (valid_count, invalid_count)
+    """
+    from pathlib import Path
+
+    from sqlalchemy import select
+
+    from backend.core.database import get_session
+    from backend.core.logging import get_logger
+
+    logger = get_logger(__name__)
+    settings = get_settings()
+    base_root = Path(settings.foscam_base_path).resolve()
+
+    async with get_session() as session:
+        result = await session.execute(select(Camera))
+        cameras = result.scalars().all()
+
+        if not cameras:
+            return (0, 0)
+
+        valid_count = 0
+        invalid_cameras: list[tuple[str, str, str]] = []
+
+        for camera in cameras:
+            try:
+                camera_dir = Path(camera.folder_path).resolve()
+                camera_dir.relative_to(base_root)
+                valid_count += 1
+            except ValueError:
+                invalid_cameras.append((camera.id, camera.name, camera.folder_path))
+
+        invalid_count = len(invalid_cameras)
+
+        if invalid_cameras:
+            # Log a summary warning once at startup
+            logger.warning(
+                f"Found {invalid_count} camera(s) with folder_path outside "
+                f"FOSCAM_BASE_PATH ({settings.foscam_base_path}). "
+                f"Snapshots will be unavailable for these cameras. "
+                f"Use GET /api/cameras/validation/paths for details.",
+                extra={
+                    "invalid_count": invalid_count,
+                    "valid_count": valid_count,
+                    "base_path": str(base_root),
+                },
+            )
+            # Log each invalid camera at debug level for troubleshooting
+            for cam_id, cam_name, cam_path in invalid_cameras:
+                logger.debug(
+                    f"Camera path mismatch: {cam_name} ({cam_id}) -> {cam_path}",
+                    extra={"camera_id": cam_id, "folder_path": cam_path},
+                )
+
+        return (valid_count, invalid_count)
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     """Manage application lifecycle - startup and shutdown events."""
@@ -157,6 +226,15 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     seeded = await seed_cameras_if_empty()
     if seeded > 0:
         print(f"Auto-seeded {seeded} cameras from {settings.foscam_base_path}")
+
+    # Validate camera paths against configured base path
+    # This logs warnings once at startup for cameras with mismatched paths
+    valid_count, invalid_count = await validate_camera_paths_on_startup()
+    if invalid_count > 0:
+        print(
+            f"Camera path validation: {valid_count} valid, {invalid_count} invalid "
+            f"(see logs or GET /api/cameras/validation/paths)"
+        )
 
     # Track whether Redis-dependent services were initialized
     redis_client = None
@@ -340,11 +418,13 @@ app.add_middleware(SecurityHeadersMiddleware)
 
 # Register routers
 app.include_router(admin.router)
+app.include_router(ai_audit.router)
 app.include_router(alerts.router)
 app.include_router(audit.router)
 app.include_router(cameras.router)
 app.include_router(detections.router)
 app.include_router(dlq.router)
+app.include_router(entities.router)
 app.include_router(events.router)
 app.include_router(logs_router)
 app.include_router(media.router)
