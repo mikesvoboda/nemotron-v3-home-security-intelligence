@@ -1,5 +1,5 @@
 import { within } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import EventTimeline from './EventTimeline';
 import * as useEventStreamHook from '../../hooks/useEventStream';
@@ -121,6 +121,7 @@ describe('EventTimeline', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
     vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
 
@@ -131,6 +132,10 @@ describe('EventTimeline', () => {
       latestEvent: mockWsEvents[0],
       clearEvents: vi.fn(),
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   describe('Rendering', () => {
@@ -237,7 +242,7 @@ describe('EventTimeline', () => {
 
   describe('Filtering', () => {
     it('shows filter button and toggles filter panel', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
@@ -262,7 +267,7 @@ describe('EventTimeline', () => {
     });
 
     it('filters events by camera', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
@@ -280,7 +285,7 @@ describe('EventTimeline', () => {
     });
 
     it('filters events by risk level', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
@@ -298,7 +303,7 @@ describe('EventTimeline', () => {
     });
 
     it('filters events by reviewed status', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
@@ -316,7 +321,7 @@ describe('EventTimeline', () => {
     });
 
     it('filters events by date range', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
@@ -341,7 +346,7 @@ describe('EventTimeline', () => {
     });
 
     it('clears all filters', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
@@ -368,7 +373,7 @@ describe('EventTimeline', () => {
     });
 
     it('shows active filter indicator', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
@@ -391,7 +396,7 @@ describe('EventTimeline', () => {
     });
 
     it('filters events by object type', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
@@ -409,7 +414,7 @@ describe('EventTimeline', () => {
     });
 
     it('displays object type filter dropdown with all options', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
@@ -435,7 +440,7 @@ describe('EventTimeline', () => {
     });
 
     it('clears object type filter with clear all filters button', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
@@ -462,7 +467,7 @@ describe('EventTimeline', () => {
     });
 
     it('combines object type filter with other filters', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
@@ -491,7 +496,7 @@ describe('EventTimeline', () => {
 
   describe('Search', () => {
     it('filters events by search query', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
@@ -511,7 +516,7 @@ describe('EventTimeline', () => {
     });
 
     it('clears search query', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
@@ -536,7 +541,7 @@ describe('EventTimeline', () => {
     });
 
     it('shows no results message when search has no matches', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
@@ -579,7 +584,7 @@ describe('EventTimeline', () => {
     });
 
     it('navigates to next page', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
@@ -622,7 +627,7 @@ describe('EventTimeline', () => {
           offset: 0,
         });
 
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderWithProviders(<EventTimeline />);
 
       // Wait for initial load
@@ -684,7 +689,7 @@ describe('EventTimeline', () => {
           offset: 40,
         });
 
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderWithProviders(<EventTimeline />);
 
       // Wait for initial load (page 1)
@@ -739,7 +744,7 @@ describe('EventTimeline', () => {
           offset: 0,
         });
 
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderWithProviders(<EventTimeline />);
 
       // Wait for initial load (page 1)
@@ -784,12 +789,9 @@ describe('EventTimeline', () => {
       renderWithProviders(<EventTimeline />);
 
       // Wait for error state to be displayed after async fetch fails
-      await waitFor(
-        () => {
-          expect(screen.getByText('Error Loading Events')).toBeInTheDocument();
-        },
-        { timeout: 3000 }
-      );
+      await waitFor(() => {
+        expect(screen.getByText('Error Loading Events')).toBeInTheDocument();
+      });
 
       expect(screen.getByText('Network error')).toBeInTheDocument();
     });
@@ -814,7 +816,7 @@ describe('EventTimeline', () => {
       });
 
       // Filter should still be available but with no camera options
-      const user2 = userEvent.setup();
+      const user2 = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       await user2.click(screen.getByText('Show Filters'));
 
       const cameraSelect = screen.getByLabelText('Camera');
@@ -845,7 +847,7 @@ describe('EventTimeline', () => {
     });
 
     it('shows filtered empty state when filters match no events', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
       renderWithProviders(<EventTimeline />);
 
@@ -916,7 +918,7 @@ describe('EventTimeline', () => {
   describe('Event Card Integration', () => {
     it('calls onViewEventDetails when View Details is clicked', async () => {
       const handleViewDetails = vi.fn();
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
       renderWithProviders(<EventTimeline onViewEventDetails={handleViewDetails} />);
 
@@ -999,7 +1001,7 @@ describe('EventTimeline', () => {
     });
 
     it('toggles selection for individual events', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
@@ -1023,7 +1025,7 @@ describe('EventTimeline', () => {
     });
 
     it('selects all events when clicking select all', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
@@ -1041,7 +1043,7 @@ describe('EventTimeline', () => {
     });
 
     it('deselects all events when clicking select all again', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
@@ -1066,7 +1068,7 @@ describe('EventTimeline', () => {
     });
 
     it('marks selected events as reviewed', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       vi.clearAllMocks();
       vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
       vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
@@ -1120,7 +1122,7 @@ describe('EventTimeline', () => {
     });
 
     it('shows loading state during bulk update', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       vi.clearAllMocks();
       vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
       vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
@@ -1175,7 +1177,7 @@ describe('EventTimeline', () => {
     });
 
     it('handles bulk update errors gracefully', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       vi.clearAllMocks();
       vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
       vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
@@ -1229,7 +1231,7 @@ describe('EventTimeline', () => {
     });
 
     it('clears selection when toggling individual checkbox off', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
@@ -1255,7 +1257,7 @@ describe('EventTimeline', () => {
     });
 
     it('shows Mark Not Reviewed button when events are selected', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
@@ -1276,7 +1278,7 @@ describe('EventTimeline', () => {
     });
 
     it('marks selected events as not reviewed', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       vi.clearAllMocks();
       vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
       vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
@@ -1330,7 +1332,7 @@ describe('EventTimeline', () => {
     });
 
     it('shows loading state during bulk mark as not reviewed', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       vi.clearAllMocks();
       vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
       vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
@@ -1385,7 +1387,7 @@ describe('EventTimeline', () => {
     });
 
     it('handles bulk mark as not reviewed errors gracefully', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       vi.clearAllMocks();
       vi.mocked(api.fetchCameras).mockResolvedValue(mockCameras);
       vi.mocked(api.fetchEvents).mockResolvedValue(mockEventsResponse);
@@ -1457,7 +1459,7 @@ describe('EventTimeline', () => {
     });
 
     it('updates risk summary badges when filters are applied', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 
       // Mock filtered response with only high risk events
       const highRiskEvents: Event[] = [
@@ -1503,7 +1505,7 @@ describe('EventTimeline', () => {
     });
 
     it('updates risk summary badges with search query', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
@@ -1763,7 +1765,7 @@ describe('EventTimeline', () => {
 
   describe('Event Detail Modal', () => {
     it('opens modal when clicking on event card', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
@@ -1782,7 +1784,7 @@ describe('EventTimeline', () => {
     });
 
     it('closes modal when close button is clicked', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       renderWithProviders(<EventTimeline />);
 
       await waitFor(() => {
@@ -1821,7 +1823,7 @@ describe('EventTimeline', () => {
     });
 
     it('View Details button calls onViewEventDetails when provided', async () => {
-      const user = userEvent.setup();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       const handleViewDetails = vi.fn();
       renderWithProviders(<EventTimeline onViewEventDetails={handleViewDetails} />);
 
