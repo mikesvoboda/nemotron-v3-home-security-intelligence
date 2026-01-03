@@ -18,6 +18,10 @@ permissions:
   contents: read
   security-events: write
 
+env:
+  # Linear team ID for NEM team
+  LINEAR_TEAM_ID: '998946a2-aa75-491b-a39d-189660131392'
+
 jobs:
   scan-backend:
     name: Scan Backend Image
@@ -46,6 +50,7 @@ jobs:
         run: docker build -t backend:${{ github.sha }} -f backend/Dockerfile.prod .
 
       - name: Run Trivy vulnerability scanner (blocking)
+        id: trivy-scan
         # Fail build on CRITICAL/HIGH vulnerabilities not in .trivyignore
         # Only run if build succeeded
         # Note: SARIF upload skipped for backend due to disk space constraints
@@ -58,6 +63,27 @@ jobs:
           severity: 'CRITICAL,HIGH'
           exit-code: '1'
           trivyignores: '.trivyignore'
+
+      - name: Create Linear issue on vulnerability found
+        if: failure() && steps.trivy-scan.outcome == 'failure'
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          curl -s -X POST https://api.linear.app/graphql \
+            -H "Content-Type: application/json" \
+            -H "Authorization: $LINEAR_API_KEY" \
+            -d '{
+              "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier url } } }",
+              "variables": {
+                "input": {
+                  "teamId": "'"$LINEAR_TEAM_ID"'",
+                  "title": "🔴 Trivy: Backend container vulnerabilities detected",
+                  "description": "## Security Alert\n\nTrivy detected **CRITICAL/HIGH** vulnerabilities in the backend container image.\n\n### Details\n- **Commit:** `${{ github.sha }}`\n- **Branch:** `${{ github.ref_name }}`\n- **Workflow Run:** [View logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})\n- **Triggered by:** ${{ github.actor }}\n\n### Next Steps\n1. Review the Trivy scan output in the workflow logs\n2. Update vulnerable dependencies or add to `.trivyignore` if false positive\n3. Re-run the workflow to verify fix\n\n### References\n- [Trivy Documentation](https://aquasecurity.github.io/trivy/)\n- [.trivyignore file](https://github.com/${{ github.repository }}/blob/main/.trivyignore)",
+                  "priority": 1,
+                  "labelIds": []
+                }
+              }
+            }'
 
   scan-frontend:
     name: Scan Frontend Image
@@ -72,6 +98,7 @@ jobs:
         run: docker build -t frontend:${{ github.sha }} -f frontend/Dockerfile.prod frontend/
 
       - name: Run Trivy vulnerability scanner (blocking)
+        id: trivy-scan
         # Fail build on CRITICAL/HIGH vulnerabilities not in .trivyignore
         # Only run if build succeeded
         if: steps.build.outcome == 'success'
@@ -101,3 +128,24 @@ jobs:
         if: always() && steps.build.outcome == 'success'
         with:
           sarif_file: 'trivy-frontend.sarif'
+
+      - name: Create Linear issue on vulnerability found
+        if: failure() && steps.trivy-scan.outcome == 'failure'
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          curl -s -X POST https://api.linear.app/graphql \
+            -H "Content-Type: application/json" \
+            -H "Authorization: $LINEAR_API_KEY" \
+            -d '{
+              "query": "mutation CreateIssue($input: IssueCreateInput!) { issueCreate(input: $input) { success issue { id identifier url } } }",
+              "variables": {
+                "input": {
+                  "teamId": "'"$LINEAR_TEAM_ID"'",
+                  "title": "🔴 Trivy: Frontend container vulnerabilities detected",
+                  "description": "## Security Alert\n\nTrivy detected **CRITICAL/HIGH** vulnerabilities in the frontend container image.\n\n### Details\n- **Commit:** `${{ github.sha }}`\n- **Branch:** `${{ github.ref_name }}`\n- **Workflow Run:** [View logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})\n- **Triggered by:** ${{ github.actor }}\n\n### Next Steps\n1. Review the Trivy scan output in the workflow logs\n2. Update vulnerable dependencies or add to `.trivyignore` if false positive\n3. Re-run the workflow to verify fix\n\n### References\n- [Trivy Documentation](https://aquasecurity.github.io/trivy/)\n- [.trivyignore file](https://github.com/${{ github.repository }}/blob/main/.trivyignore)",
+                  "priority": 1,
+                  "labelIds": []
+                }
+              }
+            }'
