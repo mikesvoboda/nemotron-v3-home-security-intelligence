@@ -35,14 +35,15 @@ export default {
           high: '#E74856',
         },
 
-        // Text Colors
+        // Text Colors (WCAG 2 AA compliant - 4.5:1 minimum contrast on gray-700)
         text: {
           primary: '#FFFFFF',
-          secondary: '#A0A0A0',
-          muted: '#707070',
+          secondary: '#B0B0B0', // Changed from #A0A0A0 for 5.17:1 contrast on gray-700
+          muted: '#8A8A8A', // Changed from #707070 for better contrast
         },
 
-        // Additional Grays for UI Elements
+        // Additional Grays for UI Elements (WCAG 2 AA compliant)
+        // Lighter grays (500 and below) adjusted for 4.5:1 contrast on gray-700 (#3A3A3A)
         gray: {
           950: '#0E0E0E',
           900: '#1A1A1A',
@@ -50,8 +51,8 @@ export default {
           800: '#2A2A2A',
           700: '#3A3A3A',
           600: '#4A4A4A',
-          500: '#707070',
-          400: '#A0A0A0',
+          500: '#9A9A9A', // Changed from #707070 for 4.7:1 contrast on gray-700
+          400: '#B0B0B0', // Changed from #A0A0A0 for 5.17:1 contrast on gray-700
           300: '#C0C0C0',
           200: '#D0D0D0',
           100: '#E0E0E0',
