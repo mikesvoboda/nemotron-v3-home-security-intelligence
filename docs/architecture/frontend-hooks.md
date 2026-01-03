@@ -107,15 +107,15 @@ interface UseWebSocketReturn {
 
 ```typescript
 const { isConnected, lastMessage, send } = useWebSocket({
-  url: "ws://localhost:8000/ws/events",
-  onMessage: (data) => console.log("Received:", data),
+  url: 'ws://localhost:8000/ws/events',
+  onMessage: (data) => console.log('Received:', data),
   reconnectAttempts: 5,
   reconnectInterval: 3000,
 });
 
 // Send message when connected
 if (isConnected) {
-  send({ type: "ping" });
+  send({ type: 'ping' });
 }
 ```
 
@@ -138,7 +138,7 @@ if (isConnected) {
 **Type Definitions**:
 
 ```typescript
-type ConnectionState = "connected" | "disconnected" | "reconnecting";
+type ConnectionState = 'connected' | 'disconnected' | 'reconnecting';
 
 interface ChannelStatus {
   name: string;
@@ -173,15 +173,15 @@ interface UseWebSocketStatusReturn {
 
 ```typescript
 const { channelStatus, lastMessage } = useWebSocketStatus({
-  url: buildWebSocketUrl("/ws/events"),
-  channelName: "Events",
+  url: buildWebSocketUrl('/ws/events'),
+  channelName: 'Events',
   onMessage: handleMessage,
 });
 
 // Display channel status
 console.log(`${channelStatus.name}: ${channelStatus.state}`);
 console.log(
-  `Reconnect attempts: ${channelStatus.reconnectAttempts}/${channelStatus.maxReconnectAttempts}`,
+  `Reconnect attempts: ${channelStatus.reconnectAttempts}/${channelStatus.maxReconnectAttempts}`
 );
 ```
 
@@ -213,14 +213,14 @@ interface SecurityEvent {
   camera_id: string;
   camera_name?: string;
   risk_score: number;
-  risk_level: "low" | "medium" | "high" | "critical";
+  risk_level: 'low' | 'medium' | 'high' | 'critical';
   summary: string;
   timestamp?: string;
   started_at?: string;
 }
 
 interface BackendEventMessage {
-  type: "event";
+  type: 'event';
   data: SecurityEvent;
 }
 
@@ -275,7 +275,7 @@ return (
 
 ```typescript
 interface SystemStatus {
-  health: "healthy" | "degraded" | "unhealthy";
+  health: 'healthy' | 'degraded' | 'unhealthy';
   gpu_utilization: number | null;
   gpu_temperature: number | null;
   gpu_memory_used: number | null;
@@ -286,7 +286,7 @@ interface SystemStatus {
 }
 
 interface BackendSystemStatus {
-  type: "system_status";
+  type: 'system_status';
   data: {
     gpu: {
       utilization: number | null;
@@ -303,7 +303,7 @@ interface BackendSystemStatus {
       pending: number;
       processing: number;
     };
-    health: "healthy" | "degraded" | "unhealthy";
+    health: 'healthy' | 'degraded' | 'unhealthy';
   };
   timestamp: string;
 }
@@ -487,13 +487,13 @@ return (
 
 ```typescript
 interface ServiceStatus {
-  status: "healthy" | "degraded" | "unhealthy";
+  status: 'healthy' | 'degraded' | 'unhealthy';
   message?: string;
   last_check?: string;
 }
 
 interface HealthResponse {
-  status: "healthy" | "degraded" | "unhealthy";
+  status: 'healthy' | 'degraded' | 'unhealthy';
   services: Record<string, ServiceStatus>;
   timestamp: string;
 }
@@ -507,7 +507,7 @@ interface UseHealthStatusReturn {
   health: HealthResponse | null;
   isLoading: boolean;
   error: string | null;
-  overallStatus: "healthy" | "degraded" | "unhealthy" | null;
+  overallStatus: 'healthy' | 'degraded' | 'unhealthy' | null;
   services: Record<string, ServiceStatus>;
   refresh: () => Promise<void>;
 }
@@ -704,9 +704,9 @@ Type guards validate the envelope structure before processing:
 
 ```typescript
 function isBackendEventMessage(data: unknown): data is BackendEventMessage {
-  if (!data || typeof data !== "object") return false;
+  if (!data || typeof data !== 'object') return false;
   const msg = data as Record<string, unknown>;
-  return msg.type === "event" && isSecurityEvent(msg.data);
+  return msg.type === 'event' && isSecurityEvent(msg.data);
 }
 ```
 
@@ -747,14 +747,14 @@ function isBackendEventMessage(data: unknown): data is BackendEventMessage {
 All WebSocket hooks use `buildWebSocketUrl()` for consistent URL construction:
 
 ```typescript
-import { buildWebSocketUrl } from "../services/api";
+import { buildWebSocketUrl } from '../services/api';
 
 // Automatically handles:
 // - VITE_WS_BASE_URL environment variable
 // - Falls back to window.location.host
 // - Appends api_key query param if VITE_API_KEY is set
 // - Converts ws:// or wss:// protocol based on location
-const wsUrl = buildWebSocketUrl("/ws/events");
+const wsUrl = buildWebSocketUrl('/ws/events');
 
 const { isConnected } = useWebSocket({ url: wsUrl });
 ```
@@ -779,7 +779,7 @@ The base `useWebSocket` hook handles reconnection automatically:
 ```typescript
 const { channelStatus } = useWebSocketStatus({
   url: wsUrl,
-  channelName: "Events",
+  channelName: 'Events',
 });
 
 // channelStatus.state: 'connected' | 'reconnecting' | 'disconnected'
@@ -858,7 +858,7 @@ All hooks have comprehensive test coverage using Vitest and React Testing Librar
 All WebSocket hooks check for `window.WebSocket` availability before connecting:
 
 ```typescript
-if (typeof window === "undefined" || !window.WebSocket) {
+if (typeof window === 'undefined' || !window.WebSocket) {
   return;
 }
 ```

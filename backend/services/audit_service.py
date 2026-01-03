@@ -25,7 +25,6 @@ if TYPE_CHECKING:
     from backend.services.enrichment_pipeline import EnrichmentResult
 
 logger = get_logger(__name__)
-settings = get_settings()
 
 # Model names for contribution tracking
 MODEL_NAMES = [
@@ -130,6 +129,8 @@ class AuditService:
     """Service for AI pipeline auditing and self-evaluation."""
 
     def __init__(self) -> None:
+        # Lazy load settings to avoid module-level database URL requirement
+        settings = get_settings()
         self._llm_url = settings.nemotron_url
         self._timeout = httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=10.0)
 

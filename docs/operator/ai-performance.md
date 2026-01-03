@@ -202,7 +202,7 @@ Already enabled by default in `ai/start_llm.sh`.
 In `docker-compose.prod.yml`, adjust uvicorn workers:
 
 ```yaml
-command: ["uvicorn", "backend.main:app", "--workers", "4"]
+command: ['uvicorn', 'backend.main:app', '--workers', '4']
 ```
 
 - **2 workers**: Low memory usage

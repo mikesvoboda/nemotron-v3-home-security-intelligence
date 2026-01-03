@@ -5,11 +5,11 @@
 
 ## Summary
 
-| Model | Load Time | VRAM Used | Inference | Recovered | Status |
-|-------|-----------|-----------|-----------|-----------|--------|
-| fashion-clip | 0.00s | 0MB | N/A | Yes | ERROR |
-| weather-classification | 0.59s | 444MB | 274ms | No | OK |
-| pet-classifier | 0.16s | 2MB | N/A | No | OK |
+| Model                  | Load Time | VRAM Used | Inference | Recovered | Status |
+| ---------------------- | --------- | --------- | --------- | --------- | ------ |
+| fashion-clip           | 0.00s     | 0MB       | N/A       | Yes       | ERROR  |
+| weather-classification | 0.59s     | 444MB     | 274ms     | No        | OK     |
+| pet-classifier         | 0.16s     | 2MB       | N/A       | No        | OK     |
 
 ## Statistics
 
@@ -22,11 +22,11 @@
 
 ## Success Criteria
 
-| Criteria | Target | Actual | Pass |
-|----------|--------|--------|------|
-| Max VRAM per model | <1500MB | 444MB | PASS |
-| Max load time | <5s | 0.59s | PASS |
-| VRAM recovered | Yes | No | FAIL |
+| Criteria           | Target  | Actual | Pass |
+| ------------------ | ------- | ------ | ---- |
+| Max VRAM per model | <1500MB | 444MB  | PASS |
+| Max load time      | <5s     | 0.59s  | PASS |
+| VRAM recovered     | Yes     | No     | FAIL |
 
 ## Detailed Results
 

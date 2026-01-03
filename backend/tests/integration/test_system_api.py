@@ -758,3 +758,770 @@ async def test_pipeline_status_timestamp_is_recent(client, mock_redis):
     timestamp = datetime.fromisoformat(data["timestamp"].replace("Z", "+00:00"))
     now = datetime.now(UTC)
     assert (now - timestamp).total_seconds() < 60
+
+
+# =============================================================================
+# Circuit Breaker Endpoint Integration Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_circuit_breakers_returns_valid_response(client, mock_redis):
+    """Test GET /api/system/circuit-breakers returns valid structure."""
+    response = await client.get("/api/system/circuit-breakers")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # Verify response structure
+    assert "circuit_breakers" in data
+    assert "total_count" in data
+    assert "open_count" in data
+    assert "timestamp" in data
+
+    # Verify types
+    assert isinstance(data["circuit_breakers"], dict)
+    assert isinstance(data["total_count"], int)
+    assert isinstance(data["open_count"], int)
+    assert data["total_count"] >= 0
+    assert data["open_count"] >= 0
+    assert data["open_count"] <= data["total_count"]
+
+    # Verify timestamp is valid
+    timestamp = datetime.fromisoformat(data["timestamp"].replace("Z", "+00:00"))
+    assert isinstance(timestamp, datetime)
+
+
+@pytest.mark.asyncio
+async def test_get_circuit_breakers_with_registered_breakers(client, mock_redis):
+    """Test circuit breakers endpoint when breakers are registered."""
+    from backend.services.circuit_breaker import (
+        CircuitBreakerConfig,
+        _get_registry,
+        reset_circuit_breaker_registry,
+    )
+
+    # Reset and create test circuit breakers
+    reset_circuit_breaker_registry()
+    registry = _get_registry()
+
+    # Create a few test circuit breakers
+    config = CircuitBreakerConfig(failure_threshold=5, recovery_timeout=30.0)
+    registry.get_or_create("test_service_1", config)
+    registry.get_or_create("test_service_2", config)
+
+    try:
+        response = await client.get("/api/system/circuit-breakers")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["total_count"] >= 2
+        assert "test_service_1" in data["circuit_breakers"]
+        assert "test_service_2" in data["circuit_breakers"]
+
+        # Verify individual breaker structure
+        breaker = data["circuit_breakers"]["test_service_1"]
+        assert breaker["name"] == "test_service_1"
+        assert breaker["state"] == "closed"
+        assert breaker["failure_count"] == 0
+        assert breaker["success_count"] == 0
+        assert "config" in breaker
+        assert breaker["config"]["failure_threshold"] == 5
+        assert breaker["config"]["recovery_timeout"] == 30.0
+
+    finally:
+        reset_circuit_breaker_registry()
+
+
+@pytest.mark.asyncio
+async def test_get_circuit_breakers_shows_open_state(client, mock_redis):
+    """Test circuit breakers endpoint correctly reports open breakers."""
+    from backend.services.circuit_breaker import (
+        CircuitBreakerConfig,
+        _get_registry,
+        reset_circuit_breaker_registry,
+    )
+
+    reset_circuit_breaker_registry()
+    registry = _get_registry()
+
+    # Create a breaker and force it open
+    config = CircuitBreakerConfig(failure_threshold=3, recovery_timeout=30.0)
+    breaker = registry.get_or_create("test_open_breaker", config)
+    breaker.force_open()
+
+    try:
+        response = await client.get("/api/system/circuit-breakers")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["open_count"] >= 1
+        assert "test_open_breaker" in data["circuit_breakers"]
+        assert data["circuit_breakers"]["test_open_breaker"]["state"] == "open"
+
+    finally:
+        reset_circuit_breaker_registry()
+
+
+@pytest.mark.asyncio
+async def test_reset_circuit_breaker_success(client, mock_redis):
+    """Test POST /api/system/circuit-breakers/{name}/reset successfully resets a breaker."""
+    from backend.services.circuit_breaker import (
+        CircuitBreakerConfig,
+        _get_registry,
+        reset_circuit_breaker_registry,
+    )
+
+    reset_circuit_breaker_registry()
+    registry = _get_registry()
+
+    # Create a breaker and force it open
+    config = CircuitBreakerConfig(failure_threshold=3, recovery_timeout=30.0)
+    breaker = registry.get_or_create("resettable_breaker", config)
+    breaker.force_open()
+
+    try:
+        # Verify breaker is open
+        assert breaker.state.value == "open"
+
+        response = await client.post("/api/system/circuit-breakers/resettable_breaker/reset")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["name"] == "resettable_breaker"
+        assert data["previous_state"] == "open"
+        assert data["new_state"] == "closed"
+        assert "reset successfully" in data["message"]
+
+        # Verify breaker is now closed
+        assert breaker.state.value == "closed"
+
+    finally:
+        reset_circuit_breaker_registry()
+
+
+@pytest.mark.asyncio
+async def test_reset_circuit_breaker_not_found(client, mock_redis):
+    """Test resetting a non-existent circuit breaker returns 404."""
+    from backend.services.circuit_breaker import reset_circuit_breaker_registry
+
+    reset_circuit_breaker_registry()
+
+    try:
+        response = await client.post("/api/system/circuit-breakers/nonexistent_breaker/reset")
+
+        assert response.status_code == 404
+        data = response.json()
+        assert "not found" in data["detail"].lower()
+
+    finally:
+        reset_circuit_breaker_registry()
+
+
+@pytest.mark.asyncio
+async def test_reset_circuit_breaker_invalid_name(client, mock_redis):
+    """Test resetting with invalid name characters returns 400."""
+    response = await client.post("/api/system/circuit-breakers/invalid@name!/reset")
+
+    assert response.status_code == 400
+    data = response.json()
+    assert "invalid" in data["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_reset_circuit_breaker_empty_name(client, mock_redis):
+    """Test resetting with empty name returns appropriate error."""
+    # Empty name in URL path typically results in 404 (route not found)
+    # or a redirect, so we test with a very long name for 400
+    long_name = "a" * 100  # Exceeds 64 character limit
+    response = await client.post(f"/api/system/circuit-breakers/{long_name}/reset")
+
+    assert response.status_code == 400
+    data = response.json()
+    assert "invalid" in data["detail"].lower() or "1-64 characters" in data["detail"]
+
+
+# =============================================================================
+# Cleanup Service Status Endpoint Integration Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_get_cleanup_status_service_not_running(client, mock_redis):
+    """Test GET /api/system/cleanup/status when service is not running."""
+    from backend.api.routes import system as system_routes
+
+    # Save original
+    original_cleanup_service = system_routes._cleanup_service
+
+    try:
+        # Set cleanup service to None
+        system_routes._cleanup_service = None
+
+        response = await client.get("/api/system/cleanup/status")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify structure
+        assert "running" in data
+        assert "retention_days" in data
+        assert "cleanup_time" in data
+        assert "delete_images" in data
+        assert "next_cleanup" in data
+        assert "timestamp" in data
+
+        # When not running, should report as not running
+        assert data["running"] is False
+        assert data["next_cleanup"] is None
+        assert isinstance(data["retention_days"], int)
+
+    finally:
+        system_routes._cleanup_service = original_cleanup_service
+
+
+@pytest.mark.asyncio
+async def test_get_cleanup_status_service_running(client, mock_redis):
+    """Test GET /api/system/cleanup/status when service is running."""
+    from unittest.mock import MagicMock
+
+    from backend.api.routes import system as system_routes
+
+    # Save original
+    original_cleanup_service = system_routes._cleanup_service
+
+    try:
+        # Create mock cleanup service
+        mock_cleanup = MagicMock()
+        mock_cleanup.get_cleanup_stats.return_value = {
+            "running": True,
+            "retention_days": 30,
+            "cleanup_time": "03:00",
+            "delete_images": False,
+            "next_cleanup": "2025-12-31T03:00:00+00:00",
+        }
+        system_routes._cleanup_service = mock_cleanup
+
+        response = await client.get("/api/system/cleanup/status")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["running"] is True
+        assert data["retention_days"] == 30
+        assert data["cleanup_time"] == "03:00"
+        assert data["delete_images"] is False
+        assert data["next_cleanup"] is not None
+
+    finally:
+        system_routes._cleanup_service = original_cleanup_service
+
+
+@pytest.mark.asyncio
+async def test_get_cleanup_status_with_active_cleanup(client, mock_redis):
+    """Test cleanup status reflects current settings during active cleanup."""
+    from unittest.mock import MagicMock
+
+    from backend.api.routes import system as system_routes
+
+    original_cleanup_service = system_routes._cleanup_service
+
+    try:
+        # Simulate active cleanup with custom retention
+        mock_cleanup = MagicMock()
+        mock_cleanup.get_cleanup_stats.return_value = {
+            "running": True,
+            "retention_days": 7,  # Custom retention
+            "cleanup_time": "02:00",
+            "delete_images": True,  # Images deletion enabled
+            "next_cleanup": "2025-12-30T02:00:00+00:00",
+        }
+        system_routes._cleanup_service = mock_cleanup
+
+        response = await client.get("/api/system/cleanup/status")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data["retention_days"] == 7
+        assert data["cleanup_time"] == "02:00"
+        assert data["delete_images"] is True
+
+    finally:
+        system_routes._cleanup_service = original_cleanup_service
+
+
+# =============================================================================
+# WebSocket Health Endpoint Integration Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_websocket_health_returns_valid_structure(client, mock_redis):
+    """Test GET /api/system/health/websocket returns valid response structure."""
+    response = await client.get("/api/system/health/websocket")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # Verify structure
+    assert "event_broadcaster" in data
+    assert "system_broadcaster" in data
+    assert "timestamp" in data
+
+    # Verify timestamp
+    timestamp = datetime.fromisoformat(data["timestamp"].replace("Z", "+00:00"))
+    assert isinstance(timestamp, datetime)
+
+
+@pytest.mark.asyncio
+async def test_websocket_health_with_healthy_broadcasters(client, mock_redis):
+    """Test WebSocket health when broadcasters are healthy."""
+    from unittest.mock import MagicMock
+
+    from backend.services.circuit_breaker import CircuitState
+
+    # Mock the broadcasters to simulate healthy state
+    mock_event_broadcaster = MagicMock()
+    mock_event_broadcaster.get_circuit_state.return_value = CircuitState.CLOSED
+    mock_event_broadcaster.circuit_breaker.failure_count = 0
+    mock_event_broadcaster.is_degraded.return_value = False
+
+    mock_system_broadcaster = MagicMock()
+    mock_system_broadcaster.get_circuit_state.return_value = CircuitState.CLOSED
+    mock_system_broadcaster.circuit_breaker.failure_count = 0
+    mock_system_broadcaster._pubsub_listening = True
+
+    with (
+        patch(
+            "backend.services.event_broadcaster._broadcaster",
+            mock_event_broadcaster,
+        ),
+        patch(
+            "backend.services.system_broadcaster._system_broadcaster",
+            mock_system_broadcaster,
+        ),
+    ):
+        response = await client.get("/api/system/health/websocket")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # When broadcasters are healthy
+        if data["event_broadcaster"] is not None:
+            assert data["event_broadcaster"]["state"] == "closed"
+            assert data["event_broadcaster"]["is_degraded"] is False
+
+        if data["system_broadcaster"] is not None:
+            assert data["system_broadcaster"]["state"] == "closed"
+
+
+@pytest.mark.asyncio
+async def test_websocket_health_with_degraded_broadcaster(client, mock_redis):
+    """Test WebSocket health when a broadcaster is in degraded mode."""
+    from unittest.mock import MagicMock
+
+    from backend.services.circuit_breaker import CircuitState
+
+    # Mock event broadcaster in degraded state
+    mock_event_broadcaster = MagicMock()
+    mock_event_broadcaster.get_circuit_state.return_value = CircuitState.OPEN
+    mock_event_broadcaster.circuit_breaker.failure_count = 5
+    mock_event_broadcaster.is_degraded.return_value = True
+
+    with patch(
+        "backend.services.event_broadcaster._broadcaster",
+        mock_event_broadcaster,
+    ):
+        response = await client.get("/api/system/health/websocket")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        if data["event_broadcaster"] is not None:
+            assert data["event_broadcaster"]["state"] == "open"
+            assert data["event_broadcaster"]["failure_count"] == 5
+            assert data["event_broadcaster"]["is_degraded"] is True
+
+
+# =============================================================================
+# Storage Statistics Endpoint Integration Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_storage_endpoint_returns_valid_structure(client, mock_redis):
+    """Test GET /api/system/storage returns valid response structure."""
+    response = await client.get("/api/system/storage")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # Verify disk usage fields
+    assert "disk_used_bytes" in data
+    assert "disk_total_bytes" in data
+    assert "disk_free_bytes" in data
+    assert "disk_usage_percent" in data
+
+    # Verify storage categories
+    assert "thumbnails" in data
+    assert "images" in data
+    assert "clips" in data
+
+    # Verify database counts
+    assert "events_count" in data
+    assert "detections_count" in data
+    assert "gpu_stats_count" in data
+    assert "logs_count" in data
+
+    # Verify timestamp
+    assert "timestamp" in data
+    timestamp = datetime.fromisoformat(data["timestamp"].replace("Z", "+00:00"))
+    assert isinstance(timestamp, datetime)
+
+
+@pytest.mark.asyncio
+async def test_storage_endpoint_disk_usage_values(client, mock_redis):
+    """Test storage endpoint returns reasonable disk usage values."""
+    response = await client.get("/api/system/storage")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # Disk values should be non-negative
+    assert data["disk_used_bytes"] >= 0
+    assert data["disk_total_bytes"] >= 0
+    assert data["disk_free_bytes"] >= 0
+
+    # Usage percent should be between 0 and 100
+    assert 0 <= data["disk_usage_percent"] <= 100
+
+    # Total should equal used + free (approximately, accounting for reserved space)
+    # We allow some tolerance as filesystems reserve space for system use
+    if data["disk_total_bytes"] > 0:
+        calculated_total = data["disk_used_bytes"] + data["disk_free_bytes"]
+        # Allow 5% tolerance for reserved blocks
+        assert abs(calculated_total - data["disk_total_bytes"]) < data["disk_total_bytes"] * 0.05
+
+
+@pytest.mark.asyncio
+async def test_storage_endpoint_category_stats(client, mock_redis):
+    """Test storage endpoint returns valid category statistics."""
+    response = await client.get("/api/system/storage")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # Each category should have file_count and size_bytes
+    for category in ["thumbnails", "images", "clips"]:
+        assert "file_count" in data[category]
+        assert "size_bytes" in data[category]
+        assert data[category]["file_count"] >= 0
+        assert data[category]["size_bytes"] >= 0
+
+
+@pytest.mark.asyncio
+async def test_storage_endpoint_database_counts(client, mock_redis, integration_db):
+    """Test storage endpoint returns database record counts."""
+    response = await client.get("/api/system/storage")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # All counts should be non-negative integers
+    assert isinstance(data["events_count"], int)
+    assert isinstance(data["detections_count"], int)
+    assert isinstance(data["gpu_stats_count"], int)
+    assert isinstance(data["logs_count"], int)
+
+    assert data["events_count"] >= 0
+    assert data["detections_count"] >= 0
+    assert data["gpu_stats_count"] >= 0
+    assert data["logs_count"] >= 0
+
+
+# =============================================================================
+# Severity Metadata Endpoint Integration Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_severity_endpoint_returns_valid_structure(client, mock_redis):
+    """Test GET /api/system/severity returns valid response structure."""
+    response = await client.get("/api/system/severity")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # Verify main structure
+    assert "definitions" in data
+    assert "thresholds" in data
+
+    # Verify definitions is a list with expected severity levels
+    assert isinstance(data["definitions"], list)
+    assert len(data["definitions"]) == 4  # LOW, MEDIUM, HIGH, CRITICAL
+
+    # Verify thresholds structure
+    thresholds = data["thresholds"]
+    assert "low_max" in thresholds
+    assert "medium_max" in thresholds
+    assert "high_max" in thresholds
+
+
+@pytest.mark.asyncio
+async def test_severity_endpoint_definitions_content(client, mock_redis):
+    """Test severity definitions contain expected fields and values."""
+    response = await client.get("/api/system/severity")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    severity_values = set()
+    for defn in data["definitions"]:
+        # Each definition should have required fields
+        assert "severity" in defn
+        assert "label" in defn
+        assert "description" in defn
+        assert "color" in defn
+        assert "priority" in defn
+        assert "min_score" in defn
+        assert "max_score" in defn
+
+        # Validate color format (hex color)
+        assert defn["color"].startswith("#")
+        assert len(defn["color"]) == 7
+
+        # Validate score range
+        assert 0 <= defn["min_score"] <= 100
+        assert 0 <= defn["max_score"] <= 100
+        assert defn["min_score"] <= defn["max_score"]
+
+        # Collect severity values
+        severity_values.add(defn["severity"])
+
+    # Should have all four severity levels
+    assert severity_values == {"low", "medium", "high", "critical"}
+
+
+@pytest.mark.asyncio
+async def test_severity_endpoint_threshold_ordering(client, mock_redis):
+    """Test severity thresholds are properly ordered."""
+    response = await client.get("/api/system/severity")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    thresholds = data["thresholds"]
+
+    # Thresholds should be in ascending order
+    assert thresholds["low_max"] < thresholds["medium_max"]
+    assert thresholds["medium_max"] < thresholds["high_max"]
+
+    # All should be within valid range
+    assert 0 <= thresholds["low_max"] <= 100
+    assert 0 <= thresholds["medium_max"] <= 100
+    assert 0 <= thresholds["high_max"] <= 100
+
+
+@pytest.mark.asyncio
+async def test_severity_endpoint_default_thresholds(client, mock_redis):
+    """Test severity endpoint returns expected default thresholds."""
+    response = await client.get("/api/system/severity")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # Default thresholds as defined in the severity service
+    thresholds = data["thresholds"]
+    assert thresholds["low_max"] == 29
+    assert thresholds["medium_max"] == 59
+    assert thresholds["high_max"] == 84
+
+
+# =============================================================================
+# Pipeline Latency Endpoint Integration Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_pipeline_latency_endpoint_returns_valid_structure(client, mock_redis):
+    """Test GET /api/system/pipeline-latency returns valid response structure."""
+    response = await client.get("/api/system/pipeline-latency")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # Verify main structure
+    assert "watch_to_detect" in data
+    assert "detect_to_batch" in data
+    assert "batch_to_analyze" in data
+    assert "total_pipeline" in data
+    assert "window_minutes" in data
+    assert "timestamp" in data
+
+    # Verify timestamp is valid
+    timestamp = datetime.fromisoformat(data["timestamp"].replace("Z", "+00:00"))
+    assert isinstance(timestamp, datetime)
+
+
+@pytest.mark.asyncio
+async def test_pipeline_latency_endpoint_default_window(client, mock_redis):
+    """Test pipeline latency uses default window of 60 minutes."""
+    response = await client.get("/api/system/pipeline-latency")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["window_minutes"] == 60
+
+
+@pytest.mark.asyncio
+async def test_pipeline_latency_endpoint_custom_window(client, mock_redis):
+    """Test pipeline latency accepts custom window parameter."""
+    response = await client.get("/api/system/pipeline-latency?window_minutes=30")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["window_minutes"] == 30
+
+
+@pytest.mark.asyncio
+async def test_pipeline_latency_with_data(client, mock_redis):
+    """Test pipeline latency returns statistics when data is available."""
+    from backend.core.metrics import get_pipeline_latency_tracker
+
+    # Get the global tracker and add some sample data
+    tracker = get_pipeline_latency_tracker()
+
+    # Record some sample latencies
+    tracker.record_stage_latency("watch_to_detect", 50.0)
+    tracker.record_stage_latency("watch_to_detect", 75.0)
+    tracker.record_stage_latency("watch_to_detect", 100.0)
+
+    tracker.record_stage_latency("detect_to_batch", 200.0)
+    tracker.record_stage_latency("detect_to_batch", 250.0)
+
+    response = await client.get("/api/system/pipeline-latency")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # Should have data for recorded stages
+    if data["watch_to_detect"] is not None:
+        stage_data = data["watch_to_detect"]
+        assert "avg_ms" in stage_data
+        assert "min_ms" in stage_data
+        assert "max_ms" in stage_data
+        assert "p50_ms" in stage_data
+        assert "p95_ms" in stage_data
+        assert "p99_ms" in stage_data
+        assert "sample_count" in stage_data
+
+        # Verify statistics are reasonable
+        if stage_data["sample_count"] > 0:
+            assert stage_data["min_ms"] <= stage_data["avg_ms"] <= stage_data["max_ms"]
+
+
+@pytest.mark.asyncio
+async def test_pipeline_latency_empty_stages(client, mock_redis):
+    """Test pipeline latency returns null for stages with no data."""
+    from unittest.mock import MagicMock
+
+    # Create a fresh tracker with no data
+    mock_tracker = MagicMock()
+    mock_tracker.get_pipeline_summary.return_value = {
+        "watch_to_detect": {"sample_count": 0, "avg_ms": None, "min_ms": None, "max_ms": None},
+        "detect_to_batch": {"sample_count": 0, "avg_ms": None, "min_ms": None, "max_ms": None},
+        "batch_to_analyze": {"sample_count": 0, "avg_ms": None, "min_ms": None, "max_ms": None},
+        "total_pipeline": {"sample_count": 0, "avg_ms": None, "min_ms": None, "max_ms": None},
+    }
+
+    with patch("backend.core.metrics.get_pipeline_latency_tracker", return_value=mock_tracker):
+        response = await client.get("/api/system/pipeline-latency")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Stages with no samples should have None values or sample_count == 0
+        for stage in ["watch_to_detect", "detect_to_batch", "batch_to_analyze", "total_pipeline"]:
+            assert data[stage] is None or data[stage].get("sample_count", 0) == 0
+
+
+@pytest.mark.asyncio
+async def test_pipeline_latency_percentile_calculation(client, mock_redis):
+    """Test pipeline latency correctly calculates percentiles."""
+    from backend.core.metrics import get_pipeline_latency_tracker
+
+    tracker = get_pipeline_latency_tracker()
+
+    # Record samples to test percentile calculation
+    for i in range(100):
+        tracker.record_stage_latency("total_pipeline", float(i * 10))  # 0, 10, 20, ... 990
+
+    response = await client.get("/api/system/pipeline-latency")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    if data["total_pipeline"] is not None and data["total_pipeline"].get("sample_count", 0) >= 100:
+        stage = data["total_pipeline"]
+
+        # P50 should be around the median
+        assert stage["p50_ms"] is not None
+
+        # P95 should be higher than P50
+        assert stage["p95_ms"] >= stage["p50_ms"]
+
+        # P99 should be highest
+        assert stage["p99_ms"] >= stage["p95_ms"]
+
+
+# =============================================================================
+# Combined System Endpoints Concurrent Access Tests
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_system_monitoring_endpoints_concurrent_access(client, mock_redis):
+    """Test that monitoring endpoints handle concurrent requests correctly."""
+    import asyncio
+
+    # List of monitoring endpoints to test concurrently
+    endpoints = [
+        "/api/system/circuit-breakers",
+        "/api/system/cleanup/status",
+        "/api/system/health/websocket",
+        "/api/system/storage",
+        "/api/system/severity",
+        "/api/system/pipeline-latency",
+    ]
+
+    # Make concurrent requests to all endpoints
+    tasks = [client.get(endpoint) for endpoint in endpoints * 3]
+    responses = await asyncio.gather(*tasks)
+
+    # All requests should succeed
+    for response in responses:
+        assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_system_monitoring_endpoints_json_content_type(client, mock_redis):
+    """Test that all monitoring endpoints return JSON content type."""
+    endpoints = [
+        "/api/system/circuit-breakers",
+        "/api/system/cleanup/status",
+        "/api/system/health/websocket",
+        "/api/system/storage",
+        "/api/system/severity",
+        "/api/system/pipeline-latency",
+    ]
+
+    for endpoint in endpoints:
+        response = await client.get(endpoint)
+        assert response.status_code == 200
+        assert "application/json" in response.headers["content-type"]

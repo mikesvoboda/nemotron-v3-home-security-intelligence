@@ -19,7 +19,7 @@ Refactor `useWebSocket.ts` to use `webSocketManager` singleton internally, enabl
 Replace raw WebSocket logic (~320 lines) with delegation to webSocketManager (~80 lines):
 
 ```typescript
-import { webSocketManager, generateSubscriberId } from "./webSocketManager";
+import { webSocketManager, generateSubscriberId } from './webSocketManager';
 
 export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
   const {
@@ -113,7 +113,7 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
         maxReconnectAttempts: reconnectAttempts,
         connectionTimeout,
         autoRespondToHeartbeat,
-      },
+      }
     );
   }, [
     url,
@@ -134,10 +134,10 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
   const send = useCallback(
     (data: unknown) => {
       if (!webSocketManager.send(url, data)) {
-        console.warn("WebSocket is not connected. Message not sent:", data);
+        console.warn('WebSocket is not connected. Message not sent:', data);
       }
     },
-    [url],
+    [url]
   );
 
   // Connect on mount, disconnect on unmount
@@ -161,7 +161,7 @@ export function useWebSocket(options: WebSocketOptions): UseWebSocketReturn {
 }
 
 // Keep exports for backward compatibility
-export { isHeartbeatMessage, calculateBackoffDelay } from "./webSocketManager";
+export { isHeartbeatMessage, calculateBackoffDelay } from './webSocketManager';
 ```
 
 ### API Mapping
@@ -205,15 +205,11 @@ export { isHeartbeatMessage, calculateBackoffDelay } from "./webSocketManager";
 Add test verifying deduplication:
 
 ```typescript
-it("should share connection for same URL", () => {
-  const { result: result1 } = renderHook(() =>
-    useWebSocket({ url: "ws://test/events" }),
-  );
-  const { result: result2 } = renderHook(() =>
-    useWebSocket({ url: "ws://test/events" }),
-  );
+it('should share connection for same URL', () => {
+  const { result: result1 } = renderHook(() => useWebSocket({ url: 'ws://test/events' }));
+  const { result: result2 } = renderHook(() => useWebSocket({ url: 'ws://test/events' }));
 
-  expect(webSocketManager.getSubscriberCount("ws://test/events")).toBe(2);
+  expect(webSocketManager.getSubscriberCount('ws://test/events')).toBe(2);
   // Only one actual WebSocket connection
 });
 ```

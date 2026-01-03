@@ -1309,7 +1309,7 @@ git commit -m "feat(audit): create partial audit records inline with events"
  * API client for AI audit endpoints
  */
 
-const API_BASE = "/api/audit";
+const API_BASE = '/api/audit';
 
 export interface ModelContributions {
   rtdetr: boolean;
@@ -1380,44 +1380,37 @@ export interface Recommendation {
   category: string;
   suggestion: string;
   frequency: number;
-  priority: "high" | "medium" | "low";
+  priority: 'high' | 'medium' | 'low';
 }
 
 export async function fetchEventAudit(eventId: number): Promise<EventAudit> {
   const response = await fetch(`${API_BASE}/events/${eventId}`);
   if (!response.ok) {
     if (response.status === 404) {
-      throw new Error("No audit found for this event");
+      throw new Error('No audit found for this event');
     }
-    throw new Error("Failed to fetch audit");
+    throw new Error('Failed to fetch audit');
   }
   return response.json();
 }
 
-export async function triggerEvaluation(
-  eventId: number,
-  force = false,
-): Promise<EventAudit> {
-  const response = await fetch(
-    `${API_BASE}/events/${eventId}/evaluate?force=${force}`,
-    { method: "POST" },
-  );
+export async function triggerEvaluation(eventId: number, force = false): Promise<EventAudit> {
+  const response = await fetch(`${API_BASE}/events/${eventId}/evaluate?force=${force}`, {
+    method: 'POST',
+  });
   if (!response.ok) {
-    throw new Error("Failed to trigger evaluation");
+    throw new Error('Failed to trigger evaluation');
   }
   return response.json();
 }
 
-export async function fetchAuditStats(
-  days = 7,
-  cameraId?: string,
-): Promise<AuditStats> {
+export async function fetchAuditStats(days = 7, cameraId?: string): Promise<AuditStats> {
   const params = new URLSearchParams({ days: days.toString() });
-  if (cameraId) params.set("camera_id", cameraId);
+  if (cameraId) params.set('camera_id', cameraId);
 
   const response = await fetch(`${API_BASE}/stats?${params}`);
   if (!response.ok) {
-    throw new Error("Failed to fetch audit stats");
+    throw new Error('Failed to fetch audit stats');
   }
   return response.json();
 }
@@ -1428,7 +1421,7 @@ export async function fetchLeaderboard(days = 7): Promise<{
 }> {
   const response = await fetch(`${API_BASE}/leaderboard?days=${days}`);
   if (!response.ok) {
-    throw new Error("Failed to fetch leaderboard");
+    throw new Error('Failed to fetch leaderboard');
   }
   return response.json();
 }
@@ -1439,18 +1432,18 @@ export async function fetchRecommendations(days = 7): Promise<{
 }> {
   const response = await fetch(`${API_BASE}/recommendations?days=${days}`);
   if (!response.ok) {
-    throw new Error("Failed to fetch recommendations");
+    throw new Error('Failed to fetch recommendations');
   }
   return response.json();
 }
 
 export async function triggerBatchAudit(
   limit = 100,
-  minRiskScore?: number,
+  minRiskScore?: number
 ): Promise<{ queued_count: number; message: string }> {
   const response = await fetch(`${API_BASE}/batch`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       limit,
       min_risk_score: minRiskScore,
@@ -1458,7 +1451,7 @@ export async function triggerBatchAudit(
     }),
   });
   if (!response.ok) {
-    throw new Error("Failed to trigger batch audit");
+    throw new Error('Failed to trigger batch audit');
   }
   return response.json();
 }
@@ -1721,7 +1714,7 @@ function StatCard({
 
 ```typescript
 // frontend/src/components/audit/index.ts
-export { default as AIPerformancePage } from "./AIPerformancePage";
+export { default as AIPerformancePage } from './AIPerformancePage';
 ```
 
 **Step 3: Commit**
@@ -2024,7 +2017,7 @@ function ImprovementList({ label, items }: { label: string; items: string[] }) {
 Add to `frontend/src/components/audit/index.ts`:
 
 ```typescript
-export { default as EventAuditDetail } from "./EventAuditDetail";
+export { default as EventAuditDetail } from './EventAuditDetail';
 ```
 
 **Step 3: Commit**

@@ -146,18 +146,19 @@ npx playwright test -g "dashboard"
 
 From `frontend/playwright.config.ts`:
 
-| Setting             | Value                     |
-| ------------------- | ------------------------- |
-| `testDir`           | `./tests/e2e`             |
-| `baseURL`           | `http://localhost:5173`   |
-| `browsers`          | Chromium, Firefox, WebKit |
-| `timeout`           | 30 seconds                |
-| `expect.timeout`    | 5 seconds                 |
-| `navigationTimeout` | 10 seconds                |
-| `retries`           | 2 (CI only)               |
-| `workers`           | 1 (CI), unlimited (local) |
-| `fullyParallel`     | true                      |
-| `webServer.command` | `npm run dev:e2e`         |
+| Setting             | Value                                      |
+| ------------------- | ------------------------------------------ |
+| `testDir`           | `./tests/e2e/specs`                        |
+| `baseURL`           | `http://localhost:5173`                    |
+| `browsers`          | Chromium, Firefox, WebKit                  |
+| `timeout`           | 15 seconds                                 |
+| `expect.timeout`    | 3 seconds                                  |
+| `navigationTimeout` | 10 seconds                                 |
+| `actionTimeout`     | 5s (Chromium), 8s (Firefox/WebKit)         |
+| `retries`           | 2 (CI only)                                |
+| `workers`           | 4 (CI), unlimited (local)                  |
+| `fullyParallel`     | true                                       |
+| `webServer.command` | `npm run dev:e2e`                          |
 
 **Artifacts on Failure:**
 
@@ -194,6 +195,21 @@ From `frontend/playwright.config.ts`:
 - Response shapes must match actual API schemas
 - Camera snapshots return a transparent 1x1 PNG
 - Page objects encapsulate all selectors - update there, not in specs
+
+## Cross-Browser Testing
+
+**Chromium** is the primary browser, with **Firefox** and **WebKit** as secondary:
+
+- Secondary browsers run with `continue-on-error: true` in CI
+- Firefox and WebKit have longer action timeouts (8s vs 5s)
+- All browsers get 2 retries in CI to handle flaky tests
+- Use `test.skip(browserName === 'webkit', 'reason')` for browser-specific skips
+- Example skip pattern: `navigation.spec.ts` skips the 8-route sequential test on secondary browsers
+
+**Known differences:**
+- WebKit may render certain CSS differently
+- Firefox has slightly different timing for animations
+- WebSocket behavior may vary slightly between browsers
 
 ## Entry Points
 

@@ -210,8 +210,8 @@ workflows/
 ```yaml
 - uses: actions/setup-python@v5
   with:
-    python-version: "3.12"
-    cache: "pip"
+    python-version: '3.12'
+    cache: 'pip'
     cache-dependency-path: backend/requirements*.txt
 ```
 
@@ -220,8 +220,8 @@ workflows/
 ```yaml
 - uses: actions/setup-node@v4
   with:
-    node-version: "20"
-    cache: "npm"
+    node-version: '20'
+    cache: 'npm'
     cache-dependency-path: frontend/package-lock.json
 ```
 

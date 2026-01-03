@@ -232,7 +232,7 @@ services:
 ```yaml
 - uses: actions/setup-python@v5
   with:
-    cache: "pip"
+    cache: 'pip'
     cache-dependency-path: backend/requirements*.txt
 ```
 

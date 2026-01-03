@@ -390,29 +390,80 @@ class TestCascadeDeleteUnderLoad:
 
 
 class TestServerErrorHandling:
-    """Tests for 5xx server error handling."""
+    """Tests for 5xx server error handling.
+
+    These tests verify proper error handling for detection media endpoints
+    (images, videos, thumbnails) when the requested detection doesn't exist.
+
+    Note: These endpoints have rate limiting dependencies that require proper
+    Redis mocking. The tests override the rate limiter to avoid dependency
+    resolution issues in the test environment.
+    """
+
+    @pytest.fixture
+    def override_rate_limiter(self):
+        """Override rate limiter dependency for these tests.
+
+        The detection media endpoints use a rate limiter that depends on get_redis.
+        In the test environment, this dependency chain can cause issues.
+        We override the rate limiter to return None (no rate limiting) for tests.
+        """
+        from backend.api.routes import detections
+        from backend.main import app
+
+        async def mock_rate_limiter():
+            return None
+
+        original = app.dependency_overrides.copy()
+        app.dependency_overrides[detections.detection_media_rate_limiter] = mock_rate_limiter
+        yield
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(original)
 
     @pytest.mark.asyncio
-    async def test_detection_image_file_not_found(self, client, mock_redis, integration_db):
-        """Test detection image endpoint when source file doesn't exist."""
-        # Get a detection (if any exist) or test with non-existent ID
+    async def test_detection_image_file_not_found(
+        self, client, mock_redis, integration_db, override_rate_limiter
+    ):
+        """Test detection image endpoint when source file doesn't exist.
+
+        This test verifies that requesting an image for a non-existent detection
+        returns a proper 404 response.
+        """
+        # Request image for a detection ID that doesn't exist
         response = await client.get("/api/detections/999999/image")
+
         # Should return 404 for non-existent detection
-        assert response.status_code == 404
+        assert response.status_code == 404, (
+            f"Expected 404, got {response.status_code}: {response.text}"
+        )
 
     @pytest.mark.asyncio
-    async def test_video_stream_file_not_found(self, client, mock_redis):
-        """Test video streaming endpoint when video file doesn't exist."""
+    async def test_video_stream_file_not_found(self, client, mock_redis, override_rate_limiter):
+        """Test video streaming endpoint when video file doesn't exist.
+
+        This test verifies that requesting a video for a non-existent detection
+        returns a proper 404 response.
+        """
         response = await client.get("/api/detections/999999/video")
+
         # Should return 404 for non-existent detection
-        assert response.status_code == 404
+        assert response.status_code == 404, (
+            f"Expected 404, got {response.status_code}: {response.text}"
+        )
 
     @pytest.mark.asyncio
-    async def test_video_thumbnail_file_not_found(self, client, mock_redis):
-        """Test video thumbnail endpoint when video file doesn't exist."""
+    async def test_video_thumbnail_file_not_found(self, client, mock_redis, override_rate_limiter):
+        """Test video thumbnail endpoint when video file doesn't exist.
+
+        This test verifies that requesting a video thumbnail for a non-existent
+        detection returns a proper 404 response.
+        """
         response = await client.get("/api/detections/999999/video/thumbnail")
+
         # Should return 404 for non-existent detection
-        assert response.status_code == 404
+        assert response.status_code == 404, (
+            f"Expected 404, got {response.status_code}: {response.text}"
+        )
 
 
 # =============================================================================
@@ -591,7 +642,26 @@ class TestConflictHandling:
 
 
 class TestMediaEndpointErrors:
-    """Tests for media endpoint error handling."""
+    """Tests for media endpoint error handling.
+
+    Note: Media endpoints have rate limiting dependencies. Tests that access
+    /api/media/* paths override the rate limiter to avoid dependency issues.
+    """
+
+    @pytest.fixture
+    def override_media_rate_limiter(self):
+        """Override media rate limiter dependency for these tests."""
+        from backend.api.routes import media
+        from backend.main import app
+
+        async def mock_rate_limiter():
+            return None
+
+        original = app.dependency_overrides.copy()
+        app.dependency_overrides[media.media_rate_limiter] = mock_rate_limiter
+        yield
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(original)
 
     @pytest.mark.asyncio
     async def test_camera_snapshot_path_traversal(self, client, mock_redis):
@@ -611,7 +681,9 @@ class TestMediaEndpointErrors:
             assert snap_resp.status_code in [403, 404]
 
     @pytest.mark.asyncio
-    async def test_media_endpoint_disallowed_extension(self, client, mock_redis):
+    async def test_media_endpoint_disallowed_extension(
+        self, client, mock_redis, override_media_rate_limiter
+    ):
         """Test media endpoint blocks disallowed file types."""
         # Try to access a .exe file through media endpoint
         response = await client.get("/api/media/cameras/test/malicious.exe")
@@ -619,7 +691,9 @@ class TestMediaEndpointErrors:
         assert response.status_code in [400, 403, 404]
 
     @pytest.mark.asyncio
-    async def test_media_endpoint_with_empty_filename(self, client, mock_redis):
+    async def test_media_endpoint_with_empty_filename(
+        self, client, mock_redis, override_media_rate_limiter
+    ):
         """Test media endpoint handles empty filename."""
         response = await client.get("/api/media/cameras/test/")
         # Should return 404 or 400
