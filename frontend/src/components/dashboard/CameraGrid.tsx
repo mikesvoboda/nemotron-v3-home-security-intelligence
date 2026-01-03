@@ -202,7 +202,7 @@ export default function CameraGrid({
         'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
         className
       )}
-      role="list"
+      role="group"
       aria-label="Camera grid"
     >
       {cameras.map((camera) => (
