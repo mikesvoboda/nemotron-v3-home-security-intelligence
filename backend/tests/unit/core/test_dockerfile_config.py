@@ -16,8 +16,8 @@ class TestDockerfileProdConfig:
     @pytest.fixture
     def dockerfile_prod_path(self) -> Path:
         """Get the path to Dockerfile.prod."""
-        # Navigate from tests/unit/ to backend/Dockerfile.prod
-        return Path(__file__).parent.parent.parent / "Dockerfile.prod"
+        # Navigate from tests/unit/core/ to backend/Dockerfile.prod
+        return Path(__file__).parent.parent.parent.parent / "Dockerfile.prod"
 
     @pytest.fixture
     def dockerfile_prod_content(self, dockerfile_prod_path: Path) -> str:
@@ -103,7 +103,7 @@ class TestDockerfileDevConfig:
     @pytest.fixture
     def dockerfile_dev_path(self) -> Path:
         """Get the path to Dockerfile (dev)."""
-        return Path(__file__).parent.parent.parent / "Dockerfile"
+        return Path(__file__).parent.parent.parent.parent / "Dockerfile"
 
     def test_dev_dockerfile_worker_count_if_exists(self, dockerfile_dev_path: Path) -> None:
         """Test that development Dockerfile also respects worker constraint if it exists."""
