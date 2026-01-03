@@ -448,5 +448,67 @@ docs/plans/            # Design and implementation docs
 2. Filter by current phase: `bd list --label phase-N`
 3. Claim task: `bd update <id> --status in_progress`
 4. Implement following TDD (test first for `tdd` labeled tasks)
-5. Close task: `bd close <id>`
-6. End session: `bd sync && git push`
+5. Validate before closing: run `./scripts/validate.sh`
+6. Close task: `bd close <id>`
+7. End session: `bd sync && git push`
+
+## One-Task-One-PR Policy
+
+Each bead should result in exactly one PR:
+
+- **PR title format:** `<type>: <bead title> (<bead-id>)`
+- **Example:** `fix: resolve WebSocket broadcast error (yzuz.7)`
+
+**Anti-patterns (do not do):**
+
+| Bad PR Title                        | Problem                   |
+| ----------------------------------- | ------------------------- |
+| "fix: resolve 9 beads"              | Split into 9 PRs          |
+| "fix: resolve 20 production issues" | Create 20 beads, 20 PRs   |
+| "feat: X AND Y"                     | Split into separate beads |
+
+**Exceptions:**
+
+- Trivial related typo fixes can be batched
+- Changes to the same function/component in same file
+
+**Why this matters:**
+
+- Enables precise rollbacks without reverting unrelated changes
+- Clear attribution of which change fixed which issue
+- Better code review quality (smaller, focused diffs)
+- Regressions are easier to identify and bisect
+
+## Bead Closure Requirements
+
+Before running `bd close <id>`, verify ALL of the following:
+
+### Required Checklist
+
+```bash
+# Quick validation (recommended)
+./scripts/validate.sh
+
+# Or run individually:
+uv run pytest backend/tests/unit/ -n auto --dist=worksteal  # Backend unit tests
+uv run pytest backend/tests/integration/ -n0                 # Backend integration tests
+cd frontend && npm test                                       # Frontend tests
+uv run mypy backend/                                          # Backend type check
+cd frontend && npm run typecheck                              # Frontend type check
+pre-commit run --all-files                                    # Pre-commit hooks
+```
+
+### For UI Changes, Also Run
+
+```bash
+cd frontend && npx playwright test  # E2E tests (multi-browser)
+```
+
+### Closure Workflow
+
+1. Ensure all code is committed and pushed
+2. Run validation: `./scripts/validate.sh`
+3. If all tests pass, close the bead: `bd close <id>`
+4. If tests fail, fix the issue and re-run before closing
+
+**CRITICAL:** Do not close a bead if any validation fails. Fix the issue first.
