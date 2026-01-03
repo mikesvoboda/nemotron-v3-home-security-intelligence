@@ -38,7 +38,9 @@ function createMockChannel(
 function createMockConnectionStatus(
   eventsState: ConnectionState = 'disconnected',
   systemState: ConnectionState = 'disconnected',
-  systemStatus: ReturnType<typeof useConnectionStatusModule.useConnectionStatus>['systemStatus'] = null
+  systemStatus: ReturnType<
+    typeof useConnectionStatusModule.useConnectionStatus
+  >['systemStatus'] = null
 ): ReturnType<typeof useConnectionStatusModule.useConnectionStatus> {
   const eventsChannel = createMockChannel('Events', eventsState);
   const systemChannel = createMockChannel('System', systemState);
@@ -106,16 +108,16 @@ describe('Header', () => {
     expect(screen.getByText('NVIDIA SECURITY')).toBeInTheDocument();
   });
 
-  it('displays the POWERED BY NEMOTRON subtitle', () => {
+  it('displays the Nemotron v3 Nano Intelligence subtitle', () => {
     render(<Header />);
-    expect(screen.getByText('POWERED BY NEMOTRON')).toBeInTheDocument();
+    expect(screen.getByText('Nemotron v3 Nano Intelligence')).toBeInTheDocument();
   });
 
-  it('renders the Activity icon', () => {
-    const { container } = render(<Header />);
-    // Check for the icon container with NVIDIA green background
-    const iconContainer = container.querySelector('.bg-\\[\\#76B900\\]');
-    expect(iconContainer).toBeInTheDocument();
+  it('renders the NVIDIA logo', () => {
+    render(<Header />);
+    const logo = screen.getByAltText('NVIDIA');
+    expect(logo).toBeInTheDocument();
+    expect(logo).toHaveAttribute('src', '/images/nvidia-logo-white.svg');
   });
 
   it('displays Connecting status when disconnected', () => {
@@ -223,7 +225,7 @@ describe('Header', () => {
 
   it('renders subtitle with NVIDIA green color', () => {
     render(<Header />);
-    const subtitle = screen.getByText('POWERED BY NEMOTRON');
+    const subtitle = screen.getByText('Nemotron v3 Nano Intelligence');
     expect(subtitle).toHaveClass('text-xs', 'text-[#76B900]', 'font-medium', 'tracking-wider');
   });
 
