@@ -542,21 +542,78 @@ class PerformanceCollector:
             logger.warning(f"Redis health check failed: {e}")
             return ContainerMetrics(name="redis", status="unknown", health="unhealthy")
 
-    async def collect_inference_metrics(self) -> InferenceMetrics | None:
-        """Collect inference latency metrics from PipelineLatencyTracker and ThroughputTracker."""
-        try:
-            from backend.core.metrics import get_pipeline_latency_tracker, get_throughput_tracker
+    async def _get_detections_per_minute(self, session: Any) -> int:
+        """Get count of detections in the last minute.
 
-            latency_tracker = get_pipeline_latency_tracker()
-            throughput_tracker = get_throughput_tracker()
+        Args:
+            session: SQLAlchemy async session
+
+        Returns:
+            Number of detections in the last 60 seconds
+        """
+        try:
+            from datetime import timedelta
+
+            from sqlalchemy import func, select
+
+            from backend.models.detection import Detection
+
+            cutoff = datetime.now(UTC) - timedelta(seconds=60)
+            result = await session.execute(
+                select(func.count(Detection.id)).where(Detection.detected_at >= cutoff)
+            )
+            return result.scalar() or 0
+        except Exception as e:
+            logger.warning(f"Failed to get detections per minute: {e}")
+            return 0
+
+    async def _get_events_per_minute(self, session: Any) -> int:
+        """Get count of events in the last minute.
+
+        Args:
+            session: SQLAlchemy async session
+
+        Returns:
+            Number of events in the last 60 seconds
+        """
+        try:
+            from datetime import timedelta
+
+            from sqlalchemy import func, select
+
+            from backend.models.event import Event
+
+            cutoff = datetime.now(UTC) - timedelta(seconds=60)
+            result = await session.execute(
+                select(func.count(Event.id)).where(Event.started_at >= cutoff)
+            )
+            return result.scalar() or 0
+        except Exception as e:
+            logger.warning(f"Failed to get events per minute: {e}")
+            return 0
+
+    async def collect_inference_metrics(self) -> InferenceMetrics | None:
+        """Collect inference latency metrics from PipelineLatencyTracker."""
+        try:
+            from backend.core.database import get_session
+            from backend.core.metrics import get_pipeline_latency_tracker
+
+            tracker = get_pipeline_latency_tracker()
 
             # Get stats for each pipeline stage (returns dict with avg_ms, p95_ms, p99_ms, etc.)
-            rtdetr_stats = latency_tracker.get_stage_stats("watch_to_detect", window_minutes=5)
-            nemotron_stats = latency_tracker.get_stage_stats("batch_to_analyze", window_minutes=5)
-            pipeline_stats = latency_tracker.get_stage_stats("total_pipeline", window_minutes=5)
+            rtdetr_stats = tracker.get_stage_stats("watch_to_detect", window_minutes=5)
+            nemotron_stats = tracker.get_stage_stats("batch_to_analyze", window_minutes=5)
+            pipeline_stats = tracker.get_stage_stats("total_pipeline", window_minutes=5)
 
-            # Get throughput metrics from ThroughputTracker
-            throughput_data = throughput_tracker.get_throughput(window_minutes=5)
+            # Calculate throughput from database
+            images_per_min = 0
+            events_per_min = 0
+            try:
+                async with get_session() as session:
+                    images_per_min = await self._get_detections_per_minute(session)
+                    events_per_min = await self._get_events_per_minute(session)
+            except Exception as e:
+                logger.warning(f"Failed to get throughput metrics: {e}")
 
             return InferenceMetrics(
                 rtdetr_latency_ms={
@@ -573,10 +630,7 @@ class PerformanceCollector:
                     "avg": pipeline_stats.get("avg_ms") or 0,
                     "p95": pipeline_stats.get("p95_ms") or 0,
                 },
-                throughput={
-                    "images_per_min": throughput_data.get("images_per_min", 0),
-                    "events_per_min": throughput_data.get("events_per_min", 0),
-                },
+                throughput={"images_per_min": images_per_min, "events_per_min": events_per_min},
                 queues={"detection": 0, "analysis": 0},
             )
         except Exception as e:

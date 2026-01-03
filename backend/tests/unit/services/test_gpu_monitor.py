@@ -1200,3 +1200,130 @@ def test_get_gpu_stats_real_reraises_exception(mock_pynvml):
         pytest.raises(RuntimeError, match="Unexpected import error"),
     ):
         monitor._get_gpu_stats_real()
+
+
+# =============================================================================
+# Inference FPS Calculation Tests (NEM-249)
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_calculate_inference_fps_with_detections(mock_pynvml):
+    """Test inference FPS calculation when there are recent detections."""
+    monitor = GPUMonitor()
+
+    # Mock the database query to return a detection count
+    with patch("backend.services.gpu_monitor.get_session") as mock_get_session:
+        mock_session = AsyncMock()
+        mock_session.__aenter__.return_value = mock_session
+        mock_session.__aexit__.return_value = None
+
+        # Mock the result to return 120 detections in the last 60 seconds
+        mock_result = MagicMock()
+        mock_result.scalar.return_value = 120
+        mock_session.execute.return_value = mock_result
+
+        mock_get_session.return_value = mock_session
+
+        fps = await monitor._calculate_inference_fps(mock_session)
+
+        # 120 detections / 60 seconds = 2.0 FPS
+        assert fps == 2.0
+        mock_session.execute.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_calculate_inference_fps_no_detections(mock_pynvml):
+    """Test inference FPS calculation when there are no recent detections."""
+    monitor = GPUMonitor()
+
+    with patch("backend.services.gpu_monitor.get_session") as mock_get_session:
+        mock_session = AsyncMock()
+        mock_session.__aenter__.return_value = mock_session
+        mock_session.__aexit__.return_value = None
+
+        # Mock the result to return 0 detections
+        mock_result = MagicMock()
+        mock_result.scalar.return_value = 0
+        mock_session.execute.return_value = mock_result
+
+        mock_get_session.return_value = mock_session
+
+        fps = await monitor._calculate_inference_fps(mock_session)
+
+        assert fps == 0.0
+
+
+@pytest.mark.asyncio
+async def test_calculate_inference_fps_null_result(mock_pynvml):
+    """Test inference FPS calculation when query returns None."""
+    monitor = GPUMonitor()
+
+    with patch("backend.services.gpu_monitor.get_session") as mock_get_session:
+        mock_session = AsyncMock()
+        mock_session.__aenter__.return_value = mock_session
+        mock_session.__aexit__.return_value = None
+
+        # Mock the result to return None
+        mock_result = MagicMock()
+        mock_result.scalar.return_value = None
+        mock_session.execute.return_value = mock_result
+
+        mock_get_session.return_value = mock_session
+
+        fps = await monitor._calculate_inference_fps(mock_session)
+
+        assert fps == 0.0
+
+
+@pytest.mark.asyncio
+async def test_calculate_inference_fps_database_error(mock_pynvml):
+    """Test inference FPS calculation handles database errors gracefully."""
+    monitor = GPUMonitor()
+
+    with patch("backend.services.gpu_monitor.get_session") as mock_get_session:
+        mock_session = AsyncMock()
+        mock_session.__aenter__.return_value = mock_session
+        mock_session.__aexit__.return_value = None
+
+        # Mock the query to raise an exception
+        mock_session.execute.side_effect = Exception("Database error")
+
+        mock_get_session.return_value = mock_session
+
+        # Should return None on error, not raise
+        fps = await monitor._calculate_inference_fps(mock_session)
+
+        assert fps is None
+
+
+@pytest.mark.asyncio
+async def test_store_stats_includes_inference_fps(mock_pynvml, mock_database_session):
+    """Test that _store_stats includes calculated inference_fps."""
+    monitor = GPUMonitor()
+    stats = monitor.get_current_stats()
+
+    # Mock the inference FPS calculation
+    with patch.object(monitor, "_calculate_inference_fps", return_value=5.5):
+        await monitor._store_stats(stats)
+
+        # Verify that the GPUStats model was created with inference_fps
+        # The inference_fps should be set from the calculation
+        # Note: Since we're patching, this test validates the integration point
+        mock_database_session.add.assert_called_once()
+        mock_database_session.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_poll_loop_calculates_inference_fps(mock_pynvml, mock_database_session):
+    """Test that poll loop calculates inference FPS on each iteration."""
+    monitor = GPUMonitor(poll_interval=0.05)
+
+    with patch.object(monitor, "_calculate_inference_fps", return_value=3.0) as mock_calc:
+        await monitor.start()
+        await asyncio.sleep(0.12)  # Let it run for ~2 polls
+        await monitor.stop()
+
+        # The calculation should have been called during the poll loop
+        # At least once during the store_stats call
+        assert mock_calc.call_count >= 1

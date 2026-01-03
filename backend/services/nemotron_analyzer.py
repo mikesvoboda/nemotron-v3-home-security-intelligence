@@ -839,11 +839,12 @@ class NemotronAnalyzer:
             or enrichment_result.has_image_quality
         )
 
+        # Track which template is used for metrics
+        template_name: str = "basic"  # Default, will be overwritten
+
         if has_model_zoo_enrichment and has_enriched_context:
             # Use MODEL_ZOO_ENHANCED prompt with full enrichment from all models
-            # Record semantic metric for prompt template used
-            record_prompt_template_used("model_zoo_enhanced")
-
+            template_name = "model_zoo"
             from backend.services.reid_service import format_full_reid_context
             from backend.services.vision_extractor import (
                 format_scene_analysis,
@@ -939,9 +940,7 @@ class NemotronAnalyzer:
             )
         elif has_vision_extraction and has_enriched_context:
             # Use vision-enhanced prompt with Florence-2 attributes, re-id, and scene analysis
-            # Record semantic metric for prompt template used
-            record_prompt_template_used("vision_enhanced")
-
+            template_name = "vision"
             from backend.services.reid_service import format_full_reid_context
             from backend.services.vision_extractor import (
                 format_scene_analysis,
@@ -989,9 +988,7 @@ class NemotronAnalyzer:
             )
         elif has_enriched_context and has_enrichment_result:
             # Use full enriched prompt with zone, baseline, cross-camera, and pipeline context
-            # Record semantic metric for prompt template used
-            record_prompt_template_used("full_enriched")
-
+            template_name = "full_enriched"
             # These assertions help mypy understand type narrowing
             assert enriched_context is not None
             assert enriched_context.baselines is not None
@@ -1014,9 +1011,7 @@ class NemotronAnalyzer:
             )
         elif has_enriched_context:
             # Use enriched prompt with zone, baseline, and cross-camera context (no pipeline)
-            # Record semantic metric for prompt template used
-            record_prompt_template_used("enriched")
-
+            template_name = "enriched"
             # These assertions help mypy understand type narrowing
             assert enriched_context is not None
             assert enriched_context.baselines is not None
@@ -1037,9 +1032,6 @@ class NemotronAnalyzer:
             )
         else:
             # Fall back to basic prompt
-            # Record semantic metric for prompt template used
-            record_prompt_template_used("basic")
-
             prompt = RISK_ANALYSIS_PROMPT.format(
                 camera_name=camera_name,
                 start_time=start_time,
@@ -1081,9 +1073,10 @@ class NemotronAnalyzer:
         # Validate and normalize risk data
         risk_data = self._validate_risk_data(risk_data)
 
-        # Record semantic metrics for risk score distribution and risk level
+        # Record risk analysis metrics (NEM-769)
         observe_risk_score(risk_data["risk_score"])
         record_event_by_risk_level(risk_data["risk_level"])
+        record_prompt_template_used(template_name)
 
         # Include the prompt in the response for debugging/improvement
         risk_data["llm_prompt"] = prompt

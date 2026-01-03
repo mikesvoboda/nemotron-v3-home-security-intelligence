@@ -31,9 +31,14 @@ import {
   fetchTelemetry,
   fetchGPUStats,
   fetchConfig,
+  fetchCircuitBreakers,
+  resetCircuitBreaker,
+  fetchSeverityMetadata,
   type GPUStats,
   type TelemetryResponse,
   type ServiceStatus,
+  type CircuitBreakersResponse,
+  type SeverityMetadataResponse,
 } from '../../services/api';
 import GpuStats from '../dashboard/GpuStats';
 
@@ -121,6 +126,16 @@ export default function SystemMonitoringPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [grafanaUrl, setGrafanaUrl] = useState<string>('http://localhost:3002');
+
+  // State for circuit breakers
+  const [circuitBreakers, setCircuitBreakers] = useState<CircuitBreakersResponse | null>(null);
+  const [circuitBreakersLoading, setCircuitBreakersLoading] = useState(true);
+  const [circuitBreakersError, setCircuitBreakersError] = useState<string | null>(null);
+
+  // State for severity metadata
+  const [severityMetadata, setSeverityMetadata] = useState<SeverityMetadataResponse | null>(null);
+  const [severityLoading, setSeverityLoading] = useState(true);
+  const [severityError, setSeverityError] = useState<string | null>(null);
 
   // Use the health status hook for service health
   const {
@@ -351,6 +366,59 @@ export default function SystemMonitoringPage() {
 
     void loadData();
   }, []);
+
+  // Fetch circuit breakers data
+  useEffect(() => {
+    async function loadCircuitBreakers() {
+      setCircuitBreakersLoading(true);
+      setCircuitBreakersError(null);
+
+      try {
+        const data = await fetchCircuitBreakers();
+        setCircuitBreakers(data);
+      } catch (err) {
+        console.error('Failed to load circuit breakers:', err);
+        setCircuitBreakersError(err instanceof Error ? err.message : 'Failed to load circuit breakers');
+      } finally {
+        setCircuitBreakersLoading(false);
+      }
+    }
+
+    void loadCircuitBreakers();
+  }, []);
+
+  // Fetch severity metadata
+  useEffect(() => {
+    async function loadSeverityMetadata() {
+      setSeverityLoading(true);
+      setSeverityError(null);
+
+      try {
+        const data = await fetchSeverityMetadata();
+        setSeverityMetadata(data);
+      } catch (err) {
+        console.error('Failed to load severity metadata:', err);
+        setSeverityError(err instanceof Error ? err.message : 'Failed to load severity metadata');
+      } finally {
+        setSeverityLoading(false);
+      }
+    }
+
+    void loadSeverityMetadata();
+  }, []);
+
+  // Handler for resetting circuit breakers
+  const handleResetCircuitBreaker = async (name: string) => {
+    try {
+      await resetCircuitBreaker(name);
+      // Reload circuit breakers data after reset
+      const data = await fetchCircuitBreakers();
+      setCircuitBreakers(data);
+    } catch (err) {
+      console.error(`Failed to reset circuit breaker ${name}:`, err);
+      setCircuitBreakersError(err instanceof Error ? err.message : `Failed to reset ${name}`);
+    }
+  };
 
   // Poll for telemetry and GPU updates every 5 seconds
   // Uses individual try-catch to prevent one failure from stopping all updates
@@ -648,35 +716,13 @@ export default function SystemMonitoringPage() {
             />
           </div>
 
-          {/* Row 3: Circuit Breakers (service protection status) */}
-          <div className="xl:col-span-2">
-            <CircuitBreakerPanel
-              pollingInterval={10000}
-              defaultExpanded={false}
-              data-testid="circuit-breaker-panel-section"
-            />
-          </div>
-
-          {/* Row 4: Containers (grid of status badges) */}
+          {/* Row 3: Containers (grid of status badges) */}
           <div className="xl:col-span-2">
             <ContainersPanel
               containers={containerMetrics}
               history={containerHistory}
               data-testid="containers-panel-section"
             />
-          </div>
-
-          {/* Row 4: Circuit Breakers (collapsible) */}
-          <div className="xl:col-span-2">
-            <CircuitBreakerPanel
-              pollingInterval={10000}
-              defaultExpanded={false}
-            />
-          </div>
-
-          {/* Row 4: Severity Configuration (static) */}
-          <div className="xl:col-span-2">
-            <SeverityConfigPanel />
           </div>
 
           {/* Row 4: Host System (CPU | RAM | Disk inline bars) - Full width */}
@@ -686,6 +732,26 @@ export default function SystemMonitoringPage() {
               timeRange={timeRange}
               history={hostHistory}
               data-testid="host-system-panel-section"
+            />
+          </div>
+
+          {/* Row 5: Circuit Breakers and Severity Configuration */}
+          <div className="xl:col-span-2">
+            <CircuitBreakerPanel
+              data={circuitBreakers}
+              loading={circuitBreakersLoading}
+              error={circuitBreakersError}
+              onReset={handleResetCircuitBreaker}
+              data-testid="circuit-breaker-panel-section"
+            />
+          </div>
+
+          <div className="xl:col-span-2">
+            <SeverityConfigPanel
+              data={severityMetadata}
+              loading={severityLoading}
+              error={severityError}
+              data-testid="severity-config-panel-section"
             />
           </div>
         </div>
