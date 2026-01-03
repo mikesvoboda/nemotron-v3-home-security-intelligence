@@ -244,10 +244,11 @@ def test_write_config_files_returns_paths():
             "ftp_password": "ftppass",
             "ports": {"backend": 8000},
         }
-        env_path, override_path = write_config_files(config, output_dir=tmpdir)
+        env_path, override_path, secrets_path = write_config_files(config, output_dir=tmpdir)
 
         assert env_path == Path(tmpdir) / ".env"
         assert override_path == Path(tmpdir) / "docker-compose.override.yml"
+        assert secrets_path is None  # Secrets not created by default
 
 
 def test_write_config_files_creates_output_dir():

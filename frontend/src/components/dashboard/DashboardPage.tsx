@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import CameraGrid, { type CameraStatus } from './CameraGrid';
 import RiskGauge from './RiskGauge';
@@ -33,6 +34,9 @@ import {
  * - NVIDIA dark theme (bg-[#121212])
  */
 export default function DashboardPage() {
+  // Navigation hook for camera card clicks
+  const navigate = useNavigate();
+
   // State for REST API data
   const [cameras, setCameras] = useState<Camera[]>([]);
   const [initialEvents, setInitialEvents] = useState<Event[]>([]);
@@ -139,7 +143,9 @@ export default function DashboardPage() {
   }, [eventStats, wsEvents, initialEvents]);
 
   // Determine system health status
-  const systemHealth = systemStatus?.health ?? 'unknown';
+  // Default to 'healthy' during initial load (before WebSocket connects)
+  // This prevents "Unknown" flashing on mobile where WS connection may be slower
+  const systemHealth = systemStatus?.health ?? 'healthy';
 
   // Convert Camera[] to CameraStatus[] for CameraGrid
   const cameraStatuses: CameraStatus[] = cameras.map((camera) => ({
@@ -152,6 +158,11 @@ export default function DashboardPage() {
     thumbnail_url: getCameraSnapshotUrl(camera.id),
     last_seen_at: camera.last_seen_at ?? undefined,
   }));
+
+  // Handle camera card click - navigate to timeline with camera filter
+  const handleCameraClick = (cameraId: string) => {
+    void navigate(`/timeline?camera=${cameraId}`);
+  };
 
   // Error state
   if (error && !loading) {
@@ -245,7 +256,7 @@ export default function DashboardPage() {
         {/* Camera Grid */}
         <div className="mb-6 md:mb-8">
           <h2 className="mb-3 text-xl font-semibold text-white md:mb-4 md:text-2xl">Camera Status</h2>
-          <CameraGrid cameras={cameraStatuses} />
+          <CameraGrid cameras={cameraStatuses} onCameraClick={handleCameraClick} />
         </div>
       </div>
     </div>
