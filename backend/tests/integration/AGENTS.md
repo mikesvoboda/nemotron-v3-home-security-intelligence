@@ -90,17 +90,76 @@ backend/tests/integration/
 
 ## Fixtures
 
-Integration tests use shared fixtures from `backend/tests/conftest.py`:
+Integration tests use fixtures from `backend/tests/integration/conftest.py`:
 
-| Fixture           | Description                                        |
-| ----------------- | -------------------------------------------------- |
-| `integration_env` | Sets DATABASE_URL, REDIS_URL, HSI_RUNTIME_ENV_PATH |
-| `integration_db`  | Initializes PostgreSQL via testcontainers or local |
-| `mock_redis`      | AsyncMock Redis client                             |
-| `db_session`      | Direct AsyncSession access                         |
-| `client`          | httpx AsyncClient with ASGITransport               |
+| Fixture               | Description                                        |
+| --------------------- | -------------------------------------------------- |
+| `integration_env`     | Sets DATABASE_URL, REDIS_URL, HSI_RUNTIME_ENV_PATH |
+| `integration_db`      | Initializes PostgreSQL via testcontainers or local |
+| `mock_redis`          | AsyncMock Redis client                             |
+| `db_session`          | Direct AsyncSession access                         |
+| `isolated_db_session` | AsyncSession with savepoint rollback               |
+| `client`              | httpx AsyncClient with ASGITransport               |
+| `clean_tables`        | DELETE all data before/after test                  |
 
-The local `conftest.py` is minimal - it only documents that fixtures come from the parent.
+## Database Isolation
+
+Integration tests use automatic cleanup to prevent data leakage between tests:
+
+### How It Works
+
+1. **`client` fixture**: Cleans up ALL tables before and after each test
+
+   - Uses DELETE statements (not TRUNCATE) to avoid locking
+   - Cleans in FK-safe order: alerts -> detections -> events -> cameras, etc.
+   - Ensures tests start with empty tables and don't leave data behind
+
+2. **`db_session` fixture**: Standard session for use with `client`
+
+   - When used with `client`, cleanup is handled by the `client` fixture
+   - When used standalone, consider using `isolated_db_session` instead
+
+3. **`isolated_db_session` fixture**: Savepoint-based isolation
+   - Creates a savepoint before the test
+   - Rolls back to savepoint after test (even on failure)
+   - Best for tests that don't use `client` fixture
+
+### Best Practices
+
+```python
+# For API tests - client handles cleanup
+@pytest.mark.asyncio
+async def test_api_endpoint(client):
+    response = await client.post("/api/cameras", json={...})
+    assert response.status_code == 201
+    # Data is automatically cleaned up after test
+
+# For API tests with direct DB access
+@pytest.mark.asyncio
+async def test_with_db(client, db_session):
+    # Create data via API
+    await client.post("/api/cameras", json={...})
+    # Query via db_session
+    result = await db_session.execute(select(Camera))
+    # client fixture handles cleanup
+
+# For standalone DB tests (no client)
+@pytest.mark.asyncio
+async def test_db_only(isolated_db_session):
+    session = isolated_db_session
+    camera = Camera(...)
+    session.add(camera)
+    await session.flush()
+    # Data automatically rolled back after test
+```
+
+### Cleaned Tables
+
+The cleanup function handles all tables in FK-safe order:
+
+- alerts, event_audits, detections, activity_baselines, class_baselines, events
+- alert_rules, audit_logs, gpu_stats, logs, api_keys, zones
+- cameras (parent table, deleted last)
 
 ## Key Test Patterns
 

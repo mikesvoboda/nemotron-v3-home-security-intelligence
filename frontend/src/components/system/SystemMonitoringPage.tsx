@@ -2,8 +2,6 @@ import { Card, Title, Text, Badge, Metric, Callout } from '@tremor/react';
 import { clsx } from 'clsx';
 import {
   Server,
-  Clock,
-  Camera,
   AlertCircle,
   Activity,
   CheckCircle,
@@ -12,13 +10,14 @@ import {
   BarChart2,
   ExternalLink,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 import AiModelsPanel from './AiModelsPanel';
 import ContainersPanel from './ContainersPanel';
 import DatabasesPanel from './DatabasesPanel';
 import HostSystemPanel from './HostSystemPanel';
 import PerformanceAlerts from './PerformanceAlerts';
+import PipelineMetricsPanel from './PipelineMetricsPanel';
 import TimeRangeSelector from './TimeRangeSelector';
 import WorkerStatusPanel from './WorkerStatusPanel';
 import { useHealthStatus } from '../../hooks/useHealthStatus';
@@ -33,9 +32,8 @@ import {
   type ServiceStatus,
 } from '../../services/api';
 import GpuStats from '../dashboard/GpuStats';
-import PipelineQueues from '../dashboard/PipelineQueues';
-import PipelineTelemetry from '../dashboard/PipelineTelemetry';
 
+import type { ThroughputPoint } from './PipelineMetricsPanel';
 import type { GpuMetricDataPoint } from '../../hooks/useGpuHistory';
 
 /**
@@ -86,13 +84,13 @@ function getServiceStatusColor(status: string): 'green' | 'yellow' | 'red' | 'gr
 function ServiceStatusIcon({ status }: { status: string }) {
   switch (status) {
     case 'healthy':
-      return <CheckCircle className="h-4 w-4 text-green-500" />;
+      return <CheckCircle className="h-3 w-3 text-green-500" />;
     case 'degraded':
-      return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
+      return <AlertTriangle className="h-3 w-3 text-yellow-500" />;
     case 'unhealthy':
-      return <XCircle className="h-4 w-4 text-red-500" />;
+      return <XCircle className="h-3 w-3 text-red-500" />;
     default:
-      return <AlertCircle className="h-4 w-4 text-gray-500" />;
+      return <AlertCircle className="h-3 w-3 text-gray-500" />;
   }
 }
 
@@ -249,6 +247,51 @@ export default function SystemMonitoringPage() {
       };
     });
   });
+
+  // Throughput history for PipelineMetricsPanel
+  const [throughputHistory, setThroughputHistory] = useState<ThroughputPoint[]>([]);
+  const prevTelemetryRef = useRef<TelemetryResponse | null>(null);
+  const prevTimestampRef = useRef<number | null>(null);
+
+  // Calculate throughput from telemetry changes
+  useEffect(() => {
+    if (!telemetry) return;
+
+    const now = Date.now();
+    const timeStr = new Date(telemetry.timestamp).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+
+    if (prevTelemetryRef.current && prevTimestampRef.current) {
+      const timeDiffMs = now - prevTimestampRef.current;
+      const timeDiffMin = timeDiffMs / 60000;
+
+      if (timeDiffMin > 0) {
+        const detectionsPerMin = Math.max(
+          0,
+          Math.round(((prevTelemetryRef.current.queues.detection_queue - telemetry.queues.detection_queue) / timeDiffMin) * 60)
+        );
+        const analysesPerMin = Math.max(
+          0,
+          Math.round(((prevTelemetryRef.current.queues.analysis_queue - telemetry.queues.analysis_queue) / timeDiffMin) * 60)
+        );
+
+        setThroughputHistory((prev) => {
+          const newPoint: ThroughputPoint = {
+            time: timeStr,
+            detections: detectionsPerMin || (prev.length > 0 ? prev[prev.length - 1].detections : 0),
+            analyses: analysesPerMin || (prev.length > 0 ? prev[prev.length - 1].analyses : 0),
+          };
+          return [...prev.slice(-29), newPoint];
+        });
+      }
+    }
+
+    prevTelemetryRef.current = telemetry;
+    prevTimestampRef.current = now;
+  }, [telemetry]);
 
   // Fetch Grafana URL from config API
   useEffect(() => {
@@ -418,86 +461,69 @@ export default function SystemMonitoringPage() {
           </span>
         </Callout>
 
-        {/* Performance Alerts - Only shown when there are alerts */}
+        {/* Performance Alerts - Prominent banner at top when alerts active */}
         {transformedAlerts.length > 0 && (
           <PerformanceAlerts
             alerts={transformedAlerts}
-            className="mb-6"
+            className="mb-4"
             data-testid="system-performance-alerts"
           />
         )}
 
-        {/* Main Grid */}
-        <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-          {/* System Overview Card */}
+        {/*
+          Dense Grid Layout - Grafana-style dashboard
+          Row 1: System Health | GPU Stats | AI Models | Alerts (4 cols on xl)
+          Row 2: Pipeline Metrics | Database Metrics (2 cols spanning)
+          Row 3: Background Workers | Containers (2 cols spanning)
+          Row 4: Host System (full width)
+        */}
+        <div className="grid auto-rows-min gap-4 lg:grid-cols-2 xl:grid-cols-4">
+          {/* Row 1: System Health (compact) */}
           <Card
             className="border-gray-800 bg-[#1A1A1A] shadow-lg"
             data-testid="system-overview-card"
           >
-            <Title className="mb-4 flex items-center gap-2 text-white">
+            <Title className="mb-3 flex items-center gap-2 text-white">
               <Activity className="h-5 w-5 text-[#76B900]" />
-              System Overview
+              System Health
             </Title>
 
-            <div className="space-y-4">
-              {/* Uptime */}
-              <div className="flex items-center justify-between rounded-lg bg-gray-800/50 p-3">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-gray-400" />
-                  <Text className="text-gray-300">Uptime</Text>
-                </div>
-                <Metric className="text-lg text-[#76B900]">
+            {/* Compact stats grid */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-lg bg-gray-800/50 p-2 text-center">
+                <Text className="text-xs text-gray-500">Uptime</Text>
+                <Metric className="text-base text-[#76B900]">
                   {stats ? formatUptime(stats.uptime_seconds) : 'N/A'}
                 </Metric>
               </div>
-
-              {/* Total Cameras */}
-              <div className="flex items-center justify-between rounded-lg bg-gray-800/50 p-3">
-                <div className="flex items-center gap-2">
-                  <Camera className="h-4 w-4 text-gray-400" />
-                  <Text className="text-gray-300">Total Cameras</Text>
-                </div>
-                <Metric className="text-lg text-white">{stats?.total_cameras ?? 0}</Metric>
+              <div className="rounded-lg bg-gray-800/50 p-2 text-center">
+                <Text className="text-xs text-gray-500">Cameras</Text>
+                <Metric className="text-base text-white">{stats?.total_cameras ?? 0}</Metric>
               </div>
-
-              {/* Total Events */}
-              <div className="flex items-center justify-between rounded-lg bg-gray-800/50 p-3">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4 text-gray-400" />
-                  <Text className="text-gray-300">Total Events</Text>
-                </div>
-                <Metric className="text-lg text-white">
+              <div className="rounded-lg bg-gray-800/50 p-2 text-center">
+                <Text className="text-xs text-gray-500">Events</Text>
+                <Metric className="text-base text-white">
                   {stats?.total_events?.toLocaleString() ?? 0}
                 </Metric>
               </div>
-
-              {/* Total Detections */}
-              <div className="flex items-center justify-between rounded-lg bg-gray-800/50 p-3">
-                <div className="flex items-center gap-2">
-                  <Activity className="h-4 w-4 text-gray-400" />
-                  <Text className="text-gray-300">Total Detections</Text>
-                </div>
-                <Metric className="text-lg text-white">
+              <div className="rounded-lg bg-gray-800/50 p-2 text-center">
+                <Text className="text-xs text-gray-500">Detections</Text>
+                <Metric className="text-base text-white">
                   {stats?.total_detections?.toLocaleString() ?? 0}
                 </Metric>
               </div>
             </div>
-          </Card>
 
-          {/* Service Health Card */}
-          <Card
-            className="border-gray-800 bg-[#1A1A1A] shadow-lg"
-            data-testid="service-health-card"
-          >
-            <div className="mb-4 flex items-center justify-between">
-              <Title className="flex items-center gap-2 text-white">
-                <CheckCircle className="h-5 w-5 text-[#76B900]" />
-                Service Health
-              </Title>
+            {/* Service Health Summary */}
+            <div className="mt-3 flex items-center justify-between rounded-lg bg-gray-800/30 px-3 py-2">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-[#76B900]" />
+                <Text className="text-sm text-gray-300">Services</Text>
+              </div>
               {overallStatus && (
                 <Badge
                   color={getServiceStatusColor(overallStatus)}
-                  size="lg"
+                  size="sm"
                   data-testid="overall-health-badge"
                 >
                   {overallStatus.charAt(0).toUpperCase() + overallStatus.slice(1)}
@@ -505,11 +531,12 @@ export default function SystemMonitoringPage() {
               )}
             </div>
 
-            <div className="space-y-3">
+            {/* Compact service list */}
+            <div className="mt-2 space-y-1" data-testid="service-health-card">
               {healthError ? (
-                <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-3">
-                  <AlertCircle className="h-4 w-4 text-red-500" />
-                  <Text className="text-sm text-red-400">
+                <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-2">
+                  <AlertCircle className="h-3 w-3 text-red-500" />
+                  <Text className="text-xs text-red-400">
                     Failed to fetch service health: {healthError}
                   </Text>
                 </div>
@@ -518,172 +545,102 @@ export default function SystemMonitoringPage() {
                   <ServiceHealthRow key={serviceName} name={serviceName} status={serviceStatus} />
                 ))
               ) : (
-                <Text className="text-gray-500">No service data available</Text>
+                <Text className="text-xs text-gray-500">No service data available</Text>
               )}
             </div>
 
             {health?.timestamp && (
-              <Text className="mt-4 text-xs text-gray-500">
+              <Text className="mt-2 text-xs text-gray-500">
                 Last checked: {new Date(health.timestamp).toLocaleTimeString()}
               </Text>
             )}
           </Card>
 
-          {/* Background Workers Panel - Shows status of all 8 workers */}
-          <WorkerStatusPanel pollingInterval={10000} />
-
-          {/* Pipeline Queues Card - Reusing existing component */}
-          <PipelineQueues
-            detectionQueue={telemetry?.queues.detection_queue ?? 0}
-            analysisQueue={telemetry?.queues.analysis_queue ?? 0}
-            warningThreshold={10}
+          {/* Row 1: GPU Stats (compact with sparkline) */}
+          <GpuStats
+            gpuName={performanceData?.gpu?.name ?? gpuStats?.gpu_name ?? null}
+            utilization={performanceData?.gpu?.utilization ?? gpuStats?.utilization ?? null}
+            memoryUsed={
+              performanceData?.gpu?.vram_used_gb
+                ? performanceData.gpu.vram_used_gb * 1024
+                : gpuStats?.memory_used ?? null
+            }
+            memoryTotal={
+              performanceData?.gpu?.vram_total_gb
+                ? performanceData.gpu.vram_total_gb * 1024
+                : gpuStats?.memory_total ?? null
+            }
+            temperature={performanceData?.gpu?.temperature ?? gpuStats?.temperature ?? null}
+            powerUsage={performanceData?.gpu?.power_watts ?? gpuStats?.power_usage ?? null}
+            inferenceFps={gpuStats?.inference_fps ?? null}
+            timeRange={timeRange}
+            historyData={gpuHistoryData.length > 0 ? gpuHistoryData : undefined}
+            showHistoryControls={gpuHistoryData.length === 0}
+            data-testid="gpu-stats"
           />
 
-          {/* GPU Stats Card - Enhanced with performance data (spans 2 columns on xl) */}
+          {/* Row 1: AI Models (all models in one card) */}
           <div className="xl:col-span-2">
-            <GpuStats
-              gpuName={performanceData?.gpu?.name ?? gpuStats?.gpu_name ?? null}
-              utilization={performanceData?.gpu?.utilization ?? gpuStats?.utilization ?? null}
-              memoryUsed={
-                performanceData?.gpu?.vram_used_gb
-                  ? performanceData.gpu.vram_used_gb * 1024
-                  : gpuStats?.memory_used ?? null
-              }
-              memoryTotal={
-                performanceData?.gpu?.vram_total_gb
-                  ? performanceData.gpu.vram_total_gb * 1024
-                  : gpuStats?.memory_total ?? null
-              }
-              temperature={performanceData?.gpu?.temperature ?? gpuStats?.temperature ?? null}
-              powerUsage={performanceData?.gpu?.power_watts ?? gpuStats?.power_usage ?? null}
-              inferenceFps={gpuStats?.inference_fps ?? null}
-              timeRange={timeRange}
-              historyData={gpuHistoryData.length > 0 ? gpuHistoryData : undefined}
-              showHistoryControls={gpuHistoryData.length === 0}
+            <AiModelsPanel
+              aiModels={aiModelsData}
+              data-testid="ai-models-panel-section"
             />
           </div>
 
-          {/* Latency Stats Card */}
-          {telemetry?.latencies && (
-            <Card
-              className="border-gray-800 bg-[#1A1A1A] shadow-lg"
-              data-testid="latency-stats-card"
-            >
-              <Title className="mb-4 flex items-center gap-2 text-white">
-                <Clock className="h-5 w-5 text-[#76B900]" />
-                Pipeline Latency
-              </Title>
+          {/* Row 2: Pipeline Metrics (combined Queues + Latency + Throughput) */}
+          <div className="xl:col-span-2">
+            <PipelineMetricsPanel
+              queues={{
+                detection_queue: telemetry?.queues.detection_queue ?? 0,
+                analysis_queue: telemetry?.queues.analysis_queue ?? 0,
+              }}
+              latencies={telemetry?.latencies}
+              throughputHistory={throughputHistory}
+              timestamp={telemetry?.timestamp}
+              queueWarningThreshold={10}
+              latencyWarningThreshold={10000}
+              data-testid="pipeline-metrics-panel"
+            />
+          </div>
 
-              <div className="space-y-4">
-                {/* Detection Latency */}
-                {telemetry.latencies.detect && (
-                  <div className="rounded-lg bg-gray-800/50 p-3">
-                    <Text className="mb-2 text-sm font-medium text-gray-300">
-                      Detection (RT-DETRv2)
-                    </Text>
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                      <div>
-                        <Text className="text-xs text-gray-500">Avg</Text>
-                        <Text className="font-medium text-white">
-                          {telemetry.latencies.detect.avg_ms?.toFixed(0) ?? 'N/A'}ms
-                        </Text>
-                      </div>
-                      <div>
-                        <Text className="text-xs text-gray-500">P95</Text>
-                        <Text className="font-medium text-white">
-                          {telemetry.latencies.detect.p95_ms?.toFixed(0) ?? 'N/A'}ms
-                        </Text>
-                      </div>
-                      <div>
-                        <Text className="text-xs text-gray-500">P99</Text>
-                        <Text className="font-medium text-white">
-                          {telemetry.latencies.detect.p99_ms?.toFixed(0) ?? 'N/A'}ms
-                        </Text>
-                      </div>
-                    </div>
-                  </div>
-                )}
+          {/* Row 2: Database Metrics (PostgreSQL + Redis side-by-side) */}
+          <div className="xl:col-span-2">
+            <DatabasesPanel
+              postgresql={postgresMetrics}
+              redis={redisMetrics}
+              timeRange={timeRange}
+              history={databaseHistory}
+              data-testid="databases-panel-section"
+            />
+          </div>
 
-                {/* Analysis Latency */}
-                {telemetry.latencies.analyze && (
-                  <div className="rounded-lg bg-gray-800/50 p-3">
-                    <Text className="mb-2 text-sm font-medium text-gray-300">
-                      Analysis (Nemotron)
-                    </Text>
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                      <div>
-                        <Text className="text-xs text-gray-500">Avg</Text>
-                        <Text className="font-medium text-white">
-                          {telemetry.latencies.analyze.avg_ms?.toFixed(0) ?? 'N/A'}ms
-                        </Text>
-                      </div>
-                      <div>
-                        <Text className="text-xs text-gray-500">P95</Text>
-                        <Text className="font-medium text-white">
-                          {telemetry.latencies.analyze.p95_ms?.toFixed(0) ?? 'N/A'}ms
-                        </Text>
-                      </div>
-                      <div>
-                        <Text className="text-xs text-gray-500">P99</Text>
-                        <Text className="font-medium text-white">
-                          {telemetry.latencies.analyze.p99_ms?.toFixed(0) ?? 'N/A'}ms
-                        </Text>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+          {/* Row 3: Background Workers (collapsible, compact list) */}
+          <div className="xl:col-span-2">
+            <WorkerStatusPanel
+              pollingInterval={10000}
+              defaultExpanded={false}
+              compact={false}
+            />
+          </div>
 
-              {telemetry.timestamp && (
-                <Text className="mt-4 text-xs text-gray-500">
-                  Updated: {new Date(telemetry.timestamp).toLocaleTimeString()}
-                </Text>
-              )}
-            </Card>
-          )}
-        </div>
+          {/* Row 3: Containers (grid of status badges) */}
+          <div className="xl:col-span-2">
+            <ContainersPanel
+              containers={containerMetrics}
+              history={containerHistory}
+              data-testid="containers-panel-section"
+            />
+          </div>
 
-        {/* AI Models Panel - Dynamically renders all registered models */}
-        <div className="mt-6">
-          <AiModelsPanel
-            aiModels={aiModelsData}
-            data-testid="ai-models-panel-section"
-          />
-        </div>
-
-        {/* Pipeline Telemetry - Full metrics with charts */}
-        <div className="mt-6" data-testid="pipeline-telemetry-section">
-          <PipelineTelemetry />
-        </div>
-
-        {/* Databases Panel - PostgreSQL + Redis */}
-        <div className="mt-6">
-          <DatabasesPanel
-            postgresql={postgresMetrics}
-            redis={redisMetrics}
-            timeRange={timeRange}
-            history={databaseHistory}
-            data-testid="databases-panel-section"
-          />
-        </div>
-
-        {/* Host System Panel - CPU, RAM, Disk */}
-        <div className="mt-6">
-          <HostSystemPanel
-            host={hostMetrics}
-            timeRange={timeRange}
-            history={hostHistory}
-            data-testid="host-system-panel-section"
-          />
-        </div>
-
-        {/* Containers Panel - Health timeline */}
-        <div className="mt-6">
-          <ContainersPanel
-            containers={containerMetrics}
-            history={containerHistory}
-            data-testid="containers-panel-section"
-          />
+          {/* Row 4: Host System (CPU | RAM | Disk inline bars) - Full width */}
+          <div className="lg:col-span-2 xl:col-span-4">
+            <HostSystemPanel
+              host={hostMetrics}
+              timeRange={timeRange}
+              history={hostHistory}
+              data-testid="host-system-panel-section"
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -708,7 +665,7 @@ function ServiceHealthRow({ name, status }: ServiceHealthRowProps) {
   return (
     <div
       className={clsx(
-        'flex items-center justify-between rounded-lg p-3',
+        'flex items-center justify-between rounded-lg px-2 py-1.5',
         status.status === 'unhealthy' && 'border border-red-500/30 bg-red-500/10',
         status.status === 'degraded' && 'border border-yellow-500/30 bg-yellow-500/10',
         status.status === 'healthy' && 'bg-gray-800/50',
@@ -719,14 +676,16 @@ function ServiceHealthRow({ name, status }: ServiceHealthRowProps) {
       )}
       data-testid={`service-row-${name}`}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         <ServiceStatusIcon status={status.status} />
-        <div>
-          <Text className="text-sm font-medium text-gray-300">{displayName}</Text>
-          {status.message && <Text className="text-xs text-gray-500">{status.message}</Text>}
+        <div className="flex items-center gap-2">
+          <Text className="text-xs font-medium text-gray-300">{displayName}</Text>
+          {status.message && (
+            <Text className="hidden text-xs text-gray-500 sm:inline">{status.message}</Text>
+          )}
         </div>
       </div>
-      <Badge color={getServiceStatusColor(status.status)} size="sm">
+      <Badge color={getServiceStatusColor(status.status)} size="xs">
         {status.status}
       </Badge>
     </div>

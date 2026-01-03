@@ -36,3 +36,12 @@ export type {
   ContainerHealthPoint,
   ContainerHistory,
 } from './ContainersPanel';
+
+export { default as PipelineMetricsPanel } from './PipelineMetricsPanel';
+export type {
+  PipelineMetricsPanelProps,
+  QueueDepths,
+  StageLatency,
+  PipelineLatencies,
+  ThroughputPoint,
+} from './PipelineMetricsPanel';
