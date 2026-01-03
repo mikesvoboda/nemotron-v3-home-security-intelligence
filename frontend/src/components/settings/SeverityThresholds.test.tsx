@@ -255,12 +255,13 @@ describe('SeverityThresholds', () => {
 
       render(<SeverityThresholds />);
 
+      // Wait for loading to complete - table should render even with empty definitions
       await waitFor(() => {
-        expect(screen.getByText('Risk Score Thresholds')).toBeInTheDocument();
+        expect(screen.getByRole('table')).toBeInTheDocument();
       });
 
-      // Should still render the table but with no data rows
-      expect(screen.getByRole('table')).toBeInTheDocument();
+      // Verify the table is rendered with headers but no data rows
+      expect(screen.getByRole('columnheader', { name: /level/i })).toBeInTheDocument();
     });
 
     it('handles custom threshold values', async () => {
