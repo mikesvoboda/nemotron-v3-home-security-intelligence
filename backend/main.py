@@ -17,6 +17,7 @@ from backend.api.routes import (
     cameras,
     detections,
     dlq,
+    entities,
     events,
     media,
     metrics,
@@ -423,6 +424,7 @@ app.include_router(audit.router)
 app.include_router(cameras.router)
 app.include_router(detections.router)
 app.include_router(dlq.router)
+app.include_router(entities.router)
 app.include_router(events.router)
 app.include_router(logs_router)
 app.include_router(media.router)
