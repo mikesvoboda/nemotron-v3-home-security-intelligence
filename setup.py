@@ -558,6 +558,33 @@ def main() -> None:
             config, args.output_dir, create_secret_files=args.create_secrets
         )
 
+        # Install pre-commit hooks after config files written
+        print("\n" + "=" * 60)
+        print("Installing pre-commit hooks...")
+        print("=" * 60)
+
+        try:
+            # Install pre-commit hook (linting/formatting)
+            subprocess.run(
+                ["pre-commit", "install"],  # noqa: S607
+                check=True,
+                capture_output=True,
+            )
+            print("+ Pre-commit hook installed")
+
+            # Install pre-push hook (unit tests)
+            subprocess.run(
+                ["pre-commit", "install", "--hook-type", "pre-push"],  # noqa: S607
+                check=True,
+                capture_output=True,
+            )
+            print("+ Pre-push hook installed (unit tests run before push)")
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            print("! Could not install pre-commit hooks")
+            print("  Install manually with:")
+            print("    pre-commit install")
+            print("    pre-commit install --hook-type pre-push")
+
         print("=" * 60)
         print("Generated:")
         print(f"  - {env_path}")

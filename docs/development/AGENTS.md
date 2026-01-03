@@ -8,14 +8,32 @@ This directory contains developer documentation for contributing to the Home Sec
 
 ```
 development/
-  AGENTS.md          # This file
-  contributing.md    # Contribution guidelines
-  patterns.md        # Code patterns and conventions
-  setup.md           # Development environment setup
-  testing.md         # Testing guide
+  AGENTS.md              # This file
+  AGENT_COORDINATION.md  # Parallel agent coordination protocol
+  contributing.md        # Contribution guidelines
+  patterns.md            # Code patterns and conventions
+  setup.md               # Development environment setup
+  testing.md             # Testing guide
 ```
 
 ## Key Files
+
+### AGENT_COORDINATION.md
+
+**Purpose:** Protocol for coordinating parallel Claude Code agents.
+
+**Topics Covered:**
+
+- Pre-dispatch verification checklist
+- File scope declaration format
+- Anti-patterns to avoid
+- When to use sequential vs parallel execution
+- Post-completion verification
+- Common coordination patterns
+- Skills and tools for coordination
+- Lessons from git history
+
+**When to use:** Before dispatching parallel agents, during multi-agent sessions, after parallel work completes.
 
 ### contributing.md
 
