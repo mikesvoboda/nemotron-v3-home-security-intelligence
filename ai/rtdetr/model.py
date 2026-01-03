@@ -174,6 +174,9 @@ class HealthResponse(BaseModel):
     cuda_available: bool
     model_name: str | None = None
     vram_used_gb: float | None = None
+    gpu_utilization: float | None = None
+    temperature: int | None = None
+    power_watts: float | None = None
 
 
 class RTDETRv2Model:
@@ -354,6 +357,64 @@ def get_vram_usage() -> float | None:
     return None
 
 
+def get_gpu_metrics() -> dict[str, float | int | None]:
+    """Get GPU metrics using pynvml.
+
+    Returns a dictionary containing:
+    - gpu_utilization: GPU utilization percentage (0-100)
+    - temperature: GPU temperature in Celsius
+    - power_watts: GPU power usage in Watts
+
+    All values will be None if pynvml is unavailable or an error occurs.
+    """
+    result: dict[str, float | int | None] = {
+        "gpu_utilization": None,
+        "temperature": None,
+        "power_watts": None,
+    }
+
+    if not torch.cuda.is_available():
+        return result
+
+    try:
+        import pynvml
+
+        pynvml.nvmlInit()
+        try:
+            handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+
+            # Get GPU utilization
+            try:
+                utilization = pynvml.nvmlDeviceGetUtilizationRates(handle)
+                result["gpu_utilization"] = float(utilization.gpu)
+            except pynvml.NVMLError as e:
+                logger.debug(f"Failed to get GPU utilization: {e}")
+
+            # Get temperature
+            try:
+                temp = pynvml.nvmlDeviceGetTemperature(handle, pynvml.NVML_TEMPERATURE_GPU)
+                result["temperature"] = int(temp)
+            except pynvml.NVMLError as e:
+                logger.debug(f"Failed to get GPU temperature: {e}")
+
+            # Get power usage
+            try:
+                power_mw = pynvml.nvmlDeviceGetPowerUsage(handle)
+                result["power_watts"] = float(power_mw) / 1000.0
+            except pynvml.NVMLError as e:
+                logger.debug(f"Failed to get GPU power usage: {e}")
+
+        finally:
+            pynvml.nvmlShutdown()
+
+    except ImportError:
+        logger.debug("pynvml not installed, GPU metrics unavailable")
+    except Exception as e:
+        logger.debug(f"Failed to get GPU metrics via pynvml: {e}")
+
+    return result
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """Lifespan context manager for FastAPI app."""
@@ -410,6 +471,9 @@ async def health_check() -> HealthResponse:
     device = "cuda:0" if cuda_available else "cpu"
     vram_used = get_vram_usage() if cuda_available else None
 
+    # Get GPU metrics (utilization, temperature, power) via pynvml
+    gpu_metrics = get_gpu_metrics() if cuda_available else {}
+
     return HealthResponse(
         status="healthy" if model is not None and model.model is not None else "degraded",
         model_loaded=model is not None and model.model is not None,
@@ -417,6 +481,9 @@ async def health_check() -> HealthResponse:
         cuda_available=cuda_available,
         model_name=model.model_path if model else None,
         vram_used_gb=vram_used,
+        gpu_utilization=gpu_metrics.get("gpu_utilization"),
+        temperature=gpu_metrics.get("temperature"),
+        power_watts=gpu_metrics.get("power_watts"),
     )
 
 

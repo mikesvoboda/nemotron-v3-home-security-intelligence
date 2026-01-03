@@ -1564,3 +1564,71 @@ async def test_multiple_files_cleaned_up_independently(file_watcher, temp_camera
 
     # All should be cleaned up
     assert len(file_watcher._pending_tasks) == 0
+
+
+# Pipeline Start Time Tracking Tests (bead 4mje.3)
+
+
+@pytest.mark.asyncio
+async def test_queue_for_detection_includes_pipeline_start_time(
+    temp_camera_root, mock_redis_client
+):
+    """Test that _queue_for_detection includes pipeline_start_time in the queue payload.
+
+    This tests the fix for bead 4mje.3: Pipeline latency metrics are all null because
+    total_pipeline stage is defined but never recorded. The pipeline_start_time must
+    be set when the file is first detected.
+    """
+    watcher = FileWatcher(
+        camera_root=str(temp_camera_root),
+        redis_client=mock_redis_client,
+        debounce_delay=0.1,
+    )
+    # Override _dedupe_service to None for simpler test
+    watcher._dedupe_service = None
+
+    camera_dir = temp_camera_root / "camera1"
+    image_path = camera_dir / "test.jpg"
+    img = Image.new("RGB", (100, 100), color="blue")
+    img.save(image_path)
+
+    await watcher._queue_for_detection("camera1", str(image_path))
+
+    # Verify queue was called with pipeline_start_time
+    mock_redis_client.add_to_queue_safe.assert_called_once()
+    call_args = mock_redis_client.add_to_queue_safe.call_args[0]
+    queue_data = call_args[1]
+
+    # pipeline_start_time should be present and a valid ISO timestamp
+    assert "pipeline_start_time" in queue_data
+    assert queue_data["pipeline_start_time"] is not None
+
+    # Verify it's a valid ISO format timestamp
+    from datetime import datetime
+
+    parsed = datetime.fromisoformat(queue_data["pipeline_start_time"])
+    assert parsed is not None
+
+
+@pytest.mark.asyncio
+async def test_process_file_records_pipeline_start_time(
+    file_watcher, temp_camera_root, mock_redis_client
+):
+    """Test that processing a file records pipeline_start_time at detection time."""
+    # Create valid image above minimum size
+    camera_dir = temp_camera_root / "camera1"
+    image_path = camera_dir / "test_pipeline_time.jpg"
+    create_valid_test_image(image_path)
+
+    await file_watcher._process_file(str(image_path))
+
+    # Verify Redis queue was called with pipeline_start_time
+    mock_redis_client.add_to_queue_safe.assert_awaited_once()
+    call_args = mock_redis_client.add_to_queue_safe.call_args
+
+    data = call_args[0][1]
+    assert "pipeline_start_time" in data
+    assert data["pipeline_start_time"] is not None
+
+    # Verify timestamp is same as main timestamp (file detection time)
+    assert data["pipeline_start_time"] == data["timestamp"]

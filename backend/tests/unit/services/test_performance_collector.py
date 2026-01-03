@@ -167,3 +167,458 @@ class TestCollectGpuPynvml:
             result = collector._collect_gpu_pynvml()
 
             assert result is None
+
+
+# =============================================================================
+# Host Metrics Tests
+# =============================================================================
+
+
+class TestCollectHostMetrics:
+    """Tests for collect_host_metrics method."""
+
+    @pytest.mark.asyncio
+    async def test_collect_host_metrics_success(self) -> None:
+        """Test successful host metrics collection."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            with patch("backend.services.performance_collector.psutil") as mock_psutil:
+                # Mock CPU percent
+                mock_psutil.cpu_percent.return_value = 45.5
+
+                # Mock virtual memory
+                mock_mem = MagicMock()
+                mock_mem.used = 8 * 1024**3  # 8 GB
+                mock_mem.total = 16 * 1024**3  # 16 GB
+                mock_psutil.virtual_memory.return_value = mock_mem
+
+                # Mock disk usage
+                mock_disk = MagicMock()
+                mock_disk.used = 100 * 1024**3  # 100 GB
+                mock_disk.total = 500 * 1024**3  # 500 GB
+                mock_psutil.disk_usage.return_value = mock_disk
+
+                collector = PerformanceCollector()
+                result = await collector.collect_host_metrics()
+
+                assert result is not None
+                assert result.cpu_percent == 45.5
+                assert result.ram_used_gb == 8.0
+                assert result.ram_total_gb == 16.0
+                assert result.disk_used_gb == 100.0
+                assert result.disk_total_gb == 500.0
+
+    @pytest.mark.asyncio
+    async def test_collect_host_metrics_cpu_failure(self) -> None:
+        """Test host metrics collection when CPU measurement fails."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            with patch("backend.services.performance_collector.psutil") as mock_psutil:
+                # Mock CPU percent to raise exception
+                mock_psutil.cpu_percent.side_effect = Exception("Permission denied")
+
+                # Mock virtual memory
+                mock_mem = MagicMock()
+                mock_mem.used = 8 * 1024**3
+                mock_mem.total = 16 * 1024**3
+                mock_psutil.virtual_memory.return_value = mock_mem
+
+                # Mock disk usage
+                mock_disk = MagicMock()
+                mock_disk.used = 100 * 1024**3
+                mock_disk.total = 500 * 1024**3
+                mock_psutil.disk_usage.return_value = mock_disk
+
+                collector = PerformanceCollector()
+                result = await collector.collect_host_metrics()
+
+                # Should return partial data with cpu_percent = 0.0
+                assert result is not None
+                assert result.cpu_percent == 0.0
+                assert result.ram_used_gb == 8.0
+                assert result.disk_used_gb == 100.0
+
+    @pytest.mark.asyncio
+    async def test_collect_host_metrics_all_failures(self) -> None:
+        """Test host metrics collection when all measurements fail."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            with patch("backend.services.performance_collector.psutil") as mock_psutil:
+                # All psutil calls fail
+                mock_psutil.cpu_percent.side_effect = Exception("Permission denied")
+                mock_psutil.virtual_memory.side_effect = Exception("Permission denied")
+                mock_psutil.disk_usage.side_effect = Exception("Permission denied")
+
+                collector = PerformanceCollector()
+                result = await collector.collect_host_metrics()
+
+                # Should return fallback values but not None
+                # Schema requires ram_total_gb and disk_total_gb > 0, so fallback to 1.0
+                assert result is not None
+                assert result.cpu_percent == 0.0
+                assert result.ram_used_gb == 0.0
+                assert result.ram_total_gb == 1.0  # Fallback to avoid schema validation error
+                assert result.disk_used_gb == 0.0
+                assert result.disk_total_gb == 1.0  # Fallback to avoid schema validation error
+
+
+# =============================================================================
+# PostgreSQL Metrics Tests
+# =============================================================================
+
+
+class TestCollectPostgresqlMetrics:
+    """Tests for collect_postgresql_metrics method."""
+
+    @pytest.mark.asyncio
+    async def test_collect_postgresql_metrics_session_factory_none(self) -> None:
+        """Test PostgreSQL metrics when session factory is None."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            with patch(
+                "backend.services.performance_collector.PerformanceCollector.collect_postgresql_metrics"
+            ) as mock_method:
+                # Simulate the session factory being None
+                from backend.api.schemas.performance import DatabaseMetrics
+
+                mock_method.return_value = DatabaseMetrics(
+                    status="unreachable",
+                    connections_active=0,
+                    connections_max=30,
+                    cache_hit_ratio=0,
+                    transactions_per_min=0,
+                )
+
+                collector = PerformanceCollector()
+                result = await collector.collect_postgresql_metrics()
+
+                assert result is not None
+                assert result.status == "unreachable"
+
+
+# =============================================================================
+# Redis Metrics Tests
+# =============================================================================
+
+
+class TestCollectRedisMetrics:
+    """Tests for collect_redis_metrics method."""
+
+    @pytest.mark.asyncio
+    async def test_collect_redis_metrics_not_connected(self) -> None:
+        """Test Redis metrics when client is not connected."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            with patch("backend.core.redis.init_redis") as mock_init_redis:
+                # Mock Redis client that raises RuntimeError on _ensure_connected
+                mock_client = MagicMock()
+                mock_client._ensure_connected.side_effect = RuntimeError(
+                    "Redis client not connected"
+                )
+                mock_init_redis.return_value = mock_client
+
+                collector = PerformanceCollector()
+                result = await collector.collect_redis_metrics()
+
+                assert result is not None
+                assert result.status == "unreachable"
+                assert result.connected_clients == 0
+
+    @pytest.mark.asyncio
+    async def test_collect_redis_metrics_success(self) -> None:
+        """Test successful Redis metrics collection."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            with patch("backend.core.redis.init_redis") as mock_init_redis:
+                # Mock Redis client with successful info() call
+                mock_raw_client = MagicMock()
+                mock_raw_client.info = MagicMock(
+                    return_value={
+                        "connected_clients": 5,
+                        "used_memory": 10 * 1024 * 1024,  # 10 MB
+                        "keyspace_hits": 100,
+                        "keyspace_misses": 10,
+                        "blocked_clients": 0,
+                    }
+                )
+                # Make info() an async mock
+
+                async def mock_info():
+                    return {
+                        "connected_clients": 5,
+                        "used_memory": 10 * 1024 * 1024,
+                        "keyspace_hits": 100,
+                        "keyspace_misses": 10,
+                        "blocked_clients": 0,
+                    }
+
+                mock_raw_client.info = mock_info
+
+                mock_client = MagicMock()
+                mock_client._ensure_connected.return_value = mock_raw_client
+                mock_init_redis.return_value = mock_client
+
+                collector = PerformanceCollector()
+                result = await collector.collect_redis_metrics()
+
+                assert result is not None
+                assert result.status == "healthy"
+                assert result.connected_clients == 5
+                assert result.memory_mb == 10.0
+                # hit_ratio = 100 / (100 + 10) * 100 = 90.9%
+                assert abs(result.hit_ratio - 90.909) < 0.1
+
+
+# =============================================================================
+# Container Health Tests
+# =============================================================================
+
+
+class TestCollectContainerHealth:
+    """Tests for collect_container_health method."""
+
+    @pytest.mark.asyncio
+    async def test_collect_container_health_backend_always_healthy(self) -> None:
+        """Test that backend is always marked as healthy."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock(
+                frontend_url="http://frontend:80",
+                rtdetr_url="http://ai-detector:8090",
+                nemotron_url="http://ai-llm:8091",
+            )
+
+            collector = PerformanceCollector()
+
+            # Mock all internal methods to return unhealthy
+            with (
+                patch.object(collector, "_check_service_health") as mock_service,
+                patch.object(collector, "_check_postgres_health") as mock_pg,
+                patch.object(collector, "_check_redis_health") as mock_redis,
+            ):
+                from backend.api.schemas.performance import ContainerMetrics
+
+                mock_service.return_value = ContainerMetrics(
+                    name="test", status="unknown", health="unhealthy"
+                )
+                mock_pg.return_value = ContainerMetrics(
+                    name="postgres", status="unknown", health="unhealthy"
+                )
+                mock_redis.return_value = ContainerMetrics(
+                    name="redis", status="unknown", health="unhealthy"
+                )
+
+                result = await collector.collect_container_health()
+
+                # Backend should always be first and healthy
+                assert len(result) == 6
+                assert result[0].name == "backend"
+                assert result[0].health == "healthy"
+
+    @pytest.mark.asyncio
+    async def test_check_service_health_success(self) -> None:
+        """Test successful HTTP health check."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            import httpx
+
+            collector = PerformanceCollector()
+
+            # Create a mock response
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+
+            with patch("httpx.AsyncClient.get", return_value=mock_response):
+                client = httpx.AsyncClient()
+                result = await collector._check_service_health(
+                    client, "test-service", "http://test:8000/health"
+                )
+                await client.aclose()
+
+                assert result.name == "test-service"
+                assert result.health == "healthy"
+
+    @pytest.mark.asyncio
+    async def test_check_service_health_unhealthy_status(self) -> None:
+        """Test HTTP health check with non-200 status."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            import httpx
+
+            collector = PerformanceCollector()
+
+            # Create a mock response with 500 status
+            mock_response = MagicMock()
+            mock_response.status_code = 500
+
+            with patch("httpx.AsyncClient.get", return_value=mock_response):
+                client = httpx.AsyncClient()
+                result = await collector._check_service_health(
+                    client, "test-service", "http://test:8000/health"
+                )
+                await client.aclose()
+
+                assert result.name == "test-service"
+                assert result.health == "unhealthy"
+
+    @pytest.mark.asyncio
+    async def test_check_service_health_connection_error(self) -> None:
+        """Test HTTP health check with connection error."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            import httpx
+
+            collector = PerformanceCollector()
+
+            with patch(
+                "httpx.AsyncClient.get", side_effect=httpx.ConnectError("Connection refused")
+            ):
+                client = httpx.AsyncClient()
+                result = await collector._check_service_health(
+                    client, "test-service", "http://test:8000/health"
+                )
+                await client.aclose()
+
+                assert result.name == "test-service"
+                assert result.status == "unknown"
+                assert result.health == "unhealthy"
+
+    @pytest.mark.asyncio
+    async def test_check_service_health_timeout(self) -> None:
+        """Test HTTP health check with timeout."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            import httpx
+
+            collector = PerformanceCollector()
+
+            with patch("httpx.AsyncClient.get", side_effect=httpx.TimeoutException("Timeout")):
+                client = httpx.AsyncClient()
+                result = await collector._check_service_health(
+                    client, "test-service", "http://test:8000/health"
+                )
+                await client.aclose()
+
+                assert result.name == "test-service"
+                assert result.status == "running"  # Timeout suggests service exists
+                assert result.health == "unhealthy"
+
+
+# =============================================================================
+# Alert Generation Tests
+# =============================================================================
+
+
+class TestAlertGeneration:
+    """Tests for alert generation methods."""
+
+    def test_check_gpu_alerts_no_alerts(self) -> None:
+        """Test no alerts when GPU metrics are within thresholds."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            from backend.api.schemas.performance import GpuMetrics
+
+            collector = PerformanceCollector()
+            gpu = GpuMetrics(
+                name="Test GPU",
+                utilization=50.0,
+                vram_used_gb=10.0,
+                vram_total_gb=24.0,
+                temperature=60,
+                power_watts=150,
+            )
+
+            alerts = collector.check_gpu_alerts(gpu)
+            assert len(alerts) == 0
+
+    def test_check_gpu_alerts_temperature_warning(self) -> None:
+        """Test warning alert for high GPU temperature."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            from backend.api.schemas.performance import GpuMetrics
+
+            collector = PerformanceCollector()
+            gpu = GpuMetrics(
+                name="Test GPU",
+                utilization=50.0,
+                vram_used_gb=10.0,
+                vram_total_gb=24.0,
+                temperature=78,  # Above 75 warning threshold
+                power_watts=150,
+            )
+
+            alerts = collector.check_gpu_alerts(gpu)
+            assert len(alerts) == 1
+            assert alerts[0].severity == "warning"
+            assert alerts[0].metric == "gpu_temperature"
+
+    def test_check_gpu_alerts_temperature_critical(self) -> None:
+        """Test critical alert for very high GPU temperature."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            from backend.api.schemas.performance import GpuMetrics
+
+            collector = PerformanceCollector()
+            gpu = GpuMetrics(
+                name="Test GPU",
+                utilization=50.0,
+                vram_used_gb=10.0,
+                vram_total_gb=24.0,
+                temperature=90,  # Above 85 critical threshold
+                power_watts=150,
+            )
+
+            alerts = collector.check_gpu_alerts(gpu)
+            assert len(alerts) == 1
+            assert alerts[0].severity == "critical"
+            assert alerts[0].metric == "gpu_temperature"
+
+    def test_check_host_alerts_no_alerts(self) -> None:
+        """Test no alerts when host metrics are within thresholds."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            from backend.api.schemas.performance import HostMetrics
+
+            collector = PerformanceCollector()
+            host = HostMetrics(
+                cpu_percent=50.0,
+                ram_used_gb=8.0,
+                ram_total_gb=16.0,
+                disk_used_gb=100.0,
+                disk_total_gb=500.0,
+            )
+
+            alerts = collector.check_host_alerts(host)
+            assert len(alerts) == 0
+
+    def test_check_host_alerts_cpu_critical(self) -> None:
+        """Test critical alert for very high CPU usage."""
+        with patch("backend.services.performance_collector.get_settings") as mock_settings:
+            mock_settings.return_value = MagicMock()
+
+            from backend.api.schemas.performance import HostMetrics
+
+            collector = PerformanceCollector()
+            host = HostMetrics(
+                cpu_percent=98.0,  # Above 95 critical threshold
+                ram_used_gb=8.0,
+                ram_total_gb=16.0,
+                disk_used_gb=100.0,
+                disk_total_gb=500.0,
+            )
+
+            alerts = collector.check_host_alerts(host)
+            assert any(a.metric == "host_cpu" and a.severity == "critical" for a in alerts)

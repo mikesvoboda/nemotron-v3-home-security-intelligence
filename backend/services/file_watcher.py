@@ -637,11 +637,14 @@ class FileWatcher:
                 )
                 return
 
+        # Record pipeline start time for total_pipeline latency tracking
+        pipeline_start_time = datetime.now().isoformat()
         detection_data = {
             "camera_id": camera_id,
             "file_path": file_path,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": pipeline_start_time,
             "media_type": media_type or get_media_type(file_path) or "image",
+            "pipeline_start_time": pipeline_start_time,
         }
 
         # Include hash in queue data for downstream deduplication if needed

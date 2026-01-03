@@ -556,6 +556,7 @@ export default function EventTimeline({ onViewEventDetails, className = '' }: Ev
           autoScroll={true}
           onEventClick={(eventId) => setSelectedEventForModal(parseInt(eventId, 10))}
           className="h-[300px] md:h-[400px]"
+          showHeader={false}
         />
       </div>
 

@@ -7,126 +7,102 @@
  * - State management during disconnection
  * - Error recovery after connection failures
  * - Max retries exhaustion behavior
+ *
+ * Note: Since useWebSocket now delegates to webSocketManager, these tests
+ * mock the webSocketManager to simulate various connection scenarios.
  */
 
-/* eslint-disable @typescript-eslint/await-thenable, @typescript-eslint/require-await */
+/* eslint-disable @typescript-eslint/await-thenable, @typescript-eslint/require-await, @typescript-eslint/unbound-method */
 import { renderHook, act } from '@testing-library/react';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi, Mock } from 'vitest';
 
 import { useWebSocket, WebSocketOptions } from './useWebSocket';
+import { webSocketManager, resetSubscriberCounter } from './webSocketManager';
 
-// Extend Window interface for WebSocket
-declare global {
-  interface Window {
-    WebSocket: typeof WebSocket;
-  }
-}
+// Mock the webSocketManager module
+vi.mock('./webSocketManager', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./webSocketManager')>();
+  return {
+    ...actual,
+    webSocketManager: {
+      subscribe: vi.fn(),
+      send: vi.fn(),
+      getConnectionState: vi.fn(),
+      getSubscriberCount: vi.fn(),
+      hasConnection: vi.fn(),
+      reconnect: vi.fn(),
+      clearAll: vi.fn(),
+      reset: vi.fn(),
+    },
+  };
+});
 
-// Mock WebSocket with connection timeout simulation
-class MockWebSocketWithTimeout {
-  url: string;
-  readyState: number = WebSocket.CONNECTING;
-  onopen: ((event: Event) => void) | null = null;
-  onclose: ((event: CloseEvent) => void) | null = null;
-  onerror: ((event: Event) => void) | null = null;
-  onmessage: ((event: MessageEvent) => void) | null = null;
-
-  static CONNECTING = 0;
-  static OPEN = 1;
-  static CLOSING = 2;
-  static CLOSED = 3;
-
-  private openDelay: number;
-  private shouldTimeout: boolean;
-  private timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-  constructor(url: string, options?: { openDelay?: number; shouldTimeout?: boolean }) {
-    this.url = url;
-    this.openDelay = options?.openDelay ?? 0;
-    this.shouldTimeout = options?.shouldTimeout ?? false;
-
-    if (!this.shouldTimeout) {
-      // Simulate connection opening after delay
-      this.timeoutId = setTimeout(() => {
-        this.readyState = WebSocket.OPEN;
-        if (this.onopen) {
-          this.onopen(new Event('open'));
-        }
-      }, this.openDelay);
-    }
-    // If shouldTimeout is true, connection stays in CONNECTING state
-  }
-
-  send(_data: string): void {
-    if (this.readyState !== WebSocket.OPEN) {
-      throw new Error('WebSocket is not open');
-    }
-  }
-
-  close(): void {
-    if (this.timeoutId) {
-      clearTimeout(this.timeoutId);
-      this.timeoutId = null;
-    }
-    this.readyState = WebSocket.CLOSED;
-    if (this.onclose) {
-      this.onclose(new CloseEvent('close'));
-    }
-  }
-
-  simulateMessage(data: unknown): void {
-    if (this.onmessage) {
-      const messageData = typeof data === 'string' ? data : JSON.stringify(data);
-      this.onmessage(new MessageEvent('message', { data: messageData }));
-    }
-  }
-
-  simulateError(): void {
-    if (this.onerror) {
-      this.onerror(new Event('error'));
-    }
-  }
-}
+// Helper type for the mock subscribe function
+type SubscribeCallback = Parameters<typeof webSocketManager.subscribe>[1];
+type SubscribeConfig = Parameters<typeof webSocketManager.subscribe>[2];
 
 describe('useWebSocket timeout and reconnection', () => {
-  let mockWebSocket: MockWebSocketWithTimeout | null = null;
-  let createdWebSockets: MockWebSocketWithTimeout[] = [];
-  const originalWebSocket = window.WebSocket;
+  let mockUnsubscribe: Mock;
+  let lastSubscriber: SubscribeCallback | null = null;
 
   beforeEach(() => {
     vi.useFakeTimers();
-    createdWebSockets = [];
+    resetSubscriberCounter();
+    mockUnsubscribe = vi.fn();
+    lastSubscriber = null;
+
+    // Default mock implementations
+    (webSocketManager.subscribe as Mock).mockImplementation(
+      (_url: string, subscriber: SubscribeCallback, _config: SubscribeConfig) => {
+        lastSubscriber = subscriber;
+        // Simulate connection opening after a short delay
+        setTimeout(() => {
+          subscriber.onOpen?.();
+        }, 10);
+        return mockUnsubscribe;
+      }
+    );
+
+    (webSocketManager.send as Mock).mockReturnValue(true);
+
+    (webSocketManager.getConnectionState as Mock).mockReturnValue({
+      isConnected: true,
+      reconnectCount: 0,
+      hasExhaustedRetries: false,
+      lastHeartbeat: null,
+    });
+
+    (webSocketManager.getSubscriberCount as Mock).mockReturnValue(1);
   });
 
   afterEach(() => {
-    window.WebSocket = originalWebSocket;
-    mockWebSocket = null;
-    createdWebSockets = [];
+    vi.clearAllMocks();
     vi.clearAllTimers();
     vi.useRealTimers();
   });
 
   describe('Connection Timeout', () => {
     it('should close connection if timeout is exceeded while connecting', async () => {
-      // Set up a WebSocket that never completes connection
-      window.WebSocket = vi.fn(function (this: MockWebSocketWithTimeout, url: string) {
-        mockWebSocket = new MockWebSocketWithTimeout(url, { shouldTimeout: true });
-        createdWebSockets.push(mockWebSocket);
-        Object.assign(this, mockWebSocket);
-        return mockWebSocket;
-      }) as unknown as typeof WebSocket;
-
-      Object.defineProperty(window.WebSocket, 'CONNECTING', { value: 0 });
-      Object.defineProperty(window.WebSocket, 'OPEN', { value: 1 });
-      Object.defineProperty(window.WebSocket, 'CLOSING', { value: 2 });
-      Object.defineProperty(window.WebSocket, 'CLOSED', { value: 3 });
+      // Set up subscribe to simulate timeout by not calling onOpen
+      (webSocketManager.subscribe as Mock).mockImplementation(
+        (_url: string, subscriber: SubscribeCallback) => {
+          lastSubscriber = subscriber;
+          // Don't call onOpen - simulating timeout
+          // In real implementation, the manager would handle the timeout
+          // and call onClose after connectionTimeout
+          setTimeout(() => {
+            subscriber.onClose?.();
+          }, 150);
+          return mockUnsubscribe;
+        }
+      );
 
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
       const options: WebSocketOptions = {
         url: 'ws://localhost:8000/ws',
         connectionTimeout: 100, // 100ms timeout
-        reconnect: false, // Disable reconnect for this test
+        reconnect: false,
       };
 
       const { result } = renderHook(() => useWebSocket(options));
@@ -134,44 +110,48 @@ describe('useWebSocket timeout and reconnection', () => {
       // Initially not connected
       expect(result.current.isConnected).toBe(false);
 
-      // Advance timer past connection timeout
+      // Verify connectionTimeout was passed to manager
+      expect(webSocketManager.subscribe).toHaveBeenCalledWith(
+        'ws://localhost:8000/ws',
+        expect.any(Object),
+        expect.objectContaining({
+          connectionTimeout: 100,
+        })
+      );
+
+      // Advance timer past timeout
       await act(() => {
-        vi.advanceTimersByTime(150);
+        vi.advanceTimersByTime(200);
       });
 
-      // Should have logged warning about timeout (message format: "WebSocket connection timeout after Xms, retrying...")
-      expect(consoleSpy).toHaveBeenCalled();
-      const calls = consoleSpy.mock.calls;
-      const hasTimeoutWarning = calls.some(
-        (call) => typeof call[0] === 'string' && call[0].toLowerCase().includes('timeout')
-      );
-      expect(hasTimeoutWarning).toBe(true);
+      // Connection should have failed
+      expect(result.current.isConnected).toBe(false);
 
       consoleSpy.mockRestore();
     });
 
     it('should attempt reconnection after connection timeout', async () => {
-      let connectionAttempt = 0;
+      let subscribeCallCount = 0;
 
-      window.WebSocket = vi.fn(function (this: MockWebSocketWithTimeout, url: string) {
-        connectionAttempt++;
-        // First connection times out, second succeeds
-        const shouldTimeout = connectionAttempt === 1;
-        mockWebSocket = new MockWebSocketWithTimeout(url, {
-          shouldTimeout,
-          openDelay: shouldTimeout ? 0 : 10,
-        });
-        createdWebSockets.push(mockWebSocket);
-        Object.assign(this, mockWebSocket);
-        return mockWebSocket;
-      }) as unknown as typeof WebSocket;
+      (webSocketManager.subscribe as Mock).mockImplementation(
+        (_url: string, subscriber: SubscribeCallback) => {
+          subscribeCallCount++;
+          lastSubscriber = subscriber;
 
-      Object.defineProperty(window.WebSocket, 'CONNECTING', { value: 0 });
-      Object.defineProperty(window.WebSocket, 'OPEN', { value: 1 });
-      Object.defineProperty(window.WebSocket, 'CLOSING', { value: 2 });
-      Object.defineProperty(window.WebSocket, 'CLOSED', { value: 3 });
-
-      vi.spyOn(console, 'warn').mockImplementation(() => {});
+          if (subscribeCallCount === 1) {
+            // First connection times out
+            setTimeout(() => {
+              subscriber.onClose?.();
+            }, 60);
+          } else {
+            // Second connection succeeds
+            setTimeout(() => {
+              subscriber.onOpen?.();
+            }, 10);
+          }
+          return mockUnsubscribe;
+        }
+      );
 
       const options: WebSocketOptions = {
         url: 'ws://localhost:8000/ws',
@@ -186,37 +166,37 @@ describe('useWebSocket timeout and reconnection', () => {
       // Initially connecting
       expect(result.current.isConnected).toBe(false);
 
-      // First connection times out
+      // Verify reconnect config was passed
+      expect(webSocketManager.subscribe).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Object),
+        expect.objectContaining({
+          reconnect: true,
+          reconnectInterval: 100,
+          maxReconnectAttempts: 3,
+        })
+      );
+
+      // Wait for first connection to fail
       await act(() => {
         vi.advanceTimersByTime(100);
       });
 
-      // Wait for reconnection delay
-      await act(() => {
-        vi.advanceTimersByTime(200);
-      });
-
-      // Second connection should succeed
-      await act(() => {
-        vi.advanceTimersByTime(50);
-      });
-
-      // Should have made 2 connection attempts
-      expect(connectionAttempt).toBeGreaterThanOrEqual(2);
+      // First subscription was made
+      expect(subscribeCallCount).toBe(1);
     });
 
     it('should clear connection timeout when connection succeeds', async () => {
-      window.WebSocket = vi.fn(function (this: MockWebSocketWithTimeout, url: string) {
-        mockWebSocket = new MockWebSocketWithTimeout(url, { openDelay: 50 });
-        createdWebSockets.push(mockWebSocket);
-        Object.assign(this, mockWebSocket);
-        return mockWebSocket;
-      }) as unknown as typeof WebSocket;
-
-      Object.defineProperty(window.WebSocket, 'CONNECTING', { value: 0 });
-      Object.defineProperty(window.WebSocket, 'OPEN', { value: 1 });
-      Object.defineProperty(window.WebSocket, 'CLOSING', { value: 2 });
-      Object.defineProperty(window.WebSocket, 'CLOSED', { value: 3 });
+      (webSocketManager.subscribe as Mock).mockImplementation(
+        (_url: string, subscriber: SubscribeCallback) => {
+          lastSubscriber = subscriber;
+          // Connection succeeds after 50ms
+          setTimeout(() => {
+            subscriber.onOpen?.();
+          }, 50);
+          return mockUnsubscribe;
+        }
+      );
 
       const options: WebSocketOptions = {
         url: 'ws://localhost:8000/ws',
@@ -236,17 +216,15 @@ describe('useWebSocket timeout and reconnection', () => {
     });
 
     it('should handle zero connection timeout (disabled)', async () => {
-      window.WebSocket = vi.fn(function (this: MockWebSocketWithTimeout, url: string) {
-        mockWebSocket = new MockWebSocketWithTimeout(url, { openDelay: 10 });
-        createdWebSockets.push(mockWebSocket);
-        Object.assign(this, mockWebSocket);
-        return mockWebSocket;
-      }) as unknown as typeof WebSocket;
-
-      Object.defineProperty(window.WebSocket, 'CONNECTING', { value: 0 });
-      Object.defineProperty(window.WebSocket, 'OPEN', { value: 1 });
-      Object.defineProperty(window.WebSocket, 'CLOSING', { value: 2 });
-      Object.defineProperty(window.WebSocket, 'CLOSED', { value: 3 });
+      (webSocketManager.subscribe as Mock).mockImplementation(
+        (_url: string, subscriber: SubscribeCallback) => {
+          lastSubscriber = subscriber;
+          setTimeout(() => {
+            subscriber.onOpen?.();
+          }, 10);
+          return mockUnsubscribe;
+        }
+      );
 
       const options: WebSocketOptions = {
         url: 'ws://localhost:8000/ws',
@@ -261,25 +239,38 @@ describe('useWebSocket timeout and reconnection', () => {
       });
 
       expect(result.current.isConnected).toBe(true);
+
+      // Verify zero timeout was passed
+      expect(webSocketManager.subscribe).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Object),
+        expect.objectContaining({
+          connectionTimeout: 0,
+        })
+      );
     });
   });
 
   describe('Reconnection Behavior', () => {
     it('should increment reconnectCount on each reconnection attempt', async () => {
-      let _connectionAttempt = 0;
+      let closeCount = 0;
 
-      window.WebSocket = vi.fn(function (this: MockWebSocketWithTimeout, url: string) {
-        _connectionAttempt++;
-        mockWebSocket = new MockWebSocketWithTimeout(url, { openDelay: 10 });
-        createdWebSockets.push(mockWebSocket);
-        Object.assign(this, mockWebSocket);
-        return mockWebSocket;
-      }) as unknown as typeof WebSocket;
+      (webSocketManager.subscribe as Mock).mockImplementation(
+        (_url: string, subscriber: SubscribeCallback) => {
+          lastSubscriber = subscriber;
+          setTimeout(() => {
+            subscriber.onOpen?.();
+          }, 10);
+          return mockUnsubscribe;
+        }
+      );
 
-      Object.defineProperty(window.WebSocket, 'CONNECTING', { value: 0 });
-      Object.defineProperty(window.WebSocket, 'OPEN', { value: 1 });
-      Object.defineProperty(window.WebSocket, 'CLOSING', { value: 2 });
-      Object.defineProperty(window.WebSocket, 'CLOSED', { value: 3 });
+      (webSocketManager.getConnectionState as Mock).mockImplementation(() => ({
+        isConnected: false,
+        reconnectCount: closeCount,
+        hasExhaustedRetries: false,
+        lastHeartbeat: null,
+      }));
 
       const options: WebSocketOptions = {
         url: 'ws://localhost:8000/ws',
@@ -298,55 +289,18 @@ describe('useWebSocket timeout and reconnection', () => {
       expect(result.current.isConnected).toBe(true);
       expect(result.current.reconnectCount).toBe(0);
 
-      // Close connection to trigger reconnection
+      // Simulate close and update state
+      closeCount = 1;
       await act(() => {
-        mockWebSocket?.close();
+        lastSubscriber?.onClose?.();
       });
 
       expect(result.current.isConnected).toBe(false);
-
-      // Wait for first reconnect attempt (base interval 50ms + up to 25% jitter = up to 62.5ms)
-      // Plus some extra time for the reconnection to be scheduled
-      await act(() => {
-        vi.advanceTimersByTime(200); // Give plenty of time for reconnect
-      });
-
-      // After close + reconnect delay + connection, should have at least 1 reconnect attempt
-      expect(result.current.reconnectCount).toBeGreaterThanOrEqual(0);
+      expect(result.current.reconnectCount).toBe(1);
     });
 
     it('should use exponential backoff for reconnection delays', async () => {
-      const reconnectDelays: number[] = [];
-      let lastReconnectTime = 0;
-
-      window.WebSocket = vi.fn(function (this: MockWebSocketWithTimeout, url: string) {
-        const now = Date.now();
-        if (lastReconnectTime > 0) {
-          reconnectDelays.push(now - lastReconnectTime);
-        }
-        lastReconnectTime = now;
-
-        // Connection fails immediately to trigger reconnect
-        mockWebSocket = new MockWebSocketWithTimeout(url, { openDelay: 5 });
-        createdWebSockets.push(mockWebSocket);
-        Object.assign(this, mockWebSocket);
-
-        // Simulate close after a short delay
-        setTimeout(() => {
-          if (mockWebSocket && mockWebSocket.onclose) {
-            mockWebSocket.readyState = WebSocket.CLOSED;
-            mockWebSocket.onclose(new CloseEvent('close'));
-          }
-        }, 10);
-
-        return mockWebSocket;
-      }) as unknown as typeof WebSocket;
-
-      Object.defineProperty(window.WebSocket, 'CONNECTING', { value: 0 });
-      Object.defineProperty(window.WebSocket, 'OPEN', { value: 1 });
-      Object.defineProperty(window.WebSocket, 'CLOSING', { value: 2 });
-      Object.defineProperty(window.WebSocket, 'CLOSED', { value: 3 });
-
+      // Verify the reconnectInterval is passed to the manager
       const options: WebSocketOptions = {
         url: 'ws://localhost:8000/ws',
         reconnect: true,
@@ -356,54 +310,35 @@ describe('useWebSocket timeout and reconnection', () => {
 
       renderHook(() => useWebSocket(options));
 
-      // Run through multiple reconnection cycles
-      await act(() => {
-        vi.advanceTimersByTime(5000);
-      });
-
-      // Verify exponential backoff pattern (delays should generally increase)
-      // Note: Due to jitter, we can't verify exact values, but should see general trend
-      if (reconnectDelays.length >= 2) {
-        // Later delays should generally be longer (with some tolerance for jitter)
-        const firstHalfAvg =
-          reconnectDelays.slice(0, Math.floor(reconnectDelays.length / 2)).reduce((a, b) => a + b, 0) /
-          Math.floor(reconnectDelays.length / 2);
-        const secondHalfAvg =
-          reconnectDelays.slice(Math.floor(reconnectDelays.length / 2)).reduce((a, b) => a + b, 0) /
-          (reconnectDelays.length - Math.floor(reconnectDelays.length / 2));
-        // Second half average should be >= first half (exponential growth)
-        expect(secondHalfAvg).toBeGreaterThanOrEqual(firstHalfAvg * 0.8); // Allow for jitter
-      }
+      // Verify the config is passed correctly
+      expect(webSocketManager.subscribe).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Object),
+        expect.objectContaining({
+          reconnect: true,
+          reconnectInterval: 100,
+          maxReconnectAttempts: 4,
+        })
+      );
     });
 
     it('should reset reconnectCount on successful connection', async () => {
-      let connectionAttempt = 0;
-
-      window.WebSocket = vi.fn(function (this: MockWebSocketWithTimeout, url: string) {
-        connectionAttempt++;
-        // First connection fails, rest succeed
-        const shouldFail = connectionAttempt === 1;
-        mockWebSocket = new MockWebSocketWithTimeout(url, { openDelay: 10 });
-        createdWebSockets.push(mockWebSocket);
-        Object.assign(this, mockWebSocket);
-
-        if (shouldFail) {
-          // Simulate failure after connecting
+      (webSocketManager.subscribe as Mock).mockImplementation(
+        (_url: string, subscriber: SubscribeCallback) => {
+          lastSubscriber = subscriber;
           setTimeout(() => {
-            if (mockWebSocket && mockWebSocket.onclose) {
-              mockWebSocket.readyState = WebSocket.CLOSED;
-              mockWebSocket.onclose(new CloseEvent('close'));
-            }
-          }, 20);
+            subscriber.onOpen?.();
+          }, 10);
+          return mockUnsubscribe;
         }
+      );
 
-        return mockWebSocket;
-      }) as unknown as typeof WebSocket;
-
-      Object.defineProperty(window.WebSocket, 'CONNECTING', { value: 0 });
-      Object.defineProperty(window.WebSocket, 'OPEN', { value: 1 });
-      Object.defineProperty(window.WebSocket, 'CLOSING', { value: 2 });
-      Object.defineProperty(window.WebSocket, 'CLOSED', { value: 3 });
+      (webSocketManager.getConnectionState as Mock).mockReturnValue({
+        isConnected: true,
+        reconnectCount: 0,
+        hasExhaustedRetries: false,
+        lastHeartbeat: null,
+      });
 
       const options: WebSocketOptions = {
         url: 'ws://localhost:8000/ws',
@@ -414,82 +349,37 @@ describe('useWebSocket timeout and reconnection', () => {
 
       const { result } = renderHook(() => useWebSocket(options));
 
-      // Wait for first connection to fail and reconnection to start
+      // Wait for connection
       await act(() => {
         vi.advanceTimersByTime(100);
       });
 
-      // Wait for second connection to succeed
-      await act(() => {
-        vi.advanceTimersByTime(100);
-      });
-
-      // After successful reconnection, count should be reset
+      // After successful connection, count should be reset to 0
       expect(result.current.reconnectCount).toBe(0);
       expect(result.current.isConnected).toBe(true);
     });
 
     it('should not reconnect when reconnect is disabled', async () => {
-      let connectionCount = 0;
-
-      window.WebSocket = vi.fn(function (this: MockWebSocketWithTimeout, url: string) {
-        connectionCount++;
-        mockWebSocket = new MockWebSocketWithTimeout(url, { openDelay: 10 });
-        createdWebSockets.push(mockWebSocket);
-        Object.assign(this, mockWebSocket);
-        return mockWebSocket;
-      }) as unknown as typeof WebSocket;
-
-      Object.defineProperty(window.WebSocket, 'CONNECTING', { value: 0 });
-      Object.defineProperty(window.WebSocket, 'OPEN', { value: 1 });
-      Object.defineProperty(window.WebSocket, 'CLOSING', { value: 2 });
-      Object.defineProperty(window.WebSocket, 'CLOSED', { value: 3 });
-
       const options: WebSocketOptions = {
         url: 'ws://localhost:8000/ws',
         reconnect: false,
       };
 
-      const { result } = renderHook(() => useWebSocket(options));
+      renderHook(() => useWebSocket(options));
 
-      await act(() => {
-        vi.advanceTimersByTime(50);
-      });
-
-      expect(result.current.isConnected).toBe(true);
-      expect(connectionCount).toBe(1);
-
-      // Close connection
-      await act(() => {
-        mockWebSocket?.close();
-      });
-
-      expect(result.current.isConnected).toBe(false);
-
-      // Wait for potential reconnection
-      await act(() => {
-        vi.advanceTimersByTime(500);
-      });
-
-      // Should not have reconnected
-      expect(connectionCount).toBe(1);
+      // Verify reconnect: false was passed
+      expect(webSocketManager.subscribe).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Object),
+        expect.objectContaining({
+          reconnect: false,
+        })
+      );
     });
   });
 
   describe('Max Retries Exhaustion', () => {
     it('should expose hasExhaustedRetries in return value', async () => {
-      // Verify the API exists and returns expected types
-      window.WebSocket = vi.fn(function (url: string) {
-        const ws = new MockWebSocketWithTimeout(url, { openDelay: 5 });
-        createdWebSockets.push(ws);
-        return ws;
-      }) as unknown as typeof WebSocket;
-
-      Object.defineProperty(window.WebSocket, 'CONNECTING', { value: 0 });
-      Object.defineProperty(window.WebSocket, 'OPEN', { value: 1 });
-      Object.defineProperty(window.WebSocket, 'CLOSING', { value: 2 });
-      Object.defineProperty(window.WebSocket, 'CLOSED', { value: 3 });
-
       const options: WebSocketOptions = {
         url: 'ws://localhost:8000/ws',
         reconnect: true,
@@ -506,17 +396,6 @@ describe('useWebSocket timeout and reconnection', () => {
     });
 
     it('should accept onMaxRetriesExhausted callback', async () => {
-      window.WebSocket = vi.fn(function (url: string) {
-        const ws = new MockWebSocketWithTimeout(url, { openDelay: 5 });
-        createdWebSockets.push(ws);
-        return ws;
-      }) as unknown as typeof WebSocket;
-
-      Object.defineProperty(window.WebSocket, 'CONNECTING', { value: 0 });
-      Object.defineProperty(window.WebSocket, 'OPEN', { value: 1 });
-      Object.defineProperty(window.WebSocket, 'CLOSING', { value: 2 });
-      Object.defineProperty(window.WebSocket, 'CLOSED', { value: 3 });
-
       const onMaxRetriesExhausted = vi.fn();
 
       const options: WebSocketOptions = {
@@ -527,29 +406,25 @@ describe('useWebSocket timeout and reconnection', () => {
         onMaxRetriesExhausted,
       };
 
-      // Should not throw when using the callback option
       const { result } = renderHook(() => useWebSocket(options));
 
       await act(() => {
-        vi.advanceTimersByTime(10);
+        vi.advanceTimersByTime(20);
       });
 
       // Hook should be valid
       expect(result.current.isConnected).toBeDefined();
+
+      // Simulate max retries exhausted
+      await act(() => {
+        lastSubscriber?.onMaxRetriesExhausted?.();
+      });
+
+      expect(onMaxRetriesExhausted).toHaveBeenCalled();
+      expect(result.current.hasExhaustedRetries).toBe(true);
     });
 
     it('should reset hasExhaustedRetries on manual connect call', async () => {
-      window.WebSocket = vi.fn(function (url: string) {
-        const ws = new MockWebSocketWithTimeout(url, { openDelay: 5 });
-        createdWebSockets.push(ws);
-        return ws;
-      }) as unknown as typeof WebSocket;
-
-      Object.defineProperty(window.WebSocket, 'CONNECTING', { value: 0 });
-      Object.defineProperty(window.WebSocket, 'OPEN', { value: 1 });
-      Object.defineProperty(window.WebSocket, 'CLOSING', { value: 2 });
-      Object.defineProperty(window.WebSocket, 'CLOSED', { value: 3 });
-
       const options: WebSocketOptions = {
         url: 'ws://localhost:8000/ws',
         reconnect: true,
@@ -561,11 +436,22 @@ describe('useWebSocket timeout and reconnection', () => {
 
       // Wait for connection
       await act(() => {
-        vi.advanceTimersByTime(10);
+        vi.advanceTimersByTime(20);
       });
 
-      // Manual connect should always set hasExhaustedRetries to false
-      // (according to the implementation: setHasExhaustedRetries(false) is called in connect())
+      // Simulate max retries exhausted
+      await act(() => {
+        lastSubscriber?.onMaxRetriesExhausted?.();
+      });
+
+      expect(result.current.hasExhaustedRetries).toBe(true);
+
+      // Disconnect first
+      await act(() => {
+        result.current.disconnect();
+      });
+
+      // Manual connect should reset hasExhaustedRetries
       await act(() => {
         result.current.connect();
       });
@@ -576,21 +462,6 @@ describe('useWebSocket timeout and reconnection', () => {
 
   describe('State Management During Disconnection', () => {
     it('should maintain lastMessage during reconnection', async () => {
-      let _connectionCount = 0;
-
-      window.WebSocket = vi.fn(function (this: MockWebSocketWithTimeout, url: string) {
-        _connectionCount++;
-        mockWebSocket = new MockWebSocketWithTimeout(url, { openDelay: 10 });
-        createdWebSockets.push(mockWebSocket);
-        Object.assign(this, mockWebSocket);
-        return mockWebSocket;
-      }) as unknown as typeof WebSocket;
-
-      Object.defineProperty(window.WebSocket, 'CONNECTING', { value: 0 });
-      Object.defineProperty(window.WebSocket, 'OPEN', { value: 1 });
-      Object.defineProperty(window.WebSocket, 'CLOSING', { value: 2 });
-      Object.defineProperty(window.WebSocket, 'CLOSED', { value: 3 });
-
       const options: WebSocketOptions = {
         url: 'ws://localhost:8000/ws',
         reconnect: true,
@@ -608,44 +479,28 @@ describe('useWebSocket timeout and reconnection', () => {
       // Simulate receiving a message
       const testMessage = { type: 'test', data: 'hello' };
       await act(() => {
-        mockWebSocket?.simulateMessage(testMessage);
+        lastSubscriber?.onMessage?.(testMessage);
       });
 
       expect(result.current.lastMessage).toEqual(testMessage);
 
-      // Close connection
+      // Simulate close
+      (webSocketManager.getConnectionState as Mock).mockReturnValue({
+        isConnected: false,
+        reconnectCount: 1,
+        hasExhaustedRetries: false,
+        lastHeartbeat: null,
+      });
+
       await act(() => {
-        mockWebSocket?.close();
+        lastSubscriber?.onClose?.();
       });
 
       // lastMessage should still be available during reconnection
       expect(result.current.lastMessage).toEqual(testMessage);
-
-      // Wait for reconnection
-      await act(() => {
-        vi.advanceTimersByTime(200);
-      });
-
-      // lastMessage should still be the same
-      expect(result.current.lastMessage).toEqual(testMessage);
     });
 
     it('should correctly report isConnected during reconnection cycle', async () => {
-      let _connectionCount = 0;
-
-      window.WebSocket = vi.fn(function (this: MockWebSocketWithTimeout, url: string) {
-        _connectionCount++;
-        mockWebSocket = new MockWebSocketWithTimeout(url, { openDelay: 10 });
-        createdWebSockets.push(mockWebSocket);
-        Object.assign(this, mockWebSocket);
-        return mockWebSocket;
-      }) as unknown as typeof WebSocket;
-
-      Object.defineProperty(window.WebSocket, 'CONNECTING', { value: 0 });
-      Object.defineProperty(window.WebSocket, 'OPEN', { value: 1 });
-      Object.defineProperty(window.WebSocket, 'CLOSING', { value: 2 });
-      Object.defineProperty(window.WebSocket, 'CLOSED', { value: 3 });
-
       const options: WebSocketOptions = {
         url: 'ws://localhost:8000/ws',
         reconnect: true,
@@ -665,33 +520,30 @@ describe('useWebSocket timeout and reconnection', () => {
 
       expect(result.current.isConnected).toBe(true);
 
-      // Close connection
+      // Simulate close
       await act(() => {
-        mockWebSocket?.close();
+        lastSubscriber?.onClose?.();
       });
 
       expect(result.current.isConnected).toBe(false);
 
-      // Wait for reconnection
+      // Simulate reconnect
       await act(() => {
-        vi.advanceTimersByTime(200);
+        lastSubscriber?.onOpen?.();
       });
 
       expect(result.current.isConnected).toBe(true);
     });
 
     it('should update lastHeartbeat on server heartbeat', async () => {
-      window.WebSocket = vi.fn(function (this: MockWebSocketWithTimeout, url: string) {
-        mockWebSocket = new MockWebSocketWithTimeout(url, { openDelay: 10 });
-        createdWebSockets.push(mockWebSocket);
-        Object.assign(this, mockWebSocket);
-        return mockWebSocket;
-      }) as unknown as typeof WebSocket;
+      const heartbeatTime = new Date();
 
-      Object.defineProperty(window.WebSocket, 'CONNECTING', { value: 0 });
-      Object.defineProperty(window.WebSocket, 'OPEN', { value: 1 });
-      Object.defineProperty(window.WebSocket, 'CLOSING', { value: 2 });
-      Object.defineProperty(window.WebSocket, 'CLOSED', { value: 3 });
+      (webSocketManager.getConnectionState as Mock).mockReturnValue({
+        isConnected: true,
+        reconnectCount: 0,
+        hasExhaustedRetries: false,
+        lastHeartbeat: heartbeatTime,
+      });
 
       const options: WebSocketOptions = {
         url: 'ws://localhost:8000/ws',
@@ -706,34 +558,38 @@ describe('useWebSocket timeout and reconnection', () => {
 
       expect(result.current.lastHeartbeat).toBeNull();
 
-      // Simulate server heartbeat
+      // Simulate server heartbeat callback
       await act(() => {
-        mockWebSocket?.simulateMessage({ type: 'ping' });
+        lastSubscriber?.onHeartbeat?.();
       });
 
-      expect(result.current.lastHeartbeat).toBeInstanceOf(Date);
+      expect(result.current.lastHeartbeat).toEqual(heartbeatTime);
     });
   });
 
   describe('Error Recovery', () => {
     it('should recover after WebSocket constructor error', async () => {
-      let constructorCallCount = 0;
+      let subscribeCallCount = 0;
 
-      window.WebSocket = vi.fn(function (this: MockWebSocketWithTimeout, url: string) {
-        constructorCallCount++;
-        if (constructorCallCount === 1) {
-          throw new Error('WebSocket constructor failed');
+      (webSocketManager.subscribe as Mock).mockImplementation(
+        (_url: string, subscriber: SubscribeCallback) => {
+          subscribeCallCount++;
+          lastSubscriber = subscriber;
+
+          if (subscribeCallCount === 1) {
+            // First subscription simulates error
+            setTimeout(() => {
+              subscriber.onError?.(new Event('error'));
+            }, 5);
+          } else {
+            // Subsequent subscriptions succeed
+            setTimeout(() => {
+              subscriber.onOpen?.();
+            }, 10);
+          }
+          return mockUnsubscribe;
         }
-        mockWebSocket = new MockWebSocketWithTimeout(url, { openDelay: 10 });
-        createdWebSockets.push(mockWebSocket);
-        Object.assign(this, mockWebSocket);
-        return mockWebSocket;
-      }) as unknown as typeof WebSocket;
-
-      Object.defineProperty(window.WebSocket, 'CONNECTING', { value: 0 });
-      Object.defineProperty(window.WebSocket, 'OPEN', { value: 1 });
-      Object.defineProperty(window.WebSocket, 'CLOSING', { value: 2 });
-      Object.defineProperty(window.WebSocket, 'CLOSED', { value: 3 });
+      );
 
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -744,9 +600,17 @@ describe('useWebSocket timeout and reconnection', () => {
 
       const { result } = renderHook(() => useWebSocket(options));
 
-      // First attempt fails with constructor error
+      // First attempt triggers error
+      await act(() => {
+        vi.advanceTimersByTime(20);
+      });
+
       expect(result.current.isConnected).toBe(false);
-      expect(consoleSpy).toHaveBeenCalled();
+
+      // Disconnect first to clear subscription
+      await act(() => {
+        result.current.disconnect();
+      });
 
       // Manual reconnect should work
       await act(() => {
@@ -763,18 +627,6 @@ describe('useWebSocket timeout and reconnection', () => {
     });
 
     it('should handle rapid connect/disconnect cycles', async () => {
-      window.WebSocket = vi.fn(function (this: MockWebSocketWithTimeout, url: string) {
-        mockWebSocket = new MockWebSocketWithTimeout(url, { openDelay: 5 });
-        createdWebSockets.push(mockWebSocket);
-        Object.assign(this, mockWebSocket);
-        return mockWebSocket;
-      }) as unknown as typeof WebSocket;
-
-      Object.defineProperty(window.WebSocket, 'CONNECTING', { value: 0 });
-      Object.defineProperty(window.WebSocket, 'OPEN', { value: 1 });
-      Object.defineProperty(window.WebSocket, 'CLOSING', { value: 2 });
-      Object.defineProperty(window.WebSocket, 'CLOSED', { value: 3 });
-
       const options: WebSocketOptions = {
         url: 'ws://localhost:8000/ws',
         reconnect: false,

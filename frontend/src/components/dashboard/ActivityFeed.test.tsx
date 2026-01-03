@@ -59,6 +59,30 @@ describe('ActivityFeed', () => {
       expect(screen.getByText('Live Activity')).toBeInTheDocument();
     });
 
+    it('renders header by default (showHeader=true)', () => {
+      render(<ActivityFeed events={mockEvents} />);
+      expect(screen.getByText('Live Activity')).toBeInTheDocument();
+      expect(screen.getByLabelText('Pause auto-scroll')).toBeInTheDocument();
+    });
+
+    it('hides header when showHeader=false', () => {
+      render(<ActivityFeed events={mockEvents} showHeader={false} />);
+      expect(screen.queryByText('Live Activity')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Pause auto-scroll')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Resume auto-scroll')).not.toBeInTheDocument();
+    });
+
+    it('still renders events when showHeader=false', () => {
+      render(<ActivityFeed events={mockEvents} showHeader={false} />);
+      expect(screen.getByText('Front Door')).toBeInTheDocument();
+      expect(screen.getByText('Back Yard')).toBeInTheDocument();
+    });
+
+    it('still renders footer when showHeader=false and events exist', () => {
+      render(<ActivityFeed events={mockEvents} showHeader={false} />);
+      expect(screen.getByText('Showing 4 of 4 events')).toBeInTheDocument();
+    });
+
     it('renders all events when count is below maxItems', () => {
       render(<ActivityFeed events={mockEvents} maxItems={10} />);
       expect(screen.getByText('Front Door')).toBeInTheDocument();

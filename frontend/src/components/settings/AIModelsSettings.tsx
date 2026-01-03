@@ -2,9 +2,7 @@ import { Card, ProgressBar, Title, Text, Badge } from '@tremor/react';
 import { clsx } from 'clsx';
 import { Brain, Cpu, Activity, Zap, Loader2 } from 'lucide-react';
 
-import { usePerformanceMetrics } from '../../hooks/usePerformanceMetrics';
-
-import type { AiModelMetrics, NemotronMetrics } from '../../types/performance';
+import { useAIMetrics, type AIModelStatus } from '../../hooks/useAIMetrics';
 
 export interface ModelInfo {
   name: string;
@@ -103,9 +101,9 @@ function mapBackendStatus(backendStatus: string | undefined): 'loaded' | 'unload
 }
 
 /**
- * Transforms RT-DETRv2 metrics from backend to ModelInfo format
+ * Transforms RT-DETRv2 status from useAIMetrics to ModelInfo format
  */
-function transformRtdetrMetrics(rtdetr: AiModelMetrics | null): ModelInfo {
+function transformRtdetrStatus(rtdetr: AIModelStatus | null): ModelInfo {
   if (!rtdetr) {
     return {
       name: 'RT-DETRv2',
@@ -118,16 +116,18 @@ function transformRtdetrMetrics(rtdetr: AiModelMetrics | null): ModelInfo {
   return {
     name: 'RT-DETRv2',
     status: mapBackendStatus(rtdetr.status),
-    memoryUsed: rtdetr.vram_gb ? rtdetr.vram_gb * 1024 : null, // Convert GB to MB
+    memoryUsed: null, // VRAM not available from health endpoint
     inferenceFps: null, // Not available from current metrics
-    description: `Real-time object detection model (${rtdetr.model || 'rtdetr'})`,
+    description: rtdetr.message
+      ? `Real-time object detection model (${rtdetr.message})`
+      : 'Real-time object detection model',
   };
 }
 
 /**
- * Transforms Nemotron metrics from backend to ModelInfo format
+ * Transforms Nemotron status from useAIMetrics to ModelInfo format
  */
-function transformNemotronMetrics(nemotron: NemotronMetrics | null): ModelInfo {
+function transformNemotronStatus(nemotron: AIModelStatus | null): ModelInfo {
   if (!nemotron) {
     return {
       name: 'Nemotron',
@@ -142,7 +142,9 @@ function transformNemotronMetrics(nemotron: NemotronMetrics | null): ModelInfo {
     status: mapBackendStatus(nemotron.status),
     memoryUsed: null, // VRAM not tracked separately for Nemotron
     inferenceFps: null,
-    description: `Risk analysis and reasoning model (${nemotron.context_size.toLocaleString()} tokens)`,
+    description: nemotron.message
+      ? `Risk analysis and reasoning model (${nemotron.message})`
+      : 'Risk analysis and reasoning model',
   };
 }
 
@@ -222,9 +224,9 @@ function ModelCard({
  * - GPU memory usage per model
  * - Inference speed (FPS) when available
  * - NVIDIA dark theme styling
- * - Real-time updates via WebSocket connection
+ * - Real-time updates via HTTP polling
  *
- * Fetches real AI model status from backend via usePerformanceMetrics hook.
+ * Fetches real AI model status from backend via useAIMetrics hook.
  * Falls back to default placeholder data if props are provided (for testing).
  */
 export default function AIModelsSettings({
@@ -233,32 +235,25 @@ export default function AIModelsSettings({
   totalMemory,
   className,
 }: AIModelsSettingsProps) {
-  // Fetch real AI model status from backend via WebSocket
-  const { current: performanceData, isConnected } = usePerformanceMetrics();
+  // Fetch real AI model status from backend via HTTP polling
+  const { data: aiData, isLoading } = useAIMetrics({ pollingInterval: 5000 });
 
-  // Extract AI model metrics from performance data
-  const rtdetrMetrics = performanceData?.ai_models?.rtdetr
-    ? (performanceData.ai_models.rtdetr as AiModelMetrics)
-    : null;
-  const nemotronMetrics = performanceData?.nemotron ?? null;
+  // Transform backend status to component format (or use provided props for testing)
+  const displayRtdetr = rtdetrModel ?? transformRtdetrStatus(aiData?.rtdetr ?? null);
+  const displayNemotron = nemotronModel ?? transformNemotronStatus(aiData?.nemotron ?? null);
 
-  // Transform backend metrics to component format (or use provided props for testing)
-  const displayRtdetr = rtdetrModel ?? transformRtdetrMetrics(rtdetrMetrics);
-  const displayNemotron = nemotronModel ?? transformNemotronMetrics(nemotronMetrics);
-
-  // Get total GPU memory from performance data (in MB)
-  const gpuTotalMemory =
-    totalMemory ?? (performanceData?.gpu?.vram_total_gb ? performanceData.gpu.vram_total_gb * 1024 : null);
+  // Use provided totalMemory prop (GPU memory not available from health endpoint)
+  const gpuTotalMemory = totalMemory ?? null;
 
   return (
     <div className={clsx('space-y-6', className)}>
       <div>
         <div className="mb-2 flex items-center gap-2">
           <Title className="text-white">AI Models</Title>
-          {!isConnected && (
+          {isLoading && (
             <Badge color="yellow" size="sm">
               <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-              Connecting...
+              Loading...
             </Badge>
           )}
         </div>

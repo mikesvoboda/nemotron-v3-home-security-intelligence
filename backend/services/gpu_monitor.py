@@ -349,19 +349,33 @@ class GPUMonitor:
             "recorded_at": now,
         }
 
-    def _parse_rtdetr_response(self, data: dict[str, Any]) -> tuple[float, str | None]:
+    def _parse_rtdetr_response(
+        self, data: dict[str, Any]
+    ) -> tuple[float, str | None, float | None, int | None, float | None]:
         """Parse RT-DETRv2 health response for GPU stats.
 
         Returns:
-            Tuple of (vram_used_mb, gpu_device_name or None)
+            Tuple of (vram_used_mb, gpu_device_name or None, gpu_utilization or None,
+                      temperature or None, power_watts or None)
         """
         vram_mb = 0.0
         device = None
+        gpu_utilization = None
+        temperature = None
+        power_watts = None
+
         if data.get("vram_used_gb") is not None:
             vram_mb = data["vram_used_gb"] * 1024  # Convert GB to MB
         if data.get("device"):
             device = data["device"]
-        return vram_mb, device
+        if data.get("gpu_utilization") is not None:
+            gpu_utilization = data["gpu_utilization"]
+        if data.get("temperature") is not None:
+            temperature = data["temperature"]
+        if data.get("power_watts") is not None:
+            power_watts = data["power_watts"]
+
+        return vram_mb, device, gpu_utilization, temperature, power_watts
 
     def _parse_vram_metric_line(self, line: str) -> float:
         """Parse a single Prometheus metric line for VRAM value.
@@ -389,7 +403,7 @@ class GPUMonitor:
         """Query AI containers for GPU statistics.
 
         Queries RT-DETRv2 health endpoint for GPU usage information.
-        RT-DETRv2 reports vram_used_gb which is used for memory tracking.
+        RT-DETRv2 reports vram_used_gb, gpu_utilization, temperature, and power_watts.
 
         Note: Nemotron (llama.cpp server) does not expose a /metrics endpoint,
         so GPU stats are obtained exclusively from RT-DETRv2.
@@ -400,6 +414,9 @@ class GPUMonitor:
         settings = get_settings()
         total_vram_used_mb = 0.0
         gpu_name = "NVIDIA GPU (via AI Containers)"
+        gpu_utilization: float | None = None
+        temperature: int | None = None
+        power_watts: float | None = None
 
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
@@ -407,11 +424,22 @@ class GPUMonitor:
                 try:
                     resp = await client.get(f"{settings.rtdetr_url}/health")
                     if resp.status_code == 200:
-                        vram_mb, device = self._parse_rtdetr_response(resp.json())
+                        vram_mb, device, util, temp, power = self._parse_rtdetr_response(
+                            resp.json()
+                        )
                         total_vram_used_mb += vram_mb
                         if device:
                             gpu_name = f"NVIDIA GPU ({device})"
-                        logger.debug(f"RT-DETRv2 GPU stats: {vram_mb / 1024:.2f} GB")
+                        if util is not None:
+                            gpu_utilization = util
+                        if temp is not None:
+                            temperature = temp
+                        if power is not None:
+                            power_watts = power
+                        logger.debug(
+                            f"RT-DETRv2 GPU stats: {vram_mb / 1024:.2f} GB, "
+                            f"util={gpu_utilization}%, temp={temperature}C, power={power_watts}W"
+                        )
                 except Exception as e:
                     logger.debug(f"Failed to query RT-DETRv2 health: {e}")
 
@@ -420,16 +448,16 @@ class GPUMonitor:
                 # GPU VRAM tracking is handled by the RT-DETRv2 container which has
                 # better visibility into GPU memory usage.
 
-                if total_vram_used_mb > 0:
+                if total_vram_used_mb > 0 or gpu_utilization is not None:
                     # RTX A5500 has 24GB VRAM - use this as default
-                    # These defaults ensure meaningful display rather than N/A
+                    # Use actual values from RT-DETRv2 when available
                     return {
                         "gpu_name": gpu_name,
-                        "gpu_utilization": 0.0,  # Cannot determine from AI containers
+                        "gpu_utilization": gpu_utilization if gpu_utilization is not None else 0.0,
                         "memory_used": int(total_vram_used_mb),
                         "memory_total": 24576,  # 24GB in MB (RTX A5500 default)
-                        "temperature": 0,  # Cannot determine from AI containers
-                        "power_usage": 0.0,  # Cannot determine from AI containers
+                        "temperature": temperature if temperature is not None else 0,
+                        "power_usage": power_watts if power_watts is not None else 0.0,
                         "recorded_at": datetime.now(UTC),
                     }
 
