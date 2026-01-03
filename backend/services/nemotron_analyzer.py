@@ -247,7 +247,7 @@ class NemotronAnalyzer:
             return {"X-API-Key": self._api_key}
         return {}
 
-    async def analyze_batch(
+    async def analyze_batch(  # noqa: PLR0912 - Complex orchestration method
         self,
         batch_id: str,
         camera_id: str | None = None,
@@ -349,6 +349,20 @@ class NemotronAnalyzer:
             enrichment_result = await self._get_enrichment_result(
                 batch_id, detections, camera_id=camera_id
             )
+
+            # Persist enrichment data to each detection
+            if enrichment_result is not None:
+                for detection in detections:
+                    det_enrichment = enrichment_result.get_enrichment_for_detection(detection.id)
+                    if det_enrichment:
+                        detection.enrichment_data = det_enrichment
+                        logger.debug(
+                            f"Persisted enrichment data for detection {detection.id}",
+                            extra={
+                                "detection_id": detection.id,
+                                "enrichment_keys": list(det_enrichment.keys()),
+                            },
+                        )
 
             # Call LLM for risk analysis
             llm_start = time.time()
@@ -534,6 +548,19 @@ class NemotronAnalyzer:
             enrichment_result = await self._get_enrichment_result(
                 batch_id, [detection], camera_id=camera_id
             )
+
+            # Persist enrichment data to the detection
+            if enrichment_result is not None:
+                det_enrichment = enrichment_result.get_enrichment_for_detection(detection.id)
+                if det_enrichment:
+                    detection.enrichment_data = det_enrichment
+                    logger.debug(
+                        f"Persisted enrichment data for fast path detection {detection.id}",
+                        extra={
+                            "detection_id": detection.id,
+                            "enrichment_keys": list(det_enrichment.keys()),
+                        },
+                    )
 
             # Call LLM for risk analysis
             llm_start = time.time()

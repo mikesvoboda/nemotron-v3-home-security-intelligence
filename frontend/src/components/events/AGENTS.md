@@ -14,6 +14,8 @@ Contains components for displaying, filtering, and interacting with security eve
 | `EventTimeline.test.tsx`    | Test suite for EventTimeline                |
 | `EventDetailModal.tsx`      | Full event detail modal                     |
 | `EventDetailModal.test.tsx` | Test suite for EventDetailModal             |
+| `EnrichmentPanel.tsx`       | AI enrichment data accordion display        |
+| `EnrichmentPanel.test.tsx`  | Test suite for EnrichmentPanel              |
 | `ThumbnailStrip.tsx`        | Detection thumbnail strip                   |
 | `ThumbnailStrip.test.tsx`   | Test suite for ThumbnailStrip               |
 | `ExportPanel.tsx`           | Event export with filters and format select |
@@ -189,6 +191,51 @@ interface Event {
   reviewed?: boolean;
   notes?: string | null;
   flagged?: boolean;
+}
+```
+
+### EnrichmentPanel.tsx
+
+**Purpose:** Displays AI enrichment data for detections in collapsible accordion sections
+
+**Key Features:**
+
+- Accordion sections for each enrichment type present
+- Confidence badges with color-coding (green >0.9, yellow 0.7-0.9, red <0.7)
+- Conditional rendering based on what enrichment data exists
+- Icons for each enrichment type (Car, Dog, User, CreditCard, Cloud, ImageIcon)
+- Clean, readable layout matching existing Tremor/Tailwind styling
+
+**Enrichment Types:**
+
+- **Vehicle:** Type (sedan, SUV, etc.), color, damage, commercial indicator
+- **Pet:** Type (cat/dog), breed
+- **Person:** Clothing, action, carrying items, suspicious attire warning, service uniform indicator
+- **License Plate:** OCR text with confidence
+- **Weather:** Weather condition
+- **Image Quality:** Quality score and detected issues
+
+**Props:**
+
+```typescript
+interface EnrichmentPanelProps {
+  /** Enrichment data to display */
+  enrichment_data?: EnrichmentData | null;
+  /** Additional CSS classes */
+  className?: string;
+}
+```
+
+**EnrichmentData Interface (from types/enrichment.ts):**
+
+```typescript
+interface EnrichmentData {
+  vehicle?: VehicleEnrichment;
+  pet?: PetEnrichment;
+  person?: PersonEnrichment;
+  license_plate?: LicensePlateEnrichment;
+  weather?: WeatherEnrichment;
+  image_quality?: ImageQualityEnrichment;
 }
 ```
 
