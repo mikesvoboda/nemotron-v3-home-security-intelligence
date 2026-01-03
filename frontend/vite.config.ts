@@ -37,8 +37,8 @@ export default defineConfig(({ mode }) => {
       css: true,
       // Exclude Playwright E2E tests - they should only be run via `npm run test:e2e`
       exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**'],
-      // Memory optimization and parallelization
-      pool: 'forks',
+      // Thread-based parallelization for faster execution
+      pool: 'threads',
       // Test timeouts
       testTimeout: 30000,
       hookTimeout: 30000,

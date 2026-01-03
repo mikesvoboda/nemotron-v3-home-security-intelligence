@@ -30,6 +30,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           version: "latest"
+          cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
@@ -59,6 +60,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           version: "latest"
+          cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
@@ -97,26 +99,13 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           version: "latest"
+          cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
         run: uv sync --extra dev --frozen
-
-      - name: Wait for PostgreSQL
-        run: |
-          echo "Waiting for PostgreSQL..."
-          for i in {1..30}; do
-            if pg_isready -h localhost -p 5432 -U postgres; then
-              echo "PostgreSQL is ready"
-              exit 0
-            fi
-            echo "Waiting... ($i/30)"
-            sleep 1
-          done
-          echo "PostgreSQL failed to start"
-          exit 1
 
       - name: Run unit tests with coverage
         # Unit tests coverage threshold - 85% for unit tests alone
@@ -192,44 +181,13 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           version: "latest"
+          cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
         run: uv sync --extra dev --frozen
-
-      - name: Install Redis CLI
-        run: sudo apt-get update && sudo apt-get install -y redis-tools
-
-      - name: Wait for PostgreSQL
-        run: |
-          echo "Waiting for PostgreSQL..."
-          for i in {1..30}; do
-            if pg_isready -h localhost -p 5432 -U postgres; then
-              echo "PostgreSQL is ready"
-              exit 0
-            fi
-            echo "Waiting... ($i/30)"
-            sleep 1
-          done
-          echo "PostgreSQL failed to start"
-          exit 1
-
-      - name: Wait for Redis
-        run: |
-          echo "Checking Redis service container..."
-          for i in {1..30}; do
-            if redis-cli -h localhost -p 6379 ping 2>&1 | grep -q PONG; then
-              echo "Redis is ready"
-              exit 0
-            fi
-            echo "Waiting for Redis... ($i/30)"
-            sleep 1
-          done
-          echo "Redis failed to start - checking container status..."
-          docker ps -a || true
-          exit 1
 
       - name: Run integration tests with coverage
         # Integration tests coverage threshold - 50% for integration tests alone
@@ -277,6 +235,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           version: "latest"
+          cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
@@ -304,6 +263,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           version: "latest"
+          cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
@@ -630,44 +590,13 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           version: "latest"
+          cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
         run: uv sync --extra dev --frozen
-
-      - name: Wait for PostgreSQL
-        run: |
-          echo "Waiting for PostgreSQL..."
-          for i in {1..30}; do
-            if pg_isready -h localhost -p 5432 -U postgres; then
-              echo "PostgreSQL is ready"
-              exit 0
-            fi
-            echo "Waiting... ($i/30)"
-            sleep 1
-          done
-          echo "PostgreSQL failed to start"
-          exit 1
-
-      - name: Install Redis CLI
-        run: sudo apt-get update && sudo apt-get install -y redis-tools
-
-      - name: Wait for Redis
-        run: |
-          echo "Checking Redis service container..."
-          for i in {1..30}; do
-            if redis-cli -h localhost -p 6379 ping 2>&1 | grep -q PONG; then
-              echo "Redis is ready"
-              exit 0
-            fi
-            echo "Waiting for Redis... ($i/30)"
-            sleep 1
-          done
-          echo "Redis failed to start - checking container status..."
-          docker ps -a || true
-          exit 1
 
       - name: Validate admin endpoints require DEBUG mode
         run: |
@@ -711,6 +640,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           version: "latest"
+          cache: true
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}

@@ -45,6 +45,13 @@ def pytest_configure(config: pytest.Config) -> None:
     # See: https://bugzilla.redhat.com/show_bug.cgi?id=2356165
     os.environ.setdefault("PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION", "python")
 
+    # Set default DATABASE_URL for test collection (required by pydantic Settings)
+    # This is needed because some modules import settings at module level
+    os.environ.setdefault(
+        "DATABASE_URL",
+        "postgresql+asyncpg://security:security_dev_password@localhost:5432/security",
+    )
+
 
 # Default development PostgreSQL URL (matches docker-compose.yml)
 DEFAULT_DEV_POSTGRES_URL = (

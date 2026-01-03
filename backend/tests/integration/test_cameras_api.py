@@ -735,3 +735,208 @@ async def test_filter_by_nonexistent_status(client):
     data = response.json()
     assert len(data["cameras"]) == 0
     assert data["count"] == 0
+
+
+# === Validation Endpoint Tests ===
+
+
+@pytest.mark.asyncio
+async def test_validate_camera_paths_success(client, integration_env, tmp_path):
+    """GET /api/cameras/validation/paths validates all camera folder paths."""
+    import os
+
+    from backend.core.config import get_settings
+
+    # Set up foscam root with camera directories
+    unique_id = str(uuid.uuid4())[:8]
+    foscam_root = tmp_path / "foscam"
+    valid_cam_dir = foscam_root / f"valid_cam_{unique_id}"
+    valid_cam_dir.mkdir(parents=True, exist_ok=True)
+
+    # Create a test image in the valid camera directory
+    (valid_cam_dir / "snapshot.jpg").write_bytes(b"test_image")
+
+    os.environ["FOSCAM_BASE_PATH"] = str(foscam_root)
+    get_settings.cache_clear()
+
+    # Create a camera with valid path under base_path
+    create_resp = await client.post(
+        "/api/cameras",
+        json={
+            "name": f"Valid Camera {unique_id}",
+            "folder_path": str(valid_cam_dir),
+            "status": "online",
+        },
+    )
+    assert create_resp.status_code == 201
+
+    # Call validation endpoint
+    response = await client.get("/api/cameras/validation/paths")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # Verify response structure
+    assert "base_path" in data
+    assert "total_cameras" in data
+    assert "valid_count" in data
+    assert "invalid_count" in data
+    assert "valid_cameras" in data
+    assert "invalid_cameras" in data
+
+    # Our camera should be valid (path under base_path, has images)
+    assert data["valid_count"] >= 1
+
+
+@pytest.mark.asyncio
+async def test_validate_camera_paths_detects_invalid_path(client, integration_env, tmp_path):
+    """Validation endpoint detects cameras with paths outside base_path."""
+    import os
+
+    from backend.core.config import get_settings
+
+    unique_id = str(uuid.uuid4())[:8]
+    foscam_root = tmp_path / "foscam"
+    foscam_root.mkdir(parents=True, exist_ok=True)
+
+    # Create camera with path outside foscam_root
+    outside_dir = tmp_path / f"outside_{unique_id}"
+    outside_dir.mkdir(parents=True, exist_ok=True)
+    (outside_dir / "image.jpg").write_bytes(b"test")
+
+    os.environ["FOSCAM_BASE_PATH"] = str(foscam_root)
+    get_settings.cache_clear()
+
+    # Create camera pointing to path outside base_path
+    create_resp = await client.post(
+        "/api/cameras",
+        json={
+            "name": f"Outside Camera {unique_id}",
+            "folder_path": str(outside_dir),
+            "status": "online",
+        },
+    )
+    assert create_resp.status_code == 201
+
+    # Call validation endpoint
+    response = await client.get("/api/cameras/validation/paths")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # The camera with path outside base_path should be in invalid_cameras
+    assert data["invalid_count"] >= 1
+    invalid_ids = [c["id"] for c in data["invalid_cameras"]]
+    assert f"outside_camera_{unique_id}" in invalid_ids
+
+    # Verify the issue is reported
+    invalid_cam = next(
+        c for c in data["invalid_cameras"] if c["id"] == f"outside_camera_{unique_id}"
+    )
+    assert "issues" in invalid_cam
+    assert any("base_path" in issue for issue in invalid_cam["issues"])
+
+
+@pytest.mark.asyncio
+async def test_validate_camera_paths_detects_missing_directory(client, integration_env, tmp_path):
+    """Validation endpoint detects cameras with non-existent directories."""
+    import os
+
+    from backend.core.config import get_settings
+
+    unique_id = str(uuid.uuid4())[:8]
+    foscam_root = tmp_path / "foscam"
+    foscam_root.mkdir(parents=True, exist_ok=True)
+
+    # Use a path that doesn't exist
+    missing_dir = foscam_root / f"missing_{unique_id}"
+
+    os.environ["FOSCAM_BASE_PATH"] = str(foscam_root)
+    get_settings.cache_clear()
+
+    # Create camera pointing to non-existent directory
+    create_resp = await client.post(
+        "/api/cameras",
+        json={
+            "name": f"Missing Camera {unique_id}",
+            "folder_path": str(missing_dir),
+            "status": "online",
+        },
+    )
+    assert create_resp.status_code == 201
+
+    # Call validation endpoint
+    response = await client.get("/api/cameras/validation/paths")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # The camera should be in invalid_cameras
+    assert data["invalid_count"] >= 1
+    invalid_ids = [c["id"] for c in data["invalid_cameras"]]
+    assert f"missing_camera_{unique_id}" in invalid_ids
+
+    # Verify the issue is reported
+    invalid_cam = next(
+        c for c in data["invalid_cameras"] if c["id"] == f"missing_camera_{unique_id}"
+    )
+    assert "issues" in invalid_cam
+    assert any("does not exist" in issue for issue in invalid_cam["issues"])
+
+
+@pytest.mark.asyncio
+async def test_validate_camera_paths_detects_no_images(client, integration_env, tmp_path):
+    """Validation endpoint detects cameras with directories but no images."""
+    import os
+
+    from backend.core.config import get_settings
+
+    unique_id = str(uuid.uuid4())[:8]
+    foscam_root = tmp_path / "foscam"
+    empty_dir = foscam_root / f"empty_{unique_id}"
+    empty_dir.mkdir(parents=True, exist_ok=True)
+
+    os.environ["FOSCAM_BASE_PATH"] = str(foscam_root)
+    get_settings.cache_clear()
+
+    # Create camera pointing to directory with no images
+    create_resp = await client.post(
+        "/api/cameras",
+        json={
+            "name": f"Empty Camera {unique_id}",
+            "folder_path": str(empty_dir),
+            "status": "online",
+        },
+    )
+    assert create_resp.status_code == 201
+
+    # Call validation endpoint
+    response = await client.get("/api/cameras/validation/paths")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    # The camera should be in invalid_cameras
+    assert data["invalid_count"] >= 1
+    invalid_ids = [c["id"] for c in data["invalid_cameras"]]
+    assert f"empty_camera_{unique_id}" in invalid_ids
+
+    # Verify the issue is reported
+    invalid_cam = next(c for c in data["invalid_cameras"] if c["id"] == f"empty_camera_{unique_id}")
+    assert "issues" in invalid_cam
+    assert any("no image files" in issue for issue in invalid_cam["issues"])
+
+
+@pytest.mark.asyncio
+async def test_validate_camera_paths_empty_database(client, clean_cameras):
+    """Validation endpoint works when no cameras exist."""
+    response = await client.get("/api/cameras/validation/paths")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["total_cameras"] == 0
+    assert data["valid_count"] == 0
+    assert data["invalid_count"] == 0
+    assert data["valid_cameras"] == []
+    assert data["invalid_cameras"] == []
