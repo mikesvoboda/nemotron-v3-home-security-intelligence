@@ -8,7 +8,7 @@ rules:
           - pattern: API_KEY = "..."
           - pattern: secret = "..."
           - pattern: SECRET = "..."
-    message: "Potential hardcoded credential detected"
+    message: 'Potential hardcoded credential detected'
     languages: [python, typescript, javascript]
     severity: ERROR
 
@@ -18,7 +18,7 @@ rules:
           $QUERY = f"... {$VAR} ..."
           ...
           $DB.execute($QUERY)
-    message: "Potential SQL injection via f-string"
+    message: 'Potential SQL injection via f-string'
     languages: [python]
     severity: ERROR
 
@@ -28,6 +28,6 @@ rules:
           - pattern: subprocess.call($CMD, shell=True, ...)
           - pattern: subprocess.run($CMD, shell=True, ...)
           - pattern: os.system($CMD)
-    message: "Potential shell injection vulnerability"
+    message: 'Potential shell injection vulnerability'
     languages: [python]
     severity: ERROR

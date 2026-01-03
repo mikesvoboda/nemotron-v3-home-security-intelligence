@@ -83,7 +83,7 @@ test-performance-audit:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: "3.14"
+        python-version: '3.14'
 
     - name: Download test artifacts
       uses: actions/download-artifact@v4
@@ -95,9 +95,9 @@ test-performance-audit:
     - name: Analyze test durations
       run: python scripts/audit-test-durations.py test-results/
       env:
-        UNIT_TEST_THRESHOLD: "1.0"
-        INTEGRATION_TEST_THRESHOLD: "5.0"
-        WARN_THRESHOLD_PERCENT: "80"
+        UNIT_TEST_THRESHOLD: '1.0'
+        INTEGRATION_TEST_THRESHOLD: '5.0'
+        WARN_THRESHOLD_PERCENT: '80'
 ```
 
 ### Artifact Upload Changes

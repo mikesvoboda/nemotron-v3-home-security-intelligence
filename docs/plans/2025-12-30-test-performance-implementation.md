@@ -765,9 +765,9 @@ test-performance-audit:
     - name: Analyze test durations
       run: python scripts/audit-test-durations.py test-results/
       env:
-        UNIT_TEST_THRESHOLD: "1.0"
-        INTEGRATION_TEST_THRESHOLD: "5.0"
-        WARN_THRESHOLD_PERCENT: "80"
+        UNIT_TEST_THRESHOLD: '1.0'
+        INTEGRATION_TEST_THRESHOLD: '5.0'
+        WARN_THRESHOLD_PERCENT: '80'
 ```
 
 **Step 5: Commit**

@@ -7,14 +7,14 @@ global:
 
 scrape_configs:
   # Backend health metrics via JSON exporter
-  - job_name: "hsi-health"
+  - job_name: 'hsi-health'
     metrics_path: /probe
     scrape_interval: 10s
     params:
       module: [health]
     static_configs:
       - targets:
-          - "http://backend:8000/api/system/health"
+          - 'http://backend:8000/api/system/health'
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
@@ -24,14 +24,14 @@ scrape_configs:
         replacement: json-exporter:7979
 
   # Backend telemetry metrics via JSON exporter
-  - job_name: "hsi-telemetry"
+  - job_name: 'hsi-telemetry'
     metrics_path: /probe
     scrape_interval: 10s
     params:
       module: [telemetry]
     static_configs:
       - targets:
-          - "http://backend:8000/api/system/telemetry"
+          - 'http://backend:8000/api/system/telemetry'
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
@@ -41,14 +41,14 @@ scrape_configs:
         replacement: json-exporter:7979
 
   # Backend stats metrics via JSON exporter
-  - job_name: "hsi-stats"
+  - job_name: 'hsi-stats'
     metrics_path: /probe
     scrape_interval: 30s
     params:
       module: [stats]
     static_configs:
       - targets:
-          - "http://backend:8000/api/system/stats"
+          - 'http://backend:8000/api/system/stats'
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
@@ -58,14 +58,14 @@ scrape_configs:
         replacement: json-exporter:7979
 
   # GPU stats via JSON exporter
-  - job_name: "hsi-gpu"
+  - job_name: 'hsi-gpu'
     metrics_path: /probe
     scrape_interval: 10s
     params:
       module: [gpu]
     static_configs:
       - targets:
-          - "http://backend:8000/api/system/gpu"
+          - 'http://backend:8000/api/system/gpu'
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
@@ -76,28 +76,28 @@ scrape_configs:
 
   # Direct backend liveness check (for up/down status)
   # NOTE: /api/system/health/live was removed. Use /health instead.
-  - job_name: "backend-liveness"
+  - job_name: 'backend-liveness'
     metrics_path: /health
     scrape_interval: 10s
     static_configs:
       - targets:
-          - "backend:8000"
+          - 'backend:8000'
 
   # Redis metrics via redis_exporter
-  - job_name: "redis"
+  - job_name: 'redis'
     scrape_interval: 15s
     static_configs:
       - targets:
-          - "redis-exporter:9121"
+          - 'redis-exporter:9121'
 
   # Prometheus self-monitoring
-  - job_name: "prometheus"
+  - job_name: 'prometheus'
     static_configs:
       - targets:
-          - "localhost:9090"
+          - 'localhost:9090'
 
   # JSON exporter health
-  - job_name: "json-exporter"
+  - job_name: 'json-exporter'
     static_configs:
       - targets:
-          - "json-exporter:7979"
+          - 'json-exporter:7979'

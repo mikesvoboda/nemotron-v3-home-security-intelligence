@@ -155,7 +155,7 @@ ai-detector:
     context: ./ai/rtdetr
     dockerfile: Dockerfile
   ports:
-    - "8090:8090"
+    - '8090:8090'
   volumes:
     - ${HF_CACHE:-~/.cache/huggingface}:/cache/huggingface
   environment:
@@ -170,9 +170,9 @@ ai-detector:
   healthcheck:
     test:
       [
-        "CMD",
-        "python",
-        "-c",
+        'CMD',
+        'python',
+        '-c',
         "import httpx; exit(0 if httpx.get('http://localhost:8090/health').status_code==200 else 1)",
       ]
     interval: 30s
@@ -187,7 +187,7 @@ ai-llm:
     context: ./ai/nemotron
     dockerfile: Dockerfile
   ports:
-    - "8091:8091"
+    - '8091:8091'
   volumes:
     - /export/ai_models/nemotron/nemotron-3-nano-30b-a3b-q4km:/models:ro
   environment:
@@ -201,7 +201,7 @@ ai-llm:
             count: 1
             capabilities: [gpu]
   healthcheck:
-    test: ["CMD", "curl", "-f", "http://localhost:8091/health"]
+    test: ['CMD', 'curl', '-f', 'http://localhost:8091/health']
     interval: 30s
     timeout: 10s
     start_period: 120s

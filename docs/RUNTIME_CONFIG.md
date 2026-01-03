@@ -77,7 +77,7 @@ Or add to your compose file:
 services:
   backend:
     extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - 'host.docker.internal:host-gateway'
 ```
 
 **Option 2: Use host's IP address directly**
@@ -541,7 +541,7 @@ In production, the frontend is served by nginx inside a Docker/Podman container.
 ```yaml
 # docker-compose.prod.yml
 ports:
-  - "${FRONTEND_PORT:-5173}:80"
+  - '${FRONTEND_PORT:-5173}:80'
 ```
 
 **Examples:**

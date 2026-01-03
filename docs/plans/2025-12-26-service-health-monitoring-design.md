@@ -151,8 +151,8 @@ service_backoff_base: float = 5.0
 
 ```typescript
 interface ServiceStatus {
-  service: "redis" | "rtdetr" | "nemotron";
-  status: "healthy" | "unhealthy" | "restarting" | "restart_failed" | "failed";
+  service: 'redis' | 'rtdetr' | 'nemotron';
+  status: 'healthy' | 'unhealthy' | 'restarting' | 'restart_failed' | 'failed';
   message?: string;
   timestamp: string;
 }

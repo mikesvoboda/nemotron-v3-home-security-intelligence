@@ -84,15 +84,7 @@ Creates a new alert rule.
   "camera_ids": [],
   "min_confidence": 0.7,
   "schedule": {
-    "days": [
-      "monday",
-      "tuesday",
-      "wednesday",
-      "thursday",
-      "friday",
-      "saturday",
-      "sunday"
-    ],
+    "days": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
     "start_time": "22:00",
     "end_time": "06:00"
   },

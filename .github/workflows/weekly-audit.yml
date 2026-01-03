@@ -2,12 +2,12 @@ name: Weekly Audit
 
 on:
   schedule:
-    - cron: "0 9 * * 1" # Monday 9 AM UTC
+    - cron: '0 9 * * 1' # Monday 9 AM UTC
   workflow_dispatch: # Allow manual trigger
 
 env:
-  PYTHON_VERSION: "3.14"
-  NODE_VERSION: "20"
+  PYTHON_VERSION: '3.14'
+  NODE_VERSION: '20'
 
 jobs:
   security-audit:
@@ -26,7 +26,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v4
         with:
-          version: "latest"
+          version: 'latest'
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
@@ -50,7 +50,7 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v4
         with:
-          version: "latest"
+          version: 'latest'
 
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
@@ -85,7 +85,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
+          cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies

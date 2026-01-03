@@ -1058,3 +1058,269 @@ async def test_zone_minimum_valid_triangle(client):
     assert response.status_code == 201
     data = response.json()
     assert len(data["coordinates"]) == 3
+
+
+# === Cascade Deletion Tests ===
+
+
+@pytest.mark.asyncio
+async def test_zones_cascade_deleted_with_camera(client):
+    """Test that zones are deleted when their parent camera is deleted.
+
+    This verifies the ON DELETE CASCADE foreign key relationship works correctly.
+    """
+    from sqlalchemy import select
+
+    from backend.core.database import get_session
+    from backend.models.zone import Zone
+
+    # Create a camera with zones
+    uid = unique_id()
+    camera_id = await create_test_camera(client, uid)
+
+    # Create multiple zones for this camera
+    zone_ids = []
+    for i in range(3):
+        zone = await create_test_zone(client, camera_id, name=f"Cascade Zone {i} {uid}")
+        zone_ids.append(zone["id"])
+
+    # Verify zones exist
+    list_response = await client.get(f"/api/cameras/{camera_id}/zones")
+    assert list_response.json()["count"] == 3
+
+    # Delete the camera
+    delete_response = await client.delete(f"/api/cameras/{camera_id}")
+    assert delete_response.status_code == 204
+
+    # Verify camera is deleted
+    get_camera_response = await client.get(f"/api/cameras/{camera_id}")
+    assert get_camera_response.status_code == 404
+
+    # Verify zones are deleted from database directly
+    async with get_session() as session:
+        for zone_id in zone_ids:
+            result = await session.execute(select(Zone).where(Zone.id == zone_id))
+            zone = result.scalar_one_or_none()
+            assert zone is None, f"Zone {zone_id} should have been cascade deleted"
+
+
+@pytest.mark.asyncio
+async def test_delete_zone_wrong_camera_id(client):
+    """Test deleting zone with mismatched camera ID returns 404."""
+    uid = unique_id()
+    camera_id_1 = await create_test_camera(client, f"cam1_{uid}")
+    camera_id_2 = await create_test_camera(client, f"cam2_{uid}")
+
+    # Create zone for camera 1
+    zone = await create_test_zone(client, camera_id_1, name=f"Zone for cam1 {uid}")
+
+    # Try to delete zone using camera 2's ID
+    response = await client.delete(f"/api/cameras/{camera_id_2}/zones/{zone['id']}")
+
+    assert response.status_code == 404
+
+    # Zone should still exist under correct camera
+    get_response = await client.get(f"/api/cameras/{camera_id_1}/zones/{zone['id']}")
+    assert get_response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_delete_zone_idempotent(client):
+    """Test that deleting an already deleted zone returns 404."""
+    camera_id = await create_test_camera(client)
+    zone = await create_test_zone(client, camera_id)
+
+    # First delete should succeed
+    response = await client.delete(f"/api/cameras/{camera_id}/zones/{zone['id']}")
+    assert response.status_code == 204
+
+    # Second delete should return 404
+    response = await client.delete(f"/api/cameras/{camera_id}/zones/{zone['id']}")
+    assert response.status_code == 404
+
+
+# === Color Validation Tests ===
+
+
+@pytest.mark.asyncio
+async def test_create_zone_valid_color_formats(client):
+    """Test zone creation with valid hex color formats."""
+    camera_id = await create_test_camera(client)
+
+    valid_colors = [
+        "#000000",  # Black
+        "#FFFFFF",  # White (uppercase)
+        "#ffffff",  # White (lowercase)
+        "#3B82F6",  # Mixed case
+        "#aAbBcC",  # Mixed case letters
+    ]
+
+    for idx, color in enumerate(valid_colors):
+        zone_data = {
+            "name": f"Color Zone {idx}",
+            "coordinates": [
+                [0.1 + idx * 0.01, 0.1],
+                [0.2 + idx * 0.01, 0.1],
+                [0.2 + idx * 0.01, 0.2],
+                [0.1 + idx * 0.01, 0.2],
+            ],
+            "color": color,
+        }
+
+        response = await client.post(f"/api/cameras/{camera_id}/zones", json=zone_data)
+        assert response.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_create_zone_invalid_color_formats(client):
+    """Test zone creation fails with invalid color formats."""
+    camera_id = await create_test_camera(client)
+
+    invalid_colors = [
+        "FF0000",  # Missing hash
+        "#FF",  # Too short
+        "#FFFFFFF",  # Too long (7 chars)
+        "#GG0000",  # Invalid hex char
+        "red",  # Named color
+        "rgb(255, 0, 0)",  # RGB format
+    ]
+
+    for color in invalid_colors:
+        zone_data = {
+            "name": "Invalid Color Zone",
+            "coordinates": valid_rectangle_coordinates(),
+            "color": color,
+        }
+
+        response = await client.post(f"/api/cameras/{camera_id}/zones", json=zone_data)
+        assert response.status_code == 422, f"Color {color} should be rejected"
+
+
+# === Priority Edge Cases ===
+
+
+@pytest.mark.asyncio
+async def test_zone_priority_boundaries(client):
+    """Test zone creation with boundary priority values (0 and 100)."""
+    camera_id = await create_test_camera(client)
+
+    # Test minimum priority (0)
+    zone_data_min = {
+        "name": "Min Priority Zone",
+        "coordinates": valid_rectangle_coordinates(),
+        "priority": 0,
+    }
+
+    response = await client.post(f"/api/cameras/{camera_id}/zones", json=zone_data_min)
+    assert response.status_code == 201
+    assert response.json()["priority"] == 0
+
+    # Test maximum priority (100)
+    zone_data_max = {
+        "name": "Max Priority Zone",
+        "coordinates": [[0.5, 0.5], [0.7, 0.5], [0.7, 0.9], [0.5, 0.9]],
+        "priority": 100,
+    }
+
+    response = await client.post(f"/api/cameras/{camera_id}/zones", json=zone_data_max)
+    assert response.status_code == 201
+    assert response.json()["priority"] == 100
+
+
+# === Name Validation Edge Cases ===
+
+
+@pytest.mark.asyncio
+async def test_zone_name_max_length(client):
+    """Test zone creation with name at maximum length (255)."""
+    camera_id = await create_test_camera(client)
+
+    zone_data = {
+        "name": "A" * 255,
+        "coordinates": valid_rectangle_coordinates(),
+    }
+
+    response = await client.post(f"/api/cameras/{camera_id}/zones", json=zone_data)
+    assert response.status_code == 201
+    assert len(response.json()["name"]) == 255
+
+
+@pytest.mark.asyncio
+async def test_zone_name_special_characters(client):
+    """Test zone creation with special characters in name."""
+    camera_id = await create_test_camera(client)
+
+    special_names = [
+        "Zone with spaces",
+        "Zone-with-dashes",
+        "Zone_with_underscores",
+        "Zone.with.dots",
+        "Zone (with parens)",
+        "Zone #1",
+        "Zone & Zone",
+    ]
+
+    for idx, name in enumerate(special_names):
+        zone_data = {
+            "name": name,
+            "coordinates": [
+                [0.1 + idx * 0.01, 0.1],
+                [0.2 + idx * 0.01, 0.1],
+                [0.2 + idx * 0.01, 0.2],
+                [0.1 + idx * 0.01, 0.2],
+            ],
+        }
+
+        response = await client.post(f"/api/cameras/{camera_id}/zones", json=zone_data)
+        assert response.status_code == 201
+        assert response.json()["name"] == name
+
+
+@pytest.mark.asyncio
+async def test_zone_name_unicode(client):
+    """Test zone creation with unicode characters in name."""
+    camera_id = await create_test_camera(client)
+
+    zone_data = {
+        "name": "Front Door Zone",
+        "coordinates": valid_rectangle_coordinates(),
+    }
+
+    response = await client.post(f"/api/cameras/{camera_id}/zones", json=zone_data)
+    assert response.status_code == 201
+    assert response.json()["name"] == "Front Door Zone"
+
+
+# === Concurrent Operations ===
+
+
+@pytest.mark.asyncio
+async def test_concurrent_zone_creation(client):
+    """Test creating multiple zones concurrently."""
+    import asyncio
+
+    camera_id = await create_test_camera(client)
+
+    async def create_zone(i: int):
+        zone_data = {
+            "name": f"Concurrent Zone {i}",
+            "coordinates": [
+                [0.1 + i * 0.01, 0.1],
+                [0.2 + i * 0.01, 0.1],
+                [0.2 + i * 0.01, 0.2],
+                [0.1 + i * 0.01, 0.2],
+            ],
+        }
+        return await client.post(f"/api/cameras/{camera_id}/zones", json=zone_data)
+
+    # Create 5 zones concurrently
+    tasks = [create_zone(i) for i in range(5)]
+    responses = await asyncio.gather(*tasks)
+
+    # All should succeed
+    for response in responses:
+        assert response.status_code == 201
+
+    # Verify all were created
+    list_response = await client.get(f"/api/cameras/{camera_id}/zones")
+    assert list_response.json()["count"] == 5
