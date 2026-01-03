@@ -450,6 +450,9 @@ export interface paths {
          *
          *     Returns:
          *         AuditLogListResponse containing filtered logs and pagination info
+         *
+         *     Raises:
+         *         HTTPException: 400 if start_date is after end_date
          */
         get: operations["list_audit_logs_api_audit_get"];
         put?: never;
@@ -851,6 +854,9 @@ export interface paths {
          *
          *     Returns:
          *         DetectionListResponse containing filtered detections and pagination info
+         *
+         *     Raises:
+         *         HTTPException: 400 if start_date is after end_date
          */
         get: operations["list_detections_api_detections_get"];
         put?: never;
@@ -1319,6 +1325,9 @@ export interface paths {
          *
          *     Returns:
          *         EventListResponse containing filtered events and pagination info
+         *
+         *     Raises:
+         *         HTTPException: 400 if start_date is after end_date
          */
         get: operations["list_events_api_events_get"];
         put?: never;
@@ -1355,6 +1364,9 @@ export interface paths {
          *
          *     Returns:
          *         EventStatsResponse with aggregated statistics
+         *
+         *     Raises:
+         *         HTTPException: 400 if start_date is after end_date
          */
         get: operations["get_event_stats_api_events_stats_get"];
         put?: never;
@@ -1404,6 +1416,7 @@ export interface paths {
          *
          *     Raises:
          *         HTTPException: 400 if any severity value is invalid
+         *         HTTPException: 400 if start_date is after end_date
          */
         get: operations["search_events_endpoint_api_events_search_get"];
         put?: never;
@@ -1425,21 +1438,30 @@ export interface paths {
          * Export Events
          * @description Export events as CSV file for external analysis or record-keeping.
          *
+         *     This endpoint is rate-limited to 10 requests per minute per client IP
+         *     to prevent abuse and protect against data exfiltration attacks.
+         *
          *     Exports events with the following fields:
          *     - Event ID, camera name, timestamps
          *     - Risk score, risk level, summary
          *     - Detection count, reviewed status
          *
          *     Args:
+         *         request: FastAPI request object
          *         camera_id: Optional camera ID to filter by
          *         risk_level: Optional risk level to filter by (low, medium, high, critical)
          *         start_date: Optional start date for date range filter
          *         end_date: Optional end date for date range filter
          *         reviewed: Optional filter by reviewed status
          *         db: Database session
+         *         _rate_limit: Rate limiter dependency (10 req/min, no burst)
          *
          *     Returns:
          *         StreamingResponse with CSV file containing exported events
+         *
+         *     Raises:
+         *         HTTPException: 429 if rate limit exceeded
+         *         HTTPException: 400 if start_date is after end_date
          */
         get: operations["export_events_api_events_export_get"];
         put?: never;
@@ -1649,6 +1671,9 @@ export interface paths {
         /**
          * List Logs
          * @description List logs with optional filtering and pagination.
+         *
+         *     Raises:
+         *         HTTPException: 400 if start_date is after end_date
          */
         get: operations["list_logs_api_logs_get"];
         put?: never;
@@ -2249,8 +2274,8 @@ export interface paths {
          *     Each bucket contains aggregated statistics for all pipeline stages.
          *
          *     Args:
-         *         since: Number of minutes of history to return (default 60)
-         *         bucket_seconds: Size of each time bucket in seconds (default 60 = 1 minute)
+         *         since: Number of minutes of history to return (1-1440, default 60)
+         *         bucket_seconds: Size of each time bucket in seconds (10-3600, default 60)
          *
          *     Returns:
          *         PipelineLatencyHistoryResponse with chronologically ordered snapshots
@@ -11025,7 +11050,9 @@ export interface operations {
     get_pipeline_latency_history_api_system_pipeline_latency_history_get: {
         parameters: {
             query?: {
+                /** @description Number of minutes of history to return (1-1440, i.e., 1 minute to 24 hours) */
                 since?: number;
+                /** @description Size of each time bucket in seconds (10-3600, i.e., 10 seconds to 1 hour) */
                 bucket_seconds?: number;
             };
             header?: never;

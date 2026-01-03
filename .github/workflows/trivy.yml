@@ -49,12 +49,19 @@ jobs:
         # Context must be project root because Dockerfile.prod copies pyproject.toml/uv.lock from root
         run: docker build -t backend:${{ github.sha }} -f backend/Dockerfile.prod .
 
+      - name: Clean up Docker to free space
+        # Remove build cache and intermediate layers to maximize space for Trivy
+        run: |
+          docker system prune -af --volumes
+          df -h
+
       - name: Run Trivy vulnerability scanner (blocking)
         id: trivy-scan
         # Fail build on CRITICAL/HIGH vulnerabilities not in .trivyignore
         # Only run if build succeeded
         # Note: SARIF upload skipped for backend due to disk space constraints
         # (large ML image + Trivy cache exhausts GitHub runner disk)
+        # Using scanners: 'vuln' to skip secret scanning and reduce disk usage
         if: steps.build.outcome == 'success'
         uses: aquasecurity/trivy-action@master
         with:
@@ -63,6 +70,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
           exit-code: '1'
           trivyignores: '.trivyignore'
+          scanners: 'vuln'
 
       - name: Create Linear issue on vulnerability found
         if: failure() && steps.trivy-scan.outcome == 'failure'
