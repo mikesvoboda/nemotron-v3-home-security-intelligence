@@ -25,6 +25,7 @@ class EventResponse(BaseModel):
                 "notes": None,
                 "detection_count": 5,
                 "detection_ids": [1, 2, 3, 4, 5],
+                "thumbnail_url": "/api/media/detections/1",
             }
         },
     )
@@ -45,6 +46,9 @@ class EventResponse(BaseModel):
     detection_count: int = Field(0, description="Number of detections in this event")
     detection_ids: list[int] = Field(
         default_factory=list, description="List of detection IDs associated with this event"
+    )
+    thumbnail_url: str | None = Field(
+        None, description="URL to thumbnail image (first detection's media)"
     )
 
 
@@ -85,6 +89,7 @@ class EventListResponse(BaseModel):
                         "notes": None,
                         "detection_count": 5,
                         "detection_ids": [1, 2, 3, 4, 5],
+                        "thumbnail_url": "/api/media/detections/1",
                     }
                 ],
                 "count": 1,
