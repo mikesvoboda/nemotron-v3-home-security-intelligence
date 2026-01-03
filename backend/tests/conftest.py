@@ -247,6 +247,9 @@ async def _reset_db_schema() -> None:
         # This handles schema drift without dropping data
         # Using IF NOT EXISTS makes this idempotent and safe to run in parallel
         await conn.execute(text("ALTER TABLE events ADD COLUMN IF NOT EXISTS llm_prompt TEXT"))
+        await conn.execute(
+            text("ALTER TABLE detections ADD COLUMN IF NOT EXISTS enrichment_data JSONB")
+        )
 
         # Add unique indexes for cameras table (migration adds these for production)
         # First, clean up any duplicate cameras that might prevent index creation

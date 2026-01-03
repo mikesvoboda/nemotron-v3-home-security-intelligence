@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .camera import Base
@@ -53,6 +54,9 @@ class Detection(Base):
     video_codec: Mapped[str | None] = mapped_column(String, nullable=True)
     video_width: Mapped[int | None] = mapped_column(Integer, nullable=True)
     video_height: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # AI enrichment data (vehicle classification, pet identification, etc.)
+    enrichment_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     # Relationships
     camera: Mapped[Camera] = relationship("Camera", back_populates="detections")
