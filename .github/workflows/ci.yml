@@ -140,10 +140,13 @@ jobs:
           flags: backend-unit
           fail_ci_if_error: false
 
-  integration-tests:
-    name: Backend Integration Tests
+  # Integration tests split into 4 domain-based parallel jobs for faster execution
+  # Each job runs tests for a specific domain with within-shard parallelization
+  integration-tests-api:
+    name: Integration Tests (API)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
+    needs: [unit-tests]
     services:
       postgres:
         image: postgres:16-alpine
@@ -189,36 +192,310 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra dev --frozen
 
-      - name: Run integration tests with coverage
-        # Integration tests coverage threshold - 50% for integration tests alone
-        # Integration tests focus on API/service integration, not full code coverage
-        # -n0 disables xdist (integration tests share database state and cannot run in parallel)
-        # Future: Enable parallelization after refactoring tests to avoid shared state cleanup
-        # --timeout=30 gives tests 30s each (prevents hangs while allowing slow DB ops)
+      - name: Run API integration tests
+        # API tests: test_*_api.py files
+        # -n auto enables xdist with worksteal scheduler for within-shard parallelism
         run: |
           uv run pytest backend/tests/integration/ \
-            -n0 \
+            -k "test_admin_api or test_ai_audit_api or test_alerts_api or test_api_error_scenarios or test_api_errors or test_audit_api or test_cameras_api or test_detections_api or test_dlq_api or test_entities_api or test_events_api or test_http_error_codes or test_logs_api or test_media_api or test_media_security or test_metrics_api or test_notification_api or test_search_api or test_system_api or test_video_streaming or test_zones_api or test_api" \
+            -n auto --dist=worksteal \
             --timeout=30 \
             --cov=backend \
-            --cov-report=xml:coverage-integration.xml \
+            --cov-report=xml:coverage-integration-api.xml \
             --cov-report=term-missing \
-            --cov-fail-under=49 \
-            --junit-xml=test-results-integration.xml \
+            --junit-xml=test-results-integration-api.xml \
             --durations=20 \
             -v
 
-      - name: Upload integration test results
+      - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: test-results-integration
-          path: test-results-integration.xml
+          name: test-results-integration-api
+          path: test-results-integration-api.xml
           retention-days: 7
 
-      - name: Upload integration test coverage
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: coverage-integration-api
+          path: coverage-integration-api.xml
+          retention-days: 7
+
+  integration-tests-websocket:
+    name: Integration Tests (WebSocket)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [unit-tests]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: security_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+      REDIS_URL: redis://localhost:6379
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: 'latest'
+          cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Run WebSocket integration tests
+        # WebSocket tests: test_websocket*.py, test_broadcast*.py, test_pubsub*.py
+        # -n auto enables xdist with worksteal scheduler for within-shard parallelism
+        run: |
+          uv run pytest backend/tests/integration/ \
+            -k "test_websocket or test_system_broadcaster or test_redis_pubsub" \
+            -n auto --dist=worksteal \
+            --timeout=30 \
+            --cov=backend \
+            --cov-report=xml:coverage-integration-websocket.xml \
+            --cov-report=term-missing \
+            --junit-xml=test-results-integration-websocket.xml \
+            --durations=20 \
+            -v
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-results-integration-websocket
+          path: test-results-integration-websocket.xml
+          retention-days: 7
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: coverage-integration-websocket
+          path: coverage-integration-websocket.xml
+          retention-days: 7
+
+  integration-tests-services:
+    name: Integration Tests (Services)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [unit-tests]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: security_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+      REDIS_URL: redis://localhost:6379
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: 'latest'
+          cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Run Services integration tests
+        # Service tests: test_*_integration.py, test_batch*.py, test_detector*.py, test_file_watcher*.py, test_circuit*.py
+        # -n auto enables xdist with worksteal scheduler for within-shard parallelism
+        run: |
+          uv run pytest backend/tests/integration/ \
+            -k "test_batch_aggregator_integration or test_detector_client_integration or test_file_watcher_filesystem or test_file_watcher_integration or test_circuit_breaker or test_cleanup_service or test_dlq_retry_handler_integration or test_health_monitor_integration or test_nemotron_analyzer_integration or test_nemotron_analyzer or test_vision_extraction_pipeline or test_pipeline_e2e or test_full_stack or test_audit or test_event_search or test_github_workflows or test_alembic_migrations or test_transaction_rollback" \
+            -n auto --dist=worksteal \
+            --timeout=30 \
+            --cov=backend \
+            --cov-report=xml:coverage-integration-services.xml \
+            --cov-report=term-missing \
+            --junit-xml=test-results-integration-services.xml \
+            --durations=20 \
+            -v
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-results-integration-services
+          path: test-results-integration-services.xml
+          retention-days: 7
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: coverage-integration-services
+          path: coverage-integration-services.xml
+          retention-days: 7
+
+  integration-tests-models:
+    name: Integration Tests (Models)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [unit-tests]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: security_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/security_test
+      REDIS_URL: redis://localhost:6379
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: 'latest'
+          cache: true
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Run Models integration tests
+        # Model tests: test_models*.py, test_database*.py, test_baseline*.py, test_alert_*.py, test_enrichment*.py, test_cache*.py
+        # -n auto enables xdist with worksteal scheduler for within-shard parallelism
+        run: |
+          uv run pytest backend/tests/integration/ \
+            -k "test_models or test_model_cascades or test_database or test_baseline or test_alert_dedup or test_alert_engine or test_alert_models or test_enrichment_pipeline or test_cache_service_integration" \
+            -n auto --dist=worksteal \
+            --timeout=30 \
+            --cov=backend \
+            --cov-report=xml:coverage-integration-models.xml \
+            --cov-report=term-missing \
+            --junit-xml=test-results-integration-models.xml \
+            --durations=20 \
+            -v
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-results-integration-models
+          path: test-results-integration-models.xml
+          retention-days: 7
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: coverage-integration-models
+          path: coverage-integration-models.xml
+          retention-days: 7
+
+  # Merge coverage from all integration test shards
+  integration-coverage-merge:
+    name: Merge Integration Coverage
+    runs-on: ubuntu-latest
+    needs:
+      [
+        integration-tests-api,
+        integration-tests-websocket,
+        integration-tests-services,
+        integration-tests-models,
+      ]
+    if: always()
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-integration-*
+          path: coverage-reports/
+          merge-multiple: true
+
+      - name: List coverage files
+        run: find coverage-reports/ -name "*.xml" | head -20
+
+      - name: Upload merged coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
-          files: coverage-integration.xml
+          directory: coverage-reports/
           flags: backend-integration
           fail_ci_if_error: false
 
@@ -367,7 +644,7 @@ jobs:
         run: ./scripts/check-api-coverage.sh
 
   # Primary E2E tests (Chromium) - non-blocking while stabilizing error state tests
-  # Uses sharding to split tests across 2 parallel runners for 2x speed
+  # Uses sharding to split tests across 4 parallel runners for 4x speed
   frontend-e2e:
     name: E2E Tests (chromium ${{ matrix.shard }})
     runs-on: ubuntu-latest
@@ -375,7 +652,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1/2, 2/2]
+        shard: [1/4, 2/4, 3/4, 4/4]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -495,7 +772,10 @@ jobs:
       - lint
       - typecheck
       - unit-tests
-      - integration-tests
+      - integration-tests-api
+      - integration-tests-websocket
+      - integration-tests-services
+      - integration-tests-models
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -630,8 +910,16 @@ jobs:
     name: Test Performance Audit
     runs-on: ubuntu-latest
     continue-on-error: true
-    needs: [unit-tests, integration-tests, frontend-e2e]
-    if: always() && (needs.unit-tests.result == 'success' || needs.integration-tests.result == 'success' || needs.frontend-e2e.result == 'success')
+    needs:
+      [
+        unit-tests,
+        integration-tests-api,
+        integration-tests-websocket,
+        integration-tests-services,
+        integration-tests-models,
+        frontend-e2e,
+      ]
+    if: always() && (needs.unit-tests.result == 'success' || needs.integration-tests-api.result == 'success' || needs.integration-tests-websocket.result == 'success' || needs.integration-tests-services.result == 'success' || needs.integration-tests-models.result == 'success' || needs.frontend-e2e.result == 'success')
     steps:
       - name: Checkout
         uses: actions/checkout@v4

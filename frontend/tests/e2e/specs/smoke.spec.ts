@@ -3,11 +3,18 @@
  *
  * These tests verify that the application loads and renders correctly.
  * They run against a development server with mocked backend responses.
+ * Includes accessibility checks using axe-core to ensure WCAG 2.1 AA compliance.
  */
 
 import { test, expect } from '@playwright/test';
-import { DashboardPage, TimelinePage } from '../pages';
+import AxeBuilder from '@axe-core/playwright';
+import { DashboardPage, TimelinePage, SettingsPage } from '../pages';
 import { setupApiMocks, defaultMockConfig } from '../fixtures';
+
+/**
+ * WCAG 2.1 AA compliance tags for accessibility testing
+ */
+const WCAG_AA_TAGS = ['wcag2a', 'wcag2aa', 'wcag21aa'];
 
 test.describe('Dashboard Smoke Tests', () => {
   let dashboardPage: DashboardPage;
@@ -135,5 +142,70 @@ test.describe('Timeline Event Tests', () => {
     await expect(timelinePage.pageTitle).toBeVisible();
     const eventCount = await timelinePage.getEventCount();
     expect(eventCount).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * Accessibility Smoke Tests
+ *
+ * Quick accessibility checks for critical pages during smoke testing.
+ * These tests use axe-core to verify WCAG 2.1 AA compliance.
+ * For comprehensive accessibility testing, see accessibility.spec.ts
+ */
+test.describe('Accessibility Smoke Tests', () => {
+  test.beforeEach(async ({ page }) => {
+    await setupApiMocks(page, defaultMockConfig);
+  });
+
+  test('dashboard page has no critical accessibility violations', async ({ page }) => {
+    const dashboardPage = new DashboardPage(page);
+    await dashboardPage.goto();
+    await dashboardPage.waitForDashboardLoad();
+
+    const results = await new AxeBuilder({ page }).withTags(WCAG_AA_TAGS).analyze();
+
+    // Log violations for debugging if any exist
+    if (results.violations.length > 0) {
+      console.log(
+        'Dashboard a11y violations:',
+        results.violations.map((v) => `${v.id}: ${v.help} (${v.nodes.length} elements)`)
+      );
+    }
+
+    expect(results.violations).toEqual([]);
+  });
+
+  test('timeline page has no critical accessibility violations', async ({ page }) => {
+    const timelinePage = new TimelinePage(page);
+    await timelinePage.goto();
+    await timelinePage.waitForTimelineLoad();
+
+    const results = await new AxeBuilder({ page }).withTags(WCAG_AA_TAGS).analyze();
+
+    if (results.violations.length > 0) {
+      console.log(
+        'Timeline a11y violations:',
+        results.violations.map((v) => `${v.id}: ${v.help} (${v.nodes.length} elements)`)
+      );
+    }
+
+    expect(results.violations).toEqual([]);
+  });
+
+  test('settings page has no critical accessibility violations', async ({ page }) => {
+    const settingsPage = new SettingsPage(page);
+    await settingsPage.goto();
+    await settingsPage.waitForSettingsLoad();
+
+    const results = await new AxeBuilder({ page }).withTags(WCAG_AA_TAGS).analyze();
+
+    if (results.violations.length > 0) {
+      console.log(
+        'Settings a11y violations:',
+        results.violations.map((v) => `${v.id}: ${v.help} (${v.nodes.length} elements)`)
+      );
+    }
+
+    expect(results.violations).toEqual([]);
   });
 });
