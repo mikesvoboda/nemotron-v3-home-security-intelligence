@@ -630,7 +630,8 @@ describe('AIPerformancePage', () => {
       renderWithRouter();
 
       await waitFor(() => {
-        expect(screen.getByText('Total Pipeline')).toBeInTheDocument();
+        // Multiple elements may have "Total Pipeline" text (option, span, p)
+        expect(screen.getAllByText('Total Pipeline').length).toBeGreaterThan(0);
       });
     });
   });
