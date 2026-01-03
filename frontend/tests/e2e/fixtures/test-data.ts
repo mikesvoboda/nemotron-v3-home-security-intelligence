@@ -696,3 +696,110 @@ export const mockRuleTestResults = {
     results: [],
   },
 };
+
+// AI Audit Mock Data
+export const mockAiAuditStats = {
+  normal: {
+    total_events: 1000,
+    audited_events: 950,
+    fully_evaluated_events: 800,
+    avg_quality_score: 4.2,
+    avg_consistency_rate: 4.0,
+    avg_enrichment_utilization: 0.75,
+    model_contribution_rates: {
+      rtdetr: 1.0,
+      florence: 0.85,
+      clip: 0.6,
+      violence: 0.3,
+      clothing: 0.5,
+      vehicle: 0.4,
+      pet: 0.25,
+      weather: 0.2,
+      image_quality: 0.7,
+      zones: 0.65,
+      baseline: 0.55,
+      cross_camera: 0.15,
+    },
+    audits_by_day: [
+      { date: '2024-01-01', count: 120 },
+      { date: '2024-01-02', count: 135 },
+      { date: '2024-01-03', count: 145 },
+    ],
+  },
+  empty: {
+    total_events: 0,
+    audited_events: 0,
+    fully_evaluated_events: 0,
+    avg_quality_score: null,
+    avg_consistency_rate: null,
+    avg_enrichment_utilization: null,
+    model_contribution_rates: {},
+    audits_by_day: [],
+  },
+};
+
+export const mockAiAuditLeaderboard = {
+  normal: {
+    entries: [
+      { model_name: 'rtdetr', contribution_rate: 1.0, quality_correlation: null, event_count: 1000 },
+      { model_name: 'florence', contribution_rate: 0.85, quality_correlation: 0.75, event_count: 850 },
+      { model_name: 'image_quality', contribution_rate: 0.7, quality_correlation: 0.65, event_count: 700 },
+      { model_name: 'zones', contribution_rate: 0.65, quality_correlation: null, event_count: 650 },
+      { model_name: 'clip', contribution_rate: 0.6, quality_correlation: 0.5, event_count: 600 },
+      { model_name: 'baseline', contribution_rate: 0.55, quality_correlation: null, event_count: 550 },
+      { model_name: 'clothing', contribution_rate: 0.5, quality_correlation: 0.45, event_count: 500 },
+      { model_name: 'vehicle', contribution_rate: 0.4, quality_correlation: null, event_count: 400 },
+      { model_name: 'violence', contribution_rate: 0.3, quality_correlation: 0.3, event_count: 300 },
+      { model_name: 'pet', contribution_rate: 0.25, quality_correlation: null, event_count: 250 },
+      { model_name: 'weather', contribution_rate: 0.2, quality_correlation: null, event_count: 200 },
+      { model_name: 'cross_camera', contribution_rate: 0.15, quality_correlation: null, event_count: 150 },
+    ],
+    period_days: 7,
+  },
+  empty: {
+    entries: [],
+    period_days: 7,
+  },
+};
+
+export const mockAiAuditRecommendations = {
+  normal: {
+    recommendations: [
+      {
+        category: 'missing_context',
+        suggestion: 'Add time since last motion detection',
+        frequency: 50,
+        priority: 'high',
+      },
+      {
+        category: 'missing_context',
+        suggestion: 'Include historical activity patterns',
+        frequency: 35,
+        priority: 'medium',
+      },
+      {
+        category: 'unused_data',
+        suggestion: 'Weather data not used for indoor cameras',
+        frequency: 30,
+        priority: 'medium',
+      },
+      {
+        category: 'model_gaps',
+        suggestion: 'Violence detection missing from prompt',
+        frequency: 20,
+        priority: 'high',
+      },
+      {
+        category: 'format_suggestions',
+        suggestion: 'Group detections by object type',
+        frequency: 15,
+        priority: 'low',
+      },
+    ],
+    total_events_analyzed: 800,
+  },
+  empty: {
+    recommendations: [],
+    total_events_analyzed: 0,
+  },
+};

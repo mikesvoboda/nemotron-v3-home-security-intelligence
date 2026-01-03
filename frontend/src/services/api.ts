@@ -68,9 +68,24 @@ export type {
   ZoneShape,
   ZoneType,
   ZoneUpdate,
+  // AI Audit types
+  AiAuditStatsResponse,
+  AiAuditLeaderboardResponse,
+  AiAuditRecommendationsResponse,
+  AiAuditEventAuditResponse,
+  AiAuditModelContributions,
+  AiAuditQualityScores,
+  AiAuditPromptImprovements,
+  AiAuditModelLeaderboardEntry,
+  AiAuditRecommendationItem,
 } from '../types/generated';
+
 // Import concrete types for use in this module
 import type {
+  AiAuditEventAuditResponse,
+  AiAuditLeaderboardResponse,
+  AiAuditRecommendationsResponse,
+  AiAuditStatsResponse,
   AlertRule as GeneratedAlertRule,
   AlertRuleCreate as GeneratedAlertRuleCreate,
   AlertRuleListResponse as GeneratedAlertRuleListResponse,
@@ -1505,4 +1520,124 @@ export async function deleteZone(cameraId: string, zoneId: string): Promise<void
   return fetchApi<void>(`/api/cameras/${cameraId}/zones/${zoneId}`, {
     method: 'DELETE',
   });
+}
+
+// ============================================================================
+// AI Audit Endpoints
+// ============================================================================
+
+/**
+ * Query parameters for AI audit statistics
+ */
+export interface AiAuditStatsQueryParams {
+  /** Number of days to include in statistics (1-90, default 7) */
+  days?: number;
+  /** Filter by camera ID */
+  camera_id?: string;
+}
+
+/**
+ * Fetch aggregate AI audit statistics.
+ *
+ * Returns aggregate statistics including total events, quality scores,
+ * model contribution rates, and audit trends over the specified period.
+ *
+ * @param params - Query parameters for filtering
+ * @returns AiAuditStatsResponse with aggregate statistics
+ */
+export async function fetchAiAuditStats(
+  params?: AiAuditStatsQueryParams
+): Promise<AiAuditStatsResponse> {
+  const queryParams = new URLSearchParams();
+
+  if (params) {
+    if (params.days !== undefined) queryParams.append('days', String(params.days));
+    if (params.camera_id) queryParams.append('camera_id', params.camera_id);
+  }
+
+  const queryString = queryParams.toString();
+  const endpoint = queryString ? `/api/ai-audit/stats?${queryString}` : '/api/ai-audit/stats';
+
+  return fetchApi<AiAuditStatsResponse>(endpoint);
+}
+
+/**
+ * Query parameters for model leaderboard
+ */
+export interface AiAuditLeaderboardQueryParams {
+  /** Number of days to include (1-90, default 7) */
+  days?: number;
+}
+
+/**
+ * Fetch model leaderboard ranked by contribution rate.
+ *
+ * Returns a ranked list of AI models by their contribution rate,
+ * along with quality correlation data.
+ *
+ * @param params - Query parameters for filtering
+ * @returns AiAuditLeaderboardResponse with ranked model entries
+ */
+export async function fetchModelLeaderboard(
+  params?: AiAuditLeaderboardQueryParams
+): Promise<AiAuditLeaderboardResponse> {
+  const queryParams = new URLSearchParams();
+
+  if (params) {
+    if (params.days !== undefined) queryParams.append('days', String(params.days));
+  }
+
+  const queryString = queryParams.toString();
+  const endpoint = queryString
+    ? `/api/ai-audit/leaderboard?${queryString}`
+    : '/api/ai-audit/leaderboard';
+
+  return fetchApi<AiAuditLeaderboardResponse>(endpoint);
+}
+
+/**
+ * Query parameters for recommendations
+ */
+export interface AiAuditRecommendationsQueryParams {
+  /** Number of days to analyze (1-90, default 7) */
+  days?: number;
+}
+
+/**
+ * Fetch aggregated prompt improvement recommendations.
+ *
+ * Analyzes all audits to produce actionable recommendations for
+ * improving the AI pipeline prompt templates.
+ *
+ * @param params - Query parameters for filtering
+ * @returns AiAuditRecommendationsResponse with prioritized recommendations
+ */
+export async function fetchAuditRecommendations(
+  params?: AiAuditRecommendationsQueryParams
+): Promise<AiAuditRecommendationsResponse> {
+  const queryParams = new URLSearchParams();
+
+  if (params) {
+    if (params.days !== undefined) queryParams.append('days', String(params.days));
+  }
+
+  const queryString = queryParams.toString();
+  const endpoint = queryString
+    ? `/api/ai-audit/recommendations?${queryString}`
+    : '/api/ai-audit/recommendations';
+
+  return fetchApi<AiAuditRecommendationsResponse>(endpoint);
+}
+
+/**
+ * Fetch audit information for a specific event.
+ *
+ * Retrieves the AI pipeline audit record for the given event, including
+ * model contributions, quality scores, and prompt improvement suggestions.
+ *
+ * @param eventId - The ID of the event to get audit for
+ * @returns AiAuditEventAuditResponse containing full audit details
+ */
+export async function fetchEventAudit(eventId: number): Promise<AiAuditEventAuditResponse> {
+  return fetchApi<AiAuditEventAuditResponse>(`/api/ai-audit/events/${eventId}`);
 }
