@@ -30,6 +30,7 @@ from backend.api.validators import validate_date_range
 from backend.core.database import escape_ilike_pattern, get_db
 from backend.core.logging import get_logger
 from backend.core.metrics import record_event_reviewed
+from backend.core.sanitization import sanitize_error_for_response
 from backend.models.audit import AuditAction
 from backend.models.camera import Camera
 from backend.models.detection import Detection
@@ -1147,10 +1148,13 @@ async def generate_event_clip(
 
     except Exception as e:
         logger.error(f"Clip generation failed for event {event_id}: {e}", exc_info=True)
+        # Sanitize exception message to prevent information leakage (NEM-1059)
+        # Full error details are logged server-side above
+        safe_message = sanitize_error_for_response(e, context="generating clip")
         return ClipGenerateResponse(
             event_id=event.id,
             status=ClipStatus.FAILED,
             clip_url=None,
             generated_at=None,
-            message=f"Clip generation failed: {e!s}",
+            message=safe_message,
         )

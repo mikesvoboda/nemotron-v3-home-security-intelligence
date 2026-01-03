@@ -34,6 +34,7 @@ import httpx
 from backend.core.config import get_settings
 from backend.core.logging import get_logger, sanitize_error
 from backend.core.metrics import observe_ai_request_duration, record_pipeline_error
+from backend.services.bbox_validation import is_valid_bbox, validate_and_clamp_bbox
 
 if TYPE_CHECKING:
     from PIL import Image
@@ -1040,13 +1041,17 @@ class EnrichmentClient:
     ) -> ObjectDistanceResult | None:
         """Estimate distance to an object within a bounding box.
 
+        This method validates and clamps the bounding box to image boundaries
+        before processing. Invalid bounding boxes (zero width/height, NaN values,
+        inverted coordinates) will return None.
+
         Args:
             image: PIL Image
             bbox: Bounding box (x1, y1, x2, y2) of object to measure
             method: Depth sampling method ('center', 'mean', 'median', 'min')
 
         Returns:
-            ObjectDistanceResult or None on error
+            ObjectDistanceResult or None if bbox is invalid or on error
 
         Raises:
             EnrichmentUnavailableError: If the service is unavailable
@@ -1054,16 +1059,43 @@ class EnrichmentClient:
         start_time = time.time()
         endpoint = "object-distance"
 
+        # Validate and clamp bounding box (NEM-1102, NEM-1122)
+        image_width, image_height = image.size
+        if not is_valid_bbox(bbox, allow_negative=True):
+            logger.warning(
+                f"Invalid bounding box for object distance estimation: {bbox}. "
+                "Bounding box has invalid dimensions (zero width/height, NaN, or inverted)."
+            )
+            record_pipeline_error("enrichment_distance_invalid_bbox")
+            return None
+
+        validation_result = validate_and_clamp_bbox(bbox, image_width, image_height)
+        if not validation_result.is_valid:
+            logger.warning(
+                f"Bounding box {bbox} is invalid after validation: {validation_result.warnings}. "
+                f"Image size: {image_width}x{image_height}"
+            )
+            record_pipeline_error("enrichment_distance_bbox_outside_image")
+            return None
+
+        # Use clamped bbox for the request
+        validated_bbox = validation_result.clamped_bbox
+        if validation_result.was_clamped:
+            logger.debug(
+                f"Bounding box clamped from {bbox} to {validated_bbox} "
+                f"for image size {image_width}x{image_height}"
+            )
+
         logger.debug(f"Sending object distance request with method={method}")
 
         try:
             # Encode image to base64
             image_b64 = self._encode_image_to_base64(image)
 
-            # Build request payload
+            # Build request payload with validated bbox
             payload: dict[str, Any] = {
                 "image": image_b64,
-                "bbox": list(bbox),
+                "bbox": list(validated_bbox),  # type: ignore[arg-type]
                 "method": method,
             }
 

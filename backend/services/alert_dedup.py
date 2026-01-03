@@ -39,11 +39,20 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.core.logging import get_logger
 from backend.models import Alert, AlertRule, AlertSeverity, AlertStatus
+
+logger = get_logger(__name__)
 
 # Pattern for valid dedup_key: alphanumeric, underscore, hyphen, colon only
 # This prevents injection attacks via special characters
 DEDUP_KEY_PATTERN = re.compile(r"^[a-zA-Z0-9_:\-]+$")
+
+
+class AlertCreationError(Exception):
+    """Raised when alert creation fails due to database error."""
+
+    pass
 
 
 @dataclass
@@ -266,8 +275,20 @@ class AlertDeduplicationService:
             alert_metadata=alert_metadata or {},
         )
 
-        self.session.add(alert)
-        await self.session.flush()
+        try:
+            self.session.add(alert)
+            await self.session.flush()
+        except Exception as e:
+            logger.error(
+                "Failed to create alert in database",
+                extra={
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                    "event_id": event_id,
+                    "dedup_key": dedup_key,
+                },
+            )
+            raise AlertCreationError(f"Database operation failed: {e}") from e
 
         return alert, True
 

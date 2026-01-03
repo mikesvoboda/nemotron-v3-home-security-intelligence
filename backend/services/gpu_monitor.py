@@ -50,6 +50,7 @@ class GPUMonitor:
         poll_interval: float | None = None,
         history_minutes: int | None = None,
         broadcaster: Any | None = None,
+        http_timeout: float | None = None,
     ):
         """Initialize GPU monitor.
 
@@ -57,11 +58,13 @@ class GPUMonitor:
             poll_interval: Polling interval in seconds (default from settings)
             history_minutes: Minutes of history to retain in memory (default from settings)
             broadcaster: Optional broadcaster for WebSocket updates
+            http_timeout: HTTP timeout for AI container queries (default from settings)
         """
         settings = get_settings()
         self.poll_interval = poll_interval or settings.gpu_poll_interval_seconds
         self.history_minutes = history_minutes or settings.gpu_stats_history_minutes
         self.broadcaster = broadcaster
+        self._http_timeout = http_timeout or settings.gpu_http_timeout
 
         # Track running state
         self.running = False
@@ -89,8 +92,8 @@ class GPUMonitor:
 
         logger.info(
             f"GPUMonitor initialized (poll_interval={self.poll_interval}s, "
-            f"history_minutes={self.history_minutes}m, gpu_available={self._gpu_available}, "
-            f"nvidia_smi_available={self._nvidia_smi_available})"
+            f"history_minutes={self.history_minutes}m, http_timeout={self._http_timeout}s, "
+            f"gpu_available={self._gpu_available}, nvidia_smi_available={self._nvidia_smi_available})"
         )
 
     def _initialize_nvml(self) -> None:
@@ -298,7 +301,17 @@ class GPUMonitor:
             }
 
         except Exception as e:
-            logger.error(f"Error reading GPU stats: {e}")
+            # NEM-1123: Enhanced error logging with context
+            logger.error(
+                "Error reading GPU stats",
+                extra={
+                    "gpu_id": 0,
+                    "gpu_name": self._gpu_name,
+                    "operation": "get_gpu_stats_pynvml",
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+            )
             raise
 
     def _get_gpu_stats_mock(self) -> dict[str, Any]:
@@ -419,7 +432,7 @@ class GPUMonitor:
         power_watts: float | None = None
 
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
+            async with httpx.AsyncClient(timeout=self._http_timeout) as client:
                 # Query RT-DETRv2 health endpoint
                 try:
                     resp = await client.get(f"{settings.rtdetr_url}/health")
@@ -499,7 +512,17 @@ class GPUMonitor:
             # Fallback to mock data
             return self._get_gpu_stats_mock()
         except Exception as e:
-            logger.error(f"Failed to get GPU stats: {e}")
+            # NEM-1123: Enhanced error logging with context
+            logger.error(
+                "Failed to get GPU stats",
+                extra={
+                    "gpu_id": 0,
+                    "gpu_name": self._gpu_name,
+                    "operation": "get_current_stats_async",
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+            )
             return self._get_gpu_stats_mock()
 
     def get_current_stats(self) -> dict[str, Any]:
@@ -530,7 +553,17 @@ class GPUMonitor:
 
             return self._get_gpu_stats_mock()
         except Exception as e:
-            logger.error(f"Failed to get GPU stats: {e}")
+            # NEM-1123: Enhanced error logging with context
+            logger.error(
+                "Failed to get GPU stats",
+                extra={
+                    "gpu_id": 0,
+                    "gpu_name": self._gpu_name,
+                    "operation": "get_current_stats",
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+            )
             return self._get_gpu_stats_mock()
 
     def get_stats_history(self, minutes: int | None = None) -> list[dict[str, Any]]:
@@ -604,7 +637,16 @@ class GPUMonitor:
                 await session.commit()
                 logger.debug(f"Stored GPU stats: {gpu_stats}")
         except Exception as e:
-            logger.error(f"Failed to store GPU stats in database: {e}")
+            # NEM-1123: Enhanced error logging with context
+            logger.error(
+                "Failed to store GPU stats in database",
+                extra={
+                    "gpu_name": stats.get("gpu_name"),
+                    "operation": "store_stats",
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+            )
 
     async def _broadcast_stats(self, stats: dict[str, Any]) -> None:
         """Broadcast GPU statistics via WebSocket.
@@ -623,7 +665,15 @@ class GPUMonitor:
             await self.broadcaster.broadcast_gpu_stats(broadcast_stats)
             logger.debug("Broadcasted GPU stats via WebSocket")
         except Exception as e:
-            logger.error(f"Failed to broadcast GPU stats: {e}")
+            # NEM-1123: Enhanced error logging with context
+            logger.error(
+                "Failed to broadcast GPU stats",
+                extra={
+                    "operation": "broadcast_stats",
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+            )
 
     async def _poll_loop(self) -> None:
         """Main polling loop that collects and stores GPU statistics."""
@@ -650,7 +700,16 @@ class GPUMonitor:
                 logger.debug("GPU monitor poll loop cancelled")
                 break
             except Exception as e:
-                logger.error(f"Error in GPU monitor poll loop: {e}")
+                # NEM-1123: Enhanced error logging with context
+                logger.error(
+                    "Error in GPU monitor poll loop",
+                    extra={
+                        "gpu_name": self._gpu_name,
+                        "operation": "poll_loop",
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                    },
+                )
                 # Continue polling even if one iteration fails
                 await asyncio.sleep(self.poll_interval)
 
@@ -733,5 +792,15 @@ class GPUMonitor:
                 return list(result.scalars().all())
 
         except Exception as e:
-            logger.error(f"Failed to retrieve GPU stats from database: {e}")
+            # NEM-1123: Enhanced error logging with context
+            logger.error(
+                "Failed to retrieve GPU stats from database",
+                extra={
+                    "operation": "get_stats_from_database",
+                    "minutes_filter": minutes,
+                    "limit_filter": limit,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                },
+            )
             return []

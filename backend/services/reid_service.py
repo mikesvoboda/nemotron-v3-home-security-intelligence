@@ -31,6 +31,11 @@ import numpy as np
 
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
+from backend.services.bbox_validation import (
+    InvalidBoundingBoxError,
+    clamp_bbox_to_image,
+    is_valid_bbox,
+)
 from backend.services.clip_client import CLIPClient, CLIPUnavailableError, get_clip_client
 
 if TYPE_CHECKING:
@@ -152,6 +157,57 @@ def cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
     return float(dot_product / (norm_a * norm_b))
 
 
+def batch_cosine_similarity(query: list[float], candidates: list[list[float]]) -> list[float]:
+    """Calculate cosine similarities between a query vector and multiple candidates.
+
+    This function uses vectorized numpy operations for efficient batch computation,
+    avoiding the overhead of computing similarities one-by-one in a loop.
+
+    NEM-1071: Optimization using batch matrix operations.
+
+    Args:
+        query: Query embedding vector (1D list of floats)
+        candidates: List of candidate embedding vectors to compare against
+
+    Returns:
+        List of cosine similarity scores (one per candidate), values between -1 and 1.
+        Returns empty list if candidates is empty.
+    """
+    if not candidates:
+        return []
+
+    # Convert to numpy arrays for vectorized computation
+    query_vec = np.array(query, dtype=np.float32)
+    candidates_matrix = np.array(candidates, dtype=np.float32)
+
+    # Handle zero query vector
+    query_norm = np.linalg.norm(query_vec)
+    if query_norm == 0:
+        return [0.0] * len(candidates)
+
+    # Normalize query vector
+    query_normalized = query_vec / query_norm
+
+    # Compute norms of all candidates at once (vectorized)
+    candidate_norms = np.linalg.norm(candidates_matrix, axis=1)
+
+    # Handle zero candidate vectors by setting their norm to 1 (result will be 0)
+    # Use np.where to avoid division by zero
+    safe_norms = np.where(candidate_norms == 0, 1.0, candidate_norms)
+
+    # Normalize all candidates at once (broadcasting)
+    candidates_normalized = candidates_matrix / safe_norms[:, np.newaxis]
+
+    # Compute all dot products at once using matrix-vector multiplication
+    similarities = np.dot(candidates_normalized, query_normalized)
+
+    # Zero out similarities for candidates that had zero norm
+    similarities = np.where(candidate_norms == 0, 0.0, similarities)
+
+    # Convert to Python list of floats
+    return [float(s) for s in similarities]
+
+
 class ReIdentificationService:
     """Service for entity re-identification across cameras.
 
@@ -197,6 +253,8 @@ class ReIdentificationService:
         self,
         clip_client: CLIPClient | None = None,
         max_concurrent_requests: int | None = None,
+        embedding_timeout: float | None = None,
+        max_retries: int | None = None,
     ) -> None:
         """Initialize the ReIdentificationService.
 
@@ -206,21 +264,44 @@ class ReIdentificationService:
             max_concurrent_requests: Maximum concurrent re-identification
                         operations. If not provided, uses the value from
                         settings (REID_MAX_CONCURRENT_REQUESTS, default: 10).
+            embedding_timeout: Timeout in seconds for embedding generation
+                        operations. If not provided, uses the value from
+                        settings (REID_EMBEDDING_TIMEOUT, default: 30.0).
+            max_retries: Maximum retry attempts for transient failures.
+                        If not provided, uses the value from settings
+                        (REID_MAX_RETRIES, default: 3).
         """
         self._clip_client = clip_client
+
+        # Get settings for defaults
+        settings = get_settings()
 
         # Set up rate limiting
         if max_concurrent_requests is not None:
             self._max_concurrent_requests = max_concurrent_requests
         else:
-            settings = get_settings()
             self._max_concurrent_requests = settings.reid_max_concurrent_requests
 
         self._rate_limit_semaphore = asyncio.Semaphore(self._max_concurrent_requests)
 
+        # Set up timeout (NEM-1085)
+        if embedding_timeout is not None:
+            self._embedding_timeout = embedding_timeout
+        else:
+            self._embedding_timeout = settings.reid_embedding_timeout
+
+        # Set up retry configuration (NEM-1085)
+        if max_retries is not None:
+            self._max_retries = max_retries
+        else:
+            self._max_retries = settings.reid_max_retries
+
         logger.info(
-            "ReIdentificationService initialized with max_concurrent_requests=%d",
+            "ReIdentificationService initialized with max_concurrent_requests=%d, "
+            "embedding_timeout=%.1fs, max_retries=%d",
             self._max_concurrent_requests,
+            self._embedding_timeout,
+            self._max_retries,
         )
 
     @property
@@ -243,7 +324,7 @@ class ReIdentificationService:
             return get_clip_client()
         return self._clip_client
 
-    async def generate_embedding(
+    async def generate_embedding(  # noqa: PLR0912
         self,
         image: Image.Image,
         bbox: tuple[int, int, int, int] | None = None,
@@ -255,6 +336,18 @@ class ReIdentificationService:
         CLIP model in a dedicated container for better VRAM management.
 
         This method is rate-limited to prevent resource exhaustion.
+        It also implements timeout and retry logic with exponential backoff (NEM-1085).
+
+        Bounding box validation (NEM-1073):
+        - Invalid bboxes (zero width/height, NaN, inverted) raise InvalidBoundingBoxError
+        - Bboxes exceeding image bounds are clamped automatically
+        - Bboxes completely outside the image raise InvalidBoundingBoxError
+
+        Timeout and Retry (NEM-1085):
+        - Operations timeout after `embedding_timeout` seconds (default: 30s)
+        - Transient failures (connection errors, timeouts) are retried up to `max_retries` times
+        - Uses exponential backoff: 2^attempt seconds between retries
+        - CLIPUnavailableError is NOT retried (permanent service unavailability)
 
         Args:
             image: PIL Image to generate embedding from
@@ -265,7 +358,8 @@ class ReIdentificationService:
             768-dimensional embedding vector
 
         Raises:
-            RuntimeError: If embedding generation fails
+            InvalidBoundingBoxError: If bbox has invalid dimensions or is outside image
+            RuntimeError: If embedding generation fails after all retries or times out
             CLIPUnavailableError: If the CLIP service is unavailable
         """
         if model is not None:
@@ -275,24 +369,101 @@ class ReIdentificationService:
             )
 
         async with self._rate_limit_semaphore:
-            try:
-                # Crop to bounding box if provided
-                if bbox is not None:
-                    x1, y1, x2, y2 = bbox
-                    image = image.crop((x1, y1, x2, y2))
+            # Validate and process bounding box if provided (NEM-1073)
+            processed_image = image
+            if bbox is not None:
+                # Convert to float for validation
+                bbox_float = (float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3]))
 
-                # Generate embedding via HTTP client
-                embedding = await self.clip_client.embed(image)
+                # Check for fundamentally invalid bbox (NaN, zero dimensions, inverted)
+                if not is_valid_bbox(bbox_float, allow_negative=True):
+                    raise InvalidBoundingBoxError(
+                        f"Invalid bounding box dimensions: {bbox}. "
+                        "Bounding box has zero width/height, NaN values, or inverted coordinates.",
+                        bbox=bbox_float,
+                    )
 
-                logger.debug(f"Generated embedding with dimension {len(embedding)}")
-                return embedding
+                # Clamp bbox to image boundaries
+                image_width, image_height = image.size
+                clamped_bbox = clamp_bbox_to_image(
+                    bbox,
+                    image_width,
+                    image_height,
+                    min_size=1,
+                    return_none_if_empty=True,
+                )
 
-            except CLIPUnavailableError:
-                # Re-raise CLIP unavailable errors as-is
-                raise
-            except Exception as e:
-                logger.error(f"Failed to generate embedding: {e}")
-                raise RuntimeError(f"Embedding generation failed: {e}") from e
+                if clamped_bbox is None:
+                    raise InvalidBoundingBoxError(
+                        f"Bounding box {bbox} is completely outside image boundaries "
+                        f"({image_width}x{image_height}) or became too small after clamping.",
+                        bbox=bbox_float,
+                    )
+
+                # Log if clamping occurred
+                if clamped_bbox != bbox:
+                    logger.debug(
+                        f"Bounding box clamped from {bbox} to {clamped_bbox} "
+                        f"for image size {image_width}x{image_height}"
+                    )
+
+                # Crop using the validated/clamped bbox
+                x1, y1, x2, y2 = clamped_bbox
+                processed_image = image.crop((x1, y1, x2, y2))
+
+            # Implement retry logic with exponential backoff (NEM-1085)
+            last_exception: Exception | None = None
+            for attempt in range(self._max_retries):
+                try:
+                    # Apply timeout to the embedding operation (NEM-1085)
+                    async with asyncio.timeout(self._embedding_timeout):
+                        embedding = await self.clip_client.embed(processed_image)
+
+                    logger.debug(f"Generated embedding with dimension {len(embedding)}")
+                    return embedding
+
+                except InvalidBoundingBoxError:
+                    # Re-raise bbox validation errors as-is (should not happen here)
+                    raise
+                except CLIPUnavailableError:
+                    # Re-raise CLIP unavailable errors as-is - do not retry
+                    raise
+                except TimeoutError:
+                    last_exception = TimeoutError(
+                        f"Embedding generation timed out after {self._embedding_timeout}s"
+                    )
+                    if attempt < self._max_retries - 1:
+                        delay = 2**attempt  # Exponential backoff: 1s, 2s, 4s, ...
+                        logger.warning(
+                            f"Embedding generation timed out (attempt {attempt + 1}/{self._max_retries}), "
+                            f"retrying in {delay}s..."
+                        )
+                        await asyncio.sleep(delay)
+                    else:
+                        logger.error(
+                            f"Embedding generation timed out after {self._max_retries} attempts"
+                        )
+                except Exception as e:
+                    last_exception = e
+                    if attempt < self._max_retries - 1:
+                        delay = 2**attempt  # Exponential backoff: 1s, 2s, 4s, ...
+                        logger.warning(
+                            f"Embedding generation failed (attempt {attempt + 1}/{self._max_retries}): {e}, "
+                            f"retrying in {delay}s..."
+                        )
+                        await asyncio.sleep(delay)
+                    else:
+                        logger.error(
+                            f"Embedding generation failed after {self._max_retries} attempts: {e}"
+                        )
+
+            # All retries exhausted
+            error_msg = f"Embedding generation failed after {self._max_retries} attempts"
+            if last_exception:
+                if isinstance(last_exception, TimeoutError):
+                    error_msg = f"Embedding generation timed out after {self._max_retries} attempts"
+                raise RuntimeError(error_msg) from last_exception
+            raise RuntimeError(error_msg)
 
     async def store_embedding(
         self,
@@ -349,6 +520,10 @@ class ReIdentificationService:
 
         This method is rate-limited to prevent resource exhaustion.
 
+        NEM-1071: Optimized with batch matrix operations for similarity computation.
+        Instead of computing similarities one-by-one, we collect all candidate
+        embeddings and compute similarities in a single vectorized operation.
+
         Args:
             redis_client: Redis client instance
             embedding: 768-dimensional embedding to match
@@ -371,6 +546,10 @@ class ReIdentificationService:
                 # Use a set to avoid duplicates if today and yesterday are the same key
                 dates_to_check = list({today, yesterday})
 
+                # Collect all candidate entities and their embeddings for batch processing
+                candidate_entities: list[EntityEmbedding] = []
+                candidate_embeddings: list[list[float]] = []
+
                 for date_str in dates_to_check:
                     key = f"entity_embeddings:{date_str}"
                     data_raw = await redis_client.get(key)
@@ -390,13 +569,20 @@ class ReIdentificationService:
                             continue
 
                         stored = EntityEmbedding.from_dict(stored_data)
-                        similarity = cosine_similarity(embedding, stored.embedding)
+                        candidate_entities.append(stored)
+                        candidate_embeddings.append(stored.embedding)
 
+                # Compute all similarities at once using batch operation (NEM-1071)
+                if candidate_embeddings:
+                    similarities = batch_cosine_similarity(embedding, candidate_embeddings)
+
+                    # Filter by threshold and create matches
+                    for entity, similarity in zip(candidate_entities, similarities, strict=True):
                         if similarity >= threshold:
-                            time_gap = (now - stored.timestamp).total_seconds()
+                            time_gap = (now - entity.timestamp).total_seconds()
                             matches.append(
                                 EntityMatch(
-                                    entity=stored,
+                                    entity=entity,
                                     similarity=similarity,
                                     time_gap_seconds=time_gap,
                                 )

@@ -28,6 +28,7 @@ from backend.services.reid_service import (
     EntityEmbedding,
     EntityMatch,
     ReIdentificationService,
+    batch_cosine_similarity,
     cosine_similarity,
     format_entity_match,
     format_full_reid_context,
@@ -255,6 +256,187 @@ class TestCosineSimilarity:
         # Both normalized, similarity = dot product
         expected = (3 / 5) * (4 / 5) + (4 / 5) * (3 / 5)
         assert abs(similarity - expected) < 0.0001
+
+
+# =============================================================================
+# Batch Cosine Similarity Tests (NEM-1071)
+# =============================================================================
+
+
+class TestBatchCosineSimilarity:
+    """Tests for batch_cosine_similarity function.
+
+    NEM-1071: Optimize ReIdentificationService with batch matrix operations.
+    This function computes cosine similarities between one query vector and
+    multiple candidate vectors in a single vectorized operation.
+    """
+
+    def test_batch_identical_vectors(self) -> None:
+        """Test batch similarity with identical vectors returns all 1.0."""
+
+        query = [1.0, 2.0, 3.0, 4.0, 5.0]
+        candidates = [[1.0, 2.0, 3.0, 4.0, 5.0]] * 5
+
+        similarities = batch_cosine_similarity(query, candidates)
+
+        assert len(similarities) == 5
+        for sim in similarities:
+            assert abs(sim - 1.0) < 0.0001
+
+    def test_batch_orthogonal_vectors(self) -> None:
+        """Test batch similarity with orthogonal vectors returns 0."""
+        query = [1.0, 0.0, 0.0]
+        candidates = [
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+        ]
+
+        similarities = batch_cosine_similarity(query, candidates)
+
+        assert len(similarities) == 2
+        for sim in similarities:
+            assert abs(sim) < 0.0001
+
+    def test_batch_opposite_vectors(self) -> None:
+        """Test batch similarity with opposite vectors returns -1."""
+        query = [1.0, 2.0, 3.0]
+        candidates = [
+            [-1.0, -2.0, -3.0],
+            [-2.0, -4.0, -6.0],  # Same direction as first candidate
+        ]
+
+        similarities = batch_cosine_similarity(query, candidates)
+
+        assert len(similarities) == 2
+        for sim in similarities:
+            assert abs(sim - (-1.0)) < 0.0001
+
+    def test_batch_mixed_similarities(self) -> None:
+        """Test batch with candidates of varying similarity."""
+        query = [1.0, 0.0, 0.0]
+        candidates = [
+            [1.0, 0.0, 0.0],  # Same direction -> 1.0
+            [0.0, 1.0, 0.0],  # Orthogonal -> 0.0
+            [-1.0, 0.0, 0.0],  # Opposite -> -1.0
+            [0.707, 0.707, 0.0],  # 45 degrees -> ~0.707
+        ]
+
+        similarities = batch_cosine_similarity(query, candidates)
+
+        assert len(similarities) == 4
+        assert abs(similarities[0] - 1.0) < 0.0001
+        assert abs(similarities[1] - 0.0) < 0.0001
+        assert abs(similarities[2] - (-1.0)) < 0.0001
+        assert abs(similarities[3] - 0.707) < 0.01
+
+    def test_batch_empty_candidates(self) -> None:
+        """Test batch with empty candidates list."""
+        query = [1.0, 2.0, 3.0]
+        candidates: list[list[float]] = []
+
+        similarities = batch_cosine_similarity(query, candidates)
+
+        assert len(similarities) == 0
+        assert isinstance(similarities, list)
+
+    def test_batch_single_candidate(self) -> None:
+        """Test batch with single candidate."""
+        query = [1.0, 2.0, 3.0]
+        candidates = [[1.0, 2.0, 3.0]]
+
+        similarities = batch_cosine_similarity(query, candidates)
+
+        assert len(similarities) == 1
+        assert abs(similarities[0] - 1.0) < 0.0001
+
+    def test_batch_large_vectors(self) -> None:
+        """Test batch works with large vectors (CLIP embedding size)."""
+
+        query = [float(i) for i in range(EMBEDDING_DIMENSION)]
+        # Create candidates with slight variations
+        candidates = [
+            [float(i + 0.1) for i in range(EMBEDDING_DIMENSION)],
+            [float(i + 0.5) for i in range(EMBEDDING_DIMENSION)],
+            [float(i - 0.1) for i in range(EMBEDDING_DIMENSION)],
+        ]
+
+        similarities = batch_cosine_similarity(query, candidates)
+
+        assert len(similarities) == 3
+        # All should be very similar to the query
+        for sim in similarities:
+            assert sim > 0.99
+
+    def test_batch_many_candidates(self) -> None:
+        """Test batch handles large number of candidates efficiently."""
+
+        query = [float(i % 10) for i in range(100)]
+        # 1000 candidates
+        candidates = [[float((i + j) % 10) for j in range(100)] for i in range(1000)]
+
+        similarities = batch_cosine_similarity(query, candidates)
+
+        assert len(similarities) == 1000
+        # All should be valid similarity values
+        for sim in similarities:
+            assert -1.0 <= sim <= 1.0
+
+    def test_batch_zero_query_vector(self) -> None:
+        """Test batch handles zero query vector."""
+        query = [0.0, 0.0, 0.0]
+        candidates = [
+            [1.0, 2.0, 3.0],
+            [4.0, 5.0, 6.0],
+        ]
+
+        similarities = batch_cosine_similarity(query, candidates)
+
+        assert len(similarities) == 2
+        # Zero vectors should return 0 similarity
+        for sim in similarities:
+            assert sim == 0.0
+
+    def test_batch_zero_candidate_vectors(self) -> None:
+        """Test batch handles zero candidate vectors."""
+        query = [1.0, 2.0, 3.0]
+        candidates = [
+            [0.0, 0.0, 0.0],
+            [1.0, 2.0, 3.0],
+        ]
+
+        similarities = batch_cosine_similarity(query, candidates)
+
+        assert len(similarities) == 2
+        assert similarities[0] == 0.0  # Zero candidate
+        assert abs(similarities[1] - 1.0) < 0.0001  # Same as query
+
+    def test_batch_matches_single_similarity(self) -> None:
+        """Test that batch results match individual cosine_similarity calls."""
+        query = [1.0, 2.0, 3.0, 4.0, 5.0]
+        candidates = [
+            [5.0, 4.0, 3.0, 2.0, 1.0],
+            [1.1, 2.1, 3.1, 4.1, 5.1],
+            [0.5, 1.0, 1.5, 2.0, 2.5],
+            [-1.0, -2.0, -3.0, -4.0, -5.0],
+        ]
+
+        batch_results = batch_cosine_similarity(query, candidates)
+        single_results = [cosine_similarity(query, c) for c in candidates]
+
+        assert len(batch_results) == len(single_results)
+        for batch_sim, single_sim in zip(batch_results, single_results, strict=True):
+            assert abs(batch_sim - single_sim) < 0.0001
+
+    def test_batch_returns_python_list(self) -> None:
+        """Test that batch returns a Python list, not numpy array."""
+        query = [1.0, 2.0, 3.0]
+        candidates = [[1.0, 2.0, 3.0], [3.0, 2.0, 1.0]]
+
+        similarities = batch_cosine_similarity(query, candidates)
+
+        assert isinstance(similarities, list)
+        for sim in similarities:
+            assert isinstance(sim, float)
 
 
 # =============================================================================
@@ -1583,3 +1765,247 @@ class TestRateLimitingEdgeCases:
         assert max_observed_concurrent <= 3, (
             f"Exceeded rate limit: max concurrent was {max_observed_concurrent}"
         )
+
+
+# =============================================================================
+# Async Timeout and Retry Tests (NEM-1085)
+# =============================================================================
+
+
+class TestReIDTimeoutConfiguration:
+    """Tests for ReID embedding timeout configuration."""
+
+    def test_service_has_timeout_attribute(self) -> None:
+        """Test that service has configurable embedding_timeout."""
+        service = ReIdentificationService()
+        assert hasattr(service, "_embedding_timeout")
+        # Default should be a reasonable value (30 seconds)
+        assert service._embedding_timeout > 0
+
+    def test_service_accepts_custom_timeout(self) -> None:
+        """Test service can be initialized with custom timeout."""
+        service = ReIdentificationService(embedding_timeout=60.0)
+        assert service._embedding_timeout == 60.0
+
+    @patch("backend.services.reid_service.get_settings")
+    def test_service_uses_settings_for_default_timeout(self, mock_get_settings: MagicMock) -> None:
+        """Test that service uses Settings for default timeout when not provided."""
+        mock_settings = MagicMock()
+        mock_settings.reid_embedding_timeout = 45.0
+        mock_settings.reid_max_concurrent_requests = 10
+        mock_settings.reid_max_retries = 3
+        mock_get_settings.return_value = mock_settings
+
+        service = ReIdentificationService()
+        assert service._embedding_timeout == 45.0
+
+
+class TestReIDRetryConfiguration:
+    """Tests for ReID embedding retry configuration."""
+
+    def test_service_has_max_retries_attribute(self) -> None:
+        """Test that service has configurable max_retries."""
+        service = ReIdentificationService()
+        assert hasattr(service, "_max_retries")
+        # Default should be 3 attempts
+        assert service._max_retries == 3
+
+    def test_service_accepts_custom_max_retries(self) -> None:
+        """Test service can be initialized with custom max_retries."""
+        service = ReIdentificationService(max_retries=5)
+        assert service._max_retries == 5
+
+    @patch("backend.services.reid_service.get_settings")
+    def test_service_uses_settings_for_default_max_retries(
+        self, mock_get_settings: MagicMock
+    ) -> None:
+        """Test that service uses Settings for default max_retries when not provided."""
+        mock_settings = MagicMock()
+        mock_settings.reid_max_retries = 4
+        mock_settings.reid_embedding_timeout = 30.0
+        mock_settings.reid_max_concurrent_requests = 10
+        mock_get_settings.return_value = mock_settings
+
+        service = ReIdentificationService()
+        assert service._max_retries == 4
+
+
+class TestReIDTimeoutBehavior:
+    """Tests for ReID embedding timeout behavior."""
+
+    @pytest.mark.asyncio
+    async def test_generate_embedding_times_out(self) -> None:
+        """Test that generate_embedding times out for slow operations."""
+        import asyncio
+
+        mock_client = AsyncMock()
+
+        async def slow_embed(image: Image.Image) -> list[float]:
+            await asyncio.sleep(10)  # Much longer than timeout
+            return [0.1] * EMBEDDING_DIMENSION
+
+        mock_client.embed.side_effect = slow_embed
+
+        # Use very short timeout
+        service = ReIdentificationService(
+            clip_client=mock_client,
+            embedding_timeout=0.1,
+            max_retries=1,  # Only 1 attempt to fail fast
+        )
+        image = Image.new("RGB", (100, 100), color="red")
+
+        with pytest.raises(RuntimeError) as exc_info:
+            await service.generate_embedding(image)
+
+        # Should mention timeout in the error
+        assert (
+            "timeout" in str(exc_info.value).lower() or "timed out" in str(exc_info.value).lower()
+        )
+
+    @pytest.mark.asyncio
+    async def test_generate_embedding_completes_before_timeout(self) -> None:
+        """Test that generate_embedding succeeds when operation is fast enough."""
+        mock_client = AsyncMock()
+        mock_client.embed.return_value = [0.1] * EMBEDDING_DIMENSION
+
+        # Use reasonable timeout
+        service = ReIdentificationService(clip_client=mock_client, embedding_timeout=30.0)
+        image = Image.new("RGB", (100, 100), color="green")
+
+        embedding = await service.generate_embedding(image)
+
+        assert len(embedding) == EMBEDDING_DIMENSION
+
+
+class TestReIDRetryBehavior:
+    """Tests for ReID embedding retry behavior with exponential backoff."""
+
+    @pytest.mark.asyncio
+    async def test_retry_on_transient_error(self) -> None:
+        """Test that transient errors trigger retry."""
+        mock_client = AsyncMock()
+        call_count = 0
+
+        async def failing_then_succeeding(image: Image.Image) -> list[float]:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                raise ConnectionError("Temporary connection failure")
+            return [0.1] * EMBEDDING_DIMENSION
+
+        mock_client.embed.side_effect = failing_then_succeeding
+
+        service = ReIdentificationService(
+            clip_client=mock_client, max_retries=3, embedding_timeout=30.0
+        )
+        image = Image.new("RGB", (100, 100), color="blue")
+
+        embedding = await service.generate_embedding(image)
+
+        assert len(embedding) == EMBEDDING_DIMENSION
+        assert call_count == 3  # 2 failures + 1 success
+
+    @pytest.mark.asyncio
+    async def test_retry_exhausted_raises_error(self) -> None:
+        """Test that error is raised when all retries are exhausted."""
+        mock_client = AsyncMock()
+        mock_client.embed.side_effect = ConnectionError("Persistent failure")
+
+        service = ReIdentificationService(
+            clip_client=mock_client, max_retries=3, embedding_timeout=30.0
+        )
+        image = Image.new("RGB", (100, 100), color="purple")
+
+        with pytest.raises(RuntimeError) as exc_info:
+            await service.generate_embedding(image)
+
+        assert "failed" in str(exc_info.value).lower()
+        # Should have tried 3 times
+        assert mock_client.embed.call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_no_retry_on_clip_unavailable_error(self) -> None:
+        """Test that CLIPUnavailableError is not retried."""
+        mock_client = AsyncMock()
+        mock_client.embed.side_effect = CLIPUnavailableError("CLIP service down")
+
+        service = ReIdentificationService(
+            clip_client=mock_client, max_retries=3, embedding_timeout=30.0
+        )
+        image = Image.new("RGB", (100, 100), color="orange")
+
+        with pytest.raises(CLIPUnavailableError):
+            await service.generate_embedding(image)
+
+        # Should not retry - only called once
+        assert mock_client.embed.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_exponential_backoff_timing(self) -> None:
+        """Test that retry uses exponential backoff (2^attempt seconds)."""
+        import time
+
+        mock_client = AsyncMock()
+        call_times: list[float] = []
+
+        async def tracking_failure(image: Image.Image) -> list[float]:
+            call_times.append(time.monotonic())
+            raise ConnectionError("Temporary failure")
+
+        mock_client.embed.side_effect = tracking_failure
+
+        service = ReIdentificationService(
+            clip_client=mock_client, max_retries=3, embedding_timeout=30.0
+        )
+        image = Image.new("RGB", (100, 100), color="cyan")
+
+        try:
+            await service.generate_embedding(image)
+        except RuntimeError:
+            pass
+
+        # Should have 3 calls with increasing delays
+        assert len(call_times) == 3
+
+        # Check delays (with some tolerance for execution time)
+        # Delay after 1st failure: ~1 second (2^0)
+        # Delay after 2nd failure: ~2 seconds (2^1)
+        if len(call_times) >= 2:
+            delay1 = call_times[1] - call_times[0]
+            assert delay1 >= 0.8, f"First delay too short: {delay1}s"
+        if len(call_times) >= 3:
+            delay2 = call_times[2] - call_times[1]
+            assert delay2 >= 1.5, f"Second delay too short: {delay2}s"
+
+
+class TestReIDRetryLogging:
+    """Tests for retry logging behavior."""
+
+    @pytest.mark.asyncio
+    async def test_retry_logs_warning(self) -> None:
+        """Test that retry attempts are logged at warning level."""
+        mock_client = AsyncMock()
+        call_count = 0
+
+        async def failing_then_succeeding(image: Image.Image) -> list[float]:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                raise ConnectionError("Temporary failure")
+            return [0.1] * EMBEDDING_DIMENSION
+
+        mock_client.embed.side_effect = failing_then_succeeding
+
+        service = ReIdentificationService(
+            clip_client=mock_client, max_retries=3, embedding_timeout=30.0
+        )
+        image = Image.new("RGB", (100, 100), color="magenta")
+
+        with patch("backend.services.reid_service.logger") as mock_logger:
+            await service.generate_embedding(image)
+
+            # Should have logged a warning for the retry
+            mock_logger.warning.assert_called()
+            # Check that the warning mentions retry
+            warning_calls = [str(call) for call in mock_logger.warning.call_args_list]
+            assert any("retry" in call.lower() for call in warning_calls)

@@ -1,7 +1,7 @@
 import { render, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import BoundingBoxOverlay, { BoundingBox } from './BoundingBoxOverlay';
+import BoundingBoxOverlay, { BoundingBox, arePropsEqual } from './BoundingBoxOverlay';
 
 describe('BoundingBoxOverlay', () => {
   const mockBoxes: BoundingBox[] = [
@@ -408,5 +408,171 @@ describe('BoundingBoxOverlay', () => {
     const svg = container.querySelector('svg');
     expect(svg?.classList.contains('absolute')).toBe(true);
     expect(svg?.classList.contains('inset-0')).toBe(true);
+  });
+});
+
+// =============================================================================
+// React.memo Optimization Tests (NEM-1120)
+// =============================================================================
+
+describe('arePropsEqual - React.memo custom comparator', () => {
+  const baseBox: BoundingBox = {
+    x: 100,
+    y: 100,
+    width: 200,
+    height: 300,
+    label: 'person',
+    confidence: 0.95,
+  };
+
+  const baseProps = {
+    boxes: [baseBox],
+    imageWidth: 800,
+    imageHeight: 600,
+    showLabels: true,
+    showConfidence: true,
+    minConfidence: 0,
+    onClick: undefined,
+  };
+
+  it('returns true when props are identical', () => {
+    expect(arePropsEqual(baseProps, baseProps)).toBe(true);
+  });
+
+  it('returns true when boxes array has same content', () => {
+    const prevProps = { ...baseProps, boxes: [{ ...baseBox }] };
+    const nextProps = { ...baseProps, boxes: [{ ...baseBox }] };
+    expect(arePropsEqual(prevProps, nextProps)).toBe(true);
+  });
+
+  it('returns false when boxes array length changes', () => {
+    const prevProps = { ...baseProps, boxes: [baseBox] };
+    const nextProps = { ...baseProps, boxes: [baseBox, baseBox] };
+    expect(arePropsEqual(prevProps, nextProps)).toBe(false);
+  });
+
+  it('returns false when box x coordinate changes', () => {
+    const prevProps = { ...baseProps, boxes: [{ ...baseBox }] };
+    const nextProps = { ...baseProps, boxes: [{ ...baseBox, x: 150 }] };
+    expect(arePropsEqual(prevProps, nextProps)).toBe(false);
+  });
+
+  it('returns false when box y coordinate changes', () => {
+    const prevProps = { ...baseProps, boxes: [{ ...baseBox }] };
+    const nextProps = { ...baseProps, boxes: [{ ...baseBox, y: 150 }] };
+    expect(arePropsEqual(prevProps, nextProps)).toBe(false);
+  });
+
+  it('returns false when box width changes', () => {
+    const prevProps = { ...baseProps, boxes: [{ ...baseBox }] };
+    const nextProps = { ...baseProps, boxes: [{ ...baseBox, width: 250 }] };
+    expect(arePropsEqual(prevProps, nextProps)).toBe(false);
+  });
+
+  it('returns false when box height changes', () => {
+    const prevProps = { ...baseProps, boxes: [{ ...baseBox }] };
+    const nextProps = { ...baseProps, boxes: [{ ...baseBox, height: 350 }] };
+    expect(arePropsEqual(prevProps, nextProps)).toBe(false);
+  });
+
+  it('returns false when box label changes', () => {
+    const prevProps = { ...baseProps, boxes: [{ ...baseBox }] };
+    const nextProps = { ...baseProps, boxes: [{ ...baseBox, label: 'car' }] };
+    expect(arePropsEqual(prevProps, nextProps)).toBe(false);
+  });
+
+  it('returns false when box confidence changes', () => {
+    const prevProps = { ...baseProps, boxes: [{ ...baseBox }] };
+    const nextProps = { ...baseProps, boxes: [{ ...baseBox, confidence: 0.8 }] };
+    expect(arePropsEqual(prevProps, nextProps)).toBe(false);
+  });
+
+  it('returns false when box color changes', () => {
+    const prevProps = { ...baseProps, boxes: [{ ...baseBox }] };
+    const nextProps = { ...baseProps, boxes: [{ ...baseBox, color: '#ff0000' }] };
+    expect(arePropsEqual(prevProps, nextProps)).toBe(false);
+  });
+
+  it('returns false when imageWidth changes', () => {
+    const prevProps = { ...baseProps };
+    const nextProps = { ...baseProps, imageWidth: 1024 };
+    expect(arePropsEqual(prevProps, nextProps)).toBe(false);
+  });
+
+  it('returns false when imageHeight changes', () => {
+    const prevProps = { ...baseProps };
+    const nextProps = { ...baseProps, imageHeight: 768 };
+    expect(arePropsEqual(prevProps, nextProps)).toBe(false);
+  });
+
+  it('returns false when showLabels changes', () => {
+    const prevProps = { ...baseProps };
+    const nextProps = { ...baseProps, showLabels: false };
+    expect(arePropsEqual(prevProps, nextProps)).toBe(false);
+  });
+
+  it('returns false when showConfidence changes', () => {
+    const prevProps = { ...baseProps };
+    const nextProps = { ...baseProps, showConfidence: false };
+    expect(arePropsEqual(prevProps, nextProps)).toBe(false);
+  });
+
+  it('returns false when minConfidence changes', () => {
+    const prevProps = { ...baseProps };
+    const nextProps = { ...baseProps, minConfidence: 0.5 };
+    expect(arePropsEqual(prevProps, nextProps)).toBe(false);
+  });
+
+  it('returns true when onClick is the same function reference', () => {
+    const handler = vi.fn();
+    const prevProps = { ...baseProps, onClick: handler };
+    const nextProps = { ...baseProps, onClick: handler };
+    expect(arePropsEqual(prevProps, nextProps)).toBe(true);
+  });
+
+  it('returns false when onClick function reference changes', () => {
+    const prevProps = { ...baseProps, onClick: vi.fn() };
+    const nextProps = { ...baseProps, onClick: vi.fn() };
+    expect(arePropsEqual(prevProps, nextProps)).toBe(false);
+  });
+
+  it('returns true when both onClick are undefined', () => {
+    const prevProps = { ...baseProps, onClick: undefined };
+    const nextProps = { ...baseProps, onClick: undefined };
+    expect(arePropsEqual(prevProps, nextProps)).toBe(true);
+  });
+
+  it('handles multiple boxes correctly', () => {
+    const box1: BoundingBox = { x: 10, y: 10, width: 50, height: 50, label: 'person', confidence: 0.9 };
+    const box2: BoundingBox = { x: 100, y: 100, width: 80, height: 80, label: 'car', confidence: 0.85 };
+
+    const prevProps = { ...baseProps, boxes: [box1, box2] };
+    const nextProps = { ...baseProps, boxes: [{ ...box1 }, { ...box2 }] };
+    expect(arePropsEqual(prevProps, nextProps)).toBe(true);
+  });
+
+  it('detects change in second box of multiple boxes', () => {
+    const box1: BoundingBox = { x: 10, y: 10, width: 50, height: 50, label: 'person', confidence: 0.9 };
+    const box2: BoundingBox = { x: 100, y: 100, width: 80, height: 80, label: 'car', confidence: 0.85 };
+
+    const prevProps = { ...baseProps, boxes: [box1, box2] };
+    const nextProps = { ...baseProps, boxes: [{ ...box1 }, { ...box2, x: 150 }] };
+    expect(arePropsEqual(prevProps, nextProps)).toBe(false);
+  });
+
+  it('handles empty boxes arrays', () => {
+    const prevProps = { ...baseProps, boxes: [] };
+    const nextProps = { ...baseProps, boxes: [] };
+    expect(arePropsEqual(prevProps, nextProps)).toBe(true);
+  });
+});
+
+describe('BoundingBoxOverlay memoization', () => {
+  it('is wrapped with React.memo', () => {
+    // React.memo components have a $$typeof of REACT_MEMO_TYPE
+    // We can verify by checking the component's type property
+    expect(BoundingBoxOverlay).toHaveProperty('$$typeof');
+    // Memo components also have a compare property if a custom comparator is provided
+    expect(BoundingBoxOverlay).toHaveProperty('compare', arePropsEqual);
   });
 });

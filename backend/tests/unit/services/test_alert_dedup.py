@@ -17,6 +17,7 @@ import pytest
 
 from backend.models import Alert, AlertRule, AlertSeverity, AlertStatus
 from backend.services.alert_dedup import (
+    AlertCreationError,
     AlertDeduplicationService,
     DedupResult,
     build_dedup_key,
@@ -1135,3 +1136,252 @@ class TestBuildDedupKeyEdgeCases:
         key1 = build_dedup_key("cam1", "person", "zone1")
         key2 = build_dedup_key("cam1", "person", "zone1")
         assert key1 == key2
+
+
+# =============================================================================
+# NEM-1105: Database Error Handling Tests
+# =============================================================================
+
+
+class TestDatabaseErrorHandling:
+    """Tests for database error handling in AlertDeduplicationService (NEM-1105)."""
+
+    @pytest.mark.asyncio
+    async def test_check_duplicate_handles_database_error(self, mock_session: AsyncMock) -> None:
+        """Test that check_duplicate handles database errors gracefully."""
+        mock_session.execute.side_effect = Exception("Database connection lost")
+
+        service = AlertDeduplicationService(mock_session)
+
+        with pytest.raises(Exception, match="Database connection lost"):
+            await service.check_duplicate("front_door:person", cooldown_seconds=300)
+
+    @pytest.mark.asyncio
+    async def test_get_cooldown_for_rule_handles_database_error(
+        self, mock_session: AsyncMock
+    ) -> None:
+        """Test that get_cooldown_for_rule handles database errors gracefully."""
+        mock_session.execute.side_effect = Exception("Database timeout")
+
+        service = AlertDeduplicationService(mock_session)
+
+        with pytest.raises(Exception, match="Database timeout"):
+            await service.get_cooldown_for_rule("some-rule-id")
+
+    @pytest.mark.asyncio
+    async def test_create_alert_handles_flush_error(self, mock_session: AsyncMock) -> None:
+        """Test that create_alert_if_not_duplicate handles flush errors."""
+        # First call (check_duplicate) succeeds with no duplicate
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+
+        # But flush fails
+        mock_session.flush.side_effect = Exception("Database write failed")
+
+        service = AlertDeduplicationService(mock_session)
+
+        with pytest.raises(AlertCreationError, match="Database operation failed"):
+            await service.create_alert_if_not_duplicate(
+                event_id=1,
+                dedup_key="front_door:person",
+                cooldown_seconds=300,
+            )
+
+    @pytest.mark.asyncio
+    async def test_get_recent_alerts_handles_database_error(self, mock_session: AsyncMock) -> None:
+        """Test that get_recent_alerts_for_key handles database errors gracefully."""
+        mock_session.execute.side_effect = Exception("Query execution failed")
+
+        service = AlertDeduplicationService(mock_session)
+
+        with pytest.raises(Exception, match="Query execution failed"):
+            await service.get_recent_alerts_for_key("front_door:person")
+
+    @pytest.mark.asyncio
+    async def test_get_duplicate_stats_handles_database_error(
+        self, mock_session: AsyncMock
+    ) -> None:
+        """Test that get_duplicate_stats handles database errors gracefully."""
+        mock_session.execute.side_effect = Exception("Database read error")
+
+        service = AlertDeduplicationService(mock_session)
+
+        with pytest.raises(Exception, match="Database read error"):
+            await service.get_duplicate_stats()
+
+
+# =============================================================================
+# AlertCreationError Tests (NEM-1105)
+# =============================================================================
+
+
+class TestAlertCreationError:
+    """Tests for AlertCreationError exception class (NEM-1105)."""
+
+    def test_exception_is_subclass_of_exception(self) -> None:
+        """Test that AlertCreationError is a proper Exception subclass."""
+        assert issubclass(AlertCreationError, Exception)
+
+    def test_exception_can_be_instantiated_with_message(self) -> None:
+        """Test that AlertCreationError can be created with a message."""
+        error = AlertCreationError("Test error message")
+        assert str(error) == "Test error message"
+
+    def test_exception_can_be_raised_and_caught(self) -> None:
+        """Test that AlertCreationError can be raised and caught."""
+        with pytest.raises(AlertCreationError, match="Test error"):
+            raise AlertCreationError("Test error")
+
+    def test_exception_preserves_cause(self) -> None:
+        """Test that AlertCreationError preserves the original exception cause."""
+        original_error = ValueError("Original error")
+        try:
+            try:
+                raise original_error
+            except ValueError as e:
+                raise AlertCreationError("Wrapped error") from e
+        except AlertCreationError as e:
+            assert e.__cause__ is original_error
+            assert isinstance(e.__cause__, ValueError)
+
+
+class TestAlertCreationErrorHandling:
+    """Tests for AlertCreationError handling in create_alert_if_not_duplicate (NEM-1105)."""
+
+    @pytest.mark.asyncio
+    async def test_flush_error_raises_alert_creation_error(self, mock_session: AsyncMock) -> None:
+        """Test that flush errors are wrapped in AlertCreationError."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+        mock_session.flush.side_effect = Exception("Constraint violation")
+
+        service = AlertDeduplicationService(mock_session)
+
+        with pytest.raises(AlertCreationError) as exc_info:
+            await service.create_alert_if_not_duplicate(
+                event_id=1,
+                dedup_key="front_door:person",
+                cooldown_seconds=300,
+            )
+
+        assert "Database operation failed" in str(exc_info.value)
+        assert exc_info.value.__cause__ is not None
+
+    @pytest.mark.asyncio
+    async def test_error_preserves_original_exception_type(self, mock_session: AsyncMock) -> None:
+        """Test that original exception is preserved as cause."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+
+        original_error = RuntimeError("Connection reset")
+        mock_session.flush.side_effect = original_error
+
+        service = AlertDeduplicationService(mock_session)
+
+        with pytest.raises(AlertCreationError) as exc_info:
+            await service.create_alert_if_not_duplicate(
+                event_id=1,
+                dedup_key="test_key",
+                cooldown_seconds=300,
+            )
+
+        assert exc_info.value.__cause__ is original_error
+        assert isinstance(exc_info.value.__cause__, RuntimeError)
+
+    @pytest.mark.asyncio
+    async def test_error_message_contains_original_error(self, mock_session: AsyncMock) -> None:
+        """Test that error message contains the original error message."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+        mock_session.flush.side_effect = Exception("Unique constraint violated")
+
+        service = AlertDeduplicationService(mock_session)
+
+        with pytest.raises(AlertCreationError) as exc_info:
+            await service.create_alert_if_not_duplicate(
+                event_id=1,
+                dedup_key="test_key",
+                cooldown_seconds=300,
+            )
+
+        assert "Unique constraint violated" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_error_logging_called_on_failure(self, mock_session: AsyncMock) -> None:
+        """Test that error is logged when alert creation fails."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+        mock_session.flush.side_effect = Exception("Database error")
+
+        service = AlertDeduplicationService(mock_session)
+
+        with patch("backend.services.alert_dedup.logger") as mock_logger:
+            with pytest.raises(AlertCreationError):
+                await service.create_alert_if_not_duplicate(
+                    event_id=42,
+                    dedup_key="camera1:person",
+                    cooldown_seconds=300,
+                )
+
+            mock_logger.error.assert_called_once()
+            call_args = mock_logger.error.call_args
+            assert call_args[0][0] == "Failed to create alert in database"
+            extra = call_args[1]["extra"]
+            assert extra["event_id"] == 42
+            assert extra["dedup_key"] == "camera1:person"
+            assert extra["error_type"] == "Exception"
+            assert "Database error" in extra["error"]
+
+    @pytest.mark.asyncio
+    async def test_session_add_not_reverted_on_error(self, mock_session: AsyncMock) -> None:
+        """Test that session.add is called even when flush fails."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+        mock_session.flush.side_effect = Exception("Flush failed")
+
+        service = AlertDeduplicationService(mock_session)
+
+        with pytest.raises(AlertCreationError):
+            await service.create_alert_if_not_duplicate(
+                event_id=1,
+                dedup_key="test_key",
+                cooldown_seconds=300,
+            )
+
+        # session.add should have been called before the error
+        mock_session.add.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_various_database_exceptions_wrapped(self, mock_session: AsyncMock) -> None:
+        """Test that various database exception types are wrapped in AlertCreationError."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_session.execute.return_value = mock_result
+
+        exception_types = [
+            ValueError("Invalid data"),
+            RuntimeError("Connection lost"),
+            TimeoutError("Query timeout"),
+            OSError("IO error"),
+        ]
+
+        service = AlertDeduplicationService(mock_session)
+
+        for exc in exception_types:
+            mock_session.flush.side_effect = exc
+            mock_session.add.reset_mock()
+
+            with pytest.raises(AlertCreationError) as exc_info:
+                await service.create_alert_if_not_duplicate(
+                    event_id=1,
+                    dedup_key="test_key",
+                    cooldown_seconds=300,
+                )
+
+            assert exc_info.value.__cause__ is exc

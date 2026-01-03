@@ -8,6 +8,7 @@ from typing import Any
 from pydantic import AnyHttpUrl, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from backend.core.sanitization import URLValidationError, validate_grafana_url
 from backend.core.url_validation import SSRFValidationError
 from backend.core.url_validation import validate_webhook_url as validate_webhook_url_ssrf
 
@@ -290,6 +291,35 @@ class Settings(BaseSettings):
         description="Grafana dashboard URL for frontend link",
     )
 
+    @field_validator("grafana_url", mode="before")
+    @classmethod
+    def validate_grafana_url_field(cls, v: Any) -> str:
+        """Validate Grafana URL with SSRF protection (NEM-1077).
+
+        This validates that the Grafana URL:
+        1. Is a valid HTTP/HTTPS URL
+        2. Does not point to cloud metadata endpoints
+        3. Allows internal IPs (since Grafana is typically local)
+
+        Args:
+            v: The URL value to validate
+
+        Returns:
+            The validated URL as a string
+
+        Raises:
+            ValueError: If the URL fails validation
+        """
+        if v is None or v == "":
+            return "http://localhost:3002"  # Default
+
+        url_str = str(v)
+
+        try:
+            return validate_grafana_url(url_str)
+        except URLValidationError as e:
+            raise ValueError(f"Invalid Grafana URL: {e}") from None
+
     # Frontend URL for health checks (internal Docker network URL)
     frontend_url: str = Field(
         default="http://frontend:80",
@@ -371,6 +401,20 @@ class Settings(BaseSettings):
         "storage, and matching). Prevents resource exhaustion from too many simultaneous "
         "CLIP/Redis operations. Recommended: 5-20 depending on hardware.",
     )
+    reid_embedding_timeout: float = Field(
+        default=30.0,
+        ge=5.0,
+        le=120.0,
+        description="Timeout (seconds) for ReID embedding generation operations. "
+        "Prevents hanging when CLIP service is slow or unresponsive. Default: 30.0 seconds.",
+    )
+    reid_max_retries: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Maximum retry attempts for ReID embedding generation on transient failures. "
+        "Uses exponential backoff (2^attempt seconds). Default: 3 attempts.",
+    )
     scene_change_threshold: float = Field(
         default=0.90,
         ge=0.5,
@@ -410,6 +454,13 @@ class Settings(BaseSettings):
         description="Number of minutes of GPU stats history to retain in memory",
         ge=1,
         le=1440,
+    )
+    gpu_http_timeout: float = Field(
+        default=5.0,
+        ge=1.0,
+        le=60.0,
+        description="HTTP timeout (seconds) for GPU stats collection from AI containers. "
+        "Prevents hanging when AI services are unresponsive. Default: 5.0 seconds.",
     )
 
     # Authentication settings
